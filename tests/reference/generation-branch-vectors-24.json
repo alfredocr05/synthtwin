@@ -409,9 +409,9 @@
         ],
         "ordinals": [
           0,
-          10368000,
-          12088800,
           11232000,
+          12088800,
+          10368000,
           12952800,
           17280000
         ]
@@ -485,7 +485,7 @@
         false,
         false
       ],
-      "why": "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside two +02:00 midnight stamps, under a gap whose top is a +02:00 midnight; the day pass handed the first bare date the top's day 150, a day past the top for a bare date: the days 120, 130, 140 and 150 go to the bare dates first and day 150 to a +02:00 stamp, each rank keeping its form and offset (mutants: the bare dates given back where they stood, or at the day handed)"
+      "why": "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside two +02:00 midnight stamps, under a gap whose top is a +02:00 midnight; the day pass handed the first bare date the top's day 150, a day past the top for a bare date: the days 120 and 130 go to the bare dates, by the days the pass left them, and 140 and 150 to the stamps, each rank keeping its form and offset (mutants: the bare dates given back where they stood, or at the day handed)"
     },
     "days_of_a_cet_column": {
       "answer": {

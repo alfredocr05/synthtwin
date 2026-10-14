@@ -7694,11 +7694,12 @@ can read a rank's clock only once its offset is known.
    In a frame of DAYS a bare date moves as a day and stands in its gap's
    run, and a run holding one keeps every rank's form and offset, as a
    bare date's form cannot pass to another rank (the landing's Codex
-   review, item 2): its ranks fall in KINDS, each offset's moments and the
-   bare dates, ordered by shift, a moment before a bare date of one shift;
-   its days ascending each go to the next rank, in rank order, of the
-   least kind left whose instant is not past the gap's top, else of the
-   largest kind left. A pass may hand a `+02:00` midnight's day at the
+   review, item 2): its days ascending each go to a rank of the least
+   shift left whose instant is not past the gap's top, else of the
+   largest shift left -- a bare date's shift nought -- and among one
+   shift's ranks to the next by the day the passes left it and then by
+   rank, so a rank whose day keeps it inside the gap keeps its day. A
+   pass may hand a `+02:00` midnight's day at the
    gap's top to a bare date, whose midnight that day is past the top: an
    export of bare dates beside `T00:00:00+02:00` stamps then wrote a bare
    date beyond its high boundary, and the twin's boundary came back two

@@ -29037,41 +29037,43 @@ def _own_clock_days(
     A pass sorts a run by the day it reads, so it may hand a moment's day
     to a bare date: a `+02:00` midnight's day at the gap's top is a day
     past the top for a bare date, whose midnight is two hours later on the
-    shared clock. The run's ranks fall in KINDS -- each offset's moments,
-    and the bare dates, ordered by their shift, a moment before a bare date
-    of the same shift -- and the days ascending each go to the next rank,
-    in rank order, of the least kind left whose instant is not past the
-    gap's top (the largest left where none is), as `_own_clock_run`
-    matches offsets. Every written day stands, so every census of the
-    calendar counts as the passes left it, and every rank keeps the form
-    and offset its row is written in; the run is not re-sorted, as a bare
-    date's form cannot move to another rank. Raises nothing. No I/O."""
+    shared clock. So the days ascending each go to a rank of the least
+    shift left whose instant is not past the gap's top (the largest left
+    where none is), as `_own_clock_run` matches offsets, and among one
+    shift's ranks -- its moments and, at nought, the bare dates -- to the
+    next in the order the passes left them, by day and then rank: where
+    every rank's day keeps it inside the gap, each keeps its own. Every
+    written day stands, so every census of the calendar counts as the
+    passes left it, and every rank keeps the form and offset its row is
+    written in; the run is not re-sorted by instant, as a bare date's form
+    cannot pass to another rank. `whole` is read for nothing but the
+    caller's choice of this run. Raises nothing. No I/O of any kind."""
     first, end = span
     places = sorted(framed[rank] for rank in range(first, end))
-    kinds: "dict[tuple[int, bool], list[int]]" = {}
+    members: "dict[int, list[tuple[int, int]]]" = {}
     for rank in range(first, end):
-        kind = (shifts[rank], whole[rank])
-        if kind in kinds:
-            kinds[kind] += [rank]
+        if shifts[rank] in members:
+            members[shifts[rank]] += [(framed[rank], rank)]
         else:
-            kinds[kind] = [rank]
-    order = sorted(kinds)
-    taken = {kind: 0 for kind in order}
+            members[shifts[rank]] = [(framed[rank], rank)]
+    order = sorted(members)
+    queues = {shift: sorted(members[shift]) for shift in order}
+    taken = {shift: 0 for shift in order}
     for place in places:
         chosen = None
-        for kind in order:
-            if taken[kind] < len(kinds[kind]) and place * scale - kind[0] <= high:
-                chosen = kind
+        for shift in order:
+            if taken[shift] < len(queues[shift]) and place * scale - shift <= high:
+                chosen = shift
                 break
         if chosen is None:
-            for kind in reversed(order):
-                if taken[kind] < len(kinds[kind]):
-                    chosen = kind
+            for shift in reversed(order):
+                if taken[shift] < len(queues[shift]):
+                    chosen = shift
                     break
         if chosen is None:
             return
-        rank = kinds[chosen][taken[chosen]]
-        moved[rank] = place * scale - chosen[0]
+        rank = queues[chosen][taken[chosen]][1]
+        moved[rank] = place * scale - chosen
         taken[chosen] = taken[chosen] + 1
 
 

@@ -46479,11 +46479,11 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
     the run written in the order of its instants with each place's offset.
     In a frame of days a bare date moves as a day and stands in its gap's
     run, and a run holding one keeps every rank's form and offset: its
-    days ascending each go to the next rank, in rank order, of the least
-    kind left -- the ranks of one shift and one form, by shift, a moment
-    before a bare date -- whose instant is not past the gap's top, else of
-    the largest kind left (Codex's item 2 of landing 3b.7). Every other
-    rank as it was before the passes."""
+    days ascending each go to a rank of the least shift left whose instant
+    is not past the gap's top, else of the largest shift left, and among
+    one shift's ranks to the next by the day the passes left it and then
+    by rank (Codex's item 2 of landing 3b.7). Every other rank as it was
+    before the passes."""
     moved = list(before)
     given = list(offsets)
     stays = [flag and scale == 1 for flag in whole]
@@ -46500,16 +46500,18 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
             end += 1
         members = range(rank, end)
         if any(whole[member] for member in members):
-            kinds = {}
+            queue = {}
             for member in members:
-                kinds.setdefault((shifts[member], whole[member]), []).append(member)
-            order = sorted(kinds)
-            used = {kind: 0 for kind in order}
+                queue.setdefault(shifts[member], []).append((framed[member], member))
+            order = sorted(queue)
+            for shift in order:
+                queue[shift].sort()
+            used = {shift: 0 for shift in order}
             for day in sorted(framed[member] for member in members):
-                left = [kind for kind in order if used[kind] < len(kinds[kind])]
-                kind = next((kind for kind in left if day * scale - kind[0] <= highs[rank]), left[-1])
-                moved[kinds[kind][used[kind]]] = day * scale - kind[0]
-                used[kind] += 1
+                left = [shift for shift in order if used[shift] < len(queue[shift])]
+                shift = next((shift for shift in left if day * scale - shift <= highs[rank]), left[-1])
+                moved[queue[shift][used[shift]][1]] = day * scale - shift
+                used[shift] += 1
             rank = end
             continue
         places = sorted(framed[member] * scale for member in members)
@@ -46936,9 +46938,10 @@ SHARED_CLOCK_FRAMES = {
         86400,
         "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside "
         "two +02:00 midnight stamps, under a gap whose top is a +02:00 midnight; the day pass handed "
-        "the first bare date the top's day 150, a day past the top for a bare date: the days 120, 130, "
-        "140 and 150 go to the bare dates first and day 150 to a +02:00 stamp, each rank keeping its "
-        "form and offset (mutants: the bare dates given back where they stood, or at the day handed)",
+        "the first bare date the top's day 150, a day past the top for a bare date: the days 120 and "
+        "130 go to the bare dates, by the days the pass left them, and 140 and 150 to the stamps, each "
+        "rank keeping its form and offset (mutants: the bare dates given back where they stood, or at "
+        "the day handed)",
     ),
 }
 
