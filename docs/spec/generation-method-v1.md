@@ -7956,14 +7956,18 @@ it could join walked every day between, and every search for payers the
 occupied days of the other standings between, once a run, the work four
 times over as the rows doubled): each search reads, outward from the
 unit's day in the order above, only days that can answer it -- the
-payers' walk the occupied days of the standing it asks, passing over
-each whose ranks are spent; PUT BACK PAID BACK the days whose parent at
+payers' walk the days of the standing it asks not yet read or holding a
+payer whose move keeps the count, each rank's place and status kept as
+ranks move, and the payers keeping nothing before it counted, not read
+(its verifier: a wall of pairs whose moves keep no count, between the
+runs and their payers, was read again for every payer, the work four
+times over as the rows doubled); PUT BACK PAID BACK the days whose parent at
 the run's place holds a unit of its group that some rank still holds;
 SPREAD's escapes, paid and not, the days whose parent has a free place
 of the rank's group -- each next such day found by halving, and each
 index kept as ranks move. The days asked, and their order, are those
 above; doubling the rows doubles the work, the unit to join, the place
-and the payers near or far. The tails making room at midnight are
+and the payers near or far, or behind such a wall. The tails making room at midnight are
 followed by SPREAD PAID BACK and SPREAD BY SUBSTITUTE too. Where no
 weekday census stands none of the three runs, and every twin is as
 before: the last resorts of steps 2 and 3 and G7.3g's free a run to a day
