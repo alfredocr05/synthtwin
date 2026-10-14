@@ -10396,7 +10396,7 @@
         0,
         0
       ],
-      "why": "The run's unit excluded before 1970 too (Codex's review of lane J2, item 1): field_paid_put_back_avoid moved back 28,000 days, every weekday, clock and gap kept, every written unit negative. Tuesday's 09:25 is still passed over and 10:40 still pays, four values. With -1 for no unit, a negative unit read as none, 09:25 paid, vacating the unit the run joined, and five values stayed.",
+      "why": "The run's unit excluded before 1970 too (Codex's review of lane J2, item 1): field_paid_put_back_avoid moved back 28,000 days, every weekday, clock and gap kept, every written unit negative. Tuesday's 09:25 is still passed over and 10:40 is still the payer, four values. With -1 for no unit, a negative unit read as none, 09:25 paid, vacating the unit the run joined, and five values stayed.",
       "written_unit": 60
     },
     "field_paid_put_back_leaving": {

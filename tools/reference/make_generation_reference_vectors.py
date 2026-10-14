@@ -19224,7 +19224,7 @@ def field_paid_put_back_avoid_1947_case():
         "The run's unit excluded before 1970 too (Codex's review of lane J2, item 1): "
         "field_paid_put_back_avoid moved back 28,000 days, every weekday, clock and gap "
         "kept, every written unit negative. Tuesday's 09:25 is still passed over and 10:40 "
-        "still pays, four values. With -1 for no unit, a negative unit read as none, 09:25 "
+        "is still the payer, four values. With -1 for no unit, a negative unit read as none, 09:25 "
         "paid, vacating the unit the run joined, and five values stayed.",
     )
 
