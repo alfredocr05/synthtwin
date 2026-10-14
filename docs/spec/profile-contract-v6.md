@@ -11996,6 +11996,17 @@ goes, and the twin's own report names the rest; no producer writes such
 a description, because a source that spelled those groups had the
 spellings to do it.
 
+**A FORM OF ONE LETTER AMONG FIGURES IS WORN BY EVERY CLASS ITS CELLS
+READ AS** (lane L1, plan P4-D390, `K-S3-61`; generation method G8.3a).
+`%%@%%%` holds a number (`12E005`), a number too large to hold
+(`52E638`) and a word (`123D45`) alike, so its count is paid by the
+held-back groups of all three: the out-of-range groups and the words are
+kept the cells they need of it first, and the numbers take the rest. A
+made-up code of figures alone is written at the width every published
+one shares where one opens with a nought; such a spelling wears no
+form, so no count of this section moves. No field of the description
+is added or read differently.
+
 ---
 
 <!-- a7h: the layout of a record number -->

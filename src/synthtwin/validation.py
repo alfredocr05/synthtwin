@@ -15062,7 +15062,8 @@ def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
     spelling of a value that does not.
 
     The run of zeros stops at a point, because the `0` of `0.5` is a
-    figure of the number and not an invented one.
+    figure of the number and not an invented one, and at an exponent
+    mark, because the `0` of `0E5` is the whole mantissa.
     """
     body = text
     if sign == "-":
@@ -15073,7 +15074,17 @@ def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
         body = body[1:]
     elif body[:1] == "-":
         return None
-    while body[:1] == "0" and len(body) > 1 and body[1:2] != ".":
+    # NOR AT AN EXPONENT (lane L1, plan P4-D390): the `0` of `0E15588`
+    # is the mantissa of a nought written with an exponent, and taking it
+    # off left `E15588`, no spelling at all, so a register of codes beside
+    # numbers failed `styles.spelled` on its own description.
+    while (
+        body[:1] == "0"
+        and len(body) > 1
+        and body[1:2] != "."
+        and body[1:2] != "e"
+        and body[1:2] != "E"
+    ):
         body = body[1:]
     if not body:
         return None
@@ -15233,6 +15244,58 @@ def _wears_a_whole_number_text(body: str, value: float) -> bool:
     if value > -9007199254740992.0 and value < 9007199254740992.0:
         return False
     return float(body) == value
+
+
+# THE MOST SIGNIFICANT FIGURES A BINARY64 VALUE NEEDS TO BE READ BACK AS
+# ITSELF: seventeen, so a spelling of more says figures the value lost.
+_BINARY64_FIGURES = 17
+
+
+def _wears_figures_past_binary64(
+    text: str, value: float, widths: "tuple[int, ...]"
+) -> bool:
+    """Whether one cell is a fraction written past what binary64 keeps.
+
+    A FOURTH SHAPE A REAL EXPORTER WRITES (lane L1, plan P4-D384). A
+    count of days written to fifty places past the point -- `45000.`
+    and fifty figures -- reads back as the binary64 value nearest it, and
+    no spelling the family offers at fifty places writes those figures:
+    the family writes the value's own shortest figures and pads the rest
+    with zeros. So a column of Excel serials written to 50 places failed
+    its own description on `styles.spelled`, exit 3, every cell outside.
+
+    THE RULE ANSWERS ONLY PAST SEVENTEEN SIGNIFICANT FIGURES and only at a
+    width the description publishes, which is what keeps it from being an
+    identity over every decimal ever written: at seventeen figures or
+    fewer one spelling at a width is the value's own and the family
+    offers it, and a cell at a width the census does not name is the
+    width census's to count. Asked of the text and answered by the
+    number, as `_wears_a_whole_number_text` is: the cell reads back as
+    the value it was read as, or it is not admitted.
+
+    Guarantees: accepts one cell's text with its negative written as a
+    leading minus, the value it read back as and the published widths;
+    returns whether it is that shape. Determinism: a fixed function of
+    the three. Raises nothing. No I/O of any kind.
+    """
+    body = text
+    if body[:1] == "-":
+        body = body[1:]
+    whole, point, fraction = body.partition(".")
+    if not point or not whole or not fraction:
+        return False
+    if len(fraction) not in widths:
+        return False
+    for character in whole + fraction:
+        if character < "0" or character > "9":
+            return False
+    figures = (whole + fraction).lstrip("0").rstrip("0")
+    if len(figures) <= _BINARY64_FIGURES:
+        return False
+    try:
+        return float(text) == value
+    except ValueError:
+        return False
 
 
 def _wears_a_source_spelling(text: str, value: float, mark: str) -> bool:
@@ -15395,6 +15458,8 @@ def _cells_outside_the_styles(
         # admitted here too, measured over 264,387 such texts with no
         # exception, so one rule answers and the duplicate was removed.
         if not worn and _wears_a_source_spelling(signed, value, offered):
+            worn = True
+        if not worn and _wears_figures_past_binary64(signed, value, widths):
             worn = True
         if not worn and spent < pooled_widths:
             unnamed = parsing.fraction_width(body)

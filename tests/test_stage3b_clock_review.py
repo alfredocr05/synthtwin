@@ -971,8 +971,22 @@ def test_time7_a_column_past_the_walks_bound_is_a_time_in_every_cell(tmp_path: p
 def test_time7_red_when_the_walk_stops_at_its_bound(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: the fraction clock's walk bounded like every other form's."""
+    """MUTATION: the fraction clock's walk bounded like every other form's
+    was before lane L1 -- its room, and never more than `_STAND_IN_STEPS`
+    in all. Since lane L1 every free-text form's walk goes on while
+    `_walk_goes_on` says, so the fraction clock's own supply alone no
+    longer stops it; the old bound is put back here beside that supply's
+    removal (plan P4-D390)."""
     monkeypatch.setattr(generation, "_fraction_clock_supply", lambda _form: 0)
+    monkeypatch.setattr(
+        generation,
+        "_form_walk_bounds",
+        lambda form, figured=False: (
+            min(generation._form_room(form), generation._STAND_IN_STEPS),
+            min(generation._form_room(form), generation._STAND_IN_STEPS),
+        ),
+    )
+    monkeypatch.setattr(generation, "_walk_goes_on", lambda steps, taken, room: steps < room)
     _role, twins, missed = _time7_twins(tmp_path / "t7", _time7(4200, 1), (0,))
     assert len(_off_its_spelling(twins[0])) == 4200 - generation._STAND_IN_STEPS
     assert "t:forms.published.%%:%%:%%.%%%%%%%" in missed[0]

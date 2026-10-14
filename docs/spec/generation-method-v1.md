@@ -10539,6 +10539,61 @@ places the numbers, the report says so, and the location is invented:
 at a floor of fifty a column of readings near seven came back with a
 mean near 3.4 and whole numbers up to seventy-eight.
 
+**Written as the source wrote its codes (lane L1, plan P4-D390,
+2026-10-13; the owner's ruling of 2026-09-15).** Four rules, each the
+oracle's too:
+
+- **A MADE-UP FIGURE CODE KEEPS THE PUBLISHED WIDTH.** Where every
+  published number of figures alone has one width and one of them opens
+  with a nought (`0468` beside `0830`), a made-up whole number narrower
+  than that width is written with noughts in front up to it (`414` is
+  written `0414`), in step 3's walk and G8.3c's placement alike. Such a
+  spelling wears no form and reads back as the same value, so no count
+  moves. Codes `0100` to `0999` declared a code at 5,000 rows came back
+  with 1,448 cells one to three figures wide; now none.
+- **A NUMBER WEARING NO NAMED FORM STEPS FROM THE PUBLISHED NUMBERS
+  WRITTEN WITHOUT AN EXPONENT.** Step 3's outward walk took its ends from
+  every published number, so a code `5E77` beside two-figure readings
+  made the largest end five followed by seventy-seven noughts and the
+  walk wrote integers of 78 figures, and on a register of seven-character
+  codes of 232 to 237. Where some published number is written plainly,
+  that walk's ends, and the widest number the narrow walk may write, are
+  those numbers'; every published number still marks its value taken,
+  and a form's own walk keeps every published number's ends. Where every
+  published number wears an exponent, no plain number is written with
+  more figures than the longest published label has characters, and
+  where the published number nearest nought is already wider, the walk
+  steps up from nought, as where none was published. The pooled mean of
+  such numbers, an exponent's own magnitude, is then no longer met by
+  integers of that size: on the battery's table of readings beside
+  `%E%%%%%` codes it was missed before and after.
+- **A FORM OF ONE LETTER AMONG FIGURES IS SHARED** (`K-S3-61`). Step 2
+  answered one class per form, so `%%@%%%` -- `12E005` a number,
+  `52E638` a number too large to hold, `123D45` a word -- was the number
+  class's alone, the held-back words and out-of-range codes wore no form,
+  and the latter were written `1e999`. Such a form is now also offered
+  to the out-of-range class where its OVERFLOW filling (`1`, noughts,
+  `E`, nines) is out of range, and to the words where its first filling
+  is text. Before any class is walked, each such form keeps for the
+  out-of-range class up to that class's held-back cells, then for the
+  words up to what the forms only words wear leave of the words' cells --
+  but for the words only where a published label of the form is a word
+  or none is published, so `%.%@%` beside `1.1e6` and `1.2e6` is the
+  numbers' first as it was. The number class is offered the rest; each
+  class is offered what the classes before it left; the words take what
+  the classes left. The out-of-range class writes such a form's spellings
+  outright on a cursor of its own: `E` in the letter place, a nought-padded
+  mantissa from one up before it and an exponent from 309 up after it --
+  one more for each mantissa figure after its mark -- stepped round the
+  room (`_overflow_spelling`), each a number too large to hold.
+- **What stays.** A form whose letter places would have to differ is
+  answered as before (step 2's stated limit), and a column read as
+  numbers beside labels writes its NUMBER half by G6, untouched here: on
+  a register of seven-character codes beside numbers that half still
+  writes values of exponent codes such as `7E279` as integers of 280
+  figures, and exponent cells in G6.3's own spelling padded with noughts
+  (`00009.700353E+06`), its description met (lane L1's measurement).
+
 ### G8.3c The pool's own scale
 
 **WHERE THE COLUMN PUBLISHES A MEAN FOR ITS HELD-BACK NUMBERS, the
@@ -12015,6 +12070,28 @@ for.
    The debt is over cells and a
    group covers its own number of them, so the walk settles the form
    owing the most cells, ties broken by the form's own spelling.
+
+   **A GROUP LARGER THAN WHAT ITS FORM STILL OWES IS NOT ASKED FOR IT
+   while the groups after it cover what the form still owes, where the
+   census pools no cell** (lane L1, 2026-10-13). The groups are asked
+   largest first, so those after a group are no larger. A free-text face
+   column of 887 `HH:MM` times beside 113 spaced `9:15 AM` at 1,000 rows
+   and a floor of 36 asked its form's last cell of a group of two with 98
+   groups of one still to come, wrote 888 times and missed the form's
+   count; it now writes 887. Where the census pools cells the count is a
+   window, and the ask is as before.
+
+   **A FORM'S WALK GOES ON WHILE WHAT IT REFUSES STAYS BOUNDED BY WHAT IT
+   WRITES** (lane L1): G8.3's rule (`_walk_goes_on`, plan P4-D390), the
+   walk trying one spelling more while it has refused fewer than it has
+   written plus 4,096, never past the form's room. It stopped at 4,096
+   spellings in all, so 10,000 durations `HH:MM:SS` each written once, a
+   free-text column, wrote 4,096 in their form and 5,904 such as
+   `!!!!!!"N`, missing the form's count, and code splitting every cell on
+   its colons stopped on the twin; now all 10,000 wear the form. A form
+   whose every spelling is refused still costs 4,096 steps, and a walk
+   whose first 4,096 steps wrote what it needed writes what it wrote
+   before.
 
    **THE FORM IS AN ASK AND NOT A PROMISE**, exactly as the fold
    collision of G9.3 is. The candidate is still checked against the
