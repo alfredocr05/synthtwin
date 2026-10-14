@@ -92,6 +92,14 @@ ENDING_WORDS = {
     "crcrlf": "two carriage returns and a line feed",
 }
 
+# HOW A TRAILING DELIMITER IS CLOSED (plan P4-D387, lane R6). A line
+# that ends in its delimiter ends in an empty field, and the source wrote
+# that field either with nothing in it (`1;2;`) or as two quotation marks
+# (`1;2;""`); the twin writes each line's closing the way the source did.
+CLOSING_BARE = "bare"
+CLOSING_QUOTED = "quoted"
+CLOSINGS = (CLOSING_BARE, CLOSING_QUOTED)
+
 # How a quote character is written inside a quoted field.
 ESCAPE_DOUBLED = "doubled"
 ESCAPE_BACKSLASH = "backslash"
@@ -2803,6 +2811,16 @@ class Dialect:
     # and the blank lines counted.
     line_endings_spread: "tuple[EndingRun, ...]" = ()
     blank_lines_spread: "BlankSpread | None" = None
+    # HOW THE TRAILING DELIMITERS ARE CLOSED (plan P4-D387, lane R6;
+    # `CLOSINGS`). The header's closing field written `""`; every
+    # record's closing field written `""`; or, where both spellings
+    # stand, the records' closings as runs in file order, each `ending`
+    # one of `CLOSINGS` (and `rows_closing_quoted` False). The defaults
+    # are a closing with nothing in it, which is all a description
+    # written before lane R6 publishes.
+    header_closing_quoted: bool = False
+    rows_closing_quoted: bool = False
+    rows_closing_runs: "tuple[EndingRun, ...]" = ()
 
 
 NO_ORDER = RowOrder(column=0, direction=ASCENDING, collation=COLLATION_TEXT)
@@ -2959,12 +2977,97 @@ def document_of(form: Dialect) -> "dict[str, object]":
         "row_order": order,
         "separator_line": form.separator_line,
         "short_rows": form.short_rows,
-        "trailing_delimiter": {
-            "header": form.header_trailing_delimiter,
-            "rows": form.rows_trailing_delimiter,
-        },
+        "trailing_delimiter": trailing_published(form),
         "written_names": names,
     }
+
+
+def trailing_published(form: Dialect) -> "dict[str, object]":
+    """The `trailing_delimiter` block: whether, and how, each side closes.
+
+    A side that ends in no delimiter is `false`, and one whose closing
+    field holds nothing is `true`, which is all a description written
+    before lane R6 publishes, so such a table's description is unchanged
+    (plan P4-D387). A closing written `""` on the header, or on every
+    record, is `"quoted"`; records closed both ways are their runs in
+    file order, `{"ending": "bare" | "quoted", "lines": n}`, published
+    only where every run and every spelling's total reach the census
+    line (`closing_runs_disclosed`).
+    """
+    header: object = form.header_trailing_delimiter
+    if form.header_trailing_delimiter and form.header_closing_quoted:
+        header = CLOSING_QUOTED
+    rows: object = form.rows_trailing_delimiter
+    if form.rows_trailing_delimiter and form.rows_closing_runs:
+        rows = [
+            {"ending": run.ending, "lines": run.lines}
+            for run in form.rows_closing_runs
+        ]
+    elif form.rows_trailing_delimiter and form.rows_closing_quoted:
+        rows = CLOSING_QUOTED
+    return {"header": header, "rows": rows}
+
+
+def closing_runs_disclosed(
+    runs: "list[EndingRun]", floor: int
+) -> "tuple[bool, tuple[EndingRun, ...]]":
+    """How the records' closings are published: all quoted, or as runs.
+
+    THE TWIN CLOSES EACH RECORD AS THE SOURCE DID (the owner's ruling of
+    2026-09-15; plan P4-D387, lane R6), and a run is a count of lines
+    in file order, so the one disclosure rule that holds the line
+    endings holds the closings too (`endings_disclosed`, plan P4-D290):
+    where every run and every spelling's total reach the census line
+    the runs are published, and otherwise the file is published closed
+    the commonest way throughout -- a lone `""` among 119 bare closings
+    is not a count of one standing alone, and the twin closes all 120
+    bare. Past `MAXIMUM_ENDING_RUNS` runs the commonest way stands as
+    well. Ties go to the bare closing.
+
+    Returns whether every record is published closed `""`, and the runs
+    where both spellings are published (empty otherwise).
+
+    Guarantees: accepts the closing runs in file order and the settings
+    floor. Determinism: a fixed function of the two. Raises nothing. No
+    I/O of any kind.
+    """
+    told = endings_disclosed(list(runs), floor)
+    totals = [0, 0]
+    for run in runs:
+        place = 1 if run.ending == CLOSING_QUOTED else 0
+        totals[place] = totals[place] + run.lines
+    if len(told) > MAXIMUM_ENDING_RUNS:
+        told = [EndingRun(ending=CLOSING_QUOTED if totals[1] > totals[0] else CLOSING_BARE, lines=1)]
+    quoted = False
+    bare = False
+    for run in told:
+        quoted = quoted or run.ending == CLOSING_QUOTED
+        bare = bare or run.ending != CLOSING_QUOTED
+    if not quoted:
+        return (False, ())
+    if not bare:
+        return (True, ())
+    return (False, tuple(told))
+
+
+def closings_in_turn(form: Dialect, n_rows: int) -> "list[bool]":
+    """Whether the twin closes each of its ``n_rows`` records with `""`.
+
+    The run holding a record says; a record past the published runs
+    takes the last run's closing (plan P4-D387, lane R6). One walk over
+    the runs, so the work is the rows plus the runs.
+    """
+    if not form.rows_trailing_delimiter:
+        return [False for _row in range(n_rows)]
+    if not form.rows_closing_runs:
+        return [form.rows_closing_quoted for _row in range(n_rows)]
+    found: "list[bool]" = []
+    last = False
+    for run in form.rows_closing_runs:
+        last = run.ending == CLOSING_QUOTED
+        found += [last for _line in range(min(run.lines, n_rows - len(found)))]
+    found += [last for _row in range(n_rows - len(found))]
+    return found
 
 
 DOCUMENT_KEYS = (
@@ -4000,13 +4103,18 @@ def opening_lines_up(sample: "list[Record]", opening: int, width: int) -> bool:
     A one-field first record never lines up this way, so a one-column
     table whose cells end in a delimiter stays one column as before.
 
-    THE EMPTY FIELD IS UNQUOTED (Codex's review of landing R5, item 2).
-    A delimiter with nothing after it reads as an empty last field, and
-    so does `""`, a value the line wrote empty: `1;2;""` under a header
-    `a;b` holds three values, not two and a closing delimiter, and taken
-    off as one it was written back `1;2;`. So a last field lines a
-    record up only where it is empty AND unquoted (`_closes`), the test
-    `survey` asks of the same field.
+    THE EMPTY FIELD MAY BE QUOTED (lane R6, on Codex's review of
+    integration part 2c). A delimiter with nothing after it reads as an
+    empty last field, and so does `""`. Landing R5 lined a record up
+    only by an UNQUOTED empty field, because a twin closing every line
+    bare wrote `1;2;""` back as `1;2;` (its review, item 2); so a header
+    `site;dx` over a first record `0100;1E22;""` and 119 records
+    `0100;1E22;` lined nothing up, no candidate read two fields, and the
+    table was described as ONE comma-delimited column. The twin now
+    closes each line the way the source closed it (`trailing_published`),
+    so an empty last field lines a record up whether or not it was
+    quoted (`_ends_empty`), and `survey` reads the quoted closing where
+    its first walk could not (`quoted_closing`).
 
     ONE KIND OF FILE GOES FROM DESCRIBED TO REFUSED, and says why (lane
     R5's repair). Where the rows mostly end in the delimiter and some
@@ -4020,13 +4128,24 @@ def opening_lines_up(sample: "list[Record]", opening: int, width: int) -> bool:
         return False
     first = sample[opening]
     if len(first.fields) == width + 1:
-        return _closes(first)
+        return _ends_empty(first)
     if len(first.fields) != width - 1 or width - 1 < 2:
         return False
     for record in sample:
-        if len(record.fields) == width and not _closes(record):
+        if len(record.fields) == width and not _ends_empty(record):
             return False
     return True
+
+
+def _ends_empty(record: Record) -> bool:
+    """Whether a record's last field is empty, written bare or as `""`.
+
+    Either is a delimiter closing the line where the other side of the
+    table does not carry it (plan P4-D387, lane R6); `_closes` asks the
+    narrower question of a field written bare.
+    """
+    count = len(record.fields)
+    return bool(count) and record.fields[count - 1] == ""
 
 
 def _closes(record: Record) -> bool:
@@ -5036,6 +5155,7 @@ def survey(
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
     small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    quoted_closing: "bool | None" = None,
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -5053,7 +5173,39 @@ def survey(
       inside a one-column table, and a form past one of this module's
       caps.
     - Boundary: nothing is opened.
+
+    A CLOSING WRITTEN `""` IS READ WHERE NOTHING ELSE READS THE FILE
+    (plan P4-D387, lane R6). ``quoted_closing`` True takes an empty last
+    field written `""` for the delimiter closing a line, as a bare one
+    is, wherever the header and the records differ by it; False reads
+    it as a value, which is all landing R5 read. Left None, the file is
+    walked as False first, so every file that walk reads is read as
+    before, and only a file it refuses that holds `""` somewhere is
+    walked again as True: the codex table `site;dx` over `0100;1E22;""`
+    and 119 records `0100;1E22;` is read as its two columns closed by
+    the semicolon, and a file the second walk cannot read either is
+    refused in the first walk's words.
     """
+    if quoted_closing is None:
+        try:
+            return survey(
+                text, encoding, byte_order_mark, first_row_is_data, shown,
+                initial_space, escape, trailing_guess, metadata_rows,
+                decimal_comma_columns, metadata_rows_confirmed,
+                declared_delimiter, small_cell_floor, False,
+            )
+        except errors.ProfileError as refusal:
+            if not _holds(_text(text), _QUOTE + _QUOTE):
+                raise
+            try:
+                return survey(
+                    text, encoding, byte_order_mark, first_row_is_data, shown,
+                    initial_space, escape, trailing_guess, metadata_rows,
+                    decimal_comma_columns, metadata_rows_confirmed,
+                    declared_delimiter, small_cell_floor, True,
+                )
+            except errors.ProfileError:
+                raise refusal from None
     body = _text(text)
     end_mark = _ends(body, _END_OF_FILE)
     if end_mark:
@@ -5195,7 +5347,14 @@ def survey(
             taken = taken + 1
 
     header_trailing = False
+    header_closed_quoted = False
     rows_trailing = False
+    # The records' closings as runs in file order (lane R6), kept to one
+    # run past the cap and counted, so a long file holds no list per row.
+    closing_runs: "list[EndingRun]" = []
+    closing_spelled = ""
+    closing_count = 0
+    closing_totals = [0, 0]
     trailing_broken = False
     decided = False
     width = len(header)
@@ -5266,11 +5425,13 @@ def survey(
                 # it, written `a,b,`. The first is now refused as ragged
                 # (two names, three values); the second by the check
                 # below on a quoted empty name over nothing.
-                last_empty = _closes(found)
+                last_empty = _closes(found) or (
+                    bool(quoted_closing) and _ends_empty(found)
+                )
                 header_last_empty = (
                     named >= 2
                     and header[named - 1] == ""
-                    and not header_flags[named - 1]
+                    and (not header_flags[named - 1] or bool(quoted_closing))
                 )
                 if (
                     trailing_guess
@@ -5290,6 +5451,7 @@ def survey(
                 else:
                     width = named
                 if header_trailing:
+                    header_closed_quoted = bool(header_flags[named - 1])
                     header = header[: named - 1]
                     header_flags = header_flags[: named - 1]
             if header_record is not None:
@@ -5298,7 +5460,20 @@ def survey(
                 )
             columns = [[] for _place in range(width)]
             flags = [bytearray() for _place in range(width)]
-        closing = rows_trailing and len(fields) == width + 1 and _closes(found)
+        closing = (
+            rows_trailing
+            and len(fields) == width + 1
+            and (_closes(found) or (bool(quoted_closing) and _ends_empty(found)))
+        )
+        if closing:
+            spelled = CLOSING_QUOTED if found.quoted[width] else CLOSING_BARE
+            closing_totals[1 if found.quoted[width] else 0] += 1
+            if spelled != closing_spelled and closing_count:
+                if len(closing_runs) <= MAXIMUM_ENDING_RUNS:
+                    closing_runs += [EndingRun(ending=closing_spelled, lines=closing_count)]
+                closing_count = 0
+            closing_spelled = spelled
+            closing_count = closing_count + 1
         spaces_broken = spaces_broken or _spaces_broken(found, spaced, closing)
         count = len(fields)
         if rows_trailing:
@@ -5365,7 +5540,11 @@ def survey(
             # A quoted empty last value is a value (Codex's review of
             # landing R5, item 4): `31,72,Q,""` holds four, and does not
             # end in the delimiter.
-            if header_trailing and count == width + 1 and _closes(found):
+            if (
+                header_trailing
+                and count == width + 1
+                and (_closes(found) or (bool(quoted_closing) and _ends_empty(found)))
+            ):
                 uneven = uneven + 1
                 if len(uneven_rows) < 3:
                     uneven_rows += [
@@ -5484,6 +5663,8 @@ def survey(
                 # form at the default whatever floor the first walk was
                 # asked at.
                 small_cell_floor,
+                # ...and so does the reading of a closing `""` (lane R6).
+                bool(quoted_closing),
             )
         raise errors.ProfileError(
             errors.ragged_rows(
@@ -5615,6 +5796,31 @@ def survey(
         lines_above = lines_above + 1
     if hinted:
         lines_above = lines_above + 1
+    # THE RECORDS' CLOSINGS, held to the same rule (lane R6).
+    if closing_count and len(closing_runs) <= MAXIMUM_ENDING_RUNS:
+        closing_runs += [EndingRun(ending=closing_spelled, lines=closing_count)]
+    if len(closing_runs) > MAXIMUM_ENDING_RUNS:
+        closing_runs = [
+            EndingRun(
+                ending=CLOSING_QUOTED
+                if closing_totals[1] > closing_totals[0]
+                else CLOSING_BARE,
+                lines=closing_totals[0] + closing_totals[1],
+            )
+        ]
+    rows_closed_quoted, closing_published = closing_runs_disclosed(
+        closing_runs, small_cell_floor
+    )
+    # A HEADER THAT TRAILS TOO KEEPS THE RECORDS BARE (lane R6). A header
+    # ending in its delimiter over records that all end `""` is a table
+    # with one column more -- its last named blank, every value `""` --
+    # and is read so, as it was before lane R6; so a file whose header
+    # and records both trail cannot be published with every record
+    # closed `""`, or its own twin would be read as that wider table.
+    # Where its closings are published as one spelling, that spelling is
+    # the bare one.
+    if header_trailing and rows_closed_quoted:
+        rows_closed_quoted = False
     told_runs = endings_disclosed(
         walk.runs, small_cell_floor, withheld_lines, lines_above
     )
@@ -5666,6 +5872,9 @@ def survey(
         row_order=order,
         line_endings_spread=census_published,
         blank_lines_spread=spread_published,
+        header_closing_quoted=header_trailing and header_closed_quoted,
+        rows_closing_quoted=rows_trailing and rows_closed_quoted,
+        rows_closing_runs=closing_published if rows_trailing else (),
     )
     return Survey(
         form=form,
@@ -6080,7 +6289,15 @@ def header_line(names: "tuple[str, ...]", form: Dialect) -> str:
     line = _joined(parts, form)
     if form.header_trailing_delimiter:
         line = line + form.delimiter
+        if form.header_closing_quoted:
+            line = line + _closing_quotes(form)
     return line
+
+
+def _closing_quotes(form: Dialect) -> str:
+    """A closing field written `""`, after the space a comma-space form puts
+    before every field but the first (plan P4-D387, lane R6)."""
+    return (_SPACE if form.initial_space else "") + _QUOTE + _QUOTE
 
 
 def data_line(cells: "tuple[str, ...]", form: Dialect) -> str:
@@ -6147,13 +6364,18 @@ def twin_text(
     if form.blank_lines_spread is not None:
         blank_places = spread_places(form.blank_lines_spread)
     blank_at = 0
+    # Each record closed as the source closed it (plan P4-D387, lane R6).
+    quoted_closings = closings_in_turn(form, len(rows))
     for index in range(len(rows)):
         while blank_at < len(blank_places) and blank_places[blank_at].after == index:
             place = blank_places[blank_at]
             for _line in range(place.lines):
                 lines += [place.text]
             blank_at = blank_at + 1
-        lines += [data_line(rows[index], form)]
+        written = data_line(rows[index], form)
+        if quoted_closings[index]:
+            written = written + _closing_quotes(form)
+        lines += [written]
     while blank_at < len(blank_places):
         place = blank_places[blank_at]
         for _line in range(place.lines):

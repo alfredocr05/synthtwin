@@ -5997,7 +5997,9 @@ def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
         blank_lines=(),
         empty_rows_leading=0,
         empty_rows_interior=0,
-        empty_rows_trailing=0,
+        empty_rows_trailing=0,        header_closing_quoted=False,
+        rows_closing_quoted=False,
+        rows_closing_runs=(),
     )
 
 
@@ -6560,8 +6562,27 @@ def _unaligned_column_checks(
 
 
 def _trailing_words(form: dialect.Dialect) -> str:
+    """The trailing delimiters, and how each side closes (plan P4-D387).
+
+    A closing written `""` is named, and records closed both ways name
+    their runs, so a checked file closed otherwise than its description
+    says misses this rule (lane R6). A form closed bare reads as it did
+    before lane R6.
+    """
     header = "a delimiter" if form.header_trailing_delimiter else "no delimiter"
+    if form.header_trailing_delimiter and form.header_closing_quoted:
+        header = 'a delimiter and ""'
     rows = "a delimiter" if form.rows_trailing_delimiter else "no delimiter"
+    if form.rows_trailing_delimiter and form.rows_closing_runs:
+        runs = ", ".join(
+            [
+                f"{run.lines} {'with' if run.ending == dialect.CLOSING_QUOTED else 'without'}"
+                for run in form.rows_closing_runs
+            ]
+        )
+        rows = f'a delimiter, then "" by runs of records ({runs}),'
+    elif form.rows_trailing_delimiter and form.rows_closing_quoted:
+        rows = 'a delimiter and ""'
     return f"{header} ending the header line, {rows} ending each record"
 
 

@@ -5602,6 +5602,8 @@ def _dialect_block(value: object) -> dialect.Dialect:
         ]
     trailing = _mapping(mapping["trailing_delimiter"], "trailing_delimiter", where)
     _keys(trailing, where, ("header", "rows"), "the trailing delimiter block")
+    header_closing, _no_runs = _closing(trailing["header"], "header", where, False)
+    rows_closing, closing_runs = _closing(trailing["rows"], "rows", where, True)
     empty = _mapping(mapping["empty_rows"], "empty_rows", where)
     _keys(empty, where, ("interior", "leading", "trailing"), "the empty records block")
     columns: list[dialect.ColumnForm] = []
@@ -5661,8 +5663,8 @@ def _dialect_block(value: object) -> dialect.Dialect:
             mapping["header_rows_quoting"], "header_rows_quoting", where, dialect.QUOTE_RULES
         ),
         written_names=tuple(written),
-        header_trailing_delimiter=_truth(trailing["header"], "header", where),
-        rows_trailing_delimiter=_truth(trailing["rows"], "rows", where),
+        header_trailing_delimiter=header_closing != "",
+        rows_trailing_delimiter=rows_closing != "",
         short_rows=_truth(mapping["short_rows"], "short_rows", where),
         blank_lines=tuple(blanks),
         empty_rows_leading=_whole(empty["leading"], "leading", where, 0),
@@ -5672,7 +5674,45 @@ def _dialect_block(value: object) -> dialect.Dialect:
         row_order=order,
         line_endings_spread=tuple(census),
         blank_lines_spread=spread,
+        header_closing_quoted=header_closing == dialect.CLOSING_QUOTED,
+        rows_closing_quoted=rows_closing == dialect.CLOSING_QUOTED,
+        rows_closing_runs=closing_runs,
     )
+
+
+def _closing(
+    value: object, key: str, where: str, runs_allowed: bool
+) -> "tuple[str, tuple[dialect.EndingRun, ...]]":
+    """One side of the trailing delimiter block: how its lines close.
+
+    `false` (no trailing delimiter: returned as ""), `true` (closed with
+    nothing after the delimiter), or `"quoted"` (closed `""`); on the
+    rows, also the closings' runs in file order, each `{ending, lines}`
+    with `ending` one of `dialect.CLOSINGS` (plan P4-D387, lane R6).
+    Returned as the closing word and the runs, the word empty for a side
+    that ends in no delimiter and `"runs"` where the runs say.
+    """
+    if isinstance(value, bool):
+        return (dialect.CLOSING_BARE if value else "", ())
+    if isinstance(value, str):
+        if value != dialect.CLOSING_QUOTED:
+            raise _out_of_range(key, where, value, f'true, false or "{dialect.CLOSING_QUOTED}"')
+        return (dialect.CLOSING_QUOTED, ())
+    if not runs_allowed or not isinstance(value, list):
+        raise _wrong_type(key, where, value, "a yes or no value, or the word quoted")
+    runs: "list[dialect.EndingRun]" = []
+    for item in _listing(value, key, where):
+        entry = _mapping(item, key, where)
+        _keys(entry, where, ("ending", "lines"), "a run of closings")
+        runs += [
+            dialect.EndingRun(
+                ending=_one_of(entry["ending"], "ending", where, dialect.CLOSINGS),
+                lines=_whole(entry["lines"], "lines", where, 1),
+            )
+        ]
+    if not runs:
+        raise _out_of_range(key, where, "[]", "runs of closings, at least one")
+    return ("runs", tuple(runs))
 
 
 def _dialect_rules(
@@ -5776,6 +5816,23 @@ def _dialect_rules(
             "runs whose endings, lengths and records' own each reach the "
             "smallest group size, and never under two",
         )
+    # THE RECORDS' CLOSINGS, held to the producer's own rule (plan
+    # P4-D387, lane R6; `dialect.closing_runs_disclosed`): published as
+    # runs only where both spellings stand, every run and total at the
+    # census line, and the runs account for every record.
+    if form.rows_closing_runs:
+        closed = sum([run.lines for run in form.rows_closing_runs])
+        kinds = set([run.ending for run in form.rows_closing_runs])
+        trouble = dialect.endings_broken(form.rows_closing_runs, floor, 0)
+        if closed != n_rows or len(kinds) < 2 or trouble:
+            raise _broken(
+                "FD2", where,
+                trouble
+                or f"the closings account for {closed} records in "
+                f"{len(kinds)} spelling(s)",
+                f"{n_rows} records closed both ways, each run and each "
+                f"spelling reaching the smallest group size",
+            )
     wide_encodings = (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE)
     if (form.byte_order_mark and source.encoding in dialect.FALLBACK_ENCODINGS) or (
         source.encoding in wide_encodings and not form.byte_order_mark

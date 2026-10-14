@@ -814,6 +814,12 @@ _BOTH_SIDES_OR_UNAVAILABLE = "count-on-both-sides-or-unavailable"
 # records or lines of the file, nought or at the census line. Neither is
 # asked at a floor of one, where the producer does not ask them either.
 _FORM_PLACES = "blank-places-at-the-census-line"
+# HOW A TRAILING DELIMITER IS CLOSED (plan P4-D387, lane R6): a side of
+# the block is a flag, or the word `quoted`; the rows may instead be the
+# runs of their two closings, every run and each closing's total at the
+# census line, as `dialect.closing_runs_disclosed` publishes them.
+_CLOSING = "closing-flag-or-quoted"
+_CLOSING_RUNS = "closing-flag-quoted-or-runs-at-the-census-line"
 _FORM_COUNT = "count-of-the-files-lines-zero-or-at-the-census-line"
 # One of the three stand-in numbers this package judges, written as
 # itself. The only path is the declaration records' `built_in_numbers`,
@@ -1254,8 +1260,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "dialect", "separator_line"): _FLAG,
     ("source", "dialect", "short_rows"): _FLAG,
     ("source", "dialect", "trailing_delimiter"): _OBJECT,
-    ("source", "dialect", "trailing_delimiter", "header"): _FLAG,
-    ("source", "dialect", "trailing_delimiter", "rows"): _FLAG,
+    ("source", "dialect", "trailing_delimiter", "header"): _CLOSING,
+    ("source", "dialect", "trailing_delimiter", "rows"): _CLOSING_RUNS,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH): _OBJECT,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH, "ending"): _WORD,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH, "lines"): _FORM_COUNT,
     ("source", "dialect", "written_names"): _ARRAY,
     ("source", "dialect", "written_names", _EACH): _OBJECT,
     ("source", "dialect", "written_names", _EACH, "position"): _COUNT,
@@ -2007,6 +2016,7 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("source", "dialect", "header_rows_quoting"): dialect.QUOTE_RULES,
     ("source", "dialect", "line_endings", _EACH, "ending"): dialect.ENDINGS,
     ("source", "dialect", "line_endings_spread", _EACH, "ending"): dialect.ENDINGS,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH, "ending"): dialect.CLOSINGS,
     # WHICH SHAPE A RUN OF LINES BEFORE THE TABLE HAS (plan P4-D80):
     # blank, a comment, or a line of text. The MARK published beside it
     # is held by `_PREAMBLE_MARK`, which refuses any letter or digit --
@@ -2605,6 +2615,8 @@ def _leaf_is_published(
         return value is None or _is_moment(value)
     if kind == _FLAG:
         return isinstance(value, bool)
+    if kind in (_CLOSING, _CLOSING_RUNS):
+        return isinstance(value, bool) or value == dialect.CLOSING_QUOTED
     if kind == _NOTHING:
         return value is None
     if kind == _SENTENCE:
@@ -3029,6 +3041,15 @@ def _check_published(
             raise _refuse(path)
         for item in node:
             _check_published(item, path + (_EACH,), "", context)
+        return
+    if kind == _CLOSING_RUNS and isinstance(node, list):
+        runs: "list[dialect.EndingRun]" = []
+        for item in node:
+            _check_published(item, path + (_EACH,), "", context)
+            runs += [dialect.EndingRun(ending=item["ending"], lines=item["lines"])]
+        kinds = set([run.ending for run in runs])
+        if len(kinds) < 2 or dialect.endings_broken(tuple(runs), context.floor, 0):
+            raise _refuse(path)
         return
     if kind == _FORM_PLACES:
         if not isinstance(node, list):

@@ -35595,7 +35595,35 @@ def header_written(names, form):
     line = joined_fields(parts, form)
     if form["trailing_delimiter"]["header"]:
         line = line + form["delimiter"]
+        if form["trailing_delimiter"]["header"] == "quoted":
+            line = line + closing_quotes(form)
     return line
+
+
+def closing_quotes(form):
+    """A closing field written `""` (G2; plan P4-D387, lane R6), after the
+    space a comma-space form puts before every field but the first."""
+    return (DOC_SPACE if form["initial_space"] else "") + DOC_QUOTE + DOC_QUOTE
+
+
+def closing_quoted_at(form, index):
+    """Whether data record ``index`` (from 0) closes `""` (G2, lane R6).
+
+    The rows' block is `true` (closed bare), `"quoted"` (every record
+    closed `""`) or the closings' runs in file order; a record past the
+    runs takes the last run's closing.
+    """
+    rows = form["trailing_delimiter"]["rows"]
+    if rows is True or rows is False:
+        return False
+    if rows == "quoted":
+        return True
+    left = index
+    for run in rows:
+        if left < run["lines"]:
+            return run["ending"] == "quoted"
+        left = left - run["lines"]
+    return rows[-1]["ending"] == "quoted"
 
 
 def record_written(cells, form):
@@ -35820,7 +35848,10 @@ def written_form_lines(names, rows, write_header, form):
             for _line in range(places[at]["lines"]):
                 lines += [places[at]["text"]]
             at = at + 1
-        lines += [record_written(rows[index], form)]
+        written = record_written(rows[index], form)
+        if closing_quoted_at(form, index):
+            written = written + closing_quotes(form)
+        lines += [written]
     while at < len(places):
         for _line in range(places[at]["lines"]):
             lines += [places[at]["text"]]
@@ -36272,29 +36303,29 @@ def opening_lines_up(sample, opening, width):
     does, and a one-column table whose cells end in a delimiter stays
     one column.
 
-    The empty last field is UNQUOTED (`closes`; Codex's review of
-    landing R5, item 2): `""` is a value the line wrote empty, not the
-    delimiter that closes it.
+    The empty last field may be written bare or as `""` (`ends_empty`;
+    lane R6, on Codex's review of integration part 2c): the twin closes
+    each line the way its source closed it (G2), so a header `site;dx`
+    over records `0100;1E22;""` and `0100;1E22;` is the semicolon's two
+    columns, where landing R5's unquoted-only rule read it as one.
     """
     first = sample[opening]
     if len(first["fields"]) == width + 1:
-        return closes(first)
+        return ends_empty(first)
     if len(first["fields"]) != width - 1 or width - 1 < 2:
         return False
     for record in sample:
-        if len(record["fields"]) == width and not closes(record):
+        if len(record["fields"]) == width and not ends_empty(record):
             return False
     return True
 
 
-def closes(record):
-    """Whether a record ends in a delimiter with nothing after it: its
-    last field is empty and was not quoted (Codex's review of landing
-    R5, item 2)."""
+def ends_empty(record):
+    """Whether a record's last field is empty, written with nothing in it
+    or as `""` -- either closes a line one side of the table carries a
+    trailing delimiter on (plan P4-D387, lane R6)."""
     fields = record["fields"]
-    if not fields:
-        return False
-    return fields[-1] == "" and not record["quoted"][-1]
+    return bool(fields) and fields[-1] == ""
 
 
 def reading_rank(found):
@@ -38011,7 +38042,7 @@ def _written_form_lines():
         "in three runs of two shapes, an always-quoted header, a column "
         "padded left to five characters, a second column whose four cell "
         "classes take three DIFFERENT quoting rules, a trailing "
-        "delimiter on every record and none on the header, a blank line "
+        "delimiter on every record and on the header, a blank line "
         "after the third record, two runs of line endings, no ending on "
         "the last line and an end-of-file mark after it. Before this "
         "case the written form had no second implementation at all: "
@@ -38019,7 +38050,11 @@ def _written_form_lines():
         "found nothing, so the only check on any of its rules was a "
         "round trip through the code that implements them. This case's "
         "mutant withdraws the lines before the table, and the file's "
-        "lines move.",
+        "lines move. Since lane R6 the trailing delimiters are closed as "
+        "a source closed them: the header with `\"\"`, the first two "
+        "records bare and the last four with `\"\"` (plan P4-D387); its "
+        "second mutant closes every line bare, and the header and four "
+        "records move.",
         "kind": "delimited",
         "names": ["reading", "note"],
         "write_header": True,
@@ -38082,7 +38117,15 @@ def _written_form_lines():
             "row_order": None,
             "separator_line": True,
             "short_rows": False,
-            "trailing_delimiter": {"header": False, "rows": True},
+            # Lane R6: the header closed `""`, the first two records
+            # closed bare and the last four `""` (G2).
+            "trailing_delimiter": {
+                "header": "quoted",
+                "rows": [
+                    {"ending": "bare", "lines": 2},
+                    {"ending": "quoted", "lines": 4},
+                ],
+            },
             "written_names": [],
         },
     }
@@ -38337,8 +38380,14 @@ def _delimiter_reading():
         "reads straight with one short row and the semicolon only lined "
         "up, so the comma stands (third mutant: the share alone ranks, "
         "and the semicolon takes it); and rows, then a header, ending "
-        "in a QUOTED empty field, which lines nothing up (fourth mutant: "
-        "the quotation marks ignored, and the semicolon takes both).",
+        "in a QUOTED empty field. Since lane R6 (Codex's review of "
+        "integration part 2c) a closing written `\"\"` lines a reading "
+        "up as a bare one does, because the twin closes each line as its "
+        "source did: those two files are the semicolon's, and an eighth, "
+        "the header `site;dx` over a first record closed `\"\"` and the "
+        "rest closed bare, is read as its two columns where R5 read one "
+        "(fourth mutant: only a bare closing lines up, R5's rule, and no "
+        "candidate reads the three).",
         "kind": "reading",
         "text": '"id"; "note"\n"1"; "alpha; beta"\n"2"; "gamma"\n',
         # A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387). Rows
@@ -38362,12 +38411,17 @@ def _delimiter_reading():
             # comma reads straight (four of five records at three
             # fields, row 3 a short row) beside the semicolon's lined-up
             # five of five; the comma stands. Item 2, a quoted empty
-            # last field on the rows, then on the header, which lines
-            # nothing up, so no candidate reads either.
+            # last field on the rows, then on the header, which lined
+            # nothing up under R5 and lines the semicolon up since lane
+            # R6.
             "id,notes,measure;type;unit;\n"
             "1,x;y;z,6\n2,x;y;z,6\n3,x;y;z\n4,x;y;z,6\n",
             'a;b\n1;2;""\n3;4;""\n5;6;""\n',
             'a;b;""\n1;2\n3;4\n5;6\n',
+            # Lane R6, on Codex's review of integration part 2c: the
+            # header `site;dx` over a first record closed `""` and the
+            # rest closed bare, which R5 read as one comma column.
+            'site;dx\n0100;1E22;""\n0100;1E22;\n0100;1E22;\n',
         ],
     }
 
