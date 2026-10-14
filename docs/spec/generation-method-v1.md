@@ -7961,7 +7961,9 @@ every one different, were moved onto their heaps at 893 values of 1,000,
 and the report blamed the ways of writing a value). A column whose
 different values crowd the lattice its minute's and second's facts would
 pin publishes neither (contract NF121 and NF122), so no field pass runs
-on it.
+on it; a dense grid of random times, filling it no more than a uniform
+draw of its rows would, is not crowded and keeps them (lane J2's second
+skeptic, item 1).
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes
 (plan P4-D191) -- THE TAILS KEEP IT:
@@ -7978,11 +7980,14 @@ the rank before it, else the next day's where that stands strictly
 before the rank after it, never on a hole's day: no rank meets another
 and the body is not moved (lane J2's skeptic, item 3; R4's `%.15g`
 column nine in ten at midnight, its ENDs derived off midnight, came back
-at 989 of the 990 owed).
+at 989 of the 990 owed). The producer now withholds both fields where
+fewer parsed cells than the line stand off 00:00:00 beside such a count
+(contract NF118 and NF119; lane J2's second skeptic, item 2), so the step
+serves a profile that publishes them beside it.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-forty-two -- SPREAD and PUT BACK paid back beside a weekday census, a
+forty-three -- SPREAD and PUT BACK paid back beside a weekday census, a
 payer that would change the count passed over, SPREAD by substitute, a
 payer standing on the
 unit a run joins passed over and a run asked as it stands (lane J2), the
@@ -7997,7 +8002,7 @@ alone and beside hour 1, the exchange's three answers,
 PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
 drawing unit and, in a stratum narrower than it, by the written unit, and
 taking a midnight where the count there is short, every tail rank giving
-way to a count owed for its size, the tails making room at
+way to a count owed for its size and none onto a hole day, the tails making room at
 midnight for a rank of the body, never by a tail step raising the count
 and with SPREAD after them where the step left it short, KIN SHARES
 giving no kin group more of minute 0 than its ranks free to stand there,

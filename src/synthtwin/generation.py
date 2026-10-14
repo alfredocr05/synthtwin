@@ -34424,7 +34424,12 @@ def _ranks_the_tail_pins(layout: "_DateLayout") -> "list[bool]":
     tail rank counted in days of the shared clock is not among them: its
     gap is its whole day, inside which it is moved onto a local midnight.
     The move to midnight never changes one of these ranks and never
-    carries another rank past one.
+    carries another rank past one -- but for G7.3h's owed step
+    (`_clock_owed_midnight`, lane J2's second skeptic, item 3), which, where
+    a count at midnight withheld for its size is still short, moves a tail
+    rank still off a written midnight, pinned or not, onto its own day's
+    or the next day's midnight strictly between its neighbours, never onto
+    a hole day, so it still carries no rank past another.
 
     Guarantees: accepts the layout; returns one flag per rank.
     Determinism: a function of the layout. Raises nothing. No I/O.

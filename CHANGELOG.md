@@ -29,18 +29,25 @@ this change are measured and carried: beside a weekday census the hour
 pass leaves small bursty tables' count long (85 of 105 such twins before
 this change, 83 after); a column nine in ten at midnight with a heap at
 minute 0 wrote 989 or 983 cells at midnight where its count withheld for its
-size asks 990 -- its tails now give way to that count, so one such
-column holds 990 and one whose source ties its high tail writes 987;
+size asks 990 -- such a column, fewer cells than the line off midnight,
+now publishes no minute or second facts (contract NF118, NF119), as
+before lane T3, and every column of a battery of dates written as
+datetimes that the pushed line met is met;
 and the unit-room rule withholds a noon census these twins
 now meet. **Stamps at a regular step whose different values crowd the
 lattice their minutes and seconds would pin** -- vital signs every five
 minutes, hourly observations, filling half of that lattice or more, a
-third where every value differs --
+third where every value differs, and a twentieth of it more than their
+rows drawn at random would --
 **publish no minute or second facts** (contract NF121, NF122):
 with them, every such series measured from one minute to an hour apart
 and 1,000 to 100,000 rows came back short of its count (903 to 947 of
 1,000 five minutes apart) and, from 3,800 rows, missed its heap at second
-0; without them the 160 twins measured miss nothing, as before lane T3. A
+0; without them the 160 twins measured miss nothing, as before lane T3.
+Random times on the hour or on 5-, 15- or 30-minute slots, and stamps
+written to the minute with `:00` seconds, fill their lattice no more than
+such a draw and keep their heaps: withheld, their twins wrote seconds
+other than 0 on 92 to 98 % of cells. A
 count the clock pass still leaves short is reported with that cause.
 `K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
 

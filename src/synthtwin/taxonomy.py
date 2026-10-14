@@ -18419,8 +18419,10 @@ def clock_field_decision(
     (`calendar_clock.field_sure`, rule 4's cells at midnight in value 0);
     none of either is a reason of its own; then the counts away from value
     0 a body could be left too few cells off a midnight to hold
-    (`calendar_clock.off_midnight_short`). Last, the loader's own checks
-    (`calendar_clock.field_breach`, `calendar_clock.heaps_breach`). No
+    (`calendar_clock.off_midnight_short`). Then the loader's own checks
+    (`calendar_clock.field_breach`, `calendar_clock.heaps_breach`). Last,
+    a count at midnight withheld beside fewer cells than the line off
+    00:00:00 (`_off_midnight_below_the_line`), withheld as off midnight. No
     rule asks what a reader could work out from the census (the owner's
     principle of 2026-10-01).
 
@@ -18560,7 +18562,42 @@ def clock_field_decision(
         heaps, len(body), line, sure, field, bool(groups)
     ) is not None:
         return ClockFieldDecision((), (), calendar_clock.HOUR_REASON_GROUPING)
+    if counted is None and _off_midnight_below_the_line(hours, minutes, seconds, line):
+        # A COUNT AT MIDNIGHT WITHHELD FOR ITS SIZE (lane J2's second
+        # skeptic, item 2): fewer cells than the line stand off 00:00:00, so
+        # the twin owes nearly every cell a midnight, and a field's facts
+        # holding the body on value 0 leave it whole hours to stand those
+        # ranks on instead -- 1,000 dates over 60 days, 10 with times, came
+        # back 979 to 984 at midnight of 990 beside the facts, 990 without.
+        return ClockFieldDecision((), (), calendar_clock.FIELD_REASON_OFF_MIDNIGHT)
     return ClockFieldDecision(groups, heaps, "")
+
+
+def _off_midnight_below_the_line(
+    hours: "tuple[int, ...]",
+    minutes: "tuple[int, ...]",
+    seconds: "tuple[int, ...]",
+    line: int,
+) -> bool:
+    """Whether fewer than `line` parsed cells stand off 00:00:00.
+
+    `hours`, `minutes` and `seconds` are the written fields of every parsed
+    cell in rank order, `seconds` empty or of their length. Lane J2's
+    second skeptic, item 2 (`clock_field_decision`, NF118 and NF119).
+
+    Guarantees: a function of the arguments; raises nothing. No I/O.
+    """
+    parsed = len(hours)
+    if not parsed or len(minutes) != parsed:
+        return False
+    whole = len(seconds) == parsed
+    off = 0
+    for place in range(parsed):
+        if hours[place] != 0 or minutes[place] != 0 or (whole and seconds[place] != 0):
+            off = off + 1
+            if off >= line:
+                return False
+    return True
 
 
 def _clock_field_words(form: str) -> "tuple[str, str, str]":
@@ -18618,8 +18655,10 @@ def clock_lattice_crowded(
     column's different values -- the parsed cells written differently from
     the one before them (`fresh`), in rank order -- crowd it where they
     fill half or more of its points between the two tail boundaries, a
-    third or more where every parsed cell is one
-    (`calendar_clock.lattice_crowded`). False where neither
+    third or more where every parsed cell is one, and a twentieth more
+    of them than `parsed` cells drawn uniformly over those points would
+    (`calendar_clock.lattice_crowded`, lane J2's second skeptic, item 1:
+    a dense grid of random times is not crowded). False where neither
     field publishes, or where the block has no two tails.
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
@@ -18651,7 +18690,7 @@ def clock_lattice_crowded(
             distinct = distinct + 1
     instants = [calendar_clock.seconds_of(text) for text in texts]
     return calendar_clock.lattice_crowded(
-        unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed
+        unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed, parsed
     )
 
 

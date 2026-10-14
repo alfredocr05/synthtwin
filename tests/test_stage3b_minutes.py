@@ -753,6 +753,117 @@ def test_a_regular_series_withholds_the_clock_facts_it_crowds(tmp_path: pathlib.
     assert generation._CLOCK_FIELDS_LEFT_SHORT in causes, causes
 
 
+def _dense_grid(kind: str, rows: int, days: int) -> "list[str]":
+    """Lane J2's second skeptic, item 1: `rows` moments drawn at random over `days` days from
+    2015-01-01 -- on the hour (`hour`), on 30-, 15- and 5-minute slots (`half`, `q15`, `min5`),
+    or at any minute with seconds `:00` (`min0`, an EHR datetime written to the minute) -- in
+    rank order, repeats kept."""
+    pick = random.Random(11)
+    minutes = {"hour": 60, "half": 30, "q15": 15, "min5": 5, "min0": 1}[kind]
+    start = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    for _row in range(rows):
+        moment = start + datetime.timedelta(minutes=minutes * pick.randrange(days * 1440 // minutes))
+        cells += [moment.strftime("%Y-%m-%d %H:%M:%S")]
+    return sorted(cells)
+
+
+# The seven dense grids of lane J2's second skeptic, item 1, as (kind, rows, days).
+_DENSE_GRIDS = (
+    ("hour", 3000, 60), ("min0", 10000, 7), ("q15", 10000, 30), ("min5", 10000, 14),
+    ("half", 10000, 60), ("min0", 7500, 7), ("min0", 6000, 5),
+)
+
+
+def test_a_dense_grid_of_random_times_keeps_its_clock_facts(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Lane J2's second skeptic, item 1 (NF121, NF122): random times on the hour, on 30-, 15-
+    and 5-minute slots, and stamps written to the minute with seconds `:00`, 3,000 to 10,000
+    rows, fill half or more of their lattice yet no more than a uniform draw of their rows
+    would, so they are not crowded: they publish their heaps, at least 98 % of the twin's cells
+    stand at second 0, and the twins miss nothing at floors 11 and 36 -- the half-hour grid
+    but `second_heaps.counts`, lane T3's own (P4-D372), missed at floor 36 by 2399488 alike.
+    Mutant: the fill alone asked, as the rule was built at 79d7440, the facts are withheld and
+    7 % or less of the twin's cells stand at second 0."""
+    for kind, rows, days in _DENSE_GRIDS:
+        cells = _dense_grid(kind, rows, days)
+        for floor in (11, 36):
+            described = _one_column(tmp_path / f"{kind}-{rows}-{floor}", "c", cells, floor)
+            block = described.block("c")
+            assert block["second_heaps"], (kind, rows, floor)
+            if kind != "min0":
+                assert block["minute_heaps"], (kind, rows, floor)
+            written = kpi_shapes.twin_text(described, 0)
+            missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv"))
+            allowed = {"c:second_heaps.counts"} if kind == "half" else set()
+            assert set(missed) <= allowed, (kind, rows, floor, missed)
+            twin = shapes.cells_of(written, "c")
+            assert sum(1 for cell in twin if cell.endswith(":00")) >= 0.98 * len(twin), (kind, rows, floor)
+    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 600, False, 900)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 600, False, 0)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, True, 1000)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 500, False, 500)
+    plain = calendar_clock.lattice_crowded
+    monkeypatch.setattr(
+        calendar_clock, "lattice_crowded",
+        lambda unit, low, high, distinct, all_different=False, parsed=0: plain(unit, low, high, distinct, all_different),
+    )
+    described = _one_column(tmp_path / "fill-alone", "c", _dense_grid("hour", 3000, 60))
+    assert described.block("c")["second_heaps"] == []
+    twin = shapes.cells_of(kpi_shapes.twin_text(described, 0), "c")
+    assert sum(1 for cell in twin if cell.endswith(":00")) < 0.1 * len(twin)
+
+
+def _mostly_at_midnight(rows: int, days: int, timed: int, heavy: int, drawn: int) -> "list[str]":
+    """Lane J2's second skeptic, item 2: dates written as datetimes, `rows` of them over `days`
+    days from 2015-01-01, the first `timed` drawn at a random minute off midnight; where
+    `heavy` is given, that many dates take about three in ten rows between them."""
+    pick = random.Random(drawn)
+    heavy_days = [pick.randrange(days) for _day in range(heavy)]
+    start = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    for row in range(rows):
+        day = heavy_days[pick.randrange(heavy)] if heavy and pick.random() < 0.3 else pick.randrange(days)
+        moment = start + datetime.timedelta(days=day)
+        if row < timed:
+            moment = moment + datetime.timedelta(seconds=60 * pick.randrange(1, 1440))
+        cells += [moment.strftime("%Y-%m-%d %H:%M:%S")]
+    return sorted(cells)
+
+
+# The mostly-midnight columns 45191fa met, as (rows, days, timed, heavy, drawn, floor).
+_MOSTLY_AT_MIDNIGHT = (
+    (1000, 60, 5, 0, 3, 11), (1000, 60, 5, 0, 3, 36), (1000, 60, 10, 0, 3, 11),
+    (5000, 365, 8, 0, 3, 11), (5000, 365, 8, 0, 3, 36), (5000, 365, 8, 3, 3, 36),
+    (1000, 20, 20, 0, 3, 11), (3000, 90, 30, 0, 3, 11), (3000, 90, 30, 0, 3, 36),
+    (1000, 60, 10, 0, 5, 36), (1000, 60, 10, 0, 6, 11), (1000, 60, 10, 0, 6, 36),
+)
+
+
+def test_dates_written_as_datetimes_keep_a_count_at_midnight_withheld(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Lane J2's second skeptic, item 2 (NF118, NF119): a column mostly at midnight whose
+    count there is withheld for its size -- fewer cells than the line off 00:00:00 -- withholds
+    its minute's and second's facts as off midnight, so the twin is not left whole hours to
+    stand its owed midnights on; every column of this battery 45191fa met is met at seeds 0 to
+    2. Mutant: the rule withdrawn, the 1,000 dates over 60 days with 10 timed publish both
+    heaps and their twin misses `midnight.withheld` with 983 of 990 at midnight."""
+    for rows, days, timed, heavy, drawn, floor in _MOSTLY_AT_MIDNIGHT:
+        shape = (rows, days, timed, heavy, drawn, floor)
+        cells = _mostly_at_midnight(rows, days, timed, heavy, drawn)
+        described = _one_column(tmp_path / "-".join(str(part) for part in shape), "c", cells, floor)
+        block = described.block("c")
+        if block.get("n_at_midnight") is None:
+            for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+                assert block[key] == [], (shape, key)
+        for seed in (0, 1, 2):
+            written = kpi_shapes.twin_text(described, seed)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (shape, seed)
+    monkeypatch.setattr(taxonomy, "_off_midnight_below_the_line", lambda *_arguments: False)
+    described = _one_column(tmp_path / "withdrawn", "c", _mostly_at_midnight(1000, 60, 10, 0, 3))
+    assert described.block("c")["minute_heaps"] and described.block("c")["second_heaps"]
+    written = kpi_shapes.twin_text(described, 0)
+    assert "c:midnight.withheld" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
+
+
 def test_minutes_on_the_hour_publish_where_one_count_is_closer(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Mornings 70 per cent on :00 or :30 beside afternoons at 40 depend on the
     hour, yet one count over every hour is closer to each than a flat field:
@@ -1403,6 +1514,11 @@ STEP_MUTANTS = {
         "field_midnight_owed",
         "    if owed and at < counted and 2 * counted > parsed:\n        _clock_owed_midnight(",
         "    if False:\n        _clock_owed_midnight(",
+    ),
+    "the tails' owed midnights land on a hole day": (
+        "field_midnight_owed_hole",
+        "    hole_days: \"set[int]\",\n) -> None:\n    \"\"\"A count at midnight withheld for its size",
+        "    hole_days: \"set[int]\",\n) -> None:\n    hole_days = set()\n    \"\"\"A count at midnight withheld for its size",
     ),
     "the tails take no midnight where the count is short": (
         "field_midnight_short",

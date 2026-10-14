@@ -315,14 +315,21 @@ cannot get worse unseen.
   back (P4-D391); owner lane J's family (G7.3g step 6). A column nine in
   ten at midnight, its count there withheld for its size, beside a heap at
   minute 0, wrote 989 and 983 cells at midnight of 990 -- lane T3's own (P4-D372);
-  its tails now give way to that count and the one written `%.15g` holds
-  990, while the one written `repr`, its source's high tail tied, writes
-  987, a strict xfail in R4's c4 tests; 45191fa passed both only with twins
-  writing 9 at midnight, the withheld check reading either side. Regular
+  such a column, fewer cells than the line off 00:00:00, now withholds its
+  minute and second facts (NF118, NF119), as 45191fa published none: of a
+  battery of dates written as datetimes, 1,000 to 5,000 rows with 5 to 30
+  timed, every column 45191fa met is met at floors 11 and 36, seeds 0 to
+  2; R4's `%.15g` column writes 990 at midnight, its `repr` sibling 10,
+  passing as on 45191fa only because the check of a count withheld for its
+  size reads either side (the orchestrator's). Regular
   stamps crowding the lattice their clock facts pin -- every series
   measured one to sixty minutes apart, 1,000 to 100,000 rows, short of its
   count and from 3,800 rows off the second's heap -- now withhold those
-  facts (NF121, NF122) and miss nothing. NF74's unit-room rule, measured
+  facts (NF121, NF122) and miss nothing; dense grids of random times --
+  on the hour, on 5-, 15- and 30-minute slots, written to the minute with
+  `:00` seconds -- fill their lattice no more than a uniform draw would
+  and keep them (26 of 28 twins miss nothing; the half-hour grid misses
+  `second_heaps.counts` in 2, lane T3's own). NF74's unit-room rule, measured
   before 3b.4, withholds a noon census the twins now meet.
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up

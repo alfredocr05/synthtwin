@@ -1303,10 +1303,19 @@ def drawing_unit(
 # can take up a collision.
 CROWDED_SHARE = (1, 2)
 CROWDED_SHARE_ALL_DIFFERENT = (1, 3)
+# HOW FAR ABOVE A UNIFORM DRAW the different values must fill the lattice
+# before they crowd it (`lattice_crowded`, lane J2's second skeptic, item
+# 1): a twentieth of its points.
+CROWDED_EXCESS = (1, 20)
 
 
 def lattice_crowded(
-    unit: int, low: int, high: int, distinct: int, all_different: bool = False
+    unit: int,
+    low: int,
+    high: int,
+    distinct: int,
+    all_different: bool = False,
+    parsed: int = 0,
 ) -> bool:
     """Whether a column's different values crowd the lattice its clock facts pin.
 
@@ -1333,6 +1342,20 @@ def lattice_crowded(
     hour and on half hours at 10,000 rows, 7,334 values filling more than
     a third of their points and less than half, meet their heaps.
 
+    A DENSE GRID IS NOT A REGULAR SERIES (lane J2's second skeptic, item
+    1). Where `parsed`, the column's count of parsed cells, is given, the
+    values crowd the lattice only where they also fill it more than
+    `parsed` cells drawn uniformly over its points would -- `distinct /
+    points` at least `CROWDED_EXCESS` above `1 - exp(-parsed / points)`.
+    Random times on the hour, on 5-, 15- and 30-minute slots, and stamps
+    written to the minute with seconds `:00`, 3,000 to 100,000 rows, fill
+    half to nine tenths of their lattice yet stand within 0.01 of such a
+    draw (-0.002 to 0.017) and meet their heaps -- 26 of 28 twins miss
+    nothing at floors 11 and 36, against 7 % or less of their cells at
+    second 0 with the facts withheld; every regular series measured
+    stands 0.111 to 0.382 above it and stays withheld. `parsed` 0 asks the
+    fill alone.
+
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
     if unit <= 1:
@@ -1341,7 +1364,13 @@ def lattice_crowded(
         return False
     points = (high - low) // unit + 1
     share, whole = CROWDED_SHARE_ALL_DIFFERENT if all_different else CROWDED_SHARE
-    return distinct * whole >= points * share
+    if distinct * whole < points * share:
+        return False
+    if parsed <= 0:
+        return True
+    above, over = CROWDED_EXCESS
+    drawn = 1.0 - math.exp(-parsed / points)
+    return distinct / points - drawn >= above / over
 
 # anchor 3b-C1 (P4-D373)
 # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, lane C1, plan

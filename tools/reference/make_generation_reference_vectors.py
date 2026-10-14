@@ -19489,6 +19489,20 @@ def field_midnight_owed_case():
     }
 
 
+def field_midnight_owed_hole_case():
+    m = HOUR_MONDAY
+    case = field_midnight_owed_case()
+    case["why"] = (
+        "The owed midnights land on no hole day (lane J2's second skeptic, item 3): "
+        "field_midnight_owed with rank 7's next day a hole; rank 0 takes its own day's "
+        "midnight, rank 7 finds its own day taken by the body's last rank and the next a "
+        "hole, and stays off, as does the END at 09:00, its own day the hole: six of seven "
+        "owed stand at a midnight, the count left short."
+    )
+    case["hole_days"] = [m + 5]
+    return case
+
+
 def field_lattice_case(why, precision, minute_census, minute_heaps, second_census, second_heaps, texts, body):
     return {
         "why": why, "step": "lattice", "precision": precision,
@@ -19538,6 +19552,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_midnight_spread": field_midnight_spread_case,
     "field_midnight_narrow": field_midnight_narrow_case,
     "field_midnight_owed": field_midnight_owed_case,
+    "field_midnight_owed_hole": field_midnight_owed_hole_case,
     "field_midnight_room": field_midnight_room_case,
     "field_midnight_short": field_midnight_short_case,
     "field_whole_unit": field_whole_unit_case,
