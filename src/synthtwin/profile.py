@@ -924,6 +924,14 @@ _HEAVY_COUNT = "a-heavy-date-count-at-the-heavy-line"
 _HOUR = "an-hour-of-the-day"
 _HOUR_COUNT = "an-hour-group-count-zero-or-at-the-census-line"
 # anchor 3b-T3 (P4-D372)
+# THE MINUTE AND SECOND CENSUSES AND HEAPS (landing 3b.4, plan P4-D372): a
+# group's first and last value and a heap's value, 0 to 59; a group's count,
+# nought or at the census line; a heap's, at the census line. Which groups
+# and heaps may stand, and whether they may stand at all, are invariants
+# MC1 to MC6, SE1 to SE6, MH1, MH2, SH1 and SH2.
+_CLOCK_FIELD_VALUE = "a-minute-of-the-hour-or-second-of-the-minute"
+_CLOCK_FIELD_COUNT = "a-minute-or-second-group-count-zero-or-at-the-census-line"
+_CLOCK_FIELD_HEAP = "a-minute-or-second-heap-count-at-the-census-line"
 # anchor 3b-C1 (P4-D373)
 # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, plan P4-D373): a
 # group's first and last ten-minute bin of the dial and its count, nought
@@ -1827,6 +1835,22 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "hour_census", _EACH, "last"): _HOUR,
     ("columns", _EACH, "hour_census", _EACH, "count"): _HOUR_COUNT,
     # anchor 3b-T3 (P4-D372)
+    # WHICH MINUTES AND SECONDS THE BODY FALLS ON (landing 3b.4): groups of
+    # values, each counted nought or at the census line, and heaps.
+    ("columns", _EACH, "minute_census", _EACH): _OBJECT,
+    ("columns", _EACH, "minute_census", _EACH, "first"): _CLOCK_FIELD_VALUE,
+    ("columns", _EACH, "minute_census", _EACH, "last"): _CLOCK_FIELD_VALUE,
+    ("columns", _EACH, "minute_census", _EACH, "count"): _CLOCK_FIELD_COUNT,
+    ("columns", _EACH, "second_census", _EACH): _OBJECT,
+    ("columns", _EACH, "second_census", _EACH, "first"): _CLOCK_FIELD_VALUE,
+    ("columns", _EACH, "second_census", _EACH, "last"): _CLOCK_FIELD_VALUE,
+    ("columns", _EACH, "second_census", _EACH, "count"): _CLOCK_FIELD_COUNT,
+    ("columns", _EACH, "minute_heaps", _EACH): _OBJECT,
+    ("columns", _EACH, "minute_heaps", _EACH, "value"): _CLOCK_FIELD_VALUE,
+    ("columns", _EACH, "minute_heaps", _EACH, "count"): _CLOCK_FIELD_HEAP,
+    ("columns", _EACH, "second_heaps", _EACH): _OBJECT,
+    ("columns", _EACH, "second_heaps", _EACH, "value"): _CLOCK_FIELD_VALUE,
+    ("columns", _EACH, "second_heaps", _EACH, "count"): _CLOCK_FIELD_HEAP,
     # anchor 3b-C1 (P4-D373)
     ("columns", _EACH, "clock_census", _EACH): _OBJECT,
     ("columns", _EACH, "clock_census", _EACH, "first"): _TEN_MINUTE_BIN,
@@ -2770,6 +2794,20 @@ def _leaf_is_published(
             value, parsing.census_floor(context.floor)
         )
     # anchor 3b-T3 (P4-D372)
+    if kind == _CLOCK_FIELD_VALUE:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < calendar_clock.FIELD_VALUES
+    if kind == _CLOCK_FIELD_COUNT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return calendar_rules.calendar_floor_ok(
+            value, parsing.census_floor(context.floor)
+        )
+    if kind == _CLOCK_FIELD_HEAP:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return value >= parsing.census_floor(context.floor)
     # anchor 3b-C1 (P4-D373)
     if kind == _TEN_MINUTE_BIN:
         if isinstance(value, bool) or not isinstance(value, int):

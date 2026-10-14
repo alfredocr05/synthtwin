@@ -60,10 +60,7 @@ _RESERVED: "dict[tuple[str, str], object]" = {
     # -- 3b.D4 (P4-D369)
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
-    ("datetime", "minute_census"): [],
-    ("datetime", "second_census"): [],
-    ("datetime", "minute_heaps"): [],
-    ("datetime", "second_heaps"): [],
+    # Filled by its landing: no longer reserved.
     # -- 3b.C1 (P4-D373)
     # -- 3b.C2 (P4-D374)
     ("time_of_day", "minute_census"): [],
@@ -90,10 +87,8 @@ _GUARDED = (
     # -- 3b.D4 (P4-D369)
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
-    ("seen_at", "minute_census", [{"first": 0, "last": 59, "count": 300}]),
-    ("seen_at", "minute_heaps", [{"value": 0, "count": 30}]),
-    ("seen_at", "second_census", [{"first": 0, "last": 59, "count": 300}]),
-    ("seen_at", "second_heaps", [{"value": 0, "count": 30}]),
+    # Filled by its landing: its rows admit the four lists, and the loader
+    # holds them to MC1-MC6, SC1-SC6, MH1-MH2 and SH1-SH2.
     # -- 3b.C1 (P4-D373)
     # -- 3b.C2 (P4-D374)
     # No case of its own: a clock block's `minute_census` is published
@@ -119,11 +114,8 @@ _STUBS = (
     # -- 3b.D4 (P4-D369)
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
-    ("unit", generation._draw_unit),
-    ("on the unit", generation._on_draw_unit),
-    ("pass", generation._clock_fields_settled),
-    ("spread", generation._clock_fields_spread),
-    ("check", validation._clock_field_checks),
+    # Filled by its landing: the drawing unit, the pass, the spread clause
+    # and the check (tests/test_stage3b_minutes.py).
     # -- 3b.C1 (P4-D373)
     # -- 3b.C2 (P4-D374)
     ("clock layout", generation._clock_minutes_laid),

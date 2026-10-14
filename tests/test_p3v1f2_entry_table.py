@@ -111,11 +111,13 @@ Every table is built at test time by the seeded neutral builders in
 
 import csv
 import dataclasses
+import datetime
 import decimal
 import io
 import os
 import sys
 import pathlib
+import random
 import re
 import typing
 
@@ -885,6 +887,28 @@ def _clock_census_table() -> str:
     return fixtures.rows_to_csv(["shift"], [[cell] for cell in cells])
 
 
+def _clock_field_table() -> str:
+    """1,200 moments to the second, both fields heaped (landing 3b.4, P4-D372).
+
+    Landing 3b.4's binding table: moments of 2023 between 08:00 and 17:59,
+    six in ten on minute :00 or :30 and six in ten on second 0, the rest
+    at any minute and second -- so its block publishes the minute's heaps
+    and census and the second's, the four lists each filed by its own
+    check. Its arithmetic is seeded and neutral (plan D13).
+    """
+    draw = random.Random(37201)
+    cells: "list[str]" = []
+    for _row in range(1200):
+        day = datetime.date(2023, 1, 1) + datetime.timedelta(days=draw.randrange(365))
+        minute = draw.choice((0, 30)) if draw.random() < 0.6 else draw.randrange(60)
+        second = 0 if draw.random() < 0.6 else draw.randrange(60)
+        moment = datetime.datetime(
+            day.year, day.month, day.day, 8 + draw.randrange(10), minute, second
+        )
+        cells += [moment.strftime("%Y-%m-%d %H:%M:%S")]
+    return fixtures.rows_to_csv(["stamped"], [[cell] for cell in cells])
+
+
 def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     tmp_path: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
@@ -987,6 +1011,11 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         stem="tenths",
     )
     tenths_twin = rendering.twin_csv(generation.generate(tenths, SEED))
+    # ...AND SO ARE THE MINUTE'S AND THE SECOND'S HEAPS AND CENSUSES
+    # (landing 3b.4, plan P4-D372): no fixture here writes moments heaped
+    # on a minute and a second, so one more twin files the four.
+    fielded = _described(tmp_path, _clock_field_table(), None, stem="fielded")
+    fielded_twin = rendering.twin_csv(generation.generate(fielded, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
@@ -994,6 +1023,7 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         ("counted-dates", counted, counted_twin),
         ("days", days, days_twin),
         ("tenths", tenths, tenths_twin),
+        ("clock-fields", fielded, fielded_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:

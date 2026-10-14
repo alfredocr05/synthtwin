@@ -118,12 +118,22 @@ def described(tmp_path_factory: pytest.TempPathFactory) -> "Callable[[str, int],
     return table
 
 
-def _one_census(table: kpi_shapes.Described, key: str) -> kpi_shapes.Described:
-    """The description with one census, `key`, withdrawn, as a description withholding it reads."""
+# The minute's and second's facts (landing 3b.4, plan P4-D372), which lane
+# J2 met beside the weekday census: a column of stamps at one clock publishes
+# heaps at its minute and second, its body is drawn on their lattice, and its
+# field passes run the round paid back too.
+CLOCK_FIELDS = ("minute_census", "minute_heaps", "second_census", "second_heaps")
+
+
+def _one_census(table: kpi_shapes.Described, key: str, *more: str) -> kpi_shapes.Described:
+    """The description with one census, `key`, withdrawn, as a description withholding it reads
+    -- and every fact of `more` with it."""
     document = copy.deepcopy(table.document)
     for column in document["columns"]:
-        column[key] = []
-    loaded = contract.load_profile(str(fixtures.write_profile(table.folder, f"without-{key}.json", document)))
+        for withdrawn in (key,) + more:
+            column[withdrawn] = []
+    named = "-".join((key,) + more)
+    loaded = contract.load_profile(str(fixtures.write_profile(table.folder, f"without-{named}.json", document)))
     return kpi_shapes.Described(table.folder, table.table, document, loaded)
 
 
@@ -166,8 +176,11 @@ def test_without_the_round_paid_back_the_integrations_columns_miss_and_say_so(
     described: "Callable[[str, int], kpi_shapes.Described]", name: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The mutant: the round withdrawn, each of the four columns at the floor of 11 has twins
-    short of the hour census again, and each such twin files the deviation naming it."""
-    table = described(name, 11)
+    short of the hour census again, and each such twin files the deviation naming it. Each is
+    read without its minute's and second's facts, as lane J measured it: noon stamps publish
+    heaps at minute 0 and second 0 since landing 3b.4, their body drawn on the hour's lattice,
+    and with the round withdrawn no twin of ten is short (lane J2's merge of lane T3)."""
+    table = _one_census(described(name, 11), *CLOCK_FIELDS)
     _withdrawn(monkeypatch)
     short: "list[int]" = []
     for seed in SEEDS:
@@ -184,9 +197,12 @@ def test_with_one_census_alone_the_round_changes_no_twin(
     described: "Callable[[str, int], kpi_shapes.Described]", withdrawn: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """With either census withdrawn from the four columns' descriptions, every twin at seeds 0
-    to 9 is byte for byte the twin the round withdrawn writes."""
+    to 9 is byte for byte the twin the round withdrawn writes. The hour census goes with the
+    minute's and second's facts, so the weekday census stands alone: beside a minute's heaps the
+    round settles the field passes' moves too (lane J2's merge of lane T3)."""
     for name in INTEGRATION:
-        table = _one_census(described(name, 11), withdrawn)
+        more = CLOCK_FIELDS if withdrawn == "hour_census" else ()
+        table = _one_census(described(name, 11), withdrawn, *more)
         with_round = [kpi_shapes.twin_text(table, seed) for seed in SEEDS]
         with monkeypatch.context() as patch:
             _withdrawn(patch)

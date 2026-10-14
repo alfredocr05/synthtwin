@@ -474,6 +474,12 @@ PLAN4_REGIONS = {
         "met (landing 3b.2-H, 2026-10-06)"
     ),
     # anchor 3b-T3 (P4-D372)
+    # The minute and second censuses and heaps (landing 3b.4), disposed in
+    # the decision that published them.
+    "clock-field-censuses": (
+        "## Decision P4-D372 — the minutes and seconds of a timestamp, "
+        "counted and met with the hour (landing 3b.4, 2026-10-12)"
+    ),
     # anchor 3b-C1 (P4-D373)
     # The census, heaps, step and codes of a column of clock times
     # (landing 3b.5), disposed in the decision that published them.
@@ -1163,38 +1169,20 @@ REGISTRY += (
         aliases=(),
     ),
     # -- 3b.T3 (P4-D372)
-    Fact(
-        "datetime",
-        "minute_census",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
-        aliases=(),
-    ),
-    Fact(
-        "datetime",
-        "second_census",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
-        aliases=(),
-    ),
-    Fact(
-        "datetime",
-        "minute_heaps",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
-        aliases=(),
-    ),
-    Fact(
-        "datetime",
-        "second_heaps",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
-        aliases=(),
-    ),
+    *[
+        Fact(
+            "datetime",
+            field,
+            EXACT_OBSERVABLE,
+            plan_words=(
+                "the file's own moments between the two published boundaries "
+                "hold every heap's and every group's published count exactly"
+            ),
+            plan_region="clock-field-censuses",
+            aliases=(),
+        )
+        for field in ("minute_census", "minute_heaps", "second_census", "second_heaps")
+    ],
     # -- 3b.D3 (P4-D368): the day-of-month census, filled; the file's own
     # body holds every published group's count exactly (V5-W2).
     Fact(

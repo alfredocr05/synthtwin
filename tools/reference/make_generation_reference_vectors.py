@@ -11135,6 +11135,10 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
         "keep_of": lambda ordinal: ordinal // HOUR_DAY,
         "keeps_always": not date_counts_reachable(column),
     }
+    # Step 4 on the body's lattice first, where it is coarser than the
+    # written unit (Codex's review of lane J2).
+    if drawing_unit_of(column) > step:
+        seams["lattice"] = drawing_unit_of(column)
     if word is not None:
         seams["width_of"] = lambda day: counts_into_width(column, day, word)
     fixed = ranks_the_tail_pins(column, parsed)
@@ -11469,7 +11473,7 @@ def clock_payer_candidates(walk, centre, standing, into, home):
         away += 1
 
 
-def clock_payers(walk, unit, origin, into, standing, home):
+def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=None, leaving=None):
     """THE PAYERS of a unit's move from a day of standing ``origin`` to
     one of ``into``: one for each of its ranks, each a movable body rank
     not of the unit, still on the day it stood on as the round began, of
@@ -11479,25 +11483,38 @@ def clock_payers(walk, unit, origin, into, standing, home):
     sharing its own onto one a rank holds -- among the first and the
     CLOCK_PAYER_REACH asked after it, else the first; each moves before
     the next is asked. Where fewer are found than the unit has ranks,
-    every payer goes back. Returns how many were found."""
+    every payer goes back. Returns how many were found.
+
+    STRICT PAYERS (lane J2): where ``strict``, only a payer keeping the
+    count is taken, among the first with a place and the CLOCK_PAYER_REACH
+    after it; and no rank on the written unit ``avoid`` is a payer, nor one
+    whose place stands on the written unit ``leaving``, the one the run
+    leaves (lane J2's skeptic, item 2)."""
     taken = []
     asked = set(unit)
     centre = walk.days[unit[0]] // walk.day
     for _payer in unit:
         chosen = None
         after = 0
+        met = False
         for rank, day in clock_payer_candidates(walk, centre, standing, into, home):
             if walk.days[rank] // walk.day != day or rank in asked:
                 continue
             place = clock_payer_place(walk, rank, origin, standing)
             if place is None:
                 continue
+            if avoid is not None and walk.days[rank] // walk.step == avoid:
+                continue
+            if leaving is not None and place // walk.step == leaving:
+                continue
             alone = walk.holding(walk.days[rank]) == 1
             if alone != (walk.holding(place) > 0):
                 chosen = (rank, place)
                 break
-            if chosen is None:
-                chosen = (rank, place)
+            if not met:
+                met = True
+                if not strict:
+                    chosen = (rank, place)
                 continue
             after += 1
             if after >= CLOCK_PAYER_REACH:
@@ -11512,14 +11529,16 @@ def clock_payers(walk, unit, origin, into, standing, home):
     return len(taken)
 
 
-def clock_paid_escape(walk, unit, low, high, have, standing, refused, home):
+def clock_paid_escape(walk, unit, low, high, have, standing, refused, home, strict=False, group=None):
     """THE ESCAPE PAID BACK (G7.3g step 3; lane J, plan P4-D367): the other
     days of the unit's gap, nearest first, the earlier on a tie, no hole,
     of its width kind, whose standing is another; on each, SAMEPARENT's
     place at the unit's own seat, taken only where as many payers as the
     unit has ranks are found and moved (``clock_payers``). A standing is
     asked once for the unit; a pair of standings no payer at all was found
-    for goes into ``refused`` and is not asked again in the step."""
+    for goes into ``refused`` and is not asked again in the step. Lane J2:
+    ``strict`` asks strict payers, and ``group``, where given, asks the
+    place in that group alone (``clock_place_in_group``), as SPREAD does."""
     ordinal = walk.days[unit[0]]
     day = ordinal // walk.day
     per_day = walk.day // clock_span(walk)
@@ -11535,10 +11554,13 @@ def clock_paid_escape(walk, unit, low, high, have, standing, refused, home):
                 continue
             if walk.width_of(other) != walk.width_of(day):
                 continue
-            target = clock_place_on(walk, other * per_day + seat, ordinal, low, high, len(unit), have)
+            if group is None:
+                target = clock_place_on(walk, other * per_day + seat, ordinal, low, high, len(unit), have)
+            else:
+                target = clock_place_in_group(walk, other * per_day + seat, ordinal, low, high, len(unit), group)
             if target is None:
                 continue
-            found = clock_payers(walk, unit, own, into, standing, home)
+            found = clock_payers(walk, unit, own, into, standing, home, strict)
             if found == len(unit):
                 return target
             asked.add(into)
@@ -11819,7 +11841,10 @@ def clock_off_midnight(walk, before, first, last, pinned):
     """G7.3g step 4: every movable rank the pass left written at midnight,
     with every such rank of its written unit, takes the free place of the
     day's first bin -- hour 0, for the hour -- nearest midnight inside all
-    their gaps; where none is, they stay."""
+    their gaps; where none is, they stay. Where the walk has a lattice
+    coarser than its written unit (the hour pass on a column drawn on one),
+    the free place of the lattice nearest midnight is asked first (Codex's
+    review of lane J2)."""
     runs = {}
     for rank in range(first, last + 1):
         ordinal = walk.days[rank]
@@ -11830,10 +11855,64 @@ def clock_off_midnight(walk, before, first, last, pinned):
         start = unit * walk.step
         low = max([start] + [walk.lows[rank] for rank in members])
         high = min([start + walk.unit - 1] + [walk.highs[rank] for rank in members])
-        target = clock_nearest_free(walk, start, low, high)
+        target = None
+        if walk.lattice > walk.step:
+            target = clock_nearest_on_lattice(walk, start, low, high)
+        if target is None:
+            target = clock_nearest_free(walk, start, low, high)
         if target is not None:
             for rank in members:
                 walk.move(rank, target)
+
+
+def clock_nearest_on_lattice(walk, start, low, high):
+    """The free place of the walk's lattice from ``start`` nearest it in
+    [low, high], the earlier on a tie; None where none is."""
+    if low > high:
+        return None
+    away = 0
+    while start - away * walk.lattice >= low or start + away * walk.lattice <= high:
+        for target in (start - away * walk.lattice, start + away * walk.lattice):
+            if clock_free(walk, target, low, high):
+                return target
+        away += 1
+    return None
+
+
+def clock_place_in_group(walk, parent, ordinal, low, high, size, group, have=None):
+    """``clock_place_on`` with every group but ``group`` given no room: in
+    each bin of ``group``, the free place nearest the unit's own place in its
+    bin inside [low, high]; of these, the nearest the unit's place in its
+    parent, the earlier on a tie."""
+    span = clock_span(walk)
+    best = None
+    for field in range(len(walk.group_of_bin)):
+        if walk.group_of_bin[field] != group:
+            continue
+        start = parent * span + field * walk.unit
+        target = clock_nearest_free(
+            walk, start + ordinal % walk.unit, max(start, low), min(start + walk.unit - 1, high)
+        )
+        if target is None or target == ordinal:
+            continue
+        option = (abs(target % span - ordinal % span), target)
+        if best is None or option < best:
+            best = option
+    return None if best is None else best[1]
+
+
+def clock_off_midnight_elsewhere(walk, members, start, kin):
+    """G7.3h's first answer to a unit its field's pass left at a written
+    midnight: the place of the unit's own group on the nearest other parent
+    of its day in its kin group, inside the gap every rank of it shares."""
+    low = max(walk.lows[rank] for rank in members)
+    high = min(walk.highs[rank] for rank in members)
+    group = walk.group(start)
+    for parent in clock_kin_parents(walk, start, kin):
+        target = clock_place_in_group(walk, parent, start, low, high, len(members), group)
+        if target is not None:
+            return target
+    return None
 
 
 def hour_half_day(place, unit):
@@ -11863,9 +11942,771 @@ def hour_tails_on_the_half_day(walk, first, last):
             walk.move(rank, min(options)[1])
 
 
+def clock_field_groups(census, heaps, body):
+    """A field's groups for the clock pass (G7.3h): each value's group and each
+    group's count -- the census's groups in order, or, with heaps and no
+    census, one group of every value counting the body less the heaps; then
+    each heap, its value alone."""
+    group_of_value = [0] * CLOCK_FIELD_VALUES
+    counts = []
+    if census:
+        for group in census:
+            for value in range(group["first"], group["last"] + 1):
+                group_of_value[value] = len(counts)
+            counts.append(group["count"])
+    else:
+        counts.append(body - sum(heap["count"] for heap in heaps))
+    for heap in heaps:
+        group_of_value[heap["value"]] = len(counts)
+        counts.append(heap["count"])
+    return group_of_value, counts
+
+
+CLOCK_SUBSTITUTE_TRIES = 64
+
+
+def clock_whole_runs(walk, first, last, pinned):
+    """Every RUN of the body -- every movable rank of one written unit, no other
+    rank on it, one gap -- in rank order, and the runs of each group and size
+    by their place in that list."""
+    runs = {}
+    for rank in range(first, last + 1):
+        if not pinned[rank]:
+            runs.setdefault(walk.days[rank] // walk.step, []).append(rank)
+    whole, by_kind = [], {}
+    for members in runs.values():
+        if walk.holding(walk.days[members[0]]) != len(members):
+            continue
+        if len({(walk.lows[rank], walk.highs[rank]) for rank in members}) != 1:
+            continue
+        by_kind.setdefault((walk.group(walk.days[members[0]]), len(members)), []).append(len(whole))
+        whole.append(members)
+    return whole, by_kind
+
+
+def clock_substitute(walk, whole, by_kind, group, size, into, leaving, avoid=None):
+    """Runs of ``group`` holding ``size`` ranks together, each moved to the free
+    place of group ``into`` on its own parent nearest its own inside its gap:
+    the longest first, each length's runs in rank order, of at most
+    CLOCK_SUBSTITUTE_TRIES asked, a run longer than what is left passed over,
+    as is a run that moved, holds a rank of ``leaving`` or stands on the unit
+    ``avoid``. Where they do not reach ``size``, every one goes back and None
+    is handed back; else the runs moved, each with where it stood."""
+    moved = []
+    left, tries = size, 0
+    for length in range(size, 0, -1):
+        for index in by_kind.get((group, length), []):
+            if left < length or tries >= CLOCK_SUBSTITUTE_TRIES:
+                break
+            swap = whole[index]
+            spot = walk.days[swap[0]]
+            if (
+                swap[0] in leaving or (avoid is not None and spot // walk.step == avoid)
+                or walk.holding(spot) != length or walk.group(spot) != group
+            ):
+                continue
+            tries += 1
+            target = clock_place_in_group(
+                walk, spot // clock_span(walk), spot, walk.lows[swap[0]], walk.highs[swap[0]], length, into
+            )
+            if target is None:
+                continue
+            for rank in swap:
+                walk.move(rank, target)
+            moved.append((swap, spot))
+            left -= length
+            if left == 0:
+                return moved
+    for swap, spot in moved:
+        for rank in swap:
+            walk.move(rank, spot)
+    return None
+
+
+def clock_off_midnight_exchanged(walk, before, first, last, pinned, kin=()):
+    """G7.3h's EXCHANGE OFF MIDNIGHT: the ranks the pass left on each written
+    midnight, in rank order, take together the place of their own group on
+    another parent of their kin group (``clock_off_midnight_elsewhere``);
+    where none has one, the free place of another group on their parent
+    nearest their own, inside the gap they share, while a run of as many
+    ranks in that group with a free place of their old group on its own
+    parent moves there. Where none has one, the next place is asked."""
+    stuck = {}
+    for rank in range(first, last + 1):
+        if pinned[rank] or before[rank] or not written_at_midnight(walk.days[rank], 0, walk.step):
+            continue
+        stuck.setdefault(walk.days[rank] // walk.step, []).append(rank)
+    if not stuck:
+        return
+    whole, by_kind = clock_whole_runs(walk, first, last, pinned)
+    span = clock_span(walk)
+    for members in stuck.values():
+        here = walk.days[members[0]]
+        if kin:
+            kept = clock_off_midnight_elsewhere(walk, members, here, kin)
+            if kept is not None:
+                for rank in members:
+                    walk.move(rank, kept)
+                continue
+        own = walk.group(here)
+        low = max(walk.lows[rank] for rank in members)
+        high = min(walk.highs[rank] for rank in members)
+        options = []
+        for field in range(len(walk.group_of_bin)):
+            target = here // span * span + field * walk.unit + here % walk.unit
+            if walk.group_of_bin[field] == own or not clock_free(walk, target, low, high):
+                continue
+            options.append((abs(target % span - here % span), target))
+        for _distance, target in sorted(options):
+            if clock_substitute(walk, whole, by_kind, walk.group(target), len(members), own, members) is None:
+                continue
+            for rank in members:
+                walk.move(rank, target)
+            break
+
+
+def clock_join_place(walk, rank, held, standing, anyday=False, kin=()):
+    """SUBSTITUTE's place: the nearest written unit another rank holds in
+    ANOTHER group of the field, inside the rank's gap, at no written midnight
+    and on no hole -- on its own parent, then the parents PUT BACK asks."""
+    ordinal = walk.days[rank]
+    group = walk.group(ordinal)
+    low, high = walk.lows[rank], walk.highs[rank]
+
+    def nearest_on(parent):
+        best = None
+        for unit in held.get(parent, ()):
+            if unit == ordinal // walk.step or walk.holding(unit * walk.step) == 0:
+                continue
+            target = unit * walk.step + ordinal % walk.step
+            if not low <= target <= high or walk.group(target) == group:
+                continue
+            if written_at_midnight(target, 0, walk.step) or walk.hole(target):
+                continue
+            if best is None or (abs(target - ordinal), target) < best:
+                best = (abs(target - ordinal), target)
+        return None if best is None else best[1]
+
+    parents = [ordinal // clock_span(walk)] + clock_kin_parents(walk, ordinal, kin)
+    parents += clock_days_of_standing(walk, ordinal, low, high, standing, True)
+    if anyday:
+        parents += clock_days_of_standing(walk, ordinal, low, high, standing, False)
+    # ...and last, on those days in the same order, the other places of its
+    # kin group, nearest its own first: 400 parents asked at most.
+    kin_days = []
+    for same in ([True, False] if anyday else [True]):
+        for parent in clock_days_of_standing(walk, ordinal, low, high, standing, same):
+            kin_days += clock_kin_parents(walk, parent * clock_span(walk), kin)
+    parents += kin_days[:400]
+    for parent in parents:
+        found = nearest_on(parent)
+        if found is not None:
+            return found
+    return None
+
+
+def clock_split_substituted(walk, first, last, pinned, wanted, standing, anyday=False, kin=()):
+    """G7.3h's SUBSTITUTE: where the count is still long, each run in rank order
+    joins a unit another rank holds in another group (``clock_join_place``),
+    and runs of that group holding as many ranks take free places of the
+    run's own group on their own parents (``clock_substitute``). A group,
+    place in the day and gap that found no unit to join are not asked
+    again."""
+    count = walk.different()
+    held = {}
+    for unit in sorted({ordinal // walk.step for ordinal in walk.days}):
+        held.setdefault(unit * walk.step // clock_span(walk), []).append(unit)
+    whole, by_kind = clock_whole_runs(walk, first, last, pinned)
+    failed = set()
+    for members in whole:
+        if count <= wanted:
+            return
+        here = walk.days[members[0]]
+        if walk.holding(here) != len(members):
+            continue
+        asked = (walk.group(here), clock_seat(walk, here), walk.lows[members[0]], walk.highs[members[0]])
+        if asked in failed:
+            continue
+        joined = clock_join_place(walk, members[0], held, standing, anyday, kin)
+        if joined is None:
+            failed.add(asked)
+            continue
+        if clock_substitute(
+            walk, whole, by_kind, walk.group(joined), len(members), walk.group(here),
+            members, joined // walk.step,
+        ) is None:
+            continue
+        for rank in members:
+            walk.move(rank, joined)
+        count -= 1
+
+
+def clock_escape_in_group(walk, ordinal, low, high, size, group, standing, anyday=False, kin=()):
+    """The ESCAPE's place in one group alone: the kin parents of the unit's
+    day, then the days of its standing at its own parent's place, then,
+    where no weekday census stands, the days of another weekday."""
+    tiers = [clock_kin_parents(walk, ordinal, kin)]
+    tiers.append(clock_days_of_standing(walk, ordinal, low, high, standing, True))
+    if anyday:
+        tiers.append(clock_days_of_standing(walk, ordinal, low, high, standing, False))
+    for parents in tiers:
+        for parent in parents:
+            target = clock_place_in_group(walk, parent, ordinal, low, high, size, group)
+            if target is not None:
+                return target
+    return None
+
+
+def clock_short_spread(walk, first, last, pinned, wanted, standing, anyday=False, kin=()):
+    """G7.3h's SPREAD: where the count is still short, each rank sharing its
+    unit, in rank order, takes its own group's free place nearest its own on
+    its parent, else the ESCAPE's in that group; a group, place in the day and
+    gap that found none are not asked again."""
+    count = walk.different()
+    span = clock_span(walk)
+    full = set()
+    for rank in range(first, last + 1):
+        if count >= wanted:
+            return
+        here = walk.days[rank]
+        if pinned[rank] or walk.holding(here) < 2:
+            continue
+        own = walk.group(here)
+        low, high = walk.lows[rank], walk.highs[rank]
+        asked = (own, clock_seat(walk, here), low, high)
+        if asked in full:
+            continue
+        target = clock_place_in_group(walk, here // span, here, low, high, 1, own)
+        if target is None:
+            target = clock_escape_in_group(walk, here, low, high, 1, own, standing, anyday, kin)
+        if target is None:
+            full.add(asked)
+            continue
+        walk.move(rank, target)
+        count += 1
+
+
+def clock_paid_spread(walk, first, last, pinned, wanted, standing, kin=()):
+    """G7.3h's SPREAD PAID BACK where a weekday census stands and SPREAD left
+    the count short (lane J2): each rank sharing its unit, in rank order,
+    takes SPREAD's place -- its own group's on its own parent, else the
+    escape's in that group -- else its own group's free place at its own
+    parent's place on a day of another standing, paid back by strict payers
+    (``clock_paid_escape``); a group, place in the day, gap and day standing
+    that found none, unpaid or paid, are not asked so again."""
+    count = walk.different()
+    if count >= wanted:
+        return
+    span = clock_span(walk)
+    unpaid = set()
+    full = set()
+    home = None
+    refused = set()
+    for rank in range(first, last + 1):
+        if count >= wanted:
+            return
+        here = walk.days[rank]
+        if pinned[rank] or walk.holding(here) < 2:
+            continue
+        own = walk.group(here)
+        low, high = walk.lows[rank], walk.highs[rank]
+        asked = (own, clock_seat(walk, here), low, high, standing[(here // walk.day + 3) % 7])
+        if asked in full:
+            continue
+        target = None
+        if asked not in unpaid:
+            target = clock_place_in_group(walk, here // span, here, low, high, 1, own)
+            if target is None:
+                target = clock_escape_in_group(walk, here, low, high, 1, own, standing, False, kin)
+            if target is None:
+                unpaid.add(asked)
+        if target is None:
+            if home is None:
+                home = clock_homes(walk, first, last, pinned)
+            target = clock_paid_escape(walk, [rank], low, high, None, standing, refused, home, True, own)
+        if target is None:
+            full.add(asked)
+            continue
+        walk.move(rank, target)
+        count += 1
+
+
+def clock_spread_substituted(walk, first, last, pinned, wanted):
+    """G7.3h's SPREAD BY SUBSTITUTE where a weekday census stands and the count
+    is still short (lane J2): each rank sharing its unit, in rank order, takes
+    the free place of another group G on its own parent nearest its own,
+    inside its gap and at no written midnight, while a run of G holding one
+    rank, in rank order, takes the free place of the rank's own group on its
+    own parent nearest its own; else the next place. Each pair of groups
+    keeps a cursor past the runs it has asked, and a group, place in the
+    day, gap and parent that found none are not asked again."""
+    count = walk.different()
+    if count >= wanted:
+        return
+    span = clock_span(walk)
+    whole, by_kind = clock_whole_runs(walk, first, last, pinned)
+    failed = set()
+    cursor = {}
+    for rank in range(first, last + 1):
+        if count >= wanted:
+            return
+        here = walk.days[rank]
+        if pinned[rank] or walk.holding(here) < 2:
+            continue
+        own = walk.group(here)
+        low, high = walk.lows[rank], walk.highs[rank]
+        parent = here // span
+        asked = (own, clock_seat(walk, here), low, high, parent)
+        if asked in failed:
+            continue
+        options = []
+        for field in range(len(walk.group_of_bin)):
+            other = walk.group_of_bin[field]
+            if other == own or cursor.get((other, own), 0) >= len(by_kind.get((other, 1), [])):
+                continue
+            start = parent * span + field * walk.unit
+            target = clock_nearest_free(
+                walk, start + here % walk.unit, max(start, low), min(start + walk.unit - 1, high)
+            )
+            if target is not None:
+                options.append((abs(target % span - here % span), target))
+        placed = False
+        for _distance, target in sorted(options):
+            other = walk.group(target)
+            listed = by_kind.get((other, 1), [])
+            at = cursor.get((other, own), 0)
+            while at < len(listed) and not placed:
+                swap = whole[listed[at]][0]
+                at += 1
+                spot = walk.days[swap]
+                if walk.holding(spot) != 1 or walk.group(spot) != other:
+                    continue
+                into = clock_place_in_group(walk, spot // span, spot, walk.lows[swap], walk.highs[swap], 1, own)
+                if into is None:
+                    continue
+                walk.move(swap, into)
+                walk.move(rank, target)
+                count += 1
+                placed = True
+            cursor[(other, own)] = at
+            if placed:
+                break
+        if not placed:
+            failed.add(asked)
+
+
+def clock_paid_merge_place(walk, members, held, standing, refused, home):
+    """PUT BACK's merge PAID BACK (lane J2): the other days of the run's gap,
+    nearest first, the earlier on a tie, no hole and of its width kind, whose
+    standing is another; on each, PUT BACK's place at the run's own parent's
+    place in that day, taken only where as many strict payers as the run has
+    ranks, none on the unit it joins and none placed on the unit it leaves,
+    are found and moved. A standing is asked once for the run; a pair no
+    payer at all was found for is refused for the step."""
+    first = members[0]
+    ordinal = walk.days[first]
+    group = walk.group(ordinal)
+    low, high = walk.lows[first], walk.highs[first]
+    day = ordinal // walk.day
+    per_day = walk.day // clock_span(walk)
+    seat = clock_seat(walk, ordinal)
+    own = standing[(day + 3) % 7]
+
+    def nearest_on(parent):
+        best = None
+        for unit in held.get(parent, ()):
+            if unit == ordinal // walk.step or walk.holding(unit * walk.step) == 0:
+                continue
+            target = unit * walk.step + ordinal % walk.step
+            if not low <= target <= high or walk.group(target) != group:
+                continue
+            if written_at_midnight(target, 0, walk.step):
+                continue
+            if best is None or (abs(target - ordinal), target) < best:
+                best = (abs(target - ordinal), target)
+        return None if best is None else best[1]
+
+    asked = set()
+    for away in range(1, max(day - low // walk.day, high // walk.day - day) + 1):
+        for other in (day - away, day + away):
+            if not low // walk.day <= other <= high // walk.day or other in walk.holes:
+                continue
+            into = standing[(other + 3) % 7]
+            if into == own or into in asked or (own, into) in refused:
+                continue
+            if walk.width_of(other) != walk.width_of(day):
+                continue
+            target = nearest_on(other * per_day + seat)
+            if target is None:
+                continue
+            found = clock_payers(
+                walk, members, own, into, standing, home, True, target // walk.step,
+                ordinal // walk.step,
+            )
+            if found == len(members):
+                return target
+            asked.add(into)
+            if found == 0:
+                refused.add((own, into))
+    return None
+
+
+def clock_paid_put_back(walk, first, last, pinned, wanted, standing):
+    """G7.3h's PUT BACK PAID BACK where a weekday census stands and the count
+    is still long (lane J2): PUT BACK's whole runs, smallest first, in
+    proportional order within a size, each asked as it stands and merged
+    onto its own group's held unit on a day of another standing, paid back
+    (``clock_paid_merge_place``); a group, place in the day, gap and day
+    standing that found none are not asked again."""
+    count = walk.different()
+    if count <= wanted:
+        return
+    held = {}
+    for unit in sorted({ordinal // walk.step for ordinal in walk.days}):
+        held.setdefault(unit * walk.step // clock_span(walk), []).append(unit)
+    runs = {}
+    for rank in range(first, last + 1):
+        if not pinned[rank]:
+            runs.setdefault(walk.days[rank] // walk.step, []).append(rank)
+    whole = sorted(
+        (len(members), unit)
+        for unit, members in runs.items()
+        if walk.holding(walk.days[members[0]]) == len(members)
+        and len({(walk.lows[rank], walk.highs[rank]) for rank in members}) == 1
+    )
+    order = []
+    for size in sorted({size for size, _unit in whole}):
+        order += clock_rotated([runs[unit] for each, unit in whole if each == size], count - wanted)
+    order = [(walk.days[members[0]] // walk.step, members) for members in order]
+    home = clock_homes(walk, first, last, pinned)
+    refused = set()
+    failed = set()
+    for key, listed in order:
+        if count <= wanted:
+            return
+        members = [rank for rank in listed if walk.days[rank] // walk.step == key]
+        if not members or walk.holding(key * walk.step) != len(members):
+            continue
+        here = walk.days[members[0]]
+        asked = (
+            walk.group(here), clock_seat(walk, here), walk.lows[members[0]], walk.highs[members[0]],
+            standing[(here // walk.day + 3) % 7],
+        )
+        if asked in failed:
+            continue
+        target = clock_paid_merge_place(walk, members, held, standing, refused, home)
+        if target is None:
+            failed.add(asked)
+            continue
+        for rank in members:
+            walk.move(rank, target)
+        count -= 1
+
+
+def clock_field_settled(walk, first, last, pinned, wanted, standing, anyday, kin, reachable, published=None):
+    """G7.3h for one field: the clock pass, then the exchange off midnight,
+    G7.3g's PUT BACK once more where the exchange left the count long and it
+    is reachable, SUBSTITUTE where the count is still long and reachable (round
+    after round while one puts a value back, three at most), and SPREAD where
+    it is still short and reachable or drawn no higher than published; each
+    run of unpinned ranks sorted last."""
+    before = [written_at_midnight(value, 0, walk.step) for value in walk.days]
+    clock_pass(walk, first, last, pinned, wanted, standing, False, reachable, anyday, kin, published=published)
+    clock_off_midnight_exchanged(walk, before, first, last, pinned, kin)
+    for last_resort in (False, True):
+        if reachable and walk.different() > wanted and (anyday or not last_resort):
+            clock_put_back(walk, first, last, pinned, wanted, standing, last_resort, kin)
+    # ...and PAID BACK where a weekday census stands (lane J2).
+    if reachable and not anyday and walk.different() > wanted:
+        clock_paid_put_back(walk, first, last, pinned, wanted, standing)
+    # SUBSTITUTE, round after round while one puts a value back, three at most.
+    for _round in range(3):
+        count = walk.different()
+        if not reachable or count <= wanted:
+            break
+        clock_split_substituted(walk, first, last, pinned, wanted, standing, anyday, kin)
+        if walk.different() >= count:
+            break
+    if walk.different() < wanted and (reachable or published is None or wanted <= published):
+        clock_short_spread(walk, first, last, pinned, wanted, standing, anyday, kin)
+    # ...and SPREAD PAID BACK where a weekday census stands (lane J2).
+    if not anyday and walk.different() < wanted and (reachable or published is None or wanted <= published):
+        clock_paid_spread(walk, first, last, pinned, wanted, standing, kin)
+        clock_spread_substituted(walk, first, last, pinned, wanted)
+    sort_unpinned_runs(walk.days, pinned)
+    return walk.days
+
+
+def clock_midnight_count_kept(counted, ordinals, pinned, first, last, step, away, lows, highs, owed=False, hole_days=None):
+    """G7.3h: the published count at midnight kept by the tails. While more
+    ranks than it stand at a written midnight, the first unpinned tail rank
+    at one steps ``away`` -- its drawing unit -- off it inside its stratum,
+    or ``step`` -- the written unit -- where the stratum is narrower; while fewer, the first unpinned tail rank off one takes the nearest
+    midnight inside its stratum. Each tail's ranks are then sorted. ``owed``:
+    the count is withheld for its size and held before the passes (P4-D191);
+    on the side most of the column stands, short, every tail rank gives way
+    (``clock_owed_midnight``)."""
+    parsed = len(ordinals)
+    at = sum(1 for value in ordinals if written_at_midnight(value, 0, step))
+    for rank in range(parsed):
+        if at == counted:
+            break
+        if first <= rank <= last or pinned[rank]:
+            continue
+        here = written_at_midnight(ordinals[rank], 0, step)
+        if at > counted and here:
+            if ordinals[rank] + away <= highs[rank]:
+                ordinals[rank] += away
+                at -= 1
+            elif ordinals[rank] - away >= lows[rank]:
+                ordinals[rank] -= away
+                at -= 1
+            elif ordinals[rank] + step <= highs[rank]:
+                ordinals[rank] += step
+                at -= 1
+            elif ordinals[rank] - step >= lows[rank]:
+                ordinals[rank] -= step
+                at -= 1
+        elif at < counted and not here:
+            found = nearest_midnight(ordinals[rank], 0, lows[rank], highs[rank])
+            if found is not None:
+                ordinals[rank] = found
+                at += 1
+    sort_unpinned_runs(ordinals, [pinned[rank] or first <= rank <= last for rank in range(parsed)])
+    if owed and at < counted and 2 * counted > parsed:
+        clock_owed_midnight(counted, ordinals, first, last, step, set() if hole_days is None else hole_days)
+
+
+def clock_owed_midnight(counted, ordinals, first, last, step, hole_days):
+    """G7.3h, lane J2's skeptic item 3: a count at midnight withheld for its
+    size kept by every tail rank. In rank order, each tail rank off a written
+    midnight -- a tie of tail ranks together -- takes its own day's midnight
+    where that stands strictly after the rank before it, else the next day's
+    where that stands strictly before the rank after it, never on a day of
+    ``hole_days``, until the count held is reached. The body is not moved."""
+    parsed = len(ordinals)
+    at = sum(1 for value in ordinals if written_at_midnight(value, 0, step))
+    rank = 0
+    while rank < parsed and at < counted:
+        if first <= rank <= last or written_at_midnight(ordinals[rank], 0, step):
+            rank += 1
+            continue
+        end = rank
+        while end + 1 < parsed and ordinals[end + 1] == ordinals[rank]:
+            end += 1
+        day = ordinals[rank] // 86400
+        found = None
+        if rank == 0 or ordinals[rank - 1] < day * 86400:
+            found = day
+        if (found is None or found in hole_days) and end + 1 < parsed and (day + 1) * 86400 < ordinals[end + 1]:
+            found = day + 1
+        if found is not None and found not in hole_days and not rank < first <= end:
+            for place in range(rank, end + 1):
+                ordinals[place] = found * 86400
+            at += end - rank + 1
+        rank = end + 1
+
+
+
+def clock_midnight_room_made(walk, first, last, pinned, tail_pins, written, away):
+    """G7.3h, the tails make room at midnight: on a walk keeping its cells at
+    midnight, with value 0 a group alone holding fewer body ranks than its
+    count, each body rank in order -- not pinned, of a group over its count
+    -- whose place on value 0 of its own parent, its place in the bin kept,
+    is a written midnight inside its gap and no hole, takes it, while the
+    first tail rank not yet stepped, not pinned by its tail, at a written
+    midnight, that can step off inside its stratum does so (``away`` later,
+    else earlier, else ``written`` later, else earlier) -- where the count
+    of different values is reachable, only one whose step and the body
+    rank's move together do not raise that count, the first keeping it
+    where any does; a value lost is put back by SPREAD after."""
+    zero = walk.group_of_bin[0]
+    if not walk.no_midnight or walk.group_of_bin.count(zero) != 1:
+        return
+    found = clock_have(walk, first, last)
+    if found[zero] >= walk.counts[zero]:
+        return
+    tails = [
+        rank for rank in range(len(walk.days))
+        if not first <= rank <= last and not tail_pins[rank]
+        and written_at_midnight(walk.days[rank], 0, written)
+    ]
+    span = clock_span(walk)
+    used = [False] * len(tails)
+    for rank in range(first, last + 1):
+        if found[zero] >= walk.counts[zero]:
+            return
+        ordinal = walk.days[rank]
+        group = walk.group(ordinal)
+        if pinned[rank] or group == zero or found[group] <= walk.counts[group]:
+            continue
+        target = ordinal - ordinal % span + ordinal % walk.unit
+        if (
+            not written_at_midnight(target, 0, walk.step)
+            or not walk.lows[rank] <= target <= walk.highs[rank]
+            or walk.hole(target)
+        ):
+            continue
+        change = (walk.holding(target) == 0) - (walk.holding(ordinal) == 1)
+        chosen = None
+        for index, tail in enumerate(tails):
+            if used[index]:
+                continue
+            value, low, high = walk.days[tail], walk.lows[tail], walk.highs[tail]
+            off = next((c for c in (value + away, value - away, value + written, value - written) if low <= c <= high), None)
+            if off is None:
+                continue
+            shift = (walk.holding(off) == 0) - (walk.holding(value) == 1)
+            if not walk.keeps_always and change + shift > 0:
+                continue
+            if chosen is None or (change + shift == 0 and chosen[2] < 0):
+                chosen = (index, off, change + shift)
+            if chosen[2] == 0 or walk.keeps_always:
+                break
+        if chosen is None:
+            continue
+        used[chosen[0]] = True
+        walk.move(tails[chosen[0]], chosen[1])
+        walk.move(rank, target)
+        found[zero] += 1
+        found[group] -= 1
+
+
+def clock_midnight_room_kept(walk, first, last, pinned, tail_pins, written, away, wanted, standing, anyday, kin, reachable):
+    """G7.3h, the tails make room at midnight, and SPREAD after it where the
+    count of different values is reachable and the step left it short."""
+    clock_midnight_room_made(walk, first, last, pinned, tail_pins, written, away)
+    if reachable and walk.different() < wanted:
+        clock_short_spread(walk, first, last, pinned, wanted, standing, anyday, kin)
+    if reachable and not anyday and walk.different() < wanted:
+        clock_paid_spread(walk, first, last, pinned, wanted, standing, kin)
+        clock_spread_substituted(walk, first, last, pinned, wanted)
+
+
 def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
-    """The minute and second censuses met -- landing 3b.4's pass (lane T3,
-    plan P4-D372). A STUB (plan P4-D364): every rank stays until then."""
+    """G7.3h, from the method's text: the minute and second censuses and heaps
+    met (landing 3b.4, plan P4-D372).
+
+    Under G7.3g's run conditions, where a minute or second census or heap is
+    published: the one clock pass once for the minute -- bins of 60 seconds,
+    the hour its parent, the hour census's groups its kin (one group over
+    the day where none is published) -- and once for the second -- bins of
+    one second, the minute its parent, each minute of the day keyed by its
+    hour group and minute group. Each field's groups are its census's, or
+    one group of the rest beside heaps with no census, and each heap alone.
+    A field its ranks already meet is not passed. After each pass: the
+    exchange off midnight, SUBSTITUTE where the count is long, SPREAD where
+    it is short. Last, the tails keep the published count at midnight.
+    """
+    ordinals = list(ordinals)
+    minute_census = column.get("minute_census") or []
+    minute_heaps = column.get("minute_heaps") or []
+    second_census = column.get("second_census") or []
+    second_heaps = column.get("second_heaps") or []
+    if (
+        not (minute_census or minute_heaps or second_census or second_heaps)
+        or parsed < 3
+        or ordinal_space(column) != "datetime"
+        or not column.get("low_tail")
+        or not column.get("high_tail")
+        or any(whole)
+    ):
+        return ordinals
+    first = column["low_tail"]["rows"]
+    last = parsed - 1 - column["high_tail"]["rows"]
+    written = 60 if column["time_precision"] == "minute" else 1
+    widths = column.get("date_field_widths", {})
+    word = None
+    if len(widths) == 1 and (
+        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+    ):
+        word = next(iter(widths))
+    hole_days = set(weekday_hole_days(column, holes)) | days_named(column["format"], holes)
+    hour_of = [0] * 24
+    for index, group in enumerate(column.get("hour_census") or []):
+        for hour in range(group["first"], group["last"] + 1):
+            hour_of[hour] = index
+    minute_of = [0] * CLOCK_FIELD_VALUES
+    census_of_days = column.get("weekday_census") or []
+    standing = list(range(7))
+    for index, group in enumerate(census_of_days):
+        for weekday in range(group["first"], group["last"] + 1):
+            standing[weekday] = index
+    reachable = date_counts_reachable(column)
+    held_at_midnight = sum(1 for value in ordinals if written_at_midnight(value, 0, written))
+    for field, census, heaps in (
+        ("minute", minute_census, minute_heaps),
+        ("second", second_census, second_heaps),
+    ):
+        if not census and not heaps:
+            continue
+        group_of_value, asked = clock_field_groups(census, heaps, last - first + 1)
+        step = count_step(column, ordinals, written)
+        if field == "minute":
+            kin = tuple(hour_of)
+            unit, bin_of, keep_of = 60, (lambda o: (o // 60) % 60), (lambda o: o // HOUR)
+        else:
+            kin = tuple(hour_of[place // 60] * (max(minute_of) + 1) + minute_of[place % 60] for place in range(1440))
+            unit, bin_of, keep_of = 1, (lambda o: o % 60), (lambda o: o // 60)
+        if step > unit:
+            step = math.gcd(step, unit)
+        seams = {
+            "unit": unit, "step": step, "day": HOUR_DAY, "bin_of": bin_of, "keep_of": keep_of,
+            "keeps_always": not reachable, "count_steps": False,
+            "kin_of": (lambda o, kin=kin, span=unit * CLOCK_FIELD_VALUES: kin[(o // span) % (HOUR_DAY // span)]),
+        }
+        if word is not None:
+            seams["width_of"] = lambda day: counts_into_width(column, day, word)
+        fixed = ranks_the_tail_pins(column, parsed)
+        counted = column.get("n_at_midnight") is not None
+        # The cells at midnight kept where their count is published.
+        seams["no_midnight"] = counted
+        # A shared written unit moved whole (the lane's second skeptic, item 1).
+        seams["whole_units"] = True
+        pinned = [
+            fixed[rank] or lows[rank] >= highs[rank]
+            or (counted and written_at_midnight(ordinals[rank], 0, step))
+            for rank in range(parsed)
+        ]
+        counts = clock_counts_as_written(
+            asked, group_of_value, bin_of, ordinals,
+            clock_sixtieths(column, ordinals, parsed, first, last, pinned),
+        )
+        walk = WeekdayWalk(counts, group_of_value, ordinals, list(lows), list(highs), hole_days, seams)
+        # Where the count is reachable, the published one, less the tail
+        # values sharing a unit of this step with another.
+        wanted = walk.different()
+        if reachable:
+            wanted = column["n_distinct"] - column["n_unparsed"] - (
+                len({value // written for value in ordinals}) - wanted
+            )
+        if clock_have(walk, first, last) == walk.counts and walk.different() == wanted:
+            if field == "minute":
+                minute_of = list(group_of_value)
+            continue
+        clock_field_settled(
+            walk, first, last, pinned, wanted, standing, not census_of_days, kin,
+            reachable, column["n_distinct"],
+        )
+        clock_midnight_room_kept(
+            walk, first, last, pinned, ranks_the_tail_pins(column, parsed),
+            written, max(written, tail_unit_of(column)), wanted, standing,
+            not census_of_days, kin, reachable,
+        )
+        ordinals = walk.days
+        if field == "minute":
+            minute_of = list(group_of_value)
+    # The count the tails keep: the published one, or, withheld for its size
+    # and so still owed (P4-D191), the count held before these passes.
+    counted = column.get("n_at_midnight")
+    if counted is None and midnight_withheld_for_its_size(column):
+        counted = held_at_midnight
+    if counted is not None:
+        clock_midnight_count_kept(
+            counted, ordinals, ranks_the_tail_pins(column, parsed), first, last,
+            written, max(written, tail_unit_of(column)), lows, highs,
+            column.get("n_at_midnight") is None, hole_days,
+        )
     return ordinals
 
 
@@ -14123,7 +14964,7 @@ def least_end(mean, root, edge):
     return min(max(math.ceil(reach - ((1.0 + reach) * (1.0 / 16777216.0))), 0), edge)
 
 
-def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_day=None, islands=()):
+def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_day=None, islands=(), end_midnight=None):
     """Every rank's whole distance beyond the boundary, outermost first (G7.3b).
 
     ``words`` maps an outer index to the word that rank read; an index
@@ -14150,6 +14991,13 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_d
     it where that is a distance of one or more, and otherwise to the unit
     beyond it within the reach -- before the end is raised to the group's
     distance (G7.10).
+    ``end_midnight`` is, where the END is held off a midnight the count at
+    midnight leaves it none of, (the boundary's tail unit, the side, the
+    seconds of one tail unit, the cells at midnight left as a one-place list): an
+    END standing at a written midnight after the step off the holes takes
+    one where one is left, else steps one unit inward until it stands at no
+    midnight and on no hole, never below one (the Codex review of landing
+    3b.4, item 4).
     """
     shape = mixture_of(rows, mean, root)
     stretch, end = stretched_end(shape, rows, mean, root, edge)
@@ -14176,6 +15024,10 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_d
         found[0] = stepped(found[0])
         if grouped < rows:
             group = stepped(group)
+    if end_midnight is not None:
+        at, low_side, seconds, room = end_midnight
+        found[0] = end_held(found[0], at, low_side, off[2] if off is not None else set(), seconds, room)
+    if off is not None:
         found[0] = max(found[0], group)
     if islands:
         found[0] = counted_off_islands(found[0], islands, edge)
@@ -14384,7 +15236,75 @@ def tail_holes_named(column, at, low_side):
     return (at, low_side, days_named(member, spellings))
 
 
-def tail_side_plan(column, side, low_side, parsed, words):
+def end_held(end, at, low_side, named, seconds, room):
+    """G7.3b step 7's END held off a midnight (the Codex review of landing 3b.4,
+    item 4): standing at a written midnight -- its tail unit's seconds a day
+    divides -- it takes one of the cells at midnight ``room`` holds, else steps one
+    unit inward until it stands at no midnight and on no unit ``named``,
+    never below one."""
+
+    def midnight(distance):
+        return ((at - distance if low_side else at + distance) * seconds) % 86400 == 0
+
+    if not midnight(end):
+        return end
+    if room[0] > 0:
+        room[0] -= 1
+        return end
+    while end > 1 and (midnight(end) or (at - end if low_side else at + end) in named):
+        end -= 1
+    return end
+
+
+def tail_ends_room(column, parsed):
+    """How many cells at midnight the published count at midnight leaves the tails'
+    ENDS, as a one-place list spent low tail first (G7.3b step 7; the Codex
+    review of landing 3b.4, item 4); None where no END is held off one: a
+    column of moments not all at midnight, publishing its count there, read
+    on its own clock, with both tails. The count less the body's cells at
+    midnight for certain -- hour 0's count alone, less the body's cells off
+    minute 0 and off second 0 (none on a column written to the minute),
+    never below nought, nought finer than the second -- and less the rows
+    each tail listing its values holds at midnight for certain."""
+    low, high = column.get("low_tail"), column.get("high_tail")
+    counted = column.get("n_at_midnight")
+    if (
+        ordinal_space(column) != "datetime"
+        or column.get("all_at_midnight", False)
+        or counted is None
+        or column.get("datetimes_read_at") == "utc"
+        or not low
+        or not high
+    ):
+        return None
+    body = parsed - low["rows"] - high["rows"]
+
+    def at_zero(field):
+        for heap in column.get(field + "_heaps") or []:
+            if heap["value"] == 0:
+                return heap["count"]
+        for group in column.get(field + "_census") or []:
+            if group["first"] == 0 and group["last"] == 0:
+                return group["count"]
+        return 0
+
+    forced = 0
+    precision = column.get("time_precision")
+    if precision in ("minute", "second"):
+        zero = sum(g["count"] for g in column.get("hour_census") or [] if g["first"] == 0 and g["last"] == 0)
+        second = body if precision == "minute" else at_zero("second")
+        forced = max(0, zero - (body - at_zero("minute")) - (body - second))
+    left = counted - forced
+    for side in (low, high):
+        values = side.get("values")
+        if values is None:
+            continue
+        at = [v for v in values if len(v) >= 16 and v[11:13] == "00" and v[14:16] == "00" and (len(v) < 19 or v[17:19] == "00")]
+        left -= side["rows"] if values and len(at) == len(values) else len(at)
+    return [left]
+
+
+def tail_side_plan(column, side, low_side, parsed, words, room=None):
     """One tail of a column of dates, laid out in the column's own space.
 
     Returns the ordinal of every rank of the tail, outermost first, the
@@ -14454,16 +15374,28 @@ def tail_side_plan(column, side, low_side, parsed, words):
     # The islands go by name and only where the tail has any, so a column
     # of no counted dates asks `tail_distances` as it always has.
     with_islands = {"islands": islands} if islands else {}
+    # THE END HELD OFF A MIDNIGHT THE COUNT LEAVES IT NONE OF (step 7; the
+    # Codex review of landing 3b.4, item 4): ``room`` is spent once, by the
+    # rank's own distances; its strata read the same answer.
+    # Passed only where it applies, so a stand-in for `tail_distances` taking
+    # the arguments before it still runs every other tail.
+    seconds = 60 if column["tail_unit"] == "minute" else 1
+    stood_end, near_end, far_end = {}, {}, {}
+    if room is not None and not half:
+        stood_end = {"end_midnight": (at, low_side, seconds, room)}
+        near_end = {"end_midnight": (at, low_side, seconds, [room[0]])}
+        far_end = {"end_midnight": (at, low_side, seconds, [room[0]])}
     stood = tail_distances(
-        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, half_day, **with_islands
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, half_day,
+        **with_islands, **stood_end,
     )
     near = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: 0 for index in drawn}, off, half_day, **with_islands,
+        {index: 0 for index in drawn}, off, half_day, **with_islands, **near_end,
     )
     far = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: TWO64 - 1 for index in drawn}, off, half_day, **with_islands,
+        {index: TWO64 - 1 for index in drawn}, off, half_day, **with_islands, **far_end,
     )
     # A stratum lying wholly on an island is given room either side (G7.10).
     near, far = counted_strata_off_islands(near, far, islands, edge)
@@ -14541,6 +15473,7 @@ def date_pins(column, parsed, words=None):
     high_rank = parsed - 1 - high_side["rows"]
     pins, texts = {}, {}
     sides = {}
+    room = tail_ends_room(column, parsed)
     for name, side, is_low in (("low", low_side, True), ("high", high_side, False)):
         mine = {}
         if words is not None:
@@ -14548,7 +15481,7 @@ def date_pins(column, parsed, words=None):
                 rank = index if is_low else parsed - 1 - index
                 if rank in words:
                     mine[index] = words[rank]
-        plan = tail_side_plan(column, side, is_low, parsed, mine)
+        plan = tail_side_plan(column, side, is_low, parsed, mine, room)
         sides[name] = plan
         for index in range(side["rows"]):
             rank = index if is_low else parsed - 1 - index
@@ -14762,11 +15695,140 @@ def body_draw(column, start, stop, low, high, word):
     return on_draw_unit(column, drawn, low, high)
 
 
-def on_draw_unit(column, value, low, high):
-    """A body draw laid on the drawing unit (plan P4-D364's seam, landing
-    3b.4's to write). Every case draws in the space's own unit until
-    then, so the value stands."""
+def on_draw_unit(column, value, low, high, unit=None):
+    """A draw laid on the drawing unit (G7.3's drawing rule, landing 3b.4,
+    plan P4-D372): floored to a multiple of it, or the next multiple where
+    the floor falls below ``low`` and that one is not above ``high``; the
+    value stands where no multiple lies between. ``unit`` defaults to the
+    body's (``drawing_unit_of``)."""
+    unit = drawing_unit_of(column) if unit is None else unit
+    if unit <= 1:
+        return value
+    floored = value - value % unit
+    if floored >= low:
+        return floored
+    if floored + unit <= high:
+        return floored + unit
     return value
+
+
+CLOCK_FIELD_VALUES = 60
+
+
+def clock_field_lattice(census, heaps, published, body, line):
+    """G7.3's drawing rule on one field of the clock: with heaps and no census,
+    where the body's cells off the heaps are fewer than the census line (a
+    body below nought is not known), the greatest step dividing sixty and
+    every heap's value; with a census and no heap, sixty where its one
+    non-zero group holds 0 and every value the description publishes in the
+    body stands on 0; else nought."""
+    if heaps and not census:
+        if body < 0 or body - sum(heap["count"] for heap in heaps) >= line:
+            return 0
+        step = CLOCK_FIELD_VALUES
+        for heap in heaps:
+            step = math.gcd(step, heap["value"])
+        return step
+    if census and not heaps:
+        holding = [group for group in census if group["count"] > 0]
+        if len(holding) != 1 or holding[0]["first"] != 0 or any(published):
+            return 0
+        return CLOCK_FIELD_VALUES
+    return 0
+
+
+def published_body_texts(column):
+    """Every value a block of moments publishes between its two tail
+    boundaries, both included, as text: the boundaries and the rungs."""
+    found = [column[side]["boundary"] for side in ("low_tail", "high_tail") if column.get(side)]
+    for key in LADDER_KEYS[1:-1]:
+        rung = column["date_percentiles"].get(key)
+        if isinstance(rung, str) and len(rung) >= 19:
+            found.append(rung)
+    return found
+
+
+def drawing_unit_of(column):
+    """How many seconds one body draw of a column steps in (G7.3's drawing
+    rule, ``clock_drawing_unit``); one off a column of moments. Its body is
+    the parsed cells less both tails' rows, its census line the one every
+    case is described under."""
+    if ordinal_space(column) != "datetime":
+        return 1
+    body = column["n_present"] - column["n_unparsed"] - sum(
+        column[side]["rows"] for side in ("low_tail", "high_tail") if column.get(side)
+    )
+    return clock_drawing_unit(
+        column["time_precision"], column.get("minute_census") or [],
+        column.get("minute_heaps") or [], column.get("second_census") or [],
+        column.get("second_heaps") or [], published_body_texts(column),
+        body, census_line(CASE_SMALL_CELL_FLOOR),
+    )
+
+
+def clock_drawing_unit(precision, minute_census, minute_heaps, second_census, second_heaps, texts, body, line):
+    """G7.3's drawing rule: one unless a minute or second census or heap is
+    published; then, the seconds pinned -- written to the minute, or on their
+    own lattice -- a lattice finer than the minute is the unit, and with the
+    seconds on 0 sixty seconds times the minute's lattice, sixty where the
+    minute pins none (one on a column written to the minute)."""
+    if not (minute_census or minute_heaps or second_census or second_heaps):
+        return 1
+    seconds = CLOCK_FIELD_VALUES
+    if precision != "minute":
+        seconds = clock_field_lattice(
+            second_census, second_heaps, [min(int(text[17:19]), 59) for text in texts], body, line
+        )
+    if seconds <= 0:
+        return 1
+    if seconds < CLOCK_FIELD_VALUES:
+        return seconds
+    minutes = clock_field_lattice(minute_census, minute_heaps, [int(text[14:16]) for text in texts], body, line)
+    if minutes <= 0:
+        return 1 if precision == "minute" else CLOCK_FIELD_VALUES
+    return CLOCK_FIELD_VALUES * minutes
+
+
+def tail_unit_of(column):
+    """How many seconds one tail draw steps in (G7.3, landing 3b.4): the
+    drawing unit where both tail boundaries and every value a tail lists
+    stand on it; one elsewhere."""
+    unit = drawing_unit_of(column)
+    if unit <= 1:
+        return 1
+    for side in ("low_tail", "high_tail"):
+        tail = column.get(side)
+        if not tail:
+            return 1
+        for value in [tail["boundary"]] + list(tail.get("values") or []):
+            if len(value) < 19 or ordinal_of(value, "datetime") % unit != 0:
+                return 1
+    return unit
+
+
+def count_step(column, ordinals, step):
+    """The step a pass over a column of moments walks and counts in (landing
+    3b.4): the drawing unit where every body rank stands on it, else the
+    written unit."""
+    unit = drawing_unit_of(column)
+    if unit <= step or not column.get("low_tail") or not column.get("high_tail"):
+        return step
+    first = column["low_tail"]["rows"]
+    last = len(ordinals) - 1 - column["high_tail"]["rows"]
+    if any(ordinals[rank] % unit for rank in range(first, last + 1)):
+        return step
+    return unit
+
+
+def midnight_step_of(column, parsed, rank, step):
+    """How far a step off midnight moves a rank (landing 3b.4): a body rank
+    by the drawing unit, a tail rank by its tail's, never less than the
+    written unit."""
+    unit = tail_unit_of(column)
+    if column.get("low_tail") and column.get("high_tail"):
+        if column["low_tail"]["rows"] <= rank <= parsed - 1 - column["high_tail"]["rows"]:
+            unit = drawing_unit_of(column)
+    return max(step, unit)
 
 
 def spread_ordinals(column, parsed, words):
@@ -14842,6 +15904,14 @@ def spread_ordinals(column, parsed, words):
         for index in plan["drawn"]:
             rank = index if name == "low" else parsed - 1 - index
             ordinals[rank] = plan["spots"][index]
+    # ...and each drawn tail rank laid on its tail's drawing unit (landing 3b.4).
+    tail_unit = tail_unit_of(column) if sides else 1
+    if tail_unit > 1:
+        lows, highs = pin_bounds(column, parsed)
+        for name in sides:
+            for index in sides[name]["drawn"]:
+                rank = index if name == "low" else parsed - 1 - index
+                ordinals[rank] = on_draw_unit(column, ordinals[rank], lows[rank], highs[rank], tail_unit)
     return ordinals
 
 
@@ -15018,10 +16088,12 @@ def snapped_to_midnight(column, ordinals, shifts, bounds=None):
                 reached += 1
             continue
         if written_at_midnight(moved[rank], shifts[rank], step):
-            if moved[rank] + step <= highs[rank]:
-                moved[rank] += step
-            elif moved[rank] - step >= lows[rank]:
-                moved[rank] -= step
+            # ...by the rank's drawing unit (landing 3b.4).
+            away = midnight_step_of(column, parsed, rank, step)
+            if moved[rank] + away <= highs[rank]:
+                moved[rank] += away
+            elif moved[rank] - away >= lows[rank]:
+                moved[rank] -= away
     for rank in free:
         if reached >= wanted:
             break
@@ -15093,10 +16165,12 @@ def kept_off_midnight(column, ordinals, parsed, whole, lows, highs, floor=CASE_S
                 break
             if pinned[rank] or whole[rank] or not written_at_midnight(ordinals[rank], shifts[rank], step):
                 continue
-            if ordinals[rank] + step <= highs[rank]:
-                ordinals[rank] += step
-            elif ordinals[rank] - step >= lows[rank]:
-                ordinals[rank] -= step
+            # ...by the rank's drawing unit (landing 3b.4).
+            away = midnight_step_of(column, parsed, rank, step)
+            if ordinals[rank] + away <= highs[rank]:
+                ordinals[rank] += away
+            elif ordinals[rank] - away >= lows[rank]:
+                ordinals[rank] -= away
             else:
                 continue
             at -= 1
@@ -15912,14 +16986,33 @@ class WeekdayWalk:
         self.keeps_always = seams.get("keeps_always", False)
         # Landing 3b.7: the pinned bare dates a gap of movable ranks runs across.
         self.see_through = frozenset(seams.get("see_through", ()))
+        # G7.3h: whether G7.3f's count steps 8.1 to 8.6 run (landing 3b.4).
+        self.count_steps = seams.get("count_steps", True)
+        # G7.3h: a field pass's kin group of an ordinal's parent, or None.
+        self.kin_of = seams.get("kin_of")
+        # G7.3h: whether the pass keeps its cells at midnight (a rank on its day's
+        # first parent is not free to take value 0 alone), and each kin
+        # group's carried shares, at the share scale.
+        self.no_midnight = seams.get("no_midnight", False)
+        self.kin_carry = {}
+        self.kin_members = {}
+        # G7.3h: whether a shared written unit moves whole (the lane's second
+        # skeptic, item 1).
+        self.whole_units = seams.get("whole_units", False)
+        self.lattice = seams.get("lattice", 0)
 
     def group(self, ordinal):
         return self.group_of_bin[self.bin_of(ordinal)]
 
     def kind(self, ordinal):
+        keep = self.keep_of(ordinal) if self.keep_of is not None else 0
+        if self.no_midnight and written_at_midnight(ordinal, 0, self.step):
+            # G7.3h: a written midnight a kind of its own where the pass keeps
+            # its cells at midnight, so no step moves a rank onto it.
+            keep = -1 - keep
         return (
             self.width_of(ordinal // self.day),
-            self.keep_of(ordinal) if self.keep_of is not None else 0,
+            keep,
             self.pair_of(ordinal) if self.pair_of is not None else 0,
         )
 
@@ -16153,42 +17246,108 @@ def weekday_offer(walk, rank, have, want):
     return None
 
 
-def weekday_singles(walk, ranks, have, want, rounds, changing):
-    """G7.3f steps 6 and 7: single ranks, up to `rounds` rounds."""
+def weekday_singles(walk, ranks, have, want, rounds, changing, splits=True):
+    """G7.3f steps 6 and 7: single ranks, up to `rounds` rounds; where not
+    `splits` (G7.3h's KIN SHARES), no rank leaves a written unit it shares
+    by a move changing the count. On a G7.3h pass keeping the count, a
+    rank whose move would take it off a written unit it shares onto a free
+    one moves only with every rank of the unit, onto the same place: as a
+    move keeping the count where its group can give them all and the
+    target's take them all; in the leftover, past that room once per unit,
+    its group over and the target's under; else not at all."""
+    whole = None
+    if walk.whole_units and not walk.keeps_always:
+        whole = {"units": weekday_whole_units(walk, ranks), "overshot": set(), "leftover": changing}
     for _ in range(rounds):
-        if (changing := weekday_single_round(walk, ranks, have, want, changing)) is None:
+        if (changing := weekday_single_round(walk, ranks, have, want, changing, splits, whole)) is None:
             return
+
+
+def weekday_whole_units(walk, ranks):
+    """Each written unit two ranks or more of `ranks` share and no other rank holds."""
+    found = {}
+    for rank in ranks:
+        key = walk.days[rank] // walk.step
+        found[key] = found.get(key, []) + [rank]
+    return {
+        key: members for key, members in found.items()
+        if len(members) > 1 and walk.holding(key * walk.step) == len(members)
+    }
+
+
+def weekday_unit_room(walk, whole, rank, target, have, want, past):
+    """Whether the unit `rank` shares may move whole onto the free `target`."""
+    key = walk.days[rank] // walk.step
+    members = whole["units"].get(key)
+    if members is None or walk.holding(target) != 0:
+        return False
+    if walk.holding(walk.days[rank]) != len(members) or any(walk.days[m] // walk.step != key for m in members):
+        return False
+    source, taking = walk.group(walk.days[rank]), walk.group(target)
+    if past:
+        if key in whole["overshot"] or have[source] <= want[source] or have[taking] >= want[taking]:
+            return False
+    elif have[source] - want[source] < len(members) or want[taking] - have[taking] < len(members):
+        return False
+    return all(walk.lows[m] <= target <= walk.highs[m] for m in members)
+
+
+def weekday_unit_carried(walk, whole, rank, target, have):
+    """Move the unit `rank` shares whole onto `target` and file it there."""
+    key = walk.days[rank] // walk.step
+    members = whole["units"].pop(key)
+    weekday_moved_whole(walk, members, target, have)
+    whole["units"][target // walk.step] = members
+    return True
 
 
 # One round: None where the step ends, else whether changing offers are
 # taken from the next round on.
-def weekday_single_round(walk, ranks, have, want, changing):
+def weekday_single_round(walk, ranks, have, want, changing, splits=True, whole=None):
     if have == want:
         return None
-    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing))
-    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing) for _kind, _distance, rank in offers])
+    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing, splits, whole))
+    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing, splits, whole) for _kind, _distance, rank in offers])
     return None if stalled and changing else (changing or stalled)
 
 
 # Every rank whose group holds more than its share, offered against the
 # holdings as the round begins: (changing, distance, rank).
-def weekday_offers_made(walk, ranks, have, want, changing):
-    return [
-        (offer[0], abs(offer[1] - walk.days[rank]), rank)
-        for rank, offer in (
-            (rank, weekday_offer(walk, rank, have, want))
-            for rank in ranks
-            if have[walk.group(walk.days[rank])] > want[walk.group(walk.days[rank])]
-        )
-        if offer is not None and (offer[0] == 0 or changing)
-    ]
+def weekday_offers_made(walk, ranks, have, want, changing, splits=True, whole=None):
+    made = []
+    for rank in ranks:
+        if have[walk.group(walk.days[rank])] <= want[walk.group(walk.days[rank])]:
+            continue
+        offer = weekday_offer(walk, rank, have, want)
+        distance = abs(offer[1] - walk.days[rank]) if offer is not None else 0
+        if whole is not None and offer is not None and offer[0] == 1 and walk.holding(walk.days[rank]) > 1:
+            # G7.3h: the shared unit moves whole or not at all.
+            if weekday_unit_room(walk, whole, rank, offer[1], have, want, False):
+                made += [(0, distance, rank)]
+            elif changing and whole["leftover"] and weekday_unit_room(walk, whole, rank, offer[1], have, want, True):
+                made += [(1, distance, rank)]
+            continue
+        if offer is not None and (offer[0] == 0 or changing) and not (
+            offer[0] == 1 and not splits and walk.holding(walk.days[rank]) > 1
+        ):
+            made += [(offer[0], distance, rank)]
+    return made
 
 
 # Each offer is asked again when its turn comes.
-def weekday_offer_taken(walk, rank, have, want, changing):
+def weekday_offer_taken(walk, rank, have, want, changing, splits=True, whole=None):
     group = walk.group(walk.days[rank])
     offer = weekday_offer(walk, rank, have, want) if have[group] > want[group] else None
+    if whole is not None and offer is not None and offer[0] == 1 and walk.holding(walk.days[rank]) > 1:
+        if weekday_unit_room(walk, whole, rank, offer[1], have, want, False):
+            return weekday_unit_carried(walk, whole, rank, offer[1], have)
+        if changing and whole["leftover"] and weekday_unit_room(walk, whole, rank, offer[1], have, want, True):
+            whole["overshot"].add(offer[1] // walk.step)
+            return weekday_unit_carried(walk, whole, rank, offer[1], have)
+        return False
     if offer is None or (offer[0] == 1 and not changing):
+        return False
+    if offer[0] == 1 and not splits and walk.holding(walk.days[rank]) > 1:
         return False
     return weekday_moved_whole(walk, [rank], offer[1], have)
 
@@ -16732,8 +17891,16 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
         have = [0] * len(owed)
         for rank in ranks:
             have[walk.group(walk.days[rank])] += 1
-        weekday_runs(walk, ranks, have, shares[j])
+        split = walk.kin_of is not None and kin_shares_moved(walk, ranks, shares[j])
+        if split:
+            have = [0] * len(owed)
+            for rank in ranks:
+                have[walk.group(walk.days[rank])] += 1
+        else:
+            weekday_runs(walk, ranks, have, shares[j])
         weekday_singles(walk, ranks, have, shares[j], 16, False)
+        if split:
+            kin_carry_reconciled(walk, len(owed))
     weekday_leftover(walk, movable, owed)
     weekday_chain(walk, movable, owed)
     weekday_escape(walk, movable, owed)
@@ -16747,8 +17914,195 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
     return walk.days
 
 
+def kin_share(ideal, want, taken, placed, room):
+    """G7.3h's KIN SHARES, one kin group's: of each group, what the kin groups
+    placed so far are owed together (``ideal``, at the share scale) rounded
+    down, never below what they took, never above the gap's want nor this
+    kin group's room beyond what was taken; the ranks unplaced one each to
+    the largest remainders (the lower group on a tie), as often as it takes;
+    ranks placed beyond, back from the groups raised, the smallest remainder
+    first, the lower group on a tie."""
+    scale = WEEKDAY_SHARE_SCALE
+    groups = range(len(want))
+    target = [min(max(ideal[g] // scale, taken[g]), want[g], taken[g] + room[g]) for g in groups]
+    while placed > sum(target):
+        up = sorted((target[g] * scale - ideal[g], g) for g in groups if target[g] < min(want[g], taken[g] + room[g]))
+        if not up:
+            break
+        for _r, g in up[: placed - sum(target)]:
+            target[g] += 1
+    while placed < sum(target):
+        down = sorted((ideal[g] - target[g] * scale, g) for g in groups if target[g] > taken[g])
+        if not down:
+            break
+        for _r, g in down[: sum(target) - placed]:
+            target[g] -= 1
+    return [target[g] - taken[g] for g in groups]
+
+
+def kin_ideal(ranks, free, eligible, want, size, zero):
+    """A kin group's ideal share of each group of a gap, at the share scale:
+    its ranks' part of each want; or, with value 0 a group alone (``zero``),
+    that group's want over the ranks free to stand on it, and the rest of
+    its ranks over the other groups as they want."""
+    scale = WEEKDAY_SHARE_SCALE
+    if zero < 0:
+        return [ranks * w * scale // size for w in want]
+    first = want[zero] * free * scale // eligible if eligible else 0
+    rest = size - want[zero]
+    return [first if g == zero else ((ranks * scale - first) * w // rest if rest else 0) for g, w in enumerate(want)]
+
+
+def kin_reach(walk, members, groups):
+    """KIN SHARES' REACH (the verifier's item 10 on the Codex round of landing
+    3b.4): how many of a kin group's ranks can stand on each group -- the
+    group a rank stands in, and each group of a candidate of G7.3f's single
+    move inside its gap on no hole and of its own kind, a written midnight
+    read as of its parent's kind (value 0's own rule asks it)."""
+    def plain(ordinal):
+        width, keep, pair = walk.kind(ordinal)
+        if walk.no_midnight and written_at_midnight(ordinal, 0, walk.step):
+            keep = -1 - keep
+        return (width, keep, pair)
+
+    reach = [0] * groups
+    for rank in members:
+        day = walk.days[rank]
+        found = {walk.group(day)}
+        for other in walk.candidates(day, walk.lows[rank], walk.highs[rank]):
+            if not walk.hole(other) and plain(other) == plain(day):
+                found.add(walk.group(other))
+        for g in found:
+            reach[g] += 1
+    return reach
+
+
+def kin_offered(order, parts, reach, giver, g, amount):
+    """`amount` of group g's running ideal offered by kin group `giver` to the
+    other kin groups reaching g, in proportion to their ranks reaching it,
+    rounded down."""
+    total = sum(reach[kin][g] for kin in order if kin != giver)
+    if amount == 0 or total <= 0:
+        return
+    for kin in order:
+        if kin != giver and reach[kin][g] > 0:
+            parts[kin][g] += amount * reach[kin][g] // total
+
+
+def kin_parts(order, sizes, owns, carries, reach, able, want):
+    """Each kin group's part of the gap's running ideal (G7.3h, KIN SHARES'
+    REACH): what it is owed and carries where every kin group reaches every
+    wanted group; else each wanted group some kin group's ranks are not all
+    able to take shared by the ranks able to take it, the rest of each kin
+    group's ranks over the other groups as they want, and the carry of a
+    kin group reaching none of some wanted group offered to the others by
+    their ranks able to take each group."""
+    groups = range(len(want))
+    blocked = [kin for kin in order if any(want[g] > 0 and reach[kin][g] == 0 for g in groups)]
+    if not blocked:
+        parts = {kin: [owns[kin][g] + carries[kin][g] for g in groups] for kin in order}
+    else:
+        shared = [g for g in groups if want[g] > 0 and any(able[kin][g] < sizes[kin] for kin in order)]
+        rest = sum(want) - sum(want[g] for g in shared)
+        parts = {kin: [0] * len(want) for kin in order}
+        for g in shared:
+            total = sum(able[kin][g] for kin in order)
+            for kin in order:
+                parts[kin][g] = want[g] * able[kin][g] * WEEKDAY_SHARE_SCALE // total if total > 0 else 0
+        for kin in order:
+            left = sizes[kin] * WEEKDAY_SHARE_SCALE - sum(parts[kin][g] for g in shared)
+            for g in groups:
+                if g not in shared and rest > 0:
+                    parts[kin][g] = left * want[g] // rest
+        for kin in order:
+            if kin not in blocked:
+                parts[kin] = [parts[kin][g] + carries[kin][g] for g in groups]
+        for kin in blocked:
+            for g in groups:
+                kin_offered(order, parts, able, kin, g, carries[kin][g])
+    return parts
+
+
+def kin_shares_moved(walk, ranks, want):
+    """G7.3h's KIN SHARES: where a gap's ranks stand in two kin groups or
+    more, each, in the order its first rank stands, takes its share of the
+    gap's and moves to it as a gap does (G7.3f steps 5 and 6), no rank
+    leaving a written unit it shares by a move changing the count. Each
+    kin group's ideal less what it took is carried to the next gap; on a
+    walk keeping its cells at midnight, with value 0 a group alone, a rank
+    whose place on value 0 of its own parent is written at midnight is not
+    free to take that group."""
+    if sum(want) != len(ranks):
+        return False
+    order = []
+    for rank in ranks:
+        if walk.kin_of(walk.days[rank]) not in order:
+            order += [walk.kin_of(walk.days[rank])]
+    if len(order) < 2:
+        return False
+    members = {kin: [rank for rank in ranks if walk.kin_of(walk.days[rank]) == kin] for kin in order}
+    zero = walk.group_of_bin[0] if walk.no_midnight and walk.group_of_bin.count(walk.group_of_bin[0]) == 1 else -1
+    span = clock_span(walk)
+    free = {
+        kin: sum(
+            1 for rank in members[kin]
+            if zero < 0 or not written_at_midnight(
+                walk.days[rank] - walk.days[rank] % span + walk.days[rank] % walk.unit, 0, walk.step
+            )
+        )
+        for kin in order
+    }
+    eligible = sum(free.values())
+    if zero >= 0 and want[zero] > eligible:
+        zero = -1
+    groups = range(len(want))
+    taken, placed, ideal = [0] * len(want), 0, [0] * len(want)
+    owns = {kin: kin_ideal(len(members[kin]), free[kin], eligible, want, len(ranks), zero) for kin in order}
+    carries = {kin: [walk.kin_carry.get((kin, g), 0) for g in groups] for kin in order}
+    reach = {kin: kin_reach(walk, members[kin], len(want)) for kin in order}
+    able = {kin: [min(free[kin], reach[kin][g]) if g == zero else reach[kin][g] for g in groups] for kin in order}
+    parts = kin_parts(order, {kin: len(members[kin]) for kin in order}, owns, carries, reach, able, want)
+    # Claims kept for the kin groups after: the whole ranks of their parts
+    # that those carrying a whole rank or more of a group are able to take,
+    # which no kin group before them takes.
+    claim = {kin: [min(len(members[kin]), able[kin][g], max(0, parts[kin][g]) // WEEKDAY_SHARE_SCALE) if carries[kin][g] >= WEEKDAY_SHARE_SCALE else 0 for g in groups] for kin in order}
+    for position, kin in enumerate(order):
+        placed += len(members[kin])
+        own = owns[kin]
+        carried = carries[kin]
+        room = [min(len(members[kin]), able[kin][g]) for g in groups]
+        ideal = [ideal[g] + parts[kin][g] for g in groups]
+        kept = [max(taken[g], want[g] - sum(claim[later][g] for later in order[position + 1:])) for g in groups]
+        share = kin_share(ideal, kept, taken, placed, room)
+        have = [0] * len(want)
+        for rank in members[kin]:
+            have[walk.group(walk.days[rank])] += 1
+        weekday_runs(walk, members[kin], have, share)
+        weekday_singles(walk, members[kin], have, share, 16, False, False)
+        for g in groups:
+            walk.kin_carry[(kin, g)] = carried[g] + own[g]
+        taken = [taken[g] + share[g] for g in groups]
+    walk.kin_members = members
+    return True
+
+
+def kin_carry_reconciled(walk, groups):
+    """KIN SHARES' carry reconciled once the gap's own moves are done (the Codex
+    review of landing 3b.4, item 3): each kin group carries what it is owed of
+    each group less what its ranks there now hold, not less the share it was
+    given."""
+    for kin, ranks in walk.kin_members.items():
+        for g in range(groups):
+            held = sum(1 for rank in ranks if walk.group(walk.days[rank]) == g)
+            walk.kin_carry[(kin, g)] -= held * WEEKDAY_SHARE_SCALE
+    walk.kin_members = {}
+
+
 def weekday_count_kept(walk, movable, wanted):
     """G7.3f step 8: steps 8.1 to 8.3, then 8.4 and 8.5 where it is long."""
+    if not walk.count_steps:
+        # Asked of no field of landing 3b.4 (G7.3h).
+        return
     weekday_repair(walk, movable, wanted)
     weekday_units_merged(walk, movable, wanted)
     weekday_long_pairs(walk, movable, wanted)
@@ -18577,6 +19931,22 @@ def hour_midnight_case():
     return case
 
 
+def hour_midnight_lattice_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 22), hour_at(m, 0), hour_at(m, 0), hour_at(m, 0, 15), hour_at(m, 3)]
+    case = hour_case(
+        "Step 4 on the body's lattice (Codex's review of lane J2, the leftover regression): "
+        "a pair the shared pass put at midnight, on a column of seconds drawn on fifteen "
+        "minutes, takes 00:30:00, the free place of that lattice nearest midnight, 00:15:00 "
+        "held; a written unit at a time it took 00:00:01, off second 0, where no field pass "
+        "could put it back but at midnight.",
+        "midnight", ordinals, {0, 4}, [4, 1], [0] * 12 + [1] * 12, written_unit=1,
+        lattice=900,
+    )
+    case["before"] = [False] * 5
+    return case
+
+
 def hour_tails_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -18975,6 +20345,7 @@ HOUR_STEP_CASES = {
     "hour_put_back_short": hour_put_back_short_case,
     "hour_proportional": hour_proportional_case,
     "hour_off_midnight": hour_midnight_case,
+    "hour_off_midnight_lattice": hour_midnight_lattice_case,
     "hour_half_day_tails": hour_tails_case,
     "hour_whole_pass": hour_pass_case,
     "hour_put_back_off_midnight": hour_put_back_off_midnight_case,
@@ -19030,6 +20401,7 @@ def hour_step_answer(case):
         "bin_of": lambda ordinal: (ordinal // unit) % bins,
         "keep_of": lambda ordinal: ordinal // (unit * bins),
         "keeps_always": not case["reachable"],
+        "lattice": case.get("lattice", 0),
     }
     counts = case["counts"]
     if "sixtieths" in case:
@@ -19068,6 +20440,985 @@ def hour_step_answer(case):
     elif step == "tails":
         hour_tails_on_the_half_day(walk, first, last)
     return walk.days
+
+
+# THE TWENTIETH FILE: G7.3h's own steps (landing 3b.4, plan P4-D372) and
+# G7.3's drawing rule, each frozen on a state stated by hand, with what the
+# method's text makes of it; tests/test_stage3b_minutes.py holds the product
+# to every answer and turns each case red on its own mutant.
+
+
+def field_case(why, step, ordinals, pins, counts, where, field_unit, **seams):
+    """A state of ranks on a field of the clock: the minute (60-second bins,
+    the hour its parent) or the second (one-second bins, the minute its
+    parent); every unpinned rank's gap between the pins either side of it."""
+    pinned, lows, highs = shared_layout(ordinals, set(pins))
+    case = {
+        "why": why, "step": step, "ordinals": list(ordinals), "lows": lows, "highs": highs,
+        "pinned": pinned, "counts": list(counts), "where": list(where), "written_unit": 60,
+        "field_unit": field_unit, "holes": [], "reachable": True, "standing": list(range(7)),
+        "anyday": False, "kin": [],
+    }
+    case.update(seams)
+    case.setdefault("body", [0, len(ordinals) - 1])
+    case.setdefault("wanted", len({o // case["written_unit"] for o in case["ordinals"]}))
+    case.setdefault("published", None)
+    case.setdefault("no_midnight", False)
+    return case
+
+
+HEAP_ZERO = [1] + [0] * 59
+
+
+def field_heaps_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 7), hour_at(m, 9, 13), hour_at(m, 9, 22),
+        hour_at(m, 9, 38), hour_at(m, 9, 45), hour_at(m, 9, 51), hour_at(m, 10, 59),
+    ]
+    return field_case(
+        "G7.3h on the minute: a heap at minute 0 counting 3, the rest 5, every rank "
+        "between 08:00 and 10:59 of one day, hours 8 to 10 one kin group. Hour 9 holds "
+        "one place at minute 0, so one rank takes it and the next takes 10:00, the other "
+        "hour of its kin group.",
+        "field", ordinals, {0, 7}, [5, 3], HEAP_ZERO, 60, kin=[0] * 8 + [1] * 3 + [2] * 13,
+    )
+
+
+def field_kin_shares_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 7, 50), hour_at(m, 8, 2), hour_at(m, 8, 20), hour_at(m, 8, 58),
+        hour_at(m, 9, 40), hour_at(m, 9, 57), hour_at(m + 1, 8, 31), hour_at(m + 2, 10, 10),
+    ]
+    return field_case(
+        "KIN SHARES: a heap at minute 0 counting 2, the rest 6, hours 8 and 9 kin groups "
+        "of their own. The six movable ranks stand four in hour 8 and two in hour 9, so "
+        "each hour takes one of the heap's two: 08:02 takes 08:00 and 09:40 takes 09:00. "
+        "Nearest first over the whole gap, both came from hour 8.",
+        "field", ordinals, {0, 7}, [6, 2], HEAP_ZERO, 60, kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
+
+
+def field_kin_no_split_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 7, 50), hour_at(m, 8, 10), hour_at(m, 8, 10), hour_at(m, 9, 40),
+        hour_at(m, 9, 40), hour_at(m, 10, 10),
+    ]
+    return field_case(
+        "KIN SHARES never split a written unit a kin group's rank shares (the lane's skeptic, "
+        "item 5): a heap at minute 0 counting 1, hours 8 and 9 kin groups of their own, each "
+        "holding two ranks tied on one minute. Owed half a place each, the tie goes to the rest "
+        "for hour 8 and hour 9 is owed the heap, but neither rank at 09:40 may leave the unit it "
+        "shares by a move changing the count; the gap's own single moves then take the nearest, "
+        "08:10 to 08:00. Split within its kin group, 09:40 took 09:00.",
+        "field", ordinals, {0, 5}, [5, 1], HEAP_ZERO, 60, kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
+def field_kin_carry_case():
+    m = HOUR_MONDAY
+    days = 4
+    ordinals = [hour_at(m - 1, 7, 50)]
+    pins = {0}
+    for day in range(m, m + days):
+        ordinals += [
+            hour_at(day, 8, 20), hour_at(day, 8, 40), hour_at(day, 9, 20), hour_at(day, 9, 40),
+            hour_at(day, 12, 10),
+        ]
+        pins |= {len(ordinals) - 1}
+    return field_case(
+        "KIN SHARES carried from gap to gap (the lane's skeptic, item 4): four days, each a "
+        "gap of two ranks in hour 8 and two in hour 9, minute 0 a heap counting one a day. "
+        "Each hour is owed half a place a day; rounded gap by gap, the tie went to the rest "
+        "for hour 8 and hour 9 took the heap every day. Carried, hour 8 is owed a whole place "
+        "on the second day, so the two hours take it on alternate days.",
+        "field", ordinals, pins, [len(ordinals) - days, days], HEAP_ZERO, 60,
+        kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
+def field_kin_blocked_case():
+    m = HOUR_MONDAY
+    ordinals = []
+    pins = set()
+    for day in range(m, m + 4):
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(day, 8, 10) if day == m + 1 else hour_at(day, 7, 50)]
+        for hour in (8, 9):
+            ordinals += [hour_at(day, hour, 20, second) for second in range(30)]
+            ordinals += [hour_at(day, hour, 40, second) for second in range(30, 60)]
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(day, 10, 0)]
+    where = [1 if minute == 0 else 2 if minute == 20 else 3 if minute == 40 else 0 for minute in range(60)]
+    return field_case(
+        "KIN SHARES' carry reconciled against what each kin group holds (the Codex review "
+        "of landing 3b.4, item 3): four daily gaps of 120 stamps, hours 8 and 9 each with "
+        "minute 20 at seconds 0 to 29 and minute 40 at 30 to 59, each gap from 07:50 to "
+        "10:00 but the second's from 08:10; minutes 0, 20 and 40 owed 240, 120 and 120. "
+        "In the second gap hour 8 can stand on no minute 0, so the gap's own moves take "
+        "its share from hour 9; carried as given, both balances stood at nought and hour "
+        "8 ended with 90 on minute 0 to hour 9's 150. Reconciled, hour 8 carries the "
+        "share it did not hold and takes it in the two gaps after: 120 each.",
+        "field", ordinals, pins, [4, 244, 120, 120], where, 60, written_unit=1,
+        kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
+def field_kin_unreachable_case():
+    m = HOUR_MONDAY
+    ordinals = []
+    pins = set()
+    for day in range(m, m + 4):
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(day, 8, 10)]
+        for hour in (8, 9, 10):
+            ordinals += [hour_at(day, hour, 20, second) for second in range(10)]
+            ordinals += [hour_at(day, hour, 40, second) for second in range(30, 40)]
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(day, 11, 0)]
+    where = [1 if minute == 0 else 2 if minute == 20 else 3 if minute == 40 else 0 for minute in range(60)]
+    return field_case(
+        "KIN SHARES' REACH (the verifier's item 10 on the Codex round of landing 3b.4): four "
+        "daily gaps of 60 stamps, hours 8, 9 and 10 each with minute 20 at seconds 0 to 9 and "
+        "minute 40 at 30 to 39, every gap from 08:10 to 11:00, so hour 8 never reaches minute "
+        "0; minutes 0, 20 and 40 owed 84, 80 and 80. Minute 0 is shared by the ranks reaching "
+        "it, the rest of each kin group's ranks over minutes 20 and 40, and hour 8's carry offered "
+        "to hours 9 and 10: 40 each on minute 0. Its carry asked of hour 8 itself grew gap by gap "
+        "and took the shares of minute 0 from the hours after it (on 180 stamps a gap, 200 and "
+        "40 where 120 each could stand).",
+        "field", ordinals, pins, [4, 84, 80, 80], where, 60, written_unit=1,
+        kin=[0] * 8 + [1, 2, 3] + [4] * 13,
+    )
+
+
+def field_kin_partial_case():
+    m = HOUR_MONDAY
+    ordinals = []
+    pins = set()
+    for gap in range(4):
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(m + 2 * gap, 8, 10)]
+        for day in (m + 2 * gap, m + 2 * gap + 1):
+            for hour in (8, 9, 10):
+                size = 3 if hour != 8 else 9 if day == m + 2 * gap else 1
+                ordinals += [hour_at(day, hour, 20, second) for second in range(size)]
+                ordinals += [hour_at(day, hour, 40, second) for second in range(30, 30 + size)]
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(m + 2 * gap + 1, 11, 0)]
+    where = [1 if minute == 0 else 2 if minute == 20 else 3 if minute == 40 else 0 for minute in range(60)]
+    return field_case(
+        "KIN SHARES' CLAIMS where a kin group's able ranks hold it below its part (the verifier's "
+        "item 10 on the Codex round of landing 3b.4): four gaps of two days from 08:10 to 11:00, "
+        "hour 8 with 18 stamps on the first day and 2 on the second, hours 9 and 10 with 6 "
+        "on each, every hour's at minutes 20 and 40; minutes 0, 20 and 40 owed 64, 58 and "
+        "58. Hour 8 reaches minute 0 with its 2 second-day ranks alone and is owed near 7 a "
+        "gap; the whole ranks of its part hour 10, carrying a whole rank or more of minute "
+        "0, is able to take are kept from the kin groups before it, so hour 8 takes 8, hours "
+        "9 and 10 31 and 21. With no claims kept, hour 8's growing carry fell on hour 9 "
+        "alone: 36 against hour 10's 16.",
+        "field", ordinals, pins, [4, 64, 58, 58], where, 60, written_unit=1,
+        kin=[0] * 8 + [1, 2, 3] + [4] * 13,
+    )
+
+
+def tail_end_case():
+    day = 1440
+    return {
+        "why": "G7.3b step 7's END held off a midnight the count leaves it none of (the Codex "
+        "review of landing 3b.4, item 4): a column on the hour owing 12 cells at midnight, 11 of them "
+        "its body's for certain -- hour 0 counts 11 alone, minute 0 the whole body of 978, "
+        "written to the minute. Both ENDs stand at a written midnight: the low tail's takes "
+        "the one left, and the high tail's steps inward off it and off the hole the minute "
+        "before names, two minutes in. Without the rule both ends stood at midnight, 13 in all.",
+        "step": "tail_end",
+        "column": {
+            "resolution": "datetime", "all_at_midnight": False, "n_at_midnight": 12,
+            "datetimes_read_at": "local", "time_precision": "minute",
+            "hour_census": [{"first": 0, "last": 0, "count": 11}, {"first": 1, "last": 23, "count": 967}],
+            "minute_heaps": [{"value": 0, "count": 978}], "minute_census": [],
+            "second_heaps": [], "second_census": [],
+            "low_tail": {"rows": 11, "values": None}, "high_tail": {"rows": 11, "values": None},
+        },
+        "parsed": 1000,
+        "ends": [[600, 20000 * day + 600, True], [240, 20500 * day + 1200, False]],
+        "holes": [20501 * day - 1],
+        "seconds": 60,
+    }
+
+
+def tail_end_listed_case():
+    case = tail_end_case()
+    case["why"] = (
+        "G7.3b step 7's room charges a tail listing its values every midnight it lists, "
+        "any value written 00:00:00 (the verifier's item 11 on the Codex round of landing "
+        "3b.4): tail_end's column, its low tail listing 2024-06-01 00:00:00 on its 11 rows "
+        "and a count at midnight of 22 -- 11 the body's for certain, 11 the low tail's -- "
+        "so none is left the high tail's END, which steps off its midnight and the hole the "
+        "minute before names, two minutes in. Asked as nought seconds from 1970, only the "
+        "epoch counted, and the END stood at midnight."
+    )
+    case["column"]["low_tail"] = {"rows": 11, "values": ["2024-06-01 00:00:00"]}
+    case["column"]["n_at_midnight"] = 22
+    case["ends"] = [case["ends"][1]]
+    return case
+
+
+def field_seconds_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 9, 10, 0), hour_at(m, 9, 10, 17), hour_at(m, 9, 10, 41),
+        hour_at(m, 9, 11, 29), hour_at(m, 9, 14, 0),
+    ]
+    return field_case(
+        "G7.3h on the second: a heap at second 0 counting 4, the rest 1, the minutes "
+        "09:10 to 09:14 one kin group. The rank at 09:11:29 takes 09:11:00 on its own "
+        "minute; minute 09:10 holds its one place at second 0 at its pin, so a rank of it "
+        "takes 09:12:00, second 0 on the nearest other minute of its kin group.",
+        "field", ordinals, {0, 4}, [1, 4], HEAP_ZERO, 1, written_unit=1,
+        kin=[0] * 550 + [1] * 5 + [2] * 885,
+    )
+
+
+def field_exchange_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 23, 50), hour_at(m, 0, 0), hour_at(m, 2, 0), hour_at(m, 2, 33),
+        hour_at(m, 3, 10),
+    ]
+    return field_case(
+        "The exchange off midnight where none can be made: a rank the pass left at 00:00, "
+        "minute 0 a heap; the one rank alone in the rest, at 02:33, has no free place of "
+        "minute 0 on its own hour, 02:00 being held, so the rank stays at midnight.",
+        "exchange", ordinals, {0, 4}, [3, 2], HEAP_ZERO, 60,
+        before=[False] * 5,
+    )
+
+
+def field_exchange_swap_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 23, 50), hour_at(m, 0, 0), hour_at(m, 2, 33), hour_at(m, 3, 10),
+    ]
+    return field_case(
+        "The exchange off midnight: the rank the pass left at 00:00 takes 00:01, of the "
+        "rest, and the rank alone at 02:33, of the rest, takes 02:00, the free place of "
+        "minute 0 on its own hour: every group keeps its count.",
+        "exchange", ordinals, {0, 3}, [3, 1], HEAP_ZERO, 60,
+        before=[False] * 4,
+    )
+
+
+def field_exchange_kin_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 23, 50), hour_at(m, 0, 0), hour_at(m, 2, 33), hour_at(m, 3, 10),
+    ]
+    return field_case(
+        "The exchange off midnight, first answer: hours 0 and 1 one kin group, so the "
+        "rank at 00:00 takes 01:00, minute 0 on the other hour of its kin group, and no "
+        "rank is exchanged.",
+        "exchange", ordinals, {0, 3}, [3, 1], HEAP_ZERO, 60,
+        before=[False] * 4, kin=[0, 0] + [1] * 22,
+    )
+
+
+def field_exchange_put_back_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 23, 50), hour_at(m, 0, 0), hour_at(m, 0, 20), hour_at(m, 0, 20),
+        hour_at(m, 4, 10),
+    ]
+    return field_case(
+        "PUT BACK once more after the exchange: the heap at minute 0 counting 2, the rest "
+        "3, hours 0 and 1 one kin group. The pass moves one rank of the pair at 00:20 onto "
+        "00:00, held; the exchange takes it off midnight to 01:00, one value too many; "
+        "PUT BACK merges the rank at 00:00 onto 01:00, its kin group's, and the count "
+        "of different values is the one drawn.",
+        "field", ordinals, {0, 4}, [3, 2], HEAP_ZERO, 60, kin=[0, 0] + [1] * 22,
+    )
+
+
+def field_substitute_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 0), hour_at(m, 9, 20), hour_at(m, 9, 20),
+        hour_at(m, 14, 37), hour_at(m, 15, 0),
+    ]
+    return field_case(
+        "SUBSTITUTE: one value too many. The rank alone at 09:00, of the heap, joins 09:20 "
+        "on its own hour, of the rest; the rank alone at 14:37, of the rest, takes 14:00, "
+        "the heap's free place on its own hour. Both groups keep their counts.",
+        "substitute", ordinals, {0, 5}, [3, 3], HEAP_ZERO, 60, wanted=4,
+    )
+
+
+def field_spread_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 59), hour_at(m, 9, 0), hour_at(m, 9, 0), hour_at(m, 10, 59),
+    ]
+    return field_case(
+        "SPREAD: one value too few. The two ranks at 09:00 share it; minute 0 on hour 9 "
+        "has no other place, so the first of them takes 10:00, minute 0 on the other hour "
+        "of its kin group.",
+        "spread", ordinals, {0, 3}, [2, 2], HEAP_ZERO, 60, wanted=4,
+        kin=[0] * 9 + [1] * 2 + [2] * 13,
+    )
+
+
+def field_paid_spread_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 0), hour_at(m, 9, 0), hour_at(m + 1, 9, 30),
+        hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "SPREAD PAID BACK where a weekday census stands (lane J2): one value too few, each "
+        "weekday its own standing, each hour its own kin group, one gap from Monday 08:00 to "
+        "Tuesday 11:00. The pair at Monday 09:00 shares minute 0 of hour 9, which holds no "
+        "other place, and the gap no other Monday, so its first rank takes Tuesday 09:00 while "
+        "Tuesday's 09:30, alone, moves a whole day onto Monday 09:30, a value no rank holds: "
+        "Monday's 3 and Tuesday's 2 kept, and the count put back. Unpaid, the pair stayed.",
+        "paid_spread", ordinals, {0, 4}, [2, 3], HEAP_ZERO, 60, wanted=5,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_spread_strict_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 0), hour_at(m, 9, 0), hour_at(m + 1, 9, 30),
+        hour_at(m + 1, 9, 30), hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "SPREAD's payers keep the count (lane J2's STRICT PAYERS): as above, but Tuesday's only "
+        "movable ranks are a pair at 09:30, so a payer leaving it for Monday 09:30 would write "
+        "one value more, and none is taken; nor does a Monday rank of the pair at 09:00 pay "
+        "for the Tuesday pair. Nothing moves, the count one short. Taken as lane J's round "
+        "takes a payer, the first, a rank and its payer each wrote a value more, one too many.",
+        "paid_spread", ordinals, {0, 5}, [3, 3], HEAP_ZERO, 60, wanted=5,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_put_back_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 20), hour_at(m + 1, 9, 20), hour_at(m + 1, 10, 40),
+        hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "PUT BACK PAID BACK where a weekday census stands (lane J2): one value too many, each "
+        "weekday its own standing, each hour its own kin group, one gap from Monday 08:00 to "
+        "Tuesday 11:00. Monday's 09:20, alone, has no unit of its group to join on its own "
+        "hour nor on another Monday, so it joins Tuesday's 09:20 while Tuesday's 10:40, alone, "
+        "moves a whole day onto Monday 10:40, which no rank holds: every weekday count kept and "
+        "the count put back. Unpaid, the count stayed long.",
+        "paid_put_back", ordinals, {0, 4}, [5, 0], HEAP_ZERO, 60, wanted=4,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_put_back_avoid_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 20), hour_at(m + 1, 9, 25), hour_at(m + 1, 10, 40),
+        hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "PUT BACK's payers stand off the unit the run joins (lane J2): as above, but Tuesday's "
+        "unit of the run's group on hour 9 is 09:25, whose rank, alone, could itself pay by "
+        "moving a whole day onto Monday 09:25, which no rank holds. It is passed over, so the "
+        "unit is still held when the run gets there, and Tuesday's 10:40 is the payer instead. Taken, "
+        "it left 09:25 empty, the run joined no one and the count stayed long.",
+        "paid_put_back", ordinals, {0, 4}, [5, 0], HEAP_ZERO, 60, wanted=4,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_put_back_standing_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 20), hour_at(m, 10, 40), hour_at(m + 1, 9, 20),
+        hour_at(m + 1, 10, 40), hour_at(m + 1, 10, 40), hour_at(m + 1, 10, 50),
+        hour_at(m + 1, 10, 55), hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "PUT BACK PAID BACK asks a run as it stands (lane J2; lane J's Codex review, item 1): "
+        "two values too many over Monday 08:00 to Tuesday 11:00. Monday's 09:20 joins "
+        "Tuesday's 09:20, paid by the first of Tuesday's pair at 10:40, which moves a whole day "
+        "onto Monday 10:40, a unit a rank holds. The pair, listed before, is asked as it stands: "
+        "its second rank alone, whose merge onto Monday finds no payer, and Monday 10:40, "
+        "which the payer joined, is no run. Asked as listed, Monday's 10:40 was taken for a run "
+        "and moved onto Tuesday 10:40, paid by 10:50, splitting a written unit: seven values "
+        "either way, the step counting one more put back than it made.",
+        "paid_put_back", ordinals, {0, len(ordinals) - 1}, [9, 0], HEAP_ZERO, 60, wanted=6,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_put_back_leaving_case():
+    m = HOUR_MONDAY
+    cells = []
+    for block, day in enumerate((m, m + 21)):
+        low, high = (day - 1) * HOUR_DAY, (day + 1) * HOUR_DAY - 1
+        if block == 1:
+            cells += [(hour_at(day - 1, 5, 20), low, high)] * 2
+            cells += [(hour_at(day - 1, 5, 40), low, high), (hour_at(day, 5, 20), low, high)]
+        else:
+            cells += [(hour_at(day - 1, 7, 40), low, high), (hour_at(day - 1, 9, 0), low, high)]
+            cells += [(hour_at(day, 7, 20), low, high)]
+    cells.sort()
+    ordinals = [cell[0] for cell in cells]
+    return field_case(
+        "PUT BACK PAID BACK's payers are placed off the unit the run leaves (lane J2's skeptic, "
+        "item 2): two gaps of a Sunday and a Monday, three weeks apart, one value too many. In "
+        "the later, a pair at Sunday 05:20 stands beside a lone 05:40 and the run alone at "
+        "Monday 05:20. A rank of the pair, sharing its unit, would move a whole day onto Monday "
+        "05:20, the unit the run holds, and read as keeping the count; once the run had gone to "
+        "Sunday the unit stayed held, and the step counted a merge that removed no value, the "
+        "count left one long. Passed over, the payer is another, and the count is met.",
+        "paid_put_back", ordinals, {0, len(ordinals) - 1}, [len(ordinals) - 1, 1], HEAP_ZERO, 60,
+        wanted=len({o // 60 for o in ordinals}) - 1, kin=list(range(24)),
+        pinned=[False] * len(ordinals), lows=[cell[1] for cell in cells],
+        highs=[cell[2] for cell in cells],
+    )
+
+
+# 28,000 days are 4,000 weeks: a case moved back by them keeps every weekday,
+# clock and gap, its days now in 1947, its written units negative (Codex's
+# review of lane J2, item 1).
+BEFORE_1970_DAYS = 28000
+
+
+def before_1970(case, why):
+    """A case of the field passes moved back BEFORE_1970_DAYS days: every
+    ordinal and gap bound with it, nothing else changed."""
+    shift = BEFORE_1970_DAYS * HOUR_DAY
+    moved = dict(case)
+    moved["why"] = why
+    for key in ("ordinals", "lows", "highs"):
+        moved[key] = [value - shift for value in case[key]]
+    return moved
+
+
+def field_paid_put_back_avoid_1947_case():
+    return before_1970(
+        field_paid_put_back_avoid_case(),
+        "The run's unit excluded before 1970 too (Codex's review of lane J2, item 1): "
+        "field_paid_put_back_avoid moved back 28,000 days, every weekday, clock and gap "
+        "kept, every written unit negative. Tuesday's 09:25 is still passed over and 10:40 "
+        "is still the payer, four values. With -1 for no unit, a negative unit read as none, 09:25 "
+        "paid, vacating the unit the run joined, and five values stayed.",
+    )
+
+
+def field_paid_put_back_leaving_1947_case():
+    return before_1970(
+        field_paid_put_back_leaving_case(),
+        "The unit the run leaves excluded before 1970 too (Codex's review of lane J2, item "
+        "1): field_paid_put_back_leaving moved back 28,000 days, every weekday, clock and gap "
+        "kept, every written unit negative. A payer placed on the run's unit is still passed "
+        "over, and the count is met. With -1 for no unit, it paid, and the count stayed one "
+        "long.",
+    )
+
+
+def field_spread_substitute_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 59), hour_at(m, 9, 0), hour_at(m, 9, 0), hour_at(m, 9, 20),
+        hour_at(m, 10, 7), hour_at(m, 10, 59),
+    ]
+    return field_case(
+        "SPREAD BY SUBSTITUTE (lane J2): one value too few on one day, a weekday census "
+        "standing, each hour its own kin group, minute 0 the heap's group. The pair at 09:00 "
+        "shares minute 0 of hour 9, which holds no other place, and no other day lies in the "
+        "gap, so its first rank takes 09:01, the rest's group's nearest free place, while 10:07, "
+        "alone in the rest, takes 10:00, the heap's free place on its own hour: each group keeps "
+        "its count and the count is put back. Without it the pair stayed and the count was short.",
+        "spread_substitute", ordinals, {0, 5}, [3, 2], HEAP_ZERO, 60, wanted=6,
+        kin=list(range(24)),
+    )
+
+
+def field_midnight_share_case():
+    m = HOUR_MONDAY
+    days = 6
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day in range(m, m + days):
+        ordinals += [hour_at(day, 0, 17), hour_at(day, 1, 20), hour_at(day, 5, 20), hour_at(day, 6, 20)]
+    ordinals += [hour_at(m + days, 7, 10)]
+    return field_case(
+        "KIN SHARES on a pass barring midnight: hours 0 and 1 one kin group, hours 5 and 6 "
+        "another, minute 0 a heap counting 12 of the 24 movable ranks. Of the first kin group "
+        "only the six ranks of hour 1 are free to take the heap, so it takes 12 x 6 / 18 = 4 "
+        "places and the other kin group 8, in proportion to the ranks free to stand there.",
+        "field", ordinals, {0, len(ordinals) - 1}, [2 * days + 2, 2 * days], HEAP_ZERO, 60,
+        kin=[0, 0, 1, 1, 1, 2, 2] + [1] * 17, no_midnight=True,
+    )
+
+
+def field_midnight_kin_case():
+    m = HOUR_MONDAY
+    days = 85
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day in range(m, m + days):
+        ordinals += [
+            hour_at(day, 0, 17), hour_at(day, 5, 0), hour_at(day, 5, 0), hour_at(day, 6, 20),
+            hour_at(day, 6, 40),
+        ]
+    ordinals += [hour_at(m + days, 7, 10)]
+    return field_case(
+        "No step puts a rank onto a written midnight where the pass keeps its cells there (the "
+        "lane's skeptic, item 1): 85 days, each with one rank at 00:17, a pair at 05:00 and ranks "
+        "at 06:20 and 06:40, one kin group, minute 0 a heap counting the pairs and one rank more "
+        "a day, the count at midnight published. A written midnight is a kind of its own, so the "
+        "rank at 06:20 takes 06:00 and the rank at 00:17 stays. Kept by no kind, the nearer "
+        "00:17 took 00:00 on all 85 days; the exchange, asking 64 runs at most, took 64 back "
+        "to 00:01, and 21 stayed at midnight.",
+        "field", ordinals, {0, len(ordinals) - 1}, [2 * days + 2, 3 * days], HEAP_ZERO, 60,
+        no_midnight=True,
+    )
+
+
+def field_midnight_spread_case():
+    m = HOUR_MONDAY
+    days = 6
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day in range(m, m + days):
+        ordinals += [hour_at(day, 0, 17), hour_at(day, 1, 5), hour_at(day, 5, 25)]
+    ordinals += [hour_at(m + days, 7, 10)]
+    return field_case(
+        "KIN SHARES keeping the cells at midnight (the lane's skeptic, item 1): six days, each "
+        "with a rank at 00:17, 01:05 and 05:25, hours 0, 1 and 5 kin groups of their own, "
+        "minute 0 a heap counting 6 of the 18 movable ranks, the count at midnight published. "
+        "Hour 0's ranks are not free to take the heap -- its minute 0 is the day's midnight -- "
+        "so its share goes to hours 1 and 5 by their free ranks, three each. Shared in "
+        "proportion, hour 0's two could not be taken and went to the nearest, hour 1, four "
+        "against two.",
+        "field", ordinals, {0, len(ordinals) - 1}, [2 * days + 2, days], HEAP_ZERO, 60,
+        kin=[0, 1, 2, 2, 2, 3] + [4] * 18, no_midnight=True,
+    )
+
+
+def field_midnight_tails_case():
+    m = HOUR_MONDAY
+    return {
+        "why": "The tails keep the count at midnight: four ranks at a written midnight where "
+        "three are published; the first unpinned tail rank at one, rank 1, steps a minute "
+        "later inside its stratum.",
+        "step": "midnight_count", "ordinals": [
+            hour_at(m - 2, 0, 0), hour_at(m - 1, 0, 0), hour_at(m, 0, 0), hour_at(m, 5, 0),
+            hour_at(m + 1, 0, 0),
+        ],
+        "pinned": [True, False, False, False, True], "body": [2, 3], "counted": 3,
+        "written_unit": 60, "away": 60,
+        "lows": [hour_at(m - 2, 0, 0), hour_at(m - 2, 0, 0)] + [0] * 3,
+        "highs": [hour_at(m - 2, 0, 0), hour_at(m - 1, 23, 0)] + [0] * 3,
+    }
+
+
+
+def field_midnight_short_case():
+    m = HOUR_MONDAY
+    return {
+        "why": "The tails take a midnight where the count at midnight is short (the lane's "
+        "skeptic, item 5): two ranks at a written midnight where three are published; the "
+        "unpinned tail rank at 03:10, rank 1, takes the nearest midnight inside its stratum, "
+        "00:00 of its own day.",
+        "step": "midnight_count", "ordinals": [
+            hour_at(m - 2, 0, 0), hour_at(m - 1, 3, 10), hour_at(m, 5, 0), hour_at(m, 6, 0),
+            hour_at(m + 1, 0, 0),
+        ],
+        "pinned": [True, False, False, False, True], "body": [2, 3], "counted": 3,
+        "written_unit": 60, "away": 60,
+        "lows": [hour_at(m - 2, 0, 0), hour_at(m - 2, 0, 0)] + [0] * 3,
+        "highs": [hour_at(m - 2, 0, 0), hour_at(m - 1, 23, 0)] + [0] * 3,
+    }
+
+
+
+def field_midnight_room_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 0, 0), hour_at(m, 0, 0), hour_at(m + 1, 0, 1), hour_at(m + 1, 5, 0),
+        hour_at(m + 1, 6, 0), hour_at(m + 2, 9, 0),
+    ]
+    case = field_case(
+        "The tails make room at midnight: a column on the hour, minute 0 a heap counting the "
+        "four body ranks, the count at midnight published. The hour pass left rank 2 at 00:01, "
+        "whose only place on minute 0 is the day's midnight, which no step moves a rank onto; "
+        "the low tail's rank at a midnight steps an hour off it inside its stratum, and rank 2 "
+        "takes 00:00 of its own day -- the count at midnight kept, the heap met.",
+        "room", ordinals, {0, 1, 5}, [0, 4], HEAP_ZERO, 60, no_midnight=True,
+    )
+    case["body"] = [1, 4]
+    case["lows"][0], case["highs"][0] = hour_at(m - 2, 0, 0), hour_at(m - 1, 12, 0)
+    case["tail_pins"] = [False, False, False, False, False, True]
+    case["away"] = 3600
+    return case
+
+
+def field_midnight_zero_room_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day, hour, minute in (
+        (3, 0, 41), (3, 0, 42), (3, 6, 25), (8, 12, 0), (9, 6, 44), (10, 0, 41), (12, 3, 51),
+        (12, 3, 56), (14, 3, 38), (14, 3, 57), (14, 6, 47), (14, 6, 49), (14, 6, 53), (14, 6, 58),
+    ):
+        ordinals += [hour_at(m + day, hour, minute)]
+    ordinals += [hour_at(m + 15, 13, 10)]
+    case = field_case(
+        "KIN SHARES give no kin group more of value 0 than its free ranks (the lane's second "
+        "skeptic, item 3): hours 0 and 1 one kin group, 2 and 3 another, 4 to 7 a third; "
+        "minute 0 a heap counting 8 of the 14 body ranks, the count at midnight published; "
+        "noon of day 8 pinned, parting two gaps. In the second gap minute 0 is owed five: "
+        "hours 4 to 7 take two, the one rank of hour 0 -- its place on minute 0 the day's "
+        "midnight -- none, and hours 2 and 3 the other three. Given room for its rank on "
+        "minute 0, hour 0's kin group took one place there by the largest remainder, which "
+        "its rank cannot stand on, and hours 2 and 3 came back with two of the five.",
+        "field", ordinals, {0, 4, len(ordinals) - 1}, [6, 8], HEAP_ZERO, 60,
+        kin=[1, 1, 0, 0, 2, 2, 2, 2] + [3] * 16, no_midnight=True,
+    )
+    case["body"] = [1, len(ordinals) - 2]
+    return case
+
+
+def field_midnight_room_keep_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 2, 0, 0), hour_at(m - 2, 0, 0), hour_at(m - 1, 0, 0), hour_at(m, 0, 0),
+        hour_at(m + 1, 0, 1), hour_at(m + 1, 5, 0), hour_at(m + 1, 6, 0), hour_at(m + 2, 9, 0),
+    ]
+    case = field_case(
+        "The tails make room at midnight without raising the count (the lane's second "
+        "skeptic, item 3): rank 4, alone at 00:01, takes its day's midnight, and of the low "
+        "tail's three ranks at a midnight the first two share one written unit, so either "
+        "stepping an hour off it writes one value more; the third, alone at its midnight, "
+        "steps instead and the count of different values is kept. With no such guard the "
+        "first tail rank stepped and the count rose by one.",
+        "room", ordinals, {0, 1, 2, 3, 7}, [0, 4], HEAP_ZERO, 60, no_midnight=True,
+    )
+    case["body"] = [3, 6]
+    for rank in (0, 1, 2):
+        case["lows"][rank], case["highs"][rank] = hour_at(m - 3, 0, 0), hour_at(m - 1, 12, 0)
+    case["tail_pins"] = [False] * 7 + [True]
+    case["away"] = 3600
+    return case
+
+
+def field_midnight_room_spread_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 0, 0), hour_at(m + 1, 0, 0), hour_at(m + 1, 0, 1), hour_at(m + 1, 5, 20),
+        hour_at(m + 1, 5, 20), hour_at(m + 2, 9, 0),
+    ]
+    case = field_case(
+        "SPREAD after the tails make room (the lane's second skeptic, item 3; the repair's "
+        "10,000-row rank at 00:01 that joined a cell already at its day's midnight): rank 2, "
+        "alone at 00:01, takes its day's midnight beside rank 1, a value lost, and the tail "
+        "rank's step off its own midnight keeps the count; SPREAD then moves the second of "
+        "the two ranks at 05:20 to 05:19, its group's nearest free place, and the count is "
+        "kept. Without SPREAD after the step the twin came back one value short.",
+        "room_kept", ordinals, {0, 1, 5}, [2, 2], HEAP_ZERO, 60, no_midnight=True,
+    )
+    case["body"] = [1, 4]
+    case["lows"][0], case["highs"][0] = hour_at(m - 2, 0, 0), hour_at(m - 1, 12, 0)
+    case["tail_pins"] = [False] * 5 + [True]
+    case["away"] = 3600
+    return case
+
+
+def field_whole_unit_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day, hour, minute, ranks in (
+        (0, 12, 34, 1), (0, 13, 34, 1), (0, 16, 25, 4), (1, 10, 2, 3), (1, 11, 49, 2),
+        (2, 12, 42, 1), (2, 16, 30, 2),
+    ):
+        ordinals += [hour_at(m + day, hour, minute)] * ranks
+    ordinals += [hour_at(m + 3, 7, 10)]
+    where = [0] * 21 + [1] * 12 + [2] * 21 + [3] * 6
+    return field_case(
+        "A shared written unit moves whole or not at all (the lane's second skeptic, item "
+        "1): minutes 0 to 20, 21 to 32, 33 to 53 and 54 to 59 counting 4, 5, 3 and 4 of the "
+        "16 ranks; the pair at 11:49 and the pair at 16:30 each move whole onto minute 54 "
+        "of their own hour, and 12:42 to 12:32, so the nine values stay nine. Moved one rank "
+        "at a time, one rank of the pair at 16:30 stayed and the twin wrote ten.",
+        "field", ordinals, {0, len(ordinals) - 1}, [4, 5, 3, 4], where, 60, whole_units=True,
+    )
+
+
+def field_whole_unit_past_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day, hour, minute, ranks in (
+        (0, 13, 40, 3), (1, 9, 10, 4), (1, 10, 23, 1), (2, 12, 42, 3),
+    ):
+        ordinals += [hour_at(m + day, hour, minute)] * ranks
+    ordinals += [hour_at(m + 3, 7, 10)]
+    where = [0] * 36 + [1] * 23 + [2]
+    return field_case(
+        "In the leftover a shared unit moves whole past its groups' room, once (the lane's "
+        "second skeptic, item 1): minutes 0 to 35 owe one rank more and 36 to 58 one less, "
+        "and every unit of the second is a triple. The triple at 13:40 moves whole onto "
+        "13:35, two over; the four at 09:10 and the one at 10:23 then move to minute 36 of "
+        "their hours and the triple at 12:42 whole to 12:35, and both groups hold: the six "
+        "values stay six. With no unit carried past its room, one rank of 13:40 moved alone and the "
+        "twin wrote seven.",
+        "field", ordinals, {0, len(ordinals) - 1}, [7, 6, 0], where, 60, whole_units=True,
+    )
+
+
+def field_midnight_narrow_case():
+    m = HOUR_MONDAY
+    return {
+        "why": "The tails keep the count at midnight in a stratum narrower than the drawing "
+        "unit: three ranks at a written midnight where two are published; the tail rank at "
+        "one, rank 3, drawn on the hour, has 46 minutes after it and none before, so it "
+        "steps one written unit, a minute, later.",
+        "step": "midnight_count", "ordinals": [
+            hour_at(m, 0, 0), hour_at(m, 9, 0), hour_at(m + 1, 0, 0), hour_at(m + 2, 0, 0),
+            hour_at(m + 2, 1, 0),
+        ],
+        "pinned": [True, False, False, False, True], "body": [1, 2], "counted": 2,
+        "written_unit": 60, "away": 3600,
+        "lows": [0] * 3 + [hour_at(m + 2, 0, 0), 0],
+        "highs": [0] * 3 + [hour_at(m + 2, 0, 0) + 46 * 60, 0],
+    }
+
+
+def field_midnight_owed_case():
+    m = HOUR_MONDAY
+    return {
+        "why": "The tails give way to a count at midnight withheld for its size (lane J2's "
+        "skeptic, item 3): five of nine ranks at a written midnight where seven are owed and no "
+        "stratum holds one; the pinned END, rank 0, takes its own day's midnight, and rank 7, "
+        "its own day's taken by the body's last rank, takes the next day's, before the END "
+        "after it; the count reached, the END at 09:00 and the body stay.",
+        "step": "midnight_count", "ordinals": [
+            hour_at(m - 3, 6, 44), hour_at(m - 2, 0, 0), hour_at(m - 1, 0, 0), hour_at(m, 0, 0),
+            hour_at(m + 1, 0, 0), hour_at(m + 1, 5, 0), hour_at(m + 4, 0, 0), hour_at(m + 4, 13, 0),
+            hour_at(m + 5, 9, 0),
+        ],
+        "pinned": [True, False, False, False, False, False, False, False, True], "body": [2, 6],
+        "counted": 7, "owed": True, "hole_days": [],
+        "written_unit": 60, "away": 60,
+        "lows": [hour_at(m - 3, 6, 44), hour_at(m - 2, 0, 0)] + [0] * 5
+        + [hour_at(m + 4, 10, 0), hour_at(m + 5, 9, 0)],
+        "highs": [hour_at(m - 3, 6, 44), hour_at(m - 2, 0, 0)] + [0] * 5
+        + [hour_at(m + 4, 20, 0), hour_at(m + 5, 9, 0)],
+    }
+
+
+def field_midnight_owed_hole_case():
+    m = HOUR_MONDAY
+    case = field_midnight_owed_case()
+    case["why"] = (
+        "The owed step stands no rank on a hole day (lane J2's second skeptic, item 3): "
+        "field_midnight_owed with rank 7's next day a hole; rank 0 takes its own day's "
+        "midnight, rank 7 finds its own day taken by the body's last rank and the next a "
+        "hole, and stays off, as does the END at 09:00, its own day the hole: six of seven "
+        "owed stand at a midnight, the count left short."
+    )
+    case["hole_days"] = [m + 5]
+    return case
+
+
+def field_lattice_case(why, precision, minute_census, minute_heaps, second_census, second_heaps, texts, body):
+    return {
+        "why": why, "step": "lattice", "precision": precision,
+        "minute_census": minute_census, "minute_heaps": minute_heaps,
+        "second_census": second_census, "second_heaps": second_heaps, "texts": texts,
+        "body": body, "line": census_line(CASE_SMALL_CELL_FLOOR),
+    }
+
+
+def field_floor_case():
+    return {
+        "why": "A draw laid on a drawing unit of an hour: floored where the floor is inside "
+        "the gap, the next hour where the floor falls below it, the draw itself where no "
+        "hour lies inside.",
+        "step": "floor", "unit": 3600,
+        "draws": [[7300, 3600, 90000], [7300, 7250, 90000], [7300, 7250, 7400]],
+    }
+
+
+CLOCK_FIELD_STEP_CASES = {
+    "field_minute_heaps": field_heaps_case,
+    "field_second_zero": field_seconds_case,
+    "field_kin_shares": field_kin_shares_case,
+    "field_kin_no_split": field_kin_no_split_case,
+    "field_kin_carry": field_kin_carry_case,
+    "field_kin_blocked": field_kin_blocked_case,
+    "field_kin_unreachable": field_kin_unreachable_case,
+    "field_kin_partial": field_kin_partial_case,
+    "tail_end": tail_end_case,
+    "tail_end_listed": tail_end_listed_case,
+    "field_exchange_stays": field_exchange_case,
+    "field_exchange_swap": field_exchange_swap_case,
+    "field_exchange_kin": field_exchange_kin_case,
+    "field_exchange_put_back": field_exchange_put_back_case,
+    "field_substitute": field_substitute_case,
+    "field_spread": field_spread_case,
+    "field_paid_spread": field_paid_spread_case,
+    "field_paid_spread_strict": field_paid_spread_strict_case,
+    "field_paid_put_back": field_paid_put_back_case,
+    "field_spread_substitute": field_spread_substitute_case,
+    "field_paid_put_back_avoid": field_paid_put_back_avoid_case,
+    "field_paid_put_back_standing": field_paid_put_back_standing_case,
+    "field_paid_put_back_leaving": field_paid_put_back_leaving_case,
+    "field_paid_put_back_avoid_1947": field_paid_put_back_avoid_1947_case,
+    "field_paid_put_back_leaving_1947": field_paid_put_back_leaving_1947_case,
+    "field_midnight_tails": field_midnight_tails_case,
+    "field_midnight_kin": field_midnight_kin_case,
+    "field_midnight_share": field_midnight_share_case,
+    "field_midnight_spread": field_midnight_spread_case,
+    "field_midnight_narrow": field_midnight_narrow_case,
+    "field_midnight_owed": field_midnight_owed_case,
+    "field_midnight_owed_hole": field_midnight_owed_hole_case,
+    "field_midnight_room": field_midnight_room_case,
+    "field_midnight_short": field_midnight_short_case,
+    "field_whole_unit": field_whole_unit_case,
+    "field_whole_unit_past": field_whole_unit_past_case,
+    "field_midnight_zero_room": field_midnight_zero_room_case,
+    "field_midnight_room_keep": field_midnight_room_keep_case,
+    "field_midnight_room_spread": field_midnight_room_spread_case,
+    "field_floor": field_floor_case,
+    "lattice_half_hour": lambda: field_lattice_case(
+        "A half-hour grid written to the minute: heaps at minutes 0 and 30 and no census, "
+        "so its body is drawn on thirty minutes, 1,800 seconds.",
+        "minute", [], [{"value": 0, "count": 40}, {"value": 30, "count": 38}], [], [], [], 80,
+    ),
+    "lattice_on_the_hour_seconds": lambda: field_lattice_case(
+        "Written to the second, every second on 0 and every minute on 0: heaps at second 0 "
+        "and at minute 0, no census, so the body is drawn on the hour.",
+        "second", [], [{"value": 0, "count": 90}], [], [{"value": 0, "count": 90}], [], 90,
+    ),
+    "lattice_seconds_only": lambda: field_lattice_case(
+        "Written to the second with every second on 0 and minutes on a census of the rest: "
+        "the body is drawn on the minute.",
+        "second", [{"first": 0, "last": 29, "count": 50}, {"first": 30, "last": 59, "count": 40}],
+        [], [], [{"value": 0, "count": 90}], [], 90,
+    ),
+    "lattice_one_group": lambda: field_lattice_case(
+        "One non-zero group holding minute 0 and every published value on minute 0 (the "
+        "design skeptic's M2): drawn on the hour; a value off minute 0 would pin nothing.",
+        "minute", [{"first": 0, "last": 56, "count": 977}, {"first": 57, "last": 59, "count": 0}],
+        [], [], [], ["2024-03-04 09:00:00", "2024-03-05 13:00:00"], 977,
+    ),
+    "lattice_rest_withheld": lambda: field_lattice_case(
+        "Heaps at minutes 0 and 30 and no census beside them, but 100 of the 283 body "
+        "cells off them -- a census of the rest withheld, not a few strays (the lane's "
+        "skeptic, item 2): the heaps pin nothing, and a column written to the minute is "
+        "drawn as before.",
+        "minute", [], [{"value": 0, "count": 71}, {"value": 30, "count": 112}], [], [], [], 283,
+    ),
+}
+
+
+def clock_field_step_answer(case):
+    """What G7.3h's text and G7.3's drawing rule make of one case."""
+    step = case["step"]
+    if step == "lattice":
+        return clock_drawing_unit(
+            case["precision"], case["minute_census"], case["minute_heaps"],
+            case["second_census"], case["second_heaps"], case["texts"], case["body"], case["line"],
+        )
+    if step == "floor":
+        unit = case["unit"]
+        return [on_draw_unit(None, value, low, high, unit) for value, low, high in case["draws"]]
+    if step == "tail_end":
+        room = tail_ends_room(case["column"], case["parsed"])
+        return [
+            end_held(end, at, low_side, set(case["holes"]), case["seconds"], room)
+            for end, at, low_side in case["ends"]
+        ]
+    if step == "midnight_count":
+        ordinals = list(case["ordinals"])
+        first, last = case["body"]
+        clock_midnight_count_kept(
+            case["counted"], ordinals, case["pinned"], first, last, case["written_unit"],
+            case["away"], case["lows"], case["highs"], case.get("owed", False),
+            set(case.get("hole_days", [])),
+        )
+        return ordinals
+    unit = case["field_unit"]
+    seams = {
+        "unit": unit, "step": case["written_unit"], "day": HOUR_DAY,
+        "bin_of": lambda ordinal: (ordinal // unit) % CLOCK_FIELD_VALUES,
+        "keep_of": lambda ordinal: ordinal // (unit * CLOCK_FIELD_VALUES),
+        "keeps_always": not case["reachable"], "count_steps": False,
+        "no_midnight": case["no_midnight"], "whole_units": case.get("whole_units", False),
+    }
+    if case["kin"]:
+        span = unit * CLOCK_FIELD_VALUES
+        seams["kin_of"] = lambda ordinal: case["kin"][(ordinal // span) % (HOUR_DAY // span)]
+    walk = WeekdayWalk(
+        case["counts"], case["where"], list(case["ordinals"]), list(case["lows"]),
+        list(case["highs"]), set(case["holes"]), seams,
+    )
+    first, last = case["body"]
+    pinned = list(case["pinned"])
+    kin = tuple(case["kin"])
+    if step == "field":
+        return clock_field_settled(
+            walk, first, last, pinned, case["wanted"], case["standing"], case["anyday"], kin,
+            case["reachable"], case["published"],
+        )
+    if step == "exchange":
+        clock_off_midnight_exchanged(walk, list(case["before"]), first, last, pinned, kin)
+    elif step == "substitute":
+        clock_split_substituted(
+            walk, first, last, pinned, case["wanted"], case["standing"], case["anyday"], kin
+        )
+    elif step == "spread":
+        clock_short_spread(
+            walk, first, last, pinned, case["wanted"], case["standing"], case["anyday"], kin
+        )
+    elif step == "paid_spread":
+        clock_paid_spread(walk, first, last, pinned, case["wanted"], case["standing"], kin)
+    elif step == "paid_put_back":
+        clock_paid_put_back(walk, first, last, pinned, case["wanted"], case["standing"])
+    elif step == "spread_substitute":
+        clock_spread_substituted(walk, first, last, pinned, case["wanted"])
+    elif step == "room":
+        clock_midnight_room_made(
+            walk, first, last, pinned, case["tail_pins"], case["written_unit"], case["away"]
+        )
+    elif step == "room_kept":
+        clock_midnight_room_kept(
+            walk, first, last, pinned, case["tail_pins"], case["written_unit"], case["away"],
+            case["wanted"], case["standing"], case["anyday"], kin, case["reachable"],
+        )
+    return walk.days
+
+
+def clock_field_step_document():
+    """The twentieth file: each of G7.3h's own steps and G7.3's drawing rule, frozen."""
+    cases = {}
+    for name in sorted(CLOCK_FIELD_STEP_CASES):
+        case = CLOCK_FIELD_STEP_CASES[name]()
+        case["answer"] = clock_field_step_answer(case)
+        cases[name] = case
+    return {
+        "what": "The states of ranks method section G7.3h's own steps (landing 3b.4, plan "
+        "P4-D372) are frozen on, and the drawing units G7.3's drawing rule gives, each with "
+        "its answer computed from the method's text: every rank's ordinal after the step, "
+        "every draw laid on its unit, or the unit. A state's field is the minute "
+        "(`field_unit` 60, the hour its parent) or the second (1, the minute), its bins "
+        "`where`, each parent's group in the coarser census `kin`; it names its census, its "
+        "written unit, its day standing and its holes.",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "cases": cases,
+    }
 
 
 def hour_step_document():
@@ -30523,6 +32874,10 @@ SEVENTEENTH_BRANCH_PART = "branches-17"
 # file: states of ranks as the fifteenth's, for G7.3i's two passes
 # (`day_step_document`).
 EIGHTEENTH_BRANCH_PART = "branches-18"
+# G7.3h's own steps and G7.3's drawing rule (landing 3b.4, plan P4-D372),
+# the twentieth file: states of ranks and drawing units, each with its
+# answer (`clock_field_step_document`).
+TWENTIETH_BRANCH_PART = "branches-20"
 
 # The census of a column of clock times of landing 3b.5 (plan P4-D373),
 # the twenty-first file.
@@ -49369,7 +51724,10 @@ def main(argv=None, part=None):
     args = parser.parse_args(argv)
 
     _self_check_arithmetic()
-    if part in (FIFTEENTH_BRANCH_PART, SIXTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART, EIGHTEENTH_BRANCH_PART, NINETEENTH_BRANCH_PART):
+    if part in (
+        FIFTEENTH_BRANCH_PART, SIXTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART,
+        EIGHTEENTH_BRANCH_PART, NINETEENTH_BRANCH_PART, TWENTIETH_BRANCH_PART,
+    ):
         # Whole numbers only, read by the pass and written by it: there is
         # no binary64 here for the proof layer to certify.
         step_documents = {
@@ -49378,6 +51736,7 @@ def main(argv=None, part=None):
             SEVENTEENTH_BRANCH_PART: moment_step_document,
             EIGHTEENTH_BRANCH_PART: day_step_document,
             NINETEENTH_BRANCH_PART: heavy_step_document,
+            TWENTIETH_BRANCH_PART: clock_field_step_document,
         }
         written_document = step_documents[part]()
         text = json.dumps(written_document, indent=2, sort_keys=True, allow_nan=False)

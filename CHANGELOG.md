@@ -6,6 +6,61 @@ exists).
 
 ## [Unreleased]
 
+### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
+
+**A column of moments publishing a weekday census beside its minutes' and
+seconds' facts now meets both and its count of different values** (plan
+P4-D391, stage 3b lane J2). Lane T3's minutes and seconds, merged beside
+lane D2's weekday census and lane J's round, moved a rank only to a day of
+its own weekday where a census stands, so the count of different values
+came back short or long: 16 of 480 battery twins at 1,000 rows (bursts of
+check-ins 288 to 295 for 285, nightly batches, noon stamps, eleven
+`23:59:60` a date), and a ten-week clinic of 10,000 visits 1,563 to 1,609
+of 2,175. The minute and second passes now put the count back by moves to
+days of another weekday paid for by whole-day moves the other way, every
+weekday count and clock kept, and by a swap on the rank's own hour where
+no such day has room. All 520 twins of the lanes' batteries at floors 11
+and 36, seeds 0 to 4, now miss nothing; 458 of the 480 at 1,000 rows are
+byte for byte as before. The minute and second checks count whole dates a
+column's description folded into its moments, which made an unchanged
+source miss its heap at minute 0, and the minute and second passes keep
+off a column of counted dates' placeholder days. Three limits older than
+this change are measured and carried: beside a weekday census the hour
+pass leaves small bursty tables' count long (85 of 105 such twins before
+this change, 83 after); a column nine in ten at midnight with a heap at
+minute 0 wrote 989 or 983 cells at midnight where its count withheld for its
+size asks 990 -- such a column, fewer cells than the line off midnight,
+now publishes no minute or second facts (contract NF118, NF119), as
+before lane T3, and every column of a battery of dates written as
+datetimes that the pushed line met is met;
+and the unit-room rule withholds a noon census these twins
+now meet. **Stamps at a regular step whose different values crowd the
+lattice their minutes and seconds would pin** -- vital signs every five
+minutes, hourly observations, filling half of that lattice or more, a
+third where every value differs, and a twentieth of it more than their
+rows drawn at random would --
+**publish no minute or second facts** (contract NF121, NF122):
+with them, every such series measured from one minute to an hour apart
+and 1,000 to 100,000 rows came back short of its count (903 to 947 of
+1,000 five minutes apart) and, from 3,800 rows, missed its heap at second
+0; without them the 160 twins measured miss nothing, as before lane T3.
+Random times on the hour or on 5-, 15- or 30-minute slots, and stamps
+written to the minute with `:00` seconds, fill their lattice no more than
+such a draw and keep their heaps: withheld, their twins wrote seconds
+other than 0 on 92 to 98 % of cells. A
+count the clock pass still leaves short is reported with that cause.
+After its Codex review: the payers' exclusions hold before 1970; grids
+of at most 4,500 rows whose values repeat and that publish no count at
+midnight keep their clock facts (1,000 stamps five minutes apart each
+written twice), larger ones withholding them as their twins missed their
+count with them; the paid searches grow with the rows however far the
+unit to join or the payers stand, and behind a wall of payers whose
+moves keep no count (more than 1,024 of them still end a search, as
+before); a column nearly all at midnight says its own reason
+(NF123, NF124); and stamps every fifteen minutes, half the slots kept,
+meet their count at midnight and their second's heap.
+`K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
+
 ### Codes and long cells written as the source wrote them (2026-10-13)
 
 **Lane L1** (plans P4-D390 and P4-D384; `K-S3-61`). Made-up figure codes
@@ -593,6 +648,50 @@ census.
 A stated limit in P4-D367, owed to a lane still to be named -- closed by
 lane J (P4-D379).
 KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
+
+### The minutes and seconds of a timestamp come back (2026-10-12)
+
+**A column of moments publishes its minutes and seconds, and the twin
+meets them with the hour** (plan P4-D372, stage 3b landing 3b.4). The
+twin drew a timestamp's minutes and seconds evenly: clinic slots seven in
+ten on :00 or :30 came back at 3 to 4 per cent, cells written `HH:MM:00`
+at random seconds. A column that may publish its hours now publishes the
+minutes and seconds its cells stand out on, and how the rest fall, in
+groups of at least the census line; the twin draws on the lattice those
+facts pin and moves its cells onto them inside their gaps, keeping each
+hour group, weekday and its count of different values, each hour group
+taking its own share of every minute that stands out, as in the real
+column (method G7.3h), and validation recounts them (V5-M1, V5-S1). On the lane's battery of sixteen
+columns at 1,000 and 10,000 rows, floors 11 and 36, seeds 0 to 4, all 320
+twins validate with nothing missed; at 10,000 rows the minute TVD falls
+from 0.3 to 0.9 to 0.0005 to 0.0092. Columns whose minutes follow the hour
+so far that one count over every hour would mislead some hour more than an
+even draw, whose middle half is shorter than four hours, whose census of
+the rest stands on a few values, or whose cells at midnight
+could leave the body too few others for its counts -- days at midnight
+beside a few timed cells -- publish nothing and say why; a column written
+finer than the second publishes no seconds, its twin writing none; every
+column publishing no such fact writes the twin it wrote before. Its review
+round kept 200,000 cells written `HH:MM:00` at their published count at
+midnight (602 against 385 before), no rank moved onto a midnight there, each hour's share of the heaps rounded
+over the whole column rather than gap by gap, and small bursty tables and
+randomly drawn columns at their count of different values. Its second review round
+moves a burst of cells written alike whole, so small bursty tables keep
+their count where a whole move can meet the minute census, and say in the
+twin's report that the census stood where none can; a column written finer
+than the second publishes its minutes only where cutting it to the second
+keeps its count. Its Codex round withholds minutes that follow the hour
+however often each stamp repeats and however thinly they spread (a
+morning share the twin had doubled now comes back at 572 of 1,800
+against 600), balances each hour's share of the heaps by what it holds,
+keeps a tail's end off a midnight the count leaves no room for (a column
+on the hour now meets its minute 0 at every seed), and keeps two of the
+pass's searches growing with the rows rather than their square; it also
+counts each written value once when asking whether minutes follow the
+hour, asks each hour against the rest, gives no hour a share of minutes
+its stamps can never reach (an hour shut out of minute 0 in every gap no
+longer leaves the next hour 200 of minute 0's cells to the one after's
+40), and keeps an hour owed its share from the hours before it.
 
 ### Time of day comes back on moments (2026-10-06)
 

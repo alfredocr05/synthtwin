@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 11,678 collected. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 11,500, on `a8fe344`, the five shards took 15.6 to 27.7 minutes each, 104.7 minutes summed and 28 end to end. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 11,871 collected. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 11,500, on `a8fe344`, the five shards took 15.6 to 27.7 minutes each, 104.7 minutes summed and 28 end to end. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 210 KPIs over phases 0-4 and stages 1, 2, 2b, 3, 3b and 4, 31 of them headlines under a cap of 31 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H); 181 green, 13 open (8 with the stage or lane that owns each, 5 with none set), 16 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32`, `K-S3-34` to `K-S3-41`, `K-S3-43` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-05`, `K-S4-03` a headline in `K-2B-14`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -365,6 +365,29 @@ cannot get worse unseen.
   63 and 83, inside the envelope; and the minute and second censuses wait
   for lane T3's merge, whose meeting with lane D2's weekday census on
   moments is an open question (P4-D378).
+- **Stated limits measured at lane J2 (2026-10-13), each older than it.**
+  Beside a weekday census the hour pass leaves a small bursty table's
+  count of different values long: 85 of 105 twins of T3's bursty tables
+  on 45191fa, 83 since the minute and second passes pay their count steps
+  back (P4-D391); owner lane J's family (G7.3g step 6). A column nine in
+  ten at midnight, its count there withheld for its size, beside a heap at
+  minute 0, wrote 989 and 983 cells at midnight of 990 -- lane T3's own (P4-D372);
+  such a column, fewer cells than the line off 00:00:00, now withholds its
+  minute and second facts (NF118, NF119), as 45191fa published none: of a
+  battery of dates written as datetimes, 1,000 to 5,000 rows with 5 to 30
+  timed, every column 45191fa met is met at floors 11 and 36, seeds 0 to
+  2; R4's `%.15g` column writes 990 at midnight, its `repr` sibling 10,
+  passing as on 45191fa only because the check of a count withheld for its
+  size reads either side (the orchestrator's). Regular
+  stamps crowding the lattice their clock facts pin -- every series
+  measured one to sixty minutes apart, 1,000 to 100,000 rows, short of its
+  count and from 3,800 rows off the second's heap -- now withhold those
+  facts (NF121, NF122) and miss nothing; dense grids of random times --
+  on the hour, on 5-, 15- and 30-minute slots, written to the minute with
+  `:00` seconds -- fill their lattice no more than a uniform draw would
+  and keep them (26 of 28 twins miss nothing; the half-hour grid misses
+  `second_heaps.counts` in 2, lane T3's own). NF74's unit-room rule, measured
+  before 3b.4, withholds a noon census the twins now meet.
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Lane L1
   (P4-D390, P4-D384, `K-S3-61`) writes made-up figure codes at the

@@ -815,6 +815,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 602,000 from 595,000, AT THE INTEGRATION OF BATCH 3B'S PART 2D
+    # (lane J2 merged, carrying landing 3b.4 and its Codex fixes, 2026-10-14),
+    # the least round figure the merged ledger fits under: lane J2 brings
+    # `K-S3-42`, restamps `K-S3-41` and `K-S3-62` on its own tree, and its
+    # note clause, 601,233 bytes as merged. A MEASUREMENT IS NEVER TRIMMED
+    # TO FIT.
+    #
     # 595,000 from 588,000, AT THE INTEGRATION OF BATCH 3B'S PART 2B
     # (landing 3b.7 merged, 2026-10-14), the least round figure the merged
     # ledger fits under: landing 3b.7 adds `K-S3-53` (thirty-one pinned
@@ -841,6 +848,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # Codex fix joined). The lane's own entries
     # were written short on its branch (its cap 460,000); the rest is
     # their rules and pinned nodes, which are not trimmed.
+    #
+    # 582,000 from 576,000, AT LANE J2'S MERGE OF LANDING 3b.4 (2026-10-13,
+    # plan P4-D391): the least round figure the merged ledger fits under.
+    # Lane T3 brings `K-S3-42` and widens `K-S3-41` (3,415 bytes on its own
+    # branch, below), and the three entries are restamped on the merged
+    # tree, their note clauses folded into one: 580,926 bytes. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 576,000 from 574,000, AT THE CODEX REVIEW OF THAT INTEGRATION
     # (2026-10-13): `K-S3-58` gains the four nodes of its two items and an
@@ -911,6 +925,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # evidence prose was trimmed first, every figure and its source kept,
     # to 525,444 and then 530,107; the rest is the entries' own rules and
     # nodes, which are not trimmed.
+    #
+    # 524,000 from 520,000, FOR LANDING 3b.4 (lane T3, plan P4-D372), on its
+    # branch and for the integrator to fold: the lane adds `K-S3-42` and
+    # widens `K-S3-41` to minutes and seconds, each stamped with its note
+    # clause, its prose trimmed first; the ledger stood 3,415 bytes under
+    # the cap. A MEASUREMENT IS NEVER TRIMMED TO FIT: the cap moves, and
+    # the prose is trimmed before it moves again.
     #
     # 520,000 from 460,000, AT THE INTEGRATION OF WAVE 2'S BATCH 2A
     # (2026-10-09), the integrator's call, as the orchestrator asked: raised
@@ -1015,7 +1036,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 595_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 602_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

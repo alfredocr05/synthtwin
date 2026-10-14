@@ -360,6 +360,20 @@ def _described(folder: pathlib.Path, name: str, cells: "list[str]", floor: int =
     return kpi_shapes.describe(folder / name, name, _text(name, cells), floor)
 
 
+def _without_clock_fields(described: kpi_shapes.Described) -> kpi_shapes.Described:
+    """The description with its minute's and second's facts withdrawn (landing 3b.4, plan
+    P4-D372), as a description before that landing reads: stamps at one clock publish heaps at
+    its minute and second, and their body is drawn on the lattice those pin, so a step of the
+    day or hour pass a test is about may meet nothing left to move (lane J2's merge of lane T3)."""
+    document = copy.deepcopy(described.document)
+    for column in document["columns"]:
+        for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+            if key in column:
+                column[key] = []
+    loaded = contract.load_profile(str(fixtures.write_profile(described.folder, "without-clock-fields.json", document)))
+    return kpi_shapes.Described(described.folder, described.table, document, loaded)
+
+
 def _weekdays(block: "dict[str, object]", cells: "list[str]") -> "list[int]":
     """The body's weekday counts by instant, read under the column's own member."""
     low = parsing.instant_key(block["low_tail"]["boundary"], "")  # type: ignore[index]
@@ -558,7 +572,10 @@ def test_a_raised_floor_withholds_what_the_tails_leave_the_body_too_few_values_f
     assert document["columns"][0]["weekday_census"] == []
     assert any(NOTE_NF74 in entry["note"] for entry in document["publication_notes"])
     monkeypatch.setattr(calendar_rules, "unit_room_short", lambda *arguments: False)
-    described = _described(tmp_path / "withdrawn", "visit", cells, 36)
+    # Read without the minute's and second's facts (landing 3b.4), as the rule's landing
+    # measured it: beside the noon schedule's heaps the field passes' count steps paid back
+    # (lane J2) put its twins' count back.
+    described = _without_clock_fields(_described(tmp_path / "withdrawn", "visit", cells, 36))
     assert [group["count"] > 0 for group in described.block("visit")["weekday_census"]].count(True) == 2
     for seed in (0, 1, 2):
         text = kpi_shapes.twin_text(described, seed)
@@ -615,12 +632,28 @@ def test_at_the_floor_of_11_a_census_that_leaves_its_twins_long_is_withheld(tmp_
     # ...the mutant's long twins as pinned, with no date listed as standing
     # out (landing 3b.6 lists some of the 24 dates and draws the rest by key).
     monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
-    described = _described(tmp_path / "withdrawn", "visit", cells)
+    # Read without the minute's and second's facts (landing 3b.4): the noon visits publish
+    # heaps at minute 0 and second 0, and with the census put back the field passes paid back
+    # (lane J2) hold 24 at seeds 0, 1, 2, 3 and 17; as the lane measured them, they are long.
+    described = _without_clock_fields(_described(tmp_path / "withdrawn", "visit", cells))
     assert [group["count"] for group in described.block("visit")["weekday_census"]] == [73, 31]
     long = {0: 26, 1: 26, 2: 26, 3: 26, 17: 26} if clock == "12:00:00" else {2: 25, 3: 27, 17: 27}
     for seed, held in long.items():
         values, missed = _twin_values(described, seed)
         assert len(set(values)) == held and "visit:distinct.n_distinct" in missed, (seed, len(set(values)), missed)
+    if clock == "12:00:00":
+        # THE RULE'S REASON WAS MEASURED BEFORE LANDING 3b.4 (lane J2's skeptic, item 5): read
+        # with its minute's and second's facts, as the merged head describes it, the noon census
+        # put back is met -- the field passes' count steps paid back hold 24 at every seed, and
+        # nothing is missed -- so the unit-room rule now withholds a census these twins can meet.
+        # It stands, a carried limit of plan P4-D391, until it is asked beside the clock facts;
+        # the midnight variant's count rules stand on their own measurement (25 to 27 values).
+        kept = _described(tmp_path / "withdrawn-kept", "visit", cells)
+        assert [group["count"] for group in kept.block("visit")["weekday_census"]] == [73, 31]
+        assert kept.block("visit")["minute_heaps"] and kept.block("visit")["second_heaps"]
+        for seed in (0, 1, 2, 3, 17):
+            values, missed = _twin_values(kept, seed)
+            assert missed == [] and len(set(values)) == 24, (seed, missed, len(set(values)))
 
 
 @pytest.mark.parametrize("floor", (11, 20))
@@ -1009,6 +1042,11 @@ def test_a_clock_changes_only_on_ranks_steps_7c_8_4_8_5_or_8_7_moved(tmp_path: p
     crowded Wednesdays step 8.7."""
     cells = {"nightly": _nightly, "crowded": _crowded_wednesdays}.get(name, PUBLISHED.get(name))()
     described = _described(tmp_path, name, cells)
+    if name == "nightly":
+        # One clock, 02:00:00, publishes heaps at minute 0 and second 0 since landing 3b.4, and
+        # the body drawn on the hour's lattice leaves step 8.4 no unit to merge: the batches are
+        # read as before that landing (lane J2's merge of lane T3).
+        described = _without_clock_fields(described)
     changed = _clocks_watched(monkeypatch)
     for seed in (0, 1):
         kpi_shapes.twin_text(described, seed)
@@ -1802,8 +1840,11 @@ def test_a_twin_short_of_its_hour_census_beside_a_weekday_census_says_so(tmp_pat
     a day for 118 days publish both censuses, and every twin at seeds 0 to 9 that validate finds
     short of its hour census files the deviation naming it -- never a silent miss. Since lane J
     no twin is short, so the round paid back is withdrawn here and the twins it would have
-    held, seeds 1, 4, 7 and 9, are short and say so."""
-    described = _described(tmp_path, "noon", _noon_stamps(datetime.date(2024, 1, 1), 118))
+    held, seeds 1, 4, 7 and 9, are short and say so. The stamps are read without their minute's
+    and second's facts, as lane J measured them: since landing 3b.4 they publish heaps at minute
+    0 and second 0, their body is drawn on the hour's lattice, and no twin is short with the
+    round withdrawn either (lane J2's merge of lane T3)."""
+    described = _without_clock_fields(_described(tmp_path, "noon", _noon_stamps(datetime.date(2024, 1, 1), 118)))
     block = described.block("noon")
     assert block["weekday_census"] and block["hour_census"]
     _without_the_paid_round(monkeypatch)
@@ -1864,8 +1905,13 @@ def test_wc10_reads_the_quartiles_as_whole_local_instants(tmp_path: pathlib.Path
         column = changed["columns"][0]
         # The clinic's hour census (landing 3b.2-H) cannot stand beside rungs
         # moved into the hours it counts empty (HC5), so each edit withdraws
-        # it, as such a description would: the rule judged is WC10.
+        # it, as such a description would: the rule judged is WC10. Its
+        # minute's and second's facts (landing 3b.4, met at lane J2's merge
+        # of lane T3) cannot stand beside them either, and go too.
         column["hour_census"] = []
+        for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+            if key in column:
+                column[key] = []
         ladder = column["date_percentiles"]
         ladder["p25"], ladder["p75"] = p25, p75
         for rung in ("p05", "p10"):

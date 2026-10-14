@@ -1930,27 +1930,34 @@ def test_k_s4_04(record_property) -> None:
 
 
 def test_k_s3_41(record_property, tmp_path: pathlib.Path) -> None:
-    """The class the owner accepted on 2026-09-30, read for hours: a merged group says a range.
+    """The class the owner accepted on 2026-09-30, read for hours, minutes and seconds: a merged group says a range.
 
-    The hour gate's 1,000-row table at floor 11 (`test_stage3b_hour._thousand`):
-    a group counting several hours says that one of its hours holds 1 to
-    10 rows -- a range, never a value, a date or a row (K-S3-41, the
-    orchestrator's reading of "Accept the class", plan P4-D363). Measured:
-    the columns publishing a census, the groups counting several hours
-    among them, and the counts printed below the line, which stay nought.
-    Held as a ceiling: more merged groups is the limit widened.
+    The hour gate's 1,000-row table at floor 11 (`test_stage3b_hour._thousand`)
+    and, since landing 3b.4 (plan P4-D372), the minute gate's
+    (`clock_field_shapes.thousand`): a group counting several hours,
+    minutes or seconds says that one of its values holds 1 to 10 rows -- a
+    range, never a value, a date or a row (K-S3-41, the orchestrator's
+    reading of "Accept the class", plan P4-D363). Measured: the censuses
+    published, the groups counting several values among them, and the
+    counts printed below the line, which stay nought. Held as a ceiling:
+    more merged groups is the limit widened.
     """
+    import clock_field_shapes as minutes
     import test_stage3b_hour as hour
 
-    columns = hour._thousand()
-    described = S.describe(tmp_path, "hours", hour._table_text(columns), hour.LINE)
     published = merged = below = 0
-    for name in columns:
-        groups = described.block(name)["hour_census"]
-        published += 1 if groups else 0
-        for group in groups:
-            merged += 1 if group["last"] > group["first"] and group["count"] > 0 else 0
-            below += 1 if 0 < group["count"] < hour.LINE else 0
+    for stem, text, keys in (
+        ("hours", hour._table_text(hour._thousand()), ("hour_census",)),
+        ("minutes", minutes.table_text(minutes.thousand()), ("minute_census", "second_census")),
+    ):
+        described = S.describe(tmp_path / stem, stem, text, hour.LINE)
+        for block in described.document["columns"]:
+            for key in keys:
+                groups = block[key]
+                published += 1 if groups else 0
+                for group in groups:
+                    merged += 1 if group["last"] > group["first"] and group["count"] > 0 else 0
+                    below += 1 if 0 < group["count"] < hour.LINE else 0
     _kpi(record_property, "K-S3-41", {
         "censuses": published,
         "merged_groups": merged,

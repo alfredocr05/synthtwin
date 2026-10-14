@@ -1592,6 +1592,25 @@ rather than in ISO:
   P4-D347). The file's census is counted here, never PRODUCED: both
   re-descriptions of the file skip the census producer. A description
   publishing `[]` obliges nothing and lists nothing.
+- `minute_census` with `minute_heaps`, and `second_census` with
+  `second_heaps`, are compared HEAP FOR HEAP AND GROUP FOR GROUP
+  (`minute_heaps.counts` and `minute_census.groups`, V5-M1, and
+  `second_heaps.counts` and `second_census.groups`, V5-S1, landing 3b.4,
+  plan P4-D372): the same moments V5-H1 reads, each counted at the minute
+  and the second it is WRITTEN at, `canonical[14:16]` and
+  `canonical[17:19]`, a sixtieth second in its own minute at second 59;
+  each heap is its value's count, and each census group the count of its
+  values that are no heap. One obligation per published list, HELD where
+  every heap or group holds its published count and MISSED otherwise,
+  printed through the same census line. Counted here,
+  never PRODUCED. Beside heaps with no census, the rest of the body is
+  the body less the heaps, which the tails' checks already hold. The fold
+  is asked as V5-H1 asks it: a whole date the file's own description
+  folded into its moments is counted at its midnight, minute 0 and second
+  0, and one it left unparsed is not (lane J2, plan P4-D391, the merge of
+  landing 3b.4 beside landing 3b.D2: ten bare `2024-03-05` among noon
+  stamps published heaps at minute 0 and second 0 holding 570, and the
+  unchanged source, counted without them, was told 560 at each).
 - `heavy_dates` is compared DATE FOR DATE (`heavy_dates.counts`, V5-D1,
   landing 3b.6, plan P4-D369): the file's own parsed cells, in any
   spelling, are counted on the day each names -- read as the

@@ -2542,6 +2542,13 @@ def unit_room_short(
     for two Thursdays more: its twins held 37. A CONSERVATIVE rule: a
     tail rebuilt rarely holds the floor's number, so it withholds some
     censuses a twin would meet, and that is its price (plan P4-D367).
+    ITS MEASUREMENTS PRECEDE LANDING 3b.4 (lane J2's skeptic, item 5):
+    they were taken on descriptions with no minute's or second's facts.
+    Beside those facts the field passes' count steps paid back (plan
+    P4-D391) meet the noon `_hunt(690)` it withholds: with the rule
+    withdrawn its twins hold 24 at seeds 0, 1, 2, 3 and 17 and miss
+    nothing. The rule stands, a carried limit, until it is asked beside
+    the clock facts the producer decides after the weekday census.
 
     Guarantees: accepts the census, the pins, the written unit, the
     count and the tails' most; returns the answer. Determinism: a

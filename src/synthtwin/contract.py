@@ -1827,6 +1827,89 @@ INVARIANTS = {
         "classes do not show the column's values stored in two ways"
     ),
     # anchor 3b-T3 (P4-D372)
+    # THE MINUTE AND SECOND CENSUSES AND HEAPS (landing 3b.4, plan P4-D372):
+    # each field's census of the cells on no heap held as the hour census
+    # is (`calendar_clock.field_breach`), and its heaps
+    # (`calendar_clock.heaps_breach`), each asked of the published numbers.
+    "MC1": (
+        "the groups of a minute census cover minute 0 to minute 59 in order, "
+        "each minute exactly once, and no group runs past minute 59"
+    ),
+    "MC2": (
+        "every group of a minute census counts nought or at least the "
+        "census line, the smallest group size and never fewer than two"
+    ),
+    "MC3": (
+        "a minute census or heap stands only where an hour census may, and "
+        "the groups of a minute census add up, with its heaps, to the values "
+        "between the two tail boundaries"
+    ),
+    "MC4": (
+        "a minute census or heap stands only where the published 25th and "
+        "75th percentiles lie at least four hours apart"
+    ),
+    "MC5": (
+        "every group of a minute census holds at least the values the rest "
+        "of the description places in its minutes off the heaps -- each tail "
+        "boundary and published percentile, and the values at midnight the "
+        "description counts beyond those of a tail listing only midnight "
+        "values -- and what is left of it is nought or at least the census "
+        "line"
+    ),
+    "MC6": (
+        "a minute census or heap stands only where a workbook's published "
+        "cell classes do not show the column's values stored in two ways"
+    ),
+    "MH1": (
+        "the heaps of the minutes of the hour are minutes 0 to 59 in "
+        "ascending order, each counting at least the census line and at least "
+        "the values the rest of the description places there, and what is "
+        "left nought or at least the census line"
+    ),
+    "MH2": (
+        "the heaps of the minutes of the hour count no more than the values "
+        "between the two tail boundaries"
+    ),
+    "SE1": (
+        "the groups of a second census cover second 0 to second 59 in order, "
+        "each second exactly once, and no group runs past second 59"
+    ),
+    "SE2": (
+        "every group of a second census counts nought or at least the "
+        "census line, the smallest group size and never fewer than two"
+    ),
+    "SE3": (
+        "a second census or heap stands only where an hour census may, on a "
+        "column written to the second -- neither to the minute nor finer "
+        "than the second -- and the groups of a second census add up, with "
+        "its heaps, to the values between the two tail boundaries"
+    ),
+    "SE4": (
+        "a second census or heap stands only where the published 25th and "
+        "75th percentiles lie at least four minutes apart"
+    ),
+    "SE5": (
+        "every group of a second census holds at least the values the rest "
+        "of the description places in its seconds off the heaps -- each tail "
+        "boundary and published percentile, and the values at midnight the "
+        "description counts beyond those of a tail listing only midnight "
+        "values -- and what is left of it is nought or at least the census "
+        "line"
+    ),
+    "SE6": (
+        "a second census or heap stands only where a workbook's published "
+        "cell classes do not show the column's values stored in two ways"
+    ),
+    "SH1": (
+        "the heaps of the seconds of the minute are seconds 0 to 59 in "
+        "ascending order, each counting at least the census line and at least "
+        "the values the rest of the description places there, and what is "
+        "left nought or at least the census line"
+    ),
+    "SH2": (
+        "the heaps of the seconds of the minute count no more than the values "
+        "between the two tail boundaries"
+    ),
     # anchor 3b-C1 (P4-D373)
     # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, plan P4-D373).
     # Its groups count the BODY's cells -- between the two tail
@@ -5294,6 +5377,36 @@ def _hour_storage(
                 "the census stands only where every value of the column is "
                 "stored one way",
             )
+
+
+def _clock_field_storage(
+    source: SourceBlock, columns: "tuple[ColumnBlock, ...]"
+) -> None:
+    """MC6 and SE6: no minute or second census or heap beside values a
+    workbook stores two ways (landing 3b.4, plan P4-D372), asked as HC6
+    asks the hour census (`_hour_storage`)."""
+    form = source.workbook
+    if form is None:
+        return
+    for place in range(min(len(columns), len(form.columns))):
+        facts = columns[place].facts
+        if not isinstance(facts, (DatetimeFacts,)):
+            continue
+        for rule, published in (
+            ("MC6", facts.minute_census or facts.minute_heaps),
+            ("SE6", facts.second_census or facts.second_heaps),
+        ):
+            if not published:
+                continue
+            if not calendar_rules.published_one_way(form.columns[place].cell_classes):
+                raise _broken(
+                    rule,
+                    f"in the block for the column named '{columns[place].name}'",
+                    "a census of the clock is published beside values the "
+                    "workbook stores in two ways",
+                    "the census stands only where every value of the column "
+                    "is stored one way",
+                )
 
 
 def _workbook_rules(
@@ -9635,19 +9748,156 @@ def _clock_field_censuses(
     absent: "tuple[str, ...]",
     facts: DatetimeFacts,
 ) -> "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...], tuple[tuple[int, int], ...]]":
-    """A column's minute and second censuses and heaps, reserved (plan P4-D364).
+    """A column's minute and second censuses and heaps, read and held (plan P4-D372).
 
-    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
-    reader and nothing beside it: `minute_census`, `second_census`,
-    `minute_heaps` and `second_heaps`, each `[]` and nothing else until
-    then. Handed what `_hour_census` is handed.
+    Landing 3b.4 (lane T3). `minute_census`, `second_census`,
+    `minute_heaps` and `second_heaps`, each read by `_clock_field_read`
+    and held to its field's rules; empty lists are always legal. Handed
+    what `_hour_census` is handed.
 
-    Guarantees: returns the four, empty. Raises ProfileError for any
-    other value (`_reserved_list`). No I/O of any kind.
+    Guarantees: returns the four as tuples. Raises ProfileError for a
+    wrong type and for any broken rule. No I/O of any kind.
     """
-    for key in ("minute_census", "second_census", "minute_heaps", "second_heaps"):
-        _reserved_list(mapping[key], key, where)
-    return (), (), (), ()
+    minutes, minute_heaps = _clock_field_read(
+        mapping, where, floor, n_present, facts, calendar_clock.MINUTE
+    )
+    seconds, second_heaps = _clock_field_read(
+        mapping, where, floor, n_present, facts, calendar_clock.SECOND
+    )
+    return minutes, seconds, minute_heaps, second_heaps
+
+
+def _clock_field_read(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    facts: DatetimeFacts,
+    field: str,
+) -> "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]":
+    """One field's census and heaps, read and held to its rules (plan P4-D372).
+
+    A published census or heap must stand where the hour census may --
+    a column of moments read on the local clock, not in the joint member,
+    not wholly at midnight, with both tails -- and, for the second, on a
+    column written to the second, neither to the minute nor finer (MC3,
+    SE3; the twin writes no figure below the second); its published p25
+    and p75 must lie four hours apart for minutes and four minutes for
+    seconds (MC4, SE4). Then the heaps are held to MH1/SH1 and MH2/SH2
+    (`calendar_clock.heaps_breach`) and the census, beside them, to
+    MC1/SE1, MC2/SE2, MC3/SE3's total -- the body less the heaps' rows --
+    and MC5/SE5 (`calendar_clock.field_breach`), the sure cells of every
+    published body value and of rule 4 (`calendar_clock.field_sure`) off
+    the heaps' values. MC6 and SC6 are asked over the whole document
+    (`_clock_field_storage`). Nothing asks what a reader could work out.
+
+    Guarantees: returns the groups as `(first, last, count)` and the
+    heaps as `(value, count)`. Raises ProfileError for a wrong type and
+    for any broken rule. No I/O of any kind.
+    """
+    census_key, heaps_key = calendar_clock.FIELD_KEYS[field]
+    found: "list[tuple[int, int, int]]" = []
+    for entry in _listing(mapping[census_key], census_key, where):
+        group = _mapping(entry, census_key, where)
+        _keys(group, where, ("count", "first", "last"), f"every {field} group")
+        found += [
+            (
+                _whole(group["first"], f"{census_key} -> first", where, 0),
+                _whole(group["last"], f"{census_key} -> last", where, 0),
+                _whole(group["count"], f"{census_key} -> count", where, 0),
+            )
+        ]
+    heaps: "list[tuple[int, int]]" = []
+    for entry in _listing(mapping[heaps_key], heaps_key, where):
+        heap = _mapping(entry, heaps_key, where)
+        _keys(heap, where, ("count", "value"), f"every {field} heap")
+        heaps += [
+            (
+                _whole(heap["value"], f"{heaps_key} -> value", where, 0),
+                _whole(heap["count"], f"{heaps_key} -> count", where, 0),
+            )
+        ]
+    if not found and not heaps:
+        return (), ()
+    scope_rule = calendar_clock.FIELD_RULES[field][2]
+    low = facts.low_tail
+    high = facts.high_tail
+    if (
+        facts.resolution != "datetime"
+        or facts.datetimes_read_at != "local"
+        or facts.parser_family == FORMAT_ISO_MIXED
+        or facts.all_at_midnight
+        or low is None
+        or high is None
+        or (
+            field == calendar_clock.SECOND
+            and facts.time_precision != "second"
+        )
+    ):
+        raise _broken(
+            scope_rule,
+            where,
+            f"a {field} census or heap is published",
+            "only a column of moments read on the local clock, not in the "
+            "joint member, not wholly at midnight and with both tails -- and, "
+            "for the second, written to the second, neither to the minute "
+            "nor finer -- publishes one",
+        )
+    parsed = n_present - facts.n_unparsed
+    rungs = facts.date_percentiles.rungs
+    by_percent: "dict[int, str | None]" = {}
+    for index in range(min(len(rungs), len(LADDER_PERCENTS))):
+        by_percent[LADDER_PERCENTS[index]] = rungs[index]
+    quarter = by_percent[25] if 25 in by_percent else None
+    third = by_percent[75] if 75 in by_percent else None
+    span_rule = "MC4" if field == calendar_clock.MINUTE else "SE4"
+    if not calendar_clock.span_long_enough_for(
+        None if quarter is None else calendar_clock.seconds_of(quarter),
+        None if third is None else calendar_clock.seconds_of(third),
+        field,
+    ):
+        apart = "four hours" if field == calendar_clock.MINUTE else "four minutes"
+        raise _broken(
+            span_rule,
+            where,
+            f"a {field} census or heap is published",
+            f"the published 25th and 75th percentiles, {quarter} and "
+            f"{third}, are not {apart} apart",
+        )
+    published = [
+        (low.rows, low.boundary),
+        (parsed - 1 - high.rows, high.boundary),
+    ]
+    for percent in sorted(by_percent):
+        rung = by_percent[percent]
+        if rung is None or percent in (0, 100):
+            continue
+        published += [(calendar_clock.rung_rank(percent, parsed), rung)]
+    sure = calendar_clock.field_sure(
+        published,
+        calendar_clock.midnight_sure(
+            facts.n_at_midnight,
+            [(low.rows, low.values), (high.rows, high.values)],
+        ),
+        field,
+    )
+    line = parsing.census_floor(floor)
+    body = parsed - low.rows - high.rows
+    broken = calendar_clock.heaps_breach(
+        tuple(heaps), body, line, sure, field, bool(found)
+    )
+    if broken is None and found:
+        held = sum(count for _value, count in heaps)
+        broken = calendar_clock.field_breach(
+            tuple(found),
+            body - held,
+            line,
+            calendar_clock.field_off_the_heaps(sure, heaps),
+            field,
+        )
+    if broken is not None:
+        raise _broken(broken[0], where, broken[1], broken[2])
+    return tuple(found), tuple(heaps)
 
 
 def _day_of_month_census(
@@ -19918,6 +20168,8 @@ def _validated(document: "dict[str, object]") -> Profile:
     _weekday_storage(source, columns)
     # -- the hour of the written clock (3b.T2, P4-D371)
     _hour_storage(source, columns)
+    # -- the minute and the second (3b.T3, P4-D372)
+    _clock_field_storage(source, columns)
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,
