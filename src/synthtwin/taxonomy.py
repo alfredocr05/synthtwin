@@ -18698,9 +18698,14 @@ def clock_lattice_crowded(
     `calendar_clock.crowding_unit`, and where that stands above
     `calendar_clock.drawing_unit` -- a lattice off midnight, drawn finer
     than it stands -- the rule is told so (`off_phase`): with no value
-    written once it is crowded once filled to the share, and so is a
-    grid with no value written once beside a published count at midnight
-    and more than 1,000 different values.
+    written once it is crowded once filled to the share and above the
+    uniform draw by any margin, and so is a grid with no value written
+    once beside a published count at midnight and more than 1,000
+    different values -- never one at or below that draw (lane J3's Codex
+    review: 1,500 of 2,000 quarter-hour slots from 00:13, each written
+    twice, 0.7557 of the lattice against the draw's 0.7795, keep their
+    facts and meet them), so both crowded notes' inequalities hold on
+    every path.
     False where neither field publishes, or where the block has no two
     tails.
 

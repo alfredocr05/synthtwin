@@ -8008,16 +8008,24 @@ own phase (lane J3: `calendar_clock.crowding_unit`, the step dividing
 sixty and every difference between two heaps' values), and a lattice the
 body is drawn finer than -- stamps fifteen minutes apart from 07:13,
 drawn a minute at a time and moved onto their heaps -- is crowded where
-no value is written once once filled to the share, whatever the draw,
+no value is written once once filled to the share and above that draw
+by any margin (its Codex review: never at or below it),
 as is a grid no value of which is written once beside a published count
 at midnight and more than 1,000 different values (a sweep of 512 grids
 on d3712a1, 1 to 60 minutes apart from midnight, 00:37, 07:13 and
 07:13:20, written once to four times, 500 to 5,000 values, floors 11
 and 36, three twins each: 254 published pairs that missed now withhold
-and meet, 370 that met withhold too; the same grids drawn on midnight met
+and meet, 364 that met withhold too; the same grids drawn on midnight met
 in 96 of 100 published pairs, so the drawing rule at the lattice's own
 phase, not changed here, could keep their facts: untested, inferred
-from those 96; every grid swept held a value in every lattice slot). The rule
+from those 96; every grid swept held a value in every lattice slot; its
+Codex review: 1,500 of 2,000 quarter-hour slots from 00:13, each written
+twice, 0.7557 of their lattice against a draw's 0.7795, keep the facts
+their twins meet, and of 103 grids with up to 30 % of their slots empty,
+floors 11 and 36, the 70 pairs at or below the draw publish and 68 meet
+every fact, the other 2 missing in one twin of three as on d3712a1). So
+a dense grid filling its lattice no more than a uniform draw keeps its
+facts under every exception. The rule
 claims no impossibility: it withholds where twins were measured to miss.
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes

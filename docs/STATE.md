@@ -333,11 +333,12 @@ cannot get worse unseen.
   those facts under the looser fifth only where no value is written once,
   no count at midnight is published, it holds at most 1,000 values and its
   lattice stands on midnight (P4-D391); a grid off midnight that fills its
-  lattice to the share with no value written once (or passes the
-  twentieth with some written once), or one written four times beside a
+  lattice to the share and above a uniform draw with no value written
+  once (or passes the twentieth with some written once), or one written
+  four times beside a
   count at midnight above 1,000 values, now withholds them (lane J3: 254
   published pairs of a 512-grid sweep, every lattice slot filled, that
-  missed now meet, and 370 that met lose them -- drawing such grids at
+  missed now meet, and 364 that met lose them -- drawing such grids at
   their own phase could keep them, untested, not built); carried: 500
   stamps five minutes apart, every one different, at floor 36, still come
   back 496 to 500 values, and 1,000 stamps half an hour apart from 07:13

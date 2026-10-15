@@ -917,8 +917,8 @@ def test_a_grid_off_midnight_withholds_the_clock_facts_it_crowds(tmp_path: pathl
     five minutes apart from 07:13:20, each written twice, 494 to 500 at one seed. The rule now
     counts its points on the lattice at its own phase (`calendar_clock.crowding_unit`): 900,
     300 and 300 seconds, filled; and a lattice the body is drawn finer than
-    (`off_phase`) is crowded where no value is written once, whatever the draw, and never
-    asks the fifth. All three withhold both fields, said once a field, and every twin at
+    (`off_phase`) is crowded where no value is written once and the fill stands above a
+    uniform draw by any margin (lane J3's Codex review), and never asks the fifth. All three withhold both fields, said once a field, and every twin at
     seeds 0 to 2 misses nothing."""
     for step, values, times, offset in ((15, 1000, 2, 25980), (5, 500, 1, 2220), (5, 500, 2, 26000)):
         described = _one_column(tmp_path / f"p{step}-{values}-{times}-{offset}", "c", _phased_series(step, values, times, offset))

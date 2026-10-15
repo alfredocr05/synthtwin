@@ -31,6 +31,16 @@ stamps half an hour apart from 07:13 with 60 % of the slots empty, each
 written two to four times, at floor 36, fill 0.41 of their lattice, are
 not crowded and publish, and one twin in 8 writes 1,001 values for
 1,000, the same before this change (withheld, all 8 meet).
+Its Codex review: the exceptions first asked only that share, so a grid
+filling its lattice no more than a uniform draw lost facts it met --
+1,500 of 2,000 quarter-hour slots from 00:13, each written twice, gave
+up a second's heap at 0 that every twin met, and 77 of 3,000 cells came
+back at second 0 in place of 2,994 -- and its notes said the values fill
+more places than random draws would. The fill must now stand above that
+draw: of 103 grids with up to 30 % of their slots empty, 70 published
+pairs keep their facts and 68 meet every one (the other 2 miss in one
+twin of three, as before lane J3); 71 pairs of its skeptic's grids and 6
+of the 512-grid sweep regain theirs and meet; the 254 stay withheld.
 
 ### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
 

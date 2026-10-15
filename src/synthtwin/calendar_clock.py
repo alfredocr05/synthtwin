@@ -1420,7 +1420,7 @@ CROWDED_EXCESS = (1, 20)
 # of which is written once keeps the twentieth: with the fifth such grids
 # missed their count at 1,000, 1,100 and 1,171 values.
 # The same bound marks, beside a count at midnight, the grid no value of
-# which is written once that is crowded whatever the draw (lane J3:
+# which is written once that is crowded once above the draw (lane J3:
 # written four times, such grids missed from 1,250 values and met at 500
 # and 1,000).
 CROWDED_EXCESS_REPEATED = (1, 5)
@@ -1527,10 +1527,10 @@ def lattice_crowded(
     `off_phase` says the body is drawn finer than it (`drawing_unit` below
     it): stamps fifteen minutes apart from 07:13 are drawn a minute at a
     time and moved onto their heaps, where they collide. Where no value is
-    written once, the lattice, filled to the share, is crowded whatever
-    the draw off midnight, and where a count at midnight is published
-    beside more than `CROWDED_REPEATED_VALUES` different values; off
-    midnight the fifth is never asked. Swept on d3712a1 over 512 grids --
+    written once, the lattice, filled to the share and above the draw by
+    any margin, is crowded off midnight, and so where a count at midnight
+    is published beside more than `CROWDED_REPEATED_VALUES` different
+    values; off midnight the fifth is never asked. Swept on d3712a1 over 512 grids --
     stamps 1, 2, 3, 5, 10, 15, 30 and 60 minutes apart from midnight,
     00:37, 07:13 and 07:13:20, each written once, twice, four times, or
     two to four times with none or a third of them once, and twice with a
@@ -1557,6 +1557,32 @@ def lattice_crowded(
     each written two to four times, at floor 36 -- 0.41 of their lattice,
     not crowded -- publish, and one twin in 8 wrote 1,001 values, the
     same on d3712a1; withheld, all 8 met.
+
+    ABOVE THE DRAW, NEVER AT OR BELOW IT (lane J3's Codex review, items 1
+    and 2). The two exceptions above first asked only the share, so 1,500
+    of 2,000 quarter-hour slots from 00:13, each written twice -- 0.7557 of
+    their lattice against the 0.7795 their 3,000 rows drawn uniformly would
+    fill -- lost the minute's heaps and the second's heap d3712a1 published
+    and every twin met (77 of 3,000 cells at second 0 in place of 2,994 at
+    floor 11), and their notes said the values fill more places than random
+    draws would. Both exceptions now ask the fill to stand above that draw
+    by any margin, so every crowded call holds the share and the draw its
+    notes state. Swept on 103 such grids -- Codex's; 5 or 15 minutes apart
+    from 00:13 and 07:13 and an hour apart from 00:13, 0 to 30 % of their
+    slots empty, each written two, three, four or two to four times, 1,000
+    values; 5 or 15 minutes apart from midnight, 0 to 10 % empty, three,
+    four or two to four times, 1,500 values from midnight -- floors 11
+    and 36, three twins each: of 197 pairs in the exceptions'
+    reach, all withheld on d05a8e9, the 70 at or below the draw publish and
+    68 meet every fact (2 at floor 11 miss in one twin of three, the same
+    on d3712a1: fifteen minutes apart from 00:13 written four times, 3 %
+    empty, 996 of 1,000 values; fifteen minutes apart from midnight, 10 %
+    empty, a second's heap); the 127 above it withhold, and forced to
+    publish 11 of them missed (29 twins, every one fifteen minutes apart at
+    floor 11, the first 0.005 above the draw) and 116 would have met. On
+    lane J3's own sweep 6 of the 370 pairs regain their facts (two minutes
+    apart from 07:13:20, 0.12 to 0.36 below the draw, floor 36) and all
+    18 twins meet; the 254 stay withheld and meet.
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
