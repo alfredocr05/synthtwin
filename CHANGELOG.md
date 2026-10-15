@@ -23,7 +23,11 @@ holds 71. On the shared clock, a block the layout fixes now takes an
 offset that keeps its written minute and second inside the minute's and
 second's facts (976 cells on minute 0 against a published 978, now 978);
 tail ranks moved to keep the count at midnight keep their move when the
-passes' frame is taken back (501 at midnight against 500, now 500); and
+passes' frame is taken back (501 at midnight against 500, now 500), the
+rank whose gap ends first served first and a bare date's own place held
+for it (stamps at -08:00 beside +09:00 came back 501 against 500, and
+bare dates beside -06:00 and +05:30 stamps 101 to 103 stamps at midnight
+against 100, now 500 and 100); and
 the reference oracle reads the minute's pass on each value's own clock,
 as the method says.
 

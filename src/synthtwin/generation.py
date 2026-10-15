@@ -35424,41 +35424,52 @@ def _own_clock_tails(
     The field pass (G7.3h) moves a tail rank off or onto a midnight of its
     own clock to keep the count at midnight, then sorts each tail by the
     place it reads -- which on the shared clock hands one rank's place to a
-    rank of another offset. So the tails' places are taken back as a
-    whole: every movable rank outside the body whose own place (its
-    instant plus its shift, in the frame's unit) the passes left among the
-    tails' places keeps its instant; each other one, in rank order, takes
-    the least place left that puts its instant inside its own gap, with
-    its own offset, and stays where it was where none does. Given back
-    where they stood before the passes, 1,000 stamps on the hour at
-    +01:00 and +02:00, half at midnight, came back with 501 cells at
-    midnight against a published 500. A column whose passes move no tail
-    rank is given back exactly as before. Writes `moved` in place.
+    rank of another offset, and sorts the ranks that never move (pinned, a
+    gap of one place, a bare date in a frame of seconds) with the others.
+    So the tails' places are taken back as a whole: the places the passes
+    left on EVERY tail rank are held; each rank that never moves claims its
+    own place (its instant plus its shift, in the frame's unit) first; each
+    movable one whose own place is still held keeps its instant; and the
+    other movable ones, the one whose gap ends first on its own clock
+    served first (ties by rank), each take the least place left that puts
+    its instant inside its own gap, with its own offset, and stay where
+    they were where none does. Given back where they stood before the
+    passes, 1,000 stamps on the hour at +01:00 and +02:00, half at
+    midnight, came back with 501 cells at midnight against a published 500;
+    served in rank order, -08:00 beside +09:00 came back with 501 at floor
+    36 (a wide gap took the one place a narrow one held); with the
+    unmoving ranks' places left out, 250 bare dates beside -06:00 and
+    +05:30 stamps came back with 101 to 103 stamps at midnight against 100
+    (a stamp handed a bare date's midnight while the date stayed on it,
+    the Codex review's verifier). A column whose passes move no tail rank
+    is given back exactly as before. Writes `moved` in place.
 
     O(n log n) over the tail ranks, a place found by halving. Raises
     nothing. No I/O of any kind.
     """
     gap_lows, gap_highs = gaps
     body_low, body_high = body
-    ranks = [
-        rank
-        for rank in range(len(before))
-        if movable[rank] and not body_low <= rank <= body_high
-    ]
+    tails = [rank for rank in range(len(before)) if not body_low <= rank <= body_high]
     held: "dict[int, int]" = {}
-    for rank in ranks:
+    for rank in tails:
         held[framed[rank]] = (held[framed[rank]] if framed[rank] in held else 0) + 1
-    left: "list[int]" = []
-    for rank in ranks:
+    for rank in tails:
+        own = (before[rank] + shifts[rank]) // scale
+        if not movable[rank] and own in held and held[own] > 0:
+            held[own] = held[own] - 1
+    left: "list[tuple[int, int]]" = []
+    for rank in tails:
+        if not movable[rank]:
+            continue
         own = (before[rank] + shifts[rank]) // scale
         if own in held and held[own] > 0:
             held[own] = held[own] - 1
         else:
-            left += [rank]
+            left += [((gap_highs[rank] + shifts[rank]) // scale, rank)]
     if not left:
         return
     places = sorted(place for place in held for _held in range(held[place]))
-    for rank in left:
+    for _top, rank in sorted(left):
         low = -((-(gap_lows[rank] + shifts[rank])) // scale)
         high = (gap_highs[rank] + shifts[rank]) // scale
         start, stop = 0, len(places)

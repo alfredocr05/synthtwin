@@ -840,6 +840,40 @@ def _unframed(case: "dict[str, typing.Any]") -> "dict[str, list[typing.Any]]":
     return {"ordinals": moved, "offsets": given}
 
 
+def _tails_mutated(
+    moved: "list[int]", before: "list[int]", framed: "list[int]", shifts: "list[int]", movable: "list[bool]",
+    body: "tuple[int, int]", gaps: "tuple[list[int], list[int]]", scale: int, *, by_top: bool, unmoving_held: bool,
+) -> None:
+    """`_own_clock_tails` with one of its two rules undone: the ranks left served by the top of
+    their own gaps (`by_top`), and the places of the ranks that never move held (`unmoving_held`)."""
+    tails = [rank for rank in range(len(before)) if not body[0] <= rank <= body[1] and (unmoving_held or movable[rank])]
+    held = [framed[rank] for rank in tails]
+    for rank in tails:
+        if not movable[rank] and (before[rank] + shifts[rank]) // scale in held:
+            held.remove((before[rank] + shifts[rank]) // scale)
+    left: "list[int]" = []
+    for rank in tails:
+        if movable[rank] and (before[rank] + shifts[rank]) // scale in held:
+            held.remove((before[rank] + shifts[rank]) // scale)
+        elif movable[rank]:
+            left += [rank]
+    if by_top:
+        left = sorted(left, key=lambda rank: ((gaps[1][rank] + shifts[rank]) // scale, rank))
+    for rank in left:
+        fits = sorted(place for place in held if -((-(gaps[0][rank] + shifts[rank])) // scale) <= place <= (gaps[1][rank] + shifts[rank]) // scale)
+        if fits:
+            moved[rank] = fits[0] * scale - shifts[rank]
+            held.remove(fits[0])
+
+
+def _tails_in_rank_order(*arguments: typing.Any) -> None:
+    _tails_mutated(*arguments, by_top=False, unmoving_held=True)
+
+
+def _tails_of_movable_ranks(*arguments: typing.Any) -> None:
+    _tails_mutated(*arguments, by_top=True, unmoving_held=False)
+
+
 def test_vectors_frames(monkeypatch: pytest.MonkeyPatch) -> None:
     for name, case in _FILE["frames"].items():
         assert _unframed(case) == case["answer"], name
@@ -879,6 +913,14 @@ def test_vectors_frames(monkeypatch: pytest.MonkeyPatch) -> None:
     with monkeypatch.context() as patched:
         patched.setattr(generation, "_own_clock_tails", own_places)
         assert _unframed(tail) == tail["answer"] and _unframed(sorted_tail) != sorted_tail["answer"]
+    # Its verifier: the ranks left served in rank order, or the places of the ranks that never
+    # move left out of the held places, as on cf0f2e0 (mutants).
+    by_top = _FILE["frames"]["tails_served_by_their_gaps_tops"]
+    unmoving = _FILE["frames"]["tails_hold_the_places_of_ranks_that_never_move"]
+    for mutant, case in ((_tails_in_rank_order, by_top), (_tails_of_movable_ranks, unmoving)):
+        with monkeypatch.context() as patched:
+            patched.setattr(generation, "_own_clock_tails", mutant)
+            assert _unframed(case) != case["answer"], mutant.__name__
     monkeypatch.setattr(generation, "_own_clock_run", rank_by_rank)
     assert any(_unframed(case) != case["answer"] for case in _FILE["frames"].values())
 
@@ -1124,11 +1166,13 @@ def _codex_midnight_beside_hours() -> "list[str]":
     return cells
 
 
-def _codex_described(tmp_path_factory: pytest.TempPathFactory, name: str, cells: "list[str]") -> kpi_shapes.Described:
-    key = (name, 11)
+def _codex_described(
+    tmp_path_factory: pytest.TempPathFactory, name: str, cells: "list[str]", floor: int = 11
+) -> kpi_shapes.Described:
+    key = (name, floor)
     if key not in _DESCRIBED:
         text = "t\n" + "".join(f"{cell}\n" for cell in cells)
-        _DESCRIBED[key] = kpi_shapes.describe(tmp_path_factory.mktemp(name), name, text, 11)
+        _DESCRIBED[key] = kpi_shapes.describe(tmp_path_factory.mktemp(name), name, text, floor)
     return _DESCRIBED[key]
 
 
@@ -1190,3 +1234,67 @@ def test_s3_the_frame_red_when_the_tails_go_back(
     monkeypatch.setattr(generation, "_off_own_clocks", tails_back)
     described = _codex_described(tmp_path_factory, "midnight_beside_hours", _codex_midnight_beside_hours())
     assert "t:midnight.count" in _missed(described, 0)
+
+
+# -- The Codex review of landing I3b2d, item 3: its verifier's two columns ------
+
+
+def _midnight_at_minus_eight_and_plus_nine() -> "list[str]":
+    """1,000 ISO stamps on the hour over 45 days, half at midnight, the offsets -08:00 and +09:00
+    in turn: their own clocks seventeen hours apart, so a tail rank's gap on its own clock is
+    narrow beside another's."""
+    cells: "list[str]" = []
+    for index in range(1000):
+        day = datetime.date(2024, 1, 1) + datetime.timedelta(days=index % 45)
+        hour = 0 if index % 8 < 4 else 1 + (index * 5) % 23
+        cells += [f"{day.isoformat()}T{hour:02d}:00:00{('-08:00', '+09:00')[index % 2]}"]
+    return cells
+
+
+def _bare_dates_beside_two_sites() -> "list[str]":
+    """1,000 cells over 120 days: one in four a bare date, the others stamps at -06:00 and +05:30
+    three by three, written HH:MM:00, hour 0 (minute 0) one in ten and the rest drawn."""
+    draw = random.Random(17)
+    cells: "list[str]" = []
+    for index in range(1000):
+        day = datetime.date(2024, 1, 1) + datetime.timedelta(days=(index * 7) % 120)
+        if index % 4 == 0:
+            cells += [day.isoformat()]
+            continue
+        hour = 0 if index % 10 == 1 else draw.randrange(1, 24)
+        minute = 0 if hour == 0 else draw.randrange(60)
+        cells += [f"{day.isoformat()}T{hour:02d}:{minute:02d}:00{('-06:00', '+05:30')[(index // 3) % 2]}"]
+    return cells
+
+
+def _midnights_kept(described: kpi_shapes.Described, published: int) -> None:
+    for seed in SEEDS:
+        twin = kpi_shapes.twin_text(described, seed)
+        assert sum(1 for line in twin.splitlines()[1:] if line[11:19] == "00:00:00") == published, seed
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"t{seed}.csv")) == [], seed
+
+
+def test_s3_the_tails_served_by_their_gaps_tops(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """THE CODEX REVIEW OF LANDING I3b2d, item 3, its verifier (plan P4-D378, method G7.3k step
+    2): the tail ranks the field pass moved take the places it left, the rank whose gap ends first
+    served first. At floor 36 the column publishes 500 cells at midnight; at seeds 0 to 2 every
+    twin holds them and misses nothing (501 on cf0f2e0, served in rank order: a +09:00 rank took
+    the one place a -08:00 rank's narrower gap held, and that rank stayed on midnight)."""
+    described = _codex_described(tmp_path_factory, "minus_eight_plus_nine", _midnight_at_minus_eight_and_plus_nine(), 36)
+    block = described.block("t")
+    assert block["datetimes_read_at"] == "utc" and block["n_at_midnight"] == 500
+    _midnights_kept(described, 500)
+
+
+def test_s3_the_tails_hold_the_places_of_ranks_that_never_move(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """THE CODEX REVIEW OF LANDING I3b2d, item 3, its verifier (plan P4-D378, method G7.3k step
+    2): a bare date in a frame of seconds never moves, but G7.3h sorts it with the tail's other
+    ranks, so the take-back holds its place too and lets it claim its own first. The column
+    publishes 350 cells at midnight, 100 of them stamps; at floors 11 and 36 and seeds 0 to 2
+    every twin holds them and misses nothing (101 to 103 stamps at midnight on cf0f2e0: +05:30
+    ranks were handed a bare date's midnight while the bare date stayed on it)."""
+    for floor in (11, 36):
+        described = _codex_described(tmp_path_factory, "bare_dates_two_sites", _bare_dates_beside_two_sites(), floor)
+        block = described.block("t")
+        assert block["datetimes_read_at"] == "utc" and block["n_at_midnight"] == 350, floor
+        _midnights_kept(described, 100)

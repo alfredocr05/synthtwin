@@ -8255,17 +8255,24 @@ can read a rank's clock only once its offset is known.
    each place with its offset. Every written field a census counts, every
    offset count and every gap stands. Pinned ranks, ranks whose gap is
    one place and bare dates in a frame of seconds are given back as they
-   were. THE TAILS' OTHER RANKS are taken back as a whole, as G7.3h moves
-   a tail rank off or onto a midnight of its own clock to keep the count
-   at midnight and then sorts each tail by the place it reads, which may
-   hand one rank's place to a rank of another offset: each whose own
-   place -- its instant plus its shift, in the frame's unit -- the passes
-   left among the tails' places keeps its instant; each other, in rank
-   order, takes the least place left that puts its instant inside its own
-   gap, with its own offset, and stays where it was where none does (the
-   Codex review of landing I3b2d, item 3: given back as they stood before
-   the passes, 1,000 stamps on the hour at `+01:00` and `+02:00`, half at
-   midnight, came back with 501 cells at midnight against 500).
+   were. THE TAILS are taken back as a whole, as G7.3h moves a tail rank
+   off or onto a midnight of its own clock to keep the count at midnight
+   and then sorts each tail by the place it reads -- the ranks that never
+   move with the others -- which may hand one rank's place to a rank of
+   another offset: the places the passes left on EVERY tail rank are
+   held; each rank that never moves claims its own place -- its instant
+   plus its shift, in the frame's unit -- first; each movable one whose
+   own place is still held keeps its instant; each other movable one, the
+   one whose gap ends first on its own clock served first (ties by rank),
+   takes the least place left that puts its instant inside its own gap,
+   with its own offset, and stays where it was where none does (the Codex
+   review of landing I3b2d, item 3: given back as they stood before the
+   passes, 1,000 stamps on the hour at `+01:00` and `+02:00`, half at
+   midnight, came back with 501 cells at midnight against 500; and its
+   verifier: served in rank order, `-08:00` beside `+09:00` came back with
+   501 at floor 36, and with the unmoving ranks' places left out, 250
+   bare dates beside `-06:00` and `+05:30` stamps came back with 101 to
+   103 stamps at midnight against 100).
    In a frame of DAYS a bare date moves as a day and stands in its gap's
    run, and a run holding one keeps every rank's form and offset, as a
    bare date's form cannot pass to another rank (the landing's Codex

@@ -1896,6 +1896,186 @@
       ],
       "why": "the Codex review of landing I3b2d, item 3: G7.3h moved the low tail's rank 1 an hour later and the high tail's rank 4 an hour earlier on their own clocks, to keep the count at midnight; both are given back where the pass left them, less their shifts, each with its own offset, and the pinned ends as they stood"
     },
+    "tails_hold_the_places_of_ranks_that_never_move": {
+      "answer": {
+        "offsets": [
+          "",
+          "",
+          "-06:00",
+          "-06:00",
+          "-06:00",
+          "-06:00"
+        ],
+        "ordinals": [
+          0,
+          86400,
+          90000,
+          200000,
+          200100,
+          300000
+        ]
+      },
+      "before": [
+        0,
+        86400,
+        90000,
+        200000,
+        200100,
+        300000
+      ],
+      "body": [
+        3,
+        4
+      ],
+      "framed": [
+        0,
+        68400,
+        86400,
+        178400,
+        178500,
+        278400
+      ],
+      "highs": [
+        0,
+        120000,
+        120000,
+        250000,
+        250000,
+        300000
+      ],
+      "lows": [
+        0,
+        50000,
+        80000,
+        150000,
+        150000,
+        300000
+      ],
+      "offsets": [
+        "",
+        "",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00"
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "scale": 1,
+      "shifts": [
+        0,
+        0,
+        -21600,
+        -21600,
+        -21600,
+        -21600
+      ],
+      "whole": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "why": "the Codex review of landing I3b2d, item 3, its verifier: in a frame of seconds a bare date never moves, but the pass sorted it with the -06:00 stamp after it, handing the stamp the date's midnight; the date claims its own place first, so the stamp keeps its instant, never written on midnight beside the date (mutant: the unmoving ranks' places left out)"
+    },
+    "tails_served_by_their_gaps_tops": {
+      "answer": {
+        "offsets": [
+          "+01:00",
+          "+02:00",
+          "+01:00",
+          "+01:00",
+          "+01:00",
+          "+01:00"
+        ],
+        "ordinals": [
+          100000,
+          100500,
+          103750,
+          200000,
+          200100,
+          300000
+        ]
+      },
+      "before": [
+        100000,
+        100200,
+        103850,
+        200000,
+        200100,
+        300000
+      ],
+      "body": [
+        3,
+        4
+      ],
+      "framed": [
+        103600,
+        107350,
+        107700,
+        203600,
+        203700,
+        303600
+      ],
+      "highs": [
+        100000,
+        100600,
+        103900,
+        250000,
+        250000,
+        300000
+      ],
+      "lows": [
+        100000,
+        100100,
+        103700,
+        150000,
+        150000,
+        300000
+      ],
+      "offsets": [
+        "+01:00",
+        "+02:00",
+        "+01:00",
+        "+01:00",
+        "+01:00",
+        "+01:00"
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "scale": 1,
+      "shifts": [
+        3600,
+        7200,
+        3600,
+        3600,
+        3600,
+        3600
+      ],
+      "whole": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "why": "the Codex review of landing I3b2d, item 3, its verifier: the pass moved both low-tail ranks; rank 2's gap ends first on its own clock, so it takes the least place left and rank 1 the other, both inside their gaps -- served in rank order, rank 1 takes the least and rank 2 has no place left in its gap (mutant: rank order)"
+    },
     "tails_sorted_across_offsets": {
       "answer": {
         "offsets": [

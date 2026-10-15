@@ -52563,27 +52563,34 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
     one shift's ranks to the next by the day the passes left it and then
     by rank (Codex's item 2 of landing 3b.7). A pinned rank, a rank whose
     gap is one place and a bare date in a frame of seconds as it was before
-    the passes. The tails' other ranks taken back as a whole (the Codex
-    review of landing I3b2d, item 3): each whose own place -- its instant
-    plus its shift, in the frame's unit -- the passes left among the tails'
-    places keeps its instant; each other, in rank order, takes the least
-    place left that puts its instant inside its own gap, with its own
-    offset, and stays where it was where none does."""
+    the passes. The tails taken back as a whole (the Codex review of
+    landing I3b2d, item 3, and its verifier): the places the passes left on
+    every tail rank are held; each rank that never moves claims its own
+    place -- its instant plus its shift, in the frame's unit -- first; each
+    movable one whose own place is still held keeps its instant; each other
+    movable one, by the top of its gap on its own clock and then by rank,
+    takes the least place left that puts its instant inside its own gap,
+    with its own offset, and stays where it was where none does."""
     given = list(offsets)
     stays = [flag and scale == 1 for flag in whole]
     moved = list(before)
-    tails = [
-        rank for rank in range(len(before))
-        if not (body[0] <= rank <= body[1] or pinned[rank] or stays[rank] or lows[rank] >= highs[rank])
-    ]
+    tails = [rank for rank in range(len(before)) if not body[0] <= rank <= body[1]]
+    still = [rank for rank in tails if pinned[rank] or stays[rank] or lows[rank] >= highs[rank]]
     standing = sorted(framed[rank] for rank in tails)
+    for rank in still:
+        own = (before[rank] + shifts[rank]) // scale
+        if own in standing:
+            standing.remove(own)
     taken_back = []
     for rank in tails:
+        if rank in still:
+            continue
         own = (before[rank] + shifts[rank]) // scale
         if own in standing:
             standing.remove(own)
         else:
             taken_back.append(rank)
+    taken_back.sort(key=lambda rank: ((highs[rank] + shifts[rank]) // scale, rank))
     for rank in taken_back:
         low = -(-(lows[rank] + shifts[rank]) // scale)
         high = (highs[rank] + shifts[rank]) // scale
@@ -53254,6 +53261,34 @@ SHARED_CLOCK_FRAMES = {
         "and the high tail's rank 4 an hour earlier on their own clocks, to keep the count at "
         "midnight; both are given back where the pass left them, less their shifts, each with its "
         "own offset, and the pinned ends as they stood",
+    ),
+    "tails_served_by_their_gaps_tops": (
+        [100000, 100200, 103850, 200000, 200100, 300000],
+        [100000 + 3600, 107350, 107700, 200000 + 3600, 200100 + 3600, 300000 + 3600],
+        [3600, 7200, 3600, 3600, 3600, 3600],
+        ["+01:00", "+02:00", "+01:00", "+01:00", "+01:00", "+01:00"],
+        [False] * 6, [True, False, False, False, False, True], (3, 4),
+        [100000, 100100, 103700, 150000, 150000, 300000],
+        [100000, 100600, 103900, 250000, 250000, 300000],
+        1,
+        "the Codex review of landing I3b2d, item 3, its verifier: the pass moved both low-tail "
+        "ranks; rank 2's gap ends first on its own clock, so it takes the least place left and rank "
+        "1 the other, both inside their gaps -- served in rank order, rank 1 takes the least and "
+        "rank 2 has no place left in its gap (mutant: rank order)",
+    ),
+    "tails_hold_the_places_of_ranks_that_never_move": (
+        [0, 86400, 90000, 200000, 200100, 300000],
+        [0, 68400, 86400, 200000 - 21600, 200100 - 21600, 300000 - 21600],
+        [0, 0, -21600, -21600, -21600, -21600],
+        ["", "", "-06:00", "-06:00", "-06:00", "-06:00"],
+        [False, True, False, False, False, False], [True, False, False, False, False, True], (3, 4),
+        [0, 50000, 80000, 150000, 150000, 300000],
+        [0, 120000, 120000, 250000, 250000, 300000],
+        1,
+        "the Codex review of landing I3b2d, item 3, its verifier: in a frame of seconds a bare date "
+        "never moves, but the pass sorted it with the -06:00 stamp after it, handing the stamp the "
+        "date's midnight; the date claims its own place first, so the stamp keeps its instant, "
+        "never written on midnight beside the date (mutant: the unmoving ranks' places left out)",
     ),
     "two_offsets_one_run": (
         [1000, 1700000000, 1700003600, 1700007200, 1700010800, 1800000000],
