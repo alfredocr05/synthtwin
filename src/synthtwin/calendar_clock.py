@@ -1304,6 +1304,100 @@ def drawing_unit(
     return FIELD_VALUES * minutes
 
 
+def phased_field_lattice(
+    census: "tuple[tuple[int, int, int], ...]",
+    heaps: "tuple[tuple[int, int], ...]",
+    published: "list[int]",
+    body: int,
+    line: int,
+) -> int:
+    """The LATTICE a field's published facts pin the body to AT ITS OWN PHASE, or nought.
+
+    Lane J3 (plan P4-D391): `field_lattice` reads the lattice as it stands
+    on value 0 -- the greatest step dividing sixty and every heap's value
+    --, so stamps five minutes apart from 07:13, heaps at 3, 8, ..., 58,
+    pin a step of one minute there, though every body cell stands on a
+    five-minute lattice three minutes off the hour. Here the step divides
+    sixty and every DIFFERENCE between two heaps' values: five for those
+    heaps, thirty for heaps at 15 and 45, sixty for one heap at any value.
+    Under the same conditions as `field_lattice` (heaps beside no census
+    and a rest below the census `line`); a census and no heap pins sixty
+    where its one non-zero group holds every value the description
+    publishes in the body and those values are one. Anything else: nought.
+    A multiple of `field_lattice`'s step wherever that pins one, as every
+    heap's value is a multiple of it.
+
+    Guarantees: accepts what `field_lattice` accepts; returns 0 or a
+    divisor of sixty. Raises nothing. No I/O.
+    """
+    if heaps and not census:
+        if body < 0 or body - sum(count for _value, count in heaps) >= line:
+            return 0
+        step = FIELD_VALUES
+        first = heaps[0][0]
+        for value, _count in heaps:
+            step = common_divisor(step, value - first)
+        return step
+    if census and not heaps:
+        holding = [group for group in census if group[2] > 0]
+        if len(holding) != 1:
+            return 0
+        written = published[0] if published else holding[0][0]
+        if not holding[0][0] <= written <= holding[0][1]:
+            return 0
+        for value in published:
+            if value != written:
+                return 0
+        return FIELD_VALUES
+    return 0
+
+
+def crowding_unit(
+    precision: str,
+    minute_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    second_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    published: "list[str]",
+    body: int,
+    line: int,
+) -> int:
+    """The lattice, in seconds, a column's clock facts pin its body to, at its own phase.
+
+    Lane J3 (plan P4-D391): `drawing_unit` read through
+    `phased_field_lattice`, the lattice the crowded rule
+    (`lattice_crowded`) counts its points on. Equal to `drawing_unit`
+    wherever the lattice stands on midnight; above it where the facts pin
+    a lattice off midnight -- stamps five minutes apart from 07:13 or 00:37
+    (300 here, 60 there), on the hour at 07:13:20 (3,600 here, 20 there)
+    -- which the body is drawn finer than.
+
+    Guarantees: accepts what `drawing_unit` accepts; returns a divisor of
+    3,600 of one or more. Raises nothing. No I/O.
+    """
+    minute_census, minute_heaps = minute_facts
+    second_census, second_heaps = second_facts
+    if not (minute_census or minute_heaps or second_census or second_heaps):
+        return 1
+    seconds = FIELD_VALUES
+    if precision != "minute":
+        seconds = phased_field_lattice(
+            second_census,
+            second_heaps,
+            [written_second(value) for value in published],
+            body,
+            line,
+        )
+    if seconds <= 0:
+        return 1
+    if seconds < FIELD_VALUES:
+        return seconds
+    minutes = phased_field_lattice(
+        minute_census, minute_heaps, [written_minute(value) for value in published], body, line
+    )
+    if minutes <= 0:
+        return 1 if precision == "minute" else FIELD_VALUES
+    return FIELD_VALUES * minutes
+
+
 # THE SHARE OF A LATTICE'S POINTS a column's different values may fill
 # before its minute and second facts are withheld (`lattice_crowded`), as
 # a fraction: half; a third where every value is different, so no repeat
@@ -1337,6 +1431,7 @@ def lattice_crowded(
     parsed: int = 0,
     midnight_counted: bool = True,
     none_once: bool = False,
+    off_phase: bool = False,
 ) -> bool:
     """Whether a column's different values crowd the lattice its clock facts pin.
 
@@ -1433,8 +1528,16 @@ def lattice_crowded(
         return False
     if parsed <= 0:
         return True
+    if none_once and (off_phase or (midnight_counted and distinct > CROWDED_REPEATED_VALUES)):
+        return True
     above, over = CROWDED_EXCESS
-    if none_once and not all_different and not midnight_counted and distinct <= CROWDED_REPEATED_VALUES:
+    if (
+        none_once
+        and not all_different
+        and not midnight_counted
+        and not off_phase
+        and distinct <= CROWDED_REPEATED_VALUES
+    ):
         above, over = CROWDED_EXCESS_REPEATED
     # The share of the points `parsed` uniform draws fill, on average.
     drawn = 1.0 - (1.0 - 1.0 / points) ** parsed

@@ -18712,7 +18712,17 @@ def clock_lattice_crowded(
     texts = [text for _rank, text in hour_published_values(details, parsed)]
     if not texts:
         return False
-    unit = calendar_clock.drawing_unit(
+    drawn = calendar_clock.drawing_unit(
+        str(details["time_precision"]),
+        (minute.groups, minute.heaps),
+        (second.groups, second.heaps),
+        texts,
+        parsed - rows_low - rows_high,
+        line,
+    )
+    # THE LATTICE AT ITS OWN PHASE (lane J3): the points are counted on it,
+    # and a lattice the body is drawn finer than stands off midnight.
+    unit = calendar_clock.crowding_unit(
         str(details["time_precision"]),
         (minute.groups, minute.heaps),
         (second.groups, second.heaps),
@@ -18731,7 +18741,7 @@ def clock_lattice_crowded(
     counted = details["n_at_midnight"] if "n_at_midnight" in details else None
     return calendar_clock.lattice_crowded(
         unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed, parsed,
-        isinstance(counted, int), none_once,
+        isinstance(counted, int), none_once, unit > drawn,
     )
 
 
