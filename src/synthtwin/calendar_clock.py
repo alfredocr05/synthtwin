@@ -1418,6 +1418,10 @@ CROWDED_EXCESS = (1, 20)
 # exactly two, three or four times, 500 to 2,500 values). A grid some value
 # of which is written once keeps the twentieth: with the fifth such grids
 # missed their count at 1,000, 1,100 and 1,171 values.
+# The same bound marks, beside a count at midnight, the grid no value of
+# which is written once that is crowded whatever the draw (lane J3:
+# written four times, such grids missed from 1,250 values and met at 500
+# and 1,000).
 CROWDED_EXCESS_REPEATED = (1, 5)
 CROWDED_REPEATED_VALUES = 1000
 
@@ -1515,6 +1519,38 @@ def lattice_crowded(
     -- so the twentieth stands there, as it does for a column every value of
     which is different, and from a fifth on (every second stamp written
     twice, 0.227 above, missed its count either way).
+
+    A LATTICE OFF MIDNIGHT, AND A COUNT AT MIDNIGHT BESIDE MANY REPEATED
+    VALUES (lane J3, from lane J2's last verifier, its two carried items).
+    `unit` is the lattice at its own phase (`crowding_unit`), and
+    `off_phase` says the body is drawn finer than it (`drawing_unit` below
+    it): stamps fifteen minutes apart from 07:13 are drawn a minute at a
+    time and moved onto their heaps, where they collide. Where no value is
+    written once, the lattice, filled to the share, is crowded whatever
+    the draw off midnight, and where a count at midnight is published
+    beside more than `CROWDED_REPEATED_VALUES` different values; off
+    midnight the fifth is never asked. Swept on d3712a1 over 512 grids --
+    stamps 1, 2, 3, 5, 10, 15, 30 and 60 minutes apart from midnight,
+    00:37, 07:13 and 07:13:20, each written once, twice, four times, or
+    two to four times with none or a third of them once, and twice with a
+    twentieth once, 500 to 5,000 values, floors 11 and 36, three twins
+    each -- 258 of 777 published pairs missed a fact: 250 off midnight
+    (every value different, 92, from 500 values, the worst 823 of 1,000
+    fifteen minutes apart from 00:37; with repeats 158, 500 to 5,000
+    values, 2 to 60 minutes apart, the worst 2,287 of 2,500), 4 written
+    four times with a count at midnight (2,500 and 5,000 values; the
+    smallest such miss, lane J2's sweep, 1,250 values, so the bound is
+    the fifth's), and 4 every value different named below. Withheld,
+    every twin of the 258 met. The rule withholds the 254 and 370 pairs
+    that met with their facts (354 off midnight, 16 written four times);
+    every twin of the 624 meets. On midnight the same grids with repeats
+    met: of their 100 published pairs 96 met, the other 4 the grids
+    written four times above, so drawing the body on the lattice at its
+    own phase -- G7.3's drawing rule, not changed here -- is where these
+    grids could keep their facts. Not seen by the rule, and carried: 500 stamps
+    five minutes apart, every one different, at floor 36 -- their minute
+    census published beside two heaps, which pins no lattice -- came back
+    496 to 500 at every phase swept.
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """

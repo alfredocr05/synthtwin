@@ -18694,6 +18694,13 @@ def clock_lattice_crowded(
     1,250 values, the smallest at which a swept grid with no value written
     once missed one, and grids with values written once missed with the
     fifth at 1,000 to 1,171 values).
+    THE LATTICE AT ITS OWN PHASE (lane J3): the points are counted on
+    `calendar_clock.crowding_unit`, and where that stands above
+    `calendar_clock.drawing_unit` -- a lattice off midnight, drawn finer
+    than it stands -- the rule is told so (`off_phase`): with no value
+    written once it is crowded once filled to the share, and so is a
+    grid with no value written once beside a published count at midnight
+    and more than 1,000 different values.
     False where neither field publishes, or where the block has no two
     tails.
 

@@ -8003,8 +8003,21 @@ value written once swept with the fifth at any size, 1 to 60 minutes
 apart, each written two, three or four times, 500 to 2,500 values,
 floors 11 and 36, every twin of fewer than 1,250 values met its facts,
 and 1,000 is 80 % of that first miss; its two verifiers and the
-orchestrator's ruling). The rule claims no impossibility: it withholds
-where twins were measured to miss.
+orchestrator's ruling). Its points are counted on the lattice at its
+own phase (lane J3: `calendar_clock.crowding_unit`, the step dividing
+sixty and every difference between two heaps' values), and a lattice the
+body is drawn finer than -- stamps fifteen minutes apart from 07:13,
+drawn a minute at a time and moved onto their heaps -- is crowded where
+no value is written once once filled to the share, whatever the draw,
+as is a grid no value of which is written once beside a published count
+at midnight and more than 1,000 different values (a sweep of 512 grids
+on d3712a1, 1 to 60 minutes apart from midnight, 00:37, 07:13 and
+07:13:20, written once to four times, 500 to 5,000 values, floors 11
+and 36, three twins each: 254 published pairs that missed now withhold
+and meet, 370 that met withhold too; the same grids drawn on midnight met
+in 96 of 100 published pairs, so the drawing rule at the lattice's own
+phase, not changed here, is where they could keep their facts). The rule
+claims no impossibility: it withholds where twins were measured to miss.
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes
 (plan P4-D191) -- THE TAILS KEEP IT:

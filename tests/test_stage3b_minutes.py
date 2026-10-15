@@ -66,6 +66,7 @@ import pathlib
 import random
 import sys
 import types
+import typing
 
 import pytest
 
@@ -955,6 +956,69 @@ def test_a_grid_off_midnight_withholds_the_clock_facts_it_crowds(tmp_path: pathl
     assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 4000, False, True, True)
     # With a value written once the twentieth decides off midnight too.
     assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 4000, False, False, True)
+
+
+def test_a_grid_written_four_times_beside_its_count_at_midnight_withholds_its_clock_facts(tmp_path: pathlib.Path) -> None:
+    """Lane J3 (NF121, NF122; lane J2's last verifier, its second carried item): stamps
+    written four times fill their lattice within a twentieth of a uniform draw of their
+    rows, 0.018 above it at 2,500 values, so the rule published their facts; where a count
+    at midnight is published beside them the twin holds it exactly and its ranks there find
+    no free place: on d3712a1 2,500 stamps five minutes apart from midnight, each written
+    four times, came back 2,479 to 2,491 values at floor 11 (lane J2's sweep: 1,250 values
+    fifteen and thirty minutes apart the first such miss; 5,000 an hour apart off the count
+    at midnight and the second's heap). A grid no value of which is written once, beside a
+    published count at midnight and more than `CROWDED_REPEATED_VALUES` different values, is
+    crowded once it fills the share: withheld, its twins at seeds 0 to 2 miss nothing.
+    1,000 stamps ten minutes apart written four times -- such grids met at 500 and 1,000
+    values in lane J3's sweep -- keep their facts and meet them."""
+    described = _one_column(tmp_path / "x4-5-2500", "c", _phased_series(5, 2500, 4, 0))
+    block = described.block("c")
+    assert block.get("n_at_midnight") is not None
+    for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+        assert block[key] == [], key
+    said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "c"]
+    assert taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_CROWDED, ()) in said
+    for seed in (0, 1, 2):
+        written = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], seed
+    described = _one_column(tmp_path / "x4-10-1000", "c", _phased_series(10, 1000, 4, 0))
+    block = described.block("c")
+    assert block.get("n_at_midnight") is not None
+    assert block["minute_heaps"] and block["second_heaps"]
+    for seed in (0, 1, 2):
+        written = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], seed
+    # By hand: 2,500 values on 2,500 points, 10,000 rows, 0.018 above the draw.
+    assert calendar_clock.lattice_crowded(300, 0, 749_700, 2500, False, 10000, True, True)
+    assert not calendar_clock.lattice_crowded(300, 0, 749_700, 2500, False, 10000, True, False)
+    assert not calendar_clock.lattice_crowded(300, 0, 749_700, 2500, False, 10000, False, True)
+    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 4000, True, True)
+    assert calendar_clock.lattice_crowded(300, 0, 300_000, 1001, False, 4004, True, True)
+
+
+def test_the_lattice_at_its_phase_reads_each_published_value_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Lane J3: `calendar_clock.crowding_unit` reads each published body value once a field
+    and each heap once -- counted in operations, machine-free, at 1,000 to 1,000,000 values,
+    its work grows with them and nothing else."""
+    counted = [0]
+    minute_of, second_of, divisor = calendar_clock.written_minute, calendar_clock.written_second, calendar_clock.common_divisor
+
+    def tally(read: "typing.Callable[..., int]") -> "typing.Callable[..., int]":
+        def counted_read(*arguments: object) -> int:
+            counted[0] += 1
+            return read(*arguments)
+        return counted_read
+
+    monkeypatch.setattr(calendar_clock, "written_minute", tally(minute_of))
+    monkeypatch.setattr(calendar_clock, "written_second", tally(second_of))
+    monkeypatch.setattr(calendar_clock, "common_divisor", tally(divisor))
+    fives = tuple((value, 2) for value in range(3, 60, 5))
+    for values in (1_000, 10_000, 100_000, 1_000_000):
+        counted[0] = 0
+        texts = ["2015-01-01 07:13:00"] * values
+        unit = calendar_clock.crowding_unit("second", ((), fives), ((), ((0, 24),)), texts, 24, LINE)
+        assert unit == 300
+        assert counted[0] <= 2 * values + 2 * len(fives) + 2, (values, counted[0])
 
 
 def _half_kept_series(step: int, rows: int, times: int) -> "list[str]":

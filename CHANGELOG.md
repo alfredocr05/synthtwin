@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### Repeated grids of timestamps meet their counts (2026-10-15)
+
+**A column of timestamps on a regular grid that starts off midnight, or
+is written four times beside a published count at midnight, no longer
+publishes minute and second facts its twin misses** (plan P4-D391, stage
+3b lane J3). The rule that withholds those facts where a column's values
+crowd the lattice they pin read the lattice as it stands on midnight, so
+stamps fifteen minutes apart from 07:13 looked like a one-minute lattice
+a fifteenth full, and their twins came back as few as 940 of 1,000
+values; stamps written four times looked like a uniform draw. A sweep of
+512 grids (1 to 60 minutes apart, from midnight, 00:37, 07:13 and
+07:13:20, written once to four times, 500 to 5,000 values, floors 11 and
+36, three twins each) found 258 of 777 published pairs missing a fact.
+The rule now counts the lattice at its own phase: 254 of those pairs
+withhold their clock facts and meet, as do 370 that met with them; every
+twin of the 624 meets. Drawn on midnight, the same grids met in 96 of 100
+published pairs, so drawing off-midnight grids on their own phase is the
+way to keep those facts; it is not built here. One class is carried: 500
+stamps five minutes apart, every one different, at floor 36, still come
+back 496 to 500 values.
+
 ### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
 
 **A column of moments publishing a weekday census beside its minutes' and
