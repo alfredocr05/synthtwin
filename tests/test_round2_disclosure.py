@@ -1502,6 +1502,127 @@ def test_the_joint_guard_is_what_holds_finding_one_shut(
     assert "n_at_midnight" in report
 
 
+def _day_hours_and_one_midnight() -> str:
+    """Codex I3b2d's native witness: 100 dates, 299 day stamps, one midnight.
+
+    The stamps cycle through the hours 08 to 19 at minutes 5 * (i % 12),
+    second 0, so the minute and second facts the widening publishes (MC3,
+    SE3) stand beside the hour census in the state the product ships.
+    """
+    lines = ["when"]
+    for place in range(100):
+        lines += [f"2024-01-{(place % 28) + 1:02}"]
+    for place in range(299):
+        hour, minute = 8 + place % 12, 5 * (place % 12)
+        lines += [f"2024-02-{(place % 28) + 1:02}T{hour:02}:{minute:02}:00"]
+    return "\n".join(lines + ["2024-02-04T00:00:00"]) + "\n"
+
+
+def _joint_witness_trip(folder: pathlib.Path, seed: str) -> "tuple[int, str, dict]":
+    """Profile the native witness at a floor of one, generate, validate."""
+    folder.mkdir(parents=True)
+    table = folder / "table.csv"
+    table.write_text(_day_hours_and_one_midnight(), encoding="utf-8", newline="")
+    assert (
+        _quiet(
+            [
+                "profile", f"{table}", "--out-dir", f"{folder}", "--replace",
+                "--smallest-group", "1",
+            ]
+        )
+        == 0
+    )
+    described = folder / "table-profile.json"
+    assert (
+        _quiet(
+            [
+                "generate", f"{described}", "--out-dir", f"{folder}",
+                "--seed", seed, "--replace",
+            ]
+        )
+        == 0
+    )
+    checked = folder / "checked"
+    checked.mkdir()
+    code = _quiet(
+        [
+            "validate", f"{described}",
+            "--twin", f"{folder / 'table-twin.csv'}",
+            "--out-dir", f"{checked}", "--replace",
+        ]
+    )
+    report = (checked / "table-twin-quality.txt").read_text(encoding="utf-8")
+    return code, report, _document(described)["columns"][0]
+
+
+_MIDNIGHT_MISSED_AT_100 = (
+    "midnight.withheld [datetime.n_at_midnight]: MISSED\n"
+    "      the description asks for: a count too near nought, or too near"
+    " every value, for a description to publish\n"
+    "      the file was found to hold: 100\n"
+)
+
+
+@pytest.mark.parametrize("seed", ["0", "4", "19"])
+def test_the_joint_guard_holds_on_the_native_witness(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """GREEN SIDE of the joint guard's red check in the shipped state.
+
+    Codex I3b2d's native witness at a floor of one: the minute heaps are
+    published (every body minute a heap of its own), `n_at_midnight` is
+    withheld for the joint reason, and the twin passes its own
+    description at exit 0 (the review of batch 3b part 2d's integration
+    fix 10; plan P4-D378).
+    """
+    code, report, block = _joint_witness_trip(tmp_path / "native", seed)
+    assert block["n_at_midnight"] is None
+    assert len(block["resolution_mix"]) == 2
+    assert len(block["minute_heaps"]) == 12
+    assert code == 0, report
+    # The field is LISTED, not checked: the joint column owes no count.
+    assert "midnight.withheld [datetime.n_at_midnight]" not in report
+    assert "stood at midnight [datetime.n_at_midnight]" in report
+
+
+@pytest.mark.parametrize("seed", ["0", "4", "19"])
+def test_the_joint_branch_alone_is_what_holds_the_native_witness(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, seed: str
+) -> None:
+    """RED CHECK in the state the product ships: the joint branch alone.
+
+    Only the branch of `contract.midnight_withheld_for_its_size` that
+    answers no for a column of more than one resolution is withdrawn
+    (its other readings asked as they stand); the minute and second facts
+    stay published. The generator then owes a count off midnight it
+    cannot meet beside the hundred whole dates at midnight, and validate
+    exits 3 with `midnight.withheld` MISSED at an achieved count of 100,
+    as Codex I3b2d measured (its review of integration fix 10, which
+    found the older red check above asks the guard only with the minute
+    and second facts withdrawn).
+    """
+    from synthtwin import contract
+
+    original = contract.midnight_withheld_for_its_size
+
+    def _without_the_joint_branch(facts: object) -> bool:
+        mix = getattr(facts, "resolution_mix")
+        try:
+            object.__setattr__(facts, "resolution_mix", {"iso-datetime": 1})
+            return original(facts)  # type: ignore[arg-type]
+        finally:
+            object.__setattr__(facts, "resolution_mix", mix)
+
+    monkeypatch.setattr(
+        contract, "midnight_withheld_for_its_size", _without_the_joint_branch
+    )
+    code, report, block = _joint_witness_trip(tmp_path / "withdrawn", seed)
+    assert len(block["minute_heaps"]) == 12
+    assert code == 3
+    assert "1 CHECKABLE OBLIGATION(S) WERE MISSED." in report
+    assert _MIDNIGHT_MISSED_AT_100 in report
+
+
 def test_a_joint_column_still_names_no_lone_timestamp_at_the_default_floor(
     tmp_path: pathlib.Path,
 ) -> None:
