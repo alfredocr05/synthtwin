@@ -11992,8 +11992,10 @@ def _tail_pair_met(
     NOTHING ELSE MOVES, and a side is left as it stood where the
     placement would break a rule the passes before it keep: a published
     end, a stratum leaving its sign band, a width demand able to take
-    fewer cells than it could or the marks census counting other cells
-    than it counted (`_dense_census_kept`),
+    fewer cells than it could, the marks census counting other cells
+    than it counted, or a published separator finding fewer cells of a
+    thousand to group (`_dense_census_kept`), a grid of more than 308
+    figures, whose scale is past the largest double,
     no `q` reaching the mean beyond the run's last point, or the far
     strata's distances landing more than a step from `m d1`; a point on
     a stand-in number the block does not hold is passed over
@@ -12041,7 +12043,8 @@ def _dense_side_placed(
     Each case the side stays in is its own test in
     tests/test_stage4_million_rows.py: a published end, a far stratum
     leaving the positive or the negative band or landing in the zero
-    band, the width census, the marks census, a mean the far strata
+    band, the width census, the marks census, a separator published
+    alone, a grid of more than 308 figures, a mean the far strata
     cannot reach past the run, a sum that lands more than a step out,
     and a tie on `q` going to the fewest. A grid point never fails
     to read back as itself (`_dense_value`), so no case asks it.
@@ -12056,6 +12059,12 @@ def _dense_side_placed(
     cells = layout.starts[total - 1] + layout.sizes[total - 1]
     rows = side.rows
     if rows < 2 or rows >= cells:
+        return None
+    # A GRID PAST THE LARGEST DOUBLE stays as it stood: ten to the 309th
+    # is no double, so its steps cannot be counted in one (the verifier
+    # of Codex's review of lane S4c: tenths-style cells of 320 figures
+    # raised OverflowError where `50a52d6` generated them clean).
+    if reader.dense_grid > 308:
         return None
     scale = 1
     for _figure in range(reader.dense_grid):
@@ -12266,13 +12275,19 @@ def _dense_census_kept(
     least as many cells and the cells the demands are served from do not
     fall; where the block publishes a marks census (`thousands_marks`),
     the cells whose values reach a thousand must number exactly as many
-    as before, a surplus being written with the mark. Measured
+    as before, a surplus being written with the mark; and where it
+    publishes a separator (`group_separator`) with no marks census, the
+    twin groups every cell of `_GROUPED_AT_A_THOUSAND` that reaches a
+    thousand, so those cells may not number fewer than before. Measured
     (Codex's review of lane S4c, item 1): five-figure fields `00000` to
     `07988` beside eleven at `10000` to `20000` came back with `7988`
     and `7990` written in four figures, the run continued under ten
     thousand where no padding was owed; tenths to `798.8` beside eleven
     grouped from `1,000.0` wrote nine grouped cells against eleven, and
-    both spelling checks fell under the floor.
+    both spelling checks fell under the floor; and with one bare
+    `2100.0` beside them, the marks census refused under the floor and
+    the comma alone published, the twin wrote ten grouped cells and
+    `spelling.group_separator` fell under the floor (its verifier).
 
     Guarantees: accepts the block's facts, its division, the values as
     they stand, the placed strata with their tail cells, and each one's
@@ -12282,7 +12297,8 @@ def _dense_census_kept(
     """
     demands = _field_demands(facts)
     marked = len(facts.thousands_marks) > 0
-    if not demands and not marked:
+    separated = facts.group_separator != ""
+    if not demands and not marked and not separated:
         return True
     whole = facts.integer_valued
     for wanted, exact, _cells in demands:
@@ -12297,7 +12313,7 @@ def _dense_census_kept(
                 after = after + size
         if after < before:
             return False
-    if marked:
+    if marked or separated:
         before = 0
         after = 0
         for index in range(len(outer)):
@@ -12307,7 +12323,7 @@ def _dense_census_kept(
                 before = before + size
             if abs(written[index]) >= 1000.0:
                 after = after + size
-        if before != after:
+        if after < before or (marked and after != before):
             return False
     return True
 

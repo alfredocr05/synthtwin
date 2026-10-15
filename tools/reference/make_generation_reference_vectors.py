@@ -4581,8 +4581,13 @@ def dense_side_placed(column, values, sizes, bands, reader, published, figures):
     remainder a step at a time on the outermost, `q` the count whose
     squares, the far strata where the mean first puts them, stand
     nearest `m rms**2`, the fewest on a tie; the side stays where the
-    sum lands more than a step out or a width or marks count moves.
+    sum lands more than a step out, a width or marks count moves, a
+    separator published alone finds fewer cells of a thousand to group,
+    or the grid has more than 308 figures (ten to that power is no
+    double).
     """
+    if figures > 308:
+        return None
     low = reader["percent"] < 50
     end = column["percentiles"]["min"] if low else column["percentiles"]["max"]
     if end is not None:
@@ -4740,7 +4745,8 @@ def census_kept(column, sizes, before, after, places):
     From the method's words: over the placed strata, no width demand
     can take fewer cells after the placement than before it, and where
     the column publishes a marks census, the cells reaching a thousand
-    number exactly as many.
+    number exactly as many; where it publishes a separator and no marks
+    census, no fewer.
     """
     integer_valued = column["integer_valued"]
     for wanted, exact, _ in _width_demands_of(column):
@@ -4748,10 +4754,11 @@ def census_kept(column, sizes, before, after, places):
         now = sum(sizes[place] for place in places if _serves(after[place], wanted, exact, integer_valued))
         if now < was:
             return False
-    if column.get("thousands_marks"):
+    marks = column.get("thousands_marks")
+    if marks or column.get("group_separator"):
         was = sum(sizes[place] for place in places if abs(before[place]) >= 1000.0)
         now = sum(sizes[place] for place in places if abs(after[place]) >= 1000.0)
-        if was != now:
+        if now < was or (marks and was != now):
             return False
     return True
 

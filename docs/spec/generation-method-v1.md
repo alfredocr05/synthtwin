@@ -4738,7 +4738,14 @@ or `kurtosis` window can cover the whole range and is listed (G5.6a).
    and the placed cells reaching a thousand would number otherwise
    (item 1: five-figure fields `00000` to `07988` beside eleven from
    `10000` came back with `7988` and `7990` in four figures, and tenths
-   beside eleven grouped from `1,000.0` with nine grouped), where no
+   beside eleven grouped from `1,000.0` with nine grouped), where the
+   block publishes a `group_separator` and no marks census and fewer
+   placed cells would reach a thousand, the twin grouping every such
+   cell (its verifier: those eleven beside one bare `2100.0`, the census
+   refused under the floor, came back with ten grouped and the
+   separator's check withheld), where the grid has more than 308
+   figures, ten to that power being no double (its verifier: tenths-style
+   cells of 320 figures raised an overflow), where no
    `q` reaches the mean past the run, or where the far strata's
    distances, placed, land more than a step from `m d1`. The staircase's
    own mean is read without overflowing on the way (item 2: eleven

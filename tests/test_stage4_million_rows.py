@@ -802,27 +802,43 @@ def test_rule_4_keeps_what_the_width_and_mark_censuses_count(tmp_path: pathlib.P
 
 
 def test_rule_4_s_census_rule_is_the_oracle_s(tmp_path: pathlib.Path) -> None:
-    """`_dense_census_kept` and the oracle's `census_kept` on the twenty-row tail: a width demand losing cells, one gaining them, and the marks census."""
+    """`_dense_census_kept` and the oracle's `census_kept` on the twenty-row tail: a width demand losing cells, one gaining them, the marks census, and a separator published alone.
+
+    With the separator alone, five far cells of a thousand or more that
+    would become four are refused, and none that would become five are
+    taken, which the marks census refuses (the verifier of Codex's
+    review of lane S4c).
+    """
     far = [300.0, 400.0, 500.0, 600.0, 700.0]
     cases = [
-        (9000.0, (5131 / 20, (5023279 / 20) ** 0.5), {"4": 100}, {}, False),
-        (9000.0, (5131 / 20, (5023279 / 20) ** 0.5), {"5": 100}, {}, True),
-        (900.0, (842 / 20, 76.0), {}, {",": 5}, False),
-        (900.0, (842 / 20, 76.0), {}, {}, True),
-        (1000.0, (5131 / 20, (5023279 / 20) ** 0.5), {}, {",": 100}, True),
+        (9000.0, (5131 / 20, (5023279 / 20) ** 0.5), {"4": 100}, {}, "", False),
+        (9000.0, (5131 / 20, (5023279 / 20) ** 0.5), {"5": 100}, {}, "", True),
+        (900.0, (842 / 20, 76.0), {}, {",": 5}, "", False),
+        (900.0, (842 / 20, 76.0), {}, {}, "", True),
+        (900.0, (842 / 20, 76.0), {}, {}, ",", False),
+        (0.0, (5131 / 20, (5023279 / 20) ** 0.5), {}, {}, ",", True),
+        (0.0, (5131 / 20, (5023279 / 20) ** 0.5), {}, {",": 5}, ",", False),
+        (1000.0, (5131 / 20, (5023279 / 20) ** 0.5), {}, {",": 100}, "", True),
     ]
-    for boundary, pair, widths, marks, taken in cases:
+    for boundary, pair, widths, marks, separator, taken in cases:
         facts, layout, values, reader, side = _twenty_row_tail(far, boundary=boundary, pair=pair)
         object.__setattr__(facts, "field_widths", widths)
         object.__setattr__(facts, "thousands_marks", marks)
+        object.__setattr__(facts, "group_separator", separator)
         before = list(values)
         placed = generation._dense_side_placed(facts, layout, values, reader, side)  # type: ignore[arg-type]
-        assert (placed is not None) == taken, (boundary, widths, marks)
-        assert _oracle_placed(before, boundary, pair, widths, marks) == (None if placed is None else list(placed))
+        assert (placed is not None) == taken, (boundary, widths, marks, separator)
+        assert _oracle_placed(before, boundary, pair, widths, marks, separator) == (None if placed is None else list(placed))
 
 
 def _oracle_placed(
-    values: "list[float]", boundary: float, pair: "tuple[float, float]", widths: "dict[str, int]", marks: "dict[str, int]"
+    values: "list[float]",
+    boundary: float,
+    pair: "tuple[float, float]",
+    widths: "dict[str, int]",
+    marks: "dict[str, int]",
+    separator: str = "",
+    figures: int = 0,
 ) -> "list[float] | None":
     """The oracle's `dense_side_placed` on `_twenty_row_tail`'s high side."""
     from tools.reference import make_generation_reference_vectors as oracle
@@ -833,11 +849,12 @@ def _oracle_placed(
         "field_widths": widths,
         "pad_widths": {},
         "thousands_marks": marks,
+        "group_separator": separator,
     }
     reader = {"percent": 95, "boundary": boundary}
     published = {"rows": 20, "mean_distance": pair[0], "rms_distance": pair[1]}
     placed = oracle.dense_side_placed(  # type: ignore[attr-defined]
-        column, list(values), [1] * 100, ["positive"] * 100, reader, published, 0
+        column, list(values), [1] * 100, ["positive"] * 100, reader, published, figures
     )
     return None if placed is None else list(placed)
 
@@ -967,3 +984,54 @@ def _placement_peak(folder: pathlib.Path, strata: int, tail: int) -> "tuple[int,
     finally:
         tracemalloc.stop()
     return peak, placed is values
+
+
+# -- the verifier of Codex's review of lane S4c ----------------------------------
+
+
+def test_a_separator_published_alone_keeps_its_grouped_cells(tmp_path: pathlib.Path) -> None:
+    """Tenths beside eleven grouped from `1,000.0` and one bare `2100.0`: the marks census is refused, the comma published alone, and every grouped cell stays.
+
+    The twin groups every cell of a thousand or more where the block
+    publishes a separator, so on 19d0dd5 the run continued under a
+    thousand wrote ten grouped cells at seeds 0 and 4 and
+    `spelling.group_separator` fell under the floor, WITHHELD; 50a52d6
+    wrote eleven and held it. A placement that leaves fewer placed cells
+    reaching a thousand is now refused, and the twin is the one rule 4
+    leaves as it stood.
+    """
+    cells = [format(place / 10, ".1f") for place in range(7988)]
+    cells += [format(1000 + 100 * place, ",.1f") for place in range(11)] + ["2100.0"]
+    described = kpi_shapes.describe(tmp_path, "alone", numbers_and_codes._table({"value": cells}), 11, measured=["value"])
+    block = described.document["columns"][0]
+    assert block["group_separator"] == "," and not block.get("thousands_marks"), "premise: the separator alone"
+    assert _high_reader(described).dense_grid == 1, "premise: the high side is dense"
+    for seed in (0, 4):
+        twin = kpi_shapes.twin_text(described, seed)
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(generation, "_tail_pair_met", lambda _facts, _layout, _rungs, values: values)
+            assert twin == kpi_shapes.twin_text(described, seed), seed
+        outcome = kpi_shapes.measure(described, twin, f"twin-{seed}.csv")
+        assert _verdict(outcome, "spelling.group_separator")[0] == validation.HELD, seed
+
+
+def test_a_grid_past_the_largest_double_stays_as_it_stood(tmp_path: pathlib.Path) -> None:
+    """Cells of 320 figures after the point, dense on the high side: `generate` writes the twin rule 4 leaves as it stood, and nothing is missed.
+
+    Ten to the 309th is no double, so on 19d0dd5 the placement's scale
+    raised OverflowError in `generate` and in the oracle; 50a52d6
+    generated the profile clean. A grid of more than 308 figures now
+    leaves the side as it stood, in product and oracle alike.
+    """
+    cells = ["0." + format(place, "0320d") for place in range(1, 7990)]
+    cells += ["0." + format(10000 + 1000 * place, "0320d") for place in range(11)]
+    described, twin, _written = _codex_twin(tmp_path, "fine", cells)
+    assert _high_reader(described).dense_grid == 320, "premise: the high side is dense on a grid of 320 figures"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, twin, "twin.csv")) == []
+    assert twin == _twin_without_rule_4(described)
+    far = [300.0, 400.0, 500.0, 600.0, 700.0]
+    facts, layout, values, reader, side = _twenty_row_tail(far)
+    before = list(values)
+    fine = dataclasses.replace(reader, dense_grid=309)
+    assert generation._dense_side_placed(facts, layout, values, fine, side) is None  # type: ignore[arg-type]
+    assert _oracle_placed(before, 1000.0, (5131 / 20, (5023279 / 20) ** 0.5), {}, {}, "", 309) is None
