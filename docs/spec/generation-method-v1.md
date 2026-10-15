@@ -4718,14 +4718,33 @@ or `kurtosis` window can cover the whole range and is listed (G5.6a).
    them continue the run, one grid point each, and the last `q` stand on
    consecutive points from the one that brings the side's distances to
    `m d1`, the remainder one step at a time on the outermost strata, so
-   the sum lands within a step; `q` is the count whose squares stand
-   nearest `m rms**2`, the fewest on a tie. A point on a stand-in number
-   the block does not hold is passed over. The side stays as it stood
-   where the block publishes that end, where a stratum would leave its
-   sign band or land in the zero band, where more cells would stand
-   past the widest width the census names than stood there, or where no
-   `q` reaches the mean past the run. A grid point under `2**52` steps
-   always reads back as itself, so none is refused for its text. The real column above
+   the sum lands within a step; `q` is the count whose squares,
+   with its far strata where the mean first puts them -- before a
+   stand-in passed over or the remainder moves them -- stand nearest
+   `m rms**2`, the fewest on a tie, so the squares placed may stand
+   further than another `q`'s completed ones (Codex's review of lane
+   S4c, item 5: on twenty rows a `q` of three missed by 359,800 where
+   four would have missed by 355,104). A point on a stand-in number the
+   block does not hold is passed over, counted in every step it adds:
+   where the far strata so pass `m d1` by more than half a step they are
+   laid again from one point nearer, and the remainder moves a stratum
+   only where all the steps it takes still fit and it stays inside the
+   next (item 3: a far run crossing `9999.0` stood two steps out). The
+   side stays as it stood where the block publishes that end, where a
+   stratum would leave its sign band or land in the zero band, where a
+   width demand (G6.6: a padded field's value of at most `w - 1`
+   figures, an unpadded one's of exactly `w`) could take fewer of the
+   placed cells than before, where the block publishes a marks census
+   and the placed cells reaching a thousand would number otherwise
+   (item 1: five-figure fields `00000` to `07988` beside eleven from
+   `10000` came back with `7988` and `7990` in four figures, and tenths
+   beside eleven grouped from `1,000.0` with nine grouped), where no
+   `q` reaches the mean past the run, or where the far strata's
+   distances, placed, land more than a step from `m d1`. The staircase's
+   own mean is read without overflowing on the way (item 2: eleven
+   distances near `2e307` overflowed a sum taken before dividing). A
+   grid point under `2**52` steps always reads back as itself, so none
+   is refused for its text. The real column above
    is that run and its five far cells, and the placement writes them
    back: at 100,000 rows five cells at `1155800` to `1155804` (the
    source's `1155999` to `1156003`), the tail's mean distance the

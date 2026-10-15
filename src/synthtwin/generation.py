@@ -11979,22 +11979,32 @@ def _tail_pair_met(
     run carry what the pair's totals, `m d1` and `m rms**2`, leave. The
     first of them continue the run, one grid point each, and the last
     `q` stand together far out, one grid point apart, at the distance
-    that meets `m d1` to the grid step; `q` is the count that leaves the
-    squares nearest `m rms**2`, the fewest on a tie. That is the shape
+    that meets `m d1` to the grid step; `q` is the count whose squares,
+    with its far strata where the mean first puts them -- before a
+    stand-in passed over or the remainder moves them -- stand nearest
+    `m rms**2`, the fewest on a tie, so the placed side's squares may
+    stand further than another `q`'s would (Codex's review of lane S4c,
+    item 5: weighed after its remainder, a `q` of four left 355,104
+    where the `q` of three taken left 359,800). That is the shape
     a dense tail's own pair describes: the real column above is that
     run and its five far cells, and the placement writes them back.
 
     NOTHING ELSE MOVES, and a side is left as it stood where the
     placement would break a rule the passes before it keep: a published
-    end, a stratum leaving its sign band, more cells past the widest
-    width the census names than stood there before, or no `q` reaching
-    the mean beyond the run's last point; a point on a stand-in number
-    the block does not hold is passed over (`_dense_free`). A side left so is named where its distance
-    misses, as before (`_tail_approximations`).
+    end, a stratum leaving its sign band, a width demand able to take
+    fewer cells than it could or the marks census counting other cells
+    than it counted (`_dense_census_kept`),
+    no `q` reaching the mean beyond the run's last point, or the far
+    strata's distances landing more than a step from `m d1`; a point on
+    a stand-in number the block does not hold is passed over
+    (`_dense_free`), the far strata laid again a step nearer where those
+    it passes carry them past the sum. A side left so is named where
+    its distance misses, as before (`_tail_approximations`).
 
     Guarantees: accepts the block's numeric facts, its division, its
     ladder and one value a stratum in the strata's order; returns the
-    values, unchanged on every side that is not dense or not placed.
+    values -- the same list, a placed side written into it in place --
+    unchanged on every side that is not dense or not placed.
     Determinism: a function of its arguments. Raises nothing. No I/O.
     """
     tails = facts.tails
@@ -12024,13 +12034,16 @@ def _dense_side_placed(
     Distances are counted in grid steps from the published boundary,
     each value a whole number of steps, so the run and the far strata's
     places are exact. Every count of far strata is weighed from running
-    sums, once each, so the work is the tail's strata and no more.
+    sums, once each, and a placed side is written into ``values`` in
+    place, so the work is the tail's strata and no more: no copy of the
+    column is made (Codex's review of lane S4c, item 6).
 
     Each case the side stays in is its own test in
     tests/test_stage4_million_rows.py: a published end, a far stratum
     leaving the positive or the negative band or landing in the zero
-    band, the width census, a mean the far strata cannot reach past the
-    run, and a tie on `q` going to the fewest. A grid point never fails
+    band, the width census, the marks census, a mean the far strata
+    cannot reach past the run, a sum that lands more than a step out,
+    and a tie on `q` going to the fewest. A grid point never fails
     to read back as itself (`_dense_value`), so no case asks it.
     """
     low = reader.low
@@ -12162,30 +12175,55 @@ def _dense_side_placed(
         return None
     far = best[1]
     near = count - far
-    points: "list[int]" = []
-    for index in range(near):
-        points += [near_points[index]]
-    point = best[2]
-    reached = near_sums[near]
-    for index in range(far):
-        if index:
-            point = point + toward
-        point = _dense_free(point, toward, scale, held)
-        points += [point]
-        reached = reached + outer[near + index][1] * (point - boundary) * toward
+    last = steps[run - 1] if near == 0 else near_points[near - 1]
+    # THE FAR STRATA LAID FROM `start`, AND LAID AGAIN A STEP NEARER while
+    # the stand-ins they pass over carry them past `m d1` by more than
+    # half a step (Codex's review of lane S4c, item 3): each skipped
+    # point puts every stratum after it a step further out, so a far
+    # run crossing `9999.0` stood two steps past the published sum. The
+    # remainder below only ever moves outward, so it starts from a sum
+    # at or under the published one. Each lay is the far strata's, and
+    # each step nearer takes back at least a stratum's cells or passes
+    # a stand-in, so the lays are at most twice the stand-ins and one.
+    start = best[2]
+    while True:
+        points: "list[int]" = []
+        for index in range(near):
+            points += [near_points[index]]
+        reached = near_sums[near]
+        point = start
+        for index in range(far):
+            if index:
+                point = point + toward
+            point = _dense_free(point, toward, scale, held)
+            points += [point]
+            reached = reached + outer[near + index][1] * (point - boundary) * toward
+        if round(wanted_sum - reached) >= 0:
+            break
+        start = start - toward
+        if (start - last) * toward < 1:
+            return None
     # THE REMAINDER, one step at a time on the outermost strata whose
     # cells it still holds whole, so the sum lands on `m d1` to the step.
+    # A step that passes a stand-in counts every step it moves, and no
+    # stratum lands on or past the one outside it.
     short = round(wanted_sum - reached)
     index = count - 1
     while short > 0 and index >= near:
         size = outer[index][1]
-        moved = points[index] + toward
-        if size > short or (index + 1 < count and moved == points[index + 1]):
+        moved = _dense_free(points[index] + toward, toward, scale, held)
+        gained = size * (moved - points[index]) * toward
+        if gained > short or (index + 1 < count and (points[index + 1] - moved) * toward < 1):
             index = index - 1
             continue
-        points[index] = _dense_free(moved, toward, scale, held)
-        short = short - size
-    moved_values = list(values)
+        points[index] = moved
+        reached = reached + gained
+        short = short - gained
+    # AND THE SUM CHECKED BEFORE THE PLACEMENT IS TAKEN: within a step of
+    # `m d1`, or the side stays as it stood (Codex's review, item 3).
+    if abs(wanted_sum - reached) > 1.0:
+        return None
+    written_points: "list[float]" = []
     for index in range(count):
         place = outer[index][0]
         written = _dense_value(points[index], reader.dense_grid, scale)
@@ -12196,21 +12234,92 @@ def _dense_side_placed(
             return None
         if band == _BAND_NEGATIVE and not written < 0.0:
             return None
-        moved_values[place] = written
+        written_points += [written]
+    if not _dense_census_kept(facts, layout, values, outer, written_points):
+        return None
+    # WRITTEN IN PLACE, only once every rule above has let the side be
+    # placed: a copy of the column would make the work the rows' and not
+    # the tail's (Codex's review, item 6). The list is the reading's own,
+    # made by `_stratum_values` for this reading and handed down the
+    # value passes, so no other holder sees it change.
+    for index in range(count):
+        values[outer[index][0]] = written_points[index]
+    return values
+
+
+def _dense_census_kept(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    outer: "list[tuple[int, int]]",
+    written: "list[float]",
+) -> bool:
+    """Whether rule 4's placement keeps what the width and mark censuses count (G6.6.8 rule 4).
+
+    ONLY THE PLACED STRATA MOVE, so a count over the column changes by
+    what it changes over them. Each width demand (`_field_demands`: a
+    padded field asks a value of at most so many figures, an unpadded
+    one a value of exactly so many) counts the placed strata's cells
+    whose values can serve it, and the placement is taken only where no
+    demand can take fewer of them than before -- each demand reads an
+    interval of figure counts, so every union of them then holds at
+    least as many cells and the cells the demands are served from do not
+    fall; where the block publishes a marks census (`thousands_marks`),
+    the cells whose values reach a thousand must number exactly as many
+    as before, a surplus being written with the mark. Measured
+    (Codex's review of lane S4c, item 1): five-figure fields `00000` to
+    `07988` beside eleven at `10000` to `20000` came back with `7988`
+    and `7990` written in four figures, the run continued under ten
+    thousand where no padding was owed; tenths to `798.8` beside eleven
+    grouped from `1,000.0` wrote nine grouped cells against eleven, and
+    both spelling checks fell under the floor.
+
+    Guarantees: accepts the block's facts, its division, the values as
+    they stand, the placed strata with their tail cells, and each one's
+    new value in that order; returns True where every count is kept as
+    the rule asks.
+    Determinism: a function of its arguments. Raises nothing. No I/O.
+    """
     demands = _field_demands(facts)
-    if demands:
-        widest = 10 ** _widest_demanded(demands) - 1
+    marked = len(facts.thousands_marks) > 0
+    if not demands and not marked:
+        return True
+    whole = facts.integer_valued
+    for wanted, exact, _cells in demands:
         before = 0
         after = 0
-        for index in range(count):
+        for index in range(len(outer)):
             place = outer[index][0]
-            if abs(values[place]) > widest:
-                before = before + layout.sizes[place]
-            if abs(moved_values[place]) > widest:
-                after = after + layout.sizes[place]
-        if after > before:
-            return None
-    return moved_values
+            size = layout.sizes[place]
+            if _serves_width(values[place], wanted, exact, whole):
+                before = before + size
+            if _serves_width(written[index], wanted, exact, whole):
+                after = after + size
+        if after < before:
+            return False
+    if marked:
+        before = 0
+        after = 0
+        for index in range(len(outer)):
+            place = outer[index][0]
+            size = layout.sizes[place]
+            if abs(values[place]) >= 1000.0:
+                before = before + size
+            if abs(written[index]) >= 1000.0:
+                after = after + size
+        if before != after:
+            return False
+    return True
+
+
+def _serves_width(value: float, wanted: int, exact: int, whole: bool) -> bool:
+    """Whether ``value`` can serve a width demand of `_field_demands`: ``wanted`` figures exactly, or one to ``wanted``."""
+    if not _carries_plainly(value, whole):
+        return False
+    figures = _figure_count(value, whole)
+    if exact:
+        return figures == wanted
+    return 1 <= figures <= wanted
 
 
 def _dense_free(point: int, toward: int, scale: int, held: "tuple[float, ...]") -> int:

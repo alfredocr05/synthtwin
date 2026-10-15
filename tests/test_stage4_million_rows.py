@@ -20,6 +20,7 @@ Two items, routed from lane S4b-num's first skeptic:
 from __future__ import annotations
 
 import dataclasses
+import math
 import pathlib
 import sys
 import tracemalloc
@@ -366,6 +367,29 @@ def _placement_lines(folder: pathlib.Path, strata: int, tail: int) -> "tuple[int
     8,000-row dense tail's, given this many rows and a mean distance the
     run alone cannot reach.
     """
+    facts, layout, values, reader, side = _placement_inputs(folder, strata, tail)
+    codes = {
+        generation._dense_side_placed.__code__,
+        generation._dense_free.__code__,
+        generation._dense_value.__code__,
+        generation._dense_census_kept.__code__,
+        generation._serves_width.__code__,
+    }
+    placed: "list[list[float] | None]" = []
+
+    def run() -> None:
+        placed.extend([generation._dense_side_placed(facts, layout, values, reader, side)])
+
+    lines = numbers_and_codes._lines_run(codes, run)
+    found = placed[0]
+    assert found is not None, "premise: the side is placed"
+    return lines, found
+
+
+def _placement_inputs(
+    folder: pathlib.Path, strata: int, tail: int
+) -> "tuple[contract.NumericFacts, generation._NumericLayout, list[float], contract.TailReader, contract.TailSide]":
+    """`_placement_lines`'s division, values, reader and tail."""
     described = _described_tail(folder, "tail8000", _dense_tail(8000))
     facts = described.loaded.columns[0].facts
     assert isinstance(facts, contract.NumericFacts) and facts.tails is not None and facts.tails.high is not None
@@ -384,20 +408,7 @@ def _placement_lines(folder: pathlib.Path, strata: int, tail: int) -> "tuple[int
     )
     reader = dataclasses.replace(ladder.high, rows=tail, boundary=boundary, numbers=strata)
     side = dataclasses.replace(facts.tails.high, rows=tail, mean_distance=tail / 2.0 + 200.0, rms_distance=4.0 * tail)
-    codes = {
-        generation._dense_side_placed.__code__,
-        generation._dense_free.__code__,
-        generation._dense_value.__code__,
-    }
-    placed: "list[list[float] | None]" = []
-
-    def run() -> None:
-        placed.extend([generation._dense_side_placed(facts, layout, values, reader, side)])
-
-    lines = numbers_and_codes._lines_run(codes, run)
-    found = placed[0]
-    assert found is not None, "premise: the side is placed"
-    return lines, found
+    return facts, layout, values, reader, side
 
 
 def test_rule_4_reads_the_tail_and_no_more_up_to_a_million_strata(tmp_path: pathlib.Path) -> None:
@@ -407,7 +418,10 @@ def test_rule_4_reads_the_tail_and_no_more_up_to_a_million_strata(tmp_path: path
     reads the run, and weighs every count of far strata from running sums
     once each, so its work is the tail's strata and not the column's, and
     not the square of the far strata it weighs: here 5,000 of them, and
-    10,000 at the doubled tail. Its sum is met to a step.
+    10,000 at the doubled tail. Its sum is met to a step. The lines
+    counted are Python's, so a copy of the column would pass unseen as
+    one line: what the placement allocates is held to the tail in
+    `test_rule_4_copies_no_column` (Codex's review of lane S4c, item 6).
     """
     small, _values = _placement_lines(tmp_path / "small", 100000, 10000)
     large, found = _placement_lines(tmp_path / "large", 1000000, 10000)
@@ -578,6 +592,7 @@ def _twenty_row_tail(
     object.__setattr__(described_facts.percentiles, "maximum", None)
     object.__setattr__(described_facts, "field_widths", {})
     object.__setattr__(described_facts, "pad_widths", {})
+    object.__setattr__(described_facts, "thousands_marks", {})
     values = [boundary - 1000.0 + place for place in range(80)]
     values += [boundary + 1 + place for place in range(15)]
     values += [boundary + distance for distance in far]
@@ -602,10 +617,12 @@ def _twenty_row_tail(
 def test_rule_4_places_the_far_strata_where_the_pair_says_and_leaves_a_tail_that_meets_it() -> None:
     """Twenty rows: five far strata go to 1,000 to 1,003 and 1,005 steps out -- the remainder on the outermost -- and a tail already summing to the mean stays."""
     facts, layout, values, reader, side = _twenty_row_tail([300.0, 400.0, 500.0, 600.0, 700.0])
+    before = list(values)
     placed = generation._dense_side_placed(facts, layout, values, reader, side)  # type: ignore[arg-type]
     assert placed is not None
+    assert placed is values, "written in place: no copy of the column (Codex's review of lane S4c, item 6)"
     assert [value - 1000.0 for value in placed[95:]] == [1000.0, 1001.0, 1002.0, 1003.0, 1005.0]
-    assert placed[:95] == values[:95], "the run and everything inside it stay"
+    assert placed[:95] == before[:95], "the run and everything inside it stay"
     facts, layout, values, reader, side = _twenty_row_tail([995.0, 1000.0, 1002.0, 1005.0, 1009.0])
     assert generation._dense_side_placed(facts, layout, values, reader, side) is None  # type: ignore[arg-type]
 
@@ -620,6 +637,9 @@ def test_rule_4_leaves_a_side_as_it_stood_where_a_rule_before_it_would_break() -
     facts, layout, values, reader, side = _twenty_row_tail(far)
     assert generation._dense_side_placed(facts, layout, values, reader, side) is not None  # type: ignore[arg-type]
     # A PUBLISHED END: the side stays where the block names its maximum.
+    # Each case below starts again from the side as it stood, because a
+    # placed side is written into the values in place.
+    facts, layout, values, reader, side = _twenty_row_tail(far)
     object.__setattr__(facts.percentiles, "maximum", 1705.0)  # type: ignore[attr-defined]
     assert generation._dense_side_placed(facts, layout, values, reader, side) is None  # type: ignore[arg-type]
     # THE SIGN BANDS: below a boundary at -1,010 the far strata would go
@@ -649,6 +669,7 @@ def test_rule_4_leaves_a_side_as_it_stood_where_a_rule_before_it_would_break() -
     facts, layout, values, reader, side = _twenty_row_tail(far, boundary=9000.0)
     object.__setattr__(facts, "field_widths", {"5": 100})
     assert generation._dense_side_placed(facts, layout, values, reader, side) is not None  # type: ignore[arg-type]
+    facts, layout, values, reader, side = _twenty_row_tail(far, boundary=9000.0)
     object.__setattr__(facts, "field_widths", {"4": 100})
     assert generation._dense_side_placed(facts, layout, values, reader, side) is None  # type: ignore[arg-type]
     # A MEAN THE FAR STRATA CANNOT REACH PAST THE RUN: 170 / 20 steps, the
@@ -721,3 +742,213 @@ def test_the_twin_report_reads_a_dense_tail_s_mean_against_the_hull(tmp_path: pa
     assert rank_windows[-1][0][0] > max(published, achieved), ("premise: the rank window alone holds neither", rank_windows[-1])
     assert record.inside and record.covers_published, record
     assert float(record.lowest.replace(",", "")) <= min(published, achieved), record
+
+
+# -- Codex's review of lane S4c ------------------------------------------------
+
+
+def _codex_twin(folder: pathlib.Path, stem: str, cells: "list[str]", floor: "int | None" = 11) -> "tuple[kpi_shapes.Described, str, list[str]]":
+    """Codex's scenarios: ``cells`` declared a measurement, described at ``floor``, loaded and generated at seed 0."""
+    described = kpi_shapes.describe(folder, stem, numbers_and_codes._table({"value": cells}), floor, measured=["value"])
+    twin = kpi_shapes.twin_text(described, 0)
+    return described, twin, [cell.strip('"') for cell in twin.split("\n")[1:] if cell]
+
+
+def _twin_without_rule_4(described: kpi_shapes.Described) -> str:
+    """The twin with G6.6.8's rule 4 withdrawn, every other pass as it stands."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_tail_pair_met", lambda _facts, _layout, _rungs, values: values)
+        return kpi_shapes.twin_text(described, 0)
+
+
+def _high_reader(described: kpi_shapes.Described) -> contract.TailReader:
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    ladder = contract.tail_ladder(facts)
+    assert isinstance(ladder, contract.ShapedLadder) and ladder.high is not None
+    return ladder.high
+
+
+def test_rule_4_keeps_what_the_width_and_mark_censuses_count(tmp_path: pathlib.Path) -> None:
+    """Codex's item 1: five-figure fields stay five figures, and eleven grouped cells stay eleven.
+
+    On 6121d55 the run, continued under ten thousand, wrote `7988` and
+    `7990` in four figures where every source cell has five, and tenths
+    grouped from `1,000.0` came back with nine grouped cells against
+    eleven, both spelling checks WITHHELD under the floor. The placement
+    is now refused where a width demand could take fewer of its cells,
+    or the cells reaching a thousand number otherwise, and the twin is
+    the one rule 4 leaves as it stood.
+    """
+    cells = [format(place, "05d") for place in range(7989)] + [str(10000 + 1000 * place) for place in range(11)]
+    described, twin, written = _codex_twin(tmp_path / "width", "width", cells)
+    assert _high_reader(described).dense_grid == 0, "premise: the high side is dense"
+    assert [cell for cell in written if len(cell) != 5] == []
+    assert twin == _twin_without_rule_4(described)
+    cells = [format(place / 10, ".1f") for place in range(7989)] + [format(1000 + 100 * place, ",.1f") for place in range(11)]
+    described, twin, written = _codex_twin(tmp_path / "marks", "marks", cells)
+    assert _high_reader(described).dense_grid == 1, "premise: the high side is dense"
+    assert sum("," in cell for cell in written) == 11
+    outcome = kpi_shapes.measure(described, twin, "twin.csv")
+    for subcheck in ("spelling.group_separator", "spelling.thousands_marks"):
+        assert _verdict(outcome, subcheck)[0] == validation.HELD, subcheck
+    assert twin == _twin_without_rule_4(described)
+
+
+def test_rule_4_s_census_rule_is_the_oracle_s(tmp_path: pathlib.Path) -> None:
+    """`_dense_census_kept` and the oracle's `census_kept` on the twenty-row tail: a width demand losing cells, one gaining them, and the marks census."""
+    far = [300.0, 400.0, 500.0, 600.0, 700.0]
+    cases = [
+        (9000.0, (5131 / 20, (5023279 / 20) ** 0.5), {"4": 100}, {}, False),
+        (9000.0, (5131 / 20, (5023279 / 20) ** 0.5), {"5": 100}, {}, True),
+        (900.0, (842 / 20, 76.0), {}, {",": 5}, False),
+        (900.0, (842 / 20, 76.0), {}, {}, True),
+        (1000.0, (5131 / 20, (5023279 / 20) ** 0.5), {}, {",": 100}, True),
+    ]
+    for boundary, pair, widths, marks, taken in cases:
+        facts, layout, values, reader, side = _twenty_row_tail(far, boundary=boundary, pair=pair)
+        object.__setattr__(facts, "field_widths", widths)
+        object.__setattr__(facts, "thousands_marks", marks)
+        before = list(values)
+        placed = generation._dense_side_placed(facts, layout, values, reader, side)  # type: ignore[arg-type]
+        assert (placed is not None) == taken, (boundary, widths, marks)
+        assert _oracle_placed(before, boundary, pair, widths, marks) == (None if placed is None else list(placed))
+
+
+def _oracle_placed(
+    values: "list[float]", boundary: float, pair: "tuple[float, float]", widths: "dict[str, int]", marks: "dict[str, int]"
+) -> "list[float] | None":
+    """The oracle's `dense_side_placed` on `_twenty_row_tail`'s high side."""
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    column = {
+        "percentiles": {"min": None, "max": None},
+        "integer_valued": True,
+        "field_widths": widths,
+        "pad_widths": {},
+        "thousands_marks": marks,
+    }
+    reader = {"percent": 95, "boundary": boundary}
+    published = {"rows": 20, "mean_distance": pair[0], "rms_distance": pair[1]}
+    placed = oracle.dense_side_placed(  # type: ignore[attr-defined]
+        column, list(values), [1] * 100, ["positive"] * 100, reader, published, 0
+    )
+    return None if placed is None else list(placed)
+
+
+def test_a_staircase_near_the_largest_double_reads_its_mean(tmp_path: pathlib.Path) -> None:
+    """Codex's item 2: integers 1 to 89 beside eleven near `2e307`, at the default floor, generate; the mean is read without overflowing.
+
+    On 6121d55 `generate` raised OverflowError in `math.fsum`, which
+    adds the staircase's distances before dividing by their count.
+    """
+    cells = [str(place) for place in range(1, 90)] + [repr(2e307 * (1 + place / 11)) for place in range(11)]
+    described, twin, _written = _codex_twin(tmp_path, "huge", cells, None)
+    outcome = kpi_shapes.measure(described, twin, "twin.csv")
+    assert kpi_shapes.missed(outcome) == []
+    from fractions import Fraction
+
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    distances = [2e307 * (1 + place / 11) for place in range(11)]
+    exact = float(sum(Fraction(distance) for distance in distances) / 11)
+    assert contract._finite_mean(distances) == exact
+    assert oracle.staircase_mean(distances) == exact  # type: ignore[attr-defined]
+    small = [1.0, 2.0, 4.5]
+    assert contract._finite_mean(small) == oracle.staircase_mean(small) == 2.5  # type: ignore[attr-defined]
+    assert not math.isfinite(contract._finite_mean([1.0, math.inf]))
+
+
+def test_a_stand_in_passed_over_leaves_the_sum_within_a_step(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3: a far run crossing `9999.0` lands on the published distance sum, not two steps past it.
+
+    On 6121d55 the high tail's 80 rows, boundary 8743.601 on tenths,
+    summed to 6563.42 against a published 6563.22: the run skipped the
+    stand-in, every stratum after it a step further out, and the
+    remainder only made up a shortfall.
+    """
+    cells = [f"{value / 10:.1f}" for value in range(79517, 87512)] + ["9998.5", "9998.7", "9999.3", "9999.8", "10000.0"]
+    described, twin, written = _codex_twin(tmp_path, "skip", cells)
+    reader = _high_reader(described)
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts) and facts.tails is not None and facts.tails.high is not None
+    side = facts.tails.high
+    assert reader.dense_grid == 1 and side.mean_distance is not None, "premise: a dense tail on tenths"
+    tail = sorted(float(cell) for cell in written)[len(written) - side.rows :]
+    reached = sum(value - reader.boundary for value in tail)
+    assert abs(reached - side.mean_distance * side.rows) <= 0.1 + 1e-6, reached
+    assert "9999.0" not in written, "the stand-in is still passed over"
+    # The same on the twenty-row tail, product and oracle: from 8,998
+    # the far strata would stand at 1,000, 1,002 to 1,005 steps, past
+    # `9,999`; laid a step nearer and the remainder put outward, they sum
+    # to the published 5,011.
+    far = [300.0, 400.0, 500.0, 600.0, 700.0]
+    pair = (5131 / 20, (5023279 / 20) ** 0.5)
+    facts_twenty, layout, values, reader_twenty, side_twenty = _twenty_row_tail(far, boundary=8998.0, pair=pair)
+    before = list(values)
+    placed = generation._dense_side_placed(facts_twenty, layout, values, reader_twenty, side_twenty)  # type: ignore[arg-type]
+    assert placed is not None
+    assert [value - 8998.0 for value in placed[95:]] == [999.0, 1000.0, 1002.0, 1003.0, 1007.0], placed[95:]
+    assert _oracle_placed(before, 8998.0, pair, {}, {}) == list(placed)
+
+
+def test_pieces_are_written_in_utf_8_only(tmp_path: pathlib.Path) -> None:
+    """Codex's item 4: pieces in UTF-16, UTF-32 or UTF-8 with a signature are refused before anything is written.
+
+    On 6121d55 each piece carried its own byte-order mark, so
+    `["one\\n", "two\\n"]` in UTF-16 read back as `"one\\n\\ufefftwo\\n"`.
+    """
+    pieces = ["one\n", "two\n"]
+    target = tmp_path / "parts.txt"
+    writing.write_text_file(target, "untouched")
+    for encoding in ("utf-16", "utf-8-sig", "utf-32", "utf-16-le", "utf-7", "latin-1"):
+        with pytest.raises(ValueError):
+            writing.write_text_file(target, "", encoding=encoding, pieces=pieces)
+        assert target.read_text(encoding="utf-8") == "untouched", encoding
+    whole = tmp_path / "whole.txt"
+    writing.write_text_file(whole, "".join(pieces) + "ó", encoding="utf-8")
+    for encoding in ("utf-8", "UTF-8", "utf_8", "UTF8"):
+        writing.write_text_file(target, "", encoding=encoding, pieces=pieces + ["ó"])
+        assert target.read_bytes() == whole.read_bytes(), encoding
+
+
+def test_q_is_weighed_before_the_remainder_as_the_method_says() -> None:
+    """Codex's item 5: the method says `q`'s squares are weighed before the remainder, as `_dense_side_placed` weighs them.
+
+    Codex's twenty-row tail: a mean distance of 3,133 / 20 and a mean
+    square of 2,602,123 / 20 put the far strata at 16, 17 and 992 to 995
+    steps, `q` three, whose completed squares miss by 359,800 where a
+    `q` of four at 16 and 747 to 753 would miss by 355,104. 6121d55's
+    method said `q` was the count whose squares stand nearest.
+    """
+    facts, layout, values, reader, side = _twenty_row_tail(
+        [300.0, 400.0, 500.0, 600.0, 700.0], pair=(3133 / 20, (2602123 / 20) ** 0.5)
+    )
+    placed = generation._dense_side_placed(facts, layout, values, reader, side)  # type: ignore[arg-type]
+    assert placed is not None
+    assert [value - 1000.0 for value in placed[95:]] == [16.0, 17.0, 992.0, 993.0, 995.0], placed[95:]
+    method = pathlib.Path(__file__).resolve().parents[1] / "docs" / "spec" / "generation-method-v1.md"
+    words = " ".join(method.read_text(encoding="utf-8").split())
+    assert "with its far strata where the mean first puts them -- before a stand-in passed over or the remainder moves them -- stand nearest `m rms**2`" in words
+
+
+def test_rule_4_copies_no_column(tmp_path: pathlib.Path) -> None:
+    """Codex's item 6: the placement allocates the same at 1,000,000 strata as at 100,000 with the same tail, and returns the list it was handed.
+
+    On 6121d55 `list(values)` copied the column: eight bytes a stratum
+    more at every size, which the Python lines counted in
+    `test_rule_4_reads_the_tail_and_no_more_up_to_a_million_strata` show
+    as one line.
+    """
+    peaks: "list[int]" = []
+    same: "list[bool]" = []
+    for strata in (100000, 1000000):
+        facts, layout, values, reader, side = _placement_inputs(tmp_path / f"{strata}", strata, 10000)
+        tracemalloc.start()
+        placed = generation._dense_side_placed(facts, layout, values, reader, side)
+        peaks += [tracemalloc.get_traced_memory()[1]]
+        tracemalloc.stop()
+        same += [placed is values]
+    assert peaks[1] < peaks[0] + 262144, peaks
+    assert peaks[1] < 4 * 1000000, peaks
+    assert same == [True, True]

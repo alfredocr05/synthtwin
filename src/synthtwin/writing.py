@@ -2207,6 +2207,32 @@ def write_bytes_file(
         ) from error
 
 
+# The spellings of UTF-8 `_pieces_taken_in` takes.
+_UTF_8_SPELLINGS = ("utf-8", "UTF-8", "utf_8", "UTF_8", "utf8", "UTF8")
+
+
+def _pieces_taken_in(encoding: str) -> bool:
+    """Whether ``pieces`` may be written in ``encoding``: UTF-8 only, in one of its usual spellings.
+
+    UTF-8 WRITES EACH CHARACTER ON ITS OWN, so pieces encoded one by one
+    and added are the bytes of their whole text, wherever it is cut.
+    Other encodings carry a state across the text that a piece encoded
+    on its own starts again (Codex's review of lane S4c, item 4): UTF-16,
+    UTF-32 and UTF-8 with a signature wrote a byte-order mark before
+    every piece, ``["one\n", "two\n"]`` in UTF-16 reading back as
+    ``"one\n\ufefftwo\n"``; ISO-2022-JP shifts back at every cut and
+    UTF-7 closes its run of base64. The quality report, the one text
+    written in pieces, is UTF-8, so pieces are refused in every other
+    encoding rather than carried through an encoder's state.
+
+    Guarantees: accepts an encoding's name; returns True for ``utf-8``,
+    ``utf_8`` and ``utf8``, in lower or upper case (`_UTF_8_SPELLINGS`),
+    and False for every other name.
+    Determinism: a function of the name. Raises nothing. No I/O.
+    """
+    return encoding in _UTF_8_SPELLINGS
+
+
 def _pieces_encoded(pieces: "list[str]", encoding: str) -> bytearray:
     """The bytes `write_text_file` writes for ``pieces`` added in order.
 
@@ -2218,12 +2244,15 @@ def _pieces_encoded(pieces: "list[str]", encoding: str) -> bytearray:
     command at 1,323 MB. The length is read first, each piece encoded
     once for it, so the buffer is taken once at its size and never grown.
     Nothing is translated, which is what a ``newline`` of ``"\n"`` or
-    ``""`` writes.
+    ``""`` writes, and only UTF-8 is taken (`_pieces_taken_in`).
 
     Guarantees: accepts the pieces and the encoding; returns
-    their bytes. Raises what encoding the text raises, as writing it
-    would. No I/O of any kind.
+    their bytes, the bytes their whole text is written as. Raises
+    ValueError for an encoding `_pieces_taken_in` refuses, and what
+    encoding the text raises, as writing it would. No I/O of any kind.
     """
+    if not _pieces_taken_in(encoding):
+        raise ValueError("pieces are written in UTF-8 only")
     total = 0
     for piece in pieces:
         total = total + len(bytes(piece, encoding))
@@ -2251,7 +2280,10 @@ def write_text_file(
     text is never made whole (stage 4 lane S4c, plan P4-D390; the
     quality report of a register of a million rows and more). Pieces are
     written untranslated, so they are taken only with a ``newline`` of
-    ``"\n"`` or ``""``, and ValueError is raised for any other.
+    ``"\n"`` or ``""``, and ValueError is raised for any other; and
+    only in UTF-8, the one encoding whose bytes never depend on where
+    the text is cut, ValueError raised for any other
+    (`_pieces_taken_in`), before anything is written.
 
     ``encoding`` and ``newline`` change that for one file only, and one
     caller passes them: a twin is written in its source table's encoding
@@ -2277,6 +2309,8 @@ def write_text_file(
     """
     if pieces is not None and newline not in ("\n", ""):
         raise ValueError("pieces are written with no newline translation")
+    if pieces is not None and not _pieces_taken_in(encoding):
+        raise ValueError("pieces are written in UTF-8 only")
     validated = validate_local_path(f"{target}", purpose="output file")
     destination = pathlib.Path(validated)
     try:

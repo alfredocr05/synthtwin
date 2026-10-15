@@ -13791,6 +13791,38 @@ def tail_grid(facts: NumericFacts) -> int:
     return -1
 
 
+def _finite_mean(values: "list[float]") -> float:
+    """The mean of ``values``, read so a finite mean is never lost to an overflow on the way.
+
+    `math.fsum` adds before it divides, so numbers near the largest a
+    double holds overflow on the way to a mean they would reach (Codex's
+    review of lane S4c, item 2: a staircase of eleven distances near
+    ``2e307`` raised OverflowError in `generate`, its mean about
+    ``2.67e307``). Where the sum overflows, every number is first scaled
+    down by a power of two at least as large as their count -- exact for
+    every number of normal size -- and the mean scaled back, so the
+    answer is the one the sum would round to wherever that sum is
+    finite, and ``inf`` only where the mean itself is not a double.
+
+    Guarantees: accepts a non-empty list of numbers; returns their mean,
+    or a value that is not finite -- the first such number -- where a
+    number is not, or where the mean is out of range. Determinism: a function of the list. Raises nothing.
+    No I/O.
+    """
+    for value in values:
+        if not math.isfinite(value):
+            return value
+    try:
+        return math.fsum(values) / len(values)
+    except OverflowError:
+        pass
+    factor = 2.0
+    while factor < len(values):
+        factor = factor * 2.0
+    scaled = math.fsum(value / factor for value in values)
+    return scaled / len(values) * factor
+
+
 def _dense_grid(
     side: TailReader, facts: NumericFacts, mean_distance: "float | None"
 ) -> int:
@@ -13830,7 +13862,7 @@ def _dense_grid(
     for index in range(1, len(distances)):
         if not distances[index] > distances[index - 1]:
             return -1
-    stair = math.fsum(distances) / len(distances)
+    stair = _finite_mean(distances)
     if not math.isfinite(stair):
         return -1
     if stair - mean_distance > _tail_unit(figures) / 2.0:

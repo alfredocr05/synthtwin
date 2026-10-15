@@ -4476,6 +4476,24 @@ def tail_grid_of(column):
     return -1
 
 
+def staircase_mean(distances):
+    """The staircase's mean distance, never lost to an overflow on the way (G6.6.8 rule 4).
+
+    From the method's words: the distances added exactly and divided by
+    their count, and where that sum passes the largest double, each
+    distance halved as many times as the count has binary figures first
+    and the mean doubled back as often.
+    """
+    if not all(math.isfinite(distance) for distance in distances):
+        return math.nan
+    try:
+        return math.fsum(distances) / len(distances)
+    except OverflowError:
+        halvings = len(distances).bit_length()
+    factor = 2.0 ** halvings
+    return math.fsum(distance / factor for distance in distances) / len(distances) * factor
+
+
 def dense_grid_of(column, reader, published):
     """Whether a side is DENSE (G6.6.8 rule 4): its grid's figures, or -1.
 
@@ -4504,7 +4522,7 @@ def dense_grid_of(column, reader, published):
     for index in range(1, len(distances)):
         if not distances[index] > distances[index - 1]:
             return -1
-    stair = math.fsum(distances) / len(distances)
+    stair = staircase_mean(distances)
     if not math.isfinite(stair):
         return -1
     step = 1.0
@@ -4561,7 +4579,9 @@ def dense_side_placed(column, values, sizes, bands, reader, published, figures):
     again -- the first continuing the run, the last `q` on consecutive
     points from the one that brings the distances to `m d1`, the
     remainder a step at a time on the outermost, `q` the count whose
-    squares stand nearest `m rms**2`, the fewest on a tie.
+    squares, the far strata where the mean first puts them, stand
+    nearest `m rms**2`, the fewest on a tie; the side stays where the
+    sum lands more than a step out or a width or marks count moves.
     """
     low = reader["percent"] < 50
     end = column["percentiles"]["min"] if low else column["percentiles"]["max"]
@@ -4655,25 +4675,40 @@ def dense_side_placed(column, values, sizes, bands, reader, published, figures):
         return None
     _, far, start = best
     near = count - far
-    points = near_points[:near]
-    reached = near_sums[near]
-    point = start
-    for index in range(far):
-        if index:
-            point += toward
-        point = _free_point(point, toward, scale, kept)
-        points.append(point)
-        reached = reached + outer[near + index][1] * (point - boundary) * toward
+    last = steps[run - 1] if near == 0 else near_points[near - 1]
+    # Laid from `start`, and again a step nearer while the stand-ins
+    # passed over carry the sum past `m d1` by more than half a step.
+    while True:
+        points = near_points[:near]
+        reached = near_sums[near]
+        point = start
+        for index in range(far):
+            if index:
+                point += toward
+            point = _free_point(point, toward, scale, kept)
+            points.append(point)
+            reached = reached + outer[near + index][1] * (point - boundary) * toward
+        if round(wanted_sum - reached) >= 0:
+            break
+        start -= toward
+        if (start - last) * toward < 1:
+            return None
+    # The remainder, outward a step at a time on the outermost strata,
+    # every step a stand-in adds counted, never onto the next stratum.
     short = round(wanted_sum - reached)
     index = count - 1
     while short > 0 and index >= near:
         size = outer[index][1]
-        moved = points[index] + toward
-        if size > short or (index + 1 < count and moved == points[index + 1]):
+        moved = _free_point(points[index] + toward, toward, scale, kept)
+        gained = size * (moved - points[index]) * toward
+        if gained > short or (index + 1 < count and (points[index + 1] - moved) * toward < 1):
             index -= 1
             continue
-        points[index] = _free_point(moved, toward, scale, kept)
-        short -= size
+        points[index] = moved
+        reached = reached + gained
+        short -= gained
+    if abs(wanted_sum - reached) > 1.0:
+        return None
     placed = list(values)
     for index in range(count):
         place = outer[index][0]
@@ -4685,14 +4720,40 @@ def dense_side_placed(column, values, sizes, bands, reader, published, figures):
         if bands[place] == "negative" and not written < 0.0:
             return None
         placed[place] = written
-    demands = _width_demands_of(column)
-    if demands:
-        widest = 10 ** max(wanted for wanted, _, _ in demands) - 1
-        before = sum(sizes[place] for place, _ in outer if abs(values[place]) > widest)
-        after = sum(sizes[place] for place, _ in outer if abs(placed[place]) > widest)
-        if after > before:
-            return None
+    if not census_kept(column, sizes, values, placed, [place for place, _ in outer]):
+        return None
     return placed
+
+
+def _serves(value, wanted, exact, integer_valued):
+    """A value serves a width demand where its point-free spelling has that many figures, or one to that many."""
+    text = point_free_spelling(value, integer_valued)
+    if text is None:
+        return False
+    figures = len(text) - 1 if text.startswith("-") else len(text)
+    return figures == wanted if exact else 1 <= figures <= wanted
+
+
+def census_kept(column, sizes, before, after, places):
+    """Rule 4 keeps every count the width demands and the marks census read (G6.6.8 rule 4).
+
+    From the method's words: over the placed strata, no width demand
+    can take fewer cells after the placement than before it, and where
+    the column publishes a marks census, the cells reaching a thousand
+    number exactly as many.
+    """
+    integer_valued = column["integer_valued"]
+    for wanted, exact, _ in _width_demands_of(column):
+        was = sum(sizes[place] for place in places if _serves(before[place], wanted, exact, integer_valued))
+        now = sum(sizes[place] for place in places if _serves(after[place], wanted, exact, integer_valued))
+        if now < was:
+            return False
+    if column.get("thousands_marks"):
+        was = sum(sizes[place] for place in places if abs(before[place]) >= 1000.0)
+        now = sum(sizes[place] for place in places if abs(after[place]) >= 1000.0)
+        if was != now:
+            return False
+    return True
 
 
 def tail_pair_met(column, values, sizes, bands, ladder):
