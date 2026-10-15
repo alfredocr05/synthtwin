@@ -6,6 +6,33 @@ exists).
 
 ## [Unreleased]
 
+### Numbers at a million rows: the report in pieces, and a dense tail's mean (2026-10-14)
+
+**Stage 4 lane S4c** (plans P4-D390 and P4-D377). `synthtwin validate`
+no longer makes its quality report whole: `quality.report_pieces` hands
+the same text over in runs of at most 4,096 lines, the command prints
+them in turn and writes them as one buffer of the file's size
+(`writing.write_text_file`'s new `pieces`). Joined in halves, each level
+of the join had left its size class mapped. The reports and the screen
+are the same bytes; validate of a register of 997,770 rows holds 798 MB
+where it held 1,317, of 1,994,180 rows 1,557 MB where it held 2,128,
+and of 2,990,700 rows 2,000 MB, beneath the 2,389 MB `describe` of the
+same table takes. And a dense tail now meets its published mean
+distance (method G6.6.8 rule 4): where every number is different and
+the tail's rows crowd its grid, the strata past the crowded run are
+placed so the tail's distances sum to the published mean, the far ones
+together where the squares come nearest the published spread. G2's
+dense tail at 1,000,000 rows wrote a mean distance of 5,412.8 against a
+published 5,780.5 and missed six checks; its twin now writes five far
+cells at 2,558,000 to 2,558,004 (the source's stand at 2,559,999 to
+2,560,003), meets the mean, and misses three -- the column's mean, skew
+and kurtosis, whose
+G12.3 windows do not reach the published values there. The checker
+reads such a tail's mean against the hull of G12.13's window and the
+one the construction draws. The oracle carries the rule too, and its one
+frozen case on a dense tail, `tail_shape_ends`, moves with it.
+`K-S4-06` and `K-S4-07` hold both.
+
 ### Numbers and codes at a million rows, without their square (2026-10-14)
 
 **Stage 4 lane S4b-num** (plans P4-D377, P4-D387 and P4-D390). Four paths

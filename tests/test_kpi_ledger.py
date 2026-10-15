@@ -2001,3 +2001,32 @@ def test_k_s4_05(record_property) -> None:
         "codex_column_counted_lines_4000": codex_counted[1],
         "walked_far_counted_lines_800": walked_counted[1],
     })
+
+
+def test_k_s4_06(record_property, tmp_path) -> None:
+    """`synthtwin validate` never makes its report whole (stage 4 lane S4c, plan P4-D390).
+
+    Each measure is a count, never a time: the bytes `tracemalloc` sees
+    the command hold past the measured outcome, per character of the
+    report, on a register's outcome grown to 6,000 checks; and the
+    longest text it hands the screen or the file, per piece of
+    `quality._PIECE_LINES` lines. `tests/test_stage4_million_rows.py`
+    owns the measures.
+    """
+    import test_stage4_million_rows as million
+
+    _kpi(record_property, "K-S4-06", million.report_measures(tmp_path))
+
+
+def test_k_s4_07(record_property, tmp_path) -> None:
+    """G2's dense tail meets its published mean distance, and rule 4 reads the tail and no more (stage 4 lane S4c, plan P4-D377).
+
+    Machine-free: each twin's miss of the published mean distance from
+    the published boundary, in half grid steps, at 8,000 rows whole, in
+    tenths and on the low side; and the lines G6.6.8's rule 4 runs as its
+    tail doubles and as the strata around it grow tenfold to a million.
+    `tests/test_stage4_million_rows.py` owns the measures.
+    """
+    import test_stage4_million_rows as million
+
+    _kpi(record_property, "K-S4-07", million.dense_tail_measures(tmp_path))

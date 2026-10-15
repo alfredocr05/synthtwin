@@ -4692,7 +4692,62 @@ lane G2's width shapes, and the twins off the real moments, so none of it
 may grow. And where the rule reads a tail toward a further end, a `skew`
 or `kurtosis` window can cover the whole range and is listed (G5.6a).
 
-The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE
+4. THE DENSE TAIL'S MEAN DISTANCE (stage 4 lane S4c, plan P4-D377).
+   G5.3b's staircase puts each row of a tail on its own grid point, one
+   past the row before where its reading lands on the last, so on a
+   tail whose rows crowd the grid the rows stand further out than the
+   published mean distance says: consecutive whole numbers from
+   `1000005 - N` to `999999` beside five at `999999 + floor(1.56 N)`
+   publish a high tail of 1,000 rows at 100,000 rows whose mean distance
+   is 1,280.5, the staircase stood at 1,739.6 and the twin at 1,918.6;
+   at 1,000,000 rows rule 2 took all but ten far strata under the width
+   and the twin's 5,412.8 missed a published 5,780.5, and with it the
+   tail's spread and the column's mean, spread, skew and kurtosis. A side is
+   DENSE where the block's every number is different, it is written on
+   one grid (whole numbers, or one width of figures that every number
+   used in the statistics carries: `contract.tail_grid`), its tail is
+   unlisted, read through its shape and publishes its pair, every row of
+   its staircase stands on a point of its own, and the staircase's mean
+   distance stands more than half a grid step FURTHER OUT than the
+   published one (`TailReader.dense_grid`). As the last of the value
+   passes, on each dense side whose own strata crowd too -- counted
+   outward from the published boundary, a run of consecutive grid points
+   holding at least half the tail's cells -- and whose distances from the
+   published boundary miss `m d1` by more than half a grid step a cell,
+   the run stays and the strata past it are placed again: the first of
+   them continue the run, one grid point each, and the last `q` stand on
+   consecutive points from the one that brings the side's distances to
+   `m d1`, the remainder one step at a time on the outermost strata, so
+   the sum lands within a step; `q` is the count whose squares stand
+   nearest `m rms**2`, the fewest on a tie. A point on a stand-in number
+   the block does not hold is passed over. The side stays as it stood
+   where the block publishes that end, where a stratum would leave its
+   sign band or a point would not read back as itself, where more cells
+   would stand past the widest width the census names than stood there,
+   or where no `q` reaches the mean past the run. The real column above
+   is that run and its five far cells, and the placement writes them
+   back: at 100,000 rows five cells at `1155800` to `1155804` (the
+   source's `1155999` to `1156003`), the tail's mean distance the
+   published one and its spread 11,102 against 11,116; at 1,000,000 the
+   same at `2558000` to `2558004`, and the twin no longer misses the
+   tail's spread or the column's; its mean, skew and kurtosis still
+   miss G12.3's windows, which do not reach the published values there
+   (500,051.9 to 500,061.4 around a published mean of 500,012.3, where
+   the twin stands at 500,013.3; skew 0.0017037 and kurtosis 1.81200
+   against 0.0017093 and 1.81205). G12.13's mean-distance window on a
+   dense side is the hull of the rank form's and the window this rule
+   draws: the published mean distance, moved by how far the file's own
+   boundary rung stands from the published one within its own window,
+   and one grid step either way (`contract.dense_tail_mean_window`),
+   so a twin the rule placed and one left where the staircase put it
+   both stand in it. Readings 1000 to 1899 beside one `99900`, and
+   halves written to a tenth, are not dense: both repeat their numbers.
+
+The end rule is frozen in `tail_width_past_the_reach` (G14.3). Rule 4
+is the oracle's too (`tail_pair_met`, the last of its value passes) and
+is frozen in `tail_shape_ends`, whose high tail it places: the far cells
+34.3, 63.5 and 196.7 became 131.4 and 131.6 beside the run's 28.7; it is
+pinned besides by `tests/test_stage4_million_rows.py`. THE
 WALK HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at
 all (criterion 8 of the Phase 4 plan): it is pinned by
 `tests/test_stage3b_width.py`, where a source mutant of each of 108
@@ -14987,6 +15042,14 @@ summed window widens to are read off that distance: a window drawn
 around the group before step 10 is narrower than the construction (its
 review, item 2: a high tail the generator drew at a mean of 1897.92
 minutes, inside its bound of 1908.75, was held to 1896.25 and MISSED).
+
+**On a dense tail** (G6.6.8 rule 4, plan P4-D377) the mean distance's
+window is the hull of the one above and the window rule 4 draws: the
+published mean distance moved by how far the file's boundary rung
+stands from the published one, between `lo` at rank `floor(h)` and `hi`
+at rank `ceil(h)`, and one grid step either way. At 1,000,000 rows of
+G2's dense tail the window above ran 10,079.4 to 10,348.1 around a
+published 5,780.5 and the hull runs from 5,775.0.
 
 **Where the window does not cover the published value.** The window
 certifies that the twin was built by the construction, not that it
