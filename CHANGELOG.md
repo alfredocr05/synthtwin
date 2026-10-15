@@ -23,7 +23,7 @@ stamps such as `2024-01-05 9:15 AM` are as before, and on the lane's battery
 of 220 tables the 148 holding no spaced meridiem keep every byte of their
 description and twin. Descriptions written before still load and generate
 as before. Stated: a stamp with a date beside rare words still publishes no
-form.
+form, owed to lane L3.
 
 ### Codes and long cells written as the source wrote them (2026-10-13)
 

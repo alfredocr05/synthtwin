@@ -36,7 +36,13 @@ Each clause is red on the mutant its docstring names:
   validation method's recount);
 * G9 past the clock line a gapped form filled figure by figure keeps its
   gap and its marker word, so the twin validates (lane L2's repair round;
-  mutant: the marker key filled letter by letter, `0:00 AA`).
+  mutant: the marker key filled letter by letter, `0:00 AA`);
+* G10 that figure fill steps the clock's figures at half the step and
+  writes the morning word on an even step and the evening word on an odd
+  one, so a gapped form holds twice its head's room in spellings, each
+  counted under the form it was filled from (lane L2's second repair
+  round; mutants: the head filled at the full step, which halves the
+  supply; the morning and evening words swapped).
 """
 
 from __future__ import annotations
@@ -528,3 +534,36 @@ def test_g9_past_the_clock_line_a_gapped_form_keeps_its_marker_word(
     assert len(clockish) > 900
     assert [cell for cell in clockish if parsing.shape_form(cell) not in forms] == []
     assert (twin_exit, table_exit) == (0, 0)
+
+
+@pytest.mark.parametrize(
+    ("form", "first", "second"),
+    (
+        ("%:%% @@", "0:00 AM", "0:00 PM"),
+        ("%%:%% &&", "00:00 am", "00:00 pm"),
+        ("%:%%:%% @.@.", "0:00:00 A.M.", "0:00:00 P.M."),
+    ),
+)
+def test_g10_the_gapped_figure_fill_holds_twice_its_heads_room(
+    form: str, first: str, second: str
+) -> None:
+    """G10 (lane L2's second repair round): the half step and the parity word.
+
+    Method G8.3 fills a gapped form past the clock line by stepping only
+    the clock's figures, at half the step, and writing the marker word the
+    step's parity names. So the form's ``2 x room`` steps give ``2 x room``
+    different spellings, every one counted under the form it was filled
+    from (the census's lower-case fold included), and steps 0 and 1 differ
+    only in the marker word. Mutants: the head filled at the full step
+    (steps s and s + room repeat, half the supply); the morning and evening
+    words swapped (step 0 writes the evening word).
+    """
+    gap = parsing.key_gap_at(form)
+    assert gap >= 0
+    room = generation._form_room(form[:gap])
+    cells = [generation._filled_form(form, step, False) for step in range(2 * room)]
+    assert len(set(cells)) == 2 * room
+    census = {form: 1}
+    assert [cell for cell in cells if parsing.census_form(cell, census) != form] == []
+    assert [cell for cell in cells if cell[gap] != form[gap]] == []
+    assert cells[:2] == [first, second]
