@@ -5997,7 +5997,8 @@ def _nothing_written(form: dialect.Dialect) -> dialect.Dialect:
         blank_lines=(),
         empty_rows_leading=0,
         empty_rows_interior=0,
-        empty_rows_trailing=0,        header_closing_quoted=False,
+        empty_rows_trailing=0,
+        header_closing_quoted=False,
         rows_closing_quoted=False,
         rows_closing_runs=(),
     )

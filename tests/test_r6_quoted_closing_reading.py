@@ -271,9 +271,11 @@ def test_the_loader_reads_each_closing_and_refuses_what_the_producer_never_write
 def test_the_loader_refuses_runs_a_reader_could_point_at_a_record_with(tmp_path: pathlib.Path) -> None:
     """A described table closed sixty `""` then sixty bare loads; the same
     description edited to one `""` then 119 bare -- a run below the
-    census line -- or to runs counting 119 records, is refused under FD2,
-    the rule the line endings are held to. Red on the mutant loader
-    without the runs rule."""
+    census line --, to runs counting 119 records, or to runs that hold
+    one closing only (sixty `""` twice, which the producer publishes as
+    `"quoted"`), is refused under FD2, the rule the line endings are held
+    to. Red on the mutant loader without the runs rule, and the last case
+    on the one without its `len(kinds) < 2` half."""
     real = tmp_path / "real.csv"
     real.write_bytes(_table(";", [index < 60 for index in range(120)]).encode("utf-8"))
     assert _exit_of(["profile", str(real), "--out-dir", str(tmp_path), "--replace"]) == 0
@@ -283,6 +285,7 @@ def test_the_loader_refuses_runs_a_reader_could_point_at_a_record_with(tmp_path:
     for runs in (
         [{"ending": "quoted", "lines": 1}, {"ending": "bare", "lines": 119}],
         [{"ending": "quoted", "lines": 60}, {"ending": "bare", "lines": 59}],
+        [{"ending": "quoted", "lines": 60}, {"ending": "quoted", "lines": 60}],
     ):
         document["source"]["dialect"]["trailing_delimiter"]["rows"] = runs
         edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
@@ -361,3 +364,118 @@ def test_the_closings_cost_the_rows_plus_the_runs_at_a_million_rows() -> None:
         assert found.form.rows_trailing_delimiter
         made += [built[0]]
     assert made[0] == made[1] <= dialect.MAXIMUM_ENDING_RUNS + 4, made
+
+
+def test_the_guard_refuses_runs_the_producer_never_publishes(tmp_path: pathlib.Path) -> None:
+    """The publication guard (`profile.check_publication`) holds the runs
+    to the producer's rule as the loader does: a finished description
+    closed sixty `""` then sixty bare passes; the same document with its
+    runs edited to one `""` then 119 bare (a run below the census line at
+    the default floor) or to runs holding one closing only is refused.
+    Red on the mutant guard without its runs rule (kinds and
+    `endings_broken`)."""
+    from synthtwin import profile, reading, taxonomy
+
+    real = tmp_path / "real.csv"
+    real.write_bytes(_table(";", [index < 60 for index in range(120)]).encode("utf-8"))
+    table = reading.read_table(str(real))
+    document = profile.build_document(table, taxonomy.Settings(small_cell_floor=11), [], [], [])
+    assert len(document["source"]["dialect"]["trailing_delimiter"]["rows"]) == 2
+    profile.check_publication(document)
+    for runs in (
+        [{"ending": "quoted", "lines": 1}, {"ending": "bare", "lines": 119}],
+        [{"ending": "quoted", "lines": 60}, {"ending": "quoted", "lines": 60}],
+    ):
+        document["source"]["dialect"]["trailing_delimiter"]["rows"] = runs
+        with pytest.raises(errors.ProfileError):
+            profile.check_publication(document)
+
+
+def test_a_record_past_the_published_runs_takes_the_last_run_s_closing() -> None:
+    """`closings_in_turn`: the run holding a record says, and a record
+    past the runs takes the last run's closing, `""` or bare. Red on the
+    mutant that writes those records bare."""
+    q, b = dialect.CLOSING_QUOTED, dialect.CLOSING_BARE
+    base = dialect.ordinary(2, 40, True).__dict__
+    for runs, expected in (
+        ((dialect.EndingRun(q, 20), dialect.EndingRun(b, 11)), [True] * 20 + [False] * 20),
+        ((dialect.EndingRun(b, 20), dialect.EndingRun(q, 11)), [False] * 20 + [True] * 20),
+    ):
+        form = dialect.Dialect(**{**base, "rows_trailing_delimiter": True, "rows_closing_runs": runs})
+        assert dialect.closings_in_turn(form, 40) == expected, runs
+
+
+def _checked(folder: pathlib.Path, described: pathlib.Path, data: bytes) -> "tuple[int, list[str]]":
+    """Validate ``data`` against a description: the exit and the subchecks MISSED."""
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "other.csv"
+    target.write_bytes(data)
+    checked = folder / "checked"
+    checked.mkdir()
+    code = _exit_of(["validate", str(described), "--twin", str(target), "--out-dir", str(checked), "--replace"])
+    report = (checked / "other-quality.txt").read_text(encoding="utf-8")
+    missed: "list[str]" = []
+    for line in report.split("\n"):
+        text = line.strip()
+        if text.endswith(": MISSED") and " [" in text:
+            missed += [text.split(" [")[0]]
+    return code, missed
+
+
+def test_a_file_closed_otherwise_than_its_description_misses_the_closing_rule(tmp_path: pathlib.Path) -> None:
+    """The validator's closing rule (`validation._trailing_words`): each
+    twin validates at 0 as built, and at 3, `bytes.trailing-delimiter`
+    MISSED, once its `""` closings are rewritten bare -- the records
+    published as runs (sixty `""`, sixty bare), the header published
+    closed `""` (only the header rewritten), and the records published
+    `"quoted"` (one bare then 119 `""`). Red on each of the three
+    mutants that drop the runs sentence, the header's `""` and the
+    rows' `"quoted"` from the rule's words."""
+    d = ";"
+    half = [index < 60 for index in range(120)]
+    cases = {
+        "runs": (_table(d, half), False, {"header": False, "rows": [
+            {"ending": "quoted", "lines": 60}, {"ending": "bare", "lines": 60}]}),
+        "header": (_table(d, half, d + '""'), True, {"header": "quoted", "rows": [
+            {"ending": "quoted", "lines": 60}, {"ending": "bare", "lines": 60}]}),
+        "quoted": (_table(d, [index != 0 for index in range(120)]), False, {"header": False, "rows": "quoted"}),
+    }
+    for label, (text, header_only, published) in cases.items():
+        folder = tmp_path / label
+        folder.mkdir()
+        real = folder / "real.csv"
+        real.write_bytes(text.encode("utf-8"))
+        assert _exit_of(["profile", str(real), "--out-dir", str(folder), "--replace"]) == 0
+        described = folder / "real-profile.json"
+        document = json.loads(described.read_text(encoding="utf-8"))
+        assert document["source"]["dialect"]["trailing_delimiter"] == published, label
+        assert _exit_of(["generate", str(described), "--out-dir", str(folder), "--seed", "4", "--replace"]) == 0
+        built = (folder / "real-twin.csv").read_bytes().decode("utf-8")
+        assert _checked(folder / "as-built", described, built.encode("utf-8")) == (0, []), label
+        lines = built.split("\n")
+        for index in range(1 if header_only else len(lines)):
+            if lines[index].endswith(d + '""'):
+                lines[index] = lines[index][:-2]
+        edited = "\n".join(lines)
+        assert edited != built, label
+        code, missed = _checked(folder / "rewritten", described, edited.encode("utf-8"))
+        assert code == 3 and "bytes.trailing-delimiter" in missed, (label, code, missed)
+
+
+def test_a_comma_space_table_s_closings_are_written_back(tmp_path: pathlib.Path) -> None:
+    """The comma-space form: header `site, dx` over sixty records closed
+    `, ""` then sixty closed `,`. The twin closes its first sixty records
+    `, ""` (the space every field but the first takes, `_closing_quotes`),
+    reads back to the same form, and twin and table validate at 0. Red on
+    the mutant that writes the closing `""` without the space."""
+    lines = ["site, dx"]
+    for index in range(120):
+        lines += [f"{100 + index % 7:04d}, {index % 3}E2{index % 5}," + (' ""' if index < 60 else "")]
+    result = _round_trip(tmp_path, "\n".join(lines) + "\n")
+    assert result["names"] == ["site", "dx"], result["names"]
+    assert result["form"]["initial_space"] is True, result["form"]
+    written = [line for line in str(result["twin"]).split("\n") if line]
+    assert [line.endswith(', ""') for line in written[1:]] == [True] * 60 + [False] * 60
+    assert [line.endswith(",") for line in written[61:]] == [True] * 60
+    assert result["twin_form"] == result["form"]
+    assert result["exits"] == {"twin": 0, "real": 0}, result["exits"]
