@@ -6,6 +6,21 @@ exists).
 
 ## [Unreleased]
 
+### A clock written with a space before AM or PM keeps its shape (2026-10-14)
+
+**Lane L2** (plan P4-D392). A cell such as `9:15 AM`, `08:15:30.123 a.m.`
+or `9:15` with the narrow no-break space U+202F before `AM`, as Excel and
+macOS write it, now has a written form that keeps that one space or U+202F
+(`%:%% @@`), so a column of such times beside rare words, or as codes,
+publishes its forms and its twin writes every such cell as a time in the
+source's own spelling: 969 of 969 where it wrote 0, and U+202F is never
+written as a plain space. No other space gives a form: names, `Ward 7` and
+stamps such as `2024-01-05 9:15 AM` are as before, and on the lane's battery
+of 220 tables the 148 holding no spaced meridiem keep every byte of their
+description and twin. Descriptions written before still load and generate
+as before. Stated: a stamp with a date beside rare words still publishes no
+form.
+
 ### Codes and long cells written as the source wrote them (2026-10-13)
 
 **Lane L1** (plans P4-D390 and P4-D384; `K-S3-61`). Made-up figure codes

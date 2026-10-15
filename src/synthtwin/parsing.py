@@ -1699,7 +1699,7 @@ def shape_form(text: str) -> str:
     marks = 0
     # The one gap a clock's marker may stand behind (P4-D392): looked for
     # only where the cell ends in a letter or a point, as every marker
-    # word does, so a cell ending in a figure pays nothing for it.
+    # word does, so a cell ending in a figure costs nothing more.
     gap = -1
     if text[len(text) - 1] in "Mm.":
         gap = meridiem_gap_at(text)

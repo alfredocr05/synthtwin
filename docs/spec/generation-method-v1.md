@@ -9912,7 +9912,9 @@ as one already used in the column is.
 
 **The two halves of the supply are the two answers, which is why one
 rule settles it.** A case flip of the label wears the label's own form
-— such a spelling holds no space, so trimming changes nothing, and
+— such a spelling holds no space at either end (its one gap, where it
+has one, stands before a clock's marker, contract C6-31a and plan
+P4-D392), so trimming changes nothing, and
 folding an ASCII letter leaves an ASCII letter in the same place. A
 trailing space wears no form at all, since a space is not one of the
 thirteen marks. So a form-keeping group takes a case flip (or the
@@ -9936,6 +9938,14 @@ the form writes, taken round the supply by the same stride the form's
 room is taken round by -- and its other spellings only past it, so a
 held-back level of a clock's shape is written as a time a clock reader
 takes.
+
+*And by lane L2 (plan P4-D392; contract C6-31a):* a form may hold one
+gap, a space or U+202F, between a clock's figures and its marker
+(`%:%% @@`, `%%:%%:%%.%%%` U+202F `&&`), and every such form is a clock's
+form: its clock supply writes each time with that gap before the marker,
+U+202F where the form holds U+202F and a plain space where it holds one,
+never the other. No clock reader takes a time written with U+202F, so no
+clock line holds such a form's times (G8.3's clock line below).
 
 *And by its repair round:* **THE CLOCK LINE.** The twin of a column of
 labels is described again by the producer's own rules, and two of them
@@ -10301,13 +10311,15 @@ both files passing.
    is a shape the census names in either case. The shape covering the
    most rows is taken, ties to its own spelling ascending; none left
    means no shape, and every stand-in owed no form is `group-N` as
-   before. A clock time with one space before its marker has no written
+   before. A clock time with one space before its marker had no written
    form, and its shape is the clock's form with the space and the
    marker's marks kept -- `%:%% @@` for `7:30 AM`, `%%:%%:%% &&` for
-   `07:30:15 pm`, `@.@.` and `&.&.` for the dotted markers -- which no
-   census names, and which G8.3's clock supply fills with times of its
-   face (the repair round of landing 3b.5): a column of `7:30 AM` beside
-   2 % `UNK` wrote 587 of 3,000 twin cells `group-N`, and now none.
+   `07:30:15 pm`, `@.@.` and `&.&.` for the dotted markers -- which
+   G8.3's clock supply fills with times of its face (the repair round of
+   landing 3b.5): a column of `7:30 AM` beside 2 % `UNK` wrote 587 of
+   3,000 twin cells `group-N`, and now none. Since lane L2 (plan
+   P4-D392) that shape is the written form (contract C6-31a), which a
+   census may name and which is then passed over as any named shape is.
 2. **Its supply**, counted as G8.3 counts any form's.
 3. **The places it covers.** The places owed no form are ranked largest
    first and then by place, and the first `supply` of them are covered;
@@ -12319,6 +12331,16 @@ for.
    (contract 7.9.1, plan P4-D18). A form FIXES a length — every cell
    that wore one was exactly as long as the form — so which lengths a
    group may be offered is the whole question here.
+
+   **A FORM HOLDING THE ONE GAP BEFORE A CLOCK'S MARKER** (lane L2,
+   plan P4-D392; contract C6-31a) fixes a word count too: two words, its
+   gap -- a space or U+202F, each of which parts two words as the
+   producer counts them -- the separator. Such a form is a clock's form,
+   and a group written in it is a time of its clock supply (G8.3), the
+   gap written as the form holds it. Measured: a column of `9:15 AM`
+   beside one rare text in 33 published no form, and its twin wrote 0
+   of 969 clock cells in their shape, with a space and with U+202F;
+   now 969 of 969, each a time, each gap as the source wrote it.
 
    **A GROUP CARRYING A PUBLISHED LENGTH END keeps its length exactly**,
    because `length.min` and `length.max` are EXACT-OBSERVABLE. **EVERY

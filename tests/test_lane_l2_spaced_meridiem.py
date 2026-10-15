@@ -28,9 +28,12 @@ Each clause is red on the mutant its docstring names:
   table, each gap written back as the source wrote it;
 * G6 a description written before L2 (6a248e7) loads, generates the twin
   6a248e7 generated and validates;
-* G7 machine-free: one gap scan per cell ending in a marker's last
-  character and none for any other, at every column size, so a census of
-  1,000,000 cells costs at most 1,000,000 scans of at most 24 characters.
+* G7 machine-free: at most two gap scans per cell ending in a marker's
+  last character and none for any other, at every column size, so a
+  census of 1,000,000 cells costs at most 2,000,000 scans of at most 24
+  characters;
+* G8 a twin writing the other gap is MISSED on both forms (the
+  validation method's recount).
 """
 
 from __future__ import annotations
@@ -390,6 +393,27 @@ def test_g6_a_description_written_before_l2_loads_generates_and_validates(tmp_pa
     block, _written, twin_exit, table_exit = _round(tmp_path / "now", _narrow_beside_words(), 11)
     assert sorted(block["shape_forms"]) == ["%%:%%" + NARROW + "@@", "%:%%" + NARROW + "@@"]
     assert (twin_exit, table_exit) == (0, 0)
+
+
+def test_g8_a_twin_writing_the_other_gap_is_missed_on_both_keys(tmp_path: pathlib.Path) -> None:
+    """G8: the validation method's recount (P4-D392): a gap counts only under its own key.
+
+    The twin of the U+202F column validates with exit 0; the same twin with
+    every U+202F written as a plain space is MISSED on both published forms
+    (exit 3). Mutant: a recount blind to which gap a cell holds would pass it.
+    """
+    _block, _written, twin_exit, _table_exit = _round(tmp_path / "now", _narrow_beside_words(), 11)
+    assert twin_exit == 0
+    twin = tmp_path / "now" / "twin" / "real-twin.csv"
+    swapped = tmp_path / "swapped.csv"
+    swapped.write_text(twin.read_text(encoding="utf-8").replace(NARROW, " "), encoding="utf-8", newline="\n")
+    report = tmp_path / "vsw"
+    report.mkdir()
+    profile = tmp_path / "now" / "real-profile.json"
+    assert _exit_of(["validate", str(profile), "--twin", str(swapped), "--out-dir", str(report), "--replace"]) == 3
+    text = "".join(page.read_text(encoding="utf-8") for page in sorted(report.glob("*quality*")))
+    for key in ("%%:%%" + NARROW + "@@", "%:%%" + NARROW + "@@"):
+        assert f"forms.published.{key} [free_text.shape_forms]: MISSED" in text, key
 
 
 # -- G7: machine-free work bound -----------------------------------------------------
