@@ -46,7 +46,12 @@ The method now says the far strata's count is weighed before the
 remainder moves them. Pieces of the quality report are written in UTF-8
 only: in UTF-16, UTF-32 or UTF-8 with a signature each piece had carried
 its own byte-order mark. No frozen vector moves, and of the lane's 192
-battery twins only one four-figure shape's two seeds change.
+battery twins only one four-figure shape's two seeds change. The fix's
+verifier found two more cases rule 4 now leaves as they stood: a
+column publishing a thousands separator but no census of marks had a
+grouped cell moved under a thousand, and the separator's check fell
+under the floor; and a grid of more than 308 decimal figures raised an
+overflow in `generate`.
 
 ### Numbers and codes at a million rows, without their square (2026-10-14)
 

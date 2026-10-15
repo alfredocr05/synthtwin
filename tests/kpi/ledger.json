@@ -8990,16 +8990,16 @@
    "measured_on": "tests/test_stage4_million_rows.py's dense_tail_measures",
    "evidence": "As built (50a52d6) the twins missed by 550.6, 49.7 and 47.8 half steps (1,095.7 against 820.4, 84.5 against 82.0, 844.4 against 820.5). At 1,000,000 rows the twin's tail now stands at 5,780.5 against a published 5,780.5 (5,412.8 there), its spread and the column's met; the column's mean, skew and kurtosis still miss G12.3's windows, which do not reach the published values. Codex's review: 6121d55 copied the column, 3.05 times the bytes at 1,000,000 strata as at 100,000 (10.69 MB against 3.50).",
    "value_at": {
-    "commit": "059f273",
+    "commit": "d46be94",
     "date": "2026-10-15",
-    "measured_by": "tools/measurements/kpi_run.py --only 'K-S4-0[67]' --print-values, over the code of 059f273 (Codex's review of lane S4c), at a one-minute load average of 5.4; every key is a count and machine-free, so it is judged everywhere",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S4-0[67]' --print-values, over the code of d46be94 (Codex's review of lane S4c and its verifier), at a one-minute load average of 12.5; every key is a count and machine-free, so it is judged everywhere",
     "value": {
      "mean_distance_miss_in_half_steps_8000_high": 0.0,
      "mean_distance_miss_in_half_steps_8000_low": 0.0,
      "mean_distance_miss_in_half_steps_8000_tenths": 0.0,
      "placement_allocated_bytes_1m_strata_10000_tail": 2728244,
      "placement_allocated_growth_10x_strata": 1.0,
-     "placement_lines_1m_strata_10000_tail": 500088,
+     "placement_lines_1m_strata_10000_tail": 500090,
      "placement_lines_growth_10x_strata": 1.0,
      "placement_lines_growth_2x_tail": 2.0
     }
