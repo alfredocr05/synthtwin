@@ -3776,13 +3776,19 @@ def _trailing_closings_are_headed(document: dict[str, object]) -> None:
     trailing block cannot see the header's source, so this asks it from
     the document after the walk has checked both leaves' kinds.
     """
-    source = document.get("source")
-    if not isinstance(source, dict) or source.get("header_source") == reading.HEADER_FROM_FILE:
+    if "source" not in document:
         return
-    form = source.get("dialect")
-    if not isinstance(form, dict) or not isinstance(form.get("trailing_delimiter"), dict):
+    source = document["source"]
+    if not isinstance(source, dict) or "dialect" not in source:
+        return
+    if "header_source" in source and source["header_source"] == reading.HEADER_FROM_FILE:
+        return
+    form = source["dialect"]
+    if not isinstance(form, dict) or "trailing_delimiter" not in form:
         return
     trailing = form["trailing_delimiter"]
+    if not isinstance(trailing, dict):
+        return
     for side in ("header", "rows"):
         if side in trailing and trailing[side] is not False:
             raise _refuse(_TRAILING_BLOCK + (side,))
