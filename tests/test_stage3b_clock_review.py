@@ -618,18 +618,21 @@ def _distinct_windows(tmp_path: pathlib.Path) -> "tuple[list[tuple[str, str, str
 
 
 def test_item_4_the_report_counts_a_code_once(tmp_path: pathlib.Path) -> None:
-    """The report's window for the different values is validation's, 14 to 306, and holds 110.
+    """The report's window for the different values is validation's, 14 to 306, and holds 111.
 
     At 90466b2 it counted each of the 100 `UNK` cells as a value of its
     own, drew 113 to 405, and said the twin's 111 -- and the table's 102
     -- lay outside, where validation held the twin inside its 14 to 306.
-    Since landing 3b.5's second step (plan P4-D374) the column publishes
-    its minute census and its twin, laid on it, holds 110.
+    Landing 3b.5's second step (plan P4-D374) published the column's
+    minute census and its twin, laid on it, held 110; since the Codex
+    review of batch 3b part 2d's integration, item 1, M3 asks the fine
+    table too -- the minutes this grid skips differ between hours 08 and
+    09 -- the census is withheld and the twin holds 111 again.
     """
     reported, checked = _distinct_windows(tmp_path)
     assert reported == [
-        ("n_distinct", "110", "14", "306", True),
-        ("n_distinct_folded", "110", "14", "306", True),
+        ("n_distinct", "111", "14", "306", True),
+        ("n_distinct_folded", "111", "14", "306", True),
     ]
     assert checked == [
         ("distinct.n_distinct", validation.WITHIN_BOUND),

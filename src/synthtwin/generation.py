@@ -35447,11 +35447,11 @@ def _own_clock_tails(
     ]
     held: "dict[int, int]" = {}
     for rank in ranks:
-        held[framed[rank]] = held.get(framed[rank], 0) + 1
+        held[framed[rank]] = (held[framed[rank]] if framed[rank] in held else 0) + 1
     left: "list[int]" = []
     for rank in ranks:
         own = (before[rank] + shifts[rank]) // scale
-        if held.get(own, 0) > 0:
+        if own in held and held[own] > 0:
             held[own] = held[own] - 1
         else:
             left += [rank]
