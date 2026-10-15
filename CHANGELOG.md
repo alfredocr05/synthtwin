@@ -11,8 +11,8 @@ exists).
 **A column of timestamps on a regular grid that starts off midnight, or
 is written four times beside a published count at midnight, no longer
 publishes minute and second facts its twin misses, in the grids swept,
-which held a value in every lattice slot** (plan P4-D391, stage 3b lane
-J3). The rule that withholds those facts where a column's values
+which held a value in every lattice slot, save the five-minute class
+carried below** (plan P4-D391, stage 3b lane J3). The rule that withholds those facts where a column's values
 crowd the lattice they pin read the lattice as it stands on midnight, so
 stamps fifteen minutes apart from 07:13 looked like a one-minute lattice
 a fifteenth full, and their twins came back as few as 940 of 1,000

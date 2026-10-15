@@ -958,6 +958,19 @@ def test_a_grid_off_midnight_withholds_the_clock_facts_it_crowds(tmp_path: pathl
     assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 4000, False, False, True)
 
 
+def test_a_grid_off_midnight_with_values_once_keeps_the_twentieth() -> None:
+    """Lane J3 (NF121; lane J3's second skeptic, item 1): off midnight with some value
+    written once, the fifth is never asked and the twentieth decides. Two calls lane J3's
+    sweep recorded: 1,000 stamps fifteen minutes apart from 00:37, written twice, 53 of them
+    once (1,947 rows, 0.151 above the draw), and 500 half an hour apart from 00:37, written
+    two to four times, 185 of them once (1,106 rows, 0.126 above). Both stand between a
+    twentieth and a fifth above the draw and are crowded. Read under the fifth they publish,
+    and their twins missed: at floor 11 the first wrote 955, 970 and 956 values of 1,000, the
+    second 482, 486 and 476 of 500; withheld, every twin met."""
+    assert calendar_clock.lattice_crowded(900, 1_420_078_020, 1_420_966_320, 1000, False, 1947, False, False, True)
+    assert calendar_clock.lattice_crowded(1800, 1_420_085_220, 1_420_963_620, 500, False, 1106, False, False, True)
+
+
 def test_a_grid_written_four_times_beside_its_count_at_midnight_withholds_its_clock_facts(tmp_path: pathlib.Path) -> None:
     """Lane J3 (NF121, NF122; lane J2's last verifier, its second carried item): stamps
     written four times fill their lattice within a twentieth of a uniform draw of their
