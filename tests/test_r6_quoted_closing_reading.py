@@ -378,7 +378,7 @@ def test_the_guard_refuses_runs_the_producer_never_publishes(tmp_path: pathlib.P
 
     real = tmp_path / "real.csv"
     real.write_bytes(_table(";", [index < 60 for index in range(120)]).encode("utf-8"))
-    table = reading.read_table(str(real))
+    table = reading.read_table(str(real), small_cell_floor=11)
     document = profile.build_document(table, taxonomy.Settings(small_cell_floor=11), [], [], [])
     assert len(document["source"]["dialect"]["trailing_delimiter"]["rows"]) == 2
     profile.check_publication(document)
