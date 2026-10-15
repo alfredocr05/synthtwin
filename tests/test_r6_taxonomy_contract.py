@@ -718,7 +718,10 @@ def test_dropping_a_sentinel_does_not_classify_anything_twice(
     parse = _counted(monkeypatch, "parse_number")
     described = describe(values)
     assert described.missing_by_class[parsing.MISSING_NUMERIC_SENTINEL] == 20
-    assert len(classify.calls) == 80, "80 present cells, 80 answers"
+    # ONE ANSWER PER SPELLING since lane S4d (plan P4-D390): the twenty
+    # `-999` cells share one record, so the parser is asked 61 times for
+    # 80 present cells -- never twice for one, and never once per row.
+    assert len(classify.calls) == 61, "80 present cells of 61 spellings, 61 answers"
     # At most two readings of the number per cell: the one the parser
     # takes inside its own classification, which is parsing's business,
     # and the one this module takes to keep the value. The code this
