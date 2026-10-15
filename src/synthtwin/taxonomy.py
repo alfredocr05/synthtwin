@@ -179,6 +179,7 @@ additions in P1-D10): dataclasses, math, and this package's own
 modules. Nothing in this module reads a file.
 """
 
+import collections.abc
 import dataclasses
 import math
 
@@ -6318,7 +6319,7 @@ def exact_of_number(value: float) -> "tuple[int, tuple[str, ...], int]":
 # -- the one cell record --------------------------------------------
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class _Cell:
     """One present cell, decided once and never read from the text again.
 
@@ -6468,6 +6469,12 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
         else:
             sign = parsing.SIGN_POSITIVE
     trimmed = parsing.trimmed(text)
+    # THE FOLDED LABEL IS THE CELL'S OWN TEXT WHERE FOLDING CHANGES
+    # NOTHING (lane S4d, plan P4-D390): the same characters, held once
+    # rather than copied beside every cell that is already folded.
+    folded = parsing.folded(text)
+    if folded == text:
+        folded = text
     return _Cell(
         text=text,
         numeric_text=read,
@@ -6476,7 +6483,7 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
         exact=exact,
         sign=sign,
         whole=whole,
-        folded=parsing.folded(text),
+        folded=folded,
         all_digits=parsing.is_digit_text(trimmed),
         code_alphabet=parsing.is_code_text(trimmed),
     )
@@ -6557,7 +6564,7 @@ class _Cells:
     # It is counted here, once, with everything else. A rule that needed
     # the spellings and went back to the cells for them would be a
     # second reading of a column this module reads once.
-    spellings_by_folded: dict[str, dict[str, int]]
+    spellings_by_folded: "collections.abc.Mapping[str, dict[str, int]]"
     all_digits: int
     code_alphabet: int
     # EACH DIFFERENT TEXT IS SPLIT ONCE (plan P4-D380), by the grammar it
@@ -6584,11 +6591,65 @@ class _Cells:
     )
 
 
+class _FoldedSpellings(collections.abc.Mapping[str, "dict[str, int]"]):
+    """Each folded label's exact spellings, held only where they are not the label.
+
+    `_Cells.spellings_by_folded` maps every folded label to the
+    spellings that wrote it, with a count each. On most labels of most
+    columns that map is ONE spelling, the label itself, written as many
+    times as the label is -- every number, every lower-case word, every
+    date -- and holding a map of one entry per such label cost two
+    hundred bytes a row on a column whose values never repeat (lane S4d,
+    plan P4-D390). This mapping holds the maps of the other labels
+    alone and answers a plain label with `{label: count}` read off the
+    column's own `folded_counts`: the same keys in the same order and
+    the same maps, which is all its readers ask of it. They read it and
+    never change it.
+    """
+
+    __slots__ = ("_counts", "_mixed")
+
+    def __init__(
+        self, counts: "dict[str, int]", mixed: "dict[str, dict[str, int]]"
+    ) -> None:
+        self._counts = counts
+        self._mixed = mixed
+
+    def __getitem__(self, folded: str) -> "dict[str, int]":
+        found = self._mixed.get(folded)
+        if found is not None:
+            return found
+        return {folded: self._counts[folded]}
+
+    def __iter__(self) -> "collections.abc.Iterator[str]":
+        return iter(self._counts)
+
+    def __len__(self) -> int:
+        return len(self._counts)
+
+
 def _classify_all(
     present: list[str], decimal_comma: bool = False
 ) -> list[_Cell]:
-    """Classify every present cell exactly once, in row order."""
-    return [_classify(value, decimal_comma) for value in present]
+    """Classify every present cell exactly once, in row order.
+
+    ONE RECORD PER SPELLING, HANDED TO EVERY ROW THAT WRITES IT (lane
+    S4d, plan P4-D390). `_classify` is a fixed function of the text and
+    the declaration, and `_Cell` is frozen, so the rows that write one
+    spelling share one record: the list is the same list of equal
+    records in the same order, and a column of a million rows over
+    ninety thousand spellings holds ninety thousand records rather than
+    a million. Nothing reads a record's identity.
+    """
+    known: "dict[str, _Cell]" = {}
+    classified: "list[_Cell]" = []
+    for value in present:
+        cell = known.get(value)
+        if cell is None:
+            cell = _classify(value, decimal_comma)
+            known[value] = cell
+        classified += [cell]
+    return classified
 
 
 def _tally(
@@ -6621,7 +6682,10 @@ def _tally(
     all_digits = 0
     code_alphabet = 0
     folded_counts: dict[str, int] = {}
-    spellings_by_folded: dict[str, dict[str, int]] = {}
+    # Only the labels some cell wrote otherwise than the label itself
+    # (`_FoldedSpellings`, lane S4d): a plain label's map is read off
+    # `folded_counts` when it is asked for.
+    mixed_spellings: dict[str, dict[str, int]] = {}
     for cell in classified:
         present += [cell.text]
         if cell.kind == parsing.NUMBER:
@@ -6678,16 +6742,22 @@ def _tally(
             all_digits = all_digits + 1
         if cell.code_alphabet:
             code_alphabet = code_alphabet + 1
-        if cell.folded in folded_counts:
-            folded_counts[cell.folded] = folded_counts[cell.folded] + 1
+        label = cell.folded
+        if label in folded_counts:
+            before = folded_counts[label]
+            folded_counts[label] = before + 1
         else:
-            folded_counts[cell.folded] = 1
-            spellings_by_folded[cell.folded] = {}
-        spellings = spellings_by_folded[cell.folded]
-        if cell.text in spellings:
-            spellings[cell.text] = spellings[cell.text] + 1
-        else:
+            before = 0
+            folded_counts[label] = 1
+        spellings = mixed_spellings.get(label)
+        if spellings is not None:
+            spellings[cell.text] = spellings.get(cell.text, 0) + 1
+        elif cell.text != label:
+            # THE LABEL TURNS MIXED HERE, keeping its earlier cells, which
+            # all wrote the label itself, first in the map as before.
+            spellings = {label: before} if before else {}
             spellings[cell.text] = 1
+            mixed_spellings[label] = spellings
     return _Cells(
         decimal_comma=decimal_comma,
         classified=classified,
@@ -6708,7 +6778,7 @@ def _tally(
         n_negative_unrepresentable=negative_unrepresentable,
         raw_distinct=len(set(present)),
         folded_counts=folded_counts,
-        spellings_by_folded=spellings_by_folded,
+        spellings_by_folded=_FoldedSpellings(folded_counts, mixed_spellings),
         all_digits=all_digits,
         code_alphabet=code_alphabet,
     )
@@ -9601,7 +9671,7 @@ def pooled_window(labels: "list[str]") -> float:
 
 def _pooled_numbers(
     counts: dict[str, int],
-    spellings_by_folded: dict[str, dict[str, int]],
+    spellings_by_folded: "collections.abc.Mapping[str, dict[str, int]]",
     settings: Settings,
 ) -> "dict[str, object]":
     """The scale of the numbers the floor held back (plan P4-D302).
@@ -9774,7 +9844,7 @@ def _pooled_numbers(
 
 def _levels(
     counts: dict[str, int],
-    spellings_by_folded: dict[str, dict[str, int]],
+    spellings_by_folded: "collections.abc.Mapping[str, dict[str, int]]",
     settings: Settings,
 ) -> _Levels:
     """Published levels, plus everything that did not reach the profile.
