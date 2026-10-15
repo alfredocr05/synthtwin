@@ -6,6 +6,58 @@ exists).
 
 ## [Unreleased]
 
+### Repeated grids of timestamps meet their counts (2026-10-15)
+
+**A column of timestamps on a regular grid that starts off midnight, or
+is written four times beside a published count at midnight, no longer
+publishes minute and second facts its twin misses, in the grids swept,
+which held a value in every lattice slot, save the five-minute class
+carried below** (plan P4-D391, stage 3b lane J3). The rule that withholds those facts where a column's values
+crowd the lattice they pin read the lattice as it stands on midnight, so
+stamps fifteen minutes apart from 07:13 looked like a one-minute lattice
+a fifteenth full, and their twins came back as few as 940 of 1,000
+values; stamps written four times looked like a uniform draw. A sweep of
+512 grids (1 to 60 minutes apart, from midnight, 00:37, 07:13 and
+07:13:20, written once to four times, 500 to 5,000 values, floors 11 and
+36, three twins each) found 258 of 777 published pairs missing a fact.
+The rule now counts the lattice at its own phase: 254 of those pairs
+withhold their clock facts and meet, as do 370 that met with them; every
+twin of the 624 meets. Drawn on midnight, the same grids met in 96 of 100
+published pairs, so drawing off-midnight grids on their own phase could
+keep those facts: untested, inferred from those 96; it is not built
+here. Two classes are carried: 500 stamps five minutes apart, every one
+different, at floor 36, still come back 496 to 500 values; and 1,000
+stamps half an hour apart from 07:13 with 60 % of the slots empty, each
+written two to four times, at floor 36, fill 0.41 of their lattice, are
+not crowded and publish, and one twin in 8 writes 1,001 values for
+1,000, the same before this change (withheld, all 8 meet).
+Its Codex review: the exceptions first asked only that share, so a grid
+filling its lattice no more than a uniform draw lost facts it met --
+1,500 of 2,000 quarter-hour slots from 00:13, each written twice, gave
+up a second's heap at 0 that every twin met, and 77 of 3,000 cells came
+back at second 0 in place of 2,994 -- and its notes said the values fill
+more places than random draws would. The fill must now stand above that
+draw, counted on the places the published counts leave (its verifier: a
+grid written only by day, or with every third slot empty, had its empty
+night or phase counted, stood below the draw and missed -- fifteen
+minutes apart from 00:13 by day came back 918 to 947 of 1,000 values --
+and now withholds and meets). Over the verifier's 231 grids, floors 11
+and 36, three twins each, 25 of the 31 pairs that missed with their
+facts now withhold (21 meet every fact; 4 written by day miss the hour
+census in some twins either way, as before), 15 that met withhold too,
+and 6 published pairs still miss: 2,500 stamps five minutes apart, 3 %
+of the slots empty, each written four times, at floor 11, just below the
+draw, in 3 twins of 3 from 07:13 and 2 of 3 from 00:13; and four grids
+fifteen minutes apart written four times, in one twin of three (two of
+them as before lane J3). Grids holding a value on every hour and phase
+decide as before (Codex's keeps its facts, as do 70 pairs of 103 partial
+grids and 71 of the skeptic's); on the 512-grid sweep the 254 stay withheld,
+and 8 pairs that met (two and three minutes apart from 07:13:20 at floor
+36) withhold and meet.
+Still so, as before the lane (the orchestrator's ruling of 2026-10-15,
+owner lane 3b-REST): a daytime grid with 25 to 60 night stamps at floor
+11 publishes and misses its count of different values (P4-D391).
+
 ### A clock written with a space before AM or PM keeps its shape (2026-10-14)
 
 **Lane L2** (plan P4-D392). A cell such as `9:15 AM`, `08:15:30.123 a.m.`

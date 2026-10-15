@@ -398,17 +398,29 @@ cannot get worse unseen.
   `second_heaps.counts` in 2, lane 3b-REST's, was lane T3's own). A
   repeated grid publishes its minute and second facts under the looser
   fifth only where no value is written once, no count at midnight is
-  published and it holds at most 1,000 different values (J2's Codex
-  review, item 2, its two verifications and the orchestrator's ruling):
+  published, it holds at most 1,000 different values and its lattice
+  stands on midnight (J2's Codex review, item 2, its two verifications
+  and the orchestrator's ruling; lane J3, P4-D391):
   80 % of 1,250, the smallest count at which a swept grid missed; the 93
   grid-and-floor pairs of 1,001 to 2,500 values that met with it now
-  withhold. Carried under every rule (older, T3's G7.3h): grids starting
-  off midnight (07:13, 00:37), no value once, 2 to 30 minutes apart, 700
-  to 5,000 values, mostly at floor 11, publish clock facts their twins
-  miss (the worst 940 of 1,000 written), and grids written four times
-  with a count at midnight miss `midnight.count`, `second_heaps.counts`
-  or their count of different values -- owner lane J3 (repeated grids
-  meet their counts, after the 3b close). The payers' walk finds each
+  withhold. A grid off midnight that fills its lattice to the share and
+  above a uniform draw with no value written once (or passes the
+  twentieth with some written once), or one written four times beside a
+  count at midnight above 1,000 values, now withholds them (lane J3: 254
+  published pairs of a 512-grid sweep, every lattice slot filled, that
+  missed now meet, and 372 that met lose them -- drawing such grids at
+  their own phase could keep them, untested, not built). Still so, as
+  before J3 (the orchestrator's ruling of 2026-10-15, owner lane
+  3b-REST): a daytime grid with a few night stamps (25 to 60, 2.4 to
+  5.7 % of its values) at floor 11 publishes and misses its count of
+  different values (982 to 1,046 written of 1,024 to 1,057), the hour
+  census pooling the night into one group; the J3 verifier's weighted
+  draw is that lane's starting point. Carried (lane 3b-REST): 500
+  stamps five minutes apart, every one different, at floor 36, still come
+  back 496 to 500 values, and 1,000 stamps half an hour apart from 07:13
+  with 60 % of the slots empty, written two to four times, at floor 36,
+  not crowded (0.41 of their lattice), publish and wrote 1,001 values in
+  1 twin of 8, as on d3712a1. The payers' walk finds each
   payer by halving and its paid searches grow with the rows (2.04 to
   2.16 times a doubling behind a wall of payers that keep nothing), but
   a wall of more than 1,024 such payers still ends a search

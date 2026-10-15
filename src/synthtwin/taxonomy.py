@@ -18966,6 +18966,23 @@ def clock_lattice_crowded(
     1,250 values, the smallest at which a swept grid with no value written
     once missed one, and grids with values written once missed with the
     fifth at 1,000 to 1,171 values).
+    THE LATTICE AT ITS OWN PHASE (lane J3): the points are counted on
+    `calendar_clock.crowding_unit`, and where that stands above
+    `calendar_clock.drawing_unit` -- a lattice off midnight, drawn finer
+    than it stands -- the rule is told so (`off_phase`): with no value
+    written once it is crowded once filled to the share and above the
+    uniform draw by any margin, and so is a grid with no value written
+    once beside a published count at midnight and more than 1,000
+    different values -- not one at or below that draw (lane J3's Codex
+    review: 1,500 of 2,000 quarter-hour slots from 00:13, each written
+    twice, 0.7557 of the lattice against the draw's 0.7795, keep their
+    facts and meet them), so both crowded notes' inequalities hold on
+    every path. Both exceptions count their share and their draw on THE
+    PLACES THE PUBLISHED COUNTS LEAVE (its verifier): the points on an
+    hour the hour census counts, and a minute and second the two fields'
+    facts hold (`calendar_clock.field_places`, `lattice_places`), so a grid
+    written only by day, or with every third slot empty, is not counted
+    on the places its counts leave empty.
     False where neither field publishes, or where the block has no two
     tails.
 
@@ -18984,7 +19001,17 @@ def clock_lattice_crowded(
     texts = [text for _rank, text in hour_published_values(details, parsed)]
     if not texts:
         return False
-    unit = calendar_clock.drawing_unit(
+    drawn = calendar_clock.drawing_unit(
+        str(details["time_precision"]),
+        (minute.groups, minute.heaps),
+        (second.groups, second.heaps),
+        texts,
+        parsed - rows_low - rows_high,
+        line,
+    )
+    # THE LATTICE AT ITS OWN PHASE (lane J3): the points are counted on it,
+    # and a lattice the body is drawn finer than stands off midnight.
+    unit = calendar_clock.crowding_unit(
         str(details["time_precision"]),
         (minute.groups, minute.heaps),
         (second.groups, second.heaps),
@@ -19001,9 +19028,27 @@ def clock_lattice_crowded(
                 none_once = False
     instants = [calendar_clock.seconds_of(text) for text in texts]
     counted = details["n_at_midnight"] if "n_at_midnight" in details else None
+    # THE PLACES THE PUBLISHED COUNTS LEAVE (lane J3's Codex review, item 1,
+    # and its verifier): the lattice's points on an hour the hour census
+    # counts and a minute and second the fields' facts hold.
+    body = parsed - rows_low - rows_high
+    hour_groups: "list[tuple[int, int, int]]" = []
+    census = details[calendar_clock.HOUR_CENSUS] if calendar_clock.HOUR_CENSUS in details else []
+    if isinstance(census, list):
+        for group in census:
+            if isinstance(group, dict) and all(key in group and isinstance(group[key], int) for key in ("first", "last", "count")):
+                hour_groups += [(group["first"], group["last"], group["count"])]
+    places = calendar_clock.lattice_places(
+        unit,
+        min(instants),
+        max(instants),
+        calendar_clock.field_places(tuple(hour_groups), (), body),
+        calendar_clock.field_places(minute.groups, minute.heaps, body),
+        calendar_clock.field_places(second.groups, second.heaps, body),
+    )
     return calendar_clock.lattice_crowded(
         unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed, parsed,
-        isinstance(counted, int), none_once,
+        isinstance(counted, int), none_once, unit > drawn, places,
     )
 
 

@@ -1339,6 +1339,101 @@ def drawing_unit(
     return FIELD_VALUES * minutes
 
 
+def phased_field_lattice(
+    census: "tuple[tuple[int, int, int], ...]",
+    heaps: "tuple[tuple[int, int], ...]",
+    published: "list[int]",
+    body: int,
+    line: int,
+) -> int:
+    """The LATTICE a field's published facts pin the body to AT ITS OWN PHASE, or nought.
+
+    Lane J3 (plan P4-D391): `field_lattice` reads the lattice as it stands
+    on value 0 -- the greatest step dividing sixty and every heap's value
+    --, so stamps five minutes apart from 07:13, heaps at 3, 8, ..., 58,
+    pin a step of one minute there, though every body cell stands on a
+    five-minute lattice three minutes off the hour. Here the step divides
+    sixty and every DIFFERENCE between two heaps' values: five for those
+    heaps, thirty for heaps at 15 and 45, sixty for one heap at any value.
+    Under the same conditions as `field_lattice` (heaps beside no census
+    and a rest below the census `line`); a census and no heap pins sixty
+    where its one non-zero group holds every value the description
+    publishes in the body and those values are one. Anything else: nought.
+    A multiple of `field_lattice`'s step wherever that pins one, as every
+    heap's value is a multiple of it.
+
+    Guarantees: accepts what `field_lattice` accepts; returns 0 or a
+    divisor of sixty. Raises nothing. No I/O.
+    """
+    if heaps and not census:
+        rest = body - sum(count for _value, count in heaps)
+        if body < 0 or rest >= line:
+            return 0
+        step = FIELD_VALUES
+        first = heaps[0][0]
+        for value, _count in heaps:
+            step = common_divisor(step, value - first)
+        return step
+    if census and not heaps:
+        holding = [group for group in census if group[2] > 0]
+        if len(holding) != 1:
+            return 0
+        written = published[0] if published else holding[0][0]
+        if not holding[0][0] <= written <= holding[0][1]:
+            return 0
+        for value in published:
+            if value != written:
+                return 0
+        return FIELD_VALUES
+    return 0
+
+
+def crowding_unit(
+    precision: str,
+    minute_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    second_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    published: "list[str]",
+    body: int,
+    line: int,
+) -> int:
+    """The lattice, in seconds, a column's clock facts pin its body to, at its own phase.
+
+    Lane J3 (plan P4-D391): `drawing_unit` read through
+    `phased_field_lattice`, the lattice the crowded rule
+    (`lattice_crowded`) counts its points on. Equal to `drawing_unit`
+    wherever the lattice stands on midnight; above it where the facts pin
+    a lattice off midnight -- stamps five minutes apart from 07:13 or 00:37
+    (300 here, 60 there), on the hour at 07:13:20 (3,600 here, 20 there)
+    -- which the body is drawn finer than.
+
+    Guarantees: accepts what `drawing_unit` accepts; returns a divisor of
+    3,600 of one or more. Raises nothing. No I/O.
+    """
+    minute_census, minute_heaps = minute_facts
+    second_census, second_heaps = second_facts
+    if not (minute_census or minute_heaps or second_census or second_heaps):
+        return 1
+    seconds = FIELD_VALUES
+    if precision != "minute":
+        seconds = phased_field_lattice(
+            second_census,
+            second_heaps,
+            [written_second(value) for value in published],
+            body,
+            line,
+        )
+    if seconds <= 0:
+        return 1
+    if seconds < FIELD_VALUES:
+        return seconds  # a lattice finer than the minute
+    minutes = phased_field_lattice(
+        minute_census, minute_heaps, [written_minute(value) for value in published], body, line
+    )
+    if minutes <= 0:
+        return 1 if precision == "minute" else FIELD_VALUES
+    return minutes * FIELD_VALUES
+
+
 # THE SHARE OF A LATTICE'S POINTS a column's different values may fill
 # before its minute and second facts are withheld (`lattice_crowded`), as
 # a fraction: half; a third where every value is different, so no repeat
@@ -1359,6 +1454,10 @@ CROWDED_EXCESS = (1, 20)
 # exactly two, three or four times, 500 to 2,500 values). A grid some value
 # of which is written once keeps the twentieth: with the fifth such grids
 # missed their count at 1,000, 1,100 and 1,171 values.
+# The same bound marks, beside a count at midnight, the grid no value of
+# which is written once that is crowded once above the draw (lane J3:
+# written four times, such grids missed from 1,250 values and met at 500
+# and 1,000).
 CROWDED_EXCESS_REPEATED = (1, 5)
 CROWDED_REPEATED_VALUES = 1000
 
@@ -1372,6 +1471,8 @@ def lattice_crowded(
     parsed: int = 0,
     midnight_counted: bool = True,
     none_once: bool = False,
+    off_phase: bool = False,
+    places: int = 0,
 ) -> bool:
     """Whether a column's different values crowd the lattice its clock facts pin.
 
@@ -1456,6 +1557,107 @@ def lattice_crowded(
     which is different, and from a fifth on (every second stamp written
     twice, 0.227 above, missed its count either way).
 
+    A LATTICE OFF MIDNIGHT, AND A COUNT AT MIDNIGHT BESIDE MANY REPEATED
+    VALUES (lane J3, from lane J2's last verifier, its two carried items).
+    `unit` is the lattice at its own phase (`crowding_unit`), and
+    `off_phase` says the body is drawn finer than it (`drawing_unit` below
+    it): stamps fifteen minutes apart from 07:13 are drawn a minute at a
+    time and moved onto their heaps, where they collide. Where no value is
+    written once, the lattice, filled to the share and above the draw by
+    any margin, is crowded off midnight, and so where a count at midnight
+    is published beside more than `CROWDED_REPEATED_VALUES` different
+    values; off midnight the fifth is never asked. Swept on d3712a1 over 512 grids --
+    stamps 1, 2, 3, 5, 10, 15, 30 and 60 minutes apart from midnight,
+    00:37, 07:13 and 07:13:20, each written once, twice, four times, or
+    two to four times with none or a third of them once, and twice with a
+    twentieth once, 500 to 5,000 values, floors 11 and 36, three twins
+    each -- 258 of 777 published pairs missed a fact: 250 off midnight
+    (every value different, 92, from 500 values, the worst 823 of 1,000
+    fifteen minutes apart from 00:37; with repeats 158, 500 to 5,000
+    values, 2 to 60 minutes apart, the worst 2,287 of 2,500), 4 written
+    four times with a count at midnight (2,500 and 5,000 values; the
+    smallest such miss, lane J2's sweep, 1,250 values, so the bound is
+    the fifth's), and 4 every value different named below. Withheld,
+    every twin of the 258 met. The rule withholds the 254 and 370 pairs
+    that met with their facts (354 off midnight, 16 written four times);
+    every twin of the 624 meets. On midnight the same grids with repeats
+    met: of their 100 published pairs 96 met, the other 4 the grids
+    written four times above; so drawing the body on the lattice at its
+    own phase -- G7.3's drawing rule, not changed here -- could keep these
+    grids' facts: untested, inferred from those 96. Every lattice slot of
+    the grids swept held a value. Not seen by the rule, and carried: 500
+    stamps five minutes apart, every one different, at floor 36 -- their
+    minute census published beside two heaps, which pins no lattice --
+    came back 496 to 500 at every phase swept; and (lane J3's skeptic)
+    1,000 stamps half an hour apart from 07:13, 60 % of the slots empty,
+    each written two to four times, at floor 36 -- 0.41 of their lattice,
+    not crowded -- publish, and one twin in 8 wrote 1,001 values, the
+    same on d3712a1; withheld, all 8 met.
+
+    ABOVE THE DRAW, NOT AT OR BELOW IT (lane J3's Codex review, items 1
+    and 2). The two exceptions above first asked only the share, so 1,500
+    of 2,000 quarter-hour slots from 00:13, each written twice -- 0.7557 of
+    their lattice against the 0.7795 their 3,000 rows drawn uniformly would
+    fill -- lost the minute's heaps and the second's heap d3712a1 published
+    and every twin met (77 of 3,000 cells at second 0 in place of 2,994 at
+    floor 11), and their notes said the values fill more places than random
+    draws would. Both exceptions now ask the fill to stand above that draw
+    by any margin, so every crowded call holds the share and the draw its
+    notes state. Swept on 103 such grids -- Codex's; 5 or 15 minutes apart
+    from 00:13 and 07:13 and an hour apart from 00:13, 0 to 30 % of their
+    slots empty, each written two, three, four or two to four times, 1,000
+    values; 5 or 15 minutes apart from midnight, 0 to 10 % empty, three,
+    four or two to four times, 1,500 values from midnight -- floors 11
+    and 36, three twins each: of 197 pairs in the exceptions'
+    reach, all withheld on d05a8e9, the 70 at or below the draw publish and
+    68 meet every fact (2 at floor 11 miss in one twin of three, the same
+    on d3712a1: fifteen minutes apart from 00:13 written four times, 3 %
+    empty, 996 of 1,000 values; fifteen minutes apart from midnight, 10 %
+    empty, a second's heap); the 127 above it withhold, and forced to
+    publish 11 of them missed (29 twins, every one fifteen minutes apart at
+    floor 11, the first 0.005 above the draw) and 116 would have met. On
+    lane J3's own sweep 6 of the 370 pairs regain their facts (two minutes
+    apart from 07:13:20, 0.12 to 0.36 below the draw, floor 36) and all
+    18 twins meet (5 of them withhold again on the places, below); the 254
+    stay withheld and meet.
+
+    ON THE PLACES THE PUBLISHED COUNTS LEAVE (lane J3's Codex review, its
+    verifier). The exceptions counted every point between the tails, so a
+    grid written only by day -- its hour census nought outside 06:00 to
+    20:00 -- or with every third slot empty -- its minute's heaps on two of
+    its lattice's three phases -- stood below the draw, published, and
+    missed: 1,000 stamps fifteen minutes apart from 00:13, by day, each
+    written twice, 0.600 of 1,668 points against a draw's 0.699, came back
+    918 to 947 values at floor 11. Where `places` is above nought and
+    below the point count, the exceptions ask their share and their draw on
+    those places (`lattice_places`: the points on an hour the hour census
+    counts and a minute and second the fields' facts hold); the standard
+    path reads every point. Over the verifier's 231 grids (random, by day,
+    weekdays, clinic hours, every third slot and blocks; 1 to 60 minutes
+    apart from midnight, 00:13, 00:37, 07:13 and 07:13:20; written one to
+    four times; 1,000 to 5,000 values), floors 11 and 36, three twins
+    each, the 361 pairs in the exceptions' reach: 40 more withhold -- 25
+    of the 31 that missed with their facts, every one by day or every
+    third slot (21 now meet every fact; 4, fifteen minutes apart from
+    00:13 by day, written three or two to four times, miss the hour
+    census's groups in 1 or 2 twins of 3 withheld, as on d05a8e9), and 15
+    that met --; of the 289 still published 283 meet and 6 miss: 2,500
+    stamps five minutes apart, 3 % of the slots empty, each written four
+    times, floor 11, 0.004 below the draw, in 3 twins of 3 from 07:13
+    (2,479 to 2,489 values) and 2 of 3 from 00:13 (2,487 and 2,495); and in
+    one twin of three, fifteen minutes apart written four times, from
+    07:13:20 on weekdays only or with half the slots empty (a minute's heap
+    count), from 00:13 with 3 % empty (996 of 1,000 values) and from
+    midnight with 10 % empty (a second's heap), the last two as on
+    d3712a1. On lane J3's 512-grid sweep the 254 stay withheld and 8 pairs
+    that met with their facts withhold: two and three minutes apart from
+    07:13:20 at floor 36, whose minute census beside a second's heap at 20
+    leaves a half or a third of the points (the three-minute ones
+    published on d3712a1 and d05a8e9); withheld, all 24 twins meet.
+    Codex's grid, the 103 grids above, the skeptic's 114 and the witnesses
+    hold a value on every hour and phase their counts name, so their
+    places are their points and they decide as before.
+
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
     if unit <= 1:
@@ -1464,16 +1666,130 @@ def lattice_crowded(
         return False
     points = (high - low) // unit + 1
     share, whole = CROWDED_SHARE_ALL_DIFFERENT if all_different else CROWDED_SHARE
+    if parsed > 0 and none_once and (
+        off_phase or (midnight_counted and distinct > CROWDED_REPEATED_VALUES)
+    ):
+        # The two exceptions: on the places the published counts leave a
+        # value (`places`, `lattice_places`; lane J3's Codex review, item 1,
+        # and its verifier), filled to the share and above the draw by any
+        # margin.
+        room = places if 0 < places < points else points
+        if distinct * whole < room * share:
+            return False
+        return distinct / room > 1.0 - (1.0 - 1.0 / room) ** parsed
     if distinct * whole < points * share:
         return False
     if parsed <= 0:
         return True
-    above, over = CROWDED_EXCESS
-    if none_once and not all_different and not midnight_counted and distinct <= CROWDED_REPEATED_VALUES:
-        above, over = CROWDED_EXCESS_REPEATED
     # The share of the points `parsed` uniform draws fill, on average.
     drawn = 1.0 - (1.0 - 1.0 / points) ** parsed
+    above, over = CROWDED_EXCESS
+    # Off midnight with no value written once has returned above, so the
+    # fifth is never asked there.
+    if (
+        none_once
+        and not all_different
+        and not midnight_counted
+        and distinct <= CROWDED_REPEATED_VALUES
+    ):
+        above, over = CROWDED_EXCESS_REPEATED
     return distinct / points - drawn >= above / over
+
+
+def field_places(
+    census: "tuple[tuple[int, int, int], ...]",
+    heaps: "tuple[tuple[int, int], ...]",
+    body: int,
+) -> "tuple[int, ...]":
+    """The values of a field of the clock its published counts leave a body cell, or `()` for every value.
+
+    Lane J3's Codex review, item 1, and its verifier (plan P4-D391). An
+    hour census (`census` its `(first, last, count)` groups, no heaps), or
+    a minute's or second's census of the cells on no heap beside its
+    heaps (`(value, count)`): every value of a group counting a cell, and
+    every heap's value, ascending. `()` -- every value -- where nothing is
+    published, and where heaps stand beside no census and leave a rest of
+    the `body`'s cells on no heap (or the body is not known, below
+    nought), which may stand on any value off them.
+
+    Guarantees: a function of the arguments; returns distinct values
+    ascending, or `()`. Raises nothing. No I/O.
+    """
+    if not census and not heaps:
+        return ()
+    if heaps and not census and (body < 0 or body - sum(count for _value, count in heaps) > 0):
+        return ()
+    held: "set[int]" = {value for value, _count in heaps}
+    for first, last, count in census:
+        if count > 0:
+            held |= set(range(first, last + 1))
+    return tuple(sorted(held))
+
+
+def lattice_places(
+    unit: int,
+    low: int,
+    high: int,
+    hours: "tuple[int, ...]",
+    minutes: "tuple[int, ...]",
+    seconds: "tuple[int, ...]",
+) -> int:
+    """How many points of a lattice stand where a column's published counts leave a value.
+
+    Lane J3's Codex review, item 1, and its verifier (plan P4-D391). The
+    lattice's points are `low`, `low + unit`, ... up to `high` (instants,
+    `seconds_of`); a point counts where its hour of the day is one of
+    `hours`, its minute one of `minutes` and its second one of `seconds`
+    (`field_places`; `()` holds every value). The crowded rule's two
+    exceptions (`lattice_crowded`) ask their share and their draw on these
+    places: stamps fifteen minutes apart from 00:13, written only from
+    06:00 to 20:00, publish an hour census of nought outside those hours,
+    and the night's points are no place a twin may put a value.
+
+    Counted an hour at a time: `unit` divides the hour wherever the
+    lattice is a clock's (`crowding_unit`), so every whole hour holds the
+    same points; the first and last hours are walked, the hours between
+    counted a day at a time. Any other unit counts every point.
+
+    Guarantees: a function of the arguments; returns 0 to the lattice's
+    point count, in at most a few thousand steps whatever the span.
+    Raises nothing. No I/O.
+    """
+    if unit <= 0 or high < low:
+        return 0
+    if HOUR_SECONDS % unit != 0:
+        return (high - low) // unit + 1
+    on_hours = set(hours) if hours else set(range(HOURS))
+    on_minutes = set(minutes) if minutes else set(range(FIELD_VALUES))
+    on_seconds = set(seconds) if seconds else set(range(FIELD_VALUES))
+    first_hour = low // HOUR_SECONDS
+    last_hour = high // HOUR_SECONDS
+    # The lattice's points in one hour, by the instant of each hour's start.
+    phase = low % unit
+    in_hour = 0
+    for instant in range(phase, HOUR_SECONDS, unit):
+        if (instant // 60) in on_minutes and instant % 60 in on_seconds:
+            in_hour += 1
+    total = 0
+    for hour in sorted({first_hour, last_hour}):
+        if hour % HOURS not in on_hours:
+            continue
+        start = max(low, hour * HOUR_SECONDS)
+        stop = min(high, hour * HOUR_SECONDS + HOUR_SECONDS - 1)
+        start += (low - start) % unit
+        for instant in range(start, stop + 1, unit):
+            within = instant % HOUR_SECONDS
+            if (within // 60) in on_minutes and within % 60 in on_seconds:
+                total += 1
+    between = last_hour - first_hour - 1
+    if between > 0:
+        days, left = divmod(between, HOURS)
+        held_hours = days * len(on_hours & set(range(HOURS)))
+        for step in range(left):
+            if (first_hour + 1 + step) % HOURS in on_hours:
+                held_hours += 1
+        total += held_hours * in_hour
+    return total
 
 # anchor 3b-C1 (P4-D373)
 # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, lane C1, plan
