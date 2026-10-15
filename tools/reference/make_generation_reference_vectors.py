@@ -7661,6 +7661,14 @@ def usable_stand_in(candidate):
         or fraction_clock(candidate.replace("\u202f", " "))
     ):
         return candidate[0] not in "=+-@"
+    # ...AND NEITHER IS A STAMP OF A YEAR-FIRST DATE AND A CLOCK WITH A
+    # MARKER (lane L3, plan P4-D393): G8.3's figure fill of a stamp's form
+    # writes it, no number grammar reads a colon, and no date form reads a
+    # marker after a year-first date -- ISO's forms take a clock of 24
+    # hours.  A stamp of any other date is not reasoned about here.
+    stamp = stamp_gaps(candidate, STAMP_CELL)
+    if stamp is not None and stamp[3] >= 0 and YEAR_FIRST_HYPHEN.match(candidate):
+        return candidate[0] not in "=+-@"
     for character in candidate:
         if character == "," or character == '"':
             return False
@@ -7687,14 +7695,89 @@ GAP_WORDS = ("AM", "PM", "am", "pm", "A.M.", "P.M.", "a.m.", "p.m.")
 
 
 def form_gap(text):
-    """Where the one gap of a clock's marker sits in a cell, or -1."""
+    """Where the one gap of a clock's marker sits in a cell, or -1.
+
+    A stamp's gap before its marker counts too (lane L3, plan P4-D393).
+    """
     places = [index for index, character in enumerate(text) if character in FORM_GAPS]
-    if len(places) != 1:
-        return -1
-    head, tail = text[: places[0]], text[places[0] + 1 :]
-    if tail in GAP_WORDS and GAP_CLOCK.fullmatch(head):
-        return places[0]
-    return -1
+    if len(places) == 1:
+        head, tail = text[: places[0]], text[places[0] + 1 :]
+        if tail in GAP_WORDS and GAP_CLOCK.fullmatch(head):
+            return places[0]
+    stamp = stamp_gaps(text, STAMP_CELL)
+    return -1 if stamp is None else stamp[1]
+
+
+# A STAMP'S ONE SPACE BETWEEN ITS DATE AND ITS CLOCK (lane L3, plan
+# P4-D393; contract C6-31a), written out as the producer's grammar: a
+# date of three figure runs parted twice by one hyphen, slash or point --
+# a year of four, then a month and a day of one or two figures each, or
+# a month and a day of one or two figures each, then a year of four or
+# two -- then one space or one letter, then a clock, then nothing, a
+# marker written straight on, or one gap and a marker word; at most
+# `STAMP_FORM_LIMIT` characters, longer than a form's limit.
+STAMP_FORM_LIMIT = 32
+STAMP_CELL = re.compile(
+    r"(?P<date>[0-9]{4}(?P<mark>[-/.])[0-9]{1,2}(?P=mark)[0-9]{1,2}"
+    r"|[0-9]{1,2}(?P<late>[-/.])[0-9]{1,2}(?P=late)([0-9]{4}|[0-9]{2}))"
+    r"(?P<part> |[A-Za-z])[0-9]{1,2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?"
+    r"(?P<tail>[A-Za-z]{2}|[A-Za-z]\.[A-Za-z]\.|[ \u202f]"
+    r"(AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.))?"
+)
+STAMP_KEY = re.compile(
+    r"(?P<date>%%%%(?P<mark>[-/.])%{1,2}(?P=mark)%{1,2}"
+    r"|%{1,2}(?P<late>[-/.])%{1,2}(?P=late)(%%%%|%%))"
+    r"(?P<part> |@|&)%{1,2}:%%(:%%(\.%+)?)?"
+    r"(?P<tail>@@|&&|@\.@\.|&\.&\.|[ \u202f](@@|&&|@\.@\.|&\.&\.))?"
+)
+
+
+YEAR_FIRST_HYPHEN = re.compile(r"[0-9]{4}-")
+
+
+def stamp_gaps(text, pattern):
+    """The parts of a stamp, each -1 where absent, or None where ``text``
+    is no stamp: the space between its date and its clock, the gap before
+    its marker, the letter between its date and its clock, and its
+    marker's first character."""
+    if len(text) > STAMP_FORM_LIMIT:
+        return None
+    match = pattern.fullmatch(text)
+    if match is None:
+        return None
+    parted = match.start("part") if match.group("part") == " " else -1
+    letter = -1 if parted >= 0 else match.start("part")
+    tail = match.group("tail") or ""
+    if not tail:
+        return parted, -1, letter, -1
+    if tail[:1] in FORM_GAPS:
+        return parted, match.start("tail"), letter, match.start("tail") + 1
+    return parted, -1, letter, match.start("tail")
+
+
+def stamp_form(text):
+    """The form of a cell that is a stamp, both its gaps kept, or ""."""
+    if stamp_gaps(text, STAMP_CELL) is None:
+        return ""
+    built = ""
+    for character in text:
+        if "0" <= character <= "9":
+            built += SHAPE_DIGIT
+        elif "a" <= character <= "z" or "A" <= character <= "Z":
+            built += SHAPE_LETTER
+        else:
+            built += character
+    return built
+
+
+def shaped_since_stamps(text):
+    """Whether a cell has a form only since lane L3: a stamp holding the
+    space between its date and its clock, or a gap after a date, or
+    longer than a form's limit."""
+    stamp = stamp_gaps(text, STAMP_CELL)
+    if stamp is None:
+        return False
+    return stamp[0] >= 0 or stamp[1] >= 0 or len(text) > SHAPE_FORM_LIMIT
 
 
 GAP_KEY_WORDS = {"@@": ("AM", "PM"), "&&": ("am", "pm"),
@@ -7706,12 +7789,13 @@ def key_gap(form):
     """Where the one gap of a form sits, or -1: one space or U+202F, the
     form's only one, between a clock's figures and a marker key."""
     places = [index for index, character in enumerate(form) if character in FORM_GAPS]
-    if len(places) != 1:
-        return -1
-    head, tail = form[: places[0]], form[places[0] + 1 :]
-    if tail in GAP_KEY_WORDS and GAP_KEY_CLOCK.fullmatch(head):
-        return places[0]
-    return -1
+    if len(places) == 1:
+        head, tail = form[: places[0]], form[places[0] + 1 :]
+        if tail in GAP_KEY_WORDS and GAP_KEY_CLOCK.fullmatch(head):
+            return places[0]
+    # A stamp's gap before its marker key (lane L3, plan P4-D393).
+    stamp = stamp_gaps(form, STAMP_KEY)
+    return -1 if stamp is None else stamp[1]
 
 
 def written_form(text):
@@ -7720,10 +7804,14 @@ def written_form(text):
     Every ASCII digit becomes ``9``, every ASCII letter ``A``, and every
     other character stands as itself.  A cell that is empty or longer
     than the limit has no form at all, and neither has one holding a
-    space or U+202F but the one gap before a clock's marker (P4-D392).
+    space or U+202F but the one gap before a clock's marker (P4-D392) --
+    save a stamp, which may hold the space between its date and its clock
+    and run to `STAMP_FORM_LIMIT` characters (lane L3, plan P4-D393).
     """
-    if not text or len(text) > SHAPE_FORM_LIMIT:
+    if not text:
         return ""
+    if len(text) > SHAPE_FORM_LIMIT:
+        return stamp_form(text)
     built = ""
     figures = letters = marks = 0
     gap = form_gap(text)
@@ -7743,6 +7831,8 @@ def written_form(text):
         elif character in SHAPE_MARKS:
             built += character
             marks = 1
+        elif character in FORM_GAPS:
+            return stamp_form(text)
         else:
             return ""
     if figures + letters + marks < 2:
@@ -7760,8 +7850,16 @@ def form_room(form):
     gap = key_gap(form)
     if gap >= 0:
         return 2 * form_room(form[:gap])
+    # A stamp's marker written straight on is a word, and the letter
+    # between its date and its clock always `T` (lane L3, plan P4-D393).
+    stamp = stamp_gaps(form, STAMP_KEY)
+    if stamp is not None and stamp[3] >= 0:
+        return 2 * form_room(form[: stamp[3]])
+    letter = -1 if stamp is None else stamp[2]
     room = 1
-    for character in form:
+    for place, character in enumerate(form):
+        if place == letter:
+            continue
         if character == SHAPE_DIGIT:
             room *= 10
         elif character in (SHAPE_LETTER, SHAPE_LOWER):
@@ -8042,12 +8140,24 @@ def filled_form(form, step, clocks=True):
         morning, evening = GAP_KEY_WORDS[form[gap + 1 :]]
         word = evening if step % 2 else morning
         return filled_form(form[:gap], step // 2, False) + form[gap] + word
+    # A stamp's marker written straight on keeps its word, filled at half
+    # the step, and the letter between its date and its clock is `T` (`t`
+    # in a lower-case key) and takes no part of the step (lane L3, plan
+    # P4-D393).
+    stamp = stamp_gaps(form, STAMP_KEY)
+    if stamp is not None and stamp[3] >= 0:
+        morning, evening = GAP_KEY_WORDS[form[stamp[3] :]]
+        word = evening if step % 2 else morning
+        return filled_form(form[: stamp[3]], step // 2, False) + word
+    letter = -1 if stamp is None else stamp[2]
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     built = ""
     place = stepped_around(step, form_room(form))
-    for character in form:
-        if character == SHAPE_DIGIT:
+    for at, character in enumerate(form):
+        if at == letter:
+            built += "t" if character == SHAPE_LOWER else "T"
+        elif character == SHAPE_DIGIT:
             built += figures[place % 10]
             place //= 10
         elif character == SHAPE_LETTER:
@@ -10763,14 +10873,25 @@ def unshaped_before_gaps(level):
     carries ``shape_form_cells`` 0 whatever its spellings wear.  Such a
     level -- the label holding the gap, its count in form 0 -- is read as
     written: no spelling of it counts in a form holding the gap.
+
+    A stamp's label reads so too (lane L3, plan P4-D393): one holding the
+    space between its date and its clock, or longer than a form's limit,
+    had no form before L3 either.
     """
-    return not level.get("shape_form_cells") and form_gap(level["label"]) >= 0
+    if level.get("shape_form_cells"):
+        return False
+    return form_gap(level["label"]) >= 0 or shaped_since_stamps(level["label"])
 
 
 def form_as_read(text, before):
     """A cell's written form, or "" where ``before`` reads a gapped one as none."""
     form = written_form(text)
-    if before and key_gap(form) >= 0:
+    stamp = stamp_gaps(form, STAMP_KEY) if form else None
+    if before and form and (
+        key_gap(form) >= 0
+        or (stamp is not None and stamp[0] >= 0)
+        or len(form) > SHAPE_FORM_LIMIT
+    ):
         return ""
     return form
 
@@ -31341,6 +31462,33 @@ def _labels_clock_narrow_gap():
     }
 
 
+def _labels_stamp_gaps():
+    column = _universal(
+        "column_1", 'categorical', 'categorical', "data", "ok",
+        level_ceiling=50,
+        levels=[{'count': 20, 'label': '2024-01-05 7:30 am', 'shape_form_cells': 20, 'variants': {'2024-01-05 7:30 AM': 20}, 'variants_withheld': {}}, {'count': 20, 'label': '2024-01-06 8:00 am', 'shape_form_cells': 20, 'variants': {'2024-01-06 8:00 AM': 20}, 'variants_withheld': {}}, {'count': 20, 'label': '2024-01-07 10:30 am', 'shape_form_cells': 20, 'variants': {'2024-01-07 10:30 AM': 20}, 'variants_withheld': {}}, {'count': 20, 'label': '2024-01-08 1:30 pm', 'shape_form_cells': 20, 'variants': {'2024-01-08 1:30 PM': 20}, 'variants_withheld': {}}],
+        n_contradictory=0,
+        n_distinct=14,
+        n_distinct_folded=14,
+        n_missing=0,
+        n_not_numeric=100,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=100,
+        shape_forms={'%%%%-%%-%% %%:%% @@': 20, '%%%%-%%-%% %:%% @@': 64, '%%%%-%%-%%@%:%%@@': 16},
+        suppressed_levels=10,
+        suppressed_numbers={'mean': None, 'n_cells': 0},
+        suppressed_rows=20,
+        detection_evidence='there are 14 different values, which is within the 50 a set of categories may have in a table of 100 rows under these settings, so this column is a set of categories',
+    )
+    return {
+        "why": "C6-31a's stamp, the one space between its date and its clock, and G8.3's figure fill of its form (lane L3, plan P4-D393): 100 appointment stamps as an EHR export writes them, a year-first date, a space, a clock and `AM` or `PM` after one more space -- `2024-01-05 7:30 AM` -- and some written with a `T` and the marker straight on, `2024-02-10T1:15PM`, are a set of 14 categories, four published at 20 rows. Each cell has a form that keeps its spaces, so the 20 held-back rows owe `%%%%-%%-%% %:%% @@` (4) and `%%%%-%%-%%@%:%%@@` (16), and every held-back row is filled figure by figure in its form, its marker a word by the step's parity and the letter between its date and its clock `T`, as the source wrote it; no date form reads a marker after a year-first date, so none of them reads as a date. The mutant fills that letter by the step, and the twin's held-back stamps are no longer the source's spelling.",
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+    }
+
+
 def _labels_clock_spaced_line():
     column = _universal(
         "column_1", 'categorical', 'categorical', "data", "ok",
@@ -41140,6 +41288,9 @@ TWENTY_SECOND_BRANCH_CASE_BUILDERS = {
     "labels_clock_spaced_line": _labels_clock_spaced_line,
     # ...and its Codex review: labels described before L2, read as written.
     "labels_written_before_gaps": _labels_written_before_gaps,
+    # Lane L3 (plan P4-D393): a stamp's space between its date and its
+    # clock, which has no room in the twenty-fifth.
+    "labels_stamp_gaps": _labels_stamp_gaps,
 }
 
 TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
@@ -41936,6 +42087,9 @@ _TWENTY_SECOND_BRANCH_ACCOUNT = (
     " Lane L2 (plan P4-D392) adds here a set of clock times written with a"
     " space before their marker past G8.3's clock line, and its Codex review"
     " a set of labels described before L2, each level read as written."
+    " Lane L3 (plan P4-D393) adds here a set of stamps holding the space"
+    " between their date and their clock, whose held-back rows are written"
+    " in their form with their `T` and their marker word."
 )
 
 
@@ -43404,6 +43558,43 @@ GIVEN_WORDS = {
         9120290185916536888, 6994342431886251008, 16196746810711034644,
         8509437690836477963, 6804130648959594893, 10549130603238973507,
         5272371200732293213, 11624598269994319921, 330501688981110632,
+    ),
+    # Lane L3's stamp, the space between its date and its clock (plan
+    # P4-D393), at seed 571.
+    "labels_stamp_gaps": (
+        12841089970148636615, 8928045608014265321, 9916245565641499594,
+        6940088623296685369, 14364083624124251253, 1598029882686180766,
+        16392982339483168110, 4047824277864147464, 16605276223548484941,
+        7650906046210346916, 15449854637862473031, 5922431067793963516,
+        34679591429581959, 545099140109470184, 2628570845878164399,
+        13495824215159210988, 15166983384820670380, 14007352240720559895,
+        8266747118829431547, 3613370577679629554, 7499542645252239617,
+        11888173070545343748, 1215838976860917936, 10800518825822325007,
+        15698456792500969407, 2737185161020244654, 11862649943242376855,
+        348514297624044349, 7149463875758078363, 14684969542991496861,
+        14815420600509201285, 7533845578120827139, 8352210351013227210,
+        17162613983141283934, 17004205818589199804, 11117346154968081658,
+        17047541145819086411, 16584899950156983119, 9176978238236407475,
+        17696014090177980966, 16584189343011311453, 11475127951999013494,
+        7416573154249744038, 18338646887053958800, 1984196232394869051,
+        17558343966513469486, 4689831360749401324, 5390751247411802297,
+        10229752802869680948, 278475819091862664, 4614912393913241208,
+        3399288422226552837, 11447004765711943360, 3658333386496448072,
+        17614686447637226011, 11996828206449678255, 13404149394402036895,
+        4768684075277707460, 17720521108976277545, 16098664736036481074,
+        4956584129686589428, 6016001394100744003, 7898782229221379699,
+        7292655644834740388, 16924459914760840156, 13824081701870925916,
+        4468493493394879440, 6960032725816288090, 17231964719957868054,
+        13917662165646222161, 11971445563828246456, 7498088358007670909,
+        10183152419562081589, 13795131076455794899, 17836651813181753466,
+        8965748827082968819, 9193065081980213531, 5486295344898167842,
+        14467509312261777584, 2738804254094765751, 3439801947095946647,
+        2764995577176814480, 3589678299330770518, 2046254861214673895,
+        3058402836409050619, 4728971974948657523, 15376962032905674732,
+        6402945259190773909, 1367727837224211285, 13862454083602630815,
+        439772602858589733, 3434005935700500732, 6458591003963707668,
+        3207575064358450382, 4014624779146295173, 6094908279449209349,
+        9252255723550607688, 14010743578793236323, 6684435108651218568,
     ),
     # Lane L2's gap before a clock's marker (plan P4-D392), at seed 551.
     "labels_clock_narrow_gap": (

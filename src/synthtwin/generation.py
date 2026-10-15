@@ -41421,10 +41421,17 @@ def _form_as_read(spelling: str, before: bool) -> str:
 
     A level written before lane L2 (`parsing.level_unshaped_before_gaps`,
     Codex's review of L2, item 2) is read as written: a form holding the
-    one gap was no form then. Raises nothing beyond `shape_form`'s check.
+    one gap was no form then. Nor, before lane L3 (plan P4-D393), was a
+    stamp's form holding the space between its date and its clock or
+    longer than `parsing.SHAPE_FORM_LIMIT`. Raises nothing beyond
+    `shape_form`'s check.
     """
     form = parsing.shape_form(spelling)
-    if before and form and parsing.key_gap_at(form) >= 0:
+    if before and form and (
+        parsing.key_gap_at(form) >= 0
+        or parsing.stamp_key_gap_at(form) >= 0
+        or len(form) > parsing.SHAPE_FORM_LIMIT
+    ):
         return ""
     return form
 
@@ -42302,6 +42309,19 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
         words = [mark for mark in _CLOCK_FORM_MARKS if mark[0] == form[gap + 1 :]]
         head = _filled_form(form[:gap], step // 2, False)
         return head + form[gap] + words[0][1 + step % 2]
+    # A STAMP'S MARKER IS A WORD AND ITS LETTER A `T` (lane L3, plan
+    # P4-D393). A stamp's form -- `%%%%-%%-%% %:%%@@`, `%/%/%%%% %%:%%`,
+    # `%%%%-%%-%%@%:%% @@` -- filled letter by letter wrote `XQ` for its
+    # marker and `X` between its date and its clock, which no code reading
+    # stamps takes. Its marker written straight on is filled as the gap's
+    # is above, at half the step; its letter is `T` (`t` in a lower-case
+    # key), as ISO writes it, and takes no part of the step.
+    stamp = parsing.stamp_key_parts(form)
+    if stamp is not None and stamp[3] >= 0:
+        words = [mark for mark in _CLOCK_FORM_MARKS if mark[0] == form[stamp[3] :]]
+        head = _filled_form(form[: stamp[3]], step // 2, False)
+        return head + words[0][1 + step % 2]
+    letter = -1 if stamp is None else stamp[2]
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -42312,7 +42332,12 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
     lower = "abcdefghijklmnopqrstuvwxyz"
     spelling = ""
     place = _stepped_around(step, _form_room(form))
+    at = -1
     for character in form:
+        at = at + 1
+        if at == letter:
+            spelling = spelling + ("t" if character == parsing.SHAPE_LOWER else "T")
+            continue
         if character == parsing.SHAPE_DIGIT:
             spelling = spelling + figures[place % 10]
             place = place // 10
@@ -42835,8 +42860,18 @@ def _form_room(form: str) -> int:
         gap = parsing.key_gap_at(form)
         if gap >= 0:
             return 2 * _form_room(form[:gap])
+    # A stamp's marker written straight on is a word, and its letter is
+    # always `T` (lane L3, plan P4-D393; `_filled_form`).
+    stamp = parsing.stamp_key_parts(form)
+    if stamp is not None and stamp[3] >= 0:
+        return 2 * _form_room(form[: stamp[3]])
+    letter = -1 if stamp is None else stamp[2]
     room = 1
+    at = -1
     for character in form:
+        at = at + 1
+        if at == letter:
+            continue
         if character == parsing.SHAPE_DIGIT:
             room = room * 10
         elif (
@@ -54561,9 +54596,11 @@ def _made_up_cell(
         # fields each kind of key has; no class name, band name or whole
         # number can hold a SPACE, so the first space ends the key. A form
         # may hold one gap since plan P4-D392, but only before a marker
-        # key (`parsing._key_gap_at`), so no form ends in ` figures` and
-        # what follows the first space splits into a form and an optional
-        # ` figures` one way only: this one is injective.
+        # key (`parsing._key_gap_at`), and since plan P4-D393 one space
+        # between a stamp's date and its clock (`parsing.stamp_key_gap_at`),
+        # so no form ends in ` figures` -- a form holds no lower-case
+        # letter -- and what follows the first space splits into a form and
+        # an optional ` figures` one way only: this one is injective.
         shaped = f"{key} {form}"
         figures = figured and _clock_filled_form(form, 0) is not None
         if figures:
