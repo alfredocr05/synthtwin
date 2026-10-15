@@ -25,7 +25,14 @@ were refused or read as one fall-back column are read. A description
 written before of such a one-column reading still loads and writes the
 same twin, but the real table now misses it at exit 3, being read as its
 columns: describe that table again. Measured on the codex table at 1,000,000 rows:
-98 s and 1,013 MB to describe.
+98 s and 1,013 MB to describe. After Codex's review of the lane: a file the
+reader read from a delimiter before keeps that reading and its questions
+(`a;b|c;` over `1;Y|Z|""` is the semicolon's `a` and `b|c` again), because a
+reading lined up only by `""` now comes last; every spacing and escaping is
+tried before a `""` is read as a closing (`1,x\,""` is `x,""` again); and the
+loader refuses a header ending in its delimiter over records all closed `""`
+(FD10) and closing runs beside a run closed the same way or past 64 (FD2),
+descriptions whose own twins were read back otherwise.
 
 ### Codes and long cells written as the source wrote them (2026-10-13)
 
