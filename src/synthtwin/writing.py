@@ -1112,8 +1112,11 @@ def _write_part(
     newline: str = "\n",
     data: "bytes | None" = None,
     members: "list[tuple[str, str]] | None" = None,
+    pieces: "list[str] | None" = None,
 ) -> "tuple[str, str]":
     """Fill one working file; say what went wrong and what it holds now.
+
+    ``pieces`` reaches `write_text_file` as it is, the text in pieces.
 
     Returns ("", ON_DISK_WORKING) when the text is on disk. On a refusal
     the first item is the message for the person and the second is what
@@ -1156,7 +1159,7 @@ def _write_part(
         if members is not None:
             write_workbook_file(place, members, words)
         elif data is None:
-            write_text_file(place, text, words, encoding, newline)
+            write_text_file(place, text, words, encoding, newline, pieces)
         else:
             write_bytes_file(place, data, words)
     except PathValidationError as error:
@@ -1963,8 +1966,13 @@ def write_one_file(
     sources: "list[tuple[pathlib.Path, str]] | None" = None,
     state: "DiskState | None" = None,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    pieces: "list[str] | None" = None,
 ) -> "list[str]":
     """Write one file whole, or leave the folder exactly as it was.
+
+    ``pieces``, where given, is the text in pieces, written one after
+    another in place of ``text`` (`write_text_file`); every rule below
+    holds for it as for one text.
 
     THE ONE-TARGET FORM OF THE TRANSACTION (plan P3-D1). `validate`
     produces a single artifact, so two-files-or-neither is not a rule it
@@ -2080,7 +2088,7 @@ def write_one_file(
         # than after, because a write that stops half way has already put
         # some of the report there.
         holds = errors.ON_DISK_WORKING
-        trouble, holding = _write_part(part, text, words)
+        trouble, holding = _write_part(part, text, words, pieces=pieces)
         if trouble:
             raise _stopped_clean_one(
                 trouble, place, [(part, holding)], words
@@ -2199,14 +2207,51 @@ def write_bytes_file(
         ) from error
 
 
+def _pieces_encoded(pieces: "list[str]", encoding: str) -> bytearray:
+    """The bytes `write_text_file` writes for ``pieces`` added in order.
+
+    ONE BUFFER OF THE FILE'S OWN SIZE, filled piece by piece (stage 4
+    lane S4c, plan P4-D390). A text made whole out of many pieces passes
+    through a size class for every length it grows by, and on this
+    machine each class stays mapped once freed: the 60.4 MB quality
+    report of a register of 997,770 rows, joined in halves, held the
+    command at 1,323 MB. The length is read first, each piece encoded
+    once for it, so the buffer is taken once at its size and never grown.
+    Nothing is translated, which is what a ``newline`` of ``"\n"`` or
+    ``""`` writes.
+
+    Guarantees: accepts the pieces and the encoding; returns
+    their bytes. Raises what encoding the text raises, as writing it
+    would. No I/O of any kind.
+    """
+    total = 0
+    for piece in pieces:
+        total = total + len(bytes(piece, encoding))
+    buffer = bytearray(total)
+    at = 0
+    for piece in pieces:
+        encoded = bytes(piece, encoding)
+        buffer[at : at + len(encoded)] = encoded
+        at = at + len(encoded)
+    return buffer
+
+
 def write_text_file(
     target: pathlib.Path,
     text: str,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
     encoding: str = "utf-8",
     newline: str = "\n",
+    pieces: "list[str] | None" = None,
 ) -> None:
     """Write ``text`` to ``target`` as UTF-8 with newline line endings.
+
+    ``pieces``, where given, is written in place of ``text``: the bytes
+    are those the pieces added in order would be written as, and the
+    text is never made whole (stage 4 lane S4c, plan P4-D390; the
+    quality report of a register of a million rows and more). Pieces are
+    written untranslated, so they are taken only with a ``newline`` of
+    ``"\n"`` or ``""``, and ValueError is raised for any other.
 
     ``encoding`` and ``newline`` change that for one file only, and one
     caller passes them: a twin is written in its source table's encoding
@@ -2230,10 +2275,15 @@ def write_text_file(
       running command writes, when the location cannot be written.
     - Boundary: one file is written and nothing is read.
     """
+    if pieces is not None and newline not in ("\n", ""):
+        raise ValueError("pieces are written with no newline translation")
     validated = validate_local_path(f"{target}", purpose="output file")
     destination = pathlib.Path(validated)
     try:
-        destination.write_text(text, encoding=encoding, newline=newline)
+        if pieces is None:
+            destination.write_text(text, encoding=encoding, newline=newline)
+        else:
+            destination.write_bytes(_pieces_encoded(pieces, encoding))
     except OSError as error:
         raise errors.ProfileError(
             errors.output_not_writable(f"{destination}", f"{error}", words)

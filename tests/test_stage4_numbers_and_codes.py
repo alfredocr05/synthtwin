@@ -187,7 +187,7 @@ def _report_codes(as_built: bool) -> "tuple[object, set[object]]":
         function, names = _report_as_built()
         built = ("quality_report", "_detail_lines", "_missed_lines", "_column_order")
         return function, {names[name].__code__ for name in built}  # type: ignore[attr-defined]
-    shipped = ("quality_report", "_detail_lines", "_missed_lines", "_column_order", "_lines_joined")
+    shipped = ("quality_report", "_report_lines", "_detail_lines", "_missed_lines", "_column_order", "_lines_joined")
     return quality.quality_report, {getattr(quality, name).__code__ for name in shipped}
 
 

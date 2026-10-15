@@ -581,6 +581,9 @@ def test_the_memory_refusal_is_reachable(
         raise MemoryError("no room")
 
     monkeypatch.setattr(pathlib.Path, "write_text", exhausted)
+    # The report is written from its pieces, as one buffer of bytes (stage
+    # 4 lane S4c, plan P4-D390), so the write that fails is that one.
+    monkeypatch.setattr(pathlib.Path, "write_bytes", exhausted)
     assert main(["validate", f"{description}"]) == 1
     told = capsys.readouterr().err
     assert "not enough memory" in told

@@ -500,15 +500,32 @@ def _quoting_said(line: str, windows: "bool | None" = None) -> str:
     return f"\n  (each value {_shell_named(windows)})"
 
 
-def _say(message: str) -> None:
+def _say(message: str, end: str = "\n") -> None:
     """Print one message to the screen, through the display boundary.
 
     One of the two places in this module that print. Whatever it is
     given goes through `parsing.visible_lines` first, so a value that
     reached here without being shown safely still cannot instruct the
     terminal. Line breaks are kept: they are synthtwin's own layout.
+    ``end`` is what follows the message, a line feed unless the caller
+    is printing one message in pieces (`_say_pieces`).
     """
-    print(parsing.visible_lines(f"{message}"))
+    print(parsing.visible_lines(f"{message}"), end=end)
+
+
+def _say_pieces(pieces: "list[str]") -> None:
+    """Print one message handed over in pieces, as `_say` prints it whole.
+
+    Each piece goes through `_say` with nothing after it -- and so
+    through `parsing.visible_lines`, which reads one character at a
+    time -- and the line feed `_say` ends a message with comes once,
+    after the last piece: the screen receives the bytes
+    `_say` gives the pieces added together (stage 4 lane S4c, plan
+    P4-D390), and the whole message is never made at once.
+    """
+    for piece in pieces:
+        _say(piece, "")
+    _say("")
 
 
 def _described_columns(
@@ -5119,13 +5136,18 @@ def _run_validate(
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
-    # disk. The two cannot differ.
-    report_text = parsing.visible_lines(
-        quality.quality_report(loaded, outcome)
-    )
+    # disk. The two cannot differ. AND IT IS NEVER MADE WHOLE (stage 4
+    # lane S4c, plan P4-D390): it crosses in the pieces
+    # `quality.report_pieces` hands over, which add up to
+    # `quality.quality_report`'s text, and each is printed and written in
+    # turn. The display boundary reads one character at a time, so the
+    # pieces cross it as the whole text would.
+    report_pieces = quality.report_pieces(loaded, outcome)
+    for index in range(len(report_pieces)):
+        report_pieces[index] = parsing.visible_lines(report_pieces[index])
     code = 3 if outcome.census.missed else 0
 
-    _say(report_text)
+    _say_pieces(report_pieces)
     _say(f"This file will be written:\n  {shown_quality_path}")
     # THE OTHERS ARE ALL NAMED, not the two nearest to hand (plan
     # amendment A-P3-8 clause 2). This sentence exists to say that a
@@ -5152,10 +5174,11 @@ def _run_validate(
     try:
         left_behind = writing.write_one_file(
             quality_path,
-            report_text,
+            "",
             sources=guarded,
             state=state,
             words=errors.QUALITY_WORDS,
+            pieces=report_pieces,
         )
     except BaseException:
         if state.sentence:
