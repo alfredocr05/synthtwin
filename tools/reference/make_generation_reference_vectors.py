@@ -7715,7 +7715,11 @@ def form_gap(text):
 # a month and a day of one or two figures each, then a year of four or
 # two -- then one space or one letter, then a clock, then nothing, a
 # marker written straight on, or one gap and a marker word; at most
-# `STAMP_FORM_LIMIT` characters, longer than a form's limit.
+# `STAMP_FORM_LIMIT` characters, longer than a form's limit.  After the
+# clock of a year-first date a zone may stand instead, written straight
+# on: one letter (`Z`) or a sign and an offset of two figures, four, or
+# two, a colon and two (skeptic 2 of L3, item 2: FHIR, JavaScript's
+# `toISOString`, PostgreSQL and RFC 3339 write them).
 STAMP_FORM_LIMIT = 32
 STAMP_CELL = re.compile(
     r"(?P<date>[0-9]{4}(?P<mark>[-/.])[0-9]{1,2}(?P=mark)[0-9]{1,2}"
@@ -7723,23 +7727,37 @@ STAMP_CELL = re.compile(
     r"(?P<part> |[A-Za-z])[0-9]{1,2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?"
     r"(?P<tail>[A-Za-z]{2}|[A-Za-z]\.[A-Za-z]\.|[ \u202f]"
     r"(AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.))?"
+    r"(?P<zone>[A-Za-z]|[-+][0-9]{2}(:?[0-9]{2})?)?"
 )
 STAMP_KEY = re.compile(
     r"(?P<date>%%%%(?P<mark>[-/.])%{1,2}(?P=mark)%{1,2}"
     r"|%{1,2}(?P<late>[-/.])%{1,2}(?P=late)(%%%%|%%))"
     r"(?P<part> |@|&)%{1,2}:%%(:%%(\.%+)?)?"
     r"(?P<tail>@@|&&|@\.@\.|&\.&\.|[ \u202f](@@|&&|@\.@\.|&\.&\.))?"
+    r"(?P<zone>@|&|[-+]%%(:?%%)?)?"
 )
 
 
 YEAR_FIRST_HYPHEN = re.compile(r"[0-9]{4}-")
 
 
+def stamp_zone(form):
+    """Where a stamp key's zone letter sits, or -1: the one `@` or `&`
+    written straight on after a year-first date's clock, which the figure
+    fill writes `Z` (`z` in a lower-case key); an offset is no letter."""
+    if stamp_gaps(form, STAMP_KEY) is None:
+        return -1
+    match = STAMP_KEY.fullmatch(form)
+    zone = match.group("zone")
+    return match.start("zone") if zone in ("@", "&") else -1
+
+
 def stamp_gaps(text, pattern):
     """The parts of a stamp, each -1 where absent, or None where ``text``
     is no stamp: the space between its date and its clock, the gap before
     its marker, the letter between its date and its clock, and its
-    marker's first character."""
+    marker's first character.  A zone after the clock is none of the four
+    (`stamp_zone`)."""
     if len(text) > STAMP_FORM_LIMIT:
         return None
     match = pattern.fullmatch(text)
@@ -7748,6 +7766,11 @@ def stamp_gaps(text, pattern):
     parted = match.start("part") if match.group("part") == " " else -1
     letter = -1 if parted >= 0 else match.start("part")
     tail = match.group("tail") or ""
+    if match.group("zone") is not None:
+        # A zone follows only a year-first date's clock, with no marker.
+        if tail or not re.match(r"[0-9%]{4}", match.group("date")):
+            return None
+        return parted, -1, letter, -1
     if not tail:
         return parted, -1, letter, -1
     if tail[:1] in FORM_GAPS:
@@ -7856,9 +7879,10 @@ def form_room(form):
     if stamp is not None and stamp[3] >= 0:
         return 2 * form_room(form[: stamp[3]])
     letter = -1 if stamp is None else stamp[2]
+    zone = stamp_zone(form)
     room = 1
     for place, character in enumerate(form):
-        if place == letter:
+        if place == letter or place == zone:
             continue
         if character == SHAPE_DIGIT:
             room *= 10
@@ -8150,6 +8174,9 @@ def filled_form(form, step, clocks=True):
         word = evening if step % 2 else morning
         return filled_form(form[: stamp[3]], step // 2, False) + word
     letter = -1 if stamp is None else stamp[2]
+    # And a zone letter after the clock is `Z` (`z` in a lower-case key),
+    # taking no part of the step (skeptic 2 of L3, item 2).
+    zone = stamp_zone(form)
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     built = ""
@@ -8157,6 +8184,8 @@ def filled_form(form, step, clocks=True):
     for at, character in enumerate(form):
         if at == letter:
             built += "t" if character == SHAPE_LOWER else "T"
+        elif at == zone:
+            built += "z" if character == SHAPE_LOWER else "Z"
         elif character == SHAPE_DIGIT:
             built += figures[place % 10]
             place //= 10

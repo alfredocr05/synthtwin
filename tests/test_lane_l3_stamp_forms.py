@@ -11,7 +11,10 @@ of three figure runs parted twice by one hyphen, slash or point, a year of
 four first or a year of four or two last, and the text after it a clock -- then nothing, a marker written straight on, or
 lane L2's one gap before a marker word -- and a stamp may run to 32
 characters. The generator's figure fill writes a stamp's marker as a word and
-the letter between its date and its clock as `T`.
+the letter between its date and its clock as `T`. A year-first stamp may end
+in a zone written straight on -- `Z`, as FHIR and JavaScript write it, or an
+offset, `-05:00`, `+0530`, `+00` -- whose letter the fill writes `Z`
+(skeptic 2 of L3, item 2).
 
 Each clause is red on the mutant its docstring names:
 
@@ -26,7 +29,10 @@ Each clause is red on the mutant its docstring names:
   each gap as the form holds it, wears the form it was filled from, and
   advertises the room it holds, in the generator and the oracle alike
   (mutants: the letter and the marker filled letter by letter; the letter
-  counted in the room);
+  counted in the room); a zone's letter is `Z` and an offset's figures are
+  filled (mutants: the zone filled by the step, in either; the zone grammar
+  removed, in either; a zone after a year-last date; the plus sign refused;
+  the zone counted in the room);
 * H5 the producer always loads: stamps of every spelling, beside rare words,
   as labels, as codes and alone, at floors 2, 11 and 36, are described,
   loaded, generated and validated, twin and table, each written back in its
@@ -37,9 +43,11 @@ Each clause is red on the mutant its docstring names:
   the stamp spellings; the generator or the recount reading such a level as
   written since L3; the generator's or the oracle's reading of the past
   blind to the stamp's space or to its length); a description written
-  before L3 of a stamp parted by `T` and of 24 characters or fewer, already
-  a form, loads and validates with 7d27335's exits but generates another
-  twin, with `T` and the marker word (skeptic 1 of L3, item 1);
+  before L3 of a stamp parted by a letter (`T`, or `t` where every letter
+  is lower case) and of 24 characters or fewer, already a form, loads and
+  validates with 7d27335's exits but generates another twin, with `T` (or
+  `t`), the marker word and a zone's `Z` (skeptic 1 of L3, item 1; skeptic 2,
+  items 1 and 2);
 * H7 machine-free: the stamp scans are counted -- at most two per call of
   `shape_form` and none for a cell no longer than 24 characters that holds
   no space and ends in no marker's last character -- so a census of
@@ -142,6 +150,14 @@ _STAMPS = {
     "1/5/24 9:15": "%/%/%% %:%%",
     "2024-1-5 9:15": "%%%%-%-% %:%%",
     "5.1.2024 09:15:30": "%.%.%%%% %%:%%:%%",
+    # A zone after a year-first stamp's clock (skeptic 2 of L3, item 2):
+    # FHIR and JavaScript's `Z`, RFC 3339's and PostgreSQL's offsets.
+    "2024-01-05T09:15:30Z": "%%%%-%%-%%@%%:%%:%%@",
+    "2024-01-05T09:15:30.123Z": "%%%%-%%-%%@%%:%%:%%.%%%@",
+    "2024-01-05T09:15:30.123456Z": "%%%%-%%-%%@%%:%%:%%.%%%%%%@",
+    "2024-01-05T09:15-05:00": "%%%%-%%-%%@%%:%%-%%:%%",
+    "2024-01-05T09:15:30+0530": "%%%%-%%-%%@%%:%%:%%+%%%%",
+    "2024-01-05 09:15:30.123+00": "%%%%-%%-%% %%:%%:%%.%%%+%%",
 }
 
 _NO_STAMPS = (
@@ -162,6 +178,11 @@ _NO_STAMPS = (
     "24/01/2024/1 09:15",
     "2024-01-05 09:15 +01:00",
     "2024-01-05 09:15Z ",
+    "1/5/2024 9:15Z",  # a zone after a year-last date
+    "2024-01-05 09:15+5",  # an offset of one figure
+    "2024-01-05 09:15+05:0",
+    "2024-01-05 9:15AMZ",  # a zone after a marker
+    "2024-01-05T09:15:30.1234567-05:00",  # 33 characters
     "Jan 5 2024 9:15 AM",
     "01/05/2024 09:15:30.12345678 a.m.",  # 33 characters
     "Ward 7",
@@ -196,7 +217,10 @@ def test_h1_a_stamp_holds_the_space_between_its_date_and_its_clock() -> None:
 def test_h1_red_where_the_space_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     """MUTATION: no stamp read, as on 7d27335: every spaced or long stamp is formless."""
     monkeypatch.setattr(parsing, "_stamp_cell_gaps", lambda text: None)
-    assert [cell for cell in _STAMPS if parsing.shape_form(cell)] == []
+    # A short zoned stamp holding no space was a form before L3, and stays one.
+    spaced = [cell for cell in _STAMPS if " " in cell or NARROW in cell or len(cell) > 24]
+    assert len(spaced) == len(_STAMPS) - 4
+    assert [cell for cell in spaced if parsing.shape_form(cell)] == []
     assert parsing.shape_form("2024-01-05 09:15") == ""
 
 
@@ -244,6 +268,10 @@ def test_h2_every_stamp_form_is_a_written_form_and_no_other_spaced_key_is() -> N
         "%%/%%/%%%% %%:%%:%%.%%%%%%%% @.@.",  # 33 characters
         "%%%%-%%-%% @@",
         "@@ %%:%%",
+        "%/%/%%%% %:%%@",  # a zone after a year-last date
+        "%%%%-%%-%% %%:%%+%",
+        "%%%%-%%-%% %%:%%@@@",
+        "%%%%-%%-%%@%%:%%:%%.%%%%%%%-%%:%%",  # 33 characters
     ):
         assert not parsing.is_a_written_form(key), key
 
@@ -343,7 +371,8 @@ def test_h4_a_stamp_form_is_filled_with_its_letter_its_marker_word_and_its_gaps(
     filled_form = oracle["filled_form"]
     form_room = oracle["form_room"]
     form_steps = oracle["form_steps"]
-    assert callable(filled_form) and callable(form_room) and callable(form_steps)
+    stamp_zone = oracle["stamp_zone"]
+    assert callable(filled_form) and callable(form_room) and callable(form_steps) and callable(stamp_zone)
     for key in (form, parsing.lower_case_form(form)):
         if not key:
             continue
@@ -362,6 +391,10 @@ def test_h4_a_stamp_form_is_filled_with_its_letter_its_marker_word_and_its_gaps(
         assert letter is not None
         if letter[2] >= 0:
             assert {spelling[letter[2]] for spelling in spellings} == {"t" if "&" in key else "T"}
+        zone = parsing.stamp_key_zone_at(key)
+        assert zone == stamp_zone(key)
+        if zone >= 0:
+            assert {spelling[zone] for spelling in spellings} == {"z" if "&" in key else "Z"}
         if NARROW in key:
             assert all(NARROW in spelling and spelling.count(" ") == key.count(" ") for spelling in spellings)
 
@@ -394,6 +427,71 @@ def test_h4_the_letter_takes_no_place_in_the_room() -> None:
     assert generation._form_room("%%%%-%%-%% %:%%@@") == 2 * 10 ** 11
     assert generation._form_room("%%%%-%%-%%&%:%% &&") == 2 * 10 ** 11
     assert generation._form_room("@%%.%") == 26000
+    # Nor its zone, always `Z` (skeptic 2 of L3, item 2; mutant: the zone
+    # counted as one of 26).
+    assert generation._form_room("%%%%-%%-%%@%%:%%:%%@") == 10 ** 14
+    assert generation._form_room("%%%%-%%-%%&%%:%%:%%.%%%&") == 10 ** 17
+    assert generation._form_room("%%%%-%%-%%@%%:%%-%%:%%") == 10 ** 16
+
+
+_ZONES = {
+    "%%%%-%%-%%@%%:%%:%%@": 19,
+    "%%%%-%%-%%&%%:%%:%%&": 19,
+    "%%%%-%%-%%@%%:%%:%%.%%%@": 23,
+    "%%%%-%%-%% %%:%%:%%.%%%%%%@": 26,
+    "%%%%-%%-%%@%%:%%-%%:%%": -1,
+    "%%%%-%%-%%@%%:%%:%%+%%%%": -1,
+    "%%%%-%%-%% %%:%%:%%.%%%+%%": -1,
+    "%%%%-%%-%%@%%:%%": -1,
+    "%%%%-%%-%%@%:%%@@": -1,
+    "%/%/%%%% %:%%@": -1,
+    "%%/%%/%%%%@%%:%%@": -1,
+    "@%%.%@": -1,
+}
+
+
+def test_h4_a_zone_after_the_clock_is_written_z_and_its_t_kept() -> None:
+    """H4: FHIR's `2024-01-05T09:15:30Z` is written with its `T` and its `Z` (skeptic 2 of L3, item 2).
+
+    A stamp of a year-first date may end in a zone written straight on --
+    one letter, or a sign and an offset of two figures, four, or two, a
+    colon and two -- and its form's letter between the date and the clock
+    is `T` and its zone letter `Z` (`t` and `z` in a lower-case key), each
+    taking no part of the step, in the generator and the oracle alike; an
+    offset's figures are filled. Before, the trailing letter made the form
+    no stamp's and both letters were stepped (`7040-00-00A06:43:99N`).
+    Mutants: the zone filled by the step (generator or oracle); the zone
+    grammar removed (generator or oracle); a zone after a year-last date
+    taken; the plus sign refused in a cell; the zone counted in the room.
+    """
+    oracle = _oracle_module()
+    stamp_zone = oracle["stamp_zone"]
+    filled_form = oracle["filled_form"]
+    written_form = oracle["written_form"]
+    assert callable(stamp_zone) and callable(filled_form) and callable(written_form)
+    for key, place in _ZONES.items():
+        assert parsing.stamp_key_zone_at(key) == place == stamp_zone(key), key
+    for cell in ("2024-01-05T09:15:30Z", "2024-01-05T09:15:30.123456Z", "2024-01-05 09:15:30.123+00", "1/5/2024 9:15Z"):
+        assert parsing.shape_form(cell) == written_form(cell), cell
+    for key in ("%%%%-%%-%%@%%:%%:%%@", "%%%%-%%-%%&%%:%%:%%.%%%&", "%%%%-%%-%%@%%:%%-%%:%%", "%%%%-%%-%%@%%:%%:%%+%%%%"):
+        lower = "&" in key
+        spellings = [generation._filled_form(key, step) for step in range(500)]
+        assert spellings == [filled_form(key, step) for step in range(500)], key
+        assert len(set(spellings)) == 500
+        for spelling in spellings:
+            assert spelling[10] == ("t" if lower else "T"), spelling
+            assert parsing.shape_form(spelling) == key.replace("&", "@"), spelling
+            if key.endswith(("@", "&")):
+                assert spelling[-1] == ("z" if lower else "Z"), spelling
+            else:
+                assert re.search(r"[0-9][-+][0-9]{2}:?[0-9]{2}$", spelling), spelling
+
+
+def test_h4_red_where_the_zone_is_filled_by_the_step(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the zone letter filled by the step, as before: `7040-00-00T06:43:99N`."""
+    monkeypatch.setattr(parsing, "stamp_key_zone_at", lambda name: -1)
+    key = "%%%%-%%-%%@%%:%%:%%@"
+    assert {generation._filled_form(key, step)[-1] for step in range(50)} != {"Z"}
 
 
 # -- H5: the producer always loads ---------------------------------------------
@@ -551,18 +649,22 @@ def test_h6_a_description_written_before_l3_loads_and_generates_its_twin(
 def test_h6_a_short_t_stamp_described_before_l3_loads_validates_and_moves_its_twin(
     tmp_path: pathlib.Path, name: str
 ) -> None:
-    """H6: a stamp parted by `T` and of 24 characters or fewer was already a form.
+    """H6: a stamp parted by a letter and of 24 characters or fewer was already a form.
 
     7d27335's description publishes that form and filled its `T` and its
     marker letter by letter (`7040-00-06C28:35`); since L3 the fill writes
     `T` and the marker word, so the description loads, validates with the
     exits 7d27335 gave against its own twin and its table, and generates
-    another twin, pinned here (skeptic 1 of L3, item 1).
+    another twin, pinned here (skeptic 1 of L3, item 1). So does a stamp
+    parted by a lower-case `t` (`2024-01-05t09:15`, written `t`) and one
+    ending in a zone (`2024-01-05T09:15:30Z`, written with its `T` and its
+    `Z`) (skeptic 2 of L3, items 1 and 2; mutants: the letter or the zone
+    filled by the step, the zone grammar removed).
     """
     text, profile_sha, base_twin_sha, twin_sha, exits = before.MOVED[name]
     assert hashlib.sha256(text.encode("utf-8")).hexdigest() == profile_sha
     forms = json.loads(text)["columns"][0]["shape_forms"]
-    assert forms and all(form[10:11] == "@" and len(form) <= parsing.SHAPE_FORM_LIMIT for form in forms)
+    assert forms and all(form[10:11] in ("@", "&") and len(form) <= parsing.SHAPE_FORM_LIMIT for form in forms)
     profile = tmp_path / "real-profile.json"
     profile.write_text(text, encoding="utf-8", newline="\n")
     contract.load_profile(str(profile))
@@ -572,10 +674,15 @@ def test_h6_a_short_t_stamp_described_before_l3_loads_validates_and_moves_its_tw
     twin = out / "real-twin.csv"
     assert hashlib.sha256(twin.read_bytes()).hexdigest() == twin_sha != base_twin_sha
     rows = twin.read_text(encoding="utf-8").splitlines()[1:]
-    stamped = [row for row in rows if parsing.shape_form(row) in forms]
-    assert len(stamped) * 2 > len(rows) and all(row[10] == "T" for row in stamped)
-    if "@@" in "".join(forms):
-        assert all(row[-2:] in ("AM", "PM") for row in stamped)
+    stamped = [(row, generation._level_key(row)) for row in rows if generation._level_key(row) in forms]
+    assert len(stamped) * 2 > len(rows)
+    for row, key in stamped:
+        assert row[10] == ("t" if key[10] == "&" else "T"), row
+        if key.endswith("@@"):
+            assert row[-2:] in ("AM", "PM"), row
+        if parsing.stamp_key_zone_at(key) >= 0:
+            assert row[-1] == ("z" if key[-1] == "&" else "Z"), row
+    assert (name != "moved-zone") or all(row.endswith("Z") for row, _key in stamped)
     table = tmp_path / "real.csv"
     table.write_text("seen_at\n" + "\n".join(before.moved_tables()[name]) + "\n", encoding="utf-8", newline="\n")
     got = []

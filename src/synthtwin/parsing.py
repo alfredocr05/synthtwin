@@ -1550,6 +1550,17 @@ STAMP_FORM_LIMIT = 32
 # What parts a stamp's date from its clock in its form: one plain space,
 # or one letter (`T`) written as either letter placeholder.
 _STAMP_PARTINGS = (" ", SHAPE_LETTER, SHAPE_LOWER)
+# A ZONE WRITTEN STRAIGHT ON AFTER A YEAR-FIRST STAMP'S CLOCK (skeptic 2 of
+# lane L3, item 2): FHIR's `instant` and `dateTime` and JavaScript's
+# `toISOString` write `2024-01-05T09:15:30Z` and `2024-01-05T09:15:30.123Z`,
+# PostgreSQL's text output writes `2024-01-05 09:15:30+00`, and RFC 3339
+# writes `2024-01-05T09:15-05:00`. After the clock of a stamp whose date is
+# a year of four first, one letter placeholder (`Z`) or a sign and an
+# offset of two figures, four figures, or two, a colon and two may stand;
+# a stamp of a year-last date takes neither, as no export writes one so.
+_STAMP_OFFSET_FORMS = tuple(
+    sign + body for sign in ("+", "-") for body in ("%%", "%%%%", "%%:%%")
+)
 
 
 def _is_a_digit(character: str) -> bool:
@@ -1724,7 +1735,10 @@ def _stamp_gaps_in(form: str) -> "tuple[int, int, int, int] | None":
     letter placeholder (`@` or `&`, the `T` of ISO), then a clock's body
     (`_is_a_clock_body_form`), then nothing, a marker key written straight
     on (`@@`, `&&`, `@.@.`, `&.&.`), or one gap (`SHAPE_GAPS`) and a marker
-    key; `STAMP_FORM_LIMIT` characters at most. Answers four places, each
+    key -- or, where the date is a year of four first, a zone written
+    straight on, one letter placeholder (`Z`) or an offset
+    (`_STAMP_OFFSET_FORMS`; skeptic 2 of L3, item 2);
+    `STAMP_FORM_LIMIT` characters at most. Answers four places, each
     -1 where the stamp holds no such part: the space between the date and
     the clock, the gap before the marker, the letter between the date and
     the clock, and the marker's first character. One pass of the form.
@@ -1755,6 +1769,12 @@ def _stamp_gaps_in(form: str) -> "tuple[int, int, int, int] | None":
         return parted, -1, letter, end
     if tail[:1] in SHAPE_GAPS and tail[1:] in _SHAPE_MERIDIEM_KEYS:
         return parted, end, letter, end + 1
+    # A zone after a year-first stamp's clock (`_STAMP_OFFSET_FORMS`; its
+    # letter's place is `stamp_key_zone_at`'s answer, not one of these four).
+    if form[:4] == SHAPE_DIGIT * 4 and (
+        tail == SHAPE_LETTER or tail == SHAPE_LOWER or tail in _STAMP_OFFSET_FORMS
+    ):
+        return parted, -1, letter, -1
     return None
 
 
@@ -1762,8 +1782,8 @@ def _stamp_cell_gaps(text: str) -> "tuple[int, int, int, int] | None":
     """The parts of a cell that is a stamp, or None (P4-D393).
 
     The cell read as a form -- each figure `SHAPE_DIGIT`, each ASCII
-    letter `SHAPE_LETTER`, a hyphen, a slash, a colon, a point and a gap
-    standing as themselves, anything else no stamp -- and asked of
+    letter `SHAPE_LETTER`, a hyphen, a slash, a colon, a point, a plus
+    sign and a gap standing as themselves, anything else no stamp -- and asked of
     `_stamp_gaps_in`; a gap before the marker stands only before one of
     the eight marker words, as lane L2's does. Eleven characters at the
     fewest (`1/5/24 9:15`), `STAMP_FORM_LIMIT` at the most, so a cell
@@ -1773,14 +1793,15 @@ def _stamp_cell_gaps(text: str) -> "tuple[int, int, int, int] | None":
         return None
     # The figure and letter ranges are `_is_a_digit`'s and `_is_a_letter`'s,
     # compared here in line: this read runs on every cell holding a space
-    # or ending in a marker's last character, twice per `shape_form`.
+    # or ending in a marker's last character, twice per `shape_form`. A
+    # plus sign stands too, an offset's (`_STAMP_OFFSET_FORMS`).
     form = ""
     for character in text:
         if "0" <= character <= "9":
             form = form + SHAPE_DIGIT
         elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
             form = form + SHAPE_LETTER
-        elif character in SHAPE_GAPS or character in ("-", "/", ":", "."):
+        elif character in SHAPE_GAPS or character in ("-", "/", ":", ".", "+"):
             form = form + character
         else:
             return None
@@ -1842,13 +1863,34 @@ def stamp_key_parts(name: str) -> "tuple[int, int, int, int] | None":
     between its date and its clock, the gap before its marker key, the
     letter placeholder between its date and its clock (`T`), and its
     marker key's first character -- what the generator's figure fill
-    writes as the letter `T` and as a marker word (method G8.3). Raises
+    writes as the letter `T` and as a marker word (method G8.3); a zone
+    letter after the clock is `stamp_key_zone_at`'s, written `Z`. Raises
     TypeError if handed anything that is not a string instance. No I/O
     of any kind.
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
     return _stamp_gaps_in(name)
+
+
+def stamp_key_zone_at(name: str) -> int:
+    """Where the zone letter of a stamp's census key sits, or -1 (skeptic 2 of L3, item 2).
+
+    The place of the one letter placeholder written straight on after the
+    clock of a stamp whose date is a year of four first -- the `Z` of
+    `2024-01-05T09:15:30Z`, keyed `%%%%-%%-%%@%%:%%:%%@` -- which the
+    generator's figure fill writes `Z` (`z` in a lower-case key), as it
+    writes the letter between the date and the clock `T` (method G8.3);
+    -1 for every other key, an offset's included. A marker key ends in two
+    letter placeholders or a point, so a letter after a figure at the end
+    of a stamp's key is its zone. Raises TypeError if handed anything that
+    is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if name[-1:] not in (SHAPE_LETTER, SHAPE_LOWER) or name[-2:-1] != SHAPE_DIGIT:
+        return -1
+    return -1 if _stamp_gaps_in(name) is None else len(name) - 1
 
 
 def _shaped_since_stamps(text: str) -> bool:

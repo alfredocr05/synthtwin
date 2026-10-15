@@ -42322,6 +42322,12 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
         head = _filled_form(form[: stamp[3]], step // 2, False)
         return head + words[0][1 + step % 2]
     letter = -1 if stamp is None else stamp[2]
+    # ...AND ITS ZONE A `Z` (skeptic 2 of L3, item 2): FHIR and JavaScript
+    # write `2024-01-05T09:15:30Z`, whose form ends in one letter after its
+    # clock; filled by the step it came out `7040-00-00A06:43:99N`, which
+    # no code testing `endswith("Z")` takes. It is `Z` (`z` in a lower-case
+    # key) and takes no part of the step; an offset's figures are filled.
+    zone = -1 if stamp is None else parsing.stamp_key_zone_at(form)
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -42337,6 +42343,9 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
         at = at + 1
         if at == letter:
             spelling = spelling + ("t" if character == parsing.SHAPE_LOWER else "T")
+            continue
+        if at == zone:
+            spelling = spelling + ("z" if character == parsing.SHAPE_LOWER else "Z")
             continue
         if character == parsing.SHAPE_DIGIT:
             spelling = spelling + figures[place % 10]
@@ -42866,11 +42875,15 @@ def _form_room(form: str) -> int:
     if stamp is not None and stamp[3] >= 0:
         return 2 * _form_room(form[: stamp[3]])
     letter = -1 if stamp is None else stamp[2]
+    # Nor its zone, always `Z` (skeptic 2 of L3, item 2).
+    zone = -1 if stamp is None else parsing.stamp_key_zone_at(form)
     room = 1
     at = -1
     for character in form:
         at = at + 1
         if at == letter:
+            continue
+        if at == zone:
             continue
         if character == parsing.SHAPE_DIGIT:
             room = room * 10
