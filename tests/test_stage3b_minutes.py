@@ -1009,6 +1009,70 @@ def test_a_grid_written_four_times_beside_its_count_at_midnight_withholds_its_cl
     assert calendar_clock.lattice_crowded(300, 0, 300_000, 1001, False, 4004, True, True)
 
 
+def _sampled_quarter_hours() -> "list[str]":
+    """Lane J3's Codex review, item 1: 1,500 of 2,000 quarter-hour slots from 2015-01-01
+    00:13:00 (`random.Random(123).sample`), each written twice."""
+    start = datetime.datetime(2015, 1, 1, 0, 13)
+    cells: "list[str]" = []
+    for place in sorted(random.Random(123).sample(range(2000), 1500)):
+        cells += [(start + datetime.timedelta(minutes=15 * place)).strftime("%Y-%m-%d %H:%M:%S")] * 2
+    return cells
+
+
+def test_a_partial_grid_off_midnight_below_the_draw_keeps_its_clock_facts(tmp_path: pathlib.Path) -> None:
+    """Lane J3's Codex review, item 1 (NF121, NF122): 1,500 of 2,000 quarter-hour slots
+    from 00:13, each written twice -- 3,000 rows, 1,500 values filling 0.7557 of their
+    fifteen-minute lattice at floor 11, below the 0.7795 that 3,000 rows drawn uniformly
+    over it would fill. d3712a1 published minute heaps at 13, 28, 43 and 58 and a second's
+    heap at 0, and all six twins at floors 11 and 36, seeds 0 to 2, met every fact;
+    d05a8e9 called the lattice crowded off midnight whatever the draw and withheld both
+    fields, and its seed-0 twins wrote 77 and 68 cells of 3,000 at second 0 (2,994 and
+    2,998 with the facts). The phase's exception now asks the lattice to be filled above
+    such a draw: both floors publish the heaps, carry no crowded note, and every twin meets
+    them with nearly every cell at second 0."""
+    cells = _sampled_quarter_hours()
+    crowded = (taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_CROWDED, ()), taxonomy.rendered(taxonomy.NOTE_SECOND_WITHHELD_CROWDED, ()))
+    for floor in (11, 36):
+        described = _one_column(tmp_path / f"sampled-{floor}", "c", cells, floor)
+        block = described.block("c")
+        assert [heap["value"] for heap in block["minute_heaps"]] == [13, 28, 43, 58], floor
+        assert [heap["value"] for heap in block["second_heaps"]] == [0], floor
+        said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "c"]
+        assert not [note for note in said if note in crowded], floor
+        for seed in (0, 1, 2):
+            written = kpi_shapes.twin_text(described, seed)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (floor, seed)
+            assert sum(1 for cell in written.splitlines()[1:] if cell.endswith(":00")) >= 2900, (floor, seed)
+    # By hand, the two calls: 1,500 values on 1,985 and 1,953 points of 900 seconds.
+    assert not calendar_clock.lattice_crowded(900, 1_420_078_380, 1_421_863_980, 1500, False, 3000, False, True, True)
+    assert not calendar_clock.lattice_crowded(900, 1_420_090_980, 1_421_847_780, 1500, False, 3000, False, True, True)
+
+
+def test_a_crowded_lattice_is_filled_above_a_uniform_draw_on_every_path() -> None:
+    """Lane J3's Codex review, item 2 (NF121, NF122): the notes say a crowded column's
+    different values fill half or more of the lattice's places -- a third where every value
+    is different -- and more of them than its values drawn at random would. d05a8e9's
+    exceptions (off midnight, and beside a count at midnight with more than
+    `CROWDED_REPEATED_VALUES` values) skipped the draw: Codex's sampled quarter hours, 0.7557
+    of their points against a draw's 0.7795, were called crowded and given both notes. Over
+    every flag and fills from below the share to the whole lattice, a call the rule calls
+    crowded with its parsed cells given holds both inequalities the notes state."""
+    for unit, points in ((60, 400), (300, 1000), (900, 1985), (3600, 2500)):
+        for distinct in sorted({points // 3, points // 2, (points * 7) // 10, (points * 3) // 4, (points * 4) // 5, (points * 9) // 10, (points * 49) // 50, points}):
+            for parsed in sorted({distinct, (distinct * 3) // 2, 2 * distinct, 3 * distinct, 4 * distinct, 6 * distinct}):
+                for midnight_counted in (False, True):
+                    for none_once in (False, True):
+                        for off_phase in (False, True):
+                            all_different = parsed == distinct
+                            if not calendar_clock.lattice_crowded(unit, 0, unit * (points - 1), distinct, all_different, parsed, midnight_counted, none_once, off_phase):
+                                continue
+                            share = 3 if all_different else 2
+                            drawn = 1.0 - (1.0 - 1.0 / points) ** parsed
+                            case = (unit, points, distinct, parsed, midnight_counted, none_once, off_phase)
+                            assert distinct * share >= points, case
+                            assert distinct / points > drawn, case
+
+
 def test_the_lattice_at_its_phase_reads_each_published_value_once(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lane J3: `calendar_clock.crowding_unit` reads each published body value once a field
     and each heap once -- counted in operations, machine-free, at 1,000 to 1,000,000 values,

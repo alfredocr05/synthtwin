@@ -1570,8 +1570,11 @@ def lattice_crowded(
         return False
     if parsed <= 0:
         return True
+    # The share of the points `parsed` uniform draws fill, on average.
+    drawn = 1.0 - (1.0 - 1.0 / points) ** parsed
     if none_once and (off_phase or (midnight_counted and distinct > CROWDED_REPEATED_VALUES)):
-        return True
+        # Above the draw by any margin (lane J3's Codex review, item 1).
+        return distinct / points > drawn
     above, over = CROWDED_EXCESS
     # Off midnight with no value written once has returned above, so the
     # fifth is never asked there.
@@ -1582,8 +1585,6 @@ def lattice_crowded(
         and distinct <= CROWDED_REPEATED_VALUES
     ):
         above, over = CROWDED_EXCESS_REPEATED
-    # The share of the points `parsed` uniform draws fill, on average.
-    drawn = 1.0 - (1.0 - 1.0 / points) ** parsed
     return distinct / points - drawn >= above / over
 
 # anchor 3b-C1 (P4-D373)
