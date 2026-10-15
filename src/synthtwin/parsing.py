@@ -1732,13 +1732,14 @@ def _stamp_gaps_in(form: str) -> "tuple[int, int, int, int] | None":
     """
     if len(form) > STAMP_FORM_LIMIT:
         return None
-    start = -1
-    for date in _STAMP_DATE_FORMS:
-        cut = len(date)
-        if form[:cut] == date and form[cut : cut + 1] in _STAMP_PARTINGS:
-            start = cut
-            break
-    if start < 0:
+    # The date is the run of figures and date marks the form opens with,
+    # read once and asked of the closed list once.
+    start = 0
+    while start < len(form) and form[start] in (SHAPE_DIGIT, "-", "/", "."):
+        start = start + 1
+    if form[:start] not in _STAMP_DATE_FORMS:
+        return None
+    if form[start : start + 1] not in _STAMP_PARTINGS:
         return None
     end = start + 1
     while end < len(form) and form[end] in (SHAPE_DIGIT, ":", "."):
@@ -1770,11 +1771,14 @@ def _stamp_cell_gaps(text: str) -> "tuple[int, int, int, int] | None":
     """
     if len(text) < 11 or len(text) > STAMP_FORM_LIMIT:
         return None
+    # The figure and letter ranges are `_is_a_digit`'s and `_is_a_letter`'s,
+    # compared here in line: this read runs on every cell holding a space
+    # or ending in a marker's last character, twice per `shape_form`.
     form = ""
     for character in text:
-        if _is_a_digit(character):
+        if "0" <= character <= "9":
             form = form + SHAPE_DIGIT
-        elif _is_a_letter(character):
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
             form = form + SHAPE_LETTER
         elif character in SHAPE_GAPS or character in ("-", "/", ":", "."):
             form = form + character
@@ -1794,9 +1798,9 @@ def _stamp_form(text: str) -> str:
         return ""
     form = ""
     for character in text:
-        if _is_a_digit(character):
+        if "0" <= character <= "9":
             form = form + SHAPE_DIGIT
-        elif _is_a_letter(character):
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
             form = form + SHAPE_LETTER
         else:
             form = form + character
