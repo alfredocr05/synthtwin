@@ -19,9 +19,12 @@ published only where each run and each closing's total reach the census
 line, as line endings are; otherwise the commonest closing is written
 throughout. The twin closes each line that way, the loader reads it (and
 refuses runs below the line, FD2), and the validator checks it. Files the
-reader read before are read exactly as before: on a battery of 193 tables
-the 89 read before are byte-identical, and the 104 that were refused or
-read as one column are read. Measured on the codex table at 1,000,000 rows:
+reader read as more than one column are read exactly as before: on a
+battery of 193 tables the 89 read so are byte-identical, and the 104 that
+were refused or read as one fall-back column are read. A description
+written before of such a one-column reading still loads and writes the
+same twin, but the real table now misses it at exit 3, being read as its
+columns: describe that table again. Measured on the codex table at 1,000,000 rows:
 98 s and 1,013 MB to describe.
 
 ### Codes and long cells written as the source wrote them (2026-10-13)
