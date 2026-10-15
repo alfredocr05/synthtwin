@@ -3057,13 +3057,17 @@ def closing_runs_broken(runs: "tuple[EndingRun, ...]") -> str:
     keeps at most `MAXIMUM_ENDING_RUNS` of them (`closing_runs_disclosed`),
     so a run beside one of the same closing, or a run past that cap, is a
     description its own twin is measured otherwise than (Codex's review
-    of landing R6, item 4). The loader (FD2) and the publication guard
-    both ask this, beside `endings_broken`'s census line. Returns an
-    empty string for runs the producer could publish.
+    of landing R6, item 4); so is a run of no records, which the census
+    line lets through at a floor of one. The loader (FD2) and the
+    publication guard both ask this, beside `endings_broken`'s census
+    line. Returns an empty string for runs the producer could publish.
 
     Guarantees: accepts the published runs; returns text. Determinism: a
     fixed function of the runs. Raises nothing. No I/O of any kind.
     """
+    for place, run in enumerate(runs):
+        if run.lines < 1:
+            return f"run {place + 1} of the closings holds no record"
     if len(runs) > MAXIMUM_ENDING_RUNS:
         return (
             f"the closings are published as {len(runs)} runs, and the cap "

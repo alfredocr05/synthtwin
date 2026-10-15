@@ -1216,7 +1216,8 @@ INVARIANTS = {
     ),
     "FD10": (
         "only a header read from the file carries a trailing delimiter or "
-        "a quoting rule of its own, rows do not both carry a trailing "
+        "a quoting rule of its own, only rows under such a header carry a "
+        "trailing delimiter, rows do not both carry a trailing "
         "delimiter and leave out their empty cells, and a header carrying "
         "one does not stand over records all closed with an empty value "
         "in quotation marks"
@@ -6020,13 +6021,23 @@ def _dialect_rules(
             "a quoting rule is published for rows of column descriptions",
             "there are none",
         )
-    if (not headed and (form.header_trailing_delimiter or form.header_quoting != dialect.QUOTE_NEEDED)) or (
-        form.short_rows and form.rows_trailing_delimiter
-    ):
+    # Under a header NOT read from the file the survey takes the width
+    # from the first record, so a delimiter ending it is a column more,
+    # and the producer publishes the rows closed `false`; rows closed
+    # otherwise there wrote a twin read back one column wider (the
+    # verifier of Codex's review of landing R6, open item 1).
+    if (
+        not headed
+        and (
+            form.header_trailing_delimiter
+            or form.rows_trailing_delimiter
+            or form.header_quoting != dialect.QUOTE_NEEDED
+        )
+    ) or (form.short_rows and form.rows_trailing_delimiter):
         raise _broken(
             "FD10", where,
-            "the header is published with a trailing delimiter or a quoting rule, or the rows with both a trailing delimiter and left-out empty cells",
-            "a header read from the file, and rows written one of those ways at most",
+            "the header is published with a trailing delimiter or a quoting rule, or the rows with a trailing delimiter under no header read from the file or with both a trailing delimiter and left-out empty cells",
+            "a header read from the file, and rows written one of those ways at most, a trailing delimiter only under that header",
         )
     # A HEADER ENDING IN ITS DELIMITER OVER RECORDS ALL CLOSED `""` IS A
     # TABLE WITH ONE COLUMN MORE (Codex's review of landing R6, item 3).

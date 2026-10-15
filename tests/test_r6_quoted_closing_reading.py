@@ -72,12 +72,14 @@ def _read(text: str, floor: int = 11) -> "dialect.Survey":
     return dialect.settle(text, "utf-8", False, False, "t.csv", small_cell_floor=floor)
 
 
-def _round_trip(folder: pathlib.Path, text: str, floor: int = 11) -> "dict[str, object]":
-    """Describe, build, describe the twin again; validate twin and table."""
+def _round_trip(folder: pathlib.Path, text: str, floor: int = 11, headerless: bool = False) -> "dict[str, object]":
+    """Describe, build, describe the twin again; validate twin and table.
+    ``headerless`` describes both with `--first-row data`."""
     folder.mkdir(parents=True, exist_ok=True)
     real = folder / "real.csv"
     real.write_bytes(text.encode("utf-8"))
     floor_flag = ["--smallest-group", str(floor)] if floor != 11 else []
+    floor_flag += ["--first-row", "data"] if headerless else []
     assert _exit_of(["profile", str(real), "--out-dir", str(folder), "--replace"] + floor_flag) == 0
     described = folder / "real-profile.json"
     assert _exit_of(["generate", str(described), "--out-dir", str(folder), "--seed", "4", "--replace"]) == 0
@@ -97,6 +99,7 @@ def _round_trip(folder: pathlib.Path, text: str, floor: int = 11) -> "dict[str, 
     second = json.loads((again / "twin-profile.json").read_text(encoding="utf-8"))
     return {
         "names": [column["name"] for column in first["columns"]],
+        "twin_names": [column["name"] for column in second["columns"]],
         "form": first["source"]["dialect"],
         "twin_form": second["source"]["dialect"],
         "twin": twin.read_bytes().decode("utf-8"),
@@ -559,29 +562,37 @@ def test_the_escapings_are_tried_before_a_quoted_closing(d: str) -> None:
     assert dialect.trailing_published(found.form) == {"header": False, "rows": False}
 
 
-def _described(folder: pathlib.Path, text: str, floor: int = 11) -> "tuple[pathlib.Path, dict]":
-    """Describe a made-up table; the description's path and document."""
+def _described(
+    folder: pathlib.Path, text: str, floor: int = 11, headerless: bool = False
+) -> "tuple[pathlib.Path, dict]":
+    """Describe a made-up table; the description's path and document.
+    ``headerless`` describes it with `--first-row data`."""
     folder.mkdir(parents=True, exist_ok=True)
     real = folder / "real.csv"
     real.write_bytes(text.encode("utf-8"))
     floor_flag = ["--smallest-group", str(floor)] if floor != 11 else []
+    floor_flag += ["--first-row", "data"] if headerless else []
     assert _exit_of(["profile", str(real), "--out-dir", str(folder), "--replace"] + floor_flag) == 0
     described = folder / "real-profile.json"
     return described, json.loads(described.read_text(encoding="utf-8"))
 
 
-def _built(path: pathlib.Path, floor: int = 11) -> dict:
+def _built(path: pathlib.Path, floor: int = 11, headerless: bool = False) -> dict:
     """The description the producer builds for a table, before the guard."""
     from synthtwin import profile, reading, taxonomy
 
-    table = reading.read_table(str(path), small_cell_floor=floor)
+    first_row = reading.FIRST_ROW_DATA if headerless else reading.FIRST_ROW_AUTOMATIC
+    table = reading.read_table(str(path), first_row=first_row, small_cell_floor=floor)
     return profile.build_document(table, taxonomy.Settings(small_cell_floor=floor), [], [], [])
 
 
-def _refused_by_both(folder: pathlib.Path, document: dict, trailing: dict, rule: str) -> None:
+def _refused_by_both(
+    folder: pathlib.Path, document: dict, trailing: dict, rule: str, floor: int = 11, headerless: bool = False
+) -> None:
     """The loader refuses the described table's description with
     ``trailing`` under ``rule``, and the publication guard refuses the
-    producer's document for it edited the same way."""
+    producer's document for it edited the same way (built at ``floor``,
+    ``headerless`` with `--first-row data`)."""
     from synthtwin import profile
 
     edited = json.loads(json.dumps(document))
@@ -590,7 +601,7 @@ def _refused_by_both(folder: pathlib.Path, document: dict, trailing: dict, rule:
     with pytest.raises(errors.ProfileError) as refused:
         contract.load_profile(str(written))
     assert rule in str(refused.value), (trailing, str(refused.value)[:300])
-    built = _built(folder / "real.csv")
+    built = _built(folder / "real.csv", floor, headerless)
     profile.check_publication(built)
     built["source"]["dialect"]["trailing_delimiter"] = trailing
     with pytest.raises(errors.ProfileError):
@@ -702,3 +713,85 @@ def test_closing_runs_up_to_the_cap_are_published_measured_back_and_named(tmp_pa
             assert trailing["rows"] == "quoted", trailing
         assert result["twin_form"] == result["form"], count
         assert result["exits"] == {"twin": 0, "real": 0}, (count, result["exits"])
+
+
+# -- The verifier of the Codex fix stream (head 8abdbbe), two open items -----
+
+
+def _headerless(text: str) -> str:
+    """A made-up table's records without its header line."""
+    return text.split("\n", 1)[1]
+
+
+def test_a_headerless_table_s_rows_never_load_with_a_trailing_delimiter(tmp_path: pathlib.Path) -> None:
+    """Item 3's class, without a header (the verifier's open item 1).
+    Under a header not read from the file the survey takes the width
+    from the first record, so a delimiter ending it is one column more
+    and the producer publishes the rows closed `false`. A valid
+    120-record two-column semicolon description read with `--first-row
+    data`, edited to rows `true`, `"quoted"` or `[quoted 60, bare 60]`,
+    wrote `0106;2E+24;""` and was read back three columns wide
+    (`columns.n_columns` MISSED): each is now refused by the loader
+    (FD10) and by the publication guard. Red on 8abdbbe, where loader,
+    guard and generate accepted all three."""
+    q, b = "quoted", "bare"
+    described, document = _described(tmp_path / "source", _headerless(_table(";", None)), headerless=True)
+    assert document["source"]["header_source"] != "file"
+    assert [column["name"] for column in document["columns"]] == ["column_1", "column_2"]
+    assert document["source"]["dialect"]["trailing_delimiter"] == {"header": False, "rows": False}
+    contract.load_profile(str(described))
+    for rows in (True, q, [{"ending": q, "lines": 60}, {"ending": b, "lines": 60}]):
+        _refused_by_both(tmp_path / "source", document, {"header": False, "rows": rows}, "FD10", headerless=True)
+
+
+def test_a_headerless_table_s_closings_always_load_and_read_back(tmp_path: pathlib.Path) -> None:
+    """The verifier's open item 1, the producer-always-loads battery.
+    Headerless records closed bare throughout, `""` throughout, the
+    first `""` and the rest bare, and half and half, under each
+    delimiter at the default floor and at one: each is described with
+    its rows closed `false` (the closing is the table's third column),
+    loads, builds a twin, is read back to the same columns and the same
+    form, and twin and table validate at 0. Green on 8abdbbe too: the
+    producer never published such rows; the refusal above is the half
+    this repair adds."""
+    shapes = {
+        "bare": [False] * 120,
+        "quoted": [True] * 120,
+        "first-quoted": [index == 0 for index in range(120)],
+        "half": [index < 60 for index in range(120)],
+    }
+    for d, word in zip(DELIMITERS, IDS):
+        for label, closed in shapes.items():
+            for floor in (11, 1):
+                folder = tmp_path / f"{word}-{label}-{floor}"
+                result = _round_trip(folder, _headerless(_table(d, closed)), floor, headerless=True)
+                where = (word, label, floor)
+                assert result["form"]["trailing_delimiter"] == {"header": False, "rows": False}, where
+                assert result["names"] == ["column_1", "column_2", "column_3"], (where, result["names"])
+                assert result["twin_names"] == result["names"], (where, result["twin_names"])
+                again = json.loads(json.dumps(result["twin_form"]))
+                if label in ("first-quoted", "half"):
+                    # The third column's empties, some written `""` and
+                    # some bare, are quoted `mixed` and read back
+                    # `needed` from the twin: a column's quoting, as on
+                    # 6a248e7, and not its closing.
+                    assert again["columns"][2]["quoting"]["empty"] == "needed", where
+                    again["columns"][2]["quoting"]["empty"] = result["form"]["columns"][2]["quoting"]["empty"]
+                assert again == result["form"], where
+                assert result["exits"] == {"twin": 0, "real": 0}, (where, result["exits"])
+
+
+def test_a_closing_run_of_no_records_is_refused_by_both(tmp_path: pathlib.Path) -> None:
+    """Item 4's seam (the verifier's open item 2). At a floor of one the
+    census line let a run of no records through the guard -- rows
+    `[quoted 0, bare 60, quoted 60]` -- while the loader refused it
+    (a run's `lines` is at least 1); `dialect.closing_runs_broken` now
+    names any run of fewer than one record, so both refuse it. Red on
+    8abdbbe, where the guard accepted it."""
+    q, b = "quoted", "bare"
+    assert dialect.closing_runs_broken(
+        (dialect.EndingRun(ending=q, lines=0), dialect.EndingRun(ending=b, lines=60), dialect.EndingRun(ending=q, lines=60))
+    )
+    _, document = _described(tmp_path / "zero", _table(";", [index < 60 for index in range(120)]), floor=1)
+    runs = [{"ending": q, "lines": 0}, {"ending": b, "lines": 60}, {"ending": q, "lines": 60}]
+    _refused_by_both(tmp_path / "zero", document, {"header": False, "rows": runs}, "lines", floor=1)

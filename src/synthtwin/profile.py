@@ -3760,8 +3760,32 @@ def check_publication(document: dict[str, object]) -> None:
     """
     context = _publication_context(document)
     _check_published(document, (), "", context)
+    _trailing_closings_are_headed(document)
     _affix_notes_are_bound(document)
     _arguments_are_bound(document)
+
+
+def _trailing_closings_are_headed(document: dict[str, object]) -> None:
+    """Refuse a trailing delimiter under a header not read from the file.
+
+    Without a header from the file the survey takes the width from the
+    first record, so a delimiter ending the records is a column more and
+    the producer publishes both closings `false`; a twin written with
+    rows closed otherwise is read back one column wider (the verifier of
+    Codex's review of landing R6, open item 1; the loader's FD10). The
+    trailing block cannot see the header's source, so this asks it from
+    the document after the walk has checked both leaves' kinds.
+    """
+    source = document.get("source")
+    if not isinstance(source, dict) or source.get("header_source") == reading.HEADER_FROM_FILE:
+        return
+    form = source.get("dialect")
+    if not isinstance(form, dict) or not isinstance(form.get("trailing_delimiter"), dict):
+        return
+    trailing = form["trailing_delimiter"]
+    for side in ("header", "rows"):
+        if side in trailing and trailing[side] is not False:
+            raise _refuse(_TRAILING_BLOCK + (side,))
 
 
 def _is_mechanical_index(
