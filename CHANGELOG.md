@@ -6,6 +6,25 @@ exists).
 
 ## [Unreleased]
 
+### A date and a time in one cell keep their shape beside a few words (2026-10-15)
+
+**Lane L3** (plan P4-D393). A stamp such as `2024-01-05 9:15 AM`,
+`01/05/2024 09:15`, `1/5/2024 9:15` with U+202F before `PM`, REDCap's
+`05-01-2024 09:15` or `2024-01-05T09:15:30.123456` now has a written form
+that keeps the one space between its date and its clock (and the gap
+before its marker), so a column of such stamps beside a few words such as
+`pending` or `unknown`, as labels or as codes, publishes its forms and its
+twin writes every stamp in the source's shape: 969 of 969 where it wrote 0,
+with the `T` and the `AM` or `PM` written as such and U+202F never written as
+a plain space. On the lane's battery of 384 stamp columns every stamp of
+the 288 not read as dates is written in its shape and every twin and
+table validates; on lane L2's battery of 220 tables the 200 holding no
+such stamp keep every byte of their description and twin. Descriptions
+written before still load and generate the same twin. Stated: the twin's
+stamps are in the source's shape but are not real dates (`7000-00-01
+26:23`), as every made-up cell of a text column reads as no date, and a
+stamp with a month word, a compact date or an offset still has no form.
+
 ### A clock written with a space before AM or PM keeps its shape (2026-10-14)
 
 **Lane L2** (plan P4-D392). A cell such as `9:15 AM`, `08:15:30.123 a.m.`

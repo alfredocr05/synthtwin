@@ -9938,6 +9938,14 @@ its counts. Measured: 168 descriptions 6a248e7 wrote of spaced and
 U+202F clock times as labels, codes, long tails and free text at floors
 2, 11 and 36: 118 were refused at 824c7a4, and now all load, every twin
 is 6a248e7's byte for byte and every validation exits as it did.
+**So is a level written before lane L3** (plan P4-D393; contract
+C6-31a): a label that is a stamp holding the space between its date and
+its clock, or the gap before its marker after a date, or longer than
+twenty-four characters, had no form before L3, and a level of one
+carrying 0 is read as written in the same places; its spellings' stamp
+forms count as none. Measured: 7d27335's descriptions of stamps as free
+text, labels and declared codes load, generate 7d27335's twin byte for
+byte and validate (the lane's H6).
 
 **Where the case flips run out with the form still wanted**, the
 trailing space is written and the level falls short of its published
@@ -10107,6 +10115,27 @@ form filled figure by figure, every spelling a clock reader takes stepped
 past. Filled figure by figure from the first, those two twins wrote 349
 and 324 fields of 60 or more, `29:93`, which neither a clock nor a
 duration reader takes. Every other clock's form is as rule (1) states.
+
+A STAMP'S FORM WRITES ITS `T` AND ITS MARKER WORD (lane L3, plan
+P4-D393; contract C6-31a). A stamp's form -- a date's figures and marks,
+a space or a letter placeholder, a clock's, and nothing, a marker key or
+the gap and a marker key -- is no clock's form, and is filled figure by
+figure as every form is, save two places. The letter placeholder between
+its date and its clock is written `T` (`t` where the key is lower case)
+and takes no part of the step; and a marker key written straight on
+after the clock is written as the gap's is below, the date and clock
+filled at the step halved and rounded down and the marker the morning's
+word on an even step and the evening's on an odd one. So the room such a
+form advertises counts no letter for its `T`, and twice its head's where
+it ends in a marker key. Every such spelling wears its form and holds
+each space and U+202F where the form does. A spelling that reads as a
+date is refused a text stand-in (G8.3a), so a held-back stamp is
+written in its source's shape and is never a date: the figure fill
+writes `7000-00-01 26:23` as readily as any other. Filled letter by
+letter, the marker came out `XQ`, which wears no stamp's form after the
+gap, and the `T` any letter; measured on the lane's battery, every
+stamp the source wrote beside rare words, as labels and as codes is now
+written in its source's shape, `T` and marker word included.
 
 A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD FILLED FIGURE BY FIGURE
 (the repair round of lane L2, plan P4-D392). Its key carries the marker
@@ -12425,6 +12454,15 @@ for.
    beside one rare text in 33 published no form, and its twin wrote 0
    of 969 clock cells in their shape, with a space and with U+202F;
    now 969 of 969, each a time, each gap as the source wrote it.
+
+   **A STAMP'S FORM** (lane L3, plan P4-D393; contract C6-31a) fixes its
+   word count the same way: two words, three where it holds the gap
+   before its marker. A group written in it is filled figure by figure
+   (G8.3), its `T` and marker word kept, so it wears the form and reads
+   as no date. Measured: a column of `2024-01-05 9:15 AM` beside one
+   `pending` or `unknown` in 33, with no gap, a space or U+202F before the
+   marker, published no form and its twin wrote 0 of 969 stamps in their
+   shape; now 969 of 969, each gap as the source wrote it.
 
    **A GROUP CARRYING A PUBLISHED LENGTH END keeps its length exactly**,
    because `length.min` and `length.max` are EXACT-OBSERVABLE. **EVERY
@@ -16068,7 +16106,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and eight are required.** The count is taken off the committed
+**All two hundred and nine are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -16100,10 +16138,12 @@ thirteen; the SIXTEENTH,
 `tests/reference/generation-branch-vectors-14.json`, holds four (its
 fourth, `tails_split_first`, lane D4s's, plan P4-D369 part one); and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
-holds seven -- landing T1's written clocks and G7.5 step 5, in the file
+holds eight -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2), and lane L2's repair
 round's gapped form past G8.3's clock line, which has no room in the
-twenty-fifth, and its Codex review's labels described before L2; the
+twenty-fifth, and its Codex review's labels described before L2, and
+lane L3's stamps holding the space between their date and their clock
+(plan P4-D393), which have none either; the
 TWENTY-FIRST,
 `tests/reference/generation-branch-vectors-21.json`, holds sixteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
@@ -16338,6 +16378,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_no_tails` | G7A.4b on a column with no tails: 40 of 60 cells at 08:00, ten below and ten above, so no boundary has the floor's cells beyond it. The heap and the census over every parsed cell lay the column, where G7A.4 spread a ramp from 00:00. Its mutant withdraws the heaps, and the ranks they held stand at 00:00 |
 | `clock_census_listed_tail_heap` | G7A.4b on a quarter-hour grid, a published step of 900 seconds, whose low tail lists its one value: heaps at 06:00, the low tail's value, at 06:30 and 10:00, the two boundaries, and at 10:30 in the high tail, each holding its count exactly. Its mutant lays the body on the form's own minute, and its values leave the grid |
 | `labels_clock_narrow_gap` | C6-31a's one gap before a clock's marker and G8.3's clock supply behind it (lane L2, plan P4-D392): 100 appointment times written with the narrow no-break space U+202F before `AM` or `PM`, a set of 14 categories, four published at 20 rows, whose 20 held-back rows owe the forms `%:%%` U+202F `@@` (74) and `%%:%%` U+202F `@@` (26). Every held-back row is a time of its face written with U+202F before its marker, as the source wrote it; no clock reader takes U+202F, so no clock line holds them. Its mutant writes the gap as a plain space |
+| `labels_stamp_gaps` | C6-31a's stamp, the one space between its date and its clock, and G8.3's figure fill of its form (lane L3, plan P4-D393): 100 appointment stamps, a year-first date, a space, a clock and `AM` or `PM` after one more space, and some written with a `T` and the marker straight on, a set of 14 categories, four published at 20 rows, whose 20 held-back rows owe `%%%%-%%-%% %:%% @@` (4) and `%%%%-%%-%%@%:%%@@` (16). Every held-back row is filled figure by figure in its form, its marker a word by the step's parity and its letter `T`; no date form reads a marker after a year-first date. Its mutant fills the letter by the step |
 | `labels_clock_shaped` | G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, and a column declared `--code` has no clock line, so every stand-in is a time a clock reader takes. Its mutant writes every time on the hour, and the walk steps past the ones already written |
 | `labels_clock_line` | G8.3's clock line (the repair round of landing 3b.5): 250 appointment times on a clinic's quarter hours beside six `99:99`, described at a parse rate of 0.99, a set of categories whose 202 held-back rows owe the form `%%:%%`. The clock supply fills them with times only while the twin stays labels -- at most 244 cells read as times -- so the last held-back levels are filled figure by figure. Its mutant withdraws the line, every held-back level is a time, and the twin is read back as clock times |
 | `labels_clock_forms` | G8.3's clock line held key by key (the second repair round of landing 3b.5): 500 appointment times, 488 at the minute and 12 at the second, described at a parse rate of 0.99, a set of categories whose 100 held-back rows owe the forms `%%:%%` (88) and `%%:%%:%%` (12). Only the minute's cells could reach the line, so the line holds them alone and the rows at the second are times of their own form, never rare words: every held-back row is a time, and the twin is read back as labels. Its mutant holds every clock time against one line, as before that round, and the last held-back rows are filled figure by figure |

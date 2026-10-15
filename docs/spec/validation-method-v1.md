@@ -2270,7 +2270,14 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   holds that gap and which carries `shape_form_cells` 0 -- every level a
   description written before lane L2 holds -- is recounted as written:
   its label wore no form then, so its `label.shape_form_cells` recount is
-  nought (contract W8; Codex's review of lane L2, item 2). **On the four
+  nought (contract W8; Codex's review of lane L2, item 2). A cell is
+  counted under a stamp's form (contract C6-31a, lane L3, plan P4-D393)
+  only where it holds the stamp's own space between its date and its
+  clock: a twin writing two spaces there, or none, is MISSED on that key,
+  as a twin writing another mark is; and a level whose label is a stamp
+  holding that space, or the gap before its marker after a date, or longer
+  than twenty-four characters, and which carries `shape_form_cells` 0 is
+  recounted as written before L3, as above. **On the four
   label roles the file's cells are first respelled as its own
   description speaks of them** (plan P4-D275.1,
   `taxonomy.described_spellings`): a spelling below the floor of a label

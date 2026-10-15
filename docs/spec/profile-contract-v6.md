@@ -10467,7 +10467,8 @@ to a level when trimming and case folding it gives the label. A
 spelling that HAS a form holds only ASCII letters, ASCII figures and
 the thirteen marks — no space at either end, its one gap, where it has
 one, standing between a clock's figures and its marker (7.9, plan
-P4-D392), so trimming changes nothing — and
+P4-D392), and a stamp's space between its date and its clock (plan
+P4-D393), so trimming changes nothing — and
 folding an ASCII letter leaves an ASCII letter in the same place, so
 `shape_form` answers the same string for a spelling and for its fold.
 **Every form-bearing spelling of a level therefore wears exactly the
@@ -10511,7 +10512,11 @@ were refused under W8 at 824c7a4. Such a level is READ AS WRITTEN: its
 label wears no form, and no spelling of it counts in one, in this check,
 in the generator (method G8.2a, G8.3b) and in the recount (validation
 `label.shape_form_cells`). A producer since L2 writes nought there only
-where no row of the level wore the label's form.
+where no row of the level wore the label's form. **So may a label that
+is a stamp holding the space between its date and its clock, or the gap
+before its marker after a date, or longer than twenty-four characters**
+(lane L3, plan P4-D393): before L3 such a label had no form either, and
+such a level is read as written in the same three places.
 
 **Invariant W9 (the spellings the block speaks of).** Let `S` be the
 spellings the published levels name: the keys of every entry's
@@ -11651,8 +11656,8 @@ optionally a colon and two more, and after those optionally a point and
 one figure or more -- has a form, and the gap STANDS AS ITSELF in it:
 `9:15 AM` has `%:%% @@`, `08:15:30.123 a.m.` has `%%:%%:%%.%%% @.@.`, and
 `9:15` U+202F `AM`, as Excel and macOS write it, has `%:%%` U+202F `@@`.
-Every other space keeps the cell formless, as above: `9:15  AM`,
-`9:15 Am`, `9 AM`, `Ward 7` and `2024-01-05 9:15 AM` have no form, and
+Every other space keeps the cell formless, as above, save a stamp's
+(below): `9:15  AM`, `9:15 Am`, `9 AM` and `Ward 7` have no form, and
 neither has a no-break space U+00A0 or a thin space before a marker. A
 key holding the gap carries the marker as `@@` or `@.@.` (lower case,
 `&&` or `&.&.`), so it names no marker word, and it is a form only where
@@ -11667,13 +11672,55 @@ two-word notes, stamps beside rare words, 15 of the layout spellings
 beside rare words and one fixture table), and a name's form publishes
 its word lengths, the fact the space was kept out for; this gap moved 40
 of the battery's 72 spaced-meridiem descriptions and none of the 148
-others, whose twins kept every byte. It does not give a form to a stamp
-beside rare words, `2024-01-05 9:15 AM`, which holds two spaces; and a
-column of such stamps alone is read by the layout reader (7.6), not by
-this census.
+others, whose twins kept every byte. A stamp beside rare words,
+`2024-01-05 9:15 AM`, holds two spaces; lane L3 gives it a form (below),
+and a column of such stamps alone is read by the layout reader (7.6),
+not by this census.
 
-**A cell longer than TWENTY-FOUR characters has no form either, and
-neither does an empty one.** The limit is deliberate and it is not a
+**AND ONE SPACE BETWEEN A STAMP'S DATE AND ITS CLOCK** (lane L3, plan
+P4-D393). A cell that is a STAMP has a form, its space standing as
+itself: a date written in figures -- three runs of figures parted twice
+by the same mark, a hyphen, a slash or a point, either a year of four
+first and a month and a day of one or two figures each after it
+(`2024-01-05`, `2024/01/05`), or a month and a day of one or two figures
+each first and a year of four or of two last (`01/05/2024`, `1/5/2024`,
+`05/01/2024`, REDCap's `05-01-2024`, `05.01.2024`, `1/5/24`) -- then ONE
+plain space or one letter (`T`), then a clock
+as above (an hour of one or two figures, a colon and two figures,
+optionally a colon and two more, and after those optionally a point and
+one figure or more), then nothing, a marker written straight on (two
+letters, or two letters each before a point: `9:15AM`, `9:15a.m.`), or
+the one gap above and a marker word. `2024-01-05 9:15 AM` has
+`%%%%-%%-%% %:%% @@`, `1/5/2024 09:15` has `%/%/%%%% %%:%%`, `01/05/2024
+9:15` U+202F `PM` has `%%/%%/%%%% %:%%` U+202F `@@` and
+`2024-01-05T9:15 AM` has `%%%%-%%-%%@%:%% @@`. A stamp may run to
+THIRTY-TWO characters, so seconds, a fraction of the second and a marker
+fit (`01/05/2024 09:15:30.1234567 a.m.`); every other cell keeps the
+limit below. The space between the date and the clock is a plain space:
+U+202F there, two spaces, a space at either end, a date of two marks
+(`2024-01/05`), of a run of three figures or of one run (`20240105`), a
+month word, and an offset or a zone after the clock keep the cell
+formless. WHY: an EHR export writes a date and a time of day in one
+cell, and a column of them beside a few words (`pending`, `unknown`) is
+read as text; it published no form, and its twin wrote 0 of its 969
+stamps in their shape, so code splitting or matching the real column's
+stamps stopped on the twin. Measured on the lane's battery of 384 stamp
+columns (four date spellings, a space or `T`, three clocks, four
+markers; beside rare words, as labels, as declared codes and alone) the
+twin now writes every stamp of the 288 not read as dates in its
+source's shape, where it wrote 0 of the 186,048 beside rare words or
+declared codes and 138,480 of the 279,264 as labels, and the 96 read as
+dates did not move; on lane L2's battery of 220 tables it moved the 20
+holding such stamps beside rare words and none of the other 200, whose
+descriptions and twins kept every byte. WHY THESE DATES (P4-D393): the
+year-first hyphen and the year-last slash alone, the spellings first
+named, moved 15 of the 220 and left REDCap's hyphenated, a dotted and a
+two-figure-year stamp beside rare words formless; three figure runs of
+any width (one, two or four) parted by any of the three marks moved the
+same 20 as this rule.
+
+**A cell longer than TWENTY-FOUR characters has no form either, save a
+stamp of at most thirty-two (above), and neither does an empty one.** The limit is deliberate and it is not a
 performance limit: it is the same judgement as the space, applied to
 the cells a scheme could not have produced.
 
@@ -11848,8 +11895,8 @@ opposite of each. The census is the intersection, not a judgement.
 either exactly `(withheld)` or a written form: at least one character,
 at most twenty-four, every one of which is one of the three PLACEHOLDERS
 — `%`, `@`, and `&` in a lower-case key, never `@` and `&` in one key —
-or one of the thirteen marks C6-31a names, save ONE GAP, AND CARRYING AT
-LEAST TWO OF THE THREE KINDS. The gap is C6-31a's exception and nothing
+or one of the thirteen marks C6-31a names, save ONE GAP and a stamp's
+space, AND CARRYING AT LEAST TWO OF THE THREE KINDS. The gap is C6-31a's exception and nothing
 wider (lane L2, plan P4-D392; Codex's review of L2, item 5): exactly one
 space or one U+202F, and no other space of either kind, where the
 characters before it are a clock's -- `%:%%` or `%%:%%`, optionally `:%%`
@@ -11857,7 +11904,16 @@ after, and after the seconds optionally `.` and one `%` or more -- and the
 characters after it are one marker key, `@@`, `&&`, `@.@.` or `&.&.`;
 the gap counts as a mark. So `%:%% @@` and `%%:%%:%%.%%%` U+202F `&&`
 are keys, and `%% @@`, `%:%%  @@`, `%:%% @`, ` %:%%@@` and `@@ %:%%`
-are not. A loader CHECKS this key by key and refuses the document
+are not. A STAMP'S KEY (lane L3, plan P4-D393) is C6-31a's stamp in
+placeholders: `%%%%`, a mark, `%` or `%%`, the same mark and `%` or
+`%%`, or `%` or `%%`, a mark, `%` or `%%`, the same mark and `%%%%` or
+`%%`, the mark a hyphen, a slash or a point; then one space, `@` or `&`,
+then a clock's characters as
+above, then nothing, a marker key, or one gap and a marker key; at most
+THIRTY-TWO characters, its space counting as a mark. So
+`%%%%-%%-%% %:%% @@` and `%%%%-%%-%%@%%:%%:%%.%%%%%%` are keys, and
+`%%%%-%%/%% %%:%%`, `%%%%%%%% %%:%%`, `%%%%-%%-%%  %%:%%` and a key of
+thirty-three characters are not. A loader CHECKS this key by key and refuses the document
 otherwise, rather than trusting that the producer built the key by the
 replacement C6-31a states.
 
@@ -12065,7 +12121,14 @@ space before its marker had no form, and its shape is the clock's form
 with the space and the marker's marks kept -- `%:%% @@` for `7:30 AM`,
 `%%:%%:%% &&` for `07:30:15 pm` (the repair round of landing 3b.5);
 since lane L2 (plan P4-D392) that shape is its form, which a census may
-name, and a shape the census names is not taken. Its spellings are spent on the
+name, and a shape the census names is not taken. A STAMP'S FORM (lane
+L3, plan P4-D393) is filled figure by figure as every other form is,
+save that the letter between its date and its clock is written `T` (`t`
+in a lower-case key) and its marker key the marker word, as the gap's
+is: its spellings wear its form, its spaces and U+202F as the source
+wrote them, and no date reader need take them -- a stand-in of a text
+column that reads as a date is refused (generation method G8.3), so a
+held-back stamp is written in its source's shape and not as a date. Its spellings are spent on the
 LARGEST places the census owes nothing, and a large place paying a
 named form trades with single rows summing to it exactly where that
 lets the shape cover more rows — the named form keeps its count either
