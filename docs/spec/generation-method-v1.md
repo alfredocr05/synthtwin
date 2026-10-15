@@ -15984,7 +15984,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and five are required.** The count is taken off the committed
+**All two hundred and six are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -16027,7 +16027,7 @@ TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
 holds one -- lane G2's width rule, G6.6.8 -- in the file that table
 gives lane G2; and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds thirty-three -- landing R2a's layouts, the century a person chose,
+holds thirty-four -- landing R2a's layouts, the century a person chose,
 from its repair round a day padded with a space and the offsets a
 column of figure runs owes its class count, beside repeated texts too,
 from its second skeptic those offsets beside a named one, from its
@@ -16043,7 +16043,9 @@ stand-ins past the years a partial form reads and a declared column's
 upper target, and from that repair's verification the same target on
 the date rule's line (plan P4-D383); and from the Codex review of
 landing I3a a column on the dial with no marker read at UTC beside two
-offsets, which G7.3b step 10's half day does not reach --
+offsets, which G7.3b step 10's half day does not reach; and from lane
+L2 a set of clock times written with U+202F before their marker (plan
+P4-D392) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -16246,6 +16248,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_codes` | G7A.4b's codes: 12 of 120 cells write `UNK`, a spelling no clock reading takes, at the census line, and the column publishes it with its count (`clock_codes`); the twin writes it exactly that many times, and no made-up stand-in. Its mutant withdraws the codes, and the twin writes `text-1` to `text-12` in their place |
 | `clock_census_no_tails` | G7A.4b on a column with no tails: 40 of 60 cells at 08:00, ten below and ten above, so no boundary has the floor's cells beyond it. The heap and the census over every parsed cell lay the column, where G7A.4 spread a ramp from 00:00. Its mutant withdraws the heaps, and the ranks they held stand at 00:00 |
 | `clock_census_listed_tail_heap` | G7A.4b on a quarter-hour grid, a published step of 900 seconds, whose low tail lists its one value: heaps at 06:00, the low tail's value, at 06:30 and 10:00, the two boundaries, and at 10:30 in the high tail, each holding its count exactly. Its mutant lays the body on the form's own minute, and its values leave the grid |
+| `labels_clock_narrow_gap` | C6-31a's one gap before a clock's marker and G8.3's clock supply behind it (lane L2, plan P4-D392): 100 appointment times written with the narrow no-break space U+202F before `AM` or `PM`, a set of 14 categories, four published at 20 rows, whose 20 held-back rows owe the forms `%:%%` U+202F `@@` (74) and `%%:%%` U+202F `@@` (26). Every held-back row is a time of its face written with U+202F before its marker, as the source wrote it; no clock reader takes U+202F, so no clock line holds them. Its mutant writes the gap as a plain space |
 | `labels_clock_shaped` | G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, and a column declared `--code` has no clock line, so every stand-in is a time a clock reader takes. Its mutant writes every time on the hour, and the walk steps past the ones already written |
 | `labels_clock_line` | G8.3's clock line (the repair round of landing 3b.5): 250 appointment times on a clinic's quarter hours beside six `99:99`, described at a parse rate of 0.99, a set of categories whose 202 held-back rows owe the form `%%:%%`. The clock supply fills them with times only while the twin stays labels -- at most 244 cells read as times -- so the last held-back levels are filled figure by figure. Its mutant withdraws the line, every held-back level is a time, and the twin is read back as clock times |
 | `labels_clock_forms` | G8.3's clock line held key by key (the second repair round of landing 3b.5): 500 appointment times, 488 at the minute and 12 at the second, described at a parse rate of 0.99, a set of categories whose 100 held-back rows owe the forms `%%:%%` (88) and `%%:%%:%%` (12). Only the minute's cells could reach the line, so the line holds them alone and the rows at the second are times of their own form, never rare words: every held-back row is a time, and the twin is read back as labels. Its mutant holds every clock time against one line, as before that round, and the last held-back rows are filled figure by figure |

@@ -469,6 +469,20 @@ def test_f_red_when_a_debt_is_settled_past_what_it_owes(monkeypatch: pytest.Monk
         return one_pass(sizes, places, owing, every, spare, False)
 
     monkeypatch.setattr(generation, "_one_pass", overpaying)
+    # The face written with a no-break space U+00A0 before its marker, which
+    # holds no form: since lane L2 (plan P4-D392) `9:15 AM` with a plain
+    # space has a form the census names, and this mutant then leaves the
+    # table nothing to overpay; with U+00A0 the minority is formless, as it
+    # was when this clause was measured.
+    plain = shapes.cells
+    monkeypatch.setattr(
+        shapes,
+        "cells",
+        lambda name, rows: [cell.replace(" ", "\u00a0") for cell in plain(name, rows)]
+        if name == "face10"
+        else plain(name, rows),
+    )
+    _described.cache_clear()
     _twin.cache_clear()
     try:
         _cells_now, missed = _twin(("notes3", "face10"), 3000, 36, 0)
@@ -1127,12 +1141,21 @@ def test_m_red_when_the_form_is_filled_figure_by_figure(monkeypatch: pytest.Monk
 
 
 def test_m_red_without_the_key_of_a_spaced_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: no key for a clock with a space before its marker.
+
+    Since lane L2 (plan P4-D392) that key is the cell's form
+    (`parsing.meridiem_gap_at`), and `_SPACED_CLOCK_MARKS` answers only
+    where the form does not, so both are withdrawn together.
+    """
     monkeypatch.setattr(generation, "_SPACED_CLOCK_MARKS", {})
+    monkeypatch.setattr(parsing, "meridiem_gap_at", lambda text: -1)
+    _described.cache_clear()
     _twin.cache_clear()
     try:
         cells, _missed_now = _twin(_MIXED, 1000, 11, 0)
         assert _neither_word_nor_time(cells["mixed_ampm"]) > 0
     finally:
+        _described.cache_clear()
         _twin.cache_clear()
 
 

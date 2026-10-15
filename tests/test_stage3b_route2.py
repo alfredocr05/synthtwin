@@ -98,6 +98,7 @@ import io
 import pathlib
 import random
 import re
+import sys
 import tempfile
 import typing
 
@@ -139,6 +140,14 @@ _TRACED = {
 # What each table publishes for the `HH:MM` form, which its twin paid one cell
 # over before this correction.
 _PUBLISHED = {"notes": 29142, "face": 2718}
+
+# Each table's whole census of forms. Since lane L2 (plan P4-D392) the
+# minority written `9:15 AM` has the form `%:%% @@` (or `%%:%% @@`), which
+# the census names beside `%%:%%`; before, those cells had no form.
+_CENSUS = {
+    "notes": {"%%:%%": 29142},
+    "face": {"%%:%%": 2718, "%%:%% @@": 78, "%:%% @@": 204},
+}
 
 # THE REPAIR ROUND'S FOUR TABLES, cell for cell its skeptic's own (the `mine`
 # and `mine2` batteries, at their seeds): the same appointment times, written
@@ -413,7 +422,7 @@ def test_the_traced_tables_are_labels_and_miss_nothing(name: str) -> None:
     block = document["columns"][0]  # type: ignore[index]
     assert block["role"] in (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_LONG_TAIL), block["role"]
     assert int(block["n_missing"] or 0) == 0
-    assert block["shape_forms"] == {"%%:%%": _PUBLISHED[name]}, block["shape_forms"]
+    assert block["shape_forms"] == _CENSUS[name], block["shape_forms"]
     assert _missed(loaded, table) == []
     cells, missed = _twin(name)
     assert missed == [], (name, missed)
@@ -423,9 +432,27 @@ def test_the_traced_tables_are_labels_and_miss_nothing(name: str) -> None:
 
 @pytest.mark.parametrize("name", sorted(_TRACED))
 def test_red_when_the_traced_twins_are_paid_past_their_debt(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the one-pass arrangement as it stood overpays `%%:%%` by a cell.
+
+    On `face` the minority is written with a no-break space U+00A0 before
+    its marker, which holds no form: since lane L2 (plan P4-D392) `9:15 AM`
+    with a plain space has a form of its own, the census names it, and
+    this mutant leaves that table nothing to overpay (measured: nothing
+    missed); with U+00A0 the minority is formless, as it was when this
+    clause was measured.
+    """
+    if name == "face":
+        plain = _twelve_hour
+        monkeypatch.setattr(
+            sys.modules[__name__], "_twelve_hour", lambda minutes: plain(minutes).replace(" ", "\u00a0")
+        )
+        _described.cache_clear()
     _as_it_stood(monkeypatch)
-    _cells_now, missed = _twin(name)
-    assert "forms.published.%%:%%" in missed, (name, missed)
+    try:
+        _cells_now, missed = _twin(name)
+        assert "forms.published.%%:%%" in missed, (name, missed)
+    finally:
+        _described.cache_clear()
 
 
 # -- the repair round: no time no clock reads -------------------------------

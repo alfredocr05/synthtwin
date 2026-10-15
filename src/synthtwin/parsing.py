@@ -1592,7 +1592,7 @@ def meridiem_gap_at(text: str) -> int:
     The place of the one space or U+202F (`SHAPE_GAPS`) of a cell that is
     a clock's figures, that gap and a meridiem marker word -- `9:15 AM`,
     `08:15:30.123 p.m.` -- and -1 for every other cell, a cell with no
-    gap and a cell with two among them. Three searches of the cell and
+    gap and a cell with two among them. Four searches of the cell and
     one read of its clock, at most `SHAPE_FORM_LIMIT` characters each, so
     a census of a million cells costs a million such scans. Raises TypeError if handed anything that is not a string
     instance. No I/O of any kind.
@@ -1603,8 +1603,12 @@ def meridiem_gap_at(text: str) -> int:
     narrow = text.find("\u202f")
     if space >= 0 and narrow >= 0:
         return -1
+    if space >= 0 and text.count(" ") != 1:
+        return -1
+    if narrow >= 0 and text.count("\u202f") != 1:
+        return -1
     place = space if space >= 0 else narrow
-    if place < 0 or text.find(text[place], place + 1) >= 0:
+    if place < 0:
         return -1
     if text[place + 1 :] not in _SHAPE_MERIDIEM_WORDS:
         return -1
