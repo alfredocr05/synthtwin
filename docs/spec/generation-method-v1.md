@@ -10140,6 +10140,18 @@ so a walk turned on 2,000 met the clock times again at each turn and
 never wrote the fill's earlier heads (free text holding every `h:mm`
 with all four words wrote 4,348 cells in the form where it wrote 5,330).
 
+AND FILLED FIGURE BY FIGURE IT STEPS PAST ITS OWN TIMES WITH EITHER GAP
+(the verifier of lane L2's Codex fix stream). Wherever such a form is
+filled figure by figure, every spelling a clock reader takes with the
+form's U+202F read as the plain space it stands for is stepped past, as
+allocation reads that form's clock supply. Stepped past only where a
+clock reader took it as written -- and none takes U+202F -- the places
+past a U+202F form's times took those times and the places inside them
+ran short: item 3's column written with U+202F, declared as codes, at
+floors of eleven and 36 wrote 2,314 of its 4,000 form-bearing rows and
+1,686 `group-N`, the form's count MISSED, where the plain-space column
+wrote all 4,000; it now writes all 4,000 with either gap.
+
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
 one of them is published (owner ruling of 2026-09-17, item 2, option A;

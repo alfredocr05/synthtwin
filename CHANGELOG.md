@@ -25,7 +25,8 @@ description and twin. Descriptions written before still load and generate
 as before -- labels and codes too, since the lane's Codex review, which
 also keeps the form on times written both `AM` and `am` (388 of 388 where
 the twin wrote 206) and gives codes holding every dial time all 4,000 of
-their form's rows (where it wrote 2,303 and 1,697 `group-N`). Stated: a
+their form's rows (where it wrote 2,303 and 1,697 `group-N`), with either
+gap (written with U+202F it wrote 2,314 and 1,686 `group-N`). Stated: a
 stamp with a date beside rare words still publishes no form, owed to lane
 L3.
 
