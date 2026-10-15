@@ -1045,3 +1045,99 @@ def test_red_when_the_stand_in_times_are_never_repeated(monkeypatch: pytest.Monk
     cells = _stand_ins_at_two_and_a_half_million(11)
     words = [cell for cell in cells if parsing.clock_form(cell) is None]
     assert len(words) > _PAST_THE_TIMES // taxonomy.RARE_WORDS_BESIDE_CLOCKS
+
+
+def _morning_beside_evening() -> "list[str]":
+    """T3's Codex item 2 in clock-only form, 3,600 cells over 30 days: every
+    minute of hour 08 once a day, and minutes 00 to 19 of hour 20 three times
+    a day, at second 00."""
+    cells: "list[str]" = []
+    for _day in range(30):
+        cells += [f"08:{minute:02d}:00" for minute in range(60)]
+        for minute in range(20):
+            cells += [f"20:{minute:02d}:00"] * 3
+    return cells
+
+
+def _share_of_minutes(cells: "list[str]", hour: int, minutes: "range") -> float:
+    read = [second for second in (_second(cell) for cell in cells) if second is not None]
+    mine = [second for second in read if second // 3600 == hour]
+    return sum(1 for second in mine if (second // 60) % 60 in minutes) / max(1, len(mine))
+
+
+def _minute_distance_by_hour(real: "list[str]", twin: "list[str]") -> float:
+    """The minute's distance from the table within each hour, weighted by the
+    hour's cells."""
+
+    def table(cells: "list[str]") -> "dict[int, collections.Counter[int]]":
+        out: "dict[int, collections.Counter[int]]" = collections.defaultdict(collections.Counter)
+        for second in (_second(cell) for cell in cells):
+            if second is not None:
+                out[min(second, 86399) // 3600][(min(second, 86399) // 60) % 60] += 1
+        return out
+
+    source, made = table(real), table(twin)
+    total = sum(sum(counts.values()) for counts in source.values())
+    distance = 0.0
+    for hour, counts in source.items():
+        size, size_twin = sum(counts.values()), max(1, sum(made[hour].values()))
+        distance += size / total * 0.5 * sum(
+            abs(counts[minute] / size - made[hour][minute] / size_twin) for minute in range(60)
+        )
+    return distance
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_m3_on_clock_times_asks_the_coarse_table_alone(floor: int) -> None:
+    """THE ORCHESTRATOR'S RULING at batch 3b part 2d's integration (plan
+    P4-D374): C2's M3 call stays coarse, not T3's coarse-then-fine loop. T3's
+    Codex item 2 -- minutes 00 to 19 of hour 20 three times a day beside every
+    minute of hour 08 -- drove timestamps' twins to 1,209 of 1,800 morning
+    cells on minutes 00 to 19 against 600; as times of day the ten-minute
+    census holds each hour's bins, so the published minute census distorts no
+    hour: 1,800 morning cells, 600 on minutes 00 to 19, as the table, and the
+    minute's distance within the hours 0.039. Asked of the fine table too, M3
+    withholds the census and that distance doubles."""
+    cells = _morning_beside_evening()
+    document, path, _table = _document({"c": cells}, floor=floor)
+    assert len(_block(document, "c")["minute_census"]) > 1
+    loaded = contract.load_profile(str(path))
+    real = _share_of_minutes(cells, 8, range(20))
+    for seed in (0, 1, 2):
+        twin, twin_path = _twin(loaded, seed)
+        assert _missed(loaded, twin_path) == []
+        assert abs(_share_of_minutes(twin["c"], 8, range(20)) - real) <= 0.01
+        assert _minute_distance_by_hour(cells, twin["c"]) < 0.05
+
+
+def test_red_when_m3_on_clock_times_asks_the_fine_table_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: C2's call extended to T3's loop, each question asked of the
+    coarse table and then the fine -- the census is withheld and the
+    minute's distance within the hours rises past 0.06 (0.082)."""
+    asked: "list[tuple[list[int], list[int]]]" = []
+    depends = calendar_clock.depends_on_the_hour
+    misled = calendar_clock.misled_by_the_count
+
+    def remembered(hours: "list[int]", values: "list[int]", line: int, *rest: typing.Any) -> bool:
+        if rest:
+            return depends(hours, values, line, *rest)
+        asked[:] = [(list(hours), list(values))]
+        return True
+
+    def looped(off_hours: "list[int]", off_values: "list[int]", line: int, *rest: typing.Any) -> bool:
+        if rest:
+            return misled(off_hours, off_values, line, *rest)
+        hours, values = asked[0]
+        return any(
+            depends(hours, values, line, 0, fine) and misled(off_hours, off_values, line, fine)
+            for fine in (False, True)
+        )
+
+    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", remembered)
+    monkeypatch.setattr(calendar_clock, "misled_by_the_count", looped)
+    cells = _morning_beside_evening()
+    document, path, _table = _document({"c": cells}, floor=11)
+    assert _block(document, "c")["minute_census"] == []
+    loaded = contract.load_profile(str(path))
+    twin, _twin_path = _twin(loaded, 0)
+    assert _minute_distance_by_hour(cells, twin["c"]) > 0.06

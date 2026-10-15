@@ -6,6 +6,25 @@ exists).
 
 ## [Unreleased]
 
+### Stage 3b's minutes and seconds integrated: lanes J2 and C2 and landing 3b.7's widening (2026-10-14)
+
+**The minute and second of a timestamp, met beside its weekday census
+through lane J2, the minute of the hour on clock-only columns through
+lane C2, and both censuses on each value's own clock** (plans P4-D391,
+P4-D374, P4-D378). Landing 3b.7's widening of the minute and second
+censuses to columns of two offsets and of dates beside moments (MC3,
+SE3), which waited for lane T3, is re-applied on J2's code: each cell
+counted on the clock it is written on, bare dates pinned at their
+midnight. C2's six frozen minute cases move to seeds 442 to 447, as
+436 to 441 were taken. On clock-only columns the test of how the minute
+follows the hour stays one coarse table, measured before it was kept:
+T3's two witnesses, written as times without dates, come back with the
+table's share by hour under it (600 of 1,800 morning cells on minutes 00
+to 19, as the table), since the ten-minute census holds each hour's
+bins; asking the fine table too would withhold that census and, on the
+design's clinic column at 1,000 rows, its minutes (on `:00` or `:30`
+0.52 against the table's 0.71, where the census gives 0.67).
+
 ### The minute of the hour comes back on clock-only columns (2026-10-13)
 
 **A column of clock times publishes the minute of the hour its cells fall
