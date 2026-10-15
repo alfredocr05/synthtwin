@@ -1,0 +1,313 @@
+"""Stage 4 lane S4d: describe at millions of rows (plan P4-D390).
+
+Measured on 66bca69 (planning-notes/work-2026-10/wave5/S4d-build.md):
+describing a register of 997,770 rows peaked at 901 MB, a dense numeric
+tail of 1,000,000 at 1,025 MB and a table of free text, dates and
+numbers of 1,000,000 rows at 1,333 MB. Each column was read into one
+record per ROW (`taxonomy._classify_all`), with a folded copy of its
+text and a map of its one spelling per label (`taxonomy._tally`); each
+date was read into a pair, a key and a day number per row; the survey
+held one text per row; and the census's reading of a column stayed held
+until the whole table was described.
+
+The lane shares one answer per SPELLING wherever a fixed function of a
+cell's text is answered (bounded by `parsing.SPELLING_MEMO_TEXTS` where
+values never repeat), holds a folded label once where folding changes
+nothing, keeps only the labels written otherwise than themselves in the
+map of spellings (`taxonomy._label_spellings` answers the rest), and
+lets each census reading go once its column is described. Every
+description is the bytes 66bca69 wrote.
+
+Pinned here by what can be counted without a clock: how many different
+objects hold a column's records, texts, date pairs and day numbers; the
+map of spellings against 66bca69's `_tally` (`stage4_as_built.TALLY`);
+the census reading's release, by a weak reference; and the bytes
+`tracemalloc` sees `synthtwin profile` hold per row it adds.
+"""
+
+from __future__ import annotations
+
+import gc
+import pathlib
+import random
+import tracemalloc
+import weakref
+
+import pytest
+
+import fixtures
+import kpi_shapes
+import stage4_as_built
+from synthtwin import cli, parsing, profile, reading, taxonomy
+
+_SETTINGS = taxonomy.Settings()
+
+
+def _objects(items: "list[object] | tuple[object, ...]") -> int:
+    """How many different objects a list holds, by identity."""
+    return len({id(item) for item in items})
+
+
+def _register_cells(rows: int, codes: int, seed: int = 11) -> "list[str]":
+    draw = random.Random(seed)
+    return [f"{1000001 + draw.randrange(codes)}" for _ in range(rows)]
+
+
+# -- one record per spelling ----------------------------------------------------
+
+
+def test_a_million_rows_of_a_thousand_spellings_hold_a_thousand_records() -> None:
+    """66bca69 held 1,000,000 records here, one per row; a record per spelling is 1,000."""
+    cells = _register_cells(1_000_000, 1_000)
+    classified = taxonomy._classify_all(cells)
+    assert len(classified) == 1_000_000
+    assert _objects(classified) == len(set(cells)) == 1_000
+    assert [one.text for one in classified[:2_000]] == cells[:2_000]
+
+
+def test_records_shared_or_not_answer_as_one_record_a_row() -> None:
+    """Past the memo's bound and below it, every record is the one `_classify` makes of its row."""
+    draw = random.Random(4)
+    distinct = [f"{draw.random() * 1000:.6f}" for _ in range(parsing.SPELLING_MEMO_TEXTS + 3_000)]
+    mixed = [draw.choice(["Yes", "yes", " YES", "no", "-999", "1,5", "12 mg", "", "2024-01-05"]) for _ in range(5_000)]
+    for cells in (distinct, mixed, distinct[:500] * 3 + mixed):
+        for comma in (False, True):
+            classified = taxonomy._classify_all(cells, comma)
+            assert classified == [taxonomy._classify(one, comma) for one in cells]
+    # Past the bound a column whose values never repeat stops sharing:
+    # the memo holds no more than the bound, and every row still has its record.
+    assert _objects(taxonomy._classify_all(distinct)) == len(distinct)
+
+
+def test_the_memo_takes_texts_to_its_bound_and_then_only_while_it_pays() -> None:
+    bound = parsing.SPELLING_MEMO_TEXTS
+    assert bound == 65536
+    assert parsing.memo_takes(0, 0)
+    assert parsing.memo_takes(bound - 1, 0)
+    assert not parsing.memo_takes(bound, 0)
+    assert not parsing.memo_takes(bound, bound - 1)
+    assert parsing.memo_takes(bound, bound)
+    assert parsing.memo_takes(3 * bound, 10 * bound)
+
+
+def test_a_folded_label_that_folding_leaves_as_written_is_the_cell_s_own_text() -> None:
+    for text in ("1000001", "yes", "kaloru mine", "2024-01-05", "12.5"):
+        assert taxonomy._classify(text).folded is text, text
+    for text, folded in (("Yes", "yes"), (" no", "no"), ("MG", "mg")):
+        assert taxonomy._classify(text).folded == folded
+
+
+# -- the map of spellings --------------------------------------------------------
+
+
+def _tally_as_built() -> object:
+    built, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.TALLY, "_tally")
+    return built
+
+
+def _tally_shapes() -> "dict[str, list[str]]":
+    draw = random.Random(9)
+    return {
+        "cases": [draw.choice(["Yes", "yes", "YES", " yes", "No", "no", "NO ", "maybe"]) for _ in range(3_000)],
+        "plain words": [draw.choice(["pain", "fever", "cough"]) for _ in range(3_000)],
+        "numbers": [f"{draw.gauss(80, 10):.1f}" for _ in range(3_000)],
+        "first plain then not": ["abc"] * 5 + ["ABC"] + ["abc"] * 3 + [" abc"],
+        "first not then plain": ["ABC", "abc", "abc", "Abc"],
+        "codes": [draw.choice(["A1", "a1", "B12", "b12"]) for _ in range(2_000)],
+        "one each": [f"Word{k}" for k in range(500)] + [f"word{k}" for k in range(500)],
+    }
+
+
+def test_every_label_s_spellings_are_the_map_66bca69_held() -> None:
+    """`_label_spellings` answers every label with 66bca69's map, key order included, and holds only mixed labels."""
+    as_built = _tally_as_built()
+    for name, cells in _tally_shapes().items():
+        classified = taxonomy._classify_all(cells)
+        now = taxonomy._tally(classified, len(cells), _SETTINGS)
+        before = as_built(classified, len(cells), _SETTINGS)  # type: ignore[operator]
+        assert list(now.folded_counts) == list(before.folded_counts), name
+        assert now.folded_counts == before.folded_counts, name
+        for label in before.folded_counts:
+            answered = taxonomy._label_spellings(now.folded_counts, now.spellings_by_folded, label)
+            assert list(answered.items()) == list(before.spellings_by_folded[label].items()), (name, label)
+        mixed = {label for label in before.spellings_by_folded if list(before.spellings_by_folded[label]) != [label]}
+        assert set(now.spellings_by_folded) == mixed, name
+
+
+def test_a_column_of_plain_labels_holds_no_map_of_spellings() -> None:
+    """66bca69 held one map per label: 100,000 maps on 100,000 different numbers."""
+    cells = [f"{k}" for k in range(100_000)]
+    tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), _SETTINGS)
+    assert tallied.spellings_by_folded == {}
+    assert len(tallied.folded_counts) == 100_000
+
+
+# -- the dates -------------------------------------------------------------------
+
+
+def _date_cells(rows: int, offsets: bool = False) -> "list[str]":
+    draw = random.Random(21)
+    made: "list[str]" = []
+    for _ in range(rows):
+        cell = f"20{draw.randint(15, 24)}-{draw.randint(1, 12):02d}-{draw.randint(1, 28):02d}"
+        if offsets:
+            cell = cell + f"T{draw.randint(0, 2):02d}:00:00" + draw.choice(["Z", "+01:00", "-05:00"])
+        made += [cell]
+    return made
+
+
+def test_the_rows_of_one_date_share_its_pair_up_to_a_million_rows() -> None:
+    cells = _date_cells(1_000_000)
+    found = taxonomy._matching_date_format(cells, _SETTINGS)
+    assert found is not None
+    good, sources = found[1], found[2]
+    assert len(good) == len(sources) == 1_000_000
+    assert _objects(good) == len(set(cells)) <= 3_360
+
+
+def test_the_rows_of_one_date_share_its_day_number() -> None:
+    cells = _date_cells(200_000)
+    pairs = [(cell, "") for cell in cells]
+    details = {"resolution": taxonomy.RESOLUTION_DATE, "datetimes_read_at": taxonomy.READ_AT_LOCAL, "format": "iso-date"}
+    days = taxonomy._census_days(details, pairs)
+    assert len(days) == 200_000
+    assert _objects(days) <= len(set(cells))
+
+
+def test_a_pair_that_keeps_its_offset_is_the_pair_itself() -> None:
+    pairs = [(cell[:19], cell[19:]) for cell in _date_cells(20_000, offsets=True)]
+    offsets: "dict[str, int]" = {}
+    for _canonical, offset in pairs:
+        offsets[offset] = (offsets[offset] if offset in offsets else 0) + 1
+    kept = taxonomy._offsets_as_published(pairs, offsets)
+    assert kept == pairs
+    assert all(kept[place] is pairs[place] for place in range(len(pairs)))
+
+
+def test_ordering_moments_holds_one_key_per_written_moment() -> None:
+    """66bca69 built a key per row: about 120 bytes a row over 200,000 rows of 3,360 dates."""
+    pairs = [(cell, "") for cell in _date_cells(200_000)]
+    expected = sorted(cell for cell, _offset in pairs)
+    taxonomy.ordered_moments(pairs[:100], taxonomy.READ_AT_LOCAL)
+    tracemalloc.start()
+    try:
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        ordered = taxonomy.ordered_moments(pairs, taxonomy.READ_AT_LOCAL)
+        held = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        tracemalloc.stop()
+    assert ordered[0] == expected and ordered[1] == expected[0] and ordered[2] == expected[-1]
+    assert held / len(pairs) < 60, held / len(pairs)
+
+
+# -- the survey ------------------------------------------------------------------
+
+
+def test_the_survey_holds_one_text_per_spelling_in_each_column(tmp_path: pathlib.Path) -> None:
+    """200,000 rows of 500 codes and 3 words: 66bca69 held 200,000 texts in each column."""
+    draw = random.Random(2)
+    lines = ["code,arm,note"]
+    for row in range(200_000):
+        lines += [f"{1000001 + draw.randrange(500)},{draw.choice(['north', 'south', 'east'])},note {row}"]
+    path = fixtures.write(tmp_path, "register.csv", "\n".join(lines) + "\n")
+    table = reading.read_table(str(path))
+    assert table.n_rows == 200_000
+    assert _objects(table.columns[0]) == 500
+    assert _objects(table.columns[1]) == 3
+    assert _objects(table.columns[2]) == 200_000
+    assert table.columns[2][:3] == ["note 0", "note 1", "note 2"]
+
+
+# -- the census reading is let go ------------------------------------------------
+
+
+def test_the_census_reading_is_let_go_once_its_column_is_described(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """66bca69 kept the census's reading of `code` held while every later column was described."""
+    draw = random.Random(8)
+    lines = ["code,arm,score"]
+    for _ in range(3_000):
+        lines += [f"{1000001 + draw.randrange(200)},{draw.choice(['a', 'b'])},{draw.gauss(50, 9):.1f}"]
+    path = fixtures.write(tmp_path, "register.csv", "\n".join(lines) + "\n")
+    described = taxonomy.profile_column
+    handed: "list[weakref.ref[taxonomy.HeldReading]]" = []
+    alive_later: "list[bool]" = []
+
+    def watched(*args: object, **kwargs: object) -> taxonomy.ColumnProfile:
+        nonlocal handed, alive_later
+        if handed:
+            gc.collect()
+            alive_later += [handed[0]() is not None]
+        given = args[12] if len(args) > 12 else kwargs.get("handed_over")
+        if isinstance(given, taxonomy.HeldReading):
+            handed += [weakref.ref(given)]
+        del given
+        return described(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(taxonomy, "profile_column", watched)
+    assert kpi_shapes.quiet_cli(["profile", str(path), "--out-dir", str(tmp_path), "--code", "code"]) == 0
+    assert len(handed) == 1, "premise: the census read `code` and handed it over"
+    assert alive_later == [False, False]
+
+
+# -- bytes per row ---------------------------------------------------------------
+
+
+def _profile_peak(folder: pathlib.Path, rows: int) -> int:
+    draw = random.Random(3)
+    lines = ["code,arm,visit"]
+    for _ in range(rows):
+        lines += [
+            f"{1000001 + draw.randrange(2000)},{'a' if draw.random() < 0.5 else 'b'},"
+            f"20{draw.randint(15, 24)}-{draw.randint(1, 12):02d}-{draw.randint(1, 28):02d}"
+        ]
+    path = fixtures.write(folder, f"t{rows}.csv", "\n".join(lines) + "\n")
+    out = folder / f"o{rows}"
+    out.mkdir()
+    tracemalloc.start()
+    try:
+        assert kpi_shapes.quiet_cli(["profile", str(path), "--out-dir", str(out), "--code", "code"]) == 0
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+
+def test_describe_holds_under_three_hundred_bytes_a_row_it_adds(tmp_path: pathlib.Path) -> None:
+    """A register of 2,000 codes, two arms and dates: 66bca69 held 1,079 bytes per added row, the lane 147."""
+    _profile_peak(tmp_path, 2_000)
+    smaller = _profile_peak(tmp_path, 40_000)
+    larger = _profile_peak(tmp_path, 80_000)
+    per_row = (larger - smaller) / 40_000
+    assert per_row < 300, per_row
+
+
+# -- the answers do not move -----------------------------------------------------
+
+
+def _documents(folder: pathlib.Path) -> "list[dict[str, object]]":
+    draw = random.Random(31)
+    columns = {
+        "code": [f"{1000001 + draw.randrange(300)}" for _ in range(6_000)],
+        "label": [draw.choice(["Yes", "yes", "YES", " no", "No", "maybe"]) for _ in range(6_000)],
+        "visit": _date_cells(6_000, offsets=True),
+        "day": _date_cells(6_000),
+        "score": [draw.choice(["-999", f"{draw.gauss(70, 9):.1f}"]) for _ in range(6_000)],
+    }
+    names = sorted(columns)
+    text = ",".join(names) + "\n" + "".join(",".join(columns[name][row] for name in names) + "\n" for row in range(6_000))
+    path = fixtures.write(folder, "mixed.csv", text)
+    documents: "list[dict[str, object]]" = []
+    for floor in (11, 1):
+        settings = taxonomy.Settings(small_cell_floor=floor)
+        table = reading.read_table(str(path), small_cell_floor=floor)
+        documents += [profile.build_document(table, settings, [], ["code"])]
+    return documents
+
+
+def test_no_answer_moves_when_nothing_is_shared(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The memos change which objects hold the answers, never the answers."""
+    shared = _documents(tmp_path)
+    monkeypatch.setattr(parsing, "memo_takes", lambda held, answered: False)
+    assert _documents(tmp_path) == shared

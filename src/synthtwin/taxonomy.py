@@ -12817,7 +12817,6 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     multiset of cells. Raises nothing. No I/O of any kind.
     """
     counts: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    values: "dict[tuple[int, tuple[str, ...], int], float]" = {}
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
@@ -12827,18 +12826,25 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
             counts[cell.exact] = counts[cell.exact] + 1
         else:
             counts[cell.exact] = 1
-        values[cell.exact] = cell.value
     if not counts:
         return None, 0
     most = 0
     for key in counts:
         if counts[key] > most:
             most = counts[key]
+    # THE VALUES ARE READ OFF THE CELLS OF THE COMMONEST NUMBERS, in a
+    # second walk, rather than held in a map beside the counts (lane S4d,
+    # plan P4-D390): on a column whose numbers never repeat that map was
+    # one entry a row. Every cell of one exact number holds one value.
     smallest: "float | None" = None
-    for key in counts:
-        if counts[key] != most:
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
             continue
-        found = values[key]
+        if cell.exact is None or cell.value is None:
+            continue
+        if counts[cell.exact] != most:
+            continue
+        found = cell.value
         if smallest is None or found < smallest:
             smallest = found
     return smallest, most

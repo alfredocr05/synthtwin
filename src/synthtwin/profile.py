@@ -4217,6 +4217,9 @@ def build_document(
                 continue
             still_waiting += [held]
         waiting = still_waiting
+        # ...and the walk's own name lets go of the last reading it met,
+        # which would otherwise stay held through every later column.
+        held = None
         # ONE STORAGE CLASS PER WORKBOOK COLUMN, or no weekday census
         # (landing 3b.1): a column whose dates are stored partly as dates
         # and partly as text is read back differently cell by cell.

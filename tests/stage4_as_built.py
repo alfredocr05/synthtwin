@@ -22,6 +22,12 @@ nothing reads the product's source to build them:
   S4b-num (`tests/test_stage4_numbers_and_codes.py`, plans P4-D377,
   P4-D387 and P4-D390).
 
+- `TALLY` is `taxonomy._tally` as 66bca69 shipped it, holding every
+  folded label's map of spellings, the oracle of lane S4d's plain labels
+  (`tests/test_stage4_describe_memory.py`, plan P4-D390): every label's
+  map, as `taxonomy._label_spellings` answers it, must be the map this
+  held.
+
 `READ_THE_COLUMN`, `taxonomy._read_the_column` with its level pass as
 668f276 shipped it, stood here too until plan P4-D390 deleted that pass.
 
@@ -1238,4 +1244,129 @@ def quality_report(description: contract.Profile, outcome: validation.Outcome) -
     for line in lines:
         text = text + line + _NEWLINE
     return text
+'''
+
+
+TALLY = r'''
+def _tally(
+    classified: list[_Cell],
+    n_rows: int,
+    settings: Settings,
+    decimal_comma: bool = False,
+) -> _Cells:
+    """Count the one classification of each cell, in one pass.
+
+    This function reads the records and never the text: it is arithmetic
+    over `_classify`'s answers. That is what lets a numeric sentinel be
+    dropped by filtering the records and counting again, instead of
+    reading the whole column a second time and hoping the second reading
+    agrees with the first (review item P1-R6-F10).
+    """
+    present: list[str] = []
+    numbers: list[float] = []
+    out_of_range = 0
+    contradictory = 0
+    not_a_number = 0
+    negative = 0
+    positive = 0
+    sign_unknown = 0
+    sign_unsettled_numeric = 0
+    whole = 0
+    fraction = 0
+    whole_unknown = 0
+    negative_unrepresentable = 0
+    all_digits = 0
+    code_alphabet = 0
+    folded_counts: dict[str, int] = {}
+    spellings_by_folded: dict[str, dict[str, int]] = {}
+    for cell in classified:
+        present += [cell.text]
+        if cell.kind == parsing.NUMBER:
+            if cell.value is not None:
+                numbers += [cell.value]
+        elif cell.kind == parsing.NUMBER_OUT_OF_RANGE:
+            out_of_range = out_of_range + 1
+        elif cell.kind == parsing.NUMBER_CONTRADICTORY:
+            contradictory = contradictory + 1
+        else:
+            not_a_number = not_a_number + 1
+        # EVERY present cell is counted here, ordinary text included.
+        # The sign and whole-number families are two MARGINS over the
+        # present cells, and the contract states them that way: U1 and
+        # U2 both sum to `n_present`, and the three key meanings all
+        # read "present cells whose notation settles ..." (contract v4
+        # section 6.2). A cell of ordinary text settles neither
+        # question, so it answers for `n_whole_unknown` and
+        # `n_sign_unknown` -- which is exactly what the generation
+        # method's construction table ties it to (generation method
+        # G10.5 step 1, the "ordinary text" row), and exactly what
+        # `_classify` already gives it: SIGN_UNKNOWN and WHOLE_UNKNOWN.
+        #
+        # This line used to read `if cell.kind != parsing.NOT_A_NUMBER`,
+        # which left a text cell out of both families while `n_present`
+        # counted it. The producer then wrote a description its own
+        # loader refused, and the refusal told the reader their file had
+        # been changed since it was written -- blaming a person who had
+        # done nothing. Found while transcribing this rule for the
+        # version 6 contract, reproduced end to end, and fixed here
+        # rather than in the invariant, because the contract, the sealed
+        # generation method and the shipped loader all three agree with
+        # each other and against this line.
+        if cell.sign == parsing.SIGN_NEGATIVE:
+            negative = negative + 1
+            if cell.kind != parsing.NUMBER:
+                negative_unrepresentable = negative_unrepresentable + 1
+        elif (
+            cell.sign == parsing.SIGN_POSITIVE
+            or cell.sign == parsing.SIGN_ZERO
+        ):
+            positive = positive + 1
+        else:
+            sign_unknown = sign_unknown + 1
+            if cell.kind != parsing.NOT_A_NUMBER:
+                sign_unsettled_numeric = sign_unsettled_numeric + 1
+        if cell.whole == parsing.WHOLE_YES:
+            whole = whole + 1
+        elif cell.whole == parsing.WHOLE_NO:
+            fraction = fraction + 1
+        else:
+            whole_unknown = whole_unknown + 1
+        if cell.all_digits:
+            all_digits = all_digits + 1
+        if cell.code_alphabet:
+            code_alphabet = code_alphabet + 1
+        if cell.folded in folded_counts:
+            folded_counts[cell.folded] = folded_counts[cell.folded] + 1
+        else:
+            folded_counts[cell.folded] = 1
+            spellings_by_folded[cell.folded] = {}
+        spellings = spellings_by_folded[cell.folded]
+        if cell.text in spellings:
+            spellings[cell.text] = spellings[cell.text] + 1
+        else:
+            spellings[cell.text] = 1
+    return _Cells(
+        decimal_comma=decimal_comma,
+        classified=classified,
+        present=present,
+        n_rows=n_rows,
+        settings=settings,
+        numbers=numbers,
+        n_out_of_range=out_of_range,
+        n_contradictory=contradictory,
+        n_not_numeric=not_a_number,
+        n_negative=negative,
+        n_positive=positive,
+        n_sign_unknown=sign_unknown,
+        n_whole=whole,
+        n_fraction=fraction,
+        n_whole_unknown=whole_unknown,
+        n_sign_unsettled_numeric=sign_unsettled_numeric,
+        n_negative_unrepresentable=negative_unrepresentable,
+        raw_distinct=len(set(present)),
+        folded_counts=folded_counts,
+        spellings_by_folded=spellings_by_folded,
+        all_digits=all_digits,
+        code_alphabet=code_alphabet,
+    )
 '''
