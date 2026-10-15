@@ -425,7 +425,11 @@ def test_a_file_the_reader_refuses_for_anything_else_is_refused(
         target = _written(folder, _BATTERY[label])
         with pytest.raises(errors.ProfileError) as raised:
             validation.measure(headed, str(target))
+        # The refusal names the file's own path, and a temporary folder's random name can hold
+        # two of these letters (CI, 2026-10-15: "...9dmqqc..."), so the path is taken out first.
         spoken = f"{raised.value}"
+        for path in (str(target.resolve()), str(target)):
+            spoken = spoken.replace(path, "<the file>")
         for spelling in ("dup", "qq", "ww"):
             assert spelling not in spoken, (label, spelling)
 
