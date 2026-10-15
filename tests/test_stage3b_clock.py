@@ -86,7 +86,9 @@ holds the whole battery, and NF106's sentence:
   hold stands beside the published words (mutant: counted among the
   stand-ins, and the twin is read back as clock times);
 * W `test_w_rare_words_beside_clock_times_keep_the_clock` -- 296 shift
-  starts beside four `UNK` are clock times, the words counted missing,
+  starts beside four `UNK` are clock times, the words -- counted missing
+  until landing 3b.5's second step, kept present and unread by the clock
+  since (plan P4-D374), so the twin writes a word in each and no blank --
   and the twin reads back the same way (mutant: the level pass keeps the
   labels); and, since the second repair round, the route to clock times
   stands only where the column it leaves is clock times, so one time on
@@ -109,6 +111,17 @@ holds the whole battery, and NF106's sentence:
 * and NF106, `test_the_description_says_so_where_the_census_is_left_out`
   -- fewer than the line left beside the heaps leaves the census out
   and the description says so, the fold-back the 3b.5 skeptic dropped.
+
+And the clause of landing 3b.5's second step (lane C2, plan P4-D374):
+
+* U `test_u_the_minute_of_the_hour_comes_back` -- triage times typed on
+  `:00` and `:30` at a quarter of their rows and walk-ins booked on a
+  ten-minute grid, at 1,000 rows and a floor of eleven, publish their
+  minute census, and every twin's share on `:00` or `:30` is within 0.02
+  of the table's (before it, 0.08 to 0.09 against 0.28, and 0.16 against
+  0.21), nothing missed (mutant: the minute census withdrawn from the
+  layout). The landing's own rules are held in
+  `tests/test_stage3b_clock_minutes.py`.
 """
 
 from __future__ import annotations
@@ -390,15 +403,26 @@ def test_r_times_beside_notes_or_another_face_are_labels(
 
 
 def test_r_red_when_their_odd_levels_are_counted_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the route back -- the producer reads every such column as
+    clock times again. Since plan P4-D374 the route keeps the cells it sets
+    apart present, so the loader's line (T5), asked beside one cell in
+    fifty at most, refuses those descriptions: the producer's reading alone
+    is asked here."""
     monkeypatch.setattr(taxonomy, "_rare_beside_clocks", _route_2)
-    _described.cache_clear()
-    _twin.cache_clear()
-    try:
-        for rows, floor, names in _LEVEL_PASS_CASES:
-            assert tuple(_counted_out(names, rows, floor)) == names, (rows, floor)
-    finally:
-        _described.cache_clear()
-        _twin.cache_clear()
+    for rows, floor, names in _LEVEL_PASS_CASES:
+        folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
+        columns = {name: shapes.cells(name, rows) for name in names}
+        lines = [",".join(names)] + [
+            ",".join(columns[name][index] for name in names) for index in range(rows)
+        ]
+        table = fixtures.write(folder, "routed.csv", "\n".join(lines) + "\n")
+        document = profile.build_document(
+            reading.read_table(str(table), small_cell_floor=floor),
+            taxonomy.Settings(small_cell_floor=floor),
+            [],
+        )
+        read = tuple(name for name in names if _block(document, name)["role"] == taxonomy.ROLE_CLOCK)
+        assert read == names, (rows, floor, read)
 
 
 # -- F: the floor, the loader, and nothing missed ---------------------
@@ -837,8 +861,8 @@ def test_n_a_column_with_no_tails_publishes_its_census(rows: int) -> None:
 def test_n_red_without_the_census_of_a_column_with_no_tails(monkeypatch: pytest.MonkeyPatch) -> None:
     built = calendar_clock.clock_census_of
 
-    def withdrawn(ordinals, form, line, body):  # type: ignore[no-untyped-def]
-        found = built(ordinals, form, line, body)
+    def withdrawn(ordinals, form, line, body, absent=()):  # type: ignore[no-untyped-def]
+        found = built(ordinals, form, line, body, absent)
         if body is None:
             return calendar_clock.ClockCensus(found.step, found.heaps, (), bool(found.groups))
         return found
@@ -850,6 +874,41 @@ def test_n_red_without_the_census_of_a_column_with_no_tails(monkeypatch: pytest.
         assert not _no_tails_kept(300)
     finally:
         _described.cache_clear()
+        _twin.cache_clear()
+
+
+# -- U: the minute of the hour comes back (landing 3b.5's second step) -----
+
+_MINUTE_CLAUSE = ("ed_triage_s", "walkin")
+
+
+def _on_the_slots(cells: "list[str]") -> float:
+    """The share of the cells read as times that stand on minute 0 or 30."""
+    read = [second for second in (_second(cell) for cell in cells) if second is not None]
+    return sum(1 for second in read if (second // 60) % 60 in (0, 30)) / max(1, len(read))
+
+
+def test_u_the_minute_of_the_hour_comes_back() -> None:
+    _folder, columns, document, _loaded, _table = _described(_CLOCKS, 1000, 11)
+    for name in _MINUTE_CLAUSE:
+        assert _block(document, name)["minute_census"], name
+        for seed in _SEEDS:
+            cells, missed = _twin(_CLOCKS, 1000, 11, seed)
+            gap = abs(_on_the_slots(cells[name]) - _on_the_slots(columns[name]))
+            assert gap <= 0.02 and missed == [], (name, seed, gap, missed)
+
+
+def test_u_red_without_the_minute_census(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        generation, "_clock_minutes_laid", lambda column, facts, floor, layout, holes=(): layout
+    )
+    _twin.cache_clear()
+    try:
+        _folder, columns, _document, _loaded, _table = _described(_CLOCKS, 1000, 11)
+        cells, _missed_now = _twin(_CLOCKS, 1000, 11, 0)
+        gaps = [abs(_on_the_slots(cells[name]) - _on_the_slots(columns[name])) for name in _MINUTE_CLAUSE]
+        assert all(gap > 0.02 for gap in gaps), gaps
+    finally:
         _twin.cache_clear()
 
 
@@ -993,7 +1052,13 @@ def test_t_the_step_is_kept() -> None:
 
 
 def test_t_red_on_the_forms_own_step(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the step of the form -- and, since landing 3b.5's second step
+    (plan P4-D374), no minute census, which on a step of a minute holds a
+    five-minute grid's twin to its minutes and would hide the step's loss."""
     monkeypatch.setattr(calendar_clock, "written_step", lambda _seconds, _day: 60)
+    monkeypatch.setattr(
+        calendar_clock, "clock_minute_decision", lambda *_arguments: ((), calendar_clock.FIELD_REASON_FLAT)
+    )
     _described.cache_clear()
     _twin.cache_clear()
     try:
@@ -1247,12 +1312,17 @@ def test_m_red_when_another_keys_stand_ins_are_rare_words(monkeypatch: pytest.Mo
 
 
 def test_w_rare_words_beside_clock_times_keep_the_clock() -> None:
+    """Four `UNK` beside 296 shift starts: clock times, the words KEPT PRESENT and
+    unread by the clock since landing 3b.5's second step (plan P4-D374) --
+    counted missing before, the twin wrote four blanks the source never
+    left -- and every twin writes a word in each and misses nothing."""
     _folder, _columns, document, _loaded, _table = _described(("unk4",), 300, 11)
     block = _block(document, "unk4")
-    assert block["role"] == taxonomy.ROLE_CLOCK and block["n_missing"] == 4
+    assert block["role"] == taxonomy.ROLE_CLOCK and block["n_missing"] == 0 and block["n_unparsed"] == 4
     for seed in _SEEDS:
-        _cells_now, missed = _twin(("unk4",), 300, 11, seed)
-        assert missed == []
+        cells_now, missed = _twin(("unk4",), 300, 11, seed)
+        assert missed == [] and "" not in cells_now["unk4"]
+        assert sum(1 for cell in cells_now["unk4"] if _second(cell) is None) == 4
 
 
 def _codes_beside(column: "list[str]", floor: int) -> "int | None":
@@ -1287,7 +1357,9 @@ def _rare_codes_kept(rows: int, floor: int) -> "tuple[int, list[str]]":
             continue
         asked = asked + 1
         block = _block(document, name)
-        if block["role"] != taxonomy.ROLE_CLOCK or block["n_missing"] != held:
+        # Kept present and unread by the clock since plan P4-D374, never
+        # counted missing.
+        if block["role"] != taxonomy.ROLE_CLOCK or block["n_missing"] != 0 or block["n_unparsed"] != held:
             broken += [name]
     return asked, broken
 
@@ -1350,16 +1422,15 @@ _ONE_TIME = {
 }
 
 
-def _counted_out_of_labels(column: "list[str]") -> int:
-    """How many cells the description of a column read as labels counts as missing."""
+def _read_beside_its_words(column: "list[str]") -> "tuple[str, int]":
+    """The role a column's description reads it as, and how many cells it counts missing."""
     folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
     table = fixtures.write(folder, "one.csv", "c\n" + "\n".join(column) + "\n")
     document = profile.build_document(
         reading.read_table(str(table), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
     )
     block = document["columns"][0]  # type: ignore[index]
-    assert block["role"] != taxonomy.ROLE_CLOCK, block["role"]
-    return int(block["n_missing"] or 0)
+    return str(block["role"]), int(block["n_missing"] or 0)
 
 
 @pytest.mark.parametrize("name", sorted(_ONE_TIME))
@@ -1368,12 +1439,17 @@ def test_w_a_route_to_clock_times_leaves_no_pool_that_names_a_count(name: str) -
     level pass to count the lone row out; since that plan a held-back pool is
     published like any other, and what a route must not do is count out a
     cell of a column it leaves as labels. `K-S3-49` pins this node by name."""
-    assert _counted_out_of_labels(_ONE_TIME[name]) == 0
+    role, missing = _read_beside_its_words(_ONE_TIME[name])
+    assert role != taxonomy.ROLE_CLOCK and missing == 0, (role, missing)
 
 
 def test_w_red_when_a_route_stands_on_labels(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the route stands whatever the column it leaves is -- the one
+    time on every row but one is read as clock times beside its words (since
+    plan P4-D374 the words stay present, so it shows in the role, not in a
+    count of missing cells)."""
     monkeypatch.setattr(taxonomy, "_read_as_clock_times", lambda *_a: True)
-    assert _counted_out_of_labels(_ONE_TIME["words"]) > 0
+    assert _read_beside_its_words(_ONE_TIME["words"])[0] == taxonomy.ROLE_CLOCK
 
 
 # -- Q: a few shared times are asked about --------------------------------

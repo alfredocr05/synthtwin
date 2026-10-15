@@ -478,8 +478,7 @@ INPUT_SIDE_ENTRIES = (
     # -- 3b.D3 (P4-D368)
     # -- 3b.D4 (P4-D369)
     # -- 3b.C1 (P4-D373)
-    # -- 3b.C2 (P4-D374)
-    ("clock", "minute_census"),
+    # -- 3b.C2 (P4-D374): filled, `minute_census.groups` (V5-C2).
     # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
 )
 
@@ -17607,8 +17606,7 @@ def _clock_checks(
     # P4-D373; plan P4-D364), checked where a step is published: V5-C1
     # and V5-C2.
     checks = checks + _clock_census_checks(column, facts, block, cells, floor)
-    # -- the minute census of clock times (3b.C2, P4-D374; plan P4-D364):
-    # no check until that landing fills it.
+    # -- the minute census of clock times (3b.C2, P4-D374): V5-C2, widened.
     checks = checks + _clock_minute_checks(column, facts, block, cells, floor)
     return checks
 
@@ -17774,15 +17772,61 @@ def _clock_minute_checks(
     cells: "list[str] | None",
     floor: int,
 ) -> "list[Check]":
-    """A clock column's minute census, held exactly.
+    """A clock column's minute census, held exactly (validation V5-C2, widened).
 
-    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
-    fills this check and nothing beside it (plan P4-D364). No column
-    publishes one until then, so there is nothing to check.
+    LANDING 3b.5's SECOND STEP (lane C2, plan P4-D374). The file's own
+    cells are counted here and never produced: its re-description
+    publishes no minute census (`produced` false). Each cell is read in
+    the PUBLISHED form, as V5-C1 reads it, and the file's values between
+    the two PUBLISHED boundaries, both included -- every value, on a
+    column with no tails -- the clock heaps' among them, are counted at
+    the minute of the hour each is written at
+    (`calendar_clock.clock_minute_of`) per published group:
+    `minute_census.groups`, HELD where every group holds its count exactly,
+    MISSED otherwise, named as V5-M1 names its groups and printed through
+    `_census_lines`, so a MISSED line prints no count below the line.
 
-    Guarantees: as `_clock_census_checks`. No I/O.
+    Guarantees: as `_clock_census_checks`: one check where a minute census
+    is published, none otherwise. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
     """
-    return []
+    if not facts.minute_census:
+        return []
+    form = facts.clock_form
+    spelled: "dict[str, int]" = {}
+    for cell in [] if cells is None else cells:
+        spelled[cell] = (spelled[cell] if cell in spelled else 0) + 1
+    lowest = 0
+    highest = parsing.CLOCK_CAPACITY[form] - 1
+    if facts.low_tail is not None and facts.high_tail is not None:
+        lowest = _clock_ordinal_or_zero(facts.low_tail.boundary, form)
+        highest = _clock_ordinal_or_zero(facts.high_tail.boundary, form)
+    bins = [0 for _minute in range(calendar_clock.FIELD_VALUES)]
+    for cell in spelled:
+        found = parsing.clock_ordinal(cell, form)
+        if found is None or not lowest <= found <= highest:
+            continue
+        minute = calendar_clock.clock_minute_of(found, form)
+        bins[minute] = bins[minute] + spelled[cell]
+    named: "list[tuple[str, int]]" = []
+    counted: "list[int]" = []
+    for first, last, count in facts.minute_census:
+        named += [(_clock_field_value_named(calendar_clock.MINUTE, first, last), count)]
+        counted += [sum(bins[first : last + 1])]
+    asked, shown, lines = _census_lines(named, counted, parsing.census_floor(floor))
+    wanted = [count for _named, count in named]
+    return [
+        Check(
+            column.name,
+            "clock.minute_census",
+            "minute_census.groups",
+            HELD if counted == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            tuple(lines),
+        )
+    ]
 
 
 def _clock_ladder_checks(
@@ -18182,8 +18226,11 @@ def _clock_census_windows(
         (_clock_ordinal_or_zero(value, form), count)
         for value, count in facts.clock_heaps
     )
+    # A body laid on its minute census (3b.C2, P4-D374; method G7A.4c)
+    # gives a heap's ranks its group's reach too, as the construction does.
     windows = calendar_clock.clock_rank_windows(
-        parsed, tails, body, facts.clock_census, heaps, form, stride, absent
+        parsed, tails, body, facts.clock_census, heaps, form, stride, absent,
+        bool(facts.minute_census),
     )
     if windows is None:
         return None

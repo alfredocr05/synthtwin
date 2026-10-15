@@ -227,6 +227,7 @@ anchor 3b-T3 (P4-D372)
 anchor 3b-C1 (P4-D373)
 3b.5: tests/test_stage3b_clock.py.
 anchor 3b-C2 (P4-D374)
+3b.5 step 2: tests/test_stage3b_clock_minutes.py, the minute census of a column of clock times and G7A.4c's own steps; its clause U in tests/test_stage3b_clock.py.
 anchor 3b-G1 (P4-D375)
 anchor 3b-G3 (P4-D376)
 anchor 3b-G2 (P4-D377)

@@ -887,6 +887,22 @@ def _clock_census_table() -> str:
     return fixtures.rows_to_csv(["shift"], [[cell] for cell in cells])
 
 
+def _clock_minute_table() -> str:
+    """1,200 walk-in times, more than half on a ten-minute booking grid
+    (landing 3b.5's second step, plan P4-D374): its block publishes a
+    minute census, which `minute_census.groups` files. Seeded and neutral
+    (plan D13)."""
+    draw = random.Random(37401)
+    cells: "list[str]" = []
+    for _row in range(1200):
+        if draw.random() < 0.55:
+            minute = 7 * 60 + 30 + 10 * min(67, int(draw.triangular(0, 68, 30)))
+        else:
+            minute = int(draw.triangular(7 * 60, 20 * 60, 12 * 60 + 30))
+        cells += [f"{minute // 60:02d}:{minute % 60:02d}"]
+    return fixtures.rows_to_csv(["walked_in"], [[cell] for cell in cells])
+
+
 def _clock_field_table() -> str:
     """1,200 moments to the second, both fields heaped (landing 3b.4, P4-D372).
 
@@ -1016,6 +1032,11 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     # on a minute and a second, so one more twin files the four.
     fielded = _described(tmp_path, _clock_field_table(), None, stem="fielded")
     fielded_twin = rendering.twin_csv(generation.generate(fielded, SEED))
+    # ...AND SO IS A CLOCK COLUMN'S MINUTE CENSUS (landing 3b.5's second
+    # step, plan P4-D374): the every-role clock's minutes are flat, so one
+    # more twin of walk-ins on a booking grid files it.
+    walked = _described(tmp_path, _clock_minute_table(), None, stem="walked")
+    walked_twin = rendering.twin_csv(generation.generate(walked, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
@@ -1024,6 +1045,7 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         ("days", days, days_twin),
         ("tenths", tenths, tenths_twin),
         ("clock-fields", fielded, fielded_twin),
+        ("clock-minutes", walked, walked_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:

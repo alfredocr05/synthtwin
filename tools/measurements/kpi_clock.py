@@ -18,7 +18,15 @@ producer, generator and checker:
 * `heaps_off`: published heaps whose twin count is not the real count;
 * `cells_unreadable`: twin cells no clock reader takes, blanks among
   them, beyond the real column's own such cells;
-* `missed`: twins, and real tables, of which validation MISSES anything.
+* `missed`: twins, and real tables, of which validation MISSES anything;
+* since landing 3b.5's second step (plan P4-D374), `minute_censuses`: the
+  minute censuses the tables publish over every size and floor (13: five
+  at 1,000 rows at each floor, three at 10,000); `slots_gap_1k`: the
+  largest gap, over the columns publishing one at 1,000 rows and the floor
+  of eleven, between the twin's share on `:00` or `:30` and the real one;
+  and `ten_tvd_1k`, the design's stated cost: the largest total variation
+  over the 144 ten-minute stretches between twin and table on those
+  columns, beside a noise floor near 0.13 at 1,000 rows.
 
 Before the landing (110cb46, the battery of the design and its skeptic):
 clinic, shift starts, rounds and the coded shifts took `categorical` at
@@ -69,6 +77,22 @@ def _tvd(real: "list[str]", twin: "list[str]") -> float:
     return 0.5 * sum(abs(first[hour] / a - second[hour] / b) for hour in range(24))
 
 
+def _tvd_ten(real: "list[str]", twin: "list[str]") -> float:
+    def stretches(cells: "list[str]") -> "collections.Counter[int]":
+        return collections.Counter(
+            second // 600 for second in (_second(cell) for cell in cells) if second is not None
+        )
+
+    first, second = stretches(real), stretches(twin)
+    a, b = max(1, sum(first.values())), max(1, sum(second.values()))
+    return 0.5 * sum(abs(first[bin] / a - second[bin] / b) for bin in range(144))
+
+
+def _on_the_slots(cells: "list[str]") -> float:
+    read = [second for second in (_second(cell) for cell in cells) if second is not None]
+    return sum(1 for second in read if (second // 60) % 60 in (0, 30)) / max(1, len(read))
+
+
 def _missed(loaded: contract.Profile, path: pathlib.Path) -> int:
     outcome = validation.measure(loaded, str(path))
     return sum(1 for check in outcome.checks if check.verdict == validation.MISSED)
@@ -88,6 +112,7 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, object], list[str]]":
     totals: "dict[str, object]" = {
         "columns": 0, "hour_tvd_1k": 0.0, "hour_tvd_10k": 0.0,
         "heaps_off": 0, "cells_unreadable": 0, "missed": 0,
+        "minute_censuses": 0, "slots_gap_1k": 0.0, "ten_tvd_1k": 0.0,
     }
     notes: "list[str]" = []
     read = {name: True for name in names}
@@ -109,6 +134,8 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, object], list[str]]":
         if _missed(loaded, table):
             totals["missed"] = int(totals["missed"]) + 1  # type: ignore[call-overload]
             notes += [f"the real table at {rows} rows, floor {floor}: MISSED"]
+        minutes = [name for name in names if blocks[name].get("minute_census")]
+        totals["minute_censuses"] = int(totals["minute_censuses"]) + len(minutes)  # type: ignore[call-overload]
         for name in names:
             if blocks[name]["role"] != taxonomy.ROLE_CLOCK:
                 read[name] = False
@@ -126,6 +153,11 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, object], list[str]]":
                 if floor == 11:
                     key = "hour_tvd_1k" if rows == 1000 else "hour_tvd_10k"
                     totals[key] = round(max(float(totals[key]), _tvd(real, twin)), 4)  # type: ignore[arg-type]
+                if floor == 11 and rows == 1000 and name in minutes:
+                    gap = abs(_on_the_slots(twin) - _on_the_slots(real))
+                    totals["slots_gap_1k"] = round(max(float(totals["slots_gap_1k"]), gap), 4)  # type: ignore[arg-type]
+                    ten = _tvd_ten(real, twin)
+                    totals["ten_tvd_1k"] = round(max(float(totals["ten_tvd_1k"]), ten), 4)  # type: ignore[arg-type]
                 counted = collections.Counter(twin)
                 for heap in blocks[name]["clock_heaps"]:
                     if counted[heap["value"]] != heap["count"]:

@@ -296,6 +296,15 @@ TWENTY_FIRST_BRANCH_VECTORS = (
     / "generation-branch-vectors-21.json"
 )
 # anchor 3b-C2 (P4-D374)
+# THE TWENTY-SEVENTH FILE (landing 3b.5's second step, the minute census of
+# a column of clock times, plan P4-D374): the twenty-first stands at its
+# cap, so G7A.4c's six cases open the first number no lane holds.
+TWENTY_SEVENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_27.py"
+)
+TWENTY_SEVENTH_BRANCH_VECTORS = (
+    REPOSITORY / "tests" / "reference" / "generation-branch-vectors-27.json"
+)
 # anchor 3b-G1 (P4-D375)
 # THE SIXTEENTH FILE (the end floor of a date or clock tail, plan P4-D375):
 # every branch file stands past plan P4-D295's line.
@@ -371,6 +380,9 @@ gen_clock_census_runs = gen.clock_census_runs
 gen_clock_run_shares = gen.clock_run_shares
 gen_clock_filled_form = gen.clock_filled_form
 gen_clock_reads = gen.clock_reads
+gen_clock_minute_laid = gen.clock_minute_laid
+gen_clock_minute_pins = gen.clock_minute_pins
+gen_clock_minute_owed = gen.clock_minute_owed
 gen_numeric_content = gen._numeric_content
 gen_grouped_enough = gen.grouped_enough
 gen_layout_preferences = gen.layout_preferences
@@ -451,6 +463,10 @@ def _twenty_second_branch_document() -> dict:
 
 def _twenty_first_branch_document() -> dict:
     return json.loads(TWENTY_FIRST_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _twenty_seventh_branch_document() -> dict:
+    return json.loads(TWENTY_SEVENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 def _twenty_third_branch_document() -> dict:
@@ -898,6 +914,18 @@ TWENTY_FIRST_BRANCH_CASES = (
     "labels_clock_shaped",
 )
 
+# THE TWENTY-SEVENTH FILE: landing 3b.5's second step, G7A.4c's minute
+# census of a column of clock times (plan P4-D374).
+TWENTY_SEVENTH_BRANCH_CASES = (
+    "clock_minutes_all_different",
+    "clock_minutes_no_tails",
+    "clock_minutes_rounding",
+    "clock_minutes_rung_pins",
+    "clock_minutes_seconds",
+    "clock_minutes_slots",
+    "clock_stand_ins_past_route_one",
+)
+
 # THE TWENTY-THIRD FILE: lane G2's width rule, G6.6.8's reach (plan
 # P4-D377).
 TWENTY_THIRD_BRANCH_CASES = ("tail_width_past_the_reach",)
@@ -970,6 +998,7 @@ ALL_CASES = tuple(
         + FOURTEENTH_BRANCH_CASES
         + TWENTY_SECOND_BRANCH_CASES
         + TWENTY_FIRST_BRANCH_CASES
+        + TWENTY_SEVENTH_BRANCH_CASES
         + TWENTY_THIRD_BRANCH_CASES
         + TWENTY_FIFTH_BRANCH_CASES
     )
@@ -998,6 +1027,19 @@ SEEDS = {
     # and the second repair round's line held key by key the one after.
     "labels_clock_line": 434,
     "labels_clock_forms": 435,
+    # Landing 3b.5's second step, the minute census of a column of clock
+    # times (lane C2, plan P4-D374), at the next seeds no lane holds:
+    # renumbered at batch 3b's merge of lane C2 from 436 to 441, which
+    # landing R2a's layout cases and landing 3b.5's absent places held.
+    "clock_minutes_slots": 442,
+    "clock_minutes_seconds": 443,
+    "clock_minutes_all_different": 444,
+    "clock_minutes_rung_pins": 445,
+    "clock_minutes_no_tails": 446,
+    "clock_minutes_rounding": 447,
+    # ...and the Codex review of the landing, item 1: G7A.5's stand-ins past
+    # route 1's allowance, at a seed no other lane holds.
+    "clock_stand_ins_past_route_one": 642,
     # Landing R2a's layout member takes the next seeds after T1's (plan
     # P4-D383).
     "layout_century_window": 421,
@@ -1334,6 +1376,8 @@ def _case(name: str) -> dict:
         document = _twenty_second_branch_document()
     elif name in TWENTY_FIRST_BRANCH_CASES:
         document = _twenty_first_branch_document()
+    elif name in TWENTY_SEVENTH_BRANCH_CASES:
+        document = _twenty_seventh_branch_document()
     elif name in TWENTY_THIRD_BRANCH_CASES:
         document = _twenty_third_branch_document()
     elif name in TWENTY_FIFTH_BRANCH_CASES:
@@ -1623,6 +1667,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     twenty_first = _twenty_first_branch_document()
     twenty_third = _twenty_third_branch_document()
     twenty_fifth = _twenty_fifth_branch_document()
+    twenty_seventh = _twenty_seventh_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1642,11 +1687,13 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(twenty_first["cases"])) == TWENTY_FIRST_BRANCH_CASES
     assert tuple(sorted(twenty_third["cases"])) == TWENTY_THIRD_BRANCH_CASES
     assert tuple(sorted(twenty_fifth["cases"])) == TWENTY_FIFTH_BRANCH_CASES
+    assert tuple(sorted(twenty_seventh["cases"])) == TWENTY_SEVENTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
         eighth, ninth, tenth, eleventh, twelfth, thirteenth, fourteenth,
-        twenty_second, twenty_first, twenty_third, twenty_fifth, papers,
+        twenty_second, twenty_first, twenty_third, twenty_fifth,
+        twenty_seventh, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1686,6 +1733,13 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         for _other, path in files:
             if path != own:
                 assert f"tests/reference/{path.name}" in document["case_set"]
+    # The twenty-seventh (plan P4-D374) names every file above; theirs are
+    # left as they stand, as the seventeenth's and eighteenth's are.
+    assert twenty_seventh["never_imports"] == ["synthtwin", "numpy", "pandas"]
+    assert twenty_seventh["method"] == "docs/spec/generation-method-v1.md"
+    assert twenty_seventh["generated_by"] == "tools/reference/make_generation_reference_vectors.py"
+    for _other, path in files:
+        assert f"tests/reference/{path.name}" in twenty_seventh["case_set"], path.name
 
 
 @pytest.mark.parametrize(
@@ -1715,6 +1769,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         TWENTY_SIXTH_BRANCH_GENERATOR,
         EIGHTEENTH_BRANCH_GENERATOR,
         NINETEENTH_BRANCH_GENERATOR,
+        TWENTY_SEVENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -2012,6 +2067,9 @@ TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
 # The twenty-first, at its own generator's line ("proved 40 ... beside 629").
 TWENTY_FIRST_BRANCH_PUBLISHED_NUMBERS = 40
 TWENTY_FIRST_BRANCH_NAMED_COUNTS = 629
+# The twenty-seventh, at its own generator's line ("proved 18 ... beside 461").
+TWENTY_SEVENTH_BRANCH_PUBLISHED_NUMBERS = 18
+TWENTY_SEVENTH_BRANCH_NAMED_COUNTS = 461
 # The twenty-third, at its own generator's line ("proved N ... beside M").
 TWENTY_THIRD_BRANCH_PUBLISHED_NUMBERS = 542
 TWENTY_THIRD_BRANCH_NAMED_COUNTS = 205
@@ -2142,6 +2200,12 @@ COMMITTED_FILES = (
         TWENTY_FIFTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        TWENTY_SEVENTH_BRANCH_VECTORS,
+        gen.TWENTY_SEVENTH_BRANCH_PART,
+        TWENTY_SEVENTH_BRANCH_PUBLISHED_NUMBERS,
+        TWENTY_SEVENTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -2155,7 +2219,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -2197,7 +2261,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -2216,7 +2280,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -3881,7 +3945,98 @@ def _partial_never_stepped(key, moment, absent, taken, apart, skips=None, span=N
     return _PARTIAL_WRITTEN(key, *moment)
 
 
+def _minute_layout_withdrawn(*_arguments):
+    """G7A.4c withdrawn: the body is laid by G7A.4b's runs."""
+    return None
+
+
+def _minute_as_the_second(ordinal, form):
+    """G7A.4c's minute of the hour read as the second of the minute."""
+    return ordinal * gen.clock_step_of(form) % 60
+
+
+def _minute_lanes_not_apart(column, parsed, tails, body, heaps, stride, runs, word_of, apart):
+    """G7A.4c's lanes on a column whose values all differ, left as read."""
+    return gen_clock_minute_laid(column, parsed, tails, body, heaps, stride, runs, word_of, False)
+
+
+def _minute_boundaries_pinned_alone(column, parsed, tails, body, heap_at, stride, groups, spans, is_absent, wide):
+    """G7A.4c's pins, the two boundaries alone."""
+    kept = gen_clock_minute_pins(column, parsed, tails, body, heap_at, stride, groups, spans, is_absent, wide)
+    ends = () if tails is None else (tails[0], parsed - 1 - tails[1])
+    return [(rank, at) for rank, at in kept if rank in ends]
+
+
+def _stand_ins_all_words(_column, used, wanted):
+    """G7A.5's stand-ins past route 1's allowance withdrawn: every one a word."""
+    return gen.text_stand_ins(used, wanted)
+
+
+def _minute_heaps_left_in(minute_groups, _heap_at, kept, form):
+    """G7A.4c's column counts with the heaps' cells left in."""
+    return gen_clock_minute_owed(minute_groups, {}, kept, form)
+
+
+def _minute_rows_rounded_alone(rows, _columns, entries):
+    """G7A.4c's rounding of each row alone, by largest remainders of its
+    cells' weights, the columns' counts unasked."""
+    table = []
+    for count, row in zip(rows, entries):
+        total = sum(weight for _c, weight, _cap in row) or 1
+        shares = [count * weight / total for _c, weight, _cap in row]
+        whole = [int(share) for share in shares]
+        order = sorted(range(len(row)), key=lambda e: (-(shares[e] - whole[e]), e))
+        for e in order[: count - sum(whole)]:
+            whole[e] += 1
+        table.append(whole)
+    return table
+
+
 CASE_MUTANTS = {
+    # LANDING 3b.5's SECOND STEP, the minute census of a column of clock
+    # times (lane C2, plan P4-D374), each case's own rule of G7A.4c.
+    "clock_minutes_slots": Mutant(
+        branch="G7A.4c's minute census; the mutant withdraws it from the layout, and the body is laid by G7A.4b's runs",
+        attribute="clock_minute_laid",
+        replacement=_minute_layout_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_seconds": Mutant(
+        branch="G7A.4c's minute of the hour at the second; the mutant reads the second of the minute, and the lanes move",
+        attribute="clock_minute_of",
+        replacement=_minute_as_the_second,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_all_different": Mutant(
+        branch="G7A.4c's lanes stepped apart on a column whose values all differ; the mutant leaves them as read, and cells share a second",
+        attribute="clock_minute_laid",
+        replacement=_minute_lanes_not_apart,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_rung_pins": Mutant(
+        branch="G7A.4c's pins, the walls a group's cells are cut at; the mutant pins the two boundaries alone, and the cells between the rungs move",
+        attribute="clock_minute_pins",
+        replacement=_minute_boundaries_pinned_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_no_tails": Mutant(
+        branch="G7A.4c's column counts less the heaps' cells; the mutant leaves them in, no table meets the counts, and G7A.4b lays the body",
+        attribute="clock_minute_owed",
+        replacement=_minute_heaps_left_in,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_stand_ins_past_route_one": Mutant(
+        branch="G7A.5's stand-ins past route 1's allowance written as times at the other precision; the mutant writes them all as words, and the twin reads back as free text",
+        attribute="clock_stand_ins",
+        replacement=_stand_ins_all_words,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_rounding": Mutant(
+        branch="G7A.4c's rounding with both counts kept; the mutant rounds each row alone, and the minute groups' counts move",
+        attribute="clock_minute_round",
+        replacement=_minute_rows_rounded_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
     # LANDING 3b.5'S CENSUS OF A COLUMN OF CLOCK TIMES (plan P4-D373), each
     # case's own rule.
     "clock_census_absent_inside": Mutant(
@@ -6765,6 +6920,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (TWENTY_FIRST_BRANCH_VECTORS, _twenty_first_branch_document()),
         (TWENTY_THIRD_BRANCH_VECTORS, _twenty_third_branch_document()),
         (TWENTY_FIFTH_BRANCH_VECTORS, _twenty_fifth_branch_document()),
+        (TWENTY_SEVENTH_BRANCH_VECTORS, _twenty_seventh_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:
@@ -6813,3 +6969,230 @@ def test_the_oracle_writes_every_hour_field_beside_a_signed_offset(
     assert gen.layout_written(member, 2024, 3, 17, second, offset, "padded", 0) == cell
     canonical = f"2024-03-17 {hour:02d}:{minute:02d}:00"
     assert parsing.written_layout_date(member, canonical, offset) == cell
+
+
+# ------------------------------------- landing 3b.5's second step (P4-D374)
+
+
+def test_the_oracle_lays_every_battery_minute_census_as_the_product(tmp_path: pathlib.Path) -> None:
+    """G7A.4c beyond its six frozen cases (A-P4-59): every column of the clock
+    battery (`tests/clock_census_shapes.py`) publishing a minute census at 300
+    and 1,000 rows and a floor of eleven -- eleven of them -- is laid by the
+    oracle, from the opening words of seed 0's stream, into exactly the cells
+    the product's twin holds at seed 0. The oracle's tails assume the floor
+    of eleven, so a raised floor is not asked here."""
+    import csv
+    import io
+
+    import clock_census_shapes
+
+    from synthtwin import profile, reading
+
+    laid_columns = 0
+    for rows in (300, 1000):
+        for name in clock_census_shapes.CLOCKS:
+            cells = clock_census_shapes.cells(name, rows)
+            folder = tmp_path / f"{name}-{rows}"
+            folder.mkdir()
+            table = fixtures.write(folder, "t.csv", "\n".join([name] + cells) + "\n")
+            document = profile.build_document(
+                reading.read_table(str(table), small_cell_floor=11),
+                taxonomy.Settings(small_cell_floor=11),
+                [],
+                [],
+            )
+            column = dict(document["columns"][0])
+            if not column.get("minute_census"):
+                continue
+            loaded = contract.load_profile(str(fixtures.write_profile(folder, "p.json", document)))
+            content, _placement = gen.word_budget(column, len(cells))
+            column["_content_words"] = _words(content, 0)
+            laid = gen._clock_content(column)
+            text = rendering.twin_csv(generation.generate(loaded, 0))
+            twin = [row[0] for row in csv.reader(io.StringIO(text)) if row][1:]
+            assert sorted(laid) == sorted(cell for cell in twin if cell), (name, rows)
+            laid_columns = laid_columns + 1
+    assert laid_columns >= 10, laid_columns
+
+
+def test_the_rounding_meets_a_table_reached_only_at_its_edge(monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7A.4c step 3, lane C2's repair round (its skeptic's item 3), product
+    and oracle alike (A-P4-59). Rows ``[n, n]`` and columns ``[n, n]``, one
+    row free to give to both columns and the other to the first alone, are
+    met only at the table's edge, which the fit does not reach in 64 rounds:
+    at n = 1,000 the floors added to more than the first row's count and
+    368d819 returned None, so a description reaching it would have been laid
+    by G7A.4b and its minute census MISSED; so did a three-by-three chain.
+    Both now lower the floors and meet the table. And the path moves its
+    BOTTLENECK, not one cell: at n = 100,000 the table is met in at most
+    four path searches, where a cell at a time (its mutant) took 776 -- the
+    cells the floors had to give back, which grow with n."""
+    cases = (
+        ([1000, 1000], [1000, 1000], [[(0, 1, 1000), (1, 1, 1000)], [(0, 1, 1000)]]),
+        (
+            [1000, 1000, 1000],
+            [1000, 1000, 1000],
+            [[(0, 1, 1000), (1, 1, 1000), (2, 1, 1000)], [(0, 1, 1000), (1, 1, 1000)], [(0, 1, 1000)]],
+        ),
+    )
+    wanted = ([[0, 1000], [1000]], [[0, 0, 1000], [0, 1000], [1000]])
+    # The order a row's floors are lowered in, its last cell first (lane
+    # C2's leftover round, its second skeptic's item 1): both tables above
+    # have one solution, so any order met them; this one, from 2,894 random
+    # tables, is written otherwise when the first cell is lowered first
+    # (``[[763, 63], [254, 319], [782]]``), in the oracle as in the product.
+    cases = cases + (
+        (
+            [826, 573, 782],
+            [1799, 382],
+            [[(0, 7, 1148), (1, 3, 651)], [(0, 1, 915), (1, 11, 319)], [(0, 0, 782)]],
+        ),
+    )
+    wanted = wanted + ([[475, 351], [542, 31], [782]],)
+    for (rows, columns, entries), table in zip(cases, wanted):
+        assert generation._clock_minute_rounding(rows, columns, entries) == table
+        assert gen.clock_minute_round(rows, columns, entries) == table
+    searches = [0]
+    built = generation._clock_minute_path
+
+    def counted(*arguments):  # type: ignore[no-untyped-def]
+        searches[0] = searches[0] + 1
+        return built(*arguments)
+
+    monkeypatch.setattr(generation, "_clock_minute_path", counted)
+    big = 100000
+    rows, columns = [big, big], [big, big]
+    entries = [[(0, 1, big), (1, 1, big)], [(0, 1, big)]]
+    assert generation._clock_minute_rounding(rows, columns, entries) == [[0, big], [big]]
+    assert searches[0] <= 4, searches[0]
+
+    def one_cell_at_a_time(entries, taken, upper, lower, row_left, column_left, into):  # type: ignore[no-untyped-def]
+        searches[0] = searches[0] + 1
+        cut = [left for left in column_left]
+        # The bottleneck held to one: each column shown owing one cell at most.
+        capped = [min(left, 1) for left in column_left]
+        found = built(entries, taken, upper, lower, row_left, capped, into)
+        for place in range(len(column_left)):
+            column_left[place] = cut[place] - (min(cut[place], 1) - capped[place])
+        return found
+
+    searches[0] = 0
+    monkeypatch.setattr(generation, "_clock_minute_path", one_cell_at_a_time)
+    assert generation._clock_minute_rounding(rows, columns, entries) == [[0, big], [big]]
+    assert searches[0] > 100, searches[0]
+
+
+def _a_table_exists(rows, columns, entries):  # type: ignore[no-untyped-def]
+    """Whether any table of whole cells, each from nought to its capacity,
+    adds to `rows` and `columns`: a plain largest flow, found by breadth
+    first augmenting paths, independent of G7A.4c's rounding."""
+    flow = [[0 for _entry in row] for row in entries]
+    row_left = [count for count in rows]
+    column_left = [count for count in columns]
+    while True:
+        came_row = {place: None for place in range(len(rows)) if row_left[place] > 0}
+        came_column = {}  # type: ignore[var-annotations]
+        queue = [place for place in came_row]
+        end = None
+        while queue and end is None:
+            place = queue[0]
+            queue = queue[1:]
+            for entry, (column, _weight, capacity) in enumerate(entries[place]):
+                if column in came_column or flow[place][entry] >= capacity:
+                    continue
+                came_column[column] = (place, entry)
+                if column_left[column] > 0:
+                    end = column
+                    break
+                for back_place, row in enumerate(entries):
+                    for back_entry, (back_column, _w, _c) in enumerate(row):
+                        if back_column == column and back_place not in came_row and flow[back_place][back_entry] > 0:
+                            came_row[back_place] = back_entry
+                            queue += [back_place]
+        if end is None:
+            return sum(row_left) == 0 and sum(column_left) == 0
+        amount = column_left[end]
+        column = end
+        while True:
+            place, entry = came_column[column]
+            amount = min(amount, entries[place][entry][2] - flow[place][entry])
+            if came_row[place] is None:
+                amount = min(amount, row_left[place])
+                break
+            amount = min(amount, flow[place][came_row[place]])
+            column = entries[place][came_row[place]][0]
+        column = end
+        while True:
+            place, entry = came_column[column]
+            flow[place][entry] = flow[place][entry] + amount
+            if came_row[place] is None:
+                row_left[place] = row_left[place] - amount
+                column_left[end] = column_left[end] - amount
+                break
+            back = came_row[place]
+            flow[place][back] = flow[place][back] - amount
+            column = entries[place][back][0]
+
+
+def test_the_rounding_lowers_no_column_and_meets_every_table_that_exists() -> None:
+    """G7A.4c step 3, lane C2's leftover round (its second skeptic's item
+    2), product and oracle alike (A-P4-59). Each round of the fit ends on
+    the columns' scaling, so a column's floors never add to more than its
+    count and only a row's floors are ever lowered: the column lowering
+    the repair round wrote ran on none of 2,894 random tables and is gone.
+    On 400 tables drawn here (one to five rows and columns, counts to
+    100,000, some margins made unmeetable), the product and the oracle
+    write the same table, every table written keeps both margins and
+    every capacity, and a table is written wherever a plain largest flow
+    says one exists. Red on its mutant: the fit ending on the rows'
+    scaling (in product and oracle), which leaves a column's floors above
+    its count and so refuses tables that exist."""
+    state = [20261013]
+
+    def draw(bound: int) -> int:
+        state[0] = (state[0] * 6364136223846793005 + 1442695040888963407) % 2**64
+        return (state[0] >> 33) % bound
+
+    laid = 0
+    for _case in range(400):
+        n_rows = 1 + draw(5)
+        n_columns = 1 + draw(5)
+        scale = (10, 100, 1000, 10000, 100000)[draw(5)]
+        entries: "list[list[tuple[int, int, int]]]" = []
+        cells: "list[list[int]]" = []
+        for _row in range(n_rows):
+            row: "list[tuple[int, int, int]]" = []
+            values: "list[int]" = []
+            for column in range(n_columns):
+                if draw(3) == 0 and column < n_columns - 1:
+                    continue
+                weight = (0, 1, 1, 2, 3, 5, 7, 11, 60)[draw(9)]
+                value = draw(scale) if draw(10) < 7 else 0
+                capacity = max(1, value + (draw(scale) if draw(10) < 6 else 0))
+                row += [(column, weight, capacity)]
+                values += [value]
+            entries += [row]
+            cells += [values]
+        rows = [sum(values) for values in cells]
+        columns = [0 for _column in range(n_columns)]
+        for place, row in enumerate(entries):
+            for entry, (column, _weight, _capacity) in enumerate(row):
+                columns[column] = columns[column] + cells[place][entry]
+        if n_columns > 1 and draw(7) == 0 and columns[1] > 0:
+            columns[0] = columns[0] + 1
+            columns[1] = columns[1] - 1
+        product = generation._clock_minute_rounding(rows, columns, entries)
+        assert product == gen.clock_minute_round(rows, columns, entries), (rows, columns, entries)
+        exists = _a_table_exists(rows, columns, entries)
+        assert (product is not None) == exists, (rows, columns, entries)
+        if product is None:
+            continue
+        laid = laid + 1
+        assert [sum(values) for values in product] == rows
+        sums = [0 for _column in columns]
+        for place, row in enumerate(entries):
+            for entry, (column, _weight, capacity) in enumerate(row):
+                assert 0 <= product[place][entry] <= capacity
+                sums[column] = sums[column] + product[place][entry]
+        assert sums == columns
+    assert laid >= 300, laid

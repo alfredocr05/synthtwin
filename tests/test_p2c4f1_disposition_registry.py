@@ -2591,12 +2591,13 @@ def test_the_three_names_prose_cannot_settle_are_named_and_no_others(
     fourth name joining them is a change in what the phrase scan can
     see, so the set is asserted rather than described.
 
-    A FOURTH SINCE LANDING 3b.4 (plan P4-D372): `minute_census` is
-    EXACT-OBSERVABLE on a column of moments, which that landing fills,
-    and LOADER-ONLY on a column of clock times until landing 3b.5's step
-    2 fills it there (plan P4-D374), which takes it out of this set again.
+    A FOURTH FROM LANDING 3b.4 (plan P4-D372) TO LANDING 3b.5's SECOND
+    STEP (plan P4-D374): `minute_census` was EXACT-OBSERVABLE on a column
+    of moments and LOADER-ONLY on a column of clock times until that step
+    filled it there; EXACT-OBSERVABLE on both roles now, it is out of this
+    set again.
     """
-    assert AMBIGUOUS == {"n_distinct", "n_distinct_folded", "n_rows", "minute_census"}
+    assert AMBIGUOUS == {"n_distinct", "n_distinct_folded", "n_rows"}
     for name in sorted(AMBIGUOUS):
         holders = [
             fact for fact in dispositions.REGISTRY if fact.field == name

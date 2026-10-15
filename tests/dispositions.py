@@ -489,6 +489,13 @@ PLAN4_REGIONS = {
         "2026-10-03)"
     ),
     # anchor 3b-C2 (P4-D374)
+    # The minute census of a column of clock times (landing 3b.5's second
+    # step), disposed in the decision that published it.
+    "clock-minutes": (
+        "## Decision P4-D374 — the minute of the hour on clock-only columns, "
+        "counted and met (stage 3b landing 3b.5's second step, lane C2, "
+        "2026-10-13)"
+    ),
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
     # anchor 3b-G2 (P4-D377)
@@ -1309,14 +1316,15 @@ REGISTRY += [
     )
     for field in ("clock_census", "clock_heaps", "clock_step", "clock_codes")
 ]
-# -- 3b.C2 (P4-D374)
+# -- 3b.C2 (P4-D374): filled by landing 3b.5's second step, and
+# EXACT-OBSERVABLE as on a column of moments.
 REGISTRY += [
     Fact(
         "clock",
         "minute_census",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
+        EXACT_OBSERVABLE,
+        plan_words="The validator counts the file against it, V5-C2",
+        plan_region="clock-minutes",
     )
 ]
 # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b disposes

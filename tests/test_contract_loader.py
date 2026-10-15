@@ -2103,10 +2103,12 @@ def battery() -> list[Mutation]:
             ),
         ),
         # -- 3b.C2 (P4-D374)
+        # Filled by landing 3b.5's second step: a minute census beside no
+        # step, or not adding to the body, is MC3's (the landing's own
+        # refusals are tests/test_stage3b_clock_minutes.py's).
         Mutation(
-            "R16", "a minute_census of clock times this version of synthtwin publishes none of",
+            "MC3", "a minute census of clock times beside no step or adding to more than the body",
             edit("seen_at", minute_census=[{"first": 0, "last": 59, "count": 200}]),
-            names="minute_census",
         ),
         # THE SECOND CUT (plan P4-D386): three declarations of the settings
         # block, each `[]`, and `count_form` null, until the landing that

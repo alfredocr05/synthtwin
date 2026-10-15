@@ -10116,6 +10116,85 @@ below on that step:
    as it counts; the cells left are G7A.5's stand-ins, stepped past the
    codes too.
 
+### G7A.4c The minute census (landing 3b.5's second step)
+
+*Added by landing 3b.5's second step (lane C2, plan P4-D374).* A block
+publishing a `clock_step` and a non-empty `minute_census` has its BODY
+laid by this section; its tails, codes and stand-ins are G7A.4b's, and
+a block publishing no minute census is laid by G7A.4b byte for byte as
+before. A cell's MINUTE is the minute of the hour it is written at, its
+second of the day over sixty, modulo sixty (a column of clock times
+reads no sixtieth second: `23:59:60` is unparsed). With `k` the step:
+
+1. **Pins.** Each tail boundary on no heap, then each published interior
+   rung whose value is on the step, on no heap and on no absent place
+   but one the hour's other width spells another way, at a rank no pin
+   holds, whose rank lies in a census group whose steps inside the body
+   reach its value -- in rank order, a rung whose value lies below the
+   pin before it left out.
+2. **Stretches.** Each census group's ranks (G7A.4b step 2's stretches of
+   that group, heaps included) are cut at its pins. A stretch's walls are
+   two pins or a pin and an end of the group; its CELLS are its ranks less
+   the heaps' cells whose values lie between its walls' values, and they
+   stand on the steps from one wall's value to the other's -- both walls'
+   values kept out on a column whose values were all different -- on no
+   heap and no absent place. Its LANES are those steps by the published
+   minute groups (`calendar_clock.minute_lane_count`, counted hour by
+   hour); a minute group none of whose steps there is usable has a lane
+   on the absent places the hour's other width spells another way, which
+   the twin writes in that width.
+3. **The table.** Rows the stretches, each owed its cells; columns the
+   minute groups, each owed its published count less the heaps' cells
+   and the pins' in it. Each cell starts at its lane's step count -- a
+   lane on absent places at nought, unless its stretch has no other step
+   -- and, at most 64 rounds, the rows and then the columns are scaled
+   to their counts in binary64, ending once every row lies within
+   `1e-9` times the largest row count (at least one) of its count. Each
+   cell takes its floor, never past its capacity (its steps on a column
+   whose values all differ, its row's count otherwise). Then, first with
+   every cell between its floor and its ceiling and then with every cell
+   free from nought to its capacity: each owing row in order gives what
+   it and a column both owe through each of its cells in order; and while
+   a row owes, cells move along the shortest path from the owing rows,
+   in order -- into a column through a cell below its upper bound, back
+   out through a cell above its lower bound, each row and column reached
+   once -- ending at the first owing column reached, as many as the
+   path's bottleneck allows (the row's debt, the column's, each step's
+   room): the table moving one cell at a time writes, in searches
+   bounded by the table and not its counts. Before any of it, where the
+   fit stopped short of settling and a row's floors add to more than its
+   count, its cells are lowered, its last first, until they add to it;
+   the lowered values are those cells' floors (lane C2's repair round:
+   rows and columns `[1000, 1000]`, one row bound to the first column,
+   settle only at the table's edge). No column is lowered: each round
+   ends on the columns' scaling, so a column's floors never add to more
+   than its count.
+   So every cell is the floor or ceiling of its fitted value wherever
+   such a table exists and no floor was lowered, and both counts are met
+   wherever any table meets them. Where none does -- a description no
+   producer writes -- the body is laid by G7A.4b and the twin's report
+   names `minute_census` as not held.
+4. **The cells.** Group by group: the group's unpinned ranks read their
+   words in rank order (G7A.4b step 5's words), taken stretch by stretch
+   and lane by lane; a lane of `n` cells over `U` steps stands its cell
+   `i` at step
+
+   ```
+   ((i * 2**64 + w) * U) // (n * 2**64)
+   ```
+
+   of its lane (`calendar_clock.minute_lane_points`) -- stepped past the
+   one before, then kept below the steps left, on a column whose values
+   were all different. The group's cells, its heaps' and its pins' among
+   them, are sorted, and each of its ranks takes the value at its place:
+   each pin stands at its own rank, every clock group, heap and boundary
+   is met as G7A.4b meets it, and every minute group too.
+
+*Why not plain rounding.* Rounding each stretch's share of every minute
+group alone, by largest remainders, misses the columns' counts: the
+design measured med_round's minute-of-hour distance moving from 0.10 to
+0.15 so, where the table rounded with both kept meets every count.
+
 ### G7A.5 The stand-ins
 
 The `n_unparsed` cells are outside the obligation to reproduce a clock
@@ -10138,6 +10217,43 @@ document exists to prevent.
 
 *Restated by the T1 review's item 11:* this section stepped a stand-in
 past a clock time "in EITHER form" while the reader had two.
+
+**Past route 1's allowance, times at the other precision** (the Codex
+review of landing 3b.5's second step, item 1; plan P4-D374). The
+producer reads a column as clock times through route 1 where its parsed
+cells `P` miss the clock line of `n_present` but clear it once the rare
+words beside them -- at most `floor(n_present / 50)` cells -- are set
+aside; the loader's T5 holds every description to that lower line. The
+twin's own description asks the same, and every stand-in written as a
+word is such a word. So with `m = floor(n_present / 50)` and `S` the
+stand-ins (`n_unparsed` less the codes' cells): where `m >= 1`, `S > m`,
+`P` is below the line of `n_present` and at least the line of
+`n_present - m`, the first `m` stand-ins are words as above and the
+other `S - m` are TIMES AT THE PRECISION THE COLUMN'S FORM DOES NOT
+WRITE -- cells a clock reader takes, so no rare word, and the column's
+reading does not, so still counted in `n_unparsed`. They are spelled in
+the column's own style at that precision from its first place upward
+(`00:00:00`, `00:00:01`, ... beside `hh-mm`), then in every other form
+of that precision in `parsing.CLOCK_FORMS`' order (faces none,
+` twelve-hour`, then each marker pair after a space and after nothing;
+widths `hh` then `h`), each stepped past a spelling already written and
+past a hole; where every such spelling is taken, the ones found are
+written again in the same order, pass after pass, each at most the
+floor less one times in all -- a count the twin's description publishes
+none of -- and only past that are the rest words again (the
+verification of the Codex round on P4-D374: a column written to the
+second has 22,200 spellings at the minute, and past about 2.27 million
+rows at 0.99 its twin wrote more words than `m` and read back as free
+text; repeated, the times reach about 22 million rows at a floor of 11).
+Not on a column written to the minute whose `S - m` would reach
+the line of `n_present - m`: the reader asks the second first, and would
+read the column at the second -- never at the default parse rate of
+0.99 or at any rate above one half. Everywhere else every stand-in is a
+word, byte for byte as before. Measured: 972 minutes beside nine times
+at the second and 19 notes, at floors 11 and 36, seeds 0, 1 and 4 --
+every twin's 28 stand-ins words, more than one present cell in fifty,
+read back as free text, `axes.role` and `axes.statistical_type` MISSED;
+20 words and eight times at the second, nothing missed.
 
 ## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 
@@ -15474,6 +15590,16 @@ heaps and the absent places and times the step, as G7A.4b draws them --
 past the heaps and the other absent places alone where the places the
 other width spells another way are the draw's room (G7A.4b step 1).
 
+*Amended by landing 3b.5's second step (plan P4-D374).* On a block
+laid on its minute census (G7A.4c) a heap's ranks too are its group's
+window: how many of the group's cells stand below the heap is the
+minute census's to say, so the ranks a heap holds move inside its group
+as the real column's do. And a group's window there is its whole span
+inside the body (`group_span`; the whole dial on the step where the
+census is empty), not its runs' reach, since G7A.4c walls a group at its
+span's ends and a run G7A.4b gave no cells may hold its cells
+(`calendar_clock.clock_minute_reach`, lane C2's repair round).
+
 ### G12.11 The envelope on a clock column's two distinctness counts
 
 The same two ends the date role's envelope has (G12.5), in this role's
@@ -16352,7 +16478,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and five are required.** The count is taken off the committed
+**All two hundred and twelve are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -16411,7 +16537,12 @@ stand-ins past the years a partial form reads and a declared column's
 upper target, and from that repair's verification the same target on
 the date rule's line (plan P4-D383); and from the Codex review of
 landing I3a a column on the dial with no marker read at UTC beside two
-offsets, which G7.3b step 10's half day does not reach --
+offsets, which G7.3b step 10's half day does not reach --; and the TWENTY-SEVENTH,
+`tests/reference/generation-branch-vectors-27.json`, holds seven --
+landing 3b.5's second step, G7A.4c's minute census of a column of clock
+times (plan P4-D374), in a file of its own because the twenty-first
+stands at the manifest's cap, and from its Codex review G7A.5's
+stand-ins past route 1's allowance --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -16617,6 +16748,13 @@ case passed, which is the failure the count exists to prevent:
 | `labels_clock_shaped` | G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, and a column declared `--code` has no clock line, so every stand-in is a time a clock reader takes. Its mutant writes every time on the hour, and the walk steps past the ones already written |
 | `labels_clock_line` | G8.3's clock line (the repair round of landing 3b.5): 250 appointment times on a clinic's quarter hours beside six `99:99`, described at a parse rate of 0.99, a set of categories whose 202 held-back rows owe the form `%%:%%`. The clock supply fills them with times only while the twin stays labels -- at most 244 cells read as times -- so the last held-back levels are filled figure by figure. Its mutant withdraws the line, every held-back level is a time, and the twin is read back as clock times |
 | `labels_clock_forms` | G8.3's clock line held key by key (the second repair round of landing 3b.5): 500 appointment times, 488 at the minute and 12 at the second, described at a parse rate of 0.99, a set of categories whose 100 held-back rows owe the forms `%%:%%` (88) and `%%:%%:%%` (12). Only the minute's cells could reach the line, so the line holds them alone and the rows at the second are times of their own form, never rare words: every held-back row is a time, and the twin is read back as labels. Its mutant holds every clock time against one line, as before that round, and the last held-back rows are filled figure by figure |
+| `clock_minutes_slots` | G7A.4c (landing 3b.5's second step, plan P4-D374): 160 clinic times from 08:00 to 11:59, 45 % on :00 or :30, four slots heaps. The minute census counts the body's cells, the heaps' among them, by the minute of the hour; each census group's cells are cut at its pins -- the boundaries and three rungs -- and the table of stretches by minute groups, fitted to both counts and rounded with both kept, lays every minute group exactly beside every clock group, heap and boundary. Its mutant withdraws the minute census from the layout, and G7A.4b's runs lay the body |
+| `clock_minutes_seconds` | G7A.4c at the second: 150 times from 09:00:00 to 13:59:59, 35 % in minute 0 or 30 at any second; a cell's minute is its second of the day over sixty, modulo sixty. Its mutant reads the second of the minute in its place, and the lanes move |
+| `clock_minutes_all_different` | G7A.4c on a column whose 180 values all differ, 70 of them in minute 0 or 30: each lane's cells are stepped apart, then kept below the steps left, and a stretch keeps off its pins' values. Its mutant leaves the lanes' steps as read, and cells share a second |
+| `clock_minutes_rung_pins` | G7A.4c's pins: 170 afternoon times whose rungs each stand on a step of the census group their rank lies in, so each is a wall the group's cells are cut at and stands at its own rank once they are sorted. Its mutant pins the two boundaries alone, and the cells between the rungs move |
+| `clock_minutes_no_tails` | G7A.4c on a column with no tails: 150 of 170 cells at 08:00, a heap, and 20 on the hour, all 170 in minute 0. The heap's cells come off the minute groups' counts before the table is fitted. Its mutant leaves them in, no table meets the counts, and G7A.4b lays the body |
+| `clock_minutes_rounding` | G7A.4c's rounding: 200 walk-in times, 55 % on a ten-minute grid, fourteen minute groups. Each fitted cell takes its floor and the cells still owed move along shortest paths between an owing row and an owing column, so every count is met. Its mutant rounds each row alone, and the minute groups' counts move |
+| `clock_stand_ins_past_route_one` | G7A.5's stand-ins past route 1's allowance (the Codex review of landing 3b.5's second step, item 1): 89 times every seven minutes from 08:00 beside nine at the second and two notes, described at the reference parse rate of 0.9. The 89 parsed cells miss the line of 100 and clear that of 98, so two stand-ins are words and the other nine times at the second from `00:00:00` upward. Its mutant writes all eleven as words, and the twin's own description reads it as free text |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |

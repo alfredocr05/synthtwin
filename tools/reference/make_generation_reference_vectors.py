@@ -30268,7 +30268,18 @@ def clock_census_content(column):
         pins[parsed - 1 - tails[1]] = body[1]
         pins.update(clock_rung_pins(column, parsed, stretches, stride))
     absent = clock_absent_of(column)
-    for first, cells, low_at, high_at, heap, _group in stretches:
+    # ...or, publishing its minute census, laid on it (3b.C2, P4-D374, G7A.4c).
+    minute_laid = None
+    if column.get("minute_census"):
+        minute_laid = clock_minute_laid(
+            column, parsed, tails, body, heaps, stride, stretches, word_of, apart
+        )
+    if minute_laid is not None:
+        for rank, at in minute_laid[0].items():
+            ordinals[rank] = at
+    for first, cells, low_at, high_at, heap, _group in (
+        stretches if minute_laid is None else []
+    ):
         if heap:
             for rank in range(first, first + cells):
                 ordinals[rank] = low_at
@@ -30334,12 +30345,344 @@ def clock_census_content(column):
             published |= set(steps)
     # ...and the absent steps a drawn tail stands its draw on.
     published |= stood_beyond
+    # ...and those a minute-laid lane stands its cells on (G7A.4c).
+    if minute_laid is not None:
+        published |= minute_laid[1]
     content = [clock_written_present(ordinal, form, absent, published)
                for ordinal in ordinals]
     codes = clock_codes_of(column)
     content.extend(codes)
-    content.extend(text_stand_ins(content, column["n_unparsed"] - len(codes)))
+    content.extend(clock_stand_ins(column, content, column["n_unparsed"] - len(codes)))
     return content
+
+
+def clock_minute_of(ordinal, form):
+    """The minute of the hour one ordinal of a form is written at (G7A.4c)."""
+    return ordinal * clock_step_of(form) // 60 % 60
+
+
+def clock_minute_round(rows, columns, entries):
+    """G7A.4c step 3, from the method's text: the fitted table and its rounding.
+
+    Each cell starts at its weight; rows then columns are scaled to their
+    counts, at most 64 rounds, ending once every row lies within 1e-9
+    times the largest row count (at least one) of its count.  Each cell
+    takes its floor (never past its capacity); then, first with every
+    cell between its floor and its ceiling and then with every cell free
+    from nought to its capacity: each owing row in order gives what it and
+    a column both owe through each of its cells in order; then, while a
+    row owes, cells move along the shortest path from the owing rows, in
+    order, into a column through a cell below its upper bound and back
+    out through a cell above its lower bound, each row and column reached
+    once, ending at the first owing column reached -- as many as the
+    path's bottleneck allows: the row's debt, the column's, and each
+    step's room (lane C2's repair round, item 3).  Before any of that, a
+    fit stopped before it settled: a row whose floors add to more than its
+    count has its cells lowered, its last first, until they add to it;
+    the lowered values are those cells' floors.  No column is lowered: the
+    fit ends on the columns' scaling, so a column's floors never pass its
+    count (lane C2's leftover round).  None where any debt is left.
+    """
+    fitted = [[float(weight) for _c, weight, _cap in row] for row in entries]
+    largest = max([1] + list(rows))
+    for _round in range(64):
+        for r, row in enumerate(fitted):
+            total = 0.0
+            for value in row:
+                total = total + value
+            if total > 0.0:
+                scale = rows[r] / total
+                fitted[r] = [value * scale for value in row]
+        sums = [0.0] * len(columns)
+        for r, row in enumerate(entries):
+            for e, (c, _w, _cap) in enumerate(row):
+                sums[c] = sums[c] + fitted[r][e]
+        for r, row in enumerate(entries):
+            for e, (c, _w, _cap) in enumerate(row):
+                if sums[c] > 0.0:
+                    fitted[r][e] = fitted[r][e] * (columns[c] / sums[c])
+        worst = 0.0
+        for r, row in enumerate(fitted):
+            total = 0.0
+            for value in row:
+                total = total + value
+            worst = max(worst, abs(total - rows[r]))
+        if worst <= 1e-9 * largest:
+            break
+    floor = [[min(int(v), entries[r][e][2]) for e, v in enumerate(row)]
+             for r, row in enumerate(fitted)]
+    ceiling = [[min(floor[r][e] + (1 if v > floor[r][e] else 0), entries[r][e][2])
+                for e, v in enumerate(row)] for r, row in enumerate(fitted)]
+    taken = [list(row) for row in floor]
+    owe_row = [rows[r] - sum(taken[r]) for r in range(len(rows))]
+    owe_col = list(columns)
+    for r, row in enumerate(entries):
+        for e, (c, _w, _cap) in enumerate(row):
+            owe_col[c] -= taken[r][e]
+    into = [[] for _c in columns]
+    for r, row in enumerate(entries):
+        for e, (c, _w, _cap) in enumerate(row):
+            into[c].append((r, e))
+    for r in range(len(rows)):
+        for e in reversed(range(len(entries[r]))):
+            if owe_row[r] >= 0:
+                break
+            cut = min(taken[r][e], -owe_row[r])
+            taken[r][e] -= cut
+            owe_row[r] += cut
+            owe_col[entries[r][e][0]] += cut
+    if min(owe_row + owe_col + [0]) < 0:
+        return None
+    floor = [list(row) for row in taken]
+    for phase in (0, 1):
+        if phase == 0:
+            upper, lower = ceiling, floor
+        else:
+            upper = [[cap for _c, _w, cap in row] for row in entries]
+            lower = [[0] * len(row) for row in entries]
+        for r, row in enumerate(entries):
+            for e, (c, _w, _cap) in enumerate(row):
+                moved = min(upper[r][e] - taken[r][e], owe_row[r], owe_col[c])
+                if moved > 0:
+                    taken[r][e] += moved
+                    owe_row[r] -= moved
+                    owe_col[c] -= moved
+        while sum(owe_row) > 0:
+            from_row = {r: None for r in range(len(rows)) if owe_row[r] > 0}
+            queue = list(from_row)
+            from_col, end, head = {}, None, 0
+            while head < len(queue) and end is None:
+                r = queue[head]
+                head += 1
+                for e, (c, _w, _cap) in enumerate(entries[r]):
+                    if c in from_col or taken[r][e] >= upper[r][e]:
+                        continue
+                    from_col[c] = (r, e)
+                    if owe_col[c] > 0:
+                        end = c
+                        break
+                    for other, back in into[c]:
+                        if other in from_row or taken[other][back] <= lower[other][back]:
+                            continue
+                        from_row[other] = (c, back)
+                        queue.append(other)
+            if end is None:
+                break
+            amount, c = owe_col[end], end
+            while True:
+                r, e = from_col[c]
+                amount = min(amount, upper[r][e] - taken[r][e])
+                if from_row[r] is None:
+                    amount = min(amount, owe_row[r])
+                    break
+                c, back = from_row[r]
+                amount = min(amount, taken[r][back] - lower[r][back])
+            c = end
+            while True:
+                r, e = from_col[c]
+                taken[r][e] += amount
+                if from_row[r] is None:
+                    owe_row[r] -= amount
+                    owe_col[end] -= amount
+                    break
+                c, back = from_row[r]
+                taken[r][back] -= amount
+    if sum(owe_row) or sum(owe_col):
+        return None
+    return taken
+
+
+def clock_minute_pins(column, parsed, tails, body, heap_at, stride, groups, spans, is_absent, wide):
+    """G7A.4c step 1, from its text: each boundary on no heap, then each
+    published interior rung on the step, on no heap, on no absent spelling
+    but one the other width writes another way, not at a rank already
+    pinned, whose rank lies in a census group whose steps inside the body
+    reach its value; in rank order, a pin below the one before dropped."""
+    form = column["clock_form"]
+    pins = []
+    if tails is not None:
+        for rank, at in ((tails[0], body[0]), (parsed - 1 - tails[1], body[1])):
+            if at not in heap_at:
+                pins.append((rank, at))
+        for place in range(1, len(PCT) - 1):
+            rung = column["clock_percentiles"][LADDER_KEYS[place]]
+            if rung is None:
+                continue
+            rank, at = rung_rank(PCT[place], parsed), clock_ordinal_of(rung, form)
+            if at in heap_at or at % stride or (is_absent(at) and not wide(at)):
+                continue
+            if rank in [r for r, _a in pins]:
+                continue
+            for group, (start, ranks) in groups.items():
+                span = spans[group]
+                if start <= rank < start + ranks and span and span[0] <= at <= span[1]:
+                    pins.append((rank, at))
+    kept = []
+    for rank, at in sorted(pins):
+        if kept and at < kept[-1][1]:
+            continue
+        kept.append((rank, at))
+    return kept
+
+
+def clock_minute_owed(minute_groups, heap_at, kept, form):
+    """G7A.4c step 3's column counts: each minute group's published count
+    less the heaps' cells and the pins' in it."""
+    owed = [count for _f, _l, count in minute_groups]
+
+    def group_of(minute):
+        return next(
+            i
+            for i, (first, last, _c) in enumerate(minute_groups)
+            if first <= minute <= last
+        )
+
+    for at, count in heap_at.items():
+        owed[group_of(clock_minute_of(at, form))] -= count
+    for _rank, at in kept:
+        owed[group_of(clock_minute_of(at, form))] -= 1
+    return owed
+
+
+def clock_minute_laid(column, parsed, tails, body, heaps, stride, runs, word_of, apart):
+    """A body laid on its minute census -- method G7A.4c, from its text.
+
+    PINS: each boundary on no heap, then each published interior rung on
+    the step, on no heap, on no absent spelling but one the other width
+    writes another way, not at a rank already pinned, whose rank lies in
+    a census group whose steps inside the body reach its value; in rank
+    order, a pin below the value of the one before it dropped.
+    STRETCHES: each group's ranks (from G7A.4b's stretches) cut at its
+    pins; a stretch takes its ranks less the heaps' cells between its
+    walls' values and stands on the steps between them -- both walls'
+    values kept out where the column's values all differ -- on no heap
+    and no absent spelling; its lanes are those steps by the published
+    minute groups, and a minute group with none there takes the absent
+    places the other width writes another way, weighted nought unless the
+    stretch has no other step.  THE TABLE: stretches by minute groups,
+    each minute group owed its count less the heaps' and pins' cells in
+    it, fitted and rounded (``clock_minute_round``).  CELLS: group by
+    group, its unpinned ranks' words in rank order taken lane by lane;
+    a lane of n cells over U steps puts cell i at step
+    ((i 2**64 + w) U) // (n 2**64) -- stepped apart, then kept below the
+    steps left, where the values all differ; the group's cells with its
+    heaps' and pins' sorted onto its ranks.  Returns (rank -> ordinal,
+    the absent places stood on) or None where nothing can be laid.
+    """
+    form = column["clock_form"]
+    absent = clock_absent_of(column)
+    heap_at = {at: count for at, count in heaps if body[0] <= at <= body[1]}
+
+    def is_absent(at):
+        return _clock_reads_absent(at, form, absent)
+
+    def wide(at):
+        return is_absent(at) and clock_other_width_of(at, form) != clock_spelling_of(at, form)
+
+    groups = {}
+    for first, cells, _low, _high, _heap, group in runs:
+        start, ranks = groups.get(group, (first, 0))
+        groups[group] = (min(start, first), ranks + cells)
+    unit = clock_step_of(form)
+    published = [(g["first"], g["last"]) for g in column["clock_census"]]
+    if not published:
+        published = [(0, clock_capacity(form) * unit // 600 - 1)]
+    spans = {}
+    for group in groups:
+        first_bin, last_bin = published[group]
+        low = max(-(-first_bin * 600 // unit), body[0])
+        high = min(((last_bin + 1) * 600 - 1) // unit, body[1])
+        low, high = -(-low // stride) * stride, high // stride * stride
+        spans[group] = (low, high) if low <= high else None
+    kept = clock_minute_pins(column, parsed, tails, body, heap_at, stride, groups, spans, is_absent, wide)
+    minute_groups = [(g["first"], g["last"], g["count"]) for g in column["minute_census"]]
+    owed = clock_minute_owed(minute_groups, heap_at, kept, form)
+    if min(owed) < 0:
+        return None
+    rows, entries, shapes, order = [], [], [], []
+    for group in sorted(groups, key=lambda g: groups[g][0]):
+        start, ranks = groups[group]
+        span = spans[group]
+        order.append(group)
+        walls = [(start - 1, span[0] if span else 0, False)]
+        walls += [(r, a, True) for r, a in kept if start <= r < start + ranks]
+        walls += [(start + ranks, span[1] if span else 0, False)]
+        for (below, low, pin_low), (above, high, pin_high) in zip(walls, walls[1:]):
+            if apart and pin_low:
+                low += stride
+            if apart and pin_high:
+                high -= stride
+            cells = above - below - 1 - sum(c for a, c in heap_at.items() if low <= a <= high)
+            if cells < 0:
+                return None
+            if cells == 0:
+                continue
+            if span is None or low > high:
+                return None
+            lattice = [at for at in range(low, high + 1, stride)
+                       if at not in heap_at and not is_absent(at)]
+            lanes = []
+            for first, last, _count in minute_groups:
+                steps = [at for at in lattice if first <= clock_minute_of(at, form) <= last]
+                if steps:
+                    lanes.append((first, last, steps, False))
+                else:
+                    lanes.append((first, last,
+                                  [at for at in range(low, high + 1, stride)
+                                   if at not in heap_at and wide(at)
+                                   and first <= clock_minute_of(at, form) <= last], True))
+            row = []
+            for index, (_f, _l, steps, on_absent) in enumerate(lanes):
+                if steps:
+                    weight = len(steps) if (not on_absent or not lattice) else 0
+                    row.append((index, weight, len(steps) if apart else cells))
+            rows.append(cells)
+            entries.append(row)
+            shapes.append((group, low, high, lanes))
+    if sum(rows) != sum(owed):
+        return None
+    table = clock_minute_round(rows, owed, entries)
+    if table is None:
+        return None
+    pinned = dict(kept)
+    laid, stood = {}, set()
+    for group in order:
+        start, ranks = groups[group]
+        words = [word_of.get(r, 0) for r in range(start, start + ranks) if r not in pinned]
+        values = [pinned[r] for r in range(start, start + ranks) if r in pinned]
+        span = spans[group]
+        for at in sorted(heap_at):
+            if span and span[0] <= at <= span[1]:
+                values.extend([at] * heap_at[at])
+        read = 0
+        for place, (owner, _low, _high, lanes) in enumerate(shapes):
+            if owner != group:
+                continue
+            counts = {entries[place][e][0]: table[place][e] for e in range(len(entries[place]))}
+            for index, (_f, _l, steps, on_absent) in enumerate(lanes):
+                n = counts.get(index, 0)
+                if n <= 0:
+                    continue
+                wanted = []
+                for i in range(n):
+                    w = words[read] if read < len(words) else 0
+                    read += 1
+                    wanted.append(((i * TWO64 + w) * len(steps)) // (n * TWO64))
+                if apart:
+                    for i in range(n):
+                        wanted[i] = max(wanted[i], wanted[i - 1] + 1 if i else 0)
+                    for i in range(n - 1, -1, -1):
+                        wanted[i] = min(wanted[i], (wanted[i + 1] if i < n - 1 else len(steps)) - 1)
+                for i in wanted:
+                    values.append(steps[min(i, len(steps) - 1)])
+                if on_absent:
+                    stood.update(steps)
+        values.sort()
+        if len(values) != ranks:
+            return None
+        for offset, at in enumerate(values):
+            laid[start + offset] = at
+    return laid, stood
 
 
 def clock_minutes_laid(column, parsed, knots):
@@ -30591,9 +30934,80 @@ def _clock_content(column):
     # G7A.5.  The stand-ins this file builds are `text-N`, which reads
     # as a clock time in none of the forty forms (contract C6-10a), so
     # the exclusion that belongs to this role is met by construction
-    # rather than by a search.
-    content.extend(text_stand_ins(content, column["n_unparsed"]))
+    # rather than by a search -- and past route 1's allowance, times at
+    # the column's other precision (`clock_stand_ins`).
+    content.extend(clock_stand_ins(column, content, column["n_unparsed"]))
     return content
+
+
+def clock_stand_ins(column, used, wanted, floor=CASE_SMALL_CELL_FLOOR):
+    """G7A.5's stand-ins of a column of clock times (the Codex review of landing C2, item 1).
+
+    ``text-N`` -- save where the twin's description would need route 1 to
+    read it as clock times (its parsed cells below the clock line of every
+    present cell) and more words than one present cell in fifty: there as
+    many words as that, and the rest times at the precision the column's
+    form does not write, in its own style from its first place upward and
+    then in every other form of that precision in the forms' order (faces
+    none, ` twelve-hour`, then each marker pair after a space and after
+    nothing; widths `hh` then `h`; each before its seconds), each past a
+    spelling already written and one the column calls absent.  Not where
+    the parsed cells miss the line of the present cells less that
+    allowance, nor, on a column written to the minute, where the times at
+    the second would reach it.  Where every such time is written, the
+    ones found again in the same order, pass after pass, each at most
+    ``floor`` less one times (the verification of the Codex round: 22,200
+    spellings at the minute run out past about 2.27 million rows); only
+    then ``text-N`` again.
+    """
+    form = column["clock_form"]
+    present = column["n_present"]
+    parsed = present - column["n_unparsed"]
+    rate = column.get("_parse_rate", MINIMUM_PARSE_RATE)
+    most = present // RARE_WORDS_BESIDE_CLOCKS
+    words = wanted
+    if 0 < most < wanted and parsed < clock_line(present, rate):
+        line = clock_line(present - most, rate)
+        if parsed >= line and not (clock_step_of(form) == 60 and wanted - most >= line):
+            words = most
+    produced = text_stand_ins(used, words)
+    if words == wanted:
+        return produced
+    width, seconds, face = clock_form_fields(form)
+    fields = "-mm" if seconds else "-mm-ss"
+    faces = ["", " twelve-hour"]
+    for pair in CLOCK_PAIRS:
+        faces += [" " + pair, pair]
+    own = width + fields + face
+    forms = [own] + [
+        other_width + fields + other_face
+        for other_face in faces
+        for other_width in ("hh", "h")
+        if other_width + fields + other_face != own
+    ]
+    seen = set(used) | set(produced)
+    absent = clock_absent_of(column)
+    times = []
+    for other in forms:
+        for ordinal in range(clock_capacity(other)):
+            if len(times) >= wanted - words:
+                break
+            spelling = clock_spelling_of(ordinal, other)
+            if spelling in seen or spelling.strip().lower() in absent:
+                continue
+            if folded(spelling) in NO_VALUE_SPELLINGS:
+                continue
+            seen.add(spelling)
+            times.append(spelling)
+    fresh = list(times)
+    for _again in range(floor - 2):
+        for spelling in fresh:
+            if len(times) >= wanted - words:
+                break
+            times += [spelling]
+    produced.extend(times)
+    produced.extend(text_stand_ins(list(seen), wanted - len(produced)))
+    return produced
 
 
 def _date_only():
@@ -32858,6 +33272,9 @@ FOURTEENTH_BRANCH_PART = "branches-14"
 TWENTY_SECOND_BRANCH_PART = "branches-22"
 # Landing R2a's layout member (plan P4-D383): the twenty-fifth file.
 TWENTY_FIFTH_BRANCH_PART = "branches-25"
+# The twenty-seventh: landing 3b.5's second step, the minute census of a
+# column of clock times (lane C2, plan P4-D374).
+TWENTY_SEVENTH_BRANCH_PART = "branches-27"
 # G7.3f's shared steps (landing 3b.D0, plan P4-D366), the fifteenth file:
 # not a file of columns but of the pass itself, each case a state of
 # ranks and the steps' answer (`shared_step_document`).
@@ -43259,6 +43676,255 @@ THIRTEENTH_BRANCH_CASE_BUILDERS = {
 # and in months, because every branch file stands past plan P4-D295's
 # 200000-byte line; and the slack it gives up to the rounding of the
 # published pair, on a reach binary64 puts past a whole unit.
+# LANDING 3b.5's SECOND STEP: the minute census of a column of clock times
+# (lane C2, plan P4-D374), method G7A.4c; six cases of the twenty-first file.
+
+
+def _clock_minutes_slots():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '08:08', "rows": 12, "mean_distance": None, "rms_distance": None, "values": ('08:00', '08:06')},
+        {"boundary": '11:27', "rows": 20, "mean_distance": '8.95', "rms_distance": '12.080976781701056', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 47}, {'count': 19, 'first': 48, 'last': 53}, {'count': 16, 'first': 54, 'last': 56}, {'count': 18, 'first': 57, 'last': 59}, {'count': 27, 'first': 60, 'last': 65}, {'count': 12, 'first': 66, 'last': 68}, {'count': 0, 'first': 69, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm',
+        clock_heaps=[{'count': 12, 'value': '08:30'}, {'count': 13, 'value': '10:30'}, {'count': 11, 'value': '11:00'}, {'count': 12, 'value': '11:30'}],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': '08:21', 'p25': '08:58', 'p50': '10:00', 'p75': '11:00', 'p90': None, 'p95': None, 'p99': None},
+        clock_step=60,
+        minute_census=[{'count': 27, 'first': 0, 'last': 0}, {'count': 26, 'first': 1, 'last': 22}, {'count': 14, 'first': 23, 'last': 29}, {'count': 47, 'first': 30, 'last': 44}, {'count': 14, 'first': 45, 'last': 59}],
+        n_contradictory=0,
+        n_distinct=74,
+        n_distinct_folded=74,
+        n_missing=0,
+        n_not_numeric=160,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=160,
+        n_unparsed=0,
+        detection_evidence='160 value(s) are clock times written as hours and minutes, `09:30`, and 0 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.4c (landing 3b.5's second step, plan P4-D374): 160 clinic times from 08:00 to 11:59, 45 % on :00 or :30. Four slots stand out as heaps, and the minute census counts the body's cells -- the heaps' among them -- by the minute of the hour each is written at, minute 0 alone among its five groups. Each census group's cells are cut at its pins, the two boundaries and three rungs, into stretches, and the table of stretches by minute groups, fitted to both counts and rounded with both kept, lays every minute group's count exactly beside every clock group, heap and boundary. The mutant withdraws the minute census from the layout, and the body is laid by G7A.4b's runs.",
+        "column": column,
+        "rows": 160,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _clock_minutes_seconds():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '09:09:13', "rows": 11, "mean_distance": '475.90909090909093', "rms_distance": '486.1227865841753', "values": None},
+        {"boundary": '13:29:42', "rows": 11, "mean_distance": '604.5454545454545', "rms_distance": '916.834177532071', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 53}, {'count': 22, 'first': 54, 'last': 59}, {'count': 14, 'first': 60, 'last': 62}, {'count': 11, 'first': 63, 'last': 64}, {'count': 0, 'first': 65, 'last': 65}, {'count': 20, 'first': 66, 'last': 68}, {'count': 17, 'first': 69, 'last': 71}, {'count': 12, 'first': 72, 'last': 72}, {'count': 19, 'first': 73, 'last': 77}, {'count': 13, 'first': 78, 'last': 80}, {'count': 0, 'first': 81, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm-ss',
+        clock_heaps=[],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': '09:15:52', 'p25': '10:09:22', 'p50': '11:24:51', 'p75': '12:26:19', 'p90': '13:11:41', 'p95': None, 'p99': None},
+        clock_step=1,
+        minute_census=[{'count': 22, 'first': 0, 'last': 0}, {'count': 11, 'first': 1, 'last': 8}, {'count': 15, 'first': 9, 'last': 13}, {'count': 0, 'first': 14, 'last': 14}, {'count': 25, 'first': 15, 'last': 29}, {'count': 21, 'first': 30, 'last': 30}, {'count': 20, 'first': 31, 'last': 46}, {'count': 14, 'first': 47, 'last': 58}, {'count': 0, 'first': 59, 'last': 59}],
+        n_contradictory=0,
+        n_distinct=146,
+        n_distinct_folded=146,
+        n_missing=0,
+        n_not_numeric=150,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=150,
+        n_unparsed=0,
+        detection_evidence='150 value(s) are clock times written as hours, minutes and seconds, `09:30:00`, and 0 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.4c at the second (`hh-mm-ss`): 150 times from 09:00:00 to 13:59:59, 35 % in minute 0 or minute 30 at any second. A cell's minute of the hour is its second of the day divided by sixty, modulo sixty, and each lane is the stretch's seconds written in one minute group. The mutant reads the second of the minute in its place, and the lanes move.",
+        "column": column,
+        "rows": 150,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _clock_minutes_all_different():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '08:28:48', "rows": 11, "mean_distance": '1208.0', "rms_distance": '1374.575438585906', "values": None},
+        {"boundary": '15:11:23', "rows": 11, "mean_distance": '1650.6363636363637', "rms_distance": '1798.8238329025392', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 49}, {'count': 16, 'first': 50, 'last': 53}, {'count': 23, 'first': 54, 'last': 59}, {'count': 24, 'first': 60, 'last': 65}, {'count': 11, 'first': 66, 'last': 68}, {'count': 12, 'first': 69, 'last': 71}, {'count': 18, 'first': 72, 'last': 77}, {'count': 19, 'first': 78, 'last': 83}, {'count': 14, 'first': 84, 'last': 86}, {'count': 21, 'first': 87, 'last': 91}, {'count': 0, 'first': 92, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm-ss',
+        clock_heaps=[],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': '08:30:12', 'p25': '09:47:41', 'p50': '11:34:30', 'p75': '14:00:20', 'p90': '15:00:02', 'p95': None, 'p99': None},
+        clock_step=1,
+        minute_census=[{'count': 25, 'first': 0, 'last': 0}, {'count': 13, 'first': 1, 'last': 8}, {'count': 19, 'first': 9, 'last': 20}, {'count': 0, 'first': 21, 'last': 21}, {'count': 14, 'first': 22, 'last': 29}, {'count': 37, 'first': 30, 'last': 30}, {'count': 18, 'first': 31, 'last': 43}, {'count': 19, 'first': 44, 'last': 52}, {'count': 13, 'first': 53, 'last': 59}],
+        n_contradictory=0,
+        n_distinct=180,
+        n_distinct_folded=180,
+        n_missing=0,
+        n_not_numeric=180,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=180,
+        n_unparsed=0,
+        detection_evidence='180 value(s) are clock times written as hours, minutes and seconds, `09:30:00`, and 0 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.4c on a column whose 180 values all differ, times at the second from 08:00 to 15:59, 70 of them in minute 0 or 30: each lane's cells are stepped apart, then kept below the steps left, and a stretch keeps off its pins' own values, so no two cells share a second. The mutant leaves the lanes' steps as read, and cells share a second.",
+        "column": column,
+        "rows": 180,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _clock_minutes_rung_pins():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '13:07', "rows": 11, "mean_distance": '6.7272727272727275', "rms_distance": '6.755469164785199', "values": None},
+        {"boundary": '16:28', "rows": 20, "mean_distance": '10.0', "rms_distance": '14.20563268566381', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 77}, {'count': 11, 'first': 78, 'last': 80}, {'count': 16, 'first': 81, 'last': 83}, {'count': 15, 'first': 84, 'last': 84}, {'count': 22, 'first': 85, 'last': 89}, {'count': 13, 'first': 90, 'last': 90}, {'count': 12, 'first': 91, 'last': 92}, {'count': 11, 'first': 93, 'last': 93}, {'count': 11, 'first': 94, 'last': 95}, {'count': 17, 'first': 96, 'last': 98}, {'count': 0, 'first': 99, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm',
+        clock_heaps=[{'count': 11, 'value': '14:30'}],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': '13:21', 'p25': '14:00', 'p50': '14:55', 'p75': '15:51', 'p90': None, 'p95': None, 'p99': None},
+        clock_step=60,
+        minute_census=[{'count': 27, 'first': 0, 'last': 0}, {'count': 19, 'first': 1, 'last': 11}, {'count': 0, 'first': 12, 'last': 12}, {'count': 13, 'first': 13, 'last': 20}, {'count': 19, 'first': 21, 'last': 29}, {'count': 28, 'first': 30, 'last': 30}, {'count': 0, 'first': 31, 'last': 31}, {'count': 33, 'first': 32, 'last': 58}, {'count': 0, 'first': 59, 'last': 59}],
+        n_contradictory=0,
+        n_distinct=87,
+        n_distinct_folded=87,
+        n_missing=0,
+        n_not_numeric=170,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=170,
+        n_unparsed=0,
+        detection_evidence='170 value(s) are clock times written as hours and minutes, `09:30`, and 0 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.4c's pins: 170 afternoon times, 45 % on :00 or :30, whose four rungs each stand on a step of the census group its rank lies in. Each is a wall the group's cells are cut at, and a stretch's cells lie between its walls' values, so after the group's cells are sorted each rung stands at its own rank. The mutant pins the two boundaries alone, and the cells between the rungs move.",
+        "column": column,
+        "rows": 170,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _clock_minutes_no_tails():
+    tails, tail_claims = _tail_fields(
+        None,
+        None,
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 29}, {'count': 20, 'first': 30, 'last': 66}, {'count': 0, 'first': 67, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm',
+        clock_heaps=[{'count': 150, 'value': '08:00'}],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': None, 'p25': None, 'p50': None, 'p75': None, 'p90': None, 'p95': None, 'p99': None},
+        clock_step=3600,
+        minute_census=[{'count': 170, 'first': 0, 'last': 0}, {'count': 0, 'first': 1, 'last': 59}],
+        n_contradictory=0,
+        n_distinct=7,
+        n_distinct_folded=7,
+        n_missing=0,
+        n_not_numeric=170,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=170,
+        n_unparsed=0,
+        detection_evidence='170 value(s) are clock times written as hours and minutes, `09:30`, and 0 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.4c on a column with no tails: 150 of 170 cells at 08:00, a heap, and 20 on the hour from 05:00 to 11:00, so the census over every parsed cell counts all 170 in minute 0. The heap's 150 cells are taken off the minute groups' counts before the table is fitted, leaving the 20 to the lanes on the hour. The mutant leaves them in, no table meets the counts, and the body is laid by G7A.4b's runs.",
+        "column": column,
+        "rows": 170,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _clock_minutes_rounding():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '08:40', "rows": 11, "mean_distance": '39.81818181818182', "rms_distance": '45.27090175216908', "values": None},
+        {"boundary": '13:33', "rows": 11, "mean_distance": '22.0', "rms_distance": '25.69046515733026', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 51}, {'count': 17, 'first': 52, 'last': 53}, {'count': 15, 'first': 54, 'last': 57}, {'count': 13, 'first': 58, 'last': 59}, {'count': 12, 'first': 60, 'last': 61}, {'count': 14, 'first': 62, 'last': 63}, {'count': 15, 'first': 64, 'last': 65}, {'count': 19, 'first': 66, 'last': 67}, {'count': 26, 'first': 68, 'last': 71}, {'count': 17, 'first': 72, 'last': 74}, {'count': 18, 'first': 75, 'last': 77}, {'count': 12, 'first': 78, 'last': 81}, {'count': 0, 'first': 82, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm',
+        clock_heaps=[],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': '08:50', 'p25': '09:45', 'p50': '11:00', 'p75': '12:10', 'p90': '13:10', 'p95': None, 'p99': None},
+        clock_step=60,
+        minute_census=[{'count': 25, 'first': 0, 'last': 6}, {'count': 0, 'first': 7, 'last': 9}, {'count': 23, 'first': 10, 'last': 10}, {'count': 11, 'first': 11, 'last': 18}, {'count': 0, 'first': 19, 'last': 19}, {'count': 16, 'first': 20, 'last': 20}, {'count': 24, 'first': 21, 'last': 30}, {'count': 13, 'first': 31, 'last': 39}, {'count': 19, 'first': 40, 'last': 40}, {'count': 0, 'first': 41, 'last': 41}, {'count': 16, 'first': 42, 'last': 49}, {'count': 17, 'first': 50, 'last': 50}, {'count': 0, 'first': 51, 'last': 52}, {'count': 14, 'first': 53, 'last': 59}],
+        n_contradictory=0,
+        n_distinct=106,
+        n_distinct_folded=106,
+        n_missing=0,
+        n_not_numeric=200,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=200,
+        n_unparsed=0,
+        detection_evidence='200 value(s) are clock times written as hours and minutes, `09:30`, and 0 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.4c's rounding: 200 walk-in times, 55 % on a ten-minute booking grid, fourteen minute groups. Each cell of the fitted table takes its floor, and the cells the rows and columns still owe move along the shortest paths of cells between an owing row and an owing column, so every minute group's count is met exactly. The mutant rounds each row alone to the nearest whole cells, and the minute groups' counts move.",
+        "column": column,
+        "rows": 200,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+
+def _clock_stand_ins_past_route_one():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '09:17', "rows": 11, "mean_distance": '42.0', "rms_distance": '47.47630988187688', "values": None},
+        {"boundary": '16:59', "rows": 11, "mean_distance": '42.0', "rms_distance": '47.47630988187688', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 54}, {'count': 15, 'first': 55, 'last': 65}, {'count': 17, 'first': 66, 'last': 77}, {'count': 17, 'first': 78, 'last': 89}, {'count': 18, 'first': 90, 'last': 101}, {'count': 0, 'first': 102, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm',
+        clock_heaps=[],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': None, 'p25': '10:34', 'p50': '13:08', 'p75': '15:42', 'p90': None, 'p95': None, 'p99': None},
+        clock_step=60,
+        minute_census=[],
+        n_contradictory=0,
+        n_distinct=100,
+        n_distinct_folded=100,
+        n_missing=0,
+        n_not_numeric=100,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=100,
+        n_unparsed=11,
+        detection_evidence='89 value(s) are clock times written as hours and minutes, `09:30`, and 11 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.5's stand-ins past route 1's allowance (the Codex review of landing C2, item 1): 89 times every seven minutes from 08:00, nine at the second and two notes, described at the reference parse rate of 0.9. The 89 parsed cells miss the clock line of 100 (90) and clear that of 98 (89), so the column is clock times only by route 1, which counts out at most two rare words. Two stand-ins are words and the other nine times at the second, 00:00:00 upward, which a clock reader takes and the column's form leaves unparsed. The mutant writes all eleven as words, and the twin's own description reads it as free text.",
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
 FOURTEENTH_BRANCH_CASE_BUILDERS = {
     "tail_end_least_reach": _tail_end_least_reach,
     "tail_end_least_reach_months": _tail_end_least_reach_months,
@@ -43294,6 +43960,20 @@ TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
     "labels_clock_forms": _labels_clock_forms,
 }
 
+# THE TWENTY-SEVENTH FILE: landing 3b.5's second step, the minute census of
+# a column of clock times (lane C2, plan P4-D374), method G7A.4c. The
+# twenty-first, its first step's, stands at 247,663 bytes against the
+# manifest's 250,000-byte cap, so these open a file of their own.
+TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
+    "clock_minutes_slots": _clock_minutes_slots,
+    "clock_minutes_seconds": _clock_minutes_seconds,
+    "clock_minutes_all_different": _clock_minutes_all_different,
+    "clock_minutes_rung_pins": _clock_minutes_rung_pins,
+    "clock_minutes_no_tails": _clock_minutes_no_tails,
+    "clock_minutes_rounding": _clock_minutes_rounding,
+    "clock_stand_ins_past_route_one": _clock_stand_ins_past_route_one,
+}
+
 # THE TWENTY-THIRD FILE: G6.6.8's reach (lane G2, plan P4-D377).
 TWENTY_THIRD_BRANCH_CASE_BUILDERS = {
     "tail_width_past_the_reach": _tail_width_past_the_reach,
@@ -43305,6 +43985,7 @@ CASE_SETS = {
     TWENTY_SECOND_BRANCH_PART: TWENTY_SECOND_BRANCH_CASE_BUILDERS,
     TWENTY_THIRD_BRANCH_PART: TWENTY_THIRD_BRANCH_CASE_BUILDERS,
     TWENTY_FIFTH_BRANCH_PART: R2A_BRANCH_CASE_BUILDERS,
+    TWENTY_SEVENTH_BRANCH_PART: TWENTY_SEVENTH_BRANCH_CASE_BUILDERS,
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
@@ -43343,6 +44024,7 @@ CASE_BUILDERS = {
     **TWENTY_FIRST_BRANCH_CASE_BUILDERS,
     **TWENTY_THIRD_BRANCH_CASE_BUILDERS,
     **R2A_BRANCH_CASE_BUILDERS,
+    **TWENTY_SEVENTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -44201,7 +44883,48 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
 )
 
 
+_TWENTY_SEVENTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with landing 3b.5's second step, the "
+    "minute census of a column of clock times (plan P4-D374): G7A.4c's "
+    "layout of a body on its minute census -- a clinic's slots, a column "
+    "at the second, a column whose values all differ, rungs pinned in "
+    "their census groups, a column with no tails whose heap's cells come "
+    "off the minute groups' counts, and the rounding of a walk-in grid "
+    "with both counts kept -- and G7A.5's stand-ins past route 1's "
+    "allowance, written as times at the column's other precision (the "
+    "Codex review of the landing, item 1). They "
+    "are computed by the same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json, "
+    "tests/reference/generation-branch-vectors-13.json, "
+    "tests/reference/generation-branch-vectors-14.json, "
+    "tests/reference/generation-branch-vectors-21.json, "
+    "tests/reference/generation-branch-vectors-22.json, "
+    "tests/reference/generation-branch-vectors-23.json, "
+    "tests/reference/generation-branch-vectors-25.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "file of their own, the twenty-first standing at 247,663 bytes "
+    "against the manifest's 250,000-byte cap: no cap is raised and no "
+    "case is dropped."
+)
+
+
 CASE_SET_ACCOUNTS = {
+    TWENTY_SEVENTH_BRANCH_PART: (
+        f"The {len(TWENTY_SEVENTH_BRANCH_CASE_BUILDERS)} "
+        f"{_TWENTY_SEVENTH_BRANCH_ACCOUNT}"
+    ),
     TWENTY_FIRST_BRANCH_PART: (
         f"The {len(TWENTY_FIRST_BRANCH_CASE_BUILDERS)} "
         f"{_TWENTY_FIRST_BRANCH_ACCOUNT}"
@@ -44272,6 +44995,769 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # LANDING 3b.5's SECOND STEP, the minute census of a column of clock
+    # times (lane C2, plan P4-D374), at seeds 442 to 447 (renumbered at batch
+    # 3b's merge of lane C2 from 436 to 441, which landing R2a's layout cases
+    # and landing 3b.5's absent places already held).
+    "clock_minutes_slots": (
+        7913816122432189931, 14627445005328517746, 1818443462759958504,
+        5303833643850056692, 12924914450074162339, 6823150353144686194,
+        16152851845764733760, 18228562873011623122, 6739224533747092651,
+        2980852133964028197, 1850356089236518409, 17796406418577584854,
+        1711400348519059523, 6756470527086921314, 2901020616112731653,
+        17945697361559964403, 6837268899640700180, 2016174421968719299,
+        7978606828806867981, 174891862462333038, 11272946484411487308,
+        14608102990415898780, 8899381435553384565, 17194318798831496656,
+        2535017815302593887, 13098183491122456332, 17460481328189562626,
+        17975105072296174145, 13808501518908974026, 14831747760619223740,
+        17055845315545580788, 15434148687783694104, 4767155563968863324,
+        15209154512860594993, 15312058727699711307, 6186027010078669865,
+        16766506729844935088, 1257700523438327016, 10002602276434300433,
+        4229320038013859710, 992074702750201380, 3486028247737711851,
+        10025167344761387292, 9749641832954459114, 5354117004169226491,
+        17952484730339878867, 14665372066040155846, 8775862252837979413,
+        13511517634216806082, 5837878302101403708, 10372495087169759400,
+        15211284964500537740, 14176703942624431278, 6128714487702822025,
+        3703249421369807902, 10315755223006887877, 17554103437927770698,
+        12672673231488120127, 10436675647111184441, 6164897150071860885,
+        1574625234166662542, 10049391909202286648, 12710616972075097418,
+        12093162423925661226, 8541245891347985801, 6667792247046328404,
+        9408686229531226034, 18428142460354862981, 14161621092170609415,
+        5172263040383176449, 18204563809672846049, 9195319508348670864,
+        5282525933739048621, 5407091021853621980, 17253724394992449863,
+        7931952585399652129, 5458809523995169496, 12482162592176484964,
+        996761998586166834, 1617211238521637841, 9653523889819772094,
+        5110082306457310485, 2531611697651977998, 11532314744303625457,
+        2902776075333517071, 12517841198096605301, 804914782082207477,
+        9822867453301112413, 1409945286665581323, 10583444212595759742,
+        15029032622625590695, 10289117138613050248, 13972966269356010120,
+        16743273640216290645, 6795013045735004614, 15815427537183349466,
+        12723556635467647919, 9220654298107097842, 4619965830274049295,
+        10562998998667027211, 14595895909375078214, 5612395505431068561,
+        18137765881676509598, 16796939706199484121, 5410731386702872089,
+        1024736134025131053, 2878168221587078066, 5027058240993486020,
+        9996167635956487248, 2967057307621731548, 9399665163221158239,
+        8421427119239567646, 10293719110699904142, 16295269531983579374,
+        16725139222250889275, 12226306102268618370, 9346706131943219264,
+        15433703363472905732, 16724729114753993930, 8836317777868141348,
+        800050853152600898, 4709182160541998052, 11968688528932702122,
+        47398977585354468, 4015187988890126798, 6608812775067597482,
+        7145001021521246774, 16616145116912020446, 1278758808133759146,
+        8416635352897830586, 9343621823371584480, 8008355575529294688,
+        9713633087602399292, 14823378317733525885, 2488867661983728471,
+        6403081318476115691, 14831869532817182537, 2556214949943023047,
+        9382866780783874838, 2885334908581641038, 17699436867835198527,
+        12047558479874220807, 15117300067114925978, 13339222259462954961,
+        16167182192760919081, 1960808304098010233, 5527492300551054654,
+        10837901689283938319, 7946895729914966069, 210359444459545147,
+        10146475550968930684, 6454650865191086688, 13350270998672416655,
+        8410194854431536817, 11531780247536564413, 12481848252116000509,
+        5660019952281930626, 10574132779069527842, 4246096438065074070,
+        5988112557858401606, 6628958872681337458, 6326959724303516393,
+        16092584752743456682, 36484473852046896, 11645060242279586956,
+        5591642940028202687, 13116168326316002180, 9317498049817799308,
+        11322881908090354316, 11545959581181157336, 7650150816157677798,
+        7741173843581857877, 11948715579666322657, 9742294129611250835,
+        15066899677738695914, 14343334291273266473, 11075197409330986708,
+        6169821192960156897, 9410449570330812390, 17027212368312586900,
+        9318228932650703615, 5982568705833521251, 14866076755299805758,
+        9725988618533853394, 12686132035906621039, 13772190578240948699,
+        10254064911315655162, 14528685233365803712, 11621082557671736850,
+        5489754945176183619, 5605452184528850398, 12455568837491450531,
+        9019678713157140941, 1285740307771885583, 17120865267858321471,
+        970647971189802745, 7311813790032819831, 13645042176517064885,
+        7980595157119580857, 5744647339646426471, 1508327696037041500,
+        8148483469701883910, 6423593961664378668, 3125828426024729062,
+        8139713109639093192, 1348386291856619367, 17615638690734003752,
+        16473887185376990716, 15937676085214258661, 9497671364855133305,
+        16534314122099881268, 16358164073444619609, 9496640293024275918,
+        7838682224022482739, 3886952800910566619, 7868975210204200845,
+        2405100856244221354, 9433647425344918613, 929388230249399009,
+        5152973808422644333, 17617141850968269654, 1818591114930834973,
+        16383340138410966278, 10241835816255100258, 18301180899430545985,
+        911448862836535555, 1998487201833084707, 5169762266212415439,
+        15289766760190416529, 2707822774473630317, 10883705808371454749,
+        6130177054410568272, 6743740102386840958, 4340373901609859946,
+        7895460964636306605, 5247671571745958542, 11587251049563816141,
+        15917649716611471407, 6448628308851758206, 6263127736159184429,
+        14843113472425929845, 6761559762849646942, 2265626420181151325,
+        17177750531965176323, 17566670891117737800, 16934126415164736081,
+        13340258875176046353, 10228638450953431222, 164598447456015793,
+        14285213984066395723, 12090477159524406743, 875382256973918192,
+        3371627973844266520, 2229986825938113916, 777530254518570466,
+        10414466591332805948, 7516541659052245385, 13258756266063469617,
+        18234749049007740868, 1529135940214666596, 4850962463940456580,
+        6611779961105505137, 8122707550883677261, 7257373978856965238,
+        4306539806348384883, 3069158116243697720, 2578730507575613334,
+        7602726771381703010, 1493946882601284196, 14430085544015191467,
+        9684125338626954094, 4617333573664969878, 12779034639893476446,
+        15010202833521077596, 13109306213349305193, 16045917213664435189,
+        10427427229293505794, 10260869303438052594, 4867727498765989686,
+        5936898055388874413, 13521574525780029999, 11336954324426601593,
+        11214165186756501315, 5008797926857684670, 8070560024309906263,
+        14328355946261618702, 2406292497420115551, 7264091363005780640,
+        13170370565594164061, 16398348958490888354, 14953245877075597080,
+        1431977051567324905, 4408588835091742720, 5642139723896355863,
+        14151078964573401493, 16410701860386624578, 6260897958010700994,
+        7542021478027154944, 17656675065754866438, 2304879555211555037,
+        17872499374156722944, 823639133699796077, 7384625405694783251,
+        9911706222854314328, 9050115416831042834, 6595871687686829790,
+        12190065467464598028, 6899358194902479074, 7176227680794844411,
+        13795979300774345880, 10361134497990074763, 12146577070294726758,
+        10184082826612220749, 2485330540209153920, 1153641846401268263,
+        12081319446526128913, 17678288064887314013,
+    ),
+    "clock_minutes_seconds": (
+        1205198399874490614, 8146716030094669013, 12657984388304553222,
+        15016767660679263225, 5540895066489305288, 15974905020642973291,
+        8259688361691921437, 14846109646290950487, 10265110782738046379,
+        1097465567026254499, 1008534152838221713, 8261360773117534287,
+        5801618364829050806, 12540932853959357874, 11831539974401418307,
+        11266838804180697051, 12284243764498058398, 2632659359405386867,
+        13499356456965532469, 17971070972750634793, 4614492244530028066,
+        18087312269511557696, 2432963135120653514, 1425734305330800670,
+        12973008108991078493, 4035372307411099856, 11567585575416919688,
+        11165186624116576528, 15680819074796286496, 5915381754273311224,
+        11073160554651188196, 15072679300452745239, 12536245118909884636,
+        17780288558302089407, 5255558859465934573, 17216568094323313861,
+        4911269811016139179, 818428831571069479, 1352093683551972810,
+        2245258183656808508, 7364619456761149281, 13814926657155353924,
+        10792175147582386851, 2523514665392715702, 11983269410827673727,
+        10924527819456399171, 16331736795931851409, 11604605528827767882,
+        9442770668784126959, 6943536246967975821, 7433230443659862805,
+        5488377055593401043, 9577698067922537650, 1576152180941546945,
+        5604835220947527082, 4610207338990239507, 8726282871996330942,
+        1357408912297582809, 15249021179155657448, 18437452696903812807,
+        13896600002196044932, 5032846497691626347, 15703808981492571930,
+        11369725758313537751, 12406584361902925078, 12252383374844652453,
+        13380952629907722994, 13713232324061512799, 14928734341405125387,
+        34634019373344498, 7274392907010311831, 14470837592516423753,
+        14221615398256065886, 276452219441379858, 17158636024973180336,
+        162523245210163521, 11610777209901038464, 7679968537035401659,
+        10889087232852341158, 10296459511486704024, 11370968887378914363,
+        8540397250166484335, 12806323081015852856, 5280615107820220792,
+        7160275672603152041, 9369095517908993670, 6563516058103668193,
+        11165338803087745378, 3221118748144203685, 17101707523152481739,
+        3862426541274166799, 7909931791668488655, 11276449541382649823,
+        8273209676013658670, 13006882016672289058, 16290861253851869561,
+        1640749904750536995, 8520978757210559973, 14061691071604192751,
+        6048210556640129327, 7887837251217659449, 9076625808571816294,
+        3362756336479236337, 15393118724063251144, 7691834134584264857,
+        14265080273204180574, 13456207875899920270, 7769130815495997155,
+        12333843960245437946, 18315322797368513624, 3440178752733701580,
+        1158723276009524789, 6174007651989619040, 15391904257100966392,
+        555497045431826552, 6135507741591886339, 16351741846581891370,
+        10571142707971702734, 12185943796580143923, 16967852460183472281,
+        15337408638909452263, 11040760819691034979, 11222099951306087379,
+        9283513247630798020, 11476663408552948913, 8678387716151320952,
+        13138551945651056159, 6365213217810075952, 13851821991775634408,
+        10326708170719949795, 13549792006285292724, 14817040013339753862,
+        12540564047622007459, 15661195163632183391, 8701194414895121601,
+        2960141023786204573, 4329092586967050121, 11463394715545916532,
+        6422073320615298339, 7474761326695050777, 988196842146323622,
+        12335524238076937717, 14931440914458740943, 9641292324003763734,
+        5034240798683170395, 16092745284436473187, 16256079539762238240,
+        4993960545475408630, 12134999688345267808, 12058127214024733333,
+        16125801658846787409, 3505389065630530917, 14627074867660137863,
+        12352755085084836328, 8751183141804491033, 8663862335445164122,
+        14471952747768519207, 12740075890940464450, 3924956162856072149,
+        8319828264790462044, 15971511274564786814, 11789096363017351712,
+        9983997853438216053, 7729984675030689691, 5844132678231244182,
+        13880446583756304865, 1522134522314458713, 8444419697580846465,
+        8725268956098391143, 13552506141207732650, 11834995131083131840,
+        7978944727339475163, 1930052103301169294, 10751635424772538156,
+        10558149271887837767, 9349093584299991518, 7264381943486635247,
+        161090907803270945, 14108128600546613573, 5793788243099309642,
+        7655714435552556039, 4312531400601679061, 16109552856925105843,
+        226306518994771813, 6881681698165635788, 11370058109214917470,
+        7461485144643643271, 17337974582310823398, 1173519544731096989,
+        10322118301519635063, 430884144348199971, 13965421596905428650,
+        6702814280463182210, 18444863513294433946, 12409408288731346783,
+        4362577032705319535, 15616654861604957298, 3492385239422136698,
+        18323146383282829640, 2510323617970655051, 6544868107714764139,
+        11249506374931197243, 7045404566148155903, 15221002254934727727,
+        384651625274006688, 1398638800033875262, 18127047104986528147,
+        4959144535691237220, 4544816332969637748, 14145612925848241726,
+        10633196018443951613, 4618426695356339992, 7621684415033825616,
+        13710060021956041848, 5201417605352770117, 15723081131843506650,
+        10578731400164301808, 7378496961504678907, 16555672619237457025,
+        4463998370858414283, 5046776763605768907, 1838428343412367496,
+        8325816687815773264, 12847571392275655927, 11513412935801684630,
+        3312198627558718349, 12760474808848372259, 10426611967195452798,
+        2172437411805104678, 6089611715332720571, 5732816258827872270,
+        12433697130060171226, 10931804602055343734, 9023372371576222300,
+        9527632824514266636, 13515917012704970711, 1244857261458335540,
+        5158963601991379611, 2757664628761245016, 13105043318327283116,
+        1909907821215658930, 14728563507028523074, 8706400155251322550,
+        5315746160559085320, 10341321047855242327, 3631481157875484082,
+        14283925057656194856, 15229447028974487091, 10191515681323217760,
+        2754828157234522311, 15075642306003962042, 16818277886792026860,
+        5615174404758530260, 14458203125318118305, 3418581435356911345,
+        554886315317747461, 13654432205581219870, 8375390153236744338,
+        5952687213105767685, 4721795757084378020, 10764498703779620645,
+        8018335904710461110, 214384335976231682, 11597363601040424172,
+        11187220152336377044, 11107237480580007305, 3302496450223177624,
+        10385998334302704411, 13323447403165297056, 10986401294762915027,
+        17058657495634762990, 16814640684998605170, 6888018944667575479,
+        557427551062935430, 7854031139313760208, 15820977176340892468,
+        7037023284118197501, 12918258156681844755, 2842648459139045308,
+        12461168314657223937, 4781521945851123689, 3129728027296365924,
+        9811569947887506129, 8290669514620160536, 8785235330138947396,
+        15494277647217997765, 6161197530597675691, 9523313972088335600,
+        638772191327858158, 6064983753018265606, 12571639627431047080,
+        3120079802922705972, 16716325096013407961, 665247314866798903,
+        15608681978915578679, 8802989212758322476, 3057979411236294399,
+    ),
+    "clock_minutes_all_different": (
+        15204804320992979273, 2099959828723632602, 13003862295354804051,
+        15441581081340979811, 8545276450096786976, 10264171002190144643,
+        293066012314429870, 7090690336889278598, 5895324006904404760,
+        14591017046479006103, 16163441955911847445, 3379774668046589245,
+        7240759296959599413, 9591838188035866359, 3670632412100175822,
+        15786258691837437256, 16366221337399479389, 16985790912943437187,
+        4759795716138677721, 14488462792688203824, 6808330853250588018,
+        10779798770602960950, 987097481830985995, 7851476418031359410,
+        8556711597898690618, 6469625575196610712, 16253497620035746932,
+        4792514155957105557, 2672171455934334068, 11196808770383530719,
+        17048875543302882762, 3080874933980089849, 4839849250374899530,
+        9337233465143355493, 8473596131083403979, 16451053191369778652,
+        18187148026051559475, 5272739313407581151, 15053514626586609276,
+        9729501090066011088, 14641251770284985124, 14777062160867965694,
+        5652781338775630807, 9468307368972249137, 1075308177183847814,
+        1735180055827661594, 11355527476376877629, 14819767924548753469,
+        12821982195000886172, 12091796445798767474, 6278135427768912295,
+        8359804195538862585, 2434480157910867631, 11277422579040209499,
+        731003064421512341, 15549182514031919851, 13837171815525993437,
+        1015930934143788578, 6253971890688748177, 10948212237961303185,
+        5351313151711501807, 1287627924374985119, 18133215916912243239,
+        3932984932197347, 10399668048288238465, 3347172249857142855,
+        12189716931710579068, 3248818614882183023, 15211284689838296007,
+        13414451088977073412, 7056784822347417758, 9737106983471249582,
+        14797911142931974087, 13397781091567445528, 10401551742341254272,
+        3386115794639593845, 11799964724521568436, 5911515189037046134,
+        15292169311683726266, 74965605869144097, 9731738483046789881,
+        9332508372815559672, 1544384680497300438, 7915383411520064974,
+        6415975943128252989, 1653002019339978512, 3328711162345125376,
+        4045510288490542419, 12642453124210448288, 5476958844889360297,
+        4822724538580321585, 7502364828667510082, 7932851509746158673,
+        6297984929433023615, 17804321741785544642, 6076298525770621860,
+        7282642388143614914, 2905303499563819256, 8020592167051803083,
+        3254622339349281512, 14397638975112753304, 17858907516787540857,
+        5670980618806429826, 12153955159238701424, 12866153624641506230,
+        1920318765650867287, 16971656794387350413, 5968339687232455546,
+        3620330731604486228, 10145477801440236960, 12456485485002500547,
+        14244078883350168997, 2976642921484643696, 45983556666821212,
+        9391298367530629152, 11927256451957872816, 4403281604617639055,
+        5664718423699995941, 18440554838638632392, 14272867434574142257,
+        18188080848007345178, 2276644523943338258, 658654680018300380,
+        3246049861107322946, 3321189811556598057, 6266819619941386570,
+        7686286772211739607, 7554971527948166324, 2482087697391316802,
+        9201934645205417772, 5364857220663955256, 5284443717118866552,
+        7733719692128319445, 15064811031839296067, 14223819099170960090,
+        14459062603398112952, 7180264354044011836, 13031696636341118492,
+        2660140158873074304, 2209765158527124677, 2206706368689629753,
+        1638674525777181975, 9117646243885456181, 14892113874249005563,
+        8494320540238545673, 12881073693964015849, 4084918426188831845,
+        7876466470857499276, 2075342250696870316, 11684581389618494471,
+        5942699556079349931, 4428457059440706426, 13224621646085112506,
+        12537042455576620096, 11362192986340270863, 8890612483922593227,
+        1238192199973951963, 16870753926711486939, 1006581861182713196,
+        9786364355990653859, 14418897243632017776, 16697712142700356813,
+        2384066530081811371, 4111710395027497000, 10416083056633049181,
+        3593521592872211770, 8568594537996716904, 7513319501642726336,
+        15668637323751004902, 5118638793186727818, 10513743051266536749,
+        15760715385629560433, 14218230743763146773, 16261787426772892636,
+        17350530791690561000, 7928371304027777975, 4732551296899022414,
+        6840517470668936170, 17857092840010938369, 5712437098827777086,
+        4994450222169670196, 8665005889650383492, 4139493084256333978,
+        7222987309989838478, 11220940258574247765, 17398429875928716807,
+        10234305893239223794, 9751449604889428675, 4635285146582550344,
+        4687981102334839218, 6831989347813581867, 8495215095322550622,
+        13999324157634147336, 9815900063824953249, 4972057806943993261,
+        10993770872432771984, 6575590515464420531, 2452606843173497050,
+        3679479051656692769, 12458342336316344116, 2538928495767677718,
+        6773433511566522687, 9717097413679827928, 8940071811001088629,
+        16872978774038069344, 12855083781990874800, 10729166786125296525,
+        10883848372094468789, 700587146452400326, 12605637273065055070,
+        8879431178784161235, 17763722496655451613, 110962421520259106,
+        8692115089891269144, 1136805377751188628, 11949010588873979129,
+        7815107028494042584, 16405818853506585062, 4811290287623611117,
+        18163327797898139447, 7759175923072296077, 15020336266809764938,
+        16606889931147117669, 6520421225295000565, 10738506794344737236,
+        9400083610978313089, 17709047957323361990, 5597732138540237136,
+        10388352809832023901, 14895179277141921350, 15889736425023923860,
+        3535840515344768731, 8166002064064205710, 4462300645565333621,
+        6190350749794270680, 16216045560912058351, 14907256675267086187,
+        18216297839833813010, 10446138562779102384, 9163556902733512765,
+        11830179407524085659, 3301312991681717316, 15343957051809196924,
+        4010879006608645318, 15039785834189524790, 14528990937562514444,
+        3002424211074349354, 15385803242019743642, 593791506779031471,
+        4130187273052537759, 18061538335222903669, 14444032089052241548,
+        12542686744524835655, 16689652478739739196, 16393401253999740389,
+        7683931400046982890, 1627374453425364812, 7087518538221085289,
+        18159644736965827015, 15856884371318377805, 9909704687132996105,
+        10085774039376383514, 1334105509782516682, 6097590034028815643,
+        17134323282453323125, 3215655995811220199, 11952477326124180436,
+        17430798380961935687, 14212038067875221933, 7919359943754573757,
+        18263798471106192113, 7395773954518181732, 15763963888696860852,
+        564218103610999573, 2592703060845275513, 11510697502111848797,
+        10456548576053393112, 13833259448878234588, 13623393934283182403,
+        5173621701942852421, 17778566099778946880, 9460132508894580832,
+        2751590663126230950, 17442056995790236044, 7703342356328501139,
+        17239787451511496629, 1342919458680981281, 7557957675953659866,
+        490538588681917542, 3178505095864235537, 2595438830335862755,
+        9168715318837371061, 18148870963422890435, 12880538717646573329,
+        10870778311122515538, 958100362590939812, 11680472598201737898,
+        946005542389516558, 10265704784460651330, 15236615842997327657,
+        4627262199286155539, 15488876594565971176, 7509333791755640320,
+        12283211169977691426, 17113024310774184472, 5889556234496946541,
+        7932232593712427537, 10535597635300578228, 5951801303264305912,
+        766665711681773341, 13855654854559574412, 1435991947691313269,
+        671535019951010690, 8871348835369600458, 15141989855135674308,
+        17500953940822770595, 4675153700784672145, 6171619281355583348,
+        12557544153489188364, 3054025970402091967, 3666563322225186304,
+        13592695134439811149, 5018962071575815942, 7799731046240847277,
+        17575809095481782345, 2743191877268443372, 12480543329872057622,
+        6023251207359726365, 18024325506034176387, 4777811343899937864,
+        14284316825928836352, 18252030105582238304, 8100345664883282281,
+        9867854854076219630, 1944475828216843277, 16603004346495421951,
+        2281134423120481385, 3253521177539743251, 4967362497867411230,
+        11911035325629028152, 2544465179251742057, 16928421158330571630,
+        6528282482462386096, 2596354217492457177, 10611966662710762334,
+        10190791933883411881, 13456496407287210298, 13545128395838311131,
+        1001323644802983995, 12843105025759410326, 4959581793287251901,
+        16562604925142935022, 12813067010386270072, 5383967741811887778,
+        13739547374140460812, 16045403009117386038, 873216598389733147,
+    ),
+    "clock_minutes_rung_pins": (
+        9691667006483521284, 423581209153855080, 13301529397446589008,
+        8783436748445430941, 9203115414370993669, 11788072036754560052,
+        17556608956058208415, 15233639790202452394, 185407075239276319,
+        2602450802374935898, 16385134671581949040, 15400208219065240406,
+        2175480054462999629, 8219864163930396870, 12785604702052185633,
+        7105538219967689617, 11751803624502586089, 1346457119597433460,
+        3328529710248599056, 338633534669112973, 2225250413560711829,
+        15742464838517456477, 12939050363380661394, 5976794063348027141,
+        200873608210628945, 15441868076618572583, 3542791658918254230,
+        10777413290755537024, 6572430281101095523, 14795431534050052276,
+        5824256428690907203, 14216016222010656024, 5243855866493275354,
+        7647222793941762783, 14540351959176560460, 1789164565789181525,
+        14297555933126401517, 16540542973450962374, 10504129625266082037,
+        11512168959527119696, 10781196873999173416, 5630600185675051272,
+        15242630401540427770, 5691519367615615869, 4144762761790592435,
+        15356503939254275452, 7213824729911034507, 4286646663496529550,
+        11139768278626618996, 6791488112938477144, 5152017866244075983,
+        4754095745792459998, 14706777732846808622, 3855479464298963745,
+        10834375583368114430, 12566902731506565574, 4254165449606070566,
+        16772268167183526412, 15783176432399625194, 8556279385828229643,
+        9344752451049672874, 12005160174675619055, 12620007854762275531,
+        9205192471866316950, 7646586770667381575, 4431204376031490409,
+        15841675022698214904, 11634995843736933190, 15751284206061923871,
+        14656121935852397117, 7272490082738604441, 4245982582769342840,
+        9499481591573044901, 1280736867179631067, 13719447579869222134,
+        331117890466341378, 15308489931180930700, 2935880686417812193,
+        1563279172850251700, 10332563128282532838, 8960308799731174121,
+        368570959302048076, 15038238952357063844, 13321246658959709747,
+        186315715417821852, 12890658036707423943, 9815457123506650753,
+        4552751628422261212, 4183916459118118963, 15141570954326781414,
+        2799641629464323550, 13029215715805922773, 16179678830521703818,
+        8158630078124498377, 711249068742580297, 12452926291510634812,
+        376848853665535077, 14172727382264478530, 9134864333158486565,
+        17584123318794510659, 9860451100200769160, 14403014877517508829,
+        1230408125091110150, 7469808391912002529, 3240718658510799855,
+        14854800775507754170, 13363689825572644680, 10313372401889517669,
+        15980540652527353101, 15982057550063321491, 55770913716183958,
+        10165161949899646513, 14609824581857056560, 2606947948325750174,
+        9729852617142038231, 8999496350872353348, 15910032820392580792,
+        12051510751892224432, 16244625107033912413, 2819218303143835512,
+        11069622237809551460, 17979237697474243178, 16058090759529915194,
+        11216385004244622667, 1686980618908854852, 16344370192171307900,
+        1490070102923522250, 7999023713736026255, 15292746165514621145,
+        9293410834524098004, 6940273830839751162, 4949971524926694629,
+        157854994725228180, 8083015619239579300, 14584420907933371796,
+        9025717014040633821, 18002485075509294643, 11921466842326650387,
+        15186371870694738368, 3598372837267518604, 10306347345016582436,
+        6758563774063373706, 13357416027089887698, 9907710325937628612,
+        4106528980587289544, 2654677394477209855, 14981710755045268310,
+        386375943711822489, 16988106049289558108, 454779643279323574,
+        17371533781679133357, 16923776473678918929, 541923184394726795,
+        13758348901766647481, 2463612931460041281, 12433973121564283658,
+        10541193630535656230, 8367018329567142683, 6056127097515452494,
+        8584977815995974943, 6656127195526234492, 12825324068673087430,
+        16925055358452886501, 10636061663430989805, 8690294503901557241,
+        6400365006787617230, 14194675889507484327, 15456375836110121186,
+        13518273674649536212, 13305891985696608416, 15949017614175073851,
+        10834467441439756518, 16677282871013592828, 9170360327864490591,
+        1873474451528590485, 9464258902877651332, 574276697001871697,
+        8026715757820168097, 17846913597045677998, 9027637845413756067,
+        4774047525589495678, 1872439223602372939, 9067444608513173996,
+        5311726542542474923, 2941217728908612928, 8605246521425597825,
+        15980909658139637763, 9646566810013500285, 1699227918637306138,
+        9064411267317566198, 11852483308494885816, 9980781237441005115,
+        206524004175692682, 15136935276655817753, 12778562227347163792,
+        2562640726987188331, 15903954687590876787, 10914036367248221292,
+        67354764197296615, 16199945035177584929, 13548467321924920847,
+        11759177763514492043, 7700370488925759239, 7511427498982444255,
+        4751784460362575237, 16472568795659685892, 2671917768169778078,
+        9854358854571060786, 17881771265162250433, 10361153921093676699,
+        9258973374891560384, 793145123674581510, 11260170685516238286,
+        350435583529176962, 9081686209011853171, 2531293523474554664,
+        4918035407116267055, 624216225012908680, 9767832273807695475,
+        5211849367805147424, 12558419221640645059, 2693907359680176328,
+        5116322406843820111, 15999373215833229050, 16376157714804764151,
+        15223764843127690861, 16412256844945001510, 16317208165736932178,
+        423115168914251821, 12787690428140020964, 9068877527055356247,
+        1104222210538233591, 17204685770063650007, 7772021353359965801,
+        7980337043732574354, 13235169493838710080, 14247700000171148195,
+        517338483689682772, 11654271441656974502, 4878459734653775528,
+        68359268461343116, 3574404213729514004, 12021839459009435663,
+        7334181950800988599, 17285763549484230775, 4271593787328113822,
+        14561126488050777365, 7180063933256525660, 14897320089743720,
+        9800909741566764005, 12843762877671654820, 2562471592270545748,
+        3809693079501029747, 10416497811719974861, 11217838108022932602,
+        16281745155277423598, 6161286530512846090, 8483755403438831235,
+        9427302514555916791, 18352273535479594841, 6897964706653006069,
+        5357669647284786535, 15071424506660209733, 11518893746056723027,
+        15777470909712763400, 2122482626852256701, 8035890843359878676,
+        8664683760737624177, 13107929824487932546, 8579302201227753461,
+        1560842298147841569, 7197407824631350957, 5393746886337501426,
+        10464199672167662743, 5260633879269750645, 9245182258049512919,
+        9478898024639051430, 158976412155633911, 17329885613420591789,
+        1621715857216502205, 17376773118331736400, 18259028557127375647,
+        8799142211645362936, 13616054556270802681, 12541042585665430565,
+        16038910539699543704, 8304359106584819778, 5498626716816157581,
+        15862323226062340834, 11304741908650296630, 1332906980327109291,
+        274251378312096872, 15844086611550145417, 16403872749967361817,
+        3544562411758228626, 16436352209780950226, 12105125250637991513,
+        675900690837396461, 4720670498348438886, 1656340716927880675,
+        6818756157645713947, 11918344947787725271, 11646209787934346363,
+        16402707490488882624, 4420283484406360037, 13982983136958749600,
+        8477859845255622277, 4801957794461343707, 13597423080172656172,
+        3056275701869662144, 17297476242660170199, 14102740190849319458,
+        6903009429206005330, 3594371724706332309, 848487827444630681,
+        2321576488647310156, 12240343922462109388, 851857981331632617,
+        685870906015578641, 5132850526746662830, 4763488111706910845,
+        15686163373877817148, 7080680266125344440, 7243446801368412555,
+        1229281426814057510, 5642648082358033759, 3701238911813283884,
+        2148053628090936299, 13656491624105846306, 6593736581595920165,
+        16698843854233549819, 14715938501088995021, 11621770688699645839,
+        10285931778976501894, 4895085148838034386, 13253469838707519122,
+        17746239800167925490,
+    ),
+    "clock_minutes_no_tails": (
+        13463812382576291493, 13560039956324070735, 6907491281198393935,
+        1565164056068832197, 18256982627032921909, 13434424964977052864,
+        8907869514976532837, 1631501232496575966, 16774499661900957881,
+        11946719645126137210, 15567783721794082192, 13993890785735243749,
+        11041041008113224222, 4008516181865378208, 11291625151405902676,
+        10218752433943908812, 12576104223364709119, 787550726026643334,
+        4013265028608393077, 14690857333231648434, 429720537378631190,
+        18201368455325736409, 12754123130544510835, 16450693842151391660,
+        6424396005781396251, 10972997788753115185, 15372576796824590761,
+        4111968646764080642, 6910013469026599148, 696011943534388490,
+        13032698469911456567, 12693928528946675001, 8497523741352873683,
+        6853603071102805078, 7116040210410217120, 15547294054179173784,
+        3383304973145115424, 942817525440286161, 3880506866766015002,
+        1012194296687086615, 8447140672439328299, 4966543322847418614,
+        5847342147425389587, 356983355793900862, 1778128503926444979,
+        11399503246372170699, 9175904232705151332, 324956570303981407,
+        17725719678443533632, 17363474365452548152, 3535072752895316318,
+        9429033335056582028, 15607261412397133850, 9785577359293267114,
+        1980143494110076280, 2315992649284221113, 12114285395367381772,
+        18363597124692638291, 3654970941094818347, 16051605008348515583,
+        12059388033263431086, 12724301133603677061, 8936358584282005082,
+        16950840556416516573, 7181172276988549526, 1809513526704160157,
+        1028354947078791084, 13491286844065651670, 12984081527756127984,
+        3535978987395435394, 17373775712395933933, 11117817878089460143,
+        16062907985265981306, 14133739474376005720, 6864066079867787302,
+        12916161997280624211, 15002819226485522114, 7372507588648178258,
+        7377605385167031895, 16605875090552091745, 7536266001521344251,
+        8497288320889130807, 1807357031699799152, 11271957718590516028,
+        5806314034861799954, 10302489984591961990, 948194570714554815,
+        4530072004677854328, 2803930194158848612, 16865044564191634666,
+        14988894004616833882, 18046215374929336831, 6857040286846613547,
+        2403636753221150582, 8928515224858681290, 7912410805648930907,
+        16848039315113994450, 3698999947336261768, 6471411398439978754,
+        12401462741622998989, 14877110399077110267, 144378622142921501,
+        5986201891391716941, 3658376819724789971, 6919191254289864966,
+        3492097910878056481, 7129599660423937905, 13538797459812516969,
+        6574060198426704012, 868738262940181392, 15796127063023483538,
+        3993184766757031438, 1202264969714885979, 1876594753109218486,
+        202987361021701539, 1723455974343431139, 11867959722095915999,
+        11421900889077722102, 5915712644447334055, 12196841070082625124,
+        13860522272379652395, 3187455575524465837, 470407717978590995,
+        1625370571127336830, 3516373982887275537, 354136417496761721,
+        10837706756986708188, 4060552364827033817, 3851110473933599878,
+        16999151044272531637, 15044492551862509360, 2284293358612612061,
+        17555451916973108655, 9810091240020068021, 1899501359873674848,
+        951689484985344669, 14266957198797473093, 11003782159412266442,
+        15658713709153369050, 15857073949956842450, 2349402127492482052,
+        9218558100821491899, 2350583310967785828, 12351933983343796066,
+        9927137366607128945, 16522568482205394379, 5263644650380563654,
+        11670303604396687829, 4239889014496390297, 14034992303427457356,
+        11792359989939508216, 13833058853570574665, 1487113343064044557,
+        1944810578801032239, 3486393061085055225, 12551171394354492821,
+        10809425251677069129, 12941171034478132355, 1581231239464817550,
+        5785611150668763954, 11099185570607524055, 8153170390738368268,
+        10961669019650738680, 9559603145257276456, 9011622660332264044,
+        14223191680146726642, 6382988159888412101, 10835449453396706754,
+        6728277673559908540, 7439971358742042134, 10118626137357319837,
+        5669258727211218300, 5528252715508109524, 15323171826267117042,
+        18439231271524670166, 5243145626977288281, 11987008778808464834,
+        2052947144090146614, 1882067839028039231, 3472767241915282194,
+        2625143843717845743, 12445967286768750238, 6987447144821668570,
+        13460032797660950161, 4329289602262451499, 7701199919876637985,
+        7072334135630432631, 5292292207281938069, 8932861805493872167,
+        6625038144308461964, 1532418618928754224, 16099225391203638050,
+        5215637406234761012, 14145022100539703231, 162463991469251649,
+        16937759342663906459, 3423720767608027008, 7672080570322999282,
+        6518972144800405547, 17493643584537580376, 12021511424818871334,
+        13730517826450699335, 16383793255481710656, 2479725454987012576,
+        15657591936279772313, 10769094341777619986, 3885055010470120783,
+        4411620495901571775, 6059787420706111766, 9611978635098609485,
+        6766225266402487700, 13394521866834392249, 9505371423946928956,
+        17853620686153290884, 15108381279900450009, 4185335824776381252,
+        3779105661835427589, 5757932790304267412, 9928123198022767797,
+        16580748629601902479, 5998265386962026354, 12189293805217559260,
+        3243460951905065317, 10824609518340514505, 8388260585613808639,
+        7354718984455771745, 5476809802118898550, 11418670875579077419,
+        14552968873469988477, 8212184736739245326, 4989419435320594483,
+        8959381309455516313, 9255869020763397804, 4028074668226661740,
+        10626528153057755849, 12844856350398348355, 7110217665229261431,
+        11890678285518982496, 7975323410552364150, 6342302473814270087,
+        14476365765938907607, 3006484761179257821, 8597132852483395505,
+        271920667992562898, 367355453373630230, 10705502662434000061,
+        1582625423903522396, 15033014639574880377, 5014780810535670098,
+        6408244225376451009, 1119398564317555388, 15945676676151720214,
+        8088969261105811755, 14286140342223730472, 16447721591991957111,
+        2483641595170065193, 12855828100903074964, 17999524823046971609,
+        6458548906539268198, 17209817530103980981, 6151567499338038026,
+        15463948108346451329, 6069947712143313373, 4935014566430588173,
+        2422124509905698439, 14361077644066939985, 2005985707250907874,
+        4103419066208528636, 9863932333409099717, 17603149222711210489,
+        15352920391406076571, 17902424832321757069, 4809200647268431179,
+        393315343232536263, 9512129409694626058, 10573305209827332109,
+        7584313376583983972, 3050690064332715972, 6211860144964083684,
+        10785122314461744364, 5451273544062769297, 1563511124903006744,
+        8283869930885012722, 2540948495479993702, 14377129876870502869,
+        14346736422854525024, 7462771753358151134, 11893019169622389141,
+        3987086858755554248, 17979848348374992777, 17279107179219514137,
+        13835787546002442914, 13445622373401057660, 6571777104997902458,
+        13281225600383821290, 8964250921062980773, 4077285401925036985,
+        12603836658492279725, 2297984485511304042, 5483241209659637815,
+        18428259589614668414, 16083597895634445058, 3539423019235222332,
+        3648396939249228487, 9324264452251676703, 2131788647077842039,
+        16627604662155848177, 8307885869973765132, 708791167305835138,
+        15495524307945881261, 8264530650293729161, 7514344742257616563,
+        4035949093978409136, 10349325591636303501, 8187936059124212808,
+        649037709606115537, 819172610946365773, 9133424663738802029,
+        7956474491090045163, 1327414982959632563, 17468007549911288646,
+        15844364572321853823, 12124041616636527100, 1043149324457400826,
+        17071866474728446325, 11163717705525237635, 11694881946155883624,
+        11204397164254784561, 12785797153440864960, 12391233897972020346,
+        1959953943952899104, 14464713324052426139, 3456830936816655845,
+        9749831484826220351, 613572608537472936, 4009736981182270081,
+        1695844331633970015,
+    ),
+    "clock_stand_ins_past_route_one": (
+        10234438611006787843, 9839146010938063604, 1151468569878544781,
+        3856890310119195095, 2195970959792675907, 17436177329677995684,
+        5178932396239935979, 15311461962375797048, 2861790515949771266,
+        3372785282959164504, 14202470440531499707, 16796100521412342735,
+        2421065896171430404, 16560414834324209524, 16586975279809237510,
+        9391880235640391354, 9664721470721029016, 7824565903130589716,
+        16628287874653640612, 10860158417663958156, 2847621835618455050,
+        3323290860524215660, 2655706762455298895, 18253307455465693813,
+        10501906120523052090, 11296840414051832982, 8534925589165585084,
+        263602969320287919, 6694116608501196422, 18293444029009259236,
+        9558429254274486525, 5416963929742065153, 5891457486006675054,
+        15806368619633755847, 637515375250002118, 3768313940582346350,
+        10666860008890146956, 10073524452148324143, 17270961354405965920,
+        6484115760526212163, 712145306251813712, 15935225421584427087,
+        15558818676963902869, 13683332834418273956, 2164180418429241182,
+        6742953982854606885, 1745001589607448992, 1095360051433782086,
+        5308045408343532698, 18325476916481837671, 6820131702196996351,
+        3654818051598695137, 2271757296915660789, 11723480480340318498,
+        5401510470129477876, 8194265792830867747, 11887649900651414766,
+        5509856471584352306, 9617510078591016557, 1959510138378283834,
+        679407576006801159, 7736480708004192611, 15623081423681242911,
+        15685120965427190478, 8643533164409779913, 10175338643639265185,
+        14493672895111095773, 12440146573392890309, 335265498363221333,
+        10482945353841791620, 14447218515833558781, 13146745958938388197,
+        7453270742057970429, 17808512487929667305, 8306598566387139592,
+        9641693140157941728, 1610868749543502450, 16511322520796668867,
+        829443916023926293, 4624928564025709068, 14538812598130282448,
+        1526143397206820820, 15438233370458092963, 10805600082647613448,
+        8623319841759832969, 11846710306108376387, 17286412141906404161,
+        1284154456220336935, 4030635108500953831, 9639880957061958315,
+        8271663308531019290, 908425199789522605, 17547330997214703263,
+        14345666316189988237, 9702927273724253608, 5046627805685730,
+        2711204307876562477, 2238709149091183179, 5499176710903581981,
+        16539514055183243265, 3469038771700910739, 3038729031059679929,
+        16999974476271593398, 10350678377089453621, 14433494591654027341,
+        2924603338487312406, 4515045509718724294, 1048508344500125722,
+        4136171123832854886, 2442045814281663527, 9368510102912667145,
+        18318760745989352913, 868687004122567921, 14064379352364616878,
+        5982952035649312654, 12900740686786159742, 4702081822695296106,
+        9521428738049855273, 11285195249586043439, 11477422832670566065,
+        9708768650012607263, 15319507003595281875, 6359892844471518899,
+        5283038276080906379, 5405969497541555193, 7164080680198621973,
+        1870353604851031288, 16909998255331918302, 10816080482455229617,
+        4570255342006348051, 1846924497530230716, 13818441207388103761,
+        16766298726593275739, 8137529436179317593, 7561329442848892323,
+        14973185416658331013, 4997367365555380637, 10045277881907814797,
+        13184489516949982730, 13248504831994560834, 7704570560928572607,
+        6074845079584676545, 13348397766383475175, 12799640011823673656,
+        7597860246534056419, 1613020119646157934, 8938921073539194654,
+        6150209342333532667, 1212091307522775653, 3164245958530228799,
+        5779235905474473484, 4033888769431676714, 2655431148364534439,
+        9058505243771809542, 5216766430086168531, 9486879450545552418,
+        1203554547393879837, 561378765626772780, 8446143193684072889,
+        11273088470315466962, 14843989613907099068, 6574077762021285744,
+        15442162849631476843, 15837781149280234242, 16525167377588524990,
+        13558793392440985760, 1565552485949268419, 10429295959561364547,
+        8361766492559191462, 17272439409759998410, 4761821774335114540,
+        272337783228550155, 15900867286870208814, 11854447097578672851,
+        7148919711803504026, 5969283063087981349, 11874766939322571458,
+        14686982608452525131, 11584313767674322687, 3421873191145910488,
+        6103003384694281542, 413800784699453877, 13347365837469445304,
+        16044034590318970212, 3329695240072399472, 5006664455913738150,
+    ),
+    "clock_minutes_rounding": (
+        11790896277224414756, 12504469684612374448, 7400133699570307652,
+        12899549203559424548, 11612314416416621441, 9726899559185063905,
+        16369990459351689832, 18365006177156685137, 4117140756521097906,
+        16881481061760699872, 10588664650295812847, 12625094507322720250,
+        10690548118372830000, 16734438190409165882, 15041118929709214533,
+        14386752643817513987, 231097059265277026, 4224512749456678574,
+        9585425908109451157, 2998184472616483492, 7085495306640646357,
+        8786231294437349942, 10222845909169577048, 16823466636059215787,
+        4883666405165588764, 6586604087021164925, 12335445212669991777,
+        4637330542551824355, 7745753778235315218, 15524776581263906521,
+        2465577963762447752, 13916523195062324674, 17744582207709090096,
+        1330177078697101170, 6684160132872983761, 15131452385457494075,
+        10045003033452958204, 5966262639942035879, 15848590640644113645,
+        9922123025274516237, 15145096804049448620, 8344819799017280477,
+        6473432529586581939, 7691407726109653758, 10828310761861390686,
+        6177882082744037869, 16010131364370589253, 8615925570949635915,
+        13317102841549187964, 8446397720545546785, 2479787887639626083,
+        1791714931634626195, 9449428093899581446, 14211286349560985989,
+        4069015752273295710, 2601881500460695343, 18293586336848234864,
+        14097158040302644392, 17523828769665710870, 16636374257906938394,
+        2833693725750981419, 9350257408862313425, 4413195639570213173,
+        7896890930393900474, 250104509793204593, 13358727793333535183,
+        11361791736015418685, 8703055716470351116, 12810566127876457486,
+        1003914389100504313, 3707962444621750406, 8845336613302784125,
+        6526905223743421735, 4627018734705914560, 5920757010538225728,
+        349613756913924940, 8877676929089933225, 1657263500199522620,
+        14314420451242101425, 7015721851490807005, 14130724767233964543,
+        9356722250083038675, 17853907359965816518, 5436191120512311513,
+        8396343006103473288, 744988446482416395, 17916433951149138935,
+        5726012328607741103, 15332833158336381317, 1333474919759249212,
+        3137593792264119502, 1656841049939459893, 17343316732434376983,
+        4599086956363779784, 8030869920126366519, 16278623492566749669,
+        13548785916694554809, 329618162467623054, 9194609447921951013,
+        15796683977597194297, 2196365291012291420, 15233735249964231538,
+        8158768312250099506, 12921632568210042749, 12621875177706656849,
+        6001452358895129477, 1040113752820030711, 1810207254921817540,
+        4032994947560960523, 14694318349341979469, 262424784860711059,
+        11241495571954034993, 2870273935652346757, 2759228523362931685,
+        3017141915685206362, 10596737045564823169, 6479791024960171585,
+        4575788544304347352, 8548111614199220019, 17934511219625211554,
+        2339296986736359235, 7283876704702368766, 12082731718188788564,
+        6943215608653252861, 13637062476373966996, 4931791009752963688,
+        16286013028805206838, 4139873548154568648, 1728471747228125593,
+        11985345105611382461, 3028565614567655638, 3825351233494531757,
+        12642240924125703748, 7063172587815271224, 5083688411304137975,
+        4337373454266724092, 16125053483701344786, 10097838824094346995,
+        5889706708567381648, 9010622593825370473, 16129976985499297282,
+        2371656845409753199, 12913793034990722449, 9463997486770059702,
+        8965029966169178137, 2315659162424990288, 4212983718125891980,
+        15462469358260137336, 16165704383968002904, 10625218737791992984,
+        4653717237875974181, 3614176522187541017, 12914291456882727666,
+        1397016817937197531, 5774589257580699710, 14542252658332599179,
+        8761995236631130282, 3789682158574125758, 11473801744302101315,
+        9163378154338853667, 9745818824449851721, 9874698918219431143,
+        13772318593979703495, 9469564282958242941, 3292116884027722952,
+        8126719608517449952, 14804080151446691100, 4314778801125470521,
+        5215988891005957924, 427911115831759966, 12245583683910783608,
+        3575538389499627121, 178260512993363549, 13159394921323198031,
+        17176757131450069546, 1878554410448540459, 15125981788833733224,
+        1171831743103619838, 5521299837797637508, 3763086831304039577,
+        14472875941750674254, 7078317200382578163, 15470354214268439770,
+        14364959937991325992, 17758271528938999041, 12712413602866034785,
+        3792580439623220957, 5961468707528162057, 4395115860177513140,
+        13795072209058397927, 1078186390619922964, 11706333040952786416,
+        11673360124223784381, 9560474355553231569, 5843334564318867595,
+        8265869132319381653, 8836039548497226461, 10104331442767414566,
+        6376477732520797118, 7207527130764620213, 14169023709559854484,
+        14096364899239836911, 878023437032653385, 10178638483047382949,
+        8098073751533860975, 1911105054509008950, 5427909498136759135,
+        16436810843944725268, 16651293158152204438, 8446211660378949364,
+        12291838753993809498, 17161202921254424914, 4052004098291942959,
+        5843271790141636482, 9098197499834373748, 14869982850261083191,
+        932918144354376282, 1459032645099123970, 9105012765049295950,
+        3016706125572581444, 4294005658282958998, 10034463451463112875,
+        9780019043804412263, 635423790377769045, 8972953576240936242,
+        15290933179149613000, 6482075624207659118, 696506857035591291,
+        2632177944584020100, 17818301976390758400, 2049257567235399131,
+        10987658125875044242, 208887997200293925, 5708382842112753902,
+        6112887415648129921, 9402581308903302926, 9332880813846886032,
+        3929956111516071744, 406174628409091943, 10434468474183064808,
+        4862815467275766537, 7341295794685566582, 1937612772537815178,
+        4759886974207109842, 17873756722608856588, 1996505491068106327,
+        1010519792356141254, 10337409959004496788, 13665305649132721470,
+        5649332978554601558, 3038351336454361964, 16292535079680924742,
+        8538872005412392376, 10272237459820104046, 4035920637683242908,
+        9598910428266658324, 3870452316277702265, 325353938600521165,
+        16785133185650203115, 15455016785667424866, 5954001794150901048,
+        16195759344032406572, 9917600918022115449, 9990259730109293842,
+        9360761368790970656, 16429461629477978926, 15822506004501593492,
+        14362876415333565623, 9154773103079237124, 2609613751576289152,
+        3069071500937851652, 8049522180330298462, 7258853113765327284,
+        9841483633528567210, 14218325280556409385, 3350058943030332789,
+        13865137007069856865, 10167865828241096511, 5200257064395288191,
+        15646893494624468208, 14803805270834323111, 2829127013322272168,
+        11351225649590795755, 13516174994136351826, 13411634628513096005,
+        4705782417549931649, 11792924696402201013, 2321828218033971624,
+        2196609353025285433, 15502933175397551142, 9360990924092295457,
+        6476488602632954923, 9302907136920663816, 3844229754044724366,
+        2502752966035490897, 14481103605365526151, 112848237297790810,
+        14833369506196256033, 7472761238171066218, 11435977185479641512,
+        4482056022781010540, 15445425105066966605, 13948962693438095448,
+        2187043633498978400, 12643543275099556696, 14318741609208021610,
+        2306088066303143015, 10956056038890754904, 1158014238927625046,
+        5479365886172890321, 17854172115310544813, 2170183468909795091,
+        333172295741549846, 15269671053065450049, 15801219116663531478,
+        6568449066711889715, 13479808967858094139, 12171496525629631725,
+        10166024136498709926, 13260178301293995131, 18395166423434888107,
+        15644626869171688029, 1546005471184686687, 15120813205788982420,
+        12673483761389120504, 4486003771631584116, 15213351180004826795,
+        12631889626415123237, 6061250209903244760, 10011651126721620336,
+        13226429471622887105, 1645465316527569136, 1953852143477220339,
+        7370338915458056752, 444725743082338204, 10555938116772510863,
+        9449263213848403010, 1529112036858350004, 14425189183271280144,
+        14737825547692003036, 6634077618311902224, 14696681604093699959,
+        12754727535835473471, 12995567060049301452, 16536292314334341174,
+        479487558473826727, 5949671517114712584, 91901003000019710,
+        12742708934059249349, 15426148787137152787, 15265798101764982992,
+        8353489680035199681, 15073012042516202974, 16990321632259133065,
+        5828213022843272829, 9677686469847718837, 7865291213672894516,
+        11070806780636183790, 12939908407701978152, 272698893835460588,
+        15584416579732631249, 12800356722092283311, 10303849279492754753,
+        17292637136501838932, 6663608406327897904, 1268477982002422380,
+        6592201841484407680, 6052486304566480976, 15766412087977790052,
+        11684892916996001446, 14140963053835290902, 732431654206168096,
+        14600430776808423348, 16880206608278557059, 9165664867911875017,
+        3846085659407216631, 18008687275694888985, 16341075201675151540,
+        10697664985681373183, 6312122637278552360, 11789161101242063735,
+        2331594830960981648, 15997720897098697326, 1738563316727940322,
+        6318848338516969396, 4609392967421355655, 6282815271511812112,
+        13623607182113164145, 17074004079619907482, 15219803443082954211,
+        3959470715513551722, 11665756071572476672, 13664219815022936999,
+        14682331469703423675, 6528003580685684964, 15487729091368950778,
+        11315979678562004810,
+    ),
     # LANE G2'S WIDTH RULE (plan P4-D377), at seed 431.
     "tail_width_past_the_reach": (
         1067159076979164768, 15468843723390121724, 10265763857346022961,
@@ -50352,6 +51838,16 @@ def whole_number_fields(document):
                 and inside[0] in ("clock_heaps", "clock_codes")
                 and inside[2] == "count"
             ) or inside == ("clock_step",):
+                allowed.add(path)
+                continue
+            # ...and of a clock column's MINUTE census (landing 3b.5's
+            # second step, contract 6.13, MC1 to MC3 and MC5): a first and
+            # a last minute of the hour and a count of rows.
+            if (
+                len(inside) == 3
+                and inside[0] == "minute_census"
+                and inside[2] in ("first", "last", "count")
+            ):
                 allowed.add(path)
                 continue
             if (

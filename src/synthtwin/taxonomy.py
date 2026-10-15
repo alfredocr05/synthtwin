@@ -6738,6 +6738,13 @@ class _Cells:
     decided: "dict[tuple[object, ...], _Verdict]" = dataclasses.field(
         default_factory=dict, init=False, repr=False, compare=False
     )
+    # -- route 1's rare words beside clock times (3b.C2, P4-D374): how many
+    # present cells -- rare words no clock form reads, at most one in fifty
+    # (`_rare_beside_clocks`) -- the clock line is asked without. They stay
+    # PRESENT, unread by the clock (`n_unparsed`), and the twin writes a
+    # word in each, never a blank the source never left (the route-2
+    # correction's ruling, 2026-10-08). Nought on every other tally.
+    clock_line_exempt: int = 0
 
 
 def _classify_all(
@@ -20164,7 +20171,14 @@ def _clock_census_published(
         high_at = parsing.clock_ordinal(f"{high['boundary']}", form)
         if low_at is not None and high_at is not None:
             body = (low_at, high_at)
-    counted = calendar_clock.clock_census_of(ordinals, form, line, body)
+    # -- and every place the table calls absent holding at least the line
+    # in present cells, a heap the twin writes in the hour's other width
+    # (3b.C2, P4-D374): the column's own absent spellings and the table's
+    # declared ones.
+    spellings = tuple(sorted(absent)) + tuple(settings.declared_missing_values)
+    counted = calendar_clock.clock_census_of(
+        ordinals, form, line, body, calendar_clock.absent_places(spellings, form)
+    )
     block[calendar_clock.CLOCK_STEP] = counted.step
     block[calendar_clock.CLOCK_HEAPS] = [
         {"value": parsing.clock_spelling(value, form), "count": count}
@@ -20196,15 +20210,93 @@ def _clock_minutes_published(
     verdicts: "list[dict[str, object]]",
     absent: "dict[str, int]",
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
-    """A column block of clock times with its `minute_census`, and its sentences.
+    """A column block of clock times with its `minute_census` (plan P4-D374).
 
-    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
-    fills this producer and nothing beside it; until then the census is
-    `[]` on every block and no sentence is said.
+    LANDING 3b.5's SECOND STEP (lane C2; contract 6.13, method G7A.4c).
+    Where the block publishes its step (`_clock_census_published`), the
+    minute of the hour every body cell is written at -- the cells between
+    the two published boundaries, both included, or every parsed cell of
+    a column with no tails, the clock heaps' cells among them -- counted
+    in the groups `calendar_clock.clock_minute_decision` publishes, `[]`
+    where it withholds them. No sentence is said either way: the census
+    is a list of counts each nought or at least the census line, and a
+    clock column has no hour census whose sentence the moments' reasons
+    are said in. On the validator's own re-description (`produced`
+    false) the census is `[]`: the checker counts the file's cells
+    against the published groups instead.
 
     Guarantees: as `_hour_published`. No I/O of any kind.
     """
-    return _reserved_lists(details, (calendar_clock.MINUTE_CENSUS,))
+    block, notes, remarks = _reserved_lists(details, (calendar_clock.MINUTE_CENSUS,))
+    form = details["clock_form"] if "clock_form" in details else None
+    step = details[calendar_clock.CLOCK_STEP] if calendar_clock.CLOCK_STEP in details else None
+    if (
+        not produced
+        or not isinstance(step, int)
+        or not isinstance(form, str)
+        or form not in parsing.CLOCK_FORMS
+    ):
+        return block, notes, remarks
+    line = parsing.census_floor(settings.small_cell_floor)
+    # EACH DIFFERENT SPELLING READ ONCE, as `_clock_census_published` reads
+    # them: a million rows are read in at most 86,400 readings.
+    spelled: "dict[str, int]" = {}
+    for text in cells.present:
+        spelled[text] = (spelled[text] if text in spelled else 0) + 1
+    ordinals: "dict[int, int]" = {}
+    for text in spelled:
+        found = parsing.clock_ordinal(text, form)
+        if found is not None:
+            ordinals[found] = (ordinals[found] if found in ordinals else 0) + spelled[text]
+    parsed = sum(ordinals[at] for at in ordinals)
+    if parsed <= 0:
+        return block, notes, remarks
+    low = details["low_tail"] if "low_tail" in details else None
+    high = details["high_tail"] if "high_tail" in details else None
+    body: "tuple[int, int] | None" = None
+    tails: "tuple[tuple[int, int], tuple[int, int]] | None" = None
+    size = parsed
+    if isinstance(low, dict) and isinstance(high, dict):
+        low_at = parsing.clock_ordinal(f"{low['boundary']}", form)
+        high_at = parsing.clock_ordinal(f"{high['boundary']}", form)
+        if (
+            low_at is None
+            or high_at is None
+            or not isinstance(low["rows"], int)
+            or not isinstance(high["rows"], int)
+        ):
+            return block, notes, remarks
+        body = (low_at, high_at)
+        tails = ((low["rows"], low_at), (high["rows"], high_at))
+        size = parsed - low["rows"] - high["rows"]
+    rungs: "list[tuple[int, int]]" = []
+    ladder = details["clock_percentiles"] if "clock_percentiles" in details else None
+    if tails is not None and isinstance(ladder, dict):
+        for percent, name in _HOUR_RUNG_NAMES:
+            rung = ladder[name] if name in ladder else None
+            at = None if not isinstance(rung, str) else parsing.clock_ordinal(rung, form)
+            if at is not None:
+                rungs += [(percent, at)]
+    heaps: "list[tuple[int, int]]" = []
+    published_heaps = block[calendar_clock.CLOCK_HEAPS] if calendar_clock.CLOCK_HEAPS in block else []
+    for heap in published_heaps if isinstance(published_heaps, list) else []:
+        at = parsing.clock_ordinal(f"{heap['value']}", form)
+        if at is not None:
+            heaps += [(at, heap["count"])]
+    groups, _reason = calendar_clock.clock_minute_decision(
+        ordinals,
+        form,
+        step,
+        line,
+        body,
+        tuple(heaps),
+        calendar_clock.clock_published_ranks(parsed, tails, rungs),
+        size,
+    )
+    block[calendar_clock.MINUTE_CENSUS] = [
+        {"first": first, "last": last, "count": count} for first, last, count in groups
+    ]
+    return block, notes, remarks
 
 
 def _floored_census(
@@ -21767,7 +21859,10 @@ def _clock_spellings_reach(cells: _Cells) -> bool:
                 reached = reached + spellings[spelling]
     present = len(cells.present)
     return present > 0 and reached >= max(
-        1, _needed(cells.settings.minimum_parse_rate, present)
+        1,
+        _needed(
+            cells.settings.minimum_parse_rate, present - cells.clock_line_exempt
+        ),
     )
 
 
@@ -21804,7 +21899,11 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
     present = cells.present
     if not present:
         return None
-    needed = _needed(cells.settings.minimum_parse_rate, len(present))
+    # The rare words beside clock times route 1 found (3b.C2, P4-D374) are
+    # present cells the line is asked without (`_Cells.clock_line_exempt`).
+    needed = _needed(
+        cells.settings.minimum_parse_rate, len(present) - cells.clock_line_exempt
+    )
     for clock in _clock_candidates(cells):
         # The CELL, not a tidied copy of it: what this role publishes
         # are values some row held, each as the row wrote it but for a
@@ -26036,27 +26135,34 @@ def _read_the_column(
             counted = _tally(
                 level_kept, n_rows, settings, forced_decimal_comma
             )
+            # THE WORDS STAY PRESENT (landing 3b.5's second step, plan
+            # P4-D374): the clock line is asked without them, and the clock
+            # reading leaves them unread (`n_unparsed`), so the twin writes
+            # a word in each where the source wrote one. Counted missing,
+            # as the level pass whose route this was counted them, they
+            # were blanks the source never left -- 198 cells over 2 of lane
+            # C1's 112 columns of times beside notes -- which the route-2
+            # correction's ruling (2026-10-08, plans P4-D390 and P4-D373)
+            # removes: no cell blank that the source never left blank.
+            exempt = dataclasses.replace(cells, clock_line_exempt=absent)
             # ...AND IT STANDS ONLY WHERE THE COLUMN IT LEAVES IS CLOCK
-            # TIMES (`_read_as_clock_times`). Anywhere else nothing is
-            # counted out: the cells were a column of labels' values, and
-            # no pass takes a label out for its value.
-            if _read_as_clock_times(
-                counted,
-                removed_by_cores,
-                judged_over_cores,
-                judged_over_days,
-                forced_measurement,
-                described_as_pair,
-                stored_as,
+            # TIMES (`_read_as_clock_times`), and so is the column with
+            # its words kept present and the line asked without them.
+            # Anywhere else nothing is set apart: the cells were a column of
+            # labels' values, and no pass takes a label out for its value.
+            if all(
+                _read_as_clock_times(
+                    tally,
+                    removed_by_cores,
+                    judged_over_cores,
+                    judged_over_days,
+                    forced_measurement,
+                    described_as_pair,
+                    stored_as,
+                )
+                for tally in (counted, exempt)
             ):
-                for _absent in range(absent):
-                    # THE SPELLING IS NOT CARRIED OVER: a cell counted out
-                    # stands as an ordinary blank, as it did in the level
-                    # pass whose route this was.
-                    missing += [("", parsing.MISSING_BLANK)]
-                classified = level_kept
-                cells = counted
-                present = cells.present
+                cells = exempt
     # -- 3b.R4 (P4-D384): A DECLARATION THAT READ NO COLUMN OF DATES DECIDES
     # NOTHING. Where the counts read as dates leave a column the date rule
     # does not take -- too few counts name a date, or the dates are one

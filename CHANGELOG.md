@@ -6,6 +6,33 @@ exists).
 
 ## [Unreleased]
 
+### The minute of the hour comes back on clock-only columns (2026-10-13)
+
+**A column of clock times publishes the minute of the hour its cells fall
+on, and its twin meets it** (plan P4-D374, stage 3b landing 3b.5's second
+step). Appointment times typed on `:00` or `:30` at a fifth to a quarter
+of their rows came back at 8 to 16 per cent there; now within 0.005 of
+the table at 1,000 rows (method G7A.4c, validation V5-C2). Columns whose
+minutes are flat off their heaps publish nothing and write the twin they
+wrote before. Rare words beside clock times stay in the twin as words,
+never blanks, and twelve real `8:00` beside `08:00` declared missing come
+back as `8:00`. A label column's twin still steps its held-back times
+round the whole day, its hour of day 0.11 off at 1,000 rows: no label
+publishes hours. Its repair round draws the checker's windows over a
+census group's whole span, as the twin is laid (a p75 at the second was
+MISSED in 5 of 420 small twins), and lets the rounding meet every table
+any rounding meets, a whole path's worth of cells at a time. Its Codex
+review keeps a twin of clock times beside rare words and other clock
+forms clock times (30 of 288 such twins came back as free text), and
+counts a time of day written on many rows as many events, so night
+readings repeated a hundred times no longer hide how the minute follows
+the hour (the twin's day cells on minute 0: 589 of 4,320 against 72). Its
+verification holds each hour to the cells off the heaps, which the twin
+draws the same in every hour, so a heap on every hour no longer makes a
+flat day publish its minutes (252 of 4,800 day cells on minute 0 against
+72), and lets a twin past 2.27 million rows keep its clock type by
+writing its stand-in times again, each fewer times than the floor.
+
 ### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
 
 **A column of moments publishing a weekday census beside its minutes' and
