@@ -544,6 +544,29 @@ def spelled_out(text: str) -> str:
     return shown
 
 
+# HOW MANY DIFFERENT TEXTS A MEMO OF ONE ANSWER PER SPELLING HOLDS BEFORE
+# IT MUST PAY FOR ITSELF (lane S4d, plan P4-D390). A pass that answers a
+# fixed function of each cell's text once per spelling, and hands the
+# rows that write one spelling the same answer, holds a map of the
+# different texts while it walks the column. Past this many it keeps
+# taking new texts only while it has answered at least as many rows as
+# it holds: a register of a million rows over ninety thousand codes is
+# held whole, and a column whose values never repeat stops at this
+# bound, its later answers made per row exactly as before. The answers
+# are the same either way; only how many objects hold them moves.
+SPELLING_MEMO_TEXTS = 65536
+
+
+def memo_takes(held: int, answered: int) -> bool:
+    """Whether a memo of one answer per spelling takes one more text.
+
+    `held` is how many texts the memo holds and `answered` how many rows
+    it has answered from them (`SPELLING_MEMO_TEXTS` says why).
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    return held < SPELLING_MEMO_TEXTS or answered >= held
+
+
 def trimmed(text: str) -> str:
     """Return ``text`` without surrounding whitespace.
 

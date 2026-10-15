@@ -378,7 +378,7 @@ def _route_2(
         return ()
     return tuple(
         label for label in below
-        if not any(parsing.clock_ordinal(spelling, clock.form) is not None for spelling in cells.spellings_by_folded[label])
+        if not any(parsing.clock_ordinal(spelling, clock.form) is not None for spelling in taxonomy._label_spellings(cells.folded_counts, cells.spellings_by_folded, label))
     )
 
 
