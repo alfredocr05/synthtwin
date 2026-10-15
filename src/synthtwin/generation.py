@@ -43403,8 +43403,11 @@ def _read_as_a_clock(candidate: str) -> bool:
     of its 4,000 form-bearing rows `group-N` where the plain-space column
     wrote all 4,000 (the verifier of lane L2's Codex fix stream).
 
-    Guarantees: a function of the text. No I/O of any kind.
+    Guarantees: a function of the text. Raises TypeError for anything
+    that is not a string instance. No I/O of any kind.
     """
+    if not isinstance(candidate, str):
+        raise TypeError("a stand-in reached the clock reading as something else")
     return parsing.clock_parts(candidate.replace("\u202f", _SPACE)) is not None
 
 

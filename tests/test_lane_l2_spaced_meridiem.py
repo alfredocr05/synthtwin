@@ -808,6 +808,8 @@ def test_g14_a_spelling_past_the_clock_reads_its_narrow_gap_as_a_space() -> None
         assert generation._read_as_a_clock(f"12:00:30{gap}pm")
         assert not generation._read_as_a_clock(f"9:75{gap}AM")
     assert not generation._read_as_a_clock("z00001")
+    with pytest.raises(TypeError):
+        generation._read_as_a_clock(b"9:15 AM")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("floor", (11, 36))
