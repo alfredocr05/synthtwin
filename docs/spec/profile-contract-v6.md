@@ -11699,8 +11699,14 @@ fit (`01/05/2024 09:15:30.1234567 a.m.`); every other cell keeps the
 limit below. The space between the date and the clock is a plain space:
 U+202F there, two spaces, a space at either end, a date of two marks
 (`2024-01/05`), of a run of three figures or of one run (`20240105`), a
-month word, and an offset or a zone after the clock keep the cell
-formless. WHY: an EHR export writes a date and a time of day in one
+month word, a zone after a year-last date's clock and an offset after a
+space keep the cell formless. AFTER A YEAR-FIRST DATE'S CLOCK A ZONE MAY
+STAND, written straight on (skeptic 2 of lane L3, item 2): one letter
+(`Z`) or a sign and an offset of two figures, four, or two, a colon and
+two -- FHIR's `2024-01-05T09:15:30Z` has `%%%%-%%-%%@%%:%%:%%@`, RFC
+3339's `2024-01-05T09:15-05:00` has `%%%%-%%-%%@%%:%%-%%:%%` and
+PostgreSQL's `2024-01-05 09:15:30.123+00` has
+`%%%%-%%-%% %%:%%:%%.%%%+%%`. WHY: an EHR export writes a date and a time of day in one
 cell, and a column of them beside a few words (`pending`, `unknown`) is
 read as text; it published no form, and its twin wrote 0 of its 969
 stamps in their shape, so code splitting or matching the real column's
@@ -11909,8 +11915,11 @@ placeholders: `%%%%`, a mark, `%` or `%%`, the same mark and `%` or
 `%%`, or `%` or `%%`, a mark, `%` or `%%`, the same mark and `%%%%` or
 `%%`, the mark a hyphen, a slash or a point; then one space, `@` or `&`,
 then a clock's characters as
-above, then nothing, a marker key, or one gap and a marker key; at most
-THIRTY-TWO characters, its space counting as a mark. So
+above, then nothing, a marker key, or one gap and a marker key -- or,
+after a date opening `%%%%`, a zone: `@`, `&`, or `+` or `-` and `%%`,
+`%%%%` or `%%:%%`; at most THIRTY-TWO characters, its space counting as
+a mark. So `%%%%-%%-%%@%%:%%:%%.%%%%%%@` is a key and `%/%/%%%% %:%%@`
+is not; and
 `%%%%-%%-%% %:%% @@` and `%%%%-%%-%%@%%:%%:%%.%%%%%%` are keys, and
 `%%%%-%%/%% %%:%%`, `%%%%%%%% %%:%%`, `%%%%-%%-%%  %%:%%` and a key of
 thirty-three characters are not. A loader CHECKS this key by key and refuses the document
@@ -12124,8 +12133,8 @@ since lane L2 (plan P4-D392) that shape is its form, which a census may
 name, and a shape the census names is not taken. A STAMP'S FORM (lane
 L3, plan P4-D393) is filled figure by figure as every other form is,
 save that the letter between its date and its clock is written `T` (`t`
-in a lower-case key) and its marker key the marker word, as the gap's
-is: its spellings wear its form, its spaces and U+202F as the source
+in a lower-case key), its zone letter `Z` (`z`; skeptic 2 of lane L3,
+item 2) and its marker key the marker word, as the gap's is: its spellings wear its form, its spaces and U+202F as the source
 wrote them, and no date reader need take them -- a stand-in of a text
 column that reads as a date is refused (generation method G8.3), so a
 held-back stamp is written in its source's shape and not as a date. Its spellings are spent on the

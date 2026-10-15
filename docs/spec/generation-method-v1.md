@@ -9943,9 +9943,12 @@ C6-31a): a label that is a stamp holding the space between its date and
 its clock, or the gap before its marker after a date, or longer than
 twenty-four characters, had no form before L3, and a level of one
 carrying 0 is read as written in the same places; its spellings' stamp
-forms count as none. Measured: 7d27335's descriptions of stamps as free
-text, labels and declared codes load, generate 7d27335's twin byte for
-byte and validate (the lane's H6).
+forms count as none. Measured: 7d27335's descriptions of spaced and long
+stamps as free text, labels and declared codes, and of stamp labels whose
+levels hold case variants (the kinds frozen in the lane's `DESCRIBED`),
+load, generate 7d27335's twin byte for byte and validate (the lane's H6);
+a description of a short stamp parted by a letter, which was a form
+before L3, generates another twin (G8.3, the lane's `MOVED`).
 
 **Where the case flips run out with the form still wanted**, the
 trailing space is written and the level falls short of its published
@@ -10135,13 +10138,24 @@ writes `7000-00-01 26:23` as readily as any other. Filled letter by
 letter, the marker came out `XQ`, which wears no stamp's form after the
 gap, and the `T` any letter; measured on the lane's battery, every
 stamp the source wrote beside rare words, as labels and as codes is now
-written in its source's shape, `T` and marker word included. A stamp
-parted by `T` and of 24 characters or fewer was a form before L3, filled
-letter by letter there; so a description written before L3 that
-publishes such a form generates another twin since, with `T` and the
-marker word where 7d27335 wrote a stepped letter, and still loads and
-validates as it did (skeptic 1 of L3, item 1). Every other description
-written before L3 generates its twin byte for byte.
+written in its source's shape, `T` and marker word included. AND A
+ZONE'S LETTER IS `Z` (skeptic 2 of L3, item 2): a stamp of a year-first
+date may end in a zone written straight on, one letter or a sign and an
+offset (contract C6-31a), and its letter is written `Z` (`z` where the
+key is lower case) and takes no part of the step, as the `T` takes
+none; an offset's figures are filled as every figure is. Before, the
+trailing letter made FHIR's `2024-01-05T09:15:30Z` no stamp's form, and
+the twin wrote `7040-00-00A06:43:99N`, none of a column's 582 stamps in
+shape beside rare words or as codes; now `7040-00-00T01:28:35Z`, all
+582. A stamp
+parted by a letter (`T`, or `t` where every one is lower case) and of
+24 characters or fewer was a form before L3, filled letter by letter
+there; so a description written before L3 that publishes such a form
+generates another twin since, with `T` (or `t`), the marker word and the
+zone's `Z` where 7d27335 wrote a stepped letter, and still loads and
+validates with the exits it gave (skeptic 1 of L3, item 1; skeptic 2,
+items 1 and 2). Every other description written before L3 generates
+its twin byte for byte.
 
 A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD FILLED FIGURE BY FIGURE
 (the repair round of lane L2, plan P4-D392). Its key carries the marker

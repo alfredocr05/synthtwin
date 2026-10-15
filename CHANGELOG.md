@@ -16,22 +16,31 @@ before its marker), so a column of such stamps beside a few words such as
 `pending` or `unknown`, as labels or as codes, publishes its forms and its
 twin writes every stamp in the source's shape: 969 of 969 where it wrote 0,
 with the `T` and the `AM` or `PM` written as such and U+202F never written as
-a plain space. On the lane's battery of 384 stamp columns every stamp of
+a plain space. A year-first stamp ending in a zone, as FHIR and JavaScript
+write `2024-01-05T09:15:30Z`, or an offset (`-05:00`, PostgreSQL's `+00`),
+is written with its `T` and its `Z` where the twin wrote stepped letters
+(`7040-00-00T01:28:35Z` for `7040-00-00A06:43:99N`). On the lane's battery of 384 stamp columns every stamp of
 the 288 not read as dates is written in its shape and every twin and
 table validates; on lane L2's battery of 220 tables the 200 holding no
 such stamp keep every byte of their description and twin. Descriptions
 written before still load and validate as before, and every one generates
 the same twin byte for byte save one kind: a description of stamps parted
-by `T` and of 24 characters or fewer (`2024-01-05T09:15`,
-`2024-01-05T9:15AM`), whose form it already published, now generates
-another twin, written with `T` and the `AM` or `PM` word where it wrote a
-stepped letter (`7040-00-01T28:35` where it wrote `7040-00-06C28:35`).
+by a letter (`T`, or `t` where every one is lower case) and of 24
+characters or fewer (`2024-01-05T09:15`, `2024-01-05t09:15`,
+`2024-01-05T9:15AM`, `2024-01-05T09:15:30Z`), whose form it already
+published, now generates another twin, written with `T` (or `t`), the `AM`
+or `PM` word and the zone's `Z` where it wrote a stepped letter
+(`7040-00-01T28:35` where it wrote `7040-00-06C28:35`).
 Stated: the twin's stamps are in the source's shape but are not real
 dates (`7000-00-01 26:23`), as every made-up cell of a text column reads
 as no date; a `T` stamp whose marker alone is lower case
-(`2024-01-05T9:15 am`) is written `AM`; and a stamp with a month word, a
-compact date, an offset or a comma after the date (`1/5/2024, 9:15 AM`)
-still has no form.
+(`2024-01-05T9:15 am`) is written `AM`, and a mixed-case zone (`T…z`)
+`Z`; a stamp with a month word, a compact date, a zone after a year-last
+date, an offset after a space, more than 32 characters or a comma after
+the date (`1/5/2024, 9:15 AM`) still has no form; and a free-text column
+of zoned stamps all at the longest length beside shorter words can miss
+`length.mean` at a floor of eleven, one made-up word written at that
+length (as at 7d27335 for `…Z`). No lane owns these yet.
 
 ### A clock written with a space before AM or PM keeps its shape (2026-10-14)
 
