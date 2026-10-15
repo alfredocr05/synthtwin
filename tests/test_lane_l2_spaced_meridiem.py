@@ -29,11 +29,14 @@ Each clause is red on the mutant its docstring names:
 * G6 a description written before L2 (6a248e7) loads, generates the twin
   6a248e7 generated and validates;
 * G7 machine-free: at most two gap scans per cell ending in a marker's
-  last character and none for any other, at every column size, so a
-  census of 1,000,000 cells costs at most 2,000,000 scans of at most 24
-  characters;
+  last character (one on free text) and none for any other, at every
+  column size, so a census of 1,000,000 cells costs at most 2,000,000
+  scans of at most 24 characters (mutant: a scan asked of every cell);
 * G8 a twin writing the other gap is MISSED on both forms (the
-  validation method's recount).
+  validation method's recount);
+* G9 past the clock line a gapped form filled figure by figure keeps its
+  gap and its marker word, so the twin validates (lane L2's repair round;
+  mutant: the marker key filled letter by letter, `0:00 AA`).
 """
 
 from __future__ import annotations
@@ -426,12 +429,19 @@ def test_g7_one_gap_scan_per_cell_ending_in_a_marker_and_none_otherwise(
 
     `taxonomy.profile_column` over N cells of `9:15 AM` beside rare words
     (a column whose form census is taken) asks `meridiem_gap_at` at least
-    once and at most twice per clock cell at N = 1,000 and N = 10,000 --
-    no set rebuilt per cell, no scan restarted -- and never for a cell
-    ending in a figure; each scan reads at most `SHAPE_FORM_LIMIT`
-    characters. So at 1,000,000 cells the scans number at most 2,000,000. Mutant: a scan asked
-    of every cell, whatever it ends in, is counted on the figure column
-    and on the rare words.
+    once per clock cell, at N = 1,000 (free text) never more often than
+    the cells ending in a marker's last character and at N = 10,000 (a
+    long tail of labels, whose published levels' cells are counted once
+    more) never more than twice as often -- no set rebuilt per cell, no
+    scan restarted -- and never for a cell ending in a figure; each scan
+    reads at most `SHAPE_FORM_LIMIT` characters. So at 1,000,000 cells the
+    scans number at most 2,000,000. The second column,
+    `h:mm` with no marker beside the same rare words, takes a form census
+    (`shape_form` is asked of every cell) and asks no gap scan at all.
+    Mutant: a scan asked of every cell, whatever it ends in, is counted on
+    the rare words of the first column and on every cell of the second
+    (lane L2's repair round: the second column was `HH:MM` alone, read as
+    clock times, which takes no census, so it held nothing up).
     """
     asked = {"n": 0}
     scan = parsing.meridiem_gap_at
@@ -442,6 +452,7 @@ def test_g7_one_gap_scan_per_cell_ending_in_a_marker_and_none_otherwise(
 
     monkeypatch.setattr(parsing, "meridiem_gap_at", counted)
     per_cell = []
+    roles: "list[str]" = []
     for rows in (1000, 10000):
         draw = random.Random(rows)
         cells = [
@@ -450,12 +461,70 @@ def test_g7_one_gap_scan_per_cell_ending_in_a_marker_and_none_otherwise(
             for row in range(rows)
         ]
         clocks = sum(1 for cell in cells if cell.endswith("M"))
+        marked = sum(1 for cell in cells if cell[-1:] in "Mm.")
         asked["n"] = 0
-        taxonomy.profile_column("seen_at", 1, cells, rows, taxonomy.Settings())
-        assert clocks <= asked["n"] <= 2 * clocks
+        role = taxonomy.profile_column("seen_at", 1, cells, rows, taxonomy.Settings()).role
+        roles += [role]
+        # Free text takes one census of its cells; a long tail of labels
+        # takes it and then counts the cells of each published level once
+        # more (`shape_form_cells`), so at most twice.
+        assert clocks <= asked["n"] <= (marked if role == "free_text" else 2 * marked)
         per_cell += [asked["n"]]
+    assert roles == ["free_text", "long_tail_labels"]
     assert per_cell[0] < per_cell[1]
+    shaped = {"n": 0}
+    shape = parsing.shape_form
+
+    def shape_counted(text: str) -> str:
+        shaped["n"] += 1
+        return shape(text)
+
+    monkeypatch.setattr(parsing, "shape_form", shape_counted)
     asked["n"] = 0
-    figures = [f"{row % 24:02d}:{row % 60:02d}" for row in range(10000)]
+    draw = random.Random(3)
+    figures = [
+        f"pending review {row}" if row % 33 == 7
+        else f"{draw.randrange(1, 13)}:{draw.randrange(60):02d}"
+        for row in range(10000)
+    ]
     taxonomy.profile_column("seen_at", 1, figures, 10000, taxonomy.Settings())
+    assert shaped["n"] >= 10000
     assert asked["n"] == 0
+
+
+# -- G9: past the clock line a gapped form keeps its marker word -------------------
+
+
+def _free_beside_notes(gap: str) -> "list[str]":
+    draw = random.Random(1000)
+    cells = []
+    for row in range(1000):
+        if row % 40 == 7:
+            cells += [f"note {draw.randrange(10**6)}"]
+            continue
+        cells += [f"{draw.randrange(1, 13)}:{draw.randrange(60):02d}{gap}{('AM', 'PM')[draw.randrange(2)]}"]
+    return cells
+
+
+@pytest.mark.parametrize("gap", (" ", NARROW))
+def test_g9_past_the_clock_line_a_gapped_form_keeps_its_marker_word(
+    tmp_path: pathlib.Path, gap: str
+) -> None:
+    """G9 (lane L2's repair round): free text of `h:mm AM` beside 1 note in 40.
+
+    At 1,000 rows and a floor of eleven the clock line binds, so the last
+    stand-ins of the forms `%:%% @@` and `%%:%% @@` are filled figure by
+    figure (method G8.3). Each keeps its gap and its marker word, so every
+    twin cell beginning with a figure wears a form the description
+    publishes, and the twin validates with exit 0. Mutant: the marker key
+    filled letter by letter, as before the repair, writes `0:00 AA`, which
+    wears no form, and the twin with a plain space is MISSED (exit 3).
+    """
+    block, written, twin_exit, table_exit = _round(tmp_path / "free", _free_beside_notes(gap), 11)
+    assert block["role"] == "free_text"
+    forms = block["shape_forms"]
+    assert sorted(forms) == ["%%:%%" + gap + "@@", "%:%%" + gap + "@@"]
+    clockish = [cell for cell in written if cell[:1] in "0123456789"]
+    assert len(clockish) > 900
+    assert [cell for cell in clockish if parsing.shape_form(cell) not in forms] == []
+    assert (twin_exit, table_exit) == (0, 0)

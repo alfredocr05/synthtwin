@@ -42265,6 +42265,18 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
         clock = _clock_filled_form(form, step)
         if clock is not None:
             return clock
+    # A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD (lane L2's repair,
+    # plan P4-D392). Its marker key names no letters but a word, so filled
+    # letter by letter `%:%% @@` wrote `0:00 AA`, which wears no form: past
+    # the clock line 4 to 29 cells of a free-text column of `h:mm AM`
+    # beside 1 note in 40 came out so, and the twin MISSED the census
+    # count it was asked for. Only the clock's figures are stepped, at
+    # half the step, and the half of the day is the step's parity.
+    gap = parsing._key_gap_at(form)
+    if gap >= 0:
+        words = [mark for mark in _CLOCK_FORM_MARKS if mark[0] == form[gap + 1 :]]
+        head = _filled_form(form[:gap], step // 2, False)
+        return head + form[gap] + words[0][1 + step % 2]
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -54388,13 +54400,17 @@ def _made_up_cell(
         # THE FORM'S CURSOR IS KEYED WITH A SPACE, not with a slash. A
         # slash is one of the thirteen marks a form may hold, so a
         # slashed key is injective only by an argument about how many
-        # fields each kind of key has; no class name, band name, whole
-        # number or admitted form can hold a SPACE, so this one is
-        # injective by inspection.
+        # fields each kind of key has; no class name, band name or whole
+        # number can hold a SPACE, so the first space ends the key. A form
+        # may hold one gap since plan P4-D392, but only before a marker
+        # key (`parsing._key_gap_at`), so no form ends in ` figures` and
+        # what follows the first space splits into a form and an optional
+        # ` figures` one way only: this one is injective.
         shaped = f"{key} {form}"
         figures = figured and _clock_filled_form(form, 0) is not None
         if figures:
-            # A FORM HOLDS NO SPACE, so this key is no other form's.
+            # A FORM'S ONE GAP IS FOLLOWED BY A MARKER KEY, never by
+            # `figures`, so this key is no other form's.
             shaped = f"{shaped} figures"
         if shaped not in states:
             # Where the form's walk stands, and how many cells it has

@@ -872,6 +872,8 @@ FOURTEENTH_BRANCH_CASES = (
 TWENTY_SECOND_BRANCH_CASES = (
     "clock_unpadded_twelve_hour",
     "date_remainder_one_joint",
+    # Lane L2's repair round (plan P4-D392): the gap past the clock line.
+    "labels_clock_spaced_line",
     "stamp_dotted_seconds",
     "stamp_twelve_hour_top",
     "stamp_unpadded_hour",
@@ -1002,6 +1004,7 @@ SEEDS = {
     "labels_clock_forms": 435,
     # Lane L2's gap before a clock's marker (plan P4-D392).
     "labels_clock_narrow_gap": 551,
+    "labels_clock_spaced_line": 552,
     # Landing R2a's layout member takes the next seeds after T1's (plan
     # P4-D383).
     "layout_century_window": 421,
@@ -1282,7 +1285,7 @@ DECLARED_CODES = frozenset({"labels_clock_shaped"})
 # The cases described at a parse rate other than every other case's 0.9:
 # the clock line G8.3 holds a label column's twin below is the rate's
 # (the repair round of landing 3b.5), and these cases' is the default.
-PARSE_RATES = {"labels_clock_line": 0.99, "labels_clock_forms": 0.99}
+PARSE_RATES = {"labels_clock_line": 0.99, "labels_clock_forms": 0.99, "labels_clock_spaced_line": 0.99}
 
 # The cases whose column was declared with --identifier, which the
 # contract's invariant A1 binds to settings.forced_identifiers.
@@ -3878,6 +3881,11 @@ def _clock_gap_plain(form, step):
     return text.replace("\u202f", " ")
 
 
+def _no_gap_key(form):
+    """C6-31a's gap withdrawn from the figure fill: a gapped form's marker key filled letter by letter."""
+    return -1
+
+
 def _partial_forms_in_blocks(forms, given, turn, total):
     """G7.5's interleaving withdrawn: each partial form written after the one before it."""
     reached = 0
@@ -3991,6 +3999,12 @@ CASE_MUTANTS = {
         attribute="clock_filled_form",
         replacement=_clock_gap_plain,
         outcome=CHANGES_THE_CELLS,
+    ),
+    "labels_clock_spaced_line": Mutant(
+        branch="C6-31a's one gap past G8.3's clock line (the repair round of lane L2, plan P4-D392), a gapped form filled figure by figure keeping its marker word; the mutant fills the marker key letter by letter and writes `00:00 AA`, which wears no form and which the oracle's stand-in rule refuses to reason about",
+        attribute="key_gap",
+        replacement=_no_gap_key,
+        outcome="'00:00 AA' has one",
     ),
     "labels_clock_line": Mutant(
         branch="G8.3's clock line (the repair round of landing 3b.5), which fills a label column's held-back levels with times only while its twin stays labels; the mutant fills every one with a time, and the twin is read back as clock times",
