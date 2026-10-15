@@ -726,6 +726,32 @@ def test_g13_a_gapped_form_advertises_the_room_its_fill_holds(form: str) -> None
         assert form_room(plain) == generation._form_room(plain)
 
 
+@pytest.mark.parametrize("form", ("%:%% @@", "%:%%" + NARROW + "&&"))
+def test_g13_the_clock_first_walk_still_reaches_every_spelling(form: str) -> None:
+    """G13: the room is the supply; the clock-first walk's steps keep their period.
+
+    A gapped form's clock-first fill writes its clock times and then its
+    figure fill, whose half step comes round every room. Its steps run on
+    the period its key read as letters gives (`_form_steps`, 676,000 for
+    `%:%% @@`), so within its clock supply and twice its room it has
+    written every one of its 2,000 spellings, and the free text's walk may
+    take that many steps; the oracle counts the same. Mutant: the steps on
+    the 2,000 -- the walk meets its clock times again at every turn and
+    never writes the fill's earlier heads (free text holding every `h:mm`
+    with all four words wrote 4,348 cells in the form, not 5,330).
+    """
+    room = generation._form_room(form)
+    supply = generation._clock_supply(form)
+    reach = supply + 2 * room
+    assert generation._form_walk_bounds(form)[0] >= reach
+    assert len({generation._filled_form(form, step) for step in range(reach)}) == room
+    oracle = _oracle_module()
+    form_steps = oracle["form_steps"]
+    assert callable(form_steps)
+    assert form_steps(form) == generation._form_steps(form) == 26 * 26 * room // 2
+    assert form_steps("%%:%%") == generation._form_steps("%%:%%") == 10000
+
+
 def test_g13_codes_of_every_dial_time_get_every_row_of_their_form(tmp_path: pathlib.Path) -> None:
     """G13: Codex's column, declared codes, at a floor of eleven and seed 0.
 

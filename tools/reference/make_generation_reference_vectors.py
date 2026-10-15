@@ -7769,6 +7769,25 @@ def form_room(form):
     return room
 
 
+def form_steps(form):
+    """How many steps a clock-first walk of one form takes to come round.
+
+    The form's room, save on a form holding the one gap (Codex's review of
+    lane L2, item 3): its clock times come first and its figure fill,
+    whose half step comes round every `form_room` steps, after them, so
+    its steps run on the period its key read as letters gives.
+    """
+    if key_gap(form) < 0:
+        return form_room(form)
+    steps = 1
+    for character in form:
+        if character == SHAPE_DIGIT:
+            steps *= 10
+        elif character in (SHAPE_LETTER, SHAPE_LOWER):
+            steps *= 26
+    return steps
+
+
 def all_letters_lower(text):
     """Whether a cell holds an ASCII letter and no upper-case one."""
     lower = any("a" <= character <= "z" for character in text)
@@ -7875,7 +7894,7 @@ def clock_filled_form(form, step):
     if shape is None:
         return None
     figures, seconds, places, words, space, first, hours, times = shape
-    index = step % form_room(form)
+    index = step % form_steps(form)
     if index >= times * 10 ** places:
         return None
     place = stepped_around(index % times, times)
@@ -7976,7 +7995,7 @@ def form_walk_bounds(form, figured=False):
         return supply, STAND_IN_STEPS
     # The form's whole room: the walk goes on while walk_goes_on says
     # (lane L1, method G9.5), as a held-back label's does.
-    room = form_room(form)
+    room = form_steps(form)
     return room, room
 
 

@@ -42460,7 +42460,7 @@ def _clock_filled_form(form: str, step: int) -> "str | None":
     shape = _clock_shape(form)
     if shape is None:
         return None
-    index = step % _form_room(form)
+    index = step % _form_steps(form)
     if index >= shape.times * shape.parts:
         return None
     place = _stepped_around(index % shape.times, shape.times)
@@ -42599,7 +42599,7 @@ def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
     supply = 0 if figured else _fraction_clock_supply(form)
     if supply:
         return supply, _STAND_IN_STEPS
-    room = _form_room(form)
+    room = _form_steps(form)
     return room, room
 
 
@@ -42845,6 +42845,38 @@ def _form_room(form: str) -> int:
         ):
             room = room * 26
     return room
+
+
+def _form_steps(form: str) -> int:
+    """How many steps a clock-first walk of one form takes to come round.
+
+    The form's room (`_form_room`), save on a form holding the one gap
+    (Codex's review of lane L2, item 3): such a form holds twice its
+    head's spellings, but its clock-first walk writes its clock times
+    first and its figure fill after them, and that fill's half step comes
+    round every `_form_room` steps. Counted on those 2,000 steps, the walk
+    of `%:%% @@` met its clock times again at every turn before the fill's
+    earlier heads and never reached them: free text holding every `h:mm`
+    with `AM`, `PM`, `am` and `pm`, twice each, wrote 4,348 cells in the
+    form where 824c7a4 wrote 5,330. So `_clock_filled_form` and the free
+    text's walk (`_form_walk_bounds`) count steps on the period the key
+    read as letters gives, as at 824c7a4 -- 676,000 for `%:%% @@` -- while
+    allocation reads the 2,000. Guarantees: a function of the form.
+    Raises nothing. No I/O of any kind.
+    """
+    if _SPACE in form or "\u202f" in form:
+        if parsing.key_gap_at(form) >= 0:
+            steps = 1
+            for character in form:
+                if character == parsing.SHAPE_DIGIT:
+                    steps = steps * 10
+                elif (
+                    character == parsing.SHAPE_LETTER
+                    or character == parsing.SHAPE_LOWER
+                ):
+                    steps = steps * 26
+            return steps
+    return _form_room(form)
 
 
 def _stepped_around(step: int, room: int) -> int:

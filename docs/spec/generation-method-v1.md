@@ -10131,7 +10131,14 @@ column declared as codes holding every `h:mm AM` and `h:mm PM`, h 0 to 9
 and mm 00 to 99, twice each, beside `z00000` to `z05999` -- 10,000 rows,
 8,000 different -- at a floor of eleven published 4,000 cells under
 `%:%% @@` and its twin wrote 2,303 and 1,697 `group-N`, the form's count
-MISSED; told 2,000 it writes all 4,000 and 8,000 different values.
+MISSED; told 2,000 it writes all 4,000 and 8,000 different values. The
+STEPS of a clock-first walk of such a form -- its clock times, then its
+figure fill -- still come round on the period its key read as letters
+gives, 676,000 for `%:%% @@`, in rule (1)'s clock supply and in G9.5's
+walk of free text: the fill's half step comes round every 2,000 steps,
+so a walk turned on 2,000 met the clock times again at each turn and
+never wrote the fill's earlier heads (free text holding every `h:mm`
+with all four words wrote 4,348 cells in the form where it wrote 5,330).
 
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
