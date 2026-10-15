@@ -11186,19 +11186,21 @@ def sixtieth_ties(texts, body):
     return found
 
 
-def clock_sixtieths(column, ordinals, parsed, first, last, pinned):
+def clock_sixtieths(column, ordinals, parsed, first, last, pinned, shifts=None):
     """G7.3g: the body ranks the twin writes at a SIXTIETH SECOND -- each pinned
     at a published boundary or rung whose seconds field is 60 and standing at
     that pin, or between two such pins of one moment, which G7.5 writes from
     its own fields while G7.1's ordinal space stands it at the next minute's
-    first second. Ascending."""
+    first second. Ascending. ``shifts``, where the ranks stand on their own
+    clocks (G7.3k), are each rank's own; a pin stands on the shared clock."""
     pins, texts, body, _sides = date_pins(column, parsed)
     written = {rank: (texts[rank], pins[rank]) for rank in texts if rank in pins}
     written.update(sixtieth_ties(texts, body))
     return [
         rank for rank in sorted(written)
         if first <= rank <= last and pinned[rank]
-        and written[rank][0][17:19] == "60" and ordinals[rank] == written[rank][1]
+        and written[rank][0][17:19] == "60"
+        and ordinals[rank] - (shifts[rank] if shifts else 0) == written[rank][1]
     ]
 
 
@@ -12583,7 +12585,43 @@ def clock_midnight_room_kept(walk, first, last, pinned, tail_pins, written, away
         clock_spread_substituted(walk, first, last, pinned, wanted)
 
 
-def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
+def clock_fields_on_own_clocks(column, ordinals, parsed, whole, lows, highs, holes, offsets):
+    """G7.3h's pass where G7.3k puts the column on its ranks' own clocks (the
+    Codex review of landing I3b2d, item 4): on the shared clock, where the
+    pass runs, every rank's ordinal and gap moved by its shift -- its
+    offset's seconds east of the shared clock -- so the pass reads each
+    cell's minute and second where it is WRITTEN, and the frame taken back
+    by G7.3k's step 2 (`own_clock_unframed`). Returns the instants and the
+    offsets; every other column is passed on its own clock as before."""
+    if (
+        column["datetimes_read_at"] != "utc"
+        or not (
+            column.get("minute_census") or column.get("minute_heaps")
+            or column.get("second_census") or column.get("second_heaps")
+        )
+        or parsed < 3
+        or ordinal_space(column) != "datetime"
+        or not column.get("low_tail")
+        or not column.get("high_tail")
+    ):
+        return clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes), offsets
+    shifts = [own_clock_seconds(offsets[rank]) for rank in range(parsed)]
+    settled = clock_fields_settled(
+        column,
+        [ordinals[rank] + shifts[rank] for rank in range(parsed)],
+        parsed, whole,
+        [lows[rank] + shifts[rank] for rank in range(parsed)],
+        [highs[rank] + shifts[rank] for rank in range(parsed)],
+        holes, shifts,
+    )
+    body = (column["low_tail"]["rows"], parsed - 1 - column["high_tail"]["rows"])
+    return own_clock_unframed(
+        ordinals, settled, shifts, offsets, whole, ranks_the_tail_pins(column, parsed),
+        body, lows, highs, 1,
+    )
+
+
+def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes, shifts=None):
     """G7.3h, from the method's text: the minute and second censuses and heaps
     met (landing 3b.4, plan P4-D372).
 
@@ -12675,7 +12713,7 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
         ]
         counts = clock_counts_as_written(
             asked, group_of_value, bin_of, ordinals,
-            clock_sixtieths(column, ordinals, parsed, first, last, pinned),
+            clock_sixtieths(column, ordinals, parsed, first, last, pinned, shifts),
         )
         walk = WeekdayWalk(counts, group_of_value, ordinals, list(lows), list(highs), hole_days, seams)
         # Where the count is reachable, the published one, less the tail
@@ -14011,8 +14049,12 @@ def _datetime_content(column, settled=None):
     # method's text.
     # -- the hour of the written clock (3b.T2, P4-D371)
     ordinals = hour_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
-    # -- the minute and the second (3b.T3, P4-D372)
-    ordinals = clock_fields_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
+    # -- the minute and the second (3b.T3, P4-D372), on each rank's own
+    # clock where G7.3k frames the column (the Codex review of landing I3b2d,
+    # item 4)
+    ordinals, offsets = clock_fields_on_own_clocks(
+        column, ordinals, parsed, whole, gap_lows, gap_highs, holes, offsets
+    )
     # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
     ordinals = heavy_sorted(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # ...and where the list costs a group of a census beside it or a day
@@ -52977,6 +53019,214 @@ SHARED_CLOCK_FIELDS = {
     ),
 }
 
+# The Codex review of landing I3b2d, item 4: G7.3h's pass on each rank's own clock,
+# frozen on a state of ranks. The column is the description the producer writes,
+# at a floor of 11, of tests/shared_clock_shapes.py's `heaped_fields` at 200 rows
+# -- two sites, -06:00 and +05:30, about a third of the cells on minute 0 of their
+# own clocks -- with its minute's facts alone kept (its second's, hour's, weekday's
+# and day of the month's cleared), each tail's two distances as their exact text;
+# the state is the ranks' instants on the shared clock, their offsets and forms as
+# G7.4 and G7.5 left them before the passes, read off the generator at seed 0.
+SHARED_CLOCK_FIELD_PASS_COLUMN = {'all_at_midnight': False,
+ 'count_form': None,
+ 'date_field_widths': {},
+ 'date_percentiles': {'max': None,
+                      'min': None,
+                      'p01': None,
+                      'p05': None,
+                      'p10': '2023-11-17 16:26:00',
+                      'p25': '2023-12-07 07:19:00',
+                      'p50': '2024-01-01 21:56:00',
+                      'p75': '2024-01-25 21:57:21',
+                      'p90': '2024-02-10 22:00:01',
+                      'p95': None,
+                      'p99': None},
+ 'datetime_separators': {'upper_t': 200},
+ 'datetimes_read_at': 'utc',
+ 'day_of_month_census': [],
+ 'detection_evidence': '200 of the 200 values are dates written as 2024-03-17 14:05:00',
+ 'format': 'iso-datetime',
+ 'heavy_dates': [],
+ 'high_tail': {'boundary': '2024-02-15 18:51:00',
+               'mean_distance': '437023.0909090909',
+               'rms_distance': '501560.1530415778',
+               'rows': 11,
+               'values': None},
+ 'hour_census': [],
+ 'low_tail': {'boundary': '2023-11-14 16:00:53',
+              'mean_distance': '339399.8181818182',
+              'rms_distance': '390096.5523717989',
+              'rows': 11,
+              'values': None},
+ 'minute_census': [{'count': 0, 'first': 0, 'last': 0},
+                   {'count': 26, 'first': 1, 'last': 14},
+                   {'count': 0, 'first': 15, 'last': 17},
+                   {'count': 17, 'first': 18, 'last': 26},
+                   {'count': 14, 'first': 27, 'last': 34},
+                   {'count': 0, 'first': 35, 'last': 35},
+                   {'count': 18, 'first': 36, 'last': 43},
+                   {'count': 14, 'first': 44, 'last': 51},
+                   {'count': 0, 'first': 52, 'last': 53},
+                   {'count': 14, 'first': 54, 'last': 59}],
+ 'minute_heaps': [{'count': 75, 'value': 0}],
+ 'missing_by_class': {'(blank)': 0,
+                      '(date-sentinel)': 0,
+                      '(declared-missing)': 0,
+                      '(numeric-sentinel)': 0,
+                      '(text-code)': 0,
+                      '(withheld)': 0},
+ 'missing_by_source': {},
+ 'month_name_styles': {},
+ 'n_at_midnight': None,
+ 'n_contradictory': 0,
+ 'n_distinct': 199,
+ 'n_distinct_folded': 199,
+ 'n_missing': 0,
+ 'n_missing_blank': 0,
+ 'n_missing_withheld': 0,
+ 'n_not_numeric': 200,
+ 'n_numeric': 0,
+ 'n_out_of_range': 0,
+ 'n_present': 200,
+ 'n_sentinel_candidates_unpublished': 0,
+ 'n_unparsed': 0,
+ 'name': 't',
+ 'position': 1,
+ 'quality_state': 'ok',
+ 'quarter_marker_case': {},
+ 'remarks': ["which days of the week this column's values fall on is counted for each day, "
+             'over the values between its two tail boundaries; every count is nought or at '
+             'least 11 rows',
+             'these counts are of days of the week and never of one date: every group that '
+             'holds rows holds them on at least three different dates, and every count is '
+             'nought or at least 11 rows',
+             "which hours of the day this column's values fall on is counted over the values "
+             'between its two tail boundaries, each hour alone or, where that would name fewer '
+             'than 11 rows in all or besides the rows the rest of this description places in '
+             'it for certain -- at the values it publishes between the two tail boundaries, '
+             'and at midnight where it counts rows there -- or fewer rows than those, together '
+             'with its neighbours, never across midnight; every count is nought or at least 11 '
+             'rows, and a count of several hours does not say how its rows fall among them',
+             "which minutes of the hour this column's values fall on is counted over the "
+             'values between its two tail boundaries: each minute holding at least 11 rows, '
+             'written at 11 different values or more, at least three times the median of the '
+             'five on either side of it and, besides the rows the rest of this description '
+             'places there for certain, nought or at least 11 rows is counted alone, and the '
+             'rest together, each minute alone or, where that would name fewer than 11 rows in '
+             'all or besides the rows the rest of this description places in it for certain -- '
+             'at the values it publishes between the two tail boundaries, and at midnight '
+             'where it counts rows there -- or fewer rows than those, together with its '
+             "neighbours, never past the hour's last; every count is nought or at least 11 "
+             'rows, a count of several does not say how its rows fall among them, and where '
+             'the rest have no count, how they fall is not said',
+             "which seconds of the minute this column's values fall on is counted over the "
+             'values between its two tail boundaries: each second holding at least 11 rows, '
+             'written at 11 different values or more, at least three times the median of the '
+             'five on either side of it and, besides the rows the rest of this description '
+             'places there for certain, nought or at least 11 rows is counted alone, and the '
+             'rest together, each second alone or, where that would name fewer than 11 rows in '
+             'all or besides the rows the rest of this description places in it for certain -- '
+             'at the values it publishes between the two tail boundaries, and at midnight '
+             'where it counts rows there -- or fewer rows than those, together with its '
+             "neighbours, never past the minute's last; every count is nought or at least 11 "
+             'rows, a count of several does not say how its rows fall among them, and where '
+             'the rest have no count, how they fall is not said'],
+ 'resolution': 'datetime',
+ 'resolution_mix': {'iso-datetime': 200},
+ 'role': 'datetime',
+ 'second_census': [],
+ 'second_heaps': [],
+ 'sentinel_verdicts': [],
+ 'statistical_type': 'datetime',
+ 'structural_role': 'data',
+ 'subsecond_digits': 0,
+ 'tail_unit': 'second',
+ 'time_precision': 'second',
+ 'utc_offsets': {'+05:30': 85, '-06:00': 115},
+ 'weekday_census': [],
+ 'zulu_case': {}}
+
+SHARED_CLOCK_FIELD_PASSES = {
+    "heaped_minute_alone": (
+        SHARED_CLOCK_FIELD_PASS_COLUMN,
+        [
+            1699334792, 1699387835, 1699470617, 1699545020, 1699607049, 1699619356, 1699673882, 1699752966,
+            1699806076, 1699877880, 1699914727, 1699977653, 1699978366, 1699986409, 1700023447, 1700167879,
+            1700190352, 1700201184, 1700202690, 1700238360, 1700286367, 1700449043, 1700467373, 1700746426,
+            1700764276, 1700783987, 1700811180, 1700844887, 1700888763, 1700897652, 1700902225, 1700954891,
+            1701061938, 1701128930, 1701156234, 1701207206, 1701245806, 1701281549, 1701335463, 1701341006,
+            1701375189, 1701400477, 1701405401, 1701461413, 1701746202, 1701747535, 1701821732, 1701901052,
+            1701928810, 1701933540, 1701966079, 1702048643, 1702063129, 1702119434, 1702134342, 1702166961,
+            1702187842, 1702266051, 1702372774, 1702374992, 1702436153, 1702443864, 1702463174, 1702594441,
+            1702677239, 1702741390, 1702828659, 1702851016, 1702874409, 1702907927, 1702929970, 1702951445,
+            1703034147, 1703039619, 1703104707, 1703217595, 1703305837, 1703312416, 1703325517, 1703420409,
+            1703507029, 1703546573, 1703558673, 1703610106, 1703672185, 1703675089, 1703695503, 1703775865,
+            1703844447, 1703872867, 1703984981, 1703985577, 1703995834, 1704018078, 1704033192, 1704045686,
+            1704075193, 1704104552, 1704135310, 1704146160, 1704179322, 1704204981, 1704230166, 1704283194,
+            1704284454, 1704404447, 1704447826, 1704454649, 1704614541, 1704628027, 1704647318, 1704682963,
+            1704698029, 1704744066, 1704744254, 1704860149, 1704912187, 1705002375, 1705038462, 1705064288,
+            1705141502, 1705209458, 1705263738, 1705292100, 1705295167, 1705308408, 1705312049, 1705361592,
+            1705377769, 1705420174, 1705445335, 1705637592, 1705664107, 1705717909, 1705809005, 1705825242,
+            1705842682, 1705851501, 1705890784, 1705905245, 1705987834, 1705991602, 1706061267, 1706072826,
+            1706076793, 1706131109, 1706134981, 1706149465, 1706163082, 1706219841, 1706233604, 1706279384,
+            1706302054, 1706328552, 1706395173, 1706592907, 1706598454, 1706646855, 1706656652, 1706695851,
+            1706724539, 1706746279, 1706781866, 1706794134, 1706814029, 1706895705, 1706925923, 1707122120,
+            1707191300, 1707292281, 1707357282, 1707367095, 1707413156, 1707415449, 1707438301, 1707477914,
+            1707524703, 1707569859, 1707595374, 1707602401, 1707679261, 1707883355, 1707917159, 1707944118,
+            1707964463, 1707972623, 1707991812, 1708005567, 1708023060, 1708052946, 1708122230, 1708240699,
+            1708321642, 1708356701, 1708451899, 1708569273, 1708619731, 1708698534, 1708746252, 1708848448,
+        ],
+        [
+            "+05:30", "-06:00", "+05:30", "-06:00", "+05:30", "-06:00", "-06:00", "+05:30", "-06:00", "+05:30",
+            "-06:00", "+05:30", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "+05:30",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "+05:30",
+            "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30",
+            "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30",
+            "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30",
+            "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30",
+            "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "+05:30",
+            "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30",
+            "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30", "+05:30",
+            "+05:30", "+05:30", "+05:30", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "+05:30",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "+05:30", "-06:00",
+            "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "-06:00", "+05:30",
+        ],
+        [
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+            False, False, False, False, False, False, False, False, False, False,
+        ],
+        "the Codex review of landing I3b2d, item 4: the minute's pass reads each rank on its own "
+        "clock, a +05:30 cell's minute 0 the shared clock's minute 30, and the frame is taken back "
+        "by G7.3k's step 2; read on the shared clock, the pass leaves 43 cells on a written minute "
+        "0 against the published 75 (mutant: no frame)",
+    ),
+}
+
 SHARED_CLOCK_FRAMES = {
     "tails_sorted_across_offsets": (
         [0, 1000, 2000, 50000, 90000, 100000],
@@ -53240,6 +53490,24 @@ def shared_clock_document():
         }
         if field_facts:
             pins[name]["field_censuses"] = field_facts
+    passes = {}
+    for name in sorted(SHARED_CLOCK_FIELD_PASSES):
+        column, ordinals, offsets, whole, why = SHARED_CLOCK_FIELD_PASSES[name]
+        read = dict(column)
+        for side in ("low_tail", "high_tail"):
+            read[side] = dict(column[side])
+            for key in ("mean_distance", "rms_distance"):
+                if read[side][key] is not None:
+                    read[side][key] = float(read[side][key])
+        parsed = len(ordinals)
+        lows, highs = pin_bounds(read, parsed)
+        moved, given = clock_fields_on_own_clocks(
+            read, list(ordinals), parsed, list(whole), list(lows), list(highs), set(), list(offsets)
+        )
+        passes[name] = {
+            "column": column, "ordinals": ordinals, "offsets": offsets, "whole": whole, "why": why,
+            "answer": {"ordinals": list(moved), "offsets": list(given)},
+        }
     spreads = {}
     for name in sorted(SHARED_CLOCK_SPREADS):
         keys, left, open_ranks, lows, highs, why = SHARED_CLOCK_SPREADS[name]
@@ -53272,7 +53540,7 @@ def shared_clock_document():
             "G7.3k and G7.4 step 1a), computed from the method's text alone."
         ),
         "fields": fields, "frames": frames, "pins": pins, "spreads": spreads, "forms": forms,
-        "form_days": days,
+        "form_days": days, "field_passes": passes,
     }
 
 

@@ -9,7 +9,10 @@ its instant; the passes' frame taken back onto the shared clock run by
 run; G7.4 step 1a's key for each block the layout fixes; and the form
 step's bare dates on a clocked column of the joint member, capped per
 gap and stood on midnight days, on days of their own where the column is all
-different.
+different. And, from the Codex review of landing I3b2d (items 2 to 4): step
+1a's key beside the minute's heap, the tails taken back from the frame as a
+whole, and G7.3h's minute pass on a state of ranks, read on each rank's own
+clock (`field_passes`).
 
 **Why it is not a file of columns.**  Each case is one reading or one
 state of ranks with the method's answer; `tests/test_stage3b_shared_clock.py`

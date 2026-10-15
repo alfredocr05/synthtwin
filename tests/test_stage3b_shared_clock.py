@@ -29,8 +29,10 @@ import typing
 
 import pytest
 
+import fixtures
 import kpi_shapes
 import shared_clock_shapes
+from synthtwin import contract
 from synthtwin import calendar_clock, calendar_rules, generation, parsing, rendering, taxonomy, validation
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
@@ -879,6 +881,57 @@ def test_vectors_frames(monkeypatch: pytest.MonkeyPatch) -> None:
         assert _unframed(tail) == tail["answer"] and _unframed(sorted_tail) != sorted_tail["answer"]
     monkeypatch.setattr(generation, "_own_clock_run", rank_by_rank)
     assert any(_unframed(case) != case["answer"] for case in _FILE["frames"].values())
+
+
+def _field_pass(case: "dict[str, typing.Any]", tmp_path: pathlib.Path) -> "dict[str, list[typing.Any]]":
+    """The product's G7.3h on each rank's own clock (G7.3k): the frame, the field pass, the frame
+    taken back, on the case's state of ranks. The column is described again from its shape, and
+    held to the case's own block before it is loaded."""
+    cells = shared_clock_shapes.build("heaped_fields", len(case["ordinals"]))
+    described = kpi_shapes.describe(tmp_path, "heaped", "t\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    document = json.loads(json.dumps(described.document))
+    block = document["columns"][0]
+    for key in ("second_census", "second_heaps", "hour_census", "weekday_census", "day_of_month_census"):
+        block[key] = []
+    as_text = json.loads(json.dumps(block))
+    for side in ("low_tail", "high_tail"):
+        for key in ("mean_distance", "rms_distance"):
+            as_text[side][key] = repr(block[side][key])
+    assert as_text == case["column"]
+    loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "edited.json", document)))
+    column = loaded.columns[0]
+    facts = typing.cast(contract.DatetimeFacts, column.facts)
+    parsed = len(case["ordinals"])
+    layout = generation._date_layout(column, facts, parsed, 11)
+    lows, highs = generation._pin_bounds(layout)
+    ordinals, offsets, whole = list(case["ordinals"]), list(case["offsets"]), list(case["whole"])
+    shifts = generation._own_clock_shifts(facts, offsets)
+    frame = generation._own_clock_frame(facts, layout, ordinals, lows, highs, shifts)
+    if frame is None:
+        moved, _notes = generation._clock_fields_settled(column, facts, ordinals, parsed, whole, lows, highs, layout, ())
+        return {"ordinals": moved, "offsets": offsets}
+    read, framed_layout, framed, framed_lows, framed_highs, scale = frame
+    framed, _notes = generation._clock_fields_settled(
+        column, read, framed, parsed, whole, framed_lows, framed_highs, framed_layout, ()
+    )
+    assert layout.low is not None and layout.high is not None
+    moved, given = generation._off_own_clocks(
+        ordinals, framed, shifts, offsets, whole, generation._ranks_the_tail_pins(layout),
+        (layout.low.rows, parsed - 1 - layout.high.rows), (lows, highs), scale,
+    )
+    return {"ordinals": moved, "offsets": given}
+
+
+def test_vectors_field_passes(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """THE CODEX REVIEW OF LANDING I3b2d, item 4: the oracle's minute pass on the shared clock
+    reads each rank on its own clock, as the product's does -- `heaped_fields` at 200 rows with
+    its minute's facts alone, every rank and offset as frozen. Mutant: no frame -- the pass reads
+    the shared clock's minutes and the ranks differ."""
+    for name, case in _FILE["field_passes"].items():
+        assert _field_pass(case, tmp_path / name) == case["answer"], name
+    case = _FILE["field_passes"]["heaped_minute_alone"]
+    monkeypatch.setattr(generation, "_own_clock_frame", lambda *_arguments: None)
+    assert _field_pass(case, tmp_path / "unframed") != case["answer"]
 
 
 def _pins(case: "dict[str, typing.Any]") -> "list[str]":
