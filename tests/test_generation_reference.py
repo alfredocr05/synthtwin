@@ -6977,10 +6977,12 @@ def test_the_oracle_writes_every_hour_field_beside_a_signed_offset(
 def test_the_oracle_lays_every_battery_minute_census_as_the_product(tmp_path: pathlib.Path) -> None:
     """G7A.4c beyond its six frozen cases (A-P4-59): every column of the clock
     battery (`tests/clock_census_shapes.py`) publishing a minute census at 300
-    and 1,000 rows and a floor of eleven -- eleven of them -- is laid by the
-    oracle, from the opening words of seed 0's stream, into exactly the cells
-    the product's twin holds at seed 0. The oracle's tails assume the floor
-    of eleven, so a raised floor is not asked here."""
+    and 1,000 rows and a floor of eleven -- nine of them, eleven until M3
+    asked the fine table and withheld the clinic's (the Codex review of batch
+    3b part 2d's integration, item 1) -- is laid by the oracle, from the
+    opening words of seed 0's stream, into exactly the cells the product's
+    twin holds at seed 0. The oracle's tails assume the floor of eleven, so a
+    raised floor is not asked here."""
     import csv
     import io
 
@@ -7012,7 +7014,7 @@ def test_the_oracle_lays_every_battery_minute_census_as_the_product(tmp_path: pa
             twin = [row[0] for row in csv.reader(io.StringIO(text)) if row][1:]
             assert sorted(laid) == sorted(cell for cell in twin if cell), (name, rows)
             laid_columns = laid_columns + 1
-    assert laid_columns >= 10, laid_columns
+    assert laid_columns >= 9, laid_columns
 
 
 def test_the_rounding_meets_a_table_reached_only_at_its_edge(monkeypatch: pytest.MonkeyPatch) -> None:
