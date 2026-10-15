@@ -874,6 +874,8 @@ TWENTY_SECOND_BRANCH_CASES = (
     "date_remainder_one_joint",
     # Lane L2's repair round (plan P4-D392): the gap past the clock line.
     "labels_clock_spaced_line",
+    # ...and its Codex review: labels described before L2, read as written.
+    "labels_written_before_gaps",
     "stamp_dotted_seconds",
     "stamp_twelve_hour_top",
     "stamp_unpadded_hour",
@@ -1005,6 +1007,7 @@ SEEDS = {
     # Lane L2's gap before a clock's marker (plan P4-D392).
     "labels_clock_narrow_gap": 551,
     "labels_clock_spaced_line": 552,
+    "labels_written_before_gaps": 553,
     # Landing R2a's layout member takes the next seeds after T1's (plan
     # P4-D383).
     "layout_century_window": 421,
@@ -3390,12 +3393,13 @@ def _levels_from_the_second_spelling(
     return produced
 
 
-def _spaces_before_flips(parent, used, _target):
+def _spaces_before_flips(parent, used, _target, _before=False):
     """G8.2's order turned over: the trailing spaces before the case flips.
 
     It ignores the target form G8.2a asks for, which is the point: the
     order and the form rule are one walk, and turning the order over
-    loses the form as well as the spelling.
+    loses the form as well as the spelling -- and so the reading of a
+    level written before lane L2 (Codex's review of L2, item 2) as well.
     """
     seen = set(used)
     spaces = 1
@@ -3886,6 +3890,11 @@ def _no_gap_key(form):
     return -1
 
 
+def _levels_read_since_gaps(level):
+    """Codex's review of lane L2, item 2, withdrawn: every level read as written since L2."""
+    return False
+
+
 def _partial_forms_in_blocks(forms, given, turn, total):
     """G7.5's interleaving withdrawn: each partial form written after the one before it."""
     reached = 0
@@ -4005,6 +4014,12 @@ CASE_MUTANTS = {
         attribute="key_gap",
         replacement=_no_gap_key,
         outcome="'00:00 AA' has one",
+    ),
+    "labels_written_before_gaps": Mutant(
+        branch="a level described before lane L2 read as written (Codex's review of L2, item 2; plan P4-D392): its label holding U+202F before the marker wears no form there, so G8.1's spare spelling, G8.2's case flips and G8.3b's published shape are what 6a248e7 wrote; the mutant reads it as written since L2, keeps the label's spelling back, steps past the flip that now wears a form and writes the held-back levels as times",
+        attribute="unshaped_before_gaps",
+        replacement=_levels_read_since_gaps,
+        outcome=CHANGES_THE_CELLS,
     ),
     "labels_clock_line": Mutant(
         branch="G8.3's clock line (the repair round of landing 3b.5), which fills a label column's held-back levels with times only while its twin stays labels; the mutant fills every one with a time, and the twin is read back as clock times",

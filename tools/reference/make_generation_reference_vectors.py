@@ -7546,7 +7546,7 @@ def commonest_spelling(level):
     return best or level["label"]
 
 
-def invented_variant(parent, used, target):
+def invented_variant(parent, used, target, before=False):
     """One invented variant spelling -- method sections G8.2 and G8.2a.
 
     Case flips first, in binary-counter order to the 4,096th step,
@@ -7561,7 +7561,8 @@ def invented_variant(parent, used, target):
     as one already used is.  Where the case flips run out with a form
     still wanted, the trailing space is written and the level falls
     short of its published ``shape_form_cells``, which the twin's own
-    report names.
+    report names.  ``before`` reads a level written before lane L2
+    (`unshaped_before_gaps`): a form holding the one gap counts as none.
     """
     seen = set(used)
     counter = 1
@@ -7570,7 +7571,7 @@ def invented_variant(parent, used, target):
         if candidate is None:
             break
         counter += 1
-        if candidate in seen or written_form(candidate) != target:
+        if candidate in seen or form_as_read(candidate, before) != target:
             continue
         return candidate
     for spaces in range(1, VARIANT_SPACES + 1):
@@ -7750,7 +7751,15 @@ def written_form(text):
 
 
 def form_room(form):
-    """How many different spellings one form holds."""
+    """How many different spellings one form holds.
+
+    A form holding the one gap before a clock's marker holds twice its
+    clock's figures: its marker key is a word, filled as the morning or
+    the evening one (Codex's review of lane L2, item 3; method G8.3).
+    """
+    gap = key_gap(form)
+    if gap >= 0:
+        return 2 * form_room(form[:gap])
     room = 1
     for character in form:
         if character == SHAPE_DIGIT:
@@ -10712,7 +10721,7 @@ def spare_label_group(level, keeping):
         covered += int(key) * level["variants_withheld"][key]
     if covered < level["count"]:
         return ""
-    formless = not written_form(level["label"])
+    formless = not written_form(level["label"]) or unshaped_before_gaps(level)
     best = ""
     for key in level["variants_withheld"]:
         if not formless and not keeping.get(key):
@@ -10722,13 +10731,34 @@ def spare_label_group(level, keeping):
     return best
 
 
-def level_key(spelling):
+def unshaped_before_gaps(level):
+    """Whether a published level reads as written before lane L2.
+
+    Codex's review of lane L2, item 2 (plan P4-D392): a label holding the
+    one gap before a clock's marker had no form before L2, so its level
+    carries ``shape_form_cells`` 0 whatever its spellings wear.  Such a
+    level -- the label holding the gap, its count in form 0 -- is read as
+    written: no spelling of it counts in a form holding the gap.
+    """
+    return not level.get("shape_form_cells") and form_gap(level["label"]) >= 0
+
+
+def form_as_read(text, before):
+    """A cell's written form, or "" where ``before`` reads a gapped one as none."""
+    form = written_form(text)
+    if before and key_gap(form) >= 0:
+        return ""
+    return form
+
+
+def level_key(spelling, before=False):
     """The shape one published spelling wears, its case kept.
 
     Its written form, with `&` in every letter place where every letter
-    of the spelling is lower case; "" where it has no form.
+    of the spelling is lower case; "" where it has no form -- a gapped
+    form counting as none on a level written before lane L2 (``before``).
     """
-    form = written_form(spelling)
+    form = form_as_read(spelling, before)
     if not form:
         # A CLOCK TIME WITH ONE SPACE BEFORE ITS MARKER keeps the space in
         # its key (the repair round of landing 3b.5; contract 7.9.1).
@@ -10752,8 +10782,9 @@ def published_level_shape(column):
     rows = {}
     for level in column["levels"]:
         spellings = level["variants"] or {level["label"]: level["count"]}
+        before = unshaped_before_gaps(level)
         for spelling in sorted(spellings):
-            key = level_key(spelling)
+            key = level_key(spelling, before)
             if key:
                 rows[key] = rows.get(key, 0) + spellings[spelling]
     best = ""
@@ -11046,7 +11077,10 @@ def _label_content(column):
         spare = spare_label_group(level, keeping)
         if level["label"] in used:
             spare = ""
-        own = written_form(level["label"])
+        # A level written before lane L2 is read as written (Codex's review
+        # of L2, item 2): its label holding the one gap wore no form then.
+        before = unshaped_before_gaps(level)
+        own = "" if before else written_form(level["label"])
         left = dict(keeping)
         for key in sorted(withheld, key=int):
             for _ in range(withheld[key]):
@@ -11058,7 +11092,7 @@ def _label_content(column):
                     spelling = level["label"]
                     spare = ""
                 else:
-                    spelling = invented_variant(level["label"], used, target)
+                    spelling = invented_variant(level["label"], used, target, before)
                 if spelling is None:
                     spelling = commonest_spelling(level)
                 content.extend([spelling] * int(key))
@@ -31310,6 +31344,42 @@ def _labels_clock_spaced_line():
         "parse_rate": 0.99,
     }
 
+def _labels_written_before_gaps():
+    column = _universal(
+        "column_1", "categorical", "categorical", "data", "ok",
+        level_ceiling=20,
+        # A description written before lane L2 (Codex's review of L2, item
+        # 2): a label holding U+202F before its marker had no form then, so
+        # both levels carry `shape_form_cells` 0 while their spellings now
+        # wear `%:%%\u202f@@` and `%%:%%\u202f@@`, and the census names
+        # no form.  The first level holds three groups of two rows back,
+        # as a producer before plan P4-D275 wrote them.
+        levels=[
+            {"count": 30, "label": "9:15\u202fam", "shape_form_cells": 0,
+             "variants": {"9:15\u202fAM": 24}, "variants_withheld": {"2": 3}},
+            {"count": 20, "label": "10:30\u202fpm", "shape_form_cells": 0,
+             "variants": {"10:30\u202fPM": 20}, "variants_withheld": {}},
+        ],
+        n_contradictory=0,
+        n_distinct=8,
+        n_distinct_folded=5,
+        n_missing=0,
+        n_not_numeric=60,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=60,
+        shape_forms={},
+        suppressed_levels=3,
+        suppressed_rows=10,
+    )
+    return {
+        "why": "a set of labels described before lane L2 (Codex's review of L2, item 2; plan P4-D392): two times written with U+202F before their marker, published at 30 and 20 rows, each level carrying `shape_form_cells` 0 as every description written then does, beside three held-back levels of 10 rows and, under the first level, three held-back groups of two rows. Such a level is read as written: its label wears no form there, so G8.1's spare spelling goes to the largest group and G8.2's case flips are taken whatever form they now wear, and G8.3b's published shape is none, so the held-back levels are `group-N`, the twin 6a248e7 wrote. The mutant reads the levels as written since L2: the label's spelling is not spent, a group takes a trailing space, and the held-back levels are written as times.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+    }
+
+
 def _r2a_layout(member, resolution, precision, digits, rows, offsets, read_at,
                 widths=None, earliest=None, latest=None, why="", numeric=0,
                 distinct=None):
@@ -41044,6 +41114,8 @@ TWENTY_SECOND_BRANCH_CASE_BUILDERS = {
     # Lane L2's repair round (plan P4-D392): the gap before a clock's
     # marker past the clock line, a plain space.
     "labels_clock_spaced_line": _labels_clock_spaced_line,
+    # ...and its Codex review: labels described before L2, read as written.
+    "labels_written_before_gaps": _labels_written_before_gaps,
 }
 
 TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
@@ -41837,6 +41909,9 @@ _TWENTY_SECOND_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-23.json."
     " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
     " tests/reference/generation-branch-vectors-25.json."
+    " Lane L2 (plan P4-D392) adds here a set of clock times written with a"
+    " space before their marker past G8.3's clock line, and its Codex review"
+    " a set of labels described before L2, each level read as written."
 )
 
 
@@ -43427,6 +43502,29 @@ GIVEN_WORDS = {
         5382228122588014241, 18026927645541409714, 8657395256299721655,
         10953982522432231578, 2859588386214255364, 17013288672281954659,
         12244203744056379746, 16924193526019184477, 12948906903127515377,
+    ),
+    # ...and its Codex review: labels described before L2, at seed 553.
+    "labels_written_before_gaps": (
+        13087543558773148644, 11628936191764622267, 5732045208075914153,
+        14828352203969114315, 3001835382034922582, 8491045745010084352,
+        12276886515043868941, 8221261507544062264, 1541771356113367234,
+        14879387966076662500, 10164925429356078287, 3298502257482115409,
+        13337876306313314867, 2508875429883402961, 9392149293391275400,
+        16682732562918809176, 7337073485017009528, 18002318675957659847,
+        6382749678357210788, 10906119863319712861, 7614569840865207649,
+        5147927321592327247, 15713140834863337622, 3991912210280676336,
+        1214398669495828118, 10683954075030886447, 8782965879980880750,
+        6288393761144069328, 1956940653047818093, 9578572025928439078,
+        13001284970034202346, 6504093370163481061, 8590428891488640709,
+        12160973314112000770, 9305029275014542819, 3746669303134277151,
+        12309795144918783377, 16343471608120330070, 14827727153120450287,
+        12044935245229436974, 8162459039689171443, 9483777926109648983,
+        2236360110266867021, 6766832608603262789, 11718183890083904396,
+        8786003132634625973, 15155643119173506934, 17521084155134251435,
+        17218118109699637423, 12731684228415492047, 2409646223070418341,
+        13465529578983530385, 13090836418196212305, 10166224697444028132,
+        11187677356969290520, 10040339471450740590, 3080742301049369347,
+        5814565919285261848, 338499664231242090,
     ),
     # ...and its second repair round's clock line held key by key, at
     # seed 435.

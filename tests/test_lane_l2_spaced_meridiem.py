@@ -43,6 +43,25 @@ Each clause is red on the mutant its docstring names:
   counted under the form it was filled from (lane L2's second repair
   round; mutants: the head filled at the full step, which halves the
   supply; the morning and evening words swapped).
+
+Codex's review of the lane (verdict REJECT, five items), each red on 824c7a4:
+
+* G11 (item 1) a fold partner of a parent wearing a gapped form its slot
+  is asked takes the marker word turned over whole, `9:15 am`, and keeps
+  the form: 194 times written with both `AM` and `am` beside 12 notes
+  publish 388 cells under `%:%% @@` and the twin writes 388, at floors 2,
+  11 and 36 and with either gap (mutant: the partner turning one letter,
+  `9:15 aM`, which wears no form -- 206);
+* G12 (item 2) label and code descriptions written before L2, whose
+  levels carry `shape_form_cells` 0 beside named spellings that now wear a
+  gapped form, load, generate the twin 6a248e7 generated and validate
+  (mutants: W8 counting those spellings, as at 824c7a4; the generator or
+  the recount reading such a level as written since L2);
+* G13 (item 3) a gapped form advertises the room its figure fill holds,
+  twice its head's, in the generator and in the oracle alike, so a column
+  of codes holding every `h:mm AM` and `h:mm PM` twice gets every one of
+  its 4,000 form-bearing rows (mutant: the marker key counted as two
+  letters, 676,000 -- 2,303 rows and 1,697 `group-N`).
 """
 
 from __future__ import annotations
@@ -567,3 +586,179 @@ def test_g10_the_gapped_figure_fill_holds_twice_its_heads_room(
     assert [cell for cell in cells if parsing.census_form(cell, census) != form] == []
     assert [cell for cell in cells if cell[gap] != form[gap]] == []
     assert cells[:2] == [first, second]
+
+
+# -- G11: fold partners keep a gapped form (Codex's review, item 1) ---------
+
+
+def _both_cases(gap: str) -> "list[str]":
+    """Codex's table: 194 times written with `AM` and with `am`, then 12 notes."""
+    cells: "list[str]" = []
+    for index in range(194):
+        text = f"{1 + index // 60}:{index % 60:02d}"
+        cells += [text + gap + "AM", text + gap + "am"]
+    return cells + [f"note {number:02d}" for number in range(12)]
+
+
+@pytest.mark.parametrize("gap", (" ", NARROW))
+@pytest.mark.parametrize("floor", (2, 11, 36))
+def test_g11_fold_partners_keep_the_gapped_form_they_are_asked(
+    tmp_path: pathlib.Path, gap: str, floor: int
+) -> None:
+    """G11 (Codex's review of lane L2, item 1): the 400 cells Codex built.
+
+    The description publishes 388 cells under `%:%% @@` (or its U+202F
+    twin) and 206 folded values of 400. A partner slot asked that form
+    takes its parent with the marker word turned over whole, so the twin
+    writes 388 cells in the form, each marker `AM`, `PM`, `am` or `pm`,
+    and validates with exit 0. Mutant: no keeper, the family's first
+    member `1:00 aM` -- the twin writes 206 and is MISSED (exit 3).
+    """
+    block, written, twin_exit, table_exit = _round(tmp_path / "fold", _both_cases(gap), floor)
+    form = "%:%%" + gap + "@@"
+    assert block["shape_forms"] == {form: 388}
+    assert (block["n_distinct"], block["n_distinct_folded"]) == (400, 206)
+    shaped = [cell for cell in written if parsing.shape_form(cell) == form]
+    assert len(shaped) == 388
+    assert {cell[cell.index(gap) + 1 :] for cell in shaped} <= {"AM", "PM", "am", "pm"}
+    assert (twin_exit, table_exit) == (0, 0)
+
+
+def test_g11_the_keeper_turns_the_marker_word_whole() -> None:
+    """G11: `_form_keeping_partner` turns the word over whole, or answers None."""
+    assert generation._form_keeping_partner("9:15 AM", "%:%% @@") == "9:15 am"
+    assert generation._form_keeping_partner("9:15 am", "%:%% @@") == "9:15 AM"
+    assert generation._form_keeping_partner("09:15 a.m.", "%%:%% @.@.") == "09:15 A.M."
+    assert generation._form_keeping_partner("9:15" + NARROW + "PM", "%:%%" + NARROW + "@@") == "9:15" + NARROW + "pm"
+    # Asked no form, or another one, or a parent wearing none: no keeper.
+    assert generation._form_keeping_partner("9:15 AM", "") is None
+    assert generation._form_keeping_partner("9:15 AM", "%%:%% @@") is None
+    assert generation._form_keeping_partner("9:15 aM", "%:%% @@") is None
+    assert generation._form_keeping_partner("AB12", "@@%%") is None
+
+
+# -- G12: descriptions written before L2, labels and codes (item 2) ---------
+
+
+@pytest.mark.parametrize("name", sorted(before.LABELS_AND_CODES))
+def test_g12_a_label_or_code_description_written_before_l2_loads_and_generates_its_twin(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """G12 (Codex's review of lane L2, item 2): 6a248e7's descriptions of labels and codes.
+
+    Each level's label holds the one gap and carries `shape_form_cells` 0,
+    as every description written before L2 does, while its named
+    spellings now wear a gapped form. It loads (824c7a4 refused it under
+    W8), generates the twin 6a248e7 generated byte for byte, and validates
+    against that twin and its table with exit 0. Mutants: W8 counting the
+    named spellings (refused); the recount counting them (exit 3); the
+    generator's G8.2a walk or its published level shape reading the level
+    as written since L2 (another twin).
+    """
+    text, profile_sha, twin_sha, coded = before.LABELS_AND_CODES[name]
+    assert hashlib.sha256(text.encode("utf-8")).hexdigest() == profile_sha
+    document = json.loads(text)
+    block = document["columns"][0]
+    gapped = [level for level in block["levels"] if parsing.meridiem_gap_at(level["label"]) >= 0]
+    assert gapped and all(level["shape_form_cells"] == 0 for level in gapped)
+    assert any(parsing.shape_form(spelling) for level in gapped for spelling in level["variants"])
+    assert (block["role"] in ("binary", "categorical", "long_tail_labels")) and (
+        ("seen_at" in document["settings"]["forced_codes"]) == coded
+    )
+    profile = tmp_path / "real-profile.json"
+    profile.write_text(text, encoding="utf-8", newline="\n")
+    contract.load_profile(str(profile))
+    out = tmp_path / "twin"
+    out.mkdir()
+    assert _exit_of(["generate", str(profile), "--seed", "0", "--out-dir", str(out), "--replace"]) == 0
+    twin = out / "real-twin.csv"
+    assert hashlib.sha256(twin.read_bytes()).hexdigest() == twin_sha
+    table = tmp_path / "real.csv"
+    table.write_text(
+        "seen_at\n" + "\n".join(before.label_tables()[name]) + "\n", encoding="utf-8", newline="\n"
+    )
+    for checked, report_name in ((twin, "vt"), (table, "vs")):
+        report = tmp_path / report_name
+        report.mkdir()
+        assert _exit_of(["validate", str(profile), "--twin", str(checked), "--out-dir", str(report), "--replace"]) == 0
+
+
+def test_g12_the_reading_is_the_levels_alone() -> None:
+    """G12: a level reads as written before L2 only where its label holds the gap and it carries 0."""
+    assert parsing.level_unshaped_before_gaps("9:15 am", 0)
+    assert parsing.level_unshaped_before_gaps("9:15" + NARROW + "pm", 0)
+    assert not parsing.level_unshaped_before_gaps("9:15 am", 100)
+    assert not parsing.level_unshaped_before_gaps("e11.9", 0)
+    assert not parsing.level_unshaped_before_gaps("9:15am", 0)
+
+
+# -- G13: a gapped form's advertised room (item 3) ---------------------------
+
+
+def _oracle_module() -> "dict[str, object]":
+    """The generation oracle's own namespace, run from its file."""
+    import runpy
+
+    return runpy.run_path(
+        str(pathlib.Path(__file__).resolve().parent.parent / "tools" / "reference" / "make_generation_reference_vectors.py")
+    )
+
+
+@pytest.mark.parametrize("form", ("%:%% @@", "%%:%% &&", "%:%%" + NARROW + "@@", "%%:%%" + NARROW + "@.@."))
+def test_g13_a_gapped_form_advertises_the_room_its_fill_holds(form: str) -> None:
+    """G13 (Codex's review of lane L2, item 3): capacity, not only enumeration.
+
+    `_form_room` -- what allocation and the walks are told a form holds --
+    is the number of different spellings its figure fill writes, twice its
+    head's room, and the oracle's `form_room` says the same; a form with no
+    gap keeps its room. Mutant: the marker key counted as two letters,
+    `%:%% @@` at 676,000, 338 times its supply.
+    """
+    room = generation._form_room(form)
+    gap = parsing.key_gap_at(form)
+    assert room == 2 * generation._form_room(form[:gap])
+    assert len({generation._filled_form(form, step, False) for step in range(room)}) == room
+    oracle = _oracle_module()
+    form_room = oracle["form_room"]
+    assert callable(form_room)
+    assert form_room(form) == room
+    for plain in ("@%%.%", "%%:%%", "&&-&"):
+        assert form_room(plain) == generation._form_room(plain)
+
+
+def test_g13_codes_of_every_dial_time_get_every_row_of_their_form(tmp_path: pathlib.Path) -> None:
+    """G13: Codex's column, declared codes, at a floor of eleven and seed 0.
+
+    Every `h:mm AM` and `h:mm PM`, h 0 to 9 and mm 00 to 99, twice each,
+    then `z00000` to `z05999`: 10,000 rows, 8,000 different. The
+    description publishes 4,000 cells under `%:%% @@`; the twin writes all
+    4,000, no `group-N`, 8,000 different values, and validates with exit 0.
+    At 824c7a4 it wrote 2,303 and 1,697 `group-N` and missed the form.
+    """
+    cells: "list[str]" = []
+    for hour in range(10):
+        for minute in range(100):
+            for mark in ("AM", "PM"):
+                cells += [f"{hour}:{minute:02d} {mark}"] * 2
+    cells += [f"z{number:05d}" for number in range(6000)]
+    folder = tmp_path / "codes"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text("seen_at\n" + "\n".join(cells) + "\n", encoding="utf-8", newline="\n")
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace", "--smallest-group", "11", "--code", "seen_at"]
+    ) == 0
+    profile = folder / "real-profile.json"
+    block = json.loads(profile.read_text(encoding="utf-8"))["columns"][0]
+    assert block["shape_forms"]["%:%% @@"] == 4000
+    out = folder / "twin"
+    out.mkdir()
+    assert _exit_of(["generate", str(profile), "--seed", "0", "--out-dir", str(out), "--replace"]) == 0
+    twin = out / "real-twin.csv"
+    written = [row[0] for row in list(csv.reader(io.StringIO(twin.read_text(encoding="utf-8"))))[1:]]
+    assert sum(1 for cell in written if parsing.shape_form(cell) == "%:%% @@") == 4000
+    assert [cell for cell in written if cell.startswith("group-")] == []
+    assert len(set(written)) == 8000
+    report = folder / "vt"
+    report.mkdir()
+    assert _exit_of(["validate", str(profile), "--twin", str(twin), "--out-dir", str(report), "--replace"]) == 0

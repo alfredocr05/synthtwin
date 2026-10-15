@@ -10502,7 +10502,16 @@ are named, and this names none. Section 12 carries the row.
 least the rows covered by the entry's own `variants` whose spelling has
 a form, and at most those plus every row `variants_withheld` accounts
 for; and where the `label` has no written form it is exactly nought.
-Both ends are facts of THIS ENTRY.
+Both ends are facts of THIS ENTRY. **A label holding C6-31a's one gap
+may carry nought whatever its spellings wear** (Codex's review of lane
+L2, item 2; plan P4-D392): before lane L2 such a label had no form, so
+every description written then carries nought there -- 100 rows of
+`9:15 AM` beside 100 of `10:30 PM`, read as labels or declared as codes,
+were refused under W8 at 824c7a4. Such a level is READ AS WRITTEN: its
+label wears no form, and no spelling of it counts in one, in this check,
+in the generator (method G8.2a, G8.3b) and in the recount (validation
+`label.shape_form_cells`). A producer since L2 writes nought there only
+where no row of the level wore the label's form.
 
 **Invariant W9 (the spellings the block speaks of).** Let `S` be the
 spellings the published levels name: the keys of every entry's
@@ -11839,10 +11848,18 @@ opposite of each. The census is the intersection, not a judgement.
 either exactly `(withheld)` or a written form: at least one character,
 at most twenty-four, every one of which is one of the three PLACEHOLDERS
 — `%`, `@`, and `&` in a lower-case key, never `@` and `&` in one key —
-or one of the thirteen marks C6-31a names, AND CARRYING AT LEAST TWO
-OF THE THREE KINDS. A loader CHECKS this key by key and refuses the
-document otherwise, rather than trusting that the producer built the
-key by the replacement C6-31a states.
+or one of the thirteen marks C6-31a names, save ONE GAP, AND CARRYING AT
+LEAST TWO OF THE THREE KINDS. The gap is C6-31a's exception and nothing
+wider (lane L2, plan P4-D392; Codex's review of L2, item 5): exactly one
+space or one U+202F, and no other space of either kind, where the
+characters before it are a clock's -- `%:%%` or `%%:%%`, optionally `:%%`
+after, and after the seconds optionally `.` and one `%` or more -- and the
+characters after it are one marker key, `@@`, `&&`, `@.@.` or `&.&.`;
+the gap counts as a mark. So `%:%% @@` and `%%:%%:%%.%%%` U+202F `&&`
+are keys, and `%% @@`, `%:%%  @@`, `%:%% @`, ` %:%%@@` and `@@ %:%%`
+are not. A loader CHECKS this key by key and refuses the document
+otherwise, rather than trusting that the producer built the key by the
+replacement C6-31a states.
 
 **BOTH HALVES, AND THE SECOND WAS MISSING.** The loader enforced the
 two-kinds rule while this grammar stated only the alphabet, so the

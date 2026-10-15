@@ -1653,6 +1653,28 @@ def key_gap_at(name: str) -> int:
     return _key_gap_at(name)
 
 
+def level_unshaped_before_gaps(label: str, shape_form_cells: int) -> bool:
+    """Whether a published level reads as written before lane L2 (P4-D392).
+
+    A DESCRIPTION WRITTEN BEFORE L2 STILL LOADS AND GENERATES THE SAME
+    TWIN (Codex's review of lane L2, item 2). Before L2 a label holding
+    the one gap -- `9:15 am`, its space before the marker -- had no form,
+    so every level of such a label carries `shape_form_cells` 0 whatever
+    its named spellings wear: 100 rows of `9:15 AM` beside 100 of
+    `10:30 PM` were refused under W8 once each spelling wore `%:%% @@`.
+    Such a level -- its label holding the gap, its count in form 0 -- is
+    read as it was written: its label wears no form, so none of its
+    spellings counts in one, in the loader's W8, the generator's G8.2a
+    walk and the recount (validation's `shape_form_cells`). A producer
+    since L2 writes 0 there only where no row of the level wore the
+    label's form, so the reading moves none of its levels' counts.
+
+    Guarantees: a function of the two. Raises TypeError if the label is
+    not a string instance. No I/O of any kind.
+    """
+    return not shape_form_cells and meridiem_gap_at(label) >= 0
+
+
 def shape_form(text: str) -> str:
     """The shape of one cell: its figures and letters, its marks kept.
 

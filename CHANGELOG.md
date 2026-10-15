@@ -22,8 +22,12 @@ repair round they were written `0:00 AA`, and 11 of 28 such tables at
 stamps such as `2024-01-05 9:15 AM` are as before, and on the lane's battery
 of 220 tables the 148 holding no spaced meridiem keep every byte of their
 description and twin. Descriptions written before still load and generate
-as before. Stated: a stamp with a date beside rare words still publishes no
-form, owed to lane L3.
+as before -- labels and codes too, since the lane's Codex review, which
+also keeps the form on times written both `AM` and `am` (388 of 388 where
+the twin wrote 206) and gives codes holding every dial time all 4,000 of
+their form's rows (where it wrote 2,303 and 1,697 `group-N`). Stated: a
+stamp with a date beside rare words still publishes no form, owed to lane
+L3.
 
 ### Codes and long cells written as the source wrote them (2026-10-13)
 
