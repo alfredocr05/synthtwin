@@ -401,7 +401,14 @@ cannot get worse unseen.
   wall of payers that keep nothing), but a wall of more than 1,024 such
   payers still ends a search (`_CLOCK_PAYER_REACH`), the count one value
   short; the payers' exclusions hold before 1970. NF74's unit-room rule,
-  measured before 3b.4, withholds a noon census the twins now meet.
+  measured before 3b.4, withholds a noon census the twins now meet. A
+  clock-only column's minute census is asked over the fine table too, as
+  a timestamp's (P4-D374; Codex I3b2d, item 1: one census over every
+  hour bent the minutes inside a ten-minute bin, a morning's even minutes
+  0.66 against 0.50, silently); its cost, the fine table reading a few
+  hundred cells an hour as dependent: the clinic column at 1,000 rows is
+  withheld, and at floor 36 comes back 0.515 on `:00`/`:30` against 0.706
+  (0.673 published), its minute distance 0.43 to 0.45 against 0.29.
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Lane L1
   (P4-D390, P4-D384, `K-S3-61`) writes made-up figure codes at the

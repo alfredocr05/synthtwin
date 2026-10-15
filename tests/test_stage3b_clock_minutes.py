@@ -143,13 +143,17 @@ _BATTERY = shapes.CLOCKS
 
 
 def test_the_battery_publishes_where_the_minutes_are_heaped() -> None:
-    """At 1,000 rows and a floor of eleven the five shapes typed on `:00` and
-    `:30` or booked on a grid publish their minute census, and the eight whose
-    cells off the heaps are flat over the minutes publish none."""
+    """At 1,000 rows and a floor of eleven the four shapes typed on `:00` and
+    `:30` or booked on a grid publish their minute census, and those whose
+    cells off the heaps are flat over the minutes publish none. Clinic slots,
+    whose `:00` and `:30` stand as clock heaps, publish none since the Codex
+    review of landing I3b2d, item 1: M3's fine table reads their hours as
+    dependent (plan P4-D374's limit; at this floor the heaps keep the twin's
+    share on `:00` or `:30` at the table's 0.706)."""
     columns = {name: shapes.cells(name, 1000) for name in _BATTERY}
     document, _path, _table = _document(columns)
     published = sorted(name for name in _BATTERY if _block(document, name)["minute_census"])
-    assert published == ["ampm", "clinic", "ed_triage_s", "excel_hmm", "walkin"], published
+    assert published == ["ampm", "ed_triage_s", "excel_hmm", "walkin"], published
 
 
 def test_flatness_is_asked_of_the_cells(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -177,20 +181,27 @@ def test_flatness_is_asked_of_the_cells(monkeypatch: pytest.MonkeyPatch) -> None
     assert [_block(document, name)["minute_census"] for name in columns] == [[], []]
 
 
+def _on_the_grid(cells: "list[str]") -> float:
+    """The share of cells on a minute ending in 0 -- walk-ins booked on a ten-minute grid."""
+    read = [second for second in (_second(cell) for cell in cells) if second is not None]
+    return sum(1 for second in read if (second // 60) % 10 == 0) / max(1, len(read))
+
+
 def test_no_few_values_rule_on_clock_times(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Clinic slots of 14 to 35 rows below a raised floor of 36 publish their
-    minute census and their twins come back near the table's share on `:00`
-    or `:30` (71 per cent; 51 with no census, the open item of plan P4-D373).
-    MUTATION: the moments' few-values rule asked of the cells on no heap --
-    the census is left out."""
-    columns = {"clinic": shapes.cells("clinic", 1000)}
+    """Walk-ins booked on a ten-minute grid at more than half, 1,000 rows below a raised floor of
+    36, publish their minute census and their twins come back near the table's share on the
+    grid. (Clinic slots of 14 to 35 rows each once stood here; since the Codex review of landing
+    I3b2d, item 1, M3's fine table withholds their census, a limit plan P4-D374 states.)
+    MUTATION: the moments' few-values rule asked of the cells on no heap -- the census is left
+    out."""
+    columns = {"walkin": shapes.cells("walkin", 1000)}
     document, path, _table = _document(columns, floor=36)
-    block = _block(document, "clinic")
+    block = _block(document, "walkin")
     assert block["minute_census"], block["minute_census"]
     loaded = contract.load_profile(str(path))
     for seed in (0, 4):
         twin, twin_path = _twin(loaded, seed)
-        assert abs(_slots(twin["clinic"]) - _slots(columns["clinic"])) <= 0.04, seed
+        assert abs(_on_the_grid(twin["walkin"]) - _on_the_grid(columns["walkin"])) <= 0.04, seed
         assert _missed(loaded, twin_path) == []
     built = calendar_clock.field_groups
 
@@ -200,7 +211,7 @@ def test_no_few_values_rule_on_clock_times(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(calendar_clock, "field_groups", few)
     document, _path, _table = _document(columns, floor=36)
-    assert _block(document, "clinic")["minute_census"] == []
+    assert _block(document, "walkin")["minute_census"] == []
 
 
 def test_no_middle_half_rule_on_clock_times() -> None:
@@ -922,9 +933,9 @@ def test_red_when_recurring_clock_readings_are_discounted_as_ties(monkeypatch: p
     published, and the twin's day cells on minute 0 rise past a tenth."""
     built = calendar_clock.depends_on_the_hour
 
-    def discounted(hours: "list[int]", values: "list[int]", line: int, squares: int = 0) -> bool:
+    def discounted(hours: "list[int]", values: "list[int]", line: int, squares: int = 0, fine: bool = False) -> bool:
         counts = collections.Counter(zip(hours, values))
-        return built(hours, values, line, sum(count * count for count in counts.values()))
+        return built(hours, values, line, sum(count * count for count in counts.values()), fine)
 
     monkeypatch.setattr(calendar_clock, "depends_on_the_hour", discounted)
     cells = _night_readings_repeated()
@@ -973,31 +984,61 @@ def test_m3_compares_the_hours_by_the_cells_off_the_heaps(floor: int) -> None:
         assert abs(_minute_zero_share(twin["c"], day) - real) <= 0.01
 
 
+def _night_heaps_beside_day_quarters() -> "list[str]":
+    """The verification of the Codex round's second column, 5,400 `HH:MM:SS` cells: hours 00 to
+    05 on `HH:00:00`, each written 300 times -- six heaps -- and 300 cells in each of hours 06 to
+    17, 30 per cent on :15 or :45 and the rest over the other minutes, at varied seconds."""
+    cells: "list[str]" = []
+    others = [minute for minute in range(60) if minute not in (15, 45)]
+    for hour in range(6):
+        cells += [f"{hour:02d}:00:00"] * 300
+    for hour in range(6, 18):
+        for index in range(300):
+            minute = (15 if index % 2 else 45) if index < 90 else others[(index * 7 + hour) % 58]
+            cells += [f"{hour:02d}:{minute:02d}:{(index * 13 + hour) % 60:02d}"]
+    return cells
+
+
+def _quarters_share(cells: "list[str]") -> float:
+    read = [second for second in (_second(cell) for cell in cells) if second is not None]
+    day = [second for second in read if 6 <= second // 3600 < 18]
+    return sum(1 for second in day if (second // 60) % 60 in (15, 45)) / max(1, len(day))
+
+
 def test_red_when_the_hours_are_compared_with_the_heaps_cells(monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTATION: M3's "misled" comparison asked of every body cell, the heaps'
-    among them, as the dependence is -- the minute census is published, and
-    the twin's day cells on minute 0 rise past three times the table's."""
+    """M3's "misled" comparison asked of the cells off the heaps (the verification of the Codex
+    round of landing C2): night readings on the hour written 300 times beside day hours 30 per
+    cent on :15 or :45 publish their census under the coarse-then-fine loop (the Codex review
+    of landing I3b2d, item 1), and the twins keep the day share there at the table's 0.30.
+    MUTATION: the comparison asked of every body cell, the heaps' among them -- the census is
+    withheld and the day share falls to about 0.05. (The column of heaps on every hour that once
+    pinned this mutant is withheld by the fine table under either comparison.)"""
+    cells = _night_heaps_beside_day_quarters()
+    document, path, _table = _document({"c": cells}, floor=11)
+    assert len(_block(document, "c")["minute_census"]) > 1
+    loaded = contract.load_profile(str(path))
+    for seed in (0, 1):
+        twin, twin_path = _twin(loaded, seed)
+        assert _missed(loaded, twin_path) == []
+        assert abs(_quarters_share(twin["c"]) - _quarters_share(cells)) <= 0.01
     asked: "list[tuple[list[int], list[int]]]" = []
     depends = calendar_clock.depends_on_the_hour
     misled = calendar_clock.misled_by_the_count
 
-    def remembered(hours: "list[int]", values: "list[int]", line: int, *rest: int) -> bool:
+    def remembered(hours: "list[int]", values: "list[int]", line: int, *rest: typing.Any) -> bool:
         asked[:] = [(list(hours), list(values))]
         return depends(hours, values, line, *rest)
 
-    def with_the_heaps(_hours: "list[int]", _values: "list[int]", line: int) -> bool:
-        return misled(asked[0][0], asked[0][1], line)
+    def with_the_heaps(_hours: "list[int]", _values: "list[int]", line: int, fine: bool = False) -> bool:
+        return misled(asked[0][0], asked[0][1], line, fine)
 
     monkeypatch.setattr(calendar_clock, "depends_on_the_hour", remembered)
     monkeypatch.setattr(calendar_clock, "misled_by_the_count", with_the_heaps)
-    cells = _heaps_on_every_hour()
     document, path, _table = _document({"c": cells}, floor=11)
-    assert len(_block(document, "c")["minute_census"]) > 1
+    assert _block(document, "c")["minute_census"] == []
     loaded = contract.load_profile(str(path))
-    twin, twin_path = _twin(loaded, 0)
-    assert _missed(loaded, twin_path) == []
-    day = tuple(range(6, 18))
-    assert _minute_zero_share(twin["c"], day) > 3 * _minute_zero_share(cells, day)
+    twin, _twin_path = _twin(loaded, 0)
+    assert _quarters_share(twin["c"]) < 0.1
 
 
 _PAST_THE_TIMES = 2_500_000
@@ -1087,57 +1128,110 @@ def _minute_distance_by_hour(real: "list[str]", twin: "list[str]") -> float:
     return distance
 
 
+def _even_minutes_in_the_evening() -> "list[str]":
+    """The Codex review of landing I3b2d, item 1: 5,400 clock cells -- every `08:mm:ss`,
+    minutes 00 to 59 and seconds 00 to 29, twice; every `20:mm:ss`, even minutes 00 to 58 and
+    seconds 00 to 59, once. The morning holds every minute alike; the evening only the even
+    ones."""
+    cells: "list[str]" = []
+    for minute in range(60):
+        for second in range(30):
+            cells += [f"08:{minute:02d}:{second:02d}"] * 2
+    for minute in range(0, 60, 2):
+        for second in range(60):
+            cells += [f"20:{minute:02d}:{second:02d}"]
+    return cells
+
+
+def _even_share(cells: "list[str]", hour: int) -> float:
+    return _share_of_minutes(cells, hour, range(0, 60, 2))
+
+
+def test_m3_on_clock_times_distorts_no_minute_share_silently() -> None:
+    """THE CODEX REVIEW OF LANDING I3b2d, item 1 (plan P4-D374; the orchestrator's ruling of
+    2026-10-14): ten-minute totals cannot hold the even and odd minutes inside a bin, so one
+    minute census over both hours drew the morning's even minutes at 66 per cent against 50
+    and the evening's at 68 against 100, with no deviation and no MISSED, the minute's
+    distance within the hours 0.213. M3 now asks T3's coarse-then-fine loop: the census is
+    withheld, so no published count is met by distorting the hours -- each hour drawn flat
+    inside its ten-minute bins, the morning's even share 50 per cent as the table's, the
+    distance about 0.17 -- at seeds 0 to 2, with nothing missed."""
+    cells = _even_minutes_in_the_evening()
+    document, path, _table = _document({"c": cells}, floor=11)
+    block = _block(document, "c")
+    loaded = contract.load_profile(str(path))
+    for seed in (0, 1, 2):
+        twin, twin_path = _twin(loaded, seed)
+        assert _missed(loaded, twin_path) == []
+        if block["minute_census"]:
+            assert abs(_even_share(twin["c"], 8) - 0.5) <= 0.05, seed
+            assert abs(_even_share(twin["c"], 20) - 1.0) <= 0.05, seed
+        else:
+            assert abs(_even_share(twin["c"], 8) - 0.5) <= 0.05, seed
+    assert block["minute_census"] == []
+
+
+def _one_reading_an_hour(times: int) -> "list[str]":
+    """T3's Codex item 1 in clock-only form, 720 times of day over 30 days: one reading an hour,
+    the night's hours (before 07 and from 19) on minute 00, the day's on minute (12 * day + hour
+    - 7) % 60, each written `times` times."""
+    cells: "list[str]" = []
+    for day in range(30):
+        for hour in range(24):
+            minute = 0 if hour < 7 or hour >= 19 else (day * 12 + hour - 7) % 60
+            cells += [f"{hour:02d}:{minute:02d}:00"] * times
+    return cells
+
+
 @pytest.mark.parametrize("floor", (11, 36))
-def test_m3_on_clock_times_asks_the_coarse_table_alone(floor: int) -> None:
-    """THE ORCHESTRATOR'S RULING at batch 3b part 2d's integration (plan
-    P4-D374): C2's M3 call stays coarse, not T3's coarse-then-fine loop. T3's
-    Codex item 2 -- minutes 00 to 19 of hour 20 three times a day beside every
-    minute of hour 08 -- drove timestamps' twins to 1,209 of 1,800 morning
-    cells on minutes 00 to 19 against 600; as times of day the ten-minute
-    census holds each hour's bins, so the published minute census distorts no
-    hour: 1,800 morning cells, 600 on minutes 00 to 19, as the table, and the
-    minute's distance within the hours 0.039. Asked of the fine table too, M3
-    withholds the census and that distance doubles."""
+def test_m3_on_clock_times_keeps_t3s_witnesses_met(floor: int) -> None:
+    """THE ORCHESTRATOR'S RULING of 2026-10-14 on the Codex review of landing I3b2d, item 1 (plan
+    P4-D374): C2's M3 call asks T3's coarse-then-fine loop, and T3's two Codex witnesses, written
+    as times of day, still meet every check. Witness 2 -- every minute of hour 08 once a day
+    beside minutes 00 to 19 of hour 20 three times a day -- has its census withheld by the fine
+    table, and its twins keep 600 of 1,800 morning cells on minutes 00 to 19, as the table, the
+    minute's distance within the hours under 0.1 (0.082; 0.039 under the coarse call, which the
+    even and odd minutes of `test_m3_on_clock_times_distorts_no_minute_share_silently` cost).
+    Witness 1 -- one reading an hour, written 30 times -- holds every time of day as a clock heap
+    and publishes no census under either call, its day hours on minute 0 as the table's."""
     cells = _morning_beside_evening()
     document, path, _table = _document({"c": cells}, floor=floor)
-    assert len(_block(document, "c")["minute_census"]) > 1
+    assert _block(document, "c")["minute_census"] == []
     loaded = contract.load_profile(str(path))
     real = _share_of_minutes(cells, 8, range(20))
     for seed in (0, 1, 2):
         twin, twin_path = _twin(loaded, seed)
         assert _missed(loaded, twin_path) == []
         assert abs(_share_of_minutes(twin["c"], 8, range(20)) - real) <= 0.01
-        assert _minute_distance_by_hour(cells, twin["c"]) < 0.05
-
-
-def test_red_when_m3_on_clock_times_asks_the_fine_table_too(monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTATION: C2's call extended to T3's loop, each question asked of the
-    coarse table and then the fine -- the census is withheld and the
-    minute's distance within the hours rises past 0.06 (0.082)."""
-    asked: "list[tuple[list[int], list[int]]]" = []
-    depends = calendar_clock.depends_on_the_hour
-    misled = calendar_clock.misled_by_the_count
-
-    def remembered(hours: "list[int]", values: "list[int]", line: int, *rest: typing.Any) -> bool:
-        if rest:
-            return depends(hours, values, line, *rest)
-        asked[:] = [(list(hours), list(values))]
-        return True
-
-    def looped(off_hours: "list[int]", off_values: "list[int]", line: int, *rest: typing.Any) -> bool:
-        if rest:
-            return misled(off_hours, off_values, line, *rest)
-        hours, values = asked[0]
-        return any(
-            depends(hours, values, line, 0, fine) and misled(off_hours, off_values, line, fine)
-            for fine in (False, True)
-        )
-
-    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", remembered)
-    monkeypatch.setattr(calendar_clock, "misled_by_the_count", looped)
-    cells = _morning_beside_evening()
-    document, path, _table = _document({"c": cells}, floor=11)
+        assert _minute_distance_by_hour(cells, twin["c"]) < 0.1
+    cells = _one_reading_an_hour(30)
+    document, path, _table = _document({"c": cells}, floor=floor)
     assert _block(document, "c")["minute_census"] == []
     loaded = contract.load_profile(str(path))
-    twin, _twin_path = _twin(loaded, 0)
-    assert _minute_distance_by_hour(cells, twin["c"]) > 0.06
+    day = tuple(range(7, 19))
+    for seed in (0, 1, 2):
+        twin, twin_path = _twin(loaded, seed)
+        assert _missed(loaded, twin_path) == []
+        assert abs(_minute_zero_share(twin["c"], day) - _minute_zero_share(cells, day)) <= 0.01
+
+
+def test_red_when_m3_on_clock_times_asks_the_coarse_table_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: C2's call as bb9e6d4 asked it, the coarse table alone -- the even and odd minutes
+    of the Codex review of landing I3b2d, item 1, publish their census, every check holds, and
+    the twin draws the morning's even minutes at 66 per cent against 50."""
+    depends = calendar_clock.depends_on_the_hour
+
+    def coarse(
+        hours: "list[int]", values: "list[int]", line: int, squares: int = 0, fine: bool = False,
+        starts: "list[bool] | None" = None,
+    ) -> bool:
+        return False if fine else depends(hours, values, line, squares, fine, starts)
+
+    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", coarse)
+    cells = _even_minutes_in_the_evening()
+    document, path, _table = _document({"c": cells}, floor=11)
+    assert len(_block(document, "c")["minute_census"]) > 1
+    loaded = contract.load_profile(str(path))
+    twin, twin_path = _twin(loaded, 0)
+    assert _missed(loaded, twin_path) == []
+    assert _even_share(twin["c"], 8) > 0.6
