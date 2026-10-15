@@ -814,6 +814,16 @@ _BOTH_SIDES_OR_UNAVAILABLE = "count-on-both-sides-or-unavailable"
 # records or lines of the file, nought or at the census line. Neither is
 # asked at a floor of one, where the producer does not ask them either.
 _FORM_PLACES = "blank-places-at-the-census-line"
+# HOW A TRAILING DELIMITER IS CLOSED (plan P4-D387, lane R6): a side of
+# the block is a flag, or the word `quoted`; the rows may instead be the
+# runs of their two closings, every run and each closing's total at the
+# census line, as `dialect.closing_runs_disclosed` publishes them.
+_CLOSING = "closing-flag-or-quoted"
+_CLOSING_RUNS = "closing-flag-quoted-or-runs-at-the-census-line"
+# The block whose two sides are asked together: a header closed either
+# way over records all closed `""` is read back as one column more
+# (Codex's review of landing R6, item 3).
+_TRAILING_BLOCK = ("source", "dialect", "trailing_delimiter")
 _FORM_COUNT = "count-of-the-files-lines-zero-or-at-the-census-line"
 # One of the three stand-in numbers this package judges, written as
 # itself. The only path is the declaration records' `built_in_numbers`,
@@ -1262,8 +1272,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "dialect", "separator_line"): _FLAG,
     ("source", "dialect", "short_rows"): _FLAG,
     ("source", "dialect", "trailing_delimiter"): _OBJECT,
-    ("source", "dialect", "trailing_delimiter", "header"): _FLAG,
-    ("source", "dialect", "trailing_delimiter", "rows"): _FLAG,
+    ("source", "dialect", "trailing_delimiter", "header"): _CLOSING,
+    ("source", "dialect", "trailing_delimiter", "rows"): _CLOSING_RUNS,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH): _OBJECT,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH, "ending"): _WORD,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH, "lines"): _FORM_COUNT,
     ("source", "dialect", "written_names"): _ARRAY,
     ("source", "dialect", "written_names", _EACH): _OBJECT,
     ("source", "dialect", "written_names", _EACH, "position"): _COUNT,
@@ -2031,6 +2044,7 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("source", "dialect", "header_rows_quoting"): dialect.QUOTE_RULES,
     ("source", "dialect", "line_endings", _EACH, "ending"): dialect.ENDINGS,
     ("source", "dialect", "line_endings_spread", _EACH, "ending"): dialect.ENDINGS,
+    ("source", "dialect", "trailing_delimiter", "rows", _EACH, "ending"): dialect.CLOSINGS,
     # WHICH SHAPE A RUN OF LINES BEFORE THE TABLE HAS (plan P4-D80):
     # blank, a comment, or a line of text. The MARK published beside it
     # is held by `_PREAMBLE_MARK`, which refuses any letter or digit --
@@ -2629,6 +2643,8 @@ def _leaf_is_published(
         return value is None or _is_moment(value)
     if kind == _FLAG:
         return isinstance(value, bool)
+    if kind in (_CLOSING, _CLOSING_RUNS):
+        return isinstance(value, bool) or value == dialect.CLOSING_QUOTED
     if kind == _NOTHING:
         return value is None
     if kind == _SENTENCE:
@@ -3061,12 +3077,38 @@ def _check_published(
             if named not in PUBLICATION_RULES:
                 raise _refuse(named)
             _check_published(node[name], named, name, context)
+        # A header ending in its delimiter over records all closed `""`
+        # is read back as one column more (Codex's review of landing R6,
+        # item 3; the loader's FD10).
+        if path == _TRAILING_BLOCK and "rows" in node and "header" in node:
+            rows_side = node["rows"]
+            header_side = node["header"]
+            if rows_side == dialect.CLOSING_QUOTED and (
+                header_side is True or header_side == dialect.CLOSING_QUOTED
+            ):
+                raise _refuse(path)
         return
     if kind == _ARRAY:
         if not isinstance(node, list):
             raise _refuse(path)
         for item in node:
             _check_published(item, path + (_EACH,), "", context)
+        return
+    if kind == _CLOSING_RUNS and isinstance(node, list):
+        runs: "list[dialect.EndingRun]" = []
+        for item in node:
+            _check_published(item, path + (_EACH,), "", context)
+            runs += [dialect.EndingRun(ending=item["ending"], lines=item["lines"])]
+        kinds = set([run.ending for run in runs])
+        if (
+            len(kinds) < 2
+            or dialect.endings_broken(tuple(runs), context.floor, 0)
+            # ...and as the twin's closings are measured back (Codex's
+            # review of landing R6, item 4): no run beside one of the
+            # same closing, none past the cap on runs.
+            or dialect.closing_runs_broken(tuple(runs))
+        ):
+            raise _refuse(path)
         return
     if kind == _FORM_PLACES:
         if not isinstance(node, list):
@@ -3756,8 +3798,38 @@ def check_publication(document: dict[str, object]) -> None:
     """
     context = _publication_context(document)
     _check_published(document, (), "", context)
+    _trailing_closings_are_headed(document)
     _affix_notes_are_bound(document)
     _arguments_are_bound(document)
+
+
+def _trailing_closings_are_headed(document: dict[str, object]) -> None:
+    """Refuse a trailing delimiter under a header not read from the file.
+
+    Without a header from the file the survey takes the width from the
+    first record, so a delimiter ending the records is a column more and
+    the producer publishes both closings `false`; a twin written with
+    rows closed otherwise is read back one column wider (the verifier of
+    Codex's review of landing R6, open item 1; the loader's FD10). The
+    trailing block cannot see the header's source, so this asks it from
+    the document after the walk has checked both leaves' kinds.
+    """
+    if "source" not in document:
+        return
+    source = document["source"]
+    if not isinstance(source, dict) or "dialect" not in source:
+        return
+    if "header_source" in source and source["header_source"] == reading.HEADER_FROM_FILE:
+        return
+    form = source["dialect"]
+    if not isinstance(form, dict) or "trailing_delimiter" not in form:
+        return
+    trailing = form["trailing_delimiter"]
+    if not isinstance(trailing, dict):
+        return
+    for side in ("header", "rows"):
+        if side in trailing and trailing[side] is not False:
+            raise _refuse(_TRAILING_BLOCK + (side,))
 
 
 def _is_mechanical_index(

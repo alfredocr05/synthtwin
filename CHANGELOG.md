@@ -6,6 +6,36 @@ exists).
 
 ## [Unreleased]
 
+### A trailing delimiter closed with `""` is read and written back (2026-10-14)
+
+**Lane R6** (plan P4-D387). A table whose header is `site;dx`, whose first
+record is `0100;1E22;""` and whose other 119 records are `0100;1E22;` was
+described as one comma-delimited column; it is now its two columns closed
+by the semicolon. A line may close its trailing delimiter bare or with
+`""`, on the header, on some records or on all of them, and the
+description says how: `trailing_delimiter` takes `true` (bare, as every
+description before this), `"quoted"`, or on the rows the closings' runs,
+published only where each run and each closing's total reach the census
+line, as line endings are; otherwise the commonest closing is written
+throughout. The twin closes each line that way, the loader reads it (and
+refuses runs below the line, FD2), and the validator checks it. Files the
+reader read as more than one column are read exactly as before: on a
+battery of 193 tables the 89 read so are byte-identical, and the 104 that
+were refused or read as one fall-back column are read. A description
+written before of such a one-column reading still loads and writes the
+same twin, but the real table now misses it at exit 3, being read as its
+columns: describe that table again. Measured on the codex table at 1,000,000 rows:
+98 s and 1,013 MB to describe. After Codex's review of the lane: a file the
+reader read from a delimiter before keeps that reading and its questions
+(`a;b|c;` over `1;Y|Z|""` is the semicolon's `a` and `b|c` again), because a
+reading lined up only by `""` now comes last; every spacing and escaping is
+tried before a `""` is read as a closing (`1,x\,""` is `x,""` again); and the
+loader refuses a header ending in its delimiter over records all closed `""`
+(FD10) and closing runs beside a run closed the same way or past 64 (FD2),
+descriptions whose own twins were read back otherwise; it refuses as well
+a trailing delimiter on records under no header read from the file (FD10)
+and a closing run of no records (FD2).
+
 ### Numbers at a million rows: the report in pieces, and a dense tail's mean (2026-10-14)
 
 **Stage 4 lane S4c** (plans P4-D390 and P4-D377). `synthtwin validate`

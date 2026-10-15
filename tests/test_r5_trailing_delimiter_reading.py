@@ -488,23 +488,32 @@ def _rows_of(header: str, rows: "list[str]") -> str:
     ],
     ids=["rows-quoted", "header-quoted", "mixed"],
 )
-def test_a_quoted_empty_last_field_does_not_line_a_reading_up(
+def test_a_quoted_empty_last_field_lines_a_reading_up(
     label: str, text: str, header: str, cell: str
 ) -> None:
-    """A QUOTED EMPTY FIELD IS A VALUE, NOT A TRAILING DELIMITER (Codex
-    item 2). On 3215f2e each of these was read under the semicolon with
-    the quoted field taken off as a trailing delimiter: the twin wrote
-    `1;2;` where the source wrote `1;2;""`, and `a;b;` where it wrote
-    `a;b;""`. The rows hold one value more than the header names (or
-    the header one name more than the rows hold), so no trailing
-    delimiter lines them up, and each is read as on 0ecc82d. Red on
-    3215f2e (`(";", ())`)."""
-    assert dialect.delimiter_reading(text, 0) == (",", ()), label
+    """A QUOTED EMPTY LAST FIELD CLOSES A LINE TOO (lane R6, superseding
+    Codex item 2's refusal of landing R5). Item 2 found the twin writing
+    `1;2;` where the source wrote `1;2;""`, and R5 stopped reading such a
+    field as the closing delimiter, so these files were read as ONE
+    comma-delimited column. The twin now closes each line as the source
+    closed it, so the semicolon reads them as their two columns: the
+    rows closed `""` throughout, the header closed `""`, and the rows
+    closed both ways by turns -- runs of one, below the census line, so
+    published closed the commonest way, a tie going bare. Red on
+    6a248e7, which read each as one column."""
+    assert dialect.delimiter_reading(text, 0) == (";", ()), label
     found = _read(text)
-    assert list(found.header) == [header], label
-    assert found.columns[0][0] == cell, label
-    assert not found.form.header_trailing_delimiter, label
-    assert not found.form.rows_trailing_delimiter, label
+    assert list(found.header) == ["a", "b"], (label, header)
+    assert [column[0] for column in found.columns] == cell.split(";")[:2], label
+    form = found.form
+    if label.startswith("the header"):
+        assert form.header_trailing_delimiter and form.header_closing_quoted, label
+        assert not form.rows_trailing_delimiter, label
+    else:
+        assert not form.header_trailing_delimiter, label
+        assert form.rows_trailing_delimiter, label
+        assert form.rows_closing_quoted == label.startswith("rows end in a quoted"), label
+        assert form.rows_closing_runs == (), label
 
 
 _QUOTED_SENTENCE = 'ends in an empty value in quotation marks ("")'
@@ -545,25 +554,31 @@ def _past_the_sample(quoted: "range") -> str:
     ],
     ids=["row-501", "rows-451-600", "row-501-crlf-bom"],
 )
-def test_a_quoted_empty_value_where_the_rows_close_is_refused_past_the_sample(
+def test_a_quoted_empty_closing_past_the_sample_is_read_and_published_at_the_line(
     label: str, text: str, listed: str
 ) -> None:
-    """A QUOTED EMPTY PAST THE SAMPLE IS NOT TAKEN FOR THE CLOSING
-    DELIMITER (Codex item 2, its verifier's open half (a)). Rows ending
-    in `;` under a header that does not line up under the semicolon; row
-    501, past the 400-record sample, ends `;""`. bbce243 asked only
-    whether that last field was empty, took the `""` off as the closing
-    delimiter, and its twin wrote `P0501;30;F;` with twin and table
-    validating at 0 -- the spelling lost silently (0ecc82d read the file
-    as one column, losing nothing). The row holds one value more than
-    the rows that close, so the file is refused with that reason. Red on
-    bbce243, and on the mutant whose `closing` asks the empty field
-    alone."""
+    """A QUOTED EMPTY CLOSING PAST THE SAMPLE (Codex item 2's verifier,
+    open half (a); lane R6). Rows ending in `;` under a header that does
+    not; row 501, past the 400-record sample, ends `;""`. R5 refused the
+    file so that the `""` was not lost silently; it is now read as the
+    closing it is. One row closed `""` is a count of one, below the
+    census line, so the closings are published bare throughout as the
+    line endings are (plan P4-D290); 150 rows closed `""` in one run
+    stand, and are published as that run. Red on 6a248e7, which refused
+    each."""
     mark = text[:1] == "\ufeff"
-    said = _refusal(text[1:] if mark else text, mark)
-    assert listed in said, (label, said)
-    assert "Rows of t.csv end in a semicolon with nothing after it" in said, said
-    assert 'take the "" off' in said, said
+    found = dialect.settle(text[1:] if mark else text, "utf-8", mark, False, "t.csv")
+    assert list(found.header) == ["id", "age", "arm"], label
+    assert found.n_rows == 600, label
+    form = found.form
+    assert form.rows_trailing_delimiter and not form.rows_closing_quoted, label
+    if "151" in listed or "150 rows" in listed:
+        assert form.rows_closing_runs == (
+            dialect.EndingRun(ending=dialect.CLOSING_BARE, lines=450),
+            dialect.EndingRun(ending=dialect.CLOSING_QUOTED, lines=150),
+        ), label
+    else:
+        assert form.rows_closing_runs == (), label
 
 
 @pytest.mark.parametrize(
@@ -588,22 +603,27 @@ def test_a_quoted_empty_value_where_the_rows_close_is_refused_past_the_sample(
     ],
     ids=["rows-quoted", "header-quoted", "mixed-quoted-first", "mixed-bare-first"],
 )
-def test_the_comma_forms_of_a_quoted_empty_last_field_are_refused(
+def test_the_comma_forms_of_a_quoted_empty_last_field_are_read(
     label: str, text: str, said: str
 ) -> None:
-    """THE WALK'S OWN GUESS ASKS THE QUOTING (Codex item 2, its
-    verifier's open half (b)). The comma is the fall-back, so these
-    never needed detection: the walk guessed a trailing delimiter from
-    an empty last field, quoted or not. bbce243 read `a,b` over
-    `1,2,""` as two columns closed by the comma and wrote `1,2,`, `a,b,""`
-    over `1,2` as a header closed by it, and lost which rows ended in
-    `""` in the mix. A quoted empty field is a value: the first is
-    ragged (two names, three values), the second names a column no row
-    fills that a twin would close, and in the mix the quoted rows are
-    named. Red on bbce243, and on the mutant whose first-row guess asks
-    the empty field alone."""
-    refused = _refusal(text)
-    assert said in refused, (label, refused)
+    """THE COMMA FORMS (Codex item 2's verifier, open half (b); lane R6).
+    The comma is the fall-back, so these never needed detection; R5
+    refused each so that no `""` was written back bare. Each is now read
+    as two columns with the closing spelled as the source spelled it:
+    `""` on every row, `""` on the header, and the two mixes published
+    bare (runs of one, below the census line). Red on 6a248e7, which
+    refused each (``said`` is the sentence it refused with)."""
+    found = _read(text)
+    assert found.form.delimiter == ",", label
+    assert list(found.header) == ["a", "b"], (label, said)
+    form = found.form
+    if label.startswith("the header"):
+        assert form.header_trailing_delimiter and form.header_closing_quoted, label
+        assert not form.rows_trailing_delimiter, label
+        return
+    assert form.rows_trailing_delimiter, label
+    assert form.rows_closing_quoted == (label == "rows end in a quoted empty value"), label
+    assert form.rows_closing_runs == (), label
 
 
 def test_two_wider_rows_among_rows_at_the_header_width_keep_the_ragged_reason() -> None:
@@ -642,25 +662,29 @@ def test_a_closed_header_over_quoted_empty_values_reads_three_columns(delimiter:
 
 
 @pytest.mark.parametrize("delimiter", _DELIMITERS, ids=_DELIMITER_IDS)
-def test_a_quoted_empty_against_a_closing_delimiter_on_both_sides_is_refused(delimiter: str) -> None:
-    """THE QUOTED EMPTY WHERE THE OTHER LINES CLOSE (Codex item 2, its
-    verifier's step (iii)). Header and rows end at the same place, one
-    side in `""` and the other in a bare delimiter, or the rows in both
-    by turns. bbce243 read the header `a;b;""` over `1;2;` as `a;b;`,
-    and the mixes by their first row, losing which rows wrote `""`. Read
-    as three columns, a twin writes the empty name or value bare and is
-    read back as two; read as two, the `""` is lost. Each is refused
-    with the reason, under all four delimiters. Red on bbce243, and on
-    the mutant without `_refuse_a_quoted_empty_against_closing`."""
+def test_a_quoted_empty_against_a_closing_delimiter_on_both_sides_is_read(delimiter: str) -> None:
+    """THE QUOTED EMPTY WHERE THE OTHER LINES CLOSE (Codex item 2's
+    verifier, step (iii); lane R6). Header and rows end at the same
+    place, one side in `""` and the other in a bare delimiter, or the
+    rows in both by turns. R5 refused each, because the twin closed
+    every line bare; the header's closing is now published as it was
+    written, and the rows' runs of one fall below the census line and
+    are published bare, so each reads as two columns closed on both
+    sides. Red on 6a248e7 under all four delimiters."""
     d = delimiter
-    header = _refusal(_rows_of(f'a{d}b{d}""', [f"1{d}2{d}"] * 120))
-    assert _NAME_SENTENCE in header, header
-    for first, row in (("1", [f'1{d}2{d}""', f"1{d}2{d}"]), ("2", [f"1{d}2{d}", f'1{d}2{d}""'])):
-        mixed = _refusal(_rows_of(f"a{d}b{d}", row * 60))
-        assert f"but row {first} " + _QUOTED_SENTENCE in mixed, mixed
-        assert "(60 rows in total)" in mixed, mixed
-    quoted_header = _refusal(_rows_of(f'a{d}b{d}""', [f'1{d}2{d}""', f"1{d}2{d}"] * 60))
-    assert "but row 1 " + _QUOTED_SENTENCE in quoted_header, quoted_header
+    found = _read(_rows_of(f'a{d}b{d}""', [f"1{d}2{d}"] * 120))
+    assert list(found.header) == ["a", "b"]
+    assert found.form.header_trailing_delimiter and found.form.header_closing_quoted
+    assert found.form.rows_trailing_delimiter and not found.form.rows_closing_quoted
+    for row in ([f'1{d}2{d}""', f"1{d}2{d}"], [f"1{d}2{d}", f'1{d}2{d}""']):
+        for head in (f"a{d}b{d}", f'a{d}b{d}""'):
+            found = _read(_rows_of(head, row * 60))
+            assert list(found.header) == ["a", "b"], (head, row)
+            assert found.form.header_trailing_delimiter, (head, row)
+            assert found.form.header_closing_quoted == head.endswith('""'), (head, row)
+            assert found.form.rows_trailing_delimiter, (head, row)
+            assert not found.form.rows_closing_quoted, (head, row)
+            assert found.form.rows_closing_runs == (), (head, row)
 
 
 def test_a_quoted_empty_name_written_quoted_throughout_is_read() -> None:

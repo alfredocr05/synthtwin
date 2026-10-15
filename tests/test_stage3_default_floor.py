@@ -244,8 +244,12 @@ def test_every_call_passes_the_floor_its_function_would_default() -> None:
 def test_the_call_check_is_not_vacuous() -> None:
     """RED CHECK: each old call, put back into the text the check reads."""
     retry = (_SOURCE / "dialect.py").read_text(encoding="utf-8")
+    # Lane R6 passes the reading of a closing `""` after the floor, so
+    # the old call drops both lines.
     passed = (
-        "                small_cell_floor,\n            )\n"
+        "                small_cell_floor,\n"
+        "                # ...and so does the reading of a closing `\"\"` (lane R6).\n"
+        "                bool(quoted_closing),\n            )\n"
         "        raise errors.ProfileError(\n            errors.ragged_rows("
     )
     assert retry.count(passed) == 1

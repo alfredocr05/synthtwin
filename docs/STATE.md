@@ -453,13 +453,18 @@ cannot get worse unseen.
   owner may reverse any): a pooled placement held to `figures_cap`
   misses the pool's mean, named (L1's measured trade: no wide integers),
   and seventeen-figure cells stand outside `styles.spelled`'s family
-  (older, rare; P4-D390). A table whose rows end in its delimiter and
-  whose header does not, or the reverse, is read as its columns since
-  lane R5 (P4-D387); a headerless one still reads an empty last column,
-  written back empty -- lane R7's, the next reader lane, as lane R6's
-  head (2d5f2a3) still reads it so. `site;dx` over `0100;1E22;""` and
-  119 rows of `0100;1E22;` is read, silently, as ONE comma column: lane
-  R6's, its head reading the two columns, merging in batch 4a (P4-D387).
+  (older, rare; P4-D390).
+  A table whose rows end in its delimiter and whose header does not,
+  or the reverse, is read as its columns since lane R5 (P4-D387), and
+  since lane R6 also where a line closes `""`, each closing written back
+  as the source wrote it; closings fewer than the census line are written
+  the commonest way, as line endings are, except that where the header
+  trails too a single closing is the bare one (a header ending in its
+  delimiter over records all closed `""` reads as one column more), so
+  `[bare 1, quoted 119]` under such a header is written bare throughout.
+  A headerless one still reads
+  an empty last column, written back empty -- lane R7's, the next
+  reader lane, as lane R6's head (2d5f2a3) still reads it so.
 - **With every pair published, a raised floor still costs some twins
   their mean and spread.** Since plan P4-D375 every tail pair binary64
   holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11

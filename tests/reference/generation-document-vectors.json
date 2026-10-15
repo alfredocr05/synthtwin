@@ -12,6 +12,7 @@
             ",": null,
             ";": {
               "at_that_width": 4,
+              "lined_up_by": "bare",
               "records": 4,
               "straight": false,
               "width": 5
@@ -25,6 +26,7 @@
           "readings": {
             "\t": {
               "at_that_width": 4,
+              "lined_up_by": "bare",
               "records": 4,
               "straight": false,
               "width": 3
@@ -61,12 +63,14 @@
             "\t": null,
             ",": {
               "at_that_width": 4,
+              "lined_up_by": null,
               "records": 5,
               "straight": true,
               "width": 3
             },
             ";": {
               "at_that_width": 5,
+              "lined_up_by": "bare",
               "records": 5,
               "straight": false,
               "width": 3
@@ -76,24 +80,74 @@
           "text": "id,notes,measure;type;unit;\n1,x;y;z,6\n2,x;y;z,6\n3,x;y;z\n4,x;y;z,6\n"
         },
         {
-          "delimiter": ",",
+          "delimiter": ";",
           "readings": {
             "\t": null,
             ",": null,
-            ";": null,
+            ";": {
+              "at_that_width": 4,
+              "lined_up_by": "quoted",
+              "records": 4,
+              "straight": false,
+              "width": 3
+            },
             "|": null
           },
           "text": "a;b\n1;2;\"\"\n3;4;\"\"\n5;6;\"\"\n"
         },
         {
-          "delimiter": ",",
+          "delimiter": ";",
           "readings": {
             "\t": null,
             ",": null,
-            ";": null,
+            ";": {
+              "at_that_width": 4,
+              "lined_up_by": "quoted",
+              "records": 4,
+              "straight": false,
+              "width": 2
+            },
             "|": null
           },
           "text": "a;b;\"\"\n1;2\n3;4\n5;6\n"
+        },
+        {
+          "delimiter": ";",
+          "readings": {
+            "\t": null,
+            ",": null,
+            ";": {
+              "at_that_width": 4,
+              "lined_up_by": "quoted",
+              "records": 4,
+              "straight": false,
+              "width": 3
+            },
+            "|": null
+          },
+          "text": "site;dx\n0100;1E22;\"\"\n0100;1E22;\n0100;1E22;\n"
+        },
+        {
+          "delimiter": ";",
+          "readings": {
+            "\t": null,
+            ",": null,
+            ";": {
+              "at_that_width": 4,
+              "lined_up_by": "bare",
+              "records": 4,
+              "straight": false,
+              "width": 2
+            },
+            "|": {
+              "at_that_width": 4,
+              "lined_up_by": "quoted",
+              "records": 4,
+              "straight": false,
+              "width": 3
+            }
+          },
+          "text": "a;b|c;\n1;Y|Z|\"\"\n2;Y|Z|\"\"\n3;Y|Z|\"\"\n"
         }
       ],
       "readings": {
@@ -101,6 +155,7 @@
         ",": null,
         ";": {
           "at_that_width": 3,
+          "lined_up_by": null,
           "records": 3,
           "straight": true,
           "width": 2
@@ -108,7 +163,7 @@
         "|": null
       },
       "text": "\"id\"; \"note\"\n\"1\"; \"alpha; beta\"\n\"2\"; \"gamma\"\n",
-      "why": "review item CODEX-5: every setting is scored WITH the delimiter, because the settings decide what a delimiter reads as. This is the file that measurement was taken on. Read with the semicolon and no space skipped, its header is two fields and its rows are three -- the space before the quotation mark makes that mark an ordinary character, so the semicolon inside the note splits the field -- and that reading is rejected as ragged; nothing else reads as two fields at all, so the file was described as ONE column whose name held a semicolon. Read with the space skipped it is the two columns it is. The case freezes the reading every candidate delimiter reaches and the one the file is settled to be written with. Its mutant scores each candidate ONE way, which is the rule this one replaced, and the file is then read as one column under the comma. Since plan P4-D387 the case also reads, under `lined_up`, four files a trailing delimiter on one side does or does not line up with their first record; its second mutant withdraws that lining up, and the first two are read as one column. Since Codex's review of landing R5 it reads three more: a comma table whose header also ends in a semicolon, which the comma reads straight with one short row and the semicolon only lined up, so the comma stands (third mutant: the share alone ranks, and the semicolon takes it); and rows, then a header, ending in a QUOTED empty field, which lines nothing up (fourth mutant: the quotation marks ignored, and the semicolon takes both)."
+      "why": "review item CODEX-5: every setting is scored WITH the delimiter, because the settings decide what a delimiter reads as. This is the file that measurement was taken on. Read with the semicolon and no space skipped, its header is two fields and its rows are three -- the space before the quotation mark makes that mark an ordinary character, so the semicolon inside the note splits the field -- and that reading is rejected as ragged; nothing else reads as two fields at all, so the file was described as ONE column whose name held a semicolon. Read with the space skipped it is the two columns it is. The case freezes the reading every candidate delimiter reaches and the one the file is settled to be written with. Its mutant scores each candidate ONE way, which is the rule this one replaced, and the file is then read as one column under the comma. Since plan P4-D387 the case also reads, under `lined_up`, four files a trailing delimiter on one side does or does not line up with their first record; its second mutant withdraws that lining up, and the first two are read as one column. Since Codex's review of landing R5 it reads three more: a comma table whose header also ends in a semicolon, which the comma reads straight with one short row and the semicolon only lined up, so the comma stands (third mutant: the share alone ranks, and the semicolon takes it); and rows, then a header, ending in a QUOTED empty field. Since lane R6 (Codex's review of integration part 2c) a closing written `\"\"` lines a reading up as a bare one does, because the twin closes each line as its source did: those two files are the semicolon's, and an eighth, the header `site;dx` over a first record closed `\"\"` and the rest closed bare, is read as its two columns where R5 read one (fourth mutant: only a bare closing lines up, R5's rule, and no candidate reads the three). Since Codex's review of landing R6 a reading lined up only by a `\"\"` ranks after one lined up by a bare closing, so a ninth file, the header `a;b|c;` over records `1;Y|Z|\"\"`, keeps the semicolon's `a` and `b|c` (fifth mutant: every lined-up reading ranks alike, and the bar's wider `a;b` and `c;` take it)."
     },
     "row_arrangement": {
       "arrangements": [
@@ -1789,8 +1844,17 @@
         "separator_line": true,
         "short_rows": false,
         "trailing_delimiter": {
-          "header": false,
-          "rows": true
+          "header": "quoted",
+          "rows": [
+            {
+              "ending": "bare",
+              "lines": 2
+            },
+            {
+              "ending": "quoted",
+              "lines": 4
+            }
+          ]
         },
         "written_names": []
       },
@@ -1801,14 +1865,14 @@
         "# withheld line",
         "# withheld line",
         "withheld line",
-        "\"reading\";\"note\"",
+        "\"reading\";\"note\";\"\"",
         " 12.5;\"alpha\";",
         "    3;\"beta; gamma\";",
-        "     ;\"delta\";",
+        "     ;\"delta\";\"\"",
         "",
-        "  100;\"\";",
-        " 7.25;\"epsilon\";",
-        "   42;\"zeta\";"
+        "  100;\"\";\"\"",
+        " 7.25;\"epsilon\";\"\"",
+        "   42;\"zeta\";\"\""
       ],
       "names": [
         "reading",
@@ -1840,8 +1904,8 @@
           "zeta"
         ]
       ],
-      "text": "\ufeffsep=;\n  \n# withheld line\n# withheld line\nwithheld line\n\"reading\";\"note\"\r\n 12.5;\"alpha\";\r\n    3;\"beta; gamma\";\r\n     ;\"delta\";\r\n\r\n  100;\"\";\r\n 7.25;\"epsilon\";\r\n   42;\"zeta\";\u001a",
-      "why": "method section G2's written form, end to end, on a file that exercises most of what a dialect block can say: an Excel separator hint, a byte-order mark, four lines before the table in three runs of two shapes, an always-quoted header, a column padded left to five characters, a second column whose four cell classes take three DIFFERENT quoting rules, a trailing delimiter on every record and none on the header, a blank line after the third record, two runs of line endings, no ending on the last line and an end-of-file mark after it. Before this case the written form had no second implementation at all: landing 2b.9 built it and `grep` for `twin_text` in this file found nothing, so the only check on any of its rules was a round trip through the code that implements them. This case's mutant withdraws the lines before the table, and the file's lines move.",
+      "text": "\ufeffsep=;\n  \n# withheld line\n# withheld line\nwithheld line\n\"reading\";\"note\";\"\"\r\n 12.5;\"alpha\";\r\n    3;\"beta; gamma\";\r\n     ;\"delta\";\"\"\r\n\r\n  100;\"\";\"\"\r\n 7.25;\"epsilon\";\"\"\r\n   42;\"zeta\";\"\"\u001a",
+      "why": "method section G2's written form, end to end, on a file that exercises most of what a dialect block can say: an Excel separator hint, a byte-order mark, four lines before the table in three runs of two shapes, an always-quoted header, a column padded left to five characters, a second column whose four cell classes take three DIFFERENT quoting rules, a trailing delimiter on every record and on the header, a blank line after the third record, two runs of line endings, no ending on the last line and an end-of-file mark after it. Before this case the written form had no second implementation at all: landing 2b.9 built it and `grep` for `twin_text` in this file found nothing, so the only check on any of its rules was a round trip through the code that implements them. This case's mutant withdraws the lines before the table, and the file's lines move. Since lane R6 the trailing delimiters are closed as a source closed them: the header with `\"\"`, the first two records bare and the last four with `\"\"` (plan P4-D387); its second mutant closes every line bare, and the header and four records move.",
       "write_header": true
     }
   },

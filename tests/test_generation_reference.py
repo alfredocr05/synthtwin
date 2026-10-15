@@ -6274,8 +6274,12 @@ def test_the_written_form_is_the_file_the_method_requires() -> None:
     assert lines[at] == dialect.header_line(names, form)
     at = at + 1
     written = [line for line in lines[at:] if line != ""]
+    # ...each record closed as the form closes it (lane R6).
+    quoted = dialect.closings_in_turn(form, len(rows))
+    assert quoted == [False, False, True, True, True, True]
     for index in range(len(rows)):
-        assert written[index] == dialect.data_line(rows[index], form)
+        closing = '""' if quoted[index] else ""
+        assert written[index] == dialect.data_line(rows[index], form) + closing
 
 
 def test_each_cell_is_quoted_under_the_rule_of_its_own_class() -> None:
@@ -6388,8 +6392,10 @@ def test_the_delimiter_is_settled_the_way_the_method_settles_it() -> None:
     # A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387): each file the
     # case reads under `lined_up`, the same way.
     # ...and since Codex's review of landing R5, a straight reading
-    # before a lined-up one, and a quoted empty field lining nothing up.
-    assert len(case["lined_up"]) == 7
+    # before a lined-up one, and a quoted empty field lining nothing up;
+    # since Codex's review of landing R6, a reading lined up only by a
+    # `""` after one lined up by a bare closing (`_reading_level`).
+    assert len(case["lined_up"]) == 9
     for entry in case["lined_up"]:
         more = entry["text"]
         for candidate in dialect.DELIMITERS:
@@ -6404,6 +6410,12 @@ def test_the_delimiter_is_settled_the_way_the_method_settles_it() -> None:
             assert dialect._reads_straight(sample, width) == published["straight"], (
                 more, candidate,
             )
+            level = dialect.LEVEL_STRAIGHT
+            if not published["straight"]:
+                level = dialect.LEVEL_LINED_QUOTED
+                if published["lined_up_by"] == dialect.CLOSING_BARE:
+                    level = dialect.LEVEL_LINED_BARE
+            assert dialect._reading_level(sample, width) == level, (more, candidate)
             assert share == published["at_that_width"] / published["records"], (
                 more, candidate,
             )
@@ -6554,6 +6566,15 @@ DOCUMENT_MUTANTS = {
             replacement=lambda form: [],
             outcome=CHANGES_THE_CELLS,
         ),
+        Mutant(
+            branch="G2's closing of a trailing delimiter as the source "
+            "closed it (plan P4-D387, lane R6); the mutant closes every "
+            "line bare, and the header and the last four records lose "
+            "their `\"\"`",
+            attribute="closing_quotes",
+            replacement=lambda form: "",
+            outcome=CHANGES_THE_CELLS,
+        ),
     ),
     "row_arrangement": (
         Mutant(
@@ -6615,13 +6636,25 @@ DOCUMENT_MUTANTS = {
             outcome=CHANGES_THE_CELLS,
         ),
         Mutant(
-            branch="Codex's review of landing R5, item 2: a quoted empty "
-            "last field is a value and lines nothing up; the mutant "
-            "ignores the quotation marks, and the semicolon reads both "
-            "quoted files with the field taken off",
-            attribute="closes",
+            branch="lane R6, on Codex's review of integration part 2c: a "
+            "last field written `\"\"` lines a reading up as a bare one "
+            "does; the mutant lines up only a bare one, landing R5's "
+            "rule, and no candidate reads the two quoted files or the "
+            "codex table `site;dx`",
+            attribute="ends_empty",
             replacement=lambda record: bool(record["fields"])
-            and record["fields"][-1] == "",
+            and record["fields"][-1] == ""
+            and not record["quoted"][-1],
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="Codex's review of landing R6, item 1: a reading lined "
+            "up only by a `\"\"` ranks after one lined up by a bare "
+            "closing; the mutant ranks every lined-up reading alike, and "
+            "the bar's wider `a;b` and `c;` take the file `a;b|c;` the "
+            "semicolon read before lane R6",
+            attribute="reading_level",
+            replacement=lambda found: 2 if found["straight"] else 1,
             outcome=CHANGES_THE_CELLS,
         ),
     ),
