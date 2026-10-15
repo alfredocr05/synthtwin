@@ -3042,10 +3042,13 @@ def _check_published(
         # A header ending in its delimiter over records all closed `""`
         # is read back as one column more (Codex's review of landing R6,
         # item 3; the loader's FD10).
-        if path == _TRAILING_BLOCK and node.get("rows") == dialect.CLOSING_QUOTED and (
-            node.get("header") is True or node.get("header") == dialect.CLOSING_QUOTED
-        ):
-            raise _refuse(path)
+        if path == _TRAILING_BLOCK and "rows" in node and "header" in node:
+            rows_side = node["rows"]
+            header_side = node["header"]
+            if rows_side == dialect.CLOSING_QUOTED and (
+                header_side is True or header_side == dialect.CLOSING_QUOTED
+            ):
+                raise _refuse(path)
         return
     if kind == _ARRAY:
         if not isinstance(node, list):
