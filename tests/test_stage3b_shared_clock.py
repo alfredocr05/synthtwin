@@ -914,7 +914,7 @@ def test_vectors_frames(monkeypatch: pytest.MonkeyPatch) -> None:
         patched.setattr(generation, "_own_clock_tails", own_places)
         assert _unframed(tail) == tail["answer"] and _unframed(sorted_tail) != sorted_tail["answer"]
     # Its verifier: the ranks left served in rank order, or the places of the ranks that never
-    # move left out of the held places, as on cf0f2e0 (mutants).
+    # move left out of the held places, as on e151454 (mutants).
     by_top = _FILE["frames"]["tails_served_by_their_gaps_tops"]
     unmoving = _FILE["frames"]["tails_hold_the_places_of_ranks_that_never_move"]
     for mutant, case in ((_tails_in_rank_order, by_top), (_tails_of_movable_ranks, unmoving)):
@@ -1278,7 +1278,7 @@ def test_s3_the_tails_served_by_their_gaps_tops(tmp_path_factory: pytest.TempPat
     """THE CODEX REVIEW OF LANDING I3b2d, item 3, its verifier (plan P4-D378, method G7.3k step
     2): the tail ranks the field pass moved take the places it left, the rank whose gap ends first
     served first. At floor 36 the column publishes 500 cells at midnight; at seeds 0 to 2 every
-    twin holds them and misses nothing (501 on cf0f2e0, served in rank order: a +09:00 rank took
+    twin holds them and misses nothing (501 on e151454, served in rank order: a +09:00 rank took
     the one place a -08:00 rank's narrower gap held, and that rank stayed on midnight)."""
     described = _codex_described(tmp_path_factory, "minus_eight_plus_nine", _midnight_at_minus_eight_and_plus_nine(), 36)
     block = described.block("t")
@@ -1291,7 +1291,7 @@ def test_s3_the_tails_hold_the_places_of_ranks_that_never_move(tmp_path_factory:
     2): a bare date in a frame of seconds never moves, but G7.3h sorts it with the tail's other
     ranks, so the take-back holds its place too and lets it claim its own first. The column
     publishes 350 cells at midnight, 100 of them stamps; at floors 11 and 36 and seeds 0 to 2
-    every twin holds them and misses nothing (101 to 103 stamps at midnight on cf0f2e0: +05:30
+    every twin holds them and misses nothing (101 to 103 stamps at midnight on e151454: +05:30
     ranks were handed a bare date's midnight while the bare date stayed on it)."""
     for floor in (11, 36):
         described = _codex_described(tmp_path_factory, "bare_dates_two_sites", _bare_dates_beside_two_sites(), floor)
