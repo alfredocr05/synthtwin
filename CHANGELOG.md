@@ -20,10 +20,18 @@ a plain space. On the lane's battery of 384 stamp columns every stamp of
 the 288 not read as dates is written in its shape and every twin and
 table validates; on lane L2's battery of 220 tables the 200 holding no
 such stamp keep every byte of their description and twin. Descriptions
-written before still load and generate the same twin. Stated: the twin's
-stamps are in the source's shape but are not real dates (`7000-00-01
-26:23`), as every made-up cell of a text column reads as no date, and a
-stamp with a month word, a compact date or an offset still has no form.
+written before still load and validate as before, and every one generates
+the same twin byte for byte save one kind: a description of stamps parted
+by `T` and of 24 characters or fewer (`2024-01-05T09:15`,
+`2024-01-05T9:15AM`), whose form it already published, now generates
+another twin, written with `T` and the `AM` or `PM` word where it wrote a
+stepped letter (`7040-00-01T28:35` where it wrote `7040-00-06C28:35`).
+Stated: the twin's stamps are in the source's shape but are not real
+dates (`7000-00-01 26:23`), as every made-up cell of a text column reads
+as no date; a `T` stamp whose marker alone is lower case
+(`2024-01-05T9:15 am`) is written `AM`; and a stamp with a month word, a
+compact date, an offset or a comma after the date (`1/5/2024, 9:15 AM`)
+still has no form.
 
 ### A clock written with a space before AM or PM keeps its shape (2026-10-14)
 

@@ -10135,7 +10135,13 @@ writes `7000-00-01 26:23` as readily as any other. Filled letter by
 letter, the marker came out `XQ`, which wears no stamp's form after the
 gap, and the `T` any letter; measured on the lane's battery, every
 stamp the source wrote beside rare words, as labels and as codes is now
-written in its source's shape, `T` and marker word included.
+written in its source's shape, `T` and marker word included. A stamp
+parted by `T` and of 24 characters or fewer was a form before L3, filled
+letter by letter there; so a description written before L3 that
+publishes such a form generates another twin since, with `T` and the
+marker word where 7d27335 wrote a stepped letter, and still loads and
+validates as it did (skeptic 1 of L3, item 1). Every other description
+written before L3 generates its twin byte for byte.
 
 A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD FILLED FIGURE BY FIGURE
 (the repair round of lane L2, plan P4-D392). Its key carries the marker
