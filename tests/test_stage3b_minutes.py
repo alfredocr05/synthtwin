@@ -1255,7 +1255,7 @@ def test_a_dense_grid_of_random_times_keeps_its_clock_facts(tmp_path: pathlib.Pa
     plain = calendar_clock.lattice_crowded
     monkeypatch.setattr(
         calendar_clock, "lattice_crowded",
-        lambda unit, low, high, distinct, all_different=False, parsed=0, midnight_counted=True, none_once=False, off_phase=False: plain(
+        lambda unit, low, high, distinct, all_different=False, parsed=0, midnight_counted=True, none_once=False, off_phase=False, places=0: plain(
             unit, low, high, distinct, all_different
         ),
     )
