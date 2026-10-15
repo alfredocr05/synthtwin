@@ -31,7 +31,8 @@ G12.3 windows do not reach the published values there. The checker
 reads such a tail's mean against the hull of G12.13's window and the
 one the construction draws. The oracle carries the rule too, and its one
 frozen case on a dense tail, `tail_shape_ends`, moves with it.
-`K-S4-06` and `K-S4-07` hold both.
+`K-S4-06` and `K-S4-07` hold both. Every case rule 4 leaves a side as
+it stood in, and the twin report's hull, has a test red on its mutant.
 
 ### Numbers and codes at a million rows, without their square (2026-10-14)
 
