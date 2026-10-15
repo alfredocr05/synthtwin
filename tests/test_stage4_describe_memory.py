@@ -28,6 +28,8 @@ the census reading's release, by a weak reference; and the bytes
 from __future__ import annotations
 
 import gc
+import json
+import math
 import pathlib
 import random
 import tracemalloc
@@ -163,6 +165,25 @@ def test_the_mode_holds_one_map_beside_the_cells() -> None:
     assert mode == (1000003.0, 3)
     assert per_row < 100, per_row
     assert taxonomy._mode_of(taxonomy._tally(taxonomy._classify_all(["2", "2.0", "1", "1e0", "3"]), 5, _SETTINGS)) == (1.0, 2)
+
+
+def test_a_zero_mode_carries_the_sign_its_last_cell_wrote(tmp_path: pathlib.Path) -> None:
+    """"0" and "-0" are one exact number read as 0.0 and -0.0: 66bca69's map kept the last cell's, and so does the walk."""
+    counted = [f"{1 + k % 40}" for k in range(200)]
+    plus_last = ["-0"] * 30 + counted + ["0"] * 15
+    minus_last = ["0"] * 30 + counted + ["-0"] * 15
+    for cells, sign in ((plus_last, 1.0), (minus_last, -1.0)):
+        mode, count = taxonomy._mode_of(taxonomy._tally(taxonomy._classify_all(cells), len(cells), _SETTINGS))
+        assert mode is not None
+        assert (mode, count, math.copysign(1.0, mode)) == (0.0, 45, sign)
+    text = "minus_last,plus_last\n" + "".join(f"{minus},{plus}\n" for minus, plus in zip(minus_last, plus_last))
+    path = fixtures.write(tmp_path, "zeros.csv", text)
+    for floor in (11, 36):
+        table = reading.read_table(str(path), small_cell_floor=floor)
+        document = profile.build_document(table, taxonomy.Settings(small_cell_floor=floor), [], [])
+        written = json.dumps(document, sort_keys=True)
+        assert written.count('"mode": -0.0, ') == 1, written
+        assert written.count('"mode": 0.0, ') == 1, written
 
 
 # -- the dates -------------------------------------------------------------------
@@ -330,10 +351,10 @@ def _documents(folder: pathlib.Path) -> "list[dict[str, object]]":
 
 
 def test_no_answer_moves_when_nothing_is_shared(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The memos change which objects hold the answers, never the answers."""
-    shared = _documents(tmp_path)
+    """The memos change which objects hold the answers, never the answers: compared as written text, where -0.0 is not 0.0."""
+    shared = json.dumps(_documents(tmp_path), sort_keys=True)
     monkeypatch.setattr(parsing, "memo_takes", lambda held, answered: False)
-    assert _documents(tmp_path) == shared
+    assert json.dumps(_documents(tmp_path), sort_keys=True) == shared
 
 
 # -- the measures `K-S4-08` reads (tests/test_kpi_ledger.py) ---------------------

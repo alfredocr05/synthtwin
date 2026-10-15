@@ -6633,9 +6633,12 @@ def _classify_all(
     S4d, plan P4-D390). `_classify` is a fixed function of the text and
     the declaration, and `_Cell` is frozen, so the rows that write one
     spelling share one record: the list is the same list of equal
-    records in the same order, and a column of a million rows over
-    a million (a column whose values never repeat stops sharing at
-    `parsing.SPELLING_MEMO_TEXTS`). Nothing reads a record's identity.
+    records in the same order, and a column of a million rows over a
+    thousand spellings holds a thousand records, not a million. Past
+    `parsing.SPELLING_MEMO_TEXTS` different texts the memo stops taking
+    new texts unless it has answered as many rows as it holds (a column
+    whose values never repeat), and it still shares every text it holds.
+    Nothing reads a record's identity.
     """
     known: "dict[str, _Cell]" = {}
     answered = 0
@@ -12835,8 +12838,14 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     # THE VALUES ARE READ OFF THE CELLS OF THE COMMONEST NUMBERS, in a
     # second walk, rather than held in a map beside the counts (lane S4d,
     # plan P4-D390): on a column whose numbers never repeat that map was
-    # one entry a row. Every cell of one exact number holds one value.
+    # one entry a row. Every cell of one exact number holds one value
+    # but exact zero's, which is 0.0 or -0.0 as the cell wrote it ("0",
+    # "-0"), and the two compare equal: the map kept the LAST cell's
+    # value per exact number, so the walk keeps the first exact number
+    # it meets among equal values and then each later cell of that same
+    # number, and the published zero carries the sign 66bca69 wrote.
     smallest: "float | None" = None
+    chosen: "tuple[int, tuple[str, ...], int] | None" = None
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
@@ -12845,8 +12854,9 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
         if counts[cell.exact] != most:
             continue
         found = cell.value
-        if smallest is None or found < smallest:
+        if smallest is None or found < smallest or cell.exact == chosen:
             smallest = found
+            chosen = cell.exact
     return smallest, most
 
 
