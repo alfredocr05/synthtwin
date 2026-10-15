@@ -102,7 +102,11 @@ five minutes apart each written twice), others withholding them -- each
 looser bound published grids that missed their count (the last, 1,171
 values, at 1,000 to 1,171 values with some written once), and of 276
 grids with no value written once swept with them at any size, one to
-sixty minutes apart, the first to miss held 1,250 values; the paid
+sixty minutes apart, the first to miss held 1,250 values (1,000 is 80 %
+of it; 93 grid-and-floor pairs of 1,001 to 2,500 values that met with
+the fifth now withhold); still missed under every rule and carried to
+lane J3: grids starting off midnight (07:13, 00:37), and grids written
+four times with a count at midnight; the paid
 searches grow with the rows however far the unit to join or the payers stand, and behind a wall of payers whose
 moves keep no count (more than 1,024 of them still end a search, as
 before); a column nearly all at midnight says its own reason

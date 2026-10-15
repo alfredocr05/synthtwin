@@ -388,15 +388,20 @@ cannot get worse unseen.
   on the hour, on 5-, 15- and 30-minute slots, written to the minute with
   `:00` seconds -- fill their lattice no more than a uniform draw would
   and keep them (26 of 28 twins miss nothing; the half-hour grid misses
-  `second_heaps.counts` in 2, lane T3's own). A grid whose values repeat
-  and that publishes no count at midnight is crowded only past a fifth
-  where it holds at most 1,171 different values (J2's Codex review, item
-  2, and its two verifications): of 360 such grids swept, every one of at
-  most 1,171 values met its facts with them, and those that missed held
-  1,207 or more, which now withhold them; stamps five minutes apart from
-  07:13, each written twice, 4,500 rows at floor 11, publish and miss
-  `n_distinct` (2,223 to 2,246 of 2,250), alike before the stream (lane
-  T3's own). The payers' walk finds each payer by halving and its paid
+  `second_heaps.counts` in 2, lane T3's own). A repeated grid publishes
+  its minute and second facts under the looser fifth only where no value
+  is written once, no count at midnight is published and it holds at
+  most 1,000 different values (J2's Codex review, item 2, its two
+  verifications and the orchestrator's ruling): 80 % of 1,250, the
+  smallest count at which a swept grid missed; the 93 grid-and-floor
+  pairs of 1,001 to 2,500 values that met with it now withhold. Carried
+  under every rule (older, T3's G7.3h): grids starting off midnight
+  (07:13, 00:37), no value once, 2 to 30 minutes apart, 700 to 5,000
+  values, mostly at floor 11, publish clock facts their twins miss (the
+  worst 940 of 1,000 written), and grids written four times with a count
+  at midnight miss `midnight.count`, `second_heaps.counts` or their
+  count of different values -- owner lane J3 (repeated grids meet their
+  counts, after the 3b close). The payers' walk finds each payer by halving and its paid
   searches grow with the rows (2.04 to 2.16 times a doubling behind a
   wall of payers that keep nothing), but a wall of more than 1,024 such
   payers still ends a search (`_CLOCK_PAYER_REACH`), the count one value
