@@ -1531,7 +1531,10 @@ def test_census_lines_grow_with_the_list() -> None:
     for short in (False, True):
         small = _census_seconds(10000, short)
         large = _census_seconds(80000, short)
-        assert large < 20 * max(small, 0.002), (short, small, large)
+        # The floor is one tick of Windows' process clock (15.625 ms): there `small` reads as
+        # 0.0 and `large` as a few ticks (CI, 2026-10-15: 0.0 against 0.0625), while the walk
+        # restored still takes seconds at 80,000 entries.
+        assert large < 20 * max(small, 0.016), (short, small, large)
         assert large < 1.0, (short, large)
 
 
