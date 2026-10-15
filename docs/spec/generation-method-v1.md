@@ -8009,7 +8009,7 @@ sixty and every difference between two heaps' values), and a lattice the
 body is drawn finer than -- stamps fifteen minutes apart from 07:13,
 drawn a minute at a time and moved onto their heaps -- is crowded where
 no value is written once once filled to the share and above that draw
-by any margin (its Codex review: never at or below it),
+by any margin (its Codex review: not at or below it),
 as is a grid no value of which is written once beside a published count
 at midnight and more than 1,000 different values (a sweep of 512 grids
 on d3712a1, 1 to 60 minutes apart from midnight, 00:37, 07:13 and

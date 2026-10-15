@@ -1558,7 +1558,7 @@ def lattice_crowded(
     not crowded -- publish, and one twin in 8 wrote 1,001 values, the
     same on d3712a1; withheld, all 8 met.
 
-    ABOVE THE DRAW, NEVER AT OR BELOW IT (lane J3's Codex review, items 1
+    ABOVE THE DRAW, NOT AT OR BELOW IT (lane J3's Codex review, items 1
     and 2). The two exceptions above first asked only the share, so 1,500
     of 2,000 quarter-hour slots from 00:13, each written twice -- 0.7557 of
     their lattice against the 0.7795 their 3,000 rows drawn uniformly would

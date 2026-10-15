@@ -18701,7 +18701,7 @@ def clock_lattice_crowded(
     written once it is crowded once filled to the share and above the
     uniform draw by any margin, and so is a grid with no value written
     once beside a published count at midnight and more than 1,000
-    different values -- never one at or below that draw (lane J3's Codex
+    different values -- not one at or below that draw (lane J3's Codex
     review: 1,500 of 2,000 quarter-hour slots from 00:13, each written
     twice, 0.7557 of the lattice against the draw's 0.7795, keep their
     facts and meet them), so both crowded notes' inequalities hold on
