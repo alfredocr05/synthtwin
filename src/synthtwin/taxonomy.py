@@ -18751,9 +18751,27 @@ def clock_lattice_crowded(
                 none_once = False
     instants = [calendar_clock.seconds_of(text) for text in texts]
     counted = details["n_at_midnight"] if "n_at_midnight" in details else None
+    # THE PLACES THE PUBLISHED COUNTS LEAVE (lane J3's Codex review, item 1,
+    # and its verifier): the lattice's points on an hour the hour census
+    # counts and a minute and second the fields' facts hold.
+    body = parsed - rows_low - rows_high
+    hour_groups: "list[tuple[int, int, int]]" = []
+    census = details[calendar_clock.HOUR_CENSUS] if calendar_clock.HOUR_CENSUS in details else []
+    if isinstance(census, list):
+        for group in census:
+            if isinstance(group, dict) and all(isinstance(group.get(key), int) for key in ("first", "last", "count")):
+                hour_groups += [(group["first"], group["last"], group["count"])]
+    places = calendar_clock.lattice_places(
+        unit,
+        min(instants),
+        max(instants),
+        calendar_clock.field_places(tuple(hour_groups), (), body),
+        calendar_clock.field_places(minute.groups, minute.heaps, body),
+        calendar_clock.field_places(second.groups, second.heaps, body),
+    )
     return calendar_clock.lattice_crowded(
         unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed, parsed,
-        isinstance(counted, int), none_once, unit > drawn,
+        isinstance(counted, int), none_once, unit > drawn, places,
     )
 
 

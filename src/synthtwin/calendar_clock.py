@@ -1437,6 +1437,7 @@ def lattice_crowded(
     midnight_counted: bool = True,
     none_once: bool = False,
     off_phase: bool = False,
+    places: int = 0,
 ) -> bool:
     """Whether a column's different values crowd the lattice its clock facts pin.
 
@@ -1592,15 +1593,23 @@ def lattice_crowded(
         return False
     points = (high - low) // unit + 1
     share, whole = CROWDED_SHARE_ALL_DIFFERENT if all_different else CROWDED_SHARE
+    if parsed > 0 and none_once and (
+        off_phase or (midnight_counted and distinct > CROWDED_REPEATED_VALUES)
+    ):
+        # The two exceptions: on the places the published counts leave a
+        # value (`places`, `lattice_places`; lane J3's Codex review, item 1,
+        # and its verifier), filled to the share and above the draw by any
+        # margin.
+        room = places if 0 < places < points else points
+        if distinct * whole < room * share:
+            return False
+        return distinct / room > 1.0 - (1.0 - 1.0 / room) ** parsed
     if distinct * whole < points * share:
         return False
     if parsed <= 0:
         return True
     # The share of the points `parsed` uniform draws fill, on average.
     drawn = 1.0 - (1.0 - 1.0 / points) ** parsed
-    if none_once and (off_phase or (midnight_counted and distinct > CROWDED_REPEATED_VALUES)):
-        # Above the draw by any margin (lane J3's Codex review, item 1).
-        return distinct / points > drawn
     above, over = CROWDED_EXCESS
     # Off midnight with no value written once has returned above, so the
     # fifth is never asked there.
@@ -1612,6 +1621,102 @@ def lattice_crowded(
     ):
         above, over = CROWDED_EXCESS_REPEATED
     return distinct / points - drawn >= above / over
+
+
+def field_places(
+    census: "tuple[tuple[int, int, int], ...]",
+    heaps: "tuple[tuple[int, int], ...]",
+    body: int,
+) -> "tuple[int, ...]":
+    """The values of a field of the clock its published counts leave a body cell, or `()` for every value.
+
+    Lane J3's Codex review, item 1, and its verifier (plan P4-D391). An
+    hour census (`census` its `(first, last, count)` groups, no heaps), or
+    a minute's or second's census of the cells on no heap beside its
+    heaps (`(value, count)`): every value of a group counting a cell, and
+    every heap's value, ascending. `()` -- every value -- where nothing is
+    published, and where heaps stand beside no census and leave a rest of
+    the `body`'s cells on no heap (or the body is not known, below
+    nought), which may stand on any value off them.
+
+    Guarantees: a function of the arguments; returns distinct values
+    ascending, or `()`. Raises nothing. No I/O.
+    """
+    if not census and not heaps:
+        return ()
+    if heaps and not census and (body < 0 or body - sum(count for _value, count in heaps) > 0):
+        return ()
+    held: "set[int]" = {value for value, _count in heaps}
+    for first, last, count in census:
+        if count > 0:
+            held |= set(range(first, last + 1))
+    return tuple(sorted(held))
+
+
+def lattice_places(
+    unit: int,
+    low: int,
+    high: int,
+    hours: "tuple[int, ...]",
+    minutes: "tuple[int, ...]",
+    seconds: "tuple[int, ...]",
+) -> int:
+    """How many points of a lattice stand where a column's published counts leave a value.
+
+    Lane J3's Codex review, item 1, and its verifier (plan P4-D391). The
+    lattice's points are `low`, `low + unit`, ... up to `high` (instants,
+    `seconds_of`); a point counts where its hour of the day is one of
+    `hours`, its minute one of `minutes` and its second one of `seconds`
+    (`field_places`; `()` holds every value). The crowded rule's two
+    exceptions (`lattice_crowded`) ask their share and their draw on these
+    places: stamps fifteen minutes apart from 00:13, written only from
+    06:00 to 20:00, publish an hour census of nought outside those hours,
+    and the night's points are no place a twin may put a value.
+
+    Counted an hour at a time: `unit` divides the hour wherever the
+    lattice is a clock's (`crowding_unit`), so every whole hour holds the
+    same points; the first and last hours are walked, the hours between
+    counted a day at a time. Any other unit counts every point.
+
+    Guarantees: a function of the arguments; returns 0 to the lattice's
+    point count, in at most a few thousand steps whatever the span.
+    Raises nothing. No I/O.
+    """
+    if unit <= 0 or high < low:
+        return 0
+    if HOUR_SECONDS % unit != 0:
+        return (high - low) // unit + 1
+    on_hours = set(hours) if hours else set(range(HOURS))
+    on_minutes = set(minutes) if minutes else set(range(FIELD_VALUES))
+    on_seconds = set(seconds) if seconds else set(range(FIELD_VALUES))
+    first_hour = low // HOUR_SECONDS
+    last_hour = high // HOUR_SECONDS
+    # The lattice's points in one hour, by the instant of each hour's start.
+    phase = low % unit
+    in_hour = 0
+    for instant in range(phase, HOUR_SECONDS, unit):
+        if (instant // 60) in on_minutes and instant % 60 in on_seconds:
+            in_hour += 1
+    total = 0
+    for hour in sorted({first_hour, last_hour}):
+        if hour % HOURS not in on_hours:
+            continue
+        start = max(low, hour * HOUR_SECONDS)
+        stop = min(high, hour * HOUR_SECONDS + HOUR_SECONDS - 1)
+        start += (low - start) % unit
+        for instant in range(start, stop + 1, unit):
+            within = instant % HOUR_SECONDS
+            if (within // 60) in on_minutes and within % 60 in on_seconds:
+                total += 1
+    between = last_hour - first_hour - 1
+    if between > 0:
+        days, left = divmod(between, HOURS)
+        held_hours = days * len(on_hours & set(range(HOURS)))
+        for step in range(left):
+            if (first_hour + 1 + step) % HOURS in on_hours:
+                held_hours += 1
+        total += held_hours * in_hour
+    return total
 
 # anchor 3b-C1 (P4-D373)
 # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, lane C1, plan
