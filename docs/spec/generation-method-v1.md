@@ -10090,6 +10090,18 @@ past. Filled figure by figure from the first, those two twins wrote 349
 and 324 fields of 60 or more, `29:93`, which neither a clock nor a
 duration reader takes. Every other clock's form is as rule (1) states.
 
+A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD FILLED FIGURE BY FIGURE
+(the repair round of lane L2, plan P4-D392). Its key carries the marker
+as `@@`, `&&`, `@.@.` or `&.&.` (C6-31a), which names a word and no
+letters, so wherever such a form is filled figure by figure only the
+clock's figures before the gap are filled, at the step halved and rounded
+down; the gap is written as the form holds it, and the marker as the
+word its key names, the morning's (`AM`, `am`, `A.M.`, `a.m.`) on an even
+step and the evening's on an odd one. Every such spelling wears its form.
+Filled letter by letter, `0:00 AA` wore none: free text of `h:mm AM`
+beside one note in 40 wrote 4 to 29 such cells past the clock line, and
+its twin missed the count of `%:%% @@` it was asked for.
+
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
 one of them is published (owner ruling of 2026-09-17, item 2, option A;
@@ -15984,7 +15996,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and six are required.** The count is taken off the committed
+**All two hundred and seven are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -16016,8 +16028,10 @@ thirteen; the SIXTEENTH,
 `tests/reference/generation-branch-vectors-14.json`, holds four (its
 fourth, `tails_split_first`, lane D4s's, plan P4-D369 part one); and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
-holds five -- landing T1's written clocks and G7.5 step 5, in the file
-plan P4-D364's table gives that landing (G14.2); the TWENTY-FIRST,
+holds six -- landing T1's written clocks and G7.5 step 5, in the file
+plan P4-D364's table gives that landing (G14.2), and lane L2's repair
+round's gapped form past G8.3's clock line, which has no room in the
+twenty-fifth; the TWENTY-FIRST,
 `tests/reference/generation-branch-vectors-21.json`, holds sixteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
 clock supply and clock line, held key by key since its second repair
@@ -16235,6 +16249,7 @@ case passed, which is the failure the count exists to prevent:
 | `layout_dial_spaced_offset` | G7.5's hour on the 12-hour dial padded with a space beside a whole-hour offset (the Codex review of landing R2b): `Jan 11 1970  2:51PM-05`, style 100 with `-05` after its marker; midnight is `12:00AM-05`. Its mutant writes the 24-hour clock's hour, `14:51PM-05` |
 | `layout_dial_utc_offsets` | G7.3b step 10's half day on a column's own wall clock (the Codex review of landing I3a, item 1): a hundred SAS stamps on the 12-hour dial with no marker, `10MAR2024:09:15:55-0500`, written 10:00 to 10:00:49 at -0500 and -0400 and read at UTC, where they stand from 14:00 to 15:00:49 with a tail of eleven at either end. Neither the tails nor the hour pass take the half day, so every rank stands where its rungs and tails do. Its mutant takes the half day on the UTC seconds, e0d82e1's rule, and the 22 ranks of the two tails go to the UTC morning, `10MAR2024:07:00:08-0500` |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
+| `labels_clock_spaced_line` | G8.3's figure fill of a form holding the one gap (the repair round of lane L2, plan P4-D392): 250 appointment times on a clinic's quarter hours written `7:00 AM`, a space before the marker, beside six `99:99 AM`, described at a parse rate of 0.99, a set of 37 categories, 244 cells read as times under the line of 248. Its 202 held-back rows owe `%:%% @@` (172) and `%%:%% @@` (78); the clock supply fills them with times only while the twin stays labels, and the rest are filled figure by figure, the clock's figures at half the step and the marker word by the step's parity, `00:00 AM`, each wearing its form. Its mutant fills the marker key letter by letter, and the oracle refuses its `00:00 AA` |
 | `clock_census_slots` | G7A.4b (landing 3b.5, plan P4-D373): a clinic's slots, 100 times from 08:00 to 11:59 with 30 at 08:00 and 25 at 08:30. Both stand out from the five minutes either side and are published as heaps over every cell: 08:00 fills the low tail, which lists it, and 08:30 is a stretch of its own inside the body; the census counts the body's other cells in ten-minute bins nested in hours. Every heap, group and boundary is met by construction. Its mutant counts the census in fifteen-minute bins, and the runs move |
 | `clock_census_heap_splits_group` | G7A.4b's runs: a heap at 07:25 holding 15 of 84 cells stands inside the census group 07:20 to 07:39, whose 15 other cells are shared over the steps on each side of the heap -- 07:20 to 07:24 and 07:26 to 07:39 -- by how many steps each run holds. Its mutant gives the whole count to the group's first run, and the cells move |
 | `clock_census_night` | G7A.4b on a night column, 80 times from 20:00 to 05:59: the census holds 06:00 to 19:59 as one group of nought, so no rank of the body stands there, where G7A.4's knots filled the middle of the day. Its mutant withdraws the census, the body is one group over the dial, and its middle fills |
