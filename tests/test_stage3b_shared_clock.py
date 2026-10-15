@@ -1267,7 +1267,7 @@ def _bare_dates_beside_two_sites() -> "list[str]":
     return cells
 
 
-def _midnights_kept(described: kpi_shapes.Described, published: int) -> None:
+def _held_at_midnight(described: kpi_shapes.Described, published: int) -> None:
     for seed in SEEDS:
         twin = kpi_shapes.twin_text(described, seed)
         assert sum(1 for line in twin.splitlines()[1:] if line[11:19] == "00:00:00") == published, seed
@@ -1283,7 +1283,7 @@ def test_s3_the_tails_served_by_their_gaps_tops(tmp_path_factory: pytest.TempPat
     described = _codex_described(tmp_path_factory, "minus_eight_plus_nine", _midnight_at_minus_eight_and_plus_nine(), 36)
     block = described.block("t")
     assert block["datetimes_read_at"] == "utc" and block["n_at_midnight"] == 500
-    _midnights_kept(described, 500)
+    _held_at_midnight(described, 500)
 
 
 def test_s3_the_tails_hold_the_places_of_ranks_that_never_move(tmp_path_factory: pytest.TempPathFactory) -> None:
@@ -1297,4 +1297,4 @@ def test_s3_the_tails_hold_the_places_of_ranks_that_never_move(tmp_path_factory:
         described = _codex_described(tmp_path_factory, "bare_dates_two_sites", _bare_dates_beside_two_sites(), floor)
         block = described.block("t")
         assert block["datetimes_read_at"] == "utc" and block["n_at_midnight"] == 350, floor
-        _midnights_kept(described, 100)
+        _held_at_midnight(described, 100)
