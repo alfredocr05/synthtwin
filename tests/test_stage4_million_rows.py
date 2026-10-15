@@ -599,6 +599,7 @@ def _twenty_row_tail(
     object.__setattr__(described_facts, "field_widths", {})
     object.__setattr__(described_facts, "pad_widths", {})
     object.__setattr__(described_facts, "thousands_marks", {})
+    object.__setattr__(described_facts, "group_separator", "")
     values = [boundary - 1000.0 + place for place in range(80)]
     values += [boundary + 1 + place for place in range(15)]
     values += [boundary + distance for distance in far]
