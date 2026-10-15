@@ -479,3 +479,35 @@ def test_a_comma_space_table_s_closings_are_written_back(tmp_path: pathlib.Path)
     assert [line.endswith(",") for line in written[61:]] == [True] * 60
     assert result["twin_form"] == result["form"]
     assert result["exits"] == {"twin": 0, "real": 0}, result["exits"]
+
+
+def test_a_file_whose_closings_fall_on_other_records_misses_the_closing_rule(tmp_path: pathlib.Path) -> None:
+    """The run lengths in the closing rule (`validation._trailing_words`):
+    a table published as runs (sixty records closed `""`, sixty bare)
+    validates at 0 as built, and at 3, `bytes.trailing-delimiter` MISSED,
+    once its twin is rewritten so the first fifty records close `""` and
+    the last seventy close bare -- both closings still present, both runs
+    above the census line, only the records they fall on moved. Red on the
+    mutant that drops the run lengths from the rule's runs sentence."""
+    d = ";"
+    folder = tmp_path / "runs"
+    folder.mkdir()
+    real = folder / "real.csv"
+    real.write_bytes(_table(d, [index < 60 for index in range(120)]).encode("utf-8"))
+    assert _exit_of(["profile", str(real), "--out-dir", str(folder), "--replace"]) == 0
+    described = folder / "real-profile.json"
+    document = json.loads(described.read_text(encoding="utf-8"))
+    assert document["source"]["dialect"]["trailing_delimiter"] == {"header": False, "rows": [
+        {"ending": "quoted", "lines": 60}, {"ending": "bare", "lines": 60}]}
+    assert _exit_of(["generate", str(described), "--out-dir", str(folder), "--seed", "4", "--replace"]) == 0
+    built = (folder / "real-twin.csv").read_bytes().decode("utf-8")
+    assert _checked(folder / "as-built", described, built.encode("utf-8")) == (0, [])
+    lines = built.split("\n")
+    assert _closings(built, d) == "N" + "Q" * 60 + "B" * 60
+    for index in range(1, 121):
+        record = lines[index][:-2] if lines[index].endswith(d + '""') else lines[index]
+        lines[index] = record + ('""' if index <= 50 else "")
+    shifted = "\n".join(lines)
+    assert _closings(shifted, d) == "N" + "Q" * 50 + "B" * 70
+    code, missed = _checked(folder / "shifted", described, shifted.encode("utf-8"))
+    assert code == 3 and "bytes.trailing-delimiter" in missed, (code, missed)
