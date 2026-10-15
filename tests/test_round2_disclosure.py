@@ -1427,9 +1427,26 @@ def test_the_joint_guard_is_what_holds_finding_one_shut(
     obligation no rank shift can meet on a joint column, so the twin
     fails its own description at exit 3 on
     `midnight.withheld [datetime.n_at_midnight]`.
+
+    THE MINUTE AND SECOND FACTS ARE WITHDRAWN WITH IT, as they stood when
+    the guard was written. Since landing 3b.7's widening (MC3, SE3; plan
+    P4-D378, at batch 3b part 2d's integration) a joint column publishes
+    its minute and second heaps, here every body cell on minute 0 and
+    second 0, and beside the hour census they place the one midnight
+    moment exactly: the twin then holds the source's lone timestamp, its
+    own description withholds the count for the joint reason, and without
+    the guard it exits 0 on seeds 0, 4 and 19. So the mutant asks the
+    reviewer's input in the state the guard was measured in, with no
+    minute or second fact, where its absence is still seen.
     """
     from synthtwin import contract
+    from synthtwin import taxonomy
 
+    monkeypatch.setattr(
+        taxonomy,
+        "_clock_fields_ranked",
+        lambda _details, _pairs, _sources, _ranked: ((), (), (), ()),
+    )
     original = contract.midnight_withheld_for_its_size
 
     def _without_the_guard(facts: object) -> bool:
