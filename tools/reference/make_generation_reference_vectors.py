@@ -8812,7 +8812,12 @@ def invented_levels(
                 if outside:
                     trial = past_the_clock(form, cursor[form])
                 cursor[form] += 1
-                if figured and clock_reads(trial, False):
+                # Past the line a spelling a clock reader takes is stepped
+                # past, a U+202F before its marker read as the space it
+                # stands for, as usable_stand_in reads it (lane L2's Codex
+                # fix stream: before, codes in `%:%%\u202f@@` past their
+                # clock times wrote 1,686 of 4,000 rows `group-N`).
+                if figured and clock_reads(trial.replace("\u202f", " "), False):
                     continue
                 if trial in seen or folded(trial) in folds:
                     continue

@@ -43388,6 +43388,26 @@ def _length_affords(moved: int, budget: "list[int]") -> bool:
     return budget[1] >= 0 - moved
 
 
+def _read_as_a_clock(candidate: str) -> bool:
+    """Whether a spelling filled past the clock line is a time of day (G8.3).
+
+    PAST THE CLOCK LINE A CLOCK'S FORM IS FILLED FIGURE BY FIGURE and a
+    spelling a clock reader takes is stepped past, so the cells past the
+    line leave the form's clock times to the cells inside it. A U+202F
+    before the marker (lane L2, plan P4-D392) is read as the plain space
+    it stands for, as allocation reads that form's clock supply
+    (`_clock_forms_past_their_times`) and as the oracle's
+    `usable_stand_in` reads the gap: `parsing.clock_parts` reads no
+    U+202F, and before this the walk took `9:15\u202fAM` past the line,
+    so a column of codes in `%:%%\u202f@@` past its clock times wrote 1,686
+    of its 4,000 form-bearing rows `group-N` where the plain-space column
+    wrote all 4,000 (the verifier of lane L2's Codex fix stream).
+
+    Guarantees: a function of the text. No I/O of any kind.
+    """
+    return parsing.clock_parts(candidate.replace("\u202f", _SPACE)) is not None
+
+
 def _is_a_usable_stand_in(
     candidate: str,
     holes: "tuple[str, ...]" = (),
@@ -43928,7 +43948,7 @@ def _made_up_label(
             if past and figured:
                 candidate = _past_the_clock(form, cursor[form])
             cursor[form] = cursor[form] + 1
-            if figured and parsing.clock_parts(candidate) is not None:
+            if figured and _read_as_a_clock(candidate):
                 continue
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
@@ -54662,7 +54682,7 @@ def _walked_cell(
         candidate: "str | None" = None
         if form:
             candidate = _filled_form(form, index, not figures)
-            if figures and parsing.clock_parts(candidate) is not None:
+            if figures and _read_as_a_clock(candidate):
                 continue
         else:
             candidate = _family_at(kind, band, length, words, index)

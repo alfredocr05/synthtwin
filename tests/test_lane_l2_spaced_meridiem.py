@@ -786,3 +786,85 @@ def test_g13_codes_of_every_dial_time_get_every_row_of_their_form(tmp_path: path
     report = folder / "vt"
     report.mkdir()
     assert _exit_of(["validate", str(profile), "--twin", str(twin), "--out-dir", str(report), "--replace"]) == 0
+
+
+# -- G14: past its times a U+202F form steps past its own times (verifier) ---
+
+
+def _dial_codes(gap: str) -> "list[str]":
+    """Codex's item-3 column with ``gap`` before the marker: 10,000 rows, 8,000 different."""
+    cells: "list[str]" = []
+    for hour in range(10):
+        for minute in range(100):
+            for mark in ("AM", "PM"):
+                cells += [f"{hour}:{minute:02d}{gap}{mark}"] * 2
+    return cells + [f"z{number:05d}" for number in range(6000)]
+
+
+def test_g14_a_spelling_past_the_clock_reads_its_narrow_gap_as_a_space() -> None:
+    """G14: `_read_as_a_clock` takes a time with either gap and nothing else."""
+    for gap in (" ", NARROW):
+        assert generation._read_as_a_clock(f"9:15{gap}AM")
+        assert generation._read_as_a_clock(f"12:00:30{gap}pm")
+        assert not generation._read_as_a_clock(f"9:75{gap}AM")
+    assert not generation._read_as_a_clock("z00001")
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_g14_codes_in_a_narrow_gapped_form_past_its_times_get_every_row(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """G14 (the verifier of lane L2's Codex fix stream): Codex's column with U+202F.
+
+    Declared codes, `%:%%` U+202F `@@` holds 1,440 clock times and its
+    4,000 rows run past them, so its smaller places are filled figure by
+    figure and step past every spelling a clock reader takes -- the U+202F
+    read as the space it stands for, as allocation reads the form. The twin
+    writes all 4,000 in the form, no `group-N`, 8,000 different values, and
+    validates. Mutant: the walk asking `parsing.clock_parts` of the U+202F
+    spelling as written, which takes `9:15` U+202F `AM` past the line
+    (86e9f7f: 2,314 and 1,686 `group-N`, the form MISSED).
+    """
+    form = "%:%%" + NARROW + "@@"
+    folder = tmp_path / "narrow"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text("seen_at\n" + "\n".join(_dial_codes(NARROW)) + "\n", encoding="utf-8", newline="\n")
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace", "--smallest-group", str(floor), "--code", "seen_at"]
+    ) == 0
+    profile = folder / "real-profile.json"
+    block = json.loads(profile.read_text(encoding="utf-8"))["columns"][0]
+    assert block["shape_forms"][form] == 4000
+    out = folder / "twin"
+    out.mkdir()
+    assert _exit_of(["generate", str(profile), "--seed", "0", "--out-dir", str(out), "--replace"]) == 0
+    twin = out / "real-twin.csv"
+    written = [row[0] for row in list(csv.reader(io.StringIO(twin.read_text(encoding="utf-8"))))[1:]]
+    assert sum(1 for cell in written if parsing.shape_form(cell) == form) == 4000
+    assert [cell for cell in written if cell.startswith("group-")] == []
+    assert len(set(written)) == 8000
+    report = folder / "vt"
+    report.mkdir()
+    assert _exit_of(["validate", str(profile), "--twin", str(twin), "--out-dir", str(report), "--replace"]) == 0
+
+
+def test_g14_the_oracle_steps_past_a_narrow_gapped_time_past_the_clock() -> None:
+    """G14: the oracle's mirror (A-P4-59) of the walk past a form's times.
+
+    600 stand-ins of `%:%%` U+202F `@@` with none of its times left are
+    filled figure by figure, and no spelling a clock reader takes with its
+    U+202F read as a space is written: the U+202F walk is the plain-space
+    walk with its gap turned. Mutant: `clock_reads` asked of the U+202F
+    spelling as written, 324 such times among the 600.
+    """
+    oracle = _oracle_module()
+    invented = oracle["invented_levels"]
+    clock_reads = oracle["clock_reads"]
+    assert callable(invented) and callable(clock_reads)
+    walks = {}
+    for gap in (" ", NARROW):
+        form = "%:%%" + gap + "@@"
+        walks[gap] = [label for label, _size in invented((), [1] * 600, {form: 600}, past={form: 0})]
+        assert [label for label in walks[gap] if clock_reads(label.replace(NARROW, " "), False)] == []
+    assert [label.replace(NARROW, " ") for label in walks[NARROW]] == walks[" "]
