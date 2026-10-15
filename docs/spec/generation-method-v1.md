@@ -8015,7 +8015,7 @@ at midnight and more than 1,000 different values (a sweep of 512 grids
 on d3712a1, 1 to 60 minutes apart from midnight, 00:37, 07:13 and
 07:13:20, written once to four times, 500 to 5,000 values, floors 11
 and 36, three twins each: 254 published pairs that missed now withhold
-and meet, 364 that met withhold too; the same grids drawn on midnight met
+and meet, 372 that met withhold too; the same grids drawn on midnight met
 in 96 of 100 published pairs, so the drawing rule at the lattice's own
 phase, not changed here, could keep their facts: untested, inferred
 from those 96; every grid swept held a value in every lattice slot; its
@@ -8023,9 +8023,19 @@ Codex review: 1,500 of 2,000 quarter-hour slots from 00:13, each written
 twice, 0.7557 of their lattice against a draw's 0.7795, keep the facts
 their twins meet, and of 103 grids with up to 30 % of their slots empty,
 floors 11 and 36, the 70 pairs at or below the draw publish and 68 meet
-every fact, the other 2 missing in one twin of three as on d3712a1). So
-a dense grid filling its lattice no more than a uniform draw keeps its
-facts under every exception. The rule
+every fact, the other 2 missing in one twin of three as on d3712a1; its
+verifier: both exceptions ask the share and the draw on the places the
+published counts leave -- the points on an hour the hour census counts
+and a minute and second the fields' facts hold
+(`calendar_clock.lattice_places`) -- so a grid written only by day or
+with every third slot empty, below the draw on every point and missing,
+withholds and meets; of the verifier's 231 grids, floors 11 and 36, 6
+published pairs still miss: 2,500 stamps five minutes apart, 3 % empty,
+each written four times, floor 11, 0.004 below the draw, in 3 twins of 3
+from 07:13 and 2 of 3 from 00:13, and four grids fifteen minutes apart
+written four times in one twin of three, two of them as on d3712a1). So
+a dense grid filling the places its counts leave no more than a uniform
+draw keeps its facts under both exceptions. The rule
 claims no impossibility: it withholds where twins were measured to miss.
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes

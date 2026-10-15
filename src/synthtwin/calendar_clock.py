@@ -1583,7 +1583,45 @@ def lattice_crowded(
     floor 11, the first 0.005 above the draw) and 116 would have met. On
     lane J3's own sweep 6 of the 370 pairs regain their facts (two minutes
     apart from 07:13:20, 0.12 to 0.36 below the draw, floor 36) and all
-    18 twins meet; the 254 stay withheld and meet.
+    18 twins meet (5 of them withhold again on the places, below); the 254
+    stay withheld and meet.
+
+    ON THE PLACES THE PUBLISHED COUNTS LEAVE (lane J3's Codex review, its
+    verifier). The exceptions counted every point between the tails, so a
+    grid written only by day -- its hour census nought outside 06:00 to
+    20:00 -- or with every third slot empty -- its minute's heaps on two of
+    its lattice's three phases -- stood below the draw, published, and
+    missed: 1,000 stamps fifteen minutes apart from 00:13, by day, each
+    written twice, 0.600 of 1,668 points against a draw's 0.699, came back
+    918 to 947 values at floor 11. Where `places` is above nought and
+    below the point count, the exceptions ask their share and their draw on
+    those places (`lattice_places`: the points on an hour the hour census
+    counts and a minute and second the fields' facts hold); the standard
+    path reads every point. Over the verifier's 231 grids (random, by day,
+    weekdays, clinic hours, every third slot and blocks; 1 to 60 minutes
+    apart from midnight, 00:13, 00:37, 07:13 and 07:13:20; written one to
+    four times; 1,000 to 5,000 values), floors 11 and 36, three twins
+    each, the 361 pairs in the exceptions' reach: 40 more withhold -- 25
+    of the 31 that missed with their facts, every one by day or every
+    third slot (21 now meet every fact; 4, fifteen minutes apart from
+    00:13 by day, written three or two to four times, miss the hour
+    census's groups in 1 or 2 twins of 3 withheld, as on d05a8e9), and 15
+    that met --; of the 289 still published 283 meet and 6 miss: 2,500
+    stamps five minutes apart, 3 % of the slots empty, each written four
+    times, floor 11, 0.004 below the draw, in 3 twins of 3 from 07:13
+    (2,479 to 2,489 values) and 2 of 3 from 00:13 (2,487 and 2,495); and in
+    one twin of three, fifteen minutes apart written four times, from
+    07:13:20 on weekdays only or with half the slots empty (a minute's heap
+    count), from 00:13 with 3 % empty (996 of 1,000 values) and from
+    midnight with 10 % empty (a second's heap), the last two as on
+    d3712a1. On lane J3's 512-grid sweep the 254 stay withheld and 8 pairs
+    that met with their facts withhold: two and three minutes apart from
+    07:13:20 at floor 36, whose minute census beside a second's heap at 20
+    leaves a half or a third of the points (the three-minute ones
+    published on d3712a1 and d05a8e9); withheld, all 24 twins meet.
+    Codex's grid, the 103 grids above, the skeptic's 114 and the witnesses
+    hold a value on every hour and phase their counts name, so their
+    places are their points and they decide as before.
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """

@@ -37,10 +37,23 @@ filling its lattice no more than a uniform draw lost facts it met --
 up a second's heap at 0 that every twin met, and 77 of 3,000 cells came
 back at second 0 in place of 2,994 -- and its notes said the values fill
 more places than random draws would. The fill must now stand above that
-draw: of 103 grids with up to 30 % of their slots empty, 70 published
-pairs keep their facts and 68 meet every one (the other 2 miss in one
-twin of three, as before lane J3); 71 pairs of its skeptic's grids and 6
-of the 512-grid sweep regain theirs and meet; the 254 stay withheld.
+draw, counted on the places the published counts leave (its verifier: a
+grid written only by day, or with every third slot empty, had its empty
+night or phase counted, stood below the draw and missed -- fifteen
+minutes apart from 00:13 by day came back 918 to 947 of 1,000 values --
+and now withholds and meets). Over the verifier's 231 grids, floors 11
+and 36, three twins each, 25 of the 31 pairs that missed with their
+facts now withhold (21 meet every fact; 4 written by day miss the hour
+census in some twins either way, as before), 15 that met withhold too,
+and 6 published pairs still miss: 2,500 stamps five minutes apart, 3 %
+of the slots empty, each written four times, at floor 11, just below the
+draw, in 3 twins of 3 from 07:13 and 2 of 3 from 00:13; and four grids
+fifteen minutes apart written four times, in one twin of three (two of
+them as before lane J3). Grids holding a value on every hour and phase
+decide as before (Codex's keeps its facts, as do 70 pairs of 103 partial
+grids and 71 of the skeptic's); on the 512-grid sweep the 254 stay withheld,
+and 8 pairs that met (two and three minutes apart from 07:13:20 at floor
+36) withhold and meet.
 
 ### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
 

@@ -18705,7 +18705,12 @@ def clock_lattice_crowded(
     review: 1,500 of 2,000 quarter-hour slots from 00:13, each written
     twice, 0.7557 of the lattice against the draw's 0.7795, keep their
     facts and meet them), so both crowded notes' inequalities hold on
-    every path.
+    every path. Both exceptions count their share and their draw on THE
+    PLACES THE PUBLISHED COUNTS LEAVE (its verifier): the points on an
+    hour the hour census counts, and a minute and second the two fields'
+    facts hold (`calendar_clock.field_places`, `lattice_places`), so a grid
+    written only by day, or with every third slot empty, is not counted
+    on the places its counts leave empty.
     False where neither field publishes, or where the block has no two
     tails.
 
