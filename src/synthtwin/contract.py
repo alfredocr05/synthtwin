@@ -8545,7 +8545,9 @@ def _shape_form_cells(
 
     **AND A LABEL WITH NO FORM CARRIES 0.** A spelling belongs to this
     level when trimming and folding it gives the label; a spelling that
-    has a form holds no space, so trimming changes nothing, and folding
+    has a form holds no space at either end -- its one gap, where it has
+    one, stands between a clock's figures and its marker (plan P4-D392)
+    -- so trimming changes nothing, and folding
     an ASCII letter leaves an ASCII letter in place -- so a
     form-bearing spelling and its fold wear the same form, which is the
     label's. A label with no form of its own therefore has no
@@ -8579,6 +8581,12 @@ def _shape_form_cells(
                 f"the label '{label}' has no written form, so no spelling "
                 "of it can have one",
             )
+        return shaped
+    if parsing.level_unshaped_before_gaps(label, shaped):
+        # A LABEL HOLDING THE ONE GAP MAY CARRY 0 (Codex's review of lane
+        # L2, item 2; plan P4-D392). Before L2 such a label had no form, so
+        # every description written then carries 0 here whatever its named
+        # spellings are.
         return shaped
     if shaped < named_in_form:
         raise _broken(

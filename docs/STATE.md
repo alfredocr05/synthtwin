@@ -305,12 +305,9 @@ cannot get worse unseen.
   width, owed to lane C2 (P4-D373, strict xfail), as are route 1's 198
   blank cells over 2 columns, to be removed under the corrected route-2
   ruling (no cell blank that the source never left blank), and the label
-  twins' hour-of-day distance at small tables (P4-D390). The spaced
-  meridiem (`9:15 AM`, `08:15:30.123 AM`) publishes no forms, so beside
-  rare words its twin writes 0 of 969 clock cells in their shape:
-  measured by lane R2b and held as its strict xfail X4 (P4-D383), since
-  a form holding a space moves every role's form census, owned by lane
-  L2 (the orchestrator, 2026-10-13); R1's codes
+  twins' hour-of-day distance at small tables (P4-D390). A stamp
+  beside rare words (`2024-01-05 9:15 AM`) publishes no form, as a form
+  holds only the one gap before a clock's marker (P4-D392), owed to lane L3; R1's codes
   question follows the classifier on a clock column (P4-D383's Codex
   paragraph), and on the merged classifier the 10,000-row `HH:MM` column
   with 203 `UNK` is read as clock times under the answer `missing` and

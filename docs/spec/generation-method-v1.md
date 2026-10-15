@@ -10573,12 +10573,32 @@ as one already used in the column is.
 
 **The two halves of the supply are the two answers, which is why one
 rule settles it.** A case flip of the label wears the label's own form
-— such a spelling holds no space, so trimming changes nothing, and
-folding an ASCII letter leaves an ASCII letter in the same place. A
-trailing space wears no form at all, since a space is not one of the
-thirteen marks. So a form-keeping group takes a case flip (or the
-label's own spelling, G8.1 step 2), and a form-losing group takes a
-trailing space, or a case flip where the label itself has no form.
+— such a spelling holds no space at either end, so trimming changes
+nothing, and folding an ASCII letter leaves an ASCII letter in the same
+place — save where the label holds the one gap before a clock's marker
+(contract C6-31a, plan P4-D392): its marker is a WORD, and only the flip
+turning the whole word over keeps the form, `9:15 am` of `9:15 AM`,
+while `9:15 aM` wears none (Codex's review of lane L2, item 1); the walk
+steps past the others where the form is wanted, as it steps past any
+candidate of the other form. A trailing space wears no form at all,
+since a space is not one of the thirteen marks. So a form-keeping group
+takes a form-keeping case flip (or the label's own spelling, G8.1 step
+2), and a form-losing group takes a trailing space, or a case flip that
+wears no form.
+
+**A LEVEL WRITTEN BEFORE LANE L2 IS READ AS WRITTEN** (Codex's review of
+lane L2, item 2; contract 7.4.8). Before L2 a label holding the gap had
+no form, so every description written then gives its level
+`shape_form_cells` 0 whatever its spellings wear. A level whose label
+holds the gap and which carries 0 is read so: its label wears no form,
+none of its spellings counts in a form holding the gap -- here, in G8.1
+step 2's spare spelling, and in G8.3b's published shape -- and the twin
+is the one 6a248e7 wrote. A producer since L2 writes 0 there only where
+no row of the level wore the label's form, so the reading moves none of
+its counts. Measured: 168 descriptions 6a248e7 wrote of spaced and
+U+202F clock times as labels, codes, long tails and free text at floors
+2, 11 and 36: 118 were refused at 824c7a4, and now all load, every twin
+is 6a248e7's byte for byte and every validation exits as it did.
 
 **Where the case flips run out with the form still wanted**, the
 trailing space is written and the level falls short of its published
@@ -10597,6 +10617,14 @@ the form writes, taken round the supply by the same stride the form's
 room is taken round by -- and its other spellings only past it, so a
 held-back level of a clock's shape is written as a time a clock reader
 takes.
+
+*And by lane L2 (plan P4-D392; contract C6-31a):* a form may hold one
+gap, a space or U+202F, between a clock's figures and its marker
+(`%:%% @@`, `%%:%%:%%.%%%` U+202F `&&`), and every such form is a clock's
+form: its clock supply writes each time with that gap before the marker,
+U+202F where the form holds U+202F and a plain space where it holds one,
+never the other. No clock reader takes a time written with U+202F, so no
+clock line holds such a form's times (G8.3's clock line below).
 
 *And by its repair round:* **THE CLOCK LINE.** The twin of a column of
 labels is described again by the producer's own rules, and two of them
@@ -10740,6 +10768,50 @@ form filled figure by figure, every spelling a clock reader takes stepped
 past. Filled figure by figure from the first, those two twins wrote 349
 and 324 fields of 60 or more, `29:93`, which neither a clock nor a
 duration reader takes. Every other clock's form is as rule (1) states.
+
+A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD FILLED FIGURE BY FIGURE
+(the repair round of lane L2, plan P4-D392). Its key carries the marker
+as `@@`, `&&`, `@.@.` or `&.&.` (C6-31a), which names a word and no
+letters, so wherever such a form is filled figure by figure only the
+clock's figures before the gap are filled, at the step halved and rounded
+down; the gap is written as the form holds it, and the marker as the
+word its key names, the morning's (`AM`, `am`, `A.M.`, `a.m.`) on an even
+step and the evening's on an odd one. Every such spelling wears its form.
+Filled letter by letter, `0:00 AA` wore none: free text of `h:mm AM`
+beside one note in 40 wrote 4 to 29 such cells past the clock line, and
+its twin missed the count of `%:%% @@` it was asked for.
+
+SO SUCH A FORM HOLDS TWICE ITS CLOCK'S FIGURES' ROOM, AND THAT IS THE
+ROOM IT ADVERTISES (Codex's review of lane L2, item 3). The room every
+walk and every allocation reads a form's supply from -- ten to a figure
+and twenty-six to a letter place -- is, for a form holding the gap, two
+times the room of the figures before the gap: `%:%% @@` holds 2,000
+spellings, not the 676,000 its marker key read as two letters said. Told
+676,000, allocation handed such a form 338 times what it could write: a
+column declared as codes holding every `h:mm AM` and `h:mm PM`, h 0 to 9
+and mm 00 to 99, twice each, beside `z00000` to `z05999` -- 10,000 rows,
+8,000 different -- at a floor of eleven published 4,000 cells under
+`%:%% @@` and its twin wrote 2,303 and 1,697 `group-N`, the form's count
+MISSED; told 2,000 it writes all 4,000 and 8,000 different values. The
+STEPS of a clock-first walk of such a form -- its clock times, then its
+figure fill -- still come round on the period its key read as letters
+gives, 676,000 for `%:%% @@`, in rule (1)'s clock supply and in G9.5's
+walk of free text: the fill's half step comes round every 2,000 steps,
+so a walk turned on 2,000 met the clock times again at each turn and
+never wrote the fill's earlier heads (free text holding every `h:mm`
+with all four words wrote 4,348 cells in the form where it wrote 5,330).
+
+AND FILLED FIGURE BY FIGURE IT STEPS PAST ITS OWN TIMES WITH EITHER GAP
+(the verifier of lane L2's Codex fix stream). Wherever such a form is
+filled figure by figure, every spelling a clock reader takes with the
+form's U+202F read as the plain space it stands for is stepped past, as
+allocation reads that form's clock supply. Stepped past only where a
+clock reader took it as written -- and none takes U+202F -- the places
+past a U+202F form's times took those times and the places inside them
+ran short: item 3's column written with U+202F, declared as codes, at
+floors of eleven and 36 wrote 2,314 of its 4,000 form-bearing rows and
+1,686 `group-N`, the form's count MISSED, where the plain-space column
+wrote all 4,000; it now writes all 4,000 with either gap.
 
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
@@ -10962,13 +11034,18 @@ both files passing.
    is a shape the census names in either case. The shape covering the
    most rows is taken, ties to its own spelling ascending; none left
    means no shape, and every stand-in owed no form is `group-N` as
-   before. A clock time with one space before its marker has no written
+   before. A clock time with one space before its marker had no written
    form, and its shape is the clock's form with the space and the
    marker's marks kept -- `%:%% @@` for `7:30 AM`, `%%:%%:%% &&` for
-   `07:30:15 pm`, `@.@.` and `&.&.` for the dotted markers -- which no
-   census names, and which G8.3's clock supply fills with times of its
-   face (the repair round of landing 3b.5): a column of `7:30 AM` beside
-   2 % `UNK` wrote 587 of 3,000 twin cells `group-N`, and now none.
+   `07:30:15 pm`, `@.@.` and `&.&.` for the dotted markers -- which
+   G8.3's clock supply fills with times of its face (the repair round of
+   landing 3b.5): a column of `7:30 AM` beside 2 % `UNK` wrote 587 of
+   3,000 twin cells `group-N`, and now none. Since lane L2 (plan
+   P4-D392) that shape is the written form (contract C6-31a), which a
+   census may name and which is then passed over as any named shape is
+   -- save on a level read as written before L2 (G8.2a), whose spellings
+   are tallied as before it: a space before the marker by the clock's
+   shape as above, and U+202F, or a fraction of the second, by none.
 2. **Its supply**, counted as G8.3 counts any form's.
 3. **The places it covers.** The places owed no form are ranked largest
    first and then by place, and the first `supply` of them are covered;
@@ -12100,6 +12177,20 @@ The construction, in this order:
    partners, in exactly the order revision 4 gave them, so a column whose
    collisions case alone could carry writes what it wrote before.
 
+   **A SLOT OF FREE TEXT ASKED A GAPPED FORM ITS PARENT WEARS TAKES THE
+   MARKER WORD TURNED OVER WHOLE FIRST** (Codex's review of lane L2,
+   item 1; plan P4-D392). Where the census form G9.5 asks of the slot
+   holds the one gap before a clock's marker (contract C6-31a) and the
+   parent wears it, the slot takes, before the family above, the parent
+   with its marker word in the other case -- `9:15 am` of `9:15 AM`,
+   `9:15 A.M.` of `9:15 a.m.` -- where it is unwritten, of a length the
+   slot's window admits and no hole spelling: it folds onto the parent
+   and wears the form, where the family's first member, `9:15 aM`,
+   wears none. A slot asked no such form walks the family as above.
+   Measured: 194 times written with both `AM` and `am` beside 12 notes,
+   published 388 cells under `%:%% @@`, and the twin wrote 206 at floors
+   2, 11 and 36 with either gap; now 388, and the twin validates.
+
    **THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS ITS
    TRIMMED TEXT** (residual R-P4-47). The three rules above are stated
    over the parent, and for every parent an invention role produced
@@ -12988,6 +13079,21 @@ for.
    (contract 7.9.1, plan P4-D18). A form FIXES a length — every cell
    that wore one was exactly as long as the form — so which lengths a
    group may be offered is the whole question here.
+
+   **A FORM HOLDING THE ONE GAP BEFORE A CLOCK'S MARKER** (lane L2,
+   plan P4-D392; contract C6-31a) fixes a word count too: two words, its
+   gap -- a space or U+202F, each of which parts two words as the
+   producer counts them -- the separator. Such a form is a clock's form,
+   and a group written in it is a time of its clock supply (G8.3) while
+   that supply lasts and the clock line allows, the gap written as the
+   form holds it; past the line G8.3 fills the form figure by figure,
+   its gap and marker word kept, so such a group wears the form but need
+   be no time of the supply: G9's own 1,000 rows at a floor of eleven,
+   seed 0, write five `0:00 AM` (Codex's review of lane L2, item 4).
+   Measured: a column of `9:15 AM`
+   beside one rare text in 33 published no form, and its twin wrote 0
+   of 969 clock cells in their shape, with a space and with U+202F;
+   now 969 of 969, each a time, each gap as the source wrote it.
 
    **A GROUP CARRYING A PUBLISHED LENGTH END keeps its length exactly**,
    because `length.min` and `length.max` are EXACT-OBSERVABLE. **EVERY
@@ -16649,7 +16755,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and twelve are required.** The count is taken off the committed
+**All two hundred and fifteen are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -16681,8 +16787,11 @@ thirteen; the SIXTEENTH,
 `tests/reference/generation-branch-vectors-14.json`, holds four (its
 fourth, `tails_split_first`, lane D4s's, plan P4-D369 part one); and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
-holds five -- landing T1's written clocks and G7.5 step 5, in the file
-plan P4-D364's table gives that landing (G14.2); the TWENTY-FIRST,
+holds seven -- landing T1's written clocks and G7.5 step 5, in the file
+plan P4-D364's table gives that landing (G14.2), and lane L2's repair
+round's gapped form past G8.3's clock line, which has no room in the
+twenty-fifth, and its Codex review's labels described before L2; the
+TWENTY-FIRST,
 `tests/reference/generation-branch-vectors-21.json`, holds sixteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
 clock supply and clock line, held key by key since its second repair
@@ -16692,7 +16801,7 @@ TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
 holds one -- lane G2's width rule, G6.6.8 -- in the file that table
 gives lane G2; and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds thirty-three -- landing R2a's layouts, the century a person chose,
+holds thirty-four -- landing R2a's layouts, the century a person chose,
 from its repair round a day padded with a space and the offsets a
 column of figure runs owes its class count, beside repeated texts too,
 from its second skeptic those offsets beside a named one, from its
@@ -16708,7 +16817,9 @@ stand-ins past the years a partial form reads and a declared column's
 upper target, and from that repair's verification the same target on
 the date rule's line (plan P4-D383); and from the Codex review of
 landing I3a a column on the dial with no marker read at UTC beside two
-offsets, which G7.3b step 10's half day does not reach --; and the TWENTY-SEVENTH,
+offsets, which G7.3b step 10's half day does not reach; and from lane
+L2 a set of clock times written with U+202F before their marker (plan
+P4-D392) --; and the TWENTY-SEVENTH,
 `tests/reference/generation-branch-vectors-27.json`, holds seven --
 landing 3b.5's second step, G7A.4c's minute census of a column of clock
 times (plan P4-D374), in a file of its own because the twenty-first
@@ -16903,6 +17014,8 @@ case passed, which is the failure the count exists to prevent:
 | `layout_dial_spaced_offset` | G7.5's hour on the 12-hour dial padded with a space beside a whole-hour offset (the Codex review of landing R2b): `Jan 11 1970  2:51PM-05`, style 100 with `-05` after its marker; midnight is `12:00AM-05`. Its mutant writes the 24-hour clock's hour, `14:51PM-05` |
 | `layout_dial_utc_offsets` | G7.3b step 10's half day on a column's own wall clock (the Codex review of landing I3a, item 1): a hundred SAS stamps on the 12-hour dial with no marker, `10MAR2024:09:15:55-0500`, written 10:00 to 10:00:49 at -0500 and -0400 and read at UTC, where they stand from 14:00 to 15:00:49 with a tail of eleven at either end. Neither the tails nor the hour pass take the half day, so every rank stands where its rungs and tails do. Its mutant takes the half day on the UTC seconds, e0d82e1's rule, and the 22 ranks of the two tails go to the UTC morning, `10MAR2024:07:00:08-0500` |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
+| `labels_clock_spaced_line` | G8.3's figure fill of a form holding the one gap (the repair round of lane L2, plan P4-D392): 250 appointment times on a clinic's quarter hours written `7:00 AM`, a space before the marker, beside six `99:99 AM`, described at a parse rate of 0.99, a set of 37 categories, 244 cells read as times under the line of 248. Its 202 held-back rows owe `%:%% @@` (172) and `%%:%% @@` (78); the clock supply fills them with times only while the twin stays labels, and the rest are filled figure by figure, the clock's figures at half the step and the marker word by the step's parity, `00:00 AM`, each wearing its form. Its mutant fills the marker key letter by letter, and the oracle refuses its `00:00 AA` |
+| `labels_written_before_gaps` | G8.2a's reading of a level described before lane L2 (Codex's review of L2, item 2; plan P4-D392): two times written with U+202F before their marker, published at 30 and 20 rows, each level carrying `shape_form_cells` 0 as every description written then does, beside three held-back levels of 10 rows and, under the first level, three held-back groups of two rows as a producer before plan P4-D275 wrote them. Each level is read as written, its label wearing no form: G8.1's spare spelling goes to the largest group, G8.2's flips `9:15` U+202F `Am` and `aM` are taken, and G8.3b's published shape is none, so the held-back levels are `group-N` -- the twin 6a248e7 wrote, which 824c7a4 refused under W8. Its mutant reads the levels as written since L2 |
 | `clock_census_slots` | G7A.4b (landing 3b.5, plan P4-D373): a clinic's slots, 100 times from 08:00 to 11:59 with 30 at 08:00 and 25 at 08:30. Both stand out from the five minutes either side and are published as heaps over every cell: 08:00 fills the low tail, which lists it, and 08:30 is a stretch of its own inside the body; the census counts the body's other cells in ten-minute bins nested in hours. Every heap, group and boundary is met by construction. Its mutant counts the census in fifteen-minute bins, and the runs move |
 | `clock_census_heap_splits_group` | G7A.4b's runs: a heap at 07:25 holding 15 of 84 cells stands inside the census group 07:20 to 07:39, whose 15 other cells are shared over the steps on each side of the heap -- 07:20 to 07:24 and 07:26 to 07:39 -- by how many steps each run holds. Its mutant gives the whole count to the group's first run, and the cells move |
 | `clock_census_night` | G7A.4b on a night column, 80 times from 20:00 to 05:59: the census holds 06:00 to 19:59 as one group of nought, so no rank of the body stands there, where G7A.4's knots filled the middle of the day. Its mutant withdraws the census, the body is one group over the dial, and its middle fills |
@@ -16916,6 +17029,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_codes` | G7A.4b's codes: 12 of 120 cells write `UNK`, a spelling no clock reading takes, at the census line, and the column publishes it with its count (`clock_codes`); the twin writes it exactly that many times, and no made-up stand-in. Its mutant withdraws the codes, and the twin writes `text-1` to `text-12` in their place |
 | `clock_census_no_tails` | G7A.4b on a column with no tails: 40 of 60 cells at 08:00, ten below and ten above, so no boundary has the floor's cells beyond it. The heap and the census over every parsed cell lay the column, where G7A.4 spread a ramp from 00:00. Its mutant withdraws the heaps, and the ranks they held stand at 00:00 |
 | `clock_census_listed_tail_heap` | G7A.4b on a quarter-hour grid, a published step of 900 seconds, whose low tail lists its one value: heaps at 06:00, the low tail's value, at 06:30 and 10:00, the two boundaries, and at 10:30 in the high tail, each holding its count exactly. Its mutant lays the body on the form's own minute, and its values leave the grid |
+| `labels_clock_narrow_gap` | C6-31a's one gap before a clock's marker and G8.3's clock supply behind it (lane L2, plan P4-D392): 100 appointment times written with the narrow no-break space U+202F before `AM` or `PM`, a set of 14 categories, four published at 20 rows, whose 20 held-back rows owe the forms `%:%%` U+202F `@@` (74) and `%%:%%` U+202F `@@` (26). Every held-back row is a time of its face written with U+202F before its marker, as the source wrote it; no clock reader takes U+202F, so no clock line holds them. Its mutant writes the gap as a plain space |
 | `labels_clock_shaped` | G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, and a column declared `--code` has no clock line, so every stand-in is a time a clock reader takes. Its mutant writes every time on the hour, and the walk steps past the ones already written |
 | `labels_clock_line` | G8.3's clock line (the repair round of landing 3b.5): 250 appointment times on a clinic's quarter hours beside six `99:99`, described at a parse rate of 0.99, a set of categories whose 202 held-back rows owe the form `%%:%%`. The clock supply fills them with times only while the twin stays labels -- at most 244 cells read as times -- so the last held-back levels are filled figure by figure. Its mutant withdraws the line, every held-back level is a time, and the twin is read back as clock times |
 | `labels_clock_forms` | G8.3's clock line held key by key (the second repair round of landing 3b.5): 500 appointment times, 488 at the minute and 12 at the second, described at a parse rate of 0.99, a set of categories whose 100 held-back rows owe the forms `%%:%%` (88) and `%%:%%:%%` (12). Only the minute's cells could reach the line, so the line holds them alone and the rows at the second are times of their own form, never rare words: every held-back row is a time, and the twin is read back as labels. Its mutant holds every clock time against one line, as before that round, and the last held-back rows are filled figure by figure |

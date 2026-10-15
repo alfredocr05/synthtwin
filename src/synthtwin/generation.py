@@ -45496,6 +45496,13 @@ def _label_content(
         # form-keeping spelling to the LARGEST held-back group -- and
         # missed in both directions, which is residual R-P4-34.
         own_form = parsing.shape_form(entry.label)
+        # A LEVEL WRITTEN BEFORE LANE L2 IS READ AS WRITTEN (Codex's review
+        # of L2, item 2): its label holding the one gap wears no form there.
+        before = parsing.level_unshaped_before_gaps(
+            entry.label, entry.shape_form_cells
+        )
+        if before:
+            own_form = ""
         keeping = _form_keeping_groups(entry, covered_in_form)
         # WHETHER THE LABEL'S OWN SPELLING IS SPOKEN FOR. A level whose
         # published and held-back spellings do not reach its count is
@@ -45526,7 +45533,7 @@ def _label_content(
                     left[key] = left[key] - 1
                 take = key == spare
                 variant = _variant_spelling(
-                    entry.label, used, owners, wanted, take, flipped
+                    entry.label, used, owners, wanted, take, flipped, before
                 )
                 if take:
                     spare = ""
@@ -46552,7 +46559,9 @@ def _spare_variant_group(
         covered = covered + int(key) * entry.variants_withheld[key]
     if covered < entry.count:
         return ""
-    formless = not parsing.shape_form(entry.label)
+    formless = not parsing.shape_form(
+        entry.label
+    ) or parsing.level_unshaped_before_gaps(entry.label, entry.shape_form_cells)
     best = ""
     for key in _withheld_keys(entry.variants_withheld):
         if not formless and not (key in keeping and keeping[key] > 0):
@@ -46560,6 +46569,19 @@ def _spare_variant_group(
         if not best or int(key) > int(best):
             best = key
     return best
+
+
+def _form_as_read(spelling: str, before: bool) -> str:
+    """A spelling's form, or "" where ``before`` reads a gapped one as none.
+
+    A level written before lane L2 (`parsing.level_unshaped_before_gaps`,
+    Codex's review of L2, item 2) is read as written: a form holding the
+    one gap was no form then. Raises nothing beyond `shape_form`'s check.
+    """
+    form = parsing.shape_form(spelling)
+    if before and form and parsing.key_gap_at(form) >= 0:
+        return ""
+    return form
 
 
 # HOW FAR THE SUPPLY OF MADE-UP SPELLINGS OF ONE LABEL REACHES (method
@@ -46579,6 +46601,7 @@ def _variant_spelling(
     wanted: str,
     spare: bool = False,
     walked: "dict[tuple[str, str | None], int] | None" = None,
+    before: bool = False,
 ) -> "str | None":
     """One made-up spelling of a published label (method G8.2), or None.
 
@@ -46615,7 +46638,9 @@ def _variant_spelling(
     `shape_form_cells` publishes instead of as many as the supply
     happened to reach. Where the case flips run out with the form still
     wanted, the trailing space is written and `_level_form_notes` names
-    the shortfall.
+    the shortfall. ``before`` reads the level as written before lane L2
+    (`parsing.level_unshaped_before_gaps`, Codex's review of L2, item 2):
+    a form holding the one gap counts as none, as it did then.
 
     ``spare`` OFFERS THE LABEL'S OWN SPELLING FIRST where nothing else
     of the level needs it. `E11.9` published beside three rows of
@@ -46626,7 +46651,7 @@ def _variant_spelling(
     which is a DIFFERENT WRITTEN FORM. The form census then went
     unpaid, which is how this was found (P4-D18).
     """
-    if spare and parent not in used and parsing.shape_form(parent) == wanted:
+    if spare and parent not in used and _form_as_read(parent, before) == wanted:
         used[parent] = 1
         owners[parsing.folded(parent)] = parent
         return parent
@@ -46644,7 +46669,7 @@ def _variant_spelling(
             break
         if candidate in used or parsing.folded(candidate) != parent:
             continue
-        if parsing.shape_form(candidate) != wanted:
+        if _form_as_read(candidate, before) != wanted:
             continue
         taken = parsing.folded(candidate) in owners
         if taken and owners[parsing.folded(candidate)] != parent:
@@ -47420,6 +47445,18 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
         clock = _clock_filled_form(form, step)
         if clock is not None:
             return clock
+    # A FORM HOLDING THE ONE GAP KEEPS ITS MARKER WORD (lane L2's repair,
+    # plan P4-D392). Its marker key names no letters but a word, so filled
+    # letter by letter `%:%% @@` wrote `0:00 AA`, which wears no form: past
+    # the clock line 4 to 29 cells of a free-text column of `h:mm AM`
+    # beside 1 note in 40 came out so, and the twin MISSED the census
+    # count it was asked for. Only the clock's figures are stepped, at
+    # half the step, and the half of the day is the step's parity.
+    gap = parsing.key_gap_at(form)
+    if gap >= 0:
+        words = [mark for mark in _CLOCK_FORM_MARKS if mark[0] == form[gap + 1 :]]
+        head = _filled_form(form[:gap], step // 2, False)
+        return head + form[gap] + words[0][1 + step % 2]
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -47488,7 +47525,7 @@ def _clock_shape(form: str) -> "_ClockShape | None":
     An hour of one or two figures, a colon and two figures, optionally a
     colon and two more, optionally after those a point and a fraction of
     the second in one figure or more, and optionally a marker after one
-    space or none (`_CLOCK_FORM_MARKS`): hours 0 to 23 (one figure: 0 to
+    space, one U+202F or none (`_CLOCK_FORM_MARKS`): hours 0 to 23 (one figure: 0 to
     9), or 1 to 12 behind a marker (one figure: 1 to 9). A fraction after
     the minutes is no clock's: `%%:%%.%` is how a stopwatch writes minutes
     and seconds. Guarantees: a function of the form. Raises nothing. No
@@ -47501,9 +47538,11 @@ def _clock_shape(form: str) -> "_ClockShape | None":
         if len(body) > len(mark) and body[len(body) - len(mark) :] == mark:
             body = body[: len(body) - len(mark)]
             marked = (morning, evening)
-            if body[len(body) - 1 :] == " ":
+            # One space, or one narrow no-break space U+202F as Excel and
+            # macOS write it (lane L2, plan P4-D392), stands before it.
+            if body[len(body) - 1 :] in parsing.SHAPE_GAPS:
+                space = body[len(body) - 1 :]
                 body = body[: len(body) - 1]
-                space = " "
             break
     digit = parsing.SHAPE_DIGIT
     # A fraction of the second, read off the end: a point and its figures.
@@ -47576,7 +47615,7 @@ def _clock_filled_form(form: str, step: int) -> "str | None":
     shape = _clock_shape(form)
     if shape is None:
         return None
-    index = step % _form_room(form)
+    index = step % _form_steps(form)
     if index >= shape.times * shape.parts:
         return None
     place = _stepped_around(index % shape.times, shape.times)
@@ -47715,7 +47754,7 @@ def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
     supply = 0 if figured else _fraction_clock_supply(form)
     if supply:
         return supply, _STAND_IN_STEPS
-    room = _form_room(form)
+    room = _form_steps(form)
     return room, room
 
 
@@ -47935,7 +47974,22 @@ def _walk_goes_on(steps: int, taken: int, room: int) -> bool:
 
 
 def _form_room(form: str) -> int:
-    """How many different spellings one form holds."""
+    """How many different spellings one form holds.
+
+    A FORM HOLDING THE ONE GAP HOLDS TWICE ITS CLOCK'S FIGURES (Codex's
+    review of lane L2, item 3; method G8.3). Its marker key is a word,
+    not two letters: filled figure by figure it writes its head's
+    spellings, each with the morning and the evening word (`_filled_form`),
+    so `%:%% @@` holds 2,000 spellings and not 676,000. Counted as
+    letters, allocation gave the form 338 times its supply: a column of
+    codes holding every `h:mm AM` and `h:mm PM`, h 0 to 9 and mm 00 to
+    99, twice each beside 6,000 other codes published 4,000 cells under
+    `%:%% @@` and its twin wrote 2,303 and 1,697 `group-N`.
+    """
+    if _SPACE in form or "\u202f" in form:
+        gap = parsing.key_gap_at(form)
+        if gap >= 0:
+            return 2 * _form_room(form[:gap])
     room = 1
     for character in form:
         if character == parsing.SHAPE_DIGIT:
@@ -47946,6 +48000,38 @@ def _form_room(form: str) -> int:
         ):
             room = room * 26
     return room
+
+
+def _form_steps(form: str) -> int:
+    """How many steps a clock-first walk of one form takes to come round.
+
+    The form's room (`_form_room`), save on a form holding the one gap
+    (Codex's review of lane L2, item 3): such a form holds twice its
+    head's spellings, but its clock-first walk writes its clock times
+    first and its figure fill after them, and that fill's half step comes
+    round every `_form_room` steps. Counted on those 2,000 steps, the walk
+    of `%:%% @@` met its clock times again at every turn before the fill's
+    earlier heads and never reached them: free text holding every `h:mm`
+    with `AM`, `PM`, `am` and `pm`, twice each, wrote 4,348 cells in the
+    form where 824c7a4 wrote 5,330. So `_clock_filled_form` and the free
+    text's walk (`_form_walk_bounds`) count steps on the period the key
+    read as letters gives, as at 824c7a4 -- 676,000 for `%:%% @@` -- while
+    allocation reads the 2,000. Guarantees: a function of the form.
+    Raises nothing. No I/O of any kind.
+    """
+    if _SPACE in form or "\u202f" in form:
+        if parsing.key_gap_at(form) >= 0:
+            steps = 1
+            for character in form:
+                if character == parsing.SHAPE_DIGIT:
+                    steps = steps * 10
+                elif (
+                    character == parsing.SHAPE_LETTER
+                    or character == parsing.SHAPE_LOWER
+                ):
+                    steps = steps * 26
+            return steps
+    return _form_room(form)
 
 
 def _stepped_around(step: int, room: int) -> int:
@@ -47998,7 +48084,9 @@ def _form_words(form: str) -> int:
     words = 0
     inside = False
     for character in form:
-        if character == _SPACE or character == "\t":
+        # U+202F parts two words as `parsing.token_count` counts them, and
+        # since plan P4-D392 a clock's form may hold it before its marker.
+        if character == _SPACE or character == "\t" or character == "\u202f":
             inside = False
             continue
         if not inside:
@@ -48455,6 +48543,29 @@ def _length_affords(moved: int, budget: "list[int]") -> bool:
     return budget[1] >= 0 - moved
 
 
+def _read_as_a_clock(candidate: str) -> bool:
+    """Whether a spelling filled past the clock line is a time of day (G8.3).
+
+    PAST THE CLOCK LINE A CLOCK'S FORM IS FILLED FIGURE BY FIGURE and a
+    spelling a clock reader takes is stepped past, so the cells past the
+    line leave the form's clock times to the cells inside it. A U+202F
+    before the marker (lane L2, plan P4-D392) is read as the plain space
+    it stands for, as allocation reads that form's clock supply
+    (`_clock_forms_past_their_times`) and as the oracle's
+    `usable_stand_in` reads the gap: `parsing.clock_parts` reads no
+    U+202F, and before this the walk took `9:15\u202fAM` past the line,
+    so a column of codes in `%:%%\u202f@@` past its clock times wrote 1,686
+    of its 4,000 form-bearing rows `group-N` where the plain-space column
+    wrote all 4,000 (the verifier of lane L2's Codex fix stream).
+
+    Guarantees: a function of the text. Raises TypeError for anything
+    that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(candidate, str):
+        raise TypeError("a stand-in reached the clock reading as something else")
+    return parsing.clock_parts(candidate.replace("\u202f", _SPACE)) is not None
+
+
 def _is_a_usable_stand_in(
     candidate: str,
     holes: "tuple[str, ...]" = (),
@@ -48594,7 +48705,7 @@ def _is_a_usable_stand_in(
     return candidate[0] not in "=+-@"
 
 
-def _level_key(spelling: str) -> str:
+def _level_key(spelling: str, before: bool = False) -> str:
     """The shape one published spelling wears, its case kept (P4-D122).
 
     `parsing.shape_form` of the spelling, with `&` in every letter place
@@ -48603,14 +48714,20 @@ def _level_key(spelling: str) -> str:
 
     A CLOCK TIME WITH ONE SPACE BEFORE ITS MARKER KEEPS THE SPACE (the
     repair round of landing 3b.5, plan P4-D373; contract 7.9.1). Such a
-    spelling has no form (section 7.9), so a column of `7:30 AM` read as
+    spelling had no form (section 7.9), so a column of `7:30 AM` read as
     labels wrote every held-back time `group-N`: 632 of 3,000 twin cells
     at a floor of 36. Its key is the clock's form with the space and the
     marker's own marks -- `%:%% @@`, `%%:%%:%% &&`, `%:%% @.@.` -- which
-    no census names, since a census form never holds a space, and which
-    G8.3's clock supply fills with times of that face.
+    G8.3's clock supply fills with times of that face. Since lane L2
+    (plan P4-D392) that key IS the spelling's form, its space or U+202F
+    kept (`parsing.meridiem_gap_at`), and a census may name it; every
+    clock `parsing.clock_parts` reads with a space before its marker now
+    has that form, so the branch below, kept, is reached by none -- save
+    on a level read as written before L2 (``before``,
+    `parsing.level_unshaped_before_gaps`, Codex's review of L2, item 2),
+    whose gapped form counts as none there, as it did then.
     """
-    form = parsing.shape_form(spelling)
+    form = _form_as_read(spelling, before)
     if not form:
         parts = parsing.clock_parts(spelling)
         if parts is not None and parts[5] in _SPACED_CLOCK_MARKS:
@@ -48677,8 +48794,13 @@ def _published_level_shape(
         spellings = entry.variants
         if not spellings:
             spellings = {entry.label: entry.count}
+        # A level written before lane L2 is read as written (Codex's review
+        # of L2, item 2): its gapped spellings had no form then.
+        before = parsing.level_unshaped_before_gaps(
+            entry.label, entry.shape_form_cells
+        )
         for spelling in sorted(spellings):
-            key = _level_key(spelling)
+            key = _level_key(spelling, before)
             if not key:
                 continue
             rows[key] = (rows[key] if key in rows else 0) + spellings[spelling]
@@ -48984,7 +49106,7 @@ def _made_up_label(
             if past and figured:
                 candidate = _past_the_clock(form, cursor[form])
             cursor[form] = cursor[form] + 1
-            if figured and parsing.clock_parts(candidate) is not None:
+            if figured and _read_as_a_clock(candidate):
                 continue
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
@@ -49010,9 +49132,11 @@ def _made_up_label(
 # -- the classes a column of labels still owes (method G8.3a) ---------
 
 # THE THREE CLASSES A HELD-BACK GROUP CAN OWE BESIDES TEXT, each keyed
-# with a leading SPACE. A written form holds no space -- a space is not
-# one of the thirteen marks -- so no key here can be mistaken for a form
-# of the census these debts are settled beside.
+# with a leading SPACE. A written form never begins with a space -- a
+# space is not one of the thirteen marks, and the one gap a clock's
+# marker may stand behind (plan P4-D392) follows the clock's figures --
+# so no key here can be mistaken for a form of the census these debts
+# are settled beside.
 _OWED_NUMBER = " number"
 _OWED_OUT_OF_RANGE = " out_of_range"
 _OWED_CONTRADICTORY = " contradictory"
@@ -56037,6 +56161,7 @@ def _partner_of(
     spent: "dict[tuple[int, int, int | None], bool] | None" = None,
     words: "int | None" = None,
     held: "tuple[int, int] | None" = None,
+    asked: str = "",
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -56199,7 +56324,7 @@ def _partner_of(
         return _partner_indexed(
             index, folded, spellings, families, used, (shortest, longest),
             sizes, long_tail_line, carried, holes, under_first,
-            (parents, spent), words, held,
+            (parents, spent), words, held, asked,
         )
     for named_first in named_passes:
         for under in under_first:
@@ -56228,7 +56353,7 @@ def _partner_of(
                             continue
                         found = _partner_from(
                             parent_place, index, spellings, used, low, high,
-                            worn, holes, prefixes, named_first,
+                            worn, holes, prefixes, named_first, asked,
                         )
                         if found is None:
                             continue
@@ -56256,6 +56381,7 @@ def _partner_indexed(
     kept: "tuple[dict[tuple[str, bool, int | None], list[int]], dict[tuple[int, int, int | None], bool]]",
     words: "int | None" = None,
     held: "tuple[int, int] | None" = None,
+    asked: str = "",
 ) -> "str | None":
     """`_partner_of`'s walk over the parents that can answer, and no other.
 
@@ -56367,7 +56493,7 @@ def _partner_indexed(
                             continue
                     found = _partner_from(
                         parent_place, index, spellings, used, shortest, longest,
-                        None, holes, None, False,
+                        None, holes, None, False, asked,
                     )
                     if found is None:
                         # SPENT ONLY WHERE THE FAMILY ENDED INSIDE THE
@@ -56399,6 +56525,7 @@ def _partner_from(
     holes: "tuple[str, ...]" = (),
     prefixes: "tuple[str, dict[str, str]] | None" = None,
     named_only: bool = False,
+    asked: str = "",
 ) -> "str | None":
     """One parent's family, walked from its own start (G9.3 step 2).
 
@@ -56423,8 +56550,29 @@ def _partner_from(
     failing that, the first wearing no named layout, so a spent layout is
     not overpaid; and failing both, the first unwritten one, which is the
     rule every other column keeps.
+
+    ``asked``, on a column of free text, is the census form the slot is
+    asked (`_form_asks`; Codex's review of lane L2, item 1). Where it is
+    a form holding the one gap before a clock's marker and the parent
+    wears it, the slot takes first the member that turns the marker WORD
+    over whole -- `9:15 AM` takes `9:15 am`, `9:15 a.m.` takes `9:15
+    A.M.` -- which keeps the form (`_form_keeping_partner`). The family's
+    own first members turn one letter at a time, and `9:15 aM` wears no
+    form: 194 times written with both `AM` and `am` beside 12 notes
+    published 388 cells under `%:%% @@` and the twin wrote 206. A slot
+    asked no such form walks the family as before.
     """
     parent = spellings[parent_place]
+    if asked:
+        keeper = _form_keeping_partner(parent, asked)
+        if (
+            keeper is not None
+            and shortest <= len(keeper)
+            and (longest is None or len(keeper) <= longest)
+            and _unused(keeper, used)
+            and not (holes and _is_a_hole_spelling(keeper, holes))
+        ):
+            return keeper
     order = 1
     steps = len(used) + 1
     unnamed: "str | None" = None
@@ -56464,6 +56612,36 @@ def _partner_from(
     if first is not None:
         return first
     return unopened
+
+
+# THE MARKER WORD IN THE OTHER CASE, whole (Codex's review of lane L2,
+# item 1): each of the eight words a form's one gap stands before.
+_MARKER_OTHER_CASE = {
+    "AM": "am", "am": "AM", "PM": "pm", "pm": "PM",
+    "A.M.": "a.m.", "a.m.": "A.M.", "P.M.": "p.m.", "p.m.": "P.M.",
+}
+
+
+def _form_keeping_partner(parent: str, asked: str) -> "str | None":
+    """The partner keeping the gapped form a slot is asked, or None.
+
+    A parent written with the one gap before a clock's marker (`9:15 AM`,
+    `parsing.meridiem_gap_at`) and wearing ``asked``: the parent with its
+    marker word turned over whole, `9:15 am`, which folds onto the parent
+    and wears its form. Turned one letter at a time, `9:15 aM` wears
+    none, and the form's count is missed (Codex's review of lane L2,
+    item 1; method G9.3). Raises nothing beyond `parsing`'s checks.
+    """
+    gap = parsing.meridiem_gap_at(parent)
+    if gap < 0 or parsing.shape_form(parent) != asked:
+        return None
+    word = parent[gap + 1 :]
+    if word not in _MARKER_OTHER_CASE:
+        return None
+    keeper = parent[: gap + 1] + _MARKER_OTHER_CASE[word]
+    if parsing.shape_form(keeper) != asked:
+        return None
+    return keeper
 
 
 def _breaks_a_prefix(
@@ -57384,6 +57562,7 @@ def _text_cells(
             index, folded, spellings, families, used, windows,
             sized, long_tail_line, carried, holes=holes,
             parents=parent_lists, spent=spent, words=worded, held=held,
+            asked=form_asks[index],
         )
         if worded is not None and (
             partner is None or parsing.token_count(partner) != worded
@@ -59827,13 +60006,17 @@ def _made_up_cell(
         # THE FORM'S CURSOR IS KEYED WITH A SPACE, not with a slash. A
         # slash is one of the thirteen marks a form may hold, so a
         # slashed key is injective only by an argument about how many
-        # fields each kind of key has; no class name, band name, whole
-        # number or admitted form can hold a SPACE, so this one is
-        # injective by inspection.
+        # fields each kind of key has; no class name, band name or whole
+        # number can hold a SPACE, so the first space ends the key. A form
+        # may hold one gap since plan P4-D392, but only before a marker
+        # key (`parsing._key_gap_at`), so no form ends in ` figures` and
+        # what follows the first space splits into a form and an optional
+        # ` figures` one way only: this one is injective.
         shaped = f"{key} {form}"
         figures = figured and _clock_filled_form(form, 0) is not None
         if figures:
-            # A FORM HOLDS NO SPACE, so this key is no other form's.
+            # A FORM'S ONE GAP IS FOLLOWED BY A MARKER KEY, never by
+            # `figures`, so this key is no other form's.
             shaped = f"{shaped} figures"
         if shaped not in states:
             # Where the form's walk stands, and how many cells it has
@@ -59950,7 +60133,7 @@ def _walked_cell(
         candidate: "str | None" = None
         if form:
             candidate = _filled_form(form, index, not figures)
-            if figures and parsing.clock_parts(candidate) is not None:
+            if figures and _read_as_a_clock(candidate):
                 continue
         else:
             candidate = _family_at(kind, band, length, words, index)
@@ -63573,6 +63756,9 @@ def _level_form_notes(
     notes: "list[Deviation]" = []
     for entry in facts.levels:
         found = counted[entry.label] if entry.label in counted else 0
+        if parsing.level_unshaped_before_gaps(entry.label, entry.shape_form_cells):
+            # Read as written before lane L2 (Codex's review of L2, item 2).
+            found = 0
         if found == entry.shape_form_cells:
             continue
         notes += [

@@ -15946,6 +15946,11 @@ def _level_form_cells(
             name, fact, subcheck, MISSED, published, _below_the_floor(floor)
         )
     found = _count_at(entry, "shape_form_cells")
+    if parsing.level_unshaped_before_gaps(level.label, level.shape_form_cells):
+        # A LEVEL WRITTEN BEFORE LANE L2 IS RECOUNTED AS WRITTEN (Codex's
+        # review of L2, item 2; plan P4-D392): its label holding the one
+        # gap wore no form then, so no row of it is counted in one.
+        found = 0
     return _exact(
         name,
         fact,

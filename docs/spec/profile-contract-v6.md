@@ -10605,7 +10605,9 @@ interesting is a key whose absence speaks.
 **C6-97 (why it is ONE NUMBER and not a census).** A spelling belongs
 to a level when trimming and case folding it gives the label. A
 spelling that HAS a form holds only ASCII letters, ASCII figures and
-the thirteen marks — no space, so trimming changes nothing — and
+the thirteen marks — no space at either end, its one gap, where it has
+one, standing between a clock's figures and its marker (7.9, plan
+P4-D392), so trimming changes nothing — and
 folding an ASCII letter leaves an ASCII letter in the same place, so
 `shape_form` answers the same string for a spelling and for its fold.
 **Every form-bearing spelling of a level therefore wears exactly the
@@ -10640,7 +10642,16 @@ are named, and this names none. Section 12 carries the row.
 least the rows covered by the entry's own `variants` whose spelling has
 a form, and at most those plus every row `variants_withheld` accounts
 for; and where the `label` has no written form it is exactly nought.
-Both ends are facts of THIS ENTRY.
+Both ends are facts of THIS ENTRY. **A label holding C6-31a's one gap
+may carry nought whatever its spellings wear** (Codex's review of lane
+L2, item 2; plan P4-D392): before lane L2 such a label had no form, so
+every description written then carries nought there -- 100 rows of
+`9:15 AM` beside 100 of `10:30 PM`, read as labels or declared as codes,
+were refused under W8 at 824c7a4. Such a level is READ AS WRITTEN: its
+label wears no form, and no spelling of it counts in one, in this check,
+in the generator (method G8.2a, G8.3b) and in the recount (validation
+`label.shape_form_cells`). A producer since L2 writes nought there only
+where no row of the level wore the label's form.
 
 **Invariant W9 (the spellings the block speaks of).** Let `S` be the
 spellings the published levels name: the keys of every entry's
@@ -11754,12 +11765,13 @@ could not have written in its own alphabet in any case (7.9.1).
 **THE THIRTEEN MARKS, and the list is CLOSED**: `-` `.` `/` `_` `:`
 `#` `*` `(` `)` `[` `]` `+` `,`. **A cell holding any character that
 is neither a letter, nor a digit, nor one of those thirteen has NO
-FORM AT ALL** — a space among them, and so is every mark this list
-leaves out. The list is closed rather than open because the guarantee
-the census rests on is that a key carries no fragment of anybody's
-value, and "every other character stands as itself" does not give it:
-it is checkable that a key holds only `%`, `@` and these thirteen, and
-not checkable that whatever else survived was harmless.
+FORM AT ALL** — a space among them, save the one gap below, and so is
+every mark this list leaves out. The list is closed rather than open
+because the guarantee the census rests on is that a key carries no
+fragment of anybody's value, and "every other character stands as
+itself" does not give it: it is checkable that a key holds only `%`,
+`@` and these thirteen, and that one gap where the rule below admits
+it, and not checkable that whatever else survived was harmless.
 
 **AND THE SPACE IS EXCLUDED ON ITS OWN GROUND.** Two hundred and forty
 different short sentences written to one template — `xxxxx, yyyy!` —
@@ -11769,6 +11781,36 @@ about a sentence, which is what the length limit below was already
 there to keep out, and it reached past the limit because the sentences
 were short. Without a space, the cells that share a form are the cells
 written to a scheme.
+
+**SAVE ONE GAP, BEFORE A CLOCK'S MARKER** (lane L2, plan P4-D392). A
+cell holding exactly one space or one narrow no-break space U+202F, and
+no other, where the text after it is one of the eight marker words `AM`
+`PM` `am` `pm` `A.M.` `P.M.` `a.m.` `p.m.` and the text before it is a
+clock -- an hour of one or two figures, a colon and two figures,
+optionally a colon and two more, and after those optionally a point and
+one figure or more -- has a form, and the gap STANDS AS ITSELF in it:
+`9:15 AM` has `%:%% @@`, `08:15:30.123 a.m.` has `%%:%%:%%.%%% @.@.`, and
+`9:15` U+202F `AM`, as Excel and macOS write it, has `%:%%` U+202F `@@`.
+Every other space keeps the cell formless, as above: `9:15  AM`,
+`9:15 Am`, `9 AM`, `Ward 7` and `2024-01-05 9:15 AM` have no form, and
+neither has a no-break space U+00A0 or a thin space before a marker. A
+key holding the gap carries the marker as `@@` or `@.@.` (lower case,
+`&&` or `&.&.`), so it names no marker word, and it is a form only where
+its gap stands between such a clock's `%`, `:` and `.` and such a
+marker key. WHY: a column of `9:15 AM` beside rare words published no
+form, and its twin wrote 0 of its 969 clock cells in their shape where
+`9:15AM` kept 969; code reading the column's times stopped on the twin.
+WHY NO WIDER: one interior space anywhere was measured beside it -- on
+the lane's battery of 220 tables it moved 27 descriptions holding no
+spaced meridiem (made-up names, `Ward 7`, `Bed 12A`, `120/80 mmHg`,
+two-word notes, stamps beside rare words, 15 of the layout spellings
+beside rare words and one fixture table), and a name's form publishes
+its word lengths, the fact the space was kept out for; this gap moved 40
+of the battery's 72 spaced-meridiem descriptions and none of the 148
+others, whose twins kept every byte. It does not give a form to a stamp
+beside rare words, `2024-01-05 9:15 AM`, which holds two spaces; and a
+column of such stamps alone is read by the layout reader (7.6), not by
+this census.
 
 **A cell longer than TWENTY-FOUR characters has no form either, and
 neither does an empty one.** The limit is deliberate and it is not a
@@ -11946,10 +11988,18 @@ opposite of each. The census is the intersection, not a judgement.
 either exactly `(withheld)` or a written form: at least one character,
 at most twenty-four, every one of which is one of the three PLACEHOLDERS
 — `%`, `@`, and `&` in a lower-case key, never `@` and `&` in one key —
-or one of the thirteen marks C6-31a names, AND CARRYING AT LEAST TWO
-OF THE THREE KINDS. A loader CHECKS this key by key and refuses the
-document otherwise, rather than trusting that the producer built the
-key by the replacement C6-31a states.
+or one of the thirteen marks C6-31a names, save ONE GAP, AND CARRYING AT
+LEAST TWO OF THE THREE KINDS. The gap is C6-31a's exception and nothing
+wider (lane L2, plan P4-D392; Codex's review of L2, item 5): exactly one
+space or one U+202F, and no other space of either kind, where the
+characters before it are a clock's -- `%:%%` or `%%:%%`, optionally `:%%`
+after, and after the seconds optionally `.` and one `%` or more -- and the
+characters after it are one marker key, `@@`, `&&`, `@.@.` or `&.&.`;
+the gap counts as a mark. So `%:%% @@` and `%%:%%:%%.%%%` U+202F `&&`
+are keys, and `%% @@`, `%:%%  @@`, `%:%% @`, ` %:%%@@` and `@@ %:%%`
+are not. A loader CHECKS this key by key and refuses the document
+otherwise, rather than trusting that the producer built the key by the
+replacement C6-31a states.
 
 **BOTH HALVES, AND THE SECOND WAS MISSING.** The loader enforced the
 two-kinds rule while this grammar stated only the alphabet, so the
@@ -12033,11 +12083,14 @@ spellings follow only past that supply, and the supply is still taken
 off the counter, never off a value. Measured before: a column of clock
 times beside 2 % words, read as labels, wrote its held-back times as
 `36:54` and `57:95` -- 241 of 300 twin cells, 547 of 1,000 -- which a
-`strptime` reading the times refuses; after, none. A form never holds a
-space (section 7.9), so a held-back `7:30 PM` has no form; since the
-repair round of landing 3b.5 the SHAPE such a level is written in where
-the census owes it none (below) keeps the space and the marker's marks,
-`%:%% @@`, and this supply fills it with times of its face -- measured,
+`strptime` reading the times refuses; after, none. A form held no
+space (section 7.9) until lane L2, so a held-back `7:30 PM` had no form;
+since the repair round of landing 3b.5 the SHAPE such a level is written
+in where the census owes it none (below) keeps the space and the
+marker's marks, `%:%% @@`, and this supply fills it with times of its
+face; since lane L2 (plan P4-D392) that shape is the cell's form, its
+space or U+202F kept, and a form holding U+202F is filled with times
+written with U+202F -- measured,
 a column of `7:30 AM` read as labels beside 2 % `UNK` wrote 587 of 3,000
 twin cells `group-N`, and now none. Since the fixes of the landing's
 review, a form whose seconds a point and a fraction in one figure or more
@@ -12148,10 +12201,11 @@ published fact already, because the labels are written byte for byte:
 the shape worn by the most published rows, with `&` where every
 spelling wearing it was lower case, provided the census names it in
 neither case and it reads as no number. A clock time written with one
-space before its marker has no form, and its shape is the clock's form
+space before its marker had no form, and its shape is the clock's form
 with the space and the marker's marks kept -- `%:%% @@` for `7:30 AM`,
-`%%:%%:%% &&` for `07:30:15 pm` -- which no census can name, since a
-form never holds a space (the repair round of landing 3b.5). Its spellings are spent on the
+`%%:%%:%% &&` for `07:30:15 pm` (the repair round of landing 3b.5);
+since lane L2 (plan P4-D392) that shape is its form, which a census may
+name, and a shape the census names is not taken. Its spellings are spent on the
 LARGEST places the census owes nothing, and a large place paying a
 named form trades with single rows summing to it exactly where that
 lets the shape cover more rows — the named form keeps its count either

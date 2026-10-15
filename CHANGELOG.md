@@ -6,6 +6,30 @@ exists).
 
 ## [Unreleased]
 
+### A clock written with a space before AM or PM keeps its shape (2026-10-14)
+
+**Lane L2** (plan P4-D392). A cell such as `9:15 AM`, `08:15:30.123 a.m.`
+or `9:15` with the narrow no-break space U+202F before `AM`, as Excel and
+macOS write it, now has a written form that keeps that one space or U+202F
+(`%:%% @@`), so a column of such times beside rare words, or as codes,
+publishes its forms and its twin writes every such cell in that form, in
+the source's own spelling: 969 of 969 where it wrote 0, and U+202F is never
+written as a plain space. Where a column of text must not be read back as
+clock times, the cells written past that line keep their space and their
+`AM` or `PM` (`6:74 AM`), so the twin still validates; before the lane's
+repair round they were written `0:00 AA`, and 11 of 28 such tables at
+1,000 and 3,000 rows were MISSED a form count. No other space gives a form: names, `Ward 7` and
+stamps such as `2024-01-05 9:15 AM` are as before, and on the lane's battery
+of 220 tables the 148 holding no spaced meridiem keep every byte of their
+description and twin. Descriptions written before still load and generate
+as before -- labels and codes too, since the lane's Codex review, which
+also keeps the form on times written both `AM` and `am` (388 of 388 where
+the twin wrote 206) and gives codes holding every dial time all 4,000 of
+their form's rows (where it wrote 2,303 and 1,697 `group-N`), with either
+gap (written with U+202F it wrote 2,314 and 1,686 `group-N`). Stated: a
+stamp with a date beside rare words still publishes no form, owed to lane
+L3.
+
 ### A trailing delimiter closed with `""` is read and written back (2026-10-14)
 
 **Lane R6** (plan P4-D387). A table whose header is `site;dx`, whose first
