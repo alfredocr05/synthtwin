@@ -469,7 +469,7 @@ def report_measures(folder: pathlib.Path) -> "dict[str, float]":
 
 
 def dense_tail_measures(folder: pathlib.Path) -> "dict[str, float]":
-    """G2's dense tail at 8,000 rows -- whole, in tenths, and low -- at seed 0: each twin's miss of the published mean distance in half grid steps; and rule 4's lines as its tail doubles and as its strata grow tenfold."""
+    """G2's dense tail at 8,000 rows -- whole, in tenths, and low -- at seed 0: each twin's miss of the published mean distance in half grid steps; and rule 4's lines as its tail doubles and its lines and allocated bytes as its strata grow tenfold."""
     found: "dict[str, float]" = {}
     for key, tenths, low in (("high", False, False), ("tenths", True, False), ("low", False, True)):
         described = _described_tail(folder / key, key, _dense_tail(8000, tenths, low))
@@ -481,6 +481,12 @@ def dense_tail_measures(folder: pathlib.Path) -> "dict[str, float]":
     found["placement_lines_growth_2x_tail"] = round(doubled / large, 2)
     found["placement_lines_growth_10x_strata"] = round(large / small, 2)
     found["placement_lines_1m_strata_10000_tail"] = large
+    # AND WHAT IT ALLOCATES, which the lines cannot show: a copy of the
+    # column is one line (Codex's review of lane S4c, item 6).
+    small_peak, _kept = _placement_peak(folder / "small-peak", 100000, 10000)
+    large_peak, _kept = _placement_peak(folder / "large-peak", 1000000, 10000)
+    found["placement_allocated_growth_10x_strata"] = round(large_peak / small_peak, 2)
+    found["placement_allocated_bytes_1m_strata_10000_tail"] = large_peak
     return found
 
 
@@ -943,12 +949,21 @@ def test_rule_4_copies_no_column(tmp_path: pathlib.Path) -> None:
     peaks: "list[int]" = []
     same: "list[bool]" = []
     for strata in (100000, 1000000):
-        facts, layout, values, reader, side = _placement_inputs(tmp_path / f"{strata}", strata, 10000)
-        tracemalloc.start()
-        placed = generation._dense_side_placed(facts, layout, values, reader, side)
-        peaks += [tracemalloc.get_traced_memory()[1]]
-        tracemalloc.stop()
-        same += [placed is values]
+        peak, kept = _placement_peak(tmp_path / f"{strata}", strata, 10000)
+        peaks += [peak]
+        same += [kept]
     assert peaks[1] < peaks[0] + 262144, peaks
     assert peaks[1] < 4 * 1000000, peaks
     assert same == [True, True]
+
+
+def _placement_peak(folder: pathlib.Path, strata: int, tail: int) -> "tuple[int, bool]":
+    """The bytes rule 4's placement allocates at its peak on `_placement_inputs`' division, and whether it hands back the list it was given."""
+    facts, layout, values, reader, side = _placement_inputs(folder, strata, tail)
+    tracemalloc.start()
+    try:
+        placed = generation._dense_side_placed(facts, layout, values, reader, side)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    return peak, placed is values

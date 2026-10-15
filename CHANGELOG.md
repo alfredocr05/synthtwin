@@ -34,6 +34,20 @@ frozen case on a dense tail, `tail_shape_ends`, moves with it.
 `K-S4-06` and `K-S4-07` hold both. Every case rule 4 leaves a side as
 it stood in, and the twin report's hull, has a test red on its mutant.
 
+Codex's review of the lane raised six items, each fixed. Rule 4 no
+longer writes a placed cell narrower than a width the census needs or
+moves the count of cells reaching a thousand: five-figure fields from
+`00000` came back with two four-figure cells, and eleven grouped cells
+as nine. It reads a staircase's mean near the largest double without
+overflowing, where `generate` raised an error. A far run crossing the
+stand-in `9999.0` lands on the published distance sum, where it stood
+two steps past it. It writes the column in place rather than copying it.
+The method now says the far strata's count is weighed before the
+remainder moves them. Pieces of the quality report are written in UTF-8
+only: in UTF-16, UTF-32 or UTF-8 with a signature each piece had carried
+its own byte-order mark. No frozen vector moves, and of the lane's 192
+battery twins only one four-figure shape's two seeds change.
+
 ### Numbers and codes at a million rows, without their square (2026-10-14)
 
 **Stage 4 lane S4b-num** (plans P4-D377, P4-D387 and P4-D390). Four paths
