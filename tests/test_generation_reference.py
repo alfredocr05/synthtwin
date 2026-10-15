@@ -874,10 +874,10 @@ TWENTY_SECOND_BRANCH_CASES = (
     "date_remainder_one_joint",
     # Lane L2's repair round (plan P4-D392): the gap past the clock line.
     "labels_clock_spaced_line",
-    # ...and its Codex review: labels described before L2, read as written.
-    "labels_written_before_gaps",
     # Lane L3 (plan P4-D393): a stamp's space between its date and clock.
     "labels_stamp_gaps",
+    # Lane L2's Codex review: labels described before L2, read as written.
+    "labels_written_before_gaps",
     "stamp_dotted_seconds",
     "stamp_twelve_hour_top",
     "stamp_unpadded_hour",
