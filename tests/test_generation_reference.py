@@ -6237,8 +6237,10 @@ def test_the_delimiter_is_settled_the_way_the_method_settles_it() -> None:
     # A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387): each file the
     # case reads under `lined_up`, the same way.
     # ...and since Codex's review of landing R5, a straight reading
-    # before a lined-up one, and a quoted empty field lining nothing up.
-    assert len(case["lined_up"]) == 8
+    # before a lined-up one, and a quoted empty field lining nothing up;
+    # since Codex's review of landing R6, a reading lined up only by a
+    # `""` after one lined up by a bare closing (`_reading_level`).
+    assert len(case["lined_up"]) == 9
     for entry in case["lined_up"]:
         more = entry["text"]
         for candidate in dialect.DELIMITERS:
@@ -6253,6 +6255,12 @@ def test_the_delimiter_is_settled_the_way_the_method_settles_it() -> None:
             assert dialect._reads_straight(sample, width) == published["straight"], (
                 more, candidate,
             )
+            level = dialect.LEVEL_STRAIGHT
+            if not published["straight"]:
+                level = dialect.LEVEL_LINED_QUOTED
+                if published["lined_up_by"] == dialect.CLOSING_BARE:
+                    level = dialect.LEVEL_LINED_BARE
+            assert dialect._reading_level(sample, width) == level, (more, candidate)
             assert share == published["at_that_width"] / published["records"], (
                 more, candidate,
             )
@@ -6482,6 +6490,16 @@ DOCUMENT_MUTANTS = {
             replacement=lambda record: bool(record["fields"])
             and record["fields"][-1] == ""
             and not record["quoted"][-1],
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="Codex's review of landing R6, item 1: a reading lined "
+            "up only by a `\"\"` ranks after one lined up by a bare "
+            "closing; the mutant ranks every lined-up reading alike, and "
+            "the bar's wider `a;b` and `c;` take the file `a;b|c;` the "
+            "semicolon read before lane R6",
+            attribute="reading_level",
+            replacement=lambda found: 2 if found["straight"] else 1,
             outcome=CHANGES_THE_CELLS,
         ),
     ),

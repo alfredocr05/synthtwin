@@ -511,3 +511,194 @@ def test_a_file_whose_closings_fall_on_other_records_misses_the_closing_rule(tmp
     assert _closings(shifted, d) == "N" + "Q" * 50 + "B" * 70
     code, missed = _checked(folder / "shifted", described, shifted.encode("utf-8"))
     assert code == 3 and "bytes.trailing-delimiter" in missed, (code, missed)
+
+
+# -- Codex's review of landing R6 (head 0c921e1), four items ----------------
+
+# A header `a;b|c;` over records `1;Y|Z|""`: 6a248e7 reads the semicolon's
+# columns `a` and `b|c` (the header closed bare), and a reading lined up
+# only by the `""` closing -- the bar's `a;b` and `c;` -- took it on
+# 0c921e1. Each pair is (the delimiter 6a248e7 reads, the one it does not).
+_CANDIDATE_PAIRS = [(";", "|"), (",", "\t"), ("\t", ";"), ("|", ","), (",", ";"), (";", ","), ("|", "\t"), ("\t", "|")]
+
+
+@pytest.mark.parametrize("pair", _CANDIDATE_PAIRS, ids=["".join(map(repr, pair)) for pair in _CANDIDATE_PAIRS])
+def test_a_reading_made_from_a_candidate_before_lane_r6_stands(pair: "tuple[str, str]") -> None:
+    """Item 1 (HIGH). A reading lined up only by a closing written `""`
+    -- the kind lane R6 admitted -- comes after every reading 6a248e7
+    could make (straight, or lined up by a bare closing), so it never
+    takes a file from one: the header `a;b|c;` over 120 records
+    `1;Y|Z|""` is the semicolon's columns `a` and `b|c` holding `1` and
+    `Y|Z|""`, with no question, as on 6a248e7. Red on 0c921e1 (the bar
+    took it: `a;b` and `c;` holding `1;Y` and `Z`, a tie recorded)."""
+    o, i = pair
+    text = f"a{o}b{i}c{o}\n" + "".join([f'1{o}Y{i}Z{i}""\n' for _row in range(120)])
+    assert dialect.delimiter_reading(text, 0) == (o, ())
+    found = _read(text)
+    assert list(found.header) == ["a", f"b{i}c"], found.header
+    assert found.columns[0][0] == "1" and found.columns[1][0] == f'Y{i}Z{i}""'
+    assert found.form.header_trailing_delimiter and not found.form.rows_trailing_delimiter
+    assert dialect.trailing_published(found.form) == {"header": True, "rows": False}
+
+
+@pytest.mark.parametrize("d", DELIMITERS, ids=IDS)
+def test_the_escapings_are_tried_before_a_quoted_closing(d: str) -> None:
+    """Item 2 (HIGH). `settle` tries the spacing and the escaping of
+    6a248e7 before it reads a `""` as a closing: a header `a,b` over 120
+    records `1,x\\,""` is read with backslash escapes, the second value
+    `x,""`, as on 6a248e7. Red on 0c921e1, whose second walk ran inside
+    the first `survey` and read `x\\` closed `""`, so the escaping was
+    never tried. The codex table, which no escaping reads, is still read
+    by the closing (`test_the_codex_table_is_read_as_its_two_columns`)."""
+    text = f"a{d}b\n" + "".join([f'1{d}x\\{d}""\n' for _row in range(120)])
+    found = _read(text)
+    assert list(found.header) == ["a", "b"]
+    assert found.form.escape == dialect.ESCAPE_BACKSLASH
+    assert found.columns[1][0] == f'x{d}""', found.columns[1][0]
+    assert not found.form.rows_trailing_delimiter
+    assert dialect.trailing_published(found.form) == {"header": False, "rows": False}
+
+
+def _described(folder: pathlib.Path, text: str, floor: int = 11) -> "tuple[pathlib.Path, dict]":
+    """Describe a made-up table; the description's path and document."""
+    folder.mkdir(parents=True, exist_ok=True)
+    real = folder / "real.csv"
+    real.write_bytes(text.encode("utf-8"))
+    floor_flag = ["--smallest-group", str(floor)] if floor != 11 else []
+    assert _exit_of(["profile", str(real), "--out-dir", str(folder), "--replace"] + floor_flag) == 0
+    described = folder / "real-profile.json"
+    return described, json.loads(described.read_text(encoding="utf-8"))
+
+
+def _built(path: pathlib.Path, floor: int = 11) -> dict:
+    """The description the producer builds for a table, before the guard."""
+    from synthtwin import profile, reading, taxonomy
+
+    table = reading.read_table(str(path), small_cell_floor=floor)
+    return profile.build_document(table, taxonomy.Settings(small_cell_floor=floor), [], [], [])
+
+
+def _refused_by_both(folder: pathlib.Path, document: dict, trailing: dict, rule: str) -> None:
+    """The loader refuses the described table's description with
+    ``trailing`` under ``rule``, and the publication guard refuses the
+    producer's document for it edited the same way."""
+    from synthtwin import profile
+
+    edited = json.loads(json.dumps(document))
+    edited["source"]["dialect"]["trailing_delimiter"] = trailing
+    written = fixtures.write_profile(folder, "edited-profile.json", edited)
+    with pytest.raises(errors.ProfileError) as refused:
+        contract.load_profile(str(written))
+    assert rule in str(refused.value), (trailing, str(refused.value)[:300])
+    built = _built(folder / "real.csv")
+    profile.check_publication(built)
+    built["source"]["dialect"]["trailing_delimiter"] = trailing
+    with pytest.raises(errors.ProfileError):
+        profile.check_publication(built)
+
+
+def test_a_trailing_header_never_loads_over_records_all_closed_quoted(tmp_path: pathlib.Path) -> None:
+    """Item 3 (MEDIUM). A header ending in its delimiter over records all
+    closed `""` is a table with one column more, its last name blank,
+    and is read so, so the producer never publishes it (`survey`: a
+    header that trails too keeps the records bare). A valid 120-record
+    two-column semicolon description edited to `{"header": true, "rows":
+    "quoted"}` -- and to a header `"quoted"` over them -- wrote `site;dx;`
+    over records ending `;""`, read back as three columns: both are now
+    refused by the loader (FD10) and by the publication guard. Red on
+    0c921e1, where both loaded."""
+    described, document = _described(tmp_path / "source", _table(";", [False] * 120, ";"))
+    assert document["source"]["dialect"]["trailing_delimiter"] == {"header": True, "rows": True}
+    contract.load_profile(str(described))
+    for header in (True, "quoted"):
+        _refused_by_both(tmp_path / "source", document, {"header": header, "rows": "quoted"}, "FD10")
+
+
+def test_a_trailing_header_s_closings_always_load_and_read_back(tmp_path: pathlib.Path) -> None:
+    """Item 3's producer-always-loads battery. A header closed bare or
+    `""` over records closed `""` throughout, one bare then `""`, `""`
+    then one bare, half and half, and every tenth `""`, under each
+    delimiter, at the default floor and at one: each is described, never
+    as a trailing header over records all closed `""`, and its
+    description loads (generate exits 0). Under the semicolon at the
+    default floor each twin is also read back to the same form, and twin
+    and table validate at 0."""
+    shapes = {
+        "all": [True] * 120,
+        "first-bare": [index != 0 for index in range(120)],
+        "last-bare": [index != 119 for index in range(120)],
+        "half": [index < 60 for index in range(120)],
+        "tenth": [index % 10 == 0 for index in range(120)],
+    }
+    for d, word in zip(DELIMITERS, IDS):
+        for head, header_end in (("bare", d), ("quoted", d + '""')):
+            for label, closed in shapes.items():
+                for floor in (11, 1):
+                    folder = tmp_path / f"{word}-{head}-{label}-{floor}"
+                    text = _table(d, closed, header_end)
+                    if d == ";" and floor == 11:
+                        result = _round_trip(folder, text, floor)
+                        assert result["exits"] == {"twin": 0, "real": 0}, (head, label, result["exits"])
+                        again = dict(result["twin_form"])
+                        if label == "all" and head == "quoted":
+                            # Three straight columns, the last named blank
+                            # and written bare by the twin: the header's
+                            # quoting `mixed` is read back `needed` (the
+                            # limit stated under P4-D387, as on 6a248e7).
+                            again["header_quoting"] = result["form"]["header_quoting"]
+                        assert again == result["form"], (head, label)
+                        trailing = result["form"]["trailing_delimiter"]
+                    else:
+                        described, document = _described(folder, text, floor)
+                        assert _exit_of(
+                            ["generate", str(described), "--out-dir", str(folder), "--seed", "4", "--replace"]
+                        ) == 0, (word, head, label, floor)
+                        trailing = document["source"]["dialect"]["trailing_delimiter"]
+                    assert not (trailing["header"] is not False and trailing["rows"] == "quoted"), trailing
+
+
+def test_closing_runs_their_twin_cannot_measure_back_are_refused(tmp_path: pathlib.Path) -> None:
+    """Item 4 (MEDIUM). The twin's closings are measured back as runs in
+    file order, two runs of one closing side by side as one, and past
+    `MAXIMUM_ENDING_RUNS` as the commonest closing; so runs `[quoted 30,
+    quoted 30, bare 60]` (measured `[quoted 60, bare 60]`) and 80
+    alternating runs of 11 over 880 records (measured bare throughout)
+    described tables their own twins missed (`bytes.trailing-delimiter`).
+    Both are now refused by the loader (FD2) and the publication guard.
+    Red on 0c921e1, where both loaded and passed the guard."""
+    q, b = "quoted", "bare"
+    _, document = _described(tmp_path / "short", _table(";", [index < 60 for index in range(120)]))
+    _refused_by_both(
+        tmp_path / "short",
+        document,
+        {"header": False, "rows": [{"ending": q, "lines": 30}, {"ending": q, "lines": 30}, {"ending": b, "lines": 60}]},
+        "FD2",
+    )
+    _, document = _described(tmp_path / "long", _table(";", [index < 440 for index in range(880)], rows=880))
+    runs = [{"ending": q if index % 2 == 0 else b, "lines": 11} for index in range(80)]
+    _refused_by_both(tmp_path / "long", document, {"header": False, "rows": runs}, "FD2")
+
+
+def test_closing_runs_up_to_the_cap_are_published_measured_back_and_named(tmp_path: pathlib.Path) -> None:
+    """Item 4's producer-always-loads battery and the validator's words.
+    64 alternating runs of 11 records (the cap) are published as runs,
+    load, build a twin read back to the same runs, and validate at 0,
+    the closing rule naming all 64 runs and no more; 65 runs are
+    published as the commonest closing and validate at 0 as well."""
+    from synthtwin import validation
+
+    cap = dialect.MAXIMUM_ENDING_RUNS
+    for count in (cap, cap + 1):
+        rows = 11 * count
+        closed = [(index // 11) % 2 == 0 for index in range(rows)]
+        result = _round_trip(tmp_path / f"runs-{count}", _table(";", closed, rows=rows))
+        trailing = result["form"]["trailing_delimiter"]
+        if count == cap:
+            assert isinstance(trailing["rows"], list) and len(trailing["rows"]) == cap
+            form = contract.load_profile(str(tmp_path / f"runs-{count}" / "real-profile.json")).source.dialect
+            words = validation._trailing_words(form)
+            assert words.count("11 with") == cap, words
+        else:
+            assert trailing["rows"] == "quoted", trailing
+        assert result["twin_form"] == result["form"], count
+        assert result["exits"] == {"twin": 0, "real": 0}, (count, result["exits"])

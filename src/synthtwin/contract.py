@@ -1216,8 +1216,10 @@ INVARIANTS = {
     ),
     "FD10": (
         "only a header read from the file carries a trailing delimiter or "
-        "a quoting rule of its own, and rows do not both carry a trailing "
-        "delimiter and leave out their empty cells"
+        "a quoting rule of its own, rows do not both carry a trailing "
+        "delimiter and leave out their empty cells, and a header carrying "
+        "one does not stand over records all closed with an empty value "
+        "in quotation marks"
     ),
     # The rule that keeps a declared identifier out of the written form
     # (plan P4-D76). The producer's half is `profile._published_form`.
@@ -5819,19 +5821,29 @@ def _dialect_rules(
     # THE RECORDS' CLOSINGS, held to the producer's own rule (plan
     # P4-D387, lane R6; `dialect.closing_runs_disclosed`): published as
     # runs only where both spellings stand, every run and total at the
-    # census line, and the runs account for every record.
+    # census line, and the runs account for every record. AND AS THE
+    # TWIN'S CLOSINGS ARE MEASURED BACK (Codex's review of landing R6,
+    # item 4): a run is the records closed one way in a row, so two runs
+    # of one closing side by side are measured as one, and past
+    # `dialect.MAXIMUM_ENDING_RUNS` runs the file is measured closed the
+    # commonest way -- `[quoted 30, quoted 30, bare 60]`, and 80 runs of
+    # 11 over 880 records, described twins their own check missed.
     if form.rows_closing_runs:
         closed = sum([run.lines for run in form.rows_closing_runs])
         kinds = set([run.ending for run in form.rows_closing_runs])
         trouble = dialect.endings_broken(form.rows_closing_runs, floor, 0)
+        if not trouble:
+            trouble = dialect.closing_runs_broken(form.rows_closing_runs)
         if closed != n_rows or len(kinds) < 2 or trouble:
             raise _broken(
                 "FD2", where,
                 trouble
                 or f"the closings account for {closed} records in "
                 f"{len(kinds)} spelling(s)",
-                f"{n_rows} records closed both ways, each run and each "
-                f"spelling reaching the smallest group size",
+                f"{n_rows} records closed both ways, in at most "
+                f"{dialect.MAXIMUM_ENDING_RUNS} runs each closed otherwise "
+                f"than the run before it, each run and each spelling "
+                f"reaching the smallest group size",
             )
     wide_encodings = (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE)
     if (form.byte_order_mark and source.encoding in dialect.FALLBACK_ENCODINGS) or (
@@ -6015,6 +6027,17 @@ def _dialect_rules(
             "FD10", where,
             "the header is published with a trailing delimiter or a quoting rule, or the rows with both a trailing delimiter and left-out empty cells",
             "a header read from the file, and rows written one of those ways at most",
+        )
+    # A HEADER ENDING IN ITS DELIMITER OVER RECORDS ALL CLOSED `""` IS A
+    # TABLE WITH ONE COLUMN MORE (Codex's review of landing R6, item 3).
+    # Its twin -- `site;dx;` over records ending `;""` -- is read as three
+    # columns, the last named blank, so the producer never publishes it
+    # (`dialect.survey` keeps such records bare), and this side refuses it.
+    if not dialect.closings_read_back(form):
+        raise _broken(
+            "FD10", where,
+            "a header ending in its delimiter is published over records all closed with an empty value in quotation marks",
+            "records closed without one, or not all of them with one, under such a header",
         )
     # FD11 (plan P4-D80). THE FLOOR IS GONE FROM THIS RULE, and that is
     # the point of it: a line before the table is free text somebody

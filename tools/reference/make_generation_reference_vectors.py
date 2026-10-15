@@ -36309,15 +36309,29 @@ def opening_lines_up(sample, opening, width):
     over records `0100;1E22;""` and `0100;1E22;` is the semicolon's two
     columns, where landing R5's unquoted-only rule read it as one.
     """
+    return lined_up_by(sample, opening, width) is not None
+
+
+def lined_up_by(sample, opening, width):
+    """Which closing lines the first record up: "bare" where every empty
+    last field doing it is written with nothing in it (landing R5's
+    rule), "quoted" where one of them is written `""` (lane R6), None
+    where nothing lines it up (`opening_lines_up`)."""
     first = sample[opening]
     if len(first["fields"]) == width + 1:
-        return ends_empty(first)
+        if not ends_empty(first):
+            return None
+        return "quoted" if first["quoted"][-1] else "bare"
     if len(first["fields"]) != width - 1 or width - 1 < 2:
-        return False
+        return None
+    found = "bare"
     for record in sample:
-        if len(record["fields"]) == width and not ends_empty(record):
-            return False
-    return True
+        if len(record["fields"]) == width:
+            if not ends_empty(record):
+                return None
+            if record["quoted"][-1]:
+                found = "quoted"
+    return found
 
 
 def ends_empty(record):
@@ -36339,7 +36353,23 @@ def reading_rank(found):
     share, then the width. The share is returned as its two counts, so
     that two ranks compare by cross-multiplying and no division rounds.
     """
-    return (found["straight"], found["at_that_width"], found["records"], found["width"])
+    return (reading_level(found), found["at_that_width"], found["records"], found["width"])
+
+
+def reading_level(found):
+    """How a reading stands, before its share: 2 straight, 1 lined up by
+    a bare closing, 0 lined up only by a closing written `""`.
+
+    A READING LINED UP ONLY BY `""` RANKS LAST (Codex's review of landing
+    R6, item 1): the first two are every reading the method made before
+    lane R6, so wherever a candidate reads one of them the choice is the
+    one made then -- a header `a;b|c;` over records `1;Y|Z|""` is the
+    semicolon's `a` and `b|c`, the header closed bare, and not the bar's
+    wider `a;b` and `c;`, its records closed `""`.
+    """
+    if found["straight"]:
+        return 2
+    return 1 if found["lined_up_by"] == "bare" else 0
 
 
 def outranks(found, best):
@@ -36369,7 +36399,9 @@ def best_reading(text, candidate, at):
     stand at that width, or the reading is rejected -- unless a trailing
     delimiter on one side lines it up (`opening_lines_up`, plan P4-D387),
     and it is then counted at that width. A straight reading ranks above
-    a lined-up one (`outranks`; Codex's review of landing R5, item 1).
+    a lined-up one (`outranks`; Codex's review of landing R5, item 1),
+    and one lined up by a bare closing above one lined up only by `""`
+    (`reading_level`; Codex's review of landing R6, item 1).
     """
     best = None
     for spaced in (False, True):
@@ -36386,12 +36418,15 @@ def best_reading(text, candidate, at):
             straight = opening >= len(sample) or len(
                 sample[opening]["fields"]
             ) == width
+            lined = None
             if not straight:
                 if not opening_lines_up(sample, opening, width):
                     continue
+                lined = lined_up_by(sample, opening, width)
                 at_width = at_width + 1
             found = {
                 "at_that_width": at_width,
+                "lined_up_by": lined,
                 "records": total,
                 "straight": straight,
                 "width": width,
@@ -38387,7 +38422,12 @@ def _delimiter_reading():
         "the header `site;dx` over a first record closed `\"\"` and the "
         "rest closed bare, is read as its two columns where R5 read one "
         "(fourth mutant: only a bare closing lines up, R5's rule, and no "
-        "candidate reads the three).",
+        "candidate reads the three). Since Codex's review of landing R6 "
+        "a reading lined up only by a `\"\"` ranks after one lined up by "
+        "a bare closing, so a ninth file, the header `a;b|c;` over "
+        "records `1;Y|Z|\"\"`, keeps the semicolon's `a` and `b|c` (fifth "
+        "mutant: every lined-up reading ranks alike, and the bar's wider "
+        "`a;b` and `c;` take it).",
         "kind": "reading",
         "text": '"id"; "note"\n"1"; "alpha; beta"\n"2"; "gamma"\n',
         # A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387). Rows
@@ -38422,6 +38462,11 @@ def _delimiter_reading():
             # header `site;dx` over a first record closed `""` and the
             # rest closed bare, which R5 read as one comma column.
             'site;dx\n0100;1E22;""\n0100;1E22;\n0100;1E22;\n',
+            # Codex's review of landing R6, item 1: the semicolon reads
+            # the header `a;b|c;` lined up by its bare closing, the bar
+            # reads the records lined up only by their `""`, wider; the
+            # semicolon stands, as before lane R6.
+            'a;b|c;\n1;Y|Z|""\n2;Y|Z|""\n3;Y|Z|""\n',
         ],
     }
 

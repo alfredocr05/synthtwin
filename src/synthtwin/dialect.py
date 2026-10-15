@@ -3050,6 +3050,51 @@ def closing_runs_disclosed(
     return (False, tuple(told))
 
 
+def closing_runs_broken(runs: "tuple[EndingRun, ...]") -> str:
+    """What published closing runs break of how a twin's are measured back.
+
+    The survey builds a run from the records closed one way in a row and
+    keeps at most `MAXIMUM_ENDING_RUNS` of them (`closing_runs_disclosed`),
+    so a run beside one of the same closing, or a run past that cap, is a
+    description its own twin is measured otherwise than (Codex's review
+    of landing R6, item 4). The loader (FD2) and the publication guard
+    both ask this, beside `endings_broken`'s census line. Returns an
+    empty string for runs the producer could publish.
+
+    Guarantees: accepts the published runs; returns text. Determinism: a
+    fixed function of the runs. Raises nothing. No I/O of any kind.
+    """
+    if len(runs) > MAXIMUM_ENDING_RUNS:
+        return (
+            f"the closings are published as {len(runs)} runs, and the cap "
+            f"is {MAXIMUM_ENDING_RUNS}"
+        )
+    for place in range(1, len(runs)):
+        if runs[place].ending == runs[place - 1].ending:
+            return (
+                f"run {place + 1} of the closings is closed the same way as "
+                f"the run before it"
+            )
+    return ""
+
+
+def closings_read_back(form: Dialect) -> bool:
+    """Whether a form's closings are read back from the twin as published.
+
+    False only for a header ending in its delimiter over records ALL
+    closed `""`, which is a table with one column more, its last name
+    blank, and is read so (plan P4-D387; Codex's review of landing R6,
+    item 3). The producer never publishes it (`survey` keeps such
+    records bare); the loader (FD10) and the publication guard refuse it.
+    """
+    return not (
+        form.header_trailing_delimiter
+        and form.rows_trailing_delimiter
+        and form.rows_closing_quoted
+        and not form.rows_closing_runs
+    )
+
+
 def closings_in_turn(form: Dialect, n_rows: int) -> "list[bool]":
     """Whether the twin closes each of its ``n_rows`` records with `""`.
 
@@ -4123,18 +4168,72 @@ def opening_lines_up(sample: "list[Record]", opening: int, width: int) -> bool:
     a file as ONE column. `survey` refuses it with
     `errors.trailing_delimiter_uneven`, which names the row and the
     trailing delimiter it lacks or carries.
+
+    A READING LINED UP ONLY BY A `""` RANKS LAST (Codex's review of
+    landing R6, item 1): `_lined_up_by` says which closing lines the
+    record up, and `_reading_level` puts such a reading after every
+    reading 6a248e7 could make.
+    """
+    return _lined_up_by(sample, opening, width) != ""
+
+
+def _lined_up_by(sample: "list[Record]", opening: int, width: int) -> str:
+    """Which closing lines the table's first record up (`opening_lines_up`).
+
+    `CLOSING_BARE` where every empty last field that lines it up is
+    written with nothing in it -- landing R5's rule, the only one
+    6a248e7 had -- `CLOSING_QUOTED` where one of them is written `""`
+    (lane R6), and "" where nothing lines it up.
     """
     if opening >= len(sample):
-        return False
+        return ""
     first = sample[opening]
     if len(first.fields) == width + 1:
-        return _ends_empty(first)
+        if _closes(first):
+            return CLOSING_BARE
+        return CLOSING_QUOTED if _ends_empty(first) else ""
     if len(first.fields) != width - 1 or width - 1 < 2:
-        return False
+        return ""
+    found = CLOSING_BARE
     for record in sample:
-        if len(record.fields) == width and not _ends_empty(record):
-            return False
-    return True
+        if len(record.fields) == width:
+            if not _ends_empty(record):
+                return ""
+            if not _closes(record):
+                found = CLOSING_QUOTED
+    return found
+
+
+# How a reading stands (`_reading_level`): its first record at its width;
+# lined up by a bare closing; lined up only by a closing written `""`.
+LEVEL_STRAIGHT = 2
+LEVEL_LINED_BARE = 1
+LEVEL_LINED_QUOTED = 0
+
+
+def _reading_level(sample: "list[Record]", width: int) -> int:
+    """How a reading stands, which ranks it before its share does.
+
+    A STRAIGHT READING COMES FIRST (`_reads_straight`; Codex's review of
+    landing R5, item 1), then a reading lined up by a bare closing
+    (`opening_lines_up` under landing R5's rule), and LAST a reading
+    lined up only by a closing written `""` (lane R6; Codex's review of
+    landing R6, item 1). The first two are every reading 6a248e7 could
+    make, so wherever a candidate reads one of them the choice is
+    6a248e7's: a header `a;b|c;` over 120 records `1;Y|Z|""` is the
+    semicolon's `a` and `b|c` (the header closed bare), and the bar's
+    `a;b` and `c;` -- the records closed `""` -- took it when every
+    lined-up reading ranked alike, with no question that kept code
+    naming `a` running.
+    """
+    if _reads_straight(sample, width):
+        return LEVEL_STRAIGHT
+    opening = 0
+    while opening < len(sample) and _leads_the_table(sample[opening]):
+        opening = opening + 1
+    if _lined_up_by(sample, opening, width) == CLOSING_BARE:
+        return LEVEL_LINED_BARE
+    return LEVEL_LINED_QUOTED
 
 
 def _ends_empty(record: Record) -> bool:
@@ -4257,36 +4356,46 @@ def delimiter_reading(
     reads the file at least as consistently as the straight one taken
     is a competitor all the same, so it is recorded with the winner and
     the person is asked.
+
+    AND A READING LINED UP ONLY BY A `""` COMES LAST (Codex's review of
+    landing R6, item 1; `_reading_level`). Lane R6 let a closing written
+    `""` line a reading up, and ranked it with the lined-up readings
+    6a248e7 made: a header `a;b|c;` over 120 records `1;Y|Z|""`, which
+    6a248e7 read as the semicolon's `a` and `b|c`, went to the bar's
+    wider `a;b` and `c;`, and code naming `a` broke. Such a reading is
+    now taken only where no candidate reads the file the way 6a248e7
+    could, and it is no competitor beside one that does, so every file
+    6a248e7 read from a candidate is read, and asked about, as it was.
     """
     if opening is None:
         opening = opening_lines(text, at)
     chosen = ","
-    best_straight = False
+    best_level = -1
     best_share = 0.0
     best_width = 0
     best_numbers = -1
     best_sample: "list[Record]" = []
     readings: "list[tuple[float, int, list[Record]] | None]" = []
-    straights: "list[bool]" = []
+    levels: "list[int]" = []
     for candidate in DELIMITERS:
         found = _best_reading(text, candidate, at, opening)
         readings += [found]
-        straights += [found is not None and _reads_straight(found[2], found[1])]
+        levels += [-1 if found is None else _reading_level(found[2], found[1])]
         if found is None:
             continue
         share, width, sample = found
-        straight = straights[len(straights) - 1]
+        level = levels[len(levels) - 1]
         numbers = -1
-        if (straight, share, width) == (best_straight, best_share, best_width):
+        if (level, share, width) == (best_level, best_share, best_width):
             numbers = _numbers_read(sample)
             if best_numbers < 0:
                 best_numbers = _numbers_read(best_sample)
-        if (straight, share, width) > (best_straight, best_share, best_width) or (
-            (straight, share, width) == (best_straight, best_share, best_width)
+        if (level, share, width) > (best_level, best_share, best_width) or (
+            (level, share, width) == (best_level, best_share, best_width)
             and numbers > best_numbers
         ):
             chosen = candidate
-            best_straight = straight
+            best_level = level
             best_share = share
             best_width = width
             best_numbers = numbers
@@ -4299,8 +4408,16 @@ def delimiter_reading(
         found = readings[place]
         if found is None:
             continue
+        # A reading lined up only by `""` is no competitor to one
+        # 6a248e7 could make (Codex's review of landing R6, item 1): it
+        # neither takes the file nor asks about it, so the questions of
+        # every file 6a248e7 read from a candidate are 6a248e7's.
+        if best_level > LEVEL_LINED_QUOTED and levels[place] == LEVEL_LINED_QUOTED:
+            continue
         if found[0] == best_share or (
-            best_straight and not straights[place] and found[0] > best_share
+            best_level == LEVEL_STRAIGHT
+            and levels[place] < LEVEL_STRAIGHT
+            and found[0] > best_share
         ):
             tied += [candidate]
     if not tied:
@@ -4351,7 +4468,7 @@ def _best_reading(
     holds them already (plan P4-D387).
     """
     best: "tuple[float, int, list[Record]] | None" = None
-    best_straight = False
+    best_level = LEVEL_LINED_QUOTED
     for spaced in (False, True):
         for escaping in ESCAPES:
             sample = records(
@@ -4364,21 +4481,26 @@ def _best_reading(
             while opening < len(sample) and _leads_the_table(sample[opening]):
                 opening = opening + 1
             straight = opening >= len(sample) or len(sample[opening].fields) == width
+            level = LEVEL_STRAIGHT
             if not straight:
                 # ...unless a trailing delimiter on one side lines it up
                 # (plan P4-D387), and then it counts at the table's width.
-                if not opening_lines_up(sample, opening, width):
+                lined = _lined_up_by(sample, opening, width)
+                if not lined:
                     continue
                 at_width = at_width + 1
+                level = LEVEL_LINED_BARE if lined == CLOSING_BARE else LEVEL_LINED_QUOTED
             share = at_width / total
             # A straight reading comes before a lined-up one here too
-            # (Codex's review of landing R5, item 1), so a candidate's
-            # best is 0ecc82d's wherever 0ecc82d read it at all.
-            if best is None or (straight, share, width) > (
-                best_straight, best[0], best[1]
+            # (Codex's review of landing R5, item 1), and one lined up by
+            # a bare closing before one lined up only by `""` (Codex's
+            # review of landing R6, item 1), so a candidate's best is
+            # 6a248e7's wherever 6a248e7 read it at all.
+            if best is None or (level, share, width) > (
+                best_level, best[0], best[1]
             ):
                 best = (share, width, sample)
-                best_straight = straight
+                best_level = level
     return best
 
 
@@ -5184,7 +5306,10 @@ def survey(
     walked again as True: the codex table `site;dx` over `0100;1E22;""`
     and 119 records `0100;1E22;` is read as its two columns closed by
     the semicolon, and a file the second walk cannot read either is
-    refused in the first walk's words.
+    refused in the first walk's words. `settle` asks False and then True
+    itself, so the spacing and the escaping it tries are all tried
+    reading `""` as a value before any is tried reading it as a closing
+    (Codex's review of landing R6, item 2).
     """
     if quoted_closing is None:
         try:
@@ -6139,7 +6264,51 @@ def settle(
     part of values. A table whose doubled-quote reading leaves text after
     a closing quote is walked again with backslash escapes, and that
     reading is kept only when it leaves none.
+
+    A CLOSING WRITTEN `""` IS READ ONLY AFTER ALL OF THAT (Codex's review
+    of landing R6, item 2; plan P4-D387). Every walk above takes `""`
+    for a value, as 6a248e7 did (`survey`'s ``quoted_closing`` False);
+    only where they all refuse a file holding `""` are the same walks
+    made again reading it as a closing (True), and a file those refuse
+    too is refused in the first walks' words. Lane R6 read the closing
+    inside the first walk, before the escaping was tried: a header `a,b`
+    over 120 records `1,x\\,""`, which 6a248e7 read with backslash
+    escapes as `x,""`, was read as `x\\` closed `""`, with nothing
+    malformed and no question, and the twin wrote the changed values.
     """
+    try:
+        return _settled(
+            text, encoding, byte_order_mark, first_row_is_data, shown,
+            metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+            declared_delimiter, small_cell_floor, False,
+        )
+    except errors.ProfileError as refusal:
+        if not _holds(_text(text), _QUOTE + _QUOTE):
+            raise
+        try:
+            return _settled(
+                text, encoding, byte_order_mark, first_row_is_data, shown,
+                metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+                declared_delimiter, small_cell_floor, True,
+            )
+        except errors.ProfileError:
+            raise refusal from None
+
+
+def _settled(
+    text: str,
+    encoding: str,
+    byte_order_mark: bool,
+    first_row_is_data: bool,
+    shown: str,
+    metadata_rows: int,
+    decimal_comma_columns: "tuple[str, ...]",
+    metadata_rows_confirmed: bool,
+    declared_delimiter: str,
+    small_cell_floor: int,
+    quoted_closing: bool,
+) -> Survey:
+    """`settle`'s walks, each reading a `""` closing as ``quoted_closing`` says."""
     try:
         found = survey(
             text, encoding, byte_order_mark, first_row_is_data, shown,
@@ -6148,6 +6317,7 @@ def settle(
             metadata_rows_confirmed=metadata_rows_confirmed,
             declared_delimiter=declared_delimiter,
             small_cell_floor=small_cell_floor,
+            quoted_closing=quoted_closing,
         )
     except errors.ProfileError as refusal:
         # THE SUPPORTED ESCAPINGS ARE TRIED BEFORE A STRUCTURAL REFUSAL
@@ -6167,6 +6337,7 @@ def settle(
                 metadata_rows_confirmed=metadata_rows_confirmed,
                 declared_delimiter=declared_delimiter,
                 small_cell_floor=small_cell_floor,
+                quoted_closing=quoted_closing,
             )
         except errors.ProfileError:
             raise refusal from None
@@ -6181,6 +6352,7 @@ def settle(
             metadata_rows_confirmed=metadata_rows_confirmed,
             declared_delimiter=declared_delimiter,
             small_cell_floor=small_cell_floor,
+            quoted_closing=quoted_closing,
         )
     if found.malformed and found.form.escape == ESCAPE_DOUBLED:
         try:
@@ -6197,6 +6369,7 @@ def settle(
                 metadata_rows_confirmed=metadata_rows_confirmed,
                 declared_delimiter=declared_delimiter,
                 small_cell_floor=small_cell_floor,
+                quoted_closing=quoted_closing,
             )
         except errors.ProfileError:
             return found

@@ -820,6 +820,10 @@ _FORM_PLACES = "blank-places-at-the-census-line"
 # census line, as `dialect.closing_runs_disclosed` publishes them.
 _CLOSING = "closing-flag-or-quoted"
 _CLOSING_RUNS = "closing-flag-quoted-or-runs-at-the-census-line"
+# The block whose two sides are asked together: a header closed either
+# way over records all closed `""` is read back as one column more
+# (Codex's review of landing R6, item 3).
+_TRAILING_BLOCK = ("source", "dialect", "trailing_delimiter")
 _FORM_COUNT = "count-of-the-files-lines-zero-or-at-the-census-line"
 # One of the three stand-in numbers this package judges, written as
 # itself. The only path is the declaration records' `built_in_numbers`,
@@ -3035,6 +3039,13 @@ def _check_published(
             if named not in PUBLICATION_RULES:
                 raise _refuse(named)
             _check_published(node[name], named, name, context)
+        # A header ending in its delimiter over records all closed `""`
+        # is read back as one column more (Codex's review of landing R6,
+        # item 3; the loader's FD10).
+        if path == _TRAILING_BLOCK and node.get("rows") == dialect.CLOSING_QUOTED and (
+            node.get("header") is True or node.get("header") == dialect.CLOSING_QUOTED
+        ):
+            raise _refuse(path)
         return
     if kind == _ARRAY:
         if not isinstance(node, list):
@@ -3048,7 +3059,14 @@ def _check_published(
             _check_published(item, path + (_EACH,), "", context)
             runs += [dialect.EndingRun(ending=item["ending"], lines=item["lines"])]
         kinds = set([run.ending for run in runs])
-        if len(kinds) < 2 or dialect.endings_broken(tuple(runs), context.floor, 0):
+        if (
+            len(kinds) < 2
+            or dialect.endings_broken(tuple(runs), context.floor, 0)
+            # ...and as the twin's closings are measured back (Codex's
+            # review of landing R6, item 4): no run beside one of the
+            # same closing, none past the cap on runs.
+            or dialect.closing_runs_broken(tuple(runs))
+        ):
             raise _refuse(path)
         return
     if kind == _FORM_PLACES:
