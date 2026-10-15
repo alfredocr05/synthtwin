@@ -1073,6 +1073,95 @@ def test_a_crowded_lattice_is_filled_above_a_uniform_draw_on_every_path() -> Non
                             assert distinct / points > drawn, case
 
 
+def _kept_series(step: int, values: int, offset: int, keep: "typing.Callable[[int, datetime.datetime], bool]") -> "list[str]":
+    """Lane J3's Codex review, its verifier: `values` stamps on the lattice `step` minutes apart
+    from 2015-01-01 plus `offset` seconds, the slots `keep` (slot number, stamp) refuses left
+    empty, each kept stamp written twice."""
+    start = datetime.datetime(2015, 1, 1) + datetime.timedelta(seconds=offset)
+    cells: "list[str]" = []
+    place = 0
+    kept = 0
+    while kept < values:
+        stamp = start + datetime.timedelta(minutes=step * place)
+        place = place + 1
+        if not keep(place - 1, stamp):
+            continue
+        kept = kept + 1
+        cells += [stamp.strftime("%Y-%m-%d %H:%M:%S")] * 2
+    return cells
+
+
+def test_a_grid_written_by_day_counts_only_the_places_its_counts_leave(tmp_path: pathlib.Path) -> None:
+    """Lane J3's Codex review, item 1, its verifier (NF121, NF122): the two exceptions asked
+    their share and their draw on every point of the lattice between the tails. Stamps
+    fifteen minutes apart from 00:13, kept only from 06:00 to 20:00, 1,000 of them each
+    written twice: their hour census counts nought outside those hours, yet the night's
+    points were counted -- 1,000 values on 1,668 points at floor 11, 0.600 against a draw's
+    0.699 -- so b18e17a published the minute's heaps at 13, 28, 43 and 58 and the second's at
+    0, and its twins wrote 919, 947 and 918 values at floor 11 (seeds 0 to 2) and 991 to 995
+    at floor 36. Withheld, every twin wrote 1,000. The exceptions now count the places the
+    published counts leave (`calendar_clock.lattice_places`): 988 of the 1,668 points (964
+    of 1,644 at floor 36), crowded. And 20 minutes apart from 00:37, every third slot empty,
+    1,000 stamps each written twice: heaps at 17 and 57 hold two of the lattice's three
+    phases, so 988 of 1,481 points at floor 11 are places; b18e17a published and its three
+    twins missed the count of different values. Both withhold both fields, said once a
+    field, and every twin at seeds 0 to 2 meets every fact with all 1,000 values."""
+    crowded = (taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_CROWDED, ()), taxonomy.rendered(taxonomy.NOTE_SECOND_WITHHELD_CROWDED, ()))
+    by_day = _kept_series(15, 1000, 780, lambda _place, stamp: 6 <= stamp.hour < 20)
+    every_third = _kept_series(20, 1000, 2220, lambda place, _stamp: place % 3 != 0)
+    for name, cells, floor in (("day", by_day, 11), ("day", by_day, 36), ("third", every_third, 11)):
+        described = _one_column(tmp_path / f"{name}-{floor}", "c", cells, floor)
+        block = described.block("c")
+        for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+            assert block[key] == [], (name, floor, key)
+        said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "c"]
+        assert sorted(note for note in said if note in crowded) == sorted(crowded), (name, floor)
+        for seed in (0, 1, 2):
+            written = kpi_shapes.twin_text(described, seed)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (name, floor, seed)
+            assert len(set(written.splitlines()[1:])) == 1000, (name, floor, seed)
+    # By hand: the first call, on every point and on the places.
+    assert not calendar_clock.lattice_crowded(900, 1_420_098_180, 1_421_598_480, 1000, False, 2000, False, True, True)
+    assert calendar_clock.lattice_crowded(900, 1_420_098_180, 1_421_598_480, 1000, False, 2000, False, True, True, 988)
+    # The standard path does not read the places.
+    assert not calendar_clock.lattice_crowded(900, 1_420_098_180, 1_421_598_480, 1000, False, 2000, False, False, False, 988)
+
+
+def test_the_places_the_counts_leave_are_counted_exactly() -> None:
+    """Lane J3's Codex review, its verifier: `calendar_clock.lattice_places` against a walk of
+    every point, over units dividing the hour and not, spans from nothing to a few weeks,
+    instants before 1970 and after, and held hours, minutes and seconds from none to every
+    value; two centuries counted the same way in a few thousand steps. `field_places`: a
+    census's groups counting a cell and every heap's value, every value where nothing is
+    published or heaps beside no census leave a rest."""
+    pick = random.Random(17)
+    for _case in range(400):
+        unit = pick.choice((1, 5, 20, 60, 300, 900, 1200, 3600, 7, 7200))
+        low = pick.randrange(-2_000_000, 2_000_000)
+        high = low + pick.randrange(-3, 2_000_000 if unit >= 60 else 40_000)
+        hours = tuple(sorted(pick.sample(range(24), pick.randrange(0, 25))))
+        minutes = tuple(sorted(pick.sample(range(60), pick.randrange(0, 61))))
+        seconds = tuple(sorted(pick.sample(range(60), pick.randrange(0, 61))))
+        walked = 0
+        if high >= low and 3600 % unit != 0:
+            walked = (high - low) // unit + 1
+        elif high >= low:
+            for instant in range(low, high + 1, unit):
+                on_hour = (instant // 3600) % 24 in (hours or range(24))
+                on_minute = (instant % 3600) // 60 in (minutes or range(60))
+                if on_hour and on_minute and instant % 60 in (seconds or range(60)):
+                    walked += 1
+        assert calendar_clock.lattice_places(unit, low, high, hours, minutes, seconds) == walked, (unit, low, high)
+    centuries = 200 * 365 * 86400
+    assert calendar_clock.lattice_places(900, 780, 780 + centuries - 900, tuple(range(6, 20)), (13, 28, 43, 58), (0,)) == 200 * 365 * 14 * 4
+    assert calendar_clock.field_places((), (), 100) == ()
+    assert calendar_clock.field_places((), ((17, 50), (57, 50)), 100) == (17, 57)
+    assert calendar_clock.field_places((), ((17, 50), (57, 49)), 100) == ()
+    assert calendar_clock.field_places((), ((17, 50), (57, 50)), -1) == ()
+    assert calendar_clock.field_places(((0, 5, 0), (6, 19, 1976), (20, 23, 0)), (), 1976) == tuple(range(6, 20))
+    assert calendar_clock.field_places(((0, 29, 40), (30, 59, 0)), ((45, 60),), 100) == tuple(range(0, 30)) + (45,)
+
+
 def test_the_lattice_at_its_phase_reads_each_published_value_once(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lane J3: `calendar_clock.crowding_unit` reads each published body value once a field
     and each heap once -- counted in operations, machine-free, at 1,000 to 1,000,000 values,
