@@ -42272,7 +42272,7 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
     # beside 1 note in 40 came out so, and the twin MISSED the census
     # count it was asked for. Only the clock's figures are stepped, at
     # half the step, and the half of the day is the step's parity.
-    gap = parsing._key_gap_at(form)
+    gap = parsing.key_gap_at(form)
     if gap >= 0:
         words = [mark for mark in _CLOCK_FORM_MARKS if mark[0] == form[gap + 1 :]]
         head = _filled_form(form[:gap], step // 2, False)

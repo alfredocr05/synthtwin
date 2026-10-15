@@ -1639,6 +1639,20 @@ def _key_gap_at(name: str) -> int:
     return place
 
 
+def key_gap_at(name: str) -> int:
+    """Where the one gap of a census key sits, or -1 (P4-D392).
+
+    The public face of `_key_gap_at`, for the generator's figure fill
+    (lane L2's repair round, method G8.3): a gapped form filled figure by
+    figure keeps its gap and writes its marker key as a word. Raises
+    TypeError if handed anything that is not a string instance. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return _key_gap_at(name)
+
+
 def shape_form(text: str) -> str:
     """The shape of one cell: its figures and letters, its marks kept.
 
