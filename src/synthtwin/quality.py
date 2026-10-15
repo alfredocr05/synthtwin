@@ -576,7 +576,9 @@ def _missed_lines(outcome: validation.Outcome) -> "list[str]":
         "",
     ]
     for check in missed:
-        lines = lines + [f"{_where(check)}"] + _detail_of(check) + [""]
+        lines += [f"{_where(check)}"]
+        lines += _detail_of(check)
+        lines += [""]
     return lines
 
 
@@ -590,8 +592,10 @@ def _column_order(outcome: validation.Outcome) -> "list[str]":
     used.
     """
     seen: list[str] = []
+    met: "dict[str, int]" = {}
     for check in outcome.checks:
-        if check.column not in seen:
+        if check.column not in met:
+            met[check.column] = 1
             seen += [check.column]
     return seen
 
@@ -604,20 +608,28 @@ def _detail_lines(outcome: validation.Outcome) -> "list[str]":
         _RULE,
         "",
     ]
-    lines = lines + _missed_lines(outcome)
+    lines += _missed_lines(outcome)
     lines += [
         "EVERY OBLIGATION, IN THE DESCRIPTION'S OWN ORDER.",
         "",
     ]
+    # EACH COLUMN'S CHECKS ARE GATHERED ONCE AND THE LINES GROW IN PLACE
+    # (stage 4 lane S4b-num, plan P4-D390). Every check's lines were added
+    # to a copy of every line before them, and every column walked every
+    # check: a register of 10,000 published codes spent 35 of the 73 s
+    # `validate` took here and in `quality_report`'s join below.
+    mine: "dict[str, list[validation.Check]]" = {}
+    for check in outcome.checks:
+        if check.column not in mine:
+            mine[check.column] = []
+        mine[check.column] += [check]
     for column in _column_order(outcome):
         heading = "the file as a whole"
         if column:
             heading = f"'{_shown(column)}'"
         lines += [heading]
-        for check in outcome.checks:
-            if check.column != column:
-                continue
-            lines = lines + _detail_of(check)
+        for check in mine[column]:
+            lines += _detail_of(check)
         lines += [""]
     return lines
 
@@ -1191,29 +1203,115 @@ def quality_report(
     it and are never folded into it. No wording available to this module
     can say that every published fact was found.
     """
-    lines = _opening_lines(description, outcome.measured_name) + [""]
+    return _lines_joined(_report_lines(description, outcome))
+
+
+def report_pieces(
+    description: contract.Profile, outcome: validation.Outcome
+) -> "list[str]":
+    """The same report as `quality_report`, handed over in pieces.
+
+    THE PIECES, ADDED IN ORDER, ARE `quality_report`'s TEXT, BYTE FOR
+    BYTE (stage 4 lane S4c, plan P4-D390): each piece is a run of at most
+    `_PIECE_LINES` whole lines, each ended by a line feed. The command
+    that prints and writes the report hands it on piece by piece, so the
+    whole report is never made as one text. Joining the halves of the
+    whole report, level by level, left each level's size class mapped
+    after it was freed: validating a register of 997,770 rows (a report
+    of 60.4 MB) took the process from 565 MB to 1,324 MB, and 1,085,000
+    lines of about that length held 892 MB joined in halves in a probe
+    of their own, 94 MB in pieces (plan P4-D390).
+
+    Guarantees: the inputs, determinism, display and boundary of
+    `quality_report`, which this reads the same lines from; raises
+    nothing for a description the loader accepted and an outcome
+    measured from it. No I/O of any kind.
+    """
+    return _lines_pieces(_report_lines(description, outcome))
+
+
+# How many lines a piece of the report holds at most (`report_pieces`).
+# A piece is joined in halves by `_lines_joined`, so the size classes its
+# levels pass through are freed and taken again by the next piece.
+_PIECE_LINES = 4096
+
+
+def _lines_pieces(lines: "list[str]") -> "list[str]":
+    """The lines, each ended by a line feed, in pieces of `_PIECE_LINES`; ``lines`` is used up.
+
+    Each line is let go once its piece holds it, so the lines and the
+    pieces are not both held whole.
+    """
+    pieces: "list[str]" = []
+    count = len(lines)
+    for start in range(0, count, _PIECE_LINES):
+        block: "list[str]" = []
+        for index in range(start, min(count, start + _PIECE_LINES)):
+            block += [lines[index]]
+            lines[index] = ""
+        pieces += [_lines_joined(block)]
+    return pieces
+
+
+def _report_lines(
+    description: contract.Profile, outcome: validation.Outcome
+) -> "list[str]":
+    """Every line of the quality report, in order, none ended (`quality_report`)."""
+    lines = _opening_lines(description, outcome.measured_name)
+    lines += [""]
     # HIGH IN THE PAGE, above the verdict a reader came for. Nothing at
     # all -- not even a blank line -- on a description made at the
     # default floor, so an ordinary report's bytes are unchanged by the
     # existence of this section.
     lowered = _lowered_floor_lines(description)
     if lowered:
-        lines = lines + lowered + [""]
+        lines += lowered
+        lines += [""]
     # AND THE SAME PLACE FOR THE SAME REASON (plan P4-D341), and
     # nothing at all where the description carries no such note.
     population = _small_population_lines(description)
     if population:
-        lines = lines + population + [""]
-    lines = lines + _summary_lines(outcome.census) + [""]
-    lines = lines + _bounds_lines() + [""]
-    lines = lines + _detail_lines(outcome)
-    lines = lines + _not_checkable_lines(outcome) + [""]
-    lines = lines + _expectations_lines() + [""]
-    lines = lines + _handling_lines(description, outcome.census.withheld)
-    # The lines are joined by hand: the offline policy accepts a text
-    # method only with arguments it has resolved, and a list built while
-    # the program runs is not one (plan D6.2).
-    text = ""
-    for line in lines:
-        text = text + line + _NEWLINE
-    return text
+        lines += population
+        lines += [""]
+    lines += _summary_lines(outcome.census)
+    lines += [""]
+    lines += _bounds_lines()
+    lines += [""]
+    lines += _detail_lines(outcome)
+    lines += _not_checkable_lines(outcome)
+    lines += [""]
+    lines += _expectations_lines()
+    lines += [""]
+    lines += _handling_lines(description, outcome.census.withheld)
+    return lines
+
+
+def _lines_joined(lines: "list[str]") -> str:
+    """The lines, each ended by a line feed, as one text; ``lines`` is used up.
+
+    JOINED BY HAND, IN HALVES. The offline policy accepts a text method
+    only with arguments it has resolved, and a list built while the
+    program runs is not one (plan D6.2), so the lines are not handed to
+    a join. Added to the text one at a time, each line copied the whole
+    text before it, the square of the report's length; joined pairwise,
+    level by level, each character is copied once a level, and there
+    are as many levels as the line count has binary digits (stage 4
+    lane S4b-num, plan P4-D390). Each level is written over the first
+    half of the list it reads, so the report is held about twice at
+    most. The bytes are the same.
+    """
+    count = len(lines)
+    for index in range(count):
+        lines[index] = lines[index] + _NEWLINE
+    while count > 1:
+        half = count // 2
+        for index in range(half):
+            lines[index] = lines[2 * index] + lines[2 * index + 1]
+        if count % 2 == 1:
+            lines[half] = lines[count - 1]
+            half = half + 1
+        del lines[half:]
+        count = half
+    if count == 0:
+        return ""
+    return lines[0]

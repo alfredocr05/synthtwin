@@ -2940,6 +2940,22 @@ the first two moments. The twin's own report passes no verdict and is
 unchanged; it already prints both values and says where its range does
 not cover the published one.
 
+**AND ON A DENSE TAIL THE MEAN DISTANCE ANSWERS TO THE WINDOW
+G6.6.8'S RULE 4 DRAWS AS WELL** (stage 4 lane S4c, plan P4-D377). Where
+the ladder reads a tail as dense (`TailReader.dense_grid`) the
+generator places its outer strata so their distances from the
+published boundary sum to the published mean distance times the rows,
+and the file's own tail is measured from its own boundary rung, so its
+mean distance is the published one moved by how far that rung stands
+from the published boundary, within the rung's own window, and one grid
+step either way (`contract.dense_tail_mean_window`). The check reads
+the hull of that window and G12.13's, so a file left where the
+staircase put it stands where it stood. MEASURED: G2's dense tail at
+1,000,000 rows drew 10,079.4 to 10,348.1 around a published 5,780.5,
+so the real table was held only by its exact value and the twin's
+5,412.8 was MISSED; the hull runs from 5,775.0, and the placed twin's
+5,779.5 is WITHIN-BOUND.
+
 **AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, THE WINDOW
 DRAWN WITH THAT RULE WITHDRAWN BOUNDS THE FILE TOO** (the second skeptic
 of plan P4-D377's repair, item 1; Codex's review of lane G2, item 1, and

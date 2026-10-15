@@ -11945,7 +11945,423 @@ def _values_drawn(
     # refuses every move the passes above would have to redo.
     values, mode_notes = _mode_held(column, facts, layout, values)
     notes = notes + mode_notes
+    values = _tail_pair_met(facts, layout, rungs, values)
     return layout, values, notes, kept
+
+
+def _tail_pair_met(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """A dense tail's outer strata, placed so its published mean distance is met (G6.6.8 rule 4).
+
+    THE LAST OF THE VALUE PASSES, and it acts only on a side the ladder
+    reads as DENSE (`contract.TailReader.dense_grid`): one whose rows
+    crowd its grid, so the staircase -- each row on its own grid point,
+    one past the row before -- stands further out than the published
+    mean distance by more than rounding can put it; and only where the
+    twin's own strata crowd it too -- a run of consecutive grid points
+    from the boundary holding at least half the tail's cells -- and
+    miss that mean by more than half a step. Measured on consecutive whole
+    numbers up to `999999` beside five at `999999 + 1.56 N` (stage 4
+    lane S4c, plan P4-D377): at 100,000 rows the high tail's 1,000 rows
+    publish a mean distance of 1,280.5 and the twin wrote 1,918.6; at
+    1,000,000 rows they publish 5,780.5 and the twin wrote 5,412.8,
+    G6.6.8's walk having taken all but ten of the tail's far strata
+    under the width, and five more checks missed with it: the tail's
+    spread and the column's four moments.
+
+    THE INNER RUN STAYS AND THE OUTER STRATA ARE PLACED AGAIN
+    (`_dense_side_placed`). Counted outward from the boundary, the
+    tail's strata on consecutive grid points stand where the grid pushed
+    them and no placement can bring them nearer; the strata past that
+    run carry what the pair's totals, `m d1` and `m rms**2`, leave. The
+    first of them continue the run, one grid point each, and the last
+    `q` stand together far out, one grid point apart, at the distance
+    that meets `m d1` to the grid step; `q` is the count whose squares,
+    with its far strata where the mean first puts them -- before a
+    stand-in passed over or the remainder moves them -- stand nearest
+    `m rms**2`, the fewest on a tie, so the placed side's squares may
+    stand further than another `q`'s would (Codex's review of lane S4c,
+    item 5: weighed after its remainder, a `q` of four left 355,104
+    where the `q` of three taken left 359,800). That is the shape
+    a dense tail's own pair describes: the real column above is that
+    run and its five far cells, and the placement writes them back.
+
+    NOTHING ELSE MOVES, and a side is left as it stood where the
+    placement would break a rule the passes before it keep: a published
+    end, a stratum leaving its sign band, a width demand able to take
+    fewer cells than it could, the marks census counting other cells
+    than it counted, or a published separator finding fewer cells of a
+    thousand to group (`_dense_census_kept`), a grid of more than 308
+    figures, whose scale is past the largest double,
+    no `q` reaching the mean beyond the run's last point, or the far
+    strata's distances landing more than a step from `m d1`; a point on
+    a stand-in number the block does not hold is passed over
+    (`_dense_free`), the far strata laid again a step nearer where those
+    it passes carry them past the sum. A side left so is named where
+    its distance misses, as before (`_tail_approximations`).
+
+    Guarantees: accepts the block's numeric facts, its division, its
+    ladder and one value a stratum in the strata's order; returns the
+    values -- the same list, a placed side written into it in place --
+    unchanged on every side that is not dense or not placed.
+    Determinism: a function of its arguments. Raises nothing. No I/O.
+    """
+    tails = facts.tails
+    if tails is None or not isinstance(rungs, contract.ShapedLadder):
+        return values
+    moved = values
+    for side, reader in ((tails.low, rungs.low), (tails.high, rungs.high)):
+        if side is None or reader is None or reader.dense_grid < 0:
+            continue
+        if side.mean_distance is None or side.rms_distance is None:
+            continue
+        placed = _dense_side_placed(facts, layout, moved, reader, side)
+        if placed is not None:
+            moved = placed
+    return moved
+
+
+def _dense_side_placed(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    reader: contract.TailReader,
+    side: contract.TailSide,
+) -> "list[float] | None":
+    """One dense side placed by G6.6.8's rule 4 (`_tail_pair_met`), or None where it stays.
+
+    Distances are counted in grid steps from the published boundary,
+    each value a whole number of steps, so the run and the far strata's
+    places are exact. Every count of far strata is weighed from running
+    sums, once each, and a placed side is written into ``values`` in
+    place, so the work is the tail's strata and no more: no copy of the
+    column is made (Codex's review of lane S4c, item 6).
+
+    Each case the side stays in is its own test in
+    tests/test_stage4_million_rows.py: a published end, a far stratum
+    leaving the positive or the negative band or landing in the zero
+    band, the width census, the marks census, a separator published
+    alone, a grid of more than 308 figures, a mean the far strata
+    cannot reach past the run, a sum that lands more than a step out,
+    and a tie on `q` going to the fewest. A grid point never fails
+    to read back as itself (`_dense_value`), so no case asks it.
+    """
+    low = reader.low
+    end = facts.percentiles.minimum if low else facts.percentiles.maximum
+    if end is not None or side.mean_distance is None or side.rms_distance is None:
+        return None
+    total = len(layout.sizes)
+    if total < 3:
+        return None
+    cells = layout.starts[total - 1] + layout.sizes[total - 1]
+    rows = side.rows
+    if rows < 2 or rows >= cells:
+        return None
+    # A GRID PAST THE LARGEST DOUBLE stays as it stood: ten to the 309th
+    # is no double, so its steps cannot be counted in one (the verifier
+    # of Codex's review of lane S4c: tenths-style cells of 320 figures
+    # raised OverflowError where `50a52d6` generated them clean).
+    if reader.dense_grid > 308:
+        return None
+    scale = 1
+    for _figure in range(reader.dense_grid):
+        scale = scale * 10
+    # THE TAIL'S STRATA, OUTWARD, each with how many of its cells lie
+    # beyond the boundary by rank: a stratum the boundary rank cuts is
+    # in the tail with its outer cells, and it is the run's first.
+    # Walked in from the outside, so only the tail's strata are read.
+    inward: "list[tuple[int, int]]" = []
+    counted = 0
+    place = 0 if low else total - 1
+    while counted < rows and 0 <= place < total:
+        size = min(layout.sizes[place], rows - counted)
+        inward += [(place, size)]
+        counted = counted + size
+        place = place + 1 if low else place - 1
+    if len(inward) < 2 or counted != rows:
+        return None
+    order: "list[tuple[int, int]]" = []
+    for index in range(len(inward) - 1, -1, -1):
+        order += [inward[index]]
+    steps: "list[int]" = []
+    for place, _cells in order:
+        value = values[place]
+        if not math.isfinite(value) or abs(value) * scale >= 2.0**52:
+            return None
+        steps += [round(value * scale)]
+    toward = -1 if low else 1
+    run = 1
+    held_in_run = order[0][1]
+    while run < len(order) and steps[run] == steps[run - 1] + toward:
+        held_in_run = held_in_run + order[run][1]
+        run = run + 1
+    # A DENSE TWIN: the run holds at least half the tail's cells. A tail
+    # whose strata stand apart is read as the staircase read it, and
+    # left as it stands.
+    if run >= len(order) or 2 * held_in_run < rows:
+        return None
+    outer = order[run:]
+    count = len(outer)
+    boundary = reader.boundary * scale
+    inner_sum = 0.0
+    inner_squares = 0.0
+    for index in range(run):
+        distance = (steps[index] - boundary) * toward
+        inner_sum = inner_sum + order[index][1] * distance
+        inner_squares = inner_squares + order[index][1] * distance * distance
+    unit = side.mean_distance * scale
+    wanted_sum = rows * unit - inner_sum
+    standing = 0.0
+    for index in range(run, len(order)):
+        standing = standing + order[index][1] * (steps[index] - boundary) * toward
+    # AND ONE THAT ALREADY MEETS THE MEAN, to half a step, stays.
+    if 2.0 * abs(standing - wanted_sum) <= rows:
+        return None
+    spread = side.rms_distance * scale
+    wanted_squares = rows * spread * spread - inner_squares
+    held = reader.kept
+    # THE RUN CONTINUED: the grid point each outer stratum takes when it
+    # is not among the far ones, and the running sums of their cells'
+    # distances and squares, inner first.
+    near_points: "list[int]" = []
+    near_sums = [0.0]
+    near_squares = [0.0]
+    at = steps[run - 1]
+    for index in range(count):
+        at = _dense_free(at + toward, toward, scale, held)
+        near_points += [at]
+        distance = (at - boundary) * toward
+        size = outer[index][1]
+        near_sums += [near_sums[index] + size * distance]
+        near_squares += [near_squares[index] + size * distance * distance]
+    # AND THE FAR STRATA'S OWN WEIGHTS, outermost first: their cells, and
+    # their cells times their place and its square, so the last `q`
+    # strata's offsets from the first of them are read off at once.
+    weights = [0]
+    placed_once = [0]
+    placed_twice = [0]
+    for back in range(count):
+        index = count - 1 - back
+        size = outer[index][1]
+        weights += [weights[back] + size]
+        placed_once += [placed_once[back] + size * index]
+        placed_twice += [placed_twice[back] + size * index * index]
+    best: "tuple[float, int, int] | None" = None
+    for far in range(1, count + 1):
+        near = count - far
+        weight = weights[far]
+        # Offsets from the first far stratum: sum of c * (index - near).
+        offsets = placed_once[far] - near * weight
+        squared = placed_twice[far] - 2 * near * placed_once[far] + near * near * weight
+        left = wanted_sum - near_sums[near] - offsets
+        if not math.isfinite(left):
+            continue
+        reach = left / weight
+        if not abs(boundary) + abs(reach) < 2.0**52:
+            continue
+        start = (
+            int((boundary + reach) // 1.0)
+            if toward > 0
+            else -int((reach - boundary) // 1.0)
+        )
+        last = steps[run - 1] if near == 0 else near_points[near - 1]
+        if (start - last) * toward < 1:
+            continue
+        gap = (start - boundary) * toward
+        squares = (
+            near_squares[near]
+            + weight * gap * gap
+            + 2.0 * gap * offsets
+            + squared
+        )
+        miss = abs(squares - wanted_squares)
+        if best is None or miss < best[0]:
+            best = (miss, far, start)
+    if best is None:
+        return None
+    far = best[1]
+    near = count - far
+    last = steps[run - 1] if near == 0 else near_points[near - 1]
+    # THE FAR STRATA LAID FROM `start`, AND LAID AGAIN A STEP NEARER while
+    # the stand-ins they pass over carry them past `m d1` by more than
+    # half a step (Codex's review of lane S4c, item 3): each skipped
+    # point puts every stratum after it a step further out, so a far
+    # run crossing `9999.0` stood two steps past the published sum. The
+    # remainder below only ever moves outward, so it starts from a sum
+    # at or under the published one. Each lay is the far strata's, and
+    # each step nearer takes back at least a stratum's cells or passes
+    # a stand-in, so the lays are at most twice the stand-ins and one.
+    start = best[2]
+    while True:
+        points: "list[int]" = []
+        for index in range(near):
+            points += [near_points[index]]
+        reached = near_sums[near]
+        point = start
+        for index in range(far):
+            if index:
+                point = point + toward
+            point = _dense_free(point, toward, scale, held)
+            points += [point]
+            reached = reached + outer[near + index][1] * (point - boundary) * toward
+        if round(wanted_sum - reached) >= 0:
+            break
+        start = start - toward
+        if (start - last) * toward < 1:
+            return None
+    # THE REMAINDER, one step at a time on the outermost strata whose
+    # cells it still holds whole, so the sum lands on `m d1` to the step.
+    # A step that passes a stand-in counts every step it moves, and no
+    # stratum lands on or past the one outside it.
+    short = round(wanted_sum - reached)
+    index = count - 1
+    while short > 0 and index >= near:
+        size = outer[index][1]
+        moved = _dense_free(points[index] + toward, toward, scale, held)
+        gained = size * (moved - points[index]) * toward
+        if gained > short or (index + 1 < count and (points[index + 1] - moved) * toward < 1):
+            index = index - 1
+            continue
+        points[index] = moved
+        reached = reached + gained
+        short = short - gained
+    # AND THE SUM CHECKED BEFORE THE PLACEMENT IS TAKEN: within a step of
+    # `m d1`, or the side stays as it stood (Codex's review, item 3).
+    if abs(wanted_sum - reached) > 1.0:
+        return None
+    written_points: "list[float]" = []
+    for index in range(count):
+        place = outer[index][0]
+        written = _dense_value(points[index], reader.dense_grid, scale)
+        band = layout.bands[place]
+        if band == _BAND_ZERO:
+            return None
+        if band == _BAND_POSITIVE and not written > 0.0:
+            return None
+        if band == _BAND_NEGATIVE and not written < 0.0:
+            return None
+        written_points += [written]
+    if not _dense_census_kept(facts, layout, values, outer, written_points):
+        return None
+    # WRITTEN IN PLACE, only once every rule above has let the side be
+    # placed: a copy of the column would make the work the rows' and not
+    # the tail's (Codex's review, item 6). The list is the reading's own,
+    # made by `_stratum_values` for this reading and handed down the
+    # value passes, so no other holder sees it change.
+    for index in range(count):
+        values[outer[index][0]] = written_points[index]
+    return values
+
+
+def _dense_census_kept(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    outer: "list[tuple[int, int]]",
+    written: "list[float]",
+) -> bool:
+    """Whether rule 4's placement keeps what the width and mark censuses count (G6.6.8 rule 4).
+
+    ONLY THE PLACED STRATA MOVE, so a count over the column changes by
+    what it changes over them. Each width demand (`_field_demands`: a
+    padded field asks a value of at most so many figures, an unpadded
+    one a value of exactly so many) counts the placed strata's cells
+    whose values can serve it, and the placement is taken only where no
+    demand can take fewer of them than before -- each demand reads an
+    interval of figure counts, so every union of them then holds at
+    least as many cells and the cells the demands are served from do not
+    fall; where the block publishes a marks census (`thousands_marks`),
+    the cells whose values reach a thousand must number exactly as many
+    as before, a surplus being written with the mark; and where it
+    publishes a separator (`group_separator`) with no marks census, the
+    twin groups every cell of `_GROUPED_AT_A_THOUSAND` that reaches a
+    thousand, so those cells may not number fewer than before. Measured
+    (Codex's review of lane S4c, item 1): five-figure fields `00000` to
+    `07988` beside eleven at `10000` to `20000` came back with `7988`
+    and `7990` written in four figures, the run continued under ten
+    thousand where no padding was owed; tenths to `798.8` beside eleven
+    grouped from `1,000.0` wrote nine grouped cells against eleven, and
+    both spelling checks fell under the floor; and with one bare
+    `2100.0` beside them, the marks census refused under the floor and
+    the comma alone published, the twin wrote ten grouped cells and
+    `spelling.group_separator` fell under the floor (its verifier).
+
+    Guarantees: accepts the block's facts, its division, the values as
+    they stand, the placed strata with their tail cells, and each one's
+    new value in that order; returns True where every count is kept as
+    the rule asks.
+    Determinism: a function of its arguments. Raises nothing. No I/O.
+    """
+    demands = _field_demands(facts)
+    marked = len(facts.thousands_marks) > 0
+    separated = facts.group_separator != ""
+    if not demands and not marked and not separated:
+        return True
+    whole = facts.integer_valued
+    for wanted, exact, _cells in demands:
+        before = 0
+        after = 0
+        for index in range(len(outer)):
+            place = outer[index][0]
+            size = layout.sizes[place]
+            if _serves_width(values[place], wanted, exact, whole):
+                before = before + size
+            if _serves_width(written[index], wanted, exact, whole):
+                after = after + size
+        if after < before:
+            return False
+    if marked or separated:
+        before = 0
+        after = 0
+        for index in range(len(outer)):
+            place = outer[index][0]
+            size = layout.sizes[place]
+            if abs(values[place]) >= 1000.0:
+                before = before + size
+            if abs(written[index]) >= 1000.0:
+                after = after + size
+        if after < before or (marked and after != before):
+            return False
+    return True
+
+
+def _serves_width(value: float, wanted: int, exact: int, whole: bool) -> bool:
+    """Whether ``value`` can serve a width demand of `_field_demands`: ``wanted`` figures exactly, or one to ``wanted``."""
+    if not _carries_plainly(value, whole):
+        return False
+    figures = _figure_count(value, whole)
+    if exact:
+        return figures == wanted
+    return 1 <= figures <= wanted
+
+
+def _dense_free(point: int, toward: int, scale: int, held: "tuple[float, ...]") -> int:
+    """``point`` or the next grid point ``toward``, past every stand-in number the block does not hold."""
+    while True:
+        value = point / scale
+        if value in parsing.NUMERIC_SENTINELS and value not in held:
+            point = point + toward
+            continue
+        return point
+
+
+def _dense_value(point: int, figures: int, scale: int) -> float:
+    """The value of grid point ``point`` of the ``figures`` grid.
+
+    Its text always reads back as itself, so `_on_the_grid` is not asked
+    (lane S4c's repair, plan P4-D377): the steps and the reach are held
+    under ``2**52`` grid steps, where a unit in the quotient's last place
+    is narrower than a grid step, so the quotient rounds to within half a
+    step, its shortest text is the point's own at ``figures`` figures,
+    and that text reads back as the same double.
+    """
+    if figures == 0:
+        return float(point)
+    return point / scale
 
 
 # The styles a cell of which a thousand is always grouped where it is a
@@ -14250,21 +14666,68 @@ def _pushed_apart(
     )
     point_free = _whole_demand(facts) > 0
     immovable: "dict[str, int]" = {}
+    # EVERY STRATUM IS FOUND BY ITS GRID UNIT, AND THE COLLISIONS WAIT IN
+    # A HEAP (stage 4 lane S4b-num, plan P4-D377). The
+    # pass found the lowest collision, the holders of its text and the
+    # strata each push passes by reading every stratum again, and walked
+    # each way to its free point in full however far the other way's
+    # stood: on consecutive whole numbers beside five far ones, declared
+    # a measurement at a floor of eleven, the push took 24.8 of the 32.9 s
+    # `generate` took at 16,000 rows under a profiler, about three times
+    # a doubling (Codex's review of lane G2, item 3; plan P4-D377). The
+    # heap holds a stratum by its unit and place, so its smallest live
+    # entry is the stratum the reading found first; a stratum joins it
+    # whenever a push brings its text to a second holder, and an entry a
+    # later push made stale is skipped where it is met. Each way is
+    # walked under a budget of strata, raised fourfold until one way is
+    # settled, and the other then only as far as could still win: the
+    # push taken, and every stratum it moves, are the ones the pass took
+    # when it walked both ways in full.
+    by_units: "dict[int, int | dict[int, int]]" = {}
+    units_of: "list[int | None]" = []
+    for place in range(total):
+        units = _grid_units(texts[place], figures)
+        units_of += [units]
+        if units is None:
+            continue
+        _unit_added(by_units, units, place)
+    waiting: "list[tuple[int, int]]" = []
+    size = 0
+    for place in range(total):
+        units = units_of[place]
+        if units is None or layout.bands[place] == _BAND_ZERO:
+            continue
+        if held[texts[place]] >= 2:
+            size = _unit_heap_push(waiting, size, (units, place))
+    # AND THE HEAP KEEPS NO MORE THAN TWICE ITS LIVE ENTRIES (Codex's
+    # review of lane S4b-num, item 1). A push upward moves each stratum
+    # it passes onto a point its neighbour still holds, so both enter the
+    # heap and the next move leaves them stale; while a lower collision
+    # stays the heap's first entry they are never reached and never
+    # dropped. Measured on f334726: a pinned first stratum, half the
+    # strata on the next unit and one a unit above it to a far last one
+    # held 7,204, 29,404, 118,804 and 477,604 entries at 100, 200, 400
+    # and 800 strata, and eleven rows of a published minimum below a run
+    # of 8,000 numbers 24,663 for 8,006 strata. Once it holds more than
+    # twice the live entries it was last left with, and 64, it is
+    # rebuilt from its live entries alone: the lowest live entry is the
+    # same, so the same push is taken.
+    limit = 2 * size + _PUSH_HEAP_SLACK
     while len(held) < wanted:
         target = -1
         target_units = 0
-        for place in range(total):
+        while size > 0:
+            units, place = waiting[0]
             text = texts[place]
-            if held[text] < 2 or text in immovable:
-                continue
-            if layout.bands[place] == _BAND_ZERO:
-                continue
-            units = _grid_units(text, figures)
-            if units is None:
-                continue
-            if target < 0 or units < target_units:
+            if (
+                units_of[place] == units
+                and held[text] >= 2
+                and text not in immovable
+            ):
                 target = place
                 target_units = units
+                break
+            size = _unit_heap_pop(waiting, size)
         if target < 0:
             break
         collision = texts[target]
@@ -14276,7 +14739,7 @@ def _pushed_apart(
         if band == _BAND_POSITIVE and lowest < 1:
             lowest = 1
         holders: "list[int]" = []
-        for place in range(total):
+        for place in sorted(_unit_places(by_units, target_units)):
             if texts[place] != collision:
                 continue
             if layout.bands[place] == _BAND_ZERO:
@@ -14284,36 +14747,33 @@ def _pushed_apart(
             if place == 0 or place == total - 1:
                 continue
             holders += [place]
-        ways: "list[tuple[int, int, list[tuple[int, int]]]]" = []
-        for step in (-1, 1):
-            order = range(len(holders))
-            if step > 0:
-                order = range(len(holders) - 1, -1, -1)
-            for index in order:
-                mover = holders[index]
-                kind: "bool | None" = None
-                if keep_whole:
-                    kind = _whole_valued(moved[mover]) == moved[mover]
-                plan = _push_plan(
-                    texts, held, collision, target_units, step, lowest,
-                    highest, figures, gaps, kind,
-                    kept=facts.kept_stand_ins,
+        asked = _PushAsked(
+            facts, moved, texts, held, collision, target_units, lowest,
+            highest, figures, gaps, by_units, holders, keep_whole, point_free,
+        )
+        budget = _PUSH_FIRST_BUDGET
+        while True:
+            down = _push_way(asked, -1, budget)
+            up = _push_way(asked, 1, budget)
+            if down[0] == _PUSH_TOO_LONG and up[0] == _PUSH_TOO_LONG:
+                budget = budget * 4
+                continue
+            if down[0] == _PUSH_TOO_LONG:
+                # Down is taken on a tie, so it may pass as many strata.
+                down = _push_way(
+                    asked, -1, len(up[1]) - 1 if up[0] == _PUSH_FOUND else None
                 )
-                if plan is None:
-                    continue
-                pairs = plan[0] + [(mover, plan[1])]
-                refused = False
-                for pair in pairs:
-                    if not _push_allowed(
-                        facts, moved, pair[0], pair[1], figures, keep_whole,
-                        point_free,
-                    ):
-                        refused = True
-                        break
-                if refused:
-                    continue
-                ways += [(len(pairs), step, pairs)]
-                break
+            elif up[0] == _PUSH_TOO_LONG:
+                # Up is taken only where it passes fewer.
+                up = _push_way(
+                    asked, 1, len(down[1]) - 2 if down[0] == _PUSH_FOUND else None
+                )
+            break
+        ways: "list[tuple[int, int, list[tuple[int, int]]]]" = []
+        if down[0] == _PUSH_FOUND:
+            ways += [(len(down[1]), -1, down[1])]
+        if up[0] == _PUSH_FOUND:
+            ways += [(len(up[1]), 1, up[1])]
         if not ways:
             immovable[collision] = 1
             continue
@@ -14329,13 +14789,223 @@ def _pushed_apart(
             held[old] = held[old] - 1
             if held[old] == 0:
                 del held[old]
+            was = units_of[place]
+            if was is not None:
+                _unit_dropped(by_units, was, place)
             seen = 0
             if fresh_text in held:
                 seen = held[fresh_text]
             held[fresh_text] = seen + 1
             texts[place] = fresh_text
             moved[place] = fresh
+            fresh_units = _grid_units(fresh_text, figures)
+            units_of[place] = fresh_units
+            if fresh_units is None:
+                continue
+            _unit_added(by_units, fresh_units, place)
+            if held[fresh_text] < 2:
+                continue
+            # A text with a second holder now: every holder is a
+            # collision the heap must hold, the one just come and, where
+            # this made the second, the one that was there.
+            for holder in _unit_places(by_units, fresh_units):
+                if texts[holder] != fresh_text:
+                    continue
+                if holder != place and held[fresh_text] > 2:
+                    continue
+                if layout.bands[holder] == _BAND_ZERO:
+                    continue
+                size = _unit_heap_push(waiting, size, (fresh_units, holder))
+            if size > limit:
+                waiting = _unit_heap_live(
+                    waiting, size, units_of, texts, held, immovable
+                )
+                size = len(waiting)
+                limit = 2 * size + _PUSH_HEAP_SLACK
     return (moved, texts, held)
+
+
+# The strata a way may pass before the push asks the other way first, and
+# what `_push_way` answers.
+_PUSH_FIRST_BUDGET = 8
+# How many entries past twice its live ones the push's heap may hold
+# before it is rebuilt from them (`_unit_heap_live`).
+_PUSH_HEAP_SLACK = 64
+_PUSH_FOUND = "found"
+_PUSH_NONE = "none"
+_PUSH_TOO_LONG = "too long"
+
+
+@dataclasses.dataclass(frozen=True)
+class _PushAsked:
+    """What both ways of one push are asked over (`_push_way`)."""
+
+    facts: contract.NumericFacts
+    moved: "list[float]"
+    texts: "list[str]"
+    held: "dict[str, int]"
+    collision: str
+    start: int
+    lowest: int
+    highest: int
+    figures: int
+    gaps: "tuple[tuple[float, float], ...]"
+    by_units: "dict[int, int | dict[int, int]]"
+    holders: "list[int]"
+    keep_whole: bool
+    point_free: bool
+
+
+def _push_way(
+    asked: _PushAsked, step: int, budget: "int | None"
+) -> "tuple[str, list[tuple[int, int]]]":
+    """One way of a push, as G6.5a's push takes it, or why there is none.
+
+    The movers are asked in the push's own order -- lowest place first
+    for a push downward, highest first upward -- and the first whose
+    push is not refused gives the way: the strata its walk passes, in
+    place order, then the mover itself. Holders of one kind share one
+    walk, so it is walked once for each kind. ``budget``, where it is a
+    number, is the most strata the walk may pass before it is
+    abandoned: TOO LONG is then answered, which means that every way
+    this side could give passes more, and is asked only where every
+    holder is of one kind -- with two kinds a mover whose walk is too
+    long may still be refused and the next mover's way be short, so the
+    walk is taken in full. NONE is answered where no mover has a way.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    moved = asked.moved
+    order = list(asked.holders)
+    if step > 0:
+        order = order[::-1]
+    kinds: "dict[bool | None, int]" = {}
+    for mover in order:
+        kinds[_push_kind(moved[mover], asked.keep_whole)] = 1
+    if len(kinds) > 1:
+        budget = None
+    walked: "dict[bool | None, tuple[tuple[list[tuple[int, int]], int] | None, bool]]" = {}
+    for mover in order:
+        kind = _push_kind(moved[mover], asked.keep_whole)
+        if kind not in walked:
+            over: "list[int]" = []
+            plan = _push_plan(
+                asked.texts, asked.held, asked.collision, asked.start, step,
+                asked.lowest, asked.highest, asked.figures, asked.gaps, kind,
+                kept=asked.facts.kept_stand_ins, by_units=asked.by_units,
+                budget=budget, over=over,
+            )
+            if over:
+                return (_PUSH_TOO_LONG, [])
+            refused = False
+            if plan is not None:
+                for pair in plan[0]:
+                    if not _push_allowed(
+                        asked.facts, moved, pair[0], pair[1], asked.figures,
+                        asked.keep_whole, asked.point_free,
+                    ):
+                        refused = True
+                        break
+            walked[kind] = (plan, refused)
+        plan, refused = walked[kind]
+        if plan is None or refused:
+            continue
+        if not _push_allowed(
+            asked.facts, moved, mover, plan[1], asked.figures,
+            asked.keep_whole, asked.point_free,
+        ):
+            continue
+        return (_PUSH_FOUND, plan[0] + [(mover, plan[1])])
+    return (_PUSH_NONE, [])
+
+
+def _push_kind(value: float, keep_whole: bool) -> "bool | None":
+    """The kind of point a mover of ``value`` walks: whole or not, or None for both."""
+    if not keep_whole:
+        return None
+    return _whole_valued(value) == value
+
+
+def _unit_heap_push(
+    heap: "list[tuple[int, int]]", size: int, entry: "tuple[int, int]"
+) -> int:
+    """Add one (unit, place) entry to the binary heap; return the new size.
+
+    `_heap_push`'s walk on the push's own entries. Guarantees: a fixed
+    function of its inputs. Raises nothing. No I/O of any kind.
+    """
+    if size < len(heap):
+        heap[size] = entry
+    else:
+        heap += [entry]
+    spot = size
+    while spot > 0:
+        parent = (spot - 1) // 2
+        if heap[spot] < heap[parent]:
+            heap[spot], heap[parent] = heap[parent], heap[spot]
+            spot = parent
+        else:
+            break
+    return size + 1
+
+
+def _unit_heap_live(
+    heap: "list[tuple[int, int]]",
+    size: int,
+    units_of: "list[int | None]",
+    texts: "list[str]",
+    held: "dict[str, int]",
+    immovable: "dict[str, int]",
+) -> "list[tuple[int, int]]":
+    """The live entries of the push's heap, each once, as a fresh heap.
+
+    An entry is live where its stratum still stands on its unit and its
+    text is still held twice or more and not found immovable -- the test
+    `_pushed_apart` asks of the heap's first entry. Every stratum a
+    collision holds has a live entry, since a stratum joins the heap
+    whenever a push brings its text to a second holder, so the lowest
+    live entry, and with it the push taken, is the one the whole heap
+    gave. Sorted, the entries are a heap.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    kept: "list[tuple[int, int]]" = []
+    seen: "dict[tuple[int, int], int]" = {}
+    for spot in range(size):
+        entry = heap[spot]
+        units, place = entry
+        text = texts[place]
+        if units_of[place] != units or held[text] < 2 or text in immovable:
+            continue
+        if entry in seen:
+            continue
+        seen[entry] = 1
+        kept += [entry]
+    return sorted(kept)
+
+
+def _unit_heap_pop(heap: "list[tuple[int, int]]", size: int) -> int:
+    """Drop the smallest (unit, place) entry of the heap; return the new size.
+
+    `_heap_pop`'s walk on the push's own entries. Guarantees: a fixed
+    function of its inputs. Raises nothing. No I/O of any kind.
+    """
+    size -= 1
+    heap[0] = heap[size]
+    spot = 0
+    while True:
+        left = 2 * spot + 1
+        right = left + 1
+        small = spot
+        if left < size and heap[left] < heap[small]:
+            small = left
+        if right < size and heap[right] < heap[small]:
+            small = right
+        if small == spot:
+            break
+        heap[spot], heap[small] = heap[small], heap[spot]
+        spot = small
+    return size
 
 
 def _push_allowed(
@@ -14385,6 +15055,9 @@ def _push_plan(
     gaps: "tuple[tuple[float, float], ...]",
     whole: "bool | None",
     kept: "tuple[float, ...]" = (),
+    by_units: "dict[int, int | dict[int, int]] | None" = None,
+    budget: "int | None" = None,
+    over: "list[int] | None" = None,
 ) -> "tuple[list[tuple[int, int]], int] | None":
     """Which strata one push passes, and to which grid unit, or None.
 
@@ -14395,11 +15068,25 @@ def _push_plan(
     band first. No stratum of the zero band is ever passed: nought is no
     band's point.
 
+    ``by_units``, where handed, is every stratum's place by its grid
+    unit, kept by the caller as the strata move, and the strata passed
+    are read off it in place order rather than found by reading every
+    stratum (stage 4 lane S4b-num, plan P4-D377); with it, ``budget``
+    is the most strata the walk may pass: past it the walk stops,
+    answers None and puts a mark in ``over``.
+
     Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
     """
     passed: "dict[int, int]" = {}
     unit = start
+    count = 0
+    if by_units is not None:
+        count = _strata_passed(by_units, texts, collision, unit)
     while True:
+        if by_units is not None and budget is not None and count > budget:
+            if over is not None:
+                over += [1]
+            return None
         after = _band_step(
             unit, step, lowest, highest, figures, gaps, whole, kept=kept
         )
@@ -14409,6 +15096,18 @@ def _push_plan(
         if _grid_at(after, figures) not in held:
             break
         unit = after
+        if by_units is not None:
+            count = count + _strata_passed(by_units, texts, collision, unit)
+    if by_units is not None:
+        found: "list[tuple[int, int]]" = []
+        for point in passed:
+            if point not in by_units:
+                continue
+            for place in _unit_places(by_units, point):
+                if texts[place] == collision:
+                    continue
+                found += [(place, passed[point])]
+        return (sorted(found), passed[start])
     run: "list[tuple[int, int]]" = []
     for place in range(len(texts)):
         text = texts[place]
@@ -14419,6 +15118,64 @@ def _push_plan(
             continue
         run += [(place, passed[units])]
     return (run, passed[start])
+
+
+def _strata_passed(
+    by_units: "dict[int, int | dict[int, int]]",
+    texts: "list[str]",
+    collision: str,
+    units: int,
+) -> int:
+    """How many strata stand on one grid unit, those holding the collision's text left out.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    if units not in by_units:
+        return 0
+    count = 0
+    for place in _unit_places(by_units, units):
+        if texts[place] != collision:
+            count = count + 1
+    return count
+
+
+def _unit_added(
+    by_units: "dict[int, int | dict[int, int]]", units: int, place: int
+) -> None:
+    """Record one stratum at a grid unit: a place alone, or the places by a dict once two share it."""
+    if units not in by_units:
+        by_units[units] = place
+        return
+    found = by_units[units]
+    if isinstance(found, int):
+        by_units[units] = {found: 1, place: 1}
+        return
+    found[place] = 1
+
+
+def _unit_dropped(
+    by_units: "dict[int, int | dict[int, int]]", units: int, place: int
+) -> None:
+    """Forget one stratum at a grid unit."""
+    found = by_units[units]
+    if isinstance(found, int):
+        del by_units[units]
+        return
+    del found[place]
+    if not found:
+        del by_units[units]
+
+
+def _unit_places(
+    by_units: "dict[int, int | dict[int, int]]", units: int
+) -> "list[int]":
+    """The places of the strata at one grid unit."""
+    if units not in by_units:
+        return []
+    found = by_units[units]
+    if isinstance(found, int):
+        return [found]
+    return list(found)
 
 
 def _saturated_integers(
@@ -19832,91 +20589,10 @@ def _number_cells(
         facts, styles, holds, widths, pads, marks, notations, plussed, base,
         owed,
     )
-    identities: dict[str, int] = {}
-    spellings: dict[str, int] = {}
-    written: dict[int, str] = {}
-    # THE UNMARKED DUPLICATES ARE EXPANDED FIRST (Codex item 6 of the
-    # extra round, 2026-09-18; plan P4-D265). A raised leading-zero order
-    # carries no thousands mark -- `_styled_base` says why, and that rule
-    # stands -- so spending the order on a cell the mark walk has already
-    # marked takes the mark back off it and the column writes one grouped
-    # cell fewer than it published. MEASURED before this: three values
-    # written grouped and plain, forty cells, twenty of them grouped and
-    # twenty carrying a plus; the twin wrote NINETEEN grouped cells,
-    # among them an invented `+02387.27 kg`, and validation missed the
-    # count 20 against 19 while `generation.deviations` was empty. A
-    # duplicate with no mark expands at exactly the same cost in
-    # spellings and costs the census nothing, so the walk takes those
-    # first and reaches a marked cell only when no unmarked duplicate is
-    # left. A column whose cells all carry the mark, or none of them,
-    # visits its cells in index order exactly as before.
-    visiting: list[int] = []
-    for index in range(len(holds)):
-        if not marks[index]:
-            visiting += [index]
-    for index in range(len(holds)):
-        if marks[index]:
-            visiting += [index]
-    for index in visiting:
-        style = styles[index]
-        spelling = base[index]
-        if (
-            style != "plain"
-            and owed > 0
-            and pads[index] < 0
-            and parsing.folded(spelling) in identities
-        ):
-            # A PUBLISHED FIELD WIDTH IS NOT SPENT ON AN IDENTITY, and
-            # the ratified text is what says which way this goes. Every
-            # order of the family writes ONE MORE FIGURE, so a column
-            # whose census pins the field at five has exactly one
-            # leading-zero spelling of each value and the family cannot
-            # supply a second without leaving the width. That is the
-            # case owner decision 11's authorization already names --
-            # raw distinctness falls to the two-sided envelope "only
-            # where even those cannot supply" -- so the shortfall is an
-            # authorized approximation the report prints, while a
-            # broken width would be a silent miss on the one fact a
-            # person reading a code column actually depends on: a
-            # width check, a slice, or a join against a five-figure
-            # code fails on a six-figure cell, and nothing said a word.
-            #
-            # NO CEILING, BY OWNER DECISION 8. `0`, `00`, `000` and so
-            # on supply as many different spellings of one value as a
-            # description can ask for, and that unbounded supply is the
-            # whole reason the owner chose this family over the
-            # decimal-point pair. A fixed ceiling here would put the
-            # ceiling back and lose a published count on any column
-            # that asked for more. The family is reached for inside
-            # every style but `plain`, so a column reproducing a decimal
-            # or an exponent form can hold as many identities as the
-            # description asks for (review item P2-C2-F3).
-            #
-            # The loop still terminates, and its bound is stated rather
-            # than imposed: every order writes a different spelling of
-            # the same value, so at most one order per identity already
-            # taken can be refused, and the walk ends by the time it has
-            # tried one more than that -- at most `len(identities) + 1`
-            # steps, which is at most one more than the column's own
-            # count of numbers.
-            order = 1 if style == "leading_zero" else 0
-            while parsing.folded(spelling) in identities:
-                order = order + 1
-                spelling = _styled_number(
-                    holds[index],
-                    style,
-                    order,
-                    facts.integer_valued,
-                    widths[index],
-                    pads[index],
-                    marks[index],
-                    notations[index],
-                    plussed[index],
-                )
-            owed = owed - 1
-        identities[parsing.folded(spelling)] = 1
-        spellings[spelling] = 1
-        written[index] = spelling
+    written = _identity_walk(
+        holds, styles, base, widths, pads, marks, notations, plussed,
+        facts.integer_valued, owed,
+    )
     cells: list[str] = []
     for index in range(len(holds)):
         cells += [written[index]]
@@ -19965,6 +20641,149 @@ def _number_cells(
     # name the same fact twice. The plus allocation's own shortfall is
     # not a form count and is named where it is decided.
     return cells, notation_notes + mark_notes + plus_notes
+
+
+def _identity_walk(
+    holds: "list[float]",
+    styles: "list[str]",
+    base: "list[str]",
+    widths: "list[int]",
+    pads: "list[int]",
+    marks: "list[str]",
+    notations: "list[str]",
+    plussed: "list[bool]",
+    whole_column: bool,
+    owed: int,
+) -> "dict[int, str]":
+    """Each number cell's spelling, raising the leading-zero order where an identity is owed (G6.6).
+
+    The identity walk of `_number_cells`, split out of it unchanged but
+    for where each walk begins (stage 4 lane S4b-num, plan P4-D387): a
+    cell that owes an identity begins its walk at the order the last
+    walk of a cell of the same value, style, width, pad, mark, notation
+    and plus took, where the walk from the first order tried every
+    order before it again. The orders it skips each write an identity
+    already taken, so every cell takes the order it took before.
+
+    Guarantees: accepts the cells' values, styles, spellings before any
+    zero is spent, widths, pads, marks, notations and pluses, whether
+    the column is whole-valued and how many identities are owed;
+    returns each cell's spelling by its index. Determinism: a fixed
+    function of the arguments. Raises nothing. No I/O of any kind.
+    """
+    reached: "dict[tuple[object, ...], int]" = {}
+    identities: dict[str, int] = {}
+    spellings: dict[str, int] = {}
+    written: dict[int, str] = {}
+    # THE UNMARKED DUPLICATES ARE EXPANDED FIRST (Codex item 6 of the
+    # extra round, 2026-09-18; plan P4-D265). A raised leading-zero order
+    # carries no thousands mark -- `_styled_base` says why, and that rule
+    # stands -- so spending the order on a cell the mark walk has already
+    # marked takes the mark back off it and the column writes one grouped
+    # cell fewer than it published. MEASURED before this: three values
+    # written grouped and plain, forty cells, twenty of them grouped and
+    # twenty carrying a plus; the twin wrote NINETEEN grouped cells,
+    # among them an invented `+02387.27 kg`, and validation missed the
+    # count 20 against 19 while `generation.deviations` was empty. A
+    # duplicate with no mark expands at exactly the same cost in
+    # spellings and costs the census nothing, so the walk takes those
+    # first and reaches a marked cell only when no unmarked duplicate is
+    # left. A column whose cells all carry the mark, or none of them,
+    # visits its cells in index order exactly as before.
+    visiting: list[int] = []
+    for index in range(len(holds)):
+        if not marks[index]:
+            visiting += [index]
+    for index in range(len(holds)):
+        if marks[index]:
+            visiting += [index]
+    for index in visiting:
+        style = styles[index]
+        spelling = base[index]
+        if (
+            style != "plain"
+            and owed > 0
+            and pads[index] < 0
+            and parsing.folded(spelling) in identities
+        ):
+            key = (
+                holds[index],
+                repr(holds[index]),
+                style,
+                widths[index],
+                pads[index],
+                marks[index],
+                notations[index],
+                plussed[index],
+            )
+            # A PUBLISHED FIELD WIDTH IS NOT SPENT ON AN IDENTITY, and
+            # the ratified text is what says which way this goes. Every
+            # order of the family writes ONE MORE FIGURE, so a column
+            # whose census pins the field at five has exactly one
+            # leading-zero spelling of each value and the family cannot
+            # supply a second without leaving the width. That is the
+            # case owner decision 11's authorization already names --
+            # raw distinctness falls to the two-sided envelope "only
+            # where even those cannot supply" -- so the shortfall is an
+            # authorized approximation the report prints, while a
+            # broken width would be a silent miss on the one fact a
+            # person reading a code column actually depends on: a
+            # width check, a slice, or a join against a five-figure
+            # code fails on a six-figure cell, and nothing said a word.
+            #
+            # NO CEILING, BY OWNER DECISION 8. `0`, `00`, `000` and so
+            # on supply as many different spellings of one value as a
+            # description can ask for, and that unbounded supply is the
+            # whole reason the owner chose this family over the
+            # decimal-point pair. A fixed ceiling here would put the
+            # ceiling back and lose a published count on any column
+            # that asked for more. The family is reached for inside
+            # every style but `plain`, so a column reproducing a decimal
+            # or an exponent form can hold as many identities as the
+            # description asks for (review item P2-C2-F3).
+            #
+            # The loop still terminates, and its bound is stated rather
+            # than imposed: every order writes a different spelling of
+            # the same value, so at most one order per identity already
+            # taken can be refused, and the walk ends by the time it has
+            # tried one more than that -- at most `len(identities) + 1`
+            # steps, which is at most one more than the column's own
+            # count of numbers.
+            #
+            # AND EACH WALK BEGINS WHERE THE LAST ONE OF ITS CELL'S KIND
+            # STOPPED (stage 4 lane S4b-num, plan P4-D387). Begun again at
+            # the first order for every repeated spelling of a value, the
+            # walk tried every order an earlier cell of that value had
+            # already taken: the square of the value's spellings, 249 of
+            # the 624 s `generate` took on a column of 1,000,000 rows
+            # whose text spells two values 10,000 ways each (plan
+            # P4-D387). Every order up to the one the last walk of the
+            # same value, style, width, pad, mark, notation and plus took
+            # writes an identity already taken -- identities are only
+            # ever added -- so the walk resumed there takes exactly the
+            # order the walk from the first would.
+            order = 1 if style == "leading_zero" else 0
+            if key in reached:
+                order = reached[key]
+            while parsing.folded(spelling) in identities:
+                order = order + 1
+                spelling = _styled_number(
+                    holds[index],
+                    style,
+                    order,
+                    whole_column,
+                    widths[index],
+                    pads[index],
+                    marks[index],
+                    notations[index],
+                    plussed[index],
+                )
+            reached[key] = order
+            owed = owed - 1
+        identities[parsing.folded(spelling)] = 1
+        spellings[spelling] = 1
+        written[index] = spelling
+    return written
 
 
 def _padded_sign_exchange(
@@ -50303,6 +51122,7 @@ def _pooled_spelling(
     needed: int,
     pool: "list[int] | None",
     widest: int,
+    search: "_PooledSearch | None" = None,
 ) -> str:
     """The spelling nearest ``wanted`` a pooled placement may write, or "".
 
@@ -50332,6 +51152,13 @@ def _pooled_spelling(
     dressed in the form, and a value the form cannot carry is stepped
     past like any other refusal. A group that owes no form takes the
     plain spelling, which is what the value reads as.
+
+    ``search``, where handed, is one offer's memory (stage 4 lane
+    S4b-num, plan P4-D390): what each spelling's rules answered, and
+    which places stood refused when last asked. A place refused stays
+    refused for the rest of the offer -- what the offer has written only
+    grows -- so the offer steps over it, and the place returned is the
+    first the stepping above then below would accept.
     """
     if not math.isfinite(wanted):
         return ""
@@ -50401,6 +51228,14 @@ def _pooled_spelling(
             reach_figures
         ):
             reach_figures = _whole_figures(anchor, places)
+        if search is not None:
+            found = _pooled_searched(
+                search, ladder, anchor, places, asked, reach_figures, named,
+                used, owners, holes, decimal_comma, needed, pool,
+            )
+            if found:
+                return found
+            continue
         for step in range(2 * _POOLED_STEPS):
             reach = (step + 1) // 2
             units = anchor + (reach if step % 2 == 0 else -reach)
@@ -50464,6 +51299,221 @@ def _pooled_spelling(
     return ""
 
 
+@dataclasses.dataclass(frozen=True)
+class _PooledSearch:
+    """One offer's memory for `_pooled_spelling` (stage 4 lane S4b-num, plan P4-D390).
+
+    ``rules`` is what the spelling rules answered for a place of one
+    tier and form -- the spelling and its folded key, or None where a
+    rule that does not change while the offer runs refused it --
+    ``refused`` the places found refused, and ``above`` and ``below``
+    the place past a run of refused ones each way, so a later step over
+    the run is one step.
+    """
+
+    rules: "dict[tuple[int, str, int], tuple[str, str] | None]"
+    refused: "dict[tuple[int, str, int], int]"
+    above: "dict[tuple[int, str, int], int]"
+    below: "dict[tuple[int, str, int], int]"
+
+
+def _pooled_search() -> _PooledSearch:
+    """A fresh memory for one offer of the pool."""
+    return _PooledSearch({}, {}, {}, {})
+
+
+def _pooled_searched(
+    search: _PooledSearch,
+    ladder: "_Ladder",
+    anchor: int,
+    places: int,
+    asked: str,
+    reach_figures: int,
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+) -> str:
+    """The spelling `_pooled_spelling`'s stepping would accept on one tier, found by skipping.
+
+    The stepping asks ``anchor``, then one place below and one above,
+    two below and two above, out to `_POOLED_STEPS` below and one fewer
+    above, and takes the first place every rule accepts. That is the
+    nearest accepted place below and the nearest above, the one below
+    on a tie, each inside the stepping's reach and inside the width the
+    tier allows -- a width rule refuses every place past a whole-figure
+    count, and the count only grows with the size of a place. Each side
+    is found by stepping over the places this offer already found
+    refused.
+
+    Guarantees: a fixed function of its inputs and of what ``search``
+    holds, which it adds to. Raises nothing. No I/O of any kind.
+    """
+    lowest = anchor - _POOLED_STEPS
+    highest = anchor + _POOLED_STEPS - 1
+    if reach_figures > 0:
+        widest_place = _pooled_widest_place(places, reach_figures)
+        if widest_place < 0:
+            return ""
+        if lowest < 0 - widest_place:
+            lowest = 0 - widest_place
+        if highest > widest_place:
+            highest = widest_place
+    asked_for = (places, asked)
+    down = _pooled_nearest(
+        search, asked_for, min(anchor, highest), lowest, -1, ladder, named,
+        used, owners, holes, decimal_comma, needed, pool,
+    )
+    up = _pooled_nearest(
+        search, asked_for, max(anchor, lowest), highest, 1, ladder, named,
+        used, owners, holes, decimal_comma, needed, pool,
+    )
+    chosen = up
+    if down is not None and (up is None or anchor - down <= up - anchor):
+        chosen = down
+    if chosen is None:
+        return ""
+    taken = search.rules[(places, asked, chosen)]
+    if taken is None:
+        return ""
+    return taken[0]
+
+
+def _pooled_widest_place(places: int, reach_figures: int) -> int:
+    """The largest place size whose whole figures stay within ``reach_figures``, or -1 for none.
+
+    A place's whole figures (`_whole_figures`) are those of its size with
+    its last ``places`` figures dropped -- or, for a negative ``places``,
+    with that many noughts written after it -- and one for a size that
+    leaves none, so a size has at most ``reach_figures`` of them exactly
+    where it is below ten to the ``places + reach_figures``, or is nought.
+    That edge is read off at once (Codex's review of lane S4b-num, item
+    2): found by halving it took about 6.6 whole-figure counts a figure
+    for every group, 400,200 for 200 groups of codes of 300 places one
+    figure wide on f334726, where 3434682 took 200.
+    """
+    if _whole_figures(0, places) > reach_figures:
+        return -1
+    return _ten_to(places + reach_figures) - 1
+
+
+def _pooled_nearest(
+    search: _PooledSearch,
+    asked_for: "tuple[int, str]",
+    first: int,
+    last: int,
+    step: int,
+    ladder: "_Ladder",
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+) -> "int | None":
+    """The first place from ``first`` toward ``last``, ``step`` at a time, that every rule accepts, or None.
+
+    A place found refused is remembered, and the run it closes is
+    jumped in one step the next time, whichever way it is crossed.
+    """
+    places, asked = asked_for
+    links = search.above if step > 0 else search.below
+    unit = first
+    crossed: "list[int]" = []
+    while (unit - last) * step <= 0:
+        key = (places, asked, unit)
+        if key in links:
+            crossed += [unit]
+            unit = links[key]
+            continue
+        if key not in search.refused:
+            if key not in search.rules:
+                search.rules[key] = _pooled_rules(
+                    ladder, unit, places, asked, named, holes,
+                    decimal_comma, needed, pool,
+                )
+            spelled = search.rules[key]
+            if (
+                spelled is not None
+                and spelled[0] not in used
+                and spelled[1] not in owners
+            ):
+                break
+            search.refused[key] = 1
+        crossed += [unit]
+        unit = unit + step
+    for passed in crossed:
+        links[(places, asked, passed)] = unit
+    if (unit - last) * step > 0:
+        return None
+    return unit
+
+
+def _pooled_rules(
+    ladder: "_Ladder",
+    units: int,
+    places: int,
+    asked: str,
+    named: "dict[str, int]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+) -> "tuple[str, str] | None":
+    """The spelling one place is offered as and its folded key, or None where a fixed rule refuses it.
+
+    `_pooled_spelling`'s rules, all but the two that change while an
+    offer runs -- the width, which depends on where the group was asked,
+    and the spellings already written -- in the same order. Lane L1's
+    two refusals are fixed rules here (batch 4a's merge of lane S4b-num
+    onto lane L1): no more whole figures than `_Ladder.figures_cap` on a
+    group owing no form, and no value a published number holds. Each
+    reads only the place, its tier, the form asked and the column. So is
+    L1's width of the published codes (`_padded_to_the_source`): the
+    spelling remembered, and checked against those already written, is
+    the padded one, as the stepping checks it.
+    """
+    if not _sign_held(units, ladder.signs):
+        return None
+    if (
+        not asked
+        and ladder.figures_cap > 0
+        and _whole_figures(units, places) > ladder.figures_cap
+    ):
+        return None
+    if _is_published_at(ladder, units, places):
+        return None
+    candidate = _units_spelled(units, places, decimal_comma)
+    form = parsing.census_form(candidate, named)
+    wearing = ""
+    if asked:
+        if form != asked:
+            candidate = _dressed_in_form(candidate, asked, named, decimal_comma)
+            if not candidate:
+                return None
+            wearing = asked
+    elif form in named:
+        return None
+    elif (
+        pool is not None
+        and form
+        and parsing.form_room(form) >= needed
+        and pool[0] < 1
+    ):
+        return None
+    if not asked:
+        candidate = _padded_to_the_source(candidate, ladder)
+    if not _is_a_usable_stand_in(
+        candidate, holes, parsing.NUMBER, decimal_comma, wearing
+    ):
+        return None
+    return (candidate, parsing.folded(candidate))
+
+
 def _pooled_value(spelling: str, decimal_comma: bool) -> "float | None":
     """What a placed spelling is WORTH, read in the column's own grammar.
 
@@ -50524,6 +51574,9 @@ def _pooled_offered(
     """
     taken = dict(used)
     answered = dict(owners)
+    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D390): what it has written
+    # only grows, so a place refused stays refused until the offer ends.
+    search = _pooled_search()
     written: "dict[int, str]" = {}
     cells = 0
     weighted = 0.0
@@ -50533,7 +51586,7 @@ def _pooled_offered(
         if math.isfinite(wanted):
             found = _pooled_spelling(
                 ladder, wanted, groups[step][2], named, taken, answered,
-                holes, decimal_comma, needed, pool, widest,
+                holes, decimal_comma, needed, pool, widest, search,
             )
         if not found:
             continue
@@ -50557,6 +51610,10 @@ def _pooled_offered(
 # publishes one back, no fourth offer came closer than the best of the
 # first four.
 _POOLED_SHIFTS = 3
+
+# Whole numbers below this are held by a float exactly, and so is every
+# sum of them that stays below it.
+_EXACT_WHOLE_FLOATS = 1 << 53
 
 
 def _pooled_carried(
@@ -50616,6 +51673,9 @@ def _pooled_carried(
     )
     taken = dict(used)
     answered = dict(owners)
+    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D390): what it has written
+    # only grows, so a place refused stays refused until the offer ends.
+    search = _pooled_search()
     written: "dict[int, str]" = {}
     cells = 0
     weighted = 0.0
@@ -50624,17 +51684,39 @@ def _pooled_carried(
     for step in range(len(groups)):
         owed = owed + middle * float(groups[step][0])
         left = left + groups[step][0]
+    # EACH TURN'S REST IS READ OFF SUMS TAKEN ONCE, FROM THE LAST TURN
+    # BACK (plan P4-D390), where every turn added up every turn after it:
+    # the square of the groups. The weights are whole numbers, so every
+    # float sum of them is exact, and the same in any order, wherever
+    # their sizes add up to less than 2**53; past that the turns add
+    # them up as they did.
+    rest_cells_of: "list[int]" = []
+    rest_weights_of: "list[int]" = []
+    cells_after = 0
+    weights_after = 0
+    weights_size = 0
+    for turn in range(len(order) - 1, -1, -1):
+        weight = groups[order[turn]][0] * positions[order[turn]]
+        cells_after = cells_after + groups[order[turn]][0]
+        weights_after = weights_after + weight
+        weights_size = weights_size + abs(weight)
+        rest_cells_of += [cells_after]
+        rest_weights_of += [weights_after]
+    exact = weights_size < _EXACT_WHOLE_FLOATS
     for turn in range(len(order)):
         step = order[turn]
         if left < 1:
             break
-        rest_cells = 0
-        rest_weighted = 0.0
-        for after in range(turn, len(order)):
-            rest_cells = rest_cells + groups[order[after]][0]
-            rest_weighted = rest_weighted + float(
-                groups[order[after]][0] * positions[order[after]]
-            )
+        rest_cells = rest_cells_of[len(order) - 1 - turn]
+        rest_weighted = float(rest_weights_of[len(order) - 1 - turn])
+        if not exact:
+            rest_cells = 0
+            rest_weighted = 0.0
+            for after in range(turn, len(order)):
+                rest_cells = rest_cells + groups[order[after]][0]
+                rest_weighted = rest_weighted + float(
+                    groups[order[after]][0] * positions[order[after]]
+                )
         rest_centre = 0.0
         if rest_cells > 0:
             rest_centre = rest_weighted / float(rest_cells)
@@ -50644,7 +51726,7 @@ def _pooled_carried(
         if math.isfinite(wanted):
             found = _pooled_spelling(
                 ladder, wanted, groups[step][2], named, taken, answered,
-                holes, decimal_comma, needed, pool, widest,
+                holes, decimal_comma, needed, pool, widest, search,
             )
         value: "float | None" = None
         if found:
@@ -50701,6 +51783,9 @@ def _pooled_pushed_first(
     """
     taken = dict(used)
     answered = dict(owners)
+    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D390): what it has written
+    # only grows, so a place refused stays refused until the offer ends.
+    search = _pooled_search()
     pushed: "list[float]" = []
     for step in range(len(groups)):
         wanted = middle + spacing * (positions[step] - centre)
@@ -50708,7 +51793,7 @@ def _pooled_pushed_first(
         if math.isfinite(wanted):
             found = _pooled_spelling(
                 ladder, wanted, groups[step][2], named, taken, answered,
-                holes, decimal_comma, needed, pool, widest,
+                holes, decimal_comma, needed, pool, widest, search,
             )
         value: "float | None" = None
         if found:
@@ -50723,10 +51808,37 @@ def _pooled_pushed_first(
             away = 0.0 - away
         pushed += [away]
     order: "list[int]" = []
+    # THE SEATING IS A SORT (plan P4-D390), where it was a search of every
+    # group still standing for each seat, the square of the groups: a
+    # group nothing was accepted for first, in the walk's order, then
+    # the furthest pushed, ties in the walk's order. A distance that is
+    # not a number is seated by the search, which a sort would not match.
+    for step in range(len(groups)):
+        if pushed[step] != pushed[step]:
+            return _pooled_seated_one_by_one(pushed)
+    for step in range(len(groups)):
+        if pushed[step] < 0.0:
+            order += [step]
+    keyed: "list[tuple[float, int]]" = []
+    for step in range(len(groups)):
+        if not pushed[step] < 0.0:
+            keyed += [(0.0 - pushed[step], step)]
+    for _distance, step in sorted(keyed):
+        order += [step]
+    return order
+
+
+def _pooled_seated_one_by_one(pushed: "list[float]") -> "list[int]":
+    """`_pooled_pushed_first`'s seating, searched seat by seat as it was before lane S4b-num.
+
+    Kept for a distance that is not a number, which a sort and this
+    search would not order alike.
+    """
+    order: "list[int]" = []
     seated: "dict[int, int]" = {}
-    for _turn in range(len(groups)):
+    for _turn in range(len(pushed)):
         best = -1
-        for step in range(len(groups)):
+        for step in range(len(pushed)):
             if step in seated:
                 continue
             if best < 0:
@@ -64465,6 +65577,7 @@ def _tail_approximations(
     if len(values) < 2 or not lows or len(lows) != len(values):
         return []
     found: "list[Approximation]" = []
+    ladder = contract.tail_ladder(facts)
     for side, low, named in (
         (tails.low, True, "low"), (tails.high, False, "high")
     ):
@@ -64472,6 +65585,22 @@ def _tail_approximations(
         if measured is None:
             continue
         window = _tail_window_of(lows, highs, side.percent, low, len(values))
+        # A DENSE TAIL'S MEAN DISTANCE ANSWERS TO THE WINDOW G6.6.8's
+        # RULE 4 DRAWS (stage 4 lane S4c, plan P4-D377), the checker's
+        # own (`contract.dense_tail_mean_window`).
+        if isinstance(ladder, contract.ShapedLadder):
+            dense = _dense_report_window(
+                ladder.low if low else ladder.high,
+                side,
+                lows,
+                highs,
+                len(values),
+            )
+            if dense is not None:
+                window = (
+                    (min(window[0][0], dense[0]), max(window[0][1], dense[1])),
+                    window[1],
+                )
         for key, published, achieved, bounds in (
             ("mean_distance", side.mean_distance, measured[0], window[0]),
             ("rms_distance", side.rms_distance, measured[1], window[1]),
@@ -64499,6 +65628,20 @@ def _tail_approximations(
                 )
             ]
     return found
+
+
+def _dense_report_window(
+    reader: "contract.TailReader | None",
+    side: contract.TailSide,
+    lows: "list[float]",
+    highs: "list[float]",
+    count: int,
+) -> "tuple[float, float] | None":
+    """`contract.dense_tail_mean_window` read off the twin report's rank windows of the boundary rung."""
+    steps = (count - 1) * side.percent
+    lower = min(max(steps // 100, 0), count - 1)
+    upper = min(max(-((-steps) // 100), 0), count - 1)
+    return contract.dense_tail_mean_window(reader, side, lows[lower], highs[upper])
 
 
 def _tail_window_of(

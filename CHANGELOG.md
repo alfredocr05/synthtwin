@@ -6,6 +6,89 @@ exists).
 
 ## [Unreleased]
 
+### Numbers at a million rows: the report in pieces, and a dense tail's mean (2026-10-14)
+
+**Stage 4 lane S4c** (plans P4-D390 and P4-D377). `synthtwin validate`
+no longer makes its quality report whole: `quality.report_pieces` hands
+the same text over in runs of at most 4,096 lines, the command prints
+them in turn and writes them as one buffer of the file's size
+(`writing.write_text_file`'s new `pieces`). Joined in halves, each level
+of the join had left its size class mapped. The reports and the screen
+are the same bytes; validate of a register of 997,770 rows holds 798 MB
+where it held 1,317, of 1,994,180 rows 1,557 MB where it held 2,128,
+and of 2,990,700 rows 2,000 MB, beneath the 2,389 MB `describe` of the
+same table takes. And a dense tail now meets its published mean
+distance (method G6.6.8 rule 4): where every number is different and
+the tail's rows crowd its grid, the strata past the crowded run are
+placed so the tail's distances sum to the published mean, the far ones
+together where the squares come nearest the published spread. G2's
+dense tail at 1,000,000 rows wrote a mean distance of 5,412.8 against a
+published 5,780.5 and missed six checks; its twin now writes five far
+cells at 2,558,000 to 2,558,004 (the source's stand at 2,559,999 to
+2,560,003), meets the mean, and misses three -- the column's mean, skew
+and kurtosis, whose
+G12.3 windows do not reach the published values there. The checker
+reads such a tail's mean against the hull of G12.13's window and the
+one the construction draws. The oracle carries the rule too, and its one
+frozen case on a dense tail, `tail_shape_ends`, moves with it.
+`K-S4-06` and `K-S4-07` hold both. Every case rule 4 leaves a side as
+it stood in, and the twin report's hull, has a test red on its mutant.
+
+Codex's review of the lane raised six items, each fixed. Rule 4 no
+longer writes a placed cell narrower than a width the census needs or
+moves the count of cells reaching a thousand: five-figure fields from
+`00000` came back with two four-figure cells, and eleven grouped cells
+as nine. It reads a staircase's mean near the largest double without
+overflowing, where `generate` raised an error. A far run crossing the
+stand-in `9999.0` lands on the published distance sum, where it stood
+two steps past it. It writes the column in place rather than copying it.
+The method now says the far strata's count is weighed before the
+remainder moves them. Pieces of the quality report are written in UTF-8
+only: in UTF-16, UTF-32 or UTF-8 with a signature each piece had carried
+its own byte-order mark. No frozen vector moves, and of the lane's 192
+battery twins only one four-figure shape's two seeds change. The fix's
+verifier found two more cases rule 4 now leaves as they stood: a
+column publishing a thousands separator but no census of marks had a
+grouped cell moved under a thousand, and the separator's check fell
+under the floor; and a grid of more than 308 decimal figures raised an
+overflow in `generate`.
+
+### Numbers and codes at a million rows, without their square (2026-10-14)
+
+**Stage 4 lane S4b-num** (plans P4-D377, P4-D387 and P4-D390). Four paths
+whose work grew faster than the table now grow with it on the shapes
+STATE named, and none writes a different byte: every twin, twin report
+and quality report measured is the one 3434682 wrote. G6.5a's push
+finds its collisions in a heap and its strata by grid unit, and walks
+each way only as far as could still be taken: consecutive whole numbers
+beside five far ones, declared a measurement, generate in 13.7 s at
+100,000 rows where they took 494 s, and in 207 s at 1,000,000. The push
+still moves each stratum it passes one point at a time, so on long runs
+its work is the strata times the pushes (about 4 times a doubling,
+measured to 4,000 strata), and where a collision's holders are of two
+kinds each way is walked in full. G6.6's identity walk begins each cell's
+walk where the last one of its kind stopped: 1,001 spellings asked at
+100,000 rows of the Codex column where 501,501 were. G8.3c's pooled
+placement keeps one memory an offer, so each place's rules are asked
+once: 1,000,000 rows of decimal codes generate in 32.6 s where they took
+803. And the quality report grows its lines in place and joins them in
+halves: a register of 50,000 consecutive codes validates in 59.5 s and
+815 MB where it was killed at 960 s and 1.7 GB, and one of 997,770 rows
+in 123.5 s. Each is pinned by a count that needs no clock, up to a
+million rows, in `tests/test_stage4_numbers_and_codes.py`, where the
+replaced functions are kept as frozen text and must give the same
+answers. After Codex's review of the lane, the push's heap is rebuilt
+from its live entries once it holds twice as many and 64 more, where
+stale entries had piled up below a lasting collision (118,804 at 402
+strata, 1,915,204 at 1,602; now 470 and 1,670), and the pooled
+placement reads the width's largest place off at once rather than
+halving for it at every group (800,801 whole-figure counts and powers
+of ten for 200 groups of codes of 300 places; now 1,001), the twins the
+same bytes.
+Merged beside lane L1 (batch 4a), the pooled search keeps L1's three
+rules of the stepping (the width cap, no published value, the codes'
+width) as fixed rules, so it answers as the stepping does (P4-D390).
+
 ### The joint midnight guard is checked as the product ships it, and every stated limit of the week has an owner (2026-10-15)
 
 **The sixth push's critic** (plans P4-D369, P4-D374, P4-D378, P4-D387,

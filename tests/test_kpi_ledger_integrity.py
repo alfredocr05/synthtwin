@@ -815,6 +815,11 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 610,000 from 605,000, AT THE INTEGRATION OF BATCH 4A'S FIRST MERGE
+    # (lanes S4b-num and S4c, 2026-10-15), the least round figure the merged
+    # ledger fits under: lane S4c's `K-S4-06` and `K-S4-07` with their note
+    # clause, 609,480 bytes as merged. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 605,000 from 604,000, AT THE CODEX FIX STREAM OF THAT INTEGRATION
     # (landing I3b2d, 2026-10-15), the least round figure the ledger fits
     # under: `K-S3-48` restamped with its minute censuses 13 to 11 as M3
@@ -843,6 +848,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # the old cap as merged (594,108 bytes). Its evidence was already
     # written short on its branch (its cap 582,000) and holds only figures
     # and their sources; A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # ON LANE S4c'S BRANCH, 592,000 from 588,000 (2026-10-14), the least
+    # round figure that fits: `K-S4-06` (validate's report in pieces) and
+    # `K-S4-07` (a dense tail's mean distance), each with its value and
+    # its clause of the measurement note, from 587,268 to 591,455 bytes;
+    # nothing pinned is trimmed. The integration branch
+    # holds its own cap, and the integrator settles the two.
     #
     # 588,000 from 587,000, AT THE CODEX REVIEW OF THAT INTEGRATION
     # (landing I3b1, 2026-10-13), the least round figure that fits:
@@ -1050,7 +1062,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 605_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 610_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

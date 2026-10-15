@@ -16,6 +16,15 @@ nothing reads the product's source to build them:
   down to `_cell_walk`, the oracle of the bounded walk of plan P4-D389
   (`tests/test_stage4_allocator_walk.py`): the answers must be its
   answers wherever it finishes.
+- `PUSHED_APART`, `IDENTITY_WALK`, `POOLED_PLACED` and `QUALITY_REPORT`
+  are G6.5a's push, G6.6's identity walk, G8.3c's pooled placement and
+  the quality report as 3434682 shipped them, the oracles of lane
+  S4b-num (`tests/test_stage4_numbers_and_codes.py`, plans P4-D377,
+  P4-D387 and P4-D390). `POOLED_PLACED`'s `_pooled_spelling` is lane
+  L1's (07a38f6, which merged it beside 3434682's): L1 added three
+  rules to its stepping -- `figures_cap`, no value a published number
+  holds, the published codes' width -- and the lane's search must
+  answer as that stepping does (batch 4a's merge).
 
 `READ_THE_COLUMN`, `taxonomy._read_the_column` with its level pass as
 668f276 shipped it, stood here too until plan P4-D390 deleted that pass.
@@ -807,4 +816,436 @@ def _cell_walk(
         placed[cell] = found
         cell = cell + 1
 
+'''
+
+
+# -- stage 4 lane S4b-num (the million-row costs of numbers and codes) -------
+#
+# Each text below is the function as 3434682 shipped it, read off that
+# tree with its docstrings and comments left out (`ast.unparse`), except
+# IDENTITY_WALK: 3434682 ran the identity walk inside `_number_cells`,
+# and the text is that loop with the names it read from the enclosing
+# function made its parameters, exactly the parameters the lane's
+# `_identity_walk` takes.
+
+PUSHED_APART = r'''
+def _pushed_apart(facts: contract.NumericFacts, layout: '_NumericLayout', rungs: 'tuple[float, ...] | None', moved: 'list[float]', texts: 'list[str]', held: 'dict[str, int]', figures: int, keep_whole: bool) -> 'tuple[list[float], list[str], dict[str, int]]':
+    wanted = facts.n_distinct_values
+    total = len(moved)
+    if wanted is None or rungs is None or figures < 0 or (total != wanted):
+        return (moved, texts, held)
+    if len(held) >= wanted:
+        return (moved, texts, held)
+    bottom = _grid_units(_grid_text(rungs[0], figures), figures)
+    top = _grid_units(_grid_text(rungs[-1], figures), figures)
+    if bottom is None or top is None or top <= bottom:
+        return (moved, texts, held)
+    gaps: 'tuple[tuple[float, float], ...]' = tuple(((edges[0], edges[1]) for edges in facts.empty_edges))
+    point_free = _whole_demand(facts) > 0
+    immovable: 'dict[str, int]' = {}
+    while len(held) < wanted:
+        target = -1
+        target_units = 0
+        for place in range(total):
+            text = texts[place]
+            if held[text] < 2 or text in immovable:
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            units = _grid_units(text, figures)
+            if units is None:
+                continue
+            if target < 0 or units < target_units:
+                target = place
+                target_units = units
+        if target < 0:
+            break
+        collision = texts[target]
+        band = layout.bands[target]
+        lowest = bottom
+        highest = top
+        if band == _BAND_NEGATIVE and highest > -1:
+            highest = -1
+        if band == _BAND_POSITIVE and lowest < 1:
+            lowest = 1
+        holders: 'list[int]' = []
+        for place in range(total):
+            if texts[place] != collision:
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if place == 0 or place == total - 1:
+                continue
+            holders += [place]
+        ways: 'list[tuple[int, int, list[tuple[int, int]]]]' = []
+        for step in (-1, 1):
+            order = range(len(holders))
+            if step > 0:
+                order = range(len(holders) - 1, -1, -1)
+            for index in order:
+                mover = holders[index]
+                kind: 'bool | None' = None
+                if keep_whole:
+                    kind = _whole_valued(moved[mover]) == moved[mover]
+                plan = _push_plan(texts, held, collision, target_units, step, lowest, highest, figures, gaps, kind, kept=facts.kept_stand_ins)
+                if plan is None:
+                    continue
+                pairs = plan[0] + [(mover, plan[1])]
+                refused = False
+                for pair in pairs:
+                    if not _push_allowed(facts, moved, pair[0], pair[1], figures, keep_whole, point_free):
+                        refused = True
+                        break
+                if refused:
+                    continue
+                ways += [(len(pairs), step, pairs)]
+                break
+        if not ways:
+            immovable[collision] = 1
+            continue
+        chosen = ways[0]
+        for way in ways:
+            if way[0] < chosen[0]:
+                chosen = way
+        for pair in chosen[2]:
+            place = pair[0]
+            fresh_text = _grid_at(pair[1], figures)
+            fresh = float(fresh_text)
+            old = texts[place]
+            held[old] = held[old] - 1
+            if held[old] == 0:
+                del held[old]
+            seen = 0
+            if fresh_text in held:
+                seen = held[fresh_text]
+            held[fresh_text] = seen + 1
+            texts[place] = fresh_text
+            moved[place] = fresh
+    return (moved, texts, held)
+
+def _push_plan(texts: 'list[str]', held: 'dict[str, int]', collision: str, start: int, step: int, lowest: int, highest: int, figures: int, gaps: 'tuple[tuple[float, float], ...]', whole: 'bool | None', kept: 'tuple[float, ...]'=()) -> 'tuple[list[tuple[int, int]], int] | None':
+    passed: 'dict[int, int]' = {}
+    unit = start
+    while True:
+        after = _band_step(unit, step, lowest, highest, figures, gaps, whole, kept=kept)
+        if after is None:
+            return None
+        passed[unit] = after
+        if _grid_at(after, figures) not in held:
+            break
+        unit = after
+    run: 'list[tuple[int, int]]' = []
+    for place in range(len(texts)):
+        text = texts[place]
+        if text == collision:
+            continue
+        units = _grid_units(text, figures)
+        if units is None or units not in passed:
+            continue
+        run += [(place, passed[units])]
+    return (run, passed[start])
+'''
+
+IDENTITY_WALK = r'''
+def _identity_walk(holds: 'list[float]', styles: 'list[str]', base: 'list[str]', widths: 'list[int]', pads: 'list[int]', marks: 'list[str]', notations: 'list[str]', plussed: 'list[bool]', whole_column: bool, owed: int) -> 'dict[int, str]':
+    identities: dict[str, int] = {}
+    spellings: dict[str, int] = {}
+    written: dict[int, str] = {}
+    visiting: list[int] = []
+    for index in range(len(holds)):
+        if not marks[index]:
+            visiting += [index]
+    for index in range(len(holds)):
+        if marks[index]:
+            visiting += [index]
+    for index in visiting:
+        style = styles[index]
+        spelling = base[index]
+        if style != 'plain' and owed > 0 and (pads[index] < 0) and (parsing.folded(spelling) in identities):
+            order = 1 if style == 'leading_zero' else 0
+            while parsing.folded(spelling) in identities:
+                order = order + 1
+                spelling = _styled_number(holds[index], style, order, whole_column, widths[index], pads[index], marks[index], notations[index], plussed[index])
+            owed = owed - 1
+        identities[parsing.folded(spelling)] = 1
+        spellings[spelling] = 1
+        written[index] = spelling
+    return written
+'''
+
+POOLED_PLACED = r'''
+def _pooled_spelling(ladder: '_Ladder', wanted: float, asked: str, named: 'dict[str, int]', used: 'dict[str, int]', owners: 'dict[str, str]', holes: 'tuple[str, ...]', decimal_comma: bool, needed: int, pool: 'list[int] | None', widest: int) -> str:
+    if not math.isfinite(wanted):
+        return ''
+    tiers = ladder.tiers
+    if asked:
+        tiers = (_form_places(asked, decimal_comma),)
+    for places in tiers:
+        middle = wanted
+        if places > 0:
+            middle = wanted * float(_ten_to(places))
+        if places < 0:
+            middle = wanted / float(_ten_to(0 - places))
+        if not math.isfinite(middle) or abs(middle) > _POOLED_REACH:
+            continue
+        anchor = int(round(middle))
+        reach_figures = widest
+        if not ladder.anchored and _whole_figures(anchor, places) > reach_figures:
+            reach_figures = _whole_figures(anchor, places)
+        for step in range(2 * _POOLED_STEPS):
+            reach = (step + 1) // 2
+            units = anchor + (reach if step % 2 == 0 else -reach)
+            if not _sign_held(units, ladder.signs):
+                continue
+            if reach_figures > 0 and _whole_figures(units, places) > reach_figures:
+                continue
+            if not asked and ladder.figures_cap > 0 and (_whole_figures(units, places) > ladder.figures_cap):
+                continue
+            if _is_published_at(ladder, units, places):
+                continue
+            candidate = _units_spelled(units, places, decimal_comma)
+            form = parsing.census_form(candidate, named)
+            wearing = ''
+            if asked:
+                if form != asked:
+                    candidate = _dressed_in_form(candidate, asked, named, decimal_comma)
+                    if not candidate:
+                        continue
+                    wearing = asked
+            elif form in named:
+                continue
+            elif pool is not None and form and (parsing.form_room(form) >= needed) and (pool[0] < 1):
+                continue
+            if not asked:
+                candidate = _padded_to_the_source(candidate, ladder)
+            if candidate in used or parsing.folded(candidate) in owners:
+                continue
+            if not _is_a_usable_stand_in(candidate, holes, parsing.NUMBER, decimal_comma, wearing):
+                continue
+            return candidate
+    return ''
+
+def _pooled_offered(ladder: '_Ladder', groups: 'list[tuple[int, int, str]]', positions: 'list[int]', centre: float, spacing: float, middle: float, shift: float, named: 'dict[str, int]', used: 'dict[str, int]', owners: 'dict[str, str]', holes: 'tuple[str, ...]', decimal_comma: bool, needed: int, pool: 'list[int] | None', widest: int) -> 'tuple[dict[int, str], float, int]':
+    taken = dict(used)
+    answered = dict(owners)
+    written: 'dict[int, str]' = {}
+    cells = 0
+    weighted = 0.0
+    for step in range(len(groups)):
+        wanted = middle + shift + spacing * (positions[step] - centre)
+        found = ''
+        if math.isfinite(wanted):
+            found = _pooled_spelling(ladder, wanted, groups[step][2], named, taken, answered, holes, decimal_comma, needed, pool, widest)
+        if not found:
+            continue
+        taken[found] = 1
+        answered[parsing.folded(found)] = found
+        written[groups[step][1]] = found
+        value = _pooled_value(found, decimal_comma)
+        if value is None:
+            continue
+        cells = cells + groups[step][0]
+        weighted = weighted + value * float(groups[step][0])
+    reached = middle
+    if cells > 0:
+        reached = weighted / float(cells)
+    return (written, reached, cells)
+
+def _pooled_carried(ladder: '_Ladder', groups: 'list[tuple[int, int, str]]', positions: 'list[int]', centre: float, spacing: float, middle: float, named: 'dict[str, int]', used: 'dict[str, int]', owners: 'dict[str, str]', holes: 'tuple[str, ...]', decimal_comma: bool, needed: int, pool: 'list[int] | None', widest: int) -> 'tuple[dict[int, str], float, int]':
+    order = _pooled_pushed_first(ladder, groups, positions, centre, spacing, middle, named, used, owners, holes, decimal_comma, needed, pool, widest)
+    taken = dict(used)
+    answered = dict(owners)
+    written: 'dict[int, str]' = {}
+    cells = 0
+    weighted = 0.0
+    owed = 0.0
+    left = 0
+    for step in range(len(groups)):
+        owed = owed + middle * float(groups[step][0])
+        left = left + groups[step][0]
+    for turn in range(len(order)):
+        step = order[turn]
+        if left < 1:
+            break
+        rest_cells = 0
+        rest_weighted = 0.0
+        for after in range(turn, len(order)):
+            rest_cells = rest_cells + groups[order[after]][0]
+            rest_weighted = rest_weighted + float(groups[order[after]][0] * positions[order[after]])
+        rest_centre = 0.0
+        if rest_cells > 0:
+            rest_centre = rest_weighted / float(rest_cells)
+        share = owed / float(left)
+        wanted = share + spacing * (positions[step] - rest_centre)
+        found = ''
+        if math.isfinite(wanted):
+            found = _pooled_spelling(ladder, wanted, groups[step][2], named, taken, answered, holes, decimal_comma, needed, pool, widest)
+        value: 'float | None' = None
+        if found:
+            taken[found] = 1
+            answered[parsing.folded(found)] = found
+            written[groups[step][1]] = found
+            value = _pooled_value(found, decimal_comma)
+        if value is None:
+            owed = owed - share * float(groups[step][0])
+        else:
+            owed = owed - value * float(groups[step][0])
+            cells = cells + groups[step][0]
+            weighted = weighted + value * float(groups[step][0])
+        left = left - groups[step][0]
+    reached = middle
+    if cells > 0:
+        reached = weighted / float(cells)
+    return (written, reached, cells)
+
+def _pooled_pushed_first(ladder: '_Ladder', groups: 'list[tuple[int, int, str]]', positions: 'list[int]', centre: float, spacing: float, middle: float, named: 'dict[str, int]', used: 'dict[str, int]', owners: 'dict[str, str]', holes: 'tuple[str, ...]', decimal_comma: bool, needed: int, pool: 'list[int] | None', widest: int) -> 'list[int]':
+    taken = dict(used)
+    answered = dict(owners)
+    pushed: 'list[float]' = []
+    for step in range(len(groups)):
+        wanted = middle + spacing * (positions[step] - centre)
+        found = ''
+        if math.isfinite(wanted):
+            found = _pooled_spelling(ladder, wanted, groups[step][2], named, taken, answered, holes, decimal_comma, needed, pool, widest)
+        value: 'float | None' = None
+        if found:
+            taken[found] = 1
+            answered[parsing.folded(found)] = found
+            value = _pooled_value(found, decimal_comma)
+        if value is None:
+            pushed += [-1.0]
+            continue
+        away = value - wanted
+        if away < 0.0:
+            away = 0.0 - away
+        pushed += [away]
+    order: 'list[int]' = []
+    seated: 'dict[int, int]' = {}
+    for _turn in range(len(groups)):
+        best = -1
+        for step in range(len(groups)):
+            if step in seated:
+                continue
+            if best < 0:
+                best = step
+                continue
+            if pushed[best] < 0.0:
+                continue
+            if pushed[step] < 0.0 or pushed[step] > pushed[best]:
+                best = step
+        seated[best] = 1
+        order += [best]
+    return order
+
+def _pooled_best(ladder: '_Ladder', groups: 'list[tuple[int, int, str]]', positions: 'list[int]', centre: float, spacing: float, middle: float, named: 'dict[str, int]', used: 'dict[str, int]', owners: 'dict[str, str]', holes: 'tuple[str, ...]', decimal_comma: bool, needed: int, pool: 'list[int] | None', widest: int, window: float) -> 'tuple[dict[int, str], int]':
+    best, reached, cells = _pooled_offered(ladder, groups, positions, centre, spacing, middle, 0.0, named, used, owners, holes, decimal_comma, needed, pool, widest)
+    closest = reached - middle
+    if closest < 0.0:
+        closest = 0.0 - closest
+    if cells < 1 or closest <= window:
+        return (best, cells)
+    shift = middle - reached
+    for _again in range(_POOLED_SHIFTS):
+        if closest <= window or not math.isfinite(shift):
+            break
+        moved, moved_at, moved_cells = _pooled_offered(ladder, groups, positions, centre, spacing, middle, shift, named, used, owners, holes, decimal_comma, needed, pool, widest)
+        if moved_cells < 1:
+            break
+        gap = moved_at - middle
+        if gap < 0.0:
+            gap = 0.0 - gap
+        if gap < closest:
+            best, closest, cells = (moved, gap, moved_cells)
+        shift = shift + (middle - moved_at)
+    if closest <= window:
+        return (best, cells)
+    carried, carried_at, carried_cells = _pooled_carried(ladder, groups, positions, centre, spacing, middle, named, used, owners, holes, decimal_comma, needed, pool, widest)
+    gap = carried_at - middle
+    if gap < 0.0:
+        gap = 0.0 - gap
+    if carried_cells > 0 and gap < closest:
+        best, closest, cells = (carried, gap, carried_cells)
+    return (best, cells)
+
+def _pooled_numbers_placed(ladder: '_Ladder', scale: 'contract.PooledNumbers', groups: 'list[tuple[int, int, str]]', named: 'dict[str, int]', used: 'dict[str, int]', owners: 'dict[str, str]', holes: 'tuple[str, ...]', decimal_comma: bool, needed: int, pool: 'list[int] | None', widest: int, window: float) -> 'dict[int, str]':
+    placed: 'dict[int, str]' = {}
+    middle = scale.mean
+    if middle is None or not groups:
+        return placed
+    sizes = tuple([pair[0] for pair in groups])
+    positions = _pooled_positions(len(groups))
+    centre = _pooled_centre(sizes, positions)
+    furthest = 0.0
+    for step in range(len(positions)):
+        away = positions[step] - centre
+        if away < 0.0:
+            away = 0.0 - away
+        if away > furthest:
+            furthest = away
+    spacing = _pooled_step(ladder, middle, furthest)
+    best, cells = _pooled_best(ladder, groups, positions, centre, spacing, middle, named, used, owners, holes, decimal_comma, needed, pool, widest, window)
+    if cells < 1:
+        return placed
+    for step in range(len(groups)):
+        place = groups[step][1]
+        if place not in best:
+            continue
+        found = best[place]
+        used[found] = 1
+        owners[parsing.folded(found)] = found
+        placed[place] = found
+    return placed
+'''
+
+QUALITY_REPORT = r'''
+def _missed_lines(outcome: validation.Outcome) -> 'list[str]':
+    missed = [check for check in outcome.checks if check.verdict == validation.MISSED]
+    if not missed:
+        return ['Nothing was missed, so this part of the section is empty. Every', 'obligation and its outcome is listed under it, column by column.', '']
+    lines = ['WHAT THIS FILE DOES NOT CARRY. Each line names one obligation the', 'description sets, what it asks for, and what the file holds --', 'or, where what the file holds may not be printed here, why.', '']
+    for check in missed:
+        lines = lines + [f'{_where(check)}'] + _detail_of(check) + ['']
+    return lines
+
+def _column_order(outcome: validation.Outcome) -> 'list[str]':
+    seen: list[str] = []
+    for check in outcome.checks:
+        if check.column not in seen:
+            seen += [check.column]
+    return seen
+
+def _detail_lines(outcome: validation.Outcome) -> 'list[str]':
+    lines = [_RULE, 'FACT BY FACT', _RULE, '']
+    lines = lines + _missed_lines(outcome)
+    lines += ["EVERY OBLIGATION, IN THE DESCRIPTION'S OWN ORDER.", '']
+    for column in _column_order(outcome):
+        heading = 'the file as a whole'
+        if column:
+            heading = f"'{_shown(column)}'"
+        lines += [heading]
+        for check in outcome.checks:
+            if check.column != column:
+                continue
+            lines = lines + _detail_of(check)
+        lines += ['']
+    return lines
+
+def quality_report(description: contract.Profile, outcome: validation.Outcome) -> str:
+    lines = _opening_lines(description, outcome.measured_name) + ['']
+    lowered = _lowered_floor_lines(description)
+    if lowered:
+        lines = lines + lowered + ['']
+    population = _small_population_lines(description)
+    if population:
+        lines = lines + population + ['']
+    lines = lines + _summary_lines(outcome.census) + ['']
+    lines = lines + _bounds_lines() + ['']
+    lines = lines + _detail_lines(outcome)
+    lines = lines + _not_checkable_lines(outcome) + ['']
+    lines = lines + _expectations_lines() + ['']
+    lines = lines + _handling_lines(description, outcome.census.withheld)
+    text = ''
+    for line in lines:
+        text = text + line + _NEWLINE
+    return text
 '''

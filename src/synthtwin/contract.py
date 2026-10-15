@@ -13229,6 +13229,19 @@ class TailReader:
     held (`_kept_stand_ins` without the column's decisions, so the
     checker's windows and the producer's cost rule read this ladder off
     the block alone); no row steps off one (G5.3b step 5).
+
+    ``dense_grid`` IS A TAIL WHOSE ROWS CROWD ITS GRID (method G6.6.8
+    rule 4, stage 4 lane S4c, plan P4-D377): the figures of the one grid
+    the block is written on (`tail_grid`) where the staircase's own mean
+    distance stands more than half a grid step from the published one,
+    and -1 elsewhere (`_dense_grid` states which staircases are). Rounding
+    a row onto the grid moves the mean by half a step at the most, so a
+    staircase further out holds rows the grid pushed one point past the
+    row before: consecutive whole numbers up to
+    `999999` beside five far ones publish a high tail of 1,000 rows whose
+    mean distance is 1,280.5 and whose staircase stands at 1,739.6. The
+    generator then places the tail's outer strata so the mean is met
+    (`generation._tail_pair_met`) and the checker draws that window.
     """
 
     low: bool
@@ -13246,6 +13259,7 @@ class TailReader:
     steps: "tuple[float, ...]" = ()
     withheld: bool = False
     kept: "tuple[float, ...]" = ()
+    dense_grid: int = -1
 
 
 class ShapedLadder(tuple[float, ...]):
@@ -14007,6 +14021,152 @@ def _rung_places(value: float) -> int:
     if places < 0:
         return 0
     return places if places < 17 else 17
+
+
+def tail_grid(facts: NumericFacts) -> int:
+    """The one grid every number of a block is written on, in figures after the point, or -1.
+
+    Nought on a whole-valued block; otherwise the one width
+    `fraction_widths` names where it names one and every number used in
+    the statistics carries it; -1 where the block is written at several
+    widths or none is named. The grid G6.6.8's rule 4 places a dense
+    tail's strata on, read off the block alone so the generator and the
+    checker ask the same question (stage 4 lane S4c, plan P4-D377).
+
+    Guarantees: accepts a block's numeric facts; returns a whole number
+    of -1 or more. Determinism: a function of the facts. Raises nothing.
+    No I/O of any kind.
+    """
+    if facts.integer_valued:
+        return 0
+    census = facts.fraction_widths
+    if len(census) != 1:
+        return -1
+    for key in census:
+        if not key:
+            return -1
+        for letter in key:
+            if letter not in "0123456789":
+                return -1
+        if census[key] != facts.n_used_in_statistics:
+            return -1
+        return int(key)
+    return -1
+
+
+def _finite_mean(values: "list[float]") -> float:
+    """The mean of ``values``, read so a finite mean is never lost to an overflow on the way.
+
+    `math.fsum` adds before it divides, so numbers near the largest a
+    double holds overflow on the way to a mean they would reach (Codex's
+    review of lane S4c, item 2: a staircase of eleven distances near
+    ``2e307`` raised OverflowError in `generate`, its mean about
+    ``2.67e307``). Where the sum overflows, every number is first scaled
+    down by a power of two at least as large as their count -- exact for
+    every number of normal size -- and the mean scaled back, so the
+    answer is the one the sum would round to wherever that sum is
+    finite, and ``inf`` only where the mean itself is not a double.
+
+    Guarantees: accepts a non-empty list of numbers; returns their mean,
+    or a value that is not finite -- the first such number -- where a
+    number is not, or where the mean is out of range. Determinism: a function of the list. Raises nothing.
+    No I/O.
+    """
+    for value in values:
+        if not math.isfinite(value):
+            return value
+    try:
+        return math.fsum(values) / len(values)
+    except OverflowError:
+        pass
+    factor = 2.0
+    while factor < len(values):
+        factor = factor * 2.0
+    scaled = math.fsum(value / factor for value in values)
+    return scaled / len(values) * factor
+
+
+def _dense_grid(
+    side: TailReader, facts: NumericFacts, mean_distance: "float | None"
+) -> int:
+    """`TailReader.dense_grid`: the block's grid where the staircase misses the mean distance by more than half a step.
+
+    Only an unlisted tail read through its shape, with a published mean
+    distance and a staircase on the block's one grid (`tail_grid`), of a
+    block whose every number is different, can be dense -- the
+    staircase's own model, one grid point a row, is then the table's --
+    and only where every row of the staircase stands on a point of its
+    own, none held at the end, and the staircase stands more than half
+    a step FURTHER OUT than the published mean: the crowded rows were
+    pushed outward. A staircase whose rows all stand on their own
+    readings, rounded, meets its published mean to within half a step,
+    so such a tail never is. Readings 1000 to 1899 beside one `99900`
+    are not (their low tail's fifteen rows run out of grid at `1000`),
+    and neither are halves written to a tenth, whose forty tail rows
+    the staircase spreads over tenths the column never holds: both
+    columns repeat their numbers.
+
+    Guarantees: accepts a tail reader carrying its staircase, the block's
+    facts and the published mean distance; returns the grid's figures or
+    -1. Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    if side.listed or side.withheld or side.flat or not side.steps:
+        return -1
+    if mean_distance is None or not math.isfinite(mean_distance):
+        return -1
+    if facts.n_distinct_values != facts.n_used_in_statistics:
+        return -1
+    figures = tail_grid(facts)
+    if figures < 0:
+        return -1
+    distances: "list[float]" = []
+    for step in side.steps:
+        distances += [side.boundary - step if side.low else step - side.boundary]
+    for index in range(1, len(distances)):
+        if not distances[index] > distances[index - 1]:
+            return -1
+    stair = _finite_mean(distances)
+    if not math.isfinite(stair):
+        return -1
+    if stair - mean_distance > _tail_unit(figures) / 2.0:
+        return figures
+    return -1
+
+
+def dense_tail_mean_window(
+    reader: "TailReader | None",
+    side: TailSide,
+    lowest: float,
+    highest: float,
+) -> "tuple[float, float] | None":
+    """The window a dense tail's mean distance stands in, from its boundary rung's window; None elsewhere.
+
+    G6.6.8's rule 4 places a DENSE tail (`TailReader.dense_grid`) whose
+    twin strata crowd the grid so its cells' distances from the published
+    boundary sum to the published mean distance times its rows, to
+    within a grid step; the checker and the report take the hull of this
+    window and G12.13's rank-form window, which a tail left as the
+    staircase put it stands in. A file's tail
+    is measured from its own boundary rung, which stands between
+    ``lowest`` and ``highest``, so its mean distance is the published
+    one moved by how far that rung stands from the published boundary,
+    and one grid step more either way. The one statement of that window,
+    read by the checker (G12.13) and the twin's own report alike
+    (stage 4 lane S4c, plan P4-D377).
+
+    Guarantees: accepts the side's reader, its published tail and the
+    two ends of its boundary rung's window; returns the window, or None
+    where the side is not dense or publishes no mean distance.
+    Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    if reader is None or reader.dense_grid < 0 or side.mean_distance is None:
+        return None
+    step = _tail_unit(reader.dense_grid)
+    mean = side.mean_distance
+    boundary = reader.boundary
+    if reader.low:
+        return (mean + (lowest - boundary) - step, mean + (highest - boundary) + step)
+    return (mean - (highest - boundary) - step, mean - (lowest - boundary) + step)
 
 
 def _tail_unit(figures: int) -> float:
@@ -15021,10 +15181,14 @@ def tail_ladder(
         # ...and each row of an unlisted tail on its own grid point
         # (G5.3b's grid staircase), which needs the end this reader
         # already carries.
+        stepped = dataclasses.replace(
+            side_reader,
+            steps=_tail_steps(side_reader, _tail_figures(facts)),
+        )
         sides += [
             dataclasses.replace(
-                side_reader,
-                steps=_tail_steps(side_reader, _tail_figures(facts)),
+                stepped,
+                dense_grid=_dense_grid(stepped, facts, side.mean_distance),
             )
         ]
     held = [
