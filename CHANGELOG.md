@@ -6,6 +6,18 @@ exists).
 
 ## [Unreleased]
 
+### The joint midnight guard is checked as the product ships it, and every stated limit of the week has an owner (2026-10-15)
+
+**The sixth push's critic** (plans P4-D369, P4-D374, P4-D378, P4-D387,
+P4-D390, P4-D391). A column of 100 whole dates beside 299 day stamps on
+minutes 0 to 55 and one midnight, at a floor of one, keeps its count at
+midnight withheld and its twin passes; with the joint reading of that
+silence withdrawn alone, the twin misses it at 100, so the guard is now
+checked with the minute and second facts published. Each limit stated
+this week names an open lane -- D5 for daylight-saving offsets on the
+shared clock, 3b-REST for the calendar's remainders, R6 and R7 for the
+reader -- or is accepted with its measured reason.
+
 ### The minute's census no longer bends a clock column's hours, and the shared clock keeps its minute and its tails (2026-10-15)
 
 **The Codex review of batch 3b part 2d's integration, four items** (plans
@@ -42,7 +54,7 @@ SE3), which waited for lane T3, is re-applied on J2's code: each cell
 counted on the clock it is written on, bare dates pinned at their
 midnight. C2's six frozen minute cases move to seeds 442 to 447, as
 436 to 441 were taken. On clock-only columns the test of how the minute
-follows the hour stays one coarse table, measured before it was kept:
+follows the hour stays one coarse table, measured before it was kept (reversed 2026-10-15, Codex I3b2d item 1):
 T3's two witnesses, written as times without dates, come back with the
 table's share by hour under it (600 of 1,800 morning cells on minutes 00
 to 19, as the table), since the ten-minute census holds each hour's
@@ -101,7 +113,7 @@ pass leaves small bursty tables' count long (85 of 105 such twins before
 this change, 83 after); a column nine in ten at midnight with a heap at
 minute 0 wrote 989 or 983 cells at midnight where its count withheld for its
 size asks 990 -- such a column, fewer cells than the line off midnight,
-now publishes no minute or second facts (contract NF118, NF119), as
+now publishes no minute or second facts (contract NF123, NF124), as
 before lane T3, and every column of a battery of dates written as
 datetimes that the pushed line met is met;
 and the unit-room rule withholds a noon census these twins

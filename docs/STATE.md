@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 11,989 collected. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 11,981, on `3800f94` (batch 3b part 2d), the five shards took 20.7 to 28.9 minutes each, 117.8 minutes summed and 29 end to end, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 11,995 collected. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 11,989, on `254f6419` (batch 3b part 2f), the five shards took 21.7 to 29.9 minutes each, 122.2 minutes summed and 30 end to end, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 211 KPIs over phases 0-4 and stages 1, 2, 2b, 3, 3b and 4, 31 of them headlines under a cap of 31 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H); 182 green, 13 open, 16 limits the owner accepted. Of the 13 open, as each one's `target_stage` reads: 7 have the stage or lane that owns the whole (`K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-44` lane S4b); 1 is owned in part (`K-2B-47`: stage 3 owns the carried fidelity items, its residue of 2026-09-19, the identifier-layout misses, has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-05`, `K-S4-03` a headline in `K-2B-14`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -66,7 +66,7 @@ Weeks are elapsed from 2026-09-12 and assume one builder.
 | 2 | **DONE 2026-09-14. The three silent defects.** A grouped number keeps its mark, a moment keeps its separator, a date at midnight stays at midnight | MET: `tests/test_stage2_round_trip.py`, 19 shapes, every stage-2 fact returned. KPIs `K-S2-*` | done |
 | 2b | **DONE 2026-09-19. The twin writes each column as the source wrote it.** Numbers keep their distribution and every common spelling; dates their own format; labels, text and missing values their spellings; record numbers and codes their layout; the file its dialect; Excel in and out. Every published count asks one floor rule. Owner rulings of 2026-09-17 built. Three review rounds closed | MET: the KPI ledger's `K-2B-*` entries, green or at their recorded ceiling, and the whole suite green | done |
 | 3 | **DONE 2026-09-23. The extremes, and the population floor.** Its review round closed 2026-09-24. Built as FIVE landings on five branches from one base — 3.1 the default floor of 11 and the floor holes, 3.2 the population floor and the person rule, 3.3 the numeric tail, 3.4 the date and clock tails, 3.5 the sentences — and integrated last. No numeric, date or clock column publishes either end now; a table under 100 is refused and one under 1,000 carries a notice it cannot turn off; no sentence carries a count a key withholds | MET: `tests/test_stage3_gate.py` (`K-S3-13`) and `K-S3-01` to `K-S3-15`, and `K-P3-03` and `K-2B-05` reached their targets on the way | done |
-| 3b | **Dates keep their calendar shape.** Weekday, time of day, heaps and schedules, each a new published fact that must meet stage 3's floor. **3b.0 landed 2026-09-28**: on the gate's 11 filled ranges of days, seconds and moments the twin comes back with as many different ones -- the same ones where each tail's derived end is the real end, and where one stands a unit past it that unit in place of a real one inside (4 of the 11, plan P4-D358); over small filled columns about three in ten come back with fewer, MISSED (known limits) -- and every rank of a merged run stays inside its gap except where no placement inside the gaps meets the published count of different values (plan P4-D354, `K-S3-30`, `K-S3-39`). **3b.1 landed 2026-09-27**: a column of whole dates publishes its weekday census (plan P4-D355), and its twin meets it -- admissions' weekend share 14.7 per cent real against 14.8 twin where it was 28.5; since 3b.D1 the full-fill certificate is gone and a census is withheld only where a group holds fewer than three different dates, fewer than seven and a half a group on average, or no room beside a published hole (plan P4-D365, `K-S3-35`). **In on the integration branch since 2026-10-02:** 3b.K, the base every landing builds on (P4-D364); 3b.D1; 3b.G1, every tail publishes its pair and a date or clock tail ends at its pair's reach (P4-D375); 3b.T1, Excel's hour and the 12-hour clock read and written back (P4-D370); 3b.R0, numbers written in full (P4-D380); 3b.R1, the day-or-month and date-code questions (P4-D381); 3b.R3, workbook cells read as stored (P4-D382); D0, one weekday pass for every census of bins (P4-D366); T2 (3b.2-H), the hour census on moments (P4-D371); C1 (3b.5), clock columns with their census, heaps, step and codes (P4-D373); G3, the count pass's paid merge keeping its book (P4-D376); G2, the tail pair's wider cell (P4-D377); R2a, dates no member reads written back as written (P4-D383); R2K, the second key cut (P4-D386); D1b, the weekday census withheld where the count leaves too little room (P4-D388); G4, the subtraction guard dropped (P4-D390); the route-2 correction (P4-D390, P4-D373); D2, the weekday census on timestamp columns (P4-D367); R4, numbers that are dates, read as dates and written back as the same counts (P4-D384); J, the weekday and the hour of a moment met together (P4-D379); D3, the day-of-month census (P4-D368); R2b and R2c, the clock half and partial dates of the layout reader with Q6 (P4-D383); D4s, the count pass splitting the two tails' ranks first (P4-D369 part one); D4 (3b.6), dates that stand out, each listed date at its exact count (P4-D369, `K-S3-45` to `K-S3-47`); 3b.7, the shared clock and the joint member, each census counted on the clock a value is written on (P4-D378, `K-S3-53`); L1, codes and tables written as the source wrote them (P4-D390, P4-D384, `K-S3-61`); T3 (3b.4), the minutes and seconds of a timestamp counted and met with the hour (P4-D372, `K-S3-41`, `K-S3-42`), merged through lane J2, which meets them beside the weekday census on moments (P4-D391, `K-S3-62`); and C2 (3b.5's second step), the minute of the hour on clock-only columns (P4-D374, `K-S3-48`, `K-S3-49`). **The gate is met for the weekday on date columns** (`tests/test_stage3b_gate.py`, `K-S3-31`, `K-S3-32`): weekend share and weekday come back and no weekday count stands below the floor; time of day has landed on moments (3b.2-H) and on clock columns with their heaps (C1), its minutes and seconds on moments (T3 through J2) and its minute on clock columns (C2), and the dates that stand out on date columns (D4); schedules still to come | weekend share, hour of day and heaps come back; no calendar count below the floor | 6 |
+| 3b | **Dates keep their calendar shape.** Weekday, time of day, heaps and schedules, each a new published fact that must meet stage 3's floor. **3b.0 landed 2026-09-28**: on the gate's 11 filled ranges of days, seconds and moments the twin comes back with as many different ones -- the same ones where each tail's derived end is the real end, and where one stands a unit past it that unit in place of a real one inside (4 of the 11, plan P4-D358); over small filled columns about three in ten come back with fewer, MISSED (known limits) -- and every rank of a merged run stays inside its gap except where no placement inside the gaps meets the published count of different values (plan P4-D354, `K-S3-30`, `K-S3-39`). **3b.1 landed 2026-09-27**: a column of whole dates publishes its weekday census (plan P4-D355), and its twin meets it -- admissions' weekend share 14.7 per cent real against 14.8 twin where it was 28.5; since 3b.D1 the full-fill certificate is gone and a census is withheld only where a group holds fewer than three different dates, fewer than seven and a half a group on average, or no room beside a published hole (plan P4-D365, `K-S3-35`). **In on the integration branch since 2026-10-02:** 3b.K, the base every landing builds on (P4-D364); 3b.D1; 3b.G1, every tail publishes its pair and a date or clock tail ends at its pair's reach (P4-D375); 3b.T1, Excel's hour and the 12-hour clock read and written back (P4-D370); 3b.R0, numbers written in full (P4-D380); 3b.R1, the day-or-month and date-code questions (P4-D381); 3b.R3, workbook cells read as stored (P4-D382); D0, one weekday pass for every census of bins (P4-D366); T2 (3b.2-H), the hour census on moments (P4-D371); C1 (3b.5), clock columns with their census, heaps, step and codes (P4-D373); G3, the count pass's paid merge keeping its book (P4-D376); G2, the tail pair's wider cell (P4-D377); R2a, dates no member reads written back as written (P4-D383); R2K, the second key cut (P4-D386); D1b, the weekday census withheld where the count leaves too little room (P4-D388); G4, the subtraction guard dropped (P4-D390); the route-2 correction (P4-D390, P4-D373); D2, the weekday census on timestamp columns (P4-D367); R4, numbers that are dates, read as dates and written back as the same counts (P4-D384); R5, a trailing delimiter on one side read as the table's (P4-D387); J, the weekday and the hour of a moment met together (P4-D379); D3, the day-of-month census (P4-D368); R2b and R2c, the clock half and partial dates of the layout reader with Q6 (P4-D383); D4s, the count pass splitting the two tails' ranks first (P4-D369 part one); D4 (3b.6), dates that stand out, each listed date at its exact count (P4-D369, `K-S3-45` to `K-S3-47`); 3b.7, the shared clock and the joint member, each census counted on the clock a value is written on (P4-D378, `K-S3-53`); L1, codes and tables written as the source wrote them (P4-D390, P4-D384, `K-S3-61`); T3 (3b.4), the minutes and seconds of a timestamp counted and met with the hour (P4-D372, `K-S3-41`, `K-S3-42`), merged through lane J2, which meets them beside the weekday census on moments (P4-D391, `K-S3-62`); and C2 (3b.5's second step), the minute of the hour on clock-only columns (P4-D374, `K-S3-48`, `K-S3-49`). **The gate is met for the weekday on date columns** (`tests/test_stage3b_gate.py`, `K-S3-31`, `K-S3-32`): weekend share and weekday come back and no weekday count stands below the floor; time of day has landed on moments (3b.2-H) and on clock columns with their heaps (C1), its minutes and seconds on moments (T3 through J2) and its minute on clock columns (C2), and the dates that stand out on date columns (D4); the 3b finish test is met at 254f6419 (both gate files green; `K-S3-31`, `K-S3-38` and `K-S3-42` PASS, `K-S3-41` accepted-held); schedules remain | weekend share, hour of day and heaps come back; no calendar count below the floor | 6 |
 | 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour (`K-S1-06`) | 8 |
 | 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
 | 6 | **Cross-column, pairwise.** Rank correlation over cut indicators, applied as a reordering of values already generated. **Inherits:** today a rank correlation of 0.747 comes back 0.027 (`K-S6-01`), and the pairing walk of three- and four-number cells (`K-P4-06`) | every marginal unchanged; a known odds ratio comes back; the report names what it carries per relationship | 21 |
@@ -321,111 +321,145 @@ cannot get worse unseen.
   `n_at_midnight` (4 of 600) hold it since landing 3b.7 (P4-D378).
 - **Stated limits added 2026-10-13 (the fifth push's critic), each with
   its owner** (the orchestrator's rulings of that day). D3's two strict
-  xfails, quarter ends and six Mays at 10,000 rows (P4-D368), pass
-  since lane D4 merged with batch 3b part 1 and are xfails no longer. The day pass at 67 per cent of
-  generating against a budget of half at 40,000 rows (`K-S3-44`) is lane
-  S4b's. An all-different column mixing 800 ISO datetimes with 200 ISO
-  dates, which came back 881 of 1,000 different (95,463 of 100,000)
-  while `validate` exited 0, comes back 1,000 of 1,000 since landing
-  3b.7 (P4-D378) at seeds 0 to 2 and floors 11 and 36 (measured at
-  batch 3b part 2c); the same mix with a bare date on every day of its
-  span comes back 999 of 1,000 at floor 11 and 998 at floor 36, seeds 0
-  to 2, inside G12.5's envelope, every check met and the shortfall said
-  in the twin's report; a 12-hour dial column read at UTC whose offsets carry
+  xfails, quarter ends and six Mays at 10,000 rows (P4-D368), pass since
+  lane D4 merged with batch 3b part 1 and are xfails no longer. The day
+  pass at 67 per cent of generating against a budget of half at 40,000
+  rows (`K-S3-44`) is lane S4b's. An all-different column mixing 800 ISO
+  datetimes with 200 ISO dates, which came back 881 of 1,000 different
+  (95,463 of 100,000) while `validate` exited 0, comes back 1,000 of
+  1,000 since landing 3b.7 (P4-D378) at seeds 0 to 2 and floors 11 and
+  36 (measured at batch 3b part 2c); the same mix with a bare date on
+  every day of its span comes back 999 of 1,000 at floor 11 and 998 at
+  floor 36, seeds 0 to 2, inside G12.5's envelope, every check met and
+  the shortfall said in the twin's report, ACCEPTED (the orchestrator's
+  rulings of 2026-10-15 on the sixth push's critic, the owner may
+  reverse any); a 12-hour dial column read at UTC whose offsets carry
   the drawn instant past local noon or midnight (exit 3; offsets to be
-  allocated before the instants are drawn, P4-D383) stays landing
-  3b.7's stated limit (P4-D378). R4's whole counts written with a needless exponent
-  (`1704067200e+0`) come back written in full, lane L1's (P4-D384).
-  D2's older fault (b), the leap-second columns' count of different
-  values and count at midnight (P4-D379), and a local dial column just
-  after midnight (00:00 to 00:08, written 12:mm) missing `n_distinct`,
-  are lane J2's. Fixed on this push's repair (P4-D383): R2c's stepped
+  allocated before the instants are drawn, P4-D383) is lane 3b-REST's,
+  the calendar remainders beside 3b's schedules (P4-D378; landing 3b.7
+  has closed). R4's whole counts written with a needless exponent
+  (`1704067200e+0`) come back written in full, lane L1's (P4-D384). D2's
+  older fault (b), the leap-second columns' count of different values
+  and count at midnight (P4-D379), and a local dial column just after
+  midnight (00:00 to 00:08, written 12:mm) missing `n_distinct`, are
+  lane J2's. Fixed on this push's repair (P4-D383): R2c's stepped
   partial cells left the column's range silently (years 1984 to 2063 for
   a source's 1900 to 1979 beside dates of 2024) and now step inside the
   full dates' span first, then before it (1945 to 2024; where the
   source's partial dates lay is published nowhere); and Q6 answered
   `keep` is no longer put again.
 - **The calendar on the shared clock and the joint member** (landing
-  3b.7, P4-D378, 2026-10-13). The weekday, day-of-month and hour censuses
-  stand on columns of two offsets and of dates beside moments, each cell
-  counted on its own clock. Stated: the count of different values there
-  stays in G12.5's envelope, an all-different joint column's too, its
-  shortfall said (consecutive-minute stamps beside bare dates: 754 to
-  805 of 1,000, strict xfail); a daylight-saving column's twin writes the
-  offset not in force on its date for 50 to 52 per cent of its rows (35
-  to 39 before the landing: G7.4's spread meets the censuses at the cost
-  of season; publishing each key's first and last day is the follow-up);
+  3b.7, P4-D378, 2026-10-13). The weekday, day-of-month and hour
+  censuses stand on columns of two offsets and of dates beside moments,
+  each cell counted on its own clock. Stated: the count of different
+  values there stays in G12.5's envelope, an all-different joint
+  column's too, its shortfall said (consecutive-minute stamps beside
+  bare dates: 754 to 805 of 1,000, strict xfail); a daylight-saving
+  column's twin writes the offset not in force on its date for 50 to 52
+  per cent of its rows (35 to 39 before the landing: G7.4's spread meets
+  the censuses at the cost of season; publishing each key's first and
+  last day is lane D5's, daylight-saving offsets on the shared clock);
   `z_plus` withholds its weekday census at 1,000 rows and at 10,000 at
   the floor of 36; where the hour census caps the body at hour 0 and the
   tails' gaps hold too few midnight days, bare dates are written as
   moments (98 of 100 at 400 rows, 2,498 of 2,500 at 10,000;
   `resolution_mix` missed and named, strict xfail); where dates and
   stamps share days the twin spreads the dates evenly over the span (20
-  per cent in every fifth where the source held 10 to 57); C1's c0 and c551 hold 99 to 177 different values for
-  63 and 83, inside the envelope; and the minute and second censuses
-  (MC3, SE3) stand on the shared clock too since batch 3b part 2d's
-  integration, each cell counted on its own clock, once lane J2 had met
-  T3's fields beside D2's weekday census on moments (P4-D378, P4-D391).
-- **Stated limits measured at lane J2 (2026-10-13), each older than it.**
-  Beside a weekday census the hour pass leaves a small bursty table's
-  count of different values long: 85 of 105 twins of T3's bursty tables
-  on 45191fa, 83 since the minute and second passes pay their count steps
-  back (P4-D391); owner lane J's family (G7.3g step 6). A column nine in
-  ten at midnight, its count there withheld for its size, beside a heap at
-  minute 0, wrote 989 and 983 cells at midnight of 990 -- lane T3's own (P4-D372);
-  such a column, fewer cells than the line off 00:00:00, now withholds its
-  minute and second facts with their own reason (NF123, NF124; NF118 and
-  NF119 say the counted midnight's), as 45191fa published none: of a
-  battery of dates written as datetimes, 1,000 to 5,000 rows with 5 to 30
-  timed, every column 45191fa met is met at floors 11 and 36, seeds 0 to
-  2; R4's `%.15g` column writes 990 at midnight, its `repr` sibling 10,
-  passing as on 45191fa only because the check of a count withheld for its
-  size reads either side (the orchestrator's). Regular
-  stamps crowding the lattice their clock facts pin -- every series
-  measured one to sixty minutes apart, 1,000 to 100,000 rows, short of its
-  count and from 3,800 rows off the second's heap -- now withhold those
-  facts (NF121, NF122) and miss nothing; dense grids of random times --
-  on the hour, on 5-, 15- and 30-minute slots, written to the minute with
-  `:00` seconds -- fill their lattice no more than a uniform draw would
-  and keep them (26 of 28 twins miss nothing; the half-hour grid misses
-  `second_heaps.counts` in 2, lane T3's own). A repeated grid publishes
-  its minute and second facts under the looser fifth only where no value
-  is written once, no count at midnight is published and it holds at
-  most 1,000 different values (J2's Codex review, item 2, its two
-  verifications and the orchestrator's ruling): 80 % of 1,250, the
-  smallest count at which a swept grid missed; the 93 grid-and-floor
-  pairs of 1,001 to 2,500 values that met with it now withhold. Carried
-  under every rule (older, T3's G7.3h): grids starting off midnight
-  (07:13, 00:37), no value once, 2 to 30 minutes apart, 700 to 5,000
-  values, mostly at floor 11, publish clock facts their twins miss (the
-  worst 940 of 1,000 written), and grids written four times with a count
-  at midnight miss `midnight.count`, `second_heaps.counts` or their
-  count of different values -- owner lane J3 (repeated grids meet their
-  counts, after the 3b close). The payers' walk finds each payer by halving and its paid
-  searches grow with the rows (2.04 to 2.16 times a doubling behind a
-  wall of payers that keep nothing), but a wall of more than 1,024 such
-  payers still ends a search (`_CLOCK_PAYER_REACH`), the count one value
-  short; the payers' exclusions hold before 1970. NF74's unit-room rule,
-  measured before 3b.4, withholds a noon census the twins now meet. A
+  per cent in every fifth where the source held 10 to 57); C1's c0 and
+  c551 hold 99 to 177 different values for 63 and 83, inside the
+  envelope; and the minute and second censuses (MC3, SE3) stand on the
+  shared clock too since batch 3b part 2d's integration, each cell
+  counted on its own clock, once lane J2 had met T3's fields beside D2's
+  weekday census on moments (P4-D378, P4-D391). The consecutive-minute
+  shortfall, `z_plus`'s census, the bare dates written as moments and
+  their even spread over the span are lane 3b-REST's (the orchestrator's
+  rulings of 2026-10-15 on the sixth push's critic, the owner may
+  reverse any).
+- **Stated limits measured at lane J2 (2026-10-13), each older than
+  it.** Beside a weekday census the hour pass leaves a small bursty
+  table's count of different values long: 85 of 105 twins of T3's bursty
+  tables on 45191fa, 83 since the minute and second passes pay their
+  count steps back (P4-D391); owner lane 3b-REST (G7.3g step 6; was lane
+  J's family, closed). A column nine in ten at midnight, its count there
+  withheld for its size, beside a heap at minute 0, wrote 989 and 983
+  cells at midnight of 990 -- found by lane T3 (P4-D372); such a column,
+  fewer cells than the line off 00:00:00, now withholds its minute and
+  second facts with their own reason (NF123, NF124; NF118 and NF119 say
+  the counted midnight's), as 45191fa published none: of a battery of
+  dates written as datetimes, 1,000 to 5,000 rows with 5 to 30 timed,
+  every column 45191fa met is met at floors 11 and 36, seeds 0 to 2;
+  R4's `%.15g` column writes 990 at midnight, its `repr` sibling 10,
+  passing as on 45191fa only because the check of a count withheld for
+  its size reads either side (the orchestrator's). Regular stamps
+  crowding the lattice their clock facts pin -- every series measured
+  one to sixty minutes apart, 1,000 to 100,000 rows, short of its count
+  and from 3,800 rows off the second's heap -- now withhold those facts
+  (NF121, NF122) and miss nothing; dense grids of random times -- on the
+  hour, on 5-, 15- and 30-minute slots, written to the minute with `:00`
+  seconds -- fill their lattice no more than a uniform draw would and
+  keep them (26 of 28 twins miss nothing; the half-hour grid misses
+  `second_heaps.counts` in 2, lane 3b-REST's, was lane T3's own). A
+  repeated grid publishes its minute and second facts under the looser
+  fifth only where no value is written once, no count at midnight is
+  published and it holds at most 1,000 different values (J2's Codex
+  review, item 2, its two verifications and the orchestrator's ruling):
+  80 % of 1,250, the smallest count at which a swept grid missed; the 93
+  grid-and-floor pairs of 1,001 to 2,500 values that met with it now
+  withhold. Carried under every rule (older, T3's G7.3h): grids starting
+  off midnight (07:13, 00:37), no value once, 2 to 30 minutes apart, 700
+  to 5,000 values, mostly at floor 11, publish clock facts their twins
+  miss (the worst 940 of 1,000 written), and grids written four times
+  with a count at midnight miss `midnight.count`, `second_heaps.counts`
+  or their count of different values -- owner lane J3 (repeated grids
+  meet their counts, after the 3b close). The payers' walk finds each
+  payer by halving and its paid searches grow with the rows (2.04 to
+  2.16 times a doubling behind a wall of payers that keep nothing), but
+  a wall of more than 1,024 such payers still ends a search
+  (`_CLOCK_PAYER_REACH`), the count one value short, ACCEPTED (bounded
+  work at a million rows, the orchestrator, 2026-10-15); a state probe
+  with payers on both sides of the run, not a twin, ends one value short
+  at a wall of 40, as before J2's repair (lane 3b-REST); the payers'
+  exclusions hold before 1970. NF74's unit-room rule, measured before
+  3b.4, withholds a noon census the twins now meet (lane 3b-REST). A
   clock-only column's minute census is asked over the fine table too, as
   a timestamp's (P4-D374; Codex I3b2d, item 1: one census over every
-  hour bent the minutes inside a ten-minute bin, a morning's even minutes
-  0.66 against 0.50, silently); its cost, the fine table reading a few
-  hundred cells an hour as dependent: the clinic column at 1,000 rows is
-  withheld, and at floor 36 comes back 0.515 on `:00`/`:30` against 0.706
-  (0.673 published), its minute distance 0.43 to 0.45 against 0.29.
+  hour bent the minutes inside a ten-minute bin, a morning's even
+  minutes 0.66 against 0.50, silently); its cost, the fine table reading
+  a few hundred cells an hour as dependent: the clinic column at 1,000
+  rows is withheld, and at floor 36 comes back 0.515 on `:00`/`:30`
+  against 0.706 (0.673 published), its minute distance 0.43 to 0.45
+  against 0.29: ACCEPTED (the orchestrator, 2026-10-15: the silent
+  distortion ruled worse).
+- **Open items found at batch 3b's integration, owner lane 3b-REST**
+  (the orchestrator's rulings of 2026-10-15 on the sixth push's critic,
+  the owner may reverse any). `wide_three_mid`, 1,500 stamps at -10:00,
+  +00:00 and +12:00, three in seven at midnight, comes back 647 against
+  644 at the floor of 36, `n_at_midnight` named as a deviation (648 at
+  bb9e6d4): no matching of its tail ranks to the held places keeps the
+  count, G7.3h's frame (P4-D378). A declared-missing spelling withheld
+  below the floor (20 cells of `2/1/2022` at 36) is still written on 109
+  of 400 tail ranks at front 400 and 23 of 60 at front 60, read as
+  absent by a reader declaring it missing (P4-D369).
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Lane L1
   (P4-D390, P4-D384, `K-S3-61`) writes made-up figure codes at the
-  source's width, label columns' exponent codes in their forms and range,
-  a code with one letter among figures in its form, and free text's
-  durations and face columns in theirs. Still so: a column of numbers
-  beside labels writes its number half's exponent codes as integers of up
-  to 280 figures or in G6.3's own spelling (P4-D390), which needs a
-  published fact of the spelling.
-  A table whose rows end in its delimiter and whose header does not,
-  or the reverse, is read as its columns since lane R5 (P4-D387); a
-  headerless one still reads an empty last column, written back empty.
+  source's width, label columns' exponent codes in their forms and
+  range, a code with one letter among figures in its form, and free
+  text's durations and face columns in theirs. Still so: a column of
+  numbers beside labels writes its number half's exponent codes as
+  integers of up to 280 figures or in G6.3's own spelling (P4-D390),
+  which needs a published fact of the spelling. ACCEPTED (the
+  orchestrator's rulings of 2026-10-15 on the sixth push's critic, the
+  owner may reverse any): a pooled placement held to `figures_cap`
+  misses the pool's mean, named (L1's measured trade: no wide integers),
+  and seventeen-figure cells stand outside `styles.spelled`'s family
+  (older, rare; P4-D390). A table whose rows end in its delimiter and
+  whose header does not, or the reverse, is read as its columns since
+  lane R5 (P4-D387); a headerless one still reads an empty last column,
+  written back empty -- lane R7's, the next reader lane, as lane R6's
+  head (2d5f2a3) still reads it so. `site;dx` over `0100;1E22;""` and
+  119 rows of `0100;1E22;` is read, silently, as ONE comma column: lane
+  R6's, its head reading the two columns, merging in batch 4a (P4-D387).
 - **With every pair published, a raised floor still costs some twins
   their mean and spread.** Since plan P4-D375 every tail pair binary64
   holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11
