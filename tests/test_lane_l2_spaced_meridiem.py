@@ -696,12 +696,10 @@ def test_g12_the_reading_is_the_levels_alone() -> None:
 
 
 def _oracle_module() -> "dict[str, object]":
-    """The generation oracle's own namespace, run from its file."""
-    import runpy
+    """The generation oracle's own namespace, as the vectors' test loaded it."""
+    from tests import test_generation_reference as reference
 
-    return runpy.run_path(
-        str(pathlib.Path(__file__).resolve().parent.parent / "tools" / "reference" / "make_generation_reference_vectors.py")
-    )
+    return vars(reference.gen)
 
 
 @pytest.mark.parametrize("form", ("%:%% @@", "%%:%% &&", "%:%%" + NARROW + "@@", "%%:%%" + NARROW + "@.@."))
