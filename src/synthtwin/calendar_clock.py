@@ -1315,11 +1315,13 @@ CROWDED_SHARE_ALL_DIFFERENT = (1, 3)
 # 1): a twentieth of its points.
 CROWDED_EXCESS = (1, 20)
 # ...and a fifth where some value is written more than once, the column's
-# count at midnight is not published and it parses no more than
-# `CROWDED_REPEATED_ROWS` cells (Codex's review of lane J2, item 2, and its
-# verifier): a short grid with repeats keeps its facts there.
+# count at midnight is not published and it holds no more than
+# `CROWDED_REPEATED_VALUES` different values (Codex's review of lane J2,
+# item 2, and its two verifiers): the largest count of different values a
+# sweep of such grids measured to meet its facts below the smallest that
+# missed them (1,207), so a small grid with repeats keeps its facts there.
 CROWDED_EXCESS_REPEATED = (1, 5)
-CROWDED_REPEATED_ROWS = 4500
+CROWDED_REPEATED_VALUES = 1171
 
 
 def lattice_crowded(
@@ -1371,36 +1373,44 @@ def lattice_crowded(
     stands 0.111 to 0.382 above it and stays withheld. `parsed` 0 asks the
     fill alone.
 
-    A SHORT GRID WITH REPEATS AND NO COUNT AT MIDNIGHT IS NOT CROWDED
-    UNDER A FIFTH (Codex's review of lane J2, item 2, and its verifier).
+    A SMALL GRID WITH REPEATS AND NO COUNT AT MIDNIGHT IS NOT CROWDED UNDER
+    A FIFTH (Codex's review of lane J2, item 2, and its two verifiers).
     Where some value is written more than once, the column publishes no
-    count at midnight (`midnight_counted` false) and it parses no more than
-    `CROWDED_REPEATED_ROWS` cells, the excess must reach
+    count at midnight (`midnight_counted` false) and it holds no more than
+    `CROWDED_REPEATED_VALUES` different values, the excess must reach
     `CROWDED_EXCESS_REPEATED`. 1,000 stamps five minutes or a minute apart,
     each written twice, stand 0.144 above the draw, and with their facts
     their twins met the count and every heap at floors 11 and 36 (the
-    twentieth had withheld them), as did every such grid measured up to
-    4,500 rows: 2,000 to 4,500 rows of stamps one, two, three, five or ten
-    minutes apart written twice or three times, at both floors, two or
-    three twins each, and grids of 4,000 rows with a tenth to a quarter of
-    their values once. Larger grids missed with their facts: written twice
-    five minutes apart, 5,000, 6,000 and 9,000 rows came back 2,457 to
-    2,466 of 2,500, 2,973 to 2,990 of 3,000 and 4,487 to 4,492 of 4,500 at
-    floor 36 (the verifier: 8,000 rows 3,996 to 4,000 of 4,000), three
-    minutes apart 9,000 rows 4,398 to 4,412 of 4,500, two minutes apart
-    6,000 rows one twin of three 2,990 of 3,000 at floor 11 -- so above
-    `CROWDED_REPEATED_ROWS` the twentieth stands, and the twins met their
-    count withheld. Where a count at midnight is published the twin holds it
-    exactly, and on a lattice its values fill the ranks there find no free
-    place: written twice, 10,000 stamps five minutes apart came back 34 to
-    90 values short, 4,000 ten minutes apart 53 to 56 short, 2,000 fifteen
-    minutes apart and coarser off their count or their second's heap,
-    40,000 a minute apart off the second's heap in one twin of two, and
-    10,000 written three times five or sixty minutes apart off their count
-    or their count at midnight -- so the twentieth stands there, as it does
-    for a column every value of which is different, and from a fifth on
-    (every second stamp written twice, 0.227 above, missed its count
-    either way).
+    twentieth had withheld them). The bound is the count of different
+    values, not the rows (the second verifier: 4,300 and 4,500 rows five
+    minutes apart with a tenth or a fifth of their values once missed at
+    2,367 to 2,489 values). Asked at any size, the fifth was swept over 360
+    grids -- stamps one to ten minutes apart, written twice or three times
+    with none to half of their values once, 1,600 to 5,000 rows (6,750
+    written three times), floors 11 and 36, three twins each: of the 428 it
+    publishes where the twentieth withholds, every one of at most 1,171
+    values met all its facts (402 twins), and 20 from 1,207 values on missed
+    the count of different values -- 2,000 rows two minutes apart with about
+    a third once, 1,205 of 1,207 in one twin at floor 11; 2,200 rows four
+    minutes apart 1,333 of 1,334; five minutes apart at floor 36 from 2,350
+    values (4,000 rows, three in ten once, 2,288 to 2,304), as written twice
+    from 5,000 rows (2,457 to 2,466 of 2,500) -- so above
+    `CROWDED_REPEATED_VALUES` the twentieth stands, and withheld, all 294
+    above it met their facts (882 twins), the 20 among them. 274 lose minute
+    and second facts they met with the fifth (4,000 rows written twice,
+    2,000 values, among them). Many repeats need no bound of their own:
+    written four or six times, 2,250 values stand within a twentieth of the
+    draw and publish under either. Where a count at midnight is published
+    the twin holds it exactly, and on a lattice its values fill the ranks
+    there find no free place: written twice, 10,000 stamps five minutes
+    apart came back 34 to 90 values short, 4,000 ten minutes apart 53 to 56
+    short, 2,000 fifteen minutes apart and coarser off their count or their
+    second's heap, 40,000 a minute apart off the second's heap in one twin
+    of two, and 10,000 written three times five or sixty minutes apart off
+    their count or their count at midnight -- so the twentieth stands there,
+    as it does for a column every value of which is different, and from a
+    fifth on (every second stamp written twice, 0.227 above, missed its
+    count either way).
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
@@ -1415,7 +1425,7 @@ def lattice_crowded(
     if parsed <= 0:
         return True
     above, over = CROWDED_EXCESS
-    if not all_different and not midnight_counted and parsed <= CROWDED_REPEATED_ROWS:
+    if not all_different and not midnight_counted and distinct <= CROWDED_REPEATED_VALUES:
         above, over = CROWDED_EXCESS_REPEATED
     # The share of the points `parsed` uniform draws fill, on average.
     drawn = 1.0 - (1.0 - 1.0 / points) ** parsed

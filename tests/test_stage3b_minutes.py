@@ -817,8 +817,13 @@ def test_a_short_grid_written_twice_keeps_its_clock_facts(tmp_path: pathlib.Path
     assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, False)
     assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, True)
     assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, True, 1000, False)
-    # ...and above `CROWDED_REPEATED_ROWS` the twentieth stands (its verifier).
-    assert not calendar_clock.lattice_crowded(300, 0, 674_700, 2250, False, 4500, False)
+    # ...and above `CROWDED_REPEATED_VALUES` different values the twentieth stands, whatever
+    # the rows (its two verifiers): 1,171 values written twice keep the fifth, 1,172 do not,
+    # nor do 2,250 values in 4,500 rows, which 2a04359 still published.
+    assert calendar_clock.CROWDED_REPEATED_VALUES == 1171
+    assert not calendar_clock.lattice_crowded(300, 0, 351_000, 1171, False, 2342, False)
+    assert calendar_clock.lattice_crowded(300, 0, 351_300, 1172, False, 2344, False)
+    assert calendar_clock.lattice_crowded(300, 0, 674_700, 2250, False, 4500, False)
     assert calendar_clock.lattice_crowded(300, 0, 749_700, 2500, False, 5000, False)
 
 
@@ -827,8 +832,8 @@ def test_a_long_grid_written_twice_withholds_its_clock_facts(tmp_path: pathlib.P
     stamps five minutes apart, each written twice, at any size, and from 5,000 rows their
     twins missed the count of different values with them -- 6,000, 8,000 and 9,000 rows at
     floor 36 came back 2,973 to 2,990 of 3,000, 3,996 to 4,000 of 4,000 and 4,487 to 4,492 of
-    4,500 (cdd3add). A grid of more than `CROWDED_REPEATED_ROWS` rows is held to the
-    twentieth: these withhold their minute's and second's facts, as e69e534 did, and every
+    4,500 (cdd3add). A grid of more than `CROWDED_REPEATED_VALUES` different values is held
+    to the twentieth: these withhold their minute's and second's facts, as e69e534 did, and every
     twin at seeds 0 to 2 misses nothing; Codex's 2,000-row grids still publish
     (`test_a_short_grid_written_twice_keeps_its_clock_facts`)."""
     for rows in (6000, 8000, 9000):
@@ -839,6 +844,43 @@ def test_a_long_grid_written_twice_withholds_its_clock_facts(tmp_path: pathlib.P
         for seed in (0, 1, 2):
             written = kpi_shapes.twin_text(described, seed)
             assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (rows, seed)
+
+
+def _some_once_series(step: int, rows: int, once: float) -> "list[str]":
+    """Lane J2's second Codex verifier, item 1: stamps `step` minutes apart from 2015-01-01
+    00:00:00, each written twice, or once with chance `once` (`random.Random(11)`)."""
+    pick = random.Random(11)
+    start = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    place = 0
+    while len(cells) < rows:
+        text = (start + datetime.timedelta(minutes=step * place)).strftime("%Y-%m-%d %H:%M:%S")
+        place = place + 1
+        cells += [text] * (1 if pick.random() < once else 2)
+    return cells[:rows]
+
+
+def test_a_grid_with_some_values_once_withholds_its_clock_facts(tmp_path: pathlib.Path) -> None:
+    """Lane J2's second Codex verifier, item 1: the bound of 4,500 rows let a grid inside it
+    publish facts its twins miss. Stamps five minutes apart, each written twice and about a
+    fifth once, 4,500 rows holding 2,489 values, published 12 minute heaps and a second's heap
+    at floor 36, and its twins at seeds 0 to 2 came back 2,431 to 2,436 values (2a04359);
+    e69e534 withheld them and met all 2,489. The fifth is bounded by the column's count of
+    different values (`CROWDED_REPEATED_VALUES`), the largest a sweep of 360 such grids
+    measured to meet below the smallest that missed: 2,000 rows two minutes apart, about a
+    third of the values once, 1,207 values, whose seed-1 twin came back 1,205 at floor 11
+    (2a04359). Both grids withhold their minute's and second's facts and every twin misses
+    nothing."""
+    for step, rows, once, floor, values in ((5, 4500, 0.2, 36, 2489), (2, 2000, 0.35, 11, 1207)):
+        cells = _some_once_series(step, rows, once)
+        assert len(set(cells)) == values
+        described = _one_column(tmp_path / f"once-{step}-{rows}", "c", cells, floor)
+        block = described.block("c")
+        assert block.get("n_at_midnight") is None, step
+        assert block["second_heaps"] == [] and block["minute_heaps"] == [], step
+        for seed in (0, 1, 2):
+            written = kpi_shapes.twin_text(described, seed)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (step, seed)
 
 
 def _half_kept_series(step: int, rows: int, times: int) -> "list[str]":
