@@ -8253,8 +8253,19 @@ can read a rank's clock only once its offset is known.
    offset left whose instant is not past the gap's top (the largest left
    where none is); the run is then written in the order of its instants,
    each place with its offset. Every written field a census counts, every
-   offset count and every gap stands. Tail ranks and pinned ranks are
-   given back as they were, and so are bare dates in a frame of seconds.
+   offset count and every gap stands. Pinned ranks, ranks whose gap is
+   one place and bare dates in a frame of seconds are given back as they
+   were. THE TAILS' OTHER RANKS are taken back as a whole, as G7.3h moves
+   a tail rank off or onto a midnight of its own clock to keep the count
+   at midnight and then sorts each tail by the place it reads, which may
+   hand one rank's place to a rank of another offset: each whose own
+   place -- its instant plus its shift, in the frame's unit -- the passes
+   left among the tails' places keeps its instant; each other, in rank
+   order, takes the least place left that puts its instant inside its own
+   gap, with its own offset, and stays where it was where none does (the
+   Codex review of landing I3b2d, item 3: given back as they stood before
+   the passes, 1,000 stamps on the hour at `+01:00` and `+02:00`, half at
+   midnight, came back with 501 cells at midnight against 500).
    In a frame of DAYS a bare date moves as a day and stands in its gap's
    run, and a run holding one keeps every rank's form and offset, as a
    bare date's form cannot pass to another rank (the landing's Codex
@@ -8363,9 +8374,18 @@ Allocation, over the `P` parsed cells in ascending rank:
    with as many ranks left as it holds, in this step's order, the first
    that breaks the fewest of two asks: off a local midnight where the
    count at midnight is withheld for its size; and, for a body block, its
-   WRITTEN day, day of the month and hour in a group of every published
-   census with room left for it, room being the group's count less the
-   blocks already placed there. A pinned rank never moves, so the field it
+   WRITTEN day, day of the month, hour, minute and second in a group of
+   every published census with room left for it, room being the group's
+   count less the blocks already placed there. The minute's and the
+   second's facts are laid as groups of their sixty values: each heap a
+   group of its own value with its count, each census group the values of
+   it no heap holds with its count, and, with heaps and no census, every
+   other value one group of the body's cells less the heaps' (the Codex
+   review of landing I3b2d, item 2: 1,000 stamps on the hour at `-06:00`
+   and `+05:30`, every body cell on minute 0 of its own clock, published a
+   heap of 978 there; asked of the day and the hour alone, blocks took
+   `+05:30` and stood on minute 30, where no pass moves a pinned rank, and
+   the twin held 976). A pinned rank never moves, so the field it
    is written at is its key's alone; the source's own offsets prove a
    choice keeping every census exists. The keys' counts and the groups'
    room are spent as each block takes its key, and the block's other keys

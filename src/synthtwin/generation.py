@@ -35348,9 +35348,12 @@ def _off_own_clocks(
     for all its ranks always finds where any is found, and the ranks
     themselves found one -- then the run is written in the order of its
     instants, each place with its offset. So every written field a census
-    counts, every offset count and every place's gap stand. A tail rank
-    and a pinned rank never move and are given back as they were, and so
-    is a bare date in a frame of seconds; in a frame of days a bare date
+    counts, every offset count and every place's gap stand. A pinned rank,
+    a rank whose gap is one place and a bare date in a frame of seconds
+    never move and are given back as they were; A TAIL RANK as it was
+    where the passes left its place standing, and where they moved it, at
+    a place they left in its stead (`_own_clock_tails`; the Codex review
+    of landing I3b2d, item 3). In a frame of days a bare date
     moves as a day (`_whole_pinned`), and a run holding one hands its days
     to its ranks, each keeping its form and offset (`_own_clock_days`,
     Codex's item 2 of landing 3b.7).
@@ -35359,13 +35362,23 @@ def _off_own_clocks(
     O(n log n) over the ranks, the offsets of a run matched by a walk
     over its distinct offsets. Raises nothing. No I/O of any kind.
     """
-    moved = [value for value in before]
     given = [key for key in offsets]
     gap_lows, gap_highs = gaps
     body_low, body_high = body
     # In a frame of days a bare date moves as a day (`_whole_pinned`), so it
     # stands in its gap's run; in a frame of seconds it is pinned.
     stays = [whole[rank] and scale == 1 for rank in range(len(whole))]
+    moved = [value for value in before]
+    # The tails' places the passes moved (the Codex review of landing
+    # I3b2d, item 3; `_own_clock_tails`).
+    _own_clock_tails(
+        moved, before, framed, shifts,
+        [
+            not (pinned[rank] or stays[rank] or gap_lows[rank] >= gap_highs[rank])
+            for rank in range(len(before))
+        ],
+        body, gaps, scale,
+    )
     rank = body_low
     while rank <= body_high:
         if pinned[rank] or stays[rank] or gap_lows[rank] >= gap_highs[rank]:
@@ -35393,6 +35406,71 @@ def _off_own_clocks(
             )
         rank = end
     return moved, given
+
+
+def _own_clock_tails(
+    moved: "list[int]",
+    before: "list[int]",
+    framed: "list[int]",
+    shifts: "list[int]",
+    movable: "list[bool]",
+    body: "tuple[int, int]",
+    gaps: "tuple[list[int], list[int]]",
+    scale: int,
+) -> None:
+    """The tails' moves taken back from the frame (`_off_own_clocks`; the
+    Codex review of landing I3b2d, item 3; method G7.3k step 2).
+
+    The field pass (G7.3h) moves a tail rank off or onto a midnight of its
+    own clock to keep the count at midnight, then sorts each tail by the
+    place it reads -- which on the shared clock hands one rank's place to a
+    rank of another offset. So the tails' places are taken back as a
+    whole: every movable rank outside the body whose own place (its
+    instant plus its shift, in the frame's unit) the passes left among the
+    tails' places keeps its instant; each other one, in rank order, takes
+    the least place left that puts its instant inside its own gap, with
+    its own offset, and stays where it was where none does. Given back
+    where they stood before the passes, 1,000 stamps on the hour at
+    +01:00 and +02:00, half at midnight, came back with 501 cells at
+    midnight against a published 500. A column whose passes move no tail
+    rank is given back exactly as before. Writes `moved` in place.
+
+    O(n log n) over the tail ranks, a place found by halving. Raises
+    nothing. No I/O of any kind.
+    """
+    gap_lows, gap_highs = gaps
+    body_low, body_high = body
+    ranks = [
+        rank
+        for rank in range(len(before))
+        if movable[rank] and not body_low <= rank <= body_high
+    ]
+    held: "dict[int, int]" = {}
+    for rank in ranks:
+        held[framed[rank]] = (held[framed[rank]] if framed[rank] in held else 0) + 1
+    left: "list[int]" = []
+    for rank in ranks:
+        own = (before[rank] + shifts[rank]) // scale
+        if own in held and held[own] > 0:
+            held[own] = held[own] - 1
+        else:
+            left += [rank]
+    if not left:
+        return
+    places = sorted(place for place in held for _held in range(held[place]))
+    for rank in left:
+        low = -((-(gap_lows[rank] + shifts[rank])) // scale)
+        high = (gap_highs[rank] + shifts[rank]) // scale
+        start, stop = 0, len(places)
+        while start < stop:
+            middle = (start + stop) // 2
+            if places[middle] < low:
+                start = middle + 1
+            else:
+                stop = middle
+        if start < len(places) and places[start] <= high:
+            moved[rank] = places[start] * scale - shifts[rank]
+            del places[start]
 
 
 def _own_clock_days(
@@ -38986,13 +39064,52 @@ def _offset_allocation(
     return given, notes
 
 
+def _field_census_bins(
+    census: "tuple[tuple[int, int, int], ...]",
+    heaps: "tuple[tuple[int, int], ...]",
+    body: int,
+) -> "tuple[tuple[int, ...], list[int]]":
+    """A minute's or second's published facts as `_bins_of_censuses` lays a
+    census (the Codex review of landing I3b2d, item 2): each heap a group of
+    its own value with its count; each census group the values of it no
+    heap holds, with its count -- the cells off the heaps; and, where no
+    census is published beside the heaps, every other value one group of
+    the body's cells off the heaps, `body` less the heaps' counts. Returns
+    each of the sixty values' group and each group's count. Raises
+    nothing. No I/O of any kind."""
+    where = [-1 for _value in range(calendar_clock.FIELD_VALUES)]
+    counts: "list[int]" = []
+    for first, last, count in census:
+        for value in range(first, last + 1):
+            where[value] = len(counts)
+        counts += [count]
+    for value, count in heaps:
+        where[value] = len(counts)
+        counts += [count]
+    if any(group < 0 for group in where):
+        rest = body - sum(count for _value, count in heaps)
+        for value in range(calendar_clock.FIELD_VALUES):
+            if where[value] < 0:
+                where[value] = len(counts)
+        counts += [max(0, rest)]
+    return tuple(where), counts
+
+
 def _bins_of_censuses(
     facts: contract.DatetimeFacts,
+    body: int = 0,
 ) -> "list[tuple[str, tuple[int, ...], list[int]]]":
     """Every published census a pinned rank's written place falls in (landing
     3b.7, `_pinned_offsets`): its rule name, each bin's group and each
     group's count. The weekday's seven bins, the day of the month's
-    thirty-four and the hour's twenty-four. Raises nothing. No I/O."""
+    thirty-four and the hour's twenty-four; and, since the Codex review of
+    landing I3b2d, item 2, the minute's and the second's sixty, each with
+    its heaps (`_field_census_bins`, `body` the body's count of cells):
+    a fixed block's offset fixes the minute and second it is WRITTEN at as
+    much as its hour -- 1,000 stamps on the hour at -06:00 and +05:30, every
+    body cell on minute 0 of its own clock, had blocks given +05:30 and
+    written on minute 30, and the twin held 976 cells on minute 0 against a
+    published heap of 978. Raises nothing. No I/O."""
     found: "list[tuple[str, tuple[int, ...], list[int]]]" = []
     if facts.weekday_census:
         found += [
@@ -39017,6 +39134,13 @@ def _bins_of_censuses(
             for hour in range(first, last + 1):
                 where[hour] = index
         found += [("hour", tuple(where), [count for _first, _last, count in facts.hour_census])]
+    for rule, census, heaps in (
+        ("minute", facts.minute_census, facts.minute_heaps),
+        ("second", facts.second_census, facts.second_heaps),
+    ):
+        if census or heaps:
+            laid, counts = _field_census_bins(census, heaps, body)
+            found += [(rule, laid, counts)]
     return found
 
 
@@ -39138,7 +39262,7 @@ def _pinned_offsets(
     ]
     shares = _pinned_offset_shares(
         left, keys, blocks, (body_low, body_high),
-        _bins_of_censuses(facts), off_midnight, step, leaps,
+        _bins_of_censuses(facts, body_high - body_low + 1), off_midnight, step, leaps,
     )
     found: "dict[int, tuple[str, ...]]" = {}
     for place in range(len(blocks)):

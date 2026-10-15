@@ -2490,7 +2490,13 @@ def clock_minute_decision(
     - how the body's cells fall on the minute must not follow the hour of
       the day so that one count over every hour misleads an hour group
       more than a flat field would (M3: `depends_on_the_hour`,
-      `misled_by_the_count`, its coarse table). THE DEPENDENCE IS ASKED
+      `misled_by_the_count`, over the coarse table and then the fine, as a
+      moment's -- the Codex review of batch 3b part 2d's integration, item
+      1: asked of the coarse table alone, 5,400 cells, a morning at every
+      minute beside an evening on even minutes only, published 60 groups
+      and the twins drew the morning's even minutes at 0.66 against 0.50
+      and the evening's at 0.68 against 1.00, nothing missed). THE
+      DEPENDENCE IS ASKED
       OF EVERY BODY CELL, the heaps' among them, as the census counts
       them, and with NO DISCOUNT FOR TIES (`squares` nought): a time of
       day written on several rows is one place on the dial on several
@@ -2540,7 +2546,9 @@ def clock_minute_decision(
     the census out by that rule and their twin wrote 51 per cent on
     `:00` or `:30` against the table's 71; published, 67, every check
     held (the builder's measurement of 2026-10-13, 1,000 rows, seeds 0 to
-    4). Returns
+    4); since M3 asks the fine table that column is withheld by M3 itself,
+    at 0.515 (the limit plan P4-D374 states), and walk-ins on a ten-minute
+    grid stand for the rule. Returns
     the groups `(first, last, count)` and an empty reason, or no groups
     and the `calendar_clock` word of the rule that withheld them -- empty
     where the body's cells do not add to `size`, which no column the
@@ -2584,10 +2592,15 @@ def clock_minute_decision(
         [rest[minute] for minute in range(FIELD_VALUES) if reached[minute]]
     ):
         return (), FIELD_REASON_FLAT
-    if depends_on_the_hour(hours, values, line) and misled_by_the_count(
-        off_hours, off_values, line
-    ):
-        return (), FIELD_REASON_HOUR
+    # M3 OVER BOTH TABLES, coarse and then fine, as the moments ask it
+    # (`taxonomy._clock_field_decision`; the Codex review of landing I3b2d,
+    # item 1): the ten-minute census holds each hour's bins, but not how an
+    # hour falls on the minutes inside a bin.
+    for fine in (False, True):
+        if depends_on_the_hour(hours, values, line, 0, fine) and misled_by_the_count(
+            off_hours, off_values, line, fine
+        ):
+            return (), FIELD_REASON_HOUR
     inside = tuple((at, heap_at[at]) for at in sorted(heap_at))
     sure = clock_minute_sure(published, inside, form)
     groups = field_groups(bins, sure, line)

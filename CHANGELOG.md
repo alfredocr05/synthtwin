@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### The minute's census no longer bends a clock column's hours, and the shared clock keeps its minute and its tails (2026-10-15)
+
+**The Codex review of batch 3b part 2d's integration, four items** (plans
+P4-D374, P4-D378). On clock-only columns the test of how the minute
+follows the hour now asks the fine table after the coarse one, as on
+timestamps: a morning at every minute beside an evening on even minutes
+only had its census published and came back with the morning's even
+minutes at 66 per cent against 50 and the evening's at 68 against 100,
+with no deviation and nothing missed; the census is now withheld and the
+morning comes back at 51. The cost, stated as a limit: the design's
+clinic column at 1,000 rows is withheld too, and at a floor of 36 its
+twins hold 52 per cent on `:00` or `:30` against the table's 71 (67 under
+the published census); at a floor of 11 its slots stand as heaps and it
+holds 71. On the shared clock, a block the layout fixes now takes an
+offset that keeps its written minute and second inside the minute's and
+second's facts (976 cells on minute 0 against a published 978, now 978);
+tail ranks moved to keep the count at midnight keep their move when the
+passes' frame is taken back (501 at midnight against 500, now 500); and
+the reference oracle reads the minute's pass on each value's own clock,
+as the method says.
+
 ### Stage 3b's minutes and seconds integrated: lanes J2 and C2 and landing 3b.7's widening (2026-10-14)
 
 **The minute and second of a timestamp, met beside its weekday census
