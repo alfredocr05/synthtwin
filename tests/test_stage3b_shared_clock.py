@@ -1113,7 +1113,7 @@ def _codex_offsets_on_the_hour() -> "list[str]":
     return cells
 
 
-def _codex_midnights_beside_hours() -> "list[str]":
+def _codex_midnight_beside_hours() -> "list[str]":
     """Item 3's column: 1,000 ISO stamps on the hour over 60 days, half at midnight, the offsets
     +01:00 and +02:00 in turn."""
     cells: "list[str]" = []
@@ -1166,7 +1166,7 @@ def test_s3_the_frame_keeps_the_tails_the_field_pass_moved(tmp_path_factory: pyt
     moves tail ranks to keep the count at midnight, and the frame is taken back with them, each
     at its own offset. Item 3's column publishes 500 cells at midnight; at seeds 0 to 2 every
     twin holds them and misses nothing (501 on bb9e6d4, `midnight.count` MISSED)."""
-    described = _codex_described(tmp_path_factory, "midnights_beside_hours", _codex_midnights_beside_hours())
+    described = _codex_described(tmp_path_factory, "midnight_beside_hours", _codex_midnight_beside_hours())
     block = described.block("t")
     assert block["datetimes_read_at"] == "utc" and block["n_at_midnight"] == 500
     for seed in SEEDS:
@@ -1188,5 +1188,5 @@ def test_s3_the_frame_red_when_the_tails_go_back(
         return [before[rank] if rank < low or rank > high else moved[rank] for rank in range(len(moved))], given
 
     monkeypatch.setattr(generation, "_off_own_clocks", tails_back)
-    described = _codex_described(tmp_path_factory, "midnights_beside_hours", _codex_midnights_beside_hours())
+    described = _codex_described(tmp_path_factory, "midnight_beside_hours", _codex_midnight_beside_hours())
     assert "t:midnight.count" in _missed(described, 0)
