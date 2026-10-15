@@ -9004,6 +9004,36 @@
      "placement_lines_growth_2x_tail": 2.0
     }
    }
+  },
+  {
+   "id": "K-S4-08",
+   "phase_stage": "Stage 4 (plan P4-D390)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "describe holds one record, one date pair and one text per spelling",
+   "status": "GREEN",
+   "rule": "machine-free: a million rows of a thousand spellings hold one record per spelling, a million dates of 3,360 days one pair per date, and the survey of 200,000 rows of 500 codes one text per code; and the bytes tracemalloc sees synthtwin profile hold per row added to a register of 2,000 codes beside two arms and dates, from 40,000 to 80,000 rows, stay under 300",
+   "rule_kind": "ratio_below",
+   "expected": {
+    "date_pairs_per_spelling_1m_rows": 1.01,
+    "describe_held_bytes_per_added_row": 300.0,
+    "records_per_spelling_1m_rows": 1.01,
+    "survey_texts_per_spelling_200000_rows": 1.01
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s4_08",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "tests/test_stage4_describe_memory.py's describe_memory_measures",
+   "evidence": "PENDING",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-15",
+    "measured_by": "PENDING",
+    "value": {}
+   }
   }
  ]
 }

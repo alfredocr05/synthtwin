@@ -142,6 +142,29 @@ def test_a_column_of_plain_labels_holds_no_map_of_spellings() -> None:
     assert len(tallied.folded_counts) == 100_000
 
 
+def _mode_bytes_per_row(cells: "list[str]") -> "tuple[tuple[float | None, int], float]":
+    tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), _SETTINGS)
+    taxonomy._mode_of(taxonomy._tally(taxonomy._classify_all(cells[:50]), 50, _SETTINGS))
+    tracemalloc.start()
+    try:
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        mode = taxonomy._mode_of(tallied)
+        held = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        tracemalloc.stop()
+    return mode, held / len(cells)
+
+
+def test_the_mode_holds_one_map_beside_the_cells() -> None:
+    """66bca69 held a map of values beside the counts: about 130 bytes a row on 200,000 different numbers."""
+    cells = [f"{1000000 + k}" for k in range(200_000)] + ["1000007", "1000003", "1000007", "1000003"]
+    mode, per_row = _mode_bytes_per_row(cells)
+    assert mode == (1000003.0, 3)
+    assert per_row < 100, per_row
+    assert taxonomy._mode_of(taxonomy._tally(taxonomy._classify_all(["2", "2.0", "1", "1e0", "3"]), 5, _SETTINGS)) == (1.0, 2)
+
+
 # -- the dates -------------------------------------------------------------------
 
 
@@ -311,3 +334,30 @@ def test_no_answer_moves_when_nothing_is_shared(tmp_path: pathlib.Path, monkeypa
     shared = _documents(tmp_path)
     monkeypatch.setattr(parsing, "memo_takes", lambda held, answered: False)
     assert _documents(tmp_path) == shared
+
+
+# -- the measures `K-S4-08` reads (tests/test_kpi_ledger.py) ---------------------
+
+
+def describe_memory_measures(folder: pathlib.Path) -> "dict[str, float]":
+    """Records, date pairs and survey texts per spelling at up to a million rows, and bytes held per row added."""
+    folder.mkdir(parents=True, exist_ok=True)
+    cells = _register_cells(1_000_000, 1_000)
+    records = _objects(taxonomy._classify_all(cells)) / len(set(cells))
+    dates = _date_cells(1_000_000)
+    found = taxonomy._matching_date_format(dates, _SETTINGS)
+    assert found is not None
+    pairs = _objects(found[1]) / len(set(dates))
+    draw = random.Random(2)
+    lines = ["code"] + [f"{1000001 + draw.randrange(500)}" for _ in range(200_000)]
+    path = fixtures.write(folder, "codes.csv", "\n".join(lines) + "\n")
+    texts = _objects(reading.read_table(str(path)).columns[0]) / 500
+    _profile_peak(folder, 2_000)
+    smaller = _profile_peak(folder, 40_000)
+    larger = _profile_peak(folder, 80_000)
+    return {
+        "records_per_spelling_1m_rows": round(records, 2),
+        "date_pairs_per_spelling_1m_rows": round(pairs, 2),
+        "survey_texts_per_spelling_200000_rows": round(texts, 2),
+        "describe_held_bytes_per_added_row": round((larger - smaller) / 40_000, 1),
+    }
