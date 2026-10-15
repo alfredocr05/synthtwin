@@ -4722,9 +4722,10 @@ or `kurtosis` window can cover the whole range and is listed (G5.6a).
    nearest `m rms**2`, the fewest on a tie. A point on a stand-in number
    the block does not hold is passed over. The side stays as it stood
    where the block publishes that end, where a stratum would leave its
-   sign band or a point would not read back as itself, where more cells
-   would stand past the widest width the census names than stood there,
-   or where no `q` reaches the mean past the run. The real column above
+   sign band or land in the zero band, where more cells would stand
+   past the widest width the census names than stood there, or where no
+   `q` reaches the mean past the run. A grid point under `2**52` steps
+   always reads back as itself, so none is refused for its text. The real column above
    is that run and its five far cells, and the placement writes them
    back: at 100,000 rows five cells at `1155800` to `1155804` (the
    source's `1155999` to `1156003`), the tail's mean distance the

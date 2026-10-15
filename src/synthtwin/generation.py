@@ -11986,11 +11986,10 @@ def _tail_pair_met(
 
     NOTHING ELSE MOVES, and a side is left as it stood where the
     placement would break a rule the passes before it keep: a published
-    end, a stratum leaving its sign band or landing on a stand-in number
-    the block does not hold, the run's strata or a far one not reading
-    back as a grid point, more cells past the widest width the census
-    names than stood there before, or no `q` reaching the mean beyond
-    the run's last point. A side left so is named where its distance
+    end, a stratum leaving its sign band, more cells past the widest
+    width the census names than stood there before, or no `q` reaching
+    the mean beyond the run's last point; a point on a stand-in number
+    the block does not hold is passed over (`_dense_free`). A side left so is named where its distance
     misses, as before (`_tail_approximations`).
 
     Guarantees: accepts the block's numeric facts, its division, its
@@ -12026,6 +12025,13 @@ def _dense_side_placed(
     each value a whole number of steps, so the run and the far strata's
     places are exact. Every count of far strata is weighed from running
     sums, once each, so the work is the tail's strata and no more.
+
+    Each case the side stays in is its own test in
+    tests/test_stage4_million_rows.py: a published end, a far stratum
+    leaving the positive or the negative band or landing in the zero
+    band, the width census, a mean the far strata cannot reach past the
+    run, and a tie on `q` going to the fewest. A grid point never fails
+    to read back as itself (`_dense_value`), so no case asks it.
     """
     low = reader.low
     end = facts.percentiles.minimum if low else facts.percentiles.maximum
@@ -12183,8 +12189,6 @@ def _dense_side_placed(
     for index in range(count):
         place = outer[index][0]
         written = _dense_value(points[index], reader.dense_grid, scale)
-        if written is None:
-            return None
         band = layout.bands[place]
         if band == _BAND_ZERO:
             return None
@@ -12219,11 +12223,19 @@ def _dense_free(point: int, toward: int, scale: int, held: "tuple[float, ...]") 
         return point
 
 
-def _dense_value(point: int, figures: int, scale: int) -> "float | None":
-    """The value of grid point ``point`` of the ``figures`` grid, where its text reads back as one."""
+def _dense_value(point: int, figures: int, scale: int) -> float:
+    """The value of grid point ``point`` of the ``figures`` grid.
+
+    Its text always reads back as itself, so `_on_the_grid` is not asked
+    (lane S4c's repair, plan P4-D377): the steps and the reach are held
+    under ``2**52`` grid steps, where a unit in the quotient's last place
+    is narrower than a grid step, so the quotient rounds to within half a
+    step, its shortest text is the point's own at ``figures`` figures,
+    and that text reads back as the same double.
+    """
     if figures == 0:
         return float(point)
-    return _on_the_grid(point / scale, figures)
+    return point / scale
 
 
 # The styles a cell of which a thousand is always grouped where it is a

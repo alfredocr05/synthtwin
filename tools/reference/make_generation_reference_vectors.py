@@ -4484,10 +4484,12 @@ def dense_grid_of(column, reader, published):
     own, and the staircase more than half a grid step further out than
     the published mean distance.
     """
-    if reader is None or reader["listed"] or not reader["steps"]:
+    # A listed tail, one that withholds its pair and a flat one (its mean
+    # distance nought) are never dense, each asked on its own.
+    if reader is None or reader["listed"] or tail_withheld(published):
         return -1
-    mean = published.get("mean_distance")
-    if mean is None or published.get("rms_distance") is None:
+    mean = published["mean_distance"]
+    if not mean > 0.0 or not reader["steps"]:
         return -1
     if not math.isfinite(mean):
         return -1
@@ -4543,20 +4545,10 @@ def _free_point(point, toward, scale, kept):
 
 
 def _point_value(point, figures, scale):
-    """A grid point's value, where its grid text reads back as itself; None otherwise."""
+    """A grid point's value: under 2**52 grid steps its text always reads back as itself."""
     if figures == 0:
         return float(point)
-    value = point / scale
-    if not math.isfinite(value):
-        return None
-    text = grid_text(value, figures)
-    try:
-        found = float(text)
-    except ValueError:
-        return None
-    if not math.isfinite(found) or grid_text(found, figures) != text:
-        return None
-    return found
+    return point / scale
 
 
 def dense_side_placed(column, values, sizes, bands, reader, published, figures):
@@ -4686,7 +4678,7 @@ def dense_side_placed(column, values, sizes, bands, reader, published, figures):
     for index in range(count):
         place = outer[index][0]
         written = _point_value(points[index], figures, scale)
-        if written is None or bands[place] == "zero":
+        if bands[place] == "zero":
             return None
         if bands[place] == "positive" and not written > 0.0:
             return None
