@@ -18958,10 +18958,12 @@ def clock_lattice_crowded(
     of them than `parsed` cells drawn uniformly over those points would
     (`calendar_clock.lattice_crowded`, lane J2's second skeptic, item 1:
     a dense grid of random times is not crowded) -- a fifth where some
-    value repeats, the block publishes no count at midnight and `parsed`
-    is at most `calendar_clock.CROWDED_REPEATED_ROWS` (Codex's review of
-    lane J2, item 2, and its verifier: a short grid with repeats meets its
-    facts, and from 5,000 rows such grids missed their count with them).
+    value repeats, the block publishes no count at midnight and the
+    column holds at most `calendar_clock.CROWDED_REPEATED_VALUES`
+    different values, 1,171 (Codex's review of lane J2, item 2, and its two
+    verifiers: a small grid with repeats meets its facts, and of 360 such
+    grids swept with the fifth at any size, those that missed their count
+    with them held 1,207 values or more, from 2,000 rows).
     False where neither field publishes, or where the block has no two
     tails.
 
