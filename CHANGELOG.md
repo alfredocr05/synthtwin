@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### Describe at millions of rows: one answer per spelling (2026-10-15)
+
+**Stage 4 lane S4d** (plan P4-D390). `synthtwin profile` held one cell
+record a row, a folded copy of each text, a map of spellings for every
+label, a date pair, a sort key and a day number a row, and the census's
+reading of a column until the whole table was described. The rows that
+write one spelling now share one answer -- the cell record, the date
+pair, the sort key, the day number and the survey's text -- each memo
+bounded at 65,536 texts unless it has answered as many rows; the record is
+slotted, a folded label equal to its text is the text itself, the map
+of spellings holds only the labels written otherwise than themselves
+(`taxonomy._label_spellings` answers the rest), and each census reading
+is let go once its column is described. Every description, summary and
+questions file compared with 66bca69's -- a battery of 800 and the
+large tables wherever 66bca69 ran -- is the same bytes. The register of 997,770, 1,994,180
+and 2,990,700 rows describes in 289, 544 and 780 MB where it took 881
+to 901, 1,663 and 2,389, and of 4,983,120 rows in 1,270 MB; 1,000,000
+rows of free text beside dates and numbers in 564 MB where they took
+1,333 to 1,573 (1,527 MB at 3,000,000); G2's dense tail, every number
+different, in 786 MB where it took 1,025 to 1,176, and 2,287 MB at
+3,000,000 rows, past the machine's 2 GB rule (stated in plan P4-D390).
+`synthtwin validate`, which describes the file again, holds 654, 1,158
+and 1,662 MB on the three registers where it held 798, 1,557 and 2,000.
+Pinned by `tests/test_stage4_describe_memory.py` and the new `K-S4-08`.
+
 ### Numbers at a million rows: the report in pieces, and a dense tail's mean (2026-10-14)
 
 **Stage 4 lane S4c** (plans P4-D390 and P4-D377). `synthtwin validate`

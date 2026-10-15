@@ -164,6 +164,20 @@ producer's would be a second implementation of the profiler and would
 drift from it; running the producer is the only way the recount is the
 same measurement the description was made with.
 
+**V2.1-A1 The producer holds one answer per spelling, which changes no
+measurement** (stage 4 lane S4d, plan P4-D390). The measurement runs the
+producer over the checked file, so how the producer holds a file of
+millions of rows is how this command holds it. The rows that write one
+spelling share one cell record, one date pair, one sort key, one day
+number and one text of the survey, each memo holding at most 65,536
+different texts (`parsing.SPELLING_MEMO_TEXTS`) unless it has answered
+as many rows as it holds; the map of each folded label's spellings
+holds only the labels some cell wrote otherwise than the label itself
+(`taxonomy._label_spellings` answers the rest with the label and its
+count); and each column's census reading is let go once that column is
+described. Every answer is the one a reading per row gave, so no
+description and no check moves; only how many objects hold them does.
+
 **V2.2 The settings it re-describes under** are the profile's own,
 field by field, exactly as the Phase 3 plan's P3-D3 table fixes them.
 Every classifier and publication threshold is read from the profile's

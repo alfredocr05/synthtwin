@@ -79,7 +79,7 @@ def test_records_shared_or_not_answer_as_one_record_a_row() -> None:
     assert _objects(taxonomy._classify_all(distinct)) == len(distinct)
 
 
-def test_the_memo_takes_texts_to_its_bound_and_then_only_while_it_pays() -> None:
+def test_the_memo_takes_texts_to_its_bound_and_then_while_it_answers_as_many_rows() -> None:
     bound = parsing.SPELLING_MEMO_TEXTS
     assert bound == 65536
     assert parsing.memo_takes(0, 0)
@@ -298,7 +298,7 @@ def _profile_peak(folder: pathlib.Path, rows: int) -> int:
 
 
 def test_describe_holds_under_three_hundred_bytes_a_row_it_adds(tmp_path: pathlib.Path) -> None:
-    """A register of 2,000 codes, two arms and dates: 66bca69 held 1,079 bytes per added row, the lane 147."""
+    """A register of 2,000 codes, two arms and dates: 66bca69 held 1,079 bytes per added row, the lane 124 (`K-S4-08`)."""
     _profile_peak(tmp_path, 2_000)
     smaller = _profile_peak(tmp_path, 40_000)
     larger = _profile_peak(tmp_path, 80_000)
