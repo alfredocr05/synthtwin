@@ -32,7 +32,9 @@ reading lined up only by `""` now comes last; every spacing and escaping is
 tried before a `""` is read as a closing (`1,x\,""` is `x,""` again); and the
 loader refuses a header ending in its delimiter over records all closed `""`
 (FD10) and closing runs beside a run closed the same way or past 64 (FD2),
-descriptions whose own twins were read back otherwise.
+descriptions whose own twins were read back otherwise; it refuses as well
+a trailing delimiter on records under no header read from the file (FD10)
+and a closing run of no records (FD2).
 
 ### Codes and long cells written as the source wrote them (2026-10-13)
 
