@@ -6574,12 +6574,10 @@ def _trailing_words(form: dialect.Dialect) -> str:
         header = 'a delimiter and ""'
     rows = "a delimiter" if form.rows_trailing_delimiter else "no delimiter"
     if form.rows_trailing_delimiter and form.rows_closing_runs:
-        runs = ", ".join(
-            [
-                f"{run.lines} {'with' if run.ending == dialect.CLOSING_QUOTED else 'without'}"
-                for run in form.rows_closing_runs
-            ]
-        )
+        runs = ""
+        for run in form.rows_closing_runs:
+            said = "with" if run.ending == dialect.CLOSING_QUOTED else "without"
+            runs = f"{runs}, {run.lines} {said}" if runs else f"{run.lines} {said}"
         rows = f'a delimiter, then "" by runs of records ({runs}),'
     elif form.rows_trailing_delimiter and form.rows_closing_quoted:
         rows = 'a delimiter and ""'

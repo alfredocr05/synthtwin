@@ -283,6 +283,7 @@ _place(
         "source.dialect.empty_rows.trailing",
         "source.dialect.line_endings.[].lines",
         "source.dialect.line_endings_spread.[].lines",
+        "source.dialect.trailing_delimiter.rows.[].lines",
         "source.dialect.preamble.[].lines",
         "source.dialect.row_order.column",
         "source.dialect.written_names.[].position",
