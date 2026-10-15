@@ -4457,6 +4457,273 @@ def histogram_bin(value, lowest, highest):
     return min(step, last)
 
 
+def tail_grid_of(column):
+    """The one grid every number is written on, in figures, or -1 (G6.6.8 rule 4).
+
+    Written from the method's words: nought on a whole-valued block,
+    otherwise the one width `fraction_widths` names where every number
+    used in the statistics carries it.
+    """
+    if column["integer_valued"]:
+        return 0
+    census = column.get("fraction_widths") or {}
+    if len(census) != 1:
+        return -1
+    for key, count in census.items():
+        if not key or not key.isdigit() or count != column["n_used_in_statistics"]:
+            return -1
+        return int(key)
+    return -1
+
+
+def dense_grid_of(column, reader, published):
+    """Whether a side is DENSE (G6.6.8 rule 4): its grid's figures, or -1.
+
+    Every number different, one grid, an unlisted tail read through its
+    shape with its pair published, every staircase row on a point of its
+    own, and the staircase more than half a grid step further out than
+    the published mean distance.
+    """
+    if reader is None or reader["listed"] or not reader["steps"]:
+        return -1
+    mean = published.get("mean_distance")
+    if mean is None or published.get("rms_distance") is None:
+        return -1
+    if not math.isfinite(mean):
+        return -1
+    if column["n_distinct_values"] != column["n_used_in_statistics"]:
+        return -1
+    figures = tail_grid_of(column)
+    if figures < 0:
+        return -1
+    low = reader["percent"] < 50
+    boundary = reader["boundary"]
+    distances = [boundary - step if low else step - boundary for step in reader["steps"]]
+    for index in range(1, len(distances)):
+        if not distances[index] > distances[index - 1]:
+            return -1
+    stair = math.fsum(distances) / len(distances)
+    if not math.isfinite(stair):
+        return -1
+    step = 1.0
+    for _ in range(figures):
+        step = step / 10.0
+    return figures if stair - mean > step / 2.0 else -1
+
+
+def _width_demands_of(column):
+    """G6.6's width demands of a block, as `(width, exact, cells)`, smallest first."""
+    named = {}
+    for key, count in (column.get("field_widths") or {}).items():
+        if key.isdigit():
+            named[int(key)] = count
+    padded = {}
+    for key, count in (column.get("pad_widths") or {}).items():
+        if key.isdigit():
+            padded[int(key)] = count
+    demands = []
+    for width in sorted(padded):
+        if width - 1 >= 1:
+            demands.append((width - 1, 0, padded[width]))
+    for width in sorted(named):
+        spare = named[width] - padded.get(width, 0)
+        if spare > 0:
+            demands.append((width, 1, spare))
+    return sorted(demands)
+
+
+def _free_point(point, toward, scale, kept):
+    """The grid point, or the next one outward past every stand-in the block does not hold."""
+    while True:
+        value = point / scale
+        if value in NUMERIC_SENTINELS and value not in kept:
+            point += toward
+            continue
+        return point
+
+
+def _point_value(point, figures, scale):
+    """A grid point's value, where its grid text reads back as itself; None otherwise."""
+    if figures == 0:
+        return float(point)
+    value = point / scale
+    if not math.isfinite(value):
+        return None
+    text = grid_text(value, figures)
+    try:
+        found = float(text)
+    except ValueError:
+        return None
+    if not math.isfinite(found) or grid_text(found, figures) != text:
+        return None
+    return found
+
+
+def dense_side_placed(column, values, sizes, bands, reader, published, figures):
+    """One dense side placed by G6.6.8's rule 4, or None where it stays.
+
+    From the method's words: counted outward from the published
+    boundary, a run of consecutive grid points holding at least half the
+    tail's cells stays, and where the side's distances miss `m d1` by
+    more than half a step a cell, the strata past the run are placed
+    again -- the first continuing the run, the last `q` on consecutive
+    points from the one that brings the distances to `m d1`, the
+    remainder a step at a time on the outermost, `q` the count whose
+    squares stand nearest `m rms**2`, the fewest on a tie.
+    """
+    low = reader["percent"] < 50
+    end = column["percentiles"]["min"] if low else column["percentiles"]["max"]
+    if end is not None:
+        return None
+    total = len(sizes)
+    if total < 3:
+        return None
+    cells = sum(sizes)
+    rows = published["rows"]
+    if rows < 2 or rows >= cells:
+        return None
+    scale = 10 ** figures
+    inward = []
+    counted = 0
+    places = range(total) if low else range(total - 1, -1, -1)
+    for place in places:
+        if counted >= rows:
+            break
+        size = min(sizes[place], rows - counted)
+        inward.append((place, size))
+        counted += size
+    if len(inward) < 2 or counted != rows:
+        return None
+    order = list(reversed(inward))
+    steps = []
+    for place, _ in order:
+        value = values[place]
+        if not math.isfinite(value) or abs(value) * scale >= 2.0**52:
+            return None
+        steps.append(round(value * scale))
+    toward = -1 if low else 1
+    run = 1
+    held_in_run = order[0][1]
+    while run < len(order) and steps[run] == steps[run - 1] + toward:
+        held_in_run += order[run][1]
+        run += 1
+    if run >= len(order) or 2 * held_in_run < rows:
+        return None
+    outer = order[run:]
+    count = len(outer)
+    boundary = reader["boundary"] * scale
+    inner_sum = 0.0
+    inner_squares = 0.0
+    for index in range(run):
+        distance = (steps[index] - boundary) * toward
+        inner_sum = inner_sum + order[index][1] * distance
+        inner_squares = inner_squares + order[index][1] * distance * distance
+    wanted_sum = rows * (published["mean_distance"] * scale) - inner_sum
+    spread = published["rms_distance"] * scale
+    wanted_squares = rows * spread * spread - inner_squares
+    standing = 0.0
+    for index in range(run, len(order)):
+        standing = standing + order[index][1] * (steps[index] - boundary) * toward
+    if 2.0 * abs(standing - wanted_sum) <= rows:
+        return None
+    kept = kept_stand_ins(plain_numbers(column))
+    near_points = []
+    near_sums = [0.0]
+    near_squares = [0.0]
+    at = steps[run - 1]
+    for index in range(count):
+        at = _free_point(at + toward, toward, scale, kept)
+        near_points.append(at)
+        distance = (at - boundary) * toward
+        near_sums.append(near_sums[index] + outer[index][1] * distance)
+        near_squares.append(near_squares[index] + outer[index][1] * distance * distance)
+    best = None
+    for far in range(1, count + 1):
+        near = count - far
+        tail_sizes = [outer[near + k][1] for k in range(far)]
+        weight = sum(tail_sizes)
+        offsets = sum(tail_sizes[k] * k for k in range(far))
+        squared = sum(tail_sizes[k] * k * k for k in range(far))
+        left = wanted_sum - near_sums[near] - offsets
+        if not math.isfinite(left):
+            continue
+        reach = left / weight
+        if not abs(boundary) + abs(reach) < 2.0**52:
+            continue
+        start = math.floor(boundary + reach) if toward > 0 else math.ceil(boundary - reach)
+        last = steps[run - 1] if near == 0 else near_points[near - 1]
+        if (start - last) * toward < 1:
+            continue
+        gap = (start - boundary) * toward
+        squares = near_squares[near] + weight * gap * gap + 2.0 * gap * offsets + squared
+        miss = abs(squares - wanted_squares)
+        if best is None or miss < best[0]:
+            best = (miss, far, start)
+    if best is None:
+        return None
+    _, far, start = best
+    near = count - far
+    points = near_points[:near]
+    reached = near_sums[near]
+    point = start
+    for index in range(far):
+        if index:
+            point += toward
+        point = _free_point(point, toward, scale, kept)
+        points.append(point)
+        reached = reached + outer[near + index][1] * (point - boundary) * toward
+    short = round(wanted_sum - reached)
+    index = count - 1
+    while short > 0 and index >= near:
+        size = outer[index][1]
+        moved = points[index] + toward
+        if size > short or (index + 1 < count and moved == points[index + 1]):
+            index -= 1
+            continue
+        points[index] = _free_point(moved, toward, scale, kept)
+        short -= size
+    placed = list(values)
+    for index in range(count):
+        place = outer[index][0]
+        written = _point_value(points[index], figures, scale)
+        if written is None or bands[place] == "zero":
+            return None
+        if bands[place] == "positive" and not written > 0.0:
+            return None
+        if bands[place] == "negative" and not written < 0.0:
+            return None
+        placed[place] = written
+    demands = _width_demands_of(column)
+    if demands:
+        widest = 10 ** max(wanted for wanted, _, _ in demands) - 1
+        before = sum(sizes[place] for place, _ in outer if abs(values[place]) > widest)
+        after = sum(sizes[place] for place, _ in outer if abs(placed[place]) > widest)
+        if after > before:
+            return None
+    return placed
+
+
+def tail_pair_met(column, values, sizes, bands, ladder):
+    """G6.6.8 rule 4 (stage 4 lane S4c, plan P4-D377): each dense side of a tail block, placed."""
+    low_reader = getattr(ladder, "low", None)
+    high_reader = getattr(ladder, "high", None)
+    if low_reader is None or high_reader is None or column.get("tails") is None:
+        return values
+    tails = plain_numbers(column["tails"])
+    plain = plain_numbers(column)
+    for name, reader in (("low", low_reader), ("high", high_reader)):
+        published = tails.get(name)
+        if published is None:
+            continue
+        figures = dense_grid_of(plain, reader, published)
+        if figures < 0:
+            continue
+        placed = dense_side_placed(plain, values, sizes, bands, reader, published, figures)
+        if placed is not None:
+            values = placed
+    return values
+
+
 def mode_held(values, sizes, bands, column, integer_valued, numeric, demand, ladder):
     """The published mode is a number the twin holds -- G6.1, plan P4-D267.
 
@@ -25596,6 +25863,9 @@ def _numeric_content(column):
     values = mode_held(
         values, sizes, bands, column, integer_valued, numeric, demand, ladder
     )
+    # THE LAST VALUE PASS: a dense tail's outer strata placed so its
+    # published mean distance is met (G6.6.8 rule 4, plan P4-D377).
+    values = tail_pair_met(column, values, sizes, bands, ladder)
     cell_values = []
     for index, size in enumerate(sizes):
         cell_values.extend([values[index]] * size)

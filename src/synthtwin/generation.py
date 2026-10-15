@@ -11944,7 +11944,286 @@ def _values_drawn(
     # refuses every move the passes above would have to redo.
     values, mode_notes = _mode_held(column, facts, layout, values)
     notes = notes + mode_notes
+    values = _tail_pair_met(facts, layout, rungs, values)
     return layout, values, notes, kept
+
+
+def _tail_pair_met(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """A dense tail's outer strata, placed so its published mean distance is met (G6.6.8 rule 4).
+
+    THE LAST OF THE VALUE PASSES, and it acts only on a side the ladder
+    reads as DENSE (`contract.TailReader.dense_grid`): one whose rows
+    crowd its grid, so the staircase -- each row on its own grid point,
+    one past the row before -- stands further out than the published
+    mean distance by more than rounding can put it; and only where the
+    twin's own strata crowd it too -- a run of consecutive grid points
+    from the boundary holding at least half the tail's cells -- and
+    miss that mean by more than half a step. Measured on consecutive whole
+    numbers up to `999999` beside five at `999999 + 1.56 N` (stage 4
+    lane S4c, plan P4-D377): at 100,000 rows the high tail's 1,000 rows
+    publish a mean distance of 1,280.5 and the twin wrote 1,918.6; at
+    1,000,000 rows they publish 5,780.5 and the twin wrote 5,412.8,
+    G6.6.8's walk having taken all but ten of the tail's far strata
+    under the width, and five more checks missed with it: the tail's
+    spread and the column's four moments.
+
+    THE INNER RUN STAYS AND THE OUTER STRATA ARE PLACED AGAIN
+    (`_dense_side_placed`). Counted outward from the boundary, the
+    tail's strata on consecutive grid points stand where the grid pushed
+    them and no placement can bring them nearer; the strata past that
+    run carry what the pair's totals, `m d1` and `m rms**2`, leave. The
+    first of them continue the run, one grid point each, and the last
+    `q` stand together far out, one grid point apart, at the distance
+    that meets `m d1` to the grid step; `q` is the count that leaves the
+    squares nearest `m rms**2`, the fewest on a tie. That is the shape
+    a dense tail's own pair describes: the real column above is that
+    run and its five far cells, and the placement writes them back.
+
+    NOTHING ELSE MOVES, and a side is left as it stood where the
+    placement would break a rule the passes before it keep: a published
+    end, a stratum leaving its sign band or landing on a stand-in number
+    the block does not hold, the run's strata or a far one not reading
+    back as a grid point, more cells past the widest width the census
+    names than stood there before, or no `q` reaching the mean beyond
+    the run's last point. A side left so is named where its distance
+    misses, as before (`_tail_approximations`).
+
+    Guarantees: accepts the block's numeric facts, its division, its
+    ladder and one value a stratum in the strata's order; returns the
+    values, unchanged on every side that is not dense or not placed.
+    Determinism: a function of its arguments. Raises nothing. No I/O.
+    """
+    tails = facts.tails
+    if tails is None or not isinstance(rungs, contract.ShapedLadder):
+        return values
+    moved = values
+    for side, reader in ((tails.low, rungs.low), (tails.high, rungs.high)):
+        if side is None or reader is None or reader.dense_grid < 0:
+            continue
+        if side.mean_distance is None or side.rms_distance is None:
+            continue
+        placed = _dense_side_placed(facts, layout, moved, reader, side)
+        if placed is not None:
+            moved = placed
+    return moved
+
+
+def _dense_side_placed(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    reader: contract.TailReader,
+    side: contract.TailSide,
+) -> "list[float] | None":
+    """One dense side placed by G6.6.8's rule 4 (`_tail_pair_met`), or None where it stays.
+
+    Distances are counted in grid steps from the published boundary,
+    each value a whole number of steps, so the run and the far strata's
+    places are exact. Every count of far strata is weighed from running
+    sums, once each, so the work is the tail's strata and no more.
+    """
+    low = reader.low
+    end = facts.percentiles.minimum if low else facts.percentiles.maximum
+    if end is not None or side.mean_distance is None or side.rms_distance is None:
+        return None
+    total = len(layout.sizes)
+    if total < 3:
+        return None
+    cells = layout.starts[total - 1] + layout.sizes[total - 1]
+    rows = side.rows
+    if rows < 2 or rows >= cells:
+        return None
+    scale = 1
+    for _figure in range(reader.dense_grid):
+        scale = scale * 10
+    # THE TAIL'S STRATA, OUTWARD, each with how many of its cells lie
+    # beyond the boundary by rank: a stratum the boundary rank cuts is
+    # in the tail with its outer cells, and it is the run's first.
+    # Walked in from the outside, so only the tail's strata are read.
+    inward: "list[tuple[int, int]]" = []
+    counted = 0
+    place = 0 if low else total - 1
+    while counted < rows and 0 <= place < total:
+        size = min(layout.sizes[place], rows - counted)
+        inward += [(place, size)]
+        counted = counted + size
+        place = place + 1 if low else place - 1
+    if len(inward) < 2 or counted != rows:
+        return None
+    order: "list[tuple[int, int]]" = []
+    for index in range(len(inward) - 1, -1, -1):
+        order += [inward[index]]
+    steps: "list[int]" = []
+    for place, _cells in order:
+        value = values[place]
+        if not math.isfinite(value) or abs(value) * scale >= 2.0**52:
+            return None
+        steps += [round(value * scale)]
+    toward = -1 if low else 1
+    run = 1
+    held_in_run = order[0][1]
+    while run < len(order) and steps[run] == steps[run - 1] + toward:
+        held_in_run = held_in_run + order[run][1]
+        run = run + 1
+    # A DENSE TWIN: the run holds at least half the tail's cells. A tail
+    # whose strata stand apart is read as the staircase read it, and
+    # left as it stands.
+    if run >= len(order) or 2 * held_in_run < rows:
+        return None
+    outer = order[run:]
+    count = len(outer)
+    boundary = reader.boundary * scale
+    inner_sum = 0.0
+    inner_squares = 0.0
+    for index in range(run):
+        distance = (steps[index] - boundary) * toward
+        inner_sum = inner_sum + order[index][1] * distance
+        inner_squares = inner_squares + order[index][1] * distance * distance
+    unit = side.mean_distance * scale
+    wanted_sum = rows * unit - inner_sum
+    standing = 0.0
+    for index in range(run, len(order)):
+        standing = standing + order[index][1] * (steps[index] - boundary) * toward
+    # AND ONE THAT ALREADY MEETS THE MEAN, to half a step, stays.
+    if 2.0 * abs(standing - wanted_sum) <= rows:
+        return None
+    spread = side.rms_distance * scale
+    wanted_squares = rows * spread * spread - inner_squares
+    held = reader.kept
+    # THE RUN CONTINUED: the grid point each outer stratum takes when it
+    # is not among the far ones, and the running sums of their cells'
+    # distances and squares, inner first.
+    near_points: "list[int]" = []
+    near_sums = [0.0]
+    near_squares = [0.0]
+    at = steps[run - 1]
+    for index in range(count):
+        at = _dense_free(at + toward, toward, scale, held)
+        near_points += [at]
+        distance = (at - boundary) * toward
+        size = outer[index][1]
+        near_sums += [near_sums[index] + size * distance]
+        near_squares += [near_squares[index] + size * distance * distance]
+    # AND THE FAR STRATA'S OWN WEIGHTS, outermost first: their cells, and
+    # their cells times their place and its square, so the last `q`
+    # strata's offsets from the first of them are read off at once.
+    weights = [0]
+    placed_once = [0]
+    placed_twice = [0]
+    for back in range(count):
+        index = count - 1 - back
+        size = outer[index][1]
+        weights += [weights[back] + size]
+        placed_once += [placed_once[back] + size * index]
+        placed_twice += [placed_twice[back] + size * index * index]
+    best: "tuple[float, int, int] | None" = None
+    for far in range(1, count + 1):
+        near = count - far
+        weight = weights[far]
+        # Offsets from the first far stratum: sum of c * (index - near).
+        offsets = placed_once[far] - near * weight
+        squared = placed_twice[far] - 2 * near * placed_once[far] + near * near * weight
+        left = wanted_sum - near_sums[near] - offsets
+        if not math.isfinite(left):
+            continue
+        reach = left / weight
+        if not abs(boundary) + abs(reach) < 2.0**52:
+            continue
+        start = (
+            int((boundary + reach) // 1.0)
+            if toward > 0
+            else -int((reach - boundary) // 1.0)
+        )
+        last = steps[run - 1] if near == 0 else near_points[near - 1]
+        if (start - last) * toward < 1:
+            continue
+        gap = (start - boundary) * toward
+        squares = (
+            near_squares[near]
+            + weight * gap * gap
+            + 2.0 * gap * offsets
+            + squared
+        )
+        miss = abs(squares - wanted_squares)
+        if best is None or miss < best[0]:
+            best = (miss, far, start)
+    if best is None:
+        return None
+    far = best[1]
+    near = count - far
+    points: "list[int]" = []
+    for index in range(near):
+        points += [near_points[index]]
+    point = best[2]
+    reached = near_sums[near]
+    for index in range(far):
+        if index:
+            point = point + toward
+        point = _dense_free(point, toward, scale, held)
+        points += [point]
+        reached = reached + outer[near + index][1] * (point - boundary) * toward
+    # THE REMAINDER, one step at a time on the outermost strata whose
+    # cells it still holds whole, so the sum lands on `m d1` to the step.
+    short = round(wanted_sum - reached)
+    index = count - 1
+    while short > 0 and index >= near:
+        size = outer[index][1]
+        moved = points[index] + toward
+        if size > short or (index + 1 < count and moved == points[index + 1]):
+            index = index - 1
+            continue
+        points[index] = _dense_free(moved, toward, scale, held)
+        short = short - size
+    moved_values = list(values)
+    for index in range(count):
+        place = outer[index][0]
+        written = _dense_value(points[index], reader.dense_grid, scale)
+        if written is None:
+            return None
+        band = layout.bands[place]
+        if band == _BAND_ZERO:
+            return None
+        if band == _BAND_POSITIVE and not written > 0.0:
+            return None
+        if band == _BAND_NEGATIVE and not written < 0.0:
+            return None
+        moved_values[place] = written
+    demands = _field_demands(facts)
+    if demands:
+        widest = 10 ** _widest_demanded(demands) - 1
+        before = 0
+        after = 0
+        for index in range(count):
+            place = outer[index][0]
+            if abs(values[place]) > widest:
+                before = before + layout.sizes[place]
+            if abs(moved_values[place]) > widest:
+                after = after + layout.sizes[place]
+        if after > before:
+            return None
+    return moved_values
+
+
+def _dense_free(point: int, toward: int, scale: int, held: "tuple[float, ...]") -> int:
+    """``point`` or the next grid point ``toward``, past every stand-in number the block does not hold."""
+    while True:
+        value = point / scale
+        if value in parsing.NUMERIC_SENTINELS and value not in held:
+            point = point + toward
+            continue
+        return point
+
+
+def _dense_value(point: int, figures: int, scale: int) -> "float | None":
+    """The value of grid point ``point`` of the ``figures`` grid, where its text reads back as one."""
+    if figures == 0:
+        return float(point)
+    return _on_the_grid(point / scale, figures)
 
 
 # The styles a cell of which a thousand is always grouped where it is a
@@ -58002,6 +58281,7 @@ def _tail_approximations(
     if len(values) < 2 or not lows or len(lows) != len(values):
         return []
     found: "list[Approximation]" = []
+    ladder = contract.tail_ladder(facts)
     for side, low, named in (
         (tails.low, True, "low"), (tails.high, False, "high")
     ):
@@ -58009,6 +58289,22 @@ def _tail_approximations(
         if measured is None:
             continue
         window = _tail_window_of(lows, highs, side.percent, low, len(values))
+        # A DENSE TAIL'S MEAN DISTANCE ANSWERS TO THE WINDOW G6.6.8's
+        # RULE 4 DRAWS (stage 4 lane S4c, plan P4-D377), the checker's
+        # own (`contract.dense_tail_mean_window`).
+        if isinstance(ladder, contract.ShapedLadder):
+            dense = _dense_report_window(
+                ladder.low if low else ladder.high,
+                side,
+                lows,
+                highs,
+                len(values),
+            )
+            if dense is not None:
+                window = (
+                    (min(window[0][0], dense[0]), max(window[0][1], dense[1])),
+                    window[1],
+                )
         for key, published, achieved, bounds in (
             ("mean_distance", side.mean_distance, measured[0], window[0]),
             ("rms_distance", side.rms_distance, measured[1], window[1]),
@@ -58036,6 +58332,20 @@ def _tail_approximations(
                 )
             ]
     return found
+
+
+def _dense_report_window(
+    reader: "contract.TailReader | None",
+    side: contract.TailSide,
+    lows: "list[float]",
+    highs: "list[float]",
+    count: int,
+) -> "tuple[float, float] | None":
+    """`contract.dense_tail_mean_window` read off the twin report's rank windows of the boundary rung."""
+    steps = (count - 1) * side.percent
+    lower = min(max(steps // 100, 0), count - 1)
+    upper = min(max(-((-steps) // 100), 0), count - 1)
+    return contract.dense_tail_mean_window(reader, side, lows[lower], highs[upper])
 
 
 def _tail_window_of(

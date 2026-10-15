@@ -1218,9 +1218,9 @@ def report_pieces(
     whole report is never made as one text. Joining the halves of the
     whole report, level by level, left each level's size class mapped
     after it was freed: validating a register of 997,770 rows (a report
-    of 60.4 MB) reached 1,323 MB, about 760 MB of it the join, and the
-    same lines joined in pieces took about 490 MB less in a probe of
-    their own (the lane's measurements, P4-D390).
+    of 60.4 MB) took the process from 565 MB to 1,324 MB, and 1,085,000
+    lines of about that length held 892 MB joined in halves in a probe
+    of their own, 94 MB in pieces (plan P4-D390).
 
     Guarantees: the inputs, determinism, display and boundary of
     `quality_report`, which this reads the same lines from; raises

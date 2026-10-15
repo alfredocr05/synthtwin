@@ -13040,10 +13040,55 @@ def _tail_window(
             near += [max(0.0, lows[rank] - highs[upper])]
             far += [max(0.0, highs[rank] - lows[lower])]
     rows = max(1, len(ranks))
+    mean_window = (_window_mean(near, rows), _window_mean(far, rows))
+    dense = _dense_mean_window(ladder, side, low, lows[lower], highs[upper])
+    if dense is not None:
+        mean_window = (
+            min(mean_window[0], dense[0]),
+            max(mean_window[1], dense[1]),
+        )
     return (
-        (_window_mean(near, rows), _window_mean(far, rows)),
+        mean_window,
         (_window_root(near, rows), _window_root(far, rows)),
     )
+
+
+def _dense_mean_window(
+    ladder: "tuple[float, ...]",
+    side: contract.TailSide,
+    low: bool,
+    lowest: float,
+    highest: float,
+) -> "tuple[float, float] | None":
+    """G12.13's mean-distance window on a DENSE tail, as G6.6.8's rule 4 draws it; None elsewhere.
+
+    THE WINDOW IS DRAWN AS THE CONSTRUCTION DRAWS IT (stage 4 lane S4c,
+    plan P4-D377). Where the ladder reads a tail as dense
+    (`contract.TailReader.dense_grid`) the generator places the tail's
+    outer strata so its cells' distances from the PUBLISHED boundary sum
+    to the published mean distance times its rows, to within a grid
+    step, wherever its own strata crowd the grid and miss that mean
+    (`generation._tail_pair_met`); elsewhere it leaves them where the
+    staircase put them. So `_tail_window` takes the hull of this window
+    and the rank form's, which reaches both. A file's own tail is measured
+    from its OWN boundary rung, which stands between ``lowest`` and
+    ``highest`` (the rank windows of the two ranks its type-7 reading
+    touches), so the file's mean distance is the published one moved by
+    how far its boundary stands from the published boundary, and one
+    grid step more either way. The rank form's window drawn from the
+    staircase did not reach the published value on such a tail:
+    1,401.5 to 2,459.6 around 1,280.5 at 100,000 rows of consecutive
+    whole numbers beside five far ones, and 10,079.4 to 10,348.1 around
+    5,780.5 at 1,000,000.
+
+    Guarantees: accepts the ladder, the published tail side, which side
+    it is and the boundary rung's own window; returns the window or
+    None. Determinism: a function of the five. Raises nothing. No I/O.
+    """
+    if not isinstance(ladder, contract.ShapedLadder):
+        return None
+    reader = ladder.low if low else ladder.high
+    return contract.dense_tail_mean_window(reader, side, lowest, highest)
 
 
 def _window_mean(distances: "list[float]", rows: int) -> float:
