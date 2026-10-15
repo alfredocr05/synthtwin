@@ -50,12 +50,13 @@ such a draw and keep their heaps: withheld, their twins wrote seconds
 other than 0 on 92 to 98 % of cells. A
 count the clock pass still leaves short is reported with that cause.
 After its Codex review: the payers' exclusions hold before 1970; grids
-whose values repeat, that publish no count at midnight and hold at most
-1,171 different values keep their clock facts (1,000 stamps five minutes
-apart each written twice), grids of more withholding them -- of 360 such
-grids swept, every one of at most 1,171 values met its facts with them,
-and those that missed their count held 1,207 or more, from 2,000 rows
-(a bound of 4,500 rows had published some that missed); the paid
+no value of which is written once, that publish no count at midnight and
+hold at most 1,000 different values keep their clock facts (1,000 stamps
+five minutes apart each written twice), others withholding them -- each
+looser bound published grids that missed their count (the last, 1,171
+values, at 1,000 to 1,171 values with some written once), and of 276
+grids with no value written once swept with them at any size, one to
+sixty minutes apart, the first to miss held 1,250 values; the paid
 searches grow with the rows however far the unit to join or the payers stand, and behind a wall of payers whose
 moves keep no count (more than 1,024 of them still end a search, as
 before); a column nearly all at midnight says its own reason

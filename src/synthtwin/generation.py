@@ -29835,11 +29835,11 @@ def _clock_paid_escape(
             )
             if target is None:
                 continue
-            found = _clock_payers(state, book, unit, own, into, standing, strict)
-            if found == size:
+            paid = _clock_payers(state, book, unit, own, into, standing, strict)
+            if paid == size:
                 return target
             asked |= {into}
-            if found == 0:
+            if paid == 0:
                 refused |= {(own, into)}
     return None
 
@@ -31705,14 +31705,14 @@ def _clock_paid_merge_target(
             target = _clock_merge_on(state, first, by_parent, other * per_day + seat)
             if target is None:
                 continue
-            found = _clock_payers(
+            paid = _clock_payers(
                 state, book, members, own, into, standing, True, target // state.step,
                 ordinal // state.step,
             )
-            if found == len(members):
+            if paid == len(members):
                 return target
             asked |= {into}
-            if found == 0:
+            if paid == 0:
                 refused |= {(own, into)}
     return None
 
