@@ -20,8 +20,10 @@ producer, generator and checker:
   them, beyond the real column's own such cells;
 * `missed`: twins, and real tables, of which validation MISSES anything;
 * since landing 3b.5's second step (plan P4-D374), `minute_censuses`: the
-  minute censuses the tables publish over every size and floor (13: five
-  at 1,000 rows at each floor, three at 10,000); `slots_gap_1k`: the
+  minute censuses the tables publish over every size and floor (11: four
+  at 1,000 rows at each floor, three at 10,000; 13, five at 1,000 rows,
+  until M3 asked the fine table and withheld the clinic's, the Codex
+  review of batch 3b part 2d's integration, item 1); `slots_gap_1k`: the
   largest gap, over the columns publishing one at 1,000 rows and the floor
   of eleven, between the twin's share on `:00` or `:30` and the real one;
   and `ten_tvd_1k`, the design's stated cost: the largest total variation
