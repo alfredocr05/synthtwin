@@ -1661,7 +1661,12 @@ def meridiem_gap_at(text: str) -> int:
 
 
 def _clock_meridiem_gap_at(text: str) -> int:
-    """`meridiem_gap_at` of a clock alone, as lane L2 wrote it (P4-D392)."""
+    """`meridiem_gap_at` of a clock alone, as lane L2 wrote it (P4-D392).
+
+    Raises TypeError if handed anything that is not a string instance.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
     space = text.find(" ")
     narrow = text.find("\u202f")
     if space >= 0 and narrow >= 0:
