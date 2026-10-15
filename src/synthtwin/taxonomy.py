@@ -18764,7 +18764,7 @@ def clock_lattice_crowded(
     census = details[calendar_clock.HOUR_CENSUS] if calendar_clock.HOUR_CENSUS in details else []
     if isinstance(census, list):
         for group in census:
-            if isinstance(group, dict) and all(isinstance(group.get(key), int) for key in ("first", "last", "count")):
+            if isinstance(group, dict) and all(key in group and isinstance(group[key], int) for key in ("first", "last", "count")):
                 hour_groups += [(group["first"], group["last"], group["count"])]
     places = calendar_clock.lattice_places(
         unit,
