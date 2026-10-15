@@ -371,11 +371,26 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
     # boundaries are where the floor puts them, so the floor-eleven
     # ladder grafted into a floor-one document now names rungs outside
     # that column's own tails and is refused in those words. The two
-    # tails are refused there beside it. What is left silent is the
-    # three below.
+    # tails are refused there beside it.
+    #
+    # AND `stamped_at`'s MINUTE AND SECOND HEAPS SINCE LANDING 3b.7'S
+    # WIDENING (MC3, SE3; plan P4-D378, re-applied at batch 3b part 2d's
+    # integration). At a floor of one the column keeps its three offsets
+    # and is counted on the shared clock, where those heaps now stand as
+    # the hour's and the weekday's do; before the widening it published
+    # none there, and the graft was refused by MC3's scope. Every one of
+    # its body's cells is on minute 15 and second 0, so its minute and
+    # second censuses leave one group and are withheld, and the only fact
+    # a heap's count answers to is the body: the loader refuses a heap
+    # past it (239 of 238, measured) but has nothing to hold a smaller one
+    # to, and the floor-eleven count, 218, is the body its wider tails
+    # leave. The hour and weekday censuses beside them total the body, so
+    # their grafts are refused. What is left silent is the five below.
     assert silent == [
         ("columns", 3, "field_widths"),
         ("columns", 3, "sentinel_verdicts"),
+        ("columns", 5, "minute_heaps"),
+        ("columns", 5, "second_heaps"),
         ("columns", 5, "utc_offsets"),
     ], (
         f"a position the floor moves has stopped being recorded by the "
