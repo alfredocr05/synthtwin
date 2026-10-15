@@ -12596,7 +12596,10 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
     one group of the rest beside heaps with no census, and each heap alone.
     A field its ranks already meet is not passed. After each pass: the
     exchange off midnight, SUBSTITUTE where the count is long, SPREAD where
-    it is short. Last, the tails keep the published count at midnight.
+    it is short. Last, the tails keep the published count at midnight. A
+    bare date stands pinned at its midnight, minute and second 0, a gap of
+    movable ranks running across it (landing 3b.7, plan P4-D378, reached at
+    batch 3b's merge of lane J2).
     """
     ordinals = list(ordinals)
     minute_census = column.get("minute_census") or []
@@ -12609,7 +12612,6 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
         or ordinal_space(column) != "datetime"
         or not column.get("low_tail")
         or not column.get("high_tail")
-        or any(whole)
     ):
         return ordinals
     first = column["low_tail"]["rows"]
@@ -12663,9 +12665,12 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
         seams["no_midnight"] = counted
         # A shared written unit moved whole (the lane's second skeptic, item 1).
         seams["whole_units"] = True
+        # A bare date pinned, a gap running across it (landing 3b.7).
+        seams["see_through"] = [rank for rank in range(min(parsed, len(whole))) if whole[rank]]
         pinned = [
             fixed[rank] or lows[rank] >= highs[rank]
             or (counted and written_at_midnight(ordinals[rank], 0, step))
+            or (rank < len(whole) and whole[rank])
             for rank in range(parsed)
         ]
         counts = clock_counts_as_written(

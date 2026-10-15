@@ -33139,8 +33139,10 @@ def _clock_fields_settled(
 
     Landing 3b.4 (lane T3, plan P4-D372), right after the hour pass and
     under its run conditions: a published minute or second census or heap,
-    both tails, at least three parsed cells, counted in seconds and no rank
-    a bare date. G7.3g's one clock pass (`_clock_pass`) runs once for the
+    both tails, at least three parsed cells, counted in seconds; a bare
+    date of a clocked column stands pinned at its midnight, minute and
+    second 0 (`_whole_pinned`; landing 3b.7, plan P4-D378, reached at
+    batch 3b's merge of lane J2). G7.3g's one clock pass (`_clock_pass`) runs once for the
     minute and then once for the second, through its field-generic seams:
     the minute's bins are minutes of the hour, its PARENT the hour, and
     the coarser census its moves keep the hour census's groups (`kin`; an
@@ -33161,13 +33163,16 @@ def _clock_fields_settled(
         not (facts.minute_census or facts.minute_heaps or facts.second_census or facts.second_heaps)
         or parsed < 3
         or _ordinal_space(facts) != "datetime"
+        # -- 3b.7 (P4-D378): the one scope predicate, asked of the facts the
+        # pass is handed -- inside the shared clock's frame (`_own_clock_frame`)
+        # its own, every cell on the clock it is written on.
+        or not calendar_rules.census_scope(
+            calendar_rules.SCOPE_CLOCK, facts.resolution, facts.all_at_midnight
+        )
         or layout.low is None
         or layout.high is None
     ):
         return ordinals, []
-    for flag in whole:
-        if flag:
-            return ordinals, []
     moved = [value for value in ordinals]
     written = 60 if facts.time_precision == "minute" else 1
     word = ""
@@ -33251,6 +33256,9 @@ def _clock_fields_settled(
             # -- a shared written unit moved whole (the lane's second skeptic,
             # item 1)
             whole_units=True,
+            # -- 3b.7 (P4-D378): the bare dates a gap runs across, as the
+            # hour pass's (`_whole_seen_through`)
+            see_through=_whole_seen_through(column, whole, facts),
         )
         pinned = _ranks_the_tail_pins(layout)
         for rank in range(parsed):
@@ -33258,6 +33266,10 @@ def _clock_fields_settled(
                 pinned[rank] = True
             if facts.n_at_midnight is not None and _written_at_midnight(moved[rank], 0, step):
                 pinned[rank] = True
+        # -- 3b.7 (P4-D378), the minute and the second reached at the merge of
+        # lane J2: a bare date counts at its midnight, minute and second 0,
+        # and never moves here (`_whole_pinned`), as in the hour pass.
+        _whole_pinned(column, whole, pinned, facts)
         # Built once, as the hour pass builds it -- but where the column's
         # count is one the construction reaches, the PUBLISHED count, less
         # the tail values sharing a unit of this step with another, so a

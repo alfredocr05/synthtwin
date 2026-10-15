@@ -7749,7 +7749,11 @@ or missed anything else, nor stood a body cell off the lattice (the
 lane's skeptic, item 5). Where no minute or second fact is published the
 unit is one and every draw is the one before this landing.
 
-**THE PASS.** After G7.3g, under its run conditions, G7.3g's clock pass
+**THE PASS.** After G7.3g, under its run conditions -- the one scope of
+the clock's censuses (`calendar_rules.census_scope`), asked of the facts
+the pass is handed, the shared clock's frame's where G7.3k puts the
+column on its ranks' own clocks, and every bare date pinned as G7.3k's
+step 3 pins it (batch 3b's merge of lane J2) -- G7.3g's clock pass
 runs once for the minute and then once for the second. The minute's bins
 are 60 seconds, 60 a turn, its parent the hour, and its kin each hour's
 group in the hour census -- one group over the day where none is
@@ -8205,10 +8209,12 @@ section gives it, and no G14.3 case.
 #### G7.3k The calendar on each rank's own clock, and the form step
 
 (Landing 3b.7, plan P4-D378.) The censuses of the calendar -- the weekday
-(G7.3f), the day of the month (G7.3i) and the hour (G7.3g) -- stand on a
-column whose cells wear more than one offset, read on the shared clock,
-and on a column of the joint member, each cell counted at the day and
-hour it is WRITTEN at, on its own clock, and a bare date at its midnight.
+(G7.3f), the day of the month (G7.3i) and the hour (G7.3g), and, since
+batch 3b's merge of lane J2, the minute's and the second's heaps and
+censuses (G7.3h) -- stand on a column whose cells wear more than one
+offset, read on the shared clock, and on a column of the joint member,
+each cell counted at the day, hour, minute and second it is WRITTEN at,
+on its own clock, and a bare date at its midnight.
 The order of G7 is unchanged: forms, instants, offsets (G7.4, its step 1a
 fixing the pinned ranks' keys), the move to midnight with the FORM STEP
 first, the step off midnight, the count pass, then the day, hour and
@@ -8253,7 +8259,8 @@ can read a rank's clock only once its offset is known.
    date beyond its high boundary, and the twin's boundary came back two
    hours late. The run is not re-sorted by instant.
 3. **BARE DATES.** On a clocked column of the joint member the passes of
-   G7.3g pin every bare-date rank, which counts at hour 0, and so does
+   G7.3g and G7.3h pin every bare-date rank, which counts at hour 0,
+   minute 0 and second 0, a gap of movable ranks running across it, and so does
    the weekday pass where the column is counted in seconds or published
    on the shared clock; a column counted in days moves its bare dates as
    days, and so does a column the frame puts in days: each pass asks this

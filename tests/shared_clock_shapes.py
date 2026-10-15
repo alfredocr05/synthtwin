@@ -11,7 +11,8 @@ and, from the repair of the landing, all-different stamps on consecutive
 minutes beside bare dates (local, and at two offsets) and bare dates beside
 noon stamps; and, from its second skeptic, bare dates at both ends of a span
 of noon stamps; and, from its Codex review, a fixed block two keys share, bare dates beside
-midnight stamps all on the 15th, and a leap second beside Z and +00:00.
+midnight stamps all on the 15th, and a leap second beside Z and +00:00; and, from batch 3b's merge of
+lane J2, two sites heaped on minute 0 and second 0 of their own clocks.
 Every cell is made up here; none is a real row. Standard library only.
 """
 
@@ -477,6 +478,22 @@ def c551(_n: int, _draw: random.Random) -> "list[str]":
     return [value for value, count in C551_CELLS for _ in range(count)]
 
 
+def heaped_fields(n: int, draw: random.Random) -> "list[str]":
+    """Two sites, -06:00 and +05:30, written to the second, about a third of
+    the cells on minute 0 and half on second 0 OF THEIR OWN CLOCK: on the
+    shared clock a +05:30 cell's minute 0 is minute 30, so only each cell's
+    own clock shows the heaps (the merge of lane J2, the minute and the
+    second reaching landing 3b.7's shared clock)."""
+    found: "list[str]" = []
+    for _ in range(n):
+        day = datetime.date(2023, 11, 6) + datetime.timedelta(days=draw.randrange(112))
+        minute = 0 if draw.random() < 0.35 else draw.randrange(60)
+        second = 0 if draw.random() < 0.5 else draw.randrange(60)
+        moment = datetime.datetime(day.year, day.month, day.day, draw.randrange(7, 20), minute, second)
+        found += [_stamp(moment) + off_text(-6 * 60 if draw.random() < 0.6 else 5 * 60 + 30)]
+    return found
+
+
 SHAPES = {
     "dst_clinic": dst_clinic,
     "dst_ed": dst_ed,
@@ -499,6 +516,7 @@ SHAPES = {
     "split_block": split_block,
     "midnight_dates": midnight_dates,
     "leap_noon": leap_noon,
+    "heaped_fields": heaped_fields,
 }
 
 

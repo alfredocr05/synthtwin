@@ -2671,9 +2671,11 @@ def battery() -> list[Mutation]:
         Mutation("MC1", "minute groups starting past minute 0", a_clock_field_census(_minutes_shifted)),
         Mutation("MC2", "a minute group counting fewer than the census line", a_clock_field_census(_minutes_below_the_line)),
         Mutation("MC3", "minute counts adding to more than the body", a_clock_field_census(_minutes_past_the_body)),
+        # ...on the shared clock in scope since landing 3b.7's widening reached
+        # the minute (batch 3b's merge of lane J2, plan P4-D378), as HC3's.
         Mutation(
-            "MC3", "a minute census on a column read on the shared clock",
-            edit("logged_at", minute_heaps=[{"value": 0, "count": 30}]),
+            "MC3", "a minute census on the shared clock adding to more than the body",
+            edit("logged_at", minute_census=[{"first": 0, "last": 59, "count": 9218}]),
         ),
         Mutation("MC4", "a minute census over a middle half of one instant", a_clock_field_census(_a_middle_half_of_one_instant)),
         Mutation("MC5", "a minute group short of the boundary standing in it", a_clock_field_census(_minutes_short_of_their_sure_cells)),

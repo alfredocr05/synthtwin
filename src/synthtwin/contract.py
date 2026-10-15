@@ -9785,8 +9785,10 @@ def _clock_field_read(
     """One field's census and heaps, read and held to its rules (plan P4-D372).
 
     A published census or heap must stand where the hour census may --
-    a column of moments read on the local clock, not in the joint member,
-    not wholly at midnight, with both tails -- and, for the second, on a
+    a column of moments not wholly at midnight, with both tails, each cell
+    counted on the clock it is written on (`calendar_rules.census_scope`,
+    landing 3b.7, plan P4-D378; on the shared clock rule 4's sure cells
+    alone, `calendar_clock.own_clock_sure`) -- and, for the second, on a
     column written to the second, neither to the minute nor finer (MC3,
     SE3; the twin writes no figure below the second); its published p25
     and p75 must lie four hours apart for minutes and four minutes for
@@ -9829,11 +9831,11 @@ def _clock_field_read(
     scope_rule = calendar_clock.FIELD_RULES[field][2]
     low = facts.low_tail
     high = facts.high_tail
+    # -- 3b.7 (P4-D378): the one scope predicate, no clock and no member.
     if (
-        facts.resolution != "datetime"
-        or facts.datetimes_read_at != "local"
-        or facts.parser_family == FORMAT_ISO_MIXED
-        or facts.all_at_midnight
+        not calendar_rules.census_scope(
+            calendar_rules.SCOPE_CLOCK, facts.resolution, facts.all_at_midnight
+        )
         or low is None
         or high is None
         or (
@@ -9845,10 +9847,10 @@ def _clock_field_read(
             scope_rule,
             where,
             f"a {field} census or heap is published",
-            "only a column of moments read on the local clock, not in the "
-            "joint member, not wholly at midnight and with both tails -- and, "
-            "for the second, written to the second, neither to the minute "
-            "nor finer -- publishes one",
+            "only a column of moments not wholly at midnight and with both "
+            "tails -- and, for the second, written to the second, neither to "
+            "the minute nor finer -- publishes one, each cell counted on the "
+            "clock it is written on",
         )
     parsed = n_present - facts.n_unparsed
     rungs = facts.date_percentiles.rungs
@@ -9880,12 +9882,16 @@ def _clock_field_read(
         if rung is None or percent in (0, 100):
             continue
         published += [(calendar_clock.rung_rank(percent, parsed), rung)]
+    # -- 3b.7 (P4-D378): on the shared clock rule 4's cells alone
+    # (`calendar_clock.own_clock_sure`).
+    published, listed = calendar_clock.own_clock_sure(
+        published,
+        [(low.rows, low.values), (high.rows, high.values)],
+        facts.datetimes_read_at,
+    )
     sure = calendar_clock.field_sure(
         published,
-        calendar_clock.midnight_sure(
-            facts.n_at_midnight,
-            [(low.rows, low.values), (high.rows, high.values)],
-        ),
+        calendar_clock.midnight_sure(facts.n_at_midnight, listed),
         field,
     )
     line = parsing.census_floor(floor)

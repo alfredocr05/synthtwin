@@ -1618,7 +1618,12 @@ rather than in ISO:
   0, and one it left unparsed is not (lane J2, plan P4-D391, the merge of
   landing 3b.4 beside landing 3b.D2: ten bare `2024-03-05` among noon
   stamps published heaps at minute 0 and second 0 holding 570, and the
-  unchanged source, counted without them, was told 560 at each).
+  unchanged source, counted without them, was told 560 at each). On a
+  column counted on its cells' own clocks -- two offsets on the shared
+  clock, or the joint member -- each body cell is counted at the minute
+  and second of its own text, a bare date at minute 0 and second 0, as
+  V5-H1 counts its hour there (landing 3b.7, plan P4-D378, reached at
+  batch 3b's merge of lane J2).
 - `heavy_dates` is compared DATE FOR DATE (`heavy_dates.counts`, V5-D1,
   landing 3b.6, plan P4-D369): the file's own parsed cells, in any
   spelling, are counted on the day each names -- read as the

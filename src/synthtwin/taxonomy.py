@@ -18539,6 +18539,7 @@ def _census_clock_fields(
     details: "dict[str, object]",
     pairs: "list[tuple[str, str]]",
     sources: "list[str] | tuple[str, ...]" = (),
+    ranked: "list[int] | None" = None,
 ) -> "tuple[tuple[int, ...], tuple[int, ...], tuple[bool, ...], tuple[bool, ...]]":
     """The WRITTEN minute and second of every parsed cell, ranked as
     `_census_hours` ranks them, where the hour census may stand (landing
@@ -18553,17 +18554,28 @@ def _census_clock_fields(
     a sixtieth second stays in the minute it is written in. Empty where
     no census of the clock stands.
 
-    Guarantees: accepts the published details and the parsed pairs;
-    returns the minutes, the seconds and the flags. Determinism: a
-    function of the two. Raises nothing. No I/O of any kind.
+    ON EACH CELL'S OWN CLOCK (landing 3b.7, plan P4-D378; the minute and
+    the second reached at batch 3b's merge of lane J2): on a column of two
+    offsets or of the joint member the cells are ranked by
+    `_census_ranked`, each read at its own minute and second -- a `+05:30`
+    cell's minute is its own -- a bare date at its midnight
+    (`_clock_text`), and a cell is written differently from the one ranked
+    before it where its text or its offset differs
+    (`_clock_fields_ranked`).
+
+    Guarantees: accepts the published details, the parsed pairs, the
+    source texts and the ranking where the caller has it; returns the
+    minutes, the seconds and the flags. Determinism: a function of the
+    four. Raises nothing. No I/O of any kind.
     """
-    if (
-        details["resolution"] != RESOLUTION_DATETIME
-        or details["datetimes_read_at"] != READ_AT_LOCAL
-        or details["format"] == FORMAT_ISO_MIXED
-        or details["all_at_midnight"] is True
+    if not calendar_rules.census_scope(
+        calendar_rules.SCOPE_CLOCK,
+        str(details["resolution"]),
+        details["all_at_midnight"] is True,
     ):
         return (), (), (), ()
+    if _on_own_clocks(details):
+        return _clock_fields_ranked(details, pairs, sources, ranked)
     ordered = sorted(canonical for canonical, _offset in pairs)
     minutes = tuple(calendar_clock.written_minute(canonical) for canonical in ordered)
     fresh = tuple(
@@ -18584,6 +18596,44 @@ def _census_clock_fields(
         place == 0 or texts[place] != texts[place - 1] for place in range(len(texts))
     )
     return minutes, seconds, fresh, written
+
+
+def _clock_fields_ranked(
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    sources: "list[str] | tuple[str, ...]",
+    ranked: "list[int] | None",
+) -> "tuple[tuple[int, ...], tuple[int, ...], tuple[bool, ...], tuple[bool, ...]]":
+    """`_census_clock_fields` on a column counted on its cells' own clocks
+    (landing 3b.7, plan P4-D378): the same four answers over the ranking
+    `_census_ranked` gives, each cell at the minute and second its own
+    text is written at and a bare date at its midnight (`_clock_text`).
+    Guarantees: empty where no ranking stands. Raises nothing. No I/O of
+    any kind."""
+    order = ranked if ranked is not None else _census_ranked(details, pairs)
+    if order is None:
+        return (), (), (), ()
+    texts = [_clock_text(pairs[place][0]) for place in order]
+    worn = [pairs[place][1] for place in order]
+    written = [pairs[place][0] for place in order]
+    minutes = tuple(calendar_clock.written_minute(text) for text in texts)
+    fresh = tuple(
+        place == 0
+        or written[place] != written[place - 1]
+        or worn[place] != worn[place - 1]
+        for place in range(len(order))
+    )
+    if details["time_precision"] not in ("second", "subsecond"):
+        return minutes, (), fresh, ()
+    seconds = tuple(calendar_clock.written_second(text) for text in texts)
+    if details["time_precision"] != "subsecond" or len(sources) != len(pairs):
+        return minutes, seconds, fresh, ()
+    cells = [sources[place] for place in order]
+    fresh_written = tuple(
+        place == 0 or fresh[place] or cells[place] != cells[place - 1]
+        for place in range(len(order))
+    )
+    return minutes, seconds, fresh, fresh_written
 
 
 def _cut_to_the_second_merges(
@@ -18763,13 +18813,18 @@ def clock_field_decision(
             kept_hours, kept_values, line, 0, fine, starts
         ) and calendar_clock.misled_by_the_count(kept_hours, kept_values, line, fine):
             return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
+    # -- 3b.7 (P4-D378): on the shared clock the sure cells are rule 4's
+    # alone (`calendar_clock.own_clock_sure`).
+    published, listed = calendar_clock.own_clock_sure(
+        hour_published_values(details, parsed),
+        hour_tails_listed(details),
+        str(details["datetimes_read_at"]),
+    )
     at_midnight = calendar_clock.midnight_sure(
         counted if isinstance(counted, int) else None,
-        hour_tails_listed(details),
+        listed,
     )
-    sure = calendar_clock.field_sure(
-        hour_published_values(details, parsed), at_midnight, field
-    )
+    sure = calendar_clock.field_sure(published, at_midnight, field)
     heaps = calendar_clock.field_heaps(bins, sure, line, units)
     rest_sure = calendar_clock.field_off_the_heaps(sure, heaps)
     groups = calendar_clock.field_groups(
@@ -24214,7 +24269,9 @@ def _decide(
             instants: "list[int]" = []
             ranked = _census_ranked(details, counted, instants)
             # -- the minute and the second (3b.T3, P4-D372)
-            clock_fields = _census_clock_fields(details, pairs, sources)
+            # ...on the same ranking, each cell on its own clock (3b.7, the
+            # minute and the second reached at the merge of lane J2).
+            clock_fields = _census_clock_fields(details, counted, sources, ranked)
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(

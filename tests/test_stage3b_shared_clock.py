@@ -184,6 +184,45 @@ def test_s3_every_census_is_met_and_every_offset_and_form_kept(
             assert _missed(described, seed) == [], (name, floor, seed)
 
 
+def test_s3_minute_and_second_heaps_on_the_shared_clock_are_met(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """THE MINUTE AND THE SECOND ON THE SHARED CLOCK (landing 3b.7's MC3/SE3 widening, re-applied
+    at batch 3b's merge of lane J2, plan P4-D378): two sites at -06:00 and +05:30, about a third
+    of the cells on minute 0 and half on second 0 of their own clocks, publish both heaps, each
+    counted where its cell is written, and at floors 11 and 36, seeds 0 to 2, every twin meets
+    them and misses no check. Before the widening, T3's scope (the local clock only) published
+    neither."""
+    for floor in FLOORS:
+        described = _described(tmp_path_factory, "heaped_fields", floor)
+        block = described.block("t")
+        assert block["datetimes_read_at"] == "utc"
+        assert [heap["value"] for heap in block["minute_heaps"]] == [0], floor
+        assert [heap["value"] for heap in block["second_heaps"]] == [0], floor
+        for seed in SEEDS:
+            assert _missed(described, seed) == [], (floor, seed)
+
+
+def test_s3_minute_and_second_heaps_red_without_the_frame(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant: the passes read every rank on the shared clock (no frame) -- the twins of the
+    heaped two-site column miss the minute's heap."""
+    monkeypatch.setattr(generation, "_own_clock_frame", lambda *_arguments: None)
+    described = _described(tmp_path_factory, "heaped_fields", 11)
+    assert "t:minute_heaps.counts" in _missed(described, 0)
+
+
+def test_s3_minute_and_second_heaps_red_without_the_field_pass(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant: G7.3h moves no rank -- the heaps the drawing rule leaves are missed."""
+    monkeypatch.setattr(
+        generation, "_clock_fields_settled", lambda _column, _facts, ordinals, *_rest, **_named: (ordinals, [])
+    )
+    described = _described(tmp_path_factory, "heaped_fields", 36)
+    missed = _missed(described, 0)
+    assert "t:minute_heaps.counts" in missed and "t:second_heaps.counts" in missed
+
+
 def test_s3_red_without_the_frame(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
     """Mutant: the passes read every rank on the shared clock (no frame) -- the two-site
     column's twins miss their censuses."""

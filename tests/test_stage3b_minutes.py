@@ -1300,8 +1300,11 @@ def test_mc2_every_count_is_nought_or_at_the_line(thousand, tmp_path: pathlib.Pa
 
 
 def test_mc3_the_scope_and_the_total(thousand, tmp_path: pathlib.Path) -> None:
-    """A total off the body less the heaps is refused; and a census on a column read on
-    the shared clock, wholly at midnight or with no tails is refused by the reader."""
+    """A total off the body less the heaps is refused; and a census on a column wholly at
+    midnight or with no tails is refused by the reader. A column read on the shared clock
+    is in scope since landing 3b.7's widening reached the minute and the second (batch
+    3b's merge of lane J2, plan P4-D378): its census loads, each cell counted on its own
+    clock."""
     described, _columns, _text = thousand
     groups = copy.deepcopy(described.block("discharges")["minute_census"])
     groups[-1]["count"] += LINE
@@ -1311,7 +1314,11 @@ def test_mc3_the_scope_and_the_total(thousand, tmp_path: pathlib.Path) -> None:
     assert isinstance(facts, contract.DatetimeFacts)
     block = described.block("discharges")
     mapping = {key: block[key] for key in ("minute_census", "second_census", "minute_heaps", "second_heaps")}
-    for scope in ({"datetimes_read_at": "utc"}, {"all_at_midnight": True}, {"low_tail": None}):
+    contract._clock_field_censuses(
+        mapping, "here", LINE, column.n_present, column.n_distinct, (), (),
+        dataclasses.replace(facts, datetimes_read_at="utc"),
+    )
+    for scope in ({"all_at_midnight": True}, {"low_tail": None}):
         with pytest.raises(errors.ProfileError) as raised:
             contract._clock_field_censuses(
                 mapping, "here", LINE, column.n_present, column.n_distinct, (), (),

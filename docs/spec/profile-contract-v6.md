@@ -7218,7 +7218,12 @@ rule 4's alone, no listed value of a tail taken out of it: a published
 boundary or rung is the instant on the shared clock, and the hour it is
 written at is the offset's the twin gives its rank, which no published
 fact fixes. One predicate states the scope, asked by the producer, the
-loader and the generator alike (`calendar_rules.census_scope`).
+loader and the generator alike (`calendar_rules.census_scope`). MC3 and
+SE3 follow at batch 3b's merge of lane J2, which carries landing 3b.4: a
+minute or second heap or census stands where the hour census may, each
+body cell counted at the minute and second of its own text, a bare date
+at minute 0 and second 0, and on the shared clock the sure cells of MC5
+and SE5 are rule 4's alone, as HC5's are.
 
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
@@ -13115,7 +13120,7 @@ it answers to.
 |---|---|---|
 | MC1 | the groups of `minute_census` cover minute 0 to minute 59 in order, each exactly once, and no group runs past minute 59 | yes |
 | MC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
-| MC3 | a non-empty minute census or heap stands where an hour census may, and the census adds up, with the heaps, to `P - low_tail.rows - high_tail.rows` | yes |
+| MC3 | a non-empty minute census or heap stands where an hour census may, on any clock and in any member, and the census adds up, with the heaps, to `P - low_tail.rows - high_tail.rows`, each body cell counted at the minute it is written at, on its own clock, a bare date of the joint member at minute 0 (plans P4-D372 and P4-D378) | yes |
 | MC4 | a non-empty minute census or heap stands only where the published `p25` and `p75` lie at least four hours apart | yes |
 | MC5 | every group holds at least its SURE cells off the heaps -- each tail boundary and published rung at the minute it is written at, every rank between two of one value written alike, and in minute 0, in place of the published values written at 00:00:00 where it is more, `n_at_midnight` less the rows of every tail whose listed values all stand at midnight -- and what is left of it is nought or at least the line | yes |
 | MC6 | a workbook's published cell classes show at most one value class holding cells | yes |
@@ -13123,7 +13128,7 @@ it answers to.
 | MH2 | the heaps count no more than `P - low_tail.rows - high_tail.rows` | yes |
 | SE1 | as MC1, over the seconds of `second_census` | yes |
 | SE2 | as MC2 | yes |
-| SE3 | as MC3, on a column written to the second -- neither to the minute nor finer than the second, whose twin writes no figure below it | yes |
+| SE3 | as MC3, at the second each cell is written at, a bare date at second 0, on a column written to the second -- neither to the minute nor finer than the second, whose twin writes no figure below it | yes |
 | SE4 | a non-empty second census or heap stands only where the published `p25` and `p75` lie at least four minutes apart | yes |
 | SE5 | as MC5, at the second each value is written at, a sixtieth second at 59, and `n_at_midnight`'s cells in second 0 | yes |
 | SE6 | as MC6 | yes |

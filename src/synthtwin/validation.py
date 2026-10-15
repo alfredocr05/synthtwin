@@ -18817,12 +18817,21 @@ def _clock_field_checks(
     low = calendar_clock.seconds_of(facts.low_tail.boundary)
     high = calendar_clock.seconds_of(facts.high_tail.boundary)
     read_cells = _dates_the_file_reads(block, facts, cells)
-    body = [
-        texts
-        for instant, texts in _clock_field_instants_of(facts, read_cells)
-        + _folded_clock_field_instants(block, facts, read_cells)
-        if low <= instant <= high
-    ]
+    if _on_own_clocks(facts):
+        # -- 3b.7 (P4-D378), the minute and the second reached at the merge
+        # of lane J2: each cell at the minute and second its own clock
+        # writes, a bare date at 0.
+        body = [
+            (calendar_clock.written_minute(text), calendar_clock.written_second(text))
+            for text in _own_clock_body(facts, block, read_cells)
+        ]
+    else:
+        body = [
+            texts
+            for instant, texts in _clock_field_instants_of(facts, read_cells)
+            + _folded_clock_field_instants(block, facts, read_cells)
+            if low <= instant <= high
+        ]
     line = parsing.census_floor(floor)
     checks: "list[Check]" = []
     for field, census, heaps in published:
