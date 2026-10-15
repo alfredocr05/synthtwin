@@ -20,7 +20,8 @@ of spellings holds only the labels written otherwise than themselves
 (`taxonomy._label_spellings` answers the rest), and each census reading
 is let go once its column is described. Every description, summary and
 questions file compared with 66bca69's -- a battery of 800 and the
-large tables wherever 66bca69 ran -- is the same bytes. The register of 997,770, 1,994,180
+large tables wherever 66bca69 ran -- is the same bytes, a zero mode
+written both "0" and "-0" keeping the sign of its last cell as before. The register of 997,770, 1,994,180
 and 2,990,700 rows describes in 289, 544 and 780 MB where it took 881
 to 901, 1,663 and 2,389, and of 4,983,120 rows in 1,270 MB; 1,000,000
 rows of free text beside dates and numbers in 564 MB where they took

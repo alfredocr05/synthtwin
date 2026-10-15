@@ -175,8 +175,9 @@ as many rows as it holds; the map of each folded label's spellings
 holds only the labels some cell wrote otherwise than the label itself
 (`taxonomy._label_spellings` answers the rest with the label and its
 count); and each column's census reading is let go once that column is
-described. Every answer is the one a reading per row gave, so no
-description and no check moves; only how many objects hold them does.
+described. Every answer is the one a reading per row gave (a mode of
+zero keeps the sign its last cell wrote), so no description and no
+check moves; only how many objects hold them does.
 
 **V2.2 The settings it re-describes under** are the profile's own,
 field by field, exactly as the Phase 3 plan's P3-D3 table fixes them.
