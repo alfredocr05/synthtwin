@@ -38,7 +38,7 @@ import pytest
 import fixtures
 import kpi_shapes
 import stage4_as_built
-from synthtwin import cli, parsing, profile, reading, taxonomy
+from synthtwin import parsing, profile, reading, taxonomy
 
 _SETTINGS = taxonomy.Settings()
 
