@@ -1331,7 +1331,8 @@ def phased_field_lattice(
     divisor of sixty. Raises nothing. No I/O.
     """
     if heaps and not census:
-        if body < 0 or body - sum(count for _value, count in heaps) >= line:
+        rest = body - sum(count for _value, count in heaps)
+        if body < 0 or rest >= line:
             return 0
         step = FIELD_VALUES
         first = heaps[0][0]
@@ -1389,13 +1390,13 @@ def crowding_unit(
     if seconds <= 0:
         return 1
     if seconds < FIELD_VALUES:
-        return seconds
+        return seconds  # a lattice finer than the minute
     minutes = phased_field_lattice(
         minute_census, minute_heaps, [written_minute(value) for value in published], body, line
     )
     if minutes <= 0:
         return 1 if precision == "minute" else FIELD_VALUES
-    return FIELD_VALUES * minutes
+    return minutes * FIELD_VALUES
 
 
 # THE SHARE OF A LATTICE'S POINTS a column's different values may fill
