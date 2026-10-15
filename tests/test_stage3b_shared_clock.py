@@ -860,6 +860,23 @@ def test_vectors_frames(monkeypatch: pytest.MonkeyPatch) -> None:
     with monkeypatch.context() as patched:
         patched.setattr(generation, "_own_clock_days", handed)
         assert _unframed(days) != days["answer"]
+    # The Codex review of landing I3b2d, item 3: the tail ranks the field pass moved given back
+    # where they stood before the passes, or each at its own place in the frame less its shift
+    # (mutants).
+    tail = _FILE["frames"]["tail_moved_by_the_field_pass"]
+    sorted_tail = _FILE["frames"]["tails_sorted_across_offsets"]
+
+    def own_places(moved: "list[int]", _before: "list[int]", framed: "list[int]", shifts: "list[int]", movable: "list[bool]", body: "tuple[int, int]", _gaps: "tuple[list[int], list[int]]", scale: int) -> None:
+        for rank in range(len(moved)):
+            if movable[rank] and not body[0] <= rank <= body[1]:
+                moved[rank] = framed[rank] * scale - shifts[rank]
+
+    with monkeypatch.context() as patched:
+        patched.setattr(generation, "_own_clock_tails", lambda *_arguments: None)
+        assert _unframed(tail) != tail["answer"]
+    with monkeypatch.context() as patched:
+        patched.setattr(generation, "_own_clock_tails", own_places)
+        assert _unframed(tail) == tail["answer"] and _unframed(sorted_tail) != sorted_tail["answer"]
     monkeypatch.setattr(generation, "_own_clock_run", rank_by_rank)
     assert any(_unframed(case) != case["answer"] for case in _FILE["frames"].values())
 
@@ -892,6 +909,19 @@ def test_vectors_pins(monkeypatch: pytest.MonkeyPatch) -> None:
     # Codex's items 1 and 3: a block the keys share, and a block written at a sixtieth second.
     no_leap = dict(_FILE["pins"]["leap_block_at_sixty"], leaps=[False])
     assert _shares(no_leap) != _FILE["pins"]["leap_block_at_sixty"]["shares"]
+    # The Codex review of landing I3b2d, item 2: the minute's and the second's facts laid as the
+    # oracle lays them, each heap its own group; and the block red without them (mutant).
+    for name, case in _FILE["pins"].items():
+        for (rule, groups, heaps), (laid_rule, where, counts) in zip(case.get("field_censuses", []), case["censuses"]):
+            body = case["body"][1] - case["body"][0] + 1
+            laid = generation._field_census_bins(
+                tuple((first, last, count) for first, last, count in groups),
+                tuple((value, count) for value, count in heaps),
+                body,
+            )
+            assert (rule, list(laid[0]), laid[1]) == (laid_rule, where, counts), name
+    minute = _FILE["pins"]["minute_heap_two_sites"]
+    assert _pins(dict(minute, censuses=[])) != minute["answer"]
     monkeypatch.setattr(generation, "_pinned_split", lambda *_arguments: [])
     assert _shares(_FILE["pins"]["split_hour_block"]) != _FILE["pins"]["split_hour_block"]["shares"]
 
@@ -1014,3 +1044,96 @@ def test_a_midnight_column_with_a_date_that_stands_out_meets_both(
         assert block["weekday_census"], (kind, floor)
         for seed in SEEDS:
             assert _missed(described, seed) == [], (kind, floor, seed)
+
+
+# -- The Codex review of landing I3b2d, items 2 and 3 --------------------------
+
+
+def _codex_offsets_on_the_hour() -> "list[str]":
+    """Item 2's column: 1,000 ISO stamps on the hour, minute and second 0, over 120 days, hour 0
+    one in ten and the others walking, the offsets -06:00 and +05:30 three by three."""
+    cells: "list[str]" = []
+    for index in range(1000):
+        day = datetime.date(2024, 1, 1) + datetime.timedelta(days=index % 120)
+        hour = 0 if index % 10 == 0 else 1 + (index // 120 + index % 23) % 23
+        cells += [f"{day.isoformat()}T{hour:02d}:00:00{('-06:00', '+05:30')[(index // 3) % 2]}"]
+    return cells
+
+
+def _codex_midnights_beside_hours() -> "list[str]":
+    """Item 3's column: 1,000 ISO stamps on the hour over 60 days, half at midnight, the offsets
+    +01:00 and +02:00 in turn."""
+    cells: "list[str]" = []
+    for index in range(1000):
+        day = datetime.date(2024, 1, 1) + datetime.timedelta(days=index % 60)
+        hour = 0 if index % 8 < 4 else 1 + index % 23
+        cells += [f"{day.isoformat()}T{hour:02d}:00:00{('+01:00', '+02:00')[index % 2]}"]
+    return cells
+
+
+def _codex_described(tmp_path_factory: pytest.TempPathFactory, name: str, cells: "list[str]") -> kpi_shapes.Described:
+    key = (name, 11)
+    if key not in _DESCRIBED:
+        text = "t\n" + "".join(f"{cell}\n" for cell in cells)
+        _DESCRIBED[key] = kpi_shapes.describe(tmp_path_factory.mktemp(name), name, text, 11)
+    return _DESCRIBED[key]
+
+
+def test_s5_fixed_offsets_keep_the_minute_heap(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """THE CODEX REVIEW OF LANDING I3b2d, item 2 (plan P4-D378): G7.4 step 1a asks the minute's
+    and the second's facts too. Every body cell of item 2's column stands on minute 0 of its own
+    clock, so the description publishes a heap of 978 there; a fixed block given +05:30 would be
+    written on minute 30, where the census leaves no room. At seeds 0 and 1 every twin meets the
+    heap and misses nothing (976 on bb9e6d4, the one MISSED)."""
+    described = _codex_described(tmp_path_factory, "offsets_on_the_hour", _codex_offsets_on_the_hour())
+    block = described.block("t")
+    assert block["datetimes_read_at"] == "utc"
+    assert block["minute_heaps"] == [{"value": 0, "count": 978}]
+    for seed in (0, 1):
+        assert _missed(described, seed) == [], seed
+
+
+def test_s5_fixed_offsets_red_without_the_minute_and_second(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant: step 1a reads the weekday, the day of the month and the hour alone, as on
+    bb9e6d4 -- the minute's heap is missed."""
+    built = generation._bins_of_censuses
+
+    def calendar_only(*arguments: typing.Any) -> "list[tuple[str, tuple[int, ...], list[int]]]":
+        return [census for census in built(*arguments) if census[0] not in ("minute", "second")]
+
+    monkeypatch.setattr(generation, "_bins_of_censuses", calendar_only)
+    described = _codex_described(tmp_path_factory, "offsets_on_the_hour", _codex_offsets_on_the_hour())
+    assert "t:minute_heaps.counts" in _missed(described, 0)
+
+
+def test_s3_the_frame_keeps_the_tails_the_field_pass_moved(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """THE CODEX REVIEW OF LANDING I3b2d, item 3 (plan P4-D378, method G7.3k): the field pass
+    moves tail ranks to keep the count at midnight, and the frame is taken back with them, each
+    at its own offset. Item 3's column publishes 500 cells at midnight; at seeds 0 to 2 every
+    twin holds them and misses nothing (501 on bb9e6d4, `midnight.count` MISSED)."""
+    described = _codex_described(tmp_path_factory, "midnights_beside_hours", _codex_midnights_beside_hours())
+    block = described.block("t")
+    assert block["datetimes_read_at"] == "utc" and block["n_at_midnight"] == 500
+    for seed in SEEDS:
+        twin = kpi_shapes.twin_text(described, seed)
+        assert sum(1 for line in twin.splitlines()[1:] if line[11:19] == "00:00:00") == 500, seed
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"t{seed}.csv")) == [], seed
+
+
+def test_s3_the_frame_red_when_the_tails_go_back(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant: every rank outside the body's runs given back where it stood before the passes, as
+    on bb9e6d4 -- the field pass's tail corrections are lost and the count at midnight is missed."""
+    built = generation._off_own_clocks
+
+    def tails_back(before: "list[int]", *rest: typing.Any) -> "tuple[list[int], list[str]]":
+        moved, given = built(before, *rest)
+        low, high = rest[5]
+        return [before[rank] if rank < low or rank > high else moved[rank] for rank in range(len(moved))], given
+
+    monkeypatch.setattr(generation, "_off_own_clocks", tails_back)
+    described = _codex_described(tmp_path_factory, "midnights_beside_hours", _codex_midnights_beside_hours())
+    assert "t:midnight.count" in _missed(described, 0)

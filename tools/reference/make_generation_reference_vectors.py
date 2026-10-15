@@ -52519,11 +52519,36 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
     days ascending each go to a rank of the least shift left whose instant
     is not past the gap's top, else of the largest shift left, and among
     one shift's ranks to the next by the day the passes left it and then
-    by rank (Codex's item 2 of landing 3b.7). Every other rank as it was
-    before the passes."""
-    moved = list(before)
+    by rank (Codex's item 2 of landing 3b.7). A pinned rank, a rank whose
+    gap is one place and a bare date in a frame of seconds as it was before
+    the passes. The tails' other ranks taken back as a whole (the Codex
+    review of landing I3b2d, item 3): each whose own place -- its instant
+    plus its shift, in the frame's unit -- the passes left among the tails'
+    places keeps its instant; each other, in rank order, takes the least
+    place left that puts its instant inside its own gap, with its own
+    offset, and stays where it was where none does."""
     given = list(offsets)
     stays = [flag and scale == 1 for flag in whole]
+    moved = list(before)
+    tails = [
+        rank for rank in range(len(before))
+        if not (body[0] <= rank <= body[1] or pinned[rank] or stays[rank] or lows[rank] >= highs[rank])
+    ]
+    standing = sorted(framed[rank] for rank in tails)
+    taken_back = []
+    for rank in tails:
+        own = (before[rank] + shifts[rank]) // scale
+        if own in standing:
+            standing.remove(own)
+        else:
+            taken_back.append(rank)
+    for rank in taken_back:
+        low = -(-(lows[rank] + shifts[rank]) // scale)
+        high = (highs[rank] + shifts[rank]) // scale
+        fits = [place for place in standing if low <= place <= high]
+        if fits:
+            moved[rank] = fits[0] * scale - shifts[rank]
+            standing.remove(fits[0])
     rank = body[0]
     while rank <= body[1]:
         if pinned[rank] or stays[rank] or lows[rank] >= highs[rank]:
@@ -52909,6 +52934,29 @@ def _weekday_where(groups):
     return tuple(where)
 
 
+def field_census_where(groups, heaps, body):
+    """G7.4 step 1a's groups of a minute's or second's facts (the Codex review
+    of landing I3b2d, item 2): each heap a group of its own value with its
+    count, each census group the values of it no heap holds with its count,
+    and, with heaps and no census, every other value one group of the body
+    less the heaps' counts. Returns each of the sixty values' group and the
+    groups' counts."""
+    where = [None] * 60
+    counts = []
+    for first, last, count in groups:
+        for value in range(first, last + 1):
+            where[value] = len(counts)
+        counts.append(count)
+    for value, count in heaps:
+        where[value] = len(counts)
+        counts.append(count)
+    if None in where:
+        rest = max(0, body - sum(count for _value, count in heaps))
+        where = [len(counts) if group is None else group for group in where]
+        counts.append(rest)
+    return tuple(where), counts
+
+
 _FEW_OFF_HOURS = ((0, 6, 0), (7, 7, 30), (8, 15, 600), (16, 16, 100), (17, 23, 0))
 _FEW_OFF_WEEKDAYS = ((0, 4, 730), (5, 6, 0))
 
@@ -52930,6 +52978,33 @@ SHARED_CLOCK_FIELDS = {
 }
 
 SHARED_CLOCK_FRAMES = {
+    "tails_sorted_across_offsets": (
+        [0, 1000, 2000, 50000, 90000, 100000],
+        [0, 2000 + 3600, 1000 + 7200, 50000 + 3600, 90000 + 3600, 100000],
+        [0, 7200, 3600, 3600, 3600, 0],
+        ["", "+02:00", "+01:00", "+01:00", "+01:00", ""],
+        [False] * 6, [True, False, False, False, False, True], (3, 4),
+        [0, 500, 1500, 2500, 2500, 100000],
+        [0, 1500, 2500, 95000, 95000, 100000],
+        1,
+        "the Codex review of landing I3b2d, item 3: a pass sorted the low tail by its written places, "
+        "handing a +01:00 rank's place to a +02:00 rank; no tail rank was moved, so each keeps its "
+        "instant, never its sorted place less its shift",
+    ),
+    "tail_moved_by_the_field_pass": (
+        [0, 3600, 1700000000, 1700003600, 1800000000, 1800003600],
+        [0 + 3600, 10800, 1700000000 + 3600, 1700003600 + 7200, 1800003600, 1800003600 + 3600],
+        [3600, 3600, 3600, 7200, 7200, 3600],
+        ["+01:00", "+01:00", "+01:00", "+02:00", "+02:00", "+01:00"],
+        [False] * 6, [True, False, False, False, False, True], (2, 3),
+        [0, 0, 1600000000, 1600000000, 1750000000, 1800003600],
+        [0, 7200, 1750000000, 1750000000, 1800003600, 1800003600],
+        1,
+        "the Codex review of landing I3b2d, item 3: G7.3h moved the low tail's rank 1 an hour later "
+        "and the high tail's rank 4 an hour earlier on their own clocks, to keep the count at "
+        "midnight; both are given back where the pass left them, less their shifts, each with its "
+        "own offset, and the pinned ends as they stood",
+    ),
     "two_offsets_one_run": (
         [1000, 1700000000, 1700003600, 1700007200, 1700010800, 1800000000],
         [1000 + 0, 1700000000 - 21600, 1700007200 - 18000, 1700003600 - 21600, 1700010800 - 18000, 1800000000],
@@ -52983,6 +53058,14 @@ SHARED_CLOCK_FRAMES = {
 }
 
 SHARED_CLOCK_PINS = {
+    "minute_heap_two_sites": (
+        {"+05:30": 5, "-06:00": 5}, ["+05:30", "-06:00"],
+        [(3, 5, 1704085200)], (1, 8),
+        [("minute", (), ((0, 8),))], False, 60,
+        "the Codex review of landing I3b2d, item 2: every body cell on minute 0 of its own clock, a "
+        "heap of 8; a block fixed at 05:00Z takes -06:00, written 23:00, never the first sorted key "
+        "+05:30 writing it 10:30, on a minute the census leaves no room on (mutant: no minute's facts)",
+    ),
     "few_off_rung": (
         {"+05:30": 18, "-06:00": 982}, ["+05:30", "-06:00"],
         [(99, 100, 1699309800)], (12, 987),
@@ -53133,7 +53216,15 @@ def shared_clock_document():
         left, keys, blocks, body, censuses, off_midnight, step, why = SHARED_CLOCK_PINS[name]
         leaps = SHARED_CLOCK_PIN_LEAPS.get(name, [False] * len(blocks))
         laid = []
-        for rule, groups in censuses:
+        field_facts = []
+        for census in censuses:
+            rule, groups = census[0], census[1]
+            if rule in ("minute", "second"):
+                # Each heap its own group (the Codex review of landing I3b2d, item 2).
+                where, counts = field_census_where(groups, census[2], body[1] - body[0] + 1)
+                laid.append((rule, where, counts))
+                field_facts.append([rule, [list(group) for group in groups], [list(heap) for heap in census[2]]])
+                continue
             where = _hour_where(groups) if rule == "hour" else _weekday_where(groups)
             laid.append((rule, where, [count for _first, _last, count in groups]))
         pins[name] = {
@@ -53147,6 +53238,8 @@ def shared_clock_document():
                 for shares, sixtieth in pinned_offset_shares(left, keys, blocks, body, laid, off_midnight, step, leaps)
             ],
         }
+        if field_facts:
+            pins[name]["field_censuses"] = field_facts
     spreads = {}
     for name in sorted(SHARED_CLOCK_SPREADS):
         keys, left, open_ranks, lows, highs, why = SHARED_CLOCK_SPREADS[name]
