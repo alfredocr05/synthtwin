@@ -789,8 +789,9 @@ def test_a_short_grid_written_twice_keeps_its_clock_facts(tmp_path: pathlib.Path
     """Codex's review of lane J2, item 2 (NF121, NF122): 2,000 rows, 1,000 stamps from
     2015-01-01 00:00:00 five minutes apart -- and a minute apart -- each written twice, fill
     their lattice 0.144 above a uniform draw of their rows; e69e534 withheld their minute's and
-    second's facts as crowded, and its seed-0 twin wrote 49 cells at second 0. Where some value
-    repeats and no count at midnight is published, the rule asks a fifth: both publish, the
+    second's facts as crowded, and its seed-0 twin wrote 49 cells at second 0. Where no value
+    is written once, no count at midnight is published and the column holds at most 1,000
+    different values (`CROWDED_REPEATED_VALUES`), the rule asks a fifth: both publish, the
     second's heap at 0 holding every body cell, and their twins at seeds 0 to 2, floors 11 and
     36, miss nothing. The protection stands where a count at midnight is published: 10,000 rows
     five minutes apart, each written twice -- whose twins with the facts came back 34 to 90
@@ -813,18 +814,22 @@ def test_a_short_grid_written_twice_keeps_its_clock_facts(tmp_path: pathlib.Path
     assert block["second_heaps"] == [] and block["minute_heaps"] == []
     written = kpi_shapes.twin_text(described, 0)
     assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == []
-    # By hand: 1,000 values on 1,000 points of 300 seconds, 2,000 rows, 0.135 above the draw.
-    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, False)
-    assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, True)
+    # By hand: 1,000 values on 1,000 points of 300 seconds, 2,000 rows, 0.135 above the draw,
+    # no value written once: the fifth. A count at midnight, every value different, or a value
+    # written once -- or not known to be none (`none_once` left false) -- keeps the twentieth.
+    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, False, True)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, True, True)
     assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, True, 1000, False)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, False)
     # ...and above `CROWDED_REPEATED_VALUES` different values the twentieth stands, whatever
-    # the rows (its two verifiers): 1,171 values written twice keep the fifth, 1,172 do not,
-    # nor do 2,250 values in 4,500 rows, which 2a04359 still published.
-    assert calendar_clock.CROWDED_REPEATED_VALUES == 1171
-    assert not calendar_clock.lattice_crowded(300, 0, 351_000, 1171, False, 2342, False)
-    assert calendar_clock.lattice_crowded(300, 0, 351_300, 1172, False, 2344, False)
-    assert calendar_clock.lattice_crowded(300, 0, 674_700, 2250, False, 4500, False)
-    assert calendar_clock.lattice_crowded(300, 0, 749_700, 2500, False, 5000, False)
+    # the rows (the orchestrator's ruling on its second verifier): 80 % of 1,250, the smallest
+    # count of different values at which a swept grid with no value written once missed a
+    # fact. 1,000 values written twice keep the fifth, 1,001 do not, nor 1,250 or 2,500.
+    assert calendar_clock.CROWDED_REPEATED_VALUES == 1000
+    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, False, True)
+    assert calendar_clock.lattice_crowded(300, 0, 300_000, 1001, False, 2002, False, True)
+    assert calendar_clock.lattice_crowded(300, 0, 374_700, 1250, False, 2500, False, True)
+    assert calendar_clock.lattice_crowded(300, 0, 749_700, 2500, False, 5000, False, True)
 
 
 def test_a_long_grid_written_twice_withholds_its_clock_facts(tmp_path: pathlib.Path) -> None:
@@ -835,9 +840,12 @@ def test_a_long_grid_written_twice_withholds_its_clock_facts(tmp_path: pathlib.P
     4,500 (cdd3add). A grid of more than `CROWDED_REPEATED_VALUES` different values is held
     to the twentieth: these withhold their minute's and second's facts, as e69e534 did, and every
     twin at seeds 0 to 2 misses nothing; Codex's 2,000-row grids still publish
-    (`test_a_short_grid_written_twice_keeps_its_clock_facts`)."""
-    for rows in (6000, 8000, 9000):
-        described = _one_column(tmp_path / f"twice-5-{rows}", "c", _twice_series(5, rows), 36)
+    (`test_a_short_grid_written_twice_keeps_its_clock_facts`). So do the two smallest misses of
+    the orchestrator's sweep of grids with no value written once, asked the fifth at any size:
+    2,500 rows (1,250 values), whose seed-0 twin missed the count at midnight withheld at floor
+    11, and 5,000 rows (2,500 values), 2,457 to 2,464 at floor 36."""
+    for rows, floor in ((2500, 11), (5000, 36), (6000, 36), (8000, 36), (9000, 36)):
+        described = _one_column(tmp_path / f"twice-5-{rows}", "c", _twice_series(5, rows), floor)
         block = described.block("c")
         assert block.get("n_at_midnight") is None, rows
         assert block["second_heaps"] == [] and block["minute_heaps"] == [], rows
@@ -865,22 +873,26 @@ def test_a_grid_with_some_values_once_withholds_its_clock_facts(tmp_path: pathli
     publish facts its twins miss. Stamps five minutes apart, each written twice and about a
     fifth once, 4,500 rows holding 2,489 values, published 12 minute heaps and a second's heap
     at floor 36, and its twins at seeds 0 to 2 came back 2,431 to 2,436 values (2a04359);
-    e69e534 withheld them and met all 2,489. The fifth is bounded by the column's count of
-    different values (`CROWDED_REPEATED_VALUES`), the largest a sweep of 360 such grids
-    measured to meet below the smallest that missed: 2,000 rows two minutes apart, about a
-    third of the values once, 1,207 values, whose seed-1 twin came back 1,205 at floor 11
-    (2a04359). Both grids withhold their minute's and second's facts and every twin misses
-    nothing."""
-    for step, rows, once, floor, values in ((5, 4500, 0.2, 36, 2489), (2, 2000, 0.35, 11, 1207)):
+    e69e534 withheld them and met all 2,489. Its bound of 1,171 values still published facts
+    its twins missed (the second verifier, d691fb9): two minutes apart with about a third of
+    the values once, 1,000 values came back 999 in one twin and 1,100 values 1,099 and 1,096
+    at floor 11; ten minutes apart with a twentieth once, 1,171 values 1,169 at floor 36; and
+    2,000 rows two minutes apart, 1,207 values, 1,205 at floor 11 (2a04359). A grid with a value
+    written once keeps the twentieth (the orchestrator's ruling): all five withhold their
+    minute's and second's facts, as e69e534 did, and every twin misses nothing."""
+    for step, rows, once, floor, values in (
+        (5, 4500, 0.2, 36, 2489), (2, 2000, 0.35, 11, 1207),
+        (2, 1662, 0.35, 11, 1000), (2, 1827, 0.35, 11, 1100), (10, 2294, 0.05, 36, 1171),
+    ):
         cells = _some_once_series(step, rows, once)
         assert len(set(cells)) == values
         described = _one_column(tmp_path / f"once-{step}-{rows}", "c", cells, floor)
         block = described.block("c")
-        assert block.get("n_at_midnight") is None, step
-        assert block["second_heaps"] == [] and block["minute_heaps"] == [], step
+        assert block.get("n_at_midnight") is None, (step, rows)
+        assert block["second_heaps"] == [] and block["minute_heaps"] == [], (step, rows)
         for seed in (0, 1, 2):
             written = kpi_shapes.twin_text(described, seed)
-            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (step, seed)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (step, rows, seed)
 
 
 def _half_kept_series(step: int, rows: int, times: int) -> "list[str]":
@@ -951,7 +963,7 @@ def test_a_dense_grid_of_random_times_keeps_its_clock_facts(tmp_path: pathlib.Pa
     plain = calendar_clock.lattice_crowded
     monkeypatch.setattr(
         calendar_clock, "lattice_crowded",
-        lambda unit, low, high, distinct, all_different=False, parsed=0, midnight_counted=True: plain(
+        lambda unit, low, high, distinct, all_different=False, parsed=0, midnight_counted=True, none_once=False: plain(
             unit, low, high, distinct, all_different
         ),
     )

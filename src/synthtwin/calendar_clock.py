@@ -1349,14 +1349,18 @@ CROWDED_SHARE_ALL_DIFFERENT = (1, 3)
 # before they crowd it (`lattice_crowded`, lane J2's second skeptic, item
 # 1): a twentieth of its points.
 CROWDED_EXCESS = (1, 20)
-# ...and a fifth where some value is written more than once, the column's
-# count at midnight is not published and it holds no more than
-# `CROWDED_REPEATED_VALUES` different values (Codex's review of lane J2,
-# item 2, and its two verifiers): the largest count of different values a
-# sweep of such grids measured to meet its facts below the smallest that
-# missed them (1,207), so a small grid with repeats keeps its facts there.
+# ...and a fifth where no value is written once -- every different value
+# written at least twice --, the column's count at midnight is not
+# published and it holds no more than `CROWDED_REPEATED_VALUES` different
+# values (Codex's review of lane J2, item 2, its two verifiers and the
+# orchestrator's ruling on the last): 80 % of 1,250, the smallest count of
+# different values at which a grid with no value written once missed a fact
+# in a sweep of such grids (stamps one to sixty minutes apart, each written
+# exactly two, three or four times, 500 to 2,500 values). A grid some value
+# of which is written once keeps the twentieth: with the fifth such grids
+# missed their count at 1,000, 1,100 and 1,171 values.
 CROWDED_EXCESS_REPEATED = (1, 5)
-CROWDED_REPEATED_VALUES = 1171
+CROWDED_REPEATED_VALUES = 1000
 
 
 def lattice_crowded(
@@ -1367,6 +1371,7 @@ def lattice_crowded(
     all_different: bool = False,
     parsed: int = 0,
     midnight_counted: bool = True,
+    none_once: bool = False,
 ) -> bool:
     """Whether a column's different values crowd the lattice its clock facts pin.
 
@@ -1408,44 +1413,48 @@ def lattice_crowded(
     stands 0.111 to 0.382 above it and stays withheld. `parsed` 0 asks the
     fill alone.
 
-    A SMALL GRID WITH REPEATS AND NO COUNT AT MIDNIGHT IS NOT CROWDED UNDER
-    A FIFTH (Codex's review of lane J2, item 2, and its two verifiers).
-    Where some value is written more than once, the column publishes no
-    count at midnight (`midnight_counted` false) and it holds no more than
+    A SMALL GRID NO VALUE OF WHICH IS WRITTEN ONCE, WITH NO COUNT AT
+    MIDNIGHT, IS NOT CROWDED UNDER A FIFTH (Codex's review of lane J2, item
+    2, its two verifiers and the orchestrator's ruling on the last). Where
+    `none_once` -- every different value written at least twice; false
+    where not known --, the column publishes no count at midnight
+    (`midnight_counted` false) and it holds no more than
     `CROWDED_REPEATED_VALUES` different values, the excess must reach
     `CROWDED_EXCESS_REPEATED`. 1,000 stamps five minutes or a minute apart,
     each written twice, stand 0.144 above the draw, and with their facts
     their twins met the count and every heap at floors 11 and 36 (the
-    twentieth had withheld them). The bound is the count of different
-    values, not the rows (the second verifier: 4,300 and 4,500 rows five
-    minutes apart with a tenth or a fifth of their values once missed at
-    2,367 to 2,489 values). Asked at any size, the fifth was swept over 360
-    grids -- stamps one to ten minutes apart, written twice or three times
-    with none to half of their values once, 1,600 to 5,000 rows (6,750
-    written three times), floors 11 and 36, three twins each: of the 428 it
-    publishes where the twentieth withholds, every one of at most 1,171
-    values met all its facts (402 twins), and 20 from 1,207 values on missed
-    the count of different values -- 2,000 rows two minutes apart with about
-    a third once, 1,205 of 1,207 in one twin at floor 11; 2,200 rows four
-    minutes apart 1,333 of 1,334; five minutes apart at floor 36 from 2,350
-    values (4,000 rows, three in ten once, 2,288 to 2,304), as written twice
-    from 5,000 rows (2,457 to 2,466 of 2,500) -- so above
-    `CROWDED_REPEATED_VALUES` the twentieth stands, and withheld, all 294
-    above it met their facts (882 twins), the 20 among them. 274 lose minute
-    and second facts they met with the fifth (4,000 rows written twice,
-    2,000 values, among them). Many repeats need no bound of their own:
-    written four or six times, 2,250 values stand within a twentieth of the
-    draw and publish under either. Where a count at midnight is published
-    the twin holds it exactly, and on a lattice its values fill the ranks
-    there find no free place: written twice, 10,000 stamps five minutes
-    apart came back 34 to 90 values short, 4,000 ten minutes apart 53 to 56
-    short, 2,000 fifteen minutes apart and coarser off their count or their
-    second's heap, 40,000 a minute apart off the second's heap in one twin
-    of two, and 10,000 written three times five or sixty minutes apart off
-    their count or their count at midnight -- so the twentieth stands there,
-    as it does for a column every value of which is different, and from a
-    fifth on (every second stamp written twice, 0.227 above, missed its
-    count either way).
+    twentieth had withheld them). Each looser bound measured published
+    grids whose twins missed: none (from 5,000 rows written twice), 4,500
+    rows (five minutes apart with a fifth of their values once, 2,431 to
+    2,436 of 2,489 at floor 36), and 1,171 values with some written once (2
+    minutes apart with about a third once, 999 of 1,000 and 1,096 of 1,100
+    at floor 11; 10 minutes apart with a twentieth once, 1,169 of 1,171 at
+    floor 36); the twentieth withholds these and meets.
+    Swept with the fifth at any size over 276 grids with no value written
+    once -- stamps 1, 2, 3, 5, 10, 15, 30 and 60 minutes apart, each written
+    exactly two, three or four times, 500 to 2,500 values, and 60 more from
+    800 to 1,200 values written twice, or twice or three times, floors 11
+    and 36, three twins each (1,173 twins) -- every published twin of fewer
+    than 1,250 values met all its facts, 261 of them published by the fifth
+    alone at up to 1,000 values. At 1,250 the first missed: stamps five
+    minutes apart written twice, the count at midnight withheld, in one twin
+    at floor 11; at 2,500 values 2,457 to 2,464 at floor 36. (Written four
+    times with a count at midnight, 5 to 30 minutes apart, 1,250 to 2,500
+    values missed their count too, by 1 to 21 values at floor 11: they stand
+    within a twentieth of the draw and publish under either rule.) The bound
+    is 80 % of 1,250; 93 grids of 1,001 to 2,500 values that met their facts
+    with the fifth withhold them. Above it, or with a value written once, the
+    twentieth stands.
+    Where a count at midnight is published the twin holds it exactly, and on
+    a lattice its values fill the ranks there find no free place: written
+    twice, 10,000 stamps five minutes apart came back 34 to 90 values short,
+    4,000 ten minutes apart 53 to 56 short, 2,000 fifteen minutes apart and
+    coarser off their count or their second's heap, 40,000 a minute apart
+    off the second's heap in one twin of two, and 10,000 written three times
+    five or sixty minutes apart off their count or their count at midnight
+    -- so the twentieth stands there, as it does for a column every value of
+    which is different, and from a fifth on (every second stamp written
+    twice, 0.227 above, missed its count either way).
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
@@ -1460,7 +1469,7 @@ def lattice_crowded(
     if parsed <= 0:
         return True
     above, over = CROWDED_EXCESS
-    if not all_different and not midnight_counted and distinct <= CROWDED_REPEATED_VALUES:
+    if none_once and not all_different and not midnight_counted and distinct <= CROWDED_REPEATED_VALUES:
         above, over = CROWDED_EXCESS_REPEATED
     # The share of the points `parsed` uniform draws fill, on average.
     drawn = 1.0 - (1.0 - 1.0 / points) ** parsed

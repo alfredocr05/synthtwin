@@ -18957,13 +18957,15 @@ def clock_lattice_crowded(
     third or more where every parsed cell is one, and a twentieth more
     of them than `parsed` cells drawn uniformly over those points would
     (`calendar_clock.lattice_crowded`, lane J2's second skeptic, item 1:
-    a dense grid of random times is not crowded) -- a fifth where some
-    value repeats, the block publishes no count at midnight and the
-    column holds at most `calendar_clock.CROWDED_REPEATED_VALUES`
-    different values, 1,171 (Codex's review of lane J2, item 2, and its two
-    verifiers: a small grid with repeats meets its facts, and of 360 such
-    grids swept with the fifth at any size, those that missed their count
-    with them held 1,207 values or more, from 2,000 rows).
+    a dense grid of random times is not crowded) -- a fifth where no
+    value is written once (no run of `fresh` one cell long), the block
+    publishes no count at midnight and the column holds at most
+    `calendar_clock.CROWDED_REPEATED_VALUES` different values, 1,000
+    (Codex's review of lane J2, item 2, its two verifiers and the
+    orchestrator's ruling on the last: such a grid meets its facts below
+    1,250 values, the smallest at which a swept grid with no value written
+    once missed one, and grids with values written once missed with the
+    fifth at 1,000 to 1,171 values).
     False where neither field publishes, or where the block has no two
     tails.
 
@@ -18991,14 +18993,17 @@ def clock_lattice_crowded(
         line,
     )
     distinct = 0
-    for flag in fresh:
+    none_once = parsed > 1
+    for place, flag in enumerate(fresh):
         if flag:
             distinct = distinct + 1
+            if place + 1 == parsed or fresh[place + 1]:
+                none_once = False
     instants = [calendar_clock.seconds_of(text) for text in texts]
     counted = details["n_at_midnight"] if "n_at_midnight" in details else None
     return calendar_clock.lattice_crowded(
         unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed, parsed,
-        isinstance(counted, int),
+        isinstance(counted, int), none_once,
     )
 
 
