@@ -8016,7 +8016,8 @@ on d3712a1, 1 to 60 minutes apart from midnight, 00:37, 07:13 and
 and 36, three twins each: 254 published pairs that missed now withhold
 and meet, 370 that met withhold too; the same grids drawn on midnight met
 in 96 of 100 published pairs, so the drawing rule at the lattice's own
-phase, not changed here, is where they could keep their facts). The rule
+phase, not changed here, could keep their facts: untested, inferred
+from those 96; every grid swept held a value in every lattice slot). The rule
 claims no impossibility: it withholds where twins were measured to miss.
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes

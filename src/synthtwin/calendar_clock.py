@@ -1546,12 +1546,17 @@ def lattice_crowded(
     that met with their facts (354 off midnight, 16 written four times);
     every twin of the 624 meets. On midnight the same grids with repeats
     met: of their 100 published pairs 96 met, the other 4 the grids
-    written four times above, so drawing the body on the lattice at its
-    own phase -- G7.3's drawing rule, not changed here -- is where these
-    grids could keep their facts. Not seen by the rule, and carried: 500 stamps
-    five minutes apart, every one different, at floor 36 -- their minute
-    census published beside two heaps, which pins no lattice -- came back
-    496 to 500 at every phase swept.
+    written four times above; so drawing the body on the lattice at its
+    own phase -- G7.3's drawing rule, not changed here -- could keep these
+    grids' facts: untested, inferred from those 96. Every lattice slot of
+    the grids swept held a value. Not seen by the rule, and carried: 500
+    stamps five minutes apart, every one different, at floor 36 -- their
+    minute census published beside two heaps, which pins no lattice --
+    came back 496 to 500 at every phase swept; and (lane J3's skeptic)
+    1,000 stamps half an hour apart from 07:13, 60 % of the slots empty,
+    each written two to four times, at floor 36 -- 0.41 of their lattice,
+    not crowded -- publish, and one twin in 8 wrote 1,001 values, the
+    same on d3712a1; withheld, all 8 met.
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
@@ -1568,11 +1573,12 @@ def lattice_crowded(
     if none_once and (off_phase or (midnight_counted and distinct > CROWDED_REPEATED_VALUES)):
         return True
     above, over = CROWDED_EXCESS
+    # Off midnight with no value written once has returned above, so the
+    # fifth is never asked there.
     if (
         none_once
         and not all_different
         and not midnight_counted
-        and not off_phase
         and distinct <= CROWDED_REPEATED_VALUES
     ):
         above, over = CROWDED_EXCESS_REPEATED

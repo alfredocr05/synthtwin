@@ -10,8 +10,9 @@ exists).
 
 **A column of timestamps on a regular grid that starts off midnight, or
 is written four times beside a published count at midnight, no longer
-publishes minute and second facts its twin misses** (plan P4-D391, stage
-3b lane J3). The rule that withholds those facts where a column's values
+publishes minute and second facts its twin misses, in the grids swept,
+which held a value in every lattice slot** (plan P4-D391, stage 3b lane
+J3). The rule that withholds those facts where a column's values
 crowd the lattice they pin read the lattice as it stands on midnight, so
 stamps fifteen minutes apart from 07:13 looked like a one-minute lattice
 a fifteenth full, and their twins came back as few as 940 of 1,000
@@ -22,10 +23,14 @@ values; stamps written four times looked like a uniform draw. A sweep of
 The rule now counts the lattice at its own phase: 254 of those pairs
 withhold their clock facts and meet, as do 370 that met with them; every
 twin of the 624 meets. Drawn on midnight, the same grids met in 96 of 100
-published pairs, so drawing off-midnight grids on their own phase is the
-way to keep those facts; it is not built here. One class is carried: 500
-stamps five minutes apart, every one different, at floor 36, still come
-back 496 to 500 values.
+published pairs, so drawing off-midnight grids on their own phase could
+keep those facts: untested, inferred from those 96; it is not built
+here. Two classes are carried: 500 stamps five minutes apart, every one
+different, at floor 36, still come back 496 to 500 values; and 1,000
+stamps half an hour apart from 07:13 with 60 % of the slots empty, each
+written two to four times, at floor 36, fill 0.41 of their lattice, are
+not crowded and publish, and one twin in 8 writes 1,001 values for
+1,000, the same before this change (withheld, all 8 meet).
 
 ### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
 

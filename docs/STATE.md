@@ -332,12 +332,18 @@ cannot get worse unseen.
   `second_heaps.counts` in 2, lane T3's own). A grid with repeats keeps
   those facts under the looser fifth only where no value is written once,
   no count at midnight is published, it holds at most 1,000 values and its
-  lattice stands on midnight (P4-D391); a grid off midnight, or written
-  four times beside a count at midnight above 1,000 values, now withholds
-  them (lane J3: 254 published pairs of a 512-grid sweep that missed now
-  meet, and 370 that met lose them -- drawing such grids at their own
-  phase would keep them, not built); 500 stamps five minutes apart, every
-  one different, at floor 36, still come back 496 to 500 values (carried).
+  lattice stands on midnight (P4-D391); a grid off midnight that fills its
+  lattice to the share with no value written once (or passes the
+  twentieth with some written once), or one written four times beside a
+  count at midnight above 1,000 values, now withholds them (lane J3: 254
+  published pairs of a 512-grid sweep, every lattice slot filled, that
+  missed now meet, and 370 that met lose them -- drawing such grids at
+  their own phase could keep them, untested, not built); carried: 500
+  stamps five minutes apart, every one different, at floor 36, still come
+  back 496 to 500 values, and 1,000 stamps half an hour apart from 07:13
+  with 60 % of the slots empty, written two to four times, at floor 36,
+  not crowded (0.41 of their lattice), publish and wrote 1,001 values in
+  1 twin of 8, as on d3712a1.
   NF74's unit-room rule, measured
   before 3b.4, withholds a noon census the twins now meet.
 - **Codes and tables written or read unlike the source, older than this
