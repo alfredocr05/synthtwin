@@ -244,6 +244,23 @@ def file_unreadable(path: str, detail: str) -> str:
     )
 
 
+def file_changed_while_read(path: str) -> str:
+    """Message for a file that changed between two readings of it (lane SR, plan P4-D400).
+
+    A large table is read once for each group of its columns, and the
+    readings must be readings of one file: its size, the moment it was
+    last changed and a digest of what was read are compared after each,
+    and two versions are never mixed.
+    """
+    return (
+        f"The file {path} changed while synthtwin was reading it: a large "
+        f"table is read more than once, and it was not the same file each "
+        f"time. Nothing was written. Wait until no other program is "
+        f"writing to it, or copy it somewhere it will not change, and "
+        f"run the command again."
+    )
+
+
 def looks_like_utf16(path: str) -> str:
     """Message for a UTF-32 file, a marked-less UTF-16 one, or a binary file."""
     return (
