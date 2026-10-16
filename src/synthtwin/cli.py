@@ -5452,7 +5452,7 @@ def _check_output_folder(raw: str) -> _Check:
     # One `stat` asks whether the folder is there, and only a missing
     # path (or a file standing where a folder of the path should be) is
     # "not there": any other refusal is a refusal of permission. Path's
-    # exists() and is_dir() are not asked first, since from Python 3.14
+    # exists() and is_dir() are not asked, since from Python 3.14
     # they answer False where they may not look, which would send the
     # person to make a folder that already exists (lane TI, repair 2).
     try:
@@ -5463,11 +5463,10 @@ def _check_output_folder(raw: str) -> _Check:
         return _not_allowed(shown, choose)
     else:
         there = True
-    try:
-        a_folder = there and folder.is_dir()
-        taken = a_folder and os.path.lexists(named)
-    except OSError:
-        return _not_allowed(shown, choose)
+    # Asked once the look succeeded, through os.path, which answers and
+    # never raises.
+    a_folder = there and os.path.isdir(folder)
+    taken = a_folder and os.path.lexists(named)
     if not there:
         return _failed(
             f"The output folder {shown} does not exist. Make it first, or "
@@ -5548,10 +5547,7 @@ def _check_table(raw: str, memory: "int | None") -> _Check:
         return _not_allowed(shown, moved)
     else:
         there = True
-    try:
-        a_folder = there and table.is_dir()
-    except OSError:
-        return _not_allowed(shown, moved)
+    a_folder = there and os.path.isdir(table)
     if not there:
         return _failed(
             f"There is no file at {shown}. Check the spelling of the path, "
