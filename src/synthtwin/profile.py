@@ -43,8 +43,10 @@ importlib.metadata.version, pathlib, and this package's own modules.
 import dataclasses
 import importlib.metadata
 import pathlib
+import typing
 
 from synthtwin import (
+    asking,
     calendar_clock,
     calendar_rules,
     canonical,
@@ -4122,14 +4124,16 @@ def stored_as_of(
     words: "list[str]" = []
     sheet = table.sheet
     read_under = taxonomy.Settings() if settings is None else settings
-    for place in range(len(table.columns)):
+    # Every column by its name (lane SR, plan P4-D400): a table read in
+    # groups holds no column list, and only a workbook's are asked.
+    for place in range(len(table.column_names)):
         word = ""
         if (
             sheet is not None
             and place < len(sheet.classes)
             and place < len(sheet.formats)
         ):
-            cells = table.columns[place]
+            cells = reading.column_values(table, place)
             # THE MISSING WORDS ARE ASKED FOR ONLY WHERE A DATE IS STORED
             # (review item 2 of landing R3): they cost 1.6 to 1.8 s of
             # CPU over a million cells, and a column storing no date is
@@ -4314,7 +4318,10 @@ def build_document(
         stored_as_of(table, settings) if stored_as is None else stored_as
     )
     for position, name in enumerate(table.column_names, start=1):
-        cells = table.columns[position - 1]
+        # EACH COLUMN ASKED OF THE GENERIC ACCESS (lane SR, plan P4-D400):
+        # a table read in groups holds one group, and the next is read
+        # when its first column is described.
+        cells = reading.column_values(table, position - 1)
         handed_over: "taxonomy.HeldReading | None" = None
         still_waiting: "list[object]" = []
         for held in waiting:
@@ -4363,6 +4370,9 @@ def build_document(
                 else 0
             ),
         )
+        # ...and the walk's own name lets go of the column it described,
+        # so no column of one group outlives it while the next is read.
+        cells = []
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
@@ -4440,6 +4450,260 @@ def build_document(
     # carrying anything the rules do not authorize.
     check_publication(document)
     return document
+
+
+# -- the profile command's walks, a group of columns at a time ---------
+#
+# A TABLE READ IN GROUPS HOLDS ONE GROUP (lane SR, plan P4-D400), so every
+# step of `synthtwin profile` that reads the table's cells after the
+# description -- the population census and the questions -- walks it a
+# group at a time: each step is asked of the group's columns beside the
+# description's blocks for those columns alone, and its answers, made
+# column by column, are put together in column order. A table read whole
+# is asked exactly as before.
+
+
+def _parts_of(
+    table: Table, document: "dict[str, object]"
+) -> "typing.Iterator[tuple[int, dict[str, object], list[list[str]]]]":
+    """Each group of a table read in groups: its first column, the description cut to its blocks, and its columns."""
+    blocks = document["columns"]
+    for start, end in reading.column_groups(table):
+        part: "dict[str, object]" = {}
+        for key in document:
+            part[key] = document[key]
+        if isinstance(blocks, list):
+            part["columns"] = blocks[start:end]
+        cells = [reading.column_values(table, place) for place in range(start, end)]
+        yield start, part, cells
+        # Let go before the next group is read.
+        cells = []
+
+
+def census_columns_of(
+    table: Table,
+    settings: taxonomy.Settings,
+    declared: "list[str]",
+    codes: "list[str]",
+    measurements: "list[str]",
+    decimal_commas: "list[str]",
+    stored_as: "tuple[str, ...]",
+) -> "tuple[list[list[str]], list[bool] | None]":
+    """What `taxonomy.population_census` is handed for this table: its columns, and which rows hold a value.
+
+    A table read whole hands over every column and None, and the census
+    works out the rows itself. A table read in groups hands over the
+    columns declared with `--identifier` alone, the others empty, and the
+    rows holding a value worked out a column at a time, in column order,
+    until every row holds one (`taxonomy.rows_holding_a_value_in`), as
+    the census works them out.
+    """
+    if table.source is None:
+        return table.columns, None
+    declarations = taxonomy.Declarations(
+        identifiers=tuple(declared),
+        codes=tuple(codes),
+        measurements=tuple(measurements),
+        decimal_commas=tuple(decimal_commas),
+    )
+    names = table.column_names
+    holding: "list[bool]" = [False for _row in range(table.n_rows)]
+    outstanding = table.n_rows
+    for start, end in reading.column_groups(table):
+        for place in range(start, end):
+            if not outstanding:
+                break
+            outstanding = taxonomy.rows_holding_a_value_in(
+                reading.column_values(table, place),
+                names[place],
+                holding,
+                outstanding,
+                settings,
+                declarations,
+                stored_as[place] if place < len(stored_as) else "",
+            )
+    columns: "list[list[str]]" = []
+    for place in range(len(names)):
+        if names[place] in declared:
+            columns += [reading.column_values(table, place)]
+        else:
+            columns += [[]]
+    return columns, holding
+
+
+def questions_and_splits_of(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "tuple[list[asking.Question], asking.SplitColumns | None]":
+    """`asking.questions_and_splits_for` of this table, a group at a time where it is read in groups (no split then)."""
+    if table.source is None:
+        return asking.questions_and_splits_for(
+            document, table.columns, settings, already, decimal_commas
+        )
+    asked: "list[asking.Question]" = []
+    for _start, part, cells in _parts_of(table, document):
+        found = asking.questions_and_splits_for(
+            part, cells, settings, already, decimal_commas
+        )
+        asked += found[0]
+        found = ([], asking.SplitColumns(settings, {}, {}))
+        cells = []
+    return asked, None
+
+
+def date_codes_seen_of(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "asking.SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
+) -> asking.DateCodesSeen:
+    """`asking.date_codes_seen` of this table: each group walked, then the other columns counted a group at a time."""
+    if table.source is None:
+        return asking.date_codes_seen(
+            document, table.columns, settings, already, split,
+            decimal_commas, stored_as,
+        )
+    pending: "list[tuple[str, str, int, asking.DateCodes]]" = []
+    answered: "list[asking.Question]" = []
+    order: "list[asking.DayOrMonth]" = []
+    centuries: "list[str]" = []
+    for start, part, cells in _parts_of(table, document):
+        found = asking.date_codes_pending(
+            part, cells, settings, already, None, decimal_commas,
+            stored_as[start : start + len(cells)],
+        )
+        for name, role, place, codes in found.pending:
+            pending += [(name, role, place + start, codes)]
+        answered += list(found.answered)
+        order += list(found.day_or_month)
+        centuries += list(found.century)
+        cells = []
+    elsewhere: "dict[int, tuple[asking.Elsewhere, ...]]" = {}
+    if pending:
+        for start, part, cells in _parts_of(table, document):
+            counted = asking.codes_elsewhere(
+                part,
+                cells,
+                [(place - start, codes) for _name, _role, place, codes in pending],
+                settings,
+                decimal_commas,
+            )
+            for place in sorted(counted):
+                before = elsewhere[place + start] if place + start in elsewhere else ()
+                elsewhere[place + start] = before + counted[place]
+            cells = []
+    return asking.date_codes_found(
+        asking.DateCodesPending(
+            tuple(pending), tuple(answered), tuple(order), tuple(centuries)
+        ),
+        elsewhere,
+        settings,
+    )
+
+
+def person_questions_of(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    asked: "list[asking.Question]",
+    split: "asking.SplitColumns | None" = None,
+) -> "list[asking.Question]":
+    """`asking.person_questions` of this table, a group at a time where it is read in groups."""
+    if table.source is None:
+        return asking.person_questions(
+            document, table.columns, settings, already, asked, split
+        )
+    found: "list[asking.Question]" = []
+    for _start, part, cells in _parts_of(table, document):
+        found += asking.person_questions(
+            part, cells, settings, already, asked, None
+        )
+        cells = []
+    return found
+
+
+def checklist_of(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    asked: "list[asking.Question]",
+    answered: "tuple[asking.Question, ...]" = (),
+) -> "list[asking.Question]":
+    """`asking.checklist_for` of this table, a group at a time where it is read in groups."""
+    if table.source is None:
+        return asking.checklist_for(
+            document, table.columns, settings, already, asked, answered
+        )
+    found: "list[asking.Question]" = []
+    for _start, part, cells in _parts_of(table, document):
+        found += asking.checklist_for(
+            part, cells, settings, already, asked, answered
+        )
+        cells = []
+    return found
+
+
+def date_columns_seen_of(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "asking.SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
+) -> asking.DateColumnsSeen:
+    """`asking.date_columns_seen` of this table, a group at a time where it is read in groups."""
+    if table.source is None:
+        return asking.date_columns_seen(
+            document, table.columns, settings, already, split,
+            decimal_commas, stored_as,
+        )
+    questions: "list[asking.Question]" = []
+    order: "list[asking.DayOrMonth]" = []
+    centuries: "list[str]" = []
+    for start, part, cells in _parts_of(table, document):
+        found = asking.date_columns_seen(
+            part, cells, settings, already, None, decimal_commas,
+            stored_as[start : start + len(cells)],
+        )
+        questions += list(found.questions)
+        order += list(found.day_or_month)
+        centuries += list(found.century)
+        cells = []
+    return asking.DateColumnsSeen(
+        tuple(questions), tuple(order), tuple(centuries)
+    )
+
+
+def day_or_month_of(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    split: "asking.SplitColumns | None" = None,
+    also: "tuple[asking.DayOrMonth, ...]" = (),
+) -> "tuple[asking.DayOrMonth, ...]":
+    """`asking.day_or_month_columns` of this table, a group at a time where it is read in groups."""
+    if table.source is None:
+        return asking.day_or_month_columns(
+            document, table.columns, settings, split, also=also
+        )
+    if not isinstance(document["columns"], list):
+        return also
+    found: "list[asking.DayOrMonth]" = []
+    for _start, part, cells in _parts_of(table, document):
+        found += list(
+            asking.day_or_month_columns(part, cells, settings, None, also=also)
+        )
+        cells = []
+    return tuple(found)
 
 
 def _without_table_suffix(name: str) -> str:

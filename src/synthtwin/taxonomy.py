@@ -4081,8 +4081,15 @@ def population_census(
     settings: Settings,
     declarations: "Declarations | None" = None,
     stored_as: "tuple[str, ...]" = (),
+    holding: "list[bool] | None" = None,
 ) -> "tuple[tuple[str, ...], int, tuple[HeldReading, ...]]":
     """The person columns, how many people, and the reading the census kept.
+
+    ``holding``, where given, is which rows hold a value in some column,
+    worked out column by column with `rows_holding_a_value_in` by a
+    caller that holds the table one group of columns at a time (lane SR,
+    plan P4-D400); ``columns`` then need hold only the columns declared
+    with `--identifier`, the others empty.
 
     `repeating_identifiers` then `people_in`, over one kept reading: the
     first column the census reads is read once however many of its
@@ -4107,7 +4114,8 @@ def population_census(
         column_names, columns, declared, settings, declarations, (), stored_as
     )
     counted, held = _people_held(
-        column_names, columns, people, settings, declarations, held, stored_as
+        column_names, columns, people, settings, declarations, held,
+        stored_as, holding,
     )
     return people, counted, held
 
@@ -4120,6 +4128,7 @@ def _people_held(
     declarations: "Declarations | None",
     held: "tuple[HeldReading, ...]",
     stored_as: "tuple[str, ...]" = (),
+    holding_given: "list[bool] | None" = None,
 ) -> "tuple[int, tuple[HeldReading, ...]]":
     """`people_in`, and the readings the census holds after it.
 
@@ -4128,13 +4137,17 @@ def _people_held(
     columns read here (`_census_reading`). ``stored_as`` is
     `population_census`'s.
     """
-    rows = 0
-    for column in columns:
-        if len(column) > rows:
-            rows = len(column)
-    holding, held = _rows_holding_a_value(
-        columns, rows, settings, column_names, declarations, held, stored_as
-    )
+    if holding_given is not None:
+        holding = holding_given
+        rows = len(holding)
+    else:
+        rows = 0
+        for column in columns:
+            if len(column) > rows:
+                rows = len(column)
+        holding, held = _rows_holding_a_value(
+            columns, rows, settings, column_names, declarations, held, stored_as
+        )
     if not person_columns:
         count = 0
         for place in range(rows):
@@ -4267,6 +4280,47 @@ def _rows_holding_a_value(
                 outstanding = outstanding - 1
             place = place + 1
     return holding, held
+
+
+def rows_holding_a_value_in(
+    column: "list[str]",
+    name: str,
+    holding: "list[bool]",
+    outstanding: int,
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: str = "",
+) -> int:
+    """`_rows_holding_a_value` for one column: marks its rows that hold a present value.
+
+    For a caller that holds a table one group of columns at a time (lane
+    SR, plan P4-D400) and hands the census the answer
+    (`population_census`'s ``holding``): asked of each column in turn
+    while ``outstanding`` rows hold nothing yet, it marks the same rows
+    the whole walk marks. ``holding`` is changed in place; the rows still
+    holding nothing are returned. The column's reading is not kept: the
+    description reads it again, which is the same reading.
+
+    Guarantees: a fixed function of the arguments. Raises nothing. No
+    I/O of any kind.
+    """
+    if not outstanding:
+        return outstanding
+    standing, _held = _present_spellings(
+        column, settings, name, declarations, (), stored_as
+    )
+    if not standing:
+        return outstanding
+    rows = len(holding)
+    place = 0
+    for value in column:
+        if place >= rows:
+            break
+        if not holding[place] and value in standing:
+            holding[place] = True
+            outstanding = outstanding - 1
+        place = place + 1
+    return outstanding
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":

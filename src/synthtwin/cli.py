@@ -2667,8 +2667,13 @@ def _population_of(
     measurements: "list[str] | None" = None,
     decimal_commas: "list[str] | None" = None,
     stored_as: "tuple[str, ...]" = (),
+    holding: "list[bool] | None" = None,
 ) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
     """The person columns, the population and the word it is counted in.
+
+    ``holding`` is `taxonomy.population_census`'s: where a table read in
+    groups of columns is counted (lane SR, plan P4-D400), which rows hold
+    a value, worked out a group at a time (`profile.census_columns_of`).
 
     Returns (person columns, how many, the unit word, the readings the
     census took). The readings are handed to `profile.build_document`
@@ -2721,7 +2726,8 @@ def _population_of(
         ),
     )
     people, counted, readings = taxonomy.population_census(
-        column_names, columns, declared, settings, declarations, stored_as
+        column_names, columns, declared, settings, declarations, stored_as,
+        holding,
     )
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
@@ -3303,6 +3309,10 @@ def _run_profile(
         # not this reading: a refusal of clocks beside such a code names
         # `--missing-value`, which reaches both.
         missing_under=settings,
+        # ONE GROUP OF COLUMNS AT A TIME where the table is large (lane
+        # SR, plan P4-D400): its text is never held whole, and every
+        # step below asks its columns of `reading.column_values`.
+        in_groups=True,
     )
 
     # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
@@ -3556,7 +3566,7 @@ def _run_profile(
     ):
         column_at = column_place[name]
         seen, left = asking.date_codes_answered(
-            read.columns[column_at],
+            reading.column_values(read, column_at),
             settings,
             answered_code_shapes[name] if name in answered_code_shapes else "",
             missing,
@@ -3638,16 +3648,22 @@ def _run_profile(
     # census and the description alike (plan P4-D382), so the column
     # the census reads is read once.
     storage = profile.stored_as_of(read, settings)
+    census_columns, census_holding = profile.census_columns_of(
+        read, settings, forced_identifiers, forced_codes,
+        forced_measurements, forced_decimal_commas, storage,
+    )
     person_columns, population, unit, census_readings = _population_of(
         read.column_names,
-        read.columns,
+        census_columns,
         settings,
         forced_identifiers,
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
         storage,
+        census_holding,
     )
+    census_columns = []
     if population < parsing.POPULATION_FLOOR:
         _warn(
             errors.the_population_is_too_small(
@@ -3660,7 +3676,10 @@ def _run_profile(
         population, unit, parsing.POPULATION_NOTICE_LINE
     )
 
-    census_box = [census_readings]
+    # A reading of a table read in groups is not handed over (lane SR,
+    # plan P4-D400): the description is handed its columns again, read
+    # again, and the reading would only be held beside them.
+    census_box = [census_readings if read.source is None else ()]
     census_readings = ()
     document = profile.build_document(
         read,
@@ -3742,7 +3761,7 @@ def _run_profile(
                     break
                 column_at = column_at + 1
             if _style_held_back(described_column) and _clocks_on_the_declared_face(
-                read.columns[column_at]
+                reading.column_values(read, column_at)
             ):
                 _warn(errors.the_twelve_hour_style_was_held_back(name))
                 continue
@@ -3812,9 +3831,9 @@ def _run_profile(
         # counts has answered question Q3.
         + sorted(counted)
     )
-    asked_about, split_columns = asking.questions_and_splits_for(
+    asked_about, split_columns = profile.questions_and_splits_of(
+        read,
         document,
-        read.columns,
         settings,
         already_answered,
         tuple(forced_decimal_commas),
@@ -3832,9 +3851,9 @@ def _run_profile(
     # lane R1, item 7): the screen and the questions file below reuse
     # this pass unless the interview rebuilt the description or moved
     # the settings or the declarations.
-    codes_seen = asking.date_codes_seen(
+    codes_seen = profile.date_codes_seen_of(
+        read,
         document,
-        read.columns,
         settings,
         already_answered,
         split_columns,
@@ -3865,9 +3884,9 @@ def _run_profile(
     # of stage 3 (floor item 4) a declared identifier DIFFERENT ON
     # EVERY ROW silenced it while leaving the count in rows, which is
     # the same silence by a shorter route.
-    asked_about = asked_about + asking.person_questions(
+    asked_about = asked_about + profile.person_questions_of(
+        read,
         document,
-        read.columns,
         settings,
         already_answered,
         asked_about + coded_or_answered,
@@ -3879,9 +3898,9 @@ def _run_profile(
     # are the ones no rule can reach, because a register of concept
     # identifiers and a column of ages are written identically. A
     # person reads one list and names the codes.
-    listed_about = asking.checklist_for(
+    listed_about = profile.checklist_of(
+        read,
         document,
-        read.columns,
         settings,
         already_answered,
         asked_about + coded_about,
@@ -3997,18 +4016,24 @@ def _run_profile(
                 # READ AFRESH under the final declarations, and handed
                 # over again: the first census's readings were the
                 # first description's.
+                census_columns, census_holding = profile.census_columns_of(
+                    read, settings, forced_identifiers, forced_codes,
+                    forced_measurements, forced_decimal_commas, storage,
+                )
                 person_columns, population, unit, census_readings = (
                     _population_of(
                         read.column_names,
-                        read.columns,
+                        census_columns,
                         settings,
                         forced_identifiers,
                         forced_codes,
                         forced_measurements,
                         forced_decimal_commas,
                         storage,
+                        census_holding,
                     )
                 )
+                census_columns = []
                 if population < parsing.POPULATION_FLOOR:
                     _warn(
                         errors.the_population_is_too_small(
@@ -4024,7 +4049,7 @@ def _run_profile(
                 population_notes = profile.notes_for_a_small_population(
                     population, unit, parsing.POPULATION_NOTICE_LINE
                 )
-                census_box = [census_readings]
+                census_box = [census_readings if read.source is None else ()]
                 census_readings = ()
                 document = profile.build_document(
                     read,
@@ -4082,9 +4107,9 @@ def _run_profile(
         and settled == seen_of[2]
         and list(forced_decimal_commas) == seen_of[3]
     ):
-        codes_seen = asking.date_codes_seen(
+        codes_seen = profile.date_codes_seen_of(
+            read,
             document,
-            read.columns,
             settings,
             settled,
             split_columns,
@@ -4106,9 +4131,9 @@ def _run_profile(
     # what it reads. Worked out before Q5 and Q1 are, since the reading
     # each answer `dates` proposes joins theirs (the Codex review of
     # landing R2c, item 7).
-    dates_seen = asking.date_columns_seen(
+    dates_seen = profile.date_columns_seen_of(
+        read,
         document,
-        read.columns,
         settings,
         settled + date_columns + dates_kept,
         split_columns,
@@ -4144,8 +4169,8 @@ def _run_profile(
     # asked the order only by the file the answering run writes.
     day_or_month: "tuple[asking.DayOrMonth, ...]" = ()
     if not answered_month_first:
-        day_or_month = asking.day_or_month_columns(
-            document, read.columns, settings, split_columns,
+        day_or_month = profile.day_or_month_of(
+            read, document, settings, split_columns,
             also=codes_seen.day_or_month + dates_seen.day_or_month,
         )
     day_or_month_of = (document, settings)
@@ -4427,8 +4452,8 @@ def _run_profile(
     # an answered column is gone and every reading left is the one in
     # force.
     settled = forced_identifiers + forced_codes + forced_measurements
-    asked_about, split_columns = asking.questions_and_splits_for(
-        document, read.columns, settings, settled, tuple(forced_decimal_commas)
+    asked_about, split_columns = profile.questions_and_splits_of(
+        read, document, settings, settled, tuple(forced_decimal_commas)
     )
     # ...AND THE COLUMNS OF DATES OR TIMES BESIDE A FEW CODES, recomputed
     # from the FINAL settings (plan P4-D381): a column whose codes were
@@ -4440,9 +4465,9 @@ def _run_profile(
         and settled == seen_of[2]
         and list(forced_decimal_commas) == seen_of[3]
     ):
-        codes_seen = asking.date_codes_seen(
+        codes_seen = profile.date_codes_seen_of(
+            read,
             document,
-            read.columns,
             settings,
             settled,
             split_columns,
@@ -4463,9 +4488,9 @@ def _run_profile(
         and list(forced_decimal_commas) == dates_of[3]
     )
     if dates_moved:
-        dates_seen = asking.date_columns_seen(
+        dates_seen = profile.date_columns_seen_of(
+            read,
             document,
-            read.columns,
             settings,
             settled + date_columns + dates_kept,
             split_columns,
@@ -4479,8 +4504,8 @@ def _run_profile(
         day_or_month = (
             ()
             if answered_month_first
-            else asking.day_or_month_columns(
-                document, read.columns, settings, split_columns,
+            else profile.day_or_month_of(
+                read, document, settings, split_columns,
                 also=codes_seen.day_or_month + dates_seen.day_or_month,
             )
         )
@@ -4490,9 +4515,9 @@ def _run_profile(
     # replaces this one no longer asks about it -- and the settings
     # carried here are the rebuilt ones, whose `person_columns` says
     # whether that answer settled who the rows are about.
-    asked_about = asked_about + asking.person_questions(
+    asked_about = asked_about + profile.person_questions_of(
+        read,
         document,
-        read.columns,
         settings,
         settled,
         asked_about + coded_or_answered,
@@ -4503,8 +4528,8 @@ def _run_profile(
     # whether it is dates and, as before, whether it is a code or a
     # record number, since only the person knows which.
     asked_about = asked_about + dates_asked
-    listed_about = asking.checklist_for(
-        document, read.columns, settings, settled,
+    listed_about = profile.checklist_of(
+        read, document, settings, settled,
         asked_about + coded_about, codes_seen.answered,
     )
     asked_about = asked_about + coded_about
