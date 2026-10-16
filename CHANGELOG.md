@@ -15,21 +15,26 @@ its verdict (no-miss, missed, refused or unusable), with its counts
 beside it and every obligation whose outcome it could not say listed,
 since "no miss" never means every obligation was judged; every miss,
 ranked once by what else it brings down -- the file's form, then which
-spellings a column may wear, then a fact decided exactly, then one
-judged outside its window -- and then by the description's own order;
+spellings a column may wear, then a fact decided exactly (a date's
+width census among them), then one judged outside a bound the method
+grants -- and then by the description's own order;
 what the run holds only approximately or does not carry, each with its
 class and its reason, stage 6's pairs under that stage's own names,
 where only an exact pair can miss; its floor, flagged where it is
-lowered; its warnings, the files it wrote and the command to type next.
+lowered; its warnings, the files it wrote and the command to type next,
+a doctor's checks it could not make counted apart, never as passed.
+On a refusal it keeps exactly the misses whose report was shown.
 `cli.run` is to return that object and print nothing unless it is
 handed a screen; the exit status is to be computed from the result
 alone, with today's values case for case (validation method V6.5-A1).
-And every byte is to stay put: a battery of about thirty-five good and
-bad command lines whose files, screens and exit statuses are recorded,
-at a fixed terminal width, in a generated module that carries a digest
-of its own records, recorded again only by a new recorder, and only by
-a landing that changes those bytes on purpose or by a method landing
-that moves them, naming each one. Measured first: the provenance
+And every byte is to stay put: a battery of about fifty good and bad
+command lines whose files, screens and exit statuses are recorded, at a
+fixed terminal width, in a generated module that carries digests of its
+own records as consistency checks, recorded again only by a new
+recorder, and only by a landing that changes those bytes on purpose or
+by a method landing that moves them, naming each one; on every CI run
+that recorder reproduces each record under the provenance guard's hook,
+after proving the hook refuses. Measured first: the provenance
 guard's hook refuses `ctypes`, which numpy imports, so the product
 cannot run as the guard runner's script; installed after the product's
 imports, the same hook held a whole profile, generate and validate run

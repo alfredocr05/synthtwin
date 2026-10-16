@@ -3380,9 +3380,10 @@ completion and missed no obligation it could judge (the verdict
 authorized-deviation, withheld and not-checkable counts stand beside it
 in the same object, and every withheld obligation is listed, as V7.3
 item 4 asks of a pass), 3 when it ran to completion and missed a
-checkable obligation, 1 on a refusal (a refusal while writing the
-report keeps the misses already measured, and still exits 1), 2 when
-the command line could not be used. The values are V6.5's and do not
+checkable obligation, 1 on a refusal (a refusal keeps exactly the
+misses whose report had already been shown, so one while writing the
+report keeps them all, and still exits 1), 2 when the command line
+could not be used. The values are V6.5's and do not
 move. What moves is that no code path chooses an exit status of its
 own, so a caller reading the result and a caller reading the exit
 status are never told two different things. The same object holds the
