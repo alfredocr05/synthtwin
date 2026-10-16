@@ -815,6 +815,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 615,000 from 610,000, LANE TI OF THE DECEMBER PLAN (2026-10-15, plan
+    # P4-D397), the least round figure the lane's ledger fits under: the
+    # terminal's first two entries, `K-S8-01` (its headline) and
+    # `K-S8-04`, with their note clause, 614,873 bytes. The integrator
+    # reconciles it with the other lanes of the batch. A MEASUREMENT IS
+    # NEVER TRIMMED TO FIT.
+    #
     # 610,000 from 605,000, AT THE INTEGRATION OF BATCH 4A'S FIRST MERGE
     # (lanes S4b-num and S4c, 2026-10-15), the least round figure the merged
     # ledger fits under: lane S4c's `K-S4-06` and `K-S4-07` with their note
@@ -1062,7 +1069,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 610_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 615_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
