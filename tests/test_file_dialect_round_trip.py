@@ -1942,12 +1942,16 @@ def test_whole_numbers_past_the_exact_range_meet_their_own_description(
     amounts = [f"{9007199254740993 + (index % 7)}" for index in range(ROWS)]
     lines = [f"P{index + 1:04d},{amounts[index]}" for index in range(ROWS)]
     text = "\n".join(["record_id,amount"] + lines) + "\n"
-    result = _round_trip(tmp_path / "wide", text.encode())
+    # Sixteen figures, every value one width: the fixed-width question asks
+    # whether they are record numbers, and unanswered they are held back
+    # (plan P4-D401). Declared measurements here, as this file's subject.
+    measured = ("--measurement", "amount")
+    result = _round_trip(tmp_path / "wide", text.encode(), measured)
     assert result["exits"]["real"] == 0, result["exits"]
 
     # THE CONTROL: the same description, and a file whose amounts carry a
     # point that no published width names. Still MISSED.
-    described = _describe(tmp_path / "wide-again", text.encode())
+    described = _describe(tmp_path / "wide-again", text.encode(), measured)
     pointed = "\n".join(
         ["record_id,amount"]
         + [f"P{index + 1:04d},{amounts[index]}.5" for index in range(ROWS)]

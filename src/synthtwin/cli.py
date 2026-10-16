@@ -4225,7 +4225,7 @@ def _run_profile(
     withheld: "tuple[str, ...]" = ()
     if not answered:
         withheld = asking.unanswered_identities(
-            asked_about,
+            asked_about + dates_asked + coded_about,
             document,
             read.columns,
             settings,

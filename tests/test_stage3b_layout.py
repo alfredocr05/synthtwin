@@ -790,6 +790,10 @@ def test_item4_an_older_categorical_description_of_layout_dates_is_described_aga
     """
     cells = _sas_days(1000, 25)
     monkeypatch.setattr(taxonomy, "_matching_layout", lambda present, settings, contradicted: None)
+    # ...and as that tree made it, with no column held back for an open
+    # question (plan P4-D401): `01JAN2023` read as labels is a register
+    # of codes that repeat, which the person question reaches.
+    monkeypatch.setattr(asking, "unanswered_identities", lambda *_args: ())
     block, older, _questions = _described(tmp_path / "older", cells)
     assert block["role"] == "categorical"
     monkeypatch.undo()

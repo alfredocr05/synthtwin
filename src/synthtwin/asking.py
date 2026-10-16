@@ -3435,12 +3435,18 @@ def _person_choices(role: str, floor: int) -> "list[Choice]":
 #
 # THE QUESTIONS THAT ASK IT. The person question, and the two that ask
 # because every value is the same number of figures, "which is what an
-# identifier looks like". Each offers `identifier` and says why.
-IDENTITY_REASONS = (
-    BECAUSE_REPEATS_AND_MANY,
-    BECAUSE_FIXED_WIDTH,
-    BECAUSE_GROUPED_FIXED_WIDTH,
-)
+# identifier looks like" -- those two only where every value holds at
+# least `_RECORD_NUMBER_FIGURES` figures. Each offers `identifier`.
+IDENTITY_REASONS = (BECAUSE_REPEATS_AND_MANY,)
+FIGURE_WIDTH_REASONS = (BECAUSE_FIXED_WIDTH, BECAUSE_GROUPED_FIXED_WIDTH)
+
+# BELOW SEVEN FIGURES ONE WIDTH IS A MEASUREMENT AS OFTEN AS A RECORD: a
+# systolic pressure of three figures, a year of birth of four, a count of
+# platelets of six all ask the fixed-width question, and holding them back
+# until answered would take the statistics of a column that identifies
+# nobody. Record numbers, account numbers and telephone or social
+# security numbers written in figures alone are seven figures or more.
+_RECORD_NUMBER_FIGURES = 7
 
 # ...AND THE TWO-NUMBERS QUESTION, where every cell is written in one of
 # the layouts of a United States telephone number or social security
@@ -3485,6 +3491,64 @@ def _telephone_or_social_security(present: "list[str]") -> bool:
     return True
 
 
+def _a_register_naming_people(present: "list[str]", role: str) -> bool:
+    """The person rule's routes two and three, for a column asked another question.
+
+    A column whose values repeat and are every one a code of letters and
+    figures, or an e-mail address, is one the person question would have
+    been put to had another question about it not been put first. Route
+    one -- many values, repeating -- is left out here: it is what a blood
+    pressure in a long tail of pairs wears, and the two-numbers question
+    asked of that column is about its numbers, not about who it names.
+    """
+    if role in _PERSON_ROLES_EXCLUDED or not present:
+        return False
+    different: "dict[str, bool]" = {}
+    for value in present:
+        different[parsing.folded(value)] = True
+    if len(present) < PERSON_ROWS_PER_VALUE * len(different):
+        return False
+    return _a_register_of_codes(present) or _a_register_of_addresses(present)
+
+
+# THE QUESTIONS THAT ASK WHETHER A COLUMN HOLDS DATES. Seven figures and
+# more, all one width, is also how a day of the year (`2023076`), a date
+# (`20230317`) and a count of days or seconds are written; where the run
+# asks that, the column's figures are a date question first, and the
+# width alone holds nothing back.
+DATE_REASONS = (
+    BECAUSE_DATE_CODES,
+    BECAUSE_TWO_FIGURE_YEARS,
+    BECAUSE_DATES_LIKE_CODES,
+    BECAUSE_MOSTLY_DATES,
+    BECAUSE_DAYS_OF_THE_YEAR,
+    BECAUSE_DATE_COUNTS,
+    BECAUSE_DAY_AND_MONTH,
+)
+
+
+def _asked_about_dates(reasons: "list[str]") -> bool:
+    """Whether any of a column's questions asks whether it holds dates."""
+    for reason in reasons:
+        if reason in DATE_REASONS:
+            return True
+    return False
+
+
+def _every_cell_holds_figures(present: "list[str]", least: int) -> bool:
+    """Whether every present cell holds at least ``least`` figures."""
+    if not present:
+        return False
+    for value in present:
+        figures = 0
+        for character in value:
+            if "0" <= character <= "9":
+                figures = figures + 1
+        if figures < least:
+            return False
+    return True
+
+
 def offers_identifier(question: "Question") -> bool:
     """Whether a question offers the answer `identifier`."""
     for choice in question.choices:
@@ -3504,16 +3568,19 @@ def unanswered_identities(
     """The columns described as record numbers until their question is answered.
 
     A column is held back where a question put to it offers `identifier`,
-    nobody has answered it, and either
+    nobody has answered it, its reading publishes values (free text and
+    the like publish none already), and either
 
-    * the question asks BECAUSE the column may hold record numbers
-      (`IDENTITY_REASONS`), or
-    * the column is one the person question's rule names
-      (`_names_people`) -- asked, where another question about the same
-      column was put first, under that question -- and the population is
-      still counted in rows, or
+    * the question is the person question (`IDENTITY_REASONS`), or
+    * another question was put first and the column is one the person
+      question's routes two and three name (`_a_register_naming_people`),
+      the population still counted in rows, or
     * the question is the two-numbers question and every cell is written
-      as a telephone or social security number.
+      as a telephone or social security number, or
+    * the question is one of the two asked of figures all one width
+      (`FIGURE_WIDTH_REASONS`), every cell holds at least
+      `_RECORD_NUMBER_FIGURES` figures, and no question put asks whether
+      the column holds dates (`DATE_REASONS`).
 
     ``asked`` is the run's questions, every one of them unanswered: a
     column answered `identifier`, `code`, `measurement` or `joined` is
@@ -3537,15 +3604,21 @@ def unanswered_identities(
     rows = document["n_rows"]
     if not isinstance(blocks, list) or not isinstance(rows, int):
         return ()
+    # True: held whatever its cells; False: held where its cells say so.
     flagged: "dict[str, bool]" = {}
     for question in asked:
         if question.name in kept or not offers_identifier(question):
+            continue
+        if not publishes_its_values(question.role):
+            # Free text and the like publish no value already.
             continue
         if question.reason in IDENTITY_REASONS:
             flagged[question.name] = True
             continue
         if question.name not in flagged and (
-            question.reason == BECAUSE_JOINED or not settings.person_columns
+            question.reason == BECAUSE_JOINED
+            or question.reason in FIGURE_WIDTH_REASONS
+            or not settings.person_columns
         ):
             flagged[question.name] = False
     held: "list[str]" = []
@@ -3573,15 +3646,25 @@ def unanswered_identities(
             present, _absent = taxonomy.split_missing(
                 table_columns[position], settings
             )
-        if not settings.person_columns and _names_people(
-            present, f"{block['role']}", rows, settings
+        reasons: "list[str]" = []
+        for question in asked:
+            if question.name == name:
+                reasons += [question.reason]
+        if not settings.person_columns and _a_register_naming_people(
+            present, f"{block['role']}"
         ):
             held += [name]
-        elif _telephone_or_social_security(present):
-            for question in asked:
-                if question.name == name and question.reason == BECAUSE_JOINED:
-                    held += [name]
-                    break
+        elif BECAUSE_JOINED in reasons and _telephone_or_social_security(present):
+            held += [name]
+        elif (
+            _every_cell_holds_figures(present, _RECORD_NUMBER_FIGURES)
+            and (
+                BECAUSE_FIXED_WIDTH in reasons
+                or BECAUSE_GROUPED_FIXED_WIDTH in reasons
+            )
+            and not _asked_about_dates(reasons)
+        ):
+            held += [name]
         position = position + 1
     return tuple(held)
 
@@ -3617,7 +3700,7 @@ def held_back(
             words = choice.publishes
             if words[: len(_PUBLISHES_NOW)] == _PUBLISHES_NOW:
                 words = words[len(_PUBLISHES_NOW):]
-            choices += [Choice(choice.answer, choice.means, words)]
+            choices += [dataclasses.replace(choice, publishes=words)]
         said += [
             dataclasses.replace(
                 question, choices=choices, taken=ANSWER_IDENTIFIER

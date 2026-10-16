@@ -45,7 +45,7 @@ import pytest
 
 import fixtures
 from synthtwin import parsing, reading
-from tests import crosscheck, workbooks
+from tests import crosscheck, unanswered_identifier_shapes, workbooks
 
 _FLOOR_ELEVEN = "11"
 
@@ -647,7 +647,7 @@ def _form_column() -> str:
 
 
 def test_a_form_census_names_no_held_back_label(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Item 3, closed by ruling 5's form reading until plan P4-D390.
 
@@ -658,7 +658,11 @@ def test_a_form_census_names_no_held_back_label(
     census counts all 201 cells of `@@@-%%%` again, the one held-back
     level's form is the difference, no label of it is printed, and the
     twin writes a made-up label in that form where the table held one.
+
+    A register of `ABC-100` codes that repeat is put the person question;
+    Enter answers it `keep` and the labels are described (plan P4-D401).
     """
+    unanswered_identifier_shapes.enter_keeps_every_reading(monkeypatch)
     read = _round_trip(
         tmp_path / "forms",
         _form_column(),
@@ -679,7 +683,7 @@ def test_a_form_census_names_no_held_back_label(
 
 
 def test_a_form_census_leaving_two_cells_over_is_unmoved(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The rule fires at ONE cell and at no other number.
 
@@ -688,7 +692,11 @@ def test_a_form_census_leaving_two_cells_over_is_unmoved(
     and not a row, so nothing is counted out, `n_missing` stays nought
     and the census publishes 202. A rule that counted out every
     held-back level would have emptied this column for nothing.
+
+    A register of `ABC-100` codes that repeat is put the person question;
+    Enter answers it `keep` and the labels are described (plan P4-D401).
     """
+    unanswered_identifier_shapes.enter_keeps_every_reading(monkeypatch)
     cells = (
         ["ABC-100"] * 100
         + ["ABC-200"] * 100
