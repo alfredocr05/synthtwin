@@ -15,10 +15,12 @@ THE SHAPES. Six are held back until their question is answered -- the
 person question (a record number, a health plan number, an e-mail
 address), the fixed-width question (an account number of ten figures)
 and the two-numbers question on a column written as telephone or social
-security numbers. Three are STATED LIMITS no question flags and no general
-rule reaches without hiding columns that identify nobody (lane CODES-2's
-allowlist owns them; wave6/ZOO/PLAN.md section 2.3): a patient's name,
-a street address, and a full birth date.
+security numbers. Four are STATED LIMITS no general rule reaches without
+hiding columns that identify nobody (lane CODES-2's allowlist owns them;
+wave6/ZOO/PLAN.md section 2.3): a patient's name, a street address and a
+full birth date, which no question flags, and a study subject code of
+five figures (`P00017`), which the person question reaches but which is
+written as the code registers it also reaches are (`I10`, `HCC102`).
 
 WHAT IS COUNTED, for one table. In the description, its summary and the
 questions file: each real value written whole anywhere, and in the
@@ -68,6 +70,8 @@ def _patient(kind: str, place: int, draw: random.Random) -> str:
     if kind == "ssn":
         return (f"{draw.randint(100, 899):03d}-{draw.randint(10, 99):02d}-"
                 f"{draw.randint(1000, 9999):04d}")
+    if kind == "subject":
+        return f"P{place + 1:05d}"
     if kind == "name":
         return f"{first} {last}"
     if kind == "address":
@@ -76,7 +80,7 @@ def _patient(kind: str, place: int, draw: random.Random) -> str:
 
 
 HELD = ("mrn", "plan", "email", "account", "phone", "ssn")
-STATED = ("name", "address", "dob")
+STATED = ("name", "address", "dob", "subject")
 
 
 def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Path, list[str]]":
@@ -191,14 +195,3 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         "screen": screen.getvalue(),
     }
 
-
-def enter_keeps_every_reading(monkeypatch: object) -> None:
-    """A person at the keyboard pressing Enter to every question put.
-
-    For a test whose column the person question reaches -- a register of
-    `ABC-100` labels, a long tail of sites -- and whose point is the
-    reading the rules give it: Enter is the answer `keep`, so the column is
-    described as it was before plan P4-D401, and nothing is held back.
-    """
-    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)  # type: ignore[attr-defined]
-    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: "")  # type: ignore[attr-defined]

@@ -1,6 +1,6 @@
 """K-S3-64: real identifier values an unanswered long table publishes (plan P4-D401).
 
-Runs `tests/unanswered_identifier_shapes.py`'s nine long tables -- 44
+Runs `tests/unanswered_identifier_shapes.py`'s ten long tables -- 44
 patients, one Safe Harbor identifier repeated on each patient's rows --
 at 600 and at 20,000 rows through the real `synthtwin profile` (nothing
 declared, nothing answered) and `synthtwin generate` (seed 0), and counts
@@ -12,9 +12,10 @@ what is real:
   its summary and the questions file, fragments of them in the column's
   own block, twin cells holding a real value and fragments inside twin
   cells. Target 0 each.
-- over the three STATED shapes (a name, a street address, a full birth
-  date), owned by lane CODES-2's allowlist: real values in the
-  description and twin cells holding one. Must not get worse.
+- over the four STATED shapes (a name, a street address, a full birth
+  date, a study subject code of five figures), owned by lane CODES-2's
+  allowlist: real values in the description and twin cells holding one.
+  Must not get worse.
 
 The tables are written to a temporary folder and removed. About a minute
 on the reference machine.

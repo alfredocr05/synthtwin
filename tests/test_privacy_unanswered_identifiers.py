@@ -21,16 +21,25 @@ table where no such question is put is described as before.
 THE GATE, one case per shape at 600 rows (20,000 rows through
 `tools/measurements/kpi_run.py --slow`, ledger K-S3-64): 0 real values and
 0 fragments in the description, the summary and the questions file, 0 in
-the twin, and the question still asked. The three shapes no question flags
--- a patient's name, a street address, a full birth date -- are STATED
-LIMITS owned by lane CODES-2's allowlist, each pinned below as a strict
-expected failure that turns red the day it closes.
+the twin, and the question still asked. Four shapes are STATED LIMITS
+owned by lane CODES-2's allowlist, each pinned below as a strict expected
+failure that turns red the day it closes: a patient's name, a street
+address and a full birth date, which no question flags, and a study
+subject code of five figures, which the person question reaches.
+
+WHY FIVE FIGURES ARE NOT HELD. The person question is also put of code
+registers it cannot tell from a register of people (ledger K-S3-02):
+`I10`, `HCC102`, `D0120`. Holding every column it reaches would
+take the statistics of the commonest coded columns from a person who
+answered nothing, so it holds a column whose every cell is written as a
+record number is -- seven figures or more -- or as an e-mail address.
 """
 
 from __future__ import annotations
 
 import json
 import pathlib
+import random
 
 import pytest
 
@@ -72,8 +81,8 @@ def test_an_unanswered_identifier_publishes_nothing_real(
     strict=True,
     reason=(
         "STATED LIMIT owned by lane CODES-2's allowlist (P4-D401): no "
-        "question flags a name, a street address or a birth date, and no "
-        "general rule reaches them without hiding columns that identify "
+        "general rule reaches a name, a street address, a birth date or a "
+        "five-figure subject code without hiding columns that identify "
         "nobody"
     ),
 )
@@ -83,6 +92,33 @@ def test_a_shape_no_question_flags_is_a_stated_limit(
     """Strict: it fails while the limit stands, and turns red when it closes."""
     seen = shapes.run(tmp_path, kind, _ROWS)
     assert seen["description_values"] == 0 and seen["twin_cells"] == 0
+
+
+def test_a_register_of_codes_the_person_question_reaches_is_not_held(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Risk codes repeating over a long table keep their levels; still asked."""
+    codes = ("HCC18", "HCC19", "HCC85", "HCC96", "HCC108", "HCC111",
+             "HCC22", "HCC40", "HCC48", "HCC59", "HCC86", "HCC88")
+    draw = random.Random(5)
+    lines = ["dx,value"] + [
+        f"{codes[draw.randrange(len(codes))]},{draw.uniform(1, 9):.1f}"
+        for _row in range(_ROWS)
+    ]
+    table = tmp_path / "dx_long.csv"
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}"]) == 0
+    document = json.loads(
+        (tmp_path / "dx_long-profile.json").read_text(encoding="utf-8")
+    )
+    block = _block(document, "dx")
+    assert block["role"] == taxonomy.ROLE_CATEGORICAL and block["levels"]
+    asked = json.loads(
+        (tmp_path / "dx_long-questions.json").read_text(encoding="utf-8")
+    )["asked"]
+    assert [entry["read_as_now"] for entry in asked if entry["column"] == "dx"] == [
+        asking.ANSWER_KEEP
+    ]
 
 
 def _answer(folder: pathlib.Path, kind: str, answer: str) -> "dict[str, object]":

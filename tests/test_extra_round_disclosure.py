@@ -77,13 +77,10 @@ import json
 import pathlib
 import random
 
-import pytest
-
 from synthtwin import parsing, taxonomy
 from tests import cost_rule_window, workbooks
 from tests.test_final_review_labels import _round_trip
 from tests.test_stage2_round_trip import _exit_of
-from tests import unanswered_identifier_shapes
 
 FLOOR = ("--smallest-group", "11")
 # A floor of one is no longer the default (plan P4-D316): a test about
@@ -845,12 +842,9 @@ def _sites(published: int, held: int) -> "list[str]":
 
 
 def test_a_pool_of_one_row_a_level_is_published_at_every_width(
-    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+    tmp_path: pathlib.Path,
 ) -> None:
     """120 lone sites beside 200 published rows, and 700 beside 1,200.
-
-    The sites repeat and are many, so the person question is put; Enter
-    answers it `keep`, and the labels are described (plan P4-D401).
 
     `suppressed_levels` equal to `suppressed_rows` is a count of ONE for
     every held-back level, read off two published numbers. The repair of
@@ -858,7 +852,6 @@ def test_a_pool_of_one_row_a_level_is_published_at_every_width(
     plan P4-D390 it is published, and the twin writes as many lone
     made-up sites as the table held, every row present.
     """
-    unanswered_identifier_shapes.enter_keeps_every_reading(monkeypatch)
     for folder, published, held in (
         ("small", 200, 120), ("large", 1200, 700),
     ):

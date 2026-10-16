@@ -3433,19 +3433,21 @@ def _person_choices(role: str, floor: int) -> "list[Choice]":
 # 600 rows over 44 patients, its `mrn` asked and unanswered, published
 # 26 of the 44 real record numbers as level names.
 #
-# THE QUESTIONS THAT ASK IT. The person question, and the two that ask
-# because every value is the same number of figures, "which is what an
-# identifier looks like" -- those two only where every value holds at
-# least `_RECORD_NUMBER_FIGURES` figures. Each offers `identifier`.
-IDENTITY_REASONS = (BECAUSE_REPEATS_AND_MANY,)
+# THE QUESTIONS THAT ASK IT, each offering `identifier`: the person
+# question, and the two that ask because every value is the same number
+# of figures, "which is what an identifier looks like" -- each only where
+# the cells are written as record numbers are, every one holding a run of
+# `_RECORD_NUMBER_FIGURES` figures (or, under the person question, every
+# one an e-mail address).
 FIGURE_WIDTH_REASONS = (BECAUSE_FIXED_WIDTH, BECAUSE_GROUPED_FIXED_WIDTH)
 
-# BELOW SEVEN FIGURES ONE WIDTH IS A MEASUREMENT AS OFTEN AS A RECORD: a
-# systolic pressure of three figures, a year of birth of four, a count of
-# platelets of six all ask the fixed-width question, and holding them back
-# until answered would take the statistics of a column that identifies
-# nobody. Record numbers, account numbers and telephone or social
-# security numbers written in figures alone are seven figures or more.
+# BELOW SEVEN FIGURES A COLUMN IS A MEASUREMENT OR A CODE AS OFTEN AS A
+# RECORD: a systolic pressure of three figures, a year of birth of four
+# and a count of platelets of six ask the fixed-width question; `I10`,
+# `HCC102` and `D0120` ask the person question. Holding them back
+# until answered would take the statistics of columns that identify
+# nobody. Record, account and health plan numbers, and telephone or
+# social security numbers, are seven figures or more.
 _RECORD_NUMBER_FIGURES = 7
 
 # ...AND THE TWO-NUMBERS QUESTION, where every cell is written in one of
@@ -3535,16 +3537,45 @@ def _asked_about_dates(reasons: "list[str]") -> bool:
     return False
 
 
+def _shaped_like_record_numbers(present: "list[str]") -> bool:
+    """Whether a column the person question reaches is written as record numbers.
+
+    Every cell holds a run of at least `_RECORD_NUMBER_FIGURES` figures
+    -- a record, account or health plan number -- or every cell is an
+    e-mail address. The person question is also put of the code
+    registers it cannot tell from a register of people (ledger K-S3-02):
+    `I10`, `HCC102`, `D0120`, a drug's name, a clock time read as a
+    label. Holding every column it reaches would take the statistics of
+    the commonest coded columns of a health table from a person who
+    answered nothing: over the suite's description batteries it would
+    hold 38 columns, and this line holds 4, none a patient's identifier
+    (plan P4-D401).
+    """
+    return _every_cell_holds_figures(
+        present, _RECORD_NUMBER_FIGURES
+    ) or _a_register_of_addresses(present)
+
+
 def _every_cell_holds_figures(present: "list[str]", least: int) -> bool:
-    """Whether every present cell holds at least ``least`` figures."""
+    """Whether every present cell holds a run of at least ``least`` figures.
+
+    A RUN, one figure after another: `MRN10000021` holds eight, and
+    `NM_169981.2:c.782C>T` -- a variant written in parts -- holds no run
+    longer than six however many figures it holds in all.
+    """
     if not present:
         return False
     for value in present:
-        figures = 0
+        longest = 0
+        run = 0
         for character in value:
             if "0" <= character <= "9":
-                figures = figures + 1
-        if figures < least:
+                run = run + 1
+                if run > longest:
+                    longest = run
+            else:
+                run = 0
+        if longest < least:
             return False
     return True
 
@@ -3571,10 +3602,11 @@ def unanswered_identities(
     nobody has answered it, its reading publishes values (free text and
     the like publish none already), and either
 
-    * the question is the person question (`IDENTITY_REASONS`), or
-    * another question was put first and the column is one the person
-      question's routes two and three name (`_a_register_naming_people`),
-      the population still counted in rows, or
+    * the person question was put to it -- or another question was put
+      first and the person question's routes two and three name it
+      (`_a_register_naming_people`), the population still counted in
+      rows -- and its cells are shaped like record numbers
+      (`_shaped_like_record_numbers`), or
     * the question is the two-numbers question and every cell is written
       as a telephone or social security number, or
     * the question is one of the two asked of figures all one width
@@ -3604,7 +3636,6 @@ def unanswered_identities(
     rows = document["n_rows"]
     if not isinstance(blocks, list) or not isinstance(rows, int):
         return ()
-    # True: held whatever its cells; False: held where its cells say so.
     flagged: "dict[str, bool]" = {}
     for question in asked:
         if question.name in kept or not offers_identifier(question):
@@ -3612,15 +3643,7 @@ def unanswered_identities(
         if not publishes_its_values(question.role):
             # Free text and the like publish no value already.
             continue
-        if question.reason in IDENTITY_REASONS:
-            flagged[question.name] = True
-            continue
-        if question.name not in flagged and (
-            question.reason == BECAUSE_JOINED
-            or question.reason in FIGURE_WIDTH_REASONS
-            or not settings.person_columns
-        ):
-            flagged[question.name] = False
+        flagged[question.name] = True
     held: "list[str]" = []
     position = 0
     for block in blocks:
@@ -3629,10 +3652,6 @@ def unanswered_identities(
             continue
         name = f"{block['name']}"
         if name not in flagged or position >= len(table_columns):
-            position = position + 1
-            continue
-        if flagged[name]:
-            held += [name]
             position = position + 1
             continue
         if (
@@ -3650,9 +3669,11 @@ def unanswered_identities(
         for question in asked:
             if question.name == name:
                 reasons += [question.reason]
-        if not settings.person_columns and _a_register_naming_people(
-            present, f"{block['role']}"
-        ):
+        person = BECAUSE_REPEATS_AND_MANY in reasons or (
+            not settings.person_columns
+            and _a_register_naming_people(present, f"{block['role']}")
+        )
+        if person and _shaped_like_record_numbers(present):
             held += [name]
         elif BECAUSE_JOINED in reasons and _telephone_or_social_security(present):
             held += [name]
