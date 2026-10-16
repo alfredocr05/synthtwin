@@ -73,6 +73,7 @@ if not "%COUNT%"=="1" goto :wrong_wheels
 
 :make_env
 for %%P in ("%ENVDIR%") do echo Installing synthtwin into %%~P
+if exist "%ENVDIR%\pyvenv.cfg" for %%P in ("%ENVDIR%") do echo Replacing the earlier private environment in %%~P; a package you installed into it yourself must be installed again afterwards.
 %PY% -m venv --clear "%ENVDIR%"
 if errorlevel 1 goto :no_env
 set "VPY=%ENVDIR%\Scripts\python.exe"
@@ -98,9 +99,9 @@ echo.
 "%ENVDIR%\Scripts\synthtwin.exe" doctor
 set "STATUS=%ERRORLEVEL%"
 echo.
-echo synthtwin is installed. In each new Command Prompt window, switch its
-echo private environment on first, then type the commands as README.md
-echo writes them and as synthtwin prints them:
+echo synthtwin is installed. Now, in this window, and in each new Command
+echo Prompt window, switch its private environment on first, then type the
+echo commands as README.md writes them and as synthtwin prints them:
 for %%P in ("%ENVDIR%\Scripts\activate.bat") do echo   "%%~P"
 echo   synthtwin profile my-table.csv
 exit /b %STATUS%
@@ -121,6 +122,9 @@ exit /b 1
 echo.
 echo The installation stopped: Python could not make the private environment
 for %%P in ("%ENVDIR%") do echo in %%~P. Check that the synthtwin folder is one you can save files in, then run this script again.
+echo If a window still uses synthtwin, such as a Command Prompt with its
+echo environment switched on or a notebook, close it first, then run this
+echo script again.
 exit /b 1
 
 :no_wheel_folder

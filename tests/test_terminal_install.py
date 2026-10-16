@@ -186,12 +186,18 @@ def test_doctor_passes_on_this_computer_with_one_line_per_check(
     assert code == 0, "\n".join(lines)
     checks = _check_lines(lines)
     assert len(checks) == 5, lines
-    assert all(line.startswith("  ok ") for line in checks)
+    # Windows has no os.sysconf, so there the memory line is a note and
+    # the closing line claims only what was checked (lane TI's tripwire,
+    # item 1): the same assertions hold on every system.
+    memory_read = cli._total_memory() is not None
+    memory_mark = "  ok   " if memory_read else "  note "
+    assert [line[:7] for line in checks] == ["  ok   "] * 4 + [memory_mark]
     assert re.search(r"Python \d+\.\d+\.\d+", checks[0])
     assert "numpy" in checks[1] and "pandas" in checks[2]
     assert "output folder" in checks[3]
     assert "memory" in checks[4]
-    assert lines[-2] == "Every check passed. Next, describe your table:"
+    closing = "Every check passed." if memory_read else "Every check that could be made passed."
+    assert lines[-2] == f"{closing} Next, describe your table:"
     assert lines[-1] == "  synthtwin profile my-table.csv", "the next command ends it"
     assert list(tmp_path.iterdir()) == [], "the test file it wrote is removed"
 
@@ -207,6 +213,23 @@ def test_doctor_passes_on_this_computer_with_one_line_per_check(
     assert "The table is" in checks[5]
     taught = _taught(cli._teaching_profile(str(table)))
     assert lines[-len(taught) :] == taught
+
+
+def test_doctor_passes_where_memory_cannot_be_read_as_on_windows(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Windows' unread memory, seen on a Mac or Linux run too (lane TI's tripwire, item 1)."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_total_memory", lambda: None)
+    code, lines = _doctor(capsys)
+    assert code == 0, "\n".join(lines)
+    checks = _check_lines(lines)
+    assert [line[:7] for line in checks] == ["  ok   "] * 4 + ["  note "]
+    assert "could not be read" in checks[4]
+    assert lines[-2] == "Every check that could be made passed. Next, describe your table:"
+    assert lines[-1] == "  synthtwin profile my-table.csv"
 
 
 def test_doctor_ends_with_what_the_person_typed(
@@ -375,16 +398,31 @@ def test_doctor_does_not_follow_a_link_at_its_test_name(
     sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0),
     reason="a folder's permissions are a POSIX mode, and root ignores them",
 )
+@pytest.mark.parametrize("pathlib_asks", ["as-installed", "as-python-3.14"])
 @pytest.mark.parametrize("named", ["table", "out-dir"])
 def test_doctor_says_what_to_do_where_it_may_not_look(
-    named: str, tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+    named: str,
+    pathlib_asks: str,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A folder it may not look into is a PROBLEM line with a next step, not a trace.
 
-    Lane TI's skeptic, item 2: `Path.exists` raises on EACCES and EPERM,
-    which is also what a Mac's protected folders give a terminal that
-    was not let in.
+    Lane TI's skeptic, item 2: EACCES and EPERM are also what a Mac's
+    protected folders give a terminal that was not let in. From Python
+    3.14, `Path.exists` and `Path.is_dir` answer False there instead of
+    raising, as `os.path.exists` and `os.path.isdir` always have; the
+    second case gives them those forms, so a run on 3.10 to 3.13 proves
+    the 3.14 answer too (lane TI's verifier, item 1).
     """
+    if pathlib_asks == "as-python-3.14":
+        monkeypatch.setattr(
+            pathlib.Path, "exists", lambda self, **options: os.path.exists(self)
+        )
+        monkeypatch.setattr(
+            pathlib.Path, "is_dir", lambda self, **options: os.path.isdir(self)
+        )
     shut = tmp_path / "shut"
     shut.mkdir()
     table = _write_table(shut / "clinic.csv")
@@ -740,6 +778,71 @@ def test_the_install_scripts_make_a_fresh_environment_every_time(name: str) -> N
     assert "deactivate" in text
 
 
+_GUARDS = {
+    "install.sh": {
+        "refusal": "sys.prefix == sys.base_prefix",
+        "refused": "this script again.\"\nfi",
+        "one_wheel": '[ "$count" -eq 1 ] || stop',
+        "doctor": '"$env_dir/bin/synthtwin" doctor\nstatus=$?\n',
+        "activate": 'say "  source \\"$env_dir/bin/activate\\""',
+        "exit": 'exit "$status"',
+        "replacing": 'if [ -f "$env_dir/pyvenv.cfg" ]; then',
+        "success_ends": None,
+    },
+    "install.bat": {
+        "refusal": "sys.prefix == sys.base_prefix",
+        "refused": "if errorlevel 1 goto :switched_on\n",
+        "one_wheel": 'if not "%COUNT%"=="1" goto :wrong_wheels',
+        "doctor": '"%ENVDIR%\\Scripts\\synthtwin.exe" doctor\nset "STATUS=%ERRORLEVEL%"\n',
+        "activate": 'for %%P in ("%ENVDIR%\\Scripts\\activate.bat") do echo   "%%~P"',
+        "exit": "exit /b %STATUS%",
+        "replacing": 'if exist "%ENVDIR%\\pyvenv.cfg" ',
+        "success_ends": ":count_wheel",
+    },
+}
+
+
+@pytest.mark.parametrize("name", ["install.sh", "install.bat"])
+def test_the_install_scripts_guard_each_step_they_promise(name: str) -> None:
+    """Each guard the repair added or relies on, pinned (lane TI's verifier, item 3).
+
+    A switched-on environment is refused before anything is cleared;
+    exactly one synthtwin wheel is taken; an earlier environment is said
+    to be replaced before it is (the tripwire, item 2); doctor's exit
+    code is what the script returns, its last command on success; and
+    the closing lines teach switching the environment on NOW, in the
+    window that ran the script, and in each new one (the verifier,
+    item 2).
+    """
+    text = (SCRIPTS / name).read_text(encoding="utf-8").replace("\r\n", "\n")
+    guard = _GUARDS[name]
+    made = text.index("-m venv --clear ")
+    asked = text.index(str(guard["refusal"]))
+    assert asked < text.index(str(guard["refused"]), asked) < made
+    assert str(guard["one_wheel"]) in text[:made]
+    assert text.index(str(guard["replacing"])) < made
+    assert "must be installed again afterwards" in text[text.index(str(guard["replacing"])) : made]
+    doctor = text.index(str(guard["doctor"]))
+    closing = text[doctor:]
+    ends = guard["success_ends"]
+    if ends is not None:
+        closing = closing[: closing.index(str(ends))]
+    assert str(guard["activate"]) in closing, "the activate line comes after doctor"
+    assert "is installed. Now, in this window, and in each new" in " ".join(
+        word.strip('"') for word in closing.replace("say ", "").replace("echo ", "").split()
+    )
+    spoken = [line.strip() for line in closing.splitlines() if line.strip()]
+    assert spoken[-1] == guard["exit"], "doctor's exit code is the script's, as its header says"
+    if name == "install.sh":
+        linux = re.search(r'if \[ "\$\(uname -s[^\n]*\)" = "Linux" \]; then\n(.*?)\nfi\n', text, re.S)
+        assert linux and "python3-venv" in linux.group(1)
+        assert text.count("python3-venv") == 1, "the Debian advice is given on Linux alone"
+    else:
+        no_env = text[text.index("\n:no_env\n") :]
+        no_env = no_env[: no_env.index("exit /b 1")]
+        assert "close it first" in no_env, "a window still using the environment is named"
+
+
 def test_the_windows_script_prints_paths_without_running_them() -> None:
     """No echo puts a path in by %...%: a folder named `A & exit & B` would run (Codex item 4)."""
     text = (SCRIPTS / "install.bat").read_text(encoding="utf-8")
@@ -789,6 +892,12 @@ def test_the_readme_installs_as_written() -> None:
     # `synthtwin` line a run prints works as printed (the Codex review,
     # item 5); no step says to run it by its path in .venv instead.
     assert "source .venv/bin/activate\n" in install
+    # In the window that ran the script too, not only in new ones (lane
+    # TI's verifier, item 2), and a re-run says what replacing costs
+    # (the tripwire, item 2).
+    flowing = " ".join(install.split())
+    assert "After the script, in the same window, and each time you open a new terminal window" in flowing
+    assert "a package you installed into it yourself must be installed again" in flowing
     assert ".venv\\Scripts\\activate" in install
     assert ".venv/bin/synthtwin" not in readme
     # Command Prompt is where README sends a Windows user, and synthtwin

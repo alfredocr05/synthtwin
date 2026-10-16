@@ -118,6 +118,11 @@ fi
 say "Installing synthtwin into $env_dir"
 say "using $("$python" -c 'import sys; print(sys.executable, sys.version.split()[0])')"
 
+if [ -f "$env_dir/pyvenv.cfg" ]; then
+    say "Replacing the earlier private environment in $env_dir; a package you"
+    say "installed into it yourself must be installed again afterwards."
+fi
+
 venv_advice="Check that the synthtwin folder is one you can save files in, \
 then run this script again."
 if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
@@ -164,9 +169,9 @@ say ""
 status=$?
 
 say ""
-say "synthtwin is installed. In each new terminal window, switch its private"
-say "environment on first, then type the commands as README.md writes them"
-say "and as synthtwin prints them:"
+say "synthtwin is installed. Now, in this window, and in each new terminal"
+say "window, switch its private environment on first, then type the commands"
+say "as README.md writes them and as synthtwin prints them:"
 say "  source \"$env_dir/bin/activate\""
 say "  synthtwin profile my-table.csv"
 exit "$status"

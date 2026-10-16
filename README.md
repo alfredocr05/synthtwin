@@ -775,7 +775,8 @@ scripts\install.bat
 The script finds Python 3.10 or later, makes a fresh private environment
 named `.venv` inside the synthtwin folder so nothing else on the computer
 changes (an earlier one there is replaced, so every file in it is
-checked again), installs numpy and pandas from `requirements-install.lock` with
+checked again, and a package you installed into it yourself must be
+installed again afterwards), installs numpy and pandas from `requirements-install.lock` with
 the hash of every file checked (`--require-hashes`), installs synthtwin
 from the folder, and ends by running `synthtwin doctor` (below). It
 needs the internet once, for those locked files and for the packaging
@@ -783,8 +784,9 @@ tool pip uses to install the folder. It is a `.bat` file on Windows, not
 a PowerShell script, because many managed computers refuse to run
 PowerShell scripts.
 
-Each time you open a new terminal window to use synthtwin, switch its
-private environment on first, in the synthtwin folder:
+After the script, in the same window, and each time you open a new
+terminal window to use synthtwin, switch its private environment on
+first, in the synthtwin folder:
 
 ```
 source .venv/bin/activate
