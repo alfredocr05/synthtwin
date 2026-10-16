@@ -11571,6 +11571,32 @@ The construction, in this order:
    published 388 cells under `%:%% @@`, and the twin wrote 206 at floors
    2, 11 and 36 with either gap; now 388, and the twin validates.
 
+   **AND EVERY MARKER WORD IS WRITTEN WHOLE** (Codex's review of lane L3,
+   item 1; plan P4-D393). The same holds for every form ending in a
+   clock's marker: the gap's, a marker written straight on (`9:15AM`,
+   whose one-letter turn `9:15aM` wears the form but no word a source
+   writes) and a stamp's, its `T` kept (`2024-01-05T9:15am` of
+   `2024-01-05T9:15AM`, never `2024-01-05t9:15AM`). Each parent wearing
+   such a form has ONE such partner, so a slot asked the form first walks
+   its family's parents, in step 4's cyclic order from its own place, for
+   a whole turn not yet written, and only where none is left asks any
+   parent for the family above; and a slot asked no marker form, of a
+   family holding a parent wearing one, first walks the parents wearing
+   none, whose every member is a case flip or edge spacing of words no
+   marker holds. G9.5 step 7 lays the slots out so each marker form has a
+   parent for each of its slots. Measured on 7ffe47b7: 194 stamps written
+   with `AM` and `am` beside six `pending` and six `unknown`, published
+   388 cells in the form, 390 values and 196 folded; at a floor of
+   eleven, seed 0, the twin wrote 376 in the form, its markers `aM`, `Pm`
+   and `pM` among them, and written straight on 199 markers turned in
+   part while every count was met. Now 388, every marker whole, 390 and
+   196, at floors 2, 11 and 36, with a space, U+202F or no gap, `AM` or
+   `A.M.`, for stamps, `T` stamps and clocks alike; the clocks failed so
+   on 7d273351 too. Where a family's marker identities hold more spellings
+   than a whole turn reaches -- the source wrote three or more of one,
+   so a marker in mixed case among them -- the partners past the whole
+   turns are the family's members above, as before.
+
    **THE FAMILY IS THE PARENT'S FOLDED IDENTITY RESPELT, WHICH IS ITS
    TRIMMED TEXT** (residual R-P4-47). The three rules above are stated
    over the parent, and for every parent an invention role produced
@@ -12476,8 +12502,12 @@ for.
    now 969 of 969, each a time, each gap as the source wrote it.
 
    **A STAMP'S FORM** (lane L3, plan P4-D393; contract C6-31a) fixes its
-   word count the same way: two words, three where it holds the gap
-   before its marker. A group written in it is filled figure by figure
+   word count the same way: one word more than the gaps it holds, the
+   space between its date and its clock and the gap before its marker
+   each parting two words, and a `T` or a marker written straight on
+   none -- `2024-01-05T09:15` is one word, `2024-01-05T09:15 AM` and
+   `2024-01-05 09:15` two, `2024-01-05 9:15 AM` three (Codex's review of
+   lane L3, item 2). A group written in it is filled figure by figure
    (G8.3), its `T` and marker word kept, so it wears the form and reads
    as no date. Measured: a column of `2024-01-05 9:15 AM` beside one
    `pending` or `unknown` in 33, with no gap, a space or U+202F before the
@@ -12647,6 +12677,35 @@ for.
    and now exact. The
    table now writes all 27,037. A column where no slot is asked such a
    form walks exactly as before.
+
+   **A MARKER FORM'S SLOTS FIT ITS PARENTS' WHOLE TURNS** (Codex's review
+   of lane L3, item 1). Each parent wearing a form that ends in a clock's
+   marker has one whole turn of its marker word (G9.3), so after the
+   forms are asked -- each group's form decided in the column's own order
+   and carried with the group -- groups change places, slot by slot from
+   the first, in two steps: (1) a slot asked such a form, while the form
+   has more slots than parents in its family, changes places with the
+   last earlier group not yet moved that is either asked no marker form,
+   of a family and planned length keeping more such parents than slots,
+   or asked another marker form keeping more parents than slots; (2) in a
+   family holding a marker form, a slot asked none, while its planned
+   length has more such slots than parents there, changes places with
+   the family's last earlier marker parent not yet moved whose form keeps
+   more parents than slots. No group carrying a published end, written as
+   a truth value or asked a form with no letter place moves, and the
+   cells come back in the column's own order. A slot asked no marker form
+   in a family holding one, or moved into a slot by step (1), asks a
+   parent of its own planned length first, and such a family's letter
+   asks go to its parents asked no marker form. Measured: Codex's
+   column at a floor of eleven gave its twelve rare words twelve parents
+   and 194 stamp slots fell on 184 stamp parents; at 36 the rare words
+   were one parent and eleven slots of the stamps' own family, which
+   took eleven stamps' `aM`; and 4,000 rows of stamps in two forms, each
+   written `AM` and `am`, beside one `call back N` in three, wrote 3,998
+   cells in the stamps' shape (3,200 published), 1,198 markers turned in
+   part, and missed both forms and `length.mean`. Now each writes every
+   count published, every marker whole, and validates; so do 20,000 rows
+   of the last.
 
    **WHAT THE SLOTS WRITE OVER THEIR PLAN IS PAID BACK** (lane L1
    leftover, 2026-10-14). Where parents are barred the slots come last,

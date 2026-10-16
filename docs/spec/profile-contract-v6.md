@@ -11725,7 +11725,16 @@ year-first hyphen and the year-last slash alone, the spellings first
 named, moved 15 of the 220 and left REDCap's hyphenated, a dotted and a
 two-figure-year stamp beside rare words formless; three figure runs of
 any width (one, two or four) parted by any of the three marks moved the
-same 20 as this rule.
+same 20 as this rule. AND ITS MARKER AS A SOURCE WRITES IT (Codex's
+review of lane L3, item 1): where a column writes a stamp or a clock in
+both cases of its marker (`9:15 AM` and `9:15 am`), so its folded count
+is below its distinct count, the twin's fold partners turn the marker
+word over whole (generation method G9.3 and G9.5 step 7), never one
+letter of it (`9:15 aM`), and every published count is met: 194 stamps
+written both ways beside six `pending` and six `unknown` publish 388
+cells in the form, 390 values and 196 folded, and the twin writes those,
+each marker a whole word, where 7ffe47b7's wrote 376 in the form with
+the gap and 199 markers turned in part without it.
 
 **A cell longer than TWENTY-FOUR characters has no form either, save a
 stamp of at most thirty-two (above), and neither does an empty one.** The limit is deliberate and it is not a

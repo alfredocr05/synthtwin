@@ -44,7 +44,13 @@ free-text column of zoned stamps all at the longest length beside
 shorter words can miss `length.mean` at a floor of eleven, one made-up
 word written at that length (as at 7d27335 for `…Z`): the cause is
 G9.5's length pin, not the forms, and its lane is the orchestrator's to
-name. No lane owns the other limits yet.
+name. No lane owns the other limits yet. Since the lane's Codex review, a
+column writing its stamps or clock times in both cases of the marker
+(`9:15 AM` and `9:15 am`) keeps every marker a whole word in its twin --
+where it wrote `9:15 aM`, 199 of 388 for 194 stamps written both ways
+beside twelve rare words -- and meets every count it publishes: on 110
+such columns the twin now meets them on all 110 and validates on 106
+(10 and 6 before; the four left miss `length.mean` as before).
 
 ### A clock written with a space before AM or PM keeps its shape (2026-10-14)
 

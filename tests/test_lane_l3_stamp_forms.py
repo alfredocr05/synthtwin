@@ -54,7 +54,16 @@ Each clause is red on the mutant its docstring names:
   1,000,000 cells costs at most 4,000,000 reads of at most 32 characters
   (mutant: a scan asked of every cell);
 * H8 a twin writing a stamp with two spaces where its form holds one is
-  MISSED on every published stamp form (the validation method's recount).
+  MISSED on every published stamp form (the validation method's recount);
+* H9 (Codex's review of L3, item 1) a column writing its stamps or clocks
+  in both cases of the marker keeps every marker a whole word and every
+  published count, end to end, the product and the oracle reading each
+  twin cell's form alike (mutants, H9b: no whole turn first; no slot
+  moved; no parent spared); the two walks agree (H9c); and 4,000 rows
+  beside notes validate, the whole turns read at most once a parent and
+  four times a slot (H9d);
+* H10 (item 2) a stamp holds one word more than its gaps, and the method
+  says so.
 """
 
 from __future__ import annotations
@@ -1116,3 +1125,31 @@ def test_h9c_the_indexed_whole_turn_walk_answers_as_the_plain_walk() -> None:
         assert results[0] == results[1]
         turned += len([found for found in results[1] if found is not None and found[-2:] in ("am", "pm", "AM", "PM")])
     assert turned > 100
+
+
+# -- H10: a stamp's words are one more than its gaps (Codex's review of L3, item 2) --
+
+
+def test_h10_a_stamp_form_holds_one_word_more_than_its_gaps() -> None:
+    """H10 (Codex's review of L3, item 2): method G9.5 step 7 states the rule the product counts.
+
+    Every stamp of H1 has as many words (`parsing.token_count`) as it holds
+    gaps, plus one: `2024-01-05T09:15` one, `2024-01-05T09:15 AM` two,
+    `2024-01-05 9:15 AM` three; and the method says so. 7ffe47b7's method
+    said two words, three with the gap, which counts a `T` stamp's one
+    word as two.
+    """
+    for cell in sorted(_STAMPS):
+        gaps = len([character for character in cell if character in (" ", NARROW)])
+        assert parsing.token_count(cell) == 1 + gaps, cell
+    words = {"2024-01-05T09:15": 1, "2024-01-05T09:15 AM": 2, "2024-01-05 09:15": 2, "2024-01-05 9:15 AM": 3}
+    assert {cell: parsing.token_count(cell) for cell in words} == words
+    method = pathlib.Path(__file__).resolve().parents[1] / "docs" / "spec" / "generation-method-v1.md"
+    text = " ".join(method.read_text(encoding="utf-8").split())
+    start = text.index("**A STAMP'S FORM** (lane L3, plan P4-D393; contract C6-31a) fixes its word count")
+    paragraph = text[start : start + 700]
+    assert "one word more than the gaps it holds" in paragraph
+    assert "two words, three where it holds the gap" not in paragraph
+    for cell, count in words.items():
+        named = ("one", "two", "three")[count - 1]
+        assert f"`{cell}`" in paragraph and named in paragraph, cell
