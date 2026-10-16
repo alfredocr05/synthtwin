@@ -41,7 +41,6 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "0bd4002a78456027",
         "10c317f424815ed3",
         "1f753153b17617b1",
-        "215b25b55be5887f",
         "22cce8fb0d170aa9",
         "27c88e48d840bde7",
         "2b3c01dd82f04c26",
@@ -93,6 +92,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "f2b0778895ff696e",
         "fa176c8d5edd4ed4",
         "fc4a205252f64fdf",
+        "fd26d495496a34e1",
         "fe3acd7ed9a15ee2",
     ),
     "docs/plans/phase-2-generator.md": (
