@@ -273,6 +273,7 @@ def glm(
     max_iter: int = 30,
     tol: float = 1e-8,
     strict: bool = True,
+    start: "Sequence[float] | None" = None,
 ) -> Fit:
     """Logistic (``family`` 'logistic') or Poisson ('poisson') regression by IRLS.
 
@@ -287,7 +288,9 @@ def glm(
     ``strict`` False the last step is returned where the steps did not
     settle or a probability reached 0 or 1 (a discriminator, whose
     fitted probabilities are the measure, not its coefficients); ``extra``
-    then says `settled` 0.0.
+    then says `settled` 0.0. ``start`` gives the first coefficients (the
+    same model's fit on another table): the steps end at the same
+    maximum, in fewer of them.
     """
     if family not in ("logistic", "poisson"):
         raise ValueError(f"unknown family {family!r}")
@@ -302,6 +305,8 @@ def glm(
         raise FitTrouble("empty", "the outcome is never above zero")
     beta = [0.0] * p
     beta[0] = math.log(mean / (1.0 - mean)) if family == "logistic" else math.log(mean)
+    if start is not None and len(start) == p and all(math.isfinite(b) for b in start):
+        beta = list(start)
 
     def accumulate(beta: "list[float]") -> "tuple[list[list[float]], list[float], float, float, bool]":
         info = [[0.0] * p for _ in range(p)]

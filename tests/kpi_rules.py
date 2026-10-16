@@ -79,14 +79,26 @@ MACHINE_KINDS = ("seconds_below", "peak_memory_below")
 # The phases and stages an id may name. P0-P4 are the closed phases,
 # S1 and S2 the stages of reopened Phase 4, 2B stage 2b, and S3-S8 the
 # stages still to come, whose stage checks may be measured early as baselines.
-ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B)-(\d\d)([a-z])?$")
+# BC is the broad between-columns program (plan P4-D398): stages 6 and
+# 7/7b made one program by the owner's direction of 2026-10-16, measured
+# by the analyst battery from its baseline on.
+ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B|BC)-(\d\d)([a-z])?$")
 HEADLINES_AT_LEAST = 20
+# 33 from 31, THE ORCHESTRATOR'S RECORDED CALL FOR LANE E0b (2026-10-16,
+# plan P4-D398; the owner may veto it): the broad between-columns
+# program is the owner's new direction of 2026-10-16, and its battery
+# brings two headlines -- `K-BC-01`, replication parity family by
+# family, and `K-BC-02`, every seeded truth recovered or named -- while
+# K-S7-01's three-way clause folds into K-BC-02, stage 7b being folded
+# into the program. A deliberate raise by two, never a demotion made to
+# fit.
+#
 # 31 from 30, AUTHORIZED BY THE ORCHESTRATOR (2026-10-01, plan P4-D364)
 # FOR THE REST OF STAGE 3B: the board stood at its cap of 30, and the
 # stage adds one headline of its own -- `K-S3-38`, time of day comes
 # back -- while `K-S3-31` widens in place to "the calendar comes back".
 # A deliberate raise, never a demotion made to fit.
-HEADLINES_AT_MOST = 31
+HEADLINES_AT_MOST = 33
 
 # Verdict words, printed by the runner and stored in its report.
 PASS = "PASS"

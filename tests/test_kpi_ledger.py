@@ -1281,6 +1281,99 @@ def test_k_s6_01(record_property, tmp_path: pathlib.Path) -> None:
           "twin_rank_correlation": round(measured["twin"][0], 3)})
 
 
+# -- The broad between-columns program: the analyst battery (plan P4-D398) --
+
+
+@pytest.fixture(scope="module")
+def analyst_fast(tmp_path_factory: pytest.TempPathFactory) -> "dict":
+    """The analyst battery's fast part, run once for its thirteen KPIs.
+
+    ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0: today's twin
+    made by the product's own path, beside the fresh replicate and the
+    shuffled twin, every table read with `pandas.read_csv`
+    (`tests/analyst_battery.py`). The slow part is
+    `tools/measurements/kpi_analyst_battery.py`.
+    """
+    import analyst_battery
+
+    return analyst_battery.fast_run(tmp_path_factory.mktemp("analyst-battery"))
+
+
+def _analyst(record_property, analyst_fast: "dict", entry_id: str) -> None:
+    """Record and judge one battery KPI; its `_detail` goes to the record's detail."""
+    import analyst_battery
+
+    value = dict(analyst_fast["values"][entry_id])
+    detail = str(value.pop("_detail", ""))
+    _kpi(record_property, entry_id, analyst_battery.finite(value), detail)
+
+
+def test_k_bc_01(record_property, analyst_fast: "dict") -> None:
+    """Replication parity, family by family: today's twin, the fresh replicate and the shuffled twin."""
+    _analyst(record_property, analyst_fast, "K-BC-01")
+
+
+def test_k_bc_02(record_property, analyst_fast: "dict") -> None:
+    """Every seeded truth recovered inside its yardstick, or named as not carried."""
+    _analyst(record_property, analyst_fast, "K-BC-02")
+
+
+def test_k_bc_03(record_property, analyst_fast: "dict") -> None:
+    """Significance decisions kept, and significance invented, against the replicate."""
+    _analyst(record_property, analyst_fast, "K-BC-03")
+
+
+def test_k_bc_04(record_property, analyst_fast: "dict") -> None:
+    """A model trained on a twin of half the table, tested on the other half."""
+    _analyst(record_property, analyst_fast, "K-BC-04")
+
+
+def test_k_bc_05(record_property, analyst_fast: "dict") -> None:
+    """The broad discriminator: real rows told from twin rows, over the replicate's ratio."""
+    _analyst(record_property, analyst_fast, "K-BC-05")
+
+
+def test_k_bc_06(record_property, analyst_fast: "dict") -> None:
+    """Several rows per subject: the ICC, the mixed model's fixed effects, rows per subject."""
+    _analyst(record_property, analyst_fast, "K-BC-06")
+
+
+def test_k_bc_07(record_property, analyst_fast: "dict") -> None:
+    """Time to event: Cox, Kaplan-Meier medians and censored shares inside their yardsticks."""
+    _analyst(record_property, analyst_fast, "K-BC-07")
+
+
+def test_k_bc_08(record_property, analyst_fast: "dict") -> None:
+    """Missing cells: who is missing, the models of it, and dropout, inside their yardsticks."""
+    _analyst(record_property, analyst_fast, "K-BC-08")
+
+
+def test_k_bc_09(record_property, analyst_fast: "dict") -> None:
+    """The seeded curves and thresholds on their fixed grids."""
+    _analyst(record_property, analyst_fast, "K-BC-09")
+
+
+def test_k_bc_10(record_property, analyst_fast: "dict") -> None:
+    """Analyses that stop on today's twin and not on the real table."""
+    _analyst(record_property, analyst_fast, "K-BC-10")
+
+
+def test_k_bc_11(record_property, analyst_fast: "dict") -> None:
+    """The twin's report, one line per analysis family: no such line exists today."""
+    _analyst(record_property, analyst_fast, "K-BC-11")
+
+
+def test_k_bc_13(record_property, analyst_fast: "dict") -> None:
+    """The harness itself: the fast part's seconds and its controls behaving as controls."""
+    import analyst_battery
+
+    _kpi(record_property, "K-BC-13", {
+        "fast_part_seconds": round(analyst_fast["seconds"], 1),
+        "controls_failing": len(analyst_battery.controls_failing(analyst_fast["values"])),
+    }, "controls failing in the fast part: "
+       + (", ".join(analyst_battery.controls_failing(analyst_fast["values"])) or "none"))
+
+
 # -- Stage 3 landing 3.5 ----------------------------------------------------
 
 

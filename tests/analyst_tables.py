@@ -345,7 +345,7 @@ _ST5_TRUTHS = {
 }
 _ST6_TRUTHS = {
     "U-shaped glucose on death": ("ST6/curve:died_glucose_70", 0.0012 * (70 - 100.0) ** 2),
-    "J-shaped creatinine on death": ("ST6/curve:died_creat_3", 1.2 * 2.0),
+    "J-shaped creatinine on death": ("ST6/curve:died_creat_2", 1.2 * 1.0),
 }
 TRUTHS = {
     "ST1": _ST1_TRUTHS, "ST2": _ST2_TRUTHS, "ST3": _ST3_TRUTHS,

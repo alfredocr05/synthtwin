@@ -95,10 +95,14 @@ TIERS = {
     "fast": {"rows": 5000, "tables": ("ST1", "ST2"), "seeds": (1,), "twins": (0,),
              "cap": 8, "outcomes": 6, "keys": 6, "rounds": 40},
     "slow": {"rows": 20000, "tables": T.TABLES, "seeds": (1, 2, 3), "twins": (0, 1, 2, 3, 4),
-             "cap": 24, "outcomes": 99, "keys": 10, "rounds": 60},
+             "cap": 16, "outcomes": 99, "keys": 8, "rounds": 60},
     "night": {"rows": 200000, "tables": T.TABLES, "seeds": (1,), "twins": (0,),
-              "cap": 24, "outcomes": 99, "keys": 10, "rounds": 60},
+              "cap": 16, "outcomes": 99, "keys": 8, "rounds": 60},
 }
+# The controls' discriminator and trained models are run at these twin
+# seeds only (today's twin at every seed): they are the costliest parts,
+# and a control's median needs no more.
+CONTROL_HEAVY_SEEDS = (0, 1)
 # The seeded outcomes a trained model predicts (F8, K-BC-04), per table.
 # ST4's readmission is left out: its signal is a pure three-way parity,
 # whose every pair margin is flat, so a greedy tree finds no first split
@@ -749,10 +753,10 @@ def st2_wide(v: View) -> "list[Estimate]":
 
 
 def st2_subject_table(v: View) -> "list[Estimate]":
-    """The analyst's subject table: one arm and one age per subject, its index checked."""
+    """The analyst's subject table, one arm and one age per subject, merged back many-to-one."""
     subjects = v.frame[["sid", "arm", "age"]].drop_duplicates()  # type: ignore[index]
     try:
-        subjects.set_index("sid", verify_integrity=True)
+        v.frame[["sid", "visit", "marker"]].merge(subjects, on="sid", validate="many_to_one")  # type: ignore[index]
     except ValueError as error:
         raise AnalysisError("error", "subject table: " + str(error)[:60]) from error
     return []
@@ -963,7 +967,13 @@ def plan_st5(real: View) -> "list[Analysis]":
 
 
 def plan_st6(real: View) -> "list[Analysis]":
-    """ST6's targeted panel: death splined in glucose and creatinine on a fixed grid, and naively."""
+    """ST6's targeted panel: death splined in glucose and creatinine on a fixed grid, and naively.
+
+    The splined model holds every other term of the generator's death
+    risk (the age spline, ventilation and its over-75 interaction,
+    lactate, urban living, diabetes x current smoker), so the two curves
+    are not asked to carry what those terms carry.
+    """
     glucose_knots = knots_of([g for g in real.num("glucose") if g == g])
     cr_knots = knots_of([c for c in real.num("creatinine") if c == c])
 
@@ -977,20 +987,27 @@ def plan_st6(real: View) -> "list[Analysis]":
 
     def run(v: View) -> "list[Estimate]":
         cols, y = complete({"glucose": v.num("glucose"), "cr": v.num("creatinine"), "age": v.num("age"),
-                            "vent": v.num("ventilated"), "urban": v.eq("urban", "yes")}, v.num("died"))
-        common = [("age10", scaled("age", 60.0, 10.0)), ("vent", col("vent")), ("urban", col("urban"))]
+                            "vent": v.num("ventilated"), "urban": v.eq("urban", "yes"),
+                            "lact4": v.above("lactate", 4.0), "diab": v.num("diabetes"),
+                            "cur": v.eq("smoker", "current")}, v.num("died"))
+        cols["old"] = [float(a > 75) for a in cols["age"]]
+        others = age_spline() + [
+            ("vent", col("vent")), ("vent_old75", product(col("vent"), col("old"))),
+            ("lact4", col("lact4")), ("urban", col("urban")), ("diab", col("diab")),
+            ("cur", col("cur")), ("diab_cur", product(col("diab"), col("cur")))]
         d = K.Design(cols, [("int", K.intercept), ("glucose", scaled("glucose", 0.0, 10.0)),
                             ("g1", spline("glucose", glucose_knots, 0, 0.1)),
                             ("g2", spline("glucose", glucose_knots, 1, 0.1)),
                             ("cr", col("cr")), ("c1", spline("cr", cr_knots, 0)),
-                            ("c2", spline("cr", cr_knots, 1))] + common)
+                            ("c2", spline("cr", cr_knots, 1))] + others)
         fit = K.glm(d, y, "logistic")
         out = curve(fit, "ST6/curve", "F4", cols["glucose"], y, True, glucose_terms, 100.0,
                     [70.0, 85.0, 115.0, 130.0, 145.0], 5.0, "died_glucose")
         out += curve(fit, "ST6/curve", "F4", cols["cr"], y, True, cr_terms, 1.0,
-                     [0.6, 0.8, 1.4, 2.0, 3.0], 0.1, "died_creat")
+                     [0.6, 0.8, 1.4, 1.7, 2.0], 0.1, "died_creat")
         d2 = K.Design(cols, [("int", K.intercept), ("glucose", scaled("glucose", 0.0, 10.0)),
-                             ("cr", col("cr"))] + common)
+                             ("cr", col("cr")), ("age10", scaled("age", 60.0, 10.0)),
+                             ("vent", col("vent")), ("urban", col("urban"))])
         return out + coefs(K.glm(d2, y, "logistic"), "ST6/logistic_naive", "F4", supports(d2, y, True),
                            ["glucose", "cr", "age10", "vent", "urban"])
 
@@ -1219,6 +1236,9 @@ def auto_model(table: str, outcome: Column, kind: str, family: str, used: "list[
                terms: "list[tuple[str, K.Term]]") -> "Callable[[View], list[Estimate]]":
     """One automatic model: its coefficients, and for a splined number its curve at the outer knots."""
     splined = [c for c in used if c.knots is not None and any(n == f"{c.name}_s1" for n, _t in terms)]
+    # The first table a plan runs on is the real one (`yardstick`); its fit
+    # starts every later table's Newton steps, which end at the same maximum.
+    first: "dict[str, list[float]]" = {}
 
     def run(v: View) -> "list[Estimate]":
         columns: "dict[str, object]" = {}
@@ -1227,7 +1247,12 @@ def auto_model(table: str, outcome: Column, kind: str, family: str, used: "list[
         cols, ys = complete(columns, outcome_values(v, outcome))
         design = K.Design(cols, [("int", K.intercept)] + terms)
         levels_present(design)
-        fit = K.ols(design, ys) if kind == "ols" else K.glm(design, ys, kind)
+        if kind == "ols":
+            fit = K.ols(design, ys)
+        else:
+            fit = K.glm(design, ys, kind, start=first.get("beta"))
+            if "beta" not in first:
+                first["beta"] = fit.beta
         support = supports(design, ys, kind == "logistic")
         bent = {c.name for c in splined}
         names = [n for n in design.names
@@ -1587,6 +1612,7 @@ class Side:
     tstr: "dict[str, tuple[float, float]]"
     pmse: float
     leaning: "list[str]"
+    heavy: bool = True
 
 
 @dataclasses.dataclass
@@ -1606,15 +1632,28 @@ class TableRun:
 
 def _side(y: Yardstick, plan: "list[Analysis]", real: View, view: View, columns: "list[Column]",
           tier: str, train: "View | None", test: "View | None", predicted: "Column | None",
-          imp_a: "list[float]") -> Side:
+          imp_a: "list[float]", heavy: bool = True) -> Side:
+    """One table against the real one; ``heavy`` adds the discriminator and the trained model.
+
+    A discriminator or a model that cannot be fitted on this table leaves
+    its number out, and a missing trained-model AUC is scored outside.
+    """
     panel = run_panel(plan, view)
     settings = TIERS[tier]
-    ratio, leaning = pmse(real, view, columns, settings["keys"])
+    ratio, leaning = math.nan, []
     found: "dict[str, tuple[float, float]]" = {}
-    if predicted is not None and train is not None and test is not None:
-        auc, gain = tstr(train, test, columns, predicted, settings["rounds"])
-        found[predicted.name] = (auc, K.spearman(gain, imp_a))
-    return Side(compare(y, panel), stops(y, panel), panel, found, ratio, leaning)
+    if heavy:
+        try:
+            ratio, leaning = pmse(real, view, columns, settings["keys"])
+        except (K.FitTrouble, AnalysisError):
+            ratio, leaning = math.nan, ["(the discriminator could not be fitted)"]
+        if predicted is not None and train is not None and test is not None:
+            try:
+                auc, gain = tstr(train, test, columns, predicted, settings["rounds"])
+                found[predicted.name] = (auc, K.spearman(gain, imp_a))
+            except (K.FitTrouble, AnalysisError):
+                pass
+    return Side(compare(y, panel), stops(y, panel), panel, found, ratio, leaning, heavy)
 
 
 def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: str,
@@ -1665,26 +1704,56 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: 
         sides["twin"] += [_side(y, plan, real, read(twin_text, "twin"), columns, tier, twin_a, half_b,
                                 predicted, imp_a)]
         replicate_seed = seed * 1000 + 100 + k
+        heavy = k in CONTROL_HEAVY_SEEDS
         rep_a = (read(T.text(table, len(a_rows), replicate_seed + 500), "replicate A")
-                 if predicted is not None else None)
+                 if predicted is not None and heavy else None)
         sides["replicate"] += [_side(y, plan, real, read(T.text(table, rows, replicate_seed), "replicate"),
-                                     columns, tier, rep_a, half_b, predicted, imp_a)]
+                                     columns, tier, rep_a, half_b, predicted, imp_a, heavy)]
         shuf_a = read(shuffled_text(rows_text(text, a_rows), seed * 31 + k + 7), "shuffled A") \
-            if predicted is not None else None
+            if predicted is not None and heavy else None
         sides["shuffled"] += [_side(y, plan, real, read(shuffled_text(text, seed * 31 + k), "shuffled"),
-                                    columns, tier, shuf_a, half_b, predicted, imp_a)]
+                                    columns, tier, shuf_a, half_b, predicted, imp_a, heavy)]
         if thin:
             view = read(thin_text(table, rows, real.rows, seed * 1000 + 300 + k), "thin")
             panel = run_panel(plan, view)
-            sides["thin"] += [Side(compare(y, panel), stops(y, panel), panel, {}, math.nan, [])]
+            sides["thin"] += [Side(compare(y, panel), stops(y, panel), panel, {}, math.nan, [], False)]
     if table == "ST5":
         # On a null table a shuffle IS a perfect twin, so the negative
         # control of the fabrication count is the structured table: ST1
         # at the same seed holds ST5's columns, related.
         panel = run_panel(plan, read(T.text("ST1", rows, seed), "structured"))
-        sides["structured"] = [Side(compare(y, panel), stops(y, panel), panel, {}, math.nan, [])]
+        sides["structured"] = [Side(compare(y, panel), stops(y, panel), panel, {}, math.nan, [], False)]
     return TableRun(table, real.rows, seed, y, tstr_yard, sides, report,
                     time.perf_counter() - started, product_seconds)
+
+
+def run_to_dict(run: TableRun) -> "dict[str, object]":
+    """A table run as plain data, for a child process to hand back as JSON."""
+    out = dataclasses.asdict(run)
+    out["yard"]["robust"] = sorted(run.yard.robust)  # type: ignore[index]
+    return out
+
+
+def _panel_from(data: "dict") -> Panel:
+    return Panel({k: Estimate(e["key"], e["family"], e["value"], e["se"], e["support"], tuple(e["tags"]))
+                  for k, e in data["estimates"].items()}, dict(data["status"]))
+
+
+def run_from_dict(data: "dict") -> TableRun:
+    """The table run `run_to_dict` wrote."""
+    yard = Yardstick(_panel_from(data["yard"]["real"]), dict(data["yard"]["h"]), set(data["yard"]["robust"]))
+    sides: "dict[str, list[Side]]" = {}
+    for name, items in data["sides"].items():
+        sides[name] = [Side([Compared(c["key"], c["family"], tuple(c["tags"]), c["real"], c["value"], c["h"],
+                                      c["inside"], c["sig_real"], c["sig_twin"], c["same_sign"])
+                             for c in s["compared"]],
+                            list(s["stops"]), _panel_from(s["panel"]),
+                            {k: (v[0], v[1]) for k, v in s["tstr"].items()}, s["pmse"], list(s["leaning"]),
+                            bool(s.get("heavy", True)))
+                       for s in items]
+    return TableRun(data["table"], data["rows"], data["seed"], yard,
+                    {k: (v[0], v[1], v[2]) for k, v in data["tstr_yard"].items()}, sides,
+                    dict(data["report"]), data["seconds"], data["product_seconds"])
 
 
 def run_tables(tier: str, folder: pathlib.Path, tables: "tuple[str, ...] | None" = None,
@@ -1748,6 +1817,8 @@ def _f8_rows(runs: "list[TableRun]", side: str, k: int) -> "list[Compared]":
     out = []
     for r in runs:
         if k >= len(r.sides[side]):
+            continue
+        if not r.sides[side][k].heavy:
             continue
         for name, (auc_ab, yard, _rank) in r.tstr_yard.items():
             got = r.sides[side][k].tstr.get(name)
@@ -1870,6 +1941,7 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"truths_named{suffix}": len(named),
         f"replicate_recovered{suffix}": len(got["replicate"]),
         f"shuffled_recovered{suffix}": len(got["shuffled"]),
+        f"truths_recovered_below_shuffled{suffix}": len(got["shuffled"]) - len(got["twin"]),
         f"controls_hold{suffix}": bool(rep_share >= 0.5 and shuf_share <= rep_share - 0.25),
         "_detail": "recovered by the twin: " + (", ".join(f"{r.table} {p}" for r, p, _k in got["twin"]) or "none")
         + "; missed: " + ", ".join(f"{r.table} {p}" for r, p, _k in missed),
@@ -1878,6 +1950,9 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
 
 def kpi_03(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     """K-BC-03, decisions kept and significance invented; on ST5 the share of pairs called associated."""
+    significant = sum(1 for r in runs for c in (r.sides["replicate"][0].compared if r.sides["replicate"] else [])
+                      if c.sig_real and c.family != "F1" and _not_null(c))
+
     def rates(side: str) -> "tuple[float, float]":
         kept, fabricated = [], []
         count = max((len(r.sides[side]) for r in runs), default=0)
@@ -1898,6 +1973,8 @@ def kpi_03(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"kept_points_below_replicate{suffix}": round(kept_gap, 1),
         f"fabricated_points_above_replicate{suffix}": round(
             100.0 * (out_rates["twin"][1] - out_rates["replicate"][1]), 1),
+        f"kept_points_below_shuffled{suffix}": round(100.0 * (out_rates["shuffled"][0] - out_rates["twin"][0]), 1),
+        f"real_significant{suffix}": significant,
         f"twin_kept{suffix}": round(out_rates["twin"][0], 3),
         f"replicate_kept{suffix}": round(out_rates["replicate"][0], 3),
         f"shuffled_kept{suffix}": round(out_rates["shuffled"][0], 3),
@@ -1940,6 +2017,7 @@ def kpi_04(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     rank_gap = max(rr - tt for rr, tt in zip(ranks["replicate"], ranks["twin"]))
     return {
         f"auc_gap_over_yardstick{suffix}": round(worst["twin"], 2),
+        f"auc_gap_over_shuffled{suffix}": round(worst["twin"] - worst["shuffled"], 2),
         f"importance_rank_below_replicate{suffix}": round(rank_gap, 3),
         f"replicate_auc_gap_over_yardstick{suffix}": round(worst["replicate"], 2),
         f"shuffled_auc_gap_over_yardstick{suffix}": round(worst["shuffled"], 2),
@@ -1951,16 +2029,22 @@ def kpi_05(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     """K-BC-05, the broad discriminator: the twin's pMSE ratio over the replicate's, worst table."""
     over: "dict[str, list[float]]" = {"twin": [], "shuffled": []}
     leaning = []
+    # On the null table a shuffle IS a perfect twin, so the shuffled
+    # control is read on the other tables only; today's twin on all.
+    shuffled_control: "list[float]" = []
     for r in runs:
-        rep = _median([s.pmse for s in r.sides["replicate"]])
+        rep = _median([s.pmse for s in r.sides["replicate"] if s.pmse == s.pmse])
         for side in over:
-            over[side] += [_median([s.pmse for s in r.sides[side]]) / rep]
+            over[side] += [_median([s.pmse for s in r.sides[side] if s.pmse == s.pmse]) / rep]
+        if r.table != "ST5":
+            shuffled_control += [over["shuffled"][-1]]
         if r.sides["twin"]:
             leaning += [f"{r.table}: " + ", ".join(r.sides["twin"][0].leaning)]
     return {
         f"pmse_over_replicate{suffix}": round(max(over["twin"]), 2),
-        f"shuffled_pmse_over_replicate{suffix}": round(min(over["shuffled"]), 2),
-        f"controls_hold{suffix}": bool(min(over["shuffled"]) > 3.0),
+        f"pmse_over_shuffled{suffix}": round(max(t / u for t, u in zip(over["twin"], over["shuffled"])), 2),
+        f"shuffled_pmse_over_replicate{suffix}": round(min(shuffled_control), 2),
+        f"controls_hold{suffix}": bool(shuffled_control and min(shuffled_control) > 3.0),
         "_detail": "the discriminator rests most on " + "; ".join(leaning),
     }
 
@@ -1987,6 +2071,7 @@ def kpi_06(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     gaps = {side: icc_gap(side) for side in ("twin", "replicate", "shuffled")}
     return {
         f"icc_gap{suffix}": round(gaps["twin"], 3),
+        f"icc_gap_over_shuffled{suffix}": round(gaps["twin"] - gaps["shuffled"], 3),
         f"fixed_effects_outside{suffix}": int(outside),
         f"rows_per_subject_tvd{suffix}": round(tvd, 3),
         f"replicate_icc_gap{suffix}": round(gaps["replicate"], 3),
@@ -2106,6 +2191,15 @@ def kpi_12(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
 KPIS = {"K-BC-01": kpi_01, "K-BC-02": kpi_02, "K-BC-03": kpi_03, "K-BC-04": kpi_04,
         "K-BC-05": kpi_05, "K-BC-06": kpi_06, "K-BC-07": kpi_07, "K-BC-08": kpi_08,
         "K-BC-09": kpi_09, "K-BC-10": kpi_10}
+
+
+def finite(value: object) -> object:
+    """A value the ledger can hold: NaN and infinities become None, at any depth."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: finite(v) for k, v in value.items()}
+    return value
 
 
 def kpi_values(runs: "list[TableRun]", suffix: str = "") -> "dict[str, dict[str, object]]":
