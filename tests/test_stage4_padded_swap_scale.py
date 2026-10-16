@@ -38,6 +38,16 @@ and requires:
     changes the twin, as `tests/test_stage3b_width.py` and
     `tools/measurements/kpi_cost_rule.py` rely on.
 
+THE PLUS EXCHANGE BESIDE IT (`generation._plus_style_swaps`) is the
+same rescan: every giver walked the takers from the first, stepping over
+those already given a style. Counted on the arguments of a signed column
+the style walk left short by a tenth of its non-negative decimals, its
+steps grew x4.0 a doubling, 783,131 at 50,000 rows and 12,592,672 at
+200,000, so it walks forward too, and this file holds its 68dae22f text
+as a second oracle with the same three demands: (d) the same answers
+over seeded and large cases, failing on two mutants; (e) the lines it
+runs growing with the rows.
+
 `padded_swap_measures` is K-S4-16's measure (tests/test_kpi_ledger.py).
 """
 
@@ -502,3 +512,187 @@ def test_the_answer_is_asked_again_on_every_call(monkeypatch: pytest.MonkeyPatch
     assert _answer(generation._padded_style_swaps, case) == first
     assert asked[0] == 2 * once
     assert once < 6, "the answer is kept per wearing key within the call"
+
+
+# -- (d) and (e): the plus exchange ---------------------------------------------
+
+
+def _as_built_plus_style_swaps(
+    facts: object,
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[str]":
+    """68dae22f's `_plus_style_swaps`, comments and docstring dropped."""
+    wanted = 0
+    if "+" in facts.decimal_plus:  # type: ignore[attr-defined]
+        wanted = facts.decimal_plus["+"]  # type: ignore[attr-defined]
+    if wanted <= 0:
+        return styles
+    have = 0
+    givers: "list[int]" = []
+    for index in range(len(holds)):
+        if holds[index] < 0.0:
+            continue
+        if styles[index] == "decimal":
+            have = have + 1
+        elif styles[index] == "plain" or styles[index] == "leading_zero":
+            givers += [index]
+    if have >= wanted:
+        return styles
+    takers: "list[int]" = []
+    for index in range(len(holds) - 1, -1, -1):
+        if styles[index] != "decimal" or not holds[index] < 0.0:
+            continue
+        if generation._can_wear("plain", holds[index], whole_column):
+            takers += [index]
+    moved = list(styles)
+    used: "dict[int, int]" = {}
+    short = wanted - have
+    for giver in givers:
+        if short <= 0:
+            break
+        for taker in takers:
+            if taker in used:
+                continue
+            if moved[giver] == "leading_zero" and generation._pad_need(
+                holds[taker], whole_column
+            ) > generation._pad_need(holds[giver], whole_column):
+                continue
+            used[taker] = 1
+            moved[taker] = moved[giver]
+            moved[giver] = "decimal"
+            short = short - 1
+            break
+    return moved
+
+
+class _Plus:
+    """The one field of the numeric block the plus exchange reads."""
+
+    def __init__(self, wanted: int) -> None:
+        self.decimal_plus = {"+": wanted}
+
+
+PlusCase = "tuple[_Plus, list[str], list[float], bool]"
+
+
+def _signed_column(
+    rows: int, seed: str, short: "int | None", padded: float, spread: float = 0.0
+) -> PlusCase:
+    """Signed changes as the style walk hands them in, short of the plus count by ``short`` (a tenth if None)."""
+    draw = random.Random(seed)
+    holds: "list[float]" = []
+    styles: "list[str]" = []
+    if spread <= 0.0:
+        spread = draw.choice([9.0, 300.0, 30000.0])
+    for _cell in range(rows):
+        value = draw.gauss(0.0, spread)
+        value = float(round(value)) if draw.random() < 0.5 else round(value, 2)
+        holds += [value]
+        if value < 0.0:
+            styles += ["decimal" if draw.random() < 0.9 else "plain"]
+        elif draw.random() < padded:
+            styles += ["leading_zero"]
+        else:
+            styles += [draw.choice(["plain", "decimal", "decimal", "leading_plus"])]
+    have = 0
+    for value, style in zip(holds, styles):
+        if value >= 0.0 and style == "decimal":
+            have = have + 1
+    owed = have // 10 if short is None else short
+    return _Plus(have + owed), styles, holds, draw.random() < 0.5
+
+
+def _plus_answer(walk: object, case: PlusCase) -> "list[str]":
+    """The plus exchange's styles for one case, handed fresh lists."""
+    facts, styles, holds, whole = case
+    return walk(facts, list(styles), list(holds), whole)  # type: ignore[operator]
+
+
+def _seeded_plus_case(number: int) -> PlusCase:
+    """One seeded signed column: 3 to 900 cells, short by 0 to 60 or by a tenth, up to every giver padded."""
+    draw = random.Random(f"h1/plus/{number}")
+    rows = draw.choice([3, 10, 40, 150, 900])
+    short = None if draw.random() < 0.3 else draw.randint(0, 60)
+    return _signed_column(rows, f"h1/plus/cells/{number}", short, draw.choice([0.0, 0.2, 0.6, 1.0]))
+
+
+def test_the_plus_exchange_answers_every_seeded_case_as_68dae22f_did() -> None:
+    """2,000 seeded signed columns and two of 25,000 cells: the same styles as the oracle, and styles do move."""
+    moved = 0
+    cases = [_seeded_plus_case(number) for number in range(SEEDED_CASES)]
+    cases += [
+        _signed_column(25_000, "h1/plus/large/1", None, 0.3),
+        _signed_column(25_000, "h1/plus/large/2", 400, 0.9),
+    ]
+    for number in range(len(cases)):
+        expected = _plus_answer(_as_built_plus_style_swaps, cases[number])
+        assert _plus_answer(generation._plus_style_swaps, cases[number]) == expected, f"case {number}"
+        for before, after in zip(cases[number][1], expected):
+            if before != after:
+                moved = moved + 1
+    assert moved > 5_000, f"premise: the seeded cases move styles ({moved})"
+
+
+PLUS_MUTANTS = {
+    "a padded giver taking the first free taker, whatever it needs": [
+        ('        if moved[giver] == "leading_zero":\n            own', '        if moved[giver] == "leading_zero" and not moved:\n            own'),
+    ],
+    "a taker given a style left free in its figure group": [
+        ("        need_links[need_of[found]][place[found]] = place[found] + 1\n", ""),
+    ],
+}
+
+
+@pytest.mark.parametrize("name", sorted(PLUS_MUTANTS))
+def test_the_plus_comparison_fails_on_each_mutant(name: str) -> None:
+    """Each mutant of the plus exchange answers some seeded case differently from the oracle."""
+    text = inspect.getsource(generation._plus_style_swaps)
+    for before, after in PLUS_MUTANTS[name]:
+        assert text.count(before) == 1, f"the mutant's edit no longer finds its text: {before!r}"
+        text = text.replace(before, after)
+    space = dict(vars(generation))
+    exec(compile(text, "<mutant>", "exec"), space)
+    walk = space["_plus_style_swaps"]
+    for number in range(SEEDED_CASES):
+        case = _seeded_plus_case(number)
+        if _plus_answer(walk, case) != _plus_answer(_as_built_plus_style_swaps, case):
+            return
+    raise AssertionError(f"the mutant {name!r} answers every seeded case as the oracle does")
+
+
+def _lines_run(walk: object, case: PlusCase) -> int:
+    """Lines the plus exchange and `_alive_from` run while ``walk`` answers ``case``: work, not time."""
+    counted = [0]
+    names = frozenset(["_plus_style_swaps", "_as_built_plus_style_swaps", "_alive_from", "_pad_need"])
+
+    def watch(frame: object, event: str, _argument: object) -> object:
+        if frame.f_code.co_name not in names:  # type: ignore[attr-defined]
+            return None
+        if event == "line":
+            counted[0] = counted[0] + 1
+        return watch
+
+    previous = sys.gettrace()
+    sys.settrace(watch)  # type: ignore[arg-type]
+    try:
+        _plus_answer(walk, case)
+    finally:
+        sys.settrace(previous)
+    return counted[0]
+
+
+def test_the_plus_exchange_runs_lines_that_grow_with_the_rows() -> None:
+    """Short by a tenth: x2.2 at most from 50,000 to 100,000 cells; the oracle's grow x3.0 or more from 25,000 to 50,000."""
+
+    def column(rows: int) -> PlusCase:
+        facts, styles, holds, _whole = _signed_column(rows, f"h1/plus/grow/{rows}", None, 0.3, 300.0)
+        return facts, styles, holds, False
+
+    small = _lines_run(generation._plus_style_swaps, column(50_000))
+    large = _lines_run(generation._plus_style_swaps, column(100_000))
+    assert large / small <= LINEAR_AT_MOST, f"{small} lines at 50,000 cells, {large} at 100,000"
+    old_small = _lines_run(_as_built_plus_style_swaps, column(25_000))
+    old_large = _lines_run(_as_built_plus_style_swaps, column(50_000))
+    assert old_large / old_small >= SQUARE_AT_LEAST, f"the oracle: {old_small} lines at 25,000, {old_large} at 50,000"

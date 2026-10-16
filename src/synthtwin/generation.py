@@ -21126,23 +21126,55 @@ def _plus_style_swaps(
     # and `+3.00` put `decimal` on the negatives and `leading_zero` on the
     # positives, and its twin wrote none of the hundred pluses.
     moved = list(styles)
-    used: "dict[int, int]" = {}
     short = wanted - have
+    # EVERY GIVER TAKES THE FIRST FREE TAKER IT MAY, FOUND WITHOUT A
+    # RESCAN (lane H1, plan P4-D402). The takers are walked in their
+    # fixed order through a next-alive list (`_alive_from`), so a taker
+    # given a style is stepped over for good rather than met again by
+    # every later giver: scanning the takers from the first on every
+    # giver made this walk grow with the square of the column where the
+    # style walk left it short by a share of its rows -- 783,131 steps
+    # at 50,000 rows and 12,592,672 at 200,000 (x4.0 a doubling). A
+    # padded giver may take only a taker needing no more figures than it
+    # does, so the takers are also kept by the figures they need, each
+    # group with a next-alive list of its own; its partner is the
+    # earliest first free taker of the groups it may take from, which
+    # is the taker the scan stopped at.
+    link = list(range(len(takers) + 1))
+    by_need: "dict[int, list[int]]" = {}
+    need_links: "dict[int, list[int]]" = {}
+    need_of: "list[int]" = []
+    place: "list[int]" = []
+    for at in range(len(takers)):
+        need = _pad_need(holds[takers[at]], whole_column)
+        if need not in by_need:
+            by_need[need] = []
+        place += [len(by_need[need])]
+        need_of += [need]
+        by_need[need] += [at]
+    for need in by_need:
+        need_links[need] = list(range(len(by_need[need]) + 1))
     for giver in givers:
         if short <= 0:
             break
-        for taker in takers:
-            if taker in used:
-                continue
-            if moved[giver] == "leading_zero" and _pad_need(
-                holds[taker], whole_column
-            ) > _pad_need(holds[giver], whole_column):
-                continue
-            used[taker] = 1
-            moved[taker] = moved[giver]
-            moved[giver] = "decimal"
-            short = short - 1
-            break
+        found = len(takers)
+        if moved[giver] == "leading_zero":
+            own = _pad_need(holds[giver], whole_column)
+            for need in by_need:
+                if need > own:
+                    continue
+                first = _alive_from(need_links[need], 0)
+                if first < len(by_need[need]) and by_need[need][first] < found:
+                    found = by_need[need][first]
+        else:
+            found = _alive_from(link, 0)
+        if found >= len(takers):
+            continue
+        link[found] = found + 1
+        need_links[need_of[found]][place[found]] = place[found] + 1
+        moved[takers[found]] = moved[giver]
+        moved[giver] = "decimal"
+        short = short - 1
     return moved
 
 
