@@ -82,8 +82,11 @@ next.
 
 ## What works today
 
-Three commands, run one after the other. Each one ends by printing the
-next.
+Three commands, run one after the other. `profile` ends by printing
+the `generate` command to type next, `generate` ends by printing the
+`validate` command, and `validate` ends by saying what its verdict
+means. To install synthtwin, and to check a computer before a first run
+with `synthtwin doctor`, see "Before you start" and "Installing" below.
 
 ```
 synthtwin profile my-table.csv
@@ -719,26 +722,105 @@ the tested matrix. One documented consequence of the single-stream design:
 changing the schema shifts the random streams that follow it at the same
 seed, so byte-stability is promised only across identical inputs.
 
+## Before you start
+
+synthtwin runs on Python 3.10 or later, on a Mac, on Windows or on
+Linux. You need nothing else installed first: the install script below
+fetches everything else. To see which Python a computer has:
+
+**On a Mac.** Open Terminal (Applications, then Utilities) and type
+`python3 --version`. If it prints `Python 3.10` or a later number, you
+are ready. If it prints an older number, or a window offers to install
+"command line developer tools", go to python.org, choose Downloads, and
+download the newest Python 3 installer for macOS. Open the file you
+downloaded and follow its steps. Then close Terminal, open it again and
+type `python3 --version` once more.
+
+**On Windows.** Open Command Prompt (type `cmd` in the Start menu) and
+type `python --version`. If it prints `Python 3.10` or a later number,
+you are ready. If it prints an older number, says the command is not
+recognized, or opens the Microsoft Store, go to python.org, choose
+Downloads, and download the newest Python 3 installer for Windows. Run
+it and, on its first screen, tick "Add python.exe to PATH" before you
+choose "Install Now". Then close Command Prompt and open a new one.
+
+**On Linux.** Type `python3 --version` in a terminal. On Debian and
+Ubuntu the private environment the script makes needs one more package,
+which the person who looks after the computer can add with
+`sudo apt install python3-venv`.
+
+**Then get the synthtwin folder.** Either download it -- on
+https://github.com/alfredocr05/synthtwin choose "Code", then "Download
+ZIP", and unzip it -- or, if you use git, type
+`git clone https://github.com/alfredocr05/synthtwin`.
+
 ## Installing
 
-synthtwin is **not on PyPI** yet. To use all three commands from a
-clone:
+synthtwin is **not on PyPI** yet. It installs with one command, typed in
+the synthtwin folder (`cd` into it first; a downloaded ZIP unzips to a
+folder named `synthtwin-main`).
+
+On a Mac or Linux:
 
 ```
-git clone https://github.com/alfredocr05/synthtwin
-cd synthtwin
-pip install -e .
-synthtwin profile my-table.csv
-synthtwin generate my-table-profile.json
-synthtwin validate my-table-profile.json
+sh scripts/install.sh
 ```
+
+On Windows, in Command Prompt:
+
+```
+scripts\install.bat
+```
+
+The script finds Python 3.10 or later, makes a private environment named
+`.venv` inside the synthtwin folder so nothing else on the computer
+changes, installs numpy and pandas from `requirements-install.lock` with
+the hash of every file checked (`--require-hashes`), installs synthtwin
+from the folder, and ends by running `synthtwin doctor` (below). It
+needs the internet once, for those locked files and for the packaging
+tool pip uses to install the folder. It is a `.bat` file on Windows, not
+a PowerShell script, because many managed computers refuse to run
+PowerShell scripts.
+
+Then run synthtwin from the same folder by its path in that environment:
+
+```
+.venv/bin/synthtwin profile my-table.csv
+```
+
+On Windows that is `.venv\Scripts\synthtwin profile my-table.csv`. The
+rest of this page writes the command as plain `synthtwin`, which works
+as it is once the environment is switched on in that terminal window
+(`source .venv/bin/activate` on a Mac or Linux, `.venv\Scripts\activate`
+on Windows). `python -m synthtwin` does exactly what `synthtwin` does,
+with the same options and the same exit codes.
+
+### Checking the computer: `synthtwin doctor`
+
+`synthtwin doctor` prints one line per check: that Python is 3.10 or
+later, that numpy and pandas can be loaded, that the output folder takes
+a file, and this computer's total memory (on Windows the standard
+library cannot read it, and the line says so). Named a table, as in
+`synthtwin doctor my-table.csv`, it also weighs the file's size against
+that memory: reading a table takes about ten times its size, and the
+line warns when that is more than half the memory. It **never opens the
+table**; it asks the computer for the file's size and nothing else. It
+exits 0 when every check passed and 1 when any did not, and each line
+marked PROBLEM says what to do next. The output folder is the one
+`--out-dir` names, else the table's folder, else the current folder; the
+check writes a small test file there and removes it at once.
+
+### With no internet at all, every file checked by hash
 
 On a machine that must install everything by hash, and that may have no
 network at all, the procedure has two parts. The first needs a machine
-that does have network access; the second does not.
+that does have network access, the same system and the same Python
+version as the locked-down one (pip fetches the files for the machine it
+runs on); the second does not.
 
-**On a connected machine**, collect the exact files, verifying every
-hash as they arrive, and copy the folder across:
+**On a connected machine**, in the synthtwin folder, collect the exact
+files, verifying every hash as they arrive, then copy the whole
+synthtwin folder across, the `wheelhouse` folder inside it:
 
 ```
 pip download --require-hashes --only-binary=:all: \
@@ -748,8 +830,17 @@ pip download --require-hashes --only-binary=:all: \
 Put the synthtwin wheel (`synthtwin-<version>-py3-none-any.whl`, from a
 release) into that same folder.
 
-**On the locked-down machine**, install from the folder and nothing
-else:
+**On the locked-down machine**, in the synthtwin folder, install from
+the `wheelhouse` folder and nothing else, with the install script given
+that folder:
+
+```
+sh scripts/install.sh wheelhouse
+```
+
+On Windows that is `scripts\install.bat wheelhouse`. The script runs
+exactly these two pip commands inside its private environment, which
+you can also type yourself, then `synthtwin doctor`:
 
 ```
 pip install --no-index --find-links wheelhouse \
@@ -766,7 +857,8 @@ second command. It runs a build backend that pip fetches from the
 network, `requirements-install.lock` does not pin that backend, and on a
 machine with no network it simply fails. CI runs exactly the two pip
 commands above on every build, against the wheel produced inside a
-container with no network.
+container with no network, and runs the install script itself, from such
+a wheel folder, on Ubuntu, Windows and macOS.
 
 From Phase 3's visibility flip onward the repository is public and
 these commands work for anyone, with no account and no authentication;
