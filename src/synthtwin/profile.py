@@ -4698,7 +4698,7 @@ def dated_questions_of(
     The codes question with ``codes_already`` where ``codes_seen`` is
     None, otherwise ``codes_seen`` as it stands; question Q6 with
     ``dates_already``; and, where ``month`` says so, the day-or-month
-    question beside both their findings -- as `questions_of` walks a
+    question beside what both found -- as `questions_of` walks a
     table: a table read whole asked each in turn over ``split``, a table
     read in groups one group at a time, its cells split once a group.
     """

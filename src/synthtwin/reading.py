@@ -3241,7 +3241,7 @@ def _sweep(
     record_rules: "list[int]" = [0 for _place in range(width)]
     names_shown: "list[bool]" = [False for _place in range(width)]
     asked_of_the_first_row = headed and first_row == FIRST_ROW_AUTOMATIC
-    disagreements: "list[tuple[int, int, int]]" = []
+    differences: "list[tuple[int, int, int]]" = []
     refused: "list[tuple[tuple[int, int], errors.ProfileError]]" = []
     held: "list[list[str]]" = []
     held_from = 0
@@ -3260,8 +3260,8 @@ def _sweep(
         if surveyed is None:
             raise ValueError("synthtwin internal check: a reading without its survey")
         if found is not None:
-            disagreements += [found]
-        if not disagreements and reading.n_rows:
+            differences += [found]
+        if not differences and reading.n_rows:
             refusal = _check_against_pandas(
                 raw_path, reading, shown, refusals, keep, surveyed.first_cells
             )
@@ -3295,9 +3295,9 @@ def _sweep(
         last = reading
     if last is None or last.survey is None:
         raise ValueError("synthtwin internal check: a sweep of no group")
-    if disagreements:
-        first = disagreements[0]
-        for one in disagreements:
+    if differences:
+        first = differences[0]
+        for one in differences:
             if one < first:
                 first = one
         _refuse_the_disagreement(first, last.survey, shown, refusals)

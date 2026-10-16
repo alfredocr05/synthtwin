@@ -4405,14 +4405,14 @@ def date_codes_seen(
 
 @dataclasses.dataclass(frozen=True)
 class DateCodesPending:
-    """`date_codes_seen`'s first walk: every column's own findings, before the other columns are counted.
+    """`date_codes_seen`'s first walk: what every column shows on its own, before the other columns are counted.
 
     ``pending`` holds each column asked about -- its name, its role, its
     0-based place and the codes seen in it -- for `codes_elsewhere` to
     count in the other columns; ``answered``, ``day_or_month`` and
     ``century`` are `DateCodesSeen`'s own. Split out so a table read one
-    group of columns at a time is walked a group at a time, each group's
-    findings put together in column order (lane SR, plan P4-D400).
+    group of columns at a time is walked a group at a time, what each
+    group shows put together in column order (lane SR, plan P4-D400).
     """
 
     pending: "tuple[tuple[str, str, int, DateCodes], ...]" = ()
