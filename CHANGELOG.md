@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### Lines to type on Windows work in Command Prompt, and Python 3.10 lets each census reading go (2026-10-16)
+
+**A follow-up to batch 4b** (lane CF4b of the December plan; CI run
+38916841931 on 68dae22f, 9 of 69 jobs red). On Windows, every command
+synthtwin prints for you to type -- the next command after `profile`,
+`generate` and `doctor`, the line that repeats a run, the options a
+notice offers -- is now quoted in double quotes, which Command Prompt and
+PowerShell both read. Before, it was quoted in PowerShell's single
+quotes, which Command Prompt, where the install script tells you to
+type, does not read, so a path with a space broke there (plan P4-D397,
+with its stated limits). On Python 3.10, `synthtwin profile` let each
+census reading go only once the whole table was described, because 3.10
+keeps a call's arguments until the call returns; the description now
+takes the readings out of their box itself, so what lane S4d measured
+holds on every Python synthtwin supports (plan P4-D390). The lines
+printed on macOS and Linux, and every description, twin and report, are
+the same bytes as before.
+
 ### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
 
 **Records of batch 4b** (push critic 7; the orchestrator's rulings of

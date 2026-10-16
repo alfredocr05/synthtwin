@@ -371,8 +371,13 @@ _POWERSHELL_AFTER_DOLLAR = frozenset(
 
 
 def _on_windows() -> bool:
-    """Whether the lines to type are quoted for Windows rather than POSIX (`os.name`)."""
-    return os.name == "nt"
+    """Whether the lines to type are quoted for Windows rather than POSIX.
+
+    `sys.platform`, which the offline scan admits where it refuses
+    `os.name`: on every Windows build of Python the two agree, and under
+    Cygwin, whose shells are POSIX ones, `sys.platform` is `cygwin`.
+    """
+    return sys.platform == "win32"
 
 
 def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
@@ -381,7 +386,7 @@ def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
     A word of only plain characters is printed as it stands, so `seen_at`
     stays `seen_at`. Any other is quoted whole: on POSIX in single quotes
     (`_quoted_for_posix`); on Windows (``windows`` true, or the platform
-    where it is None, by `os.name`) in double quotes, which the Command
+    where it is None, by `_on_windows`) in double quotes, which the Command
     Prompt and PowerShell both read (`_quoted_for_windows`).
 
     Guarantees: accepts any value, read as text; returns one word for the

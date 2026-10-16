@@ -65,7 +65,7 @@ def _words(line: str) -> "list[str]":
     POSIX quoting on a Mac or Linux; on Windows the words the program
     reads from the line the Command Prompt hands it (`_read_by_the_c_runtime`).
     """
-    if os.name != "nt":
+    if sys.platform != "win32":
         return shlex.split(line)
     return _read_by_the_c_runtime(_handed_over_by_the_command_prompt(line))
 
@@ -774,7 +774,7 @@ def test_profile_quotes_a_description_in_a_folder_with_a_space(
     lines = _profile_lines(table, capsys)
     _names_the_description(lines, spaced / "clinic-profile.json")
     assert lines[-1].startswith("  (each value quoted for")
-    mark = '"' if os.name == "nt" else "'"
+    mark = '"' if sys.platform == "win32" else "'"
     assert mark in lines[-2], "a path with a space is written between quotes"
 
 
@@ -816,7 +816,7 @@ def test_the_next_command_is_quoted_for_the_shell() -> None:
     """
     description = pathlib.Path("/data/my clinic-profile.json")
     line = cli._teaching_generate(description)
-    if os.name == "nt":
+    if sys.platform == "win32":
         assert f'synthtwin generate "{description}"' in line
         assert line.splitlines()[-1] == "  (each value quoted for the Command Prompt and PowerShell)"
     else:
@@ -899,7 +899,7 @@ def test_both_quoting_functions_on_any_platform(
     halves: Windows PowerShell 5.1 wraps that value in quotes, having a
     space, so the program reads the value; 7.3 and later hand it over
     as read (stated limits of plan P4-D397). The choice by platform is
-    `os.name`'s.
+    `sys.platform`'s (`cli._on_windows`).
     """
     assert cli._quoted_for_posix(value) == posix
     assert cli._quoted_for_the_shell(value, windows=False) == posix
@@ -909,7 +909,7 @@ def test_both_quoting_functions_on_any_platform(
     read = _read_by_the_c_runtime(_handed_over_by_the_command_prompt(f"x {windows} y"))
     assert read == ["x", value if prompt is None else prompt, "y"]
     assert _read_by_powershell(windows) == (value if powershell is None else powershell)
-    assert cli._quoted_for_the_shell(value) == (windows if os.name == "nt" else posix)
+    assert cli._quoted_for_the_shell(value) == (windows if sys.platform == "win32" else posix)
 
 
 # -- the install scripts, README and CI -------------------------------------
