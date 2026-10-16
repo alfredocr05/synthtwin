@@ -818,8 +818,8 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 615,000 from 610,000, LANE TI OF THE DECEMBER PLAN (2026-10-15, plan
     # P4-D397), the least round figure the lane's ledger fits under: the
     # terminal's first two entries, `K-S8-01` (its headline) and
-    # `K-S8-04`, with their note clause, 614,873 bytes. The integrator
-    # reconciles it with the other lanes of the batch. A MEASUREMENT IS
+    # `K-S8-04`, with their note clause, 614,873 bytes. The integrator sets
+    # the cap for the batch as a whole. A MEASUREMENT IS
     # NEVER TRIMMED TO FIT.
     #
     # 610,000 from 605,000, AT THE INTEGRATION OF BATCH 4A'S FIRST MERGE

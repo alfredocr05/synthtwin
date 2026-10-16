@@ -6,6 +6,29 @@ exists).
 
 ## [Unreleased]
 
+### Installing in one command, `python -m synthtwin`, and `synthtwin doctor` (2026-10-15)
+
+**synthtwin installs with one command and checks the computer before a
+first run** (plan P4-D397, lane TI of the December plan).
+`sh scripts/install.sh` on a Mac or Linux and `scripts\install.bat` on
+Windows make a private environment, `.venv`, inside the synthtwin folder,
+install numpy and pandas from `requirements-install.lock` with every hash
+checked -- from a wheel folder, with README's two offline pip commands
+flag for flag -- and end by running `synthtwin doctor`. The new command
+prints one line per check (Python 3.10 or later, numpy and pandas, the
+output folder, the computer's total memory, and a named table's size
+against it) and exits 0 when all pass, 1 otherwise; it never opens the
+table. `python -m synthtwin` now runs the command, where it stopped with
+an error, and `profile` ends by printing the `generate` command to type
+next, as README promised. README gains "Before you start" (getting Python
+3.10 or later on a Mac, on Windows and on Linux) and an "Installing"
+section built on the scripts; CI runs the install script from a wheel
+folder on Ubuntu, Windows and macOS. The offline scanner admits
+`os.sysconf`, which reads the memory and nothing else. KPIs `K-S8-01`
+(the terminal's headline, OPEN: 1 install command, 3 run commands, 1
+file edited by hand) and `K-S8-04` (GREEN); the headline cap goes from 31
+to 32 by the orchestrator's recorded call D15, which the owner may veto.
+
 ### Repeated grids of timestamps meet their counts (2026-10-15)
 
 **A column of timestamps on a regular grid that starts off midnight, or

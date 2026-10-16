@@ -5443,7 +5443,7 @@ def _check_table(raw: str, memory: "int | None") -> _Check:
     """The table's size against this computer's memory; the table is never opened.
 
     The path is validated and its size asked of the file system, which
-    reads no byte of the file. The size is all `doctor` learns.
+    reads no byte of the file. The size is all `doctor` is told.
     """
     try:
         table = validate_local_path(raw, purpose="table")
