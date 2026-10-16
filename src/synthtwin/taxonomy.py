@@ -25672,7 +25672,7 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     evidence says nobody has answered, and it publishes NO PREFIX.
     The literal run a declared column publishes is the owner's ruling of
     2026-09-17, item 1, for a column a person NAMED; this one was named
-    by nobody, and `MRN` or `XKH` opening every value is a fragment of
+    by nobody, and `REC` or `XKH` opening every value is a fragment of
     every real value. The layouts stay: a layout says which kind of
     character stood at each place and never which one.
 

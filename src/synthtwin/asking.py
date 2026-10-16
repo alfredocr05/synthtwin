@@ -3430,7 +3430,7 @@ def _person_choices(role: str, floor: int) -> "list[Choice]":
 # until somebody answers: none of its values, level names, prefixes or
 # examples is published, and the twin writes the placeholders a
 # declared record number gets. Measured on 68dae22f: a long table of
-# 600 rows over 44 patients, its `mrn` asked and unanswered, published
+# 600 rows over 44 patients, its `record` asked and unanswered, published
 # 26 of the 44 real record numbers as level names.
 #
 # THE QUESTIONS THAT ASK IT, each offering `identifier`: the person
@@ -3559,7 +3559,7 @@ def _shaped_like_record_numbers(present: "list[str]") -> bool:
 def _every_cell_holds_figures(present: "list[str]", least: int) -> bool:
     """Whether every present cell holds a run of at least ``least`` figures.
 
-    A RUN, one figure after another: `MRN10000021` holds eight, and
+    A RUN, one figure after another: `REC10000021` holds eight, and
     `NM_169981.2:c.782C>T` -- a variant written in parts -- holds no run
     longer than six however many figures it holds in all.
     """

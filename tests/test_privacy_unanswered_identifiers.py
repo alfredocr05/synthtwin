@@ -1,9 +1,9 @@
 """P4-D401 (lane HX): no real identifier is published while its question is open.
 
 THE FINDING (wave6/ZOO/CRITIC.md item 1, measured at 68dae22f). A long
-table -- 600 rows over 44 patients, `mrn` written `MRN1000xxxx` on each
+table -- 600 rows over 44 patients, `record` written `REC1000xxxx` on each
 patient's rows -- profiled with the person question offered and nobody
-answering: `mrn` was read as labels and the description named 26 of the 44
+answering: `record` was read as labels and the description named 26 of the 44
 real record numbers, every one on 11 rows or more, and the twin wrote them
 back. The owner's principle (2026-10-01): the one threat is HIPAA exposure,
 and a record number is a direct identifier whatever its count.
@@ -147,18 +147,18 @@ def _block(document: "dict[str, object]", name: str) -> "dict[str, object]":
 
 def test_answering_keep_gives_back_the_labels(tmp_path: pathlib.Path) -> None:
     """`keep` is the reading the rules made: the levels are back, named."""
-    shapes.run(tmp_path, "mrn", _ROWS)
-    document = _answer(tmp_path, "mrn", asking.ANSWER_KEEP)
-    block = _block(document, "mrn")
+    shapes.run(tmp_path, "record", _ROWS)
+    document = _answer(tmp_path, "record", asking.ANSWER_KEEP)
+    block = _block(document, "record")
     assert block["role"] == taxonomy.ROLE_CATEGORICAL
     assert block["levels"], "the answer `keep` publishes the levels it names"
     settings = document["settings"]
     assert isinstance(settings, dict) and settings["forced_identifiers"] == []
     # ...and the file asks again under the reading in force, as before.
     asked = json.loads(
-        (tmp_path / "mrn_long-questions.json").read_text(encoding="utf-8")
+        (tmp_path / "record_long-questions.json").read_text(encoding="utf-8")
     )["asked"]
-    assert [entry["read_as_now"] for entry in asked if entry["column"] == "mrn"] == [
+    assert [entry["read_as_now"] for entry in asked if entry["column"] == "record"] == [
         asking.ANSWER_KEEP
     ]
 
@@ -179,14 +179,14 @@ def test_answering_code_on_the_fixed_width_question_gives_back_the_codes(
 
 def test_answering_identifier_counts_the_people(tmp_path: pathlib.Path) -> None:
     """`identifier` is the declaration: 44 people is under the floor, refused."""
-    shapes.run(tmp_path, "mrn", _ROWS)
-    questions = tmp_path / "mrn_long-questions.json"
+    shapes.run(tmp_path, "record", _ROWS)
+    questions = tmp_path / "record_long-questions.json"
     document = json.loads(questions.read_text(encoding="utf-8"))
     for entry in document["asked"]:
         entry["your_answer"] = asking.ANSWER_IDENTIFIER
     answers = tmp_path / "answers.json"
     answers.write_text(json.dumps(document), encoding="utf-8", newline="\n")
-    code = cli.main(["profile", f"{tmp_path / 'mrn_long.csv'}", "--out-dir",
+    code = cli.main(["profile", f"{tmp_path / 'record_long.csv'}", "--out-dir",
                      f"{tmp_path / 'again'}", "--answers", f"{answers}"])
     assert code == 1, "44 people is under the population floor"
 
@@ -197,19 +197,19 @@ def test_a_person_at_the_keyboard_has_answered(
     """Enter at the keyboard is an answer: the reading it keeps is published."""
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     monkeypatch.setattr(cli, "_read_one_answer", lambda standing: "")
-    table, _real = shapes.write_table(tmp_path, "mrn", _ROWS)
+    table, _real = shapes.write_table(tmp_path, "record", _ROWS)
     assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}"]) == 0
     document = json.loads(
-        (tmp_path / "mrn_long-profile.json").read_text(encoding="utf-8")
+        (tmp_path / "record_long-profile.json").read_text(encoding="utf-8")
     )
-    assert _block(document, "mrn")["role"] == taxonomy.ROLE_CATEGORICAL
+    assert _block(document, "record")["role"] == taxonomy.ROLE_CATEGORICAL
 
 
 def test_no_column_held_back_describes_the_table_as_before(
     tmp_path: pathlib.Path,
 ) -> None:
     """`unanswered` empty or absent is the same description, byte for byte."""
-    table, _real = shapes.write_table(tmp_path, "mrn", _ROWS)
+    table, _real = shapes.write_table(tmp_path, "record", _ROWS)
     settings = taxonomy.Settings()
     read = reading.read_table(
         f"{table}", small_cell_floor=settings.small_cell_floor

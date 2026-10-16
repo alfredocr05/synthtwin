@@ -818,7 +818,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 625,000 from 622,000, LANE HX OF THE DECEMBER PLAN (2026-10-16, plan
     # P4-D401), the least round figure the lane's ledger fits under:
     # `K-S3-64`, real identifier values an unanswered long table
-    # publishes, with its note clause, 624,807 bytes. The integrator sets
+    # publishes, with its note clause, 624,809 bytes. The integrator sets
     # the cap for the batch as a whole. A MEASUREMENT IS NEVER TRIMMED TO
     # FIT.
     #

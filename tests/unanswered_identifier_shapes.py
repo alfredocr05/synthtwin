@@ -56,8 +56,8 @@ _STREETS = ("Maple St", "Oak Ave", "Pine Rd", "Cedar Ln", "Elm St",
 def _patient(kind: str, place: int, draw: random.Random) -> str:
     first = _FIRST[draw.randrange(len(_FIRST))]
     last = _LAST[draw.randrange(len(_LAST))]
-    if kind == "mrn":
-        return f"MRN{10000000 + 7 * place:08d}"
+    if kind == "record":
+        return f"REC{10000000 + 7 * place:08d}"
     if kind == "plan":
         return f"XKH{draw.randint(100000000, 999999999)}"
     if kind == "email":
@@ -79,7 +79,7 @@ def _patient(kind: str, place: int, draw: random.Random) -> str:
     return f"{draw.randint(1930, 2005)}-{draw.randint(1, 12):02d}-{draw.randint(1, 28):02d}"
 
 
-HELD = ("mrn", "plan", "email", "account", "phone", "ssn")
+HELD = ("record", "plan", "email", "account", "phone", "ssn")
 STATED = ("name", "address", "dob", "subject")
 
 
