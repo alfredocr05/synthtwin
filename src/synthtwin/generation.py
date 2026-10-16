@@ -4109,38 +4109,35 @@ def _can_wear(style: str, value: float, whole_column: bool) -> bool:
     return True
 
 
-def _first_giver(
-    moved: "list[str]",
-    holds: "list[float]",
-    reserved: "dict[int, int]",
-    taken: "dict[int, int]",
-    width: int,
-    taking: str,
-    whole_column: bool,
-) -> int:
-    """The first padded cell free to give the style up, or -1.
+def _alive_from(link: "list[int]", at: int) -> int:
+    """The first position at or after ``at`` not yet retired, or the end.
 
-    Written outside the walk so a whole value's exchange can be tried
-    before any of it is applied: ``taken`` holds the cells this trial
-    has already spoken for, which the walk's own bookkeeping does not
-    know about until the trial is accepted.
+    THE PADDED EXCHANGE'S NEXT-ALIVE LIST (lane H1, plan P4-D402).
+    ``link`` holds one entry per roster position and one past the end;
+    a live position points at itself and a retired one at the position
+    after it, so following the links from ``at`` lands on the first live
+    position at or after it. Every link walked is pointed straight at
+    that answer on the way back (path compression), so a roster retired
+    cell by cell is walked in near-linear time in all, where scanning
+    from the first cell on every ask made the walk quadratic in the
+    column (generate grew x3.0 to x3.4 a doubling on padded code
+    columns; plan P4-D402).
 
-    IT TAKES THE VALUES AND NOT TWO FUNCTIONS. Handing a callable to a
-    helper is a call this repository's offline audit cannot read, and
-    the audit is right to refuse it: a function passed as a value is a
-    function nobody can check by reading the source.
+    IT TAKES THE LINKS AND NOT A FUNCTION: a function handed to a helper
+    as a value is a call this repository's offline audit cannot read.
+    Guarantees: accepts the links and a position no greater than
+    the end; returns a live position or the end, and shortens the links
+    walked. Determinism: a fixed function of the links. Raises nothing.
+    No I/O of any kind.
     """
-    for other in range(len(moved)):
-        if moved[other] != "leading_zero":
-            continue
-        if other in reserved or other in taken:
-            continue
-        if _pad_need(holds[other], whole_column) < width:
-            continue
-        if not _can_wear(taking, holds[other], whole_column):
-            continue
-        return other
-    return -1
+    root = at
+    while link[root] != root:
+        root = link[root]
+    while link[at] != root:
+        step = link[at]
+        link[at] = root
+        at = step
+    return root
 
 
 def _eligible_groups(
@@ -4275,9 +4272,33 @@ def _padded_style_swaps(
     # unfillable.
     reserved: "dict[int, int]" = {}
     spent: "dict[int, int]" = {}
+    # ONE ROSTER OF GIVERS PER STYLE TAKEN, AND EVERY ASK WALKS FORWARD
+    # (lane H1, plan P4-D402). A giver for a width is a padded cell not
+    # reserved whose value needs at least the width's figures and can
+    # wear the style it takes. Within this call a cell only ever STOPS
+    # being one: it leaves the padded style only as a partner, which is
+    # retired from every roster at once, every cell handed the padded
+    # style is reserved with it, and its figures and what it can wear
+    # never change. So the roster of a style, built in ascending cell
+    # order the first time the width asks for it, is exactly the cells
+    # the old scan from cell 0 would have accepted, in its order, and
+    # its first live cell not spoken for is the partner that scan
+    # returned. Asked afresh from cell 0 on every cell of every trial,
+    # that scan made a padded code column quadratic: about 3,600 s of
+    # generate projected at two million rows for one postal code column
+    # (lane B0's measurement window, fitted). The
+    # rosters are rebuilt for each width, because the figures asked
+    # change with it.
+    rosters: "dict[str, list[int]]" = {}
+    links: "dict[str, list[int]]" = {}
+    places: "dict[str, dict[int, int]]" = {}
 
-    def give_up(width: int, taking: str) -> int:
-        """A padded cell this width cannot hold, free to give the style up."""
+    def roster(width: int, taking: str) -> None:
+        """Build the givers of ``taking`` for this width, once a width."""
+        if taking in rosters:
+            return
+        found: "list[int]" = []
+        where: "dict[int, int]" = {}
         for other in range(len(moved)):
             if moved[other] != "leading_zero" or other in reserved:
                 continue
@@ -4290,10 +4311,47 @@ def _padded_style_swaps(
             # every column whose widest value was also its endpoint.
             if need_of(other) < width:
                 continue
+            # A cell that cannot wear THIS style stays on the roster of
+            # every style it can wear: it is left off one roster, never
+            # retired from all of them.
             if not receivable(other, taking):
                 continue
-            return other
-        return -1
+            where[other] = len(found)
+            found += [other]
+        rosters[taking] = found
+        links[taking] = list(range(len(found) + 1))
+        places[taking] = where
+
+    def retire(cell: int) -> None:
+        """A partner gave the padded style up: off every roster for good."""
+        for taking in places:
+            if cell in places[taking]:
+                at = places[taking][cell]
+                links[taking][at] = at + 1
+
+    def first_from(
+        taking: str, start: int, taken: "dict[int, int]"
+    ) -> "tuple[int, int]":
+        """The first live giver at or after ``start`` not in ``taken``.
+
+        Returns the giver, or -1, and the position to ask from next. A
+        trial keeps that position for each style it takes, which is
+        sound because ``taken`` only grows within a trial: every giver
+        before it is retired or spoken for.
+        """
+        found = rosters[taking]
+        link = links[taking]
+        at = _alive_from(link, start)
+        while at < len(found) and found[at] in taken:
+            at = _alive_from(link, at + 1)
+        if at >= len(found):
+            return -1, at
+        return found[at], at + 1
+
+    def give_up(width: int, taking: str) -> int:
+        """A padded cell this width cannot hold, free to give the style up."""
+        roster(width, taking)
+        return first_from(taking, 0, {})[0]
 
     def hand_over(index: int, width: int) -> bool:
         """Swap the padded style onto ``index``; say whether it happened."""
@@ -4304,10 +4362,16 @@ def _padded_style_swaps(
         moved[index] = "leading_zero"
         spent[index] = 1
         reserved[index] = width
+        retire(partner)
         return True
 
     for width in sorted(quotas):
         owing = quotas[width]
+        # Fresh rosters for each width; the helpers above read these
+        # names when they are called, so they see the new ones.
+        rosters = {}
+        links = {}
+        places = {}
         for index in range(len(moved)):
             if owing < 1:
                 break
@@ -4339,21 +4403,28 @@ def _padded_style_swaps(
             # value just as surely as stopping when the count does, so
             # the exchange is tried first and applied only if every
             # cell of the group found a partner.
+            # The partners a trial takes for one style come in roster
+            # order, so each style's ask starts where its last ended; a
+            # trial refused starts again from each roster's first live
+            # giver, as the scan from cell 0 did.
             trial: "list[tuple[int, int]]" = []
             taken: "dict[int, int]" = {}
+            reach: "dict[str, int]" = {}
             for index in group:
-                partner = _first_giver(
-                    moved, holds, reserved, taken, width,
-                    moved[index], whole_column,
-                )
+                taking = moved[index]
+                roster(width, taking)
+                start = reach[taking] if taking in reach else 0
+                partner, after = first_from(taking, start, taken)
                 if partner < 0:
                     trial = []
                     break
+                reach[taking] = after
                 taken[partner] = 1
                 trial += [(index, partner)]
             if not trial:
                 continue
             for index, partner in trial:
+                retire(partner)
                 moved[partner] = moved[index]
                 moved[index] = "leading_zero"
                 spent[index] = 1
@@ -4464,30 +4535,58 @@ def _padded_style_swaps(
     for width in quotas:
         if width > widest:
             widest = width
+    # ONE FORWARD CURSOR PER WEARING KEY, AND ONE ANSWER PER KEY FROM
+    # THE FORM ASKED (lane H1, plan P4-D402). Whether a cell partners an
+    # overflowing one depends on the overflowing value only through which
+    # of the styles present it can wear, the key below; a cell this pass
+    # passes over for a key never becomes a partner for it later (a
+    # partner takes the padded style for good, every overflowing cell
+    # needs the widest width and is never a partner, and every other
+    # test is fixed), so the next ask with the same key starts where the
+    # last ended. `_point_free_form_worn` likewise reads the value only
+    # through which whole styles it can wear, and is asked of the styles
+    # handed in, which nothing here changes: its answer is kept per key
+    # for this call only, and it is still asked by name, so code that
+    # swaps it in measures what it swaps. Rescanning from cell 0, and
+    # recounting every style, on each overflowing cell was quadratic.
+    present = sorted(set(moved))
+    forms: "dict[tuple[bool, ...], str]" = {}
+    cursors: "dict[tuple[bool, ...], int]" = {}
     for index in range(len(moved)):
         if moved[index] != "leading_zero" or index in reserved:
             continue
         if need_of(index) < widest:
             continue
         swapped = False
-        for other in range(len(moved)):
+        wear_key = tuple([_can_wear(style, holds[index], whole_column) for style in present])
+        other = cursors[wear_key] if wear_key in cursors else 0
+        while other < len(moved):
             if moved[other] == "leading_zero" or other in reserved:
+                other = other + 1
                 continue
             if not _carries_plainly(holds[other], whole_column):
+                other = other + 1
                 continue
             if need_of(other) >= widest:
+                other = other + 1
                 continue
             if not _can_wear(moved[other], holds[index], whole_column):
+                other = other + 1
                 continue
             moved[index] = moved[other]
             moved[other] = "leading_zero"
             spent[other] = 1
             reserved[other] = widest
             swapped = True
+            other = other + 1
             break
+        cursors[wear_key] = other
         if swapped:
             continue
-        given = _point_free_form_worn(styles, holds[index], whole_column)
+        wearing = tuple([_can_wear(name, holds[index], whole_column) for name in _WHOLE_STYLES])
+        if wearing not in forms:
+            forms[wearing] = _point_free_form_worn(styles, holds[index], whole_column)
+        given = forms[wearing]
         if not given and _proven_side_holds(holds[index], far, whole_column):
             given = "plain"
         if given:
