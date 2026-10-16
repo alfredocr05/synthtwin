@@ -9326,25 +9326,33 @@
    "headline": true,
    "name": "Kinds of healthcare data that pass end to end with the analyst's code running unchanged on the twin",
    "status": "OPEN",
-   "rule": "machine-free, over tests/health_zoo.py's catalogue: twenty-two kinds of healthcare data over fourteen exports, each profiled, its questions answered with general facts about the data, generated, validated, and read by the analyst's script on the real table and on the twin: a kind passes when every step exits 0 or 3, validate misses nothing on its columns or, for a file-level kind, on the file, and every analyst check holds -- the same dtypes, and no unparseable cell, code outside its system's pattern or lost shape where the real table has none; at least 12 of 22 kinds at 600 rows (the suite's test) and 17 of 22 at 20,000 rows (the driver); no question offers an answer about the analysis; the analyst's script raises nothing on a real table; target every kind at both sizes",
+   "rule": "machine-free, over tests/health_zoo.py's catalogue: thirty-six kinds of healthcare data over twenty-three exports, each profiled, its questions answered with general facts about the data, generated, validated, and read by the analyst's script on the real table and on the twin: a kind passes when every step exits 0 or 3, every question its table asks is general, validate misses nothing on its columns or, for a file-level kind, on the file, the analyst's script holds on the real table, and every analyst check holds on the twin -- the table's own (codes in their system's pattern, dates in the source's format, units, censored values, '120/80' split) and the generic ones on every column and file (the same dtypes, no missing cell or spelling of missing the real lacks, no text shape the real never wrote and every shape 11 or more real cells hold, every value 11 or more real cells hold, the same rows, byte-order mark, line endings and encoding); at least 17 of 36 kinds at 600 rows (the suite's test; 16 of the 34 the delimited exports hold, measured where the workbook reader is absent too) and 27 of 36 at 20,000 rows (the driver); no question offers an answer, or asks in any sentence, about the analysis, and the analyst's script holds on every real table, at both sizes; target every kind at both sizes",
    "rule_kind": "at_least",
    "key_kinds": {
     "questions_not_general": "at_most",
-    "analyst_errors_on_real": "at_most"
+    "analyst_errors_on_real": "at_most",
+    "questions_not_general_20000_rows": "at_most",
+    "analyst_errors_on_real_20000_rows": "at_most"
    },
    "expected": {
-    "kinds_passing_600_rows": 12,
-    "kinds_passing_20000_rows": 17,
+    "kinds_passing_600_rows": 17,
+    "kinds_passing_600_rows_csv": 16,
+    "kinds_passing_20000_rows": 27,
     "questions_not_general": 0,
-    "analyst_errors_on_real": 0
+    "analyst_errors_on_real": 0,
+    "questions_not_general_20000_rows": 0,
+    "analyst_errors_on_real_20000_rows": 0
    },
    "target": {
-    "kinds_passing_600_rows": 22,
-    "kinds_passing_20000_rows": 22,
+    "kinds_passing_600_rows": 36,
+    "kinds_passing_600_rows_csv": 34,
+    "kinds_passing_20000_rows": 36,
     "questions_not_general": 0,
-    "analyst_errors_on_real": 0
+    "analyst_errors_on_real": 0,
+    "questions_not_general_20000_rows": 0,
+    "analyst_errors_on_real_20000_rows": 0
    },
-   "target_stage": "the lanes K-HZ-02 names for each failing kind: DST, LM1, and the new ones the orchestrator names where it reads 'needs owner'",
+   "target_stage": "the lanes K-HZ-02 names for each failure: DST, LM1, and the new ones the orchestrator names where it reads 'needs owner'",
    "tier": "FAST",
    "source": "pytest",
    "nodes": [],
@@ -9352,7 +9360,7 @@
    "driver": "tools/measurements/kpi_health_zoo.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "tests/health_zoo.py at 600 rows (the test) and 20,000 rows (the driver), seed 20261016",
-   "evidence": "The owner, 2026-10-16: \"we should be able to ingest all ... and reconstruct the twin\". Baseline of today's product (nothing under src changed): every export is described, answered and generated, and every question the files ask is about the data. At 600 rows ten kinds fail, nine on the analyst's code and one at validate; at 20,000 rows the levels fewer than 11 rows hold are named and five fail. Which kinds, at which step and owned by whom is K-HZ-02's. The headline is the orchestrator's recorded call D15 (the owner may veto), the cap raised by one.",
+   "evidence": "The owner, 2026-10-16: \"we should be able to ingest all ... and reconstruct the twin\". Baseline of today's product (nothing under src changed): every export is described, answered and generated, every question the files ask is about the data, and the profiles reach fourteen of the fifteen roles (not numeric_unrepresentable, numbers too large for a float, which no healthcare export writes). Repair 1 of the lane widened the catalogue from 22 kinds over 14 exports to 36 over 23 (skeptic 1, item 4; Codex, item 6) and made the analyst's comparison see blanks, units, censoring, missing markers, file bytes, repeated patients, levels and rows (skeptic 1, item 2), so the counts are not comparable with the 12 of 22 and 17 of 22 first stamped. Which kinds fail, at which step and owned by whom is K-HZ-02's. The headline is the orchestrator's recorded call D15 (the owner may veto), the cap raised by one.",
    "value_at": {
     "commit": "3f1c456",
     "date": "2026-10-16",
@@ -9375,21 +9383,25 @@
    "headline": false,
    "name": "Per kind of healthcare data: the step that fails, its misses and analyst failures, and the lane that owns it",
    "status": "OPEN",
-   "rule": "machine-free, over tests/health_zoo.py's catalogue: twenty-two kinds of healthcare data over fourteen exports, each profiled, its questions answered with general facts about the data, generated, validated, and read by the analyst's script on the real table and on the twin at 600 rows: at most 10 kinds failing, 7 obligations validate misses and 19 analyst checks failing on the twins; no failing kind without an owner in tests/health_zoo.py's OWNERS (a lane of the December plan, or 'needs owner'); per_kind records each kind's step, counts and owners; target 0 of each",
+   "rule": "machine-free, over tests/health_zoo.py's catalogue: thirty-six kinds of healthcare data over twenty-three exports, each profiled, its questions answered with general facts about the data, generated, validated, and read by the analyst's script on the real table and on the twin at 600 rows: at most 19 kinds failing (18 of the delimited exports' 34), 7 obligations validate misses and 53 analyst checks failing on the twins; every failure of a kind covered by a line of tests/health_zoo.py's OWNERS of its own (a lane of the December plan, or 'needs owner'), over the exports that ran: no failure and no failing kind without one; per_kind records each kind's step, counts and owners; target 0 of each",
    "rule_kind": "at_most",
    "expected": {
-    "kinds_failing_600_rows": 10,
+    "kinds_failing_600_rows": 19,
+    "kinds_failing_600_rows_csv": 18,
     "failing_kinds_without_owner": 0,
+    "failures_without_owner": 0,
     "validate_misses": 7,
-    "analyst_failures": 19
+    "analyst_failures": 53
    },
    "target": {
     "kinds_failing_600_rows": 0,
+    "kinds_failing_600_rows_csv": 0,
     "failing_kinds_without_owner": 0,
+    "failures_without_owner": 0,
     "validate_misses": 0,
     "analyst_failures": 0
    },
-   "target_stage": "the lanes each failing kind names: DST (the offsets), LM1 (a joined range's spelling), and the new lanes the orchestrator names for 'needs owner'",
+   "target_stage": "the lanes each failure names: DST (the offsets), LM1 (a joined range's spelling), and the new lanes the orchestrator names for 'needs owner'",
    "tier": "FAST",
    "source": "pytest",
    "nodes": [],
@@ -9397,7 +9409,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/health_zoo.py at 600 rows, seed 20261016",
-   "evidence": "Baseline of today's product. The gaps behind the failing kinds, as OWNERS states them: levels fewer than 11 rows hold written as 'group-N' or as made-up codes outside their pattern (demographics, diagnoses, medication orders, imaging; needs owner); the offset not in force on its date (encounters; DST); numbers beside a unit read as labels and a decimal-comma weight written as made-up characters (vitals, labs; needs owner); a joined range's spelling (labs; LM1); a flowsheet value read by its row name (needs owner, the between-columns program); notes with no line break or token at small sizes (needs owner); a missing code below a score's range (surveys; needs owner). Validate misses nothing on nine of the ten: the analyst's code finds what the report does not.",
+   "evidence": "Baseline of today's product. The gaps behind the failures, as OWNERS states them: levels fewer than 11 rows hold written as 'group-N' (demographics, diagnoses, medication orders, imaging, genomics, perioperative, labs' flags, the mixed result column; needs owner); the offset not in force on its date (encounters; DST); numbers beside a unit read as labels (labs, vitals, US-unit vitals; needs owner); a decimal-comma weight and a DICOM UID written as made-up characters (needs owner); a joined range's spelling (labs; LM1); a flowsheet value read by its row name (needs owner, the between-columns program); notes with no line break or token at small sizes (needs owner); a missing code below a score's range (surveys; needs owner); DICOM's TM time read as a decimal number (needs owner); several codes in one cell read as one label (needs owner); codes made up character by character that their grammar or check figure rejects (TNM, NPI, a partial date; needs owner). Validate misses nothing on most of them: the analyst's code finds what the report does not check.",
    "value_at": {
     "commit": "3f1c456",
     "date": "2026-10-16",
@@ -9441,7 +9453,7 @@
    "headline": false,
    "name": "The health data zoo's own time and memory: the suite's part and the slow part",
    "status": "GREEN",
-   "rule": "judged on the quiet reference machine: the whole battery at 600 rows (the suite's part) under 90 seconds, at 20,000 rows under 900 seconds, and the driver's peak resident memory under 2,000 MB; machine-free, 28 table runs, fourteen exports at each size",
+   "rule": "judged on the quiet reference machine: the whole battery at 600 rows (the suite's part) under 90 seconds, at 20,000 rows under 900 seconds, and the driver's peak resident memory under 2,000 MB (left out, and said so, where the platform has no resource module); machine-free, 46 table runs, twenty-three exports at each size",
    "rule_kind": "exact",
    "key_kinds": {
     "seconds_600_rows": "seconds_below",
@@ -9452,7 +9464,7 @@
     "seconds_600_rows": 90,
     "seconds_20000_rows": 900,
     "peak_memory_mb": 2000,
-    "tables_run": 28
+    "tables_run": 46
    },
    "tier": "SLOW",
    "source": "driver",
