@@ -4299,6 +4299,11 @@ def build_document(
     # EACH CENSUS READING IS HANDED OVER ONCE, to the column it was read
     # from: the description takes the reading's lists as its own.
     waiting: "list[object]" = [held for held in readings]
+    # THE LIST IS THE ONLY HOLDER FROM HERE ON (lane S4d, plan P4-D390):
+    # a reading leaves it when its column takes it, and is let go once
+    # that column is described. `synthtwin profile` hands the readings
+    # over out of a box (`cli._handed_once`) so nothing else keeps them.
+    readings = ()
     # HOW A WORKBOOK STORES EACH COLUMN (plan P4-D382): most of its
     # cells as dates, which lets the dates be read beside a few text
     # cells, or every one as a clock, which keeps the clocks from a
@@ -4322,6 +4327,9 @@ def build_document(
                 continue
             still_waiting += [held]
         waiting = still_waiting
+        # ...and the walk's own name lets go of the last reading it met,
+        # which would otherwise stay held through every later column.
+        held = None
         # ONE STORAGE CLASS PER WORKBOOK COLUMN, or no weekday census
         # (landing 3b.1): a column whose dates are stored partly as dates
         # and partly as text is read back differently cell by cell.

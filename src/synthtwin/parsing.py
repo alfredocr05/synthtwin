@@ -544,6 +544,63 @@ def spelled_out(text: str) -> str:
     return shown
 
 
+# HOW MANY DIFFERENT TEXTS A MEMO OF ONE ANSWER PER SPELLING HOLDS BEFORE
+# IT MUST PAY FOR ITSELF (lane S4d, plan P4-D390). A pass that answers a
+# fixed function of each cell's text once per spelling, and hands the
+# rows that write one spelling the same answer, holds a map of the
+# different texts while it walks the column. Past this many it keeps
+# taking new texts only while it has answered at least as many rows as
+# it holds, and a text it refuses goes into its NOTE OF TEXTS MET ONCE
+# (`SPELLING_MEMO_NOTED`): a text met again while the note still holds
+# it is taken then, on its second sighting, whatever the memo holds, and
+# that row is answered from the note. So a column whose values never
+# repeat stops taking new texts at this bound, its later new texts
+# answered per row exactly as before, while a text that recurs past the
+# bound -- 65,536 different numbers and then one number written on
+# every later row, Codex's case -- is shared from its second sighting.
+# Measured, a register of 997,770 rows over 94,000 codes holds 94,001
+# records, where the bound alone held 103,823.
+# The answers are the same either way; only how many objects hold them
+# moves.
+SPELLING_MEMO_TEXTS = 65536
+
+
+# HOW MANY TEXTS A MEMO'S NOTE OF TEXTS MET ONCE HOLDS BEFORE IT TURNS
+# OVER (lane S4d, after Codex's review; plan P4-D390). The note is two
+# maps of the texts the memo refused, each with its answer: the newer
+# takes them while it holds fewer than this many, and when it is full it
+# becomes the older and a new, empty one starts (the text that found it
+# full is not noted; it is where it is met again). A noted text stays in
+# one of the two for at least this many later notes, so a text met
+# again before this many other new texts is shared from its second
+# sighting, one turned over at its first from its third; a text whose
+# sightings are always further apart is answered per row, as before the
+# lane. The note holds at most twice this many texts in each column a
+# pass walks: two maps of 8,192 texts are about 0.4 MB (measured), held
+# only while the pass walks the column.
+SPELLING_MEMO_NOTED = 8192
+
+
+def memo_takes(held: int, answered: int) -> bool:
+    """Whether a memo of one answer per spelling takes one more text.
+
+    `held` is how many texts the memo holds and `answered` how many rows
+    it has answered from them (`SPELLING_MEMO_TEXTS` says why).
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    return held < SPELLING_MEMO_TEXTS or answered >= held
+
+
+def memo_notes(noted: int) -> bool:
+    """Whether a memo's newer note of texts met once takes one more text.
+
+    `noted` is how many texts the newer note holds; where this is False
+    the note turns over (`SPELLING_MEMO_NOTED` says how and why).
+    Guarantees: a function of `noted`. Raises nothing. No I/O.
+    """
+    return noted < SPELLING_MEMO_NOTED
+
+
 def trimmed(text: str) -> str:
     """Return ``text`` without surrounding whitespace.
 

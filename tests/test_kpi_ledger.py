@@ -2037,3 +2037,18 @@ def test_k_s4_07(record_property, tmp_path) -> None:
     import test_stage4_million_rows as million
 
     _kpi(record_property, "K-S4-07", million.dense_tail_measures(tmp_path))
+
+
+def test_k_s4_08(record_property, tmp_path) -> None:
+    """Describe holds one record, one date pair and one text per spelling, and few bytes per row (stage 4 lane S4d, plan P4-D390).
+
+    Machine-free: how many different objects hold a million rows of a
+    thousand spellings' records and of 3,360 dates' pairs, and 200,000
+    rows of 500 codes' texts in the survey, each per spelling; and the
+    bytes `tracemalloc` sees `synthtwin profile` hold per row added to a
+    register of 2,000 codes beside two arms and dates, from 40,000 to
+    80,000 rows. `tests/test_stage4_describe_memory.py` owns the measures.
+    """
+    import test_stage4_describe_memory as memory
+
+    _kpi(record_property, "K-S4-08", memory.describe_memory_measures(tmp_path))

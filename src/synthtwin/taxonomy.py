@@ -6474,7 +6474,7 @@ def exact_of_number(value: float) -> "tuple[int, tuple[str, ...], int]":
 # -- the one cell record --------------------------------------------
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class _Cell:
     """One present cell, decided once and never read from the text again.
 
@@ -6624,6 +6624,12 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
         else:
             sign = parsing.SIGN_POSITIVE
     trimmed = parsing.trimmed(text)
+    # THE FOLDED LABEL IS THE CELL'S OWN TEXT WHERE FOLDING CHANGES
+    # NOTHING (lane S4d, plan P4-D390): the same characters, held once
+    # rather than copied beside every cell that is already folded.
+    folded = parsing.folded(text)
+    if folded == text:
+        folded = text
     return _Cell(
         text=text,
         numeric_text=read,
@@ -6632,7 +6638,7 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
         exact=exact,
         sign=sign,
         whole=whole,
-        folded=parsing.folded(text),
+        folded=folded,
         all_digits=parsing.is_digit_text(trimmed),
         code_alphabet=parsing.is_code_text(trimmed),
     )
@@ -6713,6 +6719,17 @@ class _Cells:
     # It is counted here, once, with everything else. A rule that needed
     # the spellings and went back to the cells for them would be a
     # second reading of a column this module reads once.
+    #
+    # ONLY THE LABELS SOME CELL WROTE OTHERWISE THAN THE LABEL ITSELF
+    # are held here (lane S4d, plan P4-D390). On most labels of most
+    # columns -- every number, every lower-case word, every date -- the
+    # map is one spelling, the label, written as often as the label is,
+    # and a map of one entry per such label cost two hundred bytes a row
+    # on a column whose values never repeat. `_label_spellings` answers
+    # every label, a plain one with `{label: folded_counts[label]}`, and
+    # `folded_counts` holds every label in the order the cells wrote
+    # them, so every reader asks `_label_spellings` and walks
+    # `folded_counts`, never this map alone.
     spellings_by_folded: dict[str, dict[str, int]]
     all_digits: int
     code_alphabet: int
@@ -6747,11 +6764,74 @@ class _Cells:
     clock_line_exempt: int = 0
 
 
+def _label_spellings(
+    counts: "dict[str, int]",
+    mixed: "dict[str, dict[str, int]]",
+    label: str,
+) -> "dict[str, int]":
+    """One folded label's exact spellings, with how many rows wrote each.
+
+    `counts` is a tally's `folded_counts` and `mixed` the same tally's
+    `spellings_by_folded`, which holds a label only where some cell
+    wrote it otherwise than the label itself (lane S4d, plan P4-D390).
+    A label it does not hold was written as the label on every row the
+    label counts. The answer is the map `_tally` held for every label
+    before that lane, in the same order, and is a new map on a plain
+    label: a reader may not change it in place and none does.
+
+    Guarantees: a function of the three. Raises KeyError where `label`
+    is not counted at all. No I/O of any kind.
+    """
+    if label in mixed:
+        return mixed[label]
+    return {label: counts[label]}
+
+
 def _classify_all(
     present: list[str], decimal_comma: bool = False
 ) -> list[_Cell]:
-    """Classify every present cell exactly once, in row order."""
-    return [_classify(value, decimal_comma) for value in present]
+    """Classify every present cell exactly once, in row order.
+
+    ONE RECORD PER SPELLING, HANDED TO EVERY ROW THAT WRITES IT (lane
+    S4d, plan P4-D390). `_classify` is a fixed function of the text and
+    the declaration, and `_Cell` is frozen, so the rows that write one
+    spelling share one record: the list is the same list of equal
+    records in the same order, and a column of a million rows over a
+    thousand spellings holds a thousand records, not a million. Past
+    `parsing.SPELLING_MEMO_TEXTS` different texts the memo stops taking
+    new texts unless it has answered as many rows as it holds (a column
+    whose values never repeat), and it still shares every text it holds;
+    a text it refuses is noted with its record, and a noted text met
+    again is taken then, sharing that record (`parsing.SPELLING_MEMO_NOTED`).
+    Nothing reads a record's identity.
+    """
+    known: "dict[str, _Cell]" = {}
+    noted: "dict[str, _Cell]" = {}
+    older: "dict[str, _Cell]" = {}
+    answered = 0
+    classified: "list[_Cell]" = []
+    for value in present:
+        if value in known:
+            answered = answered + 1
+            classified += [known[value]]
+            continue
+        if value in noted or value in older:
+            # MET AGAIN PAST THE BOUND: taken now, with its first record.
+            cell = noted[value] if value in noted else older[value]
+            known[value] = cell
+            answered = answered + 1
+            classified += [cell]
+            continue
+        cell = _classify(value, decimal_comma)
+        if parsing.memo_takes(len(known), answered):
+            known[value] = cell
+        elif parsing.memo_notes(len(noted)):
+            noted[value] = cell
+        else:
+            older = noted
+            noted = {}
+        classified += [cell]
+    return classified
 
 
 def _tally(
@@ -6784,7 +6864,10 @@ def _tally(
     all_digits = 0
     code_alphabet = 0
     folded_counts: dict[str, int] = {}
-    spellings_by_folded: dict[str, dict[str, int]] = {}
+    # Only the labels some cell wrote otherwise than the label itself
+    # (`_label_spellings`, lane S4d): a plain label's map is read off
+    # `folded_counts` when it is asked for.
+    mixed_spellings: dict[str, dict[str, int]] = {}
     for cell in classified:
         present += [cell.text]
         if cell.kind == parsing.NUMBER:
@@ -6841,16 +6924,23 @@ def _tally(
             all_digits = all_digits + 1
         if cell.code_alphabet:
             code_alphabet = code_alphabet + 1
-        if cell.folded in folded_counts:
-            folded_counts[cell.folded] = folded_counts[cell.folded] + 1
-        else:
-            folded_counts[cell.folded] = 1
-            spellings_by_folded[cell.folded] = {}
-        spellings = spellings_by_folded[cell.folded]
-        if cell.text in spellings:
-            spellings[cell.text] = spellings[cell.text] + 1
-        else:
+        label = cell.folded
+        before = 0
+        if label in folded_counts:
+            before = folded_counts[label]
+        folded_counts[label] = before + 1
+        if label in mixed_spellings:
+            spellings = mixed_spellings[label]
+            if cell.text in spellings:
+                spellings[cell.text] = spellings[cell.text] + 1
+            else:
+                spellings[cell.text] = 1
+        elif cell.text != label:
+            # THE LABEL TURNS MIXED HERE, keeping its earlier cells, which
+            # all wrote the label itself, first in the map as before.
+            spellings = {label: before} if before else {}
             spellings[cell.text] = 1
+            mixed_spellings[label] = spellings
     return _Cells(
         decimal_comma=decimal_comma,
         classified=classified,
@@ -6871,7 +6961,7 @@ def _tally(
         n_negative_unrepresentable=negative_unrepresentable,
         raw_distinct=len(set(present)),
         folded_counts=folded_counts,
-        spellings_by_folded=spellings_by_folded,
+        spellings_by_folded=mixed_spellings,
         all_digits=all_digits,
         code_alphabet=code_alphabet,
     )
@@ -9382,7 +9472,9 @@ def _published_distinct(cells: _Cells) -> int:
     """
     counted = 0
     for label in sorted(cells.folded_counts):
-        spellings = cells.spellings_by_folded[label]
+        spellings = _label_spellings(
+            cells.folded_counts, cells.spellings_by_folded, label
+        )
         if cells.folded_counts[label] >= cells.settings.small_cell_floor:
             spellings = _absorb_lone_spellings(spellings, cells.settings)
         for _spelling in sorted(spellings):
@@ -9855,7 +9947,7 @@ def _pooled_numbers(
     shown = 0
     negative = False
     for label in sorted(counts):
-        spellings = spellings_by_folded[label]
+        spellings = _label_spellings(counts, spellings_by_folded, label)
         held = counts[label] < settings.small_cell_floor
         for spelling in sorted(spellings):
             if parsing.classify_number(spelling) != parsing.NUMBER:
@@ -10010,7 +10102,7 @@ def _levels(
             # form count is taken off it, or the form count would count a
             # cell the variants census has already respelled.
             written = _absorb_lone_spellings(
-                spellings_by_folded[label], settings
+                _label_spellings(counts, spellings_by_folded, label), settings
             )
             named, withheld = _variants(written, settings)
             entries += [
@@ -12907,7 +12999,6 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     multiset of cells. Raises nothing. No I/O of any kind.
     """
     counts: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    values: "dict[tuple[int, tuple[str, ...], int], float]" = {}
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
@@ -12917,20 +13008,34 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
             counts[cell.exact] = counts[cell.exact] + 1
         else:
             counts[cell.exact] = 1
-        values[cell.exact] = cell.value
     if not counts:
         return None, 0
     most = 0
     for key in counts:
         if counts[key] > most:
             most = counts[key]
+    # THE VALUES ARE READ OFF THE CELLS OF THE COMMONEST NUMBERS, in a
+    # second walk, rather than held in a map beside the counts (lane S4d,
+    # plan P4-D390): on a column whose numbers never repeat that map was
+    # one entry a row. Every cell of one exact number holds one value
+    # but exact zero's, which is 0.0 or -0.0 as the cell wrote it ("0",
+    # "-0"), and the two compare equal: the map kept the LAST cell's
+    # value per exact number, so the walk keeps the first exact number
+    # it meets among equal values and then each later cell of that same
+    # number, and the published zero carries the sign 66bca69 wrote.
     smallest: "float | None" = None
-    for key in counts:
-        if counts[key] != most:
+    chosen: "tuple[int, tuple[str, ...], int] | None" = None
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
             continue
-        found = values[key]
-        if smallest is None or found < smallest:
+        if cell.exact is None or cell.value is None:
+            continue
+        if counts[cell.exact] != most:
+            continue
+        found = cell.value
+        if smallest is None or found < smallest or cell.exact == chosen:
             smallest = found
+            chosen = cell.exact
     return smallest, most
 
 
@@ -15367,9 +15472,9 @@ def _offsets_published(
         return offsets, _offsets_as_published(pairs, offsets)
     stamped: "list[tuple[str, str]]" = []
     place = 0
-    for canonical, offset in pairs:
+    for pair in pairs:
         if place not in dated:
-            stamped += [(canonical, offset)]
+            stamped += [pair]
         place = place + 1
     named = _offset_counts(stamped, settings)
     if parsing.MISSING_WITHHELD in named:
@@ -15385,14 +15490,14 @@ def _offsets_published(
     counts: "dict[str, int]" = {}
     taken = 0
     place = 0
-    for canonical, offset in pairs:
-        worn = offset
+    for pair in pairs:
+        worn = pair[1]
         if place not in dated:
             worn = written[taken][1]
             taken = taken + 1
         key = worn if worn else "(none)"
         counts[key] = (counts[key] if key in counts else 0) + 1
-        kept += [(canonical, worn)]
+        kept += [pair if worn == pair[1] else (pair[0], worn)]
         place = place + 1
     return counts, kept
 
@@ -15447,12 +15552,14 @@ def _offsets_as_published(
         return pairs
     worn = "" if commonest == "(none)" else commonest
     kept: list[tuple[str, str]] = []
-    for canonical, offset in pairs:
-        key = offset if offset else "(none)"
+    # A PAIR THAT KEEPS ITS OFFSET IS KEPT AS IT IS (lane S4d, plan
+    # P4-D390): the same two texts, not a copy of them per row.
+    for pair in pairs:
+        key = pair[1] if pair[1] else "(none)"
         if key in offsets:
-            kept += [(canonical, offset)]
+            kept += [pair]
         else:
-            kept += [(canonical, worn)]
+            kept += [(pair[0], worn)]
     return kept
 
 
@@ -15861,9 +15968,35 @@ def _matching_date_format(
         good: list[tuple[str, str]] = []
         sources: list[str] = []
         missed = 0
+        # ONE READING PER SPELLING (lane S4d, `parsing.SPELLING_MEMO_TEXTS`): the
+        # rows that write one date share its pair, a date met again past
+        # the bound from its second sighting (`parsing.SPELLING_MEMO_NOTED`).
+        pairs: "dict[str, tuple[str, str]]" = {}
+        noted: "dict[str, tuple[str, str]]" = {}
+        older: "dict[str, tuple[str, str]]" = {}
+        answered = 0
         for value in present:
+            if value in pairs:
+                answered = answered + 1
+                good += [pairs[value]]
+                sources += [value]
+                continue
+            if value in noted or value in older:
+                pair_noted = noted[value] if value in noted else older[value]
+                pairs[value] = pair_noted
+                answered = answered + 1
+                good += [pair_noted]
+                sources += [value]
+                continue
             pair_read = parsing.parse_datetime(value, reading)
             if pair_read is not None:
+                if parsing.memo_takes(len(pairs), answered):
+                    pairs[value] = pair_read
+                elif parsing.memo_notes(len(noted)):
+                    noted[value] = pair_read
+                else:
+                    older = noted
+                    noted = {}
                 good += [pair_read]
                 sources += [value]
                 continue
@@ -17493,8 +17626,32 @@ def _census_days(
             return ()
         return tuple(calendar_rules.written_day(pairs[place][0]) for place in order)
     days: "list[int]" = []
+    # ONE DAY NUMBER PER WRITTEN DATE (lane S4d, `parsing.SPELLING_MEMO_TEXTS`;
+    # past the bound from a date's second sighting, `parsing.SPELLING_MEMO_NOTED`).
+    known: "dict[str, int]" = {}
+    noted: "dict[str, int]" = {}
+    older: "dict[str, int]" = {}
+    answered = 0
     for canonical, _offset in pairs:
-        days += [calendar_rules.written_day(canonical)]
+        if canonical in known:
+            answered = answered + 1
+            days += [known[canonical]]
+            continue
+        if canonical in noted or canonical in older:
+            day = noted[canonical] if canonical in noted else older[canonical]
+            known[canonical] = day
+            answered = answered + 1
+            days += [day]
+            continue
+        day = calendar_rules.written_day(canonical)
+        if parsing.memo_takes(len(known), answered):
+            known[canonical] = day
+        elif parsing.memo_notes(len(noted)):
+            noted[canonical] = day
+        else:
+            older = noted
+            noted = {}
+        days += [day]
     return tuple(sorted(days))
 
 
@@ -20964,7 +21121,25 @@ def ordered_moments(
     """
     keyed: list[tuple[int, str, str]] = []
     unkeyed: list[str] = []
+    # ONE KEY PER WRITTEN MOMENT (lane S4d, `parsing.SPELLING_MEMO_TEXTS`): the
+    # rows that write one moment share its key, a moment met again past
+    # the bound from its second sighting (`parsing.SPELLING_MEMO_NOTED`).
+    known: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    noted: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    older: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    answered = 0
     for canonical, offset in pairs:
+        moment = (canonical, offset)
+        if moment in known:
+            answered = answered + 1
+            keyed += [known[moment]]
+            continue
+        if moment in noted or moment in older:
+            entry = noted[moment] if moment in noted else older[moment]
+            known[moment] = entry
+            answered = answered + 1
+            keyed += [entry]
+            continue
         instant = parsing.instant_key(canonical, offset)
         shown = canonical
         if reading == READ_AT_UTC:
@@ -20987,7 +21162,15 @@ def ordered_moments(
         if instant is None:
             unkeyed += [shown]
         else:
-            keyed += [(instant, shown, offset)]
+            entry = (instant, shown, offset)
+            if parsing.memo_takes(len(known), answered):
+                known[moment] = entry
+            elif parsing.memo_notes(len(noted)):
+                noted[moment] = entry
+            else:
+                older = noted
+                noted = {}
+            keyed += [entry]
     if keyed:
         ordered = sorted(keyed)
         canonical_order = [entry[1] for entry in ordered]
@@ -21848,8 +22031,10 @@ def _rare_beside_clocks(
         rate, present - present // RARE_WORDS_BESIDE_CLOCKS
     )
     unread = 0
-    for folded in cells.spellings_by_folded:
-        spellings = cells.spellings_by_folded[folded]
+    for folded in cells.folded_counts:
+        spellings = _label_spellings(
+            cells.folded_counts, cells.spellings_by_folded, folded
+        )
         for spelling in spellings:
             if parsing.clock_parts(spelling) is None:
                 unread = unread + spellings[spelling]
@@ -21861,7 +22046,9 @@ def _rare_beside_clocks(
     for folded in sorted(cells.folded_counts):
         if cells.folded_counts[folded] >= floor:
             continue
-        spellings = cells.spellings_by_folded[folded]
+        spellings = _label_spellings(
+            cells.folded_counts, cells.spellings_by_folded, folded
+        )
         if any(parsing.clock_parts(spelling) is not None for spelling in spellings):
             continue
         rare[folded] = True
@@ -21959,8 +22146,10 @@ def _clock_spellings_reach(cells: _Cells) -> bool:
     Guarantees: a function of the tally. Raises nothing. No I/O.
     """
     reached = 0
-    for folded in cells.spellings_by_folded:
-        spellings = cells.spellings_by_folded[folded]
+    for folded in cells.folded_counts:
+        spellings = _label_spellings(
+            cells.folded_counts, cells.spellings_by_folded, folded
+        )
         for spelling in spellings:
             if parsing.clock_parts(spelling) is not None:
                 reached = reached + spellings[spelling]
