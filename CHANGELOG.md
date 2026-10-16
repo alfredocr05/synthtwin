@@ -11,31 +11,38 @@ exists).
 **Lane E0a of the December plan** (plan P4-D399; the owner, 2026-10-16:
 "we should be able to ingest all ... and reconstruct the twin"). A test
 battery, nothing under `src` changed: `tests/health_zoo.py` builds
-twenty-two kinds of healthcare data at run time from seeds, over
-fourteen exports -- demographics, encounters with daylight-saving
+thirty-six kinds of healthcare data at run time from seeds, over
+twenty-three exports -- demographics, encounters with daylight-saving
 offsets, ICD-10-CM, ICD-9, SNOMED CT and procedure codes, labs with
-units and censored values, medication orders (NDC, RxNorm, dose
-strings), vitals, flowsheet rows, a REDCap export, claims, notes,
-surveys with missing codes, a wearable's series, genomic fields, imaging
-metadata, and the file shapes they arrive in (UTF-8 accents, Latin-1, a
-byte-order mark, CRLF, semicolons with decimal commas, Excel serial
-dates, a workbook). Each is profiled, its questions answered with
-general facts about the data, generated, validated, and read by an
-analyst's pandas script on the real table and on the twin. Measured on
-today's product: every export is described and generated, all 64
-questions asked are about the data, and 12 of the 22 kinds pass end to
-end at 600 rows, 17 at 20,000. Ten fail at 600 rows, nine of them with
-validate missing nothing: levels under the floor written as `group-N`
-or as codes outside their pattern, the offset not in force on its date
-(lane DST), numbers beside a unit read as labels, a decimal-comma weight
-written as made-up characters, a joined range's spelling (lane LM1), a
-flowsheet value read by its row name, notes without line breaks, and a
-missing code inside a score's range. Each is named with its owner
-(`needs owner` where no lane covers it). New KPIs: `K-HZ-01` (headline;
-the cap goes from 32 to 33 by the orchestrator's recorded call D15, the
-owner may veto), `K-HZ-02` and `K-HZ-03`, the battery taking 14.5 s at
-600 rows in the suite and 355.4 s and 470.5 MB at 20,000 rows through
-`tools/measurements/kpi_health_zoo.py`.
+units, censored values and one mixed result column, medication orders,
+vitals in metric and US units, flowsheet rows, a REDCap export, claims,
+risk and comorbidity codes, notes, surveys with missing codes, a
+wearable's series, genomic fields and identifiers, imaging with DICOM's
+date, time and UID, an operating-room log with times of day, a problem
+list with several codes in a cell, a tumor registry with partial dates,
+a SQL Server export, microbiology, immunizations and providers, an
+empty and a constant column, and the file shapes they arrive in (UTF-8
+accents, Latin-1, a byte-order mark, CRLF, semicolons with decimal
+commas, spreadsheet serial dates, a workbook). Each is profiled, its
+questions answered with general facts about the data, generated,
+validated, and read by an analyst's pandas script on the real table and
+on the twin, every column also checked for missing cells and their
+spellings, text shapes, values, rows and the file's bytes. Measured on
+today's product: every export is described and generated, all 91
+questions asked are about the data, and 17 of the 36 kinds pass end to
+end at 600 rows, 27 at 20,000. Each failure is named with its owner:
+lane DST (offsets not in force on their date), lane LM1 (a joined
+range's spelling), and `needs owner` for levels under the floor written
+as `group-N`, numbers beside a unit read as labels, made-up characters
+and codes, DICOM's time read as a number, several codes in one cell, the
+flowsheet's long form, notes at small sizes and a missing code inside a
+score's range. The workbook is read through the suite's cross-check
+reader, so CI's `minimums` cell skips that part alone. New KPIs:
+`K-HZ-01` (headline; the cap goes from 32 to 33 by the orchestrator's
+recorded call D15, the owner may veto), `K-HZ-02` and `K-HZ-03`, the
+battery taking 36.0 s at 600 rows in the suite and 750.1 s and 471.5 MB
+at 20,000 rows through `tools/measurements/kpi_health_zoo.py`, under
+load.
 
 ### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
 
