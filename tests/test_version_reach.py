@@ -65,7 +65,8 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds FORTY-THREE such calls (counted again at the merge of
+The tree holds FORTY-FOUR such calls (lane TI's `python -m synthtwin`
+test adds one, 2026-10-15; counted again at the merge of
 landing R4 into the integrated tree, 2026-10-12: its twenty-sixth
 vectors file adds one; at the merge of landing 3b.2-H, 2026-10-09,
 forty-two: its repair round's validation mutant adds two, and at the
@@ -77,7 +78,7 @@ having stood one short since the fifteenth vectors file's route arrived
 and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a forty-fourth cannot arrive unread.
+holds the tree to that list, so a forty-fifth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -152,6 +153,10 @@ calls are held by what they are handed or by where they run:
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
   the file each runs is one of the files this guard reads.
+- `runpy.run_module` runs once, in `tests/test_terminal_install.py`
+  (plan P4-D397): `python -m synthtwin` in the test's own process, which
+  runs the committed `src/synthtwin/__main__.py`, a file this guard
+  reads.
 - `tests/test_stage3b_shared_steps.py` builds a module with
   `exec(compile(source, ...))` (plan P4-D366, the review of landing
   3b.D0), where `source` is `src/synthtwin/generation.py`, a file this
@@ -441,6 +446,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # P4-D384): it runs the same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_26.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
+    # Lane TI (plan P4-D397): `python -m synthtwin`, run in the test's own
+    # process the way the interpreter runs it, on the committed
+    # `src/synthtwin/__main__.py`, a file this guard reads.
+    ("tests/test_terminal_install.py", "runpy.run_module"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")
 

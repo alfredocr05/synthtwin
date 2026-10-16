@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### Installing in one command, `python -m synthtwin`, and `synthtwin doctor` (2026-10-15)
+
+**synthtwin installs with one command and checks the computer before a
+first run** (plan P4-D397, lane TI of the December plan).
+`sh scripts/install.sh` on a Mac or Linux and `scripts\install.bat` on
+Windows make a fresh private environment, `.venv`, inside the synthtwin
+folder, install numpy and pandas from `requirements-install.lock` with
+every hash checked -- from a wheel folder, with README's two offline pip
+commands flag for flag, run with this computer's pip settings set aside
+-- and end by running `synthtwin doctor`. The new command prints one
+line per check (Python 3.10 or later, numpy and pandas, the output
+folder, the computer's total memory, and a named table's size against
+it, a workbook at the reader's measured bound) and exits 0 when none
+fails, 1 otherwise, a check it could not make marked `note`; it never
+opens the table, and a folder it may not look into is a line saying
+what to do, not a stack trace, on Python 3.10 to 3.14 alike. Run again,
+a script says it replaces the earlier environment, and it closes by
+teaching how to switch the environment on in the same window. `python -m synthtwin` now runs the command, where it stopped with
+an error, and `profile` ends by printing the `generate` command to type
+next, as README promised. README gains "Before you start" (getting Python
+3.10 or later on a Mac, on Windows and on Linux) and an "Installing"
+section built on the scripts; CI runs the install script from a wheel
+folder on Ubuntu, Windows and macOS. The offline scanner admits
+`os.sysconf`, which reads the memory and nothing else. KPIs `K-S8-01`
+(the terminal's headline, OPEN: 1 install command where the base took 2,
+5 run commands, 1 file edited by hand) and `K-S8-04` (GREEN, its CI half
+configured until the first push runs it); the headline cap goes from 31
+to 32 by the orchestrator's recorded call D15, which the owner may veto.
+
 ### A date and a time in one cell keep their shape beside a few words (2026-10-15)
 
 **Lane L3** (plan P4-D393). A stamp such as `2024-01-05 9:15 AM`,

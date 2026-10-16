@@ -9,7 +9,10 @@ the twin carries, what it only approximates, and what it does not carry
 at all. `synthtwin validate <profile>` reads that profile and one CSV
 file, measures the file against it, and writes the quality report: which
 obligations the file met, which it missed, and which no CSV could ever
-evidence either way.
+evidence either way. One more word, `synthtwin doctor`, is no step of a
+run: it checks this computer before the first one -- Python, numpy and
+pandas, the output folder, the memory against a named table's size --
+and reads no table (plan P4-D397).
 
 Zero-code use is the requirement (charter principle 2): each command
 works with one path and nothing else. Everything else is an option with
@@ -162,10 +165,16 @@ _MISSING_VALUE_HELP = (
     "not about the columns. May be given more than once"
 )
 
-# The three commands, as the words a person types.
+# The three commands of a run, as the words a person types.
 _PROFILE = "profile"
 _GENERATE = "generate"
 _VALIDATE = "validate"
+# ...and the check of this computer before a first run (plan P4-D397).
+# It reads no table and makes nothing a run is built from, so it is not
+# a step of the run: the install scripts end by running it, and a person
+# runs it again with their table's path to weigh its size against this
+# computer's memory before `profile` reads it.
+_DOCTOR = "doctor"
 
 # THE SEED'S ACCEPTED SPELLING AND RANGE (plan P2-D8). synthtwin states
 # its own range rather than passing whatever was typed to the library
@@ -297,6 +306,10 @@ _HELP_EPILOG = """examples:
       and write other-quality.txt: the report is named after the file
       it is about, so checking a second file never overwrites the
       first one's report
+
+  synthtwin doctor data.csv
+      check this computer before a first run, and weigh the size of
+      data.csv against its memory without opening the file
 """
 
 
@@ -763,13 +776,16 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         "command",
         nargs="?",
         default=None,
-        choices=[_PROFILE, _GENERATE, _VALIDATE],
+        choices=[_PROFILE, _GENERATE, _VALIDATE, _DOCTOR],
         help=(
             "what to do: 'profile' describes a CSV table on this "
             "computer, 'generate' builds the synthetic twin from a "
             "description 'profile' wrote, 'validate' measures a CSV "
             "file against that description and writes the quality "
-            "report"
+            "report, and 'doctor' checks this computer before a first "
+            "run -- Python, numpy and pandas, the output folder and the "
+            "memory -- and weighs a table's size against that memory "
+            "when you name one, without opening it"
         ),
     )
     parser.add_argument(
@@ -778,7 +794,9 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         default=None,
         help=(
             "the file to work on: the CSV table for 'profile', the "
-            "description for 'generate' and for 'validate'"
+            "description for 'generate' and for 'validate', and for "
+            "'doctor' a table to weigh (optional; doctor reads its size "
+            "alone and never opens it)"
         ),
     )
     parser.add_argument(
@@ -4523,6 +4541,7 @@ def _run_profile(
         # them, which reads as two separate troubles.
         if floor_chosen and smallest_group < _NOTICE_LINE:
             _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
+        _say(_teaching_generate(profile_path))
         return 0
     written_questions = True
     questions_state = writing.DiskState()
@@ -4608,6 +4627,7 @@ def _run_profile(
 
     if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
+    _say(_teaching_generate(profile_path))
     return 0
 
 
@@ -4941,6 +4961,25 @@ def _run_generate(
     return 0
 
 
+def _teaching_generate(description: pathlib.Path) -> str:
+    """The lines that end every `profile` run that wrote a description (plan P4-D397).
+
+    The first link of the teaching chain `_teaching_validate` describes:
+    `profile` ends by teaching `generate`. Until this function it did
+    not, although README and this module promised it (the R5 map's pain
+    point 6). It is printed on each way a run that wrote the description
+    can end -- with the questions file beside it or without -- and it
+    is the last thing on the screen's ordinary output, so a person who
+    reads nothing else reads what to type next. The path is the
+    description just written, quoted for the shell (`_typed_path`).
+    """
+    line = f"synthtwin generate {_typed_path(description)}"
+    return (
+        f"\nNext, build the twin from this description:\n"
+        f"  {line}{_quoting_said(line)}"
+    )
+
+
 def _teaching_validate(
     description: str, twin_path: pathlib.Path
 ) -> str:
@@ -5237,6 +5276,443 @@ def _run_validate(
     return code
 
 
+# -- checking this computer before a first run (plan P4-D397) ----------
+
+# THE PYTHON THIS PACKAGE NEEDS, as pyproject.toml's `requires-python`
+# states it. An older one cannot even install the package, so this line
+# is for the person whose environment was built by another Python than
+# the one they think. An older Python running `python -m synthtwin` from
+# a source folder never reaches this module: `__main__.py` says so before
+# importing it, since this module's own syntax needs 3.10.
+_PYTHON_FLOOR = (3, 10)
+
+# HOW MUCH MEMORY A TEXT TABLE TAKES TO READ, AS A MULTIPLE OF ITS FILE'S
+# SIZE. Measured, not guessed: `K-S4-02` reads a fifty-column table of
+# about 480 bytes a row at a peak of 4.38 kilobytes a row above the
+# start, about nine times the file (plan P4-D387), and describing it
+# needs more on top. Ten is that measurement rounded up. It holds for a
+# file of plain text only, and the line says it is a guess from the
+# size alone.
+_MEMORY_PER_FILE_BYTE = 10
+
+# A WORKBOOK'S SIZE SAYS NOTHING OF WHAT READING IT TAKES: it is a
+# packed file, and a few megabytes of it can hold a million cells. What
+# bounds it is the reader's cell cap (`workbook.MAXIMUM_CELLS`, one
+# million), measured at 632 megabytes of peak memory for 1,048,708
+# cells (workbook.py, plan A-P4-66). So a workbook is weighed at that
+# bound whatever its size (the Codex review of lane TI, item 9).
+# A workbook is known by its name's ending, `.xlsx` or `.xlsm`, since
+# doctor reads none of its bytes (written out in `_check_table`).
+_WORKBOOK_READ_BYTES = 632 * 1024 * 1024
+
+# A table counts as large for this computer when what reading it takes
+# passes half the memory, the other half being what the system and the
+# person's other programs hold.
+
+# The small file `doctor` writes and removes to learn whether the
+# output folder takes a file. A leading point keeps it out of most
+# folder views for the instant it exists.
+_DOCTOR_PROBE = ".synthtwin-doctor-check"
+
+# What to do when a package is missing or Python is the wrong one, in
+# words a person who has never programmed can act on.
+_INSTALL_AGAIN = (
+    "run the install script again from the synthtwin folder -- "
+    "sh scripts/install.sh on a Mac or Linux, scripts\\install.bat on "
+    "Windows -- or see 'Installing' in README.md"
+)
+
+# Where a Mac lets a terminal reach a protected folder (the Desktop,
+# Documents and Downloads, until the person allows it).
+_MAC_FOLDER_ACCESS = (
+    "On a Mac, let Terminal reach that folder (System Settings, then "
+    "Privacy & Security, then Files and Folders)"
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class _Check:
+    """One line of `synthtwin doctor`: whether it passed, whether it was made, its words.
+
+    A check that could not be made -- this computer's memory where the
+    standard library cannot read it -- is a note: no failure, and no
+    pass either, so the closing line does not claim it.
+    """
+
+    passed: bool
+    made: bool
+    line: str
+
+
+def _passed(line: str) -> _Check:
+    return _Check(True, True, f"  ok       {line}")
+
+
+def _noted(line: str) -> _Check:
+    return _Check(True, False, f"  note     {line}")
+
+
+def _failed(line: str) -> _Check:
+    return _Check(False, True, f"  PROBLEM  {line}")
+
+
+def _python_version() -> "tuple[int, int, int]":
+    """The running Python's version, read in one place so a test can set it."""
+    return (sys.version_info[0], sys.version_info[1], sys.version_info[2])
+
+
+def _check_python(version: "tuple[int, int, int]") -> _Check:
+    spoken = f"{version[0]}.{version[1]}.{version[2]}"
+    if (version[0], version[1]) >= _PYTHON_FLOOR:
+        return _passed(f"Python {spoken} (3.10 or later is needed)")
+    return _failed(
+        f"Python {spoken} is too old: synthtwin needs Python 3.10 or "
+        f"later. Install a newer Python (see 'Before you start' in "
+        f"README.md), then {_INSTALL_AGAIN}."
+    )
+
+
+def _not_loaded(package: str, needed_for: str) -> _Check:
+    return _failed(
+        f"{package} could not be loaded, and synthtwin needs it to "
+        f"{needed_for}. To put it in place, {_INSTALL_AGAIN}."
+    )
+
+
+def _check_numpy() -> _Check:
+    # A plain import, in this function alone: the check is whether the
+    # package loads, and nothing of it is used here (plan P2-D1 keeps
+    # the generator's own import inside `_run_generate`). Any exception
+    # is a failed load, not ImportError alone: a build made for another
+    # Python or another numpy raises ValueError or RuntimeError as it
+    # loads, and the check says so instead of stopping (the Codex
+    # review of lane TI, item 7).
+    try:
+        import numpy.random  # noqa: F401
+    except Exception:  # noqa: BLE001 -- see above
+        return _not_loaded("numpy", "build a twin")
+    return _passed("numpy can be loaded")
+
+
+def _check_pandas() -> _Check:
+    # The same plain import, for the reader's one library. It is loaded
+    # and nothing of it is called: `doctor` reads no table.
+    try:
+        import pandas  # noqa: F401
+    except Exception:  # noqa: BLE001 -- as in _check_numpy
+        return _not_loaded("pandas", "read a table")
+    return _passed("pandas can be loaded")
+
+
+def _total_memory() -> "int | None":
+    """This computer's total memory in bytes, or None where it cannot be read.
+
+    `os.sysconf` reports it on macOS and Linux and does not exist on
+    Windows, and the standard library has no other way to ask without
+    starting a program or calling native code, which this package never
+    does (charter principle 3). Total memory, not free memory: no
+    portable call reports what is free.
+    """
+    if sys.platform == "win32":
+        return None
+    try:
+        pages = os.sysconf("SC_PHYS_PAGES")
+        page_size = os.sysconf("SC_PAGE_SIZE")
+    except (ValueError, OSError, AttributeError):
+        return None
+    if pages <= 0 or page_size <= 0:
+        return None
+    return pages * page_size
+
+
+def _size_words(size: int) -> str:
+    """A size in bytes as a person reads it: 512 bytes, 3.4 MB, 24.0 GB."""
+    if size < 1024:
+        return f"{size} bytes"
+    amount = float(size)
+    for unit in ("KB", "MB", "GB", "TB"):
+        amount = amount / 1024
+        if amount < 1024 or unit == "TB":
+            return f"{amount:.1f} {unit}"
+    return f"{size} bytes"
+
+
+def _check_memory(memory: "int | None") -> _Check:
+    if memory is None:
+        # A note, not a failure: Windows simply does not say, and
+        # nothing the person does changes that.
+        return _noted(
+            "This computer's memory could not be read here, so a table's "
+            "size cannot be weighed against it"
+        )
+    return _passed(f"This computer has {_size_words(memory)} of memory")
+
+
+def _not_allowed(shown: str, otherwise: str) -> _Check:
+    """The file system refused to say anything of a path: what to do (lane TI, item 2)."""
+    return _failed(
+        f"synthtwin is not allowed to look at {shown}. "
+        f"{_MAC_FOLDER_ACCESS}, or {otherwise}; then run synthtwin "
+        f"doctor again."
+    )
+
+
+def _check_output_folder(raw: str) -> _Check:
+    """Whether a file can be written in the folder, learned by writing one.
+
+    The folder goes through the path validator like every path this
+    module uses. The test file is created only where nothing at all
+    stands at its name -- not a file, not a link, not a dangling link --
+    and created exclusively, so it is made in this folder or not at all
+    (the Codex review of lane TI, item 6); it is removed at once. Every
+    question asked of the file system is answered with a line, a refusal
+    of permission included, never a stack trace.
+    """
+    choose = "choose a folder of your own with --out-dir FOLDER"
+    try:
+        folder = validate_local_path(raw, purpose="output folder")
+    except PathValidationError as error:
+        return _failed(_shown(error))
+    except OSError:
+        return _not_allowed(_shown(raw), choose)
+    shown = _shown(folder)
+    named = os.path.join(f"{folder}", _DOCTOR_PROBE)
+    # One `stat` asks whether the folder is there, and only a missing
+    # path (or a file standing where a folder of the path should be) is
+    # "not there": any other refusal is a refusal of permission. Path's
+    # exists() and is_dir() are not asked, since from Python 3.14
+    # they answer False where they may not look, which would send the
+    # person to make a folder that already exists (lane TI, repair 2).
+    try:
+        folder.stat()
+    except (FileNotFoundError, NotADirectoryError):
+        there = False
+    except OSError:
+        return _not_allowed(shown, choose)
+    else:
+        there = True
+    # Asked once the look succeeded, through os.path, which answers and
+    # never raises.
+    a_folder = there and os.path.isdir(folder)
+    taken = a_folder and os.path.lexists(named)
+    if not there:
+        return _failed(
+            f"The output folder {shown} does not exist. Make it first, or "
+            f"name a folder that exists with --out-dir FOLDER."
+        )
+    if not a_folder:
+        return _failed(
+            f"{shown} is a file, not a folder. Name the folder synthtwin "
+            f"should write into with --out-dir FOLDER."
+        )
+    taken_said = (
+        f"Something named {_DOCTOR_PROBE} is already in {shown}, and "
+        f"synthtwin does not touch what it did not just make. Move or "
+        f"rename it, or {choose}; then run synthtwin doctor again."
+    )
+    if taken:
+        return _failed(taken_said)
+    # Built the way every file this package writes is built -- through
+    # the path validator, then `pathlib.Path` -- so the offline audit
+    # traces the handle it opens (plan D6.2).
+    try:
+        probe = pathlib.Path(
+            validate_local_path(named, purpose="output folder")
+        )
+    except PathValidationError as error:
+        return _failed(_shown(error))
+    except OSError:
+        return _not_allowed(shown, choose)
+    try:
+        # Exclusive creation: it fails on anything standing at the name,
+        # a link included, rather than following it.
+        probe.touch(exist_ok=False)
+    except FileExistsError:
+        return _failed(taken_said)
+    except OSError:
+        return _failed(
+            f"synthtwin could not save a file in {shown}. Choose a folder "
+            f"you can save files in, such as one inside your Documents "
+            f"folder, and name it with --out-dir FOLDER."
+        )
+    try:
+        probe.unlink()
+    except OSError:
+        return _passed(
+            f"The output folder {shown} takes a file, but the test file "
+            f"could not be removed: delete {_shown(probe)}"
+        )
+    return _passed(f"The output folder {shown} takes a file")
+
+
+def _check_table(raw: str, memory: "int | None") -> _Check:
+    """The table's size against this computer's memory; the table is never opened.
+
+    The path is validated and its size asked of the file system, which
+    reads no byte of the file. The size and the name's suffix are all
+    `doctor` is told, and a refusal of permission is a line, not a stack
+    trace (lane TI's skeptic, item 2).
+    """
+    try:
+        table = validate_local_path(raw, purpose="table")
+    except PathValidationError as error:
+        return _failed(_shown(error))
+    except OSError:
+        return _not_allowed(
+            _shown(raw), "move the table into a folder of your own"
+        )
+    shown = _shown(table)
+    # As in _check_output_folder: one `stat`, whose only "not there" is
+    # a missing path; any other refusal is a refusal of permission,
+    # on every Python from 3.10 on (lane TI, repair 2).
+    moved = "move the table into a folder of your own"
+    try:
+        size = table.stat().st_size
+    except (FileNotFoundError, NotADirectoryError):
+        there = False
+        size = 0
+    except OSError:
+        return _not_allowed(shown, moved)
+    else:
+        there = True
+    a_folder = there and os.path.isdir(table)
+    if not there:
+        return _failed(
+            f"There is no file at {shown}. Check the spelling of the path, "
+            f"and put quotation marks around it if it has a space in it."
+        )
+    if a_folder:
+        return _failed(
+            f"{shown} is a folder. Name the table's own file, such as "
+            f"my-table.csv."
+        )
+    spelled = f"{table}".lower()
+    workbook = spelled.endswith(".xlsx") or spelled.endswith(".xlsm")
+    return _weighed(size, workbook, memory)
+
+
+def _weighed(size: int, workbook: bool, memory: "int | None") -> _Check:
+    """What reading a table of this size takes, against the memory, in words.
+
+    A text table is weighed at ten times its size, said to be a guess
+    from the size alone; a workbook at the reader's measured bound,
+    whatever its size, since a packed file's size does not say.
+    """
+    if workbook:
+        needed = _WORKBOOK_READ_BYTES
+        estimate = (
+            f"a workbook's size does not say what reading it takes, and "
+            f"synthtwin reads at most a million cells of one, which takes "
+            f"about {_size_words(needed)}"
+        )
+    else:
+        needed = size * _MEMORY_PER_FILE_BYTE
+        estimate = (
+            f"reading it takes roughly {_size_words(needed)}, a guess "
+            f"from the file's size alone"
+        )
+    said = f"The table is {_size_words(size)}; {estimate}"
+    if memory is None:
+        return _noted(
+            f"{said}. This computer's memory could not be read, so that "
+            f"could not be weighed against it"
+        )
+    if needed > memory // 2:
+        return _failed(
+            f"{said}, which is large for this computer's "
+            f"{_size_words(memory)}. synthtwin may run out of memory on "
+            f"it. Close other programs before you start, use a computer "
+            f"with more memory, or describe a smaller extract of rows "
+            f"taken from the whole table first."
+        )
+    return _passed(f"{said}, which fits this computer's {_size_words(memory)}")
+
+
+def _doctor_checks(table: "str | None", out_dir: "str | None") -> "list[_Check]":
+    """Every check `synthtwin doctor` makes, one line each, in order.
+
+    The output folder is the one `--out-dir` names, else the table's
+    folder (where `profile` writes), else the current folder.
+    """
+    memory = _total_memory()
+    checks = [
+        _check_python(_python_version()),
+        _check_numpy(),
+        _check_pandas(),
+    ]
+    if out_dir is not None:
+        folder = out_dir
+    elif table is not None:
+        folder = os.path.dirname(os.path.abspath(table))
+    else:
+        folder = "."
+    checks += [_check_output_folder(folder), _check_memory(memory)]
+    if table is not None:
+        checks += [_check_table(table, memory)]
+    return checks
+
+
+def _run_doctor(table: "str | None", out_dir: "str | None") -> int:
+    """`synthtwin doctor`: one plain line per check, then what to do next.
+
+    Guarantees: returns 0 when every check passed or could not be made,
+    and 1 when any did not pass. Boundary: a named table is never opened
+    -- its size is asked of the file system and nothing else -- and the
+    one file written is the test file in the output folder, removed at
+    once. No network, subprocess, native or dynamic-code operation.
+    """
+    _say(f"synthtwin {_version()}: checking this computer before a first run.")
+    checks = _doctor_checks(table, out_dir)
+    failed = 0
+    unmade = 0
+    for check in checks:
+        _say(check.line)
+        if not check.passed:
+            failed += 1
+        elif not check.made:
+            unmade += 1
+    if failed:
+        _say(
+            f"\n{failed} check(s) did not pass. Do what the line marked "
+            f"PROBLEM says, then run this again:\n"
+            f"{_doctor_again(table, out_dir)}"
+        )
+        return 1
+    passed = "Every check that could be made passed." if unmade else "Every check passed."
+    _say(f"\n{passed} {_teaching_profile(table, out_dir)}")
+    return 0
+
+
+def _typed_with_folder(line: str, out_dir: "str | None") -> str:
+    """A command line, with `--out-dir` as the person typed it when they did."""
+    if out_dir is None:
+        return line
+    return f"{line} {_typed_option('--out-dir', out_dir)}"
+
+
+def _doctor_again(table: "str | None", out_dir: "str | None") -> str:
+    """The line a failed `doctor` ends with: the same check, as the person typed it."""
+    line = "synthtwin doctor"
+    if table is not None:
+        line = f"{line} {_typed_path(table)}"
+    line = _typed_with_folder(line, out_dir)
+    return f"  {line}{_quoting_said(line)}"
+
+
+def _teaching_profile(table: "str | None", out_dir: "str | None" = None) -> str:
+    """The line that ends a passing `doctor`: the first command of a run.
+
+    It names the table and the output folder doctor was given, so the
+    folder it checked is the one `profile` writes into.
+    """
+    named = "my-table.csv" if table is None else _typed_path(table)
+    line = _typed_with_folder(f"synthtwin profile {named}", out_dir)
+    return (
+        f"Next, describe your table:\n"
+        f"  {line}{_quoting_said(line)}"
+    )
+
+
 def main(argv: "list[str] | None" = None) -> int:
     """Run the `synthtwin` command.
 
@@ -5245,9 +5721,10 @@ def main(argv: "list[str] | None" = None) -> int:
     - Inputs: `argv` is the list of command-line arguments to parse, or
       `None` to parse `sys.argv[1:]`. Recognized: `--version`, `--help`,
       the `profile` command word with its options, the `generate`
-      command word with `--seed`, `--out-dir` and `--replace`, and the
+      command word with `--seed`, `--out-dir` and `--replace`, the
       `validate` command word with `--twin`, `--out-dir` and
-      `--replace`.
+      `--replace`, and the `doctor` command word with an optional table
+      path and `--out-dir` (plan P4-D397).
     - Return codes: 0 when the work finished; 1 when a file given could
       not be read or an output file could not be written, with a
       plain-language explanation on the error stream; 2 when an option's
@@ -5268,6 +5745,9 @@ def main(argv: "list[str] | None" = None) -> int:
       written. Automation therefore tells a file that failed its check
       from a file that was never evaluated -- which is what 1 means on
       this command -- without reading a word of prose.
+
+      `doctor` returns 0 when every check it printed passed and 1 when
+      any did not, each failed line saying what to do next.
     - Determinism: the same table and the same options produce the same
       two files, byte for byte, on the same platform (plan D12 and
       P1-D11); so do the same description, the same seed and the same
@@ -5317,7 +5797,10 @@ def main(argv: "list[str] | None" = None) -> int:
       reaches the generator, so this package's own random number
       generator is out of its reach and its verdicts cannot inherit the
       planner's defects; and it never writes, moves, truncates or
-      re-encodes either of the two files it read. No network,
+      re-encodes either of the two files it read. A `doctor` run opens
+      no table: it asks the file system for a named table's size, and
+      the one file it writes is a test file in the output folder,
+      removed at once. No network,
       subprocess, native, or dynamic-code operation is performed
       anywhere in the package.
     - Display: nothing reaches the screen, the error stream, the summary
@@ -5333,6 +5816,9 @@ def main(argv: "list[str] | None" = None) -> int:
     if options.version:
         _say(_version())
         return 0
+
+    if options.command == _DOCTOR:
+        return _run_doctor(options.given, options.out_dir)
 
     named = options.given
     if named is None or options.command is None:

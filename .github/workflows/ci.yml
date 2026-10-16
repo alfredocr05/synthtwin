@@ -200,6 +200,45 @@ jobs:
         # project build hook ever executes is the build job's
         # --network none container.
         run: python -m pip install --no-index --no-deps dist/*.whl
+      - name: Install from a wheel folder with the install script, then run doctor
+        # Plan P4-D397 (lane TI, K-S8-04): the scripts a person runs,
+        # scripts/install.sh on Ubuntu and macOS and scripts\install.bat
+        # on Windows, run here as README's "Installing" gives them for a
+        # machine with no internet. The folder is filled the way README
+        # says -- `pip download --require-hashes` from
+        # requirements-install.lock, plus the wheel the build job made in
+        # its no-network container -- and the script installs from it
+        # with --no-index --find-links --require-hashes, then with
+        # --no-index --no-deps, and ends by running `synthtwin doctor`,
+        # whose exit code fails this step. Once a cell, on the first
+        # shard, for every platform and Python of the matrix. The scripts
+        # and the lock are copied into a folder of their own first, so the
+        # private environment is made outside this checkout (the suite
+        # below never walks it) and the install is proved to need nothing
+        # of the source tree but those three files. That folder's name
+        # holds a space, as a Windows user folder or a OneDrive folder
+        # often does, so every path the scripts build is quoted where it
+        # counts (lane TI's repair).
+        if: matrix.shard == 1
+        run: |
+          WHEELS="$RUNNER_TEMP/install-wheels"
+          FRESH="$RUNNER_TEMP/fresh install"
+          python -m pip download --require-hashes --only-binary=:all: \
+            --dest "$WHEELS" -r requirements-install.lock
+          cp dist/*.whl "$WHEELS/"
+          mkdir -p "$FRESH/scripts"
+          cp scripts/install.sh scripts/install.bat "$FRESH/scripts/"
+          cp requirements-install.lock "$FRESH/"
+          cd "$FRESH"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            MSYS_NO_PATHCONV=1 cmd.exe /d /c "scripts\\install.bat $(cygpath -w "$WHEELS")"
+            test -f .venv/Scripts/synthtwin.exe
+            .venv/Scripts/python.exe -m synthtwin --version
+          else
+            sh scripts/install.sh "$WHEELS"
+            test -x .venv/bin/synthtwin
+            .venv/bin/python -m synthtwin --version
+          fi
       - name: Run this shard of the test suite
         # The file list is computed by the tool, printed into the log so
         # a reader of one job can see exactly which files it ran, and
@@ -729,6 +768,7 @@ jobs:
           #   listed suffix may be present (source and doc text only; data
           #   formats are never allowed anywhere, plan D13)
           wheel required synthtwin/__init__.py
+          wheel required synthtwin/__main__.py
           wheel required synthtwin/calendar_clock.py
           wheel required synthtwin/calendar_rules.py
           wheel required synthtwin/canonical.py
@@ -764,6 +804,7 @@ jobs:
           sdist required ROOT/README.md
           sdist required ROOT/SECURITY.md
           sdist required ROOT/src/synthtwin/__init__.py
+          sdist required ROOT/src/synthtwin/__main__.py
           sdist required ROOT/src/synthtwin/calendar_clock.py
           sdist required ROOT/src/synthtwin/calendar_rules.py
           sdist required ROOT/src/synthtwin/canonical.py
