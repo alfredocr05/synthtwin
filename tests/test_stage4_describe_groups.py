@@ -157,6 +157,10 @@ _SHAPES: "dict[str, tuple[bytes, str]]" = {
         b"x,y,z\n" + b"".join(f"{k},{k % 7},w{k % 2}\n".encode() for k in range(30)),
         "data",
     ),
+    "a quoted empty last name over shorter rows": (
+        b'a;b;""\n' + b"".join(f"{k};{k % 4}\n".encode() for k in range(40)),
+        "auto",
+    ),
     "comma-space, walked whole": (
         b"a, b, c\n" + b"".join(f"{k}, x{k % 3},  {k}\n".encode() for k in range(30)),
         "auto",

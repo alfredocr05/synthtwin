@@ -5582,7 +5582,7 @@ def survey(
     ]
     first_cells: "list[str]" = []
     last_flags = bytearray()
-    last_empty = True
+    last_column_empty = True
     # ONE TEXT PER SPELLING IN EACH COLUMN (lane S4d, plan P4-D390): the
     # rows of a column that write one spelling hold the same text, not a
     # copy of it per row, up to `parsing.SPELLING_MEMO_TEXTS` where the
@@ -5836,7 +5836,7 @@ def survey(
                     first_cells += [value]
                 if place == width - 1:
                     last_flags += _BYTE_ONE if found.quoted[place] else _BYTE_ZERO
-                    last_empty = last_empty and value == ""
+                    last_column_empty = last_column_empty and value == ""
                 if value and not _only_spaces_and_tabs(value):
                     every_empty = False
                 continue
@@ -5873,7 +5873,7 @@ def survey(
                     first_cells += [value]
                 if place == width - 1:
                     last_flags += _BYTE_ONE if found.quoted[place] else _BYTE_ZERO
-                    last_empty = last_empty and value == ""
+                    last_column_empty = last_column_empty and value == ""
                 # A CELL OF NOTHING BUT SPACES HOLDS NOTHING (plan
                 # P4-D84, review item CODEX-7). This asked only whether
                 # the cell held any character at all, while the
@@ -6003,7 +6003,7 @@ def survey(
     )
     if header_record is not None and not header_trailing and not rows_trailing:
         _refuse_a_quoted_empty_against_closing(
-            header, header_flags, header_rule, width, last_empty, last_flags,
+            header, header_flags, header_rule, width, last_column_empty, last_flags,
             n_rows, delimiter, shown,
         )
     metadata_cells: list[str] = []
