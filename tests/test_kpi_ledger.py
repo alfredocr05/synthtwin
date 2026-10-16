@@ -2100,41 +2100,62 @@ def test_k_s8_04(record_property, tmp_path: pathlib.Path) -> None:
 
 @pytest.fixture(scope="module")
 def health_zoo_small(tmp_path_factory: pytest.TempPathFactory) -> "dict":
-    """The health data zoo at the suite's 600 rows, run once for K-HZ-01 and K-HZ-02."""
+    """The health data zoo at the suite's 600 rows, run once for K-HZ-01 and K-HZ-02.
+
+    Where openpyxl is absent (CI's `minimums` cell) the workbook export
+    is left out (`health_zoo.runnable_tables`), and the two tests below
+    judge the keys of the delimited exports and name the rest.
+    """
     import health_zoo
 
     results = health_zoo.run_zoo(tmp_path_factory.mktemp("health-zoo"), 600)
     return health_zoo.zoo_measures(results)
 
 
+HEALTH_ZOO_WORKBOOK_PART = (
+    "the surveys workbook's two kinds (surveys_pro and excel_workbook), which pandas "
+    "opens through openpyxl: the keys over every export (kinds_passing_600_rows, "
+    "kinds_failing_600_rows, validate_misses, analyst_failures). The delimited exports' "
+    "keys were measured, recorded and judged above."
+)
+
+
 def test_k_hz_01(record_property, health_zoo_small: "dict") -> None:
     """The kinds of healthcare data that pass end to end, the analyst's code unchanged (lane E0a, plan P4-D399).
 
-    Fourteen exports at 600 rows, each profiled, its questions answered
-    with general facts about the data, generated, validated, and read by
-    the analyst's script on the real table and on the twin. The driver
-    measures the same at 20,000 rows. `tests/health_zoo.py` owns the
-    battery.
+    Twenty-three exports at 600 rows, each profiled, its questions
+    answered with general facts about the data, generated, validated,
+    and read by the analyst's script on the real table and on the twin.
+    The driver measures the same at 20,000 rows. `tests/health_zoo.py`
+    owns the battery.
     """
     measured = health_zoo_small["K-HZ-01"]
+    whole = crosscheck.present()
     value = {
-        "kinds_passing_600_rows": measured["kinds_passing_end_to_end"],
+        "kinds_passing_600_rows_csv": measured["kinds_passing_csv"],
         "kinds": measured["kinds"],
         "tables_generated": measured["tables_generated"],
         "questions_asked": measured["questions_asked"],
         "questions_not_general": measured["questions_not_general"],
         "analyst_errors_on_real": measured["analyst_errors_on_real"],
+        "roles_reached": measured["roles_reached"],
+        "kinds_failing_600_rows_named": ", ".join(measured["failing"]) or "none",
     }
-    _kpi(record_property, "K-HZ-01", value)
+    if whole:
+        value["kinds_passing_600_rows"] = measured["kinds_passing_end_to_end"]
+    _kpi(record_property, "K-HZ-01", value, partial=not whole)
+    if not whole:
+        crosscheck.part_not_measured(HEALTH_ZOO_WORKBOOK_PART)
 
 
 def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
     """Per kind, at 600 rows: the step that fails, its misses and analyst failures, and its owner (lane E0a, plan P4-D399).
 
-    A kind that fails with no owner named in `tests/health_zoo.py`'s
-    OWNERS breaks the rule's bound of nought.
+    Each failure of a kind needs an OWNERS line of its own in
+    `tests/health_zoo.py`; one with none breaks the rule's bound of nought.
     """
     measured = health_zoo_small["K-HZ-02"]
+    whole = crosscheck.present()
     per_kind = {}
     for kind, verdict in health_zoo_small["kinds"].items():
         if verdict["passed"]:
@@ -2144,12 +2165,18 @@ def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
             f"{verdict['failing_step']}: {verdict['misses']} missed, "
             f"{len(verdict['analyst_failures'])} analyst; "
             f"{', '.join(verdict['owners']) or 'NO OWNER'}"
+            + (f"; UNOWNED {verdict['unowned']}" if verdict["unowned"] else "")
         )
     value = {
-        "kinds_failing_600_rows": measured["kinds_failing"],
+        "kinds_failing_600_rows_csv": measured["kinds_failing_csv"],
         "failing_kinds_without_owner": measured["failing_kinds_without_owner"],
-        "validate_misses": measured["validate_misses"],
-        "analyst_failures": measured["analyst_failures"],
+        "failures_without_owner": measured["failures_without_owner"],
         "per_kind": per_kind,
     }
-    _kpi(record_property, "K-HZ-02", value)
+    if whole:
+        value["kinds_failing_600_rows"] = measured["kinds_failing"]
+        value["validate_misses"] = measured["validate_misses"]
+        value["analyst_failures"] = measured["analyst_failures"]
+    _kpi(record_property, "K-HZ-02", value, partial=not whole)
+    if not whole:
+        crosscheck.part_not_measured(HEALTH_ZOO_WORKBOOK_PART)

@@ -1872,6 +1872,43 @@ def _kpi_call_lines(path: pathlib.Path, function: str) -> "list[int]":
     raise AssertionError(f"{function} is not defined in {path.name}")
 
 
+def test_no_workbook_read_in_the_suite_goes_around_the_cross_check_reader() -> None:
+    """LANE E0A'S FIRST REVIEW (skeptic 1, item 1; Codex, item 8), and the guard it widened.
+
+    The health data zoo (`tests/health_zoo.py`), which K-HZ-01 and
+    K-HZ-02 run, read its survey workbook with `pandas.read_excel`
+    directly, so CI's `minimums` cell, which has no openpyxl, would have
+    failed four cases and the two KPIs rather than skipping one part.
+    The guard below only read `tests/test_kpi_ledger.py`, so it could
+    not see a helper module a KPI test calls. So: no file of the suite
+    but `tests/crosscheck.py` calls `read_excel` on anything but
+    `crosscheck`, and the zoo asks the cross-check reader only in the
+    ways that never skip.
+    """
+    tests = kpi_rules.REPO_ROOT / "tests"
+    direct = []
+    for path in sorted(tests.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        if path.name == "crosscheck.py" or "read_excel(" not in text:
+            continue
+        for node in ast.walk(ast.parse(text)):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "read_excel"
+                and not (isinstance(node.func.value, ast.Name) and node.func.value.id == "crosscheck")
+            ):
+                direct += [f"{path.name}:{node.lineno}"]
+    assert not direct, (
+        f"a workbook read goes around tests/crosscheck.py: {direct}; pandas opens an "
+        ".xlsx through openpyxl, which CI's minimums cell lacks"
+    )
+    asks = _crosscheck_calls(tests / "health_zoo.py")
+    assert asks, "the zoo reads its workbook through the cross-check reader"
+    skipping = [f"{function}: {name}" for function, name, _line in asks if name not in CROSSCHECK_ASKS_THAT_NEVER_SKIP]
+    assert not skipping, f"the zoo, which KPI tests run, would skip them: {skipping}"
+
+
 def test_no_kpi_test_can_be_skipped_by_the_absent_cross_check_reader() -> None:
     """THE REVIEW OF 2026-09-21, and the one thing it must not repeat.
 
