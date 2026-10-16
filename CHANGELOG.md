@@ -35,12 +35,16 @@ Stated: the twin's stamps are in the source's shape but are not real
 dates (`7000-00-01 26:23`), as every made-up cell of a text column reads
 as no date; a `T` stamp whose marker alone is lower case
 (`2024-01-05T9:15 am`) is written `AM`, and a mixed-case zone (`T…z`)
-`Z`; a stamp with a month word, a compact date, a zone after a year-last
-date, an offset after a space, more than 32 characters or a comma after
-the date (`1/5/2024, 9:15 AM`) still has no form; and a free-text column
-of zoned stamps all at the longest length beside shorter words can miss
-`length.mean` at a floor of eleven, one made-up word written at that
-length (as at 7d27335 for `…Z`). No lane owns these yet.
+`Z`; a stamp with a month word, a compact date, an offset after a space,
+more than 32 characters or a comma after the date (`1/5/2024, 9:15 AM`)
+still has no form; a zone after a year-last date keeps no stamp form
+(spaced, no form at all; parted by a letter and of 24 characters or
+fewer, the form it had before L3, its letters filled by the step); and a
+free-text column of zoned stamps all at the longest length beside
+shorter words can miss `length.mean` at a floor of eleven, one made-up
+word written at that length (as at 7d27335 for `…Z`): the cause is
+G9.5's length pin, not the forms, and its lane is the orchestrator's to
+name. No lane owns the other limits yet.
 
 ### A clock written with a space before AM or PM keeps its shape (2026-10-14)
 

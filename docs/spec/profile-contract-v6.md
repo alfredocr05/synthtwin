@@ -11700,7 +11700,9 @@ limit below. The space between the date and the clock is a plain space:
 U+202F there, two spaces, a space at either end, a date of two marks
 (`2024-01/05`), of a run of three figures or of one run (`20240105`), a
 month word, a zone after a year-last date's clock and an offset after a
-space keep the cell formless. AFTER A YEAR-FIRST DATE'S CLOCK A ZONE MAY
+space keep the cell formless; a zone after a year-last date's clock
+parted by a letter, of 24 characters or fewer (`1/5/2024T09:15:30Z`),
+keeps the form it had before, which is no stamp's. AFTER A YEAR-FIRST DATE'S CLOCK A ZONE MAY
 STAND, written straight on (skeptic 2 of lane L3, item 2): one letter
 (`Z`) or a sign and an offset of two figures, four, or two, a colon and
 two -- FHIR's `2024-01-05T09:15:30Z` has `%%%%-%%-%%@%%:%%:%%@`, RFC
