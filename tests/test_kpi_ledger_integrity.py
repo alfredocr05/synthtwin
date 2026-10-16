@@ -815,6 +815,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 616,000 from 615,000, LANE TI'S REPAIR 1 (2026-10-15, plan P4-D397):
+    # K-S8-01's and K-S8-04's rules now say what their measures count --
+    # the unstated environment, the run with answers, CI as configured --
+    # 615,258 bytes after their evidence was trimmed. The integrator sets
+    # the cap for the batch as a whole.
+    #
     # 615,000 from 610,000, LANE TI OF THE DECEMBER PLAN (2026-10-15, plan
     # P4-D397), the least round figure the lane's ledger fits under: the
     # terminal's first two entries, `K-S8-01` (its headline) and
@@ -1069,7 +1075,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 615_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 616_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
