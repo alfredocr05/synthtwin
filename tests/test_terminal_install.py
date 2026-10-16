@@ -907,6 +907,34 @@ def journey_measures(readme: "str | None" = None) -> "dict[str, int]":
     }
 
 
+def ci_systems_configured(workflow: str) -> int:
+    """The systems of the tests job whose matrix reaches the install step."""
+    job = workflow[workflow.index("  tests:") : workflow.index("  shard-coverage:")]
+    step = job[job.index("Install from a wheel folder with the install script") :]
+    step = step[: step.index("- name:")]
+    if not (
+        "sh scripts/install.sh" in step
+        and "scripts\\\\install.bat" in step
+        and _step_runs_on_a_shard_of_the_matrix(job, step)
+    ):
+        return 0
+    return sum(
+        1 for system in ("ubuntu-latest", "windows-latest", "macos-latest") if system in job
+    )
+
+
+def test_the_ci_count_sees_a_step_that_never_runs() -> None:
+    """A condition no shard meets counts no system (the skeptic, item 8a)."""
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert ci_systems_configured(workflow) == 3
+    never = workflow.replace(
+        "        if: matrix.shard == 1\n        run: |\n          WHEELS=",
+        "        if: matrix.shard == 99\n        run: |\n          WHEELS=",
+    )
+    assert never != workflow
+    assert ci_systems_configured(never) == 0
+
+
 def install_measures(folder: pathlib.Path) -> "dict[str, int]":
     """K-S8-04: `python -m synthtwin`, the scripts' hash check, CI, and doctor here.
 
@@ -944,19 +972,7 @@ def install_measures(folder: pathlib.Path) -> "dict[str, int]":
             and "doctor" in text.split("pip install")[-1]
         ):
             keeping += 1
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-    job = workflow[workflow.index("  tests:") : workflow.index("  shard-coverage:")]
-    step = job[job.index("Install from a wheel folder with the install script") :]
-    step = step[: step.index("- name:")]
-    systems = 0
-    if (
-        "sh scripts/install.sh" in step
-        and "scripts\\\\install.bat" in step
-        and _step_runs_on_a_shard_of_the_matrix(job, step)
-    ):
-        systems = sum(
-            1 for system in ("ubuntu-latest", "windows-latest", "macos-latest") if system in job
-        )
+    systems = ci_systems_configured(WORKFLOW.read_text(encoding="utf-8"))
     code = cli.main(["doctor", "--out-dir", str(folder)])
     return {
         "main_module_dispatches": dispatches,
