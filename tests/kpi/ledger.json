@@ -9012,12 +9012,13 @@
    "headline": false,
    "name": "describe holds one record, one date pair and one text per spelling",
    "status": "GREEN",
-   "rule": "machine-free: a million rows of a thousand spellings hold one record per spelling, a million dates of 3,360 days one pair per date, and the survey of 200,000 rows of 500 codes one text per code; and the bytes tracemalloc sees synthtwin profile hold per row added to a register of 2,000 codes beside two arms and dates, from 40,000 to 80,000 rows, stay under 300",
+   "rule": "machine-free: a million rows of a thousand spellings hold one record per spelling, and so do 65,536 different numbers followed by one number on every later row to 200,000 rows, a million dates of 3,360 days one pair per date, and the survey of 200,000 rows of 500 codes one text per code; and the bytes tracemalloc sees synthtwin profile hold per row added to a register of 2,000 codes beside two arms and dates, from 40,000 to 80,000 rows, stay under 300",
    "rule_kind": "ratio_below",
    "expected": {
     "date_pairs_per_spelling_1m_rows": 1.01,
     "describe_held_bytes_per_added_row": 300.0,
     "records_per_spelling_1m_rows": 1.01,
+    "records_per_spelling_past_the_bound_200000_rows": 1.01,
     "survey_texts_per_spelling_200000_rows": 1.01
    },
    "tier": "FAST",
@@ -9027,7 +9028,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/test_stage4_describe_memory.py's describe_memory_measures",
-   "evidence": "As built (66bca69): a record per row (1,000,000 records for 1,000 spellings), a date pair per row, a survey text per row, and 1,079 bytes held per row added to the register beside dates. Process memory, the reason: describe of a register of 997,770, 1,994,180 and 2,990,700 rows took 881 to 901, 1,663 and 2,389 MB there and 289, 544 and 780 MB here, and 1,270 MB at 4,983,120 rows; 1,000,000 rows of free text beside dates and numbers 1,333 to 1,573 MB there, 564 here; G2's dense tail of 1,000,000 rows 1,025 to 1,176 MB there, 786 here, and 2,287 MB at 3,000,000 rows, a record a row where no value repeats.",
+   "evidence": "As built (66bca69): a record per row (1,000,000 records for 1,000 spellings), and on d4b114d past the memo's bound 3.05 records a spelling (200,000 for 65,537, Codex's review of the lane), a date pair per row, a survey text per row, and 1,079 bytes held per row added to the register beside dates. Process memory, the reason: describe of a register of 997,770, 1,994,180 and 2,990,700 rows took 881 to 901, 1,663 and 2,389 MB there and 289, 544 and 780 MB here, and 1,270 MB at 4,983,120 rows; 1,000,000 rows of free text beside dates and numbers 1,333 to 1,573 MB there, 564 here; G2's dense tail of 1,000,000 rows 1,025 to 1,176 MB there, 786 here, and 2,287 MB at 3,000,000 rows, a record a row where no value repeats.",
    "value_at": {
     "commit": "232967d",
     "date": "2026-10-15",

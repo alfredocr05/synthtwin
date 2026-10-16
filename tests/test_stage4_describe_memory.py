@@ -12,7 +12,10 @@ until the whole table was described.
 
 The lane shares one answer per SPELLING wherever a fixed function of a
 cell's text is answered (bounded by `parsing.SPELLING_MEMO_TEXTS` where
-values never repeat), holds a folded label once where folding changes
+values never repeat; past that bound a text met again is shared from its
+second sighting, `parsing.SPELLING_MEMO_NOTED`, after Codex's review
+found a unique prefix kept every later repeated row apart on d4b114d),
+holds a folded label once where folding changes
 nothing, keeps only the labels written otherwise than themselves in the
 map of spellings (`taxonomy._label_spellings` answers the rest), and
 lets each census reading go once its column is described. Every
@@ -363,7 +366,11 @@ def test_no_answer_moves_when_nothing_is_shared(tmp_path: pathlib.Path, monkeypa
 
 
 def describe_memory_measures(folder: pathlib.Path) -> "dict[str, float]":
-    """Records, date pairs and survey texts per spelling at up to a million rows, and bytes held per row added."""
+    """Records, date pairs and survey texts per spelling at up to a million rows, and bytes held per row added.
+
+    Past the bound (Codex's review): 65,536 different numbers and then
+    "70000" on every later row, 200,000 rows, records per spelling.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     cells = _register_cells(1_000_000, 1_000)
     records = _objects(taxonomy._classify_all(cells)) / len(set(cells))
@@ -375,10 +382,13 @@ def describe_memory_measures(folder: pathlib.Path) -> "dict[str, float]":
     lines = ["code"] + [f"{1000001 + draw.randrange(500)}" for _ in range(200_000)]
     path = fixtures.write(folder, "codes.csv", "\n".join(lines) + "\n")
     texts = _objects(reading.read_table(str(path)).columns[0]) / 500
+    past = _past_the_bound("prefix", 200_000, parsing.SPELLING_MEMO_TEXTS, _numbers(200_000), _AGAIN)
+    past_records = _objects(taxonomy._classify_all(past)) / len(set(past))
     _profile_peak(folder, 2_000)
     smaller = _profile_peak(folder, 40_000)
     larger = _profile_peak(folder, 80_000)
     return {
+        "records_per_spelling_past_the_bound_200000_rows": round(past_records, 2),
         "records_per_spelling_1m_rows": round(records, 2),
         "date_pairs_per_spelling_1m_rows": round(pairs, 2),
         "survey_texts_per_spelling_200000_rows": round(texts, 2),

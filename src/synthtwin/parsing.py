@@ -574,7 +574,8 @@ SPELLING_MEMO_TEXTS = 65536
 # sighting, one turned over at its first from its third; a text whose
 # sightings are always further apart is answered per row, as before the
 # lane. The note holds at most twice this many texts in each column a
-# pass walks: 8,192 keeps it near 0.7 MB where a whole column is new.
+# pass walks: two maps of 8,192 texts are about 0.4 MB (measured), held
+# only while the pass walks the column.
 SPELLING_MEMO_NOTED = 8192
 
 
