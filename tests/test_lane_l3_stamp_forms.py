@@ -68,6 +68,7 @@ import pathlib
 import random
 import re
 import sys
+import typing
 
 import pytest
 
@@ -863,3 +864,255 @@ def test_h8_a_twin_writing_two_spaces_is_missed_on_every_stamp_form(tmp_path: pa
     for key in forms:
         if " " in key:
             assert f"forms.published.{key} [" in text and "MISSED" in text, key
+
+
+# -- H9: fold partners write marker words whole (Codex's review of L3, item 1) --
+
+_MARKED = {
+    "stamp": lambda index: f"2024-01-{index // 60 + 1:02d} 9:{index % 60:02d}",
+    "t_stamp": lambda index: f"2024-01-{index // 60 + 1:02d}T9:{index % 60:02d}",
+    "clock": lambda index: f"{1 + index // 60}:{index % 60:02d}",
+}
+
+_WHOLE_WORDS = {"AM", "PM", "am", "pm", "A.M.", "P.M.", "a.m.", "p.m."}
+
+
+def _both_cases(
+    kind: str, gap: str, words: "tuple[str, str]", rare: "tuple[str, str]" = ("pending", "unknown")
+) -> "list[str]":
+    """Codex's column: 194 marked times written in both cases, six `pending`, six `unknown`."""
+    cells: "list[str]" = []
+    for index in range(194):
+        text = _MARKED[kind](index)
+        cells += [text + gap + words[0], text + gap + words[1]]
+    return cells + [rare[0]] * 6 + [rare[1]] * 6
+
+
+def _markers_of(cells: "list[str]") -> "list[str]":
+    """The marker each marked cell writes after its clock's last figure, its gap aside."""
+    found: "list[str]" = []
+    for cell in cells:
+        hit = re.search("[0-9][ " + NARROW + "]?([A-Za-z.]+)$", cell)
+        if hit is not None:
+            found += [hit.group(1)]
+    return found
+
+
+def _missed_of(folder: pathlib.Path) -> "list[str]":
+    """The obligations a quality report names MISSED, by their names."""
+    text = "".join(page.read_text(encoding="utf-8") for page in sorted(folder.glob("*quality*")))
+    return sorted(set(re.findall(r"^  (\S+(?: \S+)*) \[[^\]]+\]: MISSED$", text, re.MULTILINE)))
+
+
+def _h9_round(
+    tmp_path: pathlib.Path, kind: str, gap: str, words: "tuple[str, str]", floor: int
+) -> "tuple[dict[str, object], list[str], int, int]":
+    return _round(tmp_path / "fold", _both_cases(kind, gap, words), floor)
+
+
+def _h9_holds(
+    tmp_path: pathlib.Path, kind: str, gap: str, words: "tuple[str, str]", floor: int
+) -> None:
+    """Codex's column, end to end: every published count held and every marker word whole."""
+    block, written, twin_exit, table_exit = _h9_round(tmp_path, kind, gap, words, floor)
+    forms = block["shape_forms"]
+    assert isinstance(forms, dict) and len(forms) == 1
+    form = sorted(forms)[0]
+    assert forms[form] == 388
+    assert (block["n_distinct"], block["n_distinct_folded"]) == (390, 196)
+    written_form = _oracle_module()["written_form"]
+    assert callable(written_form)
+    shaped = [cell for cell in written if parsing.shape_form(cell) == form]
+    # The product and the oracle read each twin cell's form alike.
+    assert [cell for cell in written if written_form(cell) == form] == shaped
+    assert len(shaped) == 388
+    markers = _markers_of(shaped)
+    assert len(markers) == 388
+    assert sorted(set(markers) - _WHOLE_WORDS) == []
+    if kind == "t_stamp":
+        assert [cell for cell in shaped if cell[10] != "T"] == []
+    assert (len(set(written)), len({parsing.folded(cell) for cell in written})) == (390, 196)
+    assert table_exit == 0
+    if kind == "t_stamp" and gap == "" and floor in (2, 11):
+        # G9.5's length pin, P4-D393's stated limit: a made-up word pinned
+        # to the longest published length (`A----------------`) moves the
+        # average, as it did on 7ffe47b7 (16.725 of 16.685 to 16.715).
+        assert twin_exit == 3
+        assert _missed_of(tmp_path / "fold" / "vt") == ["length.mean"]
+        return
+    assert twin_exit == 0
+
+
+@pytest.mark.parametrize("floor", (2, 11, 36))
+@pytest.mark.parametrize("gap", (" ", "", NARROW))
+@pytest.mark.parametrize("kind", sorted(_MARKED))
+def test_h9_case_fold_partners_write_every_marker_word_whole(
+    tmp_path: pathlib.Path, kind: str, gap: str, floor: int
+) -> None:
+    """H9 (Codex's review of L3, item 1): 194 marked times written with `AM` and with `am`.
+
+    Beside six `pending` and six `unknown`, 400 rows publish 388 cells in
+    one marker form, 390 values and 196 folded. The twin writes 388 cells
+    in the form -- as the product and the oracle read them -- each marker
+    a whole word, each `T` a `T`, 390 values and 196 folded, and
+    validates with exit 0: stamps with the gap or the marker written
+    straight on (L3's), and a clock either way (the ordinary clock, which
+    7d273351 wrote as `1:00aM` 195 times and `1:00 aM` 12 times at a floor
+    of eleven). On 7ffe47b7 a stamp with the gap wrote 376 in the form
+    and validated with exit 3; written straight on, 199 mixed markers and
+    exit 0. Mutants: H9b.
+    """
+    _h9_holds(tmp_path, kind, gap, ("AM", "am"), floor)
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+@pytest.mark.parametrize("kind", sorted(_MARKED))
+def test_h9_dotted_marker_words_are_written_whole(
+    tmp_path: pathlib.Path, kind: str, floor: int
+) -> None:
+    """H9: the same column with `A.M.` and `a.m.` after the gap: every word whole."""
+    _h9_holds(tmp_path, kind, " ", ("A.M.", "a.m."), floor)
+
+
+@pytest.mark.parametrize(
+    ("withdrawn", "floor", "rare"),
+    (
+        ("_whole_turn_indexed", 11, ("pending", "unknown")),
+        ("_marker_slots_fitted", 11, ("pending", "unknown")),
+        ("_unmarked_places", 36, ("pending result ab", "unknown result ab")),
+    ),
+)
+def test_h9b_red_where_a_part_of_the_repair_is_withdrawn(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    withdrawn: str,
+    floor: int,
+    rare: "tuple[str, str]",
+) -> None:
+    """H9b mutants, each on Codex's stamps written straight on: a marker word turned in part.
+
+    The walk asking no whole turn first; no slot moved to fit a form's
+    parents; a slot asked no marker form sparing no parent wearing one
+    (its rare words as long as the stamps, `pending result ab`, so its
+    own planned length does not spare them alone). Each writes mixed
+    markers where the head writes none (H9).
+    """
+    mutants = {
+        "_whole_turn_indexed": lambda *_args: None,
+        "_marker_slots_fitted": lambda *_args: False,
+        "_unmarked_places": lambda _parents, places, *_args: places,
+    }
+    cells = _both_cases("stamp", "", ("AM", "am"), rare)
+    _block, written, _twin_exit, _table_exit = _round(tmp_path / "head", cells, floor)
+    assert sorted(set(_markers_of(written)) - _WHOLE_WORDS) == []
+    monkeypatch.setattr(generation, withdrawn, mutants[withdrawn])
+    _block, written, _twin_exit, _table_exit = _round(tmp_path / "mutant", cells, floor)
+    assert sorted(set(_markers_of(written)) - _WHOLE_WORDS) != []
+
+
+def _calls_back(rows: int) -> "list[str]":
+    """Stamps each written with `AM` and with `am`, one cell in three a `call back N` note."""
+    cells: "list[str]" = []
+    index = 0
+    while len(cells) < rows:
+        if index % 3 == 1:
+            cells += [f"call back {index}"]
+        else:
+            day, clock = divmod(index * 7, 60 * 12)
+            hour, minute = divmod(clock, 60)
+            stamp = f"{2000 + day // 336}-{1 + day // 28 % 12:02d}-{1 + day % 28:02d} {1 + hour}:{minute:02d} "
+            cells += [stamp + "AM", stamp + "am"]
+        index = index + 1
+    return cells[:rows]
+
+
+def test_h9d_stamps_in_both_cases_beside_notes_keep_every_count_and_word(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """H9d: 4,000 rows, 3,200 stamps in two forms each written `AM` and `am`, 800 notes.
+
+    Free text publishing 4,000 values and 2,400 folded, `%%%%-%%-%% %%:%%
+    @@` 788 and `%%%%-%%-%% %:%% @@` 2,412. On 7ffe47b7 the twin wrote 3,998
+    cells in those forms' shape, 1,198 of them with a marker turned in
+    part, the notes' slots taking stamps' partners. Now every count holds
+    -- the twin validates with exit 0 -- and every marker is a whole word.
+    MACHINE-FREE: the whole turns read at most one per parent and four
+    per slot (`_form_keeping_partner`).
+    """
+    reads = {"turns": 0, "slots": 0}
+    keeper = generation._form_keeping_partner
+    partner_of = generation._partner_of
+
+    def counted(parent: str, asked: str) -> "str | None":
+        reads["turns"] += 1
+        return keeper(parent, asked)
+
+    def slots(index: int, folded: int, *args: typing.Any, **named: typing.Any) -> "str | None":
+        if 0 < folded <= index:
+            reads["slots"] += 1
+        return partner_of(index, folded, *args, **named)
+
+    monkeypatch.setattr(generation, "_form_keeping_partner", counted)
+    monkeypatch.setattr(generation, "_partner_of", slots)
+    block, written, twin_exit, table_exit = _round(tmp_path / "calls", _calls_back(4000), 11)
+    assert block["role"] == "free_text"
+    assert (block["n_distinct"], block["n_distinct_folded"]) == (4000, 2400)
+    assert (twin_exit, table_exit) == (0, 0)
+    markers = _markers_of(written)
+    assert len(markers) == 3200
+    assert sorted(set(markers) - _WHOLE_WORDS) == []
+    assert reads["slots"] == 1600
+    assert reads["turns"] <= 2400 + 4 * reads["slots"]
+
+
+def test_h9c_the_indexed_whole_turn_walk_answers_as_the_plain_walk() -> None:
+    """H9c: a slot asked a marker form takes the same partner by either walk.
+
+    Seeded parents -- stamps and clocks written in either case, with and
+    without the gap, beside rare words -- and slots each asked one of the
+    marker forms the parents wear, by `_partner_of`'s own walk and by
+    `_partner_indexed`'s lists, call after call as ``used`` grows, more
+    slots than whole turns among them. Red where the indexed walk steps
+    past a parent whose turn is free.
+    """
+    draw = random.Random(9)
+    turned = 0
+    for _case in range(80):
+        folded = draw.randrange(2, 14)
+        total = folded + draw.randrange(1, 20)
+        gap = draw.choice([" ", ""])
+        spellings: "list[str]" = []
+        for _each in range(folded):
+            if draw.random() < 0.2:
+                spellings += [draw.choice(["pending", "unknown"]) + str(_each)]
+                continue
+            text = _MARKED[draw.choice(sorted(_MARKED))](draw.randrange(194))
+            spellings += [text + gap + draw.choice(["AM", "am", "PM", "pm"])]
+        families = ["f"] * total
+        sizes = [draw.randrange(1, 4) for _each in range(total)]
+        forms = sorted(
+            {form for form in map(parsing.shape_form, spellings) if generation._form_marker_at(form) >= 0}
+        )
+        if not forms:
+            continue
+        asked = [draw.choice(forms) for _each in range(total)]
+        results: "list[list[str | None]]" = []
+        for indexed in (False, True):
+            used = {spelling: generation._WRITTEN for spelling in spellings}
+            carried: "dict[int, int]" = {}
+            written = list(spellings)
+            kept: "tuple[typing.Any, typing.Any]" = ({}, {}) if indexed else (None, None)
+            answers: "list[str | None]" = []
+            for index in range(folded, total):
+                found = generation._partner_of(
+                    index, folded, written, families, used, [(1, 40)] * total,
+                    sizes, 9, carried, parents=kept[0], spent=kept[1], asked=asked[index],
+                )
+                if found is not None:
+                    used[found] = generation._WRITTEN
+                answers += [found]
+                written += [found or f"made{index}"]
+            results += [answers]
+        assert results[0] == results[1]
+        turned += len([found for found in results[1] if found is not None and found[-2:] in ("am", "pm", "AM", "PM")])
+    assert turned > 100
