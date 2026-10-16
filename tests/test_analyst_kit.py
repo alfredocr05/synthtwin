@@ -228,10 +228,13 @@ def test_the_spline_is_harrells_formula_and_straight_past_its_outer_knots() -> N
     second = ((x - 3) ** 3 - (x - 4) ** 3 * (8 - 3) / (8 - 4)) / norm
     assert K.rcs(x, knots) == pytest.approx([first, second], abs=1e-12)
     for j in (0, 1):
-        assert K.rcs_term(knots, j, 2.5)(x) == pytest.approx(2.5 * K.rcs(x, knots)[j], abs=1e-12)
+        for point in (-2.0, 0.5, 1.0, 2.0, 3.5, 4.0, 5.0, 7.0, 8.0, 8.5, 9.5, 10.5, 30.0):
+            assert K.rcs_term(knots, j, 2.5)(point) == pytest.approx(2.5 * K.rcs(point, knots)[j], abs=1e-9)
     for points in ((8.5, 9.5, 10.5), (-2.0, -1.0, 0.0)):
         for j in (0, 1):
             a, b, c = (K.rcs(p, knots)[j] for p in points)
+            assert a - 2 * b + c == pytest.approx(0.0, abs=1e-9)
+            a, b, c = (K.rcs_term(knots, j)(p) for p in points)
             assert a - 2 * b + c == pytest.approx(0.0, abs=1e-9)
 
 

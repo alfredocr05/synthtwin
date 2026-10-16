@@ -1943,8 +1943,8 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"shuffled_recovered{suffix}": len(got["shuffled"]),
         f"truths_recovered_below_shuffled{suffix}": len(got["shuffled"]) - len(got["twin"]),
         f"controls_hold{suffix}": bool(rep_share >= 0.5 and shuf_share <= rep_share - 0.25),
-        "_detail": "recovered by the twin: " + (", ".join(f"{r.table} {p}" for r, p, _k in got["twin"]) or "none")
-        + "; missed: " + ", ".join(f"{r.table} {p}" for r, p, _k in missed),
+        "_detail": "recovered by the twin: " + (", ".join(f"{r.table}-{r.seed} {p}" for r, p, _k in got["twin"]) or "none")
+        + "; missed: " + ", ".join(f"{r.table}-{r.seed} {p}" for r, p, _k in missed),
     }
 
 
@@ -2029,21 +2029,29 @@ def kpi_05(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     """K-BC-05, the broad discriminator: the twin's pMSE ratio over the replicate's, worst table."""
     over: "dict[str, list[float]]" = {"twin": [], "shuffled": []}
     leaning = []
-    # On the null table a shuffle IS a perfect twin, so the shuffled
-    # control is read on the other tables only; today's twin on all.
+    # On the null table a shuffle IS a perfect twin with exact marginals,
+    # its ratio under 1, so the shuffled control and the twin's ratio to
+    # the shuffle are read on the other tables only; the twin's ratio to
+    # the replicate on every table, and on the null table beside it.
     shuffled_control: "list[float]" = []
+    twin_control: "list[float]" = []
+    null: "list[float]" = []
     for r in runs:
         rep = _median([s.pmse for s in r.sides["replicate"] if s.pmse == s.pmse])
         for side in over:
             over[side] += [_median([s.pmse for s in r.sides[side] if s.pmse == s.pmse]) / rep]
         if r.table != "ST5":
             shuffled_control += [over["shuffled"][-1]]
+            twin_control += [over["twin"][-1] / over["shuffled"][-1]]
+        else:
+            null += [over["twin"][-1]]
         if r.sides["twin"]:
             leaning += [f"{r.table}: " + ", ".join(r.sides["twin"][0].leaning)]
     return {
         f"pmse_over_replicate{suffix}": round(max(over["twin"]), 2),
-        f"pmse_over_shuffled{suffix}": round(max(t / u for t, u in zip(over["twin"], over["shuffled"])), 2),
+        f"pmse_over_shuffled{suffix}": round(max(twin_control), 2) if twin_control else None,
         f"shuffled_pmse_over_replicate{suffix}": round(min(shuffled_control), 2),
+        f"null_pmse_over_replicate{suffix}": round(max(null), 2) if null else None,
         f"controls_hold{suffix}": bool(shuffled_control and min(shuffled_control) > 3.0),
         "_detail": "the discriminator rests most on " + "; ".join(leaning),
     }

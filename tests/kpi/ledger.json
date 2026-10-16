@@ -9339,7 +9339,7 @@
    "headline": false,
    "name": "The broad discriminator: real rows told from twin rows, the pMSE ratio over the replicate's",
    "status": "OPEN",
-   "rule": "A logistic discriminator of real rows against twin rows on every usable column's main effect (numbers and dates standardized, numbers with two spline terms, labels by level, missing indicators) and the products of the first ten key columns (six at 5,000 rows); its propensity mean-squared error over its value under no difference, (k - 1)(1 - c)^2 c / N (Woo et al. 2009; Snoke et al. 2018), today's twin's over the replicate's, the worst table; the ten columns it rests on most named in the detail. Bound: the controls hold (the shuffled twin over three times the replicate) and today's twin at most 1.5 times the shuffled twin. Target: at most 3 times the replicate (checkpoint 4; the finished product's, 1.5).",
+   "rule": "A logistic discriminator of real rows against twin rows on every usable column's main effect (numbers and dates standardized, numbers with two spline terms, labels by level, missing indicators) and the products of the first ten key columns (six at 5,000 rows); its propensity mean-squared error over its value under no difference, (k - 1)(1 - c)^2 c / N (Woo et al. 2009; Snoke et al. 2018), today's twin's over the replicate's, the worst table; the ten columns it rests on most named in the detail. On the null table ST5 a shuffle is a perfect twin with exact marginals, its ratio under 1, so the controls and the comparison with the shuffle leave ST5 out and its ratio over the replicate stands beside them (null_pmse_over_replicate). Bound: the controls hold (the shuffled twin over three times the replicate on every other table) and today's twin at most 1.5 times the shuffled twin there. Target: at most 3 times the replicate on every table (checkpoint 4; the finished product's, 1.5).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9354,7 +9354,7 @@
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "Fast part: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py); slow part (tools/measurements/kpi_analyst_battery.py --kpi): all six seeded tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, the median over twin seeds. Supported estimates only: every defining cell at least 22 rows (11 per half) and, on a two-valued outcome, 22 events and 22 non-events, the analysis running on the real table and all eight halves. The yardstick: four half splits of sixteen SplitMix64 groups (by subject on ST2). The controls in every run: the fresh replicate (same generator, another seed) and the shuffled twin (every column shuffled on its own); controls_hold false voids the run and fails the entry.",
-   "evidence": "The S2 probe measured 65 to 68 for its shuffled twin against the replicate's 1.9 to 3.0 at 20,000 rows. It looks at every relation at once, the ones nobody named.",
+   "evidence": "The S2 probe measured 65 to 68 for its shuffled twin against the replicate's 1.9 to 3.0 at 20,000 rows. It looks at every relation at once, the ones nobody named. Lane E0b, ST5 at 20,000 rows, seed 1, twin seed 0: today's twin 4.28, the replicate 2.01, the shuffle 0.87 -- the twin's own column shapes told apart (it rests most on procedures, sbp and glucose), no relation between columns; ST4 833 against the shuffle's 875, ST3 136 against 134.",
    "key_kinds": {
     "controls_hold": "exact",
     "controls_hold_20k": "exact"
