@@ -2620,6 +2620,12 @@ GROUP_BYTES = 512 * 1024 * 1024
 # (`tools/measurements/kpi_describe_groups.py`).
 _CELL_BYTES = 65
 
+# How many groups one walk of the sweep holds at once. A walk holds its
+# group's cells and no column's description, which at two million rows
+# holds more than three groups' cells, so the sweep walks three groups at
+# a time and the file is walked a third as often (`_sweep`).
+_GROUPS_A_WALK = 3
+
 # The text's first characters the survey's detection reads: a MiB past a
 # separator line of at most seven characters, and some.
 _HEAD_CHARACTERS = 1_048_576 + 64
@@ -3219,6 +3225,10 @@ def _sweep(
         (start, min(width, start + per_group))
         for start in range(0, width, per_group)
     )
+    walks = tuple(
+        (groups[at][0], groups[min(at + _GROUPS_A_WALK, len(groups)) - 1][1])
+        for at in range(0, len(groups), _GROUPS_A_WALK)
+    )
     forms: "list[dialect.ColumnForm]" = [dialect.plain_column() for _place in range(width)]
     holds: "list[tuple[frozenset[str], ...]]" = [() for _place in range(width)]
     classified: "list[bool]" = [False for _place in range(width)]
@@ -3231,7 +3241,7 @@ def _sweep(
     held: "list[list[str]]" = []
     held_from = 0
     last: "_Reading | None" = None
-    for start, end in reversed(groups):
+    for start, end in reversed(walks):
         keep = tuple(start <= place < end for place in range(width))
         # The group held before is let go before the next is read.
         held = []
@@ -3270,7 +3280,12 @@ def _sweep(
             best_order is None or found_order.column < best_order.column
         ):
             best_order = found_order
-        held = [reading.columns[place] for place in range(start, end)]
+        # The walk's first group is held, the first walk's at the end:
+        # the description starts there.
+        held = [
+            reading.columns[place]
+            for place in range(start, min(width, start + per_group))
+        ]
         held_from = start
         last = reading
     if last is None or last.survey is None:
@@ -3479,7 +3494,9 @@ def _read_in_groups(
         source=ColumnSource(
             path=f"{table_path}",
             shown=shown,
-            facts=facts,
+            # The text's head walked the survey; a group read again is
+            # read by the standard reader, which needs none of it.
+            facts=dataclasses.replace(facts, head=""),
             survey=surveyed,
             headed=reading.header_source == HEADER_FROM_FILE,
             groups=swept.groups,

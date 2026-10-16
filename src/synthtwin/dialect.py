@@ -6158,7 +6158,11 @@ def survey(
         separator_line=bool(hinted),
         byte_order_mark=byte_order_mark,
         line_endings=runs_published,
-        final_line_ending=_ended(body, size),
+        final_line_ending=(
+            _ended(body, size)
+            if streamed is None
+            else size > 0 and (streamed.last == _LF or streamed.last == _CR)
+        ),
         end_of_file_mark=end_mark,
         preamble=lines_before,
         preamble_withheld=preamble_lines_holding_text(lines_before) > 0,

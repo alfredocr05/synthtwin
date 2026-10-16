@@ -4531,59 +4531,277 @@ def census_columns_of(
     return columns, holding
 
 
-def questions_and_splits_of(
+@dataclasses.dataclass
+class Asked:
+    """What one walk of a table's questions works out (`questions_of`).
+
+    ``asked`` are the questions asked of what each column holds -- less
+    those the codes question answers in their place, then the person
+    question's, then, where the walk was asked to, question Q6's --
+    ``split`` the cells split for them where the table was read whole,
+    ``codes_seen``, ``dates_seen`` and ``day_or_month`` the date
+    questions' and ``listed`` the checklist.
+    """
+
+    asked: "list[asking.Question]"
+    split: "asking.SplitColumns | None"
+    codes_seen: asking.DateCodesSeen
+    dates_seen: asking.DateColumnsSeen
+    day_or_month: "tuple[asking.DayOrMonth, ...]"
+    listed: "list[asking.Question]"
+
+
+def questions_of(
     table: Table,
     document: "dict[str, object]",
     settings: taxonomy.Settings,
     already: "list[str]",
-    decimal_commas: "tuple[str, ...]" = (),
-) -> "tuple[list[asking.Question], asking.SplitColumns | None]":
-    """`asking.questions_and_splits_for` of this table, a group at a time where it is read in groups (no split then)."""
+    decimal_commas: "tuple[str, ...]",
+    stored_as: "tuple[str, ...]",
+    codes_seen: "asking.DateCodesSeen | None",
+    dates_already: "list[str] | None",
+    dates_seen: asking.DateColumnsSeen,
+    month: bool,
+    day_or_month: "tuple[asking.DayOrMonth, ...]",
+    with_dates: bool,
+) -> Asked:
+    """The questions `synthtwin profile` puts, worked out in one walk of the table.
+
+    In this order, each over the description and the table's columns:
+    `asking.questions_and_splits_for`; the codes question
+    (`asking.date_codes_seen`) where ``codes_seen`` is None, otherwise
+    ``codes_seen`` as it stands; the first questions less those the codes
+    question answers (`asking.without_columns_of`); question Q6
+    (`asking.date_columns_seen`) where ``dates_already`` is given,
+    otherwise ``dates_seen``; the day-or-month question where ``month``
+    says so, otherwise ``day_or_month``; the person question; Q6's
+    questions where ``with_dates`` says so; and the checklist. A table
+    read whole is asked exactly that way. A table read in groups (lane
+    SR, plan P4-D400) is asked it ONE GROUP AT A TIME, every step of a
+    group asked of the cells split once for that group, and each step's
+    answers, made column by column, put together in column order: the
+    codes question's count of the other columns, the one step that reads
+    across columns, is made in a second walk where some column asks it.
+    """
     if table.source is None:
-        return asking.questions_and_splits_for(
-            document, table.columns, settings, already, decimal_commas
+        columns = table.columns
+        asked, split = asking.questions_and_splits_for(
+            document, columns, settings, already, decimal_commas
         )
-    asked: "list[asking.Question]" = []
-    for _start, part, cells in _parts_of(table, document):
-        found = asking.questions_and_splits_for(
+        if codes_seen is None:
+            codes_seen = asking.date_codes_seen(
+                document, columns, settings, already, split,
+                decimal_commas, stored_as,
+            )
+        coded_about = list(codes_seen.questions)
+        coded_or_answered = coded_about + list(codes_seen.answered)
+        asked = asking.without_columns_of(asked, coded_or_answered)
+        if dates_already is not None:
+            dates_seen = asking.date_columns_seen(
+                document, columns, settings, dates_already, split,
+                decimal_commas, stored_as,
+            )
+        if month:
+            day_or_month = asking.day_or_month_columns(
+                document, columns, settings, split,
+                also=codes_seen.day_or_month + dates_seen.day_or_month,
+            )
+        asked = asked + asking.person_questions(
+            document, columns, settings, already, asked + coded_or_answered,
+            split,
+        )
+        if with_dates:
+            asked = asked + list(dates_seen.questions)
+        return Asked(
+            asked, split, codes_seen, dates_seen, day_or_month,
+            asking.checklist_for(
+                document, columns, settings, already, asked + coded_about,
+                codes_seen.answered,
+            ),
+        )
+    kept_all: "list[asking.Question]" = []
+    person_all: "list[asking.Question]" = []
+    listed: "list[asking.Question]" = []
+    walked_all: "list[asking.DateCodesPending]" = []
+    dated_all: "list[asking.DateColumnsSeen]" = []
+    found_months: "list[asking.DayOrMonth]" = []
+    for start, part, cells in _parts_of(table, document):
+        group_storage = stored_as[start : start + len(cells)]
+        found, split = asking.questions_and_splits_for(
             part, cells, settings, already, decimal_commas
         )
-        asked += found[0]
-        found = ([], asking.SplitColumns(settings, {}, {}))
+        if codes_seen is None:
+            walked = asking.date_codes_pending(
+                part, cells, settings, already, split, decimal_commas,
+                group_storage,
+            )
+            walked_all += [_moved_by(walked, start)]
+            group_codes = asking.date_codes_found(walked, {}, settings)
+        else:
+            group_codes = codes_seen
+        coded_about = list(group_codes.questions)
+        coded_or_answered = coded_about + list(group_codes.answered)
+        kept = asking.without_columns_of(found, coded_or_answered)
+        kept_all += kept
+        group_dates = dates_seen
+        if dates_already is not None:
+            group_dates = asking.date_columns_seen(
+                part, cells, settings, dates_already, split, decimal_commas,
+                group_storage,
+            )
+            dated_all += [group_dates]
+        if month:
+            found_months += list(
+                asking.day_or_month_columns(
+                    part, cells, settings, split,
+                    also=group_codes.day_or_month + group_dates.day_or_month,
+                )
+            )
+        person = asking.person_questions(
+            part, cells, settings, already, kept + coded_or_answered, split
+        )
+        person_all += person
+        dated_about = list(group_dates.questions) if with_dates else []
+        listed += asking.checklist_for(
+            part, cells, settings, already,
+            kept + person + dated_about + coded_about,
+            group_codes.answered,
+        )
+        split = asking.SplitColumns(settings, {}, {})
         cells = []
-    return asked, None
+    if codes_seen is None:
+        codes_seen = _codes_counted(table, document, settings, decimal_commas, walked_all)
+    if dates_already is not None:
+        dates_seen = _dates_joined(dated_all)
+    if month:
+        day_or_month = tuple(found_months)
+    asked = kept_all + person_all
+    if with_dates:
+        asked = asked + list(dates_seen.questions)
+    return Asked(asked, None, codes_seen, dates_seen, day_or_month, listed)
 
 
-def date_codes_seen_of(
+def dated_questions_of(
     table: Table,
     document: "dict[str, object]",
     settings: taxonomy.Settings,
-    already: "list[str]",
-    split: "asking.SplitColumns | None" = None,
-    decimal_commas: "tuple[str, ...]" = (),
-    stored_as: "tuple[str, ...]" = (),
-) -> asking.DateCodesSeen:
-    """`asking.date_codes_seen` of this table: each group walked, then the other columns counted a group at a time."""
+    split: "asking.SplitColumns | None",
+    codes_seen: "asking.DateCodesSeen | None",
+    codes_already: "list[str]",
+    dates_already: "list[str]",
+    month: bool,
+    decimal_commas: "tuple[str, ...]",
+    stored_as: "tuple[str, ...]",
+) -> "tuple[asking.DateCodesSeen, asking.DateColumnsSeen, tuple[asking.DayOrMonth, ...]]":
+    """The date questions worked out after the interview, in one walk of the table.
+
+    The codes question with ``codes_already`` where ``codes_seen`` is
+    None, otherwise ``codes_seen`` as it stands; question Q6 with
+    ``dates_already``; and, where ``month`` says so, the day-or-month
+    question beside both their findings -- as `questions_of` walks a
+    table: a table read whole asked each in turn over ``split``, a table
+    read in groups one group at a time, its cells split once a group.
+    """
     if table.source is None:
-        return asking.date_codes_seen(
-            document, table.columns, settings, already, split,
+        columns = table.columns
+        if codes_seen is None:
+            codes_seen = asking.date_codes_seen(
+                document, columns, settings, codes_already, split,
+                decimal_commas, stored_as,
+            )
+        dates_seen = asking.date_columns_seen(
+            document, columns, settings, dates_already, split,
             decimal_commas, stored_as,
         )
+        day_or_month: "tuple[asking.DayOrMonth, ...]" = ()
+        if month:
+            day_or_month = asking.day_or_month_columns(
+                document, columns, settings, split,
+                also=codes_seen.day_or_month + dates_seen.day_or_month,
+            )
+        return codes_seen, dates_seen, day_or_month
+    walked_all: "list[asking.DateCodesPending]" = []
+    dated_all: "list[asking.DateColumnsSeen]" = []
+    found_months: "list[asking.DayOrMonth]" = []
+    for start, part, cells in _parts_of(table, document):
+        group_storage = stored_as[start : start + len(cells)]
+        split_cells: "dict[int, list[str]]" = {}
+        split_present: "dict[int, list[str]]" = {}
+        for place in range(len(cells)):
+            split_cells[place] = cells[place]
+            split_present[place] = taxonomy.split_missing(cells[place], settings)[0]
+        group_split = asking.SplitColumns(settings, split_cells, split_present)
+        group_codes = codes_seen
+        if codes_seen is None:
+            walked = asking.date_codes_pending(
+                part, cells, settings, codes_already, group_split,
+                decimal_commas, group_storage,
+            )
+            walked_all += [_moved_by(walked, start)]
+            group_codes = asking.date_codes_found(walked, {}, settings)
+        group_dates = asking.date_columns_seen(
+            part, cells, settings, dates_already, group_split, decimal_commas,
+            group_storage,
+        )
+        dated_all += [group_dates]
+        if month and group_codes is not None:
+            found_months += list(
+                asking.day_or_month_columns(
+                    part, cells, settings, group_split,
+                    also=group_codes.day_or_month + group_dates.day_or_month,
+                )
+            )
+        split_cells = {}
+        split_present = {}
+        group_split = asking.SplitColumns(settings, {}, {})
+        cells = []
+    if codes_seen is None:
+        codes_seen = _codes_counted(table, document, settings, decimal_commas, walked_all)
+    return codes_seen, _dates_joined(dated_all), tuple(found_months)
+
+
+def _moved_by(walked: asking.DateCodesPending, start: int) -> asking.DateCodesPending:
+    """A group's `asking.DateCodesPending` with each column's place counted from the table's first column."""
+    return asking.DateCodesPending(
+        tuple(
+            (name, role, place + start, codes)
+            for name, role, place, codes in walked.pending
+        ),
+        walked.answered,
+        walked.day_or_month,
+        walked.century,
+    )
+
+
+def _dates_joined(parts: "list[asking.DateColumnsSeen]") -> asking.DateColumnsSeen:
+    """Each group's `asking.DateColumnsSeen`, put together in column order."""
+    questions: "list[asking.Question]" = []
+    order: "list[asking.DayOrMonth]" = []
+    centuries: "list[str]" = []
+    for part in parts:
+        questions += list(part.questions)
+        order += list(part.day_or_month)
+        centuries += list(part.century)
+    return asking.DateColumnsSeen(tuple(questions), tuple(order), tuple(centuries))
+
+
+def _codes_counted(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    decimal_commas: "tuple[str, ...]",
+    walked_all: "list[asking.DateCodesPending]",
+) -> asking.DateCodesSeen:
+    """`asking.date_codes_seen` from each group's walk: the other columns counted a group at a time, where any column asks."""
     pending: "list[tuple[str, str, int, asking.DateCodes]]" = []
     answered: "list[asking.Question]" = []
     order: "list[asking.DayOrMonth]" = []
     centuries: "list[str]" = []
-    for start, part, cells in _parts_of(table, document):
-        found = asking.date_codes_pending(
-            part, cells, settings, already, None, decimal_commas,
-            stored_as[start : start + len(cells)],
-        )
-        for name, role, place, codes in found.pending:
-            pending += [(name, role, place + start, codes)]
-        answered += list(found.answered)
-        order += list(found.day_or_month)
-        centuries += list(found.century)
-        cells = []
+    for walked in walked_all:
+        pending += list(walked.pending)
+        answered += list(walked.answered)
+        order += list(walked.day_or_month)
+        centuries += list(walked.century)
     elsewhere: "dict[int, tuple[asking.Elsewhere, ...]]" = {}
     if pending:
         for start, part, cells in _parts_of(table, document):
@@ -4605,105 +4823,6 @@ def date_codes_seen_of(
         elsewhere,
         settings,
     )
-
-
-def person_questions_of(
-    table: Table,
-    document: "dict[str, object]",
-    settings: taxonomy.Settings,
-    already: "list[str]",
-    asked: "list[asking.Question]",
-    split: "asking.SplitColumns | None" = None,
-) -> "list[asking.Question]":
-    """`asking.person_questions` of this table, a group at a time where it is read in groups."""
-    if table.source is None:
-        return asking.person_questions(
-            document, table.columns, settings, already, asked, split
-        )
-    found: "list[asking.Question]" = []
-    for _start, part, cells in _parts_of(table, document):
-        found += asking.person_questions(
-            part, cells, settings, already, asked, None
-        )
-        cells = []
-    return found
-
-
-def checklist_of(
-    table: Table,
-    document: "dict[str, object]",
-    settings: taxonomy.Settings,
-    already: "list[str]",
-    asked: "list[asking.Question]",
-    answered: "tuple[asking.Question, ...]" = (),
-) -> "list[asking.Question]":
-    """`asking.checklist_for` of this table, a group at a time where it is read in groups."""
-    if table.source is None:
-        return asking.checklist_for(
-            document, table.columns, settings, already, asked, answered
-        )
-    found: "list[asking.Question]" = []
-    for _start, part, cells in _parts_of(table, document):
-        found += asking.checklist_for(
-            part, cells, settings, already, asked, answered
-        )
-        cells = []
-    return found
-
-
-def date_columns_seen_of(
-    table: Table,
-    document: "dict[str, object]",
-    settings: taxonomy.Settings,
-    already: "list[str]",
-    split: "asking.SplitColumns | None" = None,
-    decimal_commas: "tuple[str, ...]" = (),
-    stored_as: "tuple[str, ...]" = (),
-) -> asking.DateColumnsSeen:
-    """`asking.date_columns_seen` of this table, a group at a time where it is read in groups."""
-    if table.source is None:
-        return asking.date_columns_seen(
-            document, table.columns, settings, already, split,
-            decimal_commas, stored_as,
-        )
-    questions: "list[asking.Question]" = []
-    order: "list[asking.DayOrMonth]" = []
-    centuries: "list[str]" = []
-    for start, part, cells in _parts_of(table, document):
-        found = asking.date_columns_seen(
-            part, cells, settings, already, None, decimal_commas,
-            stored_as[start : start + len(cells)],
-        )
-        questions += list(found.questions)
-        order += list(found.day_or_month)
-        centuries += list(found.century)
-        cells = []
-    return asking.DateColumnsSeen(
-        tuple(questions), tuple(order), tuple(centuries)
-    )
-
-
-def day_or_month_of(
-    table: Table,
-    document: "dict[str, object]",
-    settings: taxonomy.Settings,
-    split: "asking.SplitColumns | None" = None,
-    also: "tuple[asking.DayOrMonth, ...]" = (),
-) -> "tuple[asking.DayOrMonth, ...]":
-    """`asking.day_or_month_columns` of this table, a group at a time where it is read in groups."""
-    if table.source is None:
-        return asking.day_or_month_columns(
-            document, table.columns, settings, split, also=also
-        )
-    if not isinstance(document["columns"], list):
-        return also
-    found: "list[asking.DayOrMonth]" = []
-    for _start, part, cells in _parts_of(table, document):
-        found += list(
-            asking.day_or_month_columns(part, cells, settings, None, also=also)
-        )
-        cells = []
-    return tuple(found)
 
 
 def _without_table_suffix(name: str) -> str:
