@@ -252,6 +252,30 @@ The whole file is read with `Path.read_bytes`, the one accepted way to
 obtain bytes from a path (the offline policy accepts no method call on an
 open file object), and the mark is also tested on the bytes themselves.
 
+A LARGE TABLE, ONE GROUP OF COLUMNS AT A TIME
+==============================================
+
+`synthtwin profile` reads with ``in_groups`` (lane SR of the December
+plan, plan P4-D400), and then the file's bytes and its text are never
+held whole: the file is opened from its validated path and its lines are
+taken as the decoder hands them over -- a loop over the open file, no
+method called on it -- which cuts them exactly as `dialect.physical_lines`
+cuts a decoded text. The encoding is chosen as `dialect.decoded` chooses
+it, each encoding tried by reading the file through under it. A table too
+large for one group of columns (`GROUP_BYTES`) is then walked a group at
+a time -- the survey holds the group's cells, the standard reader and
+pandas check them, and what either check would refuse is weighed once
+every group is read, so the refusal is the one reading every column makes
+-- and handed over holding one group; every column after is asked of
+`column_values`, which reads the file again for the next group. Nothing
+is written to disk. Every reading is held to the first -- the file's
+size, the moment it last changed, how many lines and a digest of them --
+and a file that changed in between is refused
+(`errors.file_changed_while_read`). A file whose survey would walk it
+twice (a retried guess about its spacing, its escaping or its closing,
+or a refusal another reading might lift) is walked from its whole text,
+as before.
+
 IMPORTS
 =======
 
@@ -2402,8 +2426,10 @@ def read_table(
       difference between 7.4x and 13.0x is exactly what holding a
       second, independent reading costs. A table too large is refused
       with `errors.out_of_memory` from either pass, and every later
-      allocation failure becomes one refusal at the command boundary;
-      reading in pieces is future work, stated in the README.
+      allocation failure becomes one refusal at the command boundary.
+      Read ``in_groups`` (plan P4-D400), the bytes and the text are
+      never held whole and a large table holds one group of columns at a
+      time (the module docstring's last section).
     - Determinism: the same file bytes always produce the same Table.
       Nothing here consults a clock, an environment variable, or a
       random source; the encoding is chosen by two documented attempts,
@@ -3203,9 +3229,9 @@ def _sweep(
     A file that may not fit in one group (`GROUP_BYTES`, by the cost of a
     cell -- `_CELL_BYTES` beside its characters) is first walked holding
     no column, which settles its shape; the groups are then as many
-    columns as fit, and each is walked, checked by the standard reader
-    and by pandas, and held in turn, the last group first, so the first
-    is the one held at the end. What each check would refuse is weighed
+    columns as fit, and they are walked `_GROUPS_A_WALK` at a time, each
+    walk checked by the standard reader and by pandas, the last walk
+    first, so the first group is the one held at the end. What each check would refuse is weighed
     once every group is read, so the refusal is the one reading every
     column at once makes: the standard reader's first difference, a file
     of no records, then pandas' first.
