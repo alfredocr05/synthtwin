@@ -819,7 +819,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # P4-D399), the least round figure the lane's ledger fits under: the
     # health data zoo's three entries, `K-HZ-01` (its headline), `K-HZ-02`
     # with each kind's step and owners, and `K-HZ-03`, with their note
-    # clause, LEDGER_BYTES bytes. The integrator sets the cap for the batch
+    # clause, 630,776 bytes. The integrator sets the cap for the batch
     # as a whole. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 622,000 from 619,000, AT BATCH 4B'S RECORDS (2026-10-16), the least
