@@ -890,7 +890,9 @@ TWENTY_SECOND_BRANCH_CASES = (
     "date_remainder_one_joint",
     # Lane L2's repair round (plan P4-D392): the gap past the clock line.
     "labels_clock_spaced_line",
-    # ...and its Codex review: labels described before L2, read as written.
+    # Lane L3 (plan P4-D393): a stamp's space between its date and clock.
+    "labels_stamp_gaps",
+    # Lane L2's Codex review: labels described before L2, read as written.
     "labels_written_before_gaps",
     "stamp_dotted_seconds",
     "stamp_twelve_hour_top",
@@ -1048,6 +1050,8 @@ SEEDS = {
     "clock_stand_ins_past_route_one": 642,
     # Lane L2's gap before a clock's marker (plan P4-D392).
     "labels_clock_narrow_gap": 551,
+    # Lane L3's stamp, the space between its date and its clock (P4-D393).
+    "labels_stamp_gaps": 571,
     "labels_clock_spaced_line": 552,
     "labels_written_before_gaps": 553,
     # Landing R2a's layout member takes the next seeds after T1's (plan
@@ -3959,6 +3963,15 @@ def _levels_read_since_gaps(level):
     return False
 
 
+def _stamp_letter_stepped(form, step, clocks=True):
+    """C6-31a's stamp letter withdrawn: the letter between its date and clock filled by the step, not `T`."""
+    text = gen_filled_form(form, step, clocks)
+    stamp = gen.stamp_gaps(form, gen.STAMP_KEY)
+    if stamp is None or stamp[2] < 0:
+        return text
+    return text[: stamp[2]] + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[step % 26] + text[stamp[2] + 1 :]
+
+
 def _partial_forms_in_blocks(forms, given, turn, total):
     """G7.5's interleaving withdrawn: each partial form written after the one before it."""
     reached = 0
@@ -4162,6 +4175,12 @@ CASE_MUTANTS = {
         branch="C6-31a's one gap before a clock's marker (lane L2, plan P4-D392), kept as the source wrote it, U+202F; the mutant writes every time of such a form with a plain space before its marker",
         attribute="clock_filled_form",
         replacement=_clock_gap_plain,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "labels_stamp_gaps": Mutant(
+        branch="G8.3's figure fill of a stamp's form (lane L3, plan P4-D393), which writes the letter between its date and its clock as `T`, as the source wrote it; the mutant fills that letter by the step",
+        attribute="filled_form",
+        replacement=_stamp_letter_stepped,
         outcome=CHANGES_THE_CELLS,
     ),
     "labels_clock_spaced_line": Mutant(

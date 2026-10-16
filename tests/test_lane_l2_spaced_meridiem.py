@@ -151,8 +151,8 @@ _FORMLESS = (
     " 9:15 AM",
     "9:15\u00a0AM",  # a no-break space
     "9:15\u2009AM",  # a thin space
-    "2024-01-05 9:15 AM",  # two gaps
-    "2024-01-05 9:15AM",
+    # `2024-01-05 9:15 AM` and `2024-01-05 9:15AM`, a stamp's date before
+    # the clock, have a form since lane L3 (plan P4-D393): its H1.
     "Ward 7",
     "Bed 12A",
     "120/80 mmHg",
@@ -231,7 +231,7 @@ def test_g2_every_gapped_form_is_a_written_form_and_no_other_gapped_key_is() -> 
         "%:%%\u00a0@@",
         "%:%% @@ ",
         " %:%% @@",
-        "%%%%-%%-%% %:%% @@",
+        "%%%/%%/%% %:%% @@",  # no stamp's date (lane L3, P4-D393)
         "%%:%%.% @@",
     ):
         assert not parsing.is_a_written_form(key), key

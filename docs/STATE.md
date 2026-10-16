@@ -306,8 +306,21 @@ cannot get worse unseen.
   blank cells over 2 columns, to be removed under the corrected route-2
   ruling (no cell blank that the source never left blank), and the label
   twins' hour-of-day distance at small tables (P4-D390). A stamp
-  beside rare words (`2024-01-05 9:15 AM`) publishes no form, as a form
-  holds only the one gap before a clock's marker (P4-D392), owed to lane L3; R1's codes
+  beside rare words is written in its source's shape (`2024-01-05 9:15
+  AM`, P4-D393) but, as every held-back stand-in of a text column, reads
+  as no date (`7000-00-01 26:23`), a `T` stamp whose marker alone is
+  lower case (`2024-01-05T9:15 am`) is written `AM`, a stamp with a
+  month word, a compact date, an offset after a space, more than 32
+  characters or a comma after the date (`1/5/2024, 9:15 AM`) keeps no
+  form (a year-first stamp's `Z` or offset keeps its `T` and `Z`), a
+  zone after a year-last date keeps no stamp form (spaced, no form at
+  all; parted by a letter and of 24 characters or fewer, the form it had
+  before L3, its letters filled by the step), and free text of zoned
+  stamps can miss `length.mean` at a floor of eleven, by G9.5's length
+  pin, not the forms (a stated limit owned by the forms lane FM, the
+  orchestrator's ruling of 2026-10-16: `T` stamps written straight on
+  beside short rare words at floors 2 and 11 miss `length.mean` only);
+  no lane owns the others yet; R1's codes
   question follows the classifier on a clock column (P4-D383's Codex
   paragraph), and on the merged classifier the 10,000-row `HH:MM` column
   with 203 `UNK` is read as clock times under the answer `missing` and

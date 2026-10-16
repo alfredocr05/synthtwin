@@ -46576,10 +46576,17 @@ def _form_as_read(spelling: str, before: bool) -> str:
 
     A level written before lane L2 (`parsing.level_unshaped_before_gaps`,
     Codex's review of L2, item 2) is read as written: a form holding the
-    one gap was no form then. Raises nothing beyond `shape_form`'s check.
+    one gap was no form then. Nor, before lane L3 (plan P4-D393), was a
+    stamp's form holding the space between its date and its clock or
+    longer than `parsing.SHAPE_FORM_LIMIT`. Raises nothing beyond
+    `shape_form`'s check.
     """
     form = parsing.shape_form(spelling)
-    if before and form and parsing.key_gap_at(form) >= 0:
+    if before and form and (
+        parsing.key_gap_at(form) >= 0
+        or parsing.stamp_key_gap_at(form) >= 0
+        or len(form) > parsing.SHAPE_FORM_LIMIT
+    ):
         return ""
     return form
 
@@ -47457,6 +47464,25 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
         words = [mark for mark in _CLOCK_FORM_MARKS if mark[0] == form[gap + 1 :]]
         head = _filled_form(form[:gap], step // 2, False)
         return head + form[gap] + words[0][1 + step % 2]
+    # A STAMP'S MARKER IS A WORD AND ITS LETTER A `T` (lane L3, plan
+    # P4-D393). A stamp's form -- `%%%%-%%-%% %:%%@@`, `%/%/%%%% %%:%%`,
+    # `%%%%-%%-%%@%:%% @@` -- filled letter by letter wrote `XQ` for its
+    # marker and `X` between its date and its clock, which no code reading
+    # stamps takes. Its marker written straight on is filled as the gap's
+    # is above, at half the step; its letter is `T` (`t` in a lower-case
+    # key), as ISO writes it, and takes no part of the step.
+    stamp = parsing.stamp_key_parts(form)
+    if stamp is not None and stamp[3] >= 0:
+        words = [mark for mark in _CLOCK_FORM_MARKS if mark[0] == form[stamp[3] :]]
+        head = _filled_form(form[: stamp[3]], step // 2, False)
+        return head + words[0][1 + step % 2]
+    letter = -1 if stamp is None else stamp[2]
+    # ...AND ITS ZONE A `Z` (skeptic 2 of L3, item 2): FHIR and JavaScript
+    # write `2024-01-05T09:15:30Z`, whose form ends in one letter after its
+    # clock; filled by the step it came out `7040-00-00A06:43:99N`, which
+    # no code testing `endswith("Z")` takes. It is `Z` (`z` in a lower-case
+    # key) and takes no part of the step; an offset's figures are filled.
+    zone = -1 if stamp is None else parsing.stamp_key_zone_at(form)
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -47467,7 +47493,15 @@ def _filled_form(form: str, step: int, clocks: bool = True) -> str:
     lower = "abcdefghijklmnopqrstuvwxyz"
     spelling = ""
     place = _stepped_around(step, _form_room(form))
+    at = -1
     for character in form:
+        at = at + 1
+        if at == letter:
+            spelling = spelling + ("t" if character == parsing.SHAPE_LOWER else "T")
+            continue
+        if at == zone:
+            spelling = spelling + ("z" if character == parsing.SHAPE_LOWER else "Z")
+            continue
         if character == parsing.SHAPE_DIGIT:
             spelling = spelling + figures[place % 10]
             place = place // 10
@@ -47990,8 +48024,22 @@ def _form_room(form: str) -> int:
         gap = parsing.key_gap_at(form)
         if gap >= 0:
             return 2 * _form_room(form[:gap])
+    # A stamp's marker written straight on is a word, and its letter is
+    # always `T` (lane L3, plan P4-D393; `_filled_form`).
+    stamp = parsing.stamp_key_parts(form)
+    if stamp is not None and stamp[3] >= 0:
+        return 2 * _form_room(form[: stamp[3]])
+    letter = -1 if stamp is None else stamp[2]
+    # Nor its zone, always `Z` (skeptic 2 of L3, item 2).
+    zone = -1 if stamp is None else parsing.stamp_key_zone_at(form)
     room = 1
+    at = -1
     for character in form:
+        at = at + 1
+        if at == letter:
+            continue
+        if at == zone:
+            continue
         if character == parsing.SHAPE_DIGIT:
             room = room * 10
         elif (
@@ -48517,6 +48565,145 @@ def _fold_slot_order(
     if not changed:
         return None
     return order
+
+
+def _marker_slots_fitted(
+    order: "list[int]",
+    first: "list[str]",
+    families: "list[str]",
+    lengths: "list[int]",
+    folded: int,
+    fixed: "frozenset[int]",
+) -> bool:
+    """Fit each marker form's slots to its parents' whole turns, and the other slots to the other parents.
+
+    A MARKER FORM'S SLOTS FIT ITS PARENTS' WHOLE TURNS (Codex's review of
+    lane L3, item 1). A parent wearing a form that ends in a clock's
+    marker has ONE partner writing a marker word the source wrote, the
+    word turned over whole (`_form_keeping_partner`); every other member
+    of its family turns one letter, `9:15 aM`, or wears no form. Where a
+    form's slots outnumber its parents, the twin's plan -- not the source
+    -- spent the column's folded identities elsewhere: Codex's 194 stamps
+    written with `AM` and `am` beside six `pending` and six `unknown`
+    publish 390 values and 196 identities, and at a floor of eleven the
+    plan gave the twelve rare words twelve identities, so 194 slots fell
+    on 184 stamp parents. So, in two steps, each slot from the first:
+
+    1. a slot asked a marker form, while the form has more slots than
+       parents in its family, changes places with the last earlier group
+       not yet moved that is either asked no marker form, of a family and
+       planned length keeping more such parents than slots, or asked
+       another marker form keeping more parents than slots;
+    2. in a family holding a group asked a marker form, a slot asked
+       none, while its planned length has more such slots than parents
+       there, changes places with the family's last earlier marker parent
+       not yet moved whose form keeps more parents than slots -- at a
+       floor of 36 the same rare words are one parent and eleven slots of
+       the stamps' own family, which took eleven stamp parents' `aM`; and
+       a slot asked none takes a parent of its own planned length first
+       (`_text_cells`), so each length keeps parents for its slots.
+
+    No group carrying a published end, written as a truth value, or
+    asked a form with no letter place (``fixed``) moves. ``order`` is the
+    walk's order, changed in place; ``first`` the form each group is
+    asked, decided before (`_form_asks`) and carried with the group,
+    since asked again in the new order a rare word met first takes the
+    form and a stamp met last none; ``families`` and ``lengths`` each
+    group's family and planned length. Answers whether it moved any.
+    Guarantees: a fixed function of the six. Raises nothing. No I/O.
+    """
+    total = len(order)
+    marked = [_form_marker_at(first[group]) >= 0 for group in range(total)]
+    marking: "dict[str, bool]" = {}
+    turns: "dict[tuple[str, str], list[int]]" = {}
+    plain: "dict[tuple[str, int], list[int]]" = {}
+    for position in range(total):
+        group = order[position]
+        side = 0 if position < folded else 1
+        if marked[group]:
+            marking[families[group]] = True
+            pair = (first[group], families[group])
+            if pair not in turns:
+                turns[pair] = [0, 0]
+            turns[pair][side] += 1
+        else:
+            kept = (families[group], lengths[group])
+            if kept not in plain:
+                plain[kept] = [0, 0]
+            plain[kept][side] += 1
+    changed = False
+    for pair in sorted(turns):
+        down = folded - 1
+        for position in range(folded, total):
+            if turns[pair][1] <= turns[pair][0]:
+                break
+            group = order[position]
+            if group != position or group in fixed or not marked[group]:
+                continue
+            if (first[group], families[group]) != pair:
+                continue
+            other = -1
+            while down >= 0 and other < 0:
+                candidate = order[down]
+                if candidate == down and candidate not in fixed:
+                    if marked[candidate]:
+                        spare = turns[(first[candidate], families[candidate])]
+                        if (first[candidate], families[candidate]) == pair:
+                            spare = [0, 0]
+                    else:
+                        spare = plain[(families[candidate], lengths[candidate])]
+                    if spare[0] - 1 >= spare[1] + 1:
+                        other = down
+                down = down - 1
+            if other < 0:
+                break
+            moving = order[other]
+            order[other] = group
+            order[position] = moving
+            if marked[moving]:
+                turns[(first[moving], families[moving])][0] -= 1
+                turns[(first[moving], families[moving])][1] += 1
+            else:
+                plain[(families[moving], lengths[moving])][0] -= 1
+                plain[(families[moving], lengths[moving])][1] += 1
+            turns[pair][0] += 1
+            turns[pair][1] -= 1
+            changed = True
+    for family in sorted(marking):
+        down = folded - 1
+        for position in range(folded, total):
+            group = order[position]
+            if group != position or group in fixed or marked[group]:
+                continue
+            if families[group] != family:
+                continue
+            kept = (family, lengths[group])
+            if plain[kept][1] <= plain[kept][0]:
+                continue
+            other = -1
+            while down >= 0 and other < 0:
+                candidate = order[down]
+                if (
+                    candidate == down
+                    and candidate not in fixed
+                    and marked[candidate]
+                    and families[candidate] == family
+                    and turns[(first[candidate], family)][0] - 1
+                    >= turns[(first[candidate], family)][1] + 1
+                ):
+                    other = down
+                down = down - 1
+            if other < 0:
+                break
+            moving = order[other]
+            order[other] = group
+            order[position] = moving
+            plain[kept][0] += 1
+            plain[kept][1] -= 1
+            turns[(first[moving], family)][0] -= 1
+            turns[(first[moving], family)][1] += 1
+            changed = True
+    return changed
 
 
 def _form_holds_a_letter(form: str) -> bool:
@@ -56326,8 +56513,18 @@ def _partner_of(
             sizes, long_tail_line, carried, holes, under_first,
             (parents, spent), words, held, asked,
         )
+    whole = _form_marker_at(asked) >= 0 and _whole_turn_admitted(asked, reaches)
     for named_first in named_passes:
         for under in under_first:
+            # A WHOLE TURN OF A MARKER WORD FIRST, from any parent of the
+            # family (`_whole_turn_walked`; Codex's review of lane L3, item 1).
+            if whole:
+                found_whole = _whole_turn_walked(
+                    index, folded, spellings, families, used,
+                    (sizes, long_tail_line, carried, under), holes, asked,
+                )
+                if found_whole is not None:
+                    return found_whole
             for low, high, worded in reaches:
                 for lettered in (True, False):
                     for step in range(folded):
@@ -56444,73 +56641,107 @@ def _partner_indexed(
             reaches += [(held[0], held[1], worded)]
     for worded in worded_passes:
         reaches += [(window[0], window[1], worded)]
+    # A WHOLE TURN OF A MARKER WORD FIRST (`_whole_turn_walked`; Codex's
+    # review of lane L3, item 1), over the family's parents wearing the
+    # form asked, kept in a list beside the others under the family with
+    # a line break and `@` (no family name holds one), and a list of where
+    # each next parent whose turn is unwritten stands, under `#`.
+    turning: "tuple[list[int], list[int]] | None" = None
+    if _form_marker_at(asked) >= 0 and _whole_turn_admitted(asked, reaches):
+        turning = _whole_turn_lists(parents, family, spellings, asked)
+    # AND A SLOT ASKED NO MARKER FORM ASKS THE PARENTS WEARING NONE FIRST,
+    # where its family holds a parent wearing one (`_unmarked_places`).
+    spare_passes: "tuple[bool, ...]" = (False,)
+    if _form_marker_at(asked) < 0 and (family, True, None) in parents:
+        lettered_places = parents[(family, True, None)]
+        if len(
+            _unmarked_places(
+                parents, lettered_places, spellings, (family, True, None, None)
+            )
+        ) < len(lettered_places):
+            spare_passes = (True, False)
     for under in under_first:
-        for shortest, longest, worded in reaches:
-            for lettered in (True, False):
-                whole = (family, lettered, None)
-                if whole not in parents:
-                    continue
-                key = (family, lettered, longest)
-                if key not in parents:
-                    fitting: "list[int]" = []
-                    for place in parents[whole]:
-                        if longest is None or len(
-                            parsing.trimmed(spellings[place])
-                        ) <= longest:
-                            fitting += [place]
-                    parents[key] = fitting
-                places = parents[key]
-                if worded is not None:
-                    # THE WORDED PASS VISITS ONLY PARENTS OF THOSE WORDS
-                    # (the L1 Codex repair, item 3): their list is kept
-                    # under the family with the count after a line break,
-                    # which no family name holds, in the same cyclic order.
-                    counted = (f"{family}\n{worded}", lettered, longest)
-                    if counted not in parents:
-                        holding: "list[int]" = []
-                        for place in places:
-                            if parsing.token_count(spellings[place]) == worded:
-                                holding += [place]
-                        parents[counted] = holding
-                    places = parents[counted]
-                low = 0
-                high = len(places)
-                while low < high:
-                    middle = (low + high) // 2
-                    if places[middle] < start:
-                        low = middle + 1
-                    else:
-                        high = middle
-                for step in range(len(places)):
-                    parent_place = places[(low + step) % len(places)]
-                    if (parent_place, shortest, longest) in spent:
+        if turning is not None:
+            found_whole = _whole_turn_indexed(
+                index, folded, spellings, used, turning,
+                (sizes, long_tail_line, carried, under), holes, asked,
+            )
+            if found_whole is not None:
+                return found_whole
+        for spare in spare_passes:
+            for shortest, longest, worded in reaches:
+                for lettered in (True, False):
+                    whole = (family, lettered, None)
+                    if whole not in parents:
                         continue
-                    if under and sizes is not None:
-                        already = sizes[parent_place]
-                        if carried is not None and parent_place in carried:
-                            already = carried[parent_place]
-                        if already + sizes[index] >= long_tail_line:
+                    key = (family, lettered, longest)
+                    if key not in parents:
+                        fitting: "list[int]" = []
+                        for place in parents[whole]:
+                            if longest is None or len(
+                                parsing.trimmed(spellings[place])
+                            ) <= longest:
+                                fitting += [place]
+                        parents[key] = fitting
+                    places = parents[key]
+                    if worded is not None:
+                        # THE WORDED PASS VISITS ONLY PARENTS OF THOSE WORDS
+                        # (the L1 Codex repair, item 3): their list is kept
+                        # under the family with the count after a line break,
+                        # which no family name holds, in the same cyclic order.
+                        counted = (f"{family}\n{worded}", lettered, longest)
+                        if counted not in parents:
+                            holding: "list[int]" = []
+                            for place in places:
+                                if parsing.token_count(spellings[place]) == worded:
+                                    holding += [place]
+                            parents[counted] = holding
+                        places = parents[counted]
+                    if spare:
+                        # THE PARENTS WEARING NO MARKER FORM FIRST, for a
+                        # slot asked none (`_unmarked_places`).
+                        places = _unmarked_places(
+                            parents, places, spellings,
+                            (family, lettered, longest, worded),
+                        )
+                    low = 0
+                    high = len(places)
+                    while low < high:
+                        middle = (low + high) // 2
+                        if places[middle] < start:
+                            low = middle + 1
+                        else:
+                            high = middle
+                    for step in range(len(places)):
+                        parent_place = places[(low + step) % len(places)]
+                        if (parent_place, shortest, longest) in spent:
                             continue
-                    found = _partner_from(
-                        parent_place, index, spellings, used, shortest, longest,
-                        None, holes, None, False, asked,
-                    )
-                    if found is None:
-                        # SPENT ONLY WHERE THE FAMILY ENDED INSIDE THE
-                        # WALK: a walk cut by its step bound (a hole
-                        # refused) may reach further once ``used`` grows.
-                        if _partner_at(
-                            spellings[parent_place], len(used) + 1,
-                            shortest, longest,
-                        ) is None:
-                            spent[(parent_place, shortest, longest)] = True
-                        continue
-                    if carried is not None and sizes is not None:
-                        already = sizes[parent_place]
-                        if parent_place in carried:
-                            already = carried[parent_place]
-                        carried[parent_place] = already + sizes[index]
-                    return found
+                        if under and sizes is not None:
+                            already = sizes[parent_place]
+                            if carried is not None and parent_place in carried:
+                                already = carried[parent_place]
+                            if already + sizes[index] >= long_tail_line:
+                                continue
+                        found = _partner_from(
+                            parent_place, index, spellings, used, shortest, longest,
+                            None, holes, None, False, asked,
+                        )
+                        if found is None:
+                            # SPENT ONLY WHERE THE FAMILY ENDED INSIDE THE
+                            # WALK: a walk cut by its step bound (a hole
+                            # refused) may reach further once ``used`` grows.
+                            if _partner_at(
+                                spellings[parent_place], len(used) + 1,
+                                shortest, longest,
+                            ) is None:
+                                spent[(parent_place, shortest, longest)] = True
+                            continue
+                        if carried is not None and sizes is not None:
+                            already = sizes[parent_place]
+                            if parent_place in carried:
+                                already = carried[parent_place]
+                            carried[parent_place] = already + sizes[index]
+                        return found
     return None
 
 
@@ -56623,25 +56854,276 @@ _MARKER_OTHER_CASE = {
 
 
 def _form_keeping_partner(parent: str, asked: str) -> "str | None":
-    """The partner keeping the gapped form a slot is asked, or None.
+    """The partner keeping the marker form a slot is asked, or None.
 
-    A parent written with the one gap before a clock's marker (`9:15 AM`,
-    `parsing.meridiem_gap_at`) and wearing ``asked``: the parent with its
-    marker word turned over whole, `9:15 am`, which folds onto the parent
-    and wears its form. Turned one letter at a time, `9:15 aM` wears
-    none, and the form's count is missed (Codex's review of lane L2,
-    item 1; method G9.3). Raises nothing beyond `parsing`'s checks.
+    A parent wearing ``asked``, a form ending in a clock's marker
+    (`_form_marker_at`): the parent with its marker word turned over
+    whole, `9:15 am` of `9:15 AM`, which folds onto the parent and wears
+    its form. Turned one letter at a time, `9:15 aM` wears no gapped form
+    and the form's count is missed (Codex's review of lane L2, item 1);
+    and where the marker is written straight on, `2024-01-05 9:15aM` wears
+    the form but no marker word the source wrote (Codex's review of lane
+    L3, item 1). So the marker word is turned whole, and the stamp's `T`
+    and every figure stand. Method G9.3. Raises nothing beyond
+    `parsing`'s checks.
     """
-    gap = parsing.meridiem_gap_at(parent)
-    if gap < 0 or parsing.shape_form(parent) != asked:
+    at = _form_marker_at(asked)
+    if at < 0 or parsing.shape_form(parent) != asked:
         return None
-    word = parent[gap + 1 :]
+    word = parent[at:]
     if word not in _MARKER_OTHER_CASE:
         return None
-    keeper = parent[: gap + 1] + _MARKER_OTHER_CASE[word]
+    keeper = parent[:at] + _MARKER_OTHER_CASE[word]
     if parsing.shape_form(keeper) != asked:
         return None
     return keeper
+
+
+def _form_marker_at(form: str) -> int:
+    """Where the marker key of a form ending in a clock's marker starts, or -1.
+
+    A form a 12-hour clock wears (`_clock_shape`: `%:%%@@`, `%:%% @@`,
+    `%%:%%:%%.%%% @.@.`) or a stamp's form ending in a marker
+    (`parsing.stamp_key_parts`: `%%%%-%%-%% %:%%@@`, `%/%/%%%%@%:%% @@`),
+    its marker written straight on or after the one gap: the place of
+    the marker key's first character, which is where a cell wearing the
+    form writes its marker word, since a form keeps every character's
+    place. -1 for every other form, the empty one among them (Codex's
+    review of lane L3, item 1; method G9.3). Guarantees: a function of
+    the form. Raises nothing. No I/O of any kind.
+    """
+    if not form:
+        return -1
+    stamp = parsing.stamp_key_parts(form)
+    if stamp is not None:
+        return stamp[3]
+    shape = _clock_shape(form)
+    if shape is None or not shape.marked[0]:
+        return -1
+    for mark, _morning, _evening in _CLOCK_FORM_MARKS:
+        if len(form) > len(mark) and form[len(form) - len(mark) :] == mark:
+            return len(form) - len(mark)
+    return -1
+
+
+def _whole_turn_admitted(
+    asked: str, reaches: "list[tuple[int, int | None, int | None]]"
+) -> bool:
+    """Whether any reach of a slot admits a cell of the marker form it is asked.
+
+    A form keeps every character's place and every gap, so each cell
+    wearing ``asked`` -- a parent and its whole turn alike -- has the
+    form's length and its words; a reach admits all of them or none.
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    words = parsing.token_count(asked)
+    for low, high, worded in reaches:
+        if len(asked) < low or (high is not None and len(asked) > high):
+            continue
+        if worded is not None and worded != words:
+            continue
+        return True
+    return False
+
+
+def _whole_turn_free(
+    parent: str, used: "dict[str, int]", holes: "tuple[str, ...]", asked: str
+) -> "str | None":
+    """A parent's whole turn of its marker word where nothing has written it, or None.
+
+    `_form_keeping_partner`'s answer, kept only where the column has not
+    written it and it reads as no hole. Raises nothing beyond `parsing`'s
+    checks. No I/O.
+    """
+    keeper = _form_keeping_partner(parent, asked)
+    if keeper is None or not _unused(keeper, used):
+        return None
+    if holes and _is_a_hole_spelling(keeper, holes):
+        return None
+    return keeper
+
+
+def _whole_turn_walked(
+    index: int,
+    folded: int,
+    spellings: "list[str]",
+    families: "list[str]",
+    used: "dict[str, int]",
+    level: "tuple[list[int] | None, int, dict[int, int] | None, bool]",
+    holes: "tuple[str, ...]",
+    asked: str,
+) -> "str | None":
+    """The first parent's whole turn of its marker word, cyclic from the slot (G9.3).
+
+    A SLOT ASKED A MARKER FORM TAKES A WHOLE TURN WHEREVER ONE IS LEFT
+    (Codex's review of lane L3, item 1). Each parent wearing the form has
+    ONE partner that writes its marker as the source wrote marker words,
+    the word turned over whole (`_form_keeping_partner`); once that is
+    written, the family's next member turns one letter, `9:15 aM`. The
+    slot therefore walks its family's parents in G9.3 step 4's cyclic
+    order from its own place for a whole turn not yet written, before it
+    asks any parent for any other member. ``level`` is the group sizes,
+    the long-tail line, the levels carried so far and whether this pass
+    keeps a level under the line, as `_partner_of` asks. The walk
+    `_partner_indexed` makes over its own list answers the same.
+    Raises nothing beyond `parsing`'s checks. No I/O.
+    """
+    sizes, long_tail_line, carried, under = level
+    place = index - folded
+    for step in range(folded):
+        parent_place = (place + step) % folded
+        if families[parent_place] != families[index]:
+            continue
+        if under and sizes is not None:
+            already = sizes[parent_place]
+            if carried is not None and parent_place in carried:
+                already = carried[parent_place]
+            if already + sizes[index] >= long_tail_line:
+                continue
+        keeper = _whole_turn_free(spellings[parent_place], used, holes, asked)
+        if keeper is None:
+            continue
+        if carried is not None and sizes is not None:
+            already = sizes[parent_place]
+            if parent_place in carried:
+                already = carried[parent_place]
+            carried[parent_place] = already + sizes[index]
+        return keeper
+    return None
+
+
+def _unmarked_places(
+    parents: "dict[tuple[str, bool, int | None], list[int]]",
+    places: "list[int]",
+    spellings: "list[str]",
+    kind: "tuple[str, bool, int | None, int | None]",
+) -> "list[int]":
+    """The parents of one walk list wearing no marker form, kept beside it (G9.3).
+
+    A SLOT ASKED NO MARKER FORM SPARES THE PARENTS WEARING ONE (Codex's
+    review of lane L3, item 1). Every member of such a parent's family
+    but its whole turn writes a marker word no source wrote, `9:15 aM`,
+    and its whole turn wears the form, which a slot asked none would pay
+    past its count. So a slot of free text asked no marker form walks,
+    in each pass, the parents wearing none first, and the others only
+    where none of those answers. ``kind`` is the list's family, letter,
+    longest length and words, and the list is kept under the family with
+    its words and a line break and `!`, which no family name holds.
+    Guarantees: a sublist of ``places``, in its order. Raises nothing
+    beyond `parsing`'s checks. No I/O.
+    """
+    family, lettered, longest, worded = kind
+    name = f"{family}\n!"
+    if worded is not None:
+        name = f"{family}\n{worded}\n!"
+    key = (name, lettered, longest)
+    if key not in parents:
+        kept: "list[int]" = []
+        for place in places:
+            if _form_marker_at(parsing.shape_form(spellings[place])) < 0:
+                kept += [place]
+        parents[key] = kept
+    return parents[key]
+
+
+def _whole_turn_lists(
+    parents: "dict[tuple[str, bool, int | None], list[int]]",
+    family: str,
+    spellings: "list[str]",
+    asked: str,
+) -> "tuple[list[int], list[int]]":
+    """The parents of a family wearing a marker form, and where each next one stands.
+
+    Built once a walk, on the first slot asking the form: the places, in
+    the walk's cyclic order, of the family's parents wearing ``asked``
+    with a whole turn of their marker word (`_form_keeping_partner`), and
+    a list one longer whose entry ``k`` leads to the first of them from
+    ``k`` on whose turn is still unwritten (`_whole_turn_ahead`). A turn
+    once written stays written, so each parent is stepped past once and
+    the walk costs what it finds. Raises nothing beyond `parsing`'s
+    checks. No I/O.
+    """
+    listed = (f"{family}\n@{asked}", True, None)
+    leading = (f"{family}\n#{asked}", True, None)
+    if listed not in parents:
+        wearing: "list[int]" = []
+        lettered = (family, True, None)
+        if lettered in parents:
+            for place in parents[lettered]:
+                if _form_keeping_partner(spellings[place], asked) is not None:
+                    wearing += [place]
+        parents[listed] = wearing
+        parents[leading] = [step for step in range(len(wearing) + 1)]
+    return parents[listed], parents[leading]
+
+
+def _whole_turn_ahead(ahead: "list[int]", at: int) -> int:
+    """The first entry from ``at`` on whose parent's turn is unwritten (path-halved).
+
+    ``ahead[k]`` is ``k`` while entry ``k`` may still answer and leads
+    further once it cannot; the last entry is the end and leads to
+    itself. Raises nothing. No I/O.
+    """
+    while ahead[at] != at:
+        ahead[at] = ahead[ahead[at]]
+        at = ahead[at]
+    return at
+
+
+def _whole_turn_indexed(
+    index: int,
+    folded: int,
+    spellings: "list[str]",
+    used: "dict[str, int]",
+    turning: "tuple[list[int], list[int]]",
+    level: "tuple[list[int] | None, int, dict[int, int] | None, bool]",
+    holes: "tuple[str, ...]",
+    asked: str,
+) -> "str | None":
+    """`_whole_turn_walked`'s answer, over the family's parents wearing the form alone.
+
+    The same parent, cyclic from the slot's own place: a parent whose
+    turn is written, or reads as a hole, is stepped past for good, and a
+    parent whose level would reach the long-tail line is passed over in
+    this pass alone. Raises nothing beyond `parsing`'s checks. No I/O.
+    """
+    places, ahead = turning
+    total = len(places)
+    if total == 0:
+        return None
+    sizes, long_tail_line, carried, under = level
+    start = (index - folded) % folded
+    low = 0
+    high = total
+    while low < high:
+        middle = (low + high) // 2
+        if places[middle] < start:
+            low = middle + 1
+        else:
+            high = middle
+    for begin, end in ((low, total), (0, low)):
+        at = _whole_turn_ahead(ahead, begin)
+        while at < end:
+            parent_place = places[at]
+            keeper = _whole_turn_free(spellings[parent_place], used, holes, asked)
+            if keeper is None:
+                ahead[at] = at + 1
+                at = _whole_turn_ahead(ahead, at + 1)
+                continue
+            if under and sizes is not None:
+                already = sizes[parent_place]
+                if carried is not None and parent_place in carried:
+                    already = carried[parent_place]
+                if already + sizes[index] >= long_tail_line:
+                    at = _whole_turn_ahead(ahead, at + 1)
+                    continue
+            if carried is not None and sizes is not None:
+                already = sizes[parent_place]
+                if parent_place in carried:
+                    already = carried[parent_place]
+                carried[parent_place] = already + sizes[index]
+            return keeper
+    return None
 
 
 def _breaks_a_prefix(
@@ -57478,6 +57960,69 @@ def _text_cells(
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
     for place in sorted(worn):
         form_asks[place] = worn[place]
+    # A MARKER FORM'S SLOTS FIT ITS PARENTS' WHOLE TURNS (Codex's review of
+    # lane L3, item 1; `_marker_slots_fitted`): groups change places, each
+    # carrying the form it was asked. A group moved into a slot so a marker
+    # form's group could be a parent takes a partner of its own family,
+    # whose parents may be of other lengths -- a rare word pinned to the
+    # published longest length among them -- so it asks a parent of its own
+    # planned length first (``turned``).
+    turned: "dict[int, bool]" = {}
+    fitted = [position for position in range(total)]
+    if 0 < folded < total:
+        unmoved: "list[int]" = list(carriers) + list(truth)
+        for place in range(total):
+            if form_asks[place] and not _form_holds_a_letter(form_asks[place]):
+                unmoved += [place]
+        if _marker_slots_fitted(
+            fitted, form_asks, families, lengths, folded, frozenset(unmoved)
+        ):
+            for position in range(folded, total):
+                if fitted[position] != position and _form_marker_at(
+                    form_asks[position]
+                ) >= 0:
+                    turned[position] = True
+            groups = tuple([groups[place] for place in fitted])
+            lengths = [lengths[place] for place in fitted]
+            counts = [counts[place] for place in fitted]
+            kinds = [kinds[place] for place in fitted]
+            bands = [bands[place] for place in fitted]
+            families = [families[place] for place in fitted]
+            form_asks = [form_asks[place] for place in fitted]
+            shifted: "dict[int, str]" = {}
+            for position in range(total):
+                if fitted[position] in truth:
+                    shifted[position] = truth[fitted[position]]
+            truth = shifted
+            fitted_at: "dict[int, int]" = {}
+            for position in range(total):
+                fitted_at[fitted[position]] = position
+            carriers = (fitted_at[carriers[0]], fitted_at[carriers[1]])
+            windows = _length_windows(
+                total,
+                facts.length.minimum,
+                facts.length.maximum,
+                facts.length.maximum > facts.length.minimum,
+                carriers,
+            )
+            if order is None:
+                order = fitted
+            else:
+                order = [order[place] for place in fitted]
+    # AND EVERY SLOT ASKED NO MARKER FORM IN A FAMILY HOLDING ONE asks its
+    # own planned length first too: it spares the parents wearing a marker
+    # form (`_unmarked_places`), and a parent of another length moves the
+    # published average -- 20,000 stamps written `AM` and `am` beside
+    # `call back N` wrote their rare words 2.4 characters short.
+    marking: "dict[str, bool]" = {}
+    for place in range(total):
+        if _form_marker_at(form_asks[place]) >= 0:
+            marking[families[place]] = True
+    for position in range(folded, total):
+        if families[position] in marking and _form_marker_at(
+            form_asks[position]
+        ) < 0:
+            turned[position] = True
     # A GROUP ASKED A FORM WITH NO LETTER PLACE IS ASKED FOR NO LETTER
     # (lane L1 repair, skeptic 1 item 3), as `_caseless_slots` does for
     # identifiers -- BARRED, while its family keeps enough parents for its
@@ -57498,6 +58043,15 @@ def _text_cells(
     asked_families = list(families)
     for place in barred:
         asked_families[place] = f"{families[place]}/no letter place"
+    # THE LETTER ASKS OF A FAMILY HOLDING A MARKER FORM GO TO ITS PARENTS
+    # ASKED NONE, where a slot asks none (Codex's review of lane L3, item
+    # 1): a parent wearing a marker form holds its marker's letters
+    # whatever it is asked, and a slot asked none spares it, so the letter
+    # a case flip needs is asked of the parents such a slot does take.
+    if turned:
+        for place in range(total):
+            if _form_marker_at(form_asks[place]) >= 0:
+                asked_families[place] = f"{families[place]}/marker form"
     asks = _letter_asks(asked_families, folded)
     parents_last = frozenset(barred)
     # THE PARENTS BY FAMILY, AND THE PARENT AND WINDOW PAIRS FOUND SPENT,
@@ -57532,6 +58086,8 @@ def _text_cells(
     for index in range(total):
         held: "tuple[int, int] | None" = None
         worded: "int | None" = None
+        if index in turned and index not in carriers:
+            held = (lengths[index], lengths[index])
         if parents_last and folded <= index and index not in carriers:
             # THE SLOT'S OWN PLANNED LENGTH FIRST where parents are barred
             # (lane L1 repair): a partner takes its parent's length, the
@@ -60009,9 +60565,11 @@ def _made_up_cell(
         # fields each kind of key has; no class name, band name or whole
         # number can hold a SPACE, so the first space ends the key. A form
         # may hold one gap since plan P4-D392, but only before a marker
-        # key (`parsing._key_gap_at`), so no form ends in ` figures` and
-        # what follows the first space splits into a form and an optional
-        # ` figures` one way only: this one is injective.
+        # key (`parsing._key_gap_at`), and since plan P4-D393 one space
+        # between a stamp's date and its clock (`parsing.stamp_key_gap_at`),
+        # so no form ends in ` figures` -- a form holds no lower-case
+        # letter -- and what follows the first space splits into a form and
+        # an optional ` figures` one way only: this one is injective.
         shaped = f"{key} {form}"
         figures = figured and _clock_filled_form(form, 0) is not None
         if figures:

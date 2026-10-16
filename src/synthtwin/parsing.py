@@ -1560,6 +1560,65 @@ SHAPE_GAPS = (" ", "\u202f")
 _SHAPE_MERIDIEM_WORDS = ("AM", "PM", "am", "pm", "A.M.", "P.M.", "a.m.", "p.m.")
 _SHAPE_MERIDIEM_KEYS = ("@@", "&&", "@.@.", "&.&.")
 
+# A STAMP'S ONE SPACE BETWEEN ITS DATE AND ITS CLOCK (lane L3, plan
+# P4-D393, contract C6-31a). An EHR export writes a date and a time of
+# day in one cell -- `2024-01-05 9:15 AM`, `01/05/2024 09:15`,
+# `1/5/2024 9:15:30\u202fPM` -- and a column of them beside a few words
+# (`pending`, `unknown`) is read as text. Each such cell holds the space
+# between its date and its clock, which no form took, so the column
+# published no form and its twin wrote 0 of its 969 stamps in their
+# shape. A form now holds that one plain space where the text before it
+# is a date written in figures (below) and the text after it a clock
+# (`_is_a_clock_body_form`), followed by nothing, by a marker written
+# straight on (two letters, or two letters each before a point:
+# `9:15AM`, `9:15a.m.`), or by the one gap before a marker word lane L2
+# admitted. The date and the clock may instead be parted by one letter
+# (`T`, as ISO writes it), which a form already took; there only the gap
+# before the marker and the longer limit are new. A date written in
+# figures is three runs of figures parted twice by one mark, a hyphen, a
+# slash or a point: a year of four first and then a month and a day of
+# one or two figures each (ISO `2024-01-05`, `2024/01/05`), or a month
+# and a day of one or two figures each first and a year of four or two
+# last (`01/05/2024`, `1/5/2024`, REDCap's `05-01-2024`, `05.01.2024`,
+# `1/5/24`). Measured on lane L2's battery of 220 tables (P4-D393), the
+# year-first hyphen and the year-last slash alone moved 15 tables and
+# this rule 20, every one of them stamps beside rare words. A stamp may
+# run to `STAMP_FORM_LIMIT` characters, so seconds, a fraction and a
+# marker fit (`01/05/2024 09:15:30.1234567 a.m.` is 32).
+_STAMP_DATE_FORMS = tuple(
+    first + mark + second + mark + third
+    for mark in ("-", "/", ".")
+    for first, second, third in (
+        ("%%%%", "%", "%"),
+        ("%%%%", "%", "%%"),
+        ("%%%%", "%%", "%"),
+        ("%%%%", "%%", "%%"),
+        ("%", "%", "%%%%"),
+        ("%", "%%", "%%%%"),
+        ("%%", "%", "%%%%"),
+        ("%%", "%%", "%%%%"),
+        ("%", "%", "%%"),
+        ("%", "%%", "%%"),
+        ("%%", "%", "%%"),
+        ("%%", "%%", "%%"),
+    )
+)
+STAMP_FORM_LIMIT = 32
+# What parts a stamp's date from its clock in its form: one plain space,
+# or one letter (`T`) written as either letter placeholder.
+_STAMP_PARTINGS = (" ", SHAPE_LETTER, SHAPE_LOWER)
+# A ZONE WRITTEN STRAIGHT ON AFTER A YEAR-FIRST STAMP'S CLOCK (skeptic 2 of
+# lane L3, item 2): FHIR's `instant` and `dateTime` and JavaScript's
+# `toISOString` write `2024-01-05T09:15:30Z` and `2024-01-05T09:15:30.123Z`,
+# PostgreSQL's text output writes `2024-01-05 09:15:30+00`, and RFC 3339
+# writes `2024-01-05T09:15-05:00`. After the clock of a stamp whose date is
+# a year of four first, one letter placeholder (`Z`) or a sign and an
+# offset of two figures, four figures, or two, a colon and two may stand;
+# a stamp of a year-last date takes neither, as no export writes one so.
+_STAMP_OFFSET_FORMS = tuple(
+    sign + body for sign in ("+", "-") for body in ("%%", "%%%%", "%%:%%")
+)
+
 
 def _is_a_digit(character: str) -> bool:
     """Whether one character is a figure `0` to `9`.
@@ -1651,8 +1710,28 @@ def meridiem_gap_at(text: str) -> int:
     `08:15:30.123 p.m.` -- and -1 for every other cell, a cell with no
     gap and a cell with two among them. Four searches of the cell and
     one read of its clock, at most `SHAPE_FORM_LIMIT` characters each, so
-    a census of a million cells costs a million such scans. Raises TypeError if handed anything that is not a string
-    instance. No I/O of any kind.
+    a census of a million cells costs a million such scans.
+
+    AND THE SAME GAP AFTER A STAMP'S CLOCK (lane L3, plan P4-D393): where
+    the cell is a stamp (`stamp_gap_at`), its date and its clock parted
+    by one space or one letter, the place of the gap before its marker
+    word -- `2024-01-05 9:15 AM` answers 15 -- read in one more pass of
+    at most `STAMP_FORM_LIMIT` characters. Raises TypeError if handed
+    anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    place = _clock_meridiem_gap_at(text)
+    if place >= 0:
+        return place
+    stamp = _stamp_cell_gaps(text)
+    return -1 if stamp is None else stamp[1]
+
+
+def _clock_meridiem_gap_at(text: str) -> int:
+    """`meridiem_gap_at` of a clock alone, as lane L2 wrote it (P4-D392).
+
+    Raises TypeError if handed anything that is not a string instance.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
@@ -1681,6 +1760,16 @@ def _key_gap_at(name: str) -> int:
     The key twin of `meridiem_gap_at`: a clock body of `%`, `:` and `.`,
     one gap, and a marker key `@@`, `&&`, `@.@.` or `&.&.`.
     """
+    place = _clock_key_gap_at(name)
+    if place >= 0:
+        return place
+    # The gap after a stamp's clock (lane L3, plan P4-D393).
+    stamp = _stamp_gaps_in(name)
+    return -1 if stamp is None else stamp[1]
+
+
+def _clock_key_gap_at(name: str) -> int:
+    """`_key_gap_at` of a clock alone, as lane L2 wrote it (P4-D392)."""
     place = -1
     for index in range(len(name)):
         if name[index] in SHAPE_GAPS:
@@ -1694,6 +1783,184 @@ def _key_gap_at(name: str) -> int:
     if not _is_a_clock_body_form(name[:place]):
         return -1
     return place
+
+
+def _stamp_gaps_in(form: str) -> "tuple[int, int, int, int] | None":
+    """The parts of a stamp's form, or None for any other (P4-D393).
+
+    A stamp's form is one of `_STAMP_DATE_FORMS`, then one space or one
+    letter placeholder (`@` or `&`, the `T` of ISO), then a clock's body
+    (`_is_a_clock_body_form`), then nothing, a marker key written straight
+    on (`@@`, `&&`, `@.@.`, `&.&.`), or one gap (`SHAPE_GAPS`) and a marker
+    key -- or, where the date is a year of four first, a zone written
+    straight on, one letter placeholder (`Z`) or an offset
+    (`_STAMP_OFFSET_FORMS`; skeptic 2 of L3, item 2);
+    `STAMP_FORM_LIMIT` characters at most. Answers four places, each
+    -1 where the stamp holds no such part: the space between the date and
+    the clock, the gap before the marker, the letter between the date and
+    the clock, and the marker's first character. One pass of the form.
+    Raises nothing. No I/O of any kind.
+    """
+    if len(form) > STAMP_FORM_LIMIT:
+        return None
+    # The date is the run of figures and date marks the form opens with,
+    # read once and asked of the closed list once.
+    start = 0
+    while start < len(form) and form[start] in (SHAPE_DIGIT, "-", "/", "."):
+        start = start + 1
+    if form[:start] not in _STAMP_DATE_FORMS:
+        return None
+    if form[start : start + 1] not in _STAMP_PARTINGS:
+        return None
+    end = start + 1
+    while end < len(form) and form[end] in (SHAPE_DIGIT, ":", "."):
+        end = end + 1
+    if not _is_a_clock_body_form(form[start + 1 : end]):
+        return None
+    tail = form[end:]
+    parted = start if form[start] == " " else -1
+    letter = -1 if parted >= 0 else start
+    if not tail:
+        return parted, -1, letter, -1
+    if tail in _SHAPE_MERIDIEM_KEYS:
+        return parted, -1, letter, end
+    if tail[:1] in SHAPE_GAPS and tail[1:] in _SHAPE_MERIDIEM_KEYS:
+        return parted, end, letter, end + 1
+    # A zone after a year-first stamp's clock (`_STAMP_OFFSET_FORMS`; its
+    # letter's place is `stamp_key_zone_at`'s answer, not one of these four).
+    if form[:4] == SHAPE_DIGIT * 4 and (
+        tail == SHAPE_LETTER or tail == SHAPE_LOWER or tail in _STAMP_OFFSET_FORMS
+    ):
+        return parted, -1, letter, -1
+    return None
+
+
+def _stamp_cell_gaps(text: str) -> "tuple[int, int, int, int] | None":
+    """The parts of a cell that is a stamp, or None (P4-D393).
+
+    The cell read as a form -- each figure `SHAPE_DIGIT`, each ASCII
+    letter `SHAPE_LETTER`, a hyphen, a slash, a colon, a point, a plus
+    sign and a gap standing as themselves, anything else no stamp -- and asked of
+    `_stamp_gaps_in`; a gap before the marker stands only before one of
+    the eight marker words, as lane L2's does. Eleven characters at the
+    fewest (`1/5/24 9:15`), `STAMP_FORM_LIMIT` at the most, so a cell
+    outside those lengths is no stamp unread. Raises nothing.
+    """
+    if len(text) < 11 or len(text) > STAMP_FORM_LIMIT:
+        return None
+    # The figure and letter ranges are `_is_a_digit`'s and `_is_a_letter`'s,
+    # compared here in line: this read runs on every cell holding a space
+    # or ending in a marker's last character, twice per `shape_form`. A
+    # plus sign stands too, an offset's (`_STAMP_OFFSET_FORMS`).
+    form = ""
+    for character in text:
+        if "0" <= character <= "9":
+            form = form + SHAPE_DIGIT
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            form = form + SHAPE_LETTER
+        elif character in SHAPE_GAPS or character in ("-", "/", ":", ".", "+"):
+            form = form + character
+        else:
+            return None
+    gaps = _stamp_gaps_in(form)
+    if gaps is None:
+        return None
+    if gaps[1] >= 0 and text[gaps[1] + 1 :] not in _SHAPE_MERIDIEM_WORDS:
+        return None
+    return gaps
+
+
+def _stamp_form(text: str) -> str:
+    """The form of a cell that is a stamp, both its gaps kept, or "" (P4-D393)."""
+    if _stamp_cell_gaps(text) is None:
+        return ""
+    form = ""
+    for character in text:
+        if "0" <= character <= "9":
+            form = form + SHAPE_DIGIT
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            form = form + SHAPE_LETTER
+        else:
+            form = form + character
+    return form
+
+
+def stamp_gap_at(text: str) -> int:
+    """Where the space between a stamp's date and its clock sits, or -1 (P4-D393).
+
+    The place of the one plain space of a cell that is a date spelling
+    (`_STAMP_DATE_FORMS`), that space and a clock -- `2024-01-05 09:15`,
+    `1/5/2024 9:15 AM`, `01/05/2024 9:15AM` -- and -1 for every other
+    cell, a stamp whose date and clock a letter parts among them. One
+    read of at most `STAMP_FORM_LIMIT` characters. Raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    stamp = _stamp_cell_gaps(text)
+    return -1 if stamp is None else stamp[0]
+
+
+def stamp_key_gap_at(name: str) -> int:
+    """Where the space between a stamp's date and clock sits in a key, or -1 (P4-D393).
+
+    The key twin of `stamp_gap_at` (`_stamp_gaps_in`). Raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    stamp = _stamp_gaps_in(name)
+    return -1 if stamp is None else stamp[0]
+
+
+def stamp_key_parts(name: str) -> "tuple[int, int, int, int] | None":
+    """The parts of a stamp's census key, or None for any other key (P4-D393).
+
+    Four places, each -1 where the stamp holds no such part: the space
+    between its date and its clock, the gap before its marker key, the
+    letter placeholder between its date and its clock (`T`), and its
+    marker key's first character -- what the generator's figure fill
+    writes as the letter `T` and as a marker word (method G8.3); a zone
+    letter after the clock is `stamp_key_zone_at`'s, written `Z`. Raises
+    TypeError if handed anything that is not a string instance. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return _stamp_gaps_in(name)
+
+
+def stamp_key_zone_at(name: str) -> int:
+    """Where the zone letter of a stamp's census key sits, or -1 (skeptic 2 of L3, item 2).
+
+    The place of the one letter placeholder written straight on after the
+    clock of a stamp whose date is a year of four first -- the `Z` of
+    `2024-01-05T09:15:30Z`, keyed `%%%%-%%-%%@%%:%%:%%@` -- which the
+    generator's figure fill writes `Z` (`z` in a lower-case key), as it
+    writes the letter between the date and the clock `T` (method G8.3);
+    -1 for every other key, an offset's included. A marker key ends in two
+    letter placeholders or a point, so a letter after a figure at the end
+    of a stamp's key is its zone. Raises TypeError if handed anything that
+    is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if name[-1:] not in (SHAPE_LETTER, SHAPE_LOWER) or name[-2:-1] != SHAPE_DIGIT:
+        return -1
+    return -1 if _stamp_gaps_in(name) is None else len(name) - 1
+
+
+def _shaped_since_stamps(text: str) -> bool:
+    """Whether a cell has a form only since lane L3 (P4-D393).
+
+    A stamp holding the space between its date and its clock, or the gap
+    before its marker after a date, or longer than `SHAPE_FORM_LIMIT`:
+    each had no form before L3. Raises nothing.
+    """
+    stamp = _stamp_cell_gaps(text)
+    if stamp is None:
+        return False
+    return stamp[0] >= 0 or stamp[1] >= 0 or len(text) > SHAPE_FORM_LIMIT
 
 
 def key_gap_at(name: str) -> int:
@@ -1726,10 +1993,17 @@ def level_unshaped_before_gaps(label: str, shape_form_cells: int) -> bool:
     since L2 writes 0 there only where no row of the level wore the
     label's form, so the reading moves none of its levels' counts.
 
+    A STAMP'S LABEL READS SO TOO (lane L3, plan P4-D393): before L3 a
+    label holding the space between a date and a clock, or longer than
+    `SHAPE_FORM_LIMIT`, had no form either (`_shaped_since_stamps`), so a
+    level of one carrying 0 is read as it was written, on the same ground.
+
     Guarantees: a function of the two. Raises TypeError if the label is
     not a string instance. No I/O of any kind.
     """
-    return not shape_form_cells and meridiem_gap_at(label) >= 0
+    if shape_form_cells:
+        return False
+    return meridiem_gap_at(label) >= 0 or _shaped_since_stamps(label)
 
 
 def shape_form(text: str) -> str:
@@ -1787,8 +2061,11 @@ def shape_form(text: str) -> str:
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
-    if not text or len(text) > SHAPE_FORM_LIMIT:
+    if not text:
         return ""
+    if len(text) > SHAPE_FORM_LIMIT:
+        # A stamp may run longer (lane L3, plan P4-D393); nothing else may.
+        return _stamp_form(text)
     form = ""
     kinds = 0
     figures = 0
@@ -1822,6 +2099,11 @@ def shape_form(text: str) -> str:
         elif character in SHAPE_MARKS:
             form = form + character
             marks = 1
+        elif character in SHAPE_GAPS:
+            # A space or U+202F the clock's marker does not stand behind:
+            # a stamp's form holds it (lane L3, plan P4-D393), and no
+            # other cell's does.
+            return _stamp_form(text)
         else:
             return ""
     kinds = figures + letters + marks
@@ -1898,8 +2180,16 @@ def is_a_written_form(name: str) -> bool:
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
-    if not name or len(name) > SHAPE_FORM_LIMIT:
+    if not name:
         return False
+    # A stamp's key may hold the space between its date and its clock, and
+    # may run to `STAMP_FORM_LIMIT` characters (lane L3, plan P4-D393).
+    stamp = None
+    if len(name) > SHAPE_FORM_LIMIT or " " in name:
+        stamp = _stamp_gaps_in(name)
+        if stamp is None and len(name) > SHAPE_FORM_LIMIT:
+            return False
+    parted = -1 if stamp is None else stamp[0]
     figures = 0
     letters = 0
     lower = 0
@@ -1909,7 +2199,7 @@ def is_a_written_form(name: str) -> bool:
     place = -1
     for character in name:
         place = place + 1
-        if place == gap:
+        if place == gap or place == parted:
             marks = 1
             continue
         if character == SHAPE_DIGIT:
