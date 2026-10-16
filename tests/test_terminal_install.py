@@ -451,3 +451,115 @@ def test_the_package_ships_its_main_module() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "wheel required synthtwin/__main__.py" in text
     assert "sdist required ROOT/src/synthtwin/__main__.py" in text
+
+
+# -- the measures behind K-S8-01 and K-S8-04 ---------------------------------
+
+
+def _section(text: str, heading: str) -> str:
+    """One `## ` section of README, up to the next."""
+    start = text.index(f"## {heading}\n")
+    end = text.find("\n## ", start + 1)
+    return text[start : end if end >= 0 else len(text)]
+
+
+def _first_block(section: str) -> "list[str]":
+    """The non-empty lines of a section's first fenced block."""
+    opened = section.index("```\n") + len("```\n")
+    closed = section.index("```", opened)
+    return [line.strip() for line in section[opened:closed].splitlines() if line.strip()]
+
+
+def journey_measures() -> "dict[str, int]":
+    """K-S8-01: what README asks of a new user, from a folder to a validated twin.
+
+    * `install_commands`: the lines of the first block of "Installing"
+      that build the environment -- every line but getting the folder
+      (`git clone`, `cd`) and a run of synthtwin itself;
+    * `run_commands`: the `synthtwin` lines of the first block of "What
+      works today", the run README teaches;
+    * `hand_edited_files`: the files README tells the reader to write
+      answers into, counted by name in each paragraph that says so.
+
+    Read from README.md, so a lane that changes what a person does
+    changes the number only by changing what README tells them.
+    """
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    install = [
+        line
+        for line in _first_block(_section(readme, "Installing"))
+        if not line.startswith(("git clone", "cd ", "synthtwin ", ".venv"))
+    ]
+    run = [
+        line
+        for line in _first_block(_section(readme, "What works today"))
+        if line.startswith("synthtwin ")
+    ]
+    edited: "set[str]" = set()
+    for paragraph in readme.split("\n\n"):
+        if "your_answer" in paragraph or "Fill it in" in paragraph:
+            edited |= set(re.findall(r"[\w.-]+-questions\.json", paragraph))
+    return {
+        "install_commands": len(install),
+        "run_commands": len(run),
+        "hand_edited_files": len(edited),
+    }
+
+
+def install_measures(folder: pathlib.Path) -> "dict[str, int]":
+    """K-S8-04: `python -m synthtwin`, the scripts' hash check, CI, and doctor here.
+
+    * `main_module_dispatches`: 1 when `src/synthtwin/__main__.py` exits
+      with `cli.main()` under the `__main__` guard, read from its syntax
+      (the behaviour is `test_python_dash_m_synthtwin_prints_the_version`);
+    * `scripts_keeping_hash_check`: the install scripts that run both of
+      README's offline pip commands flag for flag and end with doctor;
+    * `ci_systems_running_the_scripts`: the systems of the tests job whose
+      first shard runs the install step;
+    * `doctor_exit_here`: `synthtwin doctor`'s exit code on this machine,
+      run in this process with ``folder`` as the output folder.
+    """
+    import ast
+
+    tree = ast.parse((REPO / "src" / "synthtwin" / "__main__.py").read_text(encoding="utf-8"))
+    guarded = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.If) and "__main__" in ast.unparse(node.test)
+    ]
+    dispatches = int(
+        len(guarded) == 1 and ast.unparse(guarded[0].body[0]) == "sys.exit(main())"
+    )
+    keeping = 0
+    for name in ("install.sh", "install.bat"):
+        text = (SCRIPTS / name).read_text(encoding="utf-8")
+        flat = re.sub(r"\\\s*\n\s*", " ", text)
+        if (
+            re.search(r"--no-index --find-links \S+[^\n]*--require-hashes -r \S+", flat)
+            and re.search(r"--no-index --no-deps", flat)
+            and "doctor" in text.split("pip install")[-1]
+        ):
+            keeping += 1
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    job = workflow[workflow.index("  tests:") : workflow.index("  shard-coverage:")]
+    systems = 0
+    if "sh scripts/install.sh" in job and "scripts\\\\install.bat" in job:
+        systems = sum(
+            1 for system in ("ubuntu-latest", "windows-latest", "macos-latest") if system in job
+        )
+    code = cli.main(["doctor", "--out-dir", str(folder)])
+    return {
+        "main_module_dispatches": dispatches,
+        "scripts_keeping_hash_check": keeping,
+        "ci_systems_running_the_scripts": systems,
+        "doctor_exit_here": code,
+    }
+
+
+def test_the_measures_read_what_they_say() -> None:
+    """Non-vacuity: the README journey reads today's numbers."""
+    assert journey_measures() == {
+        "install_commands": 1,
+        "run_commands": 3,
+        "hand_edited_files": 1,
+    }

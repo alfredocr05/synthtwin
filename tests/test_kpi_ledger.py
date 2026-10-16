@@ -2037,3 +2037,33 @@ def test_k_s4_07(record_property, tmp_path) -> None:
     import test_stage4_million_rows as million
 
     _kpi(record_property, "K-S4-07", million.dense_tail_measures(tmp_path))
+
+
+# -- the terminal: install and first run (lane TI, plan P4-D397) ----------------
+
+
+def test_k_s8_01(record_property) -> None:
+    """What README asks of a new user, from a folder to a validated twin (lane TI, plan P4-D397).
+
+    Counted from README.md: the commands that install, the `synthtwin`
+    commands of the run it teaches, and the files it tells the reader to
+    write answers into. `tests/test_terminal_install.py` owns the measure.
+    """
+    import test_terminal_install as terminal
+
+    _kpi(record_property, "K-S8-01", terminal.journey_measures())
+
+
+def test_k_s8_04(record_property, tmp_path: pathlib.Path) -> None:
+    """`python -m synthtwin` works and the install scripts keep the hash check and run in CI (lane TI, plan P4-D397).
+
+    Counts read from the source, the two scripts and the workflow, and
+    `synthtwin doctor`'s exit code here. `tests/test_terminal_install.py`
+    owns the measure.
+    """
+    import test_terminal_install as terminal
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(sys, "stdout", io.StringIO())
+        value = terminal.install_measures(tmp_path)
+    _kpi(record_property, "K-S8-04", value)

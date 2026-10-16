@@ -9,7 +9,10 @@ the twin carries, what it only approximates, and what it does not carry
 at all. `synthtwin validate <profile>` reads that profile and one CSV
 file, measures the file against it, and writes the quality report: which
 obligations the file met, which it missed, and which no CSV could ever
-evidence either way.
+evidence either way. One more word, `synthtwin doctor`, is no step of a
+run: it checks this computer before the first one -- Python, numpy and
+pandas, the output folder, the memory against a named table's size --
+and reads no table (plan P4-D397).
 
 Zero-code use is the requirement (charter principle 2): each command
 works with one path and nothing else. Everything else is an option with
@@ -5625,7 +5628,10 @@ def main(argv: "list[str] | None" = None) -> int:
       reaches the generator, so this package's own random number
       generator is out of its reach and its verdicts cannot inherit the
       planner's defects; and it never writes, moves, truncates or
-      re-encodes either of the two files it read. No network,
+      re-encodes either of the two files it read. A `doctor` run opens
+      no table: it asks the file system for a named table's size, and
+      the one file it writes is a test file in the output folder,
+      removed at once. No network,
       subprocess, native, or dynamic-code operation is performed
       anywhere in the package.
     - Display: nothing reaches the screen, the error stream, the summary

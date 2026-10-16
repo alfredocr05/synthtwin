@@ -9157,6 +9157,75 @@
      "placement_lines_growth_2x_tail": 2.0
     }
    }
+  },
+  {
+   "id": "K-S8-01",
+   "phase_stage": "The terminal, lane TI: install and first run (plan P4-D397), measured now as the terminal's baseline",
+   "category": "CODE",
+   "headline": true,
+   "name": "From a folder to a validated twin: the commands a new user types and the files they edit by hand",
+   "status": "OPEN",
+   "rule": "machine-free, counted from README.md: the lines of the first block of its \"Installing\" section that build the environment (getting the folder and running synthtwin are not counted) at most 1; the synthtwin commands of the run its \"What works today\" block teaches at most 3; and the files it tells the reader to write answers into at most 1; target: 1 install command, 1 run command and no file edited by hand",
+   "rule_kind": "at_most",
+   "expected": {
+    "install_commands": 1,
+    "run_commands": 3,
+    "hand_edited_files": 1
+   },
+   "target": {
+    "install_commands": 1,
+    "run_commands": 1,
+    "hand_edited_files": 0
+   },
+   "target_stage": "the terminal (lane TT: one synthtwin twin run whose answers synthtwin saves itself; lane TS: the short screen)",
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s8_01",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "README.md as lane TI leaves it, read by tests/test_terminal_install.py's journey_measures",
+   "evidence": "Before the lane (3d89303) a new user cloned the folder, made an environment and ran pip -- README's block wrote `pip install -e .` alone and left the environment unstated, which on a fresh Mac meets Apple's Python 3.9 (the R5 map, section 1.2) -- then typed 3 commands and edited 1 questions file by hand to answer what a run could not settle; `python -m synthtwin` failed. The lane's two scripts make the install one command, `sh scripts/install.sh` or `scripts\\install.bat`, which builds .venv and ends with `synthtwin doctor`. The run's 3 commands and the hand-edited file are lanes TT's and TS's.",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-15",
+    "measured_by": "PENDING",
+    "value": {}
+   }
+  },
+  {
+   "id": "K-S8-04",
+   "phase_stage": "The terminal, lane TI: install and first run (plan P4-D397)",
+   "category": "CODE",
+   "headline": false,
+   "name": "python -m synthtwin works, and the install scripts keep the hash check, end with doctor and run in CI on three systems",
+   "status": "GREEN",
+   "rule": "machine-free: src/synthtwin/__main__.py exits with cli.main() under its __main__ guard (1); both install scripts run README's two offline pip commands flag for flag (--no-index --find-links FOLDER --require-hashes -r requirements-install.lock, then --no-index --no-deps) and end by running synthtwin doctor (2); the tests job's install step runs them, on ubuntu-latest, windows-latest and macos-latest (3); synthtwin doctor exits 0 here (0); and the two pinned nodes pass: python -m synthtwin --version in the test's own process, and doctor never opening a table every way of opening a file refuses",
+   "rule_kind": "exact",
+   "expected": {
+    "main_module_dispatches": 1,
+    "scripts_keeping_hash_check": 2,
+    "ci_systems_running_the_scripts": 3,
+    "doctor_exit_here": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_terminal_install.py::test_python_dash_m_synthtwin_prints_the_version",
+    "tests/test_terminal_install.py::test_doctor_never_opens_the_table"
+   ],
+   "nodes_min_collected": 2,
+   "test": "tests/test_kpi_ledger.py::test_k_s8_04",
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "the lane's tree: src/synthtwin/__main__.py, scripts/install.sh, scripts/install.bat and .github/workflows/ci.yml, read by tests/test_terminal_install.py's install_measures, and synthtwin doctor run in process",
+   "evidence": "Before the lane (3d89303) `python -m synthtwin` stopped with \"'synthtwin' is a package and cannot be directly executed\", no install script existed and nothing checked the machine. Met here on every count; the CI half is proved on the first push that carries the lane, when the install step runs in the eleven first-shard cells of the tests matrix.",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-15",
+    "measured_by": "PENDING",
+    "value": {}
+   }
   }
  ]
 }
