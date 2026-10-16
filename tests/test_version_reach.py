@@ -547,7 +547,14 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # to ask it again for every answer the twentieth vectors file carries. What
 # it loads is a committed file under tools/, which this guard reads
 # directly, so the floor holds for it as it does for the other thirty-five.
-FILES_LOADED_AS_MODULES = 36
+#
+# 37 AT LANE E0A'S REPAIR 1 (plan P4-D399), not 36:
+# `tests/test_health_zoo.py` loads the health data zoo's slow driver,
+# `tools/measurements/kpi_health_zoo.py`, the same way, with the resource
+# module blocked, to show it starts where Windows has none. What it loads
+# is a committed file under tools/, which this guard reads directly, so
+# the floor holds for it as it does for the other thirty-six.
+FILES_LOADED_AS_MODULES = 37
 
 
 def _files() -> "list[pathlib.Path]":
