@@ -14,7 +14,10 @@ label, a date pair, a sort key and a day number a row, and the census's
 reading of a column until the whole table was described. The rows that
 write one spelling now share one answer -- the cell record, the date
 pair, the sort key, the day number and the survey's text -- each memo
-bounded at 65,536 texts unless it has answered as many rows; the record is
+bounded at 65,536 texts unless it has answered as many rows, and past
+that bound taking a text it meets again from its second sighting (after
+Codex's review: 65,536 different numbers and then one number on every
+later row had made a record a row); the record is
 slotted, a folded label equal to its text is the text itself, the map
 of spellings holds only the labels written otherwise than themselves
 (`taxonomy._label_spellings` answers the rest), and each census reading
@@ -30,7 +33,11 @@ different, in 786 MB where it took 1,025 to 1,176, and 2,287 MB at
 3,000,000 rows, past the machine's 2 GB rule (stated in plan P4-D390).
 `synthtwin validate`, which describes the file again, holds 654, 1,158
 and 1,662 MB on the three registers where it held 798, 1,557 and 2,000.
-Pinned by `tests/test_stage4_describe_memory.py` and the new `K-S4-08`.
+Past the bound a repeated row now adds 8.5 bytes of records where it
+added 256.5 (2,640 with a 301-figure numeral), and six such tables of
+1,000,000 rows, numbers and days, describe in 293 to 613 MB where they
+took 568 to 694, the files the same bytes. Pinned by `tests/test_stage4_describe_memory.py`
+and the new `K-S4-08`.
 
 ### Numbers at a million rows: the report in pieces, and a dense tail's mean (2026-10-14)
 

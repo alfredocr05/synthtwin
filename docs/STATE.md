@@ -362,8 +362,9 @@ cannot get worse unseen.
   798 MB at 997,770 rows of a register where it held 1,317 and
   2,000 MB at 2,990,700 (P4-D390), and a dense tail's twin meets its
   published mean distance (G6.6.8 rule 4, P4-D377). Lane S4d
-  (2026-10-15): `describe` holds one answer per spelling, every
-  description the same bytes -- those 2,990,700 rows in 780 MB where it
+  (2026-10-15): `describe` holds one answer per spelling (past 65,536
+  different texts, from a text's second sighting within 8,192 new
+  ones), every description the same bytes -- those 2,990,700 rows in 780 MB where it
   took 2,389, 4,983,120 in 1,270 MB, and `validate` of them in 1,662 MB
   (P4-D390). Left: a column whose values never repeat still holds a
   record a row (G2's dense tail: 2,287 MB at 3,000,000 rows, past the

@@ -171,7 +171,13 @@ millions of rows is how this command holds it. The rows that write one
 spelling share one cell record, one date pair, one sort key, one day
 number and one text of the survey, each memo holding at most 65,536
 different texts (`parsing.SPELLING_MEMO_TEXTS`) unless it has answered
-as many rows as it holds; the map of each folded label's spellings
+as many rows as it holds; past that bound a text the memo refuses is
+noted with its answer, in two maps of at most 8,192 texts each
+(`parsing.SPELLING_MEMO_NOTED`), and taken when it is met again, so it
+shares its first answer from its second sighting (Codex's review of the
+lane), and only a text whose sightings past the bound are always more
+than 8,192 new texts apart is answered once a row, as before the lane;
+the map of each folded label's spellings
 holds only the labels some cell wrote otherwise than the label itself
 (`taxonomy._label_spellings` answers the rest with the label and its
 count); and each column's census reading is let go once that column is
