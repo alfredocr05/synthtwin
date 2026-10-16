@@ -476,3 +476,18 @@ def test_the_survey_names_the_columns_it_held(tmp_path: pathlib.Path) -> None:
     assert held.columns[1] == whole.columns[1] and held.columns[0] == [] and held.columns[2] == []
     assert held.n_rows == whole.n_rows and held.first_cells == whole.first_cells
     assert held.form.columns[1] == whole.form.columns[1]
+
+
+def test_the_affixed_split_memo_holds_at_most_its_bound_and_answers_the_same() -> None:
+    """`taxonomy._split_once` past `parsing.SPELLING_MEMO_TEXTS`: the same split, and no more texts held (plan P4-D400).
+
+    A column of different record numbers held a split, its core and their
+    place in the memo a row; past the bound a text is split again.
+    """
+    from synthtwin import parsing
+
+    cells = taxonomy._tally(taxonomy._classify_all(["V1", "V2"]), 2, taxonomy.Settings())
+    texts = [f"V{row:09d}" for row in range(parsing.SPELLING_MEMO_TEXTS + 500)]
+    for text in texts + texts[:10] + texts[-10:]:
+        assert taxonomy._split_once(cells, text) == taxonomy.affixed_split(text, cells.decimal_comma)
+    assert len(cells.affixes[cells.decimal_comma]) == parsing.SPELLING_MEMO_TEXTS

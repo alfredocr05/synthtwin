@@ -4466,14 +4466,15 @@ def build_document(
 def _parts_of(
     table: Table, document: "dict[str, object]"
 ) -> "typing.Iterator[tuple[int, dict[str, object], list[list[str]]]]":
-    """Each group of a table read in groups: its first column, the description cut to its blocks, and its columns."""
+    """Each walk of a table read in groups (`reading.column_walks`): its first column, the description cut to its blocks, and its columns."""
     blocks = document["columns"]
-    for start, end in reading.column_groups(table):
+    for start, end in reading.column_walks(table):
         part: "dict[str, object]" = {}
         for key in document:
             part[key] = document[key]
         if isinstance(blocks, list):
             part["columns"] = blocks[start:end]
+        reading.hold_columns(table, start, end)
         cells = [reading.column_values(table, place) for place in range(start, end)]
         yield start, part, cells
         # Let go before the next group is read.

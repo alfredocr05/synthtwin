@@ -9196,6 +9196,81 @@
    }
   },
   {
+   "id": "K-S4-09",
+   "phase_stage": "Stage 4 (plan P4-D400, lane SR of the December plan)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "The peak of each step at 2,000,000 x 50 on both tables, under the 2.5 GB watchdog: describe's part measured",
+   "status": "OPEN",
+   "rule": "synthtwin profile of lane B0's two made-up tables of 50 columns (K-S4-02's mixed health table and K-S1-06's Gaussian columns), read in the groups of columns 2,000,000 rows are read in: machine-free, the bytes tracemalloc sees held a cell at 200,000 rows under 25, which at 100,000,000 cells is 2.5 GB; AND the peak resident memory at 100,000, 250,000 and 500,000 rows, each in a process of its own, projected to 2,000,000 rows as lane B0 projects (least squares on log rows and log rise above the imports), under 2,500 MB on each table, judged only on the quiet reference machine. Target: each step's peak at 2,000,000 x 50 under 2,500 MB on both tables; generate's (lane SG) and validate's (lane SV) are not measured yet",
+   "rule_kind": "ratio_below",
+   "key_kinds": {
+    "mixed_describe_peak_mb_2m_projected": "peak_memory_below",
+    "gaussian_describe_peak_mb_2m_projected": "peak_memory_below",
+    "mixed_generate_peak_mb_2m": "peak_memory_below",
+    "gaussian_generate_peak_mb_2m": "peak_memory_below",
+    "mixed_validate_peak_mb_2m": "peak_memory_below",
+    "gaussian_validate_peak_mb_2m": "peak_memory_below"
+   },
+   "expected": {
+    "mixed_traced_bytes_a_cell": 25.0,
+    "gaussian_traced_bytes_a_cell": 25.0,
+    "mixed_describe_peak_mb_2m_projected": 2500,
+    "gaussian_describe_peak_mb_2m_projected": 2500
+   },
+   "target_stage": "the scale gate (plan PLAN-DEC 3.2: lanes SR, SG and SV, then SX)",
+   "target": {
+    "mixed_describe_peak_mb_2m_projected": 2500,
+    "gaussian_describe_peak_mb_2m_projected": 2500,
+    "mixed_generate_peak_mb_2m": 2500,
+    "gaussian_generate_peak_mb_2m": 2500,
+    "mixed_validate_peak_mb_2m": 2500,
+    "gaussian_validate_peak_mb_2m": 2500
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_describe_groups.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "the driver's own two seeded tables, each size written to a temporary folder and described once by synthtwin profile in a process of its own, reading.GROUP_BYTES scaled by the rows over 2,000,000",
+   "evidence": "",
+   "value_at": {
+    "commit": "pending",
+    "date": "2026-10-16",
+    "measured_by": "pending",
+    "value": {}
+   }
+  },
+  {
+   "id": "K-S4-11",
+   "phase_stage": "Stage 4 (plan P4-D400, lane SR of the December plan)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "Diagnostic: describing 2,000,000 x 50 once, projected, before and after lane SR",
+   "status": "GREEN",
+   "rule": "RECORDED, never a gate on describe's own speed (the December plan's D6): synthtwin profile's CPU seconds on lane B0's two tables at 100,000, 250,000 and 500,000 rows read in the groups 2,000,000 rows are read in, projected to 2,000,000 rows as lane B0 projects; the one bound is the owner's twelve hours for the big table end to end (TRACKED T5), judged only on the quiet reference machine. Before the lane, lane B0 projected 3,451 s (mixed) and 2,731 s (Gaussian) on lane S4d's tree",
+   "rule_kind": "seconds_below",
+   "expected": {
+    "mixed_describe_seconds_2m_projected": 43200,
+    "gaussian_describe_seconds_2m_projected": 43200
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_describe_groups.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "K-S4-09's runs",
+   "evidence": "",
+   "value_at": {
+    "commit": "pending",
+    "date": "2026-10-16",
+    "measured_by": "pending",
+    "value": {}
+   }
+  },
+  {
    "id": "K-S4-15",
    "phase_stage": "Stage 4 (plans P4-D377, P4-D387 and P4-D390; the orchestrator's decision at batch 4b, under the id the December plan gives it)",
    "category": "SPEED",

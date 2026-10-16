@@ -2641,7 +2641,11 @@ def read_table(
 
 # How many bytes the cells of one group may take, at most, by the
 # measured cost below. Tests lower it to read small tables in groups.
-GROUP_BYTES = 512 * 1024 * 1024
+# At 2,000,000 rows it holds one column of the made-up health table: the
+# description of one column of different record numbers holds about a
+# kilobyte a row at its peak, two gigabytes there, so the group beside it
+# is kept to the column itself (`kpi_describe_groups`).
+GROUP_BYTES = 256 * 1024 * 1024
 
 # What one cell costs beside its characters, held as a column: its place
 # in the column's list (8 bytes), its quoting flag in the survey (1) and,
@@ -2651,11 +2655,11 @@ GROUP_BYTES = 512 * 1024 * 1024
 # (`tools/measurements/kpi_describe_groups.py`).
 _CELL_BYTES = 65
 
-# How many groups one walk of the sweep holds at once. A walk holds its
-# group's cells and no column's description, which at two million rows
-# holds more than three groups' cells, so the sweep walks three groups at
-# a time and the file is walked a third as often (`_sweep`).
-_GROUPS_A_WALK = 3
+# How many groups one walk holds at once: a walk of the sweep, or of the
+# questions (`column_walks`). A walk holds its groups' cells and no
+# column's description, which at two million rows holds more than six
+# groups' cells, so the file is walked a sixth as often.
+_GROUPS_A_WALK = 6
 
 # The text's first characters the survey's detection reads: a MiB past a
 # separator line of at most seven characters, and some.
@@ -2742,6 +2746,7 @@ class ColumnSource:
     groups: "tuple[tuple[int, int], ...]"
     held_from: int
     held: "list[list[str]]"
+    walks: "tuple[tuple[int, int], ...]" = ()
 
 
 def column_values(table: Table, place: int) -> "list[str]":
@@ -2785,6 +2790,36 @@ def column_groups(table: Table) -> "tuple[tuple[int, int], ...]":
     if table.source is None:
         return ((0, len(table.column_names)),)
     return table.source.groups
+
+
+def column_walks(table: Table) -> "tuple[tuple[int, int], ...]":
+    """Runs of `_GROUPS_A_WALK` groups, for a step that holds no column's description (`hold_columns`).
+
+    A table read whole is one run. A step whose own work beside the cells
+    is small -- the questions, which split each column's cells -- reads
+    a run at a time and the file a sixth as often as group by group.
+    """
+    if table.source is None or not table.source.walks:
+        return column_groups(table)
+    return table.source.walks
+
+
+def hold_columns(table: Table, start: int, end: int) -> None:
+    """Hold the columns ``start`` to ``end`` together, read from the file at once, for `column_values` to hand over.
+
+    Nothing is read where they are held already, or where the table was
+    read whole; otherwise the group held is let go first. Guarantees:
+    `column_values`'s for each column of the range. Raises what it
+    raises.
+    """
+    source = table.source
+    if source is None:
+        return
+    if source.held_from <= start and end <= source.held_from + len(source.held):
+        return
+    source.held = []
+    source.held = _read_group(source, start, end)
+    source.held_from = start
 
 
 def _read_group(source: ColumnSource, start: int, end: int) -> "list[list[str]]":
@@ -3220,6 +3255,7 @@ class _Swept:
     held: "list[list[str]]"
     record_rules: "list[int]"
     names_shown: "list[bool]"
+    walks: "tuple[tuple[int, int], ...]" = ()
 
 
 def _sweep(
@@ -3368,6 +3404,7 @@ def _sweep(
         held=held,
         record_rules=record_rules,
         names_shown=names_shown,
+        walks=walks,
     )
 
 
@@ -3548,6 +3585,7 @@ def _read_in_groups(
             groups=swept.groups,
             held_from=swept.held_from,
             held=held,
+            walks=swept.walks,
         ),
     )
 

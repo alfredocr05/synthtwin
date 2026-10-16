@@ -4,7 +4,7 @@ PLAN P4-D400 (lane SR of the December plan). The owner's big table is
 2,000,000 rows by 50 columns, and the process describing it must fit
 under the 2.5 GB the watchdog lets one process hold. `synthtwin profile`
 now reads a table too large for one group of columns
-(`reading.GROUP_BYTES`, 512 MiB) one group at a time, so what it holds
+(`reading.GROUP_BYTES`, 256 MiB) one group at a time, so what it holds
 grows with one group's columns and one column's description, not with
 the whole table.
 
@@ -26,8 +26,8 @@ held. --group-bytes sets `reading.GROUP_BYTES`.
 
 THE BIG TABLE'S GROUPS, AT EVERY SIZE MEASURED. A group holds as many
 columns as `GROUP_BYTES` buys at the table's rows, so 2,000,000 rows are
-read about three columns a group and 100,000 rows at the same budget in
-one group of fifty. Every run below is read with the budget scaled by
+read one column a group and 100,000 rows at the same budget in one group
+of fifty. Every run below is read with the budget scaled by
 the rows (`GROUP_BYTES` times rows over 2,000,000), so each size is read
 in the groups 2,000,000 rows are read in, and what it holds grows with
 the rows as the big table's does.

@@ -7543,6 +7543,14 @@ def _split_once(cells: _Cells, text: str) -> "tuple[str, str, str] | None":
     The answer is `affixed_split`'s exactly: it is remembered on the
     reading (`_Cells.affixes`) by grammar and text, and both are all the
     split reads. Plan P4-D380.
+
+    AT MOST `parsing.SPELLING_MEMO_TEXTS` TEXTS ARE REMEMBERED A GRAMMAR
+    (lane SR, plan P4-D400), as the layout readings' memo holds at most
+    its own: a column whose values never repeat held a split, its core
+    and their place in the memo a row -- about 160 bytes a row of the
+    1,061 a column of 40,000 different `V#########` record numbers held
+    at its peak -- and a text past the bound is split again, the same
+    split.
     """
     grammar = cells.decimal_comma
     if grammar not in cells.affixes:
@@ -7551,7 +7559,8 @@ def _split_once(cells: _Cells, text: str) -> "tuple[str, str, str] | None":
     if text in known:
         return known[text]
     split = affixed_split(text, grammar)
-    known[text] = split
+    if len(known) < parsing.SPELLING_MEMO_TEXTS:
+        known[text] = split
     return split
 
 

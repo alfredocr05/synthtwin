@@ -3664,6 +3664,7 @@ def _run_profile(
         census_holding,
     )
     census_columns = []
+    census_holding = None
     if population < parsing.POPULATION_FLOOR:
         _warn(
             errors.the_population_is_too_small(
@@ -4020,6 +4021,7 @@ def _run_profile(
                     )
                 )
                 census_columns = []
+                census_holding = None
                 if population < parsing.POPULATION_FLOOR:
                     _warn(
                         errors.the_population_is_too_small(
