@@ -966,8 +966,8 @@ TABLES: "tuple[Table, ...]" = (
         },
         _csv_reader(),
         (
-            _bad("diagnoses", "ICD-10-CM with the dot", lambda f: _bad_pattern(_t("icd10_dotted")(f), r"[A-TV-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?")),
-            _bad("diagnoses", "ICD-10-CM without the dot", lambda f: _bad_pattern(_t("icd10_plain")(f), r"[A-TV-Z][0-9][0-9A-Z][0-9A-Z]{0,4}")),
+            _bad("diagnoses", "ICD-10-CM with the dot", lambda f: _bad_pattern(_t("icd10_dotted")(f), r"[A-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?")),
+            _bad("diagnoses", "ICD-10-CM without the dot", lambda f: _bad_pattern(_t("icd10_plain")(f), r"[A-Z][0-9][0-9A-Z][0-9A-Z]{0,4}")),
             _bad("diagnoses", "ICD-9-CM", lambda f: _bad_pattern(_t("icd9")(f), r"V\d{2}(\.\d{1,2})?|E\d{3}(\.\d)?|\d{3}(\.\d{1,2})?")),
             _bad("diagnoses", "SNOMED CT ids are 6 to 18 figures", lambda f: _bad_pattern(_t("snomed_id")(f), r"[1-9]\d{5,17}")),
             _bad("diagnoses", "present-on-admission flags", lambda f: _bad_set(_t("poa")(f), {"Y", "N", "U", "W", "1"})),
@@ -1188,6 +1188,7 @@ def kind_of(table: Table, column: str) -> str:
 def write_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> pathlib.Path:
     """Build one table from its seed and write it; the same seed and size give the same bytes."""
     header, rows = table.build(n, seed)
+    folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"{table.name}{table.suffix}"
     target.write_bytes(table.write(header, rows))
     return target
@@ -1489,7 +1490,8 @@ def per_kind(results: "list[dict]") -> "dict[str, dict]":
                 "misses": len(misses),
                 "missed": sorted({f"{miss[0]}: {miss[1]}" for miss in misses}),
                 "analyst_failures": [f"{failure[1]} -- {failure[2]}" for failure in analyst],
-                "owner": "; ".join(f"{owner}: {gap}" for owner, gap in OWNERS.get(kind, ())) if step else "",
+                "owners": sorted({owner for owner, _gap in OWNERS.get(kind, ())}) if step else [],
+                "gaps": [f"{owner}: {gap}" for owner, gap in OWNERS.get(kind, ())] if step else [],
             }
     return {kind: kinds[kind] for kind in KINDS if kind in kinds}
 
@@ -1521,7 +1523,7 @@ def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
     }
     second: "dict[str, object]" = {
         "kinds_failing": len(failing),
-        "failing_kinds_without_owner": sum(1 for kind in failing if not kinds[kind]["owner"]),
+        "failing_kinds_without_owner": sum(1 for kind in failing if not kinds[kind]["owners"]),
         "validate_misses": sum(len(r["misses"]) for r in results),
         "analyst_failures": sum(len(r["analyst"]) for r in results),
     }
