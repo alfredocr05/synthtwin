@@ -95,7 +95,9 @@ def _same_reading(path: pathlib.Path, first_row: str, monkeypatch: pytest.Monkey
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         whole = _read(path, first_row, False)
+        # One column a group and a group a walk: the finest the reading goes.
         monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+        monkeypatch.setattr(reading, "_GROUPS_A_WALK", 1)
         grouped = _read(path, first_row, True)
         monkeypatch.undo()
     assert whole[0] == grouped[0], (path.read_bytes()[:300], whole, grouped)
@@ -156,6 +158,10 @@ _SHAPES: "dict[str, tuple[bytes, str]]" = {
     "a first row said to be data": (
         b"x,y,z\n" + b"".join(f"{k},{k % 7},w{k % 2}\n".encode() for k in range(30)),
         "data",
+    ),
+    "records that hold nothing, and an order": (
+        b"n,a,b\n" + b"".join((b",,\n" if k % 7 == 3 else f"{k},x{k % 3},{40 - k}\n".encode()) for k in range(40)),
+        "auto",
     ),
     "a quoted empty last name over shorter rows": (
         b'a;b;""\n' + b"".join(f"{k};{k % 4}\n".encode() for k in range(40)),
@@ -247,11 +253,13 @@ def _table_of_every_question() -> str:
     draw = random.Random(17)
     lines = ["visit,patient,seen_on,code,amount,clock,ward,stay,taken,dose"]
     for row in range(400):
+        # The first column holds nothing on some rows, so the census asks
+        # the columns after it which rows hold a value.
         seen = "00/00/0000" if row % 37 == 0 else f"{1 + row % 12:02d}/{1 + row % 12:02d}/2023"
         lines += [
             ",".join(
                 [
-                    f"V{row:05d}",
+                    "" if row % 9 == 4 else f"V{row:05d}",
                     f"P{draw.randrange(120):04d}",
                     seen,
                     f"{draw.choice(['99213', '99214', '99215', '00000'])}",
@@ -279,17 +287,19 @@ def _profiled(table: pathlib.Path, out: pathlib.Path, options: "list[str]") -> "
     return found
 
 
+@pytest.mark.parametrize("walk", [1, 3])
 @pytest.mark.parametrize(
     "options",
     [[], ["--smallest-group", "1"], ["--identifier", "patient"], ["--smallest-group", "36", "--code", "ward"]],
 )
 def test_profile_read_one_column_a_group_writes_the_same_files(
-    options: "list[str]", tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    options: "list[str]", walk: int, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     table = tmp_path / "clinic.csv"
     table.write_text(_table_of_every_question(), encoding="utf-8")
     whole = _profiled(table, tmp_path / "whole", options)
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "_GROUPS_A_WALK", walk)
     grouped = _profiled(table, tmp_path / "groups", options)
     assert sorted(whole) == sorted(grouped)
     for name in whole:
@@ -491,3 +501,57 @@ def test_the_affixed_split_memo_holds_at_most_its_bound_and_answers_the_same() -
     for text in texts + texts[:10] + texts[-10:]:
         assert taxonomy._split_once(cells, text) == taxonomy.affixed_split(text, cells.decimal_comma)
     assert len(cells.affixes[cells.decimal_comma]) == parsing.SPELLING_MEMO_TEXTS
+
+
+def test_the_first_difference_of_either_check_is_the_one_refused_in_groups(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Differences in two groups, at two rows: the refusal names the first, as the reading of every column does.
+
+    The standard reader is made to read two cells otherwise than the
+    survey -- the third column at the fourth record, the first column at
+    the eighth -- so each group's walk finds its own; weighed together,
+    the fourth record's is refused.
+    """
+    path = tmp_path / "t.csv"
+    path.write_text("a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(40)), encoding="utf-8")
+    standard = reading._standard_records
+
+    def otherwise(*arguments: object) -> object:
+        row = 0
+        for kind, cells in standard(*arguments):  # type: ignore[arg-type]
+            if kind == reading._RECORD_DATA:
+                if row == 3:
+                    cells = cells[:2] + ["changed"]
+                if row == 7:
+                    cells = ["changed"] + cells[1:]
+                row = row + 1
+            yield kind, cells
+
+    monkeypatch.setattr(reading, "_standard_records", otherwise)
+    found = _same_reading(path, "auto", monkeypatch)
+    assert found == ("refused", errors.readers_disagree_about_a_value(str(path), 4, "c"))
+
+
+def test_a_run_of_groups_is_held_together(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`reading.hold_columns` reads a run of groups at once, and `column_values` hands each over without reading again."""
+    table = tmp_path / "t.csv"
+    table.write_text("a,b,c,d,e\n" + "".join(f"{k},{k * 2},x{k},y{k % 5},{k % 3}\n" for k in range(60)), encoding="utf-8")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "_GROUPS_A_WALK", 3)
+    read = reading.read_table(str(table), in_groups=True)
+    assert reading.column_walks(read) == ((0, 3), (3, 5))
+    reading.hold_columns(read, 3, 5)
+    source = read.source
+    assert source is not None and source.held_from == 3 and len(source.held) == 2
+    reads: "list[int]" = []
+    group_read = reading._read_group
+
+    def counted(*arguments: object) -> object:
+        reads.append(1)
+        return group_read(*arguments)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading, "_read_group", counted)
+    assert reading.column_values(read, 4) == [f"{k % 3}" for k in range(60)]
+    assert reading.column_values(read, 3)[2] == "y2"
+    assert reads == []
