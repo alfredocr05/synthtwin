@@ -1064,3 +1064,39 @@ def test_each_group_asks_the_width_a_bounded_number_of_questions(tmp_path: pathl
         patch.setattr(generation, "_pooled_numbers_placed", _placed_as_built()[0])
         theirs = kpi_shapes.twin_text(described, 0)
     assert ours == theirs
+
+
+# -- K-S4-13: the lane's work counts (batch 4b, the orchestrator's decision) ----
+
+
+def numbers_and_codes_measures(folder: pathlib.Path) -> "dict[str, float]":
+    """Lane S4b-num's own work counts, machine-free, for `K-S4-13`.
+
+    The orchestrator's decision at batch 4b (push critic 7, item 4): the
+    counts this lane's measurements name get a KPI of their own. Each is
+    a count of questions or entries, the same on every machine:
+
+    - the spellings the identity walk asks on the Codex column at
+      100,000 rows, seed 0 (P4-D387: 1,001, where 3434682 asked 501,501);
+    - G4's decimal-code work: the census forms asked a group of decimal
+      codes at 10,000 rows (P4-D390: under 64; 3434682 over 700), and
+      the width questions a group of 400 codes of 300 places (P4-D390,
+      Codex's item 2: under eight; f334726 passed 1,600 in its first);
+    - the most entries the push's waiting heap holds on Codex's shifting
+      staircase of 1,602 strata, an upward repair run (P4-D377: at most
+      twice the strata colliding at the start and 128, 1,728; f334726
+      held 1,915,204).
+    """
+    walk = _walks_handed(folder, "c100000", _codex_cells(100_000))[0]
+    codes = _placements_handed(folder, "q10000", _decimal_codes(10_000, 4_000), 11, ["value"], (0,))[0]
+    code_groups = len(codes[2])  # type: ignore[arg-type]
+    thin = _placements_handed(folder, "thin400", _thin_codes(400), 11, ["value"], (0,))[0]
+    thin_groups = len(thin[2])  # type: ignore[arg-type]
+    peak, colliding = push_storage(_shifting_staircase(1602))
+    return {
+        "identity_walk_spellings_codex_column_100000_rows": walk_spellings(walk),
+        "decimal_code_census_forms_per_group_10000_rows": round(placement_questions(codes) / code_groups, 2),
+        "width_questions_per_group_400_groups": round(width_questions(thin) / thin_groups, 2),
+        "push_heap_peak_entries_shifting_staircase_1602_strata": peak,
+        "push_heap_bound_shifting_staircase_1602_strata": 2 * colliding + 128,
+    }

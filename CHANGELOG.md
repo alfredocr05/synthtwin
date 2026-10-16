@@ -6,6 +6,29 @@ exists).
 
 ## [Unreleased]
 
+### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
+
+**Records of batch 4b** (push critic 7; the orchestrator's rulings of
+2026-10-16, the owner may reverse any). `validate` describing the file
+again (2,000 MB and 585 s at 2,990,700 rows before lane S4d, 1,662 MB and
+493 s after) is lane SV's; G2's dense tail at 1,000,000 rows missing the
+column's mean, skew and kurtosis is lane G2T's; the push's work as the
+strata times the pushes, its walks each way where a collision's holders
+are of two kinds, and the identity walk's column text (111 MB at
+1,000,000 rows) belong to the scale track's hot-spot lanes, chosen from
+lane B0's cost table; the 1,000,000-row decimal-code twin's exit 3 on the
+`%%%.%%` count is lane LM1's; R6's six plain-cell twins beside quoted
+closings are the forms lane FM's; R6's blank header name written bare and
+a one-column fallback described before R6 missing at exit 3 are lane
+LM2's; and J3's two carried classes are lane RT1's, 3b-REST's clock half,
+as batch 4a recorded them provisionally. Each is written in STATE's
+limits and in the plan paragraph that states it, and STATE's landing
+lists gain J3, R6 and L2. Lane S4b-num's work counts have a KPI,
+`K-S4-13` (plan P4-D390): 1,001 spellings asked by the identity walk on
+the Codex column at 100,000 rows, 17.02 census forms and 6.0 width
+questions a group of decimal codes, and 1,670 entries in the push's heap
+on an upward run of 1,602 strata, each inside the claim the lane measured.
+
 ### Installing in one command, `python -m synthtwin`, and `synthtwin doctor` (2026-10-15)
 
 **synthtwin installs with one command and checks the computer before a
