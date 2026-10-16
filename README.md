@@ -772,9 +772,10 @@ On Windows, in Command Prompt:
 scripts\install.bat
 ```
 
-The script finds Python 3.10 or later, makes a private environment named
-`.venv` inside the synthtwin folder so nothing else on the computer
-changes, installs numpy and pandas from `requirements-install.lock` with
+The script finds Python 3.10 or later, makes a fresh private environment
+named `.venv` inside the synthtwin folder so nothing else on the computer
+changes (an earlier one there is replaced, so every file in it is
+checked again), installs numpy and pandas from `requirements-install.lock` with
 the hash of every file checked (`--require-hashes`), installs synthtwin
 from the folder, and ends by running `synthtwin doctor` (below). It
 needs the internet once, for those locked files and for the packaging
@@ -782,31 +783,41 @@ tool pip uses to install the folder. It is a `.bat` file on Windows, not
 a PowerShell script, because many managed computers refuse to run
 PowerShell scripts.
 
-Then run synthtwin from the same folder by its path in that environment:
+Each time you open a new terminal window to use synthtwin, switch its
+private environment on first, in the synthtwin folder:
 
 ```
-.venv/bin/synthtwin profile my-table.csv
+source .venv/bin/activate
 ```
 
-On Windows that is `.venv\Scripts\synthtwin profile my-table.csv`. The
-rest of this page writes the command as plain `synthtwin`, which works
-as it is once the environment is switched on in that terminal window
-(`source .venv/bin/activate` on a Mac or Linux, `.venv\Scripts\activate`
-on Windows). `python -m synthtwin` does exactly what `synthtwin` does,
-with the same options and the same exit codes.
+On Windows, in Command Prompt, that is `.venv\Scripts\activate`. Then
+type the commands as this page writes them, starting with
+`synthtwin profile my-table.csv`. The command synthtwin prints at the
+end of a run is written the same way, so it works as printed in that
+window. `python -m synthtwin` does exactly what `synthtwin` does, with
+the same options and the same exit codes.
+
+On Windows, synthtwin writes the commands it prints for PowerShell. In
+Command Prompt, type a path it shows between single quotes between
+double quotes instead: where it printed
+`synthtwin generate 'C:\Users\Ana Maria\clinic-profile.json'`, type
+`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"`.
 
 ### Checking the computer: `synthtwin doctor`
 
 `synthtwin doctor` prints one line per check: that Python is 3.10 or
 later, that numpy and pandas can be loaded, that the output folder takes
-a file, and this computer's total memory (on Windows the standard
-library cannot read it, and the line says so). Named a table, as in
-`synthtwin doctor my-table.csv`, it also weighs the file's size against
-that memory: reading a table takes about ten times its size, and the
-line warns when that is more than half the memory. It **never opens the
-table**; it asks the computer for the file's size and nothing else. It
-exits 0 when every check passed and 1 when any did not, and each line
-marked PROBLEM says what to do next. The output folder is the one
+a file, and this computer's total memory. Named a table, as in
+`synthtwin doctor my-table.csv`, it also weighs the file against that
+memory: a table of plain text takes roughly ten times its size to read,
+a guess from the size alone, and a workbook up to about 632 MB whatever
+its size, since a packed file's size does not say how many cells it
+holds; the line warns when that is more than half the memory. It
+**never opens the table**; it asks the computer for the file's size and
+nothing else. A check it could not make is marked `note` -- on Windows
+the standard library cannot read the memory -- and is no failure. It
+exits 0 when no check failed and 1 when any did, and each line marked
+PROBLEM says what to do next. The output folder is the one
 `--out-dir` names, else the table's folder, else the current folder; the
 check writes a small test file there and removes it at once.
 
@@ -840,7 +851,11 @@ sh scripts/install.sh wheelhouse
 
 On Windows that is `scripts\install.bat wheelhouse`. The script runs
 exactly these two pip commands inside its private environment, which
-you can also type yourself, then `synthtwin doctor`:
+you can also type yourself, then `synthtwin doctor`. It runs them with
+this computer's own pip settings set aside (`--isolated`, and
+`PIP_CONFIG_FILE` naming the null device), so a place to fetch from
+named in a pip configuration file or a `PIP_` variable is not added to
+the folder:
 
 ```
 pip install --no-index --find-links wheelhouse \

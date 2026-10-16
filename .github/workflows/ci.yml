@@ -215,11 +215,14 @@ jobs:
         # and the lock are copied into a folder of their own first, so the
         # private environment is made outside this checkout (the suite
         # below never walks it) and the install is proved to need nothing
-        # of the source tree but those three files.
+        # of the source tree but those three files. That folder's name
+        # holds a space, as a Windows user folder or a OneDrive folder
+        # often does, so every path the scripts build is quoted where it
+        # counts (lane TI's repair).
         if: matrix.shard == 1
         run: |
           WHEELS="$RUNNER_TEMP/install-wheels"
-          FRESH="$RUNNER_TEMP/fresh-install"
+          FRESH="$RUNNER_TEMP/fresh install"
           python -m pip download --require-hashes --only-binary=:all: \
             --dest "$WHEELS" -r requirements-install.lock
           cp dist/*.whl "$WHEELS/"
