@@ -10,39 +10,46 @@ exists).
 
 **Lane E0a of the December plan** (plan P4-D399; the owner, 2026-10-16:
 "we should be able to ingest all ... and reconstruct the twin"). A test
-battery, nothing under `src` changed: `tests/health_zoo.py` builds
-thirty-six kinds of healthcare data at run time from seeds, over
-twenty-three exports -- demographics, encounters with daylight-saving
-offsets, ICD-10-CM, ICD-9, SNOMED CT and procedure codes, labs with
-units, censored values and one mixed result column, medication orders,
-vitals in metric and US units, flowsheet rows, a REDCap export, claims,
-risk and comorbidity codes, notes, surveys with missing codes, a
-wearable's series, genomic fields and identifiers, imaging with DICOM's
-date, time and UID, an operating-room log with times of day, a problem
-list with several codes in a cell, a tumor registry with partial dates,
-a SQL Server export, microbiology, immunizations and providers, an
-empty and a constant column, and the file shapes they arrive in (UTF-8
+battery, nothing under `src` changed: `tests/health_zoo.py` builds forty
+kinds of healthcare data at run time from seeds, over twenty-five
+exports -- demographics, encounters with daylight-saving offsets,
+ICD-10-CM, ICD-9, SNOMED CT and procedure codes, labs with units,
+censored values and one mixed result column, medication orders, vitals
+in metric and US units, flowsheet rows, a REDCap export, claims, risk
+and comorbidity codes, notes, surveys with missing codes, a wearable's
+series, genomic fields and identifiers, imaging with DICOM's date, time
+and UID, an operating-room log with times of day, a problem list with
+several codes in a cell, a tumor registry with partial dates, a SQL
+Server export, microbiology, immunizations and providers, an empty and a
+constant column, a registry extract with day-first dates, two-figure
+years and true/false columns, and the file shapes they arrive in (UTF-8
 accents, Latin-1, a byte-order mark, CRLF, semicolons with decimal
-commas, spreadsheet serial dates, a workbook). Each is profiled, its
-questions answered with general facts about the data, generated,
-validated, and read by an analyst's pandas script on the real table and
-on the twin, every column also checked for missing cells and their
-spellings, text shapes, values, rows and the file's bytes. Measured on
-today's product: every export is described and generated, all 91
-questions asked are about the data, and 17 of the 36 kinds pass end to
-end at 600 rows, 27 at 20,000. Each failure is named with its owner:
-lane DST (offsets not in force on their date), lane LM1 (a joined
-range's spelling), and `needs owner` for levels under the floor written
-as `group-N`, numbers beside a unit read as labels, made-up characters
-and codes, DICOM's time read as a number, several codes in one cell, the
-flowsheet's long form, notes at small sizes and a missing code inside a
-score's range. The workbook is read through the suite's cross-check
-reader, so CI's `minimums` cell skips that part alone. New KPIs:
-`K-HZ-01` (headline; the cap goes from 32 to 33 by the orchestrator's
-recorded call D15, the owner may veto), `K-HZ-02` and `K-HZ-03`, the
-battery taking 36.0 s at 600 rows in the suite and 750.1 s and 471.5 MB
-at 20,000 rows through `tools/measurements/kpi_health_zoo.py`, under
-load.
+commas, spreadsheet serial dates, title lines above the header, a
+workbook). Each is profiled, its questions answered with general facts
+about the data, generated, validated, and read by an analyst's pandas
+script on the real table and on the twin; every column is also checked
+for missing cells and their spellings, stand-ins, codes the real never
+writes, text shapes and per-character forms, values, rows and the file's
+bytes, and unit, decimal-comma and censored columns for their range.
+Measured on today's product: every export is described and generated,
+all 96 questions asked are about the data, and 20 of the 40 kinds pass
+end to end at 600 rows, 29 at 20,000. Each failure is named with its
+owner, the December plan's lanes and its zoo-fix track's: DST (offsets
+not in force on their date), LM1 (a joined range's spelling), UN-1a and
+UN-1b (numbers beside a unit, decimal commas), CODES-1, CODES-2 and
+CODES-3 (codes and rare levels written as `group-N` or made up, a DICOM
+UID), GG (a missing code inside a score's range), TR (DICOM's time,
+partial dates), LISTS (several codes in one cell), UN-2 (feet and
+inches), NOTES (notes without their breaks, tokens and lengths) and KV
+(the flowsheet's long form); one failure at 20,000 rows still needs a
+lane. Measured beside it, not repaired: answering the questions file in
+two rounds loses the first round's answers. The workbook is read through
+the suite's cross-check reader, so CI's `minimums` cell skips that part
+alone. New KPIs: `K-HZ-01` (headline; the cap goes from 32 to 33 by the
+orchestrator's recorded call D15, the owner may veto), `K-HZ-02` and
+`K-HZ-03`, the battery taking 22.4 s at 600 rows in the suite and
+554.4 s and 456.7 MB at 20,000 rows through
+`tools/measurements/kpi_health_zoo.py`, under load.
 
 ### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
 
