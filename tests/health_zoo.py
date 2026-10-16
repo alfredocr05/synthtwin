@@ -103,6 +103,10 @@ KINDS = (
     "immunizations_providers",
     "risk_and_comorbidity_codes",
     "empty_and_constant_columns",
+    "title_rows_above_header",
+    "day_first_dates",
+    "two_digit_years",
+    "true_false_columns",
 )
 FILE_KINDS = (
     "utf8_accents",
@@ -112,6 +116,7 @@ FILE_KINDS = (
     "latin1",
     "excel_workbook",
     "excel_serial_dates",
+    "title_rows_above_header",
 )
 
 # The answers a questions file may offer that are about WHAT THE DATA
@@ -1020,6 +1025,58 @@ def edge_columns(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     return header, rows
 
 
+TITLE_LINES = "Ward Activity Report\nExported 16/10/2026 by the information office\n"
+WARDS = (("Ward 1", 30.0), ("Ward 2", 25.0), ("ICU", 15.0), ("HDU", 10.0), ("Maternity", 20.0))
+
+
+def titled_report(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A report saved as CSV with two title lines above the column names, every column text.
+
+    No column holds bare numbers, so nothing in the values tells the
+    names' row from a record: the product asks which row the names are
+    in, and the person says.
+    """
+    draw = random.Random(seed)
+    header = ["report_ref", "ward", "admitted", "discharged"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        admitted = _day(draw, datetime.date(2024, 1, 1), datetime.date(2024, 12, 31))
+        rows += [[
+            f"RPT{300000 + index}",
+            _pick(draw, WARDS),
+            admitted.isoformat(),
+            (admitted + datetime.timedelta(days=draw.choice((0, 1, 1, 2, 2, 3, 4, 5, 7, 9, 12)))).isoformat(),
+        ]]
+    return header, rows
+
+
+def registry_extract(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A registry's extract as a European office writes it.
+
+    Dates day first ('29/06/2022', '03.08.2022'), years in two figures
+    ('06-NOV-22', and birth dates '02/03/62' whose century the person
+    knows), and true/false columns in either case.
+    """
+    draw = random.Random(seed)
+    header = ["case_ref", "referral_date", "seen_date", "op_date", "dob_short", "on_waiting_list", "consented"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        referred = datetime.date(2019, 1, 1) + datetime.timedelta(days=draw.randint(0, 2000))
+        seen = referred + datetime.timedelta(days=draw.randint(3, 90))
+        operated = seen + datetime.timedelta(days=draw.randint(1, 120))
+        born = datetime.date(1930, 1, 1) + datetime.timedelta(days=draw.randint(0, 25000))
+        rows += [[
+            f"CR-{100000 + index:06d}",
+            referred.strftime("%d/%m/%Y"),
+            seen.strftime("%d.%m.%Y"),
+            f"{operated.day:02d}-{MONTHS[operated.month - 1].upper()}-{operated.year % 100:02d}",
+            f"{born.day:02d}/{born.month:02d}/{born.year % 100:02d}",
+            draw.choice(("TRUE", "FALSE", "FALSE")),
+            draw.choice(("true", "true", "false")),
+        ]]
+    return header, rows
+
+
 # -- the analyst scripts ---------------------------------------------------
 #
 # Each table's script is what an analyst writes against the column
@@ -1029,21 +1086,50 @@ def edge_columns(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
 # CELLS ("bad": where the real table has none, the twin may have none),
 # a value both files must share ("same"), or whether a shape is there at
 # all ("present": where the real table has it, the twin must), or a
-# SHARE of the rows ("share": the twin's within SHARE_TOLERANCE of the
-# real's).
+# SHARE of the rows, or several ("share": each of the twin's within
+# SHARE_TOLERANCE of the real's), the least, middle and greatest number
+# a column holds past its unit or mark ("range": the twin's middle
+# within RANGE_TOLERANCE of the real's, its ends inside the real's
+# range widened by RANGE_TOLERANCE of its width), or percentiles of a
+# length ("ratios": each of the twin's within LENGTH_TOLERANCE of the
+# real's, as a ratio). Every "present" check has a "share" sibling, so a
+# shape kept on a handful of cells is not the shape kept.
 #
 # Beside the table's own checks, `analyse` runs the same GENERIC checks
 # on every column and every file (`generic_mode`): the dtype pandas
 # infers; the missing cells ("bad"); the spellings of missing a cell
-# wears ("subset": none the real table never wrote); the shapes of its
-# text, digits read as 9 and letters as a ("shapes": none the real
-# table never wrote, and every shape 11 or more real cells hold); for a
-# column of few values, the values themselves ("levels": every value 11
-# or more real cells hold); the rows read; and, for a delimited file,
-# its byte-order mark, its line endings and whether it decodes as UTF-8
+# wears, counted ("spellings": none the real table never wrote, every
+# one 11 or more real cells write, each at its share); the cells written
+# as the product's stand-in 'group-N' ("bad"); for a column answered
+# `code`, the cells holding a value the real never writes ("codes"); the
+# shapes of its text, digits read as 9 and letters as a ("shapes": none
+# the real table never wrote, and every shape 11 or more real cells
+# hold); the forms of its text character by character, each figure a 9,
+# each capital an A and each small letter an a ("forms": none the real
+# never wrote on 11 or more twin cells, and every form 11 or more real
+# cells hold), which sees a date or a clock written unpadded or in
+# another case; for a column of few values, read as text whatever dtype
+# pandas infers, the values themselves ("levels": every value 11 or more
+# real cells hold); the rows read; and, for a delimited file, its
+# byte-order mark, its line endings and whether it decodes as UTF-8
 # ("same").
 
 SHARE_TOLERANCE = 0.1
+# The range check's slack: the middle within 10 % of the real's (1 % of
+# the real's width where its middle is nought), the ends within 10 % of
+# the real's width beyond its own.
+RANGE_TOLERANCE = 0.1
+# A length percentile of the twin within 25 % of the real's.
+LENGTH_TOLERANCE = 0.25
+# The stand-in the product writes for a level too few rows hold.
+STAND_IN = r"group-\d+"
+# Columns answered `code` whose values the twin must NOT copy where few
+# rows hold them: a ZIP code past its first three figures is one of
+# HIPAA's Safe Harbor identifiers (the owner's principle of 2026-10-01:
+# HIPAA exposure is the threat), so a ZIP+4 the real never writes is the
+# rule there, not a gap. The `codes` check leaves them out; their levels,
+# shapes and forms are checked like any column's.
+NOT_A_VOCABULARY = frozenset({"zip5", "zip4"})
 # A text column is read for its shapes when the real table writes it in
 # at most this many shapes; free text, whose sentences recombine, is not.
 SHAPED_AT_MOST = 30
@@ -1110,6 +1196,12 @@ def spoil_of(check: Check) -> "Callable[[list[str], list[list[str]]], None]":
 def signature(text: str) -> str:
     """A cell's shape: every run of digits read as 9, every run of letters as a."""
     return re.sub(r"\d+", "9", re.sub(r"[^\W\d_]+", "a", text))
+
+
+def form(text: str) -> str:
+    """A cell's form, character by character: each figure a 9, each capital an A, each other letter an a."""
+    lettered = re.sub(r"[^\W\d_]", lambda letter: "A" if letter.group().isupper() else "a", text)
+    return re.sub(r"\d", "9", lettered)
 
 
 def _bad_pattern(series: object, pattern: str) -> int:
@@ -1188,6 +1280,75 @@ def _repeat_patients_missing(series: object) -> int:
     return 0 if int((counts > 1).sum()) else 1
 
 
+def _repeat_shares(series: object) -> "tuple[float, float]":
+    """The share of patients holding two rows or more, and three or more."""
+    counts = series.dropna().value_counts()  # type: ignore[attr-defined]
+    if not len(counts):
+        return (0.0, 0.0)
+    return (round(float((counts >= 2).mean()), 3), round(float((counts >= 3).mean()), 3))
+
+
+def _share_has(series: object, pattern: str) -> float:
+    """The share of the column's rows whose cell carries the pattern (a missing cell does not)."""
+    cells = series.fillna("").astype(str)  # type: ignore[attr-defined]
+    return round(float(cells.str.contains(pattern, regex=True).mean()), 3) if len(cells) else 0.0
+
+
+def _spread(numbers: "list[float]") -> "tuple[float, float, float] | None":
+    """The least, the middle and the greatest of the numbers read; None where none read."""
+    if not numbers:
+        return None
+    ordered = sorted(numbers)
+    middle = len(ordered) // 2
+    median = ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
+    return (round(ordered[0], 6), round(median, 6), round(ordered[-1], 6))
+
+
+def _range_of(series: object, pattern: str) -> "tuple[float, float, float] | None":
+    """The spread of the number group `n` holds in the cells the pattern reads whole, a comma read as the point."""
+    numbers: "list[float]" = []
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        match = re.fullmatch(pattern, text)
+        if match:
+            numbers += [float(match.group("n").replace(",", "."))]
+    return _spread(numbers)
+
+
+def _money_range(series: object) -> "tuple[float, float, float] | None":
+    return _spread([float(value) for value in _money(series).dropna()])  # type: ignore[attr-defined]
+
+
+STATURE_FEET = r"(?P<f>\d)'(?P<i>\d{1,2})\""
+
+
+def _inches(text: str) -> int:
+    match = re.fullmatch(STATURE_FEET, text)
+    assert match, text
+    return 12 * int(match.group("f")) + int(match.group("i"))
+
+
+def _feet(inches: int) -> str:
+    return f"{inches // 12}'{inches % 12}\""
+
+
+def _feet_range(series: object) -> "tuple[float, float, float] | None":
+    """A stature written in feet and inches, read as inches."""
+    inches: "list[float]" = []
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        match = re.fullmatch(STATURE_FEET, text)
+        if match:
+            inches += [float(12 * int(match.group("f")) + int(match.group("i")))]
+    return _spread(inches)
+
+
+def _length_percentiles(series: object) -> "tuple[float, float, float] | None":
+    """The 10th, 50th and 90th percentiles of the cells' lengths, in characters."""
+    lengths = sorted(len(text) for text in series.dropna().astype(str))  # type: ignore[attr-defined]
+    if not lengths:
+        return None
+    return tuple(float(lengths[min(len(lengths) - 1, int(share * len(lengths)))]) for share in (0.1, 0.5, 0.9))  # type: ignore[return-value]
+
+
 def _serial_dates_bad(series: object) -> int:
     import pandas
 
@@ -1234,6 +1395,15 @@ def _npi_bad(series: object) -> int:
     return bad
 
 
+def _births_outside(series: object) -> int:
+    """Two-figure birth years read in the 1900s, as the person said they lie: outside 1930 to 1999 is bad."""
+    import pandas
+
+    days = pandas.to_datetime(series.dropna().astype(str), format="%d/%m/%y", errors="coerce")  # type: ignore[attr-defined]
+    years = days.dt.year.where(days.dt.year < 2000, days.dt.year - 100)
+    return int(((years < 1930) | (years > 1999)).sum())
+
+
 def _list_items(series: object, mark: str) -> object:
     return series.dropna().astype(str).str.split(mark, regex=False).explode()  # type: ignore[attr-defined]
 
@@ -1247,6 +1417,33 @@ def _share_on_the_minute(series: object) -> float:
 
     stamps = pandas.to_datetime(series.dropna(), format="%Y-%m-%dT%H:%M:%S", errors="coerce")  # type: ignore[attr-defined]
     return round(float((stamps.dt.second == 0).mean()), 3) if len(stamps) else 0.0
+
+
+def spoil_scaled(column: str, pattern: str, factor: float) -> "Callable[[list[str], list[list[str]]], None]":
+    """A spoil: every number the pattern's group `n` reads multiplied, written in its own places and point."""
+
+    def how(value: str) -> str:
+        match = re.fullmatch(pattern, value)
+        if not match:
+            return value
+        number = match.group("n")
+        comma = "," in number
+        places = len(number.replace(",", ".").split(".")[1]) if "." in number.replace(",", ".") else 0
+        scaled = f"{float(number.replace(',', '.')) * factor:.{places}f}"
+        return value[: match.start("n")] + (scaled.replace(".", ",") if comma else scaled) + value[match.end("n"):]
+
+    return spoil_every(column, how)
+
+
+def spoil_money(column: str, factor: float) -> "Callable[[list[str], list[list[str]]], None]":
+    """A spoil: every dollar amount multiplied, written as the source writes it."""
+
+    def how(value: str) -> str:
+        negative = value.startswith("(")
+        figures = float(value.strip("()").lstrip("$").replace(",", "")) * factor
+        return f"({_dollars(figures)})" if negative else _dollars(figures)
+
+    return spoil_every(column, how)
 
 
 def spoil_unique(column: str) -> "Callable[[list[str], list[list[str]]], None]":
@@ -1310,6 +1507,9 @@ class Table:
     knows: "dict[str, str]"
     read: "Callable[[pathlib.Path], dict[str, object]]"
     checks: "tuple[Check, ...]"
+    # What the person knows about the whole file, for the questions about
+    # it: where the column names are and how the dates order day and month.
+    facts: "tuple[str, ...]" = ("names", "month-first")
 
 
 def _csv_reader(**options: object) -> "Callable[[pathlib.Path], dict[str, object]]":
@@ -1378,15 +1578,53 @@ def _dated(kind: str, name: str, column: str, form: str, **options: object) -> C
 def _present(
     kind: str, name: str, column: str, pattern: str,
     spoil: "Callable[[list[str], list[list[str]]], None]",
-) -> Check:
-    return Check(kind, name, "present", lambda f: _has(_t(column)(f), pattern), column, spoil)
-
-
-def _repeats(kind: str, column: str = "patient_id") -> Check:
-    return _bad(
-        kind, "some patient has several rows", column,
-        lambda f: _repeat_patients_missing(_t(column)(f)), spoil_unique(column),
+) -> "tuple[Check, Check]":
+    """A shape the real holds, as two checks: present at all, and on its share of the rows."""
+    return (
+        Check(kind, name, "present", lambda f: _has(_t(column)(f), pattern), column, spoil),
+        Check(kind, f"{name}, as a share", "share", lambda f: _share_has(_t(column)(f), pattern), column, spoil),
     )
+
+
+def _repeats(kind: str, column: str = "patient_id") -> "tuple[Check, Check]":
+    """Several rows a patient, as two checks: some patient repeats, and the shares that hold two and three rows."""
+    return (
+        _bad(
+            kind, "some patient has several rows", column,
+            lambda f: _repeat_patients_missing(_t(column)(f)), spoil_unique(column),
+        ),
+        Check(
+            kind, "patients with two rows or more, and three or more, as shares", "share",
+            lambda f: _repeat_shares(_t(column)(f)), column, spoil_at_most_two(column),
+        ),
+    )
+
+
+def _ranged(
+    kind: str, column: str, pattern: str, factor: float = 10.0, reader: "Callable[[object], object] | None" = None,
+) -> Check:
+    """The numbers a column holds past its unit or mark: the least, the middle and the greatest."""
+    if reader is None:
+        return Check(
+            kind, f"the numbers of {column} keep their range", "range",
+            lambda f: _range_of(_t(column)(f), pattern), column, spoil_scaled(column, pattern, factor),
+        )
+    read = reader
+    return Check(
+        kind, f"the numbers of {column} keep their range", "range",
+        lambda f: read(_t(column)(f)), column, spoil_money(column, factor),
+    )
+
+
+def spoil_at_most_two(column: str) -> "Callable[[list[str], list[list[str]]], None]":
+    """A spoil: every patient holds two rows at most."""
+
+    def change(header: "list[str]", rows: "list[list[str]]") -> None:
+        place = header.index(column)
+        for index in range(len(rows)):
+            rows[index][place] = f"PT{2000000 + index // 2:07d}"
+
+    return change
 
 
 def _levels(pool: "tuple[tuple[str, float], ...]") -> "set[str]":
@@ -1451,7 +1689,7 @@ TABLES: "tuple[Table, ...]" = (
                  lambda f: _stray_returns(f["text"]), spoil_cell("department", "Card\riology")),
             _pattern("encounters", "encounter ids match E#########", "enc_id", r"E\d{9}"),
             _pattern("encounters", "patients match PT#######", "patient_id", r"PT\d{7}"),
-            _repeats("encounters"),
+            *_repeats("encounters"),
             _dated("encounters", "admit_ts parses with its offset", "admit_ts", "%Y-%m-%d %H:%M:%S%z", utc=True),
             _dated("encounters", "discharge_ts parses with its offset", "discharge_ts", "%Y-%m-%d %H:%M:%S%z", utc=True),
             _bad("encounters", "admit_ts wears an offset in force on its date", "admit_ts",
@@ -1503,7 +1741,7 @@ TABLES: "tuple[Table, ...]" = (
         },
         _csv_reader(),
         (
-            _repeats("labs"),
+            *_repeats("labs"),
             _dated("labs", "collected_at parses as %Y-%m-%d %H:%M", "collected_at", "%Y-%m-%d %H:%M"),
             _pattern("labs", "LOINC codes", "loinc", r"\d{1,7}-\d"),
             _pattern("labs", "a value and its unit", "result", r"-?\d+(\.\d+)? (mmol/L|mg/dL|g/dL|%|10\*3/uL)"),
@@ -1515,13 +1753,16 @@ TABLES: "tuple[Table, ...]" = (
             _bad("labs", "reference ranges split into exactly two numbers", "ref_range",
                  lambda f: _range_bounds_bad(_t("ref_range")(f))),
             _listed("labs", "abnormal flags", "abnormal_flag", {"N", "H", "L", "HH", "LL"}),
+            _ranged("labs", "result", r"(?P<n>-?\d+(\.\d+)?) \S+"),
+            _ranged("labs", "viral_load", r"[<>]?(?P<n>\d+)", 1000.0),
+            _ranged("mixed_results", "result_value", r"[<>]?(?P<n>\d+(\.\d+)?)"),
             _pattern("mixed_results", "a result is a number, a censored number or a word", "result_value",
                      r"[<>]?\d+(\.\d+)?|NEGATIVE|POSITIVE|SEE NOTE"),
             _bad("mixed_results", "the numbers read past < and >", "result_value",
                  lambda f: _bad_numbers(_strip(_t("result_value")(f)[~_t("result_value")(f).str.fullmatch(r"[A-Z ]+")], r"^[<>]"))),  # type: ignore[attr-defined]
-            _present("mixed_results", "some result is censored", "result_value", r"^[<>]",
+            *_present("mixed_results", "some result is censored", "result_value", r"^[<>]",
                      spoil_every("result_value", lambda v: v.lstrip("<>"))),
-            _present("mixed_results", "some result is a word", "result_value", r"^[A-Z ]+$",
+            *_present("mixed_results", "some result is a word", "result_value", r"^[A-Z ]+$",
                      spoil_every("result_value", lambda v: "1.0" if v.replace(" ", "").isalpha() else v)),
         ),
     ),
@@ -1554,7 +1795,7 @@ TABLES: "tuple[Table, ...]" = (
                   lambda f: int(f["inferred"].shape[1]), "", spoil_extra_column),  # type: ignore[attr-defined]
             _bad("semicolon_decimal_comma", "the mass index reads as a number", "mass_index",
                  lambda f: _bad_numbers(_i("mass_index")(f))),
-            _repeats("vitals"),
+            *_repeats("vitals"),
             _dated("vitals", "taken_at parses", "taken_at", "%Y-%m-%d %H:%M"),
             _bad("vitals", "'120/80' splits into two numbers", "bp", lambda f: _pressure_parts_bad(_t("bp")(f))),
             _bad("vitals", "temperature with its unit", "temp",
@@ -1562,6 +1803,11 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("vitals", "oxygen saturation with %", "spo2", r"\d{2,3}%"),
             _pattern("vitals", "stature in cm", "stature", r"\d{2,3} cm"),
             _pattern("vitals", "weight in kg with a decimal comma", "weight", r"\d{2,3},\d kg"),
+            _ranged("vitals", "stature", r"(?P<n>\d+) cm", 0.5),
+            _ranged("vitals", "weight", r"(?P<n>\d+,\d) kg"),
+            _ranged("vitals", "temp", r"(?P<n>\d+,\d) °C"),
+            _ranged("vitals", "spo2", r"(?P<n>\d+)%", 0.5),
+            _ranged("semicolon_decimal_comma", "mass_index", r"(?P<n>-?\d+(,\d+)?)"),
         ),
     ),
     Table(
@@ -1571,7 +1817,7 @@ TABLES: "tuple[Table, ...]" = (
         {"patient_id": "identifier"},
         _csv_reader(),
         (
-            _repeats("flowsheet_long"),
+            *_repeats("flowsheet_long"),
             _dated("flowsheet_long", "recorded_at parses", "recorded_at", "%Y-%m-%dT%H:%M:%S"),
             _listed("flowsheet_long", "row names are listed ones", "flo_row", {"Pulse", "Resp", "SpO2", "Temp", "BP", "Pain Score"}),
             _bad("flowsheet_long", "BP rows hold '120/80' (read by row name)", "flo_value",
@@ -1623,13 +1869,15 @@ TABLES: "tuple[Table, ...]" = (
             _bad("latin1", "no cell reads as mojibake", "facility", lambda f: _mojibake(f["text"]),
                  spoil_cell("facility", "ClÃnica Santa MarÃa")),
             _pattern("claims", "claim ids", "claim_id", r"CLM\d{9}"),
-            _repeats("claims"),
+            *_repeats("claims"),
             _dated("claims", "service_date parses as %m/%d/%Y", "service_date", "%m/%d/%Y"),
             _bad("claims", "billed reads past $ and commas", "billed",
                  lambda f: int(_money(_t("billed")(f)).isna().sum())),  # type: ignore[attr-defined]
             _bad("claims", "adjustments read, parentheses negative", "adjustment",
                  lambda f: int(_money(_t("adjustment")(f)).isna().sum())),  # type: ignore[attr-defined]
             _listed("claims", "payer codes", "payer_code", _levels(PAYERS)),
+            _ranged("claims", "billed", "", 10.0, _money_range),
+            _ranged("claims", "adjustment", "", 10.0, _money_range),
             _pattern("claims", "DRG three figures", "drg", r"\d{3}"),
             _pattern("claims", "revenue codes keep the leading zero", "revenue_code", r"0\d{3}"),
         ),
@@ -1644,12 +1892,17 @@ TABLES: "tuple[Table, ...]" = (
             _listed("clinical_notes", "note types", "note_type", _levels(NOTE_TYPES)),
             _bad("clinical_notes", "no empty note", "note_text",
                  lambda f: int(_t("note_text")(f).isna().sum()), spoil_cell("note_text", "")),  # type: ignore[attr-defined]
-            _present("clinical_notes", "some note runs over several lines", "note_text", "\n",
+            *_present("clinical_notes", "some note runs over several lines", "note_text", "\n",
                      spoil_every("note_text", lambda v: v.replace("\n", " "))),
-            _present("clinical_notes", "some note keeps a de-identification token", "note_text", r"\[NAME\]|\[DATE\]|\*\*\*",
+            *_present("clinical_notes", "some note keeps a de-identification token", "note_text", r"\[NAME\]|\[DATE\]|\*\*\*",
                      spoil_every("note_text", lambda v: re.sub(r"\[NAME\]|\[DATE\]|\[ID\]|\*\*\*", "x", v))),
-            _present("clinical_notes", "some complaint lists several, by commas", "chief_complaint", ",",
+            *_present("clinical_notes", "some complaint lists several, by commas", "chief_complaint", ",",
                      spoil_every("chief_complaint", lambda v: v.replace(",", ""))),
+            *_present("clinical_notes", "some note quotes a phrase", "note_text", '"',
+                      spoil_every("note_text", lambda v: v.replace('"', ""))),
+            Check("clinical_notes", "note lengths at the 10th, 50th and 90th percentiles", "ratios",
+                  lambda f: _length_percentiles(_t("note_text")(f)), "note_text",
+                  spoil_every("note_text", lambda v: v.split("\n")[0][:20])),
         ),
     ),
     Table(
@@ -1766,11 +2019,11 @@ TABLES: "tuple[Table, ...]" = (
         (
             _bad("multi_value_cells", "every listed code is ICD-10-CM", "dx_list",
                  lambda f: _bad_pattern(_list_items(_t("dx_list")(f), ";"), ICD10_PATTERN)),
-            _present("multi_value_cells", "some cell lists several codes", "dx_list", ";",
+            *_present("multi_value_cells", "some cell lists several codes", "dx_list", ";",
                      spoil_every("dx_list", lambda v: v.split(";")[0])),
             _bad("multi_value_cells", "allergies are listed words", "allergies",
                  lambda f: _bad_set(_list_items(_t("allergies")(f), "|"), set(ALLERGENS) | {"NKDA"})),
-            _present("multi_value_cells", "some cell lists several allergies", "allergies", r"\|",
+            *_present("multi_value_cells", "some cell lists several allergies", "allergies", r"\|",
                      spoil_every("allergies", lambda v: v.split("|")[0])),
         ),
     ),
@@ -1785,9 +2038,9 @@ TABLES: "tuple[Table, ...]" = (
         _csv_reader(),
         (
             _pattern("partial_dates", "dates to the year, the month or the day", "dx_date", r"\d{4}|\d\d/\d{4}|\d{4}-\d\d-\d\d"),
-            _present("partial_dates", "some date is known to the year only", "dx_date", r"^\d{4}$",
+            *_present("partial_dates", "some date is known to the year only", "dx_date", r"^\d{4}$",
                      spoil_every("dx_date", lambda v: f"{v}-07-01" if len(v) == 4 else v)),
-            _present("partial_dates", "some date is known to the month only", "dx_date", r"^\d\d/\d{4}$",
+            *_present("partial_dates", "some date is known to the month only", "dx_date", r"^\d\d/\d{4}$",
                      spoil_every("dx_date", lambda v: f"{v[3:]}-{v[:2]}-15" if "/" in v else v)),
             _dated("partial_dates", "first_treatment_month parses as %Y-%m", "first_treatment_month", "%Y-%m"),
             _pattern("tumor_registry", "ICD-O-3 morphology", "morphology", r"\d{4}/[0-9]"),
@@ -1803,10 +2056,15 @@ TABLES: "tuple[Table, ...]" = (
         {"patient_id": "identifier", "weight": "measurement", "temp_f": "measurement"},
         _csv_reader(),
         (
-            _repeats("us_unit_vitals"),
+            *_repeats("us_unit_vitals"),
             _pattern("us_unit_vitals", "stature in feet and inches", "stature", r"\d'\d{1,2}\""),
             _pattern("us_unit_vitals", "weight in lb", "weight", r"\d{2,3} lb"),
             _pattern("us_unit_vitals", "temperature in F", "temp_f", r"\d{2,3}\.\d F"),
+            Check("us_unit_vitals", "the numbers of stature keep their range", "range",
+                  lambda f: _feet_range(_t("stature")(f)), "stature",
+                  spoil_every("stature", lambda v: _feet(_inches(v) // 2))),
+            _ranged("us_unit_vitals", "weight", r"(?P<n>\d+) lb", 0.1),
+            _ranged("us_unit_vitals", "temp_f", r"(?P<n>\d+\.\d) F", 2.0),
         ),
     ),
     Table(
@@ -1835,6 +2093,7 @@ TABLES: "tuple[Table, ...]" = (
             _bad("microbiology", "MIC read past <= and >=", "mic", lambda f: _bad_numbers(_strip(_t("mic")(f), r"^(<=|>=)"))),
             _pattern("microbiology", "MIC comparators", "mic", r"(<=|>=)?\d+(\.\d+)?"),
             _listed("microbiology", "S/I/R", "interp", {"S", "I", "R"}),
+            _ranged("microbiology", "mic", r"(<=|>=)?(?P<n>\d+(\.\d+)?)"),
             _listed("microbiology", "organisms", "organism", _levels(ORGANISMS)),
             _listed("microbiology", "antibiotics", "antibiotic", _levels(ANTIBIOTICS)),
         ),
@@ -1847,7 +2106,7 @@ TABLES: "tuple[Table, ...]" = (
         _csv_reader(),
         (
             _pattern("immunizations_providers", "CVX two or three figures", "cvx", r"\d{2,3}"),
-            _present("immunizations_providers", "some CVX keeps its leading zero", "cvx", r"^0",
+            *_present("immunizations_providers", "some CVX keeps its leading zero", "cvx", r"^0",
                      spoil_every("cvx", lambda v: v.lstrip("0") or "0")),
             _pattern("immunizations_providers", "MVX three letters", "mvx", r"[A-Z]{3}"),
             _bad("immunizations_providers", "NPIs pass their Luhn check", "npi", lambda f: _npi_bad(_t("npi")(f)),
@@ -1886,6 +2145,44 @@ TABLES: "tuple[Table, ...]" = (
             Check("empty_and_constant_columns", "facility never changes", "same",
                   lambda f: sorted(set(_t("facility")(f).dropna())), "facility"),  # type: ignore[attr-defined]
         ),
+    ),
+    Table(
+        "titled_report", ".csv", titled_report,
+        lambda header, rows: TITLE_LINES.encode("utf-8") + csv_bytes(header, rows),
+        {"title_rows_above_header": ("report_ref", "ward", "admitted", "discharged")},
+        {"report_ref": "identifier"},
+        _csv_reader(skiprows=2),
+        (
+            Check("title_rows_above_header", "under its two title lines the header names report_ref first", "same",
+                  lambda f: list(f["inferred"].columns)[0], "", spoil_first_name),  # type: ignore[attr-defined]
+            _pattern("title_rows_above_header", "report references", "report_ref", r"RPT\d{6}"),
+            _listed("title_rows_above_header", "wards", "ward", _levels(WARDS)),
+            _dated("title_rows_above_header", "admitted parses as %Y-%m-%d", "admitted", "%Y-%m-%d"),
+            _dated("title_rows_above_header", "discharged parses as %Y-%m-%d", "discharged", "%Y-%m-%d"),
+        ),
+    ),
+    Table(
+        "registry_extract", ".csv", registry_extract,
+        lambda header, rows: csv_bytes(header, rows),
+        {
+            "day_first_dates": ("case_ref", "referral_date", "seen_date"),
+            "two_digit_years": ("op_date", "dob_short"),
+            "true_false_columns": ("on_waiting_list", "consented"),
+        },
+        {"case_ref": "identifier", "op_date": "1969-2068", "dob_short": "1900-1999"},
+        _csv_reader(),
+        (
+            _pattern("day_first_dates", "case references", "case_ref", r"CR-\d{6}"),
+            _dated("day_first_dates", "referral_date parses as %d/%m/%Y", "referral_date", "%d/%m/%Y"),
+            _dated("day_first_dates", "seen_date parses as %d.%m.%Y", "seen_date", "%d.%m.%Y"),
+            _dated("two_digit_years", "op_date parses as %d-%b-%y", "op_date", "%d-%b-%y"),
+            _dated("two_digit_years", "dob_short parses as %d/%m/%y", "dob_short", "%d/%m/%y"),
+            Check("two_digit_years", "birth years read into the 1900s fall from 1930 to 1999", "bad",
+                  lambda f: _births_outside(_t("dob_short")(f)), "dob_short", spoil_cell("dob_short", "01/01/05")),
+            _listed("true_false_columns", "on_waiting_list TRUE or FALSE", "on_waiting_list", {"TRUE", "FALSE"}),
+            _listed("true_false_columns", "consented true or false", "consented", {"true", "false"}),
+        ),
+        facts=("names", "day-first"),
     ),
 )
 
@@ -1929,8 +2226,8 @@ def _file_kind(table: Table, *preferred: str) -> str:
 def generic_mode(table: Table, name: str) -> "tuple[str, str] | None":
     """(kind, mode) of a generic check's name, or None for a table's own check."""
     columns = (
-        ("dtype ", "same"), ("missing spellings ", "subset"), ("missing ", "bad"), ("shapes ", "shapes"),
-        ("levels ", "levels"),
+        ("dtype ", "same"), ("missing spellings ", "spellings"), ("missing ", "bad"), ("shapes ", "shapes"),
+        ("forms ", "forms"), ("levels ", "levels"), ("stand-ins ", "bad"), ("codes ", "codes"),
     )
     for prefix, mode in columns:
         if name.startswith(prefix):
@@ -1973,6 +2270,17 @@ def _shapes(series: object) -> "dict[str, int] | None":
     return counts
 
 
+def _forms(series: object) -> "dict[str, int] | None":
+    """Each form the column's text takes character by character, with its count; None past SHAPED_AT_MOST."""
+    counts: "dict[str, int]" = {}
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        shape = form(text)
+        counts[shape] = counts.get(shape, 0) + 1
+        if len(counts) > SHAPED_AT_MOST:
+            return None
+    return counts
+
+
 def _levels_of(series: object) -> "dict[str, int] | None":
     """Each value a column of few values writes, with its count; None for a column of many."""
     counts: "dict[str, int]" = {}
@@ -1983,8 +2291,16 @@ def _levels_of(series: object) -> "dict[str, int] | None":
     return counts
 
 
-def _generic(frames: "dict[str, object]") -> "dict[str, object]":
-    """The checks every column and every file takes, by name."""
+def _census(cells: "object") -> "dict[str, int]":
+    """Each value, with the number of cells that hold it."""
+    counts: "dict[str, int]" = {}
+    for text in cells:  # type: ignore[attr-defined]
+        counts[text] = counts.get(text, 0) + 1
+    return counts
+
+
+def _generic(frames: "dict[str, object]", codes: "tuple[str, ...]" = ()) -> "dict[str, object]":
+    """The checks every column and every file takes, by name; `codes` names the columns answered `code`."""
     inferred = frames["inferred"]
     text = frames["text"]
     raw = frames["raw"]
@@ -1993,10 +2309,15 @@ def _generic(frames: "dict[str, object]") -> "dict[str, object]":
         found[f"dtype {column}"] = str(inferred[column].dtype)  # type: ignore[index]
         found[f"missing {column}"] = int(text[column].isna().sum())  # type: ignore[index]
         cells = raw[column].astype(str)  # type: ignore[index]
-        found[f"missing spellings {column}"] = sorted(set(cells[cells.isin(sorted(MISSING_SPELLINGS))]))
+        found[f"missing spellings {column}"] = _census(cells[cells.isin(sorted(MISSING_SPELLINGS))])
+        present = text[column].dropna().astype(str)  # type: ignore[index]
+        found[f"levels {column}"] = _levels_of(present)
+        found[f"stand-ins {column}"] = int(present.str.fullmatch(STAND_IN).sum())
+        if column in codes:
+            found[f"codes {column}"] = _census(present)
         if str(inferred[column].dtype) in TEXT_DTYPES:  # type: ignore[index]
             found[f"shapes {column}"] = _shapes(text[column])  # type: ignore[index]
-            found[f"levels {column}"] = _levels_of(text[column])  # type: ignore[index]
+            found[f"forms {column}"] = _forms(text[column])  # type: ignore[index]
     data = frames.get("bytes")
     if isinstance(data, bytes):
         found["file: byte-order mark"] = data.startswith(BYTE_ORDER_MARK)
@@ -2019,7 +2340,10 @@ def analyse(table: Table, path: pathlib.Path) -> "dict[str, tuple[str, object]]"
         out["read"] = ("error", f"{type(failure).__name__}: {failure}"[:200])
         return out
     out["read"] = ("ok", True)
-    for name, value in _generic(frames).items():
+    codes = tuple(
+        column for column, answer in table.knows.items() if answer == "code" and column not in NOT_A_VOCABULARY
+    )
+    for name, value in _generic(frames, codes).items():
         out[name] = ("ok", value)
     for check in table.checks:
         try:
@@ -2059,6 +2383,8 @@ def real_faults(table: Table, real: "dict[str, tuple[str, object]]") -> "list[st
             faults += [name]
         elif mode == "present" and not value:
             faults += [name]
+        elif mode in ("range", "ratios") and value is None:
+            faults += [name]
     return faults
 
 
@@ -2077,6 +2403,95 @@ def _shape_failure(wanted: object, value: object) -> str:
     if lost:
         said += [f"shapes {FLOOR}+ real cells hold, absent {lost[:4]}"]
     return "; ".join(said)
+
+
+def _form_failure(wanted: object, value: object) -> str:
+    """Forms the real never wrote on FLOOR or more twin cells in all, and forms FLOOR or more real cells hold, lost.
+
+    A lone value past the real's widest -- '$9.99' below the real's least
+    amount -- is a new form on a cell or two; a spelling the twin chose
+    (a date unpadded, a month in capitals) is a new form on many.
+    """
+    if wanted is None:
+        return ""
+    if value is None:
+        return f"the twin writes more than {SHAPED_AT_MOST} forms"
+    real_forms = dict(wanted)  # type: ignore[call-overload]
+    twin_forms = dict(value)  # type: ignore[call-overload]
+    invented = sorted(set(twin_forms) - set(real_forms))
+    lost = sorted(shape for shape, count in real_forms.items() if count >= FLOOR and shape not in twin_forms)
+    said = []
+    if sum(twin_forms[shape] for shape in invented) >= FLOOR:
+        said += [f"forms the real never wrote {invented[:4]}"]
+    if lost:
+        said += [f"forms {FLOOR}+ real cells hold, absent {lost[:4]}"]
+    return "; ".join(said)
+
+
+def _spelling_failure(wanted: object, value: object, real_rows: int, twin_rows: int) -> str:
+    """Spellings of missing the real never writes, ones FLOOR or more real cells write lost, or shares moved."""
+    real = dict(wanted)  # type: ignore[call-overload]
+    twin = dict(value)  # type: ignore[call-overload]
+    said = []
+    invented = sorted(set(twin) - set(real))
+    if invented:
+        said += [f"the twin writes missing as {invented}, the real never does"]
+    lost = sorted(spelling for spelling, count in real.items() if count >= FLOOR and spelling not in twin)
+    if lost:
+        said += [f"spellings {FLOOR}+ real cells write, absent {lost}"]
+    moved = sorted(
+        spelling for spelling in set(real) & set(twin)
+        if abs(twin[spelling] / max(twin_rows, 1) - real[spelling] / max(real_rows, 1)) > SHARE_TOLERANCE
+    )
+    if moved:
+        said += [f"shares moved by more than {SHARE_TOLERANCE}: {moved}"]
+    return "; ".join(said)
+
+
+def _share_failure(wanted: object, value: object) -> bool:
+    """A share, or each of several, more than SHARE_TOLERANCE from the real's."""
+    real = wanted if isinstance(wanted, (tuple, list)) else (wanted,)
+    twin = value if isinstance(value, (tuple, list)) else (value,)
+    return len(real) != len(twin) or any(
+        abs(float(mine) - float(theirs)) > SHARE_TOLERANCE for mine, theirs in zip(twin, real)
+    )
+
+
+def _range_failure(wanted: object, value: object) -> str:
+    """The twin's middle more than RANGE_TOLERANCE from the real's, or an end outside the real's range widened."""
+    if wanted is None:
+        return ""
+    if value is None:
+        return "the twin holds no number in the column's form"
+    low, middle, high = wanted  # type: ignore[misc]
+    twin_low, twin_middle, twin_high = value  # type: ignore[misc]
+    width = high - low
+    slack = RANGE_TOLERANCE * width
+    said = []
+    if abs(twin_middle - middle) > max(RANGE_TOLERANCE * abs(middle), 0.01 * width):
+        said += [f"middle {twin_middle} against the real's {middle}"]
+    if twin_low < low - slack or twin_high > high + slack:
+        said += [f"range {twin_low} to {twin_high} against the real's {low} to {high}"]
+    return "; ".join(said)
+
+
+def _ratio_failure(wanted: object, value: object) -> str:
+    """A percentile of the twin more than LENGTH_TOLERANCE from the real's, as a ratio."""
+    if wanted is None:
+        return ""
+    if value is None:
+        return "the twin holds no cell"
+    off = [
+        f"{mine} against {theirs}" for mine, theirs in zip(value, wanted)  # type: ignore[call-overload]
+        if abs(float(mine) / max(float(theirs), 1.0) - 1.0) > LENGTH_TOLERANCE
+    ]
+    return f"percentiles off by more than {LENGTH_TOLERANCE:.0%}: {off}" if off else ""
+
+
+def _unseen_codes(wanted: object, value: object) -> int:
+    """The twin's cells holding a value the real never writes."""
+    real = dict(wanted)  # type: ignore[call-overload]
+    return sum(count for code, count in dict(value).items() if code not in real)  # type: ignore[call-overload]
 
 
 def _lost_levels(wanted: object, value: object) -> "list[str]":
@@ -2098,6 +2513,8 @@ def analyst_failures(
         for kind in sorted(table.kinds):
             failures += [(kind, "read", f"the twin does not read: {twin['read'][1]}")]
         return failures
+    real_rows = int(real.get("rows read", ("ok", 0))[1])  # type: ignore[call-overload]
+    twin_rows = int(twin.get("rows read", ("ok", 0))[1])  # type: ignore[call-overload]
     for name in sorted(real):
         if name == "read" or real[name][0] != "ok":
             continue
@@ -2113,12 +2530,20 @@ def analyst_failures(
             failures += [(kind, name, f"{value} bad cell(s) on the twin, none on the real")]
         elif mode == "present" and wanted and not value:
             failures += [(kind, name, "the real has it and the twin does not")]
-        elif mode == "subset" and set(value) - set(wanted):  # type: ignore[call-overload]
-            failures += [(kind, name, f"the twin writes missing as {sorted(set(value) - set(wanted))}, the real never does")]  # type: ignore[call-overload]
-        elif mode == "share" and abs(float(value) - float(wanted)) > SHARE_TOLERANCE:  # type: ignore[arg-type]
+        elif mode == "spellings" and _spelling_failure(wanted, value, real_rows, twin_rows):
+            failures += [(kind, name, _spelling_failure(wanted, value, real_rows, twin_rows))]
+        elif mode == "share" and _share_failure(wanted, value):
             failures += [(kind, name, f"real {wanted!r}, twin {value!r}")]
         elif mode == "shapes" and _shape_failure(wanted, value):
             failures += [(kind, name, _shape_failure(wanted, value))]
+        elif mode == "forms" and _form_failure(wanted, value):
+            failures += [(kind, name, _form_failure(wanted, value))]
+        elif mode == "range" and _range_failure(wanted, value):
+            failures += [(kind, name, _range_failure(wanted, value))]
+        elif mode == "ratios" and _ratio_failure(wanted, value):
+            failures += [(kind, name, _ratio_failure(wanted, value))]
+        elif mode == "codes" and _unseen_codes(wanted, value):
+            failures += [(kind, name, f"{_unseen_codes(wanted, value)} cell(s) hold a code the real never writes")]
         elif mode == "levels" and _lost_levels(wanted, value):
             failures += [(kind, name, f"values {FLOOR}+ real cells hold, absent {_lost_levels(wanted, value)[:4]}")]
     return failures
@@ -2183,7 +2608,8 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     """
     asked: "list[dict]" = []
     general = True
-    file_facts = {"names", "data", "semicolon" if table.name == "vitals" else "comma"}
+    file_facts = {"data", "semicolon" if table.name == "vitals" else "comma"} | set(table.facts)
+    every_column = {column for names in table.kinds.values() for column in names}
     checklist = document.get("checklist") or {}
     framing = " ".join(prose({key: value for key, value in document.items() if key not in ("about_your_file", "asked", "checklist")}))
     checklist_words = " ".join(prose({key: value for key, value in checklist.items() if key != "columns"}))
@@ -2191,9 +2617,12 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     for entry in _entries(document):
         offered = _offered(entry)
         column = f"{entry.get('column', '')}"
-        if column:
+        if column in every_column:
             known = table.knows.get(column, "")
         else:
+            # A question about the whole file names its subject where a
+            # column's name would stand ("which row your column names are
+            # in"): the person answers it with what they know of the file.
             known = next((answer for answer in offered if answer in file_facts), "")
         given = known if known in offered else ""
         entry["your_answer"] = given
@@ -2306,24 +2735,34 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
 
 # -- per kind, and the three KPIs --------------------------------------------
 
-# WHO OWNS EACH FAILURE, by the December plan's lanes (plan-dec
-# PLAN-DEC.md section 3.1) or 'needs owner' where no lane covers it yet
-# and the orchestrator names a new one. Filled from the baseline run of
-# plan P4-D399. Each line is (owner, the gap, the failures it covers):
-# the failures are named as `failure_items` names them -- a step
-# ('profile', 'answers', 'generate', 'validate'), 'questions', 'miss
-# <column>', 'real <check>', or an analyst check's own name -- and the
-# line covers the ones its pattern matches whole. A failure no line
-# matches is UNOWNED, and K-HZ-02 counts it: a kind that already has an
-# owner does not lend it to a new failure.
+# WHO OWNS EACH FAILURE, by the lanes of the December plan (plan-dec
+# PLAN-DEC.md section 3.1) and of its zoo-fix track (wave6 ZOO/PLAN.md
+# sections 1 to 3: UN-1a, UN-1b, CODES-1, CODES-2, CODES-3, GG, TR, SS,
+# LISTS, UN-2, NOTES, KV, and the widened DST, LM1 and GR), or 'needs
+# owner' where no lane covers it yet and the orchestrator names a new
+# one. Filled from the baseline runs of plan P4-D399. Each line is
+# (owner, the gap, the failures it covers): the failures are named as
+# `failure_items` names them -- a step ('profile', 'answers',
+# 'generate', 'validate'), 'questions', 'miss <column>', 'real <check>',
+# or an analyst check's own name -- and the line covers the ones its
+# pattern matches whole. A failure no line matches is UNOWNED, and
+# K-HZ-02 counts it: a kind that already has an owner does not lend it
+# to a new failure. A failure only 'needs owner' covers is counted apart
+# (`failures_needing_owner`): it has a gap stated, not a lane.
 NEEDS_OWNER = "needs owner"
+ZOO_LANES = (
+    "UN-1a", "UN-1b", "CODES-1", "CODES-2", "CODES-3", "GG", "TR", "SS", "LISTS", "UN-2", "NOTES", "KV", "GR",
+)
 
 
 def covers(*names: str, columns: "tuple[str, ...]" = ()) -> str:
     """The pattern an OWNERS line covers: these failures whole, and the generic checks of these columns."""
     whole = [re.escape(name) for name in names]
     if columns:
-        whole += [r"(shapes|levels|missing|missing spellings|dtype) (" + "|".join(re.escape(c) for c in columns) + ")"]
+        whole += [
+            r"(shapes|forms|levels|missing|missing spellings|dtype|stand-ins|codes) ("
+            + "|".join(re.escape(c) for c in columns) + ")"
+        ]
     return "|".join(whole)
 
 
@@ -2338,99 +2777,131 @@ UNITS_AS_LABELS = (
 )
 MADE_UP_CODES = (
     "a code's levels are made up character by character in its shape ('T2N1M0' as 'D5X1Q5', "
-    "an NPI that fails its Luhn check, a year-known date as '1000000000'), so a grammar or a "
-    "check figure the real codes obey rejects them"
+    "an NPI that fails its Luhn check), so a grammar or a check figure the real codes obey "
+    "rejects them"
 )
 OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "demographics": (
-        (NEEDS_OWNER, WITHHELD, covers(
+        ("CODES-2", WITHHELD, covers(
             "ancestry is a listed category", "ethnicity is a listed category",
             "gender codes are M/F/U/X", "gender words are Male/Female/Unknown",
             columns=("ancestry", "ethnicity", "gender_code", "gender_word"))),
     ),
     "diagnoses": (
-        (NEEDS_OWNER, WITHHELD, covers(
+        ("CODES-1", "a held-back code is written outside its pattern or as a number-class stand-in "
+                    "('486' as '99.9'), and a SNOMED id answered 'code' loses values 11 or more rows "
+                    "hold", covers(
             "ICD-10-CM with the dot", "ICD-10-CM without the dot", "ICD-9-CM",
             "SNOMED CT ids are 6 to 18 figures", "present-on-admission flags",
             columns=("icd10_dotted", "icd10_plain", "icd9", "snomed_id", "poa"))),
+        ("CODES-2", WITHHELD, covers(
+            "ICD-10-CM with the dot", "ICD-10-CM without the dot", "ICD-9-CM",
+            columns=("icd10_dotted", "icd10_plain", "icd9", "snomed_id", "poa"))),
     ),
     "medication_orders": (
-        (NEEDS_OWNER, WITHHELD, covers("routes", "frequencies", "dose strings read", columns=("route", "frequency", "dose"))),
+        ("CODES-2", WITHHELD, covers("routes", "frequencies", "dose strings read", columns=("route", "frequency", "dose"))),
     ),
     "imaging": (
-        (NEEDS_OWNER, WITHHELD, covers("DICOM modality codes", "body parts", columns=("modality", "body_part"))),
+        ("CODES-2", WITHHELD, covers("DICOM modality codes", "body parts", columns=("modality", "body_part"))),
     ),
     "genomics": (
-        (NEEDS_OWNER, WITHHELD, covers("clinical significance", columns=("zygosity", "classification"))),
+        ("CODES-2", WITHHELD, covers("clinical significance", columns=("zygosity", "classification"))),
     ),
     "perioperative": (
-        (NEEDS_OWNER, WITHHELD, covers("physical status with its emergency mark", columns=("phys_status",))),
+        ("CODES-2", WITHHELD, covers("physical status with its emergency mark", columns=("phys_status",))),
     ),
     "encounters": (
         ("DST", "the twin writes an offset not in force on its date (US Eastern)", covers(
             "admit_ts wears an offset in force on its date", "discharge_ts wears an offset in force on its date")),
     ),
     "labs": (
-        (NEEDS_OWNER, UNITS_AS_LABELS, covers("a value and its unit", "the value read as a number", columns=("result",))),
-        (NEEDS_OWNER, WITHHELD, covers("POS/NEG results", "abnormal flags", columns=("qualitative", "abnormal_flag"))),
+        ("UN-1a", UNITS_AS_LABELS, covers(
+            "a value and its unit", "the value read as a number", "the numbers of result keep their range",
+            columns=("result",))),
+        ("UN-1b", "the digit and decimals guards refuse units with figures ('10*3/uL')", covers(
+            "a value and its unit", "the value read as a number", "the numbers of result keep their range",
+            columns=("result",))),
+        ("CODES-2", WITHHELD, covers("POS/NEG results", "abnormal flags", columns=("qualitative", "abnormal_flag"))),
+        ("CODES-1", "a held-back LOINC code is written as a code in its form the real never writes "
+                    "('00000-0')", covers("LOINC codes", columns=("loinc",))),
         ("LM1", "a joined range '12.0-16.0' comes back as '12.0-16' and '70-99' as '70.0-99.0': "
                 "validate misses its styles and counts", covers("miss ref_range", columns=("ref_range",))),
     ),
     "mixed_results": (
-        (NEEDS_OWNER, WITHHELD, covers(
+        ("CODES-2", WITHHELD, covers(
             "a result is a number, a censored number or a word", "the numbers read past < and >",
             columns=("result_value",))),
+        ("CODES-1", "a held-back result's shape is filled from the whole alphabet", covers(
+            "a result is a number, a censored number or a word", columns=("result_value",))),
         (NEEDS_OWNER, "one result column holding numbers, censored numbers and words: at 20,000 rows "
                       "validate misses the mean of its numbers", covers("miss result_value")),
     ),
     "vitals": (
-        (NEEDS_OWNER, UNITS_AS_LABELS, covers(
+        ("UN-1a", UNITS_AS_LABELS, covers(
             "oxygen saturation with %", "stature in cm", "temperature with its unit",
-            columns=("spo2", "stature", "temp"))),
-        (NEEDS_OWNER, "a decimal-comma number beside a unit ('72,5 kg') is written as made-up "
-                      "characters", covers("weight in kg with a decimal comma", columns=("weight",))),
+            "the numbers of stature keep their range", "the numbers of temp keep their range",
+            "the numbers of spo2 keep their range", columns=("spo2", "stature", "temp"))),
+        ("UN-1b", "a decimal-comma number beside a unit ('72,5 kg') is written as made-up "
+                  "characters", covers(
+            "weight in kg with a decimal comma", "the numbers of weight keep their range", columns=("weight",))),
+    ),
+    "semicolon_decimal_comma": (
+        ("UN-1b", "a decimal-comma number ('25,5') is read as labels made up character by character: the "
+                  "twin's values are invented ('48,1' in the middle, '0,0' to '99,9')", covers(
+            "the numbers of mass_index keep their range", columns=("mass_index",))),
     ),
     "us_unit_vitals": (
-        (NEEDS_OWNER, UNITS_AS_LABELS, covers("temperature in F", "weight in lb", columns=("temp_f", "weight"))),
+        ("UN-1a", UNITS_AS_LABELS, covers(
+            "temperature in F", "weight in lb", "the numbers of temp_f keep their range",
+            "the numbers of weight keep their range", columns=("temp_f", "weight"))),
+        ("UN-2", "a stature in feet and inches (5'10\") is a template of two numbers", covers(
+            "stature in feet and inches", "the numbers of stature keep their range", columns=("stature",))),
     ),
     "flowsheet_long": (
-        (NEEDS_OWNER, "a long table's value is read by its row name; the twin carries no relation "
-                      "between the two columns (the between-columns program, TRACKED T1 and T2)", covers(
+        ("KV", "a long table's value is read by its row name; the twin carries no relation "
+               "between the two columns (the between-columns program, TRACKED T1 and T2)", covers(
             "BP rows hold '120/80' (read by row name)", "other rows hold numbers (read by row name)",
             columns=("flo_value",))),
     ),
     "clinical_notes": (
-        (NEEDS_OWNER, "at small sizes the twin's notes hold no line break and no de-identification "
-                      "token where the real notes do", covers(
-            "some note runs over several lines", "some note keeps a de-identification token")),
+        ("NOTES", "free text publishes no line, marker or length facts: at 600 rows the twin's notes "
+                  "hold no line break and no de-identification token, few quotes and lengths near "
+                  "one value; at 20,000 the column turns long tail and most notes are 'group-N'", covers(
+            "some note runs over several lines", "some note keeps a de-identification token",
+            "some note runs over several lines, as a share", "some note keeps a de-identification token, as a share",
+            "some note quotes a phrase", "some note quotes a phrase, as a share",
+            "note lengths at the 10th, 50th and 90th percentiles", columns=("note_text",))),
     ),
     "surveys_pro": (
-        (NEEDS_OWNER, "a missing code (-99) below a 1-to-5 score is read as part of the range: the "
-                      "twin writes values between them, and no question asks whether -99 means "
-                      "missing", covers("scores 1 to 5 or -99")),
+        ("GG", "a 1-to-5 score beside a missing code (-99) is a few-valued number with one wide gap: "
+               "the twin writes values inside the gap and loses a level", covers(
+            "scores 1 to 5 or -99", columns=("q2_score", "q3_score"))),
+        ("UN-2", "no question asks whether -99 means missing", covers("scores 1 to 5 or -99")),
     ),
     "dicom_metadata": (
-        (NEEDS_OWNER, "DICOM's TM time of day ('074512.123456') is read as a decimal number: the twin "
-                      "loses its leading zero and writes minutes and seconds past 59, and at 20,000 rows "
-                      "validate misses its spread", covers("TM times parse as %H%M%S.%f", "miss study_time")),
-        (NEEDS_OWNER, "a DICOM UID of dotted figures is written as made-up characters",
+        ("TR", "DICOM's TM time of day ('074512.123456') is read as a decimal number: the twin "
+               "loses its leading zero and writes minutes and seconds past 59, and at 20,000 rows "
+               "validate misses its spread", covers("TM times parse as %H%M%S.%f", "miss study_time")),
+        ("CODES-3", "a DICOM UID of dotted figures is written as made-up characters",
          covers("UIDs are dotted figures", columns=("study_uid",))),
     ),
     "multi_value_cells": (
-        (NEEDS_OWNER, "a cell listing several codes or words ('E11.9;I10', 'Penicillin|Sulfa') is read "
-                      "as one label: its rarer combinations are written as 'group-N' and the lists of "
-                      "three and four are lost", covers(
+        ("LISTS", "a cell listing several codes or words ('E11.9;I10', 'Penicillin|Sulfa') is read "
+                  "as one label: its rarer combinations are written as 'group-N' and the lists of "
+                  "three and four are lost", covers(
             "every listed code is ICD-10-CM", "allergies are listed words", "some cell lists several codes",
-            "some cell lists several allergies", columns=("dx_list", "allergies"))),
+            "some cell lists several allergies", "some cell lists several codes, as a share",
+            "some cell lists several allergies, as a share", columns=("dx_list", "allergies"))),
     ),
     "tumor_registry": (
-        (NEEDS_OWNER, MADE_UP_CODES, covers("TNM", "ICD-O-3 morphology", "ICD-O-3 topography", columns=("tnm",))),
+        ("CODES-1", MADE_UP_CODES, covers("TNM", "ICD-O-3 morphology", "ICD-O-3 topography", columns=("tnm",))),
     ),
     "partial_dates": (
-        (NEEDS_OWNER, MADE_UP_CODES, covers("dates to the year, the month or the day")),
+        ("TR", "a date known to the month ('03/2019') or the year beside full dates is written as a "
+               "made-up figure string", covers("dates to the year, the month or the day")),
     ),
     "immunizations_providers": (
-        (NEEDS_OWNER, MADE_UP_CODES, covers("NPIs pass their Luhn check")),
+        ("CODES-1", MADE_UP_CODES, covers("NPIs pass their Luhn check", columns=("npi",))),
     ),
 }
 
@@ -2511,6 +2982,9 @@ def per_kind(results: "list[dict]") -> "dict[str, dict]":
                 "missed": sorted({f"{miss[0]}: {miss[1]}" for miss in misses}),
                 "analyst_failures": [f"{failure[1]} -- {failure[2]}" for failure in analyst],
                 "unowned": sorted(item for item, lines in owned.items() if not lines),
+            "needing_owner": sorted(
+                item for item, lines in owned.items() if lines and {owner for owner, _gap in lines} == {NEEDS_OWNER}
+            ),
                 "owners": sorted({owner for lines in owned.values() for owner, _gap in lines}),
                 "gaps": sorted({f"{owner}: {gap}" for lines in owned.values() for owner, gap in lines}),
             }
@@ -2579,6 +3053,7 @@ def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
         "kinds_failing_csv": sum(1 for kind in failing if kind not in workbook),
         "failing_kinds_without_owner": sum(1 for kind in failing if kinds[kind]["unowned"]),
         "failures_without_owner": sum(len(kinds[kind]["unowned"]) for kind in failing),
+        "failures_needing_owner": sum(len(kinds[kind]["needing_owner"]) for kind in failing),
         "validate_misses": sum(len(r["misses"]) for r in results),
         "analyst_failures": sum(len(r["analyst"]) for r in results),
     }

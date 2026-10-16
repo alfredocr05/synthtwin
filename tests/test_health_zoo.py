@@ -54,10 +54,11 @@ SEED = 20261016
 
 # The lanes of the December plan a failing kind may be owned by, and the
 # words for one no lane covers yet (the orchestrator names a new one).
-PLAN_LANES = ("DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", zoo.NEEDS_OWNER)
+PLAN_LANES = ("DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", *zoo.ZOO_LANES, zoo.NEEDS_OWNER)
 
-# The kinds the lane's step names, and the ones its first review found
-# missing (skeptic 1, item 4; Codex, item 6): each must be in the catalogue.
+# The kinds the lane's step names, and the ones its reviews found missing
+# (skeptic 1, item 4; Codex, item 6; the tripwire of repair 1, item 6):
+# each must be in the catalogue.
 REQUIRED_KINDS = (
     "demographics", "encounters", "diagnoses", "procedures", "labs", "medication_orders", "vitals",
     "flowsheet_long", "redcap", "claims", "clinical_notes", "surveys_pro", "wearables", "genomics",
@@ -67,6 +68,9 @@ REQUIRED_KINDS = (
     "us_unit_vitals", "dicom_metadata", "sql_server_export", "microbiology",
     "immunizations_providers", "empty_and_constant_columns", "mixed_results", "genomic_ids",
     "risk_and_comorbidity_codes",
+    # The repair-2 tripwire's item 6: shapes the product asks about that
+    # no table seeded.
+    "title_rows_above_header", "day_first_dates", "two_digit_years", "true_false_columns",
 )
 
 
@@ -79,14 +83,22 @@ def _pair(
     folder: pathlib.Path,
     change: "object",
     write: "object" = None,
+    base: "object" = None,
 ) -> "list[tuple[str, str, str]]":
-    """The analyst's failures on a twin-like copy of a real table: `change(header, rows)` applied."""
+    """The analyst's failures on a twin-like copy of a real table: `change(header, rows)` applied.
+
+    `base`, where given, first changes the real table and the copy alike.
+    """
     table = zoo.table_named(name)
     header, rows = table.build(SMALL, SEED)
+    if base is not None:
+        base(header, rows)  # type: ignore[operator]
     real = folder / "real" / f"{table.name}{table.suffix}"
     real.parent.mkdir(parents=True, exist_ok=True)
     real.write_bytes(table.write(header, rows))
     header, rows = table.build(SMALL, SEED)
+    if base is not None:
+        base(header, rows)  # type: ignore[operator]
     change(header, rows)  # type: ignore[operator]
     twin = folder / "twin" / f"{table.name}{table.suffix}"
     twin.parent.mkdir(parents=True, exist_ok=True)
@@ -157,6 +169,13 @@ def test_the_file_shapes_are_the_shapes_they_say(tmp_path: pathlib.Path) -> None
     assert {"<5", "NEGATIVE"} <= set(labs["result_value"])
     edge = pandas.read_csv(_written("edge_columns", tmp_path))
     assert edge["middle_name"].isna().all() and set(edge["facility"]) == {"MAIN"}
+    titled = _written("titled_report", tmp_path).read_bytes().split(b"\n")
+    assert titled[0] == b"Ward Activity Report" and titled[2].startswith(b"report_ref,")
+    registry = pandas.read_csv(_written("registry_extract", tmp_path), dtype=str)
+    assert (registry["referral_date"].str[:2].astype(int) > 12).any(), "a day past 12 shows the day comes first"
+    assert registry["op_date"].str.fullmatch(r"\d\d-[A-Z]{3}-\d\d").all()
+    assert registry["dob_short"].str.fullmatch(r"\d\d/\d\d/\d\d").all()
+    assert str(pandas.read_csv(_written("registry_extract", tmp_path))["on_waiting_list"].dtype) == "bool"
     book = _written("surveys", tmp_path).read_bytes()
     with zipfile.ZipFile(io.BytesIO(book)) as bundle:
         assert "xl/worksheets/sheet1.xml" in bundle.namelist()
@@ -237,6 +256,49 @@ def _leave(header: "list[str]", rows: "list[list[str]]") -> None:
     return None
 
 
+def _unpad(text: str) -> str:
+    """Every figure's leading nought dropped: '01/05/1950' as '1/5/1950', '07:42' as '7:42'."""
+    return re.sub(r"(?<!\d)0(\d)", r"\1", text)
+
+
+def _one_patient_repeats(header: "list[str]", rows: "list[list[str]]") -> None:
+    zoo.spoil_unique("patient_id")(header, rows)
+    place = header.index("patient_id")
+    rows[1][place] = rows[0][place]
+
+
+def _long_tail_codes(header: "list[str]", rows: "list[list[str]]") -> None:
+    """ICD-10-CM as a real export holds it: 300 codes on a Zipf tail, most held by fewer than 11 rows."""
+    draw = random.Random(5)
+    codes: "list[str]" = []
+    while len(codes) < 300:
+        code = f"{draw.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{draw.randint(0, 99):02d}.{draw.randint(0, 99):02d}"
+        codes += [code] if code not in codes else []
+    pool = zoo._zipf(tuple(codes))
+    pick = random.Random(6)
+    place = header.index("icd10_dotted")
+    for row in rows:
+        row[place] = zoo._pick(pick, pool)
+
+
+def _codes_in_their_form_not_the_real(header: "list[str]", rows: "list[list[str]]") -> None:
+    """Each code's last figure moved by one: the same form, mostly a code the real never writes."""
+    place = header.index("icd10_dotted")
+    for row in rows:
+        code = row[place]
+        row[place] = code[:-1] + f"{(int(code[-1]) + 1) % 10}"
+
+
+def _notes_as_stand_ins(header: "list[str]", rows: "list[list[str]]") -> None:
+    """Notes as the 20,000-row twin writes them: 90 % 'group-N', and 1 % keeping a line break."""
+    place = header.index("note_text")
+    for index in range(len(rows)):
+        if index % 10:
+            rows[index][place] = f"group-{index % 7 + 1}"
+        elif index % 100:
+            rows[index][place] = rows[index][place].replace("\n", " ")
+
+
 # A twin unlike its source in one way each, as skeptic 1 built them
 # (planning-notes wave6/E0a-sk1-work/broken_twins.py) and Codex named
 # them, with the check that must name it. 16 of skeptic 1's 19 passed
@@ -264,7 +326,47 @@ ATTACKS = {
     "a range with one bound": ("labs", zoo.spoil_cell("ref_range", "70"), None, "reference ranges split into exactly two numbers"),
     "a range with three bounds": ("labs", zoo.spoil_cell("ref_range", "70-99-100"), None, "reference ranges split into exactly two numbers"),
     "a Latin-1 file written as UTF-8": ("claims", _leave, lambda h, r: zoo.csv_bytes(h, r), "file: decodes as UTF-8"),
+    # Repair 2. The tripwire's item 2: dates and clocks written unlike the
+    # source, in figures' width or letters' case, which the run signature
+    # and strptime both let through.
+    "dob_us unpadded (1/5/1950)": ("patients", _edit("dob_us", _unpad), None, "forms dob_us"),
+    "dob_iso unpadded (1950-1-5)": ("patients", _edit("dob_iso", _unpad), None, "forms dob_iso"),
+    "dob_text in capitals (05-JAN-1950)": ("patients", _edit("dob_text", str.upper), None, "forms dob_text"),
+    "collected_at unpadded (2024-1-5 9:5)": ("labs", _edit("collected_at", _unpad), None, "forms collected_at"),
+    "service_date unpadded": ("claims", _edit("service_date", _unpad), None, "forms service_date"),
+    "incision_time unpadded (8:30 PM)": ("perioperative", _edit("incision_time", _unpad), None, "forms incision_time"),
+    "incision_time in small letters (08:30 pm)": ("perioperative", _edit("incision_time", str.lower), None, "forms incision_time"),
+    "in_room unpadded (7:42)": ("perioperative", _edit("in_room", _unpad), None, "forms in_room"),
+    "milliseconds cut to two figures": ("sql_server", _edit("created_dttm", lambda v: v[:-1]), None, "forms created_dttm"),
+    # The tripwire's item 3: a missing marker the twin drops altogether.
+    "the literal NULL never written (middle_initial)": ("sql_server", _edit("middle_initial", lambda v: "A" if v == "NULL" else v), None, "missing spellings middle_initial"),
+    "the literal NULL never written (death_date)": ("sql_server", _edit("death_date", lambda v: "2023-06-01" if v == "NULL" else v), None, "missing spellings death_date"),
+    "REDCap's blank consent_date filled on its other rows": ("redcap", _edit("consent_date", lambda v: v or "2023-06-01"), None, "missing spellings consent_date"),
+    # The tripwire's item 4: numbers beside a unit or a mark off by a factor.
+    "stature halved": ("vitals", zoo.spoil_scaled("stature", r"(?P<n>\d+) cm", 0.5), None, "the numbers of stature keep their range"),
+    "a weight in lb divided by ten": ("us_vitals", zoo.spoil_scaled("weight", r"(?P<n>\d+) lb", 0.1), None, "the numbers of weight keep their range"),
+    "temperatures in F plus 100": ("us_vitals", _edit("temp_f", lambda v: f"{float(v.split()[0]) + 100:.1f} F"), None, "the numbers of temp_f keep their range"),
+    "uncensored viral loads times 1,000": ("labs", _edit("viral_load", lambda v: v if v.startswith(("<", ">")) else f"{int(v) * 1000}"), None, "the numbers of viral_load keep their range"),
+    "the decimal-comma mass index times ten": ("vitals", _edit("mass_index", lambda v: v.replace(",", "") + ",0"), None, "the numbers of mass_index keep their range"),
+    # The tripwire's item 1: notes mostly stand-ins; the verify's item 3:
+    # quotes gone, and a share of patients lost while one still repeats.
+    "notes 90 % 'group-N', 1 % keeping a break": ("notes", _notes_as_stand_ins, None, "stand-ins note_text"),
+    "notes 90 % 'group-N', their breaks as a share": ("notes", _notes_as_stand_ins, None, "some note runs over several lines, as a share"),
+    "notes' quotes dropped": ("notes", _edit("note_text", lambda v: v.replace('"', "")), None, "some note quotes a phrase"),
+    "one patient repeats in encounters": ("encounters", _one_patient_repeats, None, "patients with two rows or more, and three or more, as shares"),
+    "one patient repeats in claims": ("claims", _one_patient_repeats, None, "patients with two rows or more, and three or more, as shares"),
+    "no patient over two rows in encounters": ("encounters", zoo.spoil_at_most_two("patient_id"), None, "patients with two rows or more, and three or more, as shares"),
+    "no patient over two rows in claims": ("claims", zoo.spoil_at_most_two("patient_id"), None, "patients with two rows or more, and three or more, as shares"),
+    # The tripwire's item 6: the four shapes no table seeded.
+    "the title lines dropped": ("titled_report", _leave, lambda h, r: zoo.csv_bytes(h, r), "under its two title lines the header names report_ref first"),
+    "day-first dates written month first": ("registry_extract", _edit("referral_date", lambda v: f"{v[3:5]}/{v[:2]}/{v[6:]}"), None, "referral_date parses as %d/%m/%Y"),
+    "two-figure years written with four": ("registry_extract", _edit("op_date", lambda v: v[:7] + "20" + v[7:]), None, "forms op_date"),
+    "true and false written as 1 and 0": ("registry_extract", _edit("on_waiting_list", lambda v: "1" if v == "TRUE" else "0"), None, "dtype on_waiting_list"),
 }
+
+# The tripwire's item 5: a long-tail code column, where `levels` turns off
+# above 30 values, takes a code in its own form that the real never writes.
+LONG_TAIL = ("diagnoses_procedures", _codes_in_their_form_not_the_real, None, "codes icd10_dotted", _long_tail_codes)
 
 
 @pytest.mark.parametrize("attack", sorted(ATTACKS))
@@ -272,6 +374,17 @@ def test_a_twin_unlike_its_source_is_named(attack: str, tmp_path: pathlib.Path) 
     name, change, write, wanted = ATTACKS[attack]
     failures = _pair(name, tmp_path, change, write)
     assert wanted in [failure[1] for failure in failures], failures
+
+
+def test_a_code_the_real_never_writes_is_named_on_a_long_tail(tmp_path: pathlib.Path) -> None:
+    """Above 30 values `levels` says nothing, and a code in its own form passes the pattern and the forms."""
+    name, change, write, wanted, base = LONG_TAIL
+    control = _pair(name, tmp_path / "control", _leave, write, base)
+    assert control == [], control
+    failures = _pair(name, tmp_path / "twin", change, write, base)
+    names = [failure[1] for failure in failures]
+    assert wanted in names, failures
+    assert "levels icd10_dotted" not in names and "ICD-10-CM with the dot" not in names
 
 
 def test_a_twin_unlike_its_source_is_named_in_the_workbook(tmp_path: pathlib.Path) -> None:
@@ -283,6 +396,15 @@ def test_a_twin_unlike_its_source_is_named_in_the_workbook(tmp_path: pathlib.Pat
     assert "missing spellings q4_status" in [failure[1] for failure in spelled], spelled
     blank = _pair("surveys", tmp_path / "blank", _edit("q2_score", lambda v: "" if v == "-99" else v))
     assert "missing q2_score" in [failure[1] for failure in blank], blank
+    # Repair 2: 'NA' never written (the tripwire's item 3), and a numeric
+    # missing code never written (the verify's item 2: `levels` reads
+    # every column, whatever dtype pandas infers).
+    never = _pair("surveys", tmp_path / "never", _edit("q4_status", lambda v: "No" if v == "NA" else v))
+    assert "missing spellings q4_status" in [failure[1] for failure in never], never
+    scored = _pair("surveys", tmp_path / "scored", _edit("q2_score", lambda v: "3" if v == "-99" else v))
+    assert "levels q2_score" in [failure[1] for failure in scored], scored
+    totals = _pair("surveys", tmp_path / "totals", _edit("scale_total", lambda v: "10" if v == "999" else v))
+    assert "levels scale_total" in [failure[1] for failure in totals], totals
 
 
 def test_a_twin_like_its_source_passes(tmp_path: pathlib.Path) -> None:
@@ -442,6 +564,28 @@ def test_every_sentence_that_asks_is_read_for_the_analysis(where: str) -> None:
     assert not general, where
 
 
+def test_a_question_about_the_file_is_answered_by_its_subject() -> None:
+    """The product names a question about the whole file under `column`, as its subject.
+
+    Before repair 2 the person answered it only where the key was
+    `subject`, so no question about the file was ever answered.
+    """
+    entry = {
+        "column": "which row your column names are in",
+        "answers_you_can_give": [{"answer": "first-record"}, {"answer": "names"}], "your_answer": "",
+    }
+    asked, general = zoo.answer_generally(zoo.table_named("titled_report"), {"about_your_file": [entry]})
+    assert general and asked[0]["given"] == "names" and entry["your_answer"] == "names"
+    entry = {
+        "column": "the order of the day and the month in your dates",
+        "answers_you_can_give": [{"answer": "month-first"}, {"answer": "day-first"}], "your_answer": "",
+    }
+    asked, _general = zoo.answer_generally(zoo.table_named("registry_extract"), {"about_your_file": [entry]})
+    assert asked[0]["given"] == "day-first"
+    asked, _general = zoo.answer_generally(zoo.table_named("claims"), {"about_your_file": [entry]})
+    assert asked[0]["given"] == "month-first"
+
+
 def test_the_semicolon_file_says_semicolon() -> None:
     """Skeptic 1's item 6: the semicolon export answers 'semicolon' even where 'comma' is offered first."""
     entry = {"subject": "the separator", "answers_you_can_give": [{"answer": "comma"}, {"answer": "semicolon"}], "your_answer": ""}
@@ -560,6 +704,72 @@ def test_each_failure_needs_its_own_owner() -> None:
     assert measured["K-HZ-02"]["failing_kinds_without_owner"] == 1
 
 
+def test_a_twin_that_does_not_read_fails_every_kind_of_its_table(tmp_path: pathlib.Path) -> None:
+    """The verify's item 1 (a): one ragged row and pandas stops; every kind of the table is failed at 'read'."""
+    failures = _pair(
+        "diagnoses_procedures", tmp_path, _leave,
+        lambda h, r: zoo.csv_bytes(h, r) + b"a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p\n",
+    )
+    assert {(kind, name) for kind, name, _why in failures} == {("diagnoses", "read"), ("procedures", "read")}
+    verdicts = zoo.per_kind([_result("diagnoses_procedures", analyst=[list(failure) for failure in failures])])
+    assert not any(verdict["passed"] for verdict in verdicts.values())
+
+
+def test_a_miss_of_the_whole_file_fails_its_file_kinds() -> None:
+    """The verify's item 1 (b): a miss with no column fails the file-level kinds, or every kind of a table without one."""
+    verdicts = zoo.per_kind([_result("encounters", misses=[["", "rows.count"]])])
+    assert {kind: verdict["failing_step"] for kind, verdict in verdicts.items() if not verdict["passed"]} == {
+        "byte_order_mark": "validate", "crlf_line_endings": "validate",
+    }
+    assert verdicts["encounters"]["passed"] is True
+    verdicts = zoo.per_kind([_result("labs", misses=[["", "x"]])])
+    assert {kind: verdict["failing_step"] for kind, verdict in verdicts.items()} == {
+        "labs": "validate", "mixed_results": "validate",
+    }
+
+
+def test_a_command_that_stops_is_read_by_its_exit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The verify's item 1 (c): a SystemExit(2) is exit 2, never success."""
+    from synthtwin import cli
+
+    def stops(arguments: "list[str]") -> int:
+        raise SystemExit(2)
+
+    monkeypatch.setattr(cli, "main", stops)
+    assert zoo._quietly(["profile", "x"])[0] == 2
+
+
+def test_the_measures_count_what_they_say() -> None:
+    """The verify's item 4: each aggregate key of `zoo_measures`, on results made for it."""
+    workbook = _result("surveys", analyst=[["surveys_pro", "Likert words", "why"]])
+    delimited = _result("labs", analyst=[["labs", "LOINC codes", "why"]], roles={"a": "identifier", "b": "code"})
+    asked = [
+        {"column": "patient_id", "offered": ["identifier"], "given": "identifier", "general": True},
+        {"column": "the character between your columns", "offered": ["outcome"], "given": "", "general": False},
+    ]
+    faulty = _result("patients", asked=asked, general=False, analyst_real_errors=["record numbers match PT#######"])
+    measured = zoo.zoo_measures([workbook, delimited, faulty])
+    first = measured["K-HZ-01"]
+    assert first["kinds_passing_end_to_end"] == 2, first
+    assert first["kinds_passing_csv"] == 1, "the passing workbook kind is not a delimited one"
+    assert first["kinds_csv"] == 4
+    assert first["questions_asked"] == 2 and first["questions_not_general"] == 1
+    assert first["analyst_errors_on_real"] == 1
+    assert first["roles_reached"] == 2 and first["roles"] == ["code", "identifier"]
+    assert first["tables"] == 3 and first["tables_generated"] == 3
+
+
+def test_a_failure_with_only_a_gap_stated_is_counted_apart() -> None:
+    """The tripwire's item 7: 'needs owner' names a gap, not a lane, and K-HZ-02 counts it apart."""
+    owned = zoo.zoo_measures([_result("labs", misses=[["result_value", "mean"]])])
+    assert owned["K-HZ-02"]["failures_without_owner"] == 0
+    assert owned["K-HZ-02"]["failures_needing_owner"] == 1
+    assert owned["kinds"]["mixed_results"]["needing_owner"] == ["miss result_value"]
+    laned = zoo.zoo_measures([_result("labs", misses=[["ref_range", "styles"]])])
+    assert laned["K-HZ-02"]["failures_needing_owner"] == 0
+    assert laned["kinds"]["labs"]["owners"] == ["LM1"]
+
+
 def test_every_owner_is_a_lane_of_the_plan_or_needs_one() -> None:
     assert zoo.OWNERS, "the baseline's failures are owned"
     for kind, owners in zoo.OWNERS.items():
@@ -580,16 +790,55 @@ def test_the_workbook_is_left_out_where_its_reader_is_absent(monkeypatch: pytest
     assert set(zoo.workbook_kinds()) == {"surveys_pro", "excel_workbook"}
 
 
-def test_the_driver_starts_where_there_is_no_resource_module(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Codex's item 9: Windows has no `resource`; the slow driver still loads and leaves memory unmeasured."""
+def _driver(monkeypatch: pytest.MonkeyPatch, name: str) -> "object":
+    """The slow driver, loaded as a module of its own under `name`."""
     import importlib.util
     import sys
 
     driver = pathlib.Path(__file__).resolve().parent.parent / "tools" / "measurements" / "kpi_health_zoo.py"
     monkeypatch.setattr(sys, "path", list(sys.path))
-    monkeypatch.setitem(sys.modules, "resource", None)
-    spec = importlib.util.spec_from_file_location("kpi_health_zoo_without_resource", driver)
+    spec = importlib.util.spec_from_file_location(name, driver)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert module._peak_megabytes() is None
+    return module
+
+
+def test_the_driver_starts_where_there_is_no_resource_module(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 9: Windows has no `resource`; the slow driver still loads and leaves memory unmeasured."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "resource", None)
+    module = _driver(monkeypatch, "kpi_health_zoo_without_resource")
+    assert module._peak_megabytes() is None  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("reader", [True, False])
+def test_the_driver_prints_only_what_it_measured(
+    reader: bool, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The verify's item 4: without the workbook reader the counts over every export are left out, never printed short.
+
+    The judged keys are the delimited exports' own, measured everywhere.
+    """
+    import json
+
+    module = _driver(monkeypatch, "kpi_health_zoo_printing")
+    monkeypatch.setattr(crosscheck, "present", lambda: reader)
+    monkeypatch.setattr(zoo, "run_zoo", lambda folder, n, seed=0: [_result(t.name) for t in zoo.runnable_tables()])
+    module.main()  # type: ignore[attr-defined]
+    printed = {}
+    for line in capsys.readouterr().out.splitlines():
+        if line.startswith("KPI "):
+            record = json.loads(line[4:])
+            printed[record["id"]] = record["value"]
+    delimited = [table for table in zoo.TABLES if table.suffix == ".csv"]
+    delimited_kinds = sum(len(table.kinds) for table in delimited)
+    assert printed["K-HZ-01"]["kinds_passing_20000_rows_csv"] == delimited_kinds
+    assert printed["K-HZ-03"]["tables_run_csv"] == 2 * len(delimited)
+    if reader:
+        assert printed["K-HZ-01"]["kinds_passing_20000_rows"] == len(zoo.KINDS)
+        assert printed["K-HZ-03"]["tables_run"] == 2 * len(zoo.TABLES)
+    else:
+        assert "kinds_passing_20000_rows" not in printed["K-HZ-01"]
+        assert "tables_run" not in printed["K-HZ-03"]
