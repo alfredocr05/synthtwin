@@ -27,6 +27,7 @@ the census reading's release, by a weak reference; and the bytes
 
 from __future__ import annotations
 
+import datetime
 import gc
 import json
 import math
@@ -354,6 +355,7 @@ def test_no_answer_moves_when_nothing_is_shared(tmp_path: pathlib.Path, monkeypa
     """The memos change which objects hold the answers, never the answers: compared as written text, where -0.0 is not 0.0."""
     shared = json.dumps(_documents(tmp_path), sort_keys=True)
     monkeypatch.setattr(parsing, "memo_takes", lambda held, answered: False)
+    monkeypatch.setattr(parsing, "memo_notes", lambda noted: False)
     assert json.dumps(_documents(tmp_path), sort_keys=True) == shared
 
 
@@ -382,3 +384,199 @@ def describe_memory_measures(folder: pathlib.Path) -> "dict[str, float]":
         "survey_texts_per_spelling_200000_rows": round(texts, 2),
         "describe_held_bytes_per_added_row": round((larger - smaller) / 40_000, 1),
     }
+
+
+# -- past the bound: a text met again is taken (Codex's review of the lane) ------
+
+_AGAIN = "70000"
+
+
+def _past_the_bound(case: str, rows: int, bound: int, made: "list[str]", again: str) -> "list[str]":
+    """`bound` different texts, then rows of the text `again` that a memo full at the bound met only there.
+
+    "prefix": the rest of the rows all write `again` (Codex's case);
+    "interleaved": a new text and `again` by turns; "late": 500 more new
+    texts, then two new texts and `again` by turns, so `again` is first
+    met after the memo has refused others. `made` gives the new texts in
+    order, none of them `again`.
+    """
+    cells = made[:bound]
+    taken = bound
+    if case == "late":
+        cells = cells + made[taken : taken + 500]
+        taken = taken + 500
+    turn = 0
+    while len(cells) < rows:
+        if case == "prefix" or (case == "interleaved" and turn % 2 == 1) or (case == "late" and turn % 3 == 2):
+            cells += [again]
+        else:
+            cells += [made[taken]]
+            taken = taken + 1
+        turn = turn + 1
+    return cells
+
+
+def _numbers(count: int) -> "list[str]":
+    return [f"{100000 + k}" for k in range(count)]
+
+
+def _days(count: int) -> "list[str]":
+    first = datetime.date(1800, 1, 1).toordinal()
+    return [datetime.date.fromordinal(first + k).isoformat() for k in range(count)]
+
+
+_CASES = ("prefix", "interleaved", "late")
+
+
+@pytest.mark.parametrize("case", _CASES)
+def test_past_the_bound_a_text_met_again_shares_one_record(case: str) -> None:
+    """Codex's review: 65,536 different numbers and then "70000" made a record a row on d4b114d (200,000 for 65,537)."""
+    bound = parsing.SPELLING_MEMO_TEXTS
+    cells = _past_the_bound(case, bound + 20_000, bound, _numbers(bound + 20_000), _AGAIN)
+    classified = taxonomy._classify_all(cells)
+    assert _objects(classified) == len(set(cells)), case
+    assert [one.text for one in classified[bound - 3 : bound + 40]] == cells[bound - 3 : bound + 40]
+    tallied = taxonomy._tally(classified, len(cells), _SETTINGS)
+    assert tallied.spellings_by_folded == {}
+    assert tallied.folded_counts[_AGAIN] == cells.count(_AGAIN)
+
+
+@pytest.mark.parametrize("case", _CASES)
+def test_past_the_bound_a_date_met_again_shares_its_pair_and_day(case: str) -> None:
+    """d4b114d made a date pair and a day number a row of the date met only past the bound."""
+    bound = parsing.SPELLING_MEMO_TEXTS
+    cells = _past_the_bound(case, bound + 20_000, bound, _days(bound + 20_000), "2024-01-05")
+    found = taxonomy._matching_date_format(cells, _SETTINGS)
+    assert found is not None
+    good = found[1]
+    assert len(good) == len(cells)
+    assert _objects(good) == len(set(cells)), case
+    details = {"resolution": taxonomy.RESOLUTION_DATE, "datetimes_read_at": taxonomy.READ_AT_LOCAL, "format": "iso-date"}
+    days = taxonomy._census_days(details, good)
+    assert _objects(days) == len(set(cells)), case
+
+
+@pytest.mark.parametrize("case", _CASES)
+def test_past_the_bound_a_stamp_met_again_keeps_its_pair_and_one_key(
+    case: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The offsets keep the shared pair, and the ordered moments make one key per moment past the bound.
+
+    d4b114d made a pair and a key a row of the moment met only past the
+    bound: about 100 bytes a row it adds where that is every added row.
+    """
+    bound = parsing.SPELLING_MEMO_TEXTS
+    start = datetime.datetime(2020, 1, 1)
+    made = [(start + datetime.timedelta(seconds=k)).isoformat() + "+01:00" for k in range(bound + 40_000)]
+    keys = parsing.instant_key
+    asked: "list[int]" = [0]
+
+    def counted(canonical: str, offset: str) -> "int | None":
+        asked[0] = asked[0] + 1
+        return keys(canonical, offset)
+
+    held: "list[float]" = []
+    for rows in (bound + 10_000, bound + 40_000):
+        cells = _past_the_bound(case, rows, bound, made, "2024-01-05T09:15:00-05:00")
+        found = taxonomy._matching_date_format(cells, _SETTINGS)
+        assert found is not None
+        good = found[1]
+        assert _objects(good) == len(set(cells)), case
+        offsets: "dict[str, int]" = {}
+        for _canonical, offset in good:
+            offsets[offset] = (offsets[offset] if offset in offsets else 0) + 1
+        kept = taxonomy._offsets_as_published(good, offsets)
+        assert all(kept[place] is good[place] for place in range(len(good)))
+        monkeypatch.setattr(parsing, "instant_key", counted)
+        asked[0] = 0
+        taxonomy.ordered_moments(good, taxonomy.READ_AT_LOCAL)
+        assert asked[0] == len(set(cells)), case
+        monkeypatch.setattr(parsing, "instant_key", keys)
+        taxonomy.ordered_moments(good[:100], taxonomy.READ_AT_LOCAL)
+        tracemalloc.start()
+        try:
+            before = tracemalloc.get_traced_memory()[0]
+            tracemalloc.reset_peak()
+            ordered = taxonomy.ordered_moments(good, taxonomy.READ_AT_LOCAL)
+            held += [tracemalloc.get_traced_memory()[1] - before]
+        finally:
+            tracemalloc.stop()
+        assert len(ordered[0]) == len(cells)
+    if case == "prefix":
+        per_row = (held[1] - held[0]) / 30_000
+        assert per_row < 60, (case, per_row)
+
+
+def test_past_the_bound_the_survey_holds_one_text_per_spelling(tmp_path: pathlib.Path) -> None:
+    bound = parsing.SPELLING_MEMO_TEXTS
+    made = _numbers(bound + 20_000)
+    columns = [_past_the_bound(case, bound + 20_000, bound, made, _AGAIN) for case in _CASES]
+    text = "prefix,interleaved,late\n" + "".join(f"{a},{b},{c}\n" for a, b, c in zip(*columns))
+    table = reading.read_table(str(fixtures.write(tmp_path, "past.csv", text)))
+    for place, cells in enumerate(columns):
+        assert table.columns[place] == cells
+        assert _objects(table.columns[place]) == len(set(cells)), _CASES[place]
+
+
+def test_the_note_of_texts_met_once_turns_over_at_its_bound() -> None:
+    noted = parsing.SPELLING_MEMO_NOTED
+    assert noted == 8192
+    assert parsing.memo_notes(0)
+    assert parsing.memo_notes(noted - 1)
+    assert not parsing.memo_notes(noted)
+
+
+def test_a_text_met_again_within_the_note_s_bound_is_shared_and_one_further_apart_is_not(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Past the bound a text is taken where it is met again before `SPELLING_MEMO_NOTED` other new texts."""
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_TEXTS", 64)
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_NOTED", 16)
+    made = _numbers(2_000)
+    for gap, shared in ((15, True), (16, True), (40, False)):
+        cells = made[:64]
+        taken = 64
+        while len(cells) < 1_000:
+            cells = cells + [_AGAIN] + made[taken : taken + gap]
+            taken = taken + gap
+        classified = taxonomy._classify_all(cells)
+        assert classified == [taxonomy._classify(one) for one in cells]
+        records = {id(classified[place]) for place in range(len(cells)) if cells[place] == _AGAIN}
+        assert (len(records) == 1) == shared, (gap, len(records))
+
+
+def _profile_files(folder: pathlib.Path, table: pathlib.Path, floor: int) -> "dict[str, bytes]":
+    out = folder / f"out-{floor}"
+    out.mkdir()
+    assert kpi_shapes.quiet_cli(["profile", str(table), "--out-dir", str(out), "--smallest-group", str(floor)]) == 0
+    return {path.name: path.read_bytes() for path in sorted(out.iterdir())}
+
+
+def test_past_the_bound_every_file_is_the_bytes_written_with_nothing_shared(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The three cases of numbers, days and stamps with offsets, at floors 1, 11 and 36, with a bound of 2,048 and a note of 64."""
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_TEXTS", 2_048)
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_NOTED", 64)
+    rows = 6_000
+    start = datetime.datetime(2020, 1, 1)
+    stamps = [(start + datetime.timedelta(minutes=k)).isoformat() + "+01:00" for k in range(rows)]
+    columns: "dict[str, list[str]]" = {}
+    for case in _CASES:
+        columns[f"n_{case}"] = _past_the_bound(case, rows, 2_048, _numbers(rows), _AGAIN)
+        columns[f"d_{case}"] = _past_the_bound(case, rows, 2_048, _days(rows), "2024-01-05")
+        columns[f"s_{case}"] = _past_the_bound(case, rows, 2_048, stamps, "2024-01-05T09:15:00-05:00")
+    names = sorted(columns)
+    text = ",".join(names) + "\n" + "".join(",".join(columns[name][row] for name in names) + "\n" for row in range(rows))
+    table = fixtures.write(tmp_path, "past.csv", text)
+    shared: "dict[int, dict[str, bytes]]" = {}
+    (tmp_path / "shared").mkdir()
+    for floor in (1, 11, 36):
+        shared[floor] = _profile_files(tmp_path / "shared", table, floor)
+    monkeypatch.setattr(parsing, "memo_takes", lambda held, answered: False)
+    monkeypatch.setattr(parsing, "memo_notes", lambda noted: False)
+    (tmp_path / "alone").mkdir()
+    for floor in (1, 11, 36):
+        alone = _profile_files(tmp_path / "alone", table, floor)
+        assert len(alone) >= 3, sorted(alone)
+        assert alone == shared[floor], floor

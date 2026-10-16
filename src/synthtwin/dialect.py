@@ -5204,9 +5204,13 @@ def survey(
     # ONE TEXT PER SPELLING IN EACH COLUMN (lane S4d, plan P4-D390): the
     # rows of a column that write one spelling hold the same text, not a
     # copy of it per row, up to `parsing.SPELLING_MEMO_TEXTS` where the
-    # column's values do not repeat.
+    # column's values do not repeat, and past it a text met again from
+    # its second sighting (each column's note of texts met once, newer
+    # and older, `parsing.SPELLING_MEMO_NOTED`).
     spelled: "list[dict[str, str]]" = [{} for _place in range(width)]
     shared: "list[int]" = [0 for _place in range(width)]
+    noted: "list[dict[str, str]]" = [{} for _place in range(width)]
+    older: "list[dict[str, str]]" = [{} for _place in range(width)]
     n_rows = 0
     offenders: list[tuple[int, int]] = []
     ragged = 0
@@ -5306,6 +5310,8 @@ def survey(
             flags = [bytearray() for _place in range(width)]
             spelled = [{} for _place in range(width)]
             shared = [0 for _place in range(width)]
+            noted = [{} for _place in range(width)]
+            older = [{} for _place in range(width)]
         closing = rows_trailing and len(fields) == width + 1 and _closes(found)
         spaces_broken = spaces_broken or _spaces_broken(found, spaced, closing)
         count = len(fields)
@@ -5422,8 +5428,21 @@ def survey(
                 if value in spelled_here:
                     value = spelled_here[value]
                     shared[place] = shared[place] + 1
+                elif value in noted[place] or value in older[place]:
+                    # Met again past the bound: taken now, its first text.
+                    if value in noted[place]:
+                        value = noted[place][value]
+                    else:
+                        value = older[place][value]
+                    spelled_here[value] = value
+                    shared[place] = shared[place] + 1
                 elif parsing.memo_takes(len(spelled_here), shared[place]):
                     spelled_here[value] = value
+                elif parsing.memo_notes(len(noted[place])):
+                    noted[place][value] = value
+                else:
+                    older[place] = noted[place]
+                    noted[place] = {}
                 columns[place] += [value]
                 flags[place] += _BYTE_ONE if found.quoted[place] else _BYTE_ZERO
                 # A CELL OF NOTHING BUT SPACES HOLDS NOTHING (plan

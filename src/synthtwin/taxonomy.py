@@ -6637,10 +6637,14 @@ def _classify_all(
     thousand spellings holds a thousand records, not a million. Past
     `parsing.SPELLING_MEMO_TEXTS` different texts the memo stops taking
     new texts unless it has answered as many rows as it holds (a column
-    whose values never repeat), and it still shares every text it holds.
+    whose values never repeat), and it still shares every text it holds;
+    a text it refuses is noted with its record, and a noted text met
+    again is taken then, sharing that record (`parsing.SPELLING_MEMO_NOTED`).
     Nothing reads a record's identity.
     """
     known: "dict[str, _Cell]" = {}
+    noted: "dict[str, _Cell]" = {}
+    older: "dict[str, _Cell]" = {}
     answered = 0
     classified: "list[_Cell]" = []
     for value in present:
@@ -6648,9 +6652,21 @@ def _classify_all(
             answered = answered + 1
             classified += [known[value]]
             continue
+        if value in noted or value in older:
+            # MET AGAIN PAST THE BOUND: taken now, with its first record.
+            cell = noted[value] if value in noted else older[value]
+            known[value] = cell
+            answered = answered + 1
+            classified += [cell]
+            continue
         cell = _classify(value, decimal_comma)
         if parsing.memo_takes(len(known), answered):
             known[value] = cell
+        elif parsing.memo_notes(len(noted)):
+            noted[value] = cell
+        else:
+            older = noted
+            noted = {}
         classified += [cell]
     return classified
 
@@ -15790,8 +15806,11 @@ def _matching_date_format(
         sources: list[str] = []
         missed = 0
         # ONE READING PER SPELLING (lane S4d, `parsing.SPELLING_MEMO_TEXTS`): the
-        # rows that write one date share its pair.
+        # rows that write one date share its pair, a date met again past
+        # the bound from its second sighting (`parsing.SPELLING_MEMO_NOTED`).
         pairs: "dict[str, tuple[str, str]]" = {}
+        noted: "dict[str, tuple[str, str]]" = {}
+        older: "dict[str, tuple[str, str]]" = {}
         answered = 0
         for value in present:
             if value in pairs:
@@ -15799,10 +15818,22 @@ def _matching_date_format(
                 good += [pairs[value]]
                 sources += [value]
                 continue
+            if value in noted or value in older:
+                pair_noted = noted[value] if value in noted else older[value]
+                pairs[value] = pair_noted
+                answered = answered + 1
+                good += [pair_noted]
+                sources += [value]
+                continue
             pair_read = parsing.parse_datetime(value, reading)
             if pair_read is not None:
                 if parsing.memo_takes(len(pairs), answered):
                     pairs[value] = pair_read
+                elif parsing.memo_notes(len(noted)):
+                    noted[value] = pair_read
+                else:
+                    older = noted
+                    noted = {}
                 good += [pair_read]
                 sources += [value]
                 continue
@@ -17306,17 +17337,31 @@ def _census_days(
     ):
         return ()
     days: "list[int]" = []
-    # ONE DAY NUMBER PER WRITTEN DATE (lane S4d, `parsing.SPELLING_MEMO_TEXTS`).
+    # ONE DAY NUMBER PER WRITTEN DATE (lane S4d, `parsing.SPELLING_MEMO_TEXTS`;
+    # past the bound from a date's second sighting, `parsing.SPELLING_MEMO_NOTED`).
     known: "dict[str, int]" = {}
+    noted: "dict[str, int]" = {}
+    older: "dict[str, int]" = {}
     answered = 0
     for canonical, _offset in pairs:
         if canonical in known:
             answered = answered + 1
             days += [known[canonical]]
             continue
+        if canonical in noted or canonical in older:
+            day = noted[canonical] if canonical in noted else older[canonical]
+            known[canonical] = day
+            answered = answered + 1
+            days += [day]
+            continue
         day = calendar_rules.written_day(canonical)
         if parsing.memo_takes(len(known), answered):
             known[canonical] = day
+        elif parsing.memo_notes(len(noted)):
+            noted[canonical] = day
+        else:
+            older = noted
+            noted = {}
         days += [day]
     return tuple(sorted(days))
 
@@ -20069,13 +20114,23 @@ def ordered_moments(
     keyed: list[tuple[int, str, str]] = []
     unkeyed: list[str] = []
     # ONE KEY PER WRITTEN MOMENT (lane S4d, `parsing.SPELLING_MEMO_TEXTS`): the
-    # rows that write one moment share its key.
+    # rows that write one moment share its key, a moment met again past
+    # the bound from its second sighting (`parsing.SPELLING_MEMO_NOTED`).
     known: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    noted: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    older: "dict[tuple[str, str], tuple[int, str, str]]" = {}
     answered = 0
     for canonical, offset in pairs:
-        if (canonical, offset) in known:
+        moment = (canonical, offset)
+        if moment in known:
             answered = answered + 1
-            keyed += [known[(canonical, offset)]]
+            keyed += [known[moment]]
+            continue
+        if moment in noted or moment in older:
+            entry = noted[moment] if moment in noted else older[moment]
+            known[moment] = entry
+            answered = answered + 1
+            keyed += [entry]
             continue
         instant = parsing.instant_key(canonical, offset)
         shown = canonical
@@ -20095,7 +20150,12 @@ def ordered_moments(
         else:
             entry = (instant, shown, offset)
             if parsing.memo_takes(len(known), answered):
-                known[(canonical, offset)] = entry
+                known[moment] = entry
+            elif parsing.memo_notes(len(noted)):
+                noted[moment] = entry
+            else:
+                older = noted
+                noted = {}
             keyed += [entry]
     if keyed:
         ordered = sorted(keyed)
