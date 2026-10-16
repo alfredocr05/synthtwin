@@ -2123,7 +2123,7 @@ HEALTH_ZOO_WORKBOOK_PART = (
 def test_k_hz_01(record_property, health_zoo_small: "dict") -> None:
     """The kinds of healthcare data that pass end to end, the analyst's code unchanged (lane E0a, plan P4-D399).
 
-    Twenty-three exports at 600 rows, each profiled, its questions
+    Twenty-five exports at 600 rows, each profiled, its questions
     answered with general facts about the data, generated, validated,
     and read by the analyst's script on the real table and on the twin.
     The driver measures the same at 20,000 rows. `tests/health_zoo.py`
@@ -2153,6 +2153,8 @@ def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
 
     Each failure of a kind needs an OWNERS line of its own in
     `tests/health_zoo.py`; one with none breaks the rule's bound of nought.
+    A failure whose only line reads 'needs owner' has its gap stated and
+    no lane yet: it is counted apart, `failures_needing_owner`.
     """
     measured = health_zoo_small["K-HZ-02"]
     whole = crosscheck.present()
@@ -2166,11 +2168,13 @@ def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
             f"{len(verdict['analyst_failures'])} analyst; "
             f"{', '.join(verdict['owners']) or 'NO OWNER'}"
             + (f"; UNOWNED {verdict['unowned']}" if verdict["unowned"] else "")
+            + (f"; NEEDING AN OWNER {verdict['needing_owner']}" if verdict["needing_owner"] else "")
         )
     value = {
         "kinds_failing_600_rows_csv": measured["kinds_failing_csv"],
         "failing_kinds_without_owner": measured["failing_kinds_without_owner"],
         "failures_without_owner": measured["failures_without_owner"],
+        "failures_needing_owner": measured["failures_needing_owner"],
         "per_kind": per_kind,
     }
     if whole:
