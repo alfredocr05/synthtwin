@@ -21,7 +21,9 @@ folder, the computer's total memory, and a named table's size against
 it, a workbook at the reader's measured bound) and exits 0 when none
 fails, 1 otherwise, a check it could not make marked `note`; it never
 opens the table, and a folder it may not look into is a line saying
-what to do, not a stack trace. `python -m synthtwin` now runs the command, where it stopped with
+what to do, not a stack trace, on Python 3.10 to 3.14 alike. Run again,
+a script says it replaces the earlier environment, and it closes by
+teaching how to switch the environment on in the same window. `python -m synthtwin` now runs the command, where it stopped with
 an error, and `profile` ends by printing the `generate` command to type
 next, as README promised. README gains "Before you start" (getting Python
 3.10 or later on a Mac, on Windows and on Linux) and an "Installing"
