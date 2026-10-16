@@ -72,7 +72,8 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
 * Allowed modules for src/: argparse, csv, dataclasses, json, math,
   pathlib, typing, sys (but sys.modules and sys.path may never be read
   or written); from os only the enumerated os.path helpers, os.fspath,
-  os.getcwd, os.lstat, and read-only os.environ; from
+  os.getcwd, os.lstat, os.isatty, os.sysconf, and read-only os.environ;
+  from
   importlib.metadata only the version() function; the runtime
   dependency pandas, reduced to read_csv alone; and, from numpy,
   `import numpy.random` and the single name numpy.random.default_rng
@@ -496,7 +497,9 @@ attribute absent from it is not allowed at all:
   entries for settrace, setprofile, addaudithook, set_asyncgen_hooks,
   and call_tracing as a second layer even though the attribute
   enumeration already rejects them.
-* os: fspath, getcwd, lstat, and read-only os.environ: data. Every
+* os: fspath, getcwd, lstat, isatty, sysconf (plan P4-D397: it takes a
+  configuration name and returns a number, opens nothing and runs
+  nothing), and read-only os.environ: data. Every
   enumerated os.path helper (join, exists, isfile, dirname, ...) is
   a pure path-text or single-metadata function: data.
 * importlib.metadata: version: data.
@@ -1322,7 +1325,22 @@ _SYS_BANNED = (
 # and returns a bool -- it opens nothing, names no path, and reads no
 # content -- and it is reachable in ONE attribute step, which
 # `sys.stdin.isatty` is not.
-_OS_ALLOWED_EXACT = {"os.fspath", "os.getcwd", "os.lstat", "os.isatty"}
+#
+# `os.sysconf` joins them for plan P4-D397: `synthtwin doctor` weighs a
+# table's file size against this computer's total memory, and the
+# standard library reports that memory nowhere else without starting a
+# program or calling native code. It takes the NAME of a configuration
+# value -- the doctor asks for SC_PHYS_PAGES and SC_PAGE_SIZE -- and
+# returns an integer; it opens nothing, names no path, takes no
+# callable and loads nothing. On Windows it does not exist, and the
+# doctor says the memory could not be read.
+_OS_ALLOWED_EXACT = {
+    "os.fspath",
+    "os.getcwd",
+    "os.lstat",
+    "os.isatty",
+    "os.sysconf",
+}
 
 # Attribute names that are known to name modules when reached through
 # another module's namespace (allowed modules re-export several of
@@ -1461,7 +1479,8 @@ _ALLOWED_CALL_BUILTINS = {
 _ALLOWLIST_NOTE = (
     "The Phase 0 allowlist (plan D6.2) permits only: argparse, "
     "dataclasses, json, pathlib, typing, sys (never sys.modules or "
-    "sys.path), os.path plus os.fspath, os.getcwd, os.lstat and "
+    "sys.path), os.path plus os.fspath, os.getcwd, os.lstat, "
+    "os.isatty, os.sysconf and "
     "read-only os.environ, and importlib.metadata.version() -- and "
     "within each module only the attribute names enumerated in this "
     "scanner. Adding anything is a plan-level decision, not a code "
@@ -3433,7 +3452,8 @@ class _Checker(ast.NodeVisitor):
                 return None
             return (
                 "uses '" + dotted + "'. From the os module only the os.path "
-                "functions, os.fspath, os.getcwd, os.lstat, and reading "
+                "functions, os.fspath, os.getcwd, os.lstat, os.isatty, "
+                "os.sysconf, and reading "
                 "os.environ are allowed."
             )
 

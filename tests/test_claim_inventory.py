@@ -277,6 +277,21 @@ RETIRED_CLAIMS = (
 # with no list to remember to update.
 
 
+# The command words the parser takes that are NOT a step of the run, each
+# with its reason. This is the subtraction rather than the answer, as the
+# options test's list is: a new command word the parser takes is counted
+# here unless somebody classifies it below. `doctor` (plan P4-D397) checks
+# the computer before a first run -- Python, its two packages, the output
+# folder and the memory -- reads no table and writes none of the files a
+# run is made of, so "three commands, run one after the other" stays the
+# true count of the run and a walkthrough of the run need not run it. It
+# is still named where a person installs the tool: README's "Installing"
+# and the command's own help (tests/test_terminal_install.py).
+NOT_A_STEP_OF_THE_RUN = {
+    "doctor": "checks this computer before a run; reads no table, writes no file of the run",
+}
+
+
 def _shipped_command_words() -> "tuple[str, ...]":
     """`synthtwin <word>` for every word the shipped command line takes.
 
@@ -327,7 +342,9 @@ def _shipped_command_words() -> "tuple[str, ...]":
         for word in (
             piece.strip().strip("'\"") for piece in found.group(1).split(",")
         )
-        if word and all(c.islower() or c == "-" for c in word)
+        if word
+        and all(c.islower() or c == "-" for c in word)
+        and word not in NOT_A_STEP_OF_THE_RUN
     )
     assert len(words) >= 3, (
         "The shipped command line offers fewer than the three commands "
