@@ -11,24 +11,31 @@ exists).
 **Nothing is built by this entry, and no command prints, writes or
 exits otherwise.** It writes, before any code, how stage 5 turns what a
 run did into data (plan P4-D395): one result object per run, holding
-its verdict (complete, missed, refused or unusable); every miss, ranked
-once by what else it brings down -- the file's form, then a column's
-writing, then an exact count, then a fact outside its window -- and
-then by the description's own order; what the run holds only
-approximately or does not carry, each with its class and its reason,
-with room for stage 6's pairs; its warnings, the files it wrote and the
-command to type next. `cli.run` is to return that object and print
-nothing unless it is handed a screen; the exit status is to be computed
-from the result alone, with today's values case for case (validation
-method V6.5-A1). And every byte is to stay put: a battery of about
-thirty good and bad command lines whose files, screens and exit
-statuses are recorded in a generated module, re-recorded only by a new
-recorder, and only by a landing that changes those bytes on purpose,
-naming each one. Measured first: the provenance guard's hook refuses
-`ctypes`, which numpy imports, so the product cannot run as the guard
-runner's script; installed after the product's imports, the same hook
-held a whole profile, generate and validate run of 300 rows (0.44 s),
-which came back byte for byte in a second folder.
+its verdict (no-miss, missed, refused or unusable), with its counts
+beside it and every obligation whose outcome it could not say listed,
+since "no miss" never means every obligation was judged; every miss,
+ranked once by what else it brings down -- the file's form, then which
+spellings a column may wear, then a fact decided exactly, then one
+judged outside its window -- and then by the description's own order;
+what the run holds only approximately or does not carry, each with its
+class and its reason, stage 6's pairs under that stage's own names,
+where only an exact pair can miss; its floor, flagged where it is
+lowered; its warnings, the files it wrote and the command to type next.
+`cli.run` is to return that object and print nothing unless it is
+handed a screen; the exit status is to be computed from the result
+alone, with today's values case for case (validation method V6.5-A1).
+And every byte is to stay put: a battery of about thirty-five good and
+bad command lines whose files, screens and exit statuses are recorded,
+at a fixed terminal width, in a generated module that carries a digest
+of its own records, recorded again only by a new recorder, and only by
+a landing that changes those bytes on purpose or by a method landing
+that moves them, naming each one. Measured first: the provenance
+guard's hook refuses `ctypes`, which numpy imports, so the product
+cannot run as the guard runner's script; installed after the product's
+imports, the same hook held a whole profile, generate and validate run
+of 300 rows (0.44 s), which came back byte for byte in a second folder;
+argparse's help page comes out in 332, 219 or 146 lines at 80, 120 or
+200 columns.
 
 ### Repeated grids of timestamps meet their counts (2026-10-15)
 
