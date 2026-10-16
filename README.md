@@ -799,11 +799,10 @@ end of a run is written the same way, so it works as printed in that
 window. `python -m synthtwin` does exactly what `synthtwin` does, with
 the same options and the same exit codes.
 
-On Windows, synthtwin writes the commands it prints for PowerShell. In
-Command Prompt, type a path it shows between single quotes between
-double quotes instead: where it printed
-`synthtwin generate 'C:\Users\Ana Maria\clinic-profile.json'`, type
-`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"`.
+On Windows, synthtwin writes the commands it prints in double quotes,
+which Command Prompt and PowerShell both read, so
+`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"` works as
+printed in either window.
 
 ### Checking the computer: `synthtwin doctor`
 

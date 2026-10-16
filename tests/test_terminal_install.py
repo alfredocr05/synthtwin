@@ -10,7 +10,10 @@ easy anyway!". This file holds the four things lane TI built to that:
   check passed and 1 when any did not -- each check is forced to fail
   here in turn -- and never opens the table it is named;
 * `profile` ends by printing the `generate` command on each way a run
-  that wrote a description ends, as README promised and it did not;
+  that wrote a description ends, as README promised and it did not,
+  quoted on Windows for the Command Prompt and PowerShell both (lane
+  CF4b: TI's line wrote PowerShell's single quotes, which the Command
+  Prompt the install script runs in does not honour);
 * the install scripts keep the hash-checked offline procedure, end by
   running `doctor`, and CI runs them on Ubuntu, Windows and macOS.
 
@@ -59,15 +62,76 @@ def _problems(lines: "list[str]") -> "list[str]":
 def _words(line: str) -> "list[str]":
     """A taught line split as the shell it was quoted for splits it.
 
-    POSIX quoting on a Mac or Linux; PowerShell's single quotes, a quote
-    inside doubled, on Windows.
+    POSIX quoting on a Mac or Linux; on Windows the words the program
+    reads from the line the Command Prompt hands it (`_read_by_the_c_runtime`).
     """
-    if sys.platform != "win32":
+    if os.name != "nt":
         return shlex.split(line)
-    return [
-        word[1:-1].replace("''", "'") if word.startswith("'") else word
-        for word in re.findall(r"'(?:[^']|'')*'|\S+", line)
-    ]
+    return _read_by_the_c_runtime(_handed_over_by_the_command_prompt(line))
+
+
+def _handed_over_by_the_command_prompt(line: str) -> str:
+    """The line cmd.exe hands a program, refusing one where it would run anything.
+
+    Every `"` opens or closes cmd's quotes; outside them `&`, `|`, `<`,
+    `>`, `(` and `)` are its own operators and `%` starts a variable, so
+    none may stand there, and `^` makes the character after it text.
+    Inside them every character is handed over as typed (no variable is
+    set in this model, so `%NAME%` stays as typed).
+    """
+    handed, quoted, place = "", False, 0
+    while place < len(line):
+        character = line[place]
+        if character == '"':
+            quoted = not quoted
+        elif not quoted and character in "&|<>()%":
+            raise AssertionError(f"the Command Prompt reads {character!r} as its own in {line!r}")
+        elif not quoted and character == "^":
+            place += 1
+            character = line[place : place + 1]
+        handed += character
+        place += 1
+    return handed
+
+
+def _read_by_the_c_runtime(line: str) -> "list[str]":
+    """The words a program reads from its command line by the C runtime's rule.
+
+    Backslashes are text unless a `"` follows, where each pair is one
+    backslash and an odd one makes the `"` text; inside quotes `""` is
+    one `"` and the quotes go on; any other `"` opens or closes them;
+    a space or a tab outside them ends a word.
+    """
+    words: "list[str]" = []
+    word, quoted, started, place = "", False, False, 0
+    while place < len(line):
+        slashes = 0
+        while place < len(line) and line[place] == "\\":
+            slashes, place = slashes + 1, place + 1
+        if place < len(line) and line[place] == '"':
+            word += "\\" * (slashes // 2)
+            started = True
+            if slashes % 2:
+                word += '"'
+            elif quoted and line[place + 1 : place + 2] == '"':
+                word, place = word + '"', place + 1
+            else:
+                quoted = not quoted
+            place += 1
+            continue
+        word += "\\" * slashes
+        started = started or slashes > 0
+        if place >= len(line):
+            break
+        if line[place] in " \t" and not quoted:
+            if started:
+                words, word, started = words + [word], "", False
+        else:
+            word, started = word + line[place], True
+        place += 1
+    if started:
+        words += [word]
+    return words
 
 
 def _taught(text: str) -> "list[str]":
@@ -710,7 +774,8 @@ def test_profile_quotes_a_description_in_a_folder_with_a_space(
     lines = _profile_lines(table, capsys)
     _names_the_description(lines, spaced / "clinic-profile.json")
     assert lines[-1].startswith("  (each value quoted for")
-    assert "'" in lines[-2], "a path with a space is written between quotes"
+    mark = '"' if os.name == "nt" else "'"
+    assert mark in lines[-2], "a path with a space is written between quotes"
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="a symbolic link needs no privilege on POSIX alone")
@@ -742,9 +807,109 @@ def test_a_refused_profile_teaches_no_next_command(
 
 
 def test_the_next_command_is_quoted_for_the_shell() -> None:
-    line = cli._teaching_generate(pathlib.Path("/data/my clinic-profile.json"))
-    assert "synthtwin generate '/data/my clinic-profile.json'" in line
-    assert line.splitlines()[-1].startswith("  (each value quoted for")
+    """The platform's own form: single quotes on POSIX, double quotes on Windows.
+
+    CI's Windows jobs on 68dae22f read `synthtwin generate
+    '\\data\\my clinic-profile.json'`, PowerShell's single quotes, which
+    the Command Prompt the install script runs in reads as part of the
+    words, so the line broke at the space there (lane CF4b).
+    """
+    description = pathlib.Path("/data/my clinic-profile.json")
+    line = cli._teaching_generate(description)
+    if os.name == "nt":
+        assert f'synthtwin generate "{description}"' in line
+        assert line.splitlines()[-1] == "  (each value quoted for the Command Prompt and PowerShell)"
+    else:
+        assert "synthtwin generate '/data/my clinic-profile.json'" in line
+        assert line.splitlines()[-1] == "  (each value quoted for a POSIX shell such as bash or zsh)"
+    command = line.splitlines()[2].strip()
+    assert _words(command) == ["synthtwin", "generate", f"{description}"]
+
+
+# Each word on both platforms (lane CF4b, plan P4-D397): the value, its
+# POSIX form, its Windows form, and -- where it is not the value, else
+# None -- what a program reads from the Windows form typed into the
+# Command Prompt, and what PowerShell reads it as (`_read_by_powershell`).
+_BOTH_FORMS = [
+    ("C:\\my data\\real.csv", "'C:\\my data\\real.csv'", '"C:\\my data\\real.csv"', None, None),
+    ("/data/my clinic-profile.json", "'/data/my clinic-profile.json'", '"/data/my clinic-profile.json"', None, None),
+    ('UNK"', "'UNK\"'", '"UNK"""', None, None),
+    ('say "no" twice', "'say \"no\" twice'", '"say ""no"" twice"', None, None),
+    ("a&b", "'a&b'", '"a&b"', None, None),
+    ("50%", "50%", '"50%"', None, None),
+    ("%PATH%", "%PATH%", '"%PATH%"', None, None),
+    ("a^b", "'a^b'", '"a^b"', None, None),
+    ("S\u00e4ule \u00e9", "'S\u00e4ule \u00e9'", '"S\u00e4ule \u00e9"', None, None),
+    ("C:\\data\\real.csv", "'C:\\data\\real.csv'", "C:\\data\\real.csv", None, None),
+    ("\\\\server\\share\\real.csv", "'\\\\server\\share\\real.csv'", "\\\\server\\share\\real.csv", None, None),
+    ("\\\\server\\my share\\", "'\\\\server\\my share\\'", '"\\\\server\\my share\\\\"', None, "\\\\server\\my share\\\\"),
+    ("", "''", '""', None, None),
+    ("it's", "'it'\"'\"'s'", '"it\'s"', None, None),
+    ("Cost ($)", "'Cost ($)'", '"Cost ($)"', None, None),
+    ("$(printf marker)", "'$(printf marker)'", '"`$(printf marker)"', "`$(printf marker)", None),
+    ("a`b", "'a`b'", '"a``b"', "a``b", None),
+    ("seen_at", "seen_at", "seen_at", None, None),
+    ("RUNNER~1", "'RUNNER~1'", "RUNNER~1", None, None),
+    ("a,b", "a,b", '"a,b"', None, None),
+]
+
+
+def _read_by_powershell(word: str) -> str:
+    """The string PowerShell reads from one word typed as an argument, refusing an expansion.
+
+    A bare word holds none of PowerShell's own characters. Inside double
+    quotes (`"` or a typographic one) a backtick makes the character
+    after it text, a quote doubled is one, and a `$` before a letter, a
+    digit or one of `_{(?^$:` would be expanded, which is refused.
+    """
+    quotes = '"\u201c\u201d\u201e'
+    if word[:1] not in quotes:
+        assert not any(character in quotes + "'`$,@;#{}()&|<>" for character in word), word
+        return word
+    read, place = "", 1
+    while place < len(word):
+        character = word[place]
+        if character == "`":
+            read, place = read + word[place + 1], place + 2
+        elif character in quotes and word[place + 1 : place + 2] != "" and word[place + 1] in quotes:
+            read, place = read + word[place + 1], place + 2
+        elif character in quotes:
+            assert place == len(word) - 1, f"the word goes on after its quotes: {word!r}"
+            return read
+        else:
+            following = word[place + 1 : place + 2]
+            assert not (
+                character == "$" and following != "" and (following in "_{(?^$:" or following.isalnum() or ord(following) > 127)
+            ), f"PowerShell expands {word!r}"
+            read, place = read + character, place + 1
+    raise AssertionError(f"the quotes are never closed: {word!r}")
+
+
+@pytest.mark.parametrize(("value", "posix", "windows", "prompt", "powershell"), _BOTH_FORMS)
+def test_both_quoting_functions_on_any_platform(
+    value: str, posix: str, windows: str, prompt: "str | None", powershell: "str | None"
+) -> None:
+    """Each form, whatever this platform is, and each read back by its shell.
+
+    The POSIX form split by `shlex` is the value. The Windows form,
+    through the Command Prompt's model (no operator or `%` outside its
+    quotes) and the C runtime's rule, is the value but where a backtick
+    is written for PowerShell; PowerShell reads it as the value, nothing
+    expanded, but where backslashes end it, which the C runtime's rule
+    halves: Windows PowerShell 5.1 wraps that value in quotes, having a
+    space, so the program reads the value; 7.3 and later hand it over
+    as read (stated limits of plan P4-D397). The choice by platform is
+    `os.name`'s.
+    """
+    assert cli._quoted_for_posix(value) == posix
+    assert cli._quoted_for_the_shell(value, windows=False) == posix
+    assert cli._quoted_for_windows(value) == windows
+    assert cli._quoted_for_the_shell(value, windows=True) == windows
+    assert shlex.split(f"x {posix} y") == ["x", value, "y"]
+    read = _read_by_the_c_runtime(_handed_over_by_the_command_prompt(f"x {windows} y"))
+    assert read == ["x", value if prompt is None else prompt, "y"]
+    assert _read_by_powershell(windows) == (value if powershell is None else powershell)
+    assert cli._quoted_for_the_shell(value) == (windows if os.name == "nt" else posix)
 
 
 # -- the install scripts, README and CI -------------------------------------
@@ -945,10 +1110,13 @@ def test_the_readme_installs_as_written() -> None:
     assert ".venv\\Scripts\\activate" in install
     assert ".venv/bin/synthtwin" not in readme
     # Command Prompt is where README sends a Windows user, and synthtwin
-    # quotes for PowerShell: the paragraph says how to retype a quoted
-    # path (the skeptic, item 4; the Codex review, item 5).
-    windows = install[install.index("synthtwin writes the commands it prints for PowerShell") :]
-    assert "between double quotes" in " ".join(windows[:400].split())
+    # quotes for it and PowerShell both (lane CF4b): the paragraph says
+    # a quoted path works as printed in either (it said how to retype
+    # PowerShell's single quotes before; the skeptic, item 4; the Codex
+    # review, item 5).
+    windows = install[install.index("On Windows, synthtwin writes the commands it prints") :]
+    assert "Command Prompt and PowerShell both read" in " ".join(windows[:400].split())
+    assert "single quotes" not in windows[:400]
     assert "--isolated" in install and "PIP_CONFIG_FILE" in install
 
 

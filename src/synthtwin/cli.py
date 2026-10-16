@@ -333,9 +333,7 @@ def _shown(value: object) -> str:
 # the tree before this, a code written `$(printf marker)` was printed
 # bare after `--missing-value`, and `NOT RECORDED` became two words, so
 # the repeat exited 2. A value made only of these characters is printed
-# as it is; any other is quoted whole. POSIX shells first; PowerShell,
-# the shell a Windows terminal opens, reads `,` and `@` as its own syntax
-# and `\` and `:` as text, so its set differs by those. And `~` is no
+# as it is; any other is quoted whole. POSIX shells first. And `~` is no
 # plain character to a POSIX shell anywhere in a word: bash reads a `~`
 # after the `=` of a word shaped like `a=~`, or after a `:` there, as
 # the home folder, and prints `a=/home/...` (measured with bash 3.2;
@@ -344,114 +342,155 @@ _POSIX_PLAIN = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     "_@%+=:,./-"
 )
-_POWERSHELL_PLAIN = frozenset(
+# ON WINDOWS THE LINE IS TYPED INTO THE COMMAND PROMPT OR POWERSHELL
+# (lane CF4b, plan P4-D397), and the set is the characters both read as
+# text: the Command Prompt (cmd.exe, the shell `scripts/install.bat` runs
+# in and tells the person to type into) reads `%` as the start of a
+# variable even inside double quotes, and `&`, `|`, `<`, `>`, `(`, `)`
+# and `^` as its own outside them; PowerShell reads `,`, `@`, `;`, `#`,
+# `{`, `$` and a backtick as its own. `\` and `:` are text to both,
+# which a drive letter and a UNC path need, and so is `~` inside a word,
+# which a Windows short path (`RUNNER~1`) needs.
+_WINDOWS_PLAIN = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    "_%+=:./\\~-"
+    "_+=:./\\~-"
 )
-# The four characters PowerShell reads as a single quote: the ASCII one
-# and the three typographic ones. Inside single quotes each is written
-# twice, which is how that shell writes one of them.
-_POWERSHELL_QUOTES = "'‘’‚‛"
+# What PowerShell reads as its own inside double quotes, written there
+# after a backtick, its escape: the backtick itself and the three
+# typographic double quotes it reads as `"`.
+_POWERSHELL_ESCAPED = "`“”„"
+# A `$` PowerShell expands inside double quotes is one followed by a
+# letter or a digit (a variable; any character past ASCII is taken for
+# a letter) or by one of these (`$_`, `${...}`, `$(...)`, `$?`, `$^`,
+# `$$`, `$env:`): only such a `$` is written after a backtick, so
+# `Cost ($)` reaches the program as written from both shells.
+_POWERSHELL_AFTER_DOLLAR = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    "_{(?^$:"
+)
 
 
 def _on_windows() -> bool:
-    """Whether the lines to type are quoted for PowerShell rather than POSIX."""
-    return sys.platform == "win32"
+    """Whether the lines to type are quoted for Windows rather than POSIX (`os.name`)."""
+    return os.name == "nt"
 
 
 def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
     """One word, written so the shell the person types it into reads it back.
 
     A word of only plain characters is printed as it stands, so `seen_at`
-    stays `seen_at`. Any other is quoted whole: on POSIX in single quotes,
-    a single quote inside written `'"'"'`; on Windows (``windows`` true,
-    or the platform where it is None) in PowerShell's single quotes, each
-    quote character inside written twice and a double quote written as
-    the program reads it back (below). Both shells read everything
-    between single quotes as text, so nothing in the value is run.
+    stays `seen_at`. Any other is quoted whole: on POSIX in single quotes
+    (`_quoted_for_posix`); on Windows (``windows`` true, or the platform
+    where it is None, by `os.name`) in double quotes, which the Command
+    Prompt and PowerShell both read (`_quoted_for_windows`).
 
     Guarantees: accepts any value, read as text; returns one word for the
     shell. Determinism: a function of the value and the platform. Raises
     nothing. No I/O.
     """
     text = f"{value}"
-    powershell = windows or (windows is None and _on_windows())
-    plain = _POWERSHELL_PLAIN if powershell else _POSIX_PLAIN
-    # ...and some of them not first: zsh reads a word starting with `=`
-    # as the path of a command, and PowerShell a leading `~` as a home
-    # folder, so such a word is quoted too. Inside a word `~` is text to
-    # PowerShell, which a Windows short path (`RUNNER~1`) needs. And a
-    # word starting with `-` is quoted for PowerShell: Windows PowerShell
-    # hands a program a bare word such as `--missing-value=-1.5` as two,
-    # split before the point, so `_typed_option`'s joined word is always
-    # quoted there.
-    leading = ("=", "~", "-") if powershell else ("=",)
+    if windows or (windows is None and _on_windows()):
+        return _quoted_for_windows(text)
+    return _quoted_for_posix(text)
+
+
+def _quoted_for_posix(text: str) -> str:
+    """One word for a POSIX shell: as it stands, or in single quotes.
+
+    A word of only `_POSIX_PLAIN` characters, not starting with `=`, is
+    printed as it stands (zsh reads a word starting with `=` as the path
+    of a command). Any other is put in single quotes, a single quote
+    inside written `'"'"'`: a POSIX shell reads everything between single
+    quotes as text, so nothing in the value is run.
+
+    Guarantees: accepts any text; returns one word for a POSIX shell that
+    reads back as the text. Determinism: a function of the text. Raises
+    nothing. No I/O.
+    """
     if (
         text
-        and text[:1] not in leading
-        and all(character in plain for character in text)
+        and text[:1] != "="
+        and all(character in _POSIX_PLAIN for character in text)
     ):
         return text
     # Built a character at a time, for the offline audit's reason
     # (`_joined`): no method of the value is called.
-    #
-    # AND ON POWERSHELL A DOUBLE QUOTE IS WRITTEN AS THE PROGRAM READS IT
-    # BACK. Windows PowerShell 5.1, the one every Windows machine
-    # carries, puts a value holding `"` into the command line it hands a
-    # program with that quote bare, and the program reads it as a quote
-    # of its own: `say "no" twice` arrived as `say no twice`, and `UNK"`
-    # opened a run that took the option typed after it into the value.
-    # So each `"` is written `\"` with the backslashes before it doubled,
-    # and the backslashes ending a value that holds white space, which
-    # that shell wraps in double quotes, are doubled too -- the C
-    # runtime's own rule for reading a command line. PowerShell 7.3 or
-    # later hands such a value over whole and keeps those backslashes, so
-    # there the declaration misses its value and the question is put
-    # again; on neither is an option taken into a value or anything run.
-    #
-    # WHITE SPACE IS EVERY CHARACTER .NET COUNTS AS WHITE SPACE, not the
-    # space and the tab alone (the verification of the repairs of the
-    # Codex review of lane R1, its open item 2). 5.1 wraps a value
-    # holding any character `Char.IsWhiteSpace` names -- the no-break
-    # space, the ideographic space and the other space separators, which
-    # the display boundary leaves as they are -- so `a`, a no-break
-    # space, `b` and `\` was printed with its one backslash, and in a
-    # model of 5.1's native command binder (no Windows PowerShell was at
-    # hand to run it) the program was handed one word, `a`, the space,
-    # `b`, a `"` and ` --code dose`: the option typed after the value
-    # was taken into it. `parsing.trimmed`
-    # empties a character exactly where Python reads it as white space,
-    # which takes in every character .NET counts. A character the
-    # display boundary shows escaped -- the tab, the line breaks, and the
-    # four separators below the space that Python counts too -- is no
-    # white space on the printed line, so a value whose only white space
-    # is one of those is not wrapped and its ending backslashes reach the
-    # program doubled: the declaration misses its value, as it already
-    # did for a value holding a character shown escaped, and nothing is
-    # taken into a value.
     inside = ""
-    slashes = ""
-    spaced = False
     for character in text:
-        if not parsing.trimmed(character):
-            spaced = True
-        if powershell and character == "\\":
-            slashes = slashes + character
-            continue
-        if powershell and character == '"':
-            inside = inside + slashes + slashes + '\\"'
-            slashes = ""
-            continue
-        inside = inside + slashes
-        slashes = ""
-        if powershell and character in _POWERSHELL_QUOTES:
-            inside = inside + character + character
-        elif not powershell and character == "'":
+        if character == "'":
             inside = inside + "'\"'\"'"
         else:
             inside = inside + character
-    inside = inside + slashes + (slashes if spaced else "")
     return f"'{inside}'"
+
+
+def _quoted_for_windows(text: str) -> str:
+    """One word for the Command Prompt and PowerShell: as it stands, or in double quotes.
+
+    THE LINE IS QUOTED FOR BOTH WINDOWS SHELLS (lane CF4b, plan P4-D397).
+    The tree before this wrote PowerShell's single quotes, which the
+    Command Prompt does not honour: the line `synthtwin generate '\\data\\my
+    clinic-profile.json'` breaks at the space there, and a value holding
+    `&` runs what follows it -- and `scripts/install.bat` tells the person
+    to type the commands into the Command Prompt. Double quotes are read
+    by both: inside them the Command Prompt reads `&`, `|`, `<`, `>`,
+    `(`, `)` and `^` as text, and PowerShell `'`, `,`, `@`, `;`, `#` and
+    `{`.
+
+    A word of only `_WINDOWS_PLAIN` characters, not starting with `-`
+    or `~`, is printed as it stands: Windows PowerShell hands a program a
+    bare word such as `--missing-value=-1.5` as two, split before the
+    point, and PowerShell reads a leading `~` as a home folder. Any other
+    is put in double quotes, written so the program reads it back by the
+    C runtime's rule, which the Command Prompt hands it the line to read
+    by: a `"` inside is written `""`, which that rule reads inside quotes
+    as one `"` and which keeps the Command Prompt inside its quotes; the
+    backslashes before a `"` and at the end are doubled, which that rule
+    reads as one each. For PowerShell, a backtick and a typographic
+    double quote are written after a backtick, and so is a `$` that
+    shell would expand (`_POWERSHELL_AFTER_DOLLAR`); its `""` is one `"`.
+
+    STATED LIMITS, each a value nothing in it can run from: the Command
+    Prompt reads `%NAME%` as the variable NAME's value where that window
+    sets one, and reads the backtick written before a backtick, a
+    typographic double quote or an expanded `$` as text, so such a value
+    arrives otherwise than written; Windows PowerShell 5.1 hands the
+    program a `"` inside a value bare, which the program reads as a quote
+    of its own (the value arrives otherwise, and a word typed after it
+    may be taken into it), and drops an empty value; PowerShell 7.3 and
+    later hand the program the doubled backslashes as written. In each
+    case the declaration misses its value and the question is put again.
+
+    Guarantees: accepts any text; returns one word. Determinism: a
+    function of the text. Raises nothing. No I/O.
+    """
+    if (
+        text
+        and text[:1] not in ("-", "~")
+        and all(character in _WINDOWS_PLAIN for character in text)
+    ):
+        return text
+    # Built a character at a time, for the offline audit's reason
+    # (`_joined`): no method of the value is called.
+    inside = ""
+    slashes = ""
+    after = text[1:] + " "
+    for place, character in enumerate(text):
+        if character == "\\":
+            slashes = slashes + character
+            continue
+        if character == '"':
+            inside = inside + slashes + slashes + '""'
+        elif character in _POWERSHELL_ESCAPED:
+            inside = inside + slashes + "`" + character
+        elif character == "$" and (
+            after[place] in _POWERSHELL_AFTER_DOLLAR or ord(after[place]) > 127
+        ):
+            inside = inside + slashes + "`$"
+        else:
+            inside = inside + slashes + character
+        slashes = ""
+    return f'"{inside}{slashes}{slashes}"'
 
 
 def _typed_option(
@@ -461,7 +500,7 @@ def _typed_option(
 
     The value is quoted for the shell (`_quoted_for_the_shell`), and one
     that starts with a minus sign is joined to its option with `=` and
-    the two written as one word, quoted on PowerShell always: argparse
+    the two written as one word, quoted on Windows always: argparse
     reads a word starting with `-` as an option of its own, so
     `--missing-value -UNK` is refused where `--missing-value=-UNK` is
     read. Then the whole is shown through the display boundary, like
@@ -492,7 +531,7 @@ def _typed_path(path: object, windows: "bool | None" = None) -> str:
 def _shell_named(windows: "bool | None" = None) -> str:
     """Which shell the lines to type are quoted for, in words."""
     if windows or (windows is None and _on_windows()):
-        return "quoted for PowerShell"
+        return "quoted for the Command Prompt and PowerShell"
     return "quoted for a POSIX shell such as bash or zsh"
 
 
@@ -502,13 +541,15 @@ def _quoting_said(line: str, windows: "bool | None" = None) -> str:
     The line that repeats a run always says it (`_how_to_repeat`). The
     other lines a person is told to type -- the options a notice offers,
     the `synthtwin validate` line -- say it once a value on them is
-    quoted, which is when the shell matters: PowerShell's quotes are not
-    the Windows command prompt's, which runs a `&` inside them, so the
-    person is told which shell the line was written for (the Codex
-    review of lane R1, item 1). A quoted value is the only way a `'`
-    reaches such a line, since no plain character is one.
+    quoted, which is when the shell matters: a POSIX shell's single
+    quotes are not the Windows shells' double quotes, so the person is
+    told which shell the line was written for (the Codex review of lane
+    R1, item 1). A quoted value is the only way a `'` reaches a POSIX
+    line, or a `"` a Windows one (lane CF4b, plan P4-D397), since no
+    plain character is one.
     """
-    if "'" not in line:
+    windowed = windows or (windows is None and _on_windows())
+    if ("\"" if windowed else "'") not in line:
         return ""
     return f"\n  (each value {_shell_named(windows)})"
 

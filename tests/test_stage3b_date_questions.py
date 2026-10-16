@@ -1024,17 +1024,23 @@ def test_a_column_name_with_a_space_is_one_word_on_the_repeat_line(
     assert words == ["--twelve-hour", "Visit time", "--missing-value", "UNK"], words
 
 
-def test_the_line_to_type_is_quoted_for_powershell_on_windows() -> None:
-    """On Windows each value is in PowerShell's single quotes, a quote inside written twice."""
+def test_the_line_to_type_is_quoted_for_both_windows_shells_on_windows() -> None:
+    """On Windows each value is in double quotes, which the Command Prompt and PowerShell both read.
+
+    Lane CF4b (plan P4-D397): PowerShell's single quotes, written here
+    before, are text to the Command Prompt, where the install script
+    tells the person to type. A `$` PowerShell would expand is written
+    after its backtick; a single quote is text inside double quotes.
+    """
     assert cli._quoted_for_the_shell("seen_at", windows=True) == "seen_at"
     assert cli._quoted_for_the_shell("C:\\data\\real.csv", windows=True) == "C:\\data\\real.csv"
     assert cli._quoted_for_the_shell("C:\\RUNNER~1\\real.csv", windows=True) == "C:\\RUNNER~1\\real.csv"
     assert cli._quoted_for_the_shell("~/real.csv", windows=False) == "'~/real.csv'"
-    assert cli._quoted_for_the_shell("$(printf marker)", windows=True) == "'$(printf marker)'"
-    assert cli._quoted_for_the_shell("it's", windows=True) == "'it''s'"
-    assert cli._quoted_for_the_shell("it\u2019s", windows=True) == "'it\u2019\u2019s'"
-    assert cli._quoted_for_the_shell("a,b", windows=True) == "'a,b'"
-    assert cli._typed_option("--missing-value", "-NOT KNOWN", windows=True) == "'--missing-value=-NOT KNOWN'"
+    assert cli._quoted_for_the_shell("$(printf marker)", windows=True) == '"`$(printf marker)"'
+    assert cli._quoted_for_the_shell("it's", windows=True) == '"it\'s"'
+    assert cli._quoted_for_the_shell("it\u2019s", windows=True) == '"it\u2019s"'
+    assert cli._quoted_for_the_shell("a,b", windows=True) == '"a,b"'
+    assert cli._typed_option("--missing-value", "-NOT KNOWN", windows=True) == '"--missing-value=-NOT KNOWN"'
     assert cli._typed_option("--missing-value", "NOT RECORDED", windows=False) == "--missing-value 'NOT RECORDED'"
     assert cli._typed_option("--code", "dose", windows=False) == "--code dose"
     assert cli._typed_path("-out/real-profile.json", windows=False).startswith("./-out")
@@ -1056,58 +1062,17 @@ def test_a_tilde_and_a_leading_minus_are_quoted_where_a_shell_reads_them() -> No
         assert cli._quoted_for_the_shell(word, windows=False) == f"'{word}'"
     assert cli._quoted_for_the_shell("RUNNER~1", windows=True) == "RUNNER~1"
     assert cli._typed_option("--missing-value", "-1.5", windows=False) == "--missing-value=-1.5"
-    assert cli._typed_option("--missing-value", "-1.5", windows=True) == "'--missing-value=-1.5'"
-    assert cli._typed_option("--missing-value", "-UNK", windows=True) == "'--missing-value=-UNK'"
+    assert cli._typed_option("--missing-value", "-1.5", windows=True) == '"--missing-value=-1.5"'
+    assert cli._typed_option("--missing-value", "-UNK", windows=True) == '"--missing-value=-UNK"'
 
 
-def _handed_over_by_windows_powershell(line: str) -> "list[str]":
-    """The words a program receives from a line Windows PowerShell 5.1 runs.
+def _read_by_the_c_runtime(built: str) -> "list[str]":
+    """The words a program reads from its command line by the C runtime's rule.
 
-    PowerShell reads each single-quoted word (a quote inside written
-    twice) and each bare one. It builds the program's command line from
-    them, wrapping a word in double quotes only where white space stands
-    outside a run its own `"` open -- any character .NET's
-    `Char.IsWhiteSpace` names, the no-break space among them, which
-    `str.isspace` names too; a `"` after a backslash opens no run -- and
-    leaving every `"` inside as it is (`NeedQuotes` of its native
-    command binder). The program reads that line by the C runtime's
-    rule: backslashes are text unless a `"` follows, where each pair is
-    one backslash and an odd one makes the `"` text; any other `"`
-    opens or closes a quoted run.
+    Backslashes are text unless a `"` follows, where each pair is one
+    backslash and an odd one makes the `"` text; inside quotes `""` is
+    one `"` and the quotes go on; any other `"` opens or closes them.
     """
-    words: "list[str]" = []
-    place = 0
-    while place < len(line):
-        if line[place] == " ":
-            place += 1
-            continue
-        word = ""
-        if line[place] == "'":
-            place += 1
-            while place < len(line):
-                if line[place] == "'" and line[place + 1 : place + 2] == "'":
-                    word, place = word + "'", place + 2
-                elif line[place] == "'":
-                    place += 1
-                    break
-                else:
-                    word, place = word + line[place], place + 1
-        else:
-            while place < len(line) and line[place] != " ":
-                word, place = word + line[place], place + 1
-        words += [word]
-
-    def wrapped(word: str) -> str:
-        quotes, after_slash = 0, False
-        for character in word:
-            if character == '"' and not after_slash:
-                quotes += 1
-            elif character.isspace() and quotes % 2 == 0:
-                return f'"{word}"'
-            after_slash = character == "\\"
-        return word
-
-    built = " ".join(wrapped(word) for word in words)
     read: "list[str]" = []
     word, quoted, started, place = "", False, False, 0
     while place < len(built):
@@ -1118,6 +1083,8 @@ def _handed_over_by_windows_powershell(line: str) -> "list[str]":
             word += "\\" * (slashes // 2)
             if slashes % 2:
                 word += '"'
+            elif quoted and built[place + 1 : place + 2] == '"':
+                word, place = word + '"', place + 1
             else:
                 quoted = not quoted
             started, place = True, place + 1
@@ -1138,6 +1105,82 @@ def _handed_over_by_windows_powershell(line: str) -> "list[str]":
     return read
 
 
+def _handed_over_by_the_command_prompt(line: str) -> "list[str]":
+    """The words a program receives from a line the Command Prompt runs.
+
+    The Command Prompt opens or closes its quotes at every `"`, reads
+    `&`, `|`, `<`, `>`, `(`, `)` and `%` outside them as its own -- none
+    may stand there -- and hands the program the line, which it reads
+    by the C runtime's rule.
+    """
+    quoted = False
+    for character in line:
+        if character == '"':
+            quoted = not quoted
+        assert quoted or character not in "&|<>()%^", line
+    return _read_by_the_c_runtime(line)
+
+
+def _read_by_powershell(line: str) -> "list[str]":
+    """The strings PowerShell reads from a line of bare and double-quoted words.
+
+    Inside double quotes a backtick makes the character after it text
+    and `""` is one `"`; a `$` before a letter, a digit or one of
+    `_{(?^$:` would be expanded, which is refused.
+    """
+    words: "list[str]" = []
+    place = 0
+    while place < len(line):
+        if line[place] == " ":
+            place += 1
+            continue
+        word = ""
+        if line[place] == '"':
+            place += 1
+            while True:
+                if line[place] == "`":
+                    word, place = word + line[place + 1], place + 2
+                elif line[place : place + 2] == '""':
+                    word, place = word + '"', place + 2
+                elif line[place] == '"':
+                    place += 1
+                    break
+                else:
+                    following = line[place + 1 : place + 2]
+                    assert not (line[place] == "$" and following and (following.isalnum() or following in "_{(?^$:")), line
+                    word, place = word + line[place], place + 1
+        else:
+            while place < len(line) and line[place] != " ":
+                word, place = word + line[place], place + 1
+        words += [word]
+    return words
+
+
+def _handed_over_by_windows_powershell(words: "list[str]") -> "list[str]":
+    """The words a program receives from Windows PowerShell 5.1, given what it read.
+
+    It builds the program's command line from them, wrapping a word in
+    double quotes only where white space stands outside a run its own
+    `"` open -- any character .NET's `Char.IsWhiteSpace` names, the
+    no-break space among them, which `str.isspace` names too; a `"`
+    after a backslash opens no run -- and leaving every `"` inside as it
+    is (`NeedQuotes` of its native command binder). The program reads
+    that line by the C runtime's rule.
+    """
+
+    def wrapped(word: str) -> str:
+        quotes, after_slash = 0, False
+        for character in word:
+            if character == '"' and not after_slash:
+                quotes += 1
+            elif character.isspace() and quotes % 2 == 0:
+                return f'"{word}"'
+            after_slash = character == "\\"
+        return word
+
+    return _read_by_the_c_runtime(" ".join(wrapped(word) for word in words))
+
+
 @pytest.mark.parametrize(
     "value",
     [
@@ -1151,35 +1194,46 @@ def _handed_over_by_windows_powershell(line: str) -> "list[str]":
         "a\u00a0b\\",
         "Visit\u3000time\\",
         "x\u2003\\\\",
+        "a & b",
+        "50% (of 7)",
     ],
 )
-def test_a_double_quote_reaches_the_program_whole_from_windows_powershell(value: str) -> None:
-    """`UNK"` handed over by Windows PowerShell 5.1 stays `UNK"`, and the option after it stays an option.
+def test_a_double_quote_reaches_the_program_whole_from_the_command_prompt(value: str) -> None:
+    """`UNK"` typed into the Command Prompt stays `UNK"`, and the option after it stays an option.
 
-    The Codex review of lane R1, item 1, on the shell a Windows terminal
-    opens: PowerShell 5.1 puts a value holding `"` into the program's
-    command line with that quote bare, so the program read it as its
-    own: `say "no" twice` arrived as `say no twice`, and `UNK"` opened a
-    run that took `--code dose`, the option typed after it, into the
-    value. Each `"` is written as the C runtime reads it back, and the
-    backslashes before it or ending a value that holds white space
-    doubled. Red on the first repair of this review, which wrote the
-    quote bare. On a POSIX shell nothing changes.
+    Lane CF4b (plan P4-D397): the line is written in double quotes, for
+    the Command Prompt and PowerShell both. A `"` inside is written
+    `""`, which keeps the Command Prompt inside its quotes and which the
+    C runtime reads as one `"`; the backslashes before a `"` or at the
+    end are doubled. Nothing stands outside the quotes for the Command
+    Prompt to run.
 
-    And white space is every character .NET counts as such (the
-    verification of the repairs of this review, its open item 2): 5.1
-    wraps a value holding a no-break space, an ideographic space or an
-    em space as it wraps one holding a space, so `a`, a no-break space,
-    `b` and `\\` printed with one backslash reached the program as one
-    word holding `" --code dose`. Red on 27c604b, which doubled the
-    ending backslashes only beside a space or a tab.
+    PowerShell reads the same line, nothing expanded. Windows PowerShell
+    5.1 then wraps a value holding white space -- every character .NET
+    counts as white space (the verification of the repairs of the Codex
+    review of lane R1, its open item 2) -- and the program reads it
+    whole; a value holding `"` it hands over with that quote bare, which
+    the program reads as a quote of its own: P4-D397's stated limit,
+    pinned here, where the Codex review of lane R1, item 1, had it
+    whole from PowerShell's single quotes, which the Command Prompt does
+    not read. PowerShell 7.3 and later hand over what they read, which
+    is the value where no backslash comes before a quote or ends it. On
+    a POSIX shell nothing changes.
     """
     import shlex
 
     line = f"{cli._typed_option('--missing-value', value, windows=True)} --code dose"
-    assert _handed_over_by_windows_powershell(line) == ["--missing-value", value, "--code", "dose"], line
+    expected = ["--missing-value", value, "--code", "dose"]
+    assert _handed_over_by_the_command_prompt(line) == expected, line
+    powershell = _read_by_powershell(line)
+    if '"' not in value:
+        assert _handed_over_by_windows_powershell(powershell) == expected, line
+    else:
+        assert _handed_over_by_windows_powershell(powershell) != expected, line
+    if "\\" not in value:
+        assert powershell == expected, line
     posix = f"{cli._typed_option('--missing-value', value, windows=False)} --code dose"
-    assert shlex.split(posix) == ["--missing-value", value, "--code", "dose"], posix
+    assert shlex.split(posix) == expected, posix
 
 
 def test_every_line_to_type_says_its_shell_where_it_quotes_a_value(
