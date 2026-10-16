@@ -24,10 +24,15 @@ LM2's; and J3's two carried classes are lane RT1's, 3b-REST's clock half,
 as batch 4a recorded them provisionally. Each is written in STATE's
 limits and in the plan paragraph that states it, and STATE's landing
 lists gain J3, R6 and L2. Lane S4b-num's work counts have a KPI,
-`K-S4-13` (plan P4-D390): 1,001 spellings asked by the identity walk on
-the Codex column at 100,000 rows, 17.02 census forms and 6.0 width
-questions a group of decimal codes, and 1,670 entries in the push's heap
-on an upward run of 1,602 strata, each inside the claim the lane measured.
+`K-S4-15` (plan P4-D390; the id the December plan gives it, so
+`K-S4-13` stays free for the scale measure reserved there): 1,001
+spellings asked by the identity walk on the Codex column at 100,000 rows,
+32,951 census forms for 1,936 groups of decimal codes and 2,401 width
+questions for 400 groups (17.02 and 6.0025 a group), and 1,670 entries in
+the push's heap on an upward run of 1,602 strata, each inside the claim
+the lane measured. Each ratio is judged unrounded, so a count under its
+bound is never failed by its rounding (Codex's review of the batch's
+integration fixes).
 
 ### Installing in one command, `python -m synthtwin`, and `synthtwin doctor` (2026-10-15)
 

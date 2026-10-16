@@ -47,6 +47,7 @@ import types
 
 import pytest
 
+import kpi_rules
 import kpi_shapes
 import stage4_as_built
 from synthtwin import generation, parsing, quality, validation
@@ -1066,15 +1067,49 @@ def test_each_group_asks_the_width_a_bounded_number_of_questions(tmp_path: pathl
     assert ours == theirs
 
 
-# -- K-S4-13: the lane's work counts (batch 4b, the orchestrator's decision) ----
+# -- K-S4-15: the lane's work counts (batch 4b, the orchestrator's decision) ----
+
+
+def work_count_values(
+    spellings: int,
+    census_forms: int,
+    census_groups: int,
+    width: int,
+    width_groups: int,
+    peak: int,
+    colliding: int,
+) -> "dict[str, float]":
+    """The value `K-S4-15` judges, from the lane's counts.
+
+    Each ratio a group is the count over the groups, UNROUNDED: the
+    ledger judges it against a strict bound, so a ratio rounded first
+    could carry 3,199 width questions for 400 groups (7.9975) to 8.0 and
+    fail a count the lane's own check, under eight times the groups,
+    accepts (Codex's review of batch 4b's integration fixes, item 2).
+    The counts and the groups are recorded beside each ratio as its
+    display; nothing here is rounded.
+    """
+    return {
+        "identity_walk_spellings_codex_column_100000_rows": spellings,
+        "decimal_code_census_forms_10000_rows": census_forms,
+        "decimal_code_groups_10000_rows": census_groups,
+        "decimal_code_census_forms_per_group_10000_rows": census_forms / census_groups,
+        "width_questions_400_groups": width,
+        "width_question_groups": width_groups,
+        "width_questions_per_group_400_groups": width / width_groups,
+        "push_heap_peak_entries_shifting_staircase_1602_strata": peak,
+        "push_heap_bound_shifting_staircase_1602_strata": 2 * colliding + 128,
+    }
 
 
 def numbers_and_codes_measures(folder: pathlib.Path) -> "dict[str, float]":
-    """Lane S4b-num's own work counts, machine-free, for `K-S4-13`.
+    """Lane S4b-num's own work counts, machine-free, for `K-S4-15`.
 
     The orchestrator's decision at batch 4b (push critic 7, item 4): the
-    counts this lane's measurements name get a KPI of their own. Each is
-    a count of questions or entries, the same on every machine:
+    counts this lane's measurements name get a KPI of their own, under
+    the id the December plan gives them (`K-S4-13` is reserved there for
+    another scale measure). Each is a count of questions or entries, the
+    same on every machine:
 
     - the spellings the identity walk asks on the Codex column at
       100,000 rows, seed 0 (P4-D387: 1,001, where 3434682 asked 501,501);
@@ -1089,14 +1124,41 @@ def numbers_and_codes_measures(folder: pathlib.Path) -> "dict[str, float]":
     """
     walk = _walks_handed(folder, "c100000", _codex_cells(100_000))[0]
     codes = _placements_handed(folder, "q10000", _decimal_codes(10_000, 4_000), 11, ["value"], (0,))[0]
-    code_groups = len(codes[2])  # type: ignore[arg-type]
     thin = _placements_handed(folder, "thin400", _thin_codes(400), 11, ["value"], (0,))[0]
-    thin_groups = len(thin[2])  # type: ignore[arg-type]
     peak, colliding = push_storage(_shifting_staircase(1602))
-    return {
-        "identity_walk_spellings_codex_column_100000_rows": walk_spellings(walk),
-        "decimal_code_census_forms_per_group_10000_rows": round(placement_questions(codes) / code_groups, 2),
-        "width_questions_per_group_400_groups": round(width_questions(thin) / thin_groups, 2),
-        "push_heap_peak_entries_shifting_staircase_1602_strata": peak,
-        "push_heap_bound_shifting_staircase_1602_strata": 2 * colliding + 128,
-    }
+    return work_count_values(
+        walk_spellings(walk),
+        placement_questions(codes),
+        len(codes[2]),  # type: ignore[arg-type]
+        width_questions(thin),
+        len(thin[2]),  # type: ignore[arg-type]
+        peak,
+        colliding,
+    )
+
+
+def test_k_s4_15_judges_its_counts_unrounded() -> None:
+    """At each bound's last count, 3,199 width questions for 400 groups and 123,903 census forms for 1,936, `K-S4-15` passes.
+
+    Codex's review of batch 4b's integration fixes, item 2: rounded to
+    two places those ratios read 8.0 and 64.0 and fail the strict bounds
+    the lane's own checks meet (3,199 < 8 x 400; 123,903 < 64 x 1,936).
+    The value is built by the function the KPI's measure uses, so a
+    rounding put back into it turns this test red; one count more on
+    either side still fails.
+    """
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S4-15"]
+    assert entry["expected"]["width_questions_per_group_400_groups"] == 8.0
+    assert entry["expected"]["decimal_code_census_forms_per_group_10000_rows"] == 64.0
+    at_the_bounds = work_count_values(1001, 123_903, 1_936, 3_199, 400, 1670, 800)
+    verdict = kpi_rules.judge(entry, at_the_bounds)
+    assert verdict.word == kpi_rules.PASS, verdict
+    rounded = dict(
+        at_the_bounds,
+        decimal_code_census_forms_per_group_10000_rows=round(123_903 / 1_936, 2),
+        width_questions_per_group_400_groups=round(3_199 / 400, 2),
+    )
+    assert kpi_rules.judge(entry, rounded).word == kpi_rules.FAIL, "premise: rounding first fails the counts"
+    for over in (work_count_values(1001, 123_904, 1_936, 3_199, 400, 1670, 800),
+                 work_count_values(1001, 123_903, 1_936, 3_200, 400, 1670, 800)):
+        assert kpi_rules.judge(entry, over).word == kpi_rules.FAIL, over

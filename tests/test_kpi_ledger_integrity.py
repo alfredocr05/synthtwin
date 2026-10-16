@@ -816,10 +816,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
     # 622,000 from 619,000, AT BATCH 4B'S RECORDS (2026-10-16), the least
-    # round figure the ledger fits under: `K-S4-13`, lane S4b-num's work
-    # counts, given a KPI by the orchestrator's decision on push critic
-    # 7's item 4, with its note clause, 621,251 bytes. A MEASUREMENT IS
-    # NEVER TRIMMED TO FIT.
+    # round figure the ledger fits under: `K-S4-15` (entered as `K-S4-13`
+    # and moved to the id the December plan gives it by Codex's review of
+    # batch 4b's integration fixes), lane S4b-num's work counts, given a
+    # KPI by the orchestrator's decision on push critic 7's item 4, with
+    # its note clause, 621,251 bytes; 621,793 once moved, its ratios
+    # judged unrounded beside their counts. A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
     #
     # 619,000 from 613,000, AT THE INTEGRATION OF BATCH 4B'S THIRD MERGE
     # (lane TI, 2026-10-16), the least round figure the merged ledger fits

@@ -2054,7 +2054,7 @@ def test_k_s4_08(record_property, tmp_path) -> None:
     _kpi(record_property, "K-S4-08", memory.describe_memory_measures(tmp_path))
 
 
-def test_k_s4_13(record_property, tmp_path) -> None:
+def test_k_s4_15(record_property, tmp_path) -> None:
     """Lane S4b-num's work counts: the identity walk, the decimal codes' placement and the push's heap (plan P4-D377, P4-D387, P4-D390).
 
     Machine-free: the spellings the identity walk asks on the Codex
@@ -2067,7 +2067,7 @@ def test_k_s4_13(record_property, tmp_path) -> None:
     """
     import test_stage4_numbers_and_codes as numbers
 
-    _kpi(record_property, "K-S4-13", numbers.numbers_and_codes_measures(tmp_path))
+    _kpi(record_property, "K-S4-15", numbers.numbers_and_codes_measures(tmp_path))
 # -- the terminal: install and first run (lane TI, plan P4-D397) ----------------
 
 
