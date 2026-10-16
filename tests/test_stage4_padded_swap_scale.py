@@ -21,7 +21,8 @@ style for each trial, one cursor per wearing key in the overflow pass,
 and the point-free form asked once per key for the call. Nothing about
 the exchange's RULE changed, so every partner chosen is the one the
 scan chose and every twin is byte-identical; `tools/reference` mirrors
-no swap, so no oracle, vector or METHOD text moved.
+no padded swap, and its plus exchange states the rule the forward walk
+still meets, so no oracle, vector or METHOD text moved.
 
 This file holds 68dae22f's `_padded_style_swaps` and `_first_giver` as
 its ORACLE, comments and docstrings dropped and nothing else changed,
