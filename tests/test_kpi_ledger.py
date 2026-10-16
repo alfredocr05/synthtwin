@@ -2068,6 +2068,20 @@ def test_k_s4_15(record_property, tmp_path) -> None:
     import test_stage4_numbers_and_codes as numbers
 
     _kpi(record_property, "K-S4-15", numbers.numbers_and_codes_measures(tmp_path))
+
+
+def test_k_s4_16(record_property) -> None:
+    """The padded exchange's predicate calls grow with the rows (lane H1, plan P4-D402).
+
+    Machine-free: the calls of `_pad_need`, `_can_wear` and
+    `_carries_plainly` the padded exchange makes on a postal-code column
+    of 100,000 and of 200,000 cells, counted under `sys.setprofile`, and
+    their ratio judged unrounded. `tests/test_stage4_padded_swap_scale.py`
+    owns the measure.
+    """
+    import test_stage4_padded_swap_scale as padded
+
+    _kpi(record_property, "K-S4-16", padded.padded_swap_measures())
 # -- the terminal: install and first run (lane TI, plan P4-D397) ----------------
 
 

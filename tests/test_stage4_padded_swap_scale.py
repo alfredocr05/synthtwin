@@ -372,15 +372,20 @@ MUTANTS = {
 }
 
 
-def _mutant(edits: "list[tuple[str, str]]") -> object:
-    """The product's walk with ``edits`` applied to its text, each found exactly once."""
-    text = inspect.getsource(generation._padded_style_swaps)
+def _mutant(edits: "list[tuple[str, str]]", name: str = "_padded_style_swaps") -> object:
+    """The product's function ``name`` with ``edits`` applied to its text, each found exactly once.
+
+    The one place this file runs a string of source (tests/test_version_reach.py
+    names it): a shipped function read by `inspect.getsource`, with one edit
+    of this file's own made to it.
+    """
+    text = inspect.getsource(getattr(generation, name))
     for before, after in edits:
         assert text.count(before) == 1, f"the mutant's edit no longer finds its text: {before!r}"
         text = text.replace(before, after)
     space = dict(vars(generation))
     exec(compile(text, "<mutant>", "exec"), space)
-    return space["_padded_style_swaps"]
+    return space[name]
 
 
 @pytest.mark.parametrize("name", sorted(MUTANTS))
@@ -649,13 +654,7 @@ PLUS_MUTANTS = {
 @pytest.mark.parametrize("name", sorted(PLUS_MUTANTS))
 def test_the_plus_comparison_fails_on_each_mutant(name: str) -> None:
     """Each mutant of the plus exchange answers some seeded case differently from the oracle."""
-    text = inspect.getsource(generation._plus_style_swaps)
-    for before, after in PLUS_MUTANTS[name]:
-        assert text.count(before) == 1, f"the mutant's edit no longer finds its text: {before!r}"
-        text = text.replace(before, after)
-    space = dict(vars(generation))
-    exec(compile(text, "<mutant>", "exec"), space)
-    walk = space["_plus_style_swaps"]
+    walk = _mutant(PLUS_MUTANTS[name], "_plus_style_swaps")
     for number in range(SEEDED_CASES):
         case = _seeded_plus_case(number)
         if _plus_answer(walk, case) != _plus_answer(_as_built_plus_style_swaps, case):

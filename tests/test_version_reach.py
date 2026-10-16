@@ -65,7 +65,8 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds FORTY-FOUR such calls (lane TI's `python -m synthtwin`
+The tree holds FORTY-SIX such calls (lane H1's padded-swap scale test
+adds two, 2026-10-16; lane TI's `python -m synthtwin`
 test adds one, 2026-10-15; counted again at the merge of
 landing R4 into the integrated tree, 2026-10-12: its twenty-sixth
 vectors file adds one; at the merge of landing 3b.2-H, 2026-10-09,
@@ -78,7 +79,7 @@ having stood one short since the fifteenth vectors file's route arrived
 and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a forty-fifth cannot arrive unread.
+holds the tree to that list, so a forty-seventh cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -139,6 +140,13 @@ calls are held by what they are handed or by where they run:
   `|`, `&`, `<<`, `>>`, `+` and `-` turned into a call of a counter of
   the walk's arithmetic. A call and a name, which every Python spells
   alike, so it adds no spelling the floor could miss.
+- `tests/test_stage4_padded_swap_scale.py` runs `exec(compile(text, ...))`
+  once, in `_mutant` (lane H1, plan P4-D402), where `text` is
+  `generation._padded_style_swaps` or `generation._plus_style_swaps`,
+  read by `inspect.getsource` from a file this guard reads, with one
+  mutant's edits of the test's own: a condition, a name or a line left
+  out, which every Python spells alike, so it adds no spelling the
+  floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and nineteen times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -331,6 +339,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/stage4_as_built.py", "exec"): 1,
     ("tests/test_stage4_allocator_walk.py", "compile"): 1,
     ("tests/test_stage4_allocator_walk.py", "exec"): 1,
+    ("tests/test_stage4_padded_swap_scale.py", "compile"): 1,
+    ("tests/test_stage4_padded_swap_scale.py", "exec"): 1,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
