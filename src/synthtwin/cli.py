@@ -2787,6 +2787,31 @@ def _counted_in_rows_notice(names: "list[str]") -> str:
     )
 
 
+def _withheld_notice(names: "tuple[str, ...]") -> str:
+    """What the screen says of the columns held back until answered.
+
+    Plan P4-D401. Each was asked whether it holds the people the rows
+    are about or record numbers, and nobody has answered, so this run
+    describes it as record numbers and publishes none of its values.
+    The sentence names the way back, which is answering.
+
+    Guarantees: accepts the columns held back; returns one paragraph. A
+    fixed function of the names, which are the table's own column names
+    and are published in the description like every other. Raises
+    nothing, opens no file.
+    """
+    return (
+        f"\nCOLUMNS HELD BACK UNTIL YOU ANSWER\n"
+        f"Nobody has answered whether {_joined(list(names), ' and ')} "
+        f"hold the people your rows are about or record numbers, so this "
+        f"description treats them as record numbers and publishes none "
+        f"of their values, and the twin writes made-up record numbers "
+        f"there. Answer the questions file, and run the command again "
+        f"with --answers: any answer gives the column the description "
+        f"that answer names."
+    )
+
+
 def _small_population_notice(spoken: str, person_columns: str) -> str:
     """The notice a table between the floor and the line gets, on the screen.
 
@@ -3006,6 +3031,10 @@ def _run_profile(
     # ...and the columns whose Q6 the file answered `keep` (landing R2c):
     # nothing is declared, and Q6 is not put to them again.
     dates_kept: "list[str]" = []
+    # ...and the columns whose question offering `identifier` the file
+    # answered `keep` (plan P4-D401): nothing is declared, and their
+    # values are published as their reading publishes them.
+    identities_kept: "tuple[str, ...]" = ()
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -3165,6 +3194,13 @@ def _run_profile(
         )
         # ...and those answered `keep`, carried so Q6 is not put again.
         dates_kept = list(written.date_columns_kept)
+        # ...and the columns answered `keep` to a question offering
+        # `identifier` (plan P4-D401). Under an answer that changes the
+        # reading a name may land on another column, so there such a
+        # `keep` holds nothing back from the hold below: the column is
+        # asked again under the reading in force.
+        if not reading_changed:
+            identities_kept = written.identities_kept
         # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
         # `day-first` is `--day-first`, and it is applied before the read
         # because it decides how the columns of dates are read. It goes
@@ -4176,6 +4212,43 @@ def _run_profile(
     if person_asked and not person_columns and not assumptions_said:
         _warn(_counted_in_rows_notice(person_asked))
 
+    # NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan
+    # P4-D401). Where nobody was at the keyboard, a column a question
+    # offering `identifier` was put to -- the person question, or one
+    # asked because its values are shaped like record numbers -- and
+    # that the questions file did not answer is described as record
+    # numbers until it is answered, and the run says so. The questions
+    # below are worked out from the description as the rules read it, so
+    # the file asks exactly what it asked before; only what is WRITTEN
+    # holds the column back. A person at the keyboard answered every
+    # question put, Enter included, and nothing is held.
+    withheld: "tuple[str, ...]" = ()
+    if not answered:
+        withheld = asking.unanswered_identities(
+            asked_about,
+            document,
+            read.columns,
+            settings,
+            identities_kept,
+            split_columns,
+        )
+    published = document
+    if withheld:
+        _warn(_withheld_notice(withheld))
+        published = profile.build_document(
+            read,
+            settings,
+            forced_identifiers,
+            forced_codes,
+            forced_measurements,
+            forced_decimal_commas,
+            forced_metadata_rows=metadata_rows,
+            forced_delimiter=declared_delimiter,
+            table_notes=population_notes,
+            stored_as=storage,
+            unanswered=list(withheld),
+        )
+
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
     # cannot differ, and the file on disk carries the same guarantee the
@@ -4183,7 +4256,8 @@ def _run_profile(
     # person, so it is a human-facing sink like any other.
     text = parsing.visible_lines(
         summary.render(
-            document, _encoding_note(read.encoding, read.used_fallback_encoding)
+            published,
+            _encoding_note(read.encoding, read.used_fallback_encoding),
         )
     )
     profile_path, summary_path = profile.default_output_paths(
@@ -4348,7 +4422,7 @@ def _run_profile(
                 date_columns=tuple(date_columns),
             )
         )
-    kept_of_yours = summary.words_of_your_own(document)
+    kept_of_yours = summary.words_of_your_own(published)
     if kept_of_yours:
         _warn(_declared_words_notice(kept_of_yours, tuple(added_missing)))
     if floor_chosen and smallest_group < _NOTICE_LINE:
@@ -4374,7 +4448,7 @@ def _run_profile(
         left_behind = profile.write_both_files(
             profile_path,
             summary_path,
-            profile.serialize(document),
+            profile.serialize(published),
             text,
             state=state,
         )
@@ -4552,7 +4626,9 @@ def _run_profile(
             canonical.serialize(
                 asking.questions_document(
                     _shown(pathlib.Path(table).name),
-                    asked_about,
+                    # -- P4-D401: a column held back is read as record
+                    # numbers until answered, and its entry says so.
+                    asking.held_back(asked_about, withheld),
                     listed_about,
                     asking.file_questions(
                         surveyed is not None

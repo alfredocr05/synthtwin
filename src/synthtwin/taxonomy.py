@@ -747,6 +747,11 @@ EVIDENCE_COMPOUND = "evidence_numbers_with_labels"
 EVIDENCE_COMPOUND_SMALL_SET = "evidence_numbers_with_a_few_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
+# ...and the one a column takes where a question offering `identifier`
+# was put to it and nobody has answered (plan P4-D401, contract NF117).
+# Nobody declared it, so the declared sentence would be false; it is
+# described as record numbers until the question is answered.
+EVIDENCE_UNANSWERED_IDENTITY = "evidence_unanswered_identity"
 
 # Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
@@ -1135,6 +1140,7 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_COMPOUND_SMALL_SET: 4,
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
+    EVIDENCE_UNANSWERED_IDENTITY: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     # THE LINE, and nothing else (contract NF60). One argument, and it
@@ -2651,6 +2657,13 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             "you told synthtwin that this column holds record numbers "
             "rather than measurements"
+        )
+    if form == EVIDENCE_UNANSWERED_IDENTITY:
+        return (
+            "synthtwin asked whether this column holds the people the rows "
+            "are about or record numbers, and nobody has answered yet, so "
+            "until it is answered it is described as record numbers and "
+            "none of its values is published"
         )
     if form == SAID_WRITTEN_AS_NUMBERS:
         written = _whole(arguments, 0)
@@ -25647,6 +25660,39 @@ def _identifier_verdict(
         },
         notes=notes,
         remarks=remarks,
+    )
+
+
+def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
+    """A record-number description, for a column whose question is open.
+
+    PLAN P4-D401. A column a question offering `identifier` was put to,
+    and nobody answered, is described as a declared record number is
+    (`_identifier_verdict`) with two differences, and only those: its
+    evidence says nobody has answered, and it publishes NO PREFIX.
+    The literal run a declared column publishes is the owner's ruling of
+    2026-09-17, item 1, for a column a person NAMED; this one was named
+    by nobody, and `MRN` or `XKH` opening every value is a fragment of
+    every real value. The layouts stay: a layout says which kind of
+    character stood at each place and never which one.
+
+    Guarantees: accepts a column described with ``forced_identifier``;
+    returns it with those two fields changed, or unchanged where its
+    role is not `identifier` (the identifier reading does not reach a
+    column of dates read on its days). Determinism: a fixed function of
+    the argument. Raises nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER:
+        return column
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    if "layout_prefixes" in details:
+        details["layout_prefixes"] = {}
+    return dataclasses.replace(
+        column,
+        detection_evidence=note(EVIDENCE_UNANSWERED_IDENTITY),
+        details=details,
     )
 
 

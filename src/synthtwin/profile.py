@@ -4168,6 +4168,7 @@ def build_document(
     calendar_censuses: bool = True,
     stored_as: "tuple[str, ...] | None" = None,
     counted_units: "dict[str, int] | None" = None,
+    unanswered: "list[str] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4236,7 +4237,17 @@ def build_document(
       its reading by the identity of its list, not by its cells.
     - ``stored_as`` is `stored_as_of` of this table, handed over by the
       command that already took it for the census; None takes it here.
+    - ``unanswered`` names the columns a question offering `identifier`
+      was put to and nobody answered (plan P4-D401). Each is described as
+      a record number is, with no prefix and the evidence that says why
+      (`taxonomy.as_unanswered_identity`), and is recorded beside the
+      declared ones so the twin and the validator read it as one. None
+      or empty describes every column as before, byte for byte.
     """
+    withheld_names = [] if unanswered is None else unanswered
+    described_identifiers = forced_identifiers + [
+        name for name in withheld_names if name not in forced_identifiers
+    ]
     declared_codes = [] if forced_codes is None else forced_codes
     declared_measurements = (
         [] if forced_measurements is None else forced_measurements
@@ -4344,7 +4355,7 @@ def build_document(
             cells,
             table.n_rows,
             settings,
-            name in forced_identifiers,
+            name in described_identifiers,
             name in declared_codes,
             name in declared_measurements,
             name in declared_commas,
@@ -4363,6 +4374,8 @@ def build_document(
                 else 0
             ),
         )
+        if name in withheld_names:
+            described = taxonomy.as_unanswered_identity(described)
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
@@ -4372,7 +4385,7 @@ def build_document(
         "created_with": _version(),
         "settings": _settings_block(
             settings,
-            forced_identifiers,
+            described_identifiers,
             declared_codes,
             declared_measurements,
             declared_commas,
@@ -4408,7 +4421,7 @@ def build_document(
             # twin is written the same way (plan P4-D86).
             "dialect": dialect.document_of(
                 _published_form(
-                    table, columns, forced_identifiers,
+                    table, columns, described_identifiers,
                 )
             ),
             # What the table's file said about itself as a WORKBOOK, or

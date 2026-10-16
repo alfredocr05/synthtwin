@@ -1108,12 +1108,30 @@ def _one_blocks_empty_bin_lines(
     return lines
 
 
+# A RECORD NUMBER NOBODY DECLARED (plan P4-D401): a column whose question
+# offering `identifier` is still open is described as record numbers,
+# and the two lines that say a person named it would be false of it.
+_UNANSWERED_EVIDENCE = taxonomy.rendered(
+    taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ()
+)
+
+
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
+    unanswered = (
+        role == taxonomy.ROLE_IDENTIFIER
+        and _text_of(column["detection_evidence"]) == _UNANSWERED_EVIDENCE
+    )
+    said_role = _role_words(role)
+    if unanswered:
+        said_role = (
+            "record numbers or codes, until you answer the question "
+            "about this column"
+        )
     lines = [
         f"  {_text_of(column['name'])}",
-        f"    read as: {_role_words(role)}",
+        f"    read as: {said_role}",
         f"    why: {_text_of(column['detection_evidence'])}",
         (
             f"    values present: {_count_of(column['n_present'])};   "
@@ -1258,13 +1276,23 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         # It goes before the sentence about who decided the role so that
         # the two claims about what is and is not recorded read together.
         lines = lines + _repetition_lines(column)
-        lines += [
-            (
-                "    synthtwin never decides this for itself: a column "
-                "holds record numbers only when you say so with "
-                "--identifier."
-            ),
-        ]
+        if unanswered:
+            lines += [
+                (
+                    "    Nobody has answered the question synthtwin asked "
+                    "about this column. Answer it in the questions file and "
+                    "describe the table again with --answers, and the "
+                    "column is described as your answer says."
+                ),
+            ]
+        else:
+            lines += [
+                (
+                    "    synthtwin never decides this for itself: a column "
+                    "holds record numbers only when you say so with "
+                    "--identifier."
+                ),
+            ]
     if role == taxonomy.ROLE_TEXT:
         length = _map_of(column["length"])
         lines += [

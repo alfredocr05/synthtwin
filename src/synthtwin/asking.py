@@ -3206,7 +3206,13 @@ def _names_people(
         return False
     if len(different) > taxonomy.categories_ceiling(n_rows, settings):
         return True
-    return _a_register_of_codes(present)
+    # ROUTE THREE -- A REGISTER OF E-MAIL ADDRESSES (plan P4-D401). An
+    # address names one person wherever it stands, so a column of them
+    # that repeats is a column naming the people the rows are about, and
+    # routes one and two miss it: it is few enough to be labels, and `@`
+    # is outside the code alphabet. Measured over the suite's description
+    # batteries, no column but an address column is written so.
+    return _a_register_of_codes(present) or _a_register_of_addresses(present)
 
 
 def _a_register_of_codes(present: "list[str]") -> bool:
@@ -3237,6 +3243,49 @@ def _a_register_of_codes(present: "list[str]") -> bool:
         if not figure or not letter:
             return False
     return True
+
+
+def _a_register_of_addresses(present: "list[str]") -> bool:
+    """Route three's second condition: every cell is an e-mail address.
+
+    One `@` with text on both sides, a point inside the part after it,
+    and no space anywhere. Nothing reads a cell as meaning: this is the
+    shape alone, and every cell must wear it.
+
+    Guarantees: accepts the present cells; returns a truth value. A
+    fixed function of them. Raises nothing. No I/O, and no cell reaches
+    anything it returns.
+    """
+    if not present:
+        return False
+    for value in present:
+        if not _is_an_address(value):
+            return False
+    return True
+
+
+def _is_an_address(value: str) -> bool:
+    """Whether one cell is written as an e-mail address (route three)."""
+    marks = 0
+    at = -1
+    place = 0
+    for character in value:
+        if character == "@":
+            marks = marks + 1
+            at = place
+        elif character == " " or character == "\t":
+            return False
+        place = place + 1
+    if marks != 1 or at < 1:
+        return False
+    after = value[at + 1:]
+    dot = -1
+    place = 0
+    for character in after:
+        if character == ".":
+            dot = place
+        place = place + 1
+    return 0 < dot < len(after) - 1
 
 
 def person_questions(
@@ -3371,6 +3420,210 @@ def _person_choices(role: str, floor: int) -> "list[Choice]":
             _publishes_under(ANSWER_IDENTIFIER, role, floor),
         ),
     ]
+
+
+# NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan
+# P4-D401, the owner's pattern of 2026-09-17, ruling 8: "an ambiguous
+# first row: do not guess, ask ... a record is never published as the
+# column names"). A column synthtwin asked whether it holds the people
+# the rows are about or record numbers is described as record numbers
+# until somebody answers: none of its values, level names, prefixes or
+# examples is published, and the twin writes the placeholders a
+# declared record number gets. Measured on 68dae22f: a long table of
+# 600 rows over 44 patients, its `mrn` asked and unanswered, published
+# 26 of the 44 real record numbers as level names.
+#
+# THE QUESTIONS THAT ASK IT. The person question, and the two that ask
+# because every value is the same number of figures, "which is what an
+# identifier looks like". Each offers `identifier` and says why.
+IDENTITY_REASONS = (
+    BECAUSE_REPEATS_AND_MANY,
+    BECAUSE_FIXED_WIDTH,
+    BECAUSE_GROUPED_FIXED_WIDTH,
+)
+
+# ...AND THE TWO-NUMBERS QUESTION, where every cell is written in one of
+# the layouts of a United States telephone number or social security
+# number (Safe Harbor identifiers 4 and 7). That question offers
+# `identifier` too, and is put of every column of numbers joined by
+# marks -- a blood pressure, a ratio, a code in parts -- so it holds a
+# column back only where its cells wear these layouts and no other,
+# `9` standing for any figure. No blood pressure, code in parts or
+# date is written so.
+_TELEPHONE_AND_SOCIAL_SECURITY_LAYOUTS = (
+    "999-999-9999",
+    "(999) 999-9999",
+    "(999)999-9999",
+    "999.999.9999",
+    "999-99-9999",
+)
+
+
+def _layout_of_figures(value: str) -> str:
+    """The cell with every figure written `9` and every other character kept."""
+    written = ""
+    for character in value:
+        if "0" <= character <= "9":
+            written = written + "9"
+        else:
+            written = written + character
+    return written
+
+
+def _telephone_or_social_security(present: "list[str]") -> bool:
+    """Whether every present cell is a telephone or social security number.
+
+    Guarantees: accepts the present cells; returns a truth value, false
+    for none. A fixed function of them. Raises nothing. No I/O, and no
+    cell reaches anything it returns.
+    """
+    if not present:
+        return False
+    for value in present:
+        if _layout_of_figures(value) not in _TELEPHONE_AND_SOCIAL_SECURITY_LAYOUTS:
+            return False
+    return True
+
+
+def offers_identifier(question: "Question") -> bool:
+    """Whether a question offers the answer `identifier`."""
+    for choice in question.choices:
+        if choice.answer == ANSWER_IDENTIFIER:
+            return True
+    return False
+
+
+def unanswered_identities(
+    asked: "list[Question]",
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    kept: "tuple[str, ...]" = (),
+    split: "SplitColumns | None" = None,
+) -> "tuple[str, ...]":
+    """The columns described as record numbers until their question is answered.
+
+    A column is held back where a question put to it offers `identifier`,
+    nobody has answered it, and either
+
+    * the question asks BECAUSE the column may hold record numbers
+      (`IDENTITY_REASONS`), or
+    * the column is one the person question's rule names
+      (`_names_people`) -- asked, where another question about the same
+      column was put first, under that question -- and the population is
+      still counted in rows, or
+    * the question is the two-numbers question and every cell is written
+      as a telephone or social security number.
+
+    ``asked`` is the run's questions, every one of them unanswered: a
+    column answered `identifier`, `code`, `measurement` or `joined` is
+    declared and asked nothing, and one answered `keep` is in ``kept``.
+    Answering restores what that answer describes, byte for byte.
+
+    Guarantees:
+
+    - Inputs: the questions put and not answered, the description they
+      were asked of, the table's columns in the same order, the settings
+      that described it, the columns answered `keep`, and the split
+      `questions_and_splits_for` made of the same columns (none splits
+      here).
+    - Determinism: a fixed function of the arguments, in the table's own
+      column order, each column named once.
+    - Errors raised: none.
+    - Boundary: opens no file, prints nothing, and no cell of any column
+      appears in what it returns.
+    """
+    blocks = document["columns"]
+    rows = document["n_rows"]
+    if not isinstance(blocks, list) or not isinstance(rows, int):
+        return ()
+    flagged: "dict[str, bool]" = {}
+    for question in asked:
+        if question.name in kept or not offers_identifier(question):
+            continue
+        if question.reason in IDENTITY_REASONS:
+            flagged[question.name] = True
+            continue
+        if question.name not in flagged and (
+            question.reason == BECAUSE_JOINED or not settings.person_columns
+        ):
+            flagged[question.name] = False
+    held: "list[str]" = []
+    position = 0
+    for block in blocks:
+        if not isinstance(block, dict):
+            position = position + 1
+            continue
+        name = f"{block['name']}"
+        if name not in flagged or position >= len(table_columns):
+            position = position + 1
+            continue
+        if flagged[name]:
+            held += [name]
+            position = position + 1
+            continue
+        if (
+            split is not None
+            and position in split.present
+            and split.cells[position] is table_columns[position]
+            and split.settings == settings
+        ):
+            present = split.present[position]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[position], settings
+            )
+        if not settings.person_columns and _names_people(
+            present, f"{block['role']}", rows, settings
+        ):
+            held += [name]
+        elif _telephone_or_social_security(present):
+            for question in asked:
+                if question.name == name and question.reason == BECAUSE_JOINED:
+                    held += [name]
+                    break
+        position = position + 1
+    return tuple(held)
+
+
+# What a standing reading's sentence opens with, which is no longer what
+# the description publishes once the column is held back.
+_PUBLISHES_NOW = "what it publishes now: "
+
+
+def held_back(
+    questions: "list[Question]", withheld: "tuple[str, ...]"
+) -> "list[Question]":
+    """The questions as the file puts them where their columns are held back.
+
+    Plan P4-D401. A column held back until its question is answered is
+    described as record numbers, so leaving its answer blank keeps THAT
+    reading: `read_as_now` names `identifier`, and the standing answer's
+    sentence no longer says it is what the column "publishes now" -- it
+    is what that answer would publish. Every other question is returned
+    as it came.
+
+    Guarantees: accepts the questions and the columns held back; returns
+    the questions in their own order. A fixed function of the two.
+    Raises nothing. No I/O.
+    """
+    said: "list[Question]" = []
+    for question in questions:
+        if question.name not in withheld or not offers_identifier(question):
+            said += [question]
+            continue
+        choices: "list[Choice]" = []
+        for choice in question.choices:
+            words = choice.publishes
+            if words[: len(_PUBLISHES_NOW)] == _PUBLISHES_NOW:
+                words = words[len(_PUBLISHES_NOW):]
+            choices += [Choice(choice.answer, choice.means, words)]
+        said += [
+            dataclasses.replace(
+                question, choices=choices, taken=ANSWER_IDENTIFIER
+            )
+        ]
+    return said
 
 
 # HOW FEW, HOW OFTEN AND HOW MUCH (lane R1, plan P4-D381). A column is
@@ -4749,6 +5002,11 @@ class Answers:
     # so the run reading the answer does not put Q6 again (the R2c
     # verifier's carried item, fixed after the fifth push's critic).
     date_columns_kept: "tuple[str, ...]" = ()
+    # ...and the columns answered `keep` to a question that offered
+    # `identifier` (plan P4-D401): nothing is declared, and the column
+    # publishes what its reading publishes, which it does not while
+    # that question is open.
+    identities_kept: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -4908,6 +5166,7 @@ def answers_in(document: object, shown: str) -> Answers:
     centuries_kept: "list[str]" = []
     date_columns: "list[str]" = []
     date_columns_kept: "list[str]" = []
+    identities_kept: "list[str]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -4987,6 +5246,11 @@ def answers_in(document: object, shown: str) -> Answers:
             # carried so the question is not put again. Measured on
             # 45191fa: the run reading that answer asked Q6 once more.
             date_columns_kept += [name]
+        elif written == ANSWER_KEEP and ANSWER_IDENTIFIER in offered:
+            # ...and a question offering `identifier` answered `keep`
+            # (plan P4-D401): nothing declared, and the column's values
+            # are no longer held back for want of an answer.
+            identities_kept += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -5024,4 +5288,5 @@ def answers_in(document: object, shown: str) -> Answers:
         centuries_kept=tuple(centuries_kept),
         date_columns_kept=tuple(date_columns_kept),
         date_columns=tuple(date_columns),
+        identities_kept=tuple(identities_kept),
     )
