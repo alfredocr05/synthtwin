@@ -30,7 +30,8 @@ holds the battery itself to its word, cheaply:
 * one table runs end to end in this process, and the labs table's
   validate misses reach its verdict;
 * the workbook is read through the suite's cross-check reader, so CI's
-  `minimums` cell, which has no openpyxl, skips that part and only it.
+  `minimums` cell, which has no openpyxl, skips that part and only it;
+* the slow driver loads where there is no `resource` module (Windows).
 """
 
 from __future__ import annotations
@@ -577,3 +578,18 @@ def test_the_workbook_is_left_out_where_its_reader_is_absent(monkeypatch: pytest
     names = [table.name for table in zoo.runnable_tables()]
     assert "surveys" not in names and len(names) == len(zoo.TABLES) - 1
     assert set(zoo.workbook_kinds()) == {"surveys_pro", "excel_workbook"}
+
+
+def test_the_driver_starts_where_there_is_no_resource_module(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 9: Windows has no `resource`; the slow driver still loads and leaves memory unmeasured."""
+    import importlib.util
+    import sys
+
+    driver = pathlib.Path(__file__).resolve().parent.parent / "tools" / "measurements" / "kpi_health_zoo.py"
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setitem(sys.modules, "resource", None)
+    spec = importlib.util.spec_from_file_location("kpi_health_zoo_without_resource", driver)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module._peak_megabytes() is None
