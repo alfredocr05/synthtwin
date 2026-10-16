@@ -4164,7 +4164,7 @@ def build_document(
     kept_placeholder_days: "dict[str, tuple[str, ...]] | None" = None,
     judged_candidates: "dict[str, tuple[str, ...]] | None" = None,
     table_notes: "list[taxonomy.Note] | None" = None,
-    readings: "tuple[object, ...]" = (),
+    readings_box: "list[tuple[object, ...]] | None" = None,
     calendar_censuses: bool = True,
     stored_as: "tuple[str, ...] | None" = None,
     counted_units: "dict[str, int] | None" = None,
@@ -4224,9 +4224,11 @@ def build_document(
       cells as the source wrote them, and this is how the checked file
       reads them as the description did without its own values having
       to fire the judgement again. `synthtwin profile` never passes it.
-    - ``readings`` is what `synthtwin profile`'s population census read
-      (`taxonomy.population_census`), handed over so a column the census
-      read is not read again. Each is passed to `profile_column` for the
+    - ``readings_box`` is a list holding one thing, what `synthtwin
+      profile`'s population census read (`taxonomy.population_census`),
+      handed over so a column the census read is not read again; the box
+      is empty when this returns. Each reading is passed to
+      `profile_column` for the
       column whose cells it was read from, once, and `profile_column`
       takes it only where every argument of the reading is the one it
       would have read under; an entry that is not a
@@ -4298,12 +4300,19 @@ def build_document(
         notes += [{"column": "", "note": spoken}]
     # EACH CENSUS READING IS HANDED OVER ONCE, to the column it was read
     # from: the description takes the reading's lists as its own.
-    waiting: "list[object]" = [held for held in readings]
+    waiting: "list[object]" = []
     # THE LIST IS THE ONLY HOLDER FROM HERE ON (lane S4d, plan P4-D390):
     # a reading leaves it when its column takes it, and is let go once
-    # that column is described. `synthtwin profile` hands the readings
-    # over out of a box (`cli._handed_once`) so nothing else keeps them.
-    readings = ()
+    # that column is described. The readings arrive IN THEIR BOX and are
+    # taken out of it here, in this frame (lane CF4b): handed over as an
+    # argument of their own, they were held by the caller until this
+    # returned on CPython 3.10, whose caller keeps every argument of a
+    # call on its stack until the call returns -- from 3.11 a call from
+    # Python to Python moves them into the callee's frame -- so on 3.10
+    # every reading lived until the whole table was described.
+    if readings_box:
+        waiting = [held for held in readings_box[0]]
+        del readings_box[0]
     # HOW A WORKBOOK STORES EACH COLUMN (plan P4-D382): most of its
     # cells as dates, which lets the dates be read beside a few text
     # cells, or every one as a clock, which keeps the clocks from a

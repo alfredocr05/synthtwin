@@ -283,7 +283,9 @@ def test_the_document_is_the_same_with_and_without_the_hand_over(
     assert people == ("subject_id",)
     assert len(held) == 1 and held[0].values is table.columns[0]
     settings = dataclasses.replace(settings, person_columns=people)
-    handed = profile.build_document(table, settings, ["subject_id"], readings=held)
+    box: "list[tuple[object, ...]]" = [held]
+    handed = profile.build_document(table, settings, ["subject_id"], readings_box=box)
+    assert box == [], "the description takes the readings out of their box"
     read_again = profile.build_document(table, settings, ["subject_id"])
     assert handed == read_again
 

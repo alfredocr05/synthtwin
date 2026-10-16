@@ -2823,25 +2823,6 @@ def _small_population_notice(spoken: str, person_columns: str) -> str:
     )
 
 
-def _handed_once(box: "list[tuple[object, ...]]") -> "tuple[object, ...]":
-    """Take the one thing a box holds out of it, leaving the box empty.
-
-    WHY A BOX (lane S4d, plan P4-D390): `_run_profile` keeps the
-    population census's readings in a local name while it describes the
-    table, and a reading held there outlives the column it was read for:
-    on a table of a million rows each one is a column's worth of records.
-    The command puts the readings in a box made for the call, empties
-    the name, and hands them over through this function, so the
-    description's own frame is the only holder.
-
-    Guarantees: returns what the box held; the box is empty afterwards.
-    Raises IndexError on an empty box. No I/O of any kind.
-    """
-    taken = box[0]
-    del box[0]
-    return taken
-
-
 def _run_profile(
     table: str,
     out_dir: "str | None",
@@ -3672,12 +3653,15 @@ def _run_profile(
         forced_metadata_rows=metadata_rows,
         forced_delimiter=declared_delimiter,
         table_notes=population_notes,
-        # HANDED OVER OUT OF A BOX (lane S4d, plan P4-D390): the box is
-        # emptied as the call is made, so the description holds each
-        # column's census reading alone and lets it go once that column
-        # is described, rather than this frame keeping every one alive
-        # until the whole table is.
-        readings=_handed_once(census_box),
+        # HANDED OVER IN A BOX (lane S4d, plan P4-D390): the description
+        # takes the readings out of the box in its own frame, so it
+        # holds each column's census reading alone and lets it go once
+        # that column is described, rather than this frame keeping every
+        # one alive until the whole table is. The box itself is the
+        # argument (lane CF4b): an argument is held by the caller until
+        # the call returns on CPython 3.10, so the readings handed over
+        # as one lived through the whole description there.
+        readings_box=census_box,
         stored_as=storage,
     )
     # Handed over once: the description has taken the reading as its own.
@@ -4036,7 +4020,7 @@ def _run_profile(
                     forced_metadata_rows=metadata_rows,
                     forced_delimiter=declared_delimiter,
                     table_notes=population_notes,
-                    readings=_handed_once(census_box),
+                    readings_box=census_box,
                     stored_as=storage,
                 )
                 census_readings = ()

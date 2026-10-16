@@ -300,6 +300,61 @@ def test_the_census_reading_is_let_go_once_its_column_is_described(
     assert alive_later == [False, False]
 
 
+def test_the_census_reading_is_let_go_while_the_caller_holds_every_argument(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CPython 3.10's caller kept the readings handed to `build_document` until it returned (plan P4-D390).
+
+    On 3.10 the caller's evaluation stack holds every argument of a call
+    until the call returns; from 3.11 a call from Python to Python moves
+    them into the callee's frame. 68dae22f handed the readings over as
+    `readings=_handed_once(census_box)`, so the description's own
+    `readings = ()` let them go on 3.11 and later and on 3.10 they lived
+    until the whole table was described: CI's 3.10 jobs read
+    `[True, True]` where the test above asks `[False, False]`. Here
+    `build_document` is wrapped by a function whose own ``args`` and
+    ``kwargs`` hold every argument until the call returns, as 3.10's
+    caller does, on any Python: the readings are let go only if what the
+    command hands over is the box, which the description empties in its
+    own frame. Red on 68dae22f on every Python.
+    """
+    draw = random.Random(8)
+    lines = ["code,arm,score"]
+    for _ in range(3_000):
+        lines += [f"{1000001 + draw.randrange(200)},{draw.choice(['a', 'b'])},{draw.gauss(50, 9):.1f}"]
+    path = fixtures.write(tmp_path, "register.csv", "\n".join(lines) + "\n")
+    described = taxonomy.profile_column
+    built = profile.build_document
+    handed: "list[weakref.ref[taxonomy.HeldReading]]" = []
+    alive_later: "list[bool]" = []
+    calls: "list[int]" = []
+
+    def watched(*args: object, **kwargs: object) -> taxonomy.ColumnProfile:
+        nonlocal handed, alive_later
+        if handed:
+            gc.collect()
+            alive_later += [handed[0]() is not None]
+        given = args[12] if len(args) > 12 else kwargs.get("handed_over")
+        if isinstance(given, taxonomy.HeldReading):
+            handed += [weakref.ref(given)]
+        del given
+        return described(*args, **kwargs)  # type: ignore[arg-type]
+
+    def holding(*args: object, **kwargs: object) -> "dict[str, object]":
+        # ``args`` and ``kwargs`` are this frame's until the call
+        # returns: what CPython 3.10's caller stack holds.
+        nonlocal calls
+        calls += [len(args) + len(kwargs)]
+        return built(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(taxonomy, "profile_column", watched)
+    monkeypatch.setattr(profile, "build_document", holding)
+    assert kpi_shapes.quiet_cli(["profile", str(path), "--out-dir", str(tmp_path), "--code", "code"]) == 0
+    assert len(calls) == 1, "premise: the command described the table once, through the wrapper"
+    assert len(handed) == 1, "premise: the census read `code` and handed it over"
+    assert alive_later == [False, False]
+
+
 # -- bytes per row ---------------------------------------------------------------
 
 
