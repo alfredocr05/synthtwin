@@ -338,15 +338,18 @@ ATTACKS = {
     "incision_time in small letters (08:30 pm)": ("perioperative", _edit("incision_time", str.lower), None, "forms incision_time"),
     "in_room unpadded (7:42)": ("perioperative", _edit("in_room", _unpad), None, "forms in_room"),
     "milliseconds cut to two figures": ("sql_server", _edit("created_dttm", lambda v: v[:-1]), None, "forms created_dttm"),
+    "MEDICINE written Medicine, a form lost": ("encounters", _edit("department", lambda v: "Medicine" if v == "MEDICINE" else v), None, "forms department"),
     # The tripwire's item 3: a missing marker the twin drops altogether.
     "the literal NULL never written (middle_initial)": ("sql_server", _edit("middle_initial", lambda v: "A" if v == "NULL" else v), None, "missing spellings middle_initial"),
     "the literal NULL never written (death_date)": ("sql_server", _edit("death_date", lambda v: "2023-06-01" if v == "NULL" else v), None, "missing spellings death_date"),
+    "the literal NULL written on a third as many rows": ("sql_server", _edit("middle_initial", lambda v: "A" if v == "NULL" else v, 0.7), None, "missing spellings middle_initial"),
     "REDCap's blank consent_date filled on its other rows": ("redcap", _edit("consent_date", lambda v: v or "2023-06-01"), None, "missing spellings consent_date"),
     # The tripwire's item 4: numbers beside a unit or a mark off by a factor.
     "stature halved": ("vitals", zoo.spoil_scaled("stature", r"(?P<n>\d+) cm", 0.5), None, "the numbers of stature keep their range"),
     "a weight in lb divided by ten": ("us_vitals", zoo.spoil_scaled("weight", r"(?P<n>\d+) lb", 0.1), None, "the numbers of weight keep their range"),
     "temperatures in F plus 100": ("us_vitals", _edit("temp_f", lambda v: f"{float(v.split()[0]) + 100:.1f} F"), None, "the numbers of temp_f keep their range"),
     "uncensored viral loads times 1,000": ("labs", _edit("viral_load", lambda v: v if v.startswith(("<", ">")) else f"{int(v) * 1000}"), None, "the numbers of viral_load keep their range"),
+    "weights in lb crowded to the top, the ends kept inside": ("us_vitals", _edit("weight", lambda v: f"{260 - (260 - int(v.split()[0])) // 4} lb"), None, "the numbers of weight keep their range"),
     "the decimal-comma mass index times ten": ("vitals", _edit("mass_index", lambda v: v.replace(",", "") + ",0"), None, "the numbers of mass_index keep their range"),
     # The tripwire's item 1: notes mostly stand-ins; the verify's item 3:
     # quotes gone, and a share of patients lost while one still repeats.
@@ -374,6 +377,15 @@ def test_a_twin_unlike_its_source_is_named(attack: str, tmp_path: pathlib.Path) 
     name, change, write, wanted = ATTACKS[attack]
     failures = _pair(name, tmp_path, change, write)
     assert wanted in [failure[1] for failure in failures], failures
+
+
+def test_the_repeat_shares_count_two_rows_and_three() -> None:
+    """Each patient's rows: the share holding two or more, and the share holding three or more."""
+    import pandas
+
+    assert zoo._repeat_shares(pandas.Series(["a", "a", "a", "b", "b", "c"])) == (0.667, 0.333)
+    assert zoo._share_failure((0.84, 0.6), (0.84, 0.0))
+    assert not zoo._share_failure((0.84, 0.6), (0.8, 0.65))
 
 
 def test_a_code_the_real_never_writes_is_named_on_a_long_tail(tmp_path: pathlib.Path) -> None:
