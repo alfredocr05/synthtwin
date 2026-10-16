@@ -494,6 +494,59 @@ def test_h4_red_where_the_zone_is_filled_by_the_step(monkeypatch: pytest.MonkeyP
     assert {generation._filled_form(key, step)[-1] for step in range(50)} != {"Z"}
 
 
+_YEAR_LAST_LETTERED = {
+    "1/5/2024T09:15:30Z": "%/%/%%%%@%%:%%:%%@",
+    "01/05/2024T09:15Z": "%%/%%/%%%%@%%:%%@",
+}
+
+
+def _year_last_letters_are_stepped() -> bool:
+    """Whether the generator fills a year-last stamp's two letters by the step, never `T` and `Z`."""
+    for key in _YEAR_LAST_LETTERED.values():
+        spellings = [generation._filled_form(key, step) for step in range(200)]
+        if {spelling[key.index("@")] for spelling in spellings} == {"T"}:
+            return False
+        if len({spelling[-1] for spelling in spellings}) < 26:
+            return False
+    return True
+
+
+def test_h4_a_zone_after_a_year_last_date_keeps_its_old_form() -> None:
+    """H4: P4-D393's stated limit, as written (leftover verifier of L3, item 2).
+
+    A zone after a year-last date keeps no stamp form: spaced
+    (`1/5/2024 9:15Z`), no form at all; parted by a letter and of 24
+    characters or fewer (`1/5/2024T09:15:30Z`), the form it had before
+    L3, no stamp's key, its letters filled by the step in the generator
+    and the oracle alike (`5/4/3210A00:19:80P`). Mutant: a year-last
+    stamp's zone read as a year-first one's.
+    """
+    oracle = _oracle_module()
+    written_form = oracle["written_form"]
+    filled_form = oracle["filled_form"]
+    assert callable(written_form) and callable(filled_form)
+    for cell, key in _YEAR_LAST_LETTERED.items():
+        assert parsing.shape_form(cell) == key == written_form(cell), cell
+        assert parsing.stamp_key_parts(key) is None, key
+        assert parsing.stamp_key_zone_at(key) == -1, key
+        steps = range(200)
+        assert [generation._filled_form(key, step) for step in steps] == [filled_form(key, step) for step in steps]
+    assert parsing.shape_form("1/5/2024 9:15Z") == "" == written_form("1/5/2024 9:15Z")
+    assert _year_last_letters_are_stepped()
+
+
+def test_h4_red_where_a_year_last_zone_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: a year-last stamp's letters written `T` and `Z`: `5/4/3210T00:19:80Z`."""
+    keys = tuple(_YEAR_LAST_LETTERED.values())
+    parts = parsing.stamp_key_parts
+    zone_at = parsing.stamp_key_zone_at
+    monkeypatch.setattr(
+        parsing, "stamp_key_parts", lambda name: (-1, -1, name.index("@"), -1) if name in keys else parts(name)
+    )
+    monkeypatch.setattr(parsing, "stamp_key_zone_at", lambda name: len(name) - 1 if name in keys else zone_at(name))
+    assert not _year_last_letters_are_stepped()
+
+
 # -- H5: the producer always loads ---------------------------------------------
 
 
