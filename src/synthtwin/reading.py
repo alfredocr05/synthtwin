@@ -3052,6 +3052,18 @@ def _unchanged(
         raise errors.ProfileError(errors.file_changed_while_read(shown))
 
 
+def _still_the_same(table_path: pathlib.Path, facts: _Facts, shown: str) -> None:
+    """Refuse a file whose size or moment of change moved since it was first read.
+
+    Asked once pandas, which opens the file itself, has read it: a value
+    pandas read from another version differs from the survey's and is
+    refused as the readers' difference, and a file changed otherwise is
+    refused here.
+    """
+    if _stat_of(table_path) != (facts.file_bytes, facts.changed_at):
+        raise errors.ProfileError(errors.file_changed_while_read(shown))
+
+
 def _whole_text(
     table_path: pathlib.Path, shown: str, facts: _Facts, encoding: str
 ) -> str:
@@ -3291,6 +3303,7 @@ def _sweep(
             refusal = _check_against_pandas(
                 raw_path, reading, shown, refusals, keep, surveyed.first_cells
             )
+            _still_the_same(table_path, facts, shown)
             if refusal is not None:
                 refused += [refusal]
         for place in range(start, end):
@@ -3441,6 +3454,7 @@ def _read_in_groups(
                 errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
             )
         _check_against_pandas(raw_path, found, shown, refusals)
+        _still_the_same(table_path, facts, shown)
         seen = ""
         if found.header_source == HEADER_FROM_FILE:
             spoken, by_convention, seen = _settle_the_first_row(
@@ -3460,6 +3474,7 @@ def _read_in_groups(
                         errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
                     )
                 _check_against_pandas(raw_path, found, shown, refusals)
+                _still_the_same(table_path, facts, shown)
                 spoken = _NOT_TOLD
                 by_convention = False
             found = dataclasses.replace(
