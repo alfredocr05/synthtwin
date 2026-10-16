@@ -23,9 +23,14 @@ identical to 68dae22f's). Measured in a window, loaded: post_code's
 generate took 7.2, 17.6 and 35.1 s at 100,000, 250,000 and 500,000
 rows (16.0, 84.4 and 269.3 s before), about 164 s projected at
 2,000,000. New KPIs: `K-S4-16`, the exchange's predicate calls
-200,000 over 100,000 cells, x2.0 (68dae22f: x4.0); `K-S4-17`, the
+and its walk's own lines 200,000 over 100,000 cells, x2.0 each, and the
+point-free form asked once (68dae22f's calls: x3.65 from 12,500 to
+25,000 cells); `K-S4-17`, the
 projected 2,000,000-row generate of one padded code column, judged only
-in a measurement window.
+in a measurement window. Its repair round counts the walk's own lines
+and the point-free form's asks too: four walks that pick the same
+partners and ask the predicates no more often were quadratic and passed
+every check, and each is now red.
 
 ### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
 

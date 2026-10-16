@@ -2071,13 +2071,15 @@ def test_k_s4_15(record_property, tmp_path) -> None:
 
 
 def test_k_s4_16(record_property) -> None:
-    """The padded exchange's predicate calls grow with the rows (lane H1, plan P4-D402).
+    """The padded exchange's work grows with the rows (lane H1, plan P4-D402).
 
     Machine-free: the calls of `_pad_need`, `_can_wear` and
     `_carries_plainly` the padded exchange makes on a postal-code column
     of 100,000 and of 200,000 cells, counted under `sys.setprofile`, and
-    their ratio judged unrounded. `tests/test_stage4_padded_swap_scale.py`
-    owns the measure.
+    the lines its walk runs, counted under `sys.settrace`, each ratio
+    judged unrounded; and the asks of `_point_free_form_worn`, one per
+    wearing key at most. `tests/test_stage4_padded_swap_scale.py` owns
+    the measure.
     """
     import test_stage4_padded_swap_scale as padded
 
