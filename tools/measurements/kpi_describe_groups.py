@@ -1,39 +1,55 @@
-"""K-S4-09 and K-S4-11: `synthtwin profile` of a big table, one group of columns at a time.
+"""K-S4-09 and K-S4-11: `synthtwin profile` of the big table, one group of columns at a time.
 
 PLAN P4-D400 (lane SR of the December plan). The owner's big table is
 2,000,000 rows by 50 columns, and the process describing it must fit
 under the 2.5 GB the watchdog lets one process hold. `synthtwin profile`
 now reads a table too large for one group of columns
-(`reading.GROUP_BYTES`) one group at a time, so what it holds grows with
-one group's columns and one column's description, not the whole table.
+(`reading.GROUP_BYTES`, 512 MiB) one group at a time, so what it holds
+grows with one group's columns and one column's description, not with
+the whole table.
 
-The two tables are B0's (planning-notes/work-2026-10/wave6/B0): the
-made-up 50-column health table of K-S4-02 (`kpi_reader_memory`'s,
+The two tables are lane B0's (planning-notes/work-2026-10/wave6/B0): the
+made-up 50-column health table of K-S4-02 (`kpi_reader_memory`'s:
 record numbers, codes, labels, numbers in their spellings, dates,
 stamps, clocks and free texts, seed 20261002) and K-S1-06's Gaussian
-columns at two places (`kpi_scale.write_numeric`, seed 20260913), at
-50 columns. No value comes from a real table.
+columns at two places (`kpi_scale.write_numeric`, seed 20260913), at 50
+columns. No value comes from a real table.
 
     kpi_describe_groups.py write {mixed|gaussian} ROWS PATH
     kpi_describe_groups.py run TABLE OUT_DIR [--group-bytes N] [--trace]
-    kpi_describe_groups.py --kpi [--rows N]
+    kpi_describe_groups.py --kpi
 
 `run` describes one table in THIS process with `synthtwin profile` and
 prints one line of JSON: the CPU seconds, the process's peak resident
-memory (`ru_maxrss`, machine-decided) and, with --trace, the most bytes
-`tracemalloc` saw held (machine-free). --group-bytes sets
-`reading.GROUP_BYTES`, so a smaller table is read in the groups a larger
-one would be: 2,000,000 rows at the default budget are read about three
-columns a group, and 200,000 rows at a tenth of it are too.
+memory (`ru_maxrss`) and, with --trace, the most bytes `tracemalloc` saw
+held. --group-bytes sets `reading.GROUP_BYTES`.
 
-`--kpi` is K-S4-09's machine-free part: each table of 200,000 rows by
-50 (`--rows`) described twice in processes of their own -- read whole,
-as before this lane, and in the groups 2,000,000 rows would be read in
--- with the bytes `tracemalloc` saw held divided by the cells. Its
-memory peaks and seconds at 100,000, 250,000 and 500,000 rows, and the
-projection to 2,000,000, are measured in a measurement window (one heavy
-process at a time, the suite slot held) by `run`, and recorded in the
-ledger's evidence: they are the machine's.
+THE BIG TABLE'S GROUPS, AT EVERY SIZE MEASURED. A group holds as many
+columns as `GROUP_BYTES` buys at the table's rows, so 2,000,000 rows are
+read about three columns a group and 100,000 rows at the same budget in
+one group of fifty. Every run below is read with the budget scaled by
+the rows (`GROUP_BYTES` times rows over 2,000,000), so each size is read
+in the groups 2,000,000 rows are read in, and what it holds grows with
+the rows as the big table's does.
+
+`--kpi` measures, each run in a process of its own, one at a time:
+
+* K-S4-09's machine-free keys: each table of 200,000 rows by 50
+  described once with `tracemalloc` on, the most bytes it saw held over
+  the cells (`*_traced_bytes_a_cell`, judged everywhere: at 100,000,000
+  cells, 25 bytes a cell is 2.5 GB);
+* K-S4-09's machine keys and K-S4-11: each table at 100,000, 250,000 and
+  500,000 rows, its peak resident memory and CPU seconds, and the
+  projection to 2,000,000 rows as lane B0 makes it -- a least-squares
+  line through log(rows) and log(value) over the three sizes, read at
+  2,000,000; memory as its rise above what the process holds once
+  synthtwin is imported, measured here and added back; never linear
+  unless the growth measured is x2.00. Peaks and seconds are the
+  machine's and are judged only on the quiet reference machine
+  (`kpi_rules.MACHINE_KINDS`).
+
+About three hours on the reference machine: run it in a measurement
+window, one heavy process at a time.
 """
 
 from __future__ import annotations
@@ -42,6 +58,7 @@ import argparse
 import contextlib
 import io
 import json
+import math
 import pathlib
 import subprocess
 import sys
@@ -56,10 +73,12 @@ sys.path.insert(0, str(ROOT / "tools" / "measurements"))
 
 import kpi_rules  # noqa: E402
 
-# The rows of the machine-free measure, and of the owner's big table.
-ROWS = 200_000
-BIG_ROWS = 2_000_000
 COLUMNS = 50
+BIG_ROWS = 2_000_000
+TRACED_ROWS = 200_000
+SIZES = (100_000, 250_000, 500_000)
+# `reading.GROUP_BYTES` as shipped; read here from the module, below.
+MEBIBYTE = 1024 * 1024
 
 
 def write(kind: str, rows: int, path: pathlib.Path) -> None:
@@ -85,11 +104,13 @@ def _resident_peak() -> int:
     return peak if sys.platform == "darwin" else peak * 1024
 
 
-def run(table: pathlib.Path, out: pathlib.Path, group_bytes: int, trace: bool) -> "dict[str, object]":
-    """Describe ``table`` with `synthtwin profile` in this process; what it took."""
+def run(table: str, out: pathlib.Path, group_bytes: int, trace: bool) -> "dict[str, object]":
+    """Describe ``table`` with `synthtwin profile` in this process; what it took. An empty table imports only."""
     from synthtwin import cli, reading
     import synthtwin
 
+    if not table:
+        return {"exit": 0, "cpu_seconds": 0.0, "peak_rss_bytes": _resident_peak(), "synthtwin": synthtwin.__file__}
     if group_bytes > 0:
         reading.GROUP_BYTES = group_bytes
     if trace:
@@ -97,7 +118,7 @@ def run(table: pathlib.Path, out: pathlib.Path, group_bytes: int, trace: bool) -
     said = io.StringIO()
     started = time.process_time()
     with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
-        code = cli.main(["profile", str(table), "--out-dir", str(out), "--replace"])
+        code = cli.main(["profile", table, "--out-dir", str(out), "--replace"])
     seconds = time.process_time() - started
     traced = -1
     if trace:
@@ -113,38 +134,69 @@ def run(table: pathlib.Path, out: pathlib.Path, group_bytes: int, trace: bool) -
     }
 
 
-def _child(table: pathlib.Path, out: pathlib.Path, group_bytes: int, trace: bool) -> "dict[str, object]":
+def _child(table: str, out: pathlib.Path, group_bytes: int, trace: bool) -> "dict[str, object]":
     """`run` in a process of its own, so its peak is that run's alone."""
-    argv = [sys.executable, str(pathlib.Path(__file__).resolve()), "run", str(table), str(out),
+    out.mkdir(parents=True, exist_ok=True)
+    argv = [sys.executable, str(pathlib.Path(__file__).resolve()), "run", table or "-", str(out),
             "--group-bytes", str(group_bytes)] + (["--trace"] if trace else [])
     done = subprocess.run(argv, capture_output=True, text=True, check=True)
-    return json.loads(done.stdout.strip().splitlines()[-1])
-
-
-def measure(rows: int) -> "dict[str, float | int]":
-    """K-S4-09's machine-free keys: traced bytes a cell, read whole and in the big table's groups."""
-    found: "dict[str, float | int]" = {"rows": rows}
-    with tempfile.TemporaryDirectory() as folder:
-        for kind in ("mixed", "gaussian"):
-            table = pathlib.Path(folder) / f"{kind}.csv"
-            write(kind, rows, table)
-            cells = rows * COLUMNS
-            # Read whole: a budget no table of this size reaches.
-            whole = _child(table, pathlib.Path(folder) / f"{kind}-whole", 1 << 40, True)
-            # Read in the groups the big table is read in: the budget scaled
-            # by the rows, so a group holds as many columns as it would
-            # there.
-            scaled = 512 * 1024 * 1024 * rows // BIG_ROWS
-            grouped = _child(table, pathlib.Path(folder) / f"{kind}-groups", scaled, True)
-            if whole["exit"] != 0 or grouped["exit"] != 0:
-                raise SystemExit(f"synthtwin profile of the {kind} table exited {whole['exit']} and {grouped['exit']}")
-            whole_bytes = float(f"{whole['traced_peak_bytes']}")
-            grouped_bytes = float(f"{grouped['traced_peak_bytes']}")
-            found[f"{kind}_traced_bytes_a_cell_whole"] = round(whole_bytes / cells, 1)
-            found[f"{kind}_traced_bytes_a_cell_in_groups"] = round(grouped_bytes / cells, 1)
-            found[f"{kind}_in_groups_over_whole"] = round(grouped_bytes / whole_bytes, 3)
-            table.unlink()
+    found = json.loads(done.stdout.strip().splitlines()[-1])
+    if found["exit"] != 0:
+        raise SystemExit(f"synthtwin profile of {table} exited {found['exit']}")
     return found
+
+
+def _number(value: object) -> float:
+    """A measured number, read back from a run's JSON."""
+    return float(f"{value}")
+
+
+def projected(sizes: "list[int]", values: "list[float]", base: float = 0.0) -> "tuple[float, float]":
+    """Lane B0's projection: the growth a doubling, and the value at 2,000,000 rows, of ``values`` above ``base``."""
+    xs = [math.log(size) for size in sizes]
+    ys = [math.log(max(value - base, 1e-9)) for value in values]
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / sum((x - mean_x) ** 2 for x in xs)
+    at = mean_y + slope * (math.log(BIG_ROWS) - mean_x)
+    return 2 ** slope, math.exp(at) + base
+
+
+def measure() -> "tuple[dict[str, object], dict[str, object]]":
+    """K-S4-09's and K-S4-11's values."""
+    from synthtwin import reading
+
+    budget = reading.GROUP_BYTES
+    memory: "dict[str, object]" = {"rows_traced": TRACED_ROWS, "sizes": list(SIZES)}
+    seconds: "dict[str, object]" = {"sizes": list(SIZES)}
+    with tempfile.TemporaryDirectory() as folder:
+        work = pathlib.Path(folder)
+        imports = _number(_child("", work / "imports", 0, False)["peak_rss_bytes"]) / MEBIBYTE
+        memory["imports_mb"] = round(imports, 1)
+        for kind in ("mixed", "gaussian"):
+            table = work / f"{kind}.csv"
+            write(kind, TRACED_ROWS, table)
+            traced = _child(str(table), work / f"{kind}-traced", budget * TRACED_ROWS // BIG_ROWS, True)
+            memory[f"{kind}_traced_bytes_a_cell"] = round(
+                _number(traced["traced_peak_bytes"]) / (TRACED_ROWS * COLUMNS), 1
+            )
+            peaks: "list[float]" = []
+            cpu: "list[float]" = []
+            for rows in SIZES:
+                write(kind, rows, table)
+                found = _child(str(table), work / f"{kind}-{rows}", budget * rows // BIG_ROWS, False)
+                peaks += [_number(found["peak_rss_bytes"]) / MEBIBYTE]
+                cpu += [_number(found["cpu_seconds"])]
+            table.unlink()
+            growth, at = projected(list(SIZES), peaks, imports)
+            memory[f"{kind}_describe_peak_mb"] = [round(peak, 1) for peak in peaks]
+            memory[f"{kind}_describe_peak_growth_a_doubling"] = round(growth, 3)
+            memory[f"{kind}_describe_peak_mb_2m_projected"] = round(at, 1)
+            growth, at = projected(list(SIZES), cpu)
+            seconds[f"{kind}_describe_cpu_seconds"] = cpu
+            seconds[f"{kind}_describe_seconds_growth_a_doubling"] = round(growth, 3)
+            seconds[f"{kind}_describe_seconds_2m_projected"] = round(at, 1)
+    return memory, seconds
 
 
 def main() -> int:
@@ -152,7 +204,6 @@ def main() -> int:
     parser.add_argument("action", nargs="?", default="")
     parser.add_argument("rest", nargs="*")
     parser.add_argument("--kpi", action="store_true")
-    parser.add_argument("--rows", type=int, default=ROWS)
     parser.add_argument("--group-bytes", type=int, default=0)
     parser.add_argument("--trace", action="store_true")
     arguments = parser.parse_args()
@@ -162,14 +213,17 @@ def main() -> int:
         return 0
     if arguments.action == "run":
         table, out = arguments.rest
-        print(json.dumps(run(pathlib.Path(table), pathlib.Path(out), arguments.group_bytes, arguments.trace)))
+        found = run("" if table == "-" else table, pathlib.Path(out), arguments.group_bytes, arguments.trace)
+        print(json.dumps(found))
         return 0
     if not arguments.kpi:
         print(__doc__)
         return 0
     kpi_rules.guard_this_tree()
-    found = measure(arguments.rows)
-    kpi_rules.emit("K-S4-09", found, f"{found['rows']:,} rows by 50 columns of B0's two made-up tables")
+    memory, seconds = measure()
+    detail = "B0's two made-up tables, 50 columns, read in the groups 2,000,000 rows are read in"
+    kpi_rules.emit("K-S4-09", memory, detail)
+    kpi_rules.emit("K-S4-11", seconds, detail)
     return 0
 
 

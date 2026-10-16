@@ -1797,18 +1797,23 @@ def _names_shown(name: str, values: "list[str]") -> bool:
     # number", so a column holding one yields no evidence and the
     # header is taken by convention -- the conservative side, and it
     # costs a sentence rather than a record.
-    present = [f"{value}" for value in values if f"{value}" != ""]
-    if len(present) < 2:
-        return False
+    #
+    # The name is asked first and the values stop at the first that is
+    # not a number (lane SR, plan P4-D400): the answer is the one asking
+    # every value gives, at most one value past it.
     if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
         return False
     if _holds_a_figure_as_a_value(f"{name}"):
         return False
-    every_value_is_a_number = True
-    for value in present:
-        if parsing.classify_number(f"{value}") == parsing.NOT_A_NUMBER:
-            every_value_is_a_number = False
-    return every_value_is_a_number
+    present = 0
+    for value in values:
+        cell = f"{value}"
+        if cell == "":
+            continue
+        if parsing.classify_number(cell) == parsing.NOT_A_NUMBER:
+            return False
+        present = present + 1
+    return present >= 2
 
 
 def _holds_a_figure_as_a_value(text: str) -> bool:
