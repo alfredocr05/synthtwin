@@ -2790,9 +2790,9 @@ def _counted_in_rows_notice(names: "list[str]") -> str:
 def _withheld_notice(names: "tuple[str, ...]") -> str:
     """What the screen says of the columns held back until answered.
 
-    Plan P4-D401. Each was asked whether it holds the people the rows
-    are about or record numbers, and nobody has answered, so this run
-    describes it as record numbers and publishes none of its values.
+    Plan P4-D401. Each was asked a question `identifier` answers, and
+    nobody has answered, so this run describes it as record numbers and
+    publishes none of its values.
     The sentence names the way back, which is answering.
 
     Guarantees: accepts the columns held back; returns one paragraph. A
@@ -2802,13 +2802,13 @@ def _withheld_notice(names: "tuple[str, ...]") -> str:
     """
     return (
         f"\nCOLUMNS HELD BACK UNTIL YOU ANSWER\n"
-        f"Nobody has answered whether {_joined(list(names), ' and ')} "
-        f"hold the people your rows are about or record numbers, so this "
-        f"description treats them as record numbers and publishes none "
-        f"of their values, and the twin writes made-up record numbers "
-        f"there. Answer the questions file, and run the command again "
-        f"with --answers: any answer gives the column the description "
-        f"that answer names."
+        f"Nobody has answered the question about "
+        f"{_joined(list(names), ' and ')}, and `identifier` -- record "
+        f"numbers -- is among its answers, so this description treats "
+        f"them as record numbers and publishes none of their values, and "
+        f"the twin writes made-up record numbers there. Answer the "
+        f"questions file, and run the command again with --answers: any "
+        f"answer gives the column the description that answer names."
     )
 
 
@@ -4224,13 +4224,23 @@ def _run_profile(
     # question put, Enter included, and nothing is held.
     withheld: "tuple[str, ...]" = ()
     if not answered:
+        # EVERY DECLARATION IS AN ANSWER (Codex's review of lane HX, item
+        # 1): `--decimal-comma amount` says `amount` holds measurements,
+        # and a column also held as a record number would stand in two
+        # declarations the contract refuses together (S8a).
         withheld = asking.unanswered_identities(
             asked_about + dates_asked + coded_about,
             document,
-            read.columns,
-            settings,
-            identities_kept,
-            split_columns,
+            tuple(
+                forced_identifiers
+                + forced_codes
+                + forced_measurements
+                + list(forced_decimal_commas)
+                + list(twelve_hours)
+                + list(date_columns)
+                + sorted(counted)
+            )
+            + identities_kept,
         )
     published = document
     if withheld:

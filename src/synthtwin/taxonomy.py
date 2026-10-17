@@ -2660,8 +2660,8 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         )
     if form == EVIDENCE_UNANSWERED_IDENTITY:
         return (
-            "synthtwin asked whether this column holds the people the rows "
-            "are about or record numbers, and nobody has answered yet, so "
+            "synthtwin asked a question about this column that the answer "
+            "`identifier` is among, and nobody has answered it yet, so "
             "until it is answered it is described as record numbers and "
             "none of its values is published"
         )
@@ -25676,6 +25676,14 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     every real value. The layouts stay: a layout says which kind of
     character stood at each place and never which one.
 
+    AND ITS CENSUS OF REPETITION IS THE EVEN ONE (`_even_census`; lane
+    HX's review, item 5): the declared block's census says how many
+    values cover one row, two rows and so on, counts of one to ten among
+    them, which the owner accepted for a column a person NAMED (review
+    item P1-R8-F4). Nobody named this one, so it publishes the census
+    the two counts it already prints imply -- the rows spread as evenly
+    as they go over the different values -- and nothing more.
+
     Guarantees: accepts a column described with ``forced_identifier``;
     returns it with those two fields changed, or unchanged where its
     role is not `identifier` (the identifier reading does not reach a
@@ -25689,11 +25697,56 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
         details[key] = column.details[key]
     if "layout_prefixes" in details:
         details["layout_prefixes"] = {}
+    census: object = None
+    if "n_distinct_by_occurrences" in details:
+        census = details["n_distinct_by_occurrences"]
+    if isinstance(census, dict) and census:
+        details["n_distinct_by_occurrences"] = _even_census(
+            column.n_present, census
+        )
     return dataclasses.replace(
         column,
         detection_evidence=note(EVIDENCE_UNANSWERED_IDENTITY),
         details=details,
     )
+
+
+def _even_census(n_present: int, census: "dict[str, object]") -> "dict[str, int]":
+    """The census of repetition two published counts imply, and nothing more.
+
+    PLAN P4-D401. ``census`` is a column's own census; only how many
+    different values it counts is read from it -- the sum of its entries,
+    the `n_distinct` the block already publishes. The rows present are
+    spread over those values as evenly as whole rows go: each value
+    covers `n_present // n_distinct` rows, and `n_present % n_distinct`
+    of them one row more. The result closes as the contract requires
+    (entries sum to the values, keys weighted by entries to the rows)
+    and is a function of those two published counts alone, so no group
+    size of the table reaches it.
+
+    Guarantees: accepts the count of present cells and a census closing
+    on it; returns the even census in `_multiplicity_map`'s key form, or
+    the census unchanged where it counts no value. Determinism: a fixed
+    function of the two counts. Raises nothing. No I/O.
+    """
+    values = 0
+    for key in census:
+        entry = census[key]
+        if isinstance(entry, int):
+            values = values + entry
+    kept: "dict[str, int]" = {}
+    if values < 1 or n_present < values:
+        for key in census:
+            kept[key] = int(f"{census[key]}")
+        return kept
+    share = n_present // values
+    over = n_present % values
+    width = len(f"{share + 1 if over else share}")
+    if values > over:
+        kept[_left_padded(share, width)] = values - over
+    if over:
+        kept[_left_padded(share + 1, width)] = over
+    return kept
 
 
 # How many of each unit a day holds. The seconds figure is the one

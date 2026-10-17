@@ -2470,10 +2470,13 @@ its place.
 
 ---
 
-##### B. The detection-evidence forms (fifteen forms)
+##### B. The detection-evidence forms (seventeen forms)
 
-**Its members are NF7 through NF16, NF45 through NF48, NF52 and
-NF53.** NF53 was defined and emitted for a landing before this
+**Its members are NF7 through NF16, NF45 through NF48, NF52, NF53 and
+NF125.** NF125 is the evidence of a column held as record numbers until
+its question is answered (lane HX, plan P4-D401); it was defined
+beside the other forms of its landing and left off this list until
+that landing's review (Codex's review of lane HX, item 7). NF53 was defined and emitted for a landing before this
 membership statement named it, so a consumer following the closed list
 would have read a valid producer sentence as outside the family
 (review round 4 of landing L8, item 6). The second
@@ -4348,7 +4351,7 @@ and then, always:
 
 > as you said, this column writes its dates as MEANS («1»). Its cells are read as the dates they count and described as dates, and the twin writes each date back as the same count, spelled as this column spells its counts (`count_form`); a number that counts no date -- or one of the numbers such a count writes where no date was given, 1 January 1900 or 31 December 9999 -- is counted as no value and written back as it was written, whatever --keep-value names
 
-**NF125. `evidence_unanswered_identity` — a record number nobody declared** — arity 0 (lane HX, plan P4-D401). The detection evidence of a column a question offering `identifier` was put to and nobody answered -- the person question, a question asked because every value is the same number of figures, or the two-numbers question of a column written as telephone or social security numbers alone. Its block is the record-number block NF16's column carries, with `layout_prefixes` empty, and its name stands in `settings.forced_identifiers` beside the declared ones; `settings.person_columns` does not change, so the population stays counted as it was. Any answer gives the column the block that answer describes.
+**NF125. `evidence_unanswered_identity` — a record number nobody declared** — arity 0 (lane HX, plan P4-D401). The detection evidence of a column a question offering `identifier` was put to and nobody answered -- any question but the checklist of columns read as numbers (C6-80a). Its block is the record-number block NF16's column carries, with `layout_prefixes` empty and the even census of repetition, and its name stands in `settings.forced_identifiers` beside the declared ones; `settings.person_columns` does not change, so the population stays counted as it was. Any answer gives the column the block that answer describes.
 
 > synthtwin asked whether this column holds the people the rows are about or record numbers, and nobody has answered yet, so until it is answered it is described as record numbers and none of its values is published
 
@@ -7951,6 +7954,17 @@ declaration wins immediately after. Which columns were declared is on
 the document's own face — `settings.forced_identifiers` (section 4.4)
 carries the declared names, sorted. No count, no shape and no measure
 of the values sends a column here.
+
+**C6-80a (the column held until its question is answered; lane HX,
+plan P4-D401).** One more column stands in `settings.forced_identifiers`
+and takes `role: identifier`: a column the profiling run put a question
+offering `identifier` to -- any but the checklist of columns read as
+numbers -- that nobody answered, where the run was scripted. Its
+detection evidence is NF125 and its `layout_prefixes` is empty; its
+census of repetition is the even one the block's own `n_present` and
+`n_distinct` imply. No count, shape or measure of the values sends it
+here either: the question was put, and the answer did not come. Any
+answer gives the column the block that answer names.
 
 **C6-81 (the uniqueness thresholds decide NO role).** The settings
 `identifier_uniqueness` and `identifier_minimum_rows` (section 4.4)
