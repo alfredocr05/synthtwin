@@ -31,6 +31,8 @@ import tempfile
 
 import pytest
 
+import keyboard
+
 from synthtwin import (
     contract, errors, generation, parsing, profile, reading, taxonomy,
 )
@@ -180,7 +182,8 @@ def test_two_lower_case_forms_come_back_at_their_counts(
 
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
 def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
-    tmp_path: pathlib.Path, seed: int
+    tmp_path: pathlib.Path, seed: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Base: every stand-in written in capitals, on the column of one
     fifth this was first built on (156 to 176 tail cells of 800).
@@ -190,6 +193,7 @@ def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
     tail as missing. Plan P4-D390 retired the ruling, so the one-fifth
     column stands as well and is pinned beside this one below.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = lower_long_tail(seed, common_share=0.6)
     got = _round_trip(tmp_path, cells, seed="13", floor=20, declared=False)
     assert got["source"]["role"] == "long_tail_labels"
@@ -206,7 +210,8 @@ def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
 
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
 def test_a_narrow_lower_case_tail_stands_and_is_written_in_lower_case(
-    tmp_path: pathlib.Path, seed: int
+    tmp_path: pathlib.Path, seed: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """THE COLUMN THE TEST ABOVE WAS FIRST BUILT ON, standing again.
 
@@ -219,6 +224,7 @@ def test_a_narrow_lower_case_tail_stands_and_is_written_in_lower_case(
     long as the table's are. Every number below is counted off the source
     cells.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = lower_long_tail(seed)
     common = 0
     tail: "dict[str, int]" = {}
@@ -423,9 +429,11 @@ def _counts(values: "list[str]") -> dict:
     ],
 )
 def test_both_spellings_of_one_number_come_back_at_their_counts(
-    tmp_path: pathlib.Path, seed: int, make, pattern: str
+    tmp_path: pathlib.Path, seed: int, make, pattern: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Base: six to eight spellings for four, `00` and `05` invented."""
+    keyboard.every_reading_kept(monkeypatch)
     cells = make(seed)
     got = _round_trip(tmp_path, cells, seed="4", declared=False)
     assert got["source"]["role"] == "count"
@@ -552,6 +560,7 @@ def _validate_file(
 
 def test_a_file_writing_the_same_numbers_in_other_spellings_is_missed(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The validator's recount, where nothing ELSE a count publishes moves.
 
@@ -560,6 +569,7 @@ def test_a_file_writing_the_same_numbers_in_other_spellings_is_missed(
     of different spellings -- and a census of spellings that no longer
     holds. Only that census can miss it.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = ["7"] * 30 + ["07"] * 30 + ["8"] * 30 + ["08"] * 30 + ["0"] * 30
     moved = (
         ["7"] * 40 + ["07"] * 20 + ["8"] * 20 + ["08"] * 40 + ["0"] * 30
@@ -602,7 +612,8 @@ def lower_codes_beside_rare_capitals(
 
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
 def test_published_lower_case_labels_pay_their_own_key(
-    tmp_path: pathlib.Path, seed: int
+    tmp_path: pathlib.Path, seed: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The cells already written pay the census under the key it files them.
 
@@ -617,6 +628,7 @@ def test_published_lower_case_labels_pay_their_own_key(
     `@@%%` was never published. Plan P4-D390 retired the ruling, and the
     two-fifths column is kept as written.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = lower_codes_beside_rare_capitals(seed, common_share=0.6)
     got = _round_trip(tmp_path, cells, seed="4", floor=20, declared=False)
     published = got["source"]["shape_forms"]
@@ -645,6 +657,7 @@ def short_lower_codes_beside_rare_longer_ones() -> "list[str]":
 
 def test_the_published_shape_covers_the_largest_places_first(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """G8.3b step 3: the shape's supply goes to the places writing most rows.
 
@@ -665,6 +678,7 @@ def test_the_published_shape_covers_the_largest_places_first(
     length count 100 on the table and 99 on the twin; the case count
     holds at 115.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = short_lower_codes_beside_rare_longer_ones()
     got = _round_trip(tmp_path, cells, seed="4", floor=20, declared=False)
     assert got["source"]["shape_forms"] == {"(withheld)": 15}

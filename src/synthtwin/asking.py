@@ -3510,37 +3510,60 @@ def _person_choices(role: str, floor: int) -> "list[Choice]":
 # NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan
 # P4-D401, the owner's pattern of 2026-09-17, ruling 8: "an ambiguous
 # first row: do not guess, ask ... a record is never published as the
-# column names"; applied LITERALLY by the orchestrator's ruling of
-# 2026-10-16). A column synthtwin put a question offering `identifier`
-# to -- the person question, the two-numbers question, the questions
-# asked because its figures are padded, all one width or grouped, the
-# point question, the date-count question, the question of dates
-# written like codes -- is described as record numbers until somebody
-# answers: none of its values, level names, rungs, percentiles, mode,
-# tail values, forms or prefixes is published, and the twin writes the
-# placeholders a declared record number gets. Measured on 68dae22f: a
-# long table of 600 rows over 44 patients, its `record` asked and
-# unanswered, published 26 of the 44 real record numbers as level names;
-# a numeric patient key asked the fixed-width question published 57 of
-# its 60 keys as rungs, mode and tail values.
+# column names"; applied literally by the orchestrator's ruling of
+# 2026-10-16). A column put one of the questions the ruling names, each
+# offering `identifier` -- the person question, the two-numbers
+# question, and the question whose answers are a measurement, a code or
+# a record number (asked of padded figures, of figures all one width or
+# grouped in threes, and of a date count where every value is also one
+# width) -- is described as record numbers until somebody answers: none
+# of its values, level names, rungs, percentiles, mode, tail values,
+# forms or prefixes is published, and the twin writes the placeholders a
+# declared record number gets. Measured on 68dae22f: a long table of 600
+# rows over 44 patients, its `record` asked and unanswered, published 26
+# of the 44 real record numbers as level names; a numeric patient key
+# published 57 of its 60 keys as rungs, mode and tail values.
 #
 # WHY NO NARROWER LINE. Lane HX's build held only cells written as record
 # numbers (a run of seven figures, or an e-mail address) and its first
 # review measured what that let through: a Medicare beneficiary
-# identifier, `MRN123456`, `E123456`, `AC-1234-5678`, `123-456-789`, six
+# identifier, `REC123456`, `E123456`, `AC-1234-5678`, `123-456-789`, six
 # plain figures, a padded `001000000` and a grouped `123,456,789` --
 # every one asked a question offering `identifier`, every one published
 # whole. No shape of the cells separates a record number from a code;
-# the question already says the run could not tell, and the answer is
-# what tells. The price, accepted by the same ruling: a column of codes
-# or measurements asked such a question is held until answered (plan
-# P4-D401 lists the battery columns that are).
-#
-# THE CHECKLIST IS NOT SUCH A QUESTION. It lists every column read as a
-# number that raised no question at all, under one heading, so that a
-# person can name a register; nothing in its values raised a doubt, and
-# holding it would hold every column of figures of every table.
-CHECKLIST_REASONS = (BECAUSE_LISTED, BECAUSE_LISTED_AS_CODES)
+# the answer is what tells. The price, accepted by the same ruling: a
+# column of codes or measurements asked such a question is held until
+# answered (plan P4-D401 lists the battery columns that are).
+HOLDING_REASONS = (
+    BECAUSE_REPEATS_AND_MANY,
+    BECAUSE_JOINED,
+    BECAUSE_PADDED,
+    BECAUSE_FIXED_WIDTH,
+    BECAUSE_GROUPED_FIXED_WIDTH,
+)
+
+# THE QUESTIONS ABOUT DATES AND TIMES HOLD NOTHING, and nor does a
+# column the run read as dates or times. Each offers `identifier` beside
+# the readings it is about -- dates written like codes, dates counted
+# from a day, days of the year, mostly dates, a twelve-hour clock -- and
+# its cells were read, or nearly read, as dates or times, which no record
+# number is written as. Held, the twin of every unanswered table of HL7
+# stamps or clock times would write record numbers where its dates and
+# times stood, and code written on it would not run on the real table
+# (measured over the suite's description batteries: 98 failures in 11
+# files, nearly all of them dates and clocks). A birth date is a Safe
+# Harbor identifier no question flags, and lane HX2 owns it (plan
+# P4-D401). The checklist of columns read as numbers holds nothing
+# either: nothing in their values raised a doubt, and it lists every
+# measurement of every table.
+_READ_AS_DATES_OR_TIMES = (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
+
+# THE ONE DATE QUESTION THAT HOLDS: the date-count question merged with
+# the fixed-width one (`_date_count_question`), where every value is
+# also one width -- a ten-figure national provider or account number
+# reads as seconds since 1970 as well (measured on lane HX's build: 38
+# real values published). Its words open as the width question's do.
+_FIGURES_ALL_ONE_WIDTH = "every value is written in figures alone, all "
 
 
 def offers_identifier(question: "Question") -> bool:
@@ -3558,10 +3581,11 @@ def unanswered_identities(
 ) -> "tuple[str, ...]":
     """The columns described as record numbers until their question is answered.
 
-    A column is held back where a question put to it offers `identifier`,
-    that question is not the checklist (`CHECKLIST_REASONS`), nobody has
-    answered it, nothing declares the column, and its reading publishes
-    values (free text and the like publish none already).
+    A column is held back where a question put to it offers `identifier`
+    and is one of `HOLDING_REASONS` (or the date-count question merged
+    with the width question), nobody has answered it, nothing declares
+    the column, and its reading publishes values (free text and the like
+    publish none already) and is not one of dates or times.
 
     ``asked`` is the run's questions, every one of them unanswered: a
     column answered `identifier`, `code`, `measurement` or `joined` is
@@ -3588,7 +3612,12 @@ def unanswered_identities(
     for question in asked:
         if question.name in declared or not offers_identifier(question):
             continue
-        if question.reason in CHECKLIST_REASONS:
+        if question.reason not in HOLDING_REASONS and not (
+            question.reason == BECAUSE_DATE_COUNTS
+            and question.shape.startswith(_FIGURES_ALL_ONE_WIDTH)
+        ):
+            continue
+        if question.role in _READ_AS_DATES_OR_TIMES:
             continue
         if not publishes_its_values(question.role):
             # Free text and the like publish no value already.

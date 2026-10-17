@@ -151,6 +151,8 @@ import zlib
 
 import pytest
 
+import keyboard
+
 from synthtwin import (
     asking, contract, errors, generation, parsing, taxonomy, validation,
 )
@@ -788,6 +790,7 @@ def test_item4_an_older_categorical_description_of_layout_dates_is_described_aga
     twin against that description misses `axes.role`; describing the
     table again reads the dates, and that twin passes.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = _sas_days(1000, 25)
     monkeypatch.setattr(taxonomy, "_matching_layout", lambda present, settings, contradicted: None)
     block, older, _questions = _described(tmp_path / "older", cells)
@@ -4092,12 +4095,13 @@ def test_r2c_q6_is_worked_out_once_a_run(
     assert calls["made"] == 1
 
 
-def test_r2c_q6_the_declaration_reaches_only_the_column_it_names(tmp_path: pathlib.Path) -> None:
+def test_r2c_q6_the_declaration_reaches_only_the_column_it_names(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Item 4: `--date-column a` leaves column b, seven-figure codes like `2023076`, as it was read.
 
     Mutant, run: every column given the declaration (`for_the_column`
     widened), and b is read as days of the year nobody declared.
     """
+    keyboard.every_reading_kept(monkeypatch)
     first = _q6_shapes()["mixed"]
     second = _q6_shapes()["julian"]
     table = tmp_path / "real.csv"
