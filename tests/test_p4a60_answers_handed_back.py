@@ -217,9 +217,13 @@ def test_an_answer_in_the_file_becomes_the_declaration(
         "and the answer is recorded as the declaration it stands for, "
         "so the description says who decided"
     )
-    assert _role_of(document, "reading") in asking.NUMERIC_ROLES, (
+    # A COLUMN THEY DID NOT ANSWER ABOUT IS UNTOUCHED by that answer: it
+    # stands as an unanswered column stands, held as record numbers until
+    # its own question is answered (plan P4-D401).
+    assert _role_of(document, "reading") == taxonomy.ROLE_IDENTIFIER, (
         "a column they did not answer about is untouched"
     )
+    assert "reading" in document["settings"]["forced_identifiers"]
 
 
 def test_each_answer_reaches_its_own_declaration(
@@ -235,7 +239,9 @@ def test_each_answer_reaches_its_own_declaration(
     settings = json.loads(
         (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
     )["settings"]
-    assert settings["forced_identifiers"] == ["padded_code"]
+    # `born`, left unanswered, is held as record numbers until it is
+    # answered (plan P4-D401), beside the column answered `identifier`.
+    assert settings["forced_identifiers"] == ["born", "padded_code"]
     assert settings["forced_measurements"] == ["reading"]
 
 

@@ -35,6 +35,10 @@ from synthtwin import contract, parsing, taxonomy
 from tests import fixtures
 from tests.test_final_review_labels import _round_trip
 
+import pytest
+
+import keyboard
+
 
 def _column(result: dict, name: str = "value") -> dict:
     """The block of one column of the description this trip wrote."""
@@ -153,8 +157,9 @@ def test_a_pool_that_is_not_an_exception_stands(
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
 
 
-def test_a_pool_that_reaches_the_line_stands(tmp_path: pathlib.Path) -> None:
+def test_a_pool_that_reaches_the_line_stands(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A long tail's pool is a group, published exactly as P4-D201 wrote it."""
+    keyboard.every_reading_kept(monkeypatch)
     draw = random.Random(11)
     pool = [f"{chr(65 + index % 26)}{index:02d}" for index in range(300)]
     weights = [1.0 / (rank + 1) ** 1.1 for rank in range(len(pool))]

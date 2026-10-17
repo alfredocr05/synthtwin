@@ -42,6 +42,8 @@ import random
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, errors, parsing, profile, reading, taxonomy, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of, _round_trip, at_the_floor
@@ -207,8 +209,10 @@ def test_one_odd_cell_leaves_the_twin_its_forms_and_widths(
     cells: "list[str]",
     form: "dict[str, int]",
     widths: "tuple[str, dict[str, int]]",
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The final skeptic's fourth BLOCKER, on its three columns, at the default floor."""
+    keyboard.every_reading_kept(monkeypatch)
     first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path / name, cells, ("--smallest-group", "1"), True
     )

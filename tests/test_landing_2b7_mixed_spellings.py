@@ -38,6 +38,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from tests import fixtures
 
 # The floor these shapes are described at. The disclosure rule this
@@ -162,13 +164,15 @@ def test_a_column_mixing_two_notations_keeps_both(
 
 @pytest.mark.parametrize("seed", ["4", "11", "23"])
 def test_a_column_mixing_two_marks_keeps_both(
-    tmp_path: pathlib.Path, seed: str
+    tmp_path: pathlib.Path, seed: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """200 spaces and 100 narrow no-break spaces come back as 200 and 100.
 
     The mixture that broke goal 1 outright: code stripping an ordinary
     space succeeded on the old twin and failed on the real table.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = [f"{1000 + i:,}".replace(",", " ") for i in range(200)] + [
         f"{3000 + i:,}".replace(",", NARROW) for i in range(100)
     ]
