@@ -13,8 +13,9 @@ exists).
 `synthtwin profile` let each census reading go only once the whole table
 was described, because 3.10 keeps a call's arguments until the call
 returns; the description now takes the readings out of their box itself,
-so what lane S4d measured holds on every Python synthtwin supports (plan
-P4-D390). On Windows, the commands synthtwin prints for you to type stay
+so what lane S4d measured holds on every Python synthtwin supports, in
+the first description and in the one rebuilt after you answer a question
+on the screen (plan P4-D390). On Windows, the commands synthtwin prints for you to type stay
 quoted for PowerShell, as before; the Windows test that failed now
 expects that form, and support for the Command Prompt is a design
 question for the terminal track (plan P4-D397). The notice about columns
