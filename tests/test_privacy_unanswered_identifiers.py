@@ -131,6 +131,26 @@ def test_the_count_finds_figures_printed_as_a_number() -> None:
     assert shapes.count_real(["02100"], ['"rows": 21000'], [])["description_values"] == 0
 
 
+def test_the_measurement_runs_scripted_whatever_the_terminal(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's item 5: a terminal on the process's own handles asks nothing.
+
+    Redirecting Python's output leaves descriptors 0 and 1 on the
+    terminal, so the run would see a person and wait for one; the
+    measurement says nobody is there, and the column is held.
+    """
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+
+    def _nobody_answers(*_given: object) -> str:
+        raise AssertionError("the measurement waited for a person")
+
+    monkeypatch.setattr(cli, "_read_one_answer", _nobody_answers)
+    seen = shapes.run(tmp_path, "record", _ROWS)
+    assert seen["role"] == taxonomy.ROLE_IDENTIFIER
+    assert cli._there_is_somebody_to_ask() is True, "and it is put back"
+
+
 # -- the answers ----------------------------------------------------------
 
 
