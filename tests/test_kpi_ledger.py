@@ -2068,6 +2068,19 @@ def test_k_s4_15(record_property, tmp_path) -> None:
     import test_stage4_numbers_and_codes as numbers
 
     _kpi(record_property, "K-S4-15", numbers.numbers_and_codes_measures(tmp_path))
+
+
+def test_k_s4_18(record_property) -> None:
+    """The signed-change column's style question is refused on entering its first cell (lane H2, plan P4-D403).
+
+    Machine-free: the states the packing walk enters, the fills it is
+    asked for and the reserves it reads on the style question a column of
+    signed changes asks at 4,000 and 5,000 rows, which has no answer.
+    `tests/test_stage4_counts_together.py` owns the measures.
+    """
+    import test_stage4_counts_together as together
+
+    _kpi(record_property, "K-S4-18", together.counts_together_measures())
 # -- the terminal: install and first run (lane TI, plan P4-D397) ----------------
 
 

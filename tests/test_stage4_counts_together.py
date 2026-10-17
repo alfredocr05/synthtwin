@@ -72,10 +72,14 @@ def _style_question(rows: int) -> "tuple[tuple[int, ...], list[int], list[int]]"
 
 
 def _walked(
-    monkeypatch: pytest.MonkeyPatch,
     question: "tuple[tuple[int, ...], list[int], list[int]]",
-) -> "tuple[list[int] | None, dict[str, int]]":
-    """`_allotted`'s answer to ``question``, with the states it entered, the fills it was asked for and its reserve readings."""
+) -> "tuple[list[int] | None, dict[str, int], bool]":
+    """`_allotted`'s answer to ``question``, the states it entered, the fills it was asked for and its reserve readings, and whether it ended.
+
+    The walk's own functions are wrapped by counters that pass each call
+    straight through, and put back however the walk ends; a walk past
+    `_READINGS_AT_MOST` readings is stopped and reported as not ended.
+    """
     seen = {"states": 0, "fills": 0, "readings": 0}
     room = generation._cell_room
     offered = generation._cell_next
@@ -95,27 +99,46 @@ def _walked(
             raise _Read(f"the walk passed {_READINGS_AT_MOST} reserve readings")
         return read(*given)
 
-    monkeypatch.setattr(generation, "_cell_room", entering)
-    monkeypatch.setattr(generation, "_cell_next", offering)
-    monkeypatch.setattr(generation, "_reserves_met", reading)
+    generation._cell_room = entering  # type: ignore[assignment]
+    generation._cell_next = offering  # type: ignore[assignment]
+    generation._reserves_met = reading  # type: ignore[assignment]
     try:
         answer = generation._allotted(*question)
-    except _Read as stopped:
-        pytest.fail(str(stopped))
-    return answer, seen
+    except _Read:
+        return None, seen, False
+    finally:
+        generation._cell_room = room  # type: ignore[assignment]
+        generation._cell_next = offered  # type: ignore[assignment]
+        generation._reserves_met = read  # type: ignore[assignment]
+    return answer, seen, True
+
+
+def counts_together_measures() -> "dict[str, int]":
+    """`K-S4-18`: the states, fills and reserve readings of the signed-change style question at 4,000 and 5,000 rows.
+
+    Machine-free counts of work. A walk stopped past `_READINGS_AT_MOST`
+    readings records its readings there, past the ledger's 0.
+    """
+    value: "dict[str, int]" = {}
+    for rows in sorted(_SIGNED_CHANGES):
+        answer, seen, ended = _walked(_style_question(rows))
+        value[f"states_{rows}_rows"] = seen["states"]
+        value[f"fills_{rows}_rows"] = seen["fills"]
+        value[f"reserve_readings_{rows}_rows"] = seen["readings"]
+        value[f"answered_{rows}_rows"] = int(ended and answer is not None)
+    return value
 
 
 @pytest.mark.parametrize("rows", [4000, 5000])
-def test_a_signed_change_column_s_style_question_is_refused_on_entering(
-    monkeypatch: pytest.MonkeyPatch, rows: int
-) -> None:
+def test_a_signed_change_column_s_style_question_is_refused_on_entering(rows: int) -> None:
     """No packing exists, and the walk says so in its first state, offering no fill.
 
     Mutation, run: without condition 6 the walk passes 20,000 reserve
     readings inside the cell answering for `leading_plus` (on 36ad3061 it
     read 24.2 million in 300 s at 4,000 rows and did not finish).
     """
-    answer, seen = _walked(monkeypatch, _style_question(rows))
+    answer, seen, ended = _walked(_style_question(rows))
+    assert ended, f"the walk passed {_READINGS_AT_MOST} reserve readings: {seen}"
     assert answer is None
     assert seen == {"states": 1, "fills": 0, "readings": 0}, seen
 

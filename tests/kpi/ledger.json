@@ -9240,6 +9240,68 @@
    }
   },
   {
+   "id": "K-S4-18",
+   "phase_stage": "Stage 4 (plan P4-D403, lane H2 of the December plan)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "A signed-change column's style question is refused on entering, not walked",
+   "status": "GREEN",
+   "rule": "machine-free, counts of work: on the style question the twin of lane H1's column of signed changes (gauss(0, 40) written +3.25, +12, 12, -1.50 and -4) asks the packing walk at 4,000 and at 5,000 rows -- a question with no answer, plain and leading_plus owing more rows together than the strata that may wear a point-free spelling hold (1,425 against 1,416, and 1,778 against 1,689) -- the walk enters exactly 1 state, is asked for 0 fills and reads 0 reserves, and returns no answer",
+   "rule_kind": "exact",
+   "expected": {
+    "answered_4000_rows": 0,
+    "answered_5000_rows": 0,
+    "fills_4000_rows": 0,
+    "fills_5000_rows": 0,
+    "reserve_readings_4000_rows": 0,
+    "reserve_readings_5000_rows": 0,
+    "states_4000_rows": 1,
+    "states_5000_rows": 1
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s4_18",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "tests/test_stage4_counts_together.py's counts_together_measures: the two style questions written out (published counts and the copies of each group size under the styles its made-up value may wear), handed to generation._allotted with the walk's own functions wrapped by counters that pass each call through, a walk past 20,000 reserve readings stopped and recorded there",
+   "evidence": "As built (36ad3061): the walk entered 4 states and stood in the fourth, the cell answering for leading_plus, offered every way of taking its 397 rows from 20 group sizes (up to 7.6e11 partial fills), each refused only near its end: 24,244,572 reserve readings in 300 s at 4,000 rows and 8,532,547 in 120 s at 5,000, unfinished, and synthtwin generate did not finish in over 25 minutes (lane H1's run). Condition 6 of generation._cell_entry, _owed_together, reads Hall's condition per margin and refuses the question on entering the first cell; the twin and report of every shape that finished on 36ad3061 are byte-identical (lane H2's build).",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-17",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S4-18 --print-values",
+    "value": {}
+   }
+  },
+  {
+   "id": "K-S4-19",
+   "phase_stage": "Stage 4 (plan P4-D403, lane H2 of the December plan)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "A signed-change column generates in seconds, recorded",
+   "status": "GREEN",
+   "rule": "recorded diagnostic, its seconds judged only on the quiet reference machine (kpi_rules.MACHINE_KINDS) and recorded everywhere else: generating the twin of lane H1's column of signed changes at 5,000 rows (described at the shipped floor, seed 0) takes under 10 s, and over a sweep of the same shape at 3,000, 4,000, 5,000, 6,000, 8,000 and 10,000 rows and column seeds 1 to 5 (30 twins, each given at most 30 s by the driver's own alarm) the slowest twin takes under 30 s, so all 30 finish; the count that finish is recorded beside it",
+   "rule_kind": "seconds_below",
+   "expected": {
+    "generate_seconds_5000_rows": 10.0,
+    "sweep_slowest_generate_seconds": 30.0
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_packing_sweep.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "tools/measurements/kpi_packing_sweep.py: each column written and described in process (kpi_shapes.describe), its twin generated at seed 0 by generation.generate, timed",
+   "evidence": "As built (36ad3061): generate did not finish at 4,000 or 5,000 rows (stopped by the probe's own limit at 300 s and 120 s; over 25 minutes in lane H1's run), and 21 of the sweep's 30 twins passed 30 s (every seed at 4,000 to 8,000 rows, and seed 2 at 3,000). From 10,000 rows on the packing is not asked and both trees take about 2 s at 10,000 rows, 8 s at 20,000 and 16 s at 50,000.",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-17",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S4-19 --print-values",
+    "value": {}
+   }
+  },
+  {
    "id": "K-S8-01",
    "phase_stage": "The terminal, lane TI: install and first run (plan P4-D397), measured now as the terminal's baseline",
    "category": "CODE",
