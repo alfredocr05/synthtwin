@@ -296,7 +296,7 @@ def test_profile_read_one_column_a_group_writes_the_same_files(
     options: "list[str]", walk: int, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     table = tmp_path / "clinic.csv"
-    table.write_text(_table_of_every_question(), encoding="utf-8")
+    table.write_text(_table_of_every_question(), encoding="utf-8", newline="\n")
     whole = _profiled(table, tmp_path / "whole", options)
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     monkeypatch.setattr(reading, "_GROUPS_A_WALK", walk)
@@ -326,7 +326,7 @@ def test_profile_in_groups_holds_one_group_not_the_table(
     for row in range(2_000):
         lines += [",".join(f"t{row}-{k}-{draw.randrange(10 ** 9)}" for k in range(columns))]
     table = tmp_path / "wide.csv"
-    table.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     held: "list[int]" = []
     for budget in (1 << 40, 1):
         monkeypatch.setattr(reading, "GROUP_BYTES", budget)
@@ -364,7 +364,7 @@ def test_profile_in_groups_holds_one_group_not_the_table(
 
 def test_a_table_read_in_groups_holds_one_group(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     table = tmp_path / "t.csv"
-    table.write_text("a,b,c,d,e\n" + "".join(f"{k},{k * 2},x{k},y{k % 5},{k % 3}\n" for k in range(60)), encoding="utf-8")
+    table.write_text("a,b,c,d,e\n" + "".join(f"{k},{k * 2},x{k},y{k % 5},{k % 3}\n" for k in range(60)), encoding="utf-8", newline="\n")
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     read = reading.read_table(str(table), in_groups=True)
     source = read.source
@@ -384,16 +384,16 @@ def test_a_file_that_changes_between_readings_is_refused(
 ) -> None:
     table = tmp_path / "t.csv"
     text = "a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(60))
-    table.write_text(text, encoding="utf-8")
+    table.write_text(text, encoding="utf-8", newline="\n")
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     read = reading.read_table(str(table), in_groups=True)
     assert reading.column_values(read, 0)[5] == "5"
     seen = table.stat()
     if change == "a value":
-        table.write_text(text.replace("x7\n", "x8\n"), encoding="utf-8")
+        table.write_text(text.replace("x7\n", "x8\n"), encoding="utf-8", newline="\n")
         os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns))
     elif change == "a row more":
-        table.write_text(text + "61,122,x61\n", encoding="utf-8")
+        table.write_text(text + "61,122,x61\n", encoding="utf-8", newline="\n")
     else:
         os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns + 1_000_000_000))
     with pytest.raises(errors.ProfileError) as refused:
@@ -406,14 +406,14 @@ def test_a_file_that_changes_while_its_groups_are_walked_is_refused(
 ) -> None:
     table = tmp_path / "t.csv"
     text = "a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(60))
-    table.write_text(text, encoding="utf-8")
+    table.write_text(text, encoding="utf-8", newline="\n")
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     first_reading = reading._facts_under
 
     def then_changed(*arguments: object) -> object:
         found = first_reading(*arguments)  # type: ignore[arg-type]
         seen = table.stat()
-        table.write_text(text.replace("x7\n", "x8\n"), encoding="utf-8")
+        table.write_text(text.replace("x7\n", "x8\n"), encoding="utf-8", newline="\n")
         os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns))
         return found
 
@@ -429,7 +429,7 @@ def test_a_file_that_changes_while_its_groups_are_walked_is_refused(
 def test_any_column_in_any_order_any_number_of_times(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     table = tmp_path / "t.csv"
     rows = [[f"{k}", f"{k % 7}", f"w{k % 3}", f"{k * 0.5}", f"z{k}", ""] for k in range(80)]
-    table.write_text("a,b,c,d,e,f\n" + "".join(",".join(row) + "\n" for row in rows), encoding="utf-8")
+    table.write_text("a,b,c,d,e,f\n" + "".join(",".join(row) + "\n" for row in rows), encoding="utf-8", newline="\n")
     whole = reading.read_table(str(table))
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     grouped = reading.read_table(str(table), in_groups=True)
@@ -453,7 +453,7 @@ def test_a_run_stopped_half_way_through_the_description_leaves_no_file(
     folder.mkdir()
     table = folder / "t.csv"
     table.write_text(
-        "a,b,c,d\n" + "".join(f"{k},{k % 9},x{k % 4},{k * 3}\n" for k in range(300)), encoding="utf-8"
+        "a,b,c,d\n" + "".join(f"{k},{k % 9},x{k % 4},{k * 3}\n" for k in range(300)), encoding="utf-8", newline="\n"
     )
     out = tmp_path / "out"
     out.mkdir()
@@ -514,7 +514,7 @@ def test_the_first_difference_of_either_check_is_the_one_refused_in_groups(
     the fourth record's is refused.
     """
     path = tmp_path / "t.csv"
-    path.write_text("a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(40)), encoding="utf-8")
+    path.write_text("a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(40)), encoding="utf-8", newline="\n")
     standard = reading._standard_records
 
     def otherwise(*arguments: object) -> object:
@@ -536,7 +536,7 @@ def test_the_first_difference_of_either_check_is_the_one_refused_in_groups(
 def test_a_run_of_groups_is_held_together(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`reading.hold_columns` reads a run of groups at once, and `column_values` hands each over without reading again."""
     table = tmp_path / "t.csv"
-    table.write_text("a,b,c,d,e\n" + "".join(f"{k},{k * 2},x{k},y{k % 5},{k % 3}\n" for k in range(60)), encoding="utf-8")
+    table.write_text("a,b,c,d,e\n" + "".join(f"{k},{k * 2},x{k},y{k % 5},{k % 3}\n" for k in range(60)), encoding="utf-8", newline="\n")
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     monkeypatch.setattr(reading, "_GROUPS_A_WALK", 3)
     read = reading.read_table(str(table), in_groups=True)
