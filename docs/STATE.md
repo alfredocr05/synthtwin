@@ -595,14 +595,16 @@ cannot get worse unseen.
   them on a table of 12 patients over 1,196 visits (`K-S3-14`, an
   accepted limit, plan P4-D348). The design for counting people per
   value is written and shelved.
-- **A long table publishes a patient's name, street address, birth date
-  or five-figure study code while nobody has answered.** A column held
-  back until its question is answered is one written as record numbers
-  (a run of seven figures, an e-mail address, a telephone or social
-  security layout); these four are not, and no general rule reaches
-  them without hiding columns that identify nobody: 280 real values in
-  the description over 600 and 20,000 rows (`K-S3-64`, plan P4-D401).
-  Lane CODES-2's allowlist owns them.
+- **A long table publishes a patient's name, street address or birth
+  date while nobody has answered the person question.** No identity
+  question flags them, and no general rule reaches them without hiding
+  columns that identify nobody: 214 real values in the description over
+  600 and 20,000 rows (`K-S3-64`, plan P4-D401). Lane HX2 owns them.
+- **A record-number key written beside `-1` gets a twin that misses its
+  published forms** (validate exit 3), declared or held until answered:
+  on 68dae22f a declared key of 1,200 rows wrote fewer than 11 of its
+  1,176 six-figure forms, and lane HX's hold reaches such a key (plan
+  P4-D401). Lane CODES-1 part C owns it.
 - **A pool's spread is no longer verified.** The owner chose on
   2026-09-21 to publish a pooled column's mean and not its spread,
   because publishing both solved for the held-back values. The twin's

@@ -8,27 +8,32 @@ exists).
 
 ### No real identifier is published while its question is open (2026-10-16)
 
-**A column synthtwin asked about and nobody answered publishes no value
-of it when it is written as record numbers** (plan P4-D401, lane HX of
-the December plan). On a long table -- several rows per patient -- a
-record number on each patient's rows was read as labels while its
-question went unanswered, and the description named every one shared by
-11 rows or more (26 of 44 on the critic's 600-row table) and the twin
-wrote them back. Now, where nobody is at the keyboard, a column the
-person question reaches whose every cell holds a run of seven figures or
-is an e-mail address, a column of telephone or social security numbers
-the two-numbers question was put to, and a column of seven figures or
-more of one width that no date question covers, is described as record
-numbers until it is answered: no level name, prefix, rung or example,
-the twin writes made-up record numbers, and the screen names the column.
-The question is still asked, and any answer gives back exactly the
-description that answer made before; a questions file's `keep` is now
-carried. A repeating column of e-mail addresses is asked the person
-question. Names, street addresses, birth dates and five-figure study
-codes stay published and are stated limits owned by lane CODES-2. KPI
-`K-S3-64` (new): real identifier values over six shapes at 600 and
-20,000 rows, 428 in the descriptions and 117,828 twin cells before, 0
-now.
+**A column synthtwin asked whether it holds record numbers, and nobody
+answered, publishes no value of it** (plan P4-D401, lane HX of the
+December plan, applied literally by the orchestrator's ruling of
+2026-10-16). On a long table -- several rows per patient -- a record
+number on each patient's rows was read as labels while its question went
+unanswered, and the description named every one shared by 11 rows or
+more (26 of 44 on the critic's 600-row table) and the twin wrote them
+back. Now, where nobody is at the keyboard, a column put the person
+question, the two-numbers question or the question answered by a
+measurement, a code or a record number (padded figures, figures all one
+width or grouped, a date count all one width) is described as record
+numbers until it is answered: no level name, rung, percentile, mode,
+tail value, form or prefix, the twin writes made-up record numbers, and
+the screen names the column. Dates and times are never held. The
+question is still asked, and any answer gives back exactly the
+description that answer made before; a questions file's `keep` is
+carried, also when the file it wrote is handed back blank. Repeating
+registers of e-mail addresses, telephone or social security numbers and
+Medicare beneficiary identifiers are asked the person question, also
+beside a declared person column, and a key's `-1` no longer silences its
+width question. A scripted run holds 158 column readings of the suite's
+batteries until they are answered, the price the ruling accepted.
+Names, street addresses and birth dates stay published and are stated
+limits owned by lane HX2. KPI `K-S3-64` (new): real identifier values
+over 32 shapes at 600 and 20,000 rows, 2,569 in what is published and
+580,712 twin cells before, 0 now.
 
 ### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
 

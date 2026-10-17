@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory() as scratch:
                                  f"generate {seen['generate_exit']}")
             lines += [f"{kind:8s} {rows:6d} rows: role {seen['role']}, "
                       f"{seen['description_values']} of {seen['different']} real values in the "
-                      f"description, {seen['description_fragments']} fragments in its block, "
+                      f"description, {seen['description_fragments']} fragments published, "
                       f"{seen['twin_cells']} twin cells real, {seen['twin_fragments']} twin fragments"]
             if kind not in shapes.STATED:
                 for key in held:
