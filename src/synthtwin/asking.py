@@ -607,11 +607,6 @@ class Question:
     shape: str
     choices: "list[Choice]"
     taken: str
-    # THE ANSWER A FILE ALREADY GAVE, written back beside it (plan
-    # P4-D401; lane HX's tripwire, item 6). Empty for every question
-    # put; filled only for an entry `answered_again` carries into the
-    # file a run answering it writes.
-    answered: str = ""
 
 
 # THE READING THAT STANDS WHERE NOBODY ANSWERS, as an answer of its
@@ -5218,7 +5213,7 @@ def _question_entry(question: Question) -> "dict[str, object]":
         "what_synthtwin_saw": question.shape,
         "read_as_now": question.taken,
         "answers_you_can_give": offered,
-        "your_answer": question.answered,
+        "your_answer": "",
     }
 
 
@@ -5228,6 +5223,7 @@ def questions_document(
     listed: "list[Question]",
     about_file: "list[Question] | None" = None,
     about_table: "list[str] | None" = None,
+    answered: "list[dict[str, object]] | None" = None,
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data.
 
@@ -5268,7 +5264,7 @@ def questions_document(
     said: list[str] = []
     for sentence in about_table if about_table else []:
         said += [f"{sentence}"]
-    return {
+    written: "dict[str, object]" = {
         "what_this_is": (
             "synthtwin could not settle these columns from their values "
             "alone, so it is asking you rather than guessing."
@@ -5302,6 +5298,14 @@ def questions_document(
             "columns": listed_entries,
         },
     }
+    # ...AND EVERY ENTRY A FILE ANSWERED WITH A DECLARATION, written back
+    # answered in a section of its own (plan P4-D401, `answered_again`),
+    # so the file handed back keeps the answer while `asked` holds only
+    # what this run asks. Absent where there is none, so a file no
+    # answer was carried into is written as before, byte for byte.
+    if answered:
+        written["answered_before"] = answered
+    return written
 
 
 @dataclasses.dataclass(frozen=True)
@@ -5402,7 +5406,7 @@ class Answers:
     # repair: a six-figure key answered `measurement`, the file the
     # answering run wrote handed back as it stood, and the column was
     # held as record numbers once more.
-    declared_entries: "tuple[Question, ...]" = ()
+    declared_entries: "tuple[dict[str, object], ...]" = ()
 
 
 def _entry_answer(
@@ -5542,6 +5546,17 @@ def _entries_of(document: object, shown: str) -> "list[tuple[object, str]]":
     for entry in listed:
         place += 1
         found += [(entry, f"checklist[{place}]")]
+    # ...AND THE ANSWERS AN EARLIER FILE GAVE, carried (plan P4-D401),
+    # tolerated absent: a file carries them only where it was written by
+    # a run that read answers.
+    if "answered_before" in document:
+        before = document["answered_before"]
+        if not isinstance(before, list):
+            raise ValueError(errors.answers_file_is_not_one(shown))
+        place = 0
+        for entry in before:
+            place += 1
+            found += [(entry, f"answered_before[{place}]")]
     return found
 
 
@@ -5596,7 +5611,7 @@ def answers_in(document: object, shown: str) -> Answers:
     date_columns: "list[str]" = []
     date_columns_kept: "list[str]" = []
     identities_kept: "list[str]" = []
-    declared_entries: "list[Question]" = []
+    declared_entries: "list[dict[str, object]]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -5739,26 +5754,28 @@ def answers_in(document: object, shown: str) -> Answers:
     )
 
 
-def _entry_as_answered(entry: object, name: str, written: str) -> "Question | None":
-    """An answered entry as the question its file put, the answer beside it.
+def _entry_as_answered(
+    entry: object, name: str, written: str
+) -> "dict[str, object] | None":
+    """An answered entry as its file put it, the answer written beside it.
 
     Plan P4-D401. The entry's own words -- what synthtwin saw, and each
-    answer with what it means and publishes -- written back as the file
-    held them, with `read_as_now` and `your_answer` both the answer
-    given. None where an edited entry lacks any of those words. Read by
-    index and never by `.get`, as `_entry_answer` reads (plan D6.2).
-    Raises nothing. No I/O.
+    answer with what it means and publishes -- as the file held them,
+    with `read_as_now` and `your_answer` both the answer given. None
+    where an edited entry lacks any of those words. Read by index and
+    never by `.get`, as `_entry_answer` reads (plan D6.2). Raises
+    nothing. No I/O.
     """
     if not isinstance(entry, dict) or "what_synthtwin_saw" not in entry:
         return None
     saw = entry["what_synthtwin_saw"]
     if not isinstance(saw, str) or "answers_you_can_give" not in entry:
         return None
-    offered = entry["answers_you_can_give"]
-    if not isinstance(offered, list):
+    given = entry["answers_you_can_give"]
+    if not isinstance(given, list):
         return None
-    choices: "list[Choice]" = []
-    for one in offered:
+    offered: "list[dict[str, str]]" = []
+    for one in given:
         if not isinstance(one, dict):
             return None
         if (
@@ -5776,13 +5793,25 @@ def _entry_as_answered(entry: object, name: str, written: str) -> "Question | No
             and isinstance(publishes, str)
         ):
             return None
-        choices += [Choice(answer, means, publishes)]
-    return Question(name, "", "", saw, choices, written, written)
+        offered += [
+            {
+                "answer": answer,
+                "means": means,
+                "then_the_description_publishes": publishes,
+            }
+        ]
+    return {
+        "column": name,
+        "what_synthtwin_saw": saw,
+        "read_as_now": written,
+        "answers_you_can_give": offered,
+        "your_answer": written,
+    }
 
 
 def answered_again(
-    declared: "tuple[Question, ...]", asked: "list[Question]"
-) -> "list[Question]":
+    declared: "tuple[dict[str, object], ...]", asked: "list[Question]"
+) -> "list[dict[str, object]]":
     """The answered entries the file a run writes carries again (plan P4-D401).
 
     Each entry `answers_in` read as answered, in the file's own order,
@@ -5793,10 +5822,11 @@ def answered_again(
     spoken: "dict[str, bool]" = {}
     for question in asked:
         spoken[question.name] = True
-    carried: "list[Question]" = []
-    for question in declared:
-        if question.name in spoken:
+    carried: "list[dict[str, object]]" = []
+    for entry in declared:
+        name = f"{entry['column']}"
+        if name in spoken:
             continue
-        spoken[question.name] = True
-        carried += [question]
+        spoken[name] = True
+        carried += [entry]
     return carried

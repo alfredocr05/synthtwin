@@ -3037,7 +3037,7 @@ def _run_profile(
     identities_kept: "tuple[str, ...]" = ()
     # ...and the entries the file answered with a declaration, written
     # into the file this run writes again (plan P4-D401).
-    answered_entries: "tuple[asking.Question, ...]" = ()
+    answered_entries: "tuple[dict[str, object], ...]" = ()
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -4642,13 +4642,7 @@ def _run_profile(
                     _shown(pathlib.Path(table).name),
                     # -- P4-D401: a column held back is read as record
                     # numbers until answered, and its entry says so.
-                    asking.held_back(asked_about, withheld)
-                    # ...and an entry the file answered with a
-                    # declaration is written back answered, so handing
-                    # this file back keeps the answer (plan P4-D401).
-                    + asking.answered_again(
-                        answered_entries, asked_about + listed_about
-                    ),
+                    asking.held_back(asked_about, withheld),
                     listed_about,
                     asking.file_questions(
                         surveyed is not None
@@ -4682,6 +4676,12 @@ def _run_profile(
                     # of a small table without saying it is a small
                     # table says less than the other four do.
                     _table_sentences(document),
+                    # ...and an entry the file answered with a
+                    # declaration, written back answered so that handing
+                    # this file back keeps the answer (plan P4-D401).
+                    answered=asking.answered_again(
+                        answered_entries, asked_about + listed_about
+                    ),
                 )
             ),
             sources=guarded_questions,

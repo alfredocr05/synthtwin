@@ -608,10 +608,14 @@ def test_an_answer_survives_the_file_it_wrote_handed_back(
     code, second = _answer(tmp_path, "plain6", answer)
     assert code == 0
     assert _block(second, "plain6")["role"] != taxonomy.ROLE_IDENTIFIER
-    entry = _asked_of(tmp_path, "plain6")
-    assert [(one["read_as_now"], one["your_answer"]) for one in entry] == [
-        (answer, answer)
-    ]
+    assert _asked_of(tmp_path, "plain6") == [], "no longer asked"
+    written = json.loads(
+        (tmp_path / "plain6_long-questions.json").read_text(encoding="utf-8")
+    )
+    assert [
+        (one["column"], one["read_as_now"], one["your_answer"])
+        for one in written["answered_before"]
+    ] == [("plain6", answer, answer)]
     code, third = _answer(tmp_path, "plain6", None)
     assert code == 0
     assert profile.serialize(third) == profile.serialize(second)
