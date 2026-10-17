@@ -3614,7 +3614,7 @@ def unanswered_identities(
             continue
         if question.reason not in HOLDING_REASONS and not (
             question.reason == BECAUSE_DATE_COUNTS
-            and question.shape.startswith(_FIGURES_ALL_ONE_WIDTH)
+            and question.shape[: len(_FIGURES_ALL_ONE_WIDTH)] == _FIGURES_ALL_ONE_WIDTH
         ):
             continue
         if question.role in _READ_AS_DATES_OR_TIMES:
@@ -3705,6 +3705,7 @@ def _a_register_naming_one_person_a_cell(present: "list[str]") -> bool:
 # while nobody has said who the rows are about.
 _BENEFICIARY_PLACES = "9AX9AX9AA99"
 _BENEFICIARY_LETTERS = "ACDEFGHJKMNPQRTUVWXY"
+_BENEFICIARY_LETTERS_EITHER_CASE = _BENEFICIARY_LETTERS + "acdefghjkmnpqrtuvwxy"
 
 
 def _beneficiary_identifiers(present: "list[str]") -> bool:
@@ -3729,18 +3730,17 @@ def _is_a_beneficiary_identifier(value: str) -> bool:
         plain = value[0:4] + value[5:8] + value[9:13]
     if len(plain) != len(_BENEFICIARY_PLACES):
         return False
-    upper = plain.upper()
     for place, wanted in enumerate(_BENEFICIARY_PLACES):
-        character = upper[place]
+        character = plain[place]
         figure = "0" <= character <= "9"
-        letter = character in _BENEFICIARY_LETTERS
+        letter = character in _BENEFICIARY_LETTERS_EITHER_CASE
         if wanted == "9" and not figure:
             return False
         if wanted == "A" and not letter:
             return False
         if wanted == "X" and not (figure or letter):
             return False
-    return upper[0] != "0"
+    return plain[0] != "0"
 
 
 # What a standing reading's sentence opens with, which is no longer what

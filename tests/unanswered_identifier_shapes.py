@@ -27,7 +27,7 @@ patient's name, a street address and a full birth date, which no
 question flags -- a stated limit owned by lane HX2 (plan P4-D401).
 
 WHAT IS COUNTED (`count_real`, a pure function the gate also tests on
-planted cases). In the description, its summary, the questions file and
+cases made for it). In the description, its summary, the questions file and
 the screen: each real value written whole anywhere -- or its figures
 written as a number, without separators or leading zeros -- and each
 FRAGMENT of one: a run of five or more letters and figures out of a real
