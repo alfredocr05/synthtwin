@@ -503,6 +503,26 @@ def test_the_affixed_split_memo_holds_at_most_its_bound_and_answers_the_same() -
     assert len(cells.affixes[cells.decimal_comma]) == parsing.SPELLING_MEMO_TEXTS
 
 
+def test_a_label_written_one_way_otherwise_than_itself_holds_that_spelling_not_a_map() -> None:
+    """`taxonomy._tally` holds a label only ever written `V000007` as that text; `_label_spellings` answers as before (plan P4-D400).
+
+    A column of record numbers that never repeat held a map of one entry
+    a row, about 184 bytes; the map begins at a label's second spelling,
+    the first spelling first, with every earlier row it counted.
+    """
+    cells = [f"V{row:06d}" for row in range(1_000)] + ["ABC", "ABC", "Abc", "ABC", "abc", "x", "X", "Q", "Q"]
+    tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), taxonomy.Settings())
+    held = tallied.spellings_by_folded
+    assert held["v000007"] == "V000007"
+    assert taxonomy._label_spellings(tallied.folded_counts, held, "v000007") == {"V000007": 1}
+    assert list(taxonomy._label_spellings(tallied.folded_counts, held, "abc").items()) == [
+        ("ABC", 3), ("Abc", 1), ("abc", 1),
+    ]
+    assert list(taxonomy._label_spellings(tallied.folded_counts, held, "x").items()) == [("x", 1), ("X", 1)]
+    assert taxonomy._label_spellings(tallied.folded_counts, held, "q") == {"Q": 2}
+    assert sum(1 for label in held if isinstance(held[label], dict)) == 2
+
+
 def test_the_first_difference_of_either_check_is_the_one_refused_in_groups(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

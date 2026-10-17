@@ -6784,7 +6784,14 @@ class _Cells:
     # `folded_counts` holds every label in the order the cells wrote
     # them, so every reader asks `_label_spellings` and walks
     # `folded_counts`, never this map alone.
-    spellings_by_folded: dict[str, dict[str, int]]
+    #
+    # A LABEL WRITTEN ONE WAY ONLY, OTHERWISE THAN ITSELF, IS HELD AS THAT
+    # SPELLING, not as a map of one entry (lane SR, plan P4-D400): a
+    # column of record numbers that never repeat, written `V000123` and
+    # folded to `v000123`, held a map of one entry a row, about 184
+    # bytes, two of the kilobyte a row its description held at its peak.
+    # `_label_spellings` answers it with `{spelling: folded_counts[label]}`.
+    spellings_by_folded: "dict[str, dict[str, int] | str]"
     all_digits: int
     code_alphabet: int
     # EACH DIFFERENT TEXT IS SPLIT ONCE (plan P4-D380), by the grammar it
@@ -6820,7 +6827,7 @@ class _Cells:
 
 def _label_spellings(
     counts: "dict[str, int]",
-    mixed: "dict[str, dict[str, int]]",
+    mixed: "dict[str, dict[str, int] | str]",
     label: str,
 ) -> "dict[str, int]":
     """One folded label's exact spellings, with how many rows wrote each.
@@ -6837,7 +6844,10 @@ def _label_spellings(
     is not counted at all. No I/O of any kind.
     """
     if label in mixed:
-        return mixed[label]
+        held = mixed[label]
+        if isinstance(held, str):
+            return {held: counts[label]}
+        return held
     return {label: counts[label]}
 
 
@@ -6921,7 +6931,7 @@ def _tally(
     # Only the labels some cell wrote otherwise than the label itself
     # (`_label_spellings`, lane S4d): a plain label's map is read off
     # `folded_counts` when it is asked for.
-    mixed_spellings: dict[str, dict[str, int]] = {}
+    mixed_spellings: "dict[str, dict[str, int] | str]" = {}
     for cell in classified:
         present += [cell.text]
         if cell.kind == parsing.NUMBER:
@@ -6984,17 +6994,26 @@ def _tally(
             before = folded_counts[label]
         folded_counts[label] = before + 1
         if label in mixed_spellings:
-            spellings = mixed_spellings[label]
-            if cell.text in spellings:
-                spellings[cell.text] = spellings[cell.text] + 1
+            held = mixed_spellings[label]
+            if isinstance(held, str):
+                if cell.text != held:
+                    # A SECOND SPELLING (lane SR, plan P4-D400): the map
+                    # begins here, the one spelling every earlier cell
+                    # wrote first in it, as the map held it before.
+                    mixed_spellings[label] = {held: before, cell.text: 1}
+            elif cell.text in held:
+                held[cell.text] = held[cell.text] + 1
             else:
-                spellings[cell.text] = 1
+                held[cell.text] = 1
         elif cell.text != label:
             # THE LABEL TURNS MIXED HERE, keeping its earlier cells, which
-            # all wrote the label itself, first in the map as before.
-            spellings = {label: before} if before else {}
-            spellings[cell.text] = 1
-            mixed_spellings[label] = spellings
+            # all wrote the label itself, first in the map as before. A
+            # label its first cell wrote otherwise is held as that one
+            # spelling until a cell writes it another way.
+            if before:
+                mixed_spellings[label] = {label: before, cell.text: 1}
+            else:
+                mixed_spellings[label] = cell.text
     return _Cells(
         decimal_comma=decimal_comma,
         classified=classified,
@@ -9919,7 +9938,7 @@ def pooled_window(labels: "list[str]") -> float:
 
 def _pooled_numbers(
     counts: dict[str, int],
-    spellings_by_folded: dict[str, dict[str, int]],
+    spellings_by_folded: "dict[str, dict[str, int] | str]",
     settings: Settings,
 ) -> "dict[str, object]":
     """The scale of the numbers the floor held back (plan P4-D302).
@@ -10092,7 +10111,7 @@ def _pooled_numbers(
 
 def _levels(
     counts: dict[str, int],
-    spellings_by_folded: dict[str, dict[str, int]],
+    spellings_by_folded: "dict[str, dict[str, int] | str]",
     settings: Settings,
 ) -> _Levels:
     """Published levels, plus everything that did not reach the profile.
