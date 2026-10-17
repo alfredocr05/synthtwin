@@ -44,7 +44,7 @@ import pytest
 import fixtures
 import kpi_shapes
 import stage4_as_built
-from synthtwin import parsing, profile, reading, taxonomy
+from synthtwin import asking, cli, parsing, profile, reading, taxonomy
 
 _SETTINGS = taxonomy.Settings()
 
@@ -353,6 +353,58 @@ def test_the_census_reading_is_let_go_while_the_caller_holds_every_argument(
     assert len(calls) == 1, "premise: the command described the table once, through the wrapper"
     assert len(handed) == 1, "premise: the census read `code` and handed it over"
     assert alive_later == [False, False]
+
+
+def test_the_census_reading_is_let_go_in_the_description_an_answer_rebuilds(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The description rebuilt after an answer on the screen lets each reading go too (plan P4-D390).
+
+    `synthtwin profile` describes the table a second time once a person
+    answers a question on the screen (cli.py's second `build_document`
+    call). 68dae22f handed that call `readings=_handed_once(census_box)`
+    as well, so on 3.10 both descriptions held their reading to the end.
+    The same argument-holding wrapper as above stands in for 3.10's
+    caller in BOTH descriptions. Red on 68dae22f (`[[True, True],
+    [True, True]]`) and on a second site that keeps the readings bound
+    in the caller during its call (`[[False, False], [True, True]]`).
+    """
+    draw = random.Random(8)
+    lines = ["subject_id,arm,score"]
+    for _ in range(3_000):
+        lines += [f"{100000 + draw.randrange(300)},{draw.choice(['a', 'b'])},{draw.gauss(50, 9):.1f}"]
+    path = fixtures.write(tmp_path, "register.csv", "\n".join(lines) + "\n")
+    described = taxonomy.profile_column
+    built = profile.build_document
+    runs: "list[tuple[list[weakref.ref[taxonomy.HeldReading]], list[bool]]]" = []
+
+    def watched(*args: object, **kwargs: object) -> taxonomy.ColumnProfile:
+        handed, alive_later = runs[-1]
+        if handed:
+            gc.collect()
+            alive_later += [handed[0]() is not None]
+        given = args[12] if len(args) > 12 else kwargs.get("handed_over")
+        if isinstance(given, taxonomy.HeldReading):
+            handed += [weakref.ref(given)]
+        del given
+        return described(*args, **kwargs)  # type: ignore[arg-type]
+
+    def holding(*args: object, **kwargs: object) -> "dict[str, object]":
+        # ``args`` and ``kwargs`` are this frame's until the call
+        # returns: what CPython 3.10's caller stack holds.
+        nonlocal runs
+        runs += [([], [])]
+        return built(*args, **kwargs)  # type: ignore[arg-type]
+
+    answers = iter([asking.ANSWER_IDENTIFIER])
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers, ""))
+    monkeypatch.setattr(taxonomy, "profile_column", watched)
+    monkeypatch.setattr(profile, "build_document", holding)
+    assert kpi_shapes.quiet_cli(["profile", str(path), "--out-dir", str(tmp_path)]) == 0
+    assert len(runs) == 2, "premise: the answer on the screen rebuilt the description"
+    assert [len(handed) for handed, _ in runs] == [1, 1], "premise: each census handed its reading over"
+    assert [alive for _, alive in runs] == [[False, False], [False, False]]
 
 
 # -- bytes per row ---------------------------------------------------------------
