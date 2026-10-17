@@ -25,7 +25,7 @@ import tracemalloc
 
 import pytest
 
-from synthtwin import cli, errors, profile, reading
+from synthtwin import cli, errors, parsing, profile, reading
 
 
 def _write(folder: pathlib.Path, body: bytes, name: str = "table.csv"):
@@ -51,8 +51,8 @@ def test_a_file_rewritten_between_the_passes_is_refused(
     target = _write(tmp_path, b"old_name,value\nold_a,1\nold_b,2\n")
     real = reading._read_authoritatively
 
-    def rewrite_after_reading(table_path, shown, first_row, refusals):
-        found = real(table_path, shown, first_row, refusals)
+    def rewrite_after_reading(table_path, shown, first_row, refusals, *rest):
+        found = real(table_path, shown, first_row, refusals, *rest)
         pathlib.Path(table_path).write_bytes(
             b"new_name,value\nnew_a,8\nnew_b,9\n"
         )
@@ -74,8 +74,8 @@ def test_values_rewritten_between_the_passes_are_refused(
     target = _write(tmp_path, b"name,value\nold_a,1\nold_b,2\n")
     real = reading._read_authoritatively
 
-    def rewrite_after_reading(table_path, shown, first_row, refusals):
-        found = real(table_path, shown, first_row, refusals)
+    def rewrite_after_reading(table_path, shown, first_row, refusals, *rest):
+        found = real(table_path, shown, first_row, refusals, *rest)
         pathlib.Path(table_path).write_bytes(b"name,value\nnew_a,8\nnew_b,9\n")
         return found
 
@@ -148,9 +148,18 @@ def test_the_agreement_check_is_silent_on_well_formed_files(
 # P1-R1-F5: the header decision
 # --------------------------------------------------------------------
 
+# THE FIRST ROW IS THE SUBJECT, so each shape keeps its first row and
+# is written long enough for `synthtwin profile` to describe it at all
+# (plan P4-D341): the command refuses a table under the population
+# floor and writes nothing. Where a test drives the READER rather than
+# the command the length changes nothing, and where it drives the
+# command it is what makes the run happen.
+_HEADERLESS_ROWS = parsing.POPULATION_FLOOR
 _HEADERLESS = {
-    "identifier beside a measurement": b"P001,34\nP002,35\nP003,36\n"
-    b"P004,37\nP005,38\nP006,39\n",
+    "identifier beside a measurement": b"".join(
+        b"P%03d,%d\n" % (index, 33 + index)
+        for index in range(1, _HEADERLESS_ROWS + 1)
+    ),
     "all text": b"".join(
         b"pa-%03d,site-%d\n" % (index, index % 3) for index in range(1, 30)
     ),
@@ -192,18 +201,21 @@ _HEADED = {
 
 
 @pytest.mark.parametrize("name", sorted(_HEADERLESS))
-def test_a_first_row_that_could_be_a_record_is_refused(
+def test_a_first_row_that_could_be_a_record_is_not_published_as_names(
     tmp_path: pathlib.Path, name: str
 ) -> None:
+    # Refused until the owner's ruling of 2026-09-17, item 8 (plan
+    # P4-D232); named `column_1`, `column_2` and so on since, with every
+    # row kept and the question put in the questions file.
     target = _write(tmp_path, _HEADERLESS[name])
-    with pytest.raises(errors.ProfileError) as caught:
-        reading.read_table(str(target))
-    message = f"{caught.value}"
-    assert "cannot tell whether the first row" in message, message
-    assert "--first-row names" in message and "--first-row data" in message
+    table = reading.read_table(str(target))
+    assert table.header_source == reading.HEADER_GENERATED, name
+    assert table.column_names[0] == "column_1", name
     # The row itself is never quoted back: if it IS a record, printing
     # it prints somebody's data in order to ask about it.
-    assert "P001" not in message and "pa-001" not in message, message
+    spoken = table.first_row_seen + table.header_evidence
+    assert spoken, name
+    assert "P001" not in spoken and "pa-001" not in spoken, spoken
 
 
 @pytest.mark.parametrize("name", sorted(_HEADED))
@@ -224,7 +236,7 @@ def test_first_row_data_keeps_every_record_and_names_the_columns(
 ) -> None:
     target = _write(tmp_path, _HEADERLESS["identifier beside a measurement"])
     table = reading.read_table(str(target), reading.FIRST_ROW_DATA)
-    assert table.n_rows == 6, "not one record may be lost"
+    assert table.n_rows == _HEADERLESS_ROWS, "not one record may be lost"
     assert table.column_names == ["column_1", "column_2"]
     assert table.columns[0][0] == "P001"
     assert table.header_source == reading.HEADER_GENERATED
@@ -236,20 +248,24 @@ def test_first_row_names_still_reads_the_first_row_as_names(
     target = _write(tmp_path, _HEADERLESS["identifier beside a measurement"])
     table = reading.read_table(str(target), reading.FIRST_ROW_NAMES)
     assert table.column_names == ["P001", "34"]
-    assert table.n_rows == 5
+    assert table.n_rows == _HEADERLESS_ROWS - 1
     assert table.header_source == reading.HEADER_FROM_FILE
 
 
 def test_the_command_refuses_and_then_accepts_the_answer(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # The command used to refuse and take the answer afterwards; it
+    # takes the safe reading and asks in the questions file now (plan
+    # P4-D232), and the answer a person gives is the same answer.
     target = _write(tmp_path, _HEADERLESS["identifier beside a measurement"])
-    assert cli.main(["profile", str(target)]) == 1
-    refusal = capsys.readouterr()
-    assert "--first-row data" in refusal.err, refusal.err
+    assert cli.main(["profile", str(target)]) == 0
+    taken = capsys.readouterr().out
+    assert f"{_HEADERLESS_ROWS} rows" in taken, taken
+    assert "column_1" in taken, taken
     assert cli.main(["profile", str(target), "--first-row", "data"]) == 0
     written = capsys.readouterr().out
-    assert "6 rows" in written, written
+    assert f"{_HEADERLESS_ROWS} rows" in written, written
     assert "column_1" in written, written
 
 
@@ -261,11 +277,15 @@ def test_the_command_refuses_and_then_accepts_the_answer(
 def test_the_authoritative_pass_does_not_hold_every_row(
     tmp_path: pathlib.Path,
 ) -> None:
-    # The claim P1-D3 made and the code did not keep. A pass that
-    # streams peaks a hair above what it hands back; one that builds a
-    # list of every row and turns it into columns afterwards peaks at
-    # about 1.43 times that, measured at 5,000, 50,000 and 200,000 rows.
-    # The threshold sits between the two.
+    # The claim P1-D3 made and the code did not keep, RESTATED for plan
+    # P4-D86. The pass no longer streams: it holds the file's text and its
+    # lines while it fills the columns, because what it publishes about
+    # how the file is written is read off that text. What it must still
+    # never do is hold a SECOND copy of every row -- a list of rows turned
+    # into columns afterwards -- on top of that. Measured at 20,000 and
+    # 80,000 rows of this shape: the peak sits 5.4 times the file's size
+    # above what the pass hands back, at both sizes, so it grows with the
+    # file and not with the rows twice. The bound is drawn at seven.
     target = tmp_path / "big.csv"
     with target.open("w", encoding="utf-8", newline="") as handle:
         handle.write("record_code,site,amount,note\n")
@@ -282,17 +302,21 @@ def test_the_authoritative_pass_does_not_hold_every_row(
     held, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     assert found.n_rows == 20_000
-    assert peak <= held * 1.15, (
+    size = target.stat().st_size
+    assert peak - held <= 7 * size, (
         f"the authoritative pass peaked at {peak} bytes while handing back "
-        f"{held}: it is holding more than one row at a time, which is what "
-        f"P1-D3 promises it does not do"
+        f"{held} from a file of {size}: it is holding more than the file's "
+        f"text beside the columns it fills"
     )
 
 
 def test_running_out_of_memory_in_the_checking_pass_is_a_refusal(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    target = _write(tmp_path, b"a,b\n" + _numbered(20, b"%d,x\n"))
+    target = _write(
+        tmp_path,
+        b"a,b\n" + _numbered(parsing.POPULATION_FLOOR, b"%d,x\n"),
+    )
 
     def out_of_memory(*_args: object, **_kwargs: object) -> None:
         raise MemoryError("simulated")
@@ -308,7 +332,10 @@ def test_running_out_of_memory_while_describing_is_not_a_traceback(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    target = _write(tmp_path, b"a,b\n" + _numbered(20, b"%d,x\n"))
+    target = _write(
+        tmp_path,
+        b"a,b\n" + _numbered(parsing.POPULATION_FLOOR, b"%d,x\n"),
+    )
 
     def out_of_memory(*_args: object, **_kwargs: object) -> None:
         raise MemoryError("simulated")
@@ -347,9 +374,6 @@ def test_a_lone_high_byte_is_not_a_byte_order_mark(
     "name,body",
     sorted(
         {
-            "UTF-16 little-endian": b"\xff\xfe"
-            + "a,b\n1,2\n".encode("utf-16-le"),
-            "UTF-16 big-endian": b"\xfe\xff" + "a,b\n1,2\n".encode("utf-16-be"),
             "UTF-32 little-endian": b"\xff\xfe\x00\x00"
             + "a,b\n1,2\n".encode("utf-32-le"),
         }.items()
@@ -362,3 +386,24 @@ def test_a_complete_byte_order_mark_is_refused(
     with pytest.raises(errors.ProfileError) as caught:
         reading.read_table(str(target))
     assert "UTF-16" in f"{caught.value}"
+
+
+@pytest.mark.parametrize(
+    "name,body",
+    sorted(
+        {
+            "UTF-16 little-endian": b"\xff\xfe"
+            + "a,b\n1,2\n".encode("utf-16-le"),
+            "UTF-16 big-endian": b"\xfe\xff" + "a,b\n1,2\n".encode("utf-16-be"),
+        }.items()
+    ),
+)
+def test_a_complete_utf16_mark_is_read_as_utf16(
+    tmp_path: pathlib.Path, name: str, body: bytes
+) -> None:
+    # Refused until plan P4-D86: a UTF-16 file behind its whole mark is
+    # delimited text, and Excel's 'Unicode Text' is written that way.
+    target = _write(tmp_path, body)
+    table = reading.read_table(str(target))
+    assert table.column_names == ["a", "b"]
+    assert table.encoding in ("utf-16-le", "utf-16-be")

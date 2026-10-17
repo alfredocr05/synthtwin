@@ -29,6 +29,7 @@ import random
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import (
     contract,
     errors,
@@ -48,7 +49,7 @@ def _described(
         folder, f"{stem}.csv", fixtures.single_column_table("result", values)
     )
     document = profile.build_document(
-        reading.read_table(f"{path}"),
+        reading.read_table(f"{path}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )
@@ -356,12 +357,25 @@ def test_both_halves_are_described_and_not_merely_counted(
     # descriptions are checked against.
     assert block["n_numeric_cells"] + block["n_label_cells"] == block["n_present"]
 
-    # THE NUMERIC HALF IS THE READINGS AND NOTHING ELSE.
+    # THE NUMERIC HALF IS THE READINGS AND NOTHING ELSE. Its two ends
+    # said so until landing 3.3; the tail rule of contract 6.7a
+    # withholds both -- 295 different readings, none of them held by
+    # the smallest group's worth of rows -- so the half says it through
+    # the facts that replaced them: the middle rung and the two tail
+    # groups, each worked out here from the readings themselves.
     numbers = [float(reading) for reading in readings]
-    assert block["numbers"]["percentiles"]["min"] == min(numbers)
-    assert block["numbers"]["percentiles"]["max"] == max(numbers)
-    assert min(numbers) < block["numbers"]["mean"] < max(numbers)
-    assert block["numbers"]["n_distinct_values"] == len(set(numbers))
+    half = block["numbers"]
+    assert half["percentiles"]["min"] is None
+    assert half["percentiles"]["max"] is None
+    assert half["percentiles"]["p50"] == float(tail_rule.rung_at(numbers, 50))
+    for low in (True, False):
+        side = half["tails"]["low" if low else "high"]
+        assert tail_rule.holds(
+        side,
+            half, numbers, 1, low
+        ), low
+    assert min(numbers) < half["mean"] < max(numbers)
+    assert half["n_distinct_values"] == len(set(numbers))
 
     # AND THE LABEL HALF IS THE MARKER.
     assert [level["label"] for level in block["labels"]["levels"]] == [
@@ -849,7 +863,7 @@ def test_the_tie_is_admitted_only_where_its_repeating_word_is_publishable(
     assert block["role"] == "free_text", block["role"]
 
 
-def test_a_stand_in_is_never_a_number_under_either_grammar() -> None:
+def test_a_stand_in_is_never_a_number_under_the_column_s_own_grammar() -> None:
     """The rule that stops a made-up label crossing the split.
 
     REVIEW ROUND 5 OF THIS LANDING, item 1, and round 6 asked for the
@@ -860,12 +874,28 @@ def test_a_stand_in_is_never_a_number_under_either_grammar() -> None:
     half when the twin is described again, and the twin comes back as
     another role.
 
+    THE QUESTION IS THE COLUMN'S OWN GRAMMAR (plan P4-D243, the final
+    review of 2026-09-18). It was asked of every column, declared or
+    not, and that refused every spelling of the census a European export
+    publishes: an undeclared German amount column is FREE TEXT, every
+    filling of its published form `%.%%%,%%` is `0.000,00`, and the
+    other grammar reads that as a number -- so all four published forms
+    were MISSED and the twin wrote wide-band cells. An undeclared column
+    is never READ with the decimal comma, and the real column is a
+    number under that grammar too, so the twin that can wear the same
+    spellings is the faithful one. The refusal is unchanged wherever the
+    column IS declared, which is what round 5 measured.
+
     Removing the second test in `_is_a_usable_stand_in` leaves every
     other case in the suite green, which is why this one is written.
     """
-    assert not generation._is_a_usable_stand_in("0E.27")
+    assert not generation._is_a_usable_stand_in("0E.27", decimal_comma=True)
+    assert not generation._is_a_usable_stand_in("1,5", decimal_comma=True)
+    # ...and a column nobody declared reads with neither, so what it
+    # refuses is what its OWN grammar calls a number.
     assert not generation._is_a_usable_stand_in("1.5")
-    assert not generation._is_a_usable_stand_in("1,5")
+    assert generation._is_a_usable_stand_in("0E.27")
+    assert generation._is_a_usable_stand_in("1,5")
     # ...and the spellings the walk lives on are untouched.
     assert generation._is_a_usable_stand_in("group-1")
     assert generation._is_a_usable_stand_in("A-00")

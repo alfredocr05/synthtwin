@@ -185,6 +185,17 @@ DATE_FORMATS = (
     "dotted-two-digit-day-first-date",
     "month-first-datetime",
     "day-first-datetime",
+    # THE YEAR-FIRST SLASHED STAMP (landing 2b.3). `2024/03/17 14:05` is
+    # how a great many exports write a moment, and no member read it: the
+    # date-only `slashed-iso-date` needs exactly ten characters and the
+    # two slashed stamps above need the year last. A column of them was
+    # read as free text and its twin wrote made-up strings. The year
+    # leads, so the reading is as unambiguous as `slashed-iso-date`'s,
+    # and its clock is read as the two slashed stamps' is, by the
+    # time-of-day role's own reader -- in its forty forms since landing
+    # T1 (contract C6-10a). AFTER every member a column already read under,
+    # so no spelling that reads today changes its reading.
+    "slashed-iso-datetime",
     "year-quarter",
     # LAST, AND THAT IS THE RULE RATHER THAN A PLACE IN A LIST. The
     # single-format pass runs first and its verdict stands wherever it
@@ -193,6 +204,16 @@ DATE_FORMATS = (
     # where NO single format clears does the joint reading get a turn,
     # which is what putting it after every other member means.
     "iso-mixed",
+)
+
+# The three readings whose clock stands after ONE space and is read by
+# the time-of-day role's own reader -- its forty forms since landing T1
+# (contract C6-10a) -- with no fraction and no offset (plan amendment
+# A-P4-1 item 2; the year-first stamp since landing 2b.3).
+SLASHED_STAMPS = (
+    "month-first-datetime",
+    "day-first-datetime",
+    "slashed-iso-datetime",
 )
 
 _FORMAT_EXAMPLES = {
@@ -214,6 +235,7 @@ _FORMAT_EXAMPLES = {
     "dotted-two-digit-day-first-date": "17.03.24 (day first)",
     "month-first-datetime": "03/17/2024 14:05 (month first)",
     "day-first-datetime": "17/03/2024 14:05 (day first)",
+    "slashed-iso-datetime": "2024/03/17 14:05",
     "year-quarter": "2024-Q1",
 }
 
@@ -229,6 +251,11 @@ def format_example(name: str) -> str:
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
+    if is_layout_name(name):
+        # A LAYOUT IS SHOWN AS A DATE WRITTEN IN IT (landing R2a; the R2
+        # design skeptic, m6), at the instant every example here names.
+        written = layout_example(name)
+        return written if written else name
     if name not in _FORMAT_EXAMPLES:
         return name
     return _FORMAT_EXAMPLES[name]
@@ -488,6 +515,92 @@ def visible_lines(text: str) -> str:
     return _made_visible(text, True)
 
 
+def spelled_out(text: str) -> str:
+    """Return ``text`` with EVERY character written out as itself.
+
+    The display boundary above shows the characters that command a
+    display and leaves every other one alone, which is right for a value
+    a person reads. It is not enough for a value whose whole content is
+    space: a description may publish `" "`, `"  "` or a no-break space
+    among the spellings a column's absent cells wore (5.4.3), and a
+    report printing those keys as they stand shows a count beside
+    nothing at all -- so a reader cannot tell one space from two, or a
+    space from a no-break space, in the one place the report exists to
+    tell them.
+
+    The spelling is the boundary's own, read back from the same
+    function, so the two cannot drift: two hex digits for a byte, four
+    for a character inside the first plane, eight beyond it.
+
+    Guarantees: accepts text; returns text made only of printable ASCII;
+    raises TypeError if handed anything that is not a string instance.
+    Determinism: a fixed function of the text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    shown = ""
+    for character in text:
+        shown = shown + _written_out(ord(character))
+    return shown
+
+
+# HOW MANY DIFFERENT TEXTS A MEMO OF ONE ANSWER PER SPELLING HOLDS BEFORE
+# IT MUST PAY FOR ITSELF (lane S4d, plan P4-D390). A pass that answers a
+# fixed function of each cell's text once per spelling, and hands the
+# rows that write one spelling the same answer, holds a map of the
+# different texts while it walks the column. Past this many it keeps
+# taking new texts only while it has answered at least as many rows as
+# it holds, and a text it refuses goes into its NOTE OF TEXTS MET ONCE
+# (`SPELLING_MEMO_NOTED`): a text met again while the note still holds
+# it is taken then, on its second sighting, whatever the memo holds, and
+# that row is answered from the note. So a column whose values never
+# repeat stops taking new texts at this bound, its later new texts
+# answered per row exactly as before, while a text that recurs past the
+# bound -- 65,536 different numbers and then one number written on
+# every later row, Codex's case -- is shared from its second sighting.
+# Measured, a register of 997,770 rows over 94,000 codes holds 94,001
+# records, where the bound alone held 103,823.
+# The answers are the same either way; only how many objects hold them
+# moves.
+SPELLING_MEMO_TEXTS = 65536
+
+
+# HOW MANY TEXTS A MEMO'S NOTE OF TEXTS MET ONCE HOLDS BEFORE IT TURNS
+# OVER (lane S4d, after Codex's review; plan P4-D390). The note is two
+# maps of the texts the memo refused, each with its answer: the newer
+# takes them while it holds fewer than this many, and when it is full it
+# becomes the older and a new, empty one starts (the text that found it
+# full is not noted; it is where it is met again). A noted text stays in
+# one of the two for at least this many later notes, so a text met
+# again before this many other new texts is shared from its second
+# sighting, one turned over at its first from its third; a text whose
+# sightings are always further apart is answered per row, as before the
+# lane. The note holds at most twice this many texts in each column a
+# pass walks: two maps of 8,192 texts are about 0.4 MB (measured), held
+# only while the pass walks the column.
+SPELLING_MEMO_NOTED = 8192
+
+
+def memo_takes(held: int, answered: int) -> bool:
+    """Whether a memo of one answer per spelling takes one more text.
+
+    `held` is how many texts the memo holds and `answered` how many rows
+    it has answered from them (`SPELLING_MEMO_TEXTS` says why).
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    return held < SPELLING_MEMO_TEXTS or answered >= held
+
+
+def memo_notes(noted: int) -> bool:
+    """Whether a memo's newer note of texts met once takes one more text.
+
+    `noted` is how many texts the newer note holds; where this is False
+    the note turns over (`SPELLING_MEMO_NOTED` says how and why).
+    Guarantees: a function of `noted`. Raises nothing. No I/O.
+    """
+    return noted < SPELLING_MEMO_NOTED
+
+
 def trimmed(text: str) -> str:
     """Return ``text`` without surrounding whitespace.
 
@@ -567,6 +680,45 @@ def built_in_missing_texts() -> "tuple[str, ...]":
     own constants. Raises nothing. No I/O of any kind.
     """
     return tuple(sorted(MISSING_TEXTS + MISSING_TEXTS_EXACT))
+
+
+def names_a_published_word(spelling: str) -> bool:
+    """Whether one absent-cell spelling names a member of the vocabulary.
+
+    THE QUESTION A COLUMN THAT PUBLISHES NO VALUE HAS TO ASK (plan
+    P4-D85). Such a column may say that some of its absent cells were
+    spelled `NA` -- because `NA` is not a value of anybody's table, it
+    is a word this package ships, the same in every installation, and
+    the published vocabulary "contains no text from any table". What it
+    may not say is anything else. Both sides of that rule ask HERE: the
+    producer, deciding which keys survive its publication class, and the
+    loader, refusing a document whose key names no member. A second
+    reading of it in either module is how the two would come apart.
+
+    THE COMPARISON IS `missing_text_matches` AND NOT A LOOKUP, so the
+    folded members match after trimming and case folding while the
+    exact-spelling member matches byte for byte -- the same operation
+    the producer read the cell by in the first place.
+
+    A SPELLING OF NOTHING BUT SPACE NAMES THE EMPTY MEMBER, stated
+    rather than left to fall out of the folding: the empty spelling is a
+    member and folding trims, so ` `, two spaces and a tab each name it.
+    That is what admits a whitespace key on a column publishing no
+    value -- the same key landing 2b.8 admitted on every column that
+    publishes one -- so the two rules cannot part.
+
+    Guarantees: accepts one spelling; returns a truth value.
+    Determinism: a function of the spelling and of this package's own
+    constants; no table, no clock and no random source is consulted.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(spelling, str):
+        raise TypeError(_NOT_TEXT)
+    for member in built_in_missing_texts():
+        if missing_text_matches(spelling, member):
+            return True
+    return False
 
 
 def _all_ascii_digits(text: str) -> bool:
@@ -652,14 +804,472 @@ def _mantissa_has_nonzero_digit(text: str) -> bool:
     return False
 
 
+# THE MARKS A CELL MAY WRITE BETWEEN ITS THOUSANDS, as the file spells
+# them (landing 2b.2, 2026-09-15). The comma was the only one until this
+# landing, and a charge written `2 198.92`, `2'198.92` or with a
+# no-break space between its groups was read as free text: the column's
+# numbers vanished from the description and the twin wrote stand-ins
+# where they stood. The right single quotation mark is here because
+# typographic exports write `1\u2019234` where a keyboard writes
+# `1'234`; the no-break space, the narrow no-break space and the thin
+# space U+2009 because a word processor puts them where a person typed a
+# space. The thin space arrived with the verification of this landing,
+# which measured a salary column grouped with it still read as free
+# text with nothing said.
+#
+# A POINT IS NOT ON THIS LIST, and that is not an omission: a cell
+# written `12.345` is read with the point as its decimal point, and a
+# point between thousands is read only on a column declared
+# `--decimal-comma`, whose cells are translated before any rule reads
+# them. The asking stage names the column where the reading could be
+# the other one (`asking.why_worth_asking`).
+#
+# THE GROUPS ARE THREE FIGURES EACH, after a first group of one to
+# three, and ONE KIND OF MARK stands in a cell. That is what keeps a
+# postcode `123 45`, a telephone number `01 23 45 67 89` and a cell
+# mixing two marks out of the numbers. It also keeps out the Indian
+# grouping `12,34,567`, whose later groups are two figures: such a
+# column is read as text, and that is a stated limit rather than an
+# oversight.
+#
+# A FIRST GROUP MAY BEGIN WITH A ZERO, for every mark alike, because the
+# comma always allowed it (`012,345` has read as 12345 since Phase 1).
+# Such a cell is written in the padded form and a padded form is never
+# grouped, so it withholds the mark from its column.
+GROUP_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
+
+# EVERY MARK A DESCRIPTION MAY PUBLISH BETWEEN THOUSANDS: none, the seven
+# above, and the point a declared decimal comma writes (contract GS1).
+PUBLISHED_GROUP_MARKS = (
+    "", ",", ".", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009"
+)
+
+# EACH PUBLISHED MARK IN THE WORDS A PAGE USES FOR IT, because four of
+# them cannot be seen when printed. One list, read by the summary and by
+# the quality report alike, so the two name a mark one way.
+GROUP_MARK_WORDS = (
+    ("", "no mark"),
+    (",", "a comma"),
+    (".", "a point"),
+    (" ", "a space"),
+    ("'", "an apostrophe"),
+    ("\u2019", "a right single quotation mark"),
+    ("\u00a0", "a no-break space"),
+    ("\u202f", "a narrow no-break space"),
+    ("\u2009", "a thin space"),
+)
+
+# THE MINUS SIGN of the character tables, which typeset exports write
+# where a keyboard writes the hyphen-minus. Read as a minus (landing
+# 2b.2): before, `\u22126.09` was an affixed number wearing the sign as
+# its prefix, and its column published no negative value at all.
+MINUS_SIGN = "\u2212"
+
+# HOW A NEGATIVE NUMBER IS WRITTEN, one name per notation the reader
+# accepts (landing 2b.2). The hyphen-minus in front; accounting brackets
+# around the figures; the minus sign of the character tables in front;
+# and the hyphen-minus AFTER the figures, which accounting systems write
+# as `1,483.65-`. The first is the default a description publishes.
+NEGATIVE_MINUS = "minus"
+NEGATIVE_BRACKETS = "brackets"
+NEGATIVE_MINUS_SIGN = "minus_sign"
+NEGATIVE_TRAILING = "trailing_minus"
+NEGATIVE_FORMS = (
+    NEGATIVE_MINUS,
+    NEGATIVE_BRACKETS,
+    NEGATIVE_MINUS_SIGN,
+    NEGATIVE_TRAILING,
+)
+
+# WHETHER A COLUMN'S WIDE RUNS OF FIGURES ARE THEIR OWN VALUES' TEXT
+# (landing 2b.13, plan P4-D90, closing the canonical residual of
+# P4-D66.2). Past 2**53 more than one run of figures reads back as one
+# binary64, so "a spelling of its own value" stops picking out a single
+# text and the canonical question has to be asked of the column rather
+# than derived from the number. These three words are the answer, and a
+# description carries exactly one of them:
+#
+# * `none` -- the column wrote no point-free cell at or past 2**53, so
+#   there is no such run to ask about;
+# * `canonical` -- it wrote some, and FEWER of them than the census
+#   floor are anything but the text their own values write;
+# * `respelled` -- it wrote some, and at least the census floor of them
+#   are not.
+#
+# The word is a fact about the column's WRITER and never about a cell:
+# it names no count, no position and no figure. AND NO ONE CELL MOVES
+# IT (plan P4-D140, the final Codex review's first BLOCKER). The first
+# version put the line between nought and one, so 800 canonical keys
+# published `canonical` and the same column with ONE key respelled
+# published `respelled`: a reader who knew the other 799 cells read off
+# the last one's spelling from the word alone. The line now stands at
+# `census_floor`, where a word moves only when a group moves it.
+WIDE_NONE = "none"
+WIDE_CANONICAL = "canonical"
+WIDE_RESPELLED = "respelled"
+WIDE_RUNS = (
+    WIDE_NONE,
+    WIDE_CANONICAL,
+    WIDE_RESPELLED,
+)
+
+# THE SMALLEST GROUP A RUN USES WHEN NOBODY ASKS FOR ANOTHER, and the one
+# place the number is written (owner, 2026-09-22; plan P4-D316). It is 11,
+# the value it held before amendment A-P4-37 and the same number as the
+# notice line (`contract.SMALL_GROUP_NOTICE_LINE`), so a run nobody
+# lowered names no group of fewer than eleven rows. It lives in this
+# module because every module that needs it -- the taxonomy's settings,
+# the loader, the reader, the file's written form and the command line
+# -- already imports this one and this one imports nothing, so no module
+# gains an edge in the import graph by reading it. `--smallest-group`
+# below it stays legal and keeps its lowered-floor alarm.
+DEFAULT_SMALL_CELL_FLOOR = 11
+
+# THE POPULATION FLOOR, AND THE LINE A NOTICE IS GIVEN UNDER (plan
+# P4-D341). A table whose population is under `POPULATION_FLOOR` is
+# refused by `synthtwin profile` and nothing is written; one from there
+# up to `POPULATION_NOTICE_LINE` less one is described, with a notice
+# on the screen and on every page the run writes. The population is
+# counted in ROWS THAT HOLD A VALUE where no declared identifier
+# repeats, and in PEOPLE where one does (`taxonomy.people_in`). A row
+# every cell of which the run reads as "no value" is counted nowhere:
+# the rows a reader returns are a property of the file, and what a
+# description's counts are counts over is the rows that hold something.
+# WHAT THE RUN READS AS "no value" is every pass that decides it, not
+# the spellings alone (review of stage 3, floor item 3).
+#
+# THE TWO NUMBERS ARE A COMMAND'S RULE AND NOT A DOCUMENT'S. Nothing
+# in a description carries them, `build_document` never asks them, and
+# the loader and `validate` never apply them: a library caller still
+# describes five rows and the validator still re-describes a fifty-row
+# file it was pointed at. THAT IS THE WHOLE OF WHAT SURVIVES, and a
+# description written by an EARLIER BUILD does not: the settings block
+# gained a required key on this landing (`person_columns`, contract
+# rule C6-20, all twenty-three keys required), so the loader refuses a
+# v6 description made before it and says which entry is missing. That
+# break is sanctioned by amendment A-P4-41, which extends version 6 in
+# place until the first release; the description has to be made again.
+# They live in this module for the reason the floor above does --
+# every module that names them already imports this one, and this one
+# imports nothing.
+POPULATION_FLOOR = 100
+POPULATION_NOTICE_LINE = 1000
+
+
+def census_floor(floor: int) -> int:
+    """The smallest count a spelling census publishes: two, or the floor.
+
+    NEVER ONE, WHATEVER THE SETTINGS FLOOR (owner twin definition,
+    clause 3; plan P4-D65.1). A published count of one names an
+    individual outright, and a person may lower the settings floor to
+    one with `--smallest-group 1`.
+
+    ONE STATEMENT OF THE RULE, read by the producer, the loader and the
+    checker alike (plan P4-D140). It lives in this module because it is
+    the one all three import.
+
+    Guarantees: accepts the settings floor; returns two or the floor,
+    whichever is larger. Determinism: a fixed function of the floor.
+    Raises nothing. No I/O of any kind.
+    """
+    if floor > 2:
+        return floor
+    return 2
+
+
+def census_nameable(
+    counts: "list[int]", populations: "list[int]", floor: int
+) -> bool:
+    """Whether a census may print these counts: THE DISCLOSURE RULE, once.
+
+    Written once for every spelling census landings 2b.2 and 2b.7 added
+    (plan P4-D140, closing the final Codex review's grouping BLOCKER),
+    so no census states its own version and drifts from the others. The
+    four censuses of how a column's dates were written ask it too (plan
+    P4-D131, through `disclosed_census` and the loader's D17 to D20),
+    and so does the letter-case and layout census of the label roles
+    wherever it asks whether a reading names one row.
+    It says two things, and a census that fails either prints no count:
+
+    1. EVERY COUNT NAMES A GROUP. Each count it would print -- a named
+       convention and a pooled remainder alike -- reaches
+       `census_floor`, so none of them is one.
+    2. SO DOES EVERY COMPLEMENT A READER CAN TAKE. For each population
+       handed in -- the cells a reader can subtract the printed total
+       from, such as the cells written with a point, the cells that
+       could be grouped, or every number of the column -- what is left
+       once the printed counts are taken off is either nought or
+       reaches `census_floor` too. Measured without this clause: 1,200
+       grouped prices at a floor of eleven, one of them rewritten bare,
+       published `{",": 1199}` beside a row count of 1,200, and the one
+       ungrouped cell was read off by subtraction.
+
+    NOUGHT LEFT OVER IS ALLOWED, and that is a decision rather than an
+    oversight: it says every such cell was written one way, which is a
+    fact about the column's writer. What a census that cannot speak
+    publishes instead is the census's own decision, and each one states
+    it; none of them may publish a state a reader can tell from the
+    state nought reaches, where the category is implied.
+
+    Guarantees: accepts the counts that would be printed, the
+    populations a reader can subtract them from and the settings floor;
+    returns a bool. Determinism: a fixed function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    least = census_floor(floor)
+    total = 0
+    for count in counts:
+        if count < least:
+            return False
+        total = total + count
+    for population in populations:
+        rest = population - total
+        if rest != 0 and rest < least:
+            return False
+    return True
+
+
+def width_census_breaches(
+    styles: "dict[str, int]",
+    padded: "dict[str, int]",
+    fields: "dict[str, int]",
+    floor: int,
+) -> "tuple[bool, list[str]]":
+    """Where the width censuses let a reader subtract a count too small to name.
+
+    THE DISCLOSURE RULE OF `census_nameable`, ASKED OF THE SIBLING
+    CENSUSES A READER SUBTRACTS FROM EACH OTHER (plan P4-D148, the repair
+    pass of the final Codex review). Each width census floors its own
+    counts, and that is not enough: two published counts can each be a
+    group while their difference is one person. Measured at a floor of
+    eleven, both on the tool as the review found it and after P4-D145:
+
+    1. THE PLUS ROUTE. `pad_widths` counts every `leading_zero` cell and
+       every plus-signed padded one, and `numeric_styles` names the
+       `leading_zero` count, so the census's total less that count is
+       the number of plus-signed padded cells, and the `leading_plus`
+       count less THAT is the plus-signed cells with no pad. 800 padded
+       keys, fifty `+k` and one `+00123` published `pad_widths {"5":
+       801}` beside `leading_zero: 800`.
+    2. THE WIDTH ROUTE. At a width both censuses name, `field_widths`
+       less `pad_widths` is the number of cells written at that width
+       with no pad. 800 padded five-figure codes beside one `12345`
+       published `field_widths {"5": 801}` beside `pad_widths {"5":
+       800}`. Where `pad_widths` pools and `field_widths` does not, and
+       exactly one field width of two figures or more is left that the
+       padded census does not name, the pool is at that width and is
+       subtracted there too.
+
+    Each difference is nought or reaches `census_floor`. A pooled
+    remainder of a width census is a mixture of widths no reader can
+    take apart, and is not a count this rule asks about.
+
+    AT EVERY FLOOR, A FLOOR OF ONE INCLUDED (plan P4-D221; stage 2
+    closed by the owner rulings of 2026-09-17). This rule was not asked at
+    a settings floor of one, where the width censuses named counts of one
+    outright and invariant S13 forbade the pool its remedy needs. The
+    censuses now name no count below `census_floor`, whose line is two
+    there, and their pools stand at a floor of one
+    (`canonical.POOLED_AT_ANY_FLOOR`), so a difference of one is refused
+    at every floor. The plus route also subtracts from the forms map's
+    pool where `leading_plus` is held back in it.
+
+    Guarantees: accepts the forms map, the two width censuses and the
+    settings floor, as published; returns whether the plus route breaks
+    the rule and the field widths, in ascending key order, at which the
+    width route does. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    least = census_floor(floor)
+    pool = MISSING_WITHHELD
+    total = 0
+    for width in padded:
+        total = total + padded[width]
+    plus_broken = False
+    plus_cells = -1
+    if STYLE_LEADING_ZERO in styles:
+        plus_cells = total - styles[STYLE_LEADING_ZERO]
+    elif pool not in styles:
+        plus_cells = total
+    if plus_cells > 0:
+        rest: "list[int]" = []
+        if STYLE_LEADING_PLUS in styles:
+            rest = [styles[STYLE_LEADING_PLUS]]
+        elif pool in styles:
+            rest = [styles[pool]]
+        plus_broken = not census_nameable([plus_cells], rest, floor)
+    named: "list[int]" = []
+    for width in fields:
+        if width != pool:
+            named += [int(width)]
+    unnamed: "list[str]" = []
+    for figures in sorted(named):
+        width = f"{figures}"
+        if width not in padded and figures >= 2:
+            unnamed += [width]
+    broken: "list[str]" = []
+    for figures in sorted(named):
+        width = f"{figures}"
+        known = padded[width] if width in padded else 0
+        if pool in padded and pool not in fields and unnamed == [width]:
+            known = known + padded[pool]
+        if known < 1:
+            continue
+        rest_cells = fields[width] - known
+        if rest_cells != 0 and rest_cells < least:
+            broken += [width]
+    return plus_broken, broken
+
+
+
+# THE FIRST WHOLE NUMBER BINARY64 CANNOT KEEP EVERY FIGURE OF. Below it
+# a whole number is held exactly and one run of figures reads back as
+# it; at it and past it the spacing reaches two and neighbouring runs
+# collapse onto one value. Written out rather than computed so that the
+# reader, the loader and the checker all read one number.
+WIDE_RUN_FLOOR = 9007199254740992.0
+
+
+def is_a_wide_run(text: str, value: float) -> bool:
+    """Whether one cell is a bare run of figures past what binary64 keeps.
+
+    The class the canonical question is asked of, and the same class
+    `validation._wears_a_whole_number_text` admits: a point-free run of
+    base-ten figures, with or without a leading sign, whose value is at
+    or past `WIDE_RUN_FLOOR` in either direction.
+
+    ASKED OF THE CORE, for the reason `fraction_width` and `pad_width`
+    are (landing 2b.13's repair pass, plan P4-D91). This rule read the
+    RAW text when it arrived, while the form it is filed beside came off
+    `number_core` and the checker's own class test came off the trimmed,
+    minus-first cell -- so a cell wearing accounting brackets, the minus
+    sign of the character tables, a surrounding space or a thousands
+    mark was one class to the producer and another to the checker. Two
+    defects came out of that one split, both measured through the real
+    command line at 800 rows and floor eleven, on two seeds each:
+
+    * ONE cell of eight hundred given a leading space and respelled made
+      a REAL table fail its own description at exit 3 on
+      `styles.canonical.wide`, while its twin passed -- the very false
+      accusation plan P4-D66.2 exists to end. A column of bracketed
+      negatives respelled on the bracketed half did the same, 388 and
+      392 cells moved;
+    * a column of 800 wide runs written with thousands marks, or with a
+      leading space on every cell, published `none` -- a false statement
+      about the file -- and the respelling this fact exists to catch
+      went unseen on all 800.
+
+    One core for every reader of a cell's form is the rule those two
+    broke, and it is the rule `number_core`'s own docstring states.
+
+    Guarantees: accepts a written cell and the value it read back as;
+    returns whether it is one of that class. Determinism: a fixed
+    function of the two. Raises TypeError if handed anything that is not
+    a string instance, through `number_core`. No I/O of any kind.
+    """
+    digits = number_core(text)
+    if digits[:1] == "-" or digits[:1] == "+":
+        digits = digits[1:]
+    if not digits:
+        return False
+    for character in digits:
+        if character < "0" or character > "9":
+            return False
+    return value <= -WIDE_RUN_FLOOR or value >= WIDE_RUN_FLOOR
+
+
+def wide_run_figures(value: float) -> str:
+    """The figures the value itself writes, without its sign.
+
+    The canonical point-free text of method G6.2 read for one value:
+    past `WIDE_RUN_FLOOR` every binary64 is a whole number, so the exact
+    integer is the value and `int` loses nothing taking it.
+    """
+    whole = int(value)
+    if whole < 0:
+        whole = -whole
+    return f"{whole}"
+
+
+def _minus_written_first(body: str) -> str:
+    """The text with a minus sign or a trailing minus written in front.
+
+    Two notations for "negative" are rewritten as the hyphen-minus in
+    front, which is the only one every rule below reads: `\u22125` and
+    `5-` both become `-5`. A trailing minus is taken only where nothing
+    else signs the text, so `-5-` and `+5-` stay what they were -- text
+    this reader refuses -- and a lone `-` is not a sign of anything.
+    Everything else comes back unchanged.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if body[:1] == MINUS_SIGN:
+        return "-" + body[1:]
+    if (
+        len(body) > 1
+        and body[len(body) - 1 : len(body)] == "-"
+        and body[:1] != "-"
+        and body[:1] != "+"
+        and _written_as_an_amount(body)
+    ):
+        return "-" + body[: len(body) - 1]
+    return body
+
+
+def _written_as_an_amount(body: str) -> bool:
+    """Whether figures carry a decimal point.
+
+    THE TRAILING MINUS IS READ ONLY ON AN AMOUNT (landing 2b.2).
+    Accounting systems write `1,483.65-` and `12.50-`; a grade or a code
+    writes `3-`, and nothing in one such cell tells the two apart. So a
+    hyphen-minus after the figures is read as a minus only where the
+    figures carry a decimal point, and `3-` stays text.
+
+    NOT A THOUSANDS MARK, and it was one until the verification of this
+    landing. A ledger of whole amounts writes `1,234-` beside `500-`:
+    read on a mark, the first was a negative number and the second text,
+    so one column split into two classes by the size of each value, and
+    its twin wrote a different count of numbers on 1 seed of 6. A point
+    is a fact of the column's form -- a column of amounts written with
+    cents writes one on every cell -- while a mark is a fact of a value's
+    size. A whole amount's minus after its figures is kept as text in
+    every cell alike, and contract NF57 names it.
+    """
+    for character in body:
+        if character == ".":
+            return True
+    return False
+
+
+def _groups_marked(head: str) -> str:
+    """The one mark grouping ``head``'s figures, or "" where none is valid.
+
+    ``head`` is a whole part with no sign, no point and no exponent. The
+    answer is a mark of `GROUP_MARKS` only where exactly one kind of mark
+    stands in it and the figures read as thousands groups around it.
+    """
+    seen = ""
+    for character in head:
+        if character in GROUP_MARKS and character not in seen:
+            seen = seen + character
+    if len(seen) != 1:
+        return ""
+    if not _groups_by_threes(head, seen):
+        return ""
+    return seen
+
+
 def _without_group_separators(text: str) -> "str | None":
     """Remove valid thousands separators, or return None if they are not.
 
-    A comma is accepted only where a thousands separator can appear: the
-    part before the decimal point must read as groups of exactly three
-    digits after a first group of one to three digits. '1,234,567.89'
-    becomes '1234567.89'; '1,23' and '12,3456' are refused, because
-    accepting them would turn a mistyped value into a plausible number.
+    A mark of `GROUP_MARKS` is accepted only where a thousands separator
+    can appear: the part before the decimal point must read as groups of
+    exactly three digits after a first group of one to three digits,
+    with ONE kind of mark between them. '1,234,567.89' and '1 234 567.89'
+    become '1234567.89'; '1,23', '12,3456', '123 45' and '1,234 567' are
+    refused, because accepting them would turn a mistyped value, a
+    postcode or a mixed spelling into a plausible number. A mark after
+    the point is refused the same way.
 
     AN EXPONENT IS TAKEN OFF FIRST, and it was not until 2026-08-26
     (residual R-P4-32). `1,001e2` is admitted by the documented grammar
@@ -673,7 +1283,11 @@ def _without_group_separators(text: str) -> "str | None":
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
-    if "," not in text:
+    marked = False
+    for character in text:
+        if character in GROUP_MARKS:
+            marked = True
+    if not marked:
         return text
     sign = ""
     body = text
@@ -712,19 +1326,147 @@ def _without_group_separators(text: str) -> "str | None":
     else:
         head = body[:point]
         tail = body[point:]
-    if "," in tail:
-        return None
-    groups = head.split(",")
-    if len(groups) < 2:
-        return None
-    if not _all_ascii_digits(groups[0]) or len(groups[0]) > 3:
-        return None
-    joined = groups[0]
-    for group in groups[1:]:
-        if not _all_ascii_digits(group) or len(group) != 3:
+    for character in tail:
+        if character in GROUP_MARKS:
             return None
-        joined = joined + group
+    mark = _groups_marked(head)
+    if not mark:
+        return None
+    joined = ""
+    for character in head:
+        if character != mark:
+            joined = joined + character
     return sign + joined + tail + exponent
+
+
+def number_core(text: str) -> str:
+    """One numeric cell reduced to the figures every form rule reads.
+
+    Surrounding spaces come off; a matching pair of accounting brackets
+    is unwrapped and trimmed again and read as a minus in front; a minus
+    sign or a trailing minus is written as the hyphen-minus in front;
+    and every mark of `GROUP_MARKS` is dropped. `(1,234.50)`,
+    `1 234.50-` and `\u22121'234.50` all come back `-1234.50`, and
+    `+1 234.5` comes back `+1234.5`.
+
+    ONE CORE FOR EVERY READER OF A CELL'S FORM (landing 2b.2). The form
+    ladder, the fraction and padding widths and the whole-figure count
+    each stripped the comma and the brackets for themselves; a reader
+    that learned the new marks or the new signs while its neighbour did
+    not would count one cell in two forms, which is the defect class
+    `fraction_width`'s docstring names.
+
+    Guarantees: accepts any text; returns text. Sensible only for a cell
+    that reads as a number; any other text comes back with the same
+    rewriting applied and means nothing. Determinism: a fixed function
+    of the text. Raises TypeError if handed anything that is not a
+    string instance, through `trimmed`. No I/O of any kind.
+    """
+    body = trimmed(text)
+    bracketed = False
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        bracketed = True
+        body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
+    core = ""
+    for character in body:
+        if character not in GROUP_MARKS:
+            core = core + character
+    if bracketed and core[:1] != "-" and core[:1] != "+":
+        core = "-" + core
+    return core
+
+
+def thousands_mark(text: str) -> str:
+    """The mark this cell writes between its thousands, or "" for none.
+
+    A mark of `GROUP_MARKS`, answered only where the cell's whole part
+    reads as thousands groups around ONE kind of mark -- the same rule
+    `_without_group_separators` reads a number by, asked of a cell that
+    may carry brackets, any accepted sign and an exponent. `2 198.92`
+    answers a space, `(1,234.50)` a comma, `1234.50` and `123 45` the
+    empty string.
+
+    Guarantees: accepts any text; returns "" or one mark of
+    `GROUP_MARKS`. Determinism: a fixed function of the text. Raises
+    TypeError if handed anything that is not a string instance. Boundary:
+    no figure of the cell travels out through it. No I/O of any kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
+    if body[:1] == "+" or body[:1] == "-":
+        body = body[1:]
+    cut = len(body)
+    for place in range(len(body)):
+        if body[place] == "." or body[place] == "e" or body[place] == "E":
+            cut = place
+            break
+    for character in body[cut:]:
+        if character in GROUP_MARKS:
+            return ""
+    return _groups_marked(body[:cut])
+
+
+def negative_notation(text: str) -> str:
+    """How one cell that reads as a negative number wrote its sign.
+
+    One of `NEGATIVE_FORMS`: brackets around the figures, the minus sign
+    of the character tables in front, a hyphen-minus after the figures,
+    or the hyphen-minus in front. Asked only of a cell the reader has
+    classified as a negative number; a cell written any other way
+    answers `NEGATIVE_MINUS`, which is what a reader who learned none of
+    the other three would have taken it for.
+
+    Guarantees: accepts any text; returns one of the four names.
+    Determinism: a fixed function of the text. Raises TypeError if
+    handed anything that is not a string instance. Boundary: the answer
+    is a word of this module's own vocabulary. No I/O of any kind.
+    """
+    body = trimmed(text)
+    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
+        return NEGATIVE_BRACKETS
+    if body[:1] == MINUS_SIGN:
+        return NEGATIVE_MINUS_SIGN
+    if _minus_written_first(body) != body:
+        return NEGATIVE_TRAILING
+    return NEGATIVE_MINUS
+
+
+def with_negative_notation(text: str, form: str) -> str:
+    """A number written with a hyphen-minus in front, in ``form`` instead.
+
+    A TRAILING MINUS IS WRITTEN ONLY WHERE IT READS BACK AS ONE: a figure
+    field carrying no point keeps its hyphen-minus in front, because
+    `12-` and `1,234-` are not read as numbers (`_written_as_an_amount`)
+    and writing either would change the cell's class.
+
+    The write rule of `negative_form`: `-1,234.50` becomes `(1,234.50)`,
+    `\u22121,234.50` or `1,234.50-`. Text that does not begin with a
+    hyphen-minus -- a positive value, a zero, a stand-in -- comes back
+    unchanged, and so does every text under `NEGATIVE_MINUS`. Brackets
+    never hold a sign, so a written negative can never be mistaken for
+    the contradictory-notation stand-in `(-5)`.
+
+    Guarantees: accepts a written number and one of `NEGATIVE_FORMS`;
+    returns text. Determinism: a fixed function of the two. Raises
+    TypeError if handed anything that is not a string instance. No I/O.
+    """
+    if not isinstance(text, str) or not isinstance(form, str):
+        raise TypeError(_NOT_TEXT)
+    if text[:1] != "-":
+        return text
+    body = text[1:]
+    if form == NEGATIVE_BRACKETS:
+        return "(" + body + ")"
+    if form == NEGATIVE_MINUS_SIGN:
+        return MINUS_SIGN + body
+    if form == NEGATIVE_TRAILING:
+        if not _written_as_an_amount(body):
+            return text
+        return body + "-"
+    return text
 
 
 # The longest cell a shape form is taken of. A form is a fact about the
@@ -783,6 +1525,99 @@ SHAPE_MARKS = "-./_:#*()[]+,"
 # in the sentence the report prints beside every form it names.
 SHAPE_DIGIT = "%"
 SHAPE_LETTER = "@"
+# THE THIRD PLACEHOLDER, AND IT IS A CENSUS KEY'S ALONE (landing 2b.18
+# part 2, plan P4-D121, audit LTM-6). `shape_form` never writes it: the
+# form of a cell stays blind to case, so no level, no variant and no
+# per-level count moves. What writes it is the census, and only for the
+# cells of one form whose every letter was lower case, where enough of
+# them share that form to be named on their own (C6-31a). A column of
+# `e9z-1i1` published `@%@-%@%` and its twin came back `Y6O-7P3` on
+# every row, so a case-sensitive pattern matched 800 real cells and 0
+# twin cells while both files passed. `&` is outside the letters, the
+# figures and `SHAPE_MARKS`, so no cell that has a form can be spelled
+# like a key carrying it, which is the property the other two buy.
+SHAPE_LOWER = "&"
+
+# THE ONE GAP A FORM MAY HOLD, AND ONLY BEFORE A CLOCK'S MARKER (lane L2,
+# plan P4-D392, contract C6-31a). The space stays excluded on its own
+# ground (above), with one exception that is no sentence: a clock time
+# written with ONE space or ONE narrow no-break space U+202F between its
+# figures and a meridiem marker -- `9:15 AM`, `08:15:30.123 AM`, and
+# `9:15\u202fAM` as Excel's and macOS's exports write it. Before this, such
+# a cell had no form, so a column of them beside rare words published
+# none and its twin wrote 0 of its 969 clock cells in their shape where
+# `9:15AM` kept 969. The gap stands as itself in the form (`%:%% @@`,
+# `%:%%\u202f@@`), because the twin writes every value as the source
+# wrote it. Admitted only where the cell holds no other space, the text
+# after the gap is one of the eight marker words, and the text before it
+# is a clock: an hour of one or two figures, a colon and two figures,
+# optionally a colon and two more and then optionally a point and a
+# fraction of the second: so every form holding a gap is a clock's form,
+# which G8.3's clock supply fills with times (method G9.5). A key of such
+# a form carries the marker as `@@` or `@.@.` -- or, lower case, `&&` or
+# `&.&.` -- and so names no marker word.
+SHAPE_GAPS = (" ", "\u202f")
+_SHAPE_MERIDIEM_WORDS = ("AM", "PM", "am", "pm", "A.M.", "P.M.", "a.m.", "p.m.")
+_SHAPE_MERIDIEM_KEYS = ("@@", "&&", "@.@.", "&.&.")
+
+# A STAMP'S ONE SPACE BETWEEN ITS DATE AND ITS CLOCK (lane L3, plan
+# P4-D393, contract C6-31a). An EHR export writes a date and a time of
+# day in one cell -- `2024-01-05 9:15 AM`, `01/05/2024 09:15`,
+# `1/5/2024 9:15:30\u202fPM` -- and a column of them beside a few words
+# (`pending`, `unknown`) is read as text. Each such cell holds the space
+# between its date and its clock, which no form took, so the column
+# published no form and its twin wrote 0 of its 969 stamps in their
+# shape. A form now holds that one plain space where the text before it
+# is a date written in figures (below) and the text after it a clock
+# (`_is_a_clock_body_form`), followed by nothing, by a marker written
+# straight on (two letters, or two letters each before a point:
+# `9:15AM`, `9:15a.m.`), or by the one gap before a marker word lane L2
+# admitted. The date and the clock may instead be parted by one letter
+# (`T`, as ISO writes it), which a form already took; there only the gap
+# before the marker and the longer limit are new. A date written in
+# figures is three runs of figures parted twice by one mark, a hyphen, a
+# slash or a point: a year of four first and then a month and a day of
+# one or two figures each (ISO `2024-01-05`, `2024/01/05`), or a month
+# and a day of one or two figures each first and a year of four or two
+# last (`01/05/2024`, `1/5/2024`, REDCap's `05-01-2024`, `05.01.2024`,
+# `1/5/24`). Measured on lane L2's battery of 220 tables (P4-D393), the
+# year-first hyphen and the year-last slash alone moved 15 tables and
+# this rule 20, every one of them stamps beside rare words. A stamp may
+# run to `STAMP_FORM_LIMIT` characters, so seconds, a fraction and a
+# marker fit (`01/05/2024 09:15:30.1234567 a.m.` is 32).
+_STAMP_DATE_FORMS = tuple(
+    first + mark + second + mark + third
+    for mark in ("-", "/", ".")
+    for first, second, third in (
+        ("%%%%", "%", "%"),
+        ("%%%%", "%", "%%"),
+        ("%%%%", "%%", "%"),
+        ("%%%%", "%%", "%%"),
+        ("%", "%", "%%%%"),
+        ("%", "%%", "%%%%"),
+        ("%%", "%", "%%%%"),
+        ("%%", "%%", "%%%%"),
+        ("%", "%", "%%"),
+        ("%", "%%", "%%"),
+        ("%%", "%", "%%"),
+        ("%%", "%%", "%%"),
+    )
+)
+STAMP_FORM_LIMIT = 32
+# What parts a stamp's date from its clock in its form: one plain space,
+# or one letter (`T`) written as either letter placeholder.
+_STAMP_PARTINGS = (" ", SHAPE_LETTER, SHAPE_LOWER)
+# A ZONE WRITTEN STRAIGHT ON AFTER A YEAR-FIRST STAMP'S CLOCK (skeptic 2 of
+# lane L3, item 2): FHIR's `instant` and `dateTime` and JavaScript's
+# `toISOString` write `2024-01-05T09:15:30Z` and `2024-01-05T09:15:30.123Z`,
+# PostgreSQL's text output writes `2024-01-05 09:15:30+00`, and RFC 3339
+# writes `2024-01-05T09:15-05:00`. After the clock of a stamp whose date is
+# a year of four first, one letter placeholder (`Z`) or a sign and an
+# offset of two figures, four figures, or two, a colon and two may stand;
+# a stamp of a year-last date takes neither, as no export writes one so.
+_STAMP_OFFSET_FORMS = tuple(
+    sign + body for sign in ("+", "-") for body in ("%%", "%%%%", "%%:%%")
+)
 
 
 def _is_a_digit(character: str) -> bool:
@@ -824,6 +1659,353 @@ def _is_a_letter(character: str) -> bool:
     return ("a" <= character <= "z") or ("A" <= character <= "Z")
 
 
+def _is_a_clock_body_form(head: str) -> bool:
+    """Whether a run of `%`, `:` and `.` is a clock's figures (P4-D392).
+
+    `%:%%` or `%%:%%`, optionally `:%%` after, and after the seconds
+    optionally a point and one figure or more: the bodies G8.3's clock
+    supply writes (`generation._clock_shape`). Raises nothing.
+    """
+    digit = SHAPE_DIGIT
+    body = head
+    cut = len(body)
+    while cut > 0 and body[cut - 1 : cut] == digit:
+        cut = cut - 1
+    places = 0
+    if cut < len(body) and body[cut - 1 : cut] == ".":
+        places = len(body) - cut
+        body = body[: cut - 1]
+    minutes = (digit + ":" + digit + digit, digit + digit + ":" + digit + digit)
+    seconds = (
+        digit + ":" + digit + digit + ":" + digit + digit,
+        digit + digit + ":" + digit + digit + ":" + digit + digit,
+    )
+    if body in seconds:
+        return True
+    return body in minutes and not places
+
+
+def _clock_head_form(head: str) -> str:
+    """The figures and marks of a clock written before its gap, or "".
+
+    Every figure becomes `SHAPE_DIGIT` and a colon or a point stands;
+    anything else -- a letter, another mark, a placeholder -- answers "".
+    """
+    built = ""
+    for character in head:
+        if _is_a_digit(character):
+            built = built + SHAPE_DIGIT
+        elif character == ":" or character == ".":
+            built = built + character
+        else:
+            return ""
+    return built
+
+
+def meridiem_gap_at(text: str) -> int:
+    """Where the one gap a form may hold sits in a cell, or -1 (P4-D392).
+
+    The place of the one space or U+202F (`SHAPE_GAPS`) of a cell that is
+    a clock's figures, that gap and a meridiem marker word -- `9:15 AM`,
+    `08:15:30.123 p.m.` -- and -1 for every other cell, a cell with no
+    gap and a cell with two among them. Four searches of the cell and
+    one read of its clock, at most `SHAPE_FORM_LIMIT` characters each, so
+    a census of a million cells costs a million such scans.
+
+    AND THE SAME GAP AFTER A STAMP'S CLOCK (lane L3, plan P4-D393): where
+    the cell is a stamp (`stamp_gap_at`), its date and its clock parted
+    by one space or one letter, the place of the gap before its marker
+    word -- `2024-01-05 9:15 AM` answers 15 -- read in one more pass of
+    at most `STAMP_FORM_LIMIT` characters. Raises TypeError if handed
+    anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    place = _clock_meridiem_gap_at(text)
+    if place >= 0:
+        return place
+    stamp = _stamp_cell_gaps(text)
+    return -1 if stamp is None else stamp[1]
+
+
+def _clock_meridiem_gap_at(text: str) -> int:
+    """`meridiem_gap_at` of a clock alone, as lane L2 wrote it (P4-D392).
+
+    Raises TypeError if handed anything that is not a string instance.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    space = text.find(" ")
+    narrow = text.find("\u202f")
+    if space >= 0 and narrow >= 0:
+        return -1
+    if space >= 0 and text.count(" ") != 1:
+        return -1
+    if narrow >= 0 and text.count("\u202f") != 1:
+        return -1
+    place = space if space >= 0 else narrow
+    if place < 0:
+        return -1
+    if text[place + 1 :] not in _SHAPE_MERIDIEM_WORDS:
+        return -1
+    head = _clock_head_form(text[:place])
+    if not head or not _is_a_clock_body_form(head):
+        return -1
+    return place
+
+
+def _key_gap_at(name: str) -> int:
+    """Where the one gap of a census key sits, or -1 (P4-D392).
+
+    The key twin of `meridiem_gap_at`: a clock body of `%`, `:` and `.`,
+    one gap, and a marker key `@@`, `&&`, `@.@.` or `&.&.`.
+    """
+    place = _clock_key_gap_at(name)
+    if place >= 0:
+        return place
+    # The gap after a stamp's clock (lane L3, plan P4-D393).
+    stamp = _stamp_gaps_in(name)
+    return -1 if stamp is None else stamp[1]
+
+
+def _clock_key_gap_at(name: str) -> int:
+    """`_key_gap_at` of a clock alone, as lane L2 wrote it (P4-D392)."""
+    place = -1
+    for index in range(len(name)):
+        if name[index] in SHAPE_GAPS:
+            if place >= 0:
+                return -1
+            place = index
+    if place < 0:
+        return -1
+    if name[place + 1 :] not in _SHAPE_MERIDIEM_KEYS:
+        return -1
+    if not _is_a_clock_body_form(name[:place]):
+        return -1
+    return place
+
+
+def _stamp_gaps_in(form: str) -> "tuple[int, int, int, int] | None":
+    """The parts of a stamp's form, or None for any other (P4-D393).
+
+    A stamp's form is one of `_STAMP_DATE_FORMS`, then one space or one
+    letter placeholder (`@` or `&`, the `T` of ISO), then a clock's body
+    (`_is_a_clock_body_form`), then nothing, a marker key written straight
+    on (`@@`, `&&`, `@.@.`, `&.&.`), or one gap (`SHAPE_GAPS`) and a marker
+    key -- or, where the date is a year of four first, a zone written
+    straight on, one letter placeholder (`Z`) or an offset
+    (`_STAMP_OFFSET_FORMS`; skeptic 2 of L3, item 2);
+    `STAMP_FORM_LIMIT` characters at most. Answers four places, each
+    -1 where the stamp holds no such part: the space between the date and
+    the clock, the gap before the marker, the letter between the date and
+    the clock, and the marker's first character. One pass of the form.
+    Raises nothing. No I/O of any kind.
+    """
+    if len(form) > STAMP_FORM_LIMIT:
+        return None
+    # The date is the run of figures and date marks the form opens with,
+    # read once and asked of the closed list once.
+    start = 0
+    while start < len(form) and form[start] in (SHAPE_DIGIT, "-", "/", "."):
+        start = start + 1
+    if form[:start] not in _STAMP_DATE_FORMS:
+        return None
+    if form[start : start + 1] not in _STAMP_PARTINGS:
+        return None
+    end = start + 1
+    while end < len(form) and form[end] in (SHAPE_DIGIT, ":", "."):
+        end = end + 1
+    if not _is_a_clock_body_form(form[start + 1 : end]):
+        return None
+    tail = form[end:]
+    parted = start if form[start] == " " else -1
+    letter = -1 if parted >= 0 else start
+    if not tail:
+        return parted, -1, letter, -1
+    if tail in _SHAPE_MERIDIEM_KEYS:
+        return parted, -1, letter, end
+    if tail[:1] in SHAPE_GAPS and tail[1:] in _SHAPE_MERIDIEM_KEYS:
+        return parted, end, letter, end + 1
+    # A zone after a year-first stamp's clock (`_STAMP_OFFSET_FORMS`; its
+    # letter's place is `stamp_key_zone_at`'s answer, not one of these four).
+    if form[:4] == SHAPE_DIGIT * 4 and (
+        tail == SHAPE_LETTER or tail == SHAPE_LOWER or tail in _STAMP_OFFSET_FORMS
+    ):
+        return parted, -1, letter, -1
+    return None
+
+
+def _stamp_cell_gaps(text: str) -> "tuple[int, int, int, int] | None":
+    """The parts of a cell that is a stamp, or None (P4-D393).
+
+    The cell read as a form -- each figure `SHAPE_DIGIT`, each ASCII
+    letter `SHAPE_LETTER`, a hyphen, a slash, a colon, a point, a plus
+    sign and a gap standing as themselves, anything else no stamp -- and asked of
+    `_stamp_gaps_in`; a gap before the marker stands only before one of
+    the eight marker words, as lane L2's does. Eleven characters at the
+    fewest (`1/5/24 9:15`), `STAMP_FORM_LIMIT` at the most, so a cell
+    outside those lengths is no stamp unread. Raises nothing.
+    """
+    if len(text) < 11 or len(text) > STAMP_FORM_LIMIT:
+        return None
+    # The figure and letter ranges are `_is_a_digit`'s and `_is_a_letter`'s,
+    # compared here in line: this read runs on every cell holding a space
+    # or ending in a marker's last character, twice per `shape_form`. A
+    # plus sign stands too, an offset's (`_STAMP_OFFSET_FORMS`).
+    form = ""
+    for character in text:
+        if "0" <= character <= "9":
+            form = form + SHAPE_DIGIT
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            form = form + SHAPE_LETTER
+        elif character in SHAPE_GAPS or character in ("-", "/", ":", ".", "+"):
+            form = form + character
+        else:
+            return None
+    gaps = _stamp_gaps_in(form)
+    if gaps is None:
+        return None
+    if gaps[1] >= 0 and text[gaps[1] + 1 :] not in _SHAPE_MERIDIEM_WORDS:
+        return None
+    return gaps
+
+
+def _stamp_form(text: str) -> str:
+    """The form of a cell that is a stamp, both its gaps kept, or "" (P4-D393)."""
+    if _stamp_cell_gaps(text) is None:
+        return ""
+    form = ""
+    for character in text:
+        if "0" <= character <= "9":
+            form = form + SHAPE_DIGIT
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            form = form + SHAPE_LETTER
+        else:
+            form = form + character
+    return form
+
+
+def stamp_gap_at(text: str) -> int:
+    """Where the space between a stamp's date and its clock sits, or -1 (P4-D393).
+
+    The place of the one plain space of a cell that is a date spelling
+    (`_STAMP_DATE_FORMS`), that space and a clock -- `2024-01-05 09:15`,
+    `1/5/2024 9:15 AM`, `01/05/2024 9:15AM` -- and -1 for every other
+    cell, a stamp whose date and clock a letter parts among them. One
+    read of at most `STAMP_FORM_LIMIT` characters. Raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    stamp = _stamp_cell_gaps(text)
+    return -1 if stamp is None else stamp[0]
+
+
+def stamp_key_gap_at(name: str) -> int:
+    """Where the space between a stamp's date and clock sits in a key, or -1 (P4-D393).
+
+    The key twin of `stamp_gap_at` (`_stamp_gaps_in`). Raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    stamp = _stamp_gaps_in(name)
+    return -1 if stamp is None else stamp[0]
+
+
+def stamp_key_parts(name: str) -> "tuple[int, int, int, int] | None":
+    """The parts of a stamp's census key, or None for any other key (P4-D393).
+
+    Four places, each -1 where the stamp holds no such part: the space
+    between its date and its clock, the gap before its marker key, the
+    letter placeholder between its date and its clock (`T`), and its
+    marker key's first character -- what the generator's figure fill
+    writes as the letter `T` and as a marker word (method G8.3); a zone
+    letter after the clock is `stamp_key_zone_at`'s, written `Z`. Raises
+    TypeError if handed anything that is not a string instance. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return _stamp_gaps_in(name)
+
+
+def stamp_key_zone_at(name: str) -> int:
+    """Where the zone letter of a stamp's census key sits, or -1 (skeptic 2 of L3, item 2).
+
+    The place of the one letter placeholder written straight on after the
+    clock of a stamp whose date is a year of four first -- the `Z` of
+    `2024-01-05T09:15:30Z`, keyed `%%%%-%%-%%@%%:%%:%%@` -- which the
+    generator's figure fill writes `Z` (`z` in a lower-case key), as it
+    writes the letter between the date and the clock `T` (method G8.3);
+    -1 for every other key, an offset's included. A marker key ends in two
+    letter placeholders or a point, so a letter after a figure at the end
+    of a stamp's key is its zone. Raises TypeError if handed anything that
+    is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if name[-1:] not in (SHAPE_LETTER, SHAPE_LOWER) or name[-2:-1] != SHAPE_DIGIT:
+        return -1
+    return -1 if _stamp_gaps_in(name) is None else len(name) - 1
+
+
+def _shaped_since_stamps(text: str) -> bool:
+    """Whether a cell has a form only since lane L3 (P4-D393).
+
+    A stamp holding the space between its date and its clock, or the gap
+    before its marker after a date, or longer than `SHAPE_FORM_LIMIT`:
+    each had no form before L3. Raises nothing.
+    """
+    stamp = _stamp_cell_gaps(text)
+    if stamp is None:
+        return False
+    return stamp[0] >= 0 or stamp[1] >= 0 or len(text) > SHAPE_FORM_LIMIT
+
+
+def key_gap_at(name: str) -> int:
+    """Where the one gap of a census key sits, or -1 (P4-D392).
+
+    The public face of `_key_gap_at`, for the generator's figure fill
+    (lane L2's repair round, method G8.3): a gapped form filled figure by
+    figure keeps its gap and writes its marker key as a word. Raises
+    TypeError if handed anything that is not a string instance. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return _key_gap_at(name)
+
+
+def level_unshaped_before_gaps(label: str, shape_form_cells: int) -> bool:
+    """Whether a published level reads as written before lane L2 (P4-D392).
+
+    A DESCRIPTION WRITTEN BEFORE L2 STILL LOADS AND GENERATES THE SAME
+    TWIN (Codex's review of lane L2, item 2). Before L2 a label holding
+    the one gap -- `9:15 am`, its space before the marker -- had no form,
+    so every level of such a label carries `shape_form_cells` 0 whatever
+    its named spellings wear: 100 rows of `9:15 AM` beside 100 of
+    `10:30 PM` were refused under W8 once each spelling wore `%:%% @@`.
+    Such a level -- its label holding the gap, its count in form 0 -- is
+    read as it was written: its label wears no form, so none of its
+    spellings counts in one, in the loader's W8, the generator's G8.2a
+    walk and the recount (validation's `shape_form_cells`). A producer
+    since L2 writes 0 there only where no row of the level wore the
+    label's form, so the reading moves none of its levels' counts.
+
+    A STAMP'S LABEL READS SO TOO (lane L3, plan P4-D393): before L3 a
+    label holding the space between a date and a clock, or longer than
+    `SHAPE_FORM_LIMIT`, had no form either (`_shaped_since_stamps`), so a
+    level of one carrying 0 is read as it was written, on the same ground.
+
+    Guarantees: a function of the two. Raises TypeError if the label is
+    not a string instance. No I/O of any kind.
+    """
+    if shape_form_cells:
+        return False
+    return meridiem_gap_at(label) >= 0 or _shaped_since_stamps(label)
+
+
 def shape_form(text: str) -> str:
     """The shape of one cell: its figures and letters, its marks kept.
 
@@ -860,7 +2042,10 @@ def shape_form(text: str) -> str:
     WHAT IT DELIBERATELY WILL NOT DO. A cell has NO FORM when it is
     empty, when it is longer than `SHAPE_FORM_LIMIT`, or when it holds
     any character that is neither a letter, nor a digit, nor one of
-    `SHAPE_MARKS` -- a space among them. On a note or an address a form
+    `SHAPE_MARKS` -- a space among them, save the one gap a clock's
+    marker stands behind (`meridiem_gap_at`, plan P4-D392): `9:15 AM`
+    has the form `%:%% @@`, its space kept, and `9:15\u202fAM` the form
+    with U+202F kept. On a note or an address a form
     would carry where the spaces and the commas fall and how long each
     word is, which is a fact about a sentence rather than about a code,
     and this census is not the place to decide whether that may be
@@ -876,14 +2061,29 @@ def shape_form(text: str) -> str:
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
-    if not text or len(text) > SHAPE_FORM_LIMIT:
+    if not text:
         return ""
+    if len(text) > SHAPE_FORM_LIMIT:
+        # A stamp may run longer (lane L3, plan P4-D393); nothing else may.
+        return _stamp_form(text)
     form = ""
     kinds = 0
     figures = 0
     letters = 0
     marks = 0
+    # The one gap a clock's marker may stand behind (P4-D392): looked for
+    # only where the cell ends in a letter or a point, as every marker
+    # word does, so a cell ending in a figure costs nothing more.
+    gap = -1
+    if text[len(text) - 1] in "Mm.":
+        gap = meridiem_gap_at(text)
+    place = -1
     for character in text:
+        place = place + 1
+        if place == gap:
+            form = form + character
+            marks = 1
+            continue
         if character == SHAPE_DIGIT or character == SHAPE_LETTER:
             # A CELL CARRYING A PLACEHOLDER HAS NO FORM. This is what
             # makes the disjointness above a property and not a hope:
@@ -899,6 +2099,11 @@ def shape_form(text: str) -> str:
         elif character in SHAPE_MARKS:
             form = form + character
             marks = 1
+        elif character in SHAPE_GAPS:
+            # A space or U+202F the clock's marker does not stand behind:
+            # a stamp's form holds it (lane L3, plan P4-D393), and no
+            # other cell's does.
+            return _stamp_form(text)
         else:
             return ""
     kinds = figures + letters + marks
@@ -924,8 +2129,9 @@ def shape_form(text: str) -> str:
 def form_room(name: str) -> int:
     """How many different cells could have worn this form.
 
-    Every `SHAPE_DIGIT` of it stands for one of ten figures and every
-    `SHAPE_LETTER` for one of fifty-two letters; the marks stand for
+    Every `SHAPE_DIGIT` of it stands for one of ten figures, every
+    `SHAPE_LETTER` for one of fifty-two letters and every `SHAPE_LOWER`
+    for one of twenty-six lower-case ones; the marks stand for
     themselves. So a form is a COUNT of the cells it could have come
     from, and that count is what says whether naming it tells a reader
     anything they did not already have.
@@ -941,6 +2147,11 @@ def form_room(name: str) -> int:
             room = room * 10
         elif character == SHAPE_LETTER:
             room = room * 52
+        elif character == SHAPE_LOWER:
+            # A LOWER-CASE LETTER IS ONE OF TWENTY-SIX, not fifty-two,
+            # so the small-supply rule asks a lower-case key for its own
+            # room and never for the case-blind form's (P4-D121).
+            room = room * 26
     return room
 
 
@@ -959,7 +2170,9 @@ def is_a_written_form(name: str) -> bool:
     placeholder or a mark from the closed list, carrying at least TWO
     of the three kinds -- figure, letter, mark. Two kinds, because a
     key of one kind says nothing `length` and the two alphabet counts
-    do not already say.
+    do not already say. A letter is written `@` or, in a key the census
+    names for lower-case cells, `&` -- one or the other throughout, and
+    never both in one key (plan P4-D121).
 
     Guarantees: accepts any string; answers only from the characters.
     Raises TypeError if handed anything that is not a string instance.
@@ -967,21 +2180,1227 @@ def is_a_written_form(name: str) -> bool:
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
-    if not name or len(name) > SHAPE_FORM_LIMIT:
+    if not name:
         return False
+    # A stamp's key may hold the space between its date and its clock, and
+    # may run to `STAMP_FORM_LIMIT` characters (lane L3, plan P4-D393).
+    stamp = None
+    if len(name) > SHAPE_FORM_LIMIT or " " in name:
+        stamp = _stamp_gaps_in(name)
+        if stamp is None and len(name) > SHAPE_FORM_LIMIT:
+            return False
+    parted = -1 if stamp is None else stamp[0]
     figures = 0
     letters = 0
+    lower = 0
     marks = 0
+    # A key may hold the one gap a clock's marker stands behind (P4-D392).
+    gap = _key_gap_at(name)
+    place = -1
     for character in name:
+        place = place + 1
+        if place == gap or place == parted:
+            marks = 1
+            continue
         if character == SHAPE_DIGIT:
             figures = 1
         elif character == SHAPE_LETTER:
             letters = 1
+        elif character == SHAPE_LOWER:
+            lower = 1
         elif character in SHAPE_MARKS:
             marks = 1
         else:
             return False
-    return figures + letters + marks >= 2
+    if letters and lower:
+        # A KEY IS WRITTEN IN ONE CONVENTION OR THE OTHER (P4-D121).
+        # The census writes `&` for EVERY letter of a form whose cells
+        # were all lower case and `@` for every letter otherwise, so a
+        # key mixing the two is one no producer writes and no recount
+        # can ever meet.
+        return False
+    return figures + max(letters, lower) + marks >= 2
+
+
+def is_lower_case_text(text: str) -> bool:
+    """Whether a cell holds a letter and every letter it holds is lower case.
+
+    The letters are `a`-`z` and `A`-`Z` and nothing else, for the reason
+    `_is_a_letter` gives. A cell with no letter at all is not lower
+    case: it has no case to keep, and its form has no letter to mark.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    seen = False
+    for character in text:
+        if "A" <= character <= "Z":
+            return False
+        if "a" <= character <= "z":
+            seen = True
+    return seen
+
+
+def lower_case_form(form: str) -> str:
+    """The census key a form takes for its lower-case cells (P4-D121).
+
+    Every `SHAPE_LETTER` becomes `SHAPE_LOWER` and every other character
+    stands. A form with no letter has no lower-case key and answers "".
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(form, str):
+        raise TypeError(_NOT_TEXT)
+    if SHAPE_LETTER not in form:
+        return ""
+    built = ""
+    for character in form:
+        if character == SHAPE_LETTER:
+            built = built + SHAPE_LOWER
+            continue
+        built = built + character
+    return built
+
+
+def census_form(text: str, census: "dict[str, int]") -> str:
+    """The key of a form census one cell is counted under (C6-31a).
+
+    THE ONE READING A GENERATOR AND A RECOUNT BOTH USE, so what the twin
+    is written to and what it is measured by cannot part. A cell's form
+    is `shape_form`, blind to case. Where every letter of the cell is
+    lower case AND the census names that form's lower-case key, the cell
+    is counted there; every other cell is counted under its form as
+    `shape_form` writes it. So a census naming `&&%` beside `@@%` counts
+    `ab1` under the first and `AB1` or `Ab1` under the second, and a
+    census naming only `@@%` counts all three under it, exactly as
+    before the lower-case key existed.
+
+    Guarantees: accepts a string and a census; returns a key or "" for a
+    cell with no form. Determinism: a function of the two arguments
+    alone. Raises TypeError if handed a cell that is not a string. No
+    I/O of any kind.
+    """
+    form = shape_form(text)
+    if not form or SHAPE_LETTER not in form:
+        return form
+    if not is_lower_case_text(text):
+        return form
+    lower = lower_case_form(form)
+    if lower in census:
+        return lower
+    return form
+
+
+# -- the disclosure rule, asked by the label roles (plan P4-D150) -----
+
+
+def census_names_one_row(
+    counts: "dict[str, int]",
+    totals: "list[tuple[int, int]]",
+    floor: int = 1,
+) -> int:
+    """Which reading of a census names one row of the table, or -1.
+
+    THE ONE DISCLOSURE RULE, `census_nameable`, ASKED AT ITS LINE OF TWO
+    (plan P4-D150), so that the producer that writes a label role's form
+    or layout census and the loader that reads one ask ONE question and
+    cannot part. The line is two and not the settings floor because these
+    censuses pool what falls below the floor by design (invariant S13):
+    their named counts already reach the floor, and what this asks is
+    whether any reading is ONE. This is not a second statement of the
+    rule: at the merge of the labels repair into the integration, where
+    the numbers repair had already written the rule once, this function
+    was re-expressed as `census_nameable` at a floor of one, whose line is
+    two, over each reading in turn, so that it can say WHICH reading
+    failed. A census names one row in two ways, and both are refused:
+
+    - a count it publishes is one, the pool included;
+    - a total the reader holds beside it, less the cells the census
+      covers inside that total, is one. ``totals`` is those pairs, each
+      ``(total, covered)``. A pair is read only where the census covers
+      at least one cell of that total, because a census that says
+      NOTHING about a total -- the empty census above all -- leaves the
+      reader nothing to subtract: an absent census is absent, and the
+      total beside it is a fact published on its own terms.
+
+    The answer is ``-2`` for a count of one, the place in ``totals`` of
+    the first pair whose difference is one, and ``-1`` where the census
+    names no row, so a producer can repair the reading that failed.
+
+    ``floor`` NAMES THE LINE, AND IT DEFAULTS TO THE LINE OF TWO (round
+    2 of the review, the disclosure pass, item 2; the repair pass of
+    this landing). Every caller written before this argument leaves it
+    out and asks exactly what it asked, because `census_floor(1)` is
+    two. It is here for the reading whose S13 reasoning does NOT hold:
+    a census's own pooled remainder is published beside it, so what the
+    reader gets back by subtracting it is already a fact the description
+    states, and the question is only whether any reading is ONE. A
+    judged stand-in number's `n_occurrences` less its named spellings
+    is not like that -- the cells it counts wear spellings the
+    description never names and publishes no total for -- so that
+    reading is asked at the settings floor, and `taxonomy._missing_maps`
+    and the loader's V5 both pass it.
+
+    Guarantees: reads only its arguments; returns an int. Determinism:
+    a function of the arguments; the keys are read in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    for key in sorted(counts):
+        # A count of nought names nobody, and it is no reading to refuse.
+        if counts[key] >= 1 and not census_nameable([counts[key]], [], floor):
+            return -2
+    place = 0
+    for total, covered in totals:
+        rest = total - covered
+        if (
+            covered >= 1
+            and rest >= 1
+            and not census_nameable([], [rest], floor)
+        ):
+            return place
+        place = place + 1
+    return -1
+
+
+# The characters a form key of a cell read as a number can hold: figures,
+# the point and the comma, a sign, accounting brackets, and the one
+# letter an exponent is written with, in either case (plan P4-D175).
+_NUMBER_FORM_MARKS = SHAPE_DIGIT + SHAPE_LETTER + SHAPE_LOWER + ".,+-()"
+
+
+def form_never_a_number(key: str) -> bool:
+    """Whether no cell written in this form can be read as a number.
+
+    THE THIRD TOTAL A READER HOLDS BESIDE THE FORM CENSUS (plan P4-D175,
+    closing the final skeptic's BLOCKER). Every role that carries
+    `shape_forms` publishes `n_not_numeric`, and a named form no number
+    can wear counts cells inside that total, so a census naming 399
+    `&&&-%%%` codes beside `n_not_numeric` 400 said that exactly one cell
+    of the column was text of some other shape -- measured on 400
+    five-figure numbers, 399 codes and one `hello` at a floor of eleven.
+    The answer is read off the KEY alone, so the producer and the loader
+    ask one question and a reader can ask it too: a number as
+    `parse_number` reads it is written in figures, points and commas, a
+    sign, accounting brackets and at most one exponent letter, which
+    stands after a figure or a point and before a figure or a sign. So a
+    key with no figure, any other mark, a second letter, or a letter
+    anywhere else is never one. The answer errs toward False (a key that
+    might be a number), which only ever leaves a total out of the
+    question -- the direction that publishes less.
+
+    Guarantees: accepts a form key; returns a bool. Determinism: a
+    function of the key alone. Raises nothing. No I/O of any kind.
+    """
+    figures = 0
+    letters = 0
+    before = ""
+    place = 0
+    for character in key:
+        if character not in _NUMBER_FORM_MARKS:
+            return True
+        if character == SHAPE_DIGIT:
+            figures = figures + 1
+        elif character == SHAPE_LETTER or character == SHAPE_LOWER:
+            letters = letters + 1
+            after = key[place + 1 : place + 2]
+            if before not in (SHAPE_DIGIT, ".") or after not in (
+                SHAPE_DIGIT, "+", "-"
+            ):
+                return True
+        before = character
+        place = place + 1
+    return figures == 0 or letters > 1
+
+
+# -- the LAYOUT of a record number (contract 7.12) --------------------
+#
+# WHY THIS IS NOT `shape_form` WITH A LARGER LIMIT, stated here because
+# reusing that census was the obvious move and it is the wrong one.
+# `SHAPE_FORM_LIMIT` is 24 and a UUID is 36, so every UUID has no form
+# at all; but raising that limit would change the census the five label
+# roles publish, on columns this landing does not touch, and the limit
+# is not a performance bound -- it is C6-31a's judgement about where a
+# fact stops being about a code and starts being about a sentence. That
+# judgement is right for those roles and does not reach this one: a
+# DECLARED record number is a record number because its owner said so,
+# and no run of prose arrives here. So the identifier role gets a
+# census of its own, and the form census is left exactly as it was.
+#
+# The limit is sixty-four because the widest identifier scheme in
+# ordinary use is a braced GUID at thirty-eight characters.
+LAYOUT_FORM_LIMIT = 64
+
+# The one refusal this census raises on its own account: a convention
+# no member of `LAYOUT_CONVENTIONS` names. It is a mistake in a CALLER
+# and never in a document, so it is a plain ValueError and carries no
+# spelling of anybody's table.
+_NOT_A_LAYOUT_CONVENTION = (
+    "a layout convention must be one of the three this module names: "
+    "plain, lower-hexadecimal or upper-hexadecimal"
+)
+
+# THE MARKS A LAYOUT MAY CARRY: the thirteen C6-31a names, and the two
+# BRACES. A braced GUID -- `{B8B6D8FE-...-E52DB2221A58}`, which is how
+# SQL Server and many .NET exports write one -- wears braces, and a
+# closed list that omitted them would give that column no layout at
+# all while appearing to describe it.
+LAYOUT_MARKS = "-./_:#*()[]+,{}"
+
+# ...AND ONE SPACE BETWEEN TWO OTHER CHARACTERS (plan P4-D127). A
+# national number is written in groups -- `657 240 7282` -- and a census
+# that refused the space gave that column no layout at all: measured,
+# 800 real cells matched `\d{3} \d{3} \d{4}` and 0 twin cells did, both
+# files at exit 0. What the space was kept out for is prose, and a run
+# of prose is kept out by the rest of this rule: a space may not open or
+# close a cell and may not stand beside another space, so a sentence's
+# own spacing is never what a layout reads. The column is declared a
+# record number by its owner, and nothing here admits a tab, a line
+# break or any other space character.
+LAYOUT_SPACE = " "
+
+# THE SIX PLACEHOLDERS, and each one says a KIND of character and never
+# which character it was.
+LAYOUT_DIGIT = "%"
+LAYOUT_UPPER = "@"
+LAYOUT_LOWER = "&"
+LAYOUT_LOWER_HEX = "~"
+LAYOUT_UPPER_HEX = "^"
+# ...with ONE exception, which is stated rather than hidden: this mark
+# says a figure of a cell written in FIGURES ALONE was a nought of its
+# ZERO FILL -- a nought standing before every other figure and not the
+# last character of the cell. It is the writer's field width, the
+# `%08d` of NC-9, and it is the fact a reader loses when pandas or R
+# reads `01586982` as 1586982 and silently drops the zero.
+#
+# EVERY NOUGHT OF THE FILL IS MARKED, NOT ONLY THE FIRST (plan
+# P4-D126). Marking only the first said a cell was zero-filled and not
+# how far: measured on 800 cells of `%08d` over 1 to 499,999, the real
+# column opened `00` on 800 cells and the twin on 78, and
+# `len(x.lstrip('0')) <= 5` counted 158 real cells against 1 -- so code
+# stripping a fill and testing the number's width met a different column.
+# The count of noughts in the fill is how many decades short of the
+# width the number was, which is a coarse census of magnitudes under the
+# floor and never a value. `0` alone and `000` are written by a fill of
+# nought and one of two, so the LAST character is never marked: `0` is
+# `%` and `000` is `!!%`.
+#
+# It can name no text anybody chose, because it stands only where the
+# whole cell is figures, and it is never written in a hexadecimal
+# column, where a figure is one character of sixteen and a leading
+# nought is not a fill anybody wrote (plan P4-D125). A literal RUN of
+# letters -- a hospital's own record prefix, or `ABC-` in front of a
+# study number -- is a different thing, is a fragment of every value in
+# its column, and is NOT built here: it waits for the owner's ruling on
+# clause 3 (landing 2b.15).
+LAYOUT_LEADING_ZERO = "!"
+
+_LAYOUT_PLACEHOLDERS = "%@&~^!"
+
+# The three conventions a COLUMN of record numbers is written in. The
+# choice is the COLUMN's and never one cell's, and that is the whole of
+# why this census works where a per-character rule does not: measured
+# on eight hundred braced GUIDs, a hex mark decided character by
+# character gives 800 different layouts and not one of them reaches two
+# cells, because a figure is ambiguous between the two cases; and on a
+# column of site codes `BOS-1234` it gives three, because `B` is a
+# hexadecimal letter and `O` is not. Decided once for the column, the
+# same two columns give exactly one layout each.
+LAYOUT_PLAIN = "plain"
+LAYOUT_HEX_LOWER = "lower-hexadecimal"
+LAYOUT_HEX_UPPER = "upper-hexadecimal"
+LAYOUT_CONVENTIONS = (LAYOUT_PLAIN, LAYOUT_HEX_LOWER, LAYOUT_HEX_UPPER)
+
+_HEX_LOWER_LETTERS = "abcdef"
+_HEX_UPPER_LETTERS = "ABCDEF"
+
+
+def _could_carry_a_layout(text: str) -> bool:
+    """Whether one cell is one this census describes at all.
+
+    A cell is described where it is not empty, is no longer than
+    `LAYOUT_FORM_LIMIT`, holds at least one figure or letter, and holds
+    nothing but figures, ASCII letters, `LAYOUT_MARKS` and single
+    spaces, none of which opens or closes the cell (plan P4-D127).
+
+    THE TWO EDGES ARE EACH A PROPERTY AND NOT A PREFERENCE. A cell
+    carrying a PLACEHOLDER is refused, and a cell of marks ALONE is
+    refused: between them they are what makes "no cell that has a
+    layout can be spelled the same as any layout" true. Without the
+    second, a cell spelled `----` would have the layout `----` and be
+    its own key again, which is the collision `SHAPE_DIGIT` and
+    `SHAPE_LETTER` were chosen to rule out for the form census.
+    """
+    if not text or len(text) > LAYOUT_FORM_LIMIT:
+        return False
+    content = 0
+    before = ""
+    for character in text:
+        if character in _LAYOUT_PLACEHOLDERS:
+            return False
+        if _is_a_digit(character) or _is_a_letter(character):
+            content = content + 1
+            before = character
+            continue
+        if character in LAYOUT_MARKS:
+            before = character
+            continue
+        if character == LAYOUT_SPACE and before not in ("", LAYOUT_SPACE):
+            before = character
+            continue
+        return False
+    return content >= 1 and before != LAYOUT_SPACE
+
+
+def layout_convention(values: "list[str]") -> str:
+    """Which alphabet convention a whole column of record numbers uses.
+
+    HEXADECIMAL exactly where every letter of every described cell is
+    one of `abcdef` in EITHER case and at least one letter appears
+    anywhere. The case the column is written in is the case MOST of
+    those letters wear -- lower where the two are as many -- and a cell
+    written in the other case wears the same layout (plan P4-D125).
+    Everything else is `LAYOUT_PLAIN`, where a letter is marked by its
+    CASE instead.
+
+    WHY THE CASE IS NOT ALL OR NOTHING ANY MORE. It was, and one
+    upper-case UUID among 799 lower-case ones turned the whole column
+    PLAIN: every UUID then wore its own mask of figures and letters, 800
+    layouts of one cell each, and at a floor of eleven the census was
+    nothing but its pool and the twin wrote `A----...J` on every row.
+    A letter's case is not what makes a character hexadecimal, so it
+    does not decide the convention; it decides only which case the
+    column's marks say, and a cell in the minority case -- one cell, or
+    too few to name -- is never counted apart, so nothing about it is
+    published at all.
+
+    The letter test itself stays all-or-nothing. A column one of whose
+    letters is not a hexadecimal one is not a hexadecimal column, so a
+    site code `BOS-1234` keeps `@@@-%%%%` and does not shatter into one
+    layout per site.
+
+    AND A LETTER THAT NEVER TRADES PLACES WITH A FIGURE IS A LETTER
+    (plan P4-D154). Letters inside `a` to `f` do not make a column
+    hexadecimal on their own: `A1000000`, `B1000001` ... `F1000799` hold
+    no other letter, and read as hexadecimal the column published
+    `^^^^^^^^` and its twin wrote 786 of 800 cells with a figure where
+    every real cell has its letter -- `[A-Z][0-9]{7}` matched 800 real
+    cells and 14 twin cells, and both files passed. What a hexadecimal
+    encoding shows that a letter-then-figures scheme does not is a
+    POSITION holding a letter in one cell and a figure in another, so
+    the column is hexadecimal only where, among its described cells of
+    one length, some position holds both.
+
+    Guarantees: accepts a list of strings; reads only them; returns one
+    member of `LAYOUT_CONVENTIONS`. Determinism: the answer depends
+    only on the values. Raises TypeError if handed anything that is not
+    a list of string instances. No I/O of any kind.
+    """
+    if not isinstance(values, list):
+        raise TypeError(_NOT_TEXT)
+    lower = 0
+    upper = 0
+    # What each (length, position) has held: 1 a figure, 2 a letter.
+    held: "dict[tuple[int, int], int]" = {}
+    traded = False
+    for value in values:
+        if not isinstance(value, str):
+            raise TypeError(_NOT_TEXT)
+        if not _could_carry_a_layout(value):
+            continue
+        place = 0
+        for character in value:
+            place = place + 1
+            kind = 0
+            if _is_a_digit(character):
+                kind = 1
+            if _is_a_letter(character):
+                kind = 2
+                if character in _HEX_LOWER_LETTERS:
+                    lower = lower + 1
+                elif character in _HEX_UPPER_LETTERS:
+                    upper = upper + 1
+                else:
+                    return LAYOUT_PLAIN
+            if not kind:
+                continue
+            spot = (len(value), place)
+            seen = held[spot] if spot in held else 0
+            held[spot] = seen | kind
+            if held[spot] == 3:
+                traded = True
+    if lower + upper < 1 or not traded:
+        return LAYOUT_PLAIN
+    if upper > lower:
+        return LAYOUT_HEX_UPPER
+    return LAYOUT_HEX_LOWER
+
+
+def _layout_mark(character: str, convention: str, filling: bool) -> str:
+    """The one mark that stands for one character of a cell.
+
+    ``filling`` says the character is a nought of the cell's zero fill,
+    which `layout_form` settles for the whole cell.
+    """
+    if _is_a_digit(character):
+        if filling:
+            return LAYOUT_LEADING_ZERO
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        return LAYOUT_DIGIT
+    if _is_a_letter(character):
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        if "a" <= character <= "z":
+            return LAYOUT_LOWER
+        return LAYOUT_UPPER
+    return character
+
+
+def layout_form(text: str, convention: str) -> str:
+    """The LAYOUT of one record number: its kinds, position by position.
+
+    Every character becomes one mark saying what KIND of character stood
+    there -- a figure, an upper-case letter, a lower-case letter, a
+    hexadecimal character -- and every mark of `LAYOUT_MARKS`, and every
+    single interior space, stands as itself. A UUID
+    `a46d6753-ec14-8cb4-8e73-ca47ea90a8f0` in a lower-hexadecimal column
+    has the layout `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~`; a site code
+    `NYC-7480` has `@@@-%%%%`; a record number `REC4972605` has
+    `@@@%%%%%%%`; a national number `657 240 7282` has `%%% %%% %%%%`;
+    and `00282669`, being figures alone with a fill of two noughts, has
+    `!!%%%%%%`.
+
+    ONE MARK PER CHARACTER, WHICH IS WHY THE LENGTH RIDES IN THE KEY.
+    A layout is exactly as long as the cell it came from, so the census
+    of layouts IS the census of lengths, and the length mix NC-9 found
+    collapsing -- `{10: 573, 7: 227}` written back as `{7: 799, 10: 1}`
+    -- is carried by the same key that carries the shape. Nothing
+    separate has to be published for it, and nothing separate can drift
+    out of step with it.
+
+    THE ZERO FILL is every nought before the first other figure of a
+    cell written in figures alone, the last character excepted, and is
+    marked only in a PLAIN column (see `LAYOUT_LEADING_ZERO`).
+
+    A CELL `_could_carry_a_layout` REFUSES HAS NO LAYOUT AT ALL and
+    answers the empty string, exactly as a formless cell does in the
+    form census, and it is counted nowhere rather than pooled.
+
+    Guarantees: accepts any string; returns a layout built only from
+    the six placeholders, `LAYOUT_MARKS` and single interior spaces, or
+    "" for a cell this census does not describe. Determinism: the
+    answer depends only on the text and the convention. Raises
+    TypeError if handed anything that is not a string instance, and
+    ValueError for a convention this module does not name. Boundary: no
+    figure and no letter of the cell survives into the answer -- only
+    what KIND stood at each position, and where the marks between them
+    fell. No I/O of any kind.
+    """
+    if not isinstance(text, str) or not isinstance(convention, str):
+        raise TypeError(_NOT_TEXT)
+    if convention not in LAYOUT_CONVENTIONS:
+        raise ValueError(_NOT_A_LAYOUT_CONVENTION)
+    if not _could_carry_a_layout(text):
+        return ""
+    fill = 0
+    if convention == LAYOUT_PLAIN and _all_ascii_digits(text):
+        while fill < len(text) - 1 and text[fill] == "0":
+            fill = fill + 1
+    built = ""
+    place = 0
+    for character in text:
+        built = built + _layout_mark(character, convention, place < fill)
+        place = place + 1
+    return built
+
+
+def is_a_layout_form(name: str) -> bool:
+    """Whether one census key is a layout: THE one definition of it.
+
+    The producer builds a layout, the loader admits a key and the
+    publication guard refuses one, and the form census learned at cost
+    what happens when those are three readings of one rule rather than
+    three callers of one predicate (review round 2 finding 2). There is
+    one definition here and the others call it.
+
+    A layout is one to `LAYOUT_FORM_LIMIT` characters, every one of them
+    a placeholder, a mark from the closed list or a single space that
+    neither opens nor closes the key, carrying AT LEAST ONE placeholder.
+    The last clause is what keeps a key of marks alone out, and with it
+    the property that no cell wearing a layout is spelled like any
+    layout. AND A ZERO FILL IS A KEY OF FIGURES ALONE: a key holding `!`
+    is a run of `!` followed by at least one `%` and nothing else, which
+    is the only thing `layout_form` ever writes it as (plan P4-D126).
+
+    THERE IS NO TWO-KINDS RULE HERE, and that is a difference from the
+    form census rather than an oversight. `@@@@@` is refused there
+    because `length` and the two alphabet counts already say five
+    letters. On this role they do not: `min_length` and `max_length`
+    give only the two ends, so `%%%%%%%` and `%%%%%%%%%%` on one column
+    say how many cells are seven characters and how many are ten --
+    the very fact NC-9 found lost -- and `!%%%%%%%` says the zero fill
+    besides. A key of one kind carries information here.
+
+    Guarantees: accepts any string; answers only from the characters.
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not name or len(name) > LAYOUT_FORM_LIMIT:
+        return False
+    placeholders = 0
+    before = ""
+    for character in name:
+        if character in _LAYOUT_PLACEHOLDERS:
+            placeholders = placeholders + 1
+            before = character
+            continue
+        if character in LAYOUT_MARKS:
+            before = character
+            continue
+        if character == LAYOUT_SPACE and before not in ("", LAYOUT_SPACE):
+            before = character
+            continue
+        return False
+    if placeholders < 1 or before == LAYOUT_SPACE:
+        return False
+    if LAYOUT_LEADING_ZERO not in name:
+        return True
+    return _is_a_fill_key(name)
+
+
+def _is_a_fill_key(name: str) -> bool:
+    """Whether a key holding `!` is a run of `!` then at least one `%`."""
+    place = 0
+    while place < len(name) and name[place] == LAYOUT_LEADING_ZERO:
+        place = place + 1
+    if place < 1 or place >= len(name):
+        return False
+    while place < len(name):
+        if name[place] != LAYOUT_DIGIT:
+            return False
+        place = place + 1
+    return True
+
+
+def layout_fill(name: str) -> int:
+    """How many noughts of zero fill one layout says, 0 for none.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    fill = 0
+    while fill < len(name) and name[fill] == LAYOUT_LEADING_ZERO:
+        fill = fill + 1
+    return fill
+
+
+def layout_shallower(name: str) -> str:
+    """The layout one nought SHALLOWER than a zero-filled one, or "".
+
+    A key of two or more fill noughts gives up its last `!` for a `%`:
+    `!!!%%%%%` gives `!!%%%%%%`. It is the ONE step the census takes
+    when a fill depth is too rare to name (contract C6-130, plan
+    P4-D126): the rare depth's cells are counted under the next
+    shallower depth, which is a true statement about them -- a cell
+    filled with three noughts was filled with at least two -- and the
+    step stops at one nought, below which a cell is not zero-filled at
+    all and nothing shallower is true of it. "" for any key with fewer
+    than two fill noughts.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    depth = layout_fill(name)
+    if depth < 2:
+        return ""
+    return name[: depth - 1] + LAYOUT_DIGIT + name[depth:]
+
+
+def layout_room(name: str) -> int:
+    """How many different cells could have worn this layout.
+
+    Each placeholder stands for its own alphabet -- ten figures,
+    twenty-six letters of one case, sixteen hexadecimal characters --
+    and `LAYOUT_LEADING_ZERO` stands for exactly one character, the
+    nought, which is what it says. The marks and the space stand for
+    themselves. So a layout is a COUNT of the cells it could have come
+    from, and that count is what tells a generator whether it can spell
+    as many different values as the layout is asked for.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    room = 1
+    for character in name:
+        if character == LAYOUT_DIGIT:
+            room = room * 10
+        elif character == LAYOUT_UPPER or character == LAYOUT_LOWER:
+            room = room * 26
+        elif character == LAYOUT_LOWER_HEX or character == LAYOUT_UPPER_HEX:
+            room = room * 16
+    return room
+
+
+def layout_supply(name: str) -> int:
+    """How many different cells could have been COUNTED under this layout.
+
+    THE CAPACITY THE DISCLOSURE RULE ASKS, which is not the enumeration
+    capacity `layout_room` gives (Codex blocker 1 of the extra round,
+    2026-09-18; plan P4-D260). `layout_room` counts the spellings a
+    generator can build from the marks; this counts the cells
+    `layout_form` would put UNDER the key, and on a key of figures alone
+    the two differ, because the zero fill takes the leading noughts away
+    into a key of their own.
+
+    A key of figures alone -- `!` and `%` and nothing else -- is written
+    only under `LAYOUT_PLAIN`, where `layout_form` marks every nought
+    before the first other figure, the last character excepted. So the
+    first `%` of such a key stands for a figure that is NOT a nought
+    whenever another `%` follows it: `%%%` is worn by `100` to `999` and
+    never by `012`, which wears `!%%`. Its supply is 900 and not a
+    thousand, and `!%%` is 90 and not a hundred. Where the key holds one
+    `%` alone that figure is the last character, which the fill rule
+    excepts, so every figure stands and the supply is ten.
+
+    MEASURED, AND IT IS WHY THIS EXISTS: 900 record numbers `100` to
+    `999` at a floor of eleven published `layout_forms={"%%%": 900}`
+    beside `n_distinct` 900, because 1,000 clears 900 plus the floor.
+    The census named every one of the 900 cells that wear the layout, so
+    the layout's own supply WAS the source's value set, the twin
+    generated all 900, and both files validated at exit 0. With the
+    supply counted here the layout is refused and its cells are pooled.
+
+    Every other key answers exactly `layout_room`: a mark or a space
+    anywhere stops `_all_ascii_digits`, so no fill is marked, and a
+    letter or a hexadecimal place is never a nought of a fill.
+
+    Guarantees: accepts a string; returns a whole number of one or more.
+    Determinism: a function of the argument. Raises TypeError if handed
+    anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    room = layout_room(name)
+    figures = 0
+    for character in name:
+        if character == LAYOUT_DIGIT:
+            figures = figures + 1
+        elif character != LAYOUT_LEADING_ZERO:
+            return room
+    if figures < 2:
+        return room
+    return room - room // 10
+
+
+# -- the literal PREFIX of a record number (owner ruling 2026-09-17) ---
+#
+# THE ONE FRAGMENT A LAYOUT CENSUS MAY CARRY, AND ONLY BY RULING. A
+# layout replaces every letter of a cell with a mark saying its case,
+# so `P00123`, `REC1234567` and `ABC-1234` came back as `X17879`,
+# `FPQ7317879` and `JOD-7879`: measured at 800 rows (landing 2b.15),
+# `^P\d{5}$` matched 800 real cells and 30 twin cells, `^REC\d{7}$` 800
+# and 0, `^ABC-\d{4}$` 800 and 0, and both files validated at exit 0.
+# The owner's ruling of 2026-09-17, item 1, settles clause 3 for this
+# case: where every present cell of a declared record number opens with
+# the SAME literal text and the column clears the smallest group size,
+# that text is published and the twin writes it. It amends contract
+# invariants I3 and F3 for this case and no other.
+
+# The key of `layout_prefixes` that says EVERY present cell of the
+# column opens with the prefix. It holds lower-case letters, which no
+# layout ever holds, so it can never be mistaken for a layout key.
+PREFIX_OF_THE_COLUMN = "(column)"
+
+
+def literal_prefix(values: "list[str]", convention: str) -> str:
+    """The literal text every one of ``values`` opens with, or "".
+
+    THE ONE DEFINITION (owner ruling 2026-09-17, item 1; contract 7.12a).
+    The producer asks it of a column's present cells and of the cells of
+    each named layout, and nothing else restates it. The prefix is the
+    longest opening every value shares, cut back by four rules, each of
+    which keeps what is published a label the column's writer put in
+    front of the number rather than part of anybody's number:
+
+    1. NO FIGURE. It stops before the first figure, so `P00123` beside
+       `P00456` publishes `P` and not `P00`: the noughts are part of
+       the number, and saying every number is below a thousand is a fact
+       about values.
+    2. A FIGURE OR A LETTER OF EVERY VALUE STANDS AFTER IT, so no value
+       is ever published whole -- not even as a prefix and the marks its
+       layout already names: `no#` in front of every `no##` would be.
+    3. NO HALF A RUN OF LETTERS. Where it ends in a letter and some value
+       goes on with another letter, it is cut back to the last character
+       that is not a letter: `REC` beside `REX` publishes nothing, and
+       `ST-A123` beside `ST-B456` publishes `ST-`.
+    4. ONLY CHARACTERS A LAYOUT CARRIES AS THEY ARE: ASCII letters, the
+       marks of `LAYOUT_MARKS`, and a single space that does not open the
+       prefix or stand beside another. An opening holding anything else
+       publishes nothing, and so does one holding no letter at all,
+       because marks alone are already in the layout.
+
+    A HEXADECIMAL COLUMN IS READ UNDER RULE 3 AND NOT BARRED (plan
+    P4-D233, closing the limit P4-D202 put to the owner). Every letter
+    of such a column is one of `abcdef` in either case, so every letter
+    is a figure of base sixteen and rule 3 -- no half a run of figures
+    -- cuts the opening back to the last character that is NOT one. A
+    prefix there therefore always ends in a mark: 800 cells of `DE-`
+    and six hexadecimal figures publish `DE-`, where `ab12` beside
+    `ab34` still publishes nothing, because `ab` is half a number.
+    Nothing else about the rules changes, and `is_a_literal_prefix`
+    admits the same text whatever the column.
+
+    Guarantees: accepts a list of strings and a member of
+    `LAYOUT_CONVENTIONS`; returns "" or a string satisfying
+    `is_a_literal_prefix`. Determinism: a function of the arguments.
+    Raises TypeError for anything that is not a list of strings. No I/O
+    of any kind.
+    """
+    if not isinstance(values, list):
+        raise TypeError(_NOT_TEXT)
+    if convention not in LAYOUT_CONVENTIONS or not values:
+        return ""
+    common = ""
+    shortest = -1
+    first = True
+    for value in values:
+        if not isinstance(value, str):
+            raise TypeError(_NOT_TEXT)
+        # Where this value's last figure or letter stands: the prefix
+        # must end before it (rule 2).
+        last = -1
+        place = 0
+        for character in value:
+            if _is_a_digit(character) or _is_a_letter(character):
+                last = place
+            place = place + 1
+        if first:
+            common = value
+            shortest = last
+            first = False
+            continue
+        shortest = min(shortest, last)
+        place = 0
+        while (
+            place < len(common)
+            and place < len(value)
+            and common[place] == value[place]
+        ):
+            place = place + 1
+        common = common[:place]
+    place = 0
+    while place < len(common) and not _is_a_digit(common[place]):
+        place = place + 1
+    common = common[: min(place, max(shortest, 0))]
+    while common and _is_a_letter(common[len(common) - 1]):
+        goes_on = False
+        for value in values:
+            if _is_a_letter(value[len(common)]):
+                goes_on = True
+        if not goes_on:
+            break
+        common = common[: len(common) - 1]
+    # RULE 3 IN A HEXADECIMAL COLUMN. There a letter is a figure of base
+    # sixteen, so a prefix ending in one ends inside a number and is cut
+    # back to the last character that is not a figure of the base.
+    if convention != LAYOUT_PLAIN:
+        while common and _is_a_hex_figure(common[len(common) - 1]):
+            common = common[: len(common) - 1]
+    if not is_a_literal_prefix(common):
+        return ""
+    return common
+
+
+def _is_a_hex_figure(character: str) -> bool:
+    """Whether one character is a figure of base sixteen, in either case.
+
+    A hexadecimal column's letters are all inside `abcdef`
+    (`layout_convention`), so this asks the same question of a letter
+    whichever case the column's marks say.
+    """
+    return (
+        _is_a_digit(character)
+        or character in _HEX_LOWER_LETTERS
+        or character in _HEX_UPPER_LETTERS
+    )
+
+
+def is_a_literal_prefix(text: str) -> bool:
+    """Whether one published prefix is text `literal_prefix` can write.
+
+    One to `LAYOUT_FORM_LIMIT` less one characters, every one an ASCII
+    letter, a mark of `LAYOUT_MARKS` or a single space that does not open
+    it and does not follow another space, with at least one letter and no
+    figure. The producer, the loader and the publication guard ask this
+    one predicate. A key carrying a placeholder is refused here, so no
+    prefix can be read as a layout.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) >= LAYOUT_FORM_LIMIT:
+        return False
+    letters = 0
+    before = ""
+    for character in text:
+        if _is_a_letter(character):
+            letters = letters + 1
+        elif character == LAYOUT_SPACE:
+            if before in ("", LAYOUT_SPACE):
+                return False
+        elif character not in LAYOUT_MARKS:
+            return False
+        before = character
+    return letters >= 1
+
+
+def prefix_layout(text: str, convention: str) -> str:
+    """The layout a column gives a literal prefix, mark by mark.
+
+    Every letter takes the mark its own column's convention gives it --
+    `LAYOUT_UPPER` or `LAYOUT_LOWER` by its case in a plain column, the
+    column's hexadecimal mark in a hexadecimal one (plan P4-D233) --
+    and every other character stands as itself, so a prefix belongs to
+    a layout exactly where the layout opens with this. It is
+    `layout_form`'s own reader, asked character by character, so the
+    two can never drift: `REC` under a plain column is `@@@` and `DE-`
+    under a lower-hexadecimal one is `~~-`.
+
+    Raises TypeError if handed anything that is not a string instance,
+    and ValueError for a convention this module does not name. No I/O
+    of any kind.
+    """
+    if not isinstance(text, str) or not isinstance(convention, str):
+        raise TypeError(_NOT_TEXT)
+    if convention not in LAYOUT_CONVENTIONS:
+        raise ValueError(_NOT_A_LAYOUT_CONVENTION)
+    built = ""
+    for character in text:
+        built = built + _layout_mark(character, convention, False)
+    return built
+
+
+def prefix_nameable(carrying: int, present: int, floor: int) -> bool:
+    """Whether a prefix ``carrying`` of ``present`` cells open with may print.
+
+    THE DISCLOSURE RULE, asked once and not restated: `census_nameable`
+    with the cells opening with the prefix as the count and the column's
+    present cells as the population a reader subtracts it from. So the
+    cells carrying it reach the line, and the cells NOT carrying it are
+    nought -- the whole column -- or reach the line too. A prefix that
+    every cell of one layout wears, and all but one cell of the column,
+    would otherwise say that one row of the table is written otherwise.
+
+    Guarantees: a fixed function of the three. Raises nothing. No I/O.
+    """
+    return census_nameable([carrying], [present], floor)
+
+
+def absorbed_total(count: int, population: int, floor: int) -> int:
+    """One scalar count of a published population, as the disclosure rule allows.
+
+    THE SHARED RULE ASKED OF A SCALAR AND NOT OF A CENSUS (plan P4-D277).
+    A block that publishes no value of the table still publishes counts
+    that SPLIT its cells: how many read as a number, how many are figures
+    alone, how many lie inside the code alphabet. Each is a census of two
+    groups written as one number, and `census_nameable` governs it as it
+    governs a census of ten: the count names a group, and so does what it
+    leaves of the population.
+
+    **Measured** at a floor of eleven, on 999 declared record numbers of
+    `REC` and seven figures beside one `42`: the block published
+    `n_numeric 1`, `n_all_digits 1` and `n_not_numeric 999` against
+    `n_present 1000`, each of them naming that one record; with `X Y` in
+    its place, `n_code_alphabet 999` beside `n_present 1000` named the
+    one identifier outside the alphabet. Layouts were withheld for
+    exactly this reason and these counts were not.
+
+    WHERE THE PAIR CANNOT SPEAK, THE SMALLER SIDE IS COUNTED INTO THE
+    LARGER, which is ruling 6 of 2026-09-17 again: the description is the
+    description of the table with those cells written the way most of its
+    cells were, and describing the table again says the same thing, so
+    the table passes its own description. A population too small for
+    either side to reach the line is counted wholly to the larger side,
+    ties to the population.
+
+    Guarantees: accepts the count, the population it is taken from and
+    the settings floor; returns the count, nought, or the population.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    if census_nameable([count], [population], floor):
+        return count
+    if count * 2 >= population:
+        return population
+    return 0
+
+
+def counts_absorbed_to(published: int, population: int, floor: int) -> "list[int]":
+    """Every measured count `absorbed_total` publishes as ``published``.
+
+    A PUBLISHED ABSORBED COUNT NAMES A SET OF TABLES, NOT ONE COUNT (plan
+    P4-D298). Where the pair cannot speak, `absorbed_total` publishes
+    nought or the whole population, and a column whose measured count is
+    one below either end publishes the same number as a column holding
+    it exactly. A twin meets the published count wherever describing it
+    again publishes that number -- which is how the validator reads it,
+    since it describes the twin with this module's own producer -- and
+    the table itself does so only in that sense: 999 figures beside one
+    `ab` publish `n_all_digits 1000`, and the table's own count is 999.
+
+    So this is the reading the generator packs against. **Measured** on
+    the free-text battery of review item P2-C4-F2 at e53d5f4: 158 of
+    3,186 producer columns published an absorbed alphabet count that no
+    assignment of whole groups meets EXACTLY beside the four class
+    counts, the length ends and the word ends the same block publishes --
+    a column of eleven figures and one `ab` publishes `n_all_digits 12`
+    beside `n_numeric 11` -- and every one of them fell to the fallback
+    packing, although its own values meet the published description.
+
+    Guarantees: accepts the published count, the population it was taken
+    from and the settings floor; returns every count from nought to the
+    population that `absorbed_total` publishes as ``published``, the
+    published count first where it is one of them, then in ascending
+    distance from it, ties to the smaller. Empty where no count is. A
+    count the rule can move lies within the census line of an end, so at
+    most `2 * census_floor(floor) + 1` counts are asked. Determinism: a
+    fixed function of the three. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    offered: dict[int, int] = {}
+    if 0 <= published <= population:
+        offered[published] = 1
+    for count in range(0, min(line, population + 1)):
+        offered[count] = 1
+    for count in range(max(population - line + 1, 0), population + 1):
+        offered[count] = 1
+    ranked = sorted(
+        [(abs(count - published), count) for count in sorted(offered)]
+    )
+    found: list[int] = []
+    for pair in ranked:
+        if absorbed_total(pair[1], population, floor) == published:
+            found += [pair[1]]
+    return found
+
+
+def count_as_published(
+    count: int, population: int, published: int, floor: int
+) -> int:
+    """A recounted count as the description it is held to would print it.
+
+    THE ONE READING A RECOUNT OF AN ABSORBED COUNT MAKES (plan P4-D298).
+    A count equal to the published one is met as it stands; any other is
+    read through `absorbed_total`, which is what describing the cells
+    again would publish. The first clause is what keeps a description
+    written before plan P4-D277 -- or by hand -- held to the count it
+    prints: its twin holds that count exactly and is never named for it.
+
+    Guarantees: accepts the recounted count, the population it was taken
+    from, the published count and the settings floor; returns the count
+    itself or its absorbed reading. Determinism: a fixed function of the
+    four. Raises nothing. No I/O of any kind.
+    """
+    if count == published:
+        return count
+    return absorbed_total(count, population, floor)
+
+
+def parts_as_published(
+    parts: "list[int]", published: "list[int]", floor: int
+) -> "list[int]":
+    """A recounted partition as the description it is held to would print it.
+
+    `count_as_published` for the four-way partition of invariant X2 (plan
+    P4-D298): a partition equal to the published one stands, and any
+    other is read through `absorbed_parts`. Guarantees: returns four
+    counts. Determinism: a fixed function of the three. Raises nothing.
+    No I/O of any kind.
+    """
+    if parts == published:
+        return [part for part in parts]
+    return absorbed_parts(parts, floor)
+
+
+def absorbed_parts(parts: "list[int]", floor: int) -> "list[int]":
+    """A declared record number's four-way partition, as X2 publishes it.
+
+    THE RULE OF CONTRACT INVARIANT X2 (plan P4-D277), stated once so the
+    producer that publishes the four counts and the generator that owes
+    them read one partition the same way (plan P4-D298). ``parts`` is
+    what the cells read as -- numbers, numerals out of range, numerals
+    contradicting themselves, text -- in the contract's own order. A part
+    below `census_floor(floor)` is counted into the LARGEST part, ties to
+    the first of the four, which is ruling 6 of 2026-09-17 again; the
+    sum is unchanged.
+
+    Guarantees: accepts the four measured counts and the settings floor;
+    returns the four published counts, summing to the same total.
+    Determinism: a fixed function of the two. Raises nothing. No I/O.
+    """
+    line = census_floor(floor)
+    largest = 0
+    place = 0
+    for part in parts:
+        if part > parts[largest]:
+            largest = place
+        place = place + 1
+    taken = 0
+    kept = [0 for _each in parts]
+    place = 0
+    for part in parts:
+        if place != largest and 0 < part < line:
+            taken = taken + part
+        else:
+            kept[place] = part
+        place = place + 1
+    kept[largest] = kept[largest] + taken
+    return kept
+
+
+def parts_absorbed_to(
+    published: "list[int]", floor: int
+) -> "list[list[int]]":
+    """Every measured partition `absorbed_parts` publishes as ``published``.
+
+    The partition's reading of `counts_absorbed_to` (plan P4-D298): a
+    declared record number publishing `n_numeric 25` and nothing else
+    describes a column of 25 numbers, and equally one of 23 numbers, one
+    cell of text and one numeral out of range, since both are published
+    alike. The published largest part is the measured largest part --
+    the rule only adds to it -- so every other part published as nought
+    may have measured anything below the census line, and the largest
+    gives up what they take.
+
+    Guarantees: accepts the four published counts and the settings
+    floor; returns every partition of the same total that
+    `absorbed_parts` publishes as ``published``, the published one first
+    where it is one of them, then by the number of cells moved, ties in
+    ascending order of the four counts. At most `census_floor(floor)`
+    cubed partitions are asked. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    largest = 0
+    place = 0
+    for part in published:
+        if part > published[largest]:
+            largest = place
+        place = place + 1
+    free: list[int] = []
+    place = 0
+    for part in published:
+        if place != largest and part == 0:
+            free += [place]
+        place = place + 1
+    ranked: list[tuple[int, tuple[int, ...]]] = []
+    wheel = [0 for _each in free]
+    while True:
+        moved = 0
+        for value in wheel:
+            moved = moved + value
+        measured = [part for part in published]
+        for step in range(len(free)):
+            measured[free[step]] = wheel[step]
+        measured[largest] = published[largest] - moved
+        if measured[largest] >= 0 and absorbed_parts(measured, floor) == (
+            published
+        ):
+            ranked += [(moved, tuple(measured))]
+        turned = len(free) - 1
+        while turned >= 0 and wheel[turned] == line - 1:
+            wheel[turned] = 0
+            turned = turned - 1
+        if turned < 0:
+            break
+        wheel[turned] = wheel[turned] + 1
+    found: list[list[int]] = []
+    for pair in sorted(ranked):
+        found += [[part for part in pair[1]]]
+    return found
+
+
+def prefix_room(layout: str, prefix: str, convention: str) -> int:
+    """How many different cells a layout still spells once a prefix is fixed.
+
+    THE ROOM RULE, ASKED OF THE PREFIX (plan P4-D270). `layout_room`
+    counts the cells a layout could have come from while every one of
+    its positions is free. A published prefix fixes some of them: a
+    reader who holds `@@@%%%` beside the prefix `REC` does not hold
+    17,576,000 possible cells, they hold a THOUSAND, because the three
+    letters are spelt out for them. So the count that has to clear the
+    census's own room is this one, and it is the only count that ever
+    was -- the prefix simply did not exist when `layout_census` wrote
+    the rule.
+
+    The prefix is read into its own layout by `prefix_layout`, which is
+    `layout_form`'s reader, so a prefix belongs to a layout exactly
+    where the layout opens with it. Where it does not, the layout's room
+    is untouched and this answers `layout_room`.
+
+    Raises TypeError if handed anything that is not a string instance,
+    and ValueError for a convention this module does not name. No I/O of
+    any kind.
+    """
+    opening = prefix_layout(prefix, convention)
+    if layout[: len(opening)] != opening:
+        return layout_room(layout)
+    return layout_room(layout[len(opening):])
+
+
+def prefix_leaves_room(
+    layout: str, prefix: str, convention: str, distinct: int, floor: int
+) -> bool:
+    """Whether a prefix may stand beside a layout without spelling the column.
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 1, HELD TO THE GUARD THAT WAS
+    ALREADY THERE (plan P4-D270, contract invariant LP3). `layout_census`
+    names a layout only where it could have come from at least
+    `n_distinct + floor` different cells, so that the named shape never
+    spells out the column's own value set. Publishing the prefix is the
+    ruling's own amendment of invariants I3 and F3, and it does not
+    amend that guard: it feeds it.
+
+    MEASURED, on the shape the final review of 2026-09-18 built. 1,000
+    record numbers `REC000` to `REC999` at a floor of eleven, declared,
+    beside a constant second column, published `layout_forms
+    {"@@@%%%": 1000}`, `layout_prefixes {"(column)": "REC"}` and
+    `n_distinct 1000`. Those three facts have exactly one solution, and
+    at seed 4 the twin held all 1,000 of the table's own record numbers,
+    every one of its rows a row of the table, with both files at exit 0.
+    `layout_room("@@@%%%")` is 17,576,000 and clears 1,011 easily;
+    `prefix_room` is 1,000 and does not.
+
+    WHAT GIVES WAY IS THE PREFIX AND NOT THE CENSUS, because the census
+    is what the twin's shape is built from and the prefix may only stand
+    beside a named layout at all (invariant LP1): taking the census back
+    would leave the prefix nothing to stand on, and taking the prefix
+    back leaves a column whose layout still clears the room rule on its
+    own. So the coarser fact is published and the sharper one is not.
+    The ruling is unmoved everywhere it can be kept -- `REC` and seven
+    figures over 800 rows leaves 10,000,000 cells for 811 and is
+    published exactly as before.
+
+    Guarantees: accepts a layout, a prefix, the census's convention, the
+    column's different values and the settings floor; returns a bool.
+    Determinism: a fixed function of the five. Raises TypeError for a
+    non-string, and ValueError for an unnamed convention. No I/O.
+    """
+    return prefix_room(layout, prefix, convention) >= distinct + floor
 
 
 # What one cell says about the comma inside it.
@@ -1003,11 +3422,11 @@ def _groups_by_threes(body: str, mark: str) -> bool:
     current = ""
     for character in body:
         if character == mark:
-            fields = fields + [current]
+            fields += [current]
             current = ""
             continue
         current = current + character
-    fields = fields + [current]
+    fields += [current]
     head = fields[0]
     if not head or len(head) > 3 or not _all_ascii_digits(head):
         return False
@@ -1015,6 +3434,81 @@ def _groups_by_threes(body: str, mark: str) -> bool:
         if len(field) != 3 or not _all_ascii_digits(field):
             return False
     return True
+
+
+def groups_thousands(text: str) -> bool:
+    """Whether this cell PROVES its comma separates thousands.
+
+    The gate `group_separator` is published through, and it is
+    deliberately narrow. A cell proves a thousands separator only where
+    `comma_reading` says so: a point somewhere after the comma
+    (`1,234.56`), or a second comma (`1,234,567`). A lone `1,795`
+    settles nothing -- it reads either way -- and contributes no
+    evidence at all, so a decimal-comma column is never mistaken for a
+    grouped one and the ambiguity costs no new judgement here. That
+    reasoning, and the four constants it turns on, are `comma_reading`'s
+    and this only asks the question.
+
+    Guarantees: accepts text; answers True only where the cell itself
+    settles the reading as grouping. Determinism: the answer depends
+    only on the text. Raises TypeError if handed anything that is not a
+    string instance. Boundary: no figure of the cell travels out
+    through it. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return comma_reading(text) == COMMA_GROUPED
+
+
+def with_group_separator(figures: str, mark: str) -> str:
+    """`figures` with `mark` between each group of three whole figures.
+
+    THE WRITE RULE FOR A GROUPED COLUMN, and the reason the twin can
+    hold one at all. What used to stand here was the ruling that a
+    thousands separator can never be written because "the comma breaks
+    the CSV row itself". That is FALSE and it is the whole reason the
+    defect existed: `rendering.twin_csv` already quotes any cell
+    holding a comma, so `"$2,198.92"` is written, quoted, and read back
+    by this module's own reader unchanged.
+
+    Only the whole part is grouped, and only from four figures up. A
+    sign, a decimal point, anything after the point and any exponent
+    are left exactly as they were: an exponent's mantissa never reaches
+    four whole figures, and a padded field is a code whose width a
+    separator would corrupt, so neither is ever handed here.
+
+    Guarantees: accepts a written number and one separator character;
+    returns the same number with the separator between each group of
+    three whole figures, or the number unchanged where its whole part
+    is shorter than four figures or where `mark` is empty. Determinism:
+    a fixed function of the two. Raises TypeError if handed anything
+    that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(figures, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    if mark == "":
+        return figures
+    sign = ""
+    body = figures.strip()
+    if body[:1] == "+" or body[:1] == "-":
+        sign = body[:1]
+        body = body[1:]
+    point = body.find(".")
+    whole = body if point < 0 else body[:point]
+    rest = "" if point < 0 else body[point:]
+    if len(whole) < 4 or not _all_ascii_digits(whole):
+        return figures
+    lead = len(whole) % 3
+    if lead == 0:
+        lead = 3
+    grouped = whole[:lead]
+    place = lead
+    while place < len(whole):
+        grouped = grouped + mark + whole[place : place + 3]
+        place += 3
+    return sign + grouped + rest
 
 
 def comma_reading(text: str) -> str:
@@ -1191,8 +3685,11 @@ def parse_number(text: str) -> "float | None":
 
     Accepted forms (plan P1-D4): a plain decimal number, optionally
     signed, optionally with an exponent; surrounding whitespace; valid
-    thousands separators; and accounting parentheses for negatives, so
-    '(1,234.50)' reads as -1234.5.
+    thousands separators of `GROUP_MARKS`; accounting parentheses for
+    negatives, so '(1,234.50)' reads as -1234.5; and, since landing
+    2b.2, the minus sign of the character tables in front and a
+    hyphen-minus after the figures, so '\u22121234.5' and '1,234.50-'
+    read as -1234.5 too.
 
     Guarantees: accepts text; returns a finite float or None; raises
     TypeError if handed anything that is not a string instance. The
@@ -1207,14 +3704,21 @@ def parse_number(text: str) -> "float | None":
     negative_parentheses = False
     if body[0] == "(" and body[len(body) - 1] == ")":
         negative_parentheses = True
-        body = body[1 : len(body) - 1].strip()
+        body = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         # Parentheses mean "negative" in accounting. A sign inside them
         # is a contradiction -- '(-1)' says negative twice and '(+5)'
         # says both -- and guessing which the writer meant is how a
         # column of debts came out positive (review item P1-R2-F6). It
-        # is not a number this reader will interpret.
+        # is not a number this reader will interpret. A minus sign or a
+        # trailing minus inside them is the same contradiction.
         if body and (body[0] == "+" or body[0] == "-"):
             return None
+    else:
+        # A MINUS SIGN IN FRONT OR A HYPHEN-MINUS BEHIND is read as the
+        # minus it is (landing 2b.2): `\u22126.09` and `1,483.65-` were
+        # text, and a column of them published its negatives as
+        # positive magnitudes under an affix.
+        body = _minus_written_first(body)
     ungrouped = _without_group_separators(body)
     if ungrouped is None:
         return None
@@ -1296,10 +3800,18 @@ def numeric_style(text: str) -> str:
 
     TWO SOURCE FORMS ARE NOT FORMS HERE, and the consequence is
     recorded rather than left to be discovered: accounting brackets and
-    thousands separators are classified by the digits inside them. A
-    comma would break a CSV row, and brackets are outside the spellings
-    a twin may write, so neither could be reproduced and neither is
-    counted as its own form.
+    thousands separators are classified by the digits inside them.
+    Brackets are outside the spellings a twin may write, so they are
+    not reproduced. A thousands separator IS reproduced, but not as a
+    seventh form: a grouped cell is also a `plain` or `decimal` cell,
+    and the styles map is a partition that must close on the numeric
+    count, so grouping is published beside it as `group_separator`.
+
+    THIS DOCSTRING USED TO GIVE ANOTHER REASON, AND IT WAS FALSE. It
+    said a comma would break a CSV row. The CSV writer quotes any cell
+    holding a comma and this module's own reader reads it back
+    unchanged; the false reason was the whole cause of a grouped charge
+    column coming back ungrouped.
 
     Guarantees:
 
@@ -1313,13 +3825,7 @@ def numeric_style(text: str) -> str:
       vocabulary, so no spelling and no magnitude of the cell can
       travel out through it. No I/O of any kind.
     """
-    body = trimmed(text)
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        body = trimmed(body[1 : len(body) - 1])
-    core = ""
-    for character in body:
-        if character != ",":
-            core = core + character
+    core = number_core(text)
     if "E" in core:
         return STYLE_EXPONENT_UPPER
     if "e" in core:
@@ -1363,13 +3869,7 @@ def fraction_width(text: str) -> int:
       cell, and no magnitude, travels out through it. No I/O of any
       kind.
     """
-    body = trimmed(text)
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        body = trimmed(body[1 : len(body) - 1])
-    core = ""
-    for character in body:
-        if character != ",":
-            core = core + character
+    core = number_core(text)
     seen = False
     width = 0
     for character in core:
@@ -1414,13 +3914,7 @@ def pad_width(text: str) -> int:
       cell, and no magnitude, travels out through it. No I/O of any
       kind.
     """
-    body = trimmed(text)
-    if body[:1] == "(" and body[len(body) - 1 : len(body)] == ")":
-        body = trimmed(body[1 : len(body) - 1])
-    core = ""
-    for character in body:
-        if character != ",":
-            core = core + character
+    core = number_core(text)
     if core[:1] == "-" or core[:1] == "+":
         core = core[1:]
     width = 0
@@ -1429,6 +3923,36 @@ def pad_width(text: str) -> int:
             return width
         width = width + 1
     return width
+
+
+def is_padded(text: str) -> bool:
+    """Whether one numeric cell wrote its figure field with a redundant zero.
+
+    THE PAD IS NOT A FORM, AND A PLUS DOES NOT HIDE IT (plan P4-D145, the
+    final Codex review's item 6). The ladder of `numeric_style` files a
+    cell under ONE form, and a leading plus is tested before a leading
+    zero, so `+00100000000000000000` is `leading_plus` and its two zeros
+    were counted by no census: 800 such cells at a floor of eleven
+    published `field_widths {"20": 800}` beside `pad_widths {}`, and the
+    twin wrote every one of them two figures narrower. A cell is padded
+    where its form is `leading_zero`, or where it is `leading_plus` and
+    the figures after the plus begin with a zero and are more than that
+    zero alone; every such cell is counted by the padding census, and a
+    twin pads it back.
+
+    Guarantees: accepts the text of one cell that reads as a number this
+    format holds; returns a bool. Determinism: a fixed function of the
+    text. Raises TypeError if handed anything that is not a string
+    instance, through `trimmed`. Boundary: the answer is a truth value.
+    No I/O of any kind.
+    """
+    style = numeric_style(text)
+    if style == STYLE_LEADING_ZERO:
+        return True
+    if style != STYLE_LEADING_PLUS:
+        return False
+    core = number_core(text)
+    return core[1:2] == "0" and pad_width(text) > 1
 
 
 def classify_number(text: str) -> str:
@@ -1457,7 +3981,7 @@ def classify_number(text: str) -> str:
     if not body:
         return NOT_A_NUMBER
     if body[0] == "(" and body[len(body) - 1] == ")":
-        inner = body[1 : len(body) - 1].strip()
+        inner = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         if inner and (inner[0] == "+" or inner[0] == "-"):
             # Only contradictory if the rest really is a number; '(-a)'
             # is just text.
@@ -1489,9 +4013,11 @@ def number_out_of_range(text: str) -> bool:
     if not body:
         return False
     if body[0] == "(" and body[len(body) - 1] == ")":
-        body = body[1 : len(body) - 1].strip()
+        body = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         if body and (body[0] == "+" or body[0] == "-"):
             return False
+    else:
+        body = _minus_written_first(body)
     ungrouped = _without_group_separators(body)
     if ungrouped is None:
         return False
@@ -1512,12 +4038,20 @@ def is_whole_number(value: float) -> bool:
     return value == float(int(value))
 
 
-def _valid_date(year: int, month: int, day: int) -> bool:
+def valid_date(year: int, month: int, day: int) -> bool:
     """True when the year, month and day name a real calendar date.
 
     The leap-year rule is the Gregorian one: a year divisible by four
     is a leap year, except a century that is not divisible by four
     hundred.
+
+    It is PUBLIC because the twin's WORKBOOK writer asks the same
+    question of the cells it is about to store as dates
+    (`dialect.sheet_date_is_real`), and a calendar stated twice is a
+    calendar that can be repaired once (plan P4-D291).
+
+    Guarantees: accepts three whole numbers; returns a truth value;
+    raises nothing for whole-number input. No I/O of any kind.
     """
     if year < 1 or month < 1 or month > 12 or day < 1:
         return False
@@ -1535,7 +4069,7 @@ def _canonical_date(year: str, month: str, day: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(day, str):
         raise TypeError(_NOT_TEXT)
-    if not _valid_date(int(year), int(month), int(day)):
+    if not valid_date(int(year), int(month), int(day)):
         return None
     return f"{year}-{month}-{day}"
 
@@ -1677,7 +4211,7 @@ def _textual_fields(
         place = 0
         for character in body:
             if character == mark:
-                marks = marks + [place]
+                marks += [place]
             place = place + 1
         if len(marks) != 2:
             continue
@@ -1754,7 +4288,7 @@ def _delimited_fields(
     place = 0
     for character in body:
         if character == mark:
-            marks = marks + [place]
+            marks += [place]
         place = place + 1
     if len(marks) != 2:
         return None
@@ -1868,143 +4402,513 @@ def _parse_clock(text: str) -> "str | None":
     return f"{hours}:{minutes}:{seconds}"
 
 
-# THE TWO FORMS A COLUMN OF CLOCK VALUES CAN WEAR, and the names the
-# profile publishes them under. They are this package's own words, not
-# anybody's text: a document naming one of them says which shape the
-# column's cells had and nothing about what any cell said.
+# THE WRITTEN CLOCK (landing T1, plan P4-D370). A time of day is written
+# with its hour in two figures or, below ten, in one; on the 24-hour
+# face, or on the 12-hour face with a marker after one space or after
+# none -- `14:05`, `2:05`, `2:05 PM`, `2:05pm`, `2:05 p.m.` -- or, where
+# the person DECLARED the column a 12-hour clock written without a marker
+# (`--twelve-hour`), on that face with none. A column keeps ONE way, its
+# STYLE: the hour's width and the face. It is published as a VALUE of
+# `clock_form` on the clock role and of the one `datetime_separators`
+# word of a slashed stamp, so no key is added. These are this package's
+# own words: naming one says how the column's cells were written and
+# nothing about what any cell said. The faces stand in tie-break order,
+# the 24-hour clock first.
+CLOCK_HOUR_WIDTHS = ("hh", "h")
+CLOCK_TWELVE_HOUR = " twelve-hour"
+_MERIDIEM_PAIRS = (
+    ("AM-PM", "AM", "PM"),
+    ("am-pm", "am", "pm"),
+    ("A.M.-P.M.", "A.M.", "P.M."),
+    ("a.m.-p.m.", "a.m.", "p.m."),
+)
+CLOCK_FACES = (
+    "",
+    CLOCK_TWELVE_HOUR,
+    " AM-PM",
+    "AM-PM",
+    " am-pm",
+    "am-pm",
+    " A.M.-P.M.",
+    "A.M.-P.M.",
+    " a.m.-p.m.",
+    "a.m.-p.m.",
+)
+CLOCK_STYLES = tuple(
+    width + face for face in CLOCK_FACES for width in CLOCK_HOUR_WIDTHS
+)
+DEFAULT_CLOCK_STYLE = "hh"
+
+# THE FORMS A COLUMN OF CLOCK VALUES CAN WEAR: a style at the minute or
+# at the second. `hh-mm` and `hh-mm-ss` stand first and are spelled as
+# they always were.
 CLOCK_HH_MM = "hh-mm"
 CLOCK_HH_MM_SS = "hh-mm-ss"
-CLOCK_FORMS = (CLOCK_HH_MM, CLOCK_HH_MM_SS)
+CLOCK_FORMS = tuple(
+    width + fields + face
+    for face in CLOCK_FACES
+    for width in CLOCK_HOUR_WIDTHS
+    for fields in ("-mm", "-mm-ss")
+)
+
+# Each form's style and whether it writes seconds, and each style's two
+# halves, read off the tables above once.
+_FORM_STYLE = {
+    width + fields + face: (width + face, fields == "-mm-ss")
+    for face in CLOCK_FACES
+    for width in CLOCK_HOUR_WIDTHS
+    for fields in ("-mm", "-mm-ss")
+}
+_STYLE_PARTS = {
+    width + face: (width, face)
+    for face in CLOCK_FACES
+    for width in CLOCK_HOUR_WIDTHS
+}
 
 # How many different values each form can spell, which is the whole of
 # what a column of that form can hold: a day has 1,440 minutes and
-# 86,400 seconds. The generator needs it to know whether a published
-# count of different values is reachable at all.
-CLOCK_CAPACITY = {CLOCK_HH_MM: 1440, CLOCK_HH_MM_SS: 86400}
+# 86,400 seconds, and the declared 12-hour face, which shows no marker,
+# half of each. The generator needs it to know whether a published count
+# of different values is reachable at all.
+CLOCK_CAPACITY = {
+    form: (60 if _FORM_STYLE[form][1] else 1)
+    * (720 if CLOCK_TWELVE_HOUR in form else 1440)
+    for form in CLOCK_FORMS
+}
 
-# The unit each form counts in, seconds per step: a minute for `hh-mm`
-# and a second for `hh-mm-ss`.
-_CLOCK_STEP = {CLOCK_HH_MM: 60, CLOCK_HH_MM_SS: 1}
+
+def clock_step(form: str) -> int:
+    """Seconds per step of one form: 60 at the minute, 1 at the second.
+
+    Raises ValueError for a form this module does not know. No I/O.
+    """
+    if form not in _FORM_STYLE:
+        raise ValueError(_NOT_TEXT)
+    return 1 if _FORM_STYLE[form][1] else 60
 
 
-def clock_form(text: str) -> "str | None":
-    """Which of the two clock forms one cell wears, or None.
+def clock_style_of(form: str) -> str:
+    """The style one form writes in. Raises ValueError for an unknown form."""
+    if form not in _FORM_STYLE:
+        raise ValueError(_NOT_TEXT)
+    return _FORM_STYLE[form][0]
 
-    EXACTLY `HH:MM` OR `HH:MM:SS`, and the word exactly is the rule
-    rather than a summary of it. Two ASCII digits in every field, hours
-    at most 23, minutes and seconds at most 59, nothing before and
-    nothing after. Four shapes a reader might expect are refused, and
-    each is refused on purpose:
 
-    - a FRACTIONAL part. A reading that dropped it would describe every
-      such cell approximately while publishing an exact ladder;
-    - a LEAP SECOND, `23:59:60`. The ordinal space this role counts in
-      has no faithful point for it, and making one up would put a value
-      in the twin that no clock shows;
-    - a SINGLE-DIGIT hour, `9:30`. The published spellings are
-      fixed-width, so a column of them could not be written back;
-    - anything else around the digits -- a date, an offset, a name.
+def clock_form_of(style: str, with_seconds: bool) -> str:
+    """The form of one style at the minute or at the second.
 
-    A column of cells this refuses takes a later rule, which is where
-    such a column already goes today.
+    Raises ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    return width + ("-mm-ss" if with_seconds else "-mm") + face
 
-    NOTHING COMES OFF FIRST, and that is the fifth refusal rather than
-    an oversight. Every other reader in this module trims its cell
-    before looking at it; this one may not, because what it publishes
-    are the CELLS THEMSELVES -- the two endpoints and eleven ladder
-    rungs are values some row of the table wore, character for
-    character. Trimming would let a column of ` 09:30 ` cells publish
-    `09:30`, a string no row of that table holds, and the ladder would
-    stop being a selection of real cells. So a cell with a space, a
-    tab or a no-break space around it is a cell this role does not
-    read, and it is counted with the rest.
 
-    Guarantees:
+def clock_face(style: str) -> str:
+    """The face one style writes on. Raises ValueError for an unknown one."""
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    return _STYLE_PARTS[style][1]
 
-    - Inputs: the text of one cell, exactly as the file spells it, and
-      exactly as it is judged.
-    - Determinism: the answer depends only on the text.
-    - Errors raised: TypeError if handed anything that is not a string
-      instance.
-    - Boundary: the answer is one of two words of this module's own
-      vocabulary, or nothing, so no spelling of any cell travels out
-      through it. No I/O of any kind.
+
+def clock_hour_width(style: str) -> str:
+    """`hh` or `h`. Raises ValueError for an unknown style."""
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    return _STYLE_PARTS[style][0]
+
+
+def clock_parts(
+    text: str,
+) -> "tuple[int, int, int, bool, int, str, bool] | None":
+    """One written clock read whole, or None: the ONE clock reader.
+
+    THE CLOCK ROLE'S READER AND THE SLASHED STAMPS' CLOCK HALF, kept one
+    reader as plan amendment A-P4-1 item 2 asks. `H:MM` or `HH:MM`, an
+    optional `:SS`, and an optional marker -- `AM PM am pm A.M. P.M. a.m.
+    p.m.` -- after ONE space or none. Unmarked, the hour is 0 to 23; marked,
+    1 to 12. Minutes and seconds are two figures, 00 to 59.
+
+    REFUSED, each on purpose: a fraction or a leap second (no faithful
+    point in the ordinal space), `24:00` (Python's `%H` refuses it), a
+    marked hour of 0 or past 12 (`%I` refuses both), `Am`, a one-letter
+    marker, a marker after two spaces or a no-break space, a one-figure
+    minute and a three-figure hour. NOTHING COMES OFF FIRST: what the
+    clock role publishes are the cells themselves, so ` 09:30 ` is not
+    read (`clock_form` gives the reason).
+
+    Returns `(hour as written, minute, second, seconds written, figures
+    of the hour, face, after noon)`: the face is `""` unmarked, and
+    otherwise the space or nothing before the marker pair's own word.
+    Determinism: a function of the text. Raises TypeError for anything
+    that is not a string instance. No I/O of any kind.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     body = text
-    hours = _digits_at(body, 0, 2)
-    if hours is None or len(body) < 5 or body[2] != ":":
+    face = ""
+    afternoon = False
+    size = len(body)
+    # A clock ending in a figure carries no marker, which is most of them.
+    for pair, morning, evening in (
+        () if "0" <= body[size - 1 : size] <= "9" else _MERIDIEM_PAIRS
+    ):
+        for word, late in ((morning, False), (evening, True)):
+            length = len(word)
+            if size > length and body[size - length :] == word:
+                face = pair
+                afternoon = late
+                body = body[: size - length]
+                if body[len(body) - 1 : len(body)] == " ":
+                    face = " " + pair
+                    body = body[: len(body) - 1]
+                break
+        if face:
+            break
+    colon = 1 if body[1:2] == ":" else 2
+    if body[colon : colon + 1] != ":":
         return None
-    minutes = _digits_at(body, 3, 2)
+    hours = body[0:colon]
+    if not _all_ascii_digits(hours):
+        return None
+    rest = body[colon + 1 :]
+    if len(rest) == 2:
+        written = False
+        seconds = 0
+    elif len(rest) == 5 and rest[2] == ":":
+        found = _digits_at(rest, 3, 2)
+        if found is None:
+            return None
+        written = True
+        seconds = int(found)
+    else:
+        return None
+    minutes = _digits_at(rest, 0, 2)
     if minutes is None:
         return None
-    if int(hours) > 23 or int(minutes) > 59:
+    hour = int(hours)
+    minute = int(minutes)
+    if minute > 59 or seconds > 59:
         return None
-    if len(body) == 5:
-        return CLOCK_HH_MM
-    if len(body) != 8 or body[5] != ":":
+    if face:
+        if hour < 1 or hour > 12:
+            return None
+    elif hour > 23:
         return None
-    seconds = _digits_at(body, 6, 2)
-    if seconds is None or int(seconds) > 59:
+    return hour, minute, seconds, written, colon, face, afternoon
+
+
+def clock_second(
+    parts: "tuple[int, int, int, bool, int, str, bool]", face: str
+) -> "int | None":
+    """The second of the day one read clock names on a column's face.
+
+    A marked cell names its own instant: `12:30 AM` is 00:30, `12:00 PM`
+    noon. An unmarked cell is read on the 24-hour face, or -- on a column
+    declared a 12-hour clock -- on that face, where 12 is the top of the
+    dial (`12:15` is 00:15, as Python's `%I` reads it with no `%p`) and an
+    hour of 0 or past 12 names nothing. None where the cell does not read
+    on that face. Determinism: a function of the two. Raises nothing.
+    """
+    hour, minute, second, _written, _figures, written_face, late = parts
+    if written_face:
+        if written_face != face:
+            return None
+        hour = (hour % 12) + (12 if late else 0)
+    elif face == CLOCK_TWELVE_HOUR:
+        if hour < 1 or hour > 12:
+            return None
+        hour = hour % 12
+    elif face:
         return None
-    return CLOCK_HH_MM_SS
+    return hour * 3600 + minute * 60 + second
+
+
+def clock_shown_width(
+    parts: "tuple[int, int, int, bool, int, str, bool]",
+) -> str:
+    """The hour width one read clock SHOWS: `h`, `hh`, or "" for none.
+
+    Only an hour below ten shows a width; `10` to `23` are the same in
+    both. Determinism: a function of the parts. Raises nothing. No I/O.
+    """
+    if parts[0] >= 10:
+        return ""
+    return "h" if parts[4] == 1 else "hh"
+
+
+def clock_fits(
+    parts: "tuple[int, int, int, bool, int, str, bool]", style: str
+) -> bool:
+    """Whether one read clock is written exactly in one style.
+
+    Its face reads on the style's face, and its hour shows the style's
+    width or none (V5 form checks by fit, plan P4-D370). Raises
+    ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    if clock_second(parts, face) is None:
+        return False
+    shown = clock_shown_width(parts)
+    return shown == "" or shown == width
+
+
+def clock_style_of_cells(
+    read: "list[tuple[int, int, int, bool, int, str, bool]]",
+    twelve_hour: bool,
+) -> str:
+    """The ONE style a column of read clocks keeps (plan P4-D370).
+
+    THE FACE MOST CELLS WROTE, ties to the 24-hour clock and then in
+    `CLOCK_FACES` order; a column DECLARED a 12-hour clock reads its
+    unmarked cells on that face. THE WIDTH MOST OF ITS CELLS SHOWED,
+    ties to two figures, so a column showing no width keeps today's
+    `hh`. The cells of another face are counted unread by the caller;
+    the cells of another WIDTH are read and counted into the column's,
+    as a spelling below the floor is counted into the commonest (owner
+    ruling 6 of 2026-09-17), and their twin writes them the column's way.
+
+    Guarantees: accepts the parts of every read cell and whether the
+    column is declared; returns a member of `CLOCK_STYLES`.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    tally: "dict[str, int]" = {}
+    for parts in read:
+        face = parts[5]
+        tally[face] = (tally[face] if face in tally else 0) + 1
+    chosen = ""
+    best = -1
+    for face in CLOCK_FACES:
+        if face in tally and tally[face] > best:
+            chosen = face
+            best = tally[face]
+    if twelve_hour and chosen == "":
+        chosen = CLOCK_TWELVE_HOUR
+    ones = 0
+    twos = 0
+    for parts in read:
+        if clock_second(parts, chosen) is None:
+            continue
+        shown = clock_shown_width(parts)
+        if shown == "h":
+            ones = ones + 1
+        elif shown == "hh":
+            twos = twos + 1
+    return ("h" if ones > twos else "hh") + chosen
+
+
+def written_clock(second: int, with_seconds: bool, style: str) -> str:
+    """One second of the day written in one style: the ONE clock writer.
+
+    The inverse of `clock_parts` read by `clock_second` on the style's
+    face, so a producer, a generator and an oracle cannot write one
+    instant two ways. Midnight on a 12-hour face is `12:00 AM`, or `12:00`
+    where no marker is written. On the declared unmarked face an instant
+    after noon is written on the dial it shows, an hour less twelve,
+    which is how such a clock writes it.
+
+    Guarantees: accepts a whole second of the day, whether to write the
+    seconds, and a member of `CLOCK_STYLES`; returns the text. Raises
+    ValueError for a second outside the day or an unknown style. No I/O.
+    """
+    if isinstance(second, bool) or not isinstance(second, int):
+        raise ValueError(_NOT_TEXT)
+    if second < 0 or second >= 86400 or style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    hours = second // 3600
+    minutes = (second % 3600) // 60
+    marker = ""
+    shown = hours
+    if face:
+        shown = (hours % 12) if hours % 12 else 12
+    if face and face != CLOCK_TWELVE_HOUR:
+        join = " " if face[0] == " " else ""
+        for pair, morning, evening in _MERIDIEM_PAIRS:
+            if face == join + pair:
+                marker = join + (morning if hours < 12 else evening)
+    hour_text = f"{shown:02d}" if width == "hh" else f"{shown}"
+    text = f"{hour_text}:{minutes:02d}"
+    if with_seconds:
+        text = f"{text}:{second % 60:02d}"
+    return text + marker
+
+
+def clock_form(text: str) -> "str | None":
+    """Which form one cell SHOWS, or None where it is no clock at all.
+
+    Its precision, its face as written, and its hour's width -- two
+    figures where the hour shows none (`10` to `23`). A cell never shows
+    the declared 12-hour face, which is a column's, not a cell's.
+
+    THE READER IS `clock_parts`, and its refusals are this one's: a
+    fraction, a leap second, `24:00`, a marked hour of 0 or past 12, and
+    ANYTHING AROUND THE CLOCK -- nothing comes off first, because what
+    the clock role publishes are the CELLS THEMSELVES, and trimming would
+    let a column of ` 09:30 ` cells publish `09:30`, a string no row of
+    that table holds.
+
+    Guarantees: the answer is one of `CLOCK_FORMS` or nothing, a word of
+    this module's own vocabulary, so no spelling travels out through it.
+    Determinism: a function of the text. Raises TypeError for anything
+    that is not a string instance. No I/O of any kind.
+    """
+    parts = clock_parts(text)
+    if parts is None:
+        return None
+    width = clock_shown_width(parts) or "hh"
+    return width + ("-mm-ss" if parts[3] else "-mm") + parts[5]
 
 
 def clock_ordinal(text: str, form: str) -> "int | None":
     """Where one cell stands in its own form's unit, or None.
 
-    Minutes of day for `hh-mm`, seconds of day for `hh-mm-ss` -- the
-    unit the form itself sets, so every ordinal has a spelling in that
-    form and no value the generator interpolates is ever truncated or
-    widened to fit a cell.
+    Minutes of day at the minute, seconds of day at the second -- the
+    unit the form itself sets, on the form's face -- so every ordinal has
+    a spelling in that form and no value the generator interpolates is
+    ever truncated or widened to fit a cell.
 
-    None where the cell does not wear the form asked about, which is
-    how a cell of the OTHER form is counted unparsed rather than
-    silently re-read.
+    None where the cell does not read in the form: another precision or
+    another face, which is how such a cell is counted unparsed rather
+    than silently re-read. A cell of the other hour WIDTH reads, because
+    a column counts it into its own (`clock_style_of_cells`).
 
     Guarantees: accepts one cell's text and one of `CLOCK_FORMS`;
     returns a whole number below that form's capacity, or nothing.
-    Determinism: a function of the two. Errors raised: TypeError
-    through `trimmed`; ValueError for a form this module does not know.
+    Determinism: a function of the two. Errors raised: TypeError through
+    `clock_parts`; ValueError for a form this module does not know.
     Boundary: the answer is a COUNT. No I/O of any kind.
     """
-    if form not in _CLOCK_STEP:
+    if form not in _FORM_STYLE:
         raise ValueError(_NOT_TEXT)
-    if clock_form(text) != form:
+    parts = clock_parts(text)
+    if parts is None:
         return None
-    body = text
-    hours = int(body[0:2])
-    minutes = int(body[3:5])
-    if form == CLOCK_HH_MM:
-        return hours * 60 + minutes
-    return (hours * 3600) + (minutes * 60) + int(body[6:8])
+    style, with_seconds = _FORM_STYLE[form]
+    if parts[3] != with_seconds:
+        return None
+    second = clock_second(parts, _STYLE_PARTS[style][1])
+    if second is None:
+        return None
+    return second if with_seconds else second // 60
 
 
 def clock_spelling(ordinal: int, form: str) -> str:
     """The one spelling of one ordinal in one form.
 
-    The inverse of `clock_ordinal` and the only way a clock value is
-    written, so a producer and a generator cannot spell the same moment
-    two ways.
+    The inverse of `clock_ordinal`, written by `written_clock`, so a
+    producer and a generator cannot spell the same moment two ways.
 
     Guarantees: accepts a whole number below the form's capacity and
-    one of `CLOCK_FORMS`; returns fixed-width text. Determinism: a
-    function of the two. Errors raised: ValueError for an unknown form
-    or an ordinal outside the form's space. Boundary: the text is built
-    from the number handed in. No I/O of any kind.
+    one of `CLOCK_FORMS`; returns the text. Determinism: a function of
+    the two. Errors raised: ValueError for an unknown form or an ordinal
+    outside the form's space. No I/O of any kind.
     """
-    if form not in _CLOCK_STEP:
+    if form not in _FORM_STYLE:
         raise ValueError(_NOT_TEXT)
     if isinstance(ordinal, bool) or not isinstance(ordinal, int):
         raise ValueError(_NOT_TEXT)
     if ordinal < 0 or ordinal >= CLOCK_CAPACITY[form]:
         raise ValueError(_NOT_TEXT)
-    if form == CLOCK_HH_MM:
-        return f"{ordinal // 60:02d}:{ordinal % 60:02d}"
-    hours = ordinal // 3600
-    rest = ordinal % 3600
-    return f"{hours:02d}:{rest // 60:02d}:{rest % 60:02d}"
+    style, with_seconds = _FORM_STYLE[form]
+    return written_clock(
+        ordinal if with_seconds else ordinal * 60, with_seconds, style
+    )
+
+
+def clock_held_by_fit(
+    published: str, measured: str, cells: "list[str]", stamps: bool
+) -> bool:
+    """Whether a file's written clock HOLDS a published style (V5, P4-D370).
+
+    THE STYLE IS HELD BY FIT, not by equality. A faithful twin that drew
+    no hour below ten shows no width, and is described again as `hh`; it
+    holds a published `h`, because every one of its cells fits it. So:
+    the same style holds; another FACE never does; and another width
+    holds exactly where no cell that reads on the face shows a width
+    other than the published one. `stamps` says the cells are slashed
+    stamps, whose clock is the half after the first space.
+
+    Guarantees: accepts two members of `CLOCK_STYLES` and the file's
+    cells; returns a bool. Determinism: a function of the four. Raises
+    ValueError for an unknown style. No I/O of any kind.
+    """
+    if published not in _STYLE_PARTS or measured not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    if published == measured:
+        return True
+    width, face = _STYLE_PARTS[published]
+    if _STYLE_PARTS[measured][1] != face:
+        return False
+    for cell in cells:
+        parts = clock_parts(stamp_halves(cell)[1] if stamps else cell)
+        if parts is None or clock_second(parts, face) is None:
+            continue
+        shown = clock_shown_width(parts)
+        if shown and shown != width:
+            return False
+    return True
+
+
+def clock_style_said(style: str) -> str:
+    """One written clock in the words a summary uses (contract NF109).
+
+    Words of this package's own: the hour's width and the face, never a
+    cell. Raises ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    hour = "the hour in two figures"
+    if width == "h":
+        hour = "the hour in one figure below ten"
+    if not face:
+        return f"{hour}, on a 24-hour clock"
+    if face == CLOCK_TWELVE_HOUR:
+        return f"{hour}, on a 12-hour clock with no AM or PM"
+    join = " " if face[0] == " " else ""
+    for pair, morning, evening in _MERIDIEM_PAIRS:
+        if face == join + pair:
+            where = "after a space" if join else "straight after the time"
+            return f"{hour}, on a 12-hour clock with {morning} or {evening} {where}"
+    return hour
+
+
+def stamp_word(style: str) -> str:
+    """The one `datetime_separators` word of a slashed stamp in one style.
+
+    `space` for today's two-figure 24-hour clock, so a column that reads
+    today keeps every byte, and `space <style>` otherwise. Raises
+    ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    if style == DEFAULT_CLOCK_STYLE:
+        return "space"
+    return "space " + style
+
+
+def stamp_style(word: str) -> "str | None":
+    """The style one stamp word names, or None for a word that names none."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    if word == "space":
+        return DEFAULT_CLOCK_STYLE
+    if word[0:6] == "space " and word[6:] in _STYLE_PARTS:
+        if word[6:] != DEFAULT_CLOCK_STYLE:
+            return word[6:]
+    return None
+
+
+# Every word a slashed stamp's one `datetime_separators` key can be
+# (contract D12a), `space` first.
+STAMP_SEPARATORS = tuple(
+    "space" if style == DEFAULT_CLOCK_STYLE else "space " + style
+    for style in CLOCK_STYLES
+)
 
 
 def _split_offset(text: str) -> "tuple[str, str] | None":
@@ -2043,6 +4947,56 @@ def _split_offset(text: str) -> "tuple[str, str] | None":
     return text, ""
 
 
+def _stamp_clock(text: str) -> "str | None":
+    """A slashed stamp's clock half as canonical `HH:MM:SS`, or None.
+
+    Read by `clock_parts`; an unmarked hour on the 24-hour face, which is
+    the reading a column keeps unless it is declared a 12-hour clock
+    (`stamp_canonical` then moves its top of the dial). No I/O.
+    """
+    parts = clock_parts(text)
+    if parts is None:
+        return None
+    second = clock_second(parts, parts[5])
+    if second is None:
+        return None
+    return (
+        f"{second // 3600:02d}:{(second % 3600) // 60:02d}:{second % 60:02d}"
+    )
+
+
+def stamp_halves(text: str) -> "tuple[str, str]":
+    """A slashed stamp's date half with its one space, and its clock half.
+
+    Split at the FIRST space, as the stamp members split it (landing T1).
+    Raises TypeError for anything that is not a string instance. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    body = text.strip()
+    mark = body.find(" ")
+    return body[0 : mark + 1], body[mark + 1 :]
+
+
+def stamp_canonical(canonical: str, style: str) -> str:
+    """A slashed stamp's canonical text on its column's face (landing T1).
+
+    The reader gives an unmarked hour on the 24-hour face; on a column
+    declared a 12-hour clock written without a marker, `12` is the top
+    of the dial, so `... 12:15:00` is `... 00:15:00` -- Python's `%I`
+    with no `%p` reads it so. Every other style returns the text as it
+    is. Asked only of cells that read on that face, whose hour is 1 to
+    12. Raises nothing. No I/O of any kind.
+    """
+    if style == DEFAULT_CLOCK_STYLE or style not in _STYLE_PARTS:
+        return canonical
+    if _STYLE_PARTS[style][1] != CLOCK_TWELVE_HOUR:
+        return canonical
+    if canonical[11:13] != "12":
+        return canonical
+    return f"{canonical[0:11]}00{canonical[13:]}"
+
+
 def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
     """Read ``text`` under one named format; return (canonical, offset).
 
@@ -2062,6 +5016,18 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # THE LAYOUT MEMBER (landing R2a, plan P4-D383), read whole: a
+        # layout trims nothing, so a cell is its own text or no date --
+        # but for one standing in for a two-figure member in a declared
+        # century, which reads as that member does (`layout_reading`).
+        items = layout_items(format_name)
+        if items is None:
+            return None
+        read_whole = layout_reading(text, items)
+        if read_whole is None:
+            return None
+        return read_whole[0], read_whole[1]
     body = text.strip()
     if not body:
         return None
@@ -2244,15 +5210,12 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         # A SLASHED DATE, ONE SPACE, THEN A CLOCK (plan amendment
         # A-P4-1 item 2). The date half is the same grammar the two
         # date-only slashed members read, padded or not; the clock half
-        # is the time-of-day role's own two forms and nothing wider, so
-        # a stamp this reads is one whose two halves are each already
-        # read somewhere in this module.
-        mark = 0
-        place = 0
-        for character in body:
-            if character == " ":
-                mark = place
-            place = place + 1
+        # is the time-of-day role's own reader, `clock_parts`, so a stamp
+        # this reads is one whose two halves are each already read
+        # somewhere in this module. SPLIT AT THE FIRST SPACE (landing T1):
+        # the date half holds none, and a clock may carry its marker after
+        # one (`3/17/2024 2:05 PM`).
+        mark = body.find(" ")
         if mark < 1:
             return None
         fields = _slashed_fields(body[0:mark])
@@ -2265,16 +5228,32 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             date_part = _canonical_date(year, second, first)
         if date_part is None:
             return None
-        # THE CLOCK HALF IS THE TIME-OF-DAY ROLE'S OWN TWO FORMS AND
+        # THE CLOCK HALF IS THE TIME-OF-DAY ROLE'S OWN READER AND
         # NOTHING WIDER, which is what the amendment fixes and what
         # keeps these two members from quietly accepting a fractional
         # second the contract's row for them does not mention.
-        if clock_form(body[mark + 1 :]) is None:
-            return None
-        clock = _parse_clock(body[mark + 1 :])
+        clock = _stamp_clock(body[mark + 1 :])
         if clock is None:
             return None
         return f"{date_part} {clock}", ""
+    if format_name == "slashed-iso-datetime":
+        # A `slashed-iso-date`, ONE space, then a clock in one of the
+        # time-of-day role's forms (landing 2b.3; forty of them since
+        # landing T1, contract C6-10a). Both halves are read by readers
+        # this module already has, exactly as the two slashed stamps
+        # above are built, so a stamp this accepts is one whose date half
+        # `slashed-iso-date` accepts and whose clock half `clock_form`
+        # does; a fraction, an offset or a second space is refused.
+        mark = body.find(" ")
+        if mark != 10:
+            return None
+        whole = parse_datetime(body[0:mark], "slashed-iso-date")
+        if whole is None:
+            return None
+        clock = _stamp_clock(body[mark + 1 :])
+        if clock is None:
+            return None
+        return f"{whole[0]} {clock}", ""
     if format_name == "iso-month":
         # A MONTH NAMES A SPAN, WHICH IS WHY IT HAS A SPACE OF ITS OWN
         # (plan P4-D4.3 item 2). `2024-03` is not a day and turning it
@@ -2288,7 +5267,7 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             return None
         if int(month) < 1 or int(month) > 12:
             return None
-        # THE YEAR IS ONE THE CALENDAR HAS. `_valid_date` refuses year
+        # THE YEAR IS ONE THE CALENDAR HAS. `valid_date` refuses year
         # zero for every reader that names a day, and the two SPAN
         # readers have to refuse it for the same reason: the contract's
         # canonical form runs from `0001` up, and a producer that
@@ -2313,6 +5292,795 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             return None
         return f"{year}-Q{quarter}", ""
     return None
+
+
+# -- how a date was WRITTEN, beside what it was read as (landing 2b.6) --
+#
+# THE REVERSAL OF OWNER DECISION 5 (owner ruling of 2026-09-15: the twin
+# writes anything as the original source wrote it). Everything above this
+# line READS a cell and answers which instant it names, and a reading is
+# deliberately lossy about spelling: `03/17/2024`, `3/17/2024`,
+# `17.03.2024` and `17-MAR-2024` all answer `2024-03-17`. Decision 5 then
+# had the twin write that answer back in ISO, so a month-first table got
+# ISO twin dates and every parsing call a person had written against
+# their own export failed on every cell of the twin.
+#
+# What follows is the other direction: the vocabulary of the conventions
+# one member admits, a reader per convention so that the describing step
+# can COUNT them, and one writer that is the inverse of `parse_datetime`
+# under a member and a style. Every census here counts FORMS -- how cells
+# were written -- and never a value of anybody's table.
+
+# The members whose month and day fields may be written with one figure
+# or with two. Everything else fixes both widths, so nothing is left for
+# a census to say: the dotted families are padded by C6-22, and the ISO,
+# slashed-ISO and compact families are fixed width by their own readers.
+VARIABLE_WIDTH_MEMBERS = (
+    "month-first-date",
+    "day-first-date",
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    "month-first-datetime",
+    "day-first-datetime",
+)
+
+# The two members that write the month as an English NAME.
+TEXTUAL_MEMBERS = (
+    "textual-day-first-date",
+    "textual-month-first-date",
+)
+
+# The members whose year is written with TWO figures.
+TWO_FIGURE_MEMBERS = (
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
+)
+
+# The members written with dots, which are padded on both fields.
+DOTTED_MEMBERS = (
+    "dotted-month-first-date",
+    "dotted-day-first-date",
+    "dotted-two-digit-month-first-date",
+    "dotted-two-digit-day-first-date",
+)
+
+# Which of the two numeric fields comes first, written out rather than
+# worked out from the member's name: `month-first-datetime` does not end
+# in `-date`, and a rule that read the name got that one member wrong.
+MONTH_FIRST_MEMBERS = (
+    "month-first-date",
+    "dotted-month-first-date",
+    "two-digit-month-first-date",
+    "dotted-two-digit-month-first-date",
+    "month-first-datetime",
+    "textual-month-first-date",
+)
+DAY_FIRST_MEMBERS = (
+    "day-first-date",
+    "dotted-day-first-date",
+    "two-digit-day-first-date",
+    "dotted-two-digit-day-first-date",
+    "day-first-datetime",
+    "textual-day-first-date",
+)
+
+# HOW WIDE A CELL WROTE THE FIELDS THAT COULD SHOW IT, as ONE word per
+# cell rather than one per field. The skeptic of the spelling audit
+# measured why: on a column half written `%m/%d/%Y` and half `m/d/yyyy`,
+# not one real cell mixed the two, and two independent rotations would
+# have written about half the cells that could show it in a style no row
+# used -- `03/5/2024`. So the census is JOINT, over the cell.
+#
+# A field SHOWS its width only where its value is below ten. `17` is two
+# figures under either convention, so a cell whose month and day are both
+# above nine is counted under no key at all, and this census's total is
+# the cells that could show something.
+#
+# AND A CELL WHERE ONLY ONE FIELD SHOWS says WHICH field it was (plan
+# P4-D132). The four joint words are about a cell whose two fields are
+# both below ten; a cell with one such field is counted under the field
+# that showed it. Counted under the bare `padded` or `unpadded` instead,
+# as the first revision did, a column written `m/dd/yyyy` published
+# `unpadded` for every January-to-September date past the ninth and
+# `padded` for every October-to-December date before the tenth, and its
+# twin spent those words on cells whose OTHER field showed: measured on
+# 400 dates, 106 twin cells were written `5/4/2024` or `08/28/2022`,
+# conventions no real cell used.
+WIDTH_PADDED = "padded"
+WIDTH_UNPADDED = "unpadded"
+WIDTH_FIRST_PADDED = "first-padded"
+WIDTH_SECOND_PADDED = "second-padded"
+WIDTH_FIRST_FIELD_PADDED = "first-field-padded"
+WIDTH_FIRST_FIELD_UNPADDED = "first-field-unpadded"
+WIDTH_SECOND_FIELD_PADDED = "second-field-padded"
+WIDTH_SECOND_FIELD_UNPADDED = "second-field-unpadded"
+# The four words for a cell whose two fields both show a width.
+FIELD_WIDTH_STYLES_BOTH = (
+    WIDTH_PADDED,
+    WIDTH_UNPADDED,
+    WIDTH_FIRST_PADDED,
+    WIDTH_SECOND_PADDED,
+)
+# The two words for a cell whose FIRST field alone shows one, and the two
+# for its SECOND field alone.
+FIELD_WIDTH_STYLES_FIRST = (WIDTH_FIRST_FIELD_PADDED, WIDTH_FIRST_FIELD_UNPADDED)
+FIELD_WIDTH_STYLES_SECOND = (
+    WIDTH_SECOND_FIELD_PADDED,
+    WIDTH_SECOND_FIELD_UNPADDED,
+)
+FIELD_WIDTH_STYLES = (
+    FIELD_WIDTH_STYLES_BOTH
+    + FIELD_WIDTH_STYLES_FIRST
+    + FIELD_WIDTH_STYLES_SECOND
+)
+
+# HOW A MONTH NAME WAS WRITTEN, again as one joint word: the case, the
+# length, the mark between the fields and whether a comma followed the
+# day. Joint for the reason the widths are: a hand-entered column mixing
+# `17-MAR-2024` with `17 Mar 2024` carries the case and the mark
+# together, and independent rotations would invent `17 MAR 2024`.
+NAME_CASES = ("upper", "title", "lower")
+NAME_LENGTHS = ("abbreviated", "full")
+NAME_MARKS = ("space", "hyphen")
+NAME_COMMAS = ("comma", "no-comma")
+# THE LENGTH A NAME OF MAY SHOWS, which is neither (plan P4-D133). `May`
+# is its own abbreviation, so a cell of May says nothing about length --
+# but it says everything else: its case, its mark and its comma. The
+# first revision counted such a cell under no key at all, so a column of
+# `17-MAY-2024` published an empty census and its twin was written
+# `17 May 2024`: `%d-%b-%Y` read 240 real cells of 240 and no twin cell.
+NAME_LENGTH_EITHER = "either"
+
+
+def _name_styles() -> "tuple[str, ...]":
+    """Every joint month-name style, built from the four vocabularies."""
+    built: "list[str]" = []
+    for case in NAME_CASES:
+        for length in NAME_LENGTHS:
+            for mark in NAME_MARKS:
+                for comma in NAME_COMMAS:
+                    built += [f"{case}-{length}-{mark}-{comma}"]
+    return tuple(built)
+
+
+MONTH_NAME_STYLES_RESOLVED = _name_styles()
+
+
+def _either_styles(no_comma: bool) -> "tuple[str, ...]":
+    """Every joint style a cell of MAY can show, its length `either`."""
+    built: "list[str]" = []
+    for case in NAME_CASES:
+        for mark in NAME_MARKS:
+            for comma in NAME_COMMAS:
+                if no_comma and comma == "comma":
+                    continue
+                built += [f"{case}-{NAME_LENGTH_EITHER}-{mark}-{comma}"]
+    return tuple(built)
+
+
+MONTH_NAME_STYLES_EITHER = _either_styles(False)
+MONTH_NAME_STYLES = MONTH_NAME_STYLES_RESOLVED + MONTH_NAME_STYLES_EITHER
+
+
+def _no_comma_styles() -> "tuple[str, ...]":
+    """The styles a DAY-FIRST textual column can wear.
+
+    `17 Mar, 2024` puts a comma after a month name, which no writer does
+    and which `_textual_fields` refuses, so half the joint vocabulary is
+    unreachable for that member and the contract says so rather than
+    leaving a loader to accept a count no producer can write.
+    """
+    built: "list[str]" = []
+    for case in NAME_CASES:
+        for length in NAME_LENGTHS:
+            for mark in NAME_MARKS:
+                built += [f"{case}-{length}-{mark}-no-comma"]
+    return tuple(built)
+
+
+MONTH_NAME_STYLES_NO_COMMA_RESOLVED = _no_comma_styles()
+MONTH_NAME_STYLES_NO_COMMA_EITHER = _either_styles(True)
+MONTH_NAME_STYLES_NO_COMMA = (
+    MONTH_NAME_STYLES_NO_COMMA_RESOLVED + MONTH_NAME_STYLES_NO_COMMA_EITHER
+)
+
+
+def name_styles_of(format_name: str) -> "tuple[str, ...]":
+    """The styles naming a LENGTH that one textual member's cells can show."""
+    if format_name == "textual-day-first-date":
+        return MONTH_NAME_STYLES_NO_COMMA_RESOLVED
+    return MONTH_NAME_STYLES_RESOLVED
+
+
+def name_styles_either_of(format_name: str) -> "tuple[str, ...]":
+    """The `either` styles one textual member's cells of MAY can show."""
+    if format_name == "textual-day-first-date":
+        return MONTH_NAME_STYLES_NO_COMMA_EITHER
+    return MONTH_NAME_STYLES_EITHER
+
+
+def name_style_at_length(style: str, to_either: bool) -> str:
+    """One joint style with its length set aside or set (plan P4-D133).
+
+    `to_either` true gives the `either` word a cell of May writes;
+    false gives the abbreviated word, which is the length a rank that must
+    show one takes where the census names no length at all -- the same
+    length `DEFAULT_NAME_STYLE` has always carried.
+
+    Guarantees: accepts a joint style word; returns a joint style word.
+    Determinism: a function of the two. Raises TypeError for a style that
+    is not text. No I/O of any kind.
+    """
+    case, _length, mark, comma = _name_parts(style)
+    length = NAME_LENGTH_EITHER if to_either else "abbreviated"
+    return f"{case}-{length}-{mark}-{comma}"
+
+# The two width words a member with ONE numeric field can show: the
+# textual members write the month as a name, so there is no second field
+# for `first-padded` or `second-padded` to be about.
+FIELD_WIDTH_STYLES_ONE_FIELD = (WIDTH_PADDED, WIDTH_UNPADDED)
+
+# What a cell the census cannot reach is written in where the census
+# names nothing at all: the commonest export spelling, `17 Mar 2024`.
+DEFAULT_NAME_STYLE = "title-abbreviated-space-no-comma"
+DEFAULT_FIELD_WIDTH = WIDTH_PADDED
+
+# The case of the letter Q in a quarter, and of a zulu offset marker.
+# Each is its own census rather than a second key of the map beside it:
+# `z` as a second `utc_offsets` key would count as a second OFFSET and
+# trip D5 and the shared-clock reading, when it is one offset written
+# two ways.
+QUARTER_MARKER_CASES = ("upper", "lower")
+ZULU_CASES = ("upper", "lower")
+
+
+def _upper_text(text: str) -> str:
+    """Upper case, behind a gate, so the audit can follow the value."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return text.upper()
+
+
+def _lower_text(text: str) -> str:
+    """Lower case, behind a gate, for the reason above."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return text.lower()
+
+
+def _titled(text: str) -> str:
+    """One capital and the rest in lower case, built rather than called.
+
+    There is no `title` among the string methods this package's offline
+    audit admits, and there should not be: `title` capitalises after
+    every non-letter, which is not what a month name wants.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return f"{_upper_text(text[0:1])}{_lower_text(text[1:])}"
+
+
+def _name_case(name: str) -> "str | None":
+    """Which of the three cases one written month name wears, or None.
+
+    None for a spelling outside the three -- `mAr` -- which is counted
+    under no key rather than forced into one.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if name == _upper_text(name):
+        return "upper"
+    if name == _lower_text(name):
+        return "lower"
+    if name == _titled(name):
+        return "title"
+    return None
+
+
+def _one_field_style(written: str) -> "str | None":
+    """Whether one written numeric field shows a width, and which.
+
+    `05` is padded, `5` is unpadded, and `17` shows nothing: it is two
+    figures under either convention.
+    """
+    if not isinstance(written, str):
+        raise TypeError(_NOT_TEXT)
+    if len(written) == 1:
+        return WIDTH_UNPADDED
+    if len(written) == 2 and written[0] == "0":
+        return WIDTH_PADDED
+    return None
+
+
+def day_shows_width(word: str, format_name: str, month: int, day: int) -> bool:
+    """Whether a date on this day is counted under THIS width word (P4-D256).
+
+    `date_field_style` read from the other side: it gives the word one
+    written cell shows, and this says which days can show a given word.
+    The two are one rule, and this is the one a producer needs -- the
+    census names a convention, and a twin that puts its dates on days
+    which show ANOTHER convention publishes that other one however
+    carefully it writes each cell.
+
+    A one-field word needs its OWN field below ten and the other at ten
+    or more, which is the whole of what that word says: a cell whose two
+    fields both show is counted under a joint word, and a census naming
+    the joint word beside it is a second key the single-key census does
+    not have. A JOINT word is met by either -- a cell showing one field
+    is folded into the joint word its column's own cells wrote
+    (`folded_width_tally`), so it is counted under that word in the end.
+    A textual member writes its month as a name, so its day is the one
+    field that can show anything and only the joint words are reachable.
+
+    Guarantees: accepts a member of `FIELD_WIDTH_STYLES`, the member the
+    column is read under and a calendar month and day; returns a bool,
+    and False for a member that fixes both widths. Determinism: a fixed
+    function of the four. Raises nothing. No I/O of any kind.
+    """
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT'S FLEXIBLE FIELDS, in layout order (landing R2a, rule
+        # LY5): one of them is read as a textual member's day is, two as a
+        # slashed member's month and day are.
+        values = layout_flexible_values(format_name, month, day)
+        if len(values) == 1:
+            return values[0] < 10 and word in FIELD_WIDTH_STYLES_BOTH
+        if len(values) != 2:
+            return False
+        first = values[0]
+        second = values[1]
+    elif format_name in TEXTUAL_MEMBERS:
+        return day < 10 and word in FIELD_WIDTH_STYLES_BOTH
+    elif format_name not in VARIABLE_WIDTH_MEMBERS:
+        return False
+    else:
+        first = month
+        second = day
+        if format_name in DAY_FIRST_MEMBERS:
+            first = day
+            second = month
+    if word in FIELD_WIDTH_STYLES_FIRST:
+        return first < 10 and second >= 10
+    if word in FIELD_WIDTH_STYLES_SECOND:
+        return second < 10 and first >= 10
+    if word in FIELD_WIDTH_STYLES_BOTH:
+        return first < 10 or second < 10
+    return False
+
+
+def pair_widths(width: str) -> "tuple[bool, bool]":
+    """One width word as a padding decision per field (plan P4-D132).
+
+    A joint word decides both fields. A one-field word decides its own
+    field and leaves the other at the padded default, which is never
+    seen on the cells that word is counted over: the other field is ten
+    or more there.
+
+    Guarantees: accepts a member of `FIELD_WIDTH_STYLES` (anything else
+    reads as padded on both); returns (first padded, second padded).
+    Determinism: a function of the word. Raises nothing. No I/O.
+    """
+    if width == WIDTH_UNPADDED:
+        return False, False
+    if width == WIDTH_FIRST_PADDED:
+        return True, False
+    if width == WIDTH_SECOND_PADDED:
+        return False, True
+    if width == WIDTH_FIRST_FIELD_UNPADDED:
+        return False, True
+    if width == WIDTH_SECOND_FIELD_UNPADDED:
+        return True, False
+    return True, True
+
+
+def joint_width(first_padded: bool, second_padded: bool) -> str:
+    """The joint word for a padding decision per field: `pair_widths` reversed."""
+    if first_padded and second_padded:
+        return WIDTH_PADDED
+    if first_padded:
+        return WIDTH_FIRST_PADDED
+    if second_padded:
+        return WIDTH_SECOND_PADDED
+    return WIDTH_UNPADDED
+
+
+def field_width_word(which: int, padded: bool) -> str:
+    """The one-field word for field 1 or 2, padded or not (plan P4-D132)."""
+    if which == 2:
+        return WIDTH_SECOND_FIELD_PADDED if padded else WIDTH_SECOND_FIELD_UNPADDED
+    return WIDTH_FIRST_FIELD_PADDED if padded else WIDTH_FIRST_FIELD_UNPADDED
+
+
+def width_of_field_word(word: str) -> str:
+    """The joint word a rank counted under a one-field word is written with.
+
+    `padded` for a padded field and `unpadded` for an unpadded one: the
+    other field is ten or more on every such rank, so it is written in
+    two figures either way and only this field's decision shows.
+    """
+    if word == WIDTH_FIRST_FIELD_UNPADDED or word == WIDTH_SECOND_FIELD_UNPADDED:
+        return WIDTH_UNPADDED
+    if word == WIDTH_FIRST_FIELD_PADDED or word == WIDTH_SECOND_FIELD_PADDED:
+        return WIDTH_PADDED
+    return word
+
+
+def _raw_pair(body: str, mark: str) -> "tuple[str, str] | None":
+    """The two fields before the year, exactly as they were written.
+
+    `_delimited_fields` pads what it returns, because what it answers is
+    the DATE; this answers the writing, so nothing is padded here.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    marks: "list[int]" = []
+    place = 0
+    for character in body:
+        if character == mark:
+            marks += [place]
+        place = place + 1
+    if len(marks) != 2:
+        return None
+    return body[0 : marks[0]], body[marks[0] + 1 : marks[1]]
+
+
+def _date_half(body: str, format_name: str) -> str:
+    """The date part of a slashed stamp, or the whole of a date cell."""
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name not in SLASHED_STAMPS:
+        return body
+    mark = body.find(" ")
+    return body[0 : max(mark, 0)]
+
+
+def _textual_written(
+    body: str, month_first: bool
+) -> "tuple[str, str, str, bool] | None":
+    """A textual date's day field, month name, mark and comma, as written.
+
+    `_textual_fields` answers what the cell MEANS and strips the comma
+    on the way; this answers how it was written, so the comma comes back
+    as a fact of its own. The grammar is the same one, character for
+    character, because two readings of one shape is how the families
+    come apart.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    for mark in (" ", "-"):
+        marks: "list[int]" = []
+        place = 0
+        for character in body:
+            if character == mark:
+                marks += [place]
+            place = place + 1
+        if len(marks) != 2:
+            continue
+        first = body[0 : marks[0]]
+        middle = body[marks[0] + 1 : marks[1]]
+        last = body[marks[1] + 1 :]
+        comma = False
+        if middle[len(middle) - 1 : len(middle)] == ",":
+            if not month_first:
+                continue
+            middle = middle[0 : len(middle) - 1]
+            comma = True
+        if not first or not middle or not last:
+            continue
+        if _carries_space(first):
+            continue
+        if _carries_space(middle):
+            continue
+        if _carries_space(last):
+            continue
+        name_mark = "space" if mark == " " else "hyphen"
+        if month_first:
+            return middle, first, name_mark, comma
+        return first, middle, name_mark, comma
+    return None
+
+
+def _name_parts(style: str) -> "tuple[str, str, str, str]":
+    """One joint month-name style word, taken back apart."""
+    if not isinstance(style, str):
+        raise TypeError(_NOT_TEXT)
+    parts = style.split("-")
+    if len(parts) < 4:
+        return "title", "abbreviated", "space", "no-comma"
+    comma = "comma"
+    if parts[3] == "no":
+        comma = "no-comma"
+    return parts[0], parts[1], parts[2], comma
+
+
+def name_style_agrees(published: str, written: str) -> bool:
+    """Whether a written month-name style meets a published one (P4-D257).
+
+    THE PERMITTED READING OF `either`, STATED ONCE so the generator and
+    the checker cannot hold two (the extra review of c5d09d5, item 8).
+    `May` is its own abbreviation, so a column every cell of which falls
+    in May says nothing about length and publishes `either`: 240 cells
+    written `01-MAY-2020` publish `upper-either-hyphen-no-comma`. A twin
+    of it writes other months, each of which must resolve that length
+    one way -- the generator writes the abbreviated name -- and the
+    checker counted every one of those 240 spellings as a style nobody
+    published, so the file failed `names.unnamed` while its generation
+    report named no deviation at all.
+
+    A published `either` is met by the same case, mark and comma at
+    EITHER length, and by nothing else: the three parts the source did
+    settle are still exact. A published length is met by itself alone.
+
+    Guarantees: accepts a published style and a written one; returns a
+    bool, and True only for styles agreeing in case, mark and comma.
+    Determinism: a fixed function of the two. Raises TypeError if either
+    is not a string instance. No I/O of any kind.
+    """
+    if published == written:
+        return True
+    first = _name_parts(published)
+    second = _name_parts(written)
+    if first[1] != NAME_LENGTH_EITHER:
+        return False
+    return (
+        first[0] == second[0]
+        and first[2] == second[2]
+        and first[3] == second[3]
+    )
+
+
+def date_field_style(text: str, format_name: str) -> "str | None":
+    """The width convention one written cell shows, or None.
+
+    One of the four joint words where both numeric fields are below ten,
+    and the word of the field that showed where only one is (plan
+    P4-D132). None where the member fixes both widths, where the cell
+    does not read under the member, or where no field of it could show a
+    width at all -- which is what makes this census's total the cells
+    that could show something rather than every parsed cell.
+
+    Guarantees: accepts one cell and the member it parsed under; returns
+    a member of `FIELD_WIDTH_STYLES` or nothing. Determinism: a function
+    of the two. Raises TypeError if either is not a string instance. No
+    I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        return _layout_width_style(text, format_name)
+    numeric = format_name in VARIABLE_WIDTH_MEMBERS
+    if not numeric and format_name not in TEXTUAL_MEMBERS:
+        return None
+    if parse_datetime(text, format_name) is None:
+        return None
+    body = text.strip()
+    if not numeric:
+        found = _textual_written(
+            body, format_name == "textual-month-first-date"
+        )
+        if found is None:
+            return None
+        return _one_field_style(found[0])
+    pair = _raw_pair(_date_half(body, format_name), "/")
+    if pair is None:
+        return None
+    first = _one_field_style(pair[0])
+    second = _one_field_style(pair[1])
+    if first is None and second is None:
+        return None
+    if first is None:
+        # Only the second field showed, and the word says so (P4-D132).
+        if second == WIDTH_PADDED:
+            return WIDTH_SECOND_FIELD_PADDED
+        return WIDTH_SECOND_FIELD_UNPADDED
+    if second is None:
+        if first == WIDTH_PADDED:
+            return WIDTH_FIRST_FIELD_PADDED
+        return WIDTH_FIRST_FIELD_UNPADDED
+    if first == second:
+        return first
+    if first == WIDTH_PADDED:
+        return WIDTH_FIRST_PADDED
+    return WIDTH_SECOND_PADDED
+
+
+def month_name_style(text: str, format_name: str) -> "str | None":
+    """The joint month-name style one written cell shows, or None.
+
+    A cell whose month is MAY, whose two written forms are one word,
+    shows no length: nothing in `May` says whether the column abbreviates.
+    It still shows its case, its mark and its comma, so it is counted
+    under the `either` word that carries those (plan P4-D133) rather than
+    under no key -- which is what left a column of `17-MAY-2024` with an
+    empty census and a twin written `17 May 2024`. None for a spelling
+    outside the three cases.
+
+    Guarantees: accepts one cell and the member it parsed under; returns
+    a member of `MONTH_NAME_STYLES` or nothing. Determinism: a function
+    of the two. Raises TypeError if either is not a string instance. No
+    I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name not in TEXTUAL_MEMBERS:
+        return None
+    if parse_datetime(text, format_name) is None:
+        return None
+    body = text.strip()
+    found = _textual_written(body, format_name == "textual-month-first-date")
+    if found is None:
+        return None
+    name = found[1]
+    case = _name_case(name)
+    if case is None:
+        return None
+    length = "abbreviated" if len(name) == 3 else "full"
+    if folded(name) == "may":
+        # ITS LENGTH SHOWS NOTHING, AND THE REST DOES (plan P4-D133).
+        length = NAME_LENGTH_EITHER
+    comma = "comma" if found[3] else "no-comma"
+    return f"{case}-{length}-{found[2]}-{comma}"
+
+
+def quarter_marker_case(text: str, format_name: str) -> "str | None":
+    """Whether a quarter cell wrote its marker upper or lower case."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name != "year-quarter":
+        return None
+    if parse_datetime(text, format_name) is None:
+        return None
+    body = text.strip()
+    if body[5] == "Q":
+        return "upper"
+    if body[5] == "q":
+        return "lower"
+    return None
+
+
+def zulu_case(text: str, format_name: str) -> "str | None":
+    """Whether a cell carrying a zulu offset wrote it upper or lower case."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name != "iso-datetime" and format_name != "iso-mixed":
+        return None
+    found = parse_datetime(text, format_name)
+    if found is None or found[1] != "Z":
+        return None
+    body = text.strip()
+    last = body[len(body) - 1]
+    if last == "Z":
+        return "upper"
+    if last == "z":
+        return "lower"
+    return None
+
+
+def month_spelling(month: int, length: str, case: str) -> str:
+    """One month written as a name: the inverse of `month_of_name`.
+
+    The one place a month NAME is built, as `clock_spelling` is the one
+    place a clock is, so a producer counting names and a generator
+    writing them cannot spell the same month two ways.
+
+    Guarantees: accepts a month from 1 to 12, one of `NAME_LENGTHS` and
+    one of `NAME_CASES`; returns the name. Determinism: a function of the
+    three. Raises ValueError for a month outside the calendar. No I/O.
+    """
+    if isinstance(month, bool) or not isinstance(month, int):
+        raise ValueError(_NOT_TEXT)
+    if month < 1 or month > 12:
+        raise ValueError(_NOT_TEXT)
+    pair = _MONTH_NAMES[month - 1]
+    name = pair[1] if length == "full" else pair[0]
+    if case == "upper":
+        return _upper_text(name)
+    if case == "lower":
+        return _lower_text(name)
+    return _titled(name)
+
+
+def _field_text(value: int, padded: bool) -> str:
+    """One numeric field at the width its style asks for."""
+    if padded or value >= 10:
+        return f"{value:02d}"
+    return f"{value}"
+
+
+def written_date(
+    year: int,
+    month: int,
+    day: int,
+    format_name: str,
+    width: str = DEFAULT_FIELD_WIDTH,
+    name_style: str = DEFAULT_NAME_STYLE,
+) -> str:
+    """One day written the way this member's own source wrote it.
+
+    THE INVERSE OF `parse_datetime` for every member that names a day,
+    and the whole of what reversing owner decision 5 means for the date
+    half of a cell: field order, delimiter, the width of each field, the
+    two-figure year, the month name's case and length, the mark between
+    a textual date's fields and the comma after its day.
+
+    Guarantees: accepts a calendar date, one member of `DATE_FORMATS`
+    that names a day, one of `FIELD_WIDTH_STYLES` and one of
+    `MONTH_NAME_STYLES`; returns the cell's date half, which
+    `parse_datetime` reads back under the same member as the same day.
+    Determinism: a function of its arguments. Raises ValueError through
+    `month_spelling` for a month outside the calendar. No I/O of any kind.
+    """
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT WRITES THE DAY IN ITS OWN FIELDS (landing R2a), a clock
+        # it writes at midnight and an offset field some cells omit with
+        # nothing: the spelling a day of the column is written in.
+        return written_layout_date(
+            format_name, f"{year:04d}-{month:02d}-{day:02d}", "", width
+        )
+    if format_name == "compact-date":
+        return f"{year:04d}{month:02d}{day:02d}"
+    if format_name == "slashed-iso-date" or format_name == "slashed-iso-datetime":
+        return f"{year:04d}/{month:02d}/{day:02d}"
+    if format_name in TEXTUAL_MEMBERS:
+        case, length, mark, comma = _name_parts(name_style)
+        name = month_spelling(month, length, case)
+        between = " " if mark == "space" else "-"
+        day_text = _field_text(day, width != WIDTH_UNPADDED)
+        if format_name == "textual-day-first-date":
+            return f"{day_text}{between}{name}{between}{year:04d}"
+        tail = "," if comma == "comma" else ""
+        return f"{name}{between}{day_text}{tail}{between}{year:04d}"
+    if format_name not in MONTH_FIRST_MEMBERS and (
+        format_name not in DAY_FIRST_MEMBERS
+    ):
+        # Every ISO member, and anything a later landing adds without
+        # saying how it is written: the form that has always been safe.
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    dotted = format_name in DOTTED_MEMBERS
+    between = "." if dotted else "/"
+    first_padded, second_padded = pair_widths(width)
+    if dotted:
+        # C6-22: the dotted families are read padded and only padded,
+        # because `1.2.2024` is how a version identifier is written.
+        first_padded = True
+        second_padded = True
+    first_value = month
+    second_value = day
+    if format_name in DAY_FIRST_MEMBERS:
+        first_value = day
+        second_value = month
+    year_text = f"{year:04d}"
+    if format_name in TWO_FIGURE_MEMBERS:
+        year_text = f"{year % 100:02d}"
+    first_text = _field_text(first_value, first_padded)
+    second_text = _field_text(second_value, second_padded)
+    return f"{first_text}{between}{second_text}{between}{year_text}"
+
+
+def written_quarter(year: int, quarter: int, marker: str) -> str:
+    """One quarter written with the marker case its source wrote."""
+    letter = "Q" if marker != "lower" else "q"
+    return f"{year:04d}-{letter}{quarter}"
+
+
+def written_offset(offset: str, case: str) -> str:
+    """One offset written as its source wrote it: `Z` or `z`."""
+    if not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    if offset == "Z" and case == "lower":
+        return "z"
+    return offset
 
 
 EXACTLY_ZERO: "tuple[int, tuple[str, ...], int]" = (0, (), 0)
@@ -2341,6 +6109,7 @@ def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
         # "negative" twice here.
         negative = True
         body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
     if body[:1] == "-":
         negative = True
         body = body[1:]
@@ -2492,6 +6261,1152 @@ MISSING_CLASSES = (
     MISSING_WITHHELD,
 )
 
+# THE SMALLEST GROUP A COUNT OF VALUES AT MIDNIGHT MAY NAME, on either
+# side of itself, whatever the run's own smallest group size is
+# (landing 2b.6; the owner's twin definition, clause 3).
+#
+# One is not a group. A count of one names the one person who holds the
+# value, and a count leaving exactly one off midnight names the one
+# person who does not -- and at the then default smallest group size of one
+# both used to be published. Measured on 400 moments a day apart at
+# noon, described once as they stood and once with a single row moved to
+# midnight: the two descriptions differed in `n_at_midnight: 0 -> 1` and
+# in nothing else anywhere, so a reader holding the other 399 values
+# read that row's time of day off the difference.
+#
+# It lives here because the producer, the loader and the document guard
+# each hold the rule to the same number, and a floor written out three
+# times is a floor that disagrees with itself. The counts stage 3 raises
+# for the older facts raise past this one; this is the floor below which
+# no run may go.
+MIDNIGHT_DISCLOSURE_FLOOR = 2
+
+
+def _tally_add(tally: "dict[str, int]", name: str, count: int) -> None:
+    """Add a count under a name, opening the name where it is new."""
+    if name in tally:
+        tally[name] = tally[name] + count
+    else:
+        tally[name] = count
+
+
+def width_is_value_bound(name: str) -> bool:
+    """Whether a width word is one only a cell's VALUE lets it show (P4-D139).
+
+    The four one-field words: a date is counted under one only where its
+    other field is ten or more, so how many a column holds is a fact
+    about its dates rather than about how it wrote them.
+    """
+    return name in FIELD_WIDTH_STYLES_FIRST or name in FIELD_WIDTH_STYLES_SECOND
+
+
+def name_is_value_bound(name: str) -> bool:
+    """Whether a month-name style is one only a name of May shows (P4-D139)."""
+    return _name_parts(name)[1] == NAME_LENGTH_EITHER
+
+
+def folded_width_tally(tally: "dict[str, int]") -> "dict[str, int]":
+    """A tally of widths with each one-field count joined to a joint word.
+
+    A CELL THAT SHOWS ONE FIELD IS CONSISTENT WITH TWO JOINT WORDS, and
+    it goes to whichever of them the column's own cells showing both
+    fields wrote more often -- vocabulary order on a tie -- so that a
+    column writing `m/dd/yyyy` counts `5/17/2024` and `12/05/2024` under
+    the `second-padded` its `5/04/2024` cells wrote. A one-field count
+    with no joint word agreeing with it stays under its own word.
+
+    WHY (plan P4-D139; skeptic of the review of 158c811, items 2 and
+    3). Counted apart, the one-field classes put a floor on how many of a
+    twin's dates happen to fall past the ninth of a month or in October
+    to December: 150 dates written `m/d/yyyy` at a smallest group of
+    eleven published `second-field-unpadded` at 14, and the twin whose
+    dates held fewer than eleven such cells failed its own check.
+
+    Guarantees: accepts a raw tally of width words; returns a tally over
+    the same total with keys in sorted order. Determinism: a function of
+    the tally. Raises nothing. No I/O of any kind.
+    """
+    folded: "dict[str, int]" = {}
+    for name in sorted(tally):
+        if not width_is_value_bound(name):
+            _tally_add(folded, name, tally[name])
+    for name in sorted(tally):
+        if not width_is_value_bound(name):
+            continue
+        which = 1 if name in FIELD_WIDTH_STYLES_FIRST else 2
+        padded = name == WIDTH_FIRST_FIELD_PADDED or name == WIDTH_SECOND_FIELD_PADDED
+        best = ""
+        for joint in FIELD_WIDTH_STYLES_BOTH:
+            if joint not in tally:
+                continue
+            if pair_widths(joint)[which - 1] != padded:
+                continue
+            if not best or tally[joint] > tally[best]:
+                best = joint
+        _tally_add(folded, best if best else name, tally[name])
+    return {name: folded[name] for name in sorted(folded)}
+
+
+def folded_name_tally(tally: "dict[str, int]") -> "dict[str, int]":
+    """A tally of month-name styles with each name of May joined to a length.
+
+    A NAME OF MAY IS WRITTEN THE SAME AT EITHER LENGTH, so a cell of May
+    goes to the style of the same case, mark and comma that the column's
+    other cells wrote more often -- the abbreviated one on a tie -- and
+    stays under its `either` word only where no other cell wrote that
+    case, mark and comma at all (plan P4-D139).
+
+    WHY (skeptic of the review of 158c811, finding 2). Counted apart, one
+    `15-MAY-2023` among 269 `DD-MON-YYYY` dates was a count of one, the
+    disclosure rule withheld the whole census for it, and the twin was
+    written `20 Jan 2022`: `%d-%b-%Y` read 269 of 269 twin cells on
+    158c811 and none after it.
+
+    Guarantees: accepts a raw tally of style words; returns a tally over
+    the same total with keys in sorted order. Determinism: a function of
+    the tally. Raises nothing. No I/O of any kind.
+    """
+    folded: "dict[str, int]" = {}
+    for name in sorted(tally):
+        if not name_is_value_bound(name):
+            _tally_add(folded, name, tally[name])
+    for name in sorted(tally):
+        if not name_is_value_bound(name):
+            continue
+        case, _length, mark, comma = _name_parts(name)
+        best = ""
+        for length in NAME_LENGTHS:
+            sibling = f"{case}-{length}-{mark}-{comma}"
+            if sibling not in tally:
+                continue
+            if not best or tally[sibling] > tally[best]:
+                best = sibling
+        _tally_add(folded, best if best else name, tally[name])
+    return {name: folded[name] for name in sorted(folded)}
+
+
+def disclosed_census(
+    counts: "dict[str, int]", population: int, floor: int
+) -> "dict[str, int]":
+    """A tally of written forms, cut to what the disclosure rule allows.
+
+    THE CENSUSES OF HOW A COLUMN'S DATES WERE WRITTEN (plan P4-D131) ask
+    the ONE disclosure rule, `census_nameable`, with its line
+    `census_floor`, and add one thing of their own: NOTHING IS POOLED. A
+    census names a handful of forms, and a pool beside them is the count
+    of whichever forms are left: where one form is left the pool IS that
+    form's count. Measured on 400 moments at noon with one lower-case
+    `z`: at a floor of eleven the census read `{"upper": 399,
+    "(withheld)": 1}`, which names the one row as plainly as `{"lower":
+    1, "upper": 399}` did. `population` is the total the document already
+    publishes for the cells the census counts over, so what the named
+    counts leave of it is a count a reader can subtract.
+
+    (Written once at the merge of the date and number repairs: the date
+    repair had stated the same rule a second time, as `census_discloses`
+    and `disclosure_line`, and two statements of one rule are two things
+    that can part.)
+
+    Every form counted at the line or above is named, a form below it is
+    left out with no pool, and the whole census is withheld -- published
+    `{}` -- where what is left would not disclose. `{}` is also what a
+    column whose dates cannot show the convention publishes, so no reader
+    can tell a withheld census from an empty one by its form.
+
+    Guarantees: accepts the full tally, the published total it counts
+    over and the run's smallest group size; returns a census with no
+    `(withheld)` key for which `census_nameable` over that total holds,
+    keys in sorted order. Determinism: a function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    named: "dict[str, int]" = {}
+    printed: "list[int]" = []
+    for name in sorted(counts):
+        if name != MISSING_WITHHELD and counts[name] >= line:
+            named[name] = counts[name]
+            printed += [counts[name]]
+    if not census_nameable(printed, [population], floor):
+        return {}
+    return named
+
+
+def census_pools(
+    population: int,
+    floor: int,
+    names: int,
+    room: int = -1,
+    capacities: "list[int] | None" = None,
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
+    unfinished: bool = False,
+    shown: bool = False,
+) -> bool:
+    """Whether a census none of whose names reaches the line may be one pool.
+
+    THE ONE STATEMENT, read by the producer through `absorbed_census`, by
+    the loader (contract D3, D12, P5, P5b, P6, P6b, P6c) and by the checker, of
+    where a spelling census holds its whole count back (plan P4-D222;
+    stage 2 closed by the owner rulings of 2026-09-17), asked since the
+    second review of follow-up B (plan P4-D356) as `mixture_pool_holds`
+    asks the two mixture censuses: of what the block lets a reader bound.
+
+    A POOL SAYS EVERY NAME WAS WRITTEN BY FEWER CELLS THAN THE LINE. On a
+    CLOSED vocabulary -- three marks between day and clock, one on a
+    slashed stamp, six forms of a number -- a pool over more cells than
+    ``names - 1`` names can hold below the line tells a reader that EVERY
+    name was written: 7, +8, 09, 1.5e3 and 2.5E3 among 995 prices at a
+    floor of one published a pool of five beside the decimals, each form
+    exactly one cell. And the pooled cells' own count of different
+    spellings bounds how many names they wrote, open vocabulary or
+    closed: ten `007`, ten `+7` and ten `7e0` at a floor of eleven
+    published `{"(withheld)": 30}` beside three spellings, three forms at
+    most under eleven each, so each form exactly ten.
+
+    So ``room`` is the most names a reader can see among the pooled
+    cells (their different spellings for the producer, the column's for
+    the loader; below nought where the caller bounds nothing), the
+    vocabulary is ``names`` -- or one more than the room on an open one,
+    ``names`` nought -- each holding at most ``capacities`` of the cells
+    where one is given, and ``groups`` are the values whose rows the
+    block publishes, each a (rows, spellings, capacity per name). A
+    population below the line is always a pool; an open census with no
+    room bounds nothing and pools.
+
+    Guarantees: accepts the population, the settings floor, the size of
+    the closed vocabulary (nought for an open one), the room, the
+    capacities, the groups, the answer where the walk stops short and
+    whether a name a value stands on alone is shown by the block
+    (`mixture_pool_holds`); returns a bool. Determinism: a fixed function
+    of the eight. Raises nothing. No I/O of any kind.
+    """
+    if population < census_floor(floor):
+        return True
+    size = names
+    if size < 1:
+        if room < 0:
+            return True
+        size = room + 1
+    held = [population] * size if capacities is None else capacities
+    seen = size if room < 0 else room
+    return mixture_pool_holds(population, floor, held, seen, groups, unfinished, shown)
+
+
+def lone_pool_stands(population: int, floor: int, conventions: int, room: int) -> bool:
+    """Whether a pool over names of one capacity, with no value placed, may stand: answered at any floor.
+
+    The question the loader asks of a closed census's lone pool
+    (`contract._census_may_speak`: D12, P6, NS2 and TM1) and the twin asks
+    of its own pooled marks (`generation._pool_mark_count`,
+    `generation._pool_alone_places`): `mixture_pool_holds` over
+    ``conventions`` names, each able to hold the whole pool, at most
+    ``room`` of them written, and no value placed.
+
+    TWO SUMS ARE ASKED BEFORE THE WALK (the Codex review of 3b-R0, its
+    verifier's open item), and every reading meets both:
+
+    1. a reading leaving a name absent writes no more of the others than
+       the room, each at most one less than the line, so a pool past
+       that says every name was written (clause 1);
+    2. a reading in which no name stands at one less than the line holds
+       at most two less than the line on each name it writes, so a pool
+       past that many on as many names as the room lets be written has
+       a name at one less than the line in every reading (clause 2).
+
+    Past either the walk answers False, so the sums never refuse a pool
+    a finished walk lets stand. Within both, on a line past three, every
+    count under the line has a reading without it and every name a
+    reading without it, so the walk answers True: the sums are its whole
+    answer there, 240,445 pools at 40 floors from four to 150, every
+    vocabulary of one to seven names and every room to nine, against the
+    walk that always finished (110cb46). Where the walk stops short this
+    answers True, as the loader's other call sites answer, so it refuses
+    only what the sums or a finished walk show pinned.
+
+    Why it is needed: since a leaf of the walk stops at its two ceilings
+    (the review's item 1), a walk over a line of hundreds of thousands
+    stops short at the shipped budget. Asked with False there, the
+    loader refused pools the walk lets stand -- 400,000 under a line of
+    300,001, which six marks hold -- and the twin, asking how many
+    groupable cells its marks may hold, lowered its count one cell a walk
+    stopped short: from 350,000 cells under that line, about three CPU
+    seconds a walk for 50,000 walks, where 110cb46 took one walk of
+    4.8 s. Asked with True and no sums, the loader took a pool past what
+    all but one name can hold below the line: 2,100,000 under that line.
+
+    Guarantees: accepts the population, the settings floor, the number
+    of names (one or more) and the room; returns a bool, True for a
+    population below the line. Determinism: a fixed function of the four.
+    Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    if population < line:
+        return True
+    seen = min(room, conventions)
+    if population > min(seen, conventions - 1) * (line - 1):
+        return False
+    if population > seen * (line - 2):
+        return False
+    return mixture_pool_holds(population, floor, [population] * conventions, room, (), True)
+
+
+# HOW FAR `mixture_pool_holds` WALKS before it answers without finishing
+# (the final fix of follow-up B): every step placing a value's rows and
+# every reading of the free cells it asks counts one, about a second for
+# the million; the work each step does is counted besides, against
+# `POOL_WORK_STEPS` (plan P4-D380). Where the walk stops short on either
+# the producer counts the census under one convention -- a band holds no
+# count back -- and the loader refuses only what it has shown, so no
+# description the producer writes is refused. Measured: fifteen values of
+# four rows on two spellings over seven marks settle in 153,000 steps;
+# twenty of ten rows at a floor of 31 did not in fifty million.
+POOL_SEARCH_STEPS = 1000000
+
+# WHAT A STEP'S WORK IS WORTH (plan P4-D380), counted against
+# `POOL_WORK_STEPS`, so the walk's time is bounded and not only its steps:
+# a reading of the free cells one, and one more for every
+# `POOL_WORDS_A_STEP` 64-bit words its big-number steps may move -- each
+# step charged the population's width, the most a set of totals spans --
+# and a table the walk builds over the conventions one for every
+# `POOL_CELLS_A_STEP` cells it holds: the conventions by the values before
+# the walk starts, a value's placements, each state written out. Each
+# step was counted one and nothing more before, and on a census of about
+# ten thousand widths -- a column of computed numbers written to full
+# precision -- one reading cost five to twelve seconds. Measured after: a
+# million steps in about 0.7 s on such a census at 10,000 rows, at a load
+# average of 35.
+POOL_WORDS_A_STEP = 256
+POOL_CELLS_A_STEP = 8
+
+# THE WORK CHARGES ARE A SECOND CEILING, NOT THE ANSWER'S BUDGET (plan
+# P4-D380, its review's first item). The walk answers by
+# `POOL_SEARCH_STEPS` counted one a step, as it always did, and the charges
+# above are spent against this ceiling only, so a walk that took its
+# steps before takes the same steps now and answers as it did, unless its
+# work passes four times the budget. Charging them against the answer's
+# own budget changed one description 668f276 gave without crashing: a
+# column of 1,000 whole numbers and quotients written in full (`mixed`,
+# seed 8101) finished in 849,564 steps and published its widths as one
+# pool, and charged it reached 1,525,694 and was counted at one width.
+# Measured: among 623 walks that finished, the most work against plain
+# steps was 1.84 times, so four times the budget stops none of them early
+# and still bounds the time a walk can take. ONE CHARGE IS TAKEN BEFORE
+# A STEP (`pool_table_too_large`), and it counts every group handed in,
+# the ones the walk would then drop as bounding nothing among them --
+# dropping them costs a look per convention each, the table's own size.
+# So a caller handing in thousands of such groups over thousands of
+# conventions is answered as stopped short where 668f276 walked on and
+# finished (3,000 values of two rows over 3,000 widths: True there in 8.6
+# CPU s, ``unfinished`` here at once). The producer's census of widths
+# hands in only the values that bound something (`taxonomy._width_bounds`,
+# the review's second round, item 1).
+POOL_WORK_STEPS = 4 * POOL_SEARCH_STEPS
+
+
+def pool_table_too_large(conventions: int, groups: int) -> bool:
+    """Whether a table of ``conventions`` by ``groups`` values and one more is past the walk's budget before a step.
+
+    The charge `mixture_pool_holds` takes for the table it builds over the
+    conventions (plan P4-D380), asked by itself, so a caller that would
+    build that table only to be told the walk stops short can ask first
+    (`taxonomy._width_band`, `taxonomy._end_pool_band`): one cell per
+    convention for each value and one more, `POOL_CELLS_A_STEP` cells to
+    a step, against `POOL_SEARCH_STEPS`. Raises nothing. No I/O.
+    """
+    return conventions * (groups + 1) // POOL_CELLS_A_STEP >= POOL_SEARCH_STEPS
+
+
+def mixture_pool_holds(
+    population: int,
+    floor: int,
+    capacities: "list[int]",
+    room: int,
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
+    unfinished: bool = False,
+    shown: bool = False,
+) -> bool:
+    """Whether a census none of whose conventions reaches the line may pool.
+
+    ASKED OF WHAT THE BLOCK LETS A READER BOUND, NOT OF THE VOCABULARY'S
+    SIZE (plan P4-D356, the two reviews of follow-up B). A pool says every
+    convention it holds stood under the line, and the rest of the block
+    bounds more than the vocabulary does. Measured at a floor of eleven:
+    ten `1,234`, ten `1 234` and eighty `12` published `{"(withheld)":
+    20}` beside three different spellings, two marks at most and both at
+    exactly ten; and ten `-12.00`, ten `(12.00)` and 55 negatives and
+    positives of one spelling each published `{"(withheld)": 30}` beside
+    `mode -12`, `mode_count 20`, 57 spellings and 56 values -- so -12 had
+    two spellings at most, its twenty rows sat on two notations of ten.
+
+    So each convention holds at most one less than the line or its own
+    ``capacities`` entry, whichever is smaller (a trailing minus stands
+    only on a figure with a point), at most ``room`` conventions are
+    written (no reader counts them higher than the pool's own count of
+    different spellings), and each of ``groups`` -- a value whose rows
+    the block counts or bounds, as (its rows among the pooled cells, the
+    most conventions its spellings let it wear, what each convention can
+    hold of it) -- sits on no more conventions than its spellings. TWO
+    VALUES MAY SHARE A CONVENTION (the final fix of follow-up B): kept
+    apart, twenty values of two rows and one spelling each could not sit
+    on seven marks at all, and a pool no reader can pin was refused. A
+    value of one row, or one free to wear every convention a reading
+    writes and open to every convention, bounds nothing a free cell does not. Over the counts that
+    allows -- the readings of the pool -- it stands only where:
+
+    1. EVERY CONVENTION COULD BE ABSENT, so none is shown written; and
+    2. NO COUNT IS IN EVERY READING, so no reader can say a convention was
+       written by exactly that many rows even without saying which: at a
+       floor of three a pool of three over three notations reads two and
+       one, or three ones, and one row wrote a notation alone in both.
+
+    HOW MANY CONVENTIONS WERE WRITTEN IS NOT ASKED (the second review,
+    finding 3): it names none and counts none. And where ``shown`` is
+    set, clause 1 is not asked of a convention some value can stand on
+    alone: the block's placement of that value shows it written, not the
+    pool -- an unpadded whole number is exactly as wide as its figures,
+    so a placed `123` shows width 3 whatever the census says.
+
+    On a vocabulary of ``n`` equal capacities with a full room and no
+    group this is the rule `census_pools` asked of the vocabulary alone
+    wherever the line is more than ``n``, as it is at the default floor
+    of eleven for every closed census; under it the second clause
+    refuses more.
+
+    THE WALK IS BOUNDED (`POOL_SEARCH_STEPS`, and its work by
+    `POOL_WORK_STEPS`), and where it stops short
+    the answer is ``unfinished``: False for the producer, which then
+    counts the census under one convention, True for the loader, which
+    refuses only a pool it has shown pinned. The producer's readings are
+    never more than the loader's, so it never pools what the loader
+    refuses. The loader's closed censuses and the twin's own pooled
+    marks ask one kind with no value through `lone_pool_stands`, True
+    where the walk stops short and two sums asked first.
+
+    One statement, read by the producer (`taxonomy._mixture_band` and
+    `absorbed_census`, with the pooled cells' true spellings and every
+    value's true rows) and by the loader (with the most a published block
+    admits).
+
+    Guarantees: accepts the pooled count, the settings floor, one capacity
+    per convention of the vocabulary (the pooled count or more where
+    nothing bounds it), the most conventions a reader can see, the groups
+    the answer where the walk stops short and whether a convention a
+    value stands on alone is exempt from clause 1; returns a bool, True
+    for a population below the line. Determinism: a fixed function of
+    the seven. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    if population < line:
+        return True
+    held: "list[int]" = []
+    for capacity in capacities:
+        held += [min(line - 1, max(0, capacity))]
+    seen = min(room, len(held))
+    if seen < 1:
+        return False
+    # THE TABLE OF CONVENTIONS AND VALUES IS CHARGED BEFORE IT IS BUILT
+    # (plan P4-D380): one cell per convention for each value and one more,
+    # `POOL_CELLS_A_STEP` cells to a step. A column of computed numbers at
+    # 100,000 rows asked about 83,000 widths beside 364 values, thirty
+    # million cells before the first step was taken.
+    spent = len(held) * (len(groups) + 1) // POOL_CELLS_A_STEP
+    if pool_table_too_large(len(held), len(groups)):
+        return unfinished
+    kept: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for rows, spellings, reach in groups:
+        worn = min(spellings, seen)
+        if rows > 0 and not _bounds_nothing(rows, worn, reach, held, seen):
+            kept += [(rows, worn, reach)]
+    ordered: "list[tuple[int, int, int]]" = []
+    for index in range(len(kept)):
+        ordered += [(-kept[index][0], kept[index][1], index)]
+    heaviest: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for _rows, _worn, index in sorted(ordered):
+        heaviest += [kept[index]]
+    answer = _pool_readings(population, held, seen, heaviest, line, shown, spent)
+    if answer is None:
+        return unfinished
+    return answer
+
+
+def _bounds_nothing(
+    rows: int, worn: int, reach: "tuple[int, ...]", held: "list[int]", seen: int
+) -> bool:
+    """Whether a value's rows could be any free cells: as many spellings as it can use, every convention open to all of them."""
+    if worn < min(rows, seen):
+        return False
+    for place in range(len(held)):
+        if min(held[place], reach[place]) < min(held[place], rows):
+            return False
+    return True
+
+
+def _pool_readings(
+    population: int,
+    held: "list[int]",
+    seen: int,
+    groups: "list[tuple[int, int, tuple[int, ...]]]",
+    line: int,
+    shown: bool = False,
+    spent: int = 0,
+) -> "bool | None":
+    """Whether readings meet both clauses of `mixture_pool_holds`; None where the walk stops short.
+
+    The conventions are gathered into kinds a reading cannot tell apart
+    -- the same capacity, and the same share of every value -- and a
+    state is the load the values put on each convention, sorted within
+    its kind. The values are placed one at a time, each over no more
+    conventions than its spellings, and every state that places them all
+    is topped up with the free cells (`_topped_up`) once per clause still
+    open: a reading holding no count ``k`` for each ``k`` under the line,
+    and one leaving a convention of each kind empty -- where ``shown``,
+    not of a kind of one convention some value can stand on alone.
+
+    The walk keeps two counts and stops short where either runs out
+    (plan P4-D380). `POOL_SEARCH_STEPS` is spent one a step -- a reading
+    of the free cells one, a call of `_placements`' walk one -- as the
+    walk always spent it, so within the work's ceiling it finishes, and
+    answers, wherever it did.
+    `POOL_WORK_STEPS`, less the ``spent`` its caller already charged, is
+    spent one a step and the work each step does besides: one more for
+    every `POOL_WORDS_A_STEP` words a reading's big-number steps may move
+    (the population's width each, `_topped_up`), and one for every
+    `POOL_CELLS_A_STEP` cells of a table of the conventions -- each
+    value's placements, each state it reaches (`_placements`).
+
+    BOTH COUNTS ARE ASKED AFTER EVERY READING, before the next one and
+    before a True is taken (the Codex review of 3b-R0, item 1). A state
+    that places every value asks one reading for each count under the
+    line, and they were asked only after all of them: at a floor raised
+    with the rows -- 1,000,001 cells of `i.5` and `i.50` at
+    `--smallest-group 500001` -- one leaf took a reading after 4,000,061
+    of the work, and its CPU seconds grew with the square of the rows. A
+    leaf that runs either count out now stops short there, so the most
+    the walk takes past its ceiling is one reading.
+    """
+    kinds: "list[tuple[int, ...]]" = []
+    sizes: "list[int]" = []
+    index_of: "dict[tuple[int, ...], int]" = {}
+    for place in range(len(held)):
+        if held[place] < 1:
+            continue
+        shares: "list[int]" = [held[place]]
+        for group in groups:
+            shares += [min(held[place], group[2][place])]
+        kind = tuple(shares)
+        if kind in index_of:
+            sizes[index_of[kind]] += 1
+        else:
+            index_of[kind] = len(kinds)
+            kinds += [kind]
+            sizes += [1]
+    if not kinds:
+        return False
+    avoided: "list[int]" = list(range(1, line))
+    emptied: "list[int]" = []
+    for index in range(len(kinds)):
+        if not shown or sizes[index] > 1 or not _stood_on_alone(kinds, index, len(groups)):
+            emptied += [index]
+    empty: "list[tuple[int, ...]]" = []
+    for size in sizes:
+        empty += [(0,) * size]
+    start = tuple(empty)
+    budget = [POOL_SEARCH_STEPS, POOL_WORK_STEPS - spent]
+    visited: "dict[tuple[int, tuple[tuple[int, ...], ...]], bool]" = {(0, start): True}
+    stack: "list[tuple[int, tuple[tuple[int, ...], ...]]]" = [(0, start)]
+    depth = 1
+    while depth > 0:
+        depth = depth - 1
+        level, state = stack[depth]
+        if level == len(groups):
+            still: "list[int]" = []
+            for barred in avoided:
+                work = [0]
+                if not _topped_up(population, kinds, state, seen, barred, -1, work):
+                    still += [barred]
+                budget[0] = budget[0] - 1
+                budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
+                if budget[0] < 1 or budget[1] < 1:
+                    return None
+            avoided = still
+            still = []
+            for index in emptied:
+                work = [0]
+                if state[index][len(state[index]) - 1] != 0 or not _topped_up(
+                    population, kinds, state, seen, -1, index, work
+                ):
+                    still += [index]
+                budget[0] = budget[0] - 1
+                budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
+                if budget[0] < 1 or budget[1] < 1:
+                    return None
+            emptied = still
+            if not avoided and not emptied:
+                return True
+        else:
+            rows, spellings, _reach = groups[level]
+            for grown in _placements(state, kinds, level, rows, spellings, budget):
+                if (level + 1, grown) in visited:
+                    continue
+                visited[(level + 1, grown)] = True
+                if depth < len(stack):
+                    stack[depth] = (level + 1, grown)
+                else:
+                    stack += [(level + 1, grown)]
+                depth = depth + 1
+        if budget[0] < 1 or budget[1] < 1:
+            return None
+    return False
+
+
+def _stood_on_alone(kinds: "list[tuple[int, ...]]", index: int, groups: int) -> bool:
+    """Whether some value can stand on this kind's conventions and on no other kind's."""
+    for group in range(groups):
+        if kinds[index][1 + group] < 1:
+            continue
+        alone = True
+        for other in range(len(kinds)):
+            if other != index and kinds[other][1 + group] > 0:
+                alone = False
+        if alone:
+            return True
+    return False
+
+
+def _placements(
+    state: "tuple[tuple[int, ...], ...]",
+    kinds: "list[tuple[int, ...]]",
+    index: int,
+    rows: int,
+    spellings: int,
+    budget: "list[int]",
+) -> "list[tuple[tuple[int, ...], ...]]":
+    """Every state one value's rows reach from ``state``, over no more than ``spellings`` conventions.
+
+    Two conventions of one kind under one load are one convention to a
+    reading, so the amounts given them are taken in falling order and each
+    resulting state is met once. ``budget`` is the walk's steps and, where
+    it holds two counts, its work after them (plan P4-D380): every step
+    spends one of each, and at nought on either it stops; the table of
+    the conventions this builds, and every state the walk writes out,
+    spend one of the last count besides for every `POOL_CELLS_A_STEP`
+    conventions they hold, never of the steps.
+    """
+    slots: "list[tuple[int, int, int]]" = []
+    for kind in range(len(kinds)):
+        loads = state[kind]
+        for position in range(len(loads)):
+            share = min(kinds[kind][0] - loads[position], kinds[kind][1 + index])
+            slots += [(kind, position, max(0, share))]
+    after = [0] * (len(slots) + 1)
+    for slot in range(len(slots) - 1, -1, -1):
+        after[slot] = after[slot + 1] + slots[slot][2]
+    last = len(budget) - 1
+    budget[last] = budget[last] - len(slots) // POOL_CELLS_A_STEP
+    found: "dict[tuple[tuple[int, ...], ...], bool]" = {}
+    _fill(state, slots, after, [0] * len(slots), 0, rows, spellings, found, budget)
+    return sorted(found)
+
+
+def _fill(
+    state: "tuple[tuple[int, ...], ...]",
+    slots: "list[tuple[int, int, int]]",
+    after: "list[int]",
+    amounts: "list[int]",
+    slot: int,
+    left: int,
+    parts: int,
+    found: "dict[tuple[tuple[int, ...], ...], bool]",
+    budget: "list[int]",
+) -> None:
+    """`_placements`' walk from ``slot`` on, ``left`` rows still to place over at most ``parts`` conventions.
+
+    IT CARRIES ITS OWN STACK (plan P4-D380). It called itself once per
+    slot, so a census of about a thousand conventions -- the widths of a
+    column of computed numbers written to full precision, the hours
+    between two times as seconds over 3,600 -- nested past the
+    interpreter's limit and `synthtwin profile` stopped on a bare
+    `RecursionError`, writing nothing. A frame here is a slot whose
+    amounts are being tried, and the slots on the path are consecutive,
+    so a frame is kept at its own slot's place: entering is a call,
+    leaving a frame is a return. The order of the amounts and the states
+    found are the recursion's own, and so is the budget's accounting --
+    one step per call, so a walk spends its steps where it spent them
+    before -- but for the one charge the same landing added, on the
+    budget's last count only (the work, where it holds two): a state
+    written out spends one more for every `POOL_CELLS_A_STEP`
+    conventions it holds.
+    """
+    last = len(budget) - 1
+    rows_at = [0] * (len(slots) + 1)
+    room_at = [0] * (len(slots) + 1)
+    next_at = [0] * (len(slots) + 1)
+    deepest = slot - 1
+    here = slot
+    rows = left
+    room = parts
+    while True:
+        budget[0] = budget[0] - 1
+        if last > 0:
+            budget[last] = budget[last] - 1
+        if budget[0] >= 1 and budget[last] >= 1:
+            if rows == 0:
+                grown: "list[tuple[int, ...]]" = []
+                start = 0
+                for kind in range(len(state)):
+                    loads: "list[int]" = []
+                    for position in range(len(state[kind])):
+                        loads += [state[kind][position] + amounts[start + position]]
+                    start = start + len(state[kind])
+                    grown += [tuple(sorted(loads, reverse=True))]
+                found[tuple(grown)] = True
+                budget[last] = budget[last] - len(amounts) // POOL_CELLS_A_STEP
+            elif here < len(slots) and room >= 1 and after[here] >= rows:
+                kind, position, share = slots[here]
+                top = min(share, rows)
+                if position > 0 and state[kind][position - 1] == state[kind][position]:
+                    top = min(top, amounts[here - 1])
+                rows_at[here] = rows
+                room_at[here] = room
+                next_at[here] = top
+                deepest = here
+        while deepest >= slot and next_at[deepest] < 0:
+            amounts[deepest] = 0
+            deepest = deepest - 1
+        if deepest < slot:
+            return
+        amount = next_at[deepest]
+        amounts[deepest] = amount
+        next_at[deepest] = amount - 1
+        here = deepest + 1
+        rows = rows_at[deepest] - amount
+        room = room_at[deepest] - (1 if amount > 0 else 0)
+
+
+def _topped_up(
+    population: int,
+    kinds: "list[tuple[int, ...]]",
+    state: "tuple[tuple[int, ...], ...]",
+    seen: int,
+    barred: int,
+    empty: int,
+    work: "list[int] | None" = None,
+) -> bool:
+    """Whether the free cells can fill ``state`` to ``population``: no count ``barred``, one convention of kind ``empty`` left empty.
+
+    Every convention holds its load or more, up to its capacity; at most
+    ``seen`` are written. A convention the values left empty is free:
+    written or not, and written it holds from one up to its capacity.
+
+    IT IS A SUM, AND IT IS WORKED OUT AS ONE (plan P4-D380). It used to
+    write the free conventions of each kind one at a time, over every
+    count of written conventions up to ``seen``, so a census of about
+    ten thousand widths -- a column of computed numbers written to full
+    precision, the hours between two times as seconds over 3,600 --
+    spent five to twelve seconds on ONE reading, about ``seen`` times
+    the free conventions in big-number steps, while the walk charged it
+    one step of its budget. The answer is the same question asked in an
+    order that costs nothing:
+
+    - the order the conventions are taken in changes no total, and a
+      total and a count of written conventions only grow, so the loaded
+      conventions are summed first, into one set of totals, and every
+      one of them is written;
+    - free conventions of one capacity cannot be told apart, so they
+      are one pool, and the totals ``t`` or fewer of them hold are a few
+      runs worked out from the capacity, the barred count and ``t``
+      (`_free_totals`), never a walk over them;
+    - where the room left after the loaded conventions holds every free
+      one, or every free convention has one capacity, each pool is read
+      from its runs; where pools of two capacities share a room too
+      small for both, the smaller pools are written one convention at a
+      time, as before, and the largest is read from its runs.
+
+    ``work``, where given, gains for every big-number step the call takes
+    the 64-bit words its population spans -- the most a set of totals can
+    -- so its caller can charge the budget for the work done
+    (`_pool_readings`). Checked against the walk it replaced on seeded
+    readings of every road, and on every walk of the reach audit's
+    batteries (`tests/test_stage3b_full_precision.py`).
+    """
+    within = (1 << (population + 1)) - 1
+    words = population // 64 + 1
+    sums = 1
+    written = 0
+    pools: "dict[int, int]" = {}
+    for kind in range(len(kinds)):
+        most = kinds[kind][0]
+        loads = state[kind]
+        loaded = 0
+        while loaded < len(loads) and loads[loaded] > 0:
+            loaded += 1
+        idle = len(loads) - loaded
+        if kind == empty:
+            idle = idle - 1
+        for position in range(loaded):
+            written += 1
+            if written > seen:
+                return False
+            sums = _spread(sums, loads[position], most, barred) & within
+            _charged(work, words)
+            if not sums:
+                return False
+        if idle > 0:
+            pools[most] = (pools[most] if most in pools else 0) + idle
+    room = seen - written
+    if not pools or room < 1:
+        return (sums >> population) & 1 == 1
+    capacities = sorted(pools)
+    free = 0
+    largest = capacities[0]
+    for most in capacities:
+        free = free + pools[most]
+        if pools[most] > pools[largest]:
+            largest = most
+    layers: "dict[int, int]" = {0: sums}
+    if free <= room:
+        for most in capacities:
+            if most == largest:
+                continue
+            runs, stride = _free_totals(most, barred, pools[most])
+            sums = _spread_over(sums, runs, stride, within)
+            _charged(work, words * len(runs))
+            if not sums:
+                return False
+        layers = {0: sums}
+    else:
+        for most in capacities:
+            if most == largest:
+                continue
+            reach = layers
+            batch: "dict[int, int]" = {}
+            for count in layers:
+                batch[count] = layers[count]
+            for _ in range(min(pools[most], room)):
+                step: "dict[int, int]" = {}
+                for count in sorted(reach):
+                    if count + 1 > room:
+                        continue
+                    moved = _spread(reach[count], 1, most, barred) & within
+                    _charged(work, words)
+                    if moved:
+                        step[count + 1] = moved
+                if not step:
+                    break
+                for count in step:
+                    batch[count] = batch[count] | step[count] if count in batch else step[count]
+                reach = step
+            layers = batch
+    for count in sorted(layers):
+        runs, stride = _free_totals(largest, barred, min(pools[largest], room - count))
+        _charged(work, words * len(runs))
+        if _total_among(layers[count], population, runs, stride):
+            return True
+    return False
+
+
+def _charged(work: "list[int] | None", words: int) -> None:
+    """Add ``words`` to the work tally where one is kept."""
+    if work is not None:
+        work[0] = work[0] + words
+
+
+def _free_totals(most: int, barred: int, count: int) -> "tuple[list[tuple[int, int]], int]":
+    """Every total ``count`` or fewer free conventions of capacity ``most`` hold between them, as runs.
+
+    Each holds nothing, or one to ``most`` but ``barred``. Returns runs
+    of totals, lowest first, and a stride: one where every total in
+    each run is held; more than one where the counts open are that one
+    number, and the totals are every multiple of it up to the single
+    run's end. The counts open run from ``low`` to ``high`` (the barred
+    count taken off an end), so ``t`` conventions hold every total from
+    ``t * low`` to ``t * high``, and consecutive ``t`` meet:
+
+    - nothing open (a capacity of one, barred): nought alone;
+    - one count open: its multiples;
+    - an unbroken run from one: every total up to ``count * high``;
+    - from two (one barred): nought, then every total from two;
+    - one barred inside the run: one convention holds the run without
+      it; two or more hold every total two others can make up, so all
+      but one -- and that one only where the barred count is
+      ``most - 1``: ``count * most - 1`` needs every convention at the
+      top but one, a step below it, which is the barred count.
+
+    Checked against every set of totals the conventions can hold, for
+    every capacity to fifteen, every barred count and every ``count``
+    to thirty-nine (tests/test_stage3b_full_precision.py).
+    """
+    if count < 1:
+        return ([(0, 0)], 1)
+    low = 2 if barred == 1 else 1
+    high = most - 1 if barred == most else most
+    if high < low:
+        return ([(0, 0)], 1)
+    if high == low:
+        if low == 1:
+            return ([(0, count)], 1)
+        return ([(0, count * low)], low)
+    if not low < barred < high:
+        if low == 1:
+            return ([(0, count * high)], 1)
+        return ([(0, 0), (2, count * high)], 1)
+    if count == 1:
+        return ([(0, barred - 1), (barred + 1, most)], 1)
+    if barred == most - 1:
+        return ([(0, count * most - 2), (count * most, count * most)], 1)
+    return ([(0, count * most)], 1)
+
+
+def _spread_over(sums: int, runs: "list[tuple[int, int]]", stride: int, within: int) -> int:
+    """The totals ``sums`` reaches, each moved up by every total of the runs."""
+    if stride == 1:
+        out = 0
+        for low, high in runs:
+            out = out | _spread(sums, low, high, -1)
+        return out & within
+    return _strided(sums, runs[0][1] // stride + 1, stride) & within
+
+
+def _strided(sums: int, copies: int, stride: int) -> int:
+    """The totals ``sums`` reaches, each moved up by nought, ``stride``, and so on, ``copies`` of them."""
+    out = 0
+    step = sums
+    span = 1
+    offset = 0
+    while copies:
+        if copies & 1:
+            out = out | (step << (offset * stride))
+            offset = offset + span
+        step = step | (step << (span * stride))
+        span = span * 2
+        copies = copies >> 1
+    return out
+
+
+def _total_among(sums: int, population: int, runs: "list[tuple[int, int]]", stride: int) -> bool:
+    """Whether a total of ``sums`` and a total of the runs make ``population`` exactly."""
+    if stride == 1:
+        for low, high in runs:
+            top = population - low
+            if top < 0:
+                continue
+            bottom = population - high
+            if bottom < 0:
+                bottom = 0
+            if (sums >> bottom) & ((1 << (top - bottom + 1)) - 1):
+                return True
+        return False
+    copies = runs[0][1] // stride
+    if copies > population // stride:
+        copies = population // stride
+    return (sums & (_strided(1, copies + 1, stride) << (population - copies * stride))) != 0
+
+
+def _spread(sums: int, low: int, high: int, barred: int) -> int:
+    """The sums ``sums`` reaches, each moved up by every count from ``low`` to ``high`` but ``barred``."""
+    if high < low:
+        return 0
+    if low <= barred <= high:
+        return _spread(sums, low, barred - 1, -1) | _spread(sums, barred + 1, high, -1)
+    out = 0
+    step = sums
+    span = 1
+    offset = low
+    width = high - low + 1
+    while width:
+        if width & 1:
+            out = out | (step << offset)
+            offset = offset + span
+        step = step | (step << span)
+        span = span * 2
+        width = width >> 1
+    return out
+
+
+def with_thousands_mark(text: str, mark: str) -> str:
+    """The cell written with ``mark`` between its thousands in place of its own.
+
+    Every mark of the cell that `thousands_mark` reads between two figures
+    of its whole part is replaced; a cell grouping no thousands comes back
+    unchanged. The producer asks it of a census that counts every grouped
+    cell under one mark, to read what that one mark would have written.
+
+    Guarantees: accepts any text and one mark; returns text. Determinism:
+    a fixed function of the two. Raises TypeError if handed anything that
+    is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str) or not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    own = thousands_mark(text)
+    if not own:
+        return text
+    out = ""
+    for place in range(len(text)):
+        character = text[place]
+        if (
+            character == own
+            and 0 < place < len(text) - 1
+            and text[place - 1] in "0123456789"
+            and text[place + 1] in "0123456789"
+        ):
+            out = out + mark
+        else:
+            out = out + character
+    return out
+
+
+def absorbed_census(
+    counts: "dict[str, int]",
+    population: int,
+    floor: int,
+    names: int,
+    default: str = "",
+    room: int = -1,
+    capacities: "list[int] | None" = None,
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
+) -> "dict[str, int]":
+    """A tally of marks, offsets, forms or widths, as the disclosure rule allows.
+
+    THE OLDER SPELLING CENSUSES -- `utc_offsets`, `datetime_separators`,
+    `numeric_styles`, `fraction_widths`, `pad_widths` and `field_widths`
+    -- ask the ONE disclosure rule, `census_nameable` with its line
+    `census_floor` (plans P4-D220, P4-D221 and P4-D222; stage 2 closed by
+    the owner rulings of 2026-09-17). Until P4-D220 each named a count
+    where it reached the settings floor and pooled the rest under
+    `(withheld)`, so at the then default floor of one 400 moments with one `t`
+    published `{"lower_t": 1, "upper_t": 399}` and at a floor of eleven
+    `{"upper_t": 399, "(withheld)": 1}`: both name the row.
+
+    A COUNT BELOW THE LINE IS COUNTED INTO THE COMMONEST NAMED COUNT
+    (plan P4-D222), as ruling 4 of 2026-09-17 counts missing-value words
+    below a raised floor as absent: the description is the description
+    of the table with its rare spellings written the way most of its
+    cells were, so the table passes its own description and its twin
+    writes the column's own spelling. The pool this replaces (P4-D220,
+    P4-D221) could not stand beside a named count without naming the
+    rows it held, so a pool below the line took in the commonest named
+    count as well -- and one `T` among 5,000 space-separated moments, one
+    `Z` among offsets, or one `120` among 999 prices pooled the whole
+    census, and the twin wrote `T` on 4,998 rows, no offset on half the
+    column and prices at fifteen places. Nothing is pooled beside a named
+    count now, so no printed count and no count left by subtraction from
+    the population is below the line, and a name below the line is never
+    told apart from a name no cell wrote.
+
+    WHERE NO NAME REACHES THE LINE the census is one pool of the
+    population the block already prints -- except where `census_pools`
+    refuses the pool, asked with the caller's ``room``, ``capacities``
+    and ``groups`` (the second review of follow-up B), and there the whole population
+    is counted under the COMMONEST NAME THE CELLS WROTE, ties to the
+    first in sorted order, exactly as a rare count is counted into the
+    commonest named one above. ``default``, the name the caller gives
+    for the vocabulary, is written only where no cell wrote any name at
+    all, which a population above nought cannot reach.
+
+    IT WAS ``default`` OUTRIGHT UNTIL PLAN P4-D242, and that published a
+    name no cell of the column wore: twenty-four moments written twelve
+    with a space and twelve with a lower-case `t`, at a floor of eleven,
+    published `{"upper_t": 24}`, and the twin wrote twenty-four `T`. The
+    fidelity that is lost where no spelling clears the line is ruling
+    6's own cost and stands; naming a spelling the column never used is
+    not, because the description is the description of the table with
+    its rare spellings written the way most of its cells were, and
+    `upper_t` was not one of them.
+
+    Ties for the commonest count go to the first name in sorted order,
+    and the name that took the rest in is always the largest printed
+    count: nothing else can grow.
+
+    Guarantees: accepts the full tally (no `(withheld)` key), the
+    published total it covers, the settings floor, the size of the
+    closed vocabulary (nought for an open one), its default name and
+    what `census_pools` reads beside them;
+    returns `{}` for no population, a single `(withheld)` pool or the
+    single commonest name the cells wrote where no count reaches the
+    line, and otherwise the names at the line or above, keys in sorted
+    order, summing to the population. Determinism: a function of the
+    eight. Raises nothing. No I/O of any kind.
+    """
+    if population <= 0:
+        return {}
+    line = census_floor(floor)
+    named: "dict[str, int]" = {}
+    commonest = ""
+    total = 0
+    for name in sorted(counts):
+        if name == MISSING_WITHHELD or counts[name] < line:
+            continue
+        named[name] = counts[name]
+        total = total + counts[name]
+        if not commonest or counts[name] > named[commonest]:
+            commonest = name
+    if not commonest:
+        if not census_pools(population, floor, names, room, capacities, groups):
+            # ...AND THE NAME IT TAKES IS ONE THE CELLS WROTE (plan
+            # P4-D242). The vocabulary's own default name stood here and
+            # published a name NO CELL of the column wore: twenty-four
+            # moments written twelve with a space and twelve with a
+            # lower-case `t`, at a floor of eleven, published
+            # `{"upper_t": 24}`. Ruling 6 counts a rare spelling into
+            # the column's COMMONEST spelling, and where no spelling
+            # reaches the line the commonest is still one of them.
+            written = ""
+            for name in sorted(counts):
+                if name == MISSING_WITHHELD:
+                    continue
+                if not written or counts[name] > counts[written]:
+                    written = name
+            if written:
+                return {written: population}
+            if default:
+                return {default: population}
+        return {MISSING_WITHHELD: population}
+    named[commonest] = named[commonest] + population - total
+    return named
+
+
+def absorbed_room(census: "dict[str, int]", floor: int) -> "tuple[str, int]":
+    """Which name of a published census took rare counts in, and how many at most.
+
+    `absorbed_census` read from the other side (plan P4-D222), so that the
+    producer reads a value at the offset its rare one was counted into,
+    the checker bounds the cells a width census counts at a width it does
+    not name, and the generator knows which form a cell no named form can
+    write is owed from (plan P4-D235), without a second statement of the
+    rule. The name is the largest count, the first in sorted order on a
+    tie. What it took in is at most its count less the line -- it was
+    named before it took anything -- and less the next largest count,
+    which it was no smaller than.
+
+    IT IS ASKED OF A CLOSED VOCABULARY TOO. It was written for the open
+    ones, the offsets and the widths; the six forms of a number are
+    closed, and the bound holds there unchanged, because a name below
+    the line is counted into the commonest whichever kind of vocabulary
+    it belongs to. Where the census is the vocabulary's DEFAULT name over
+    the whole population -- the band `census_pools` refuses a pool in --
+    that name is the commonest and the bound is its count less the line,
+    which is what it can take in there as well.
+
+    Guarantees: accepts a published census and the settings floor; returns
+    `("", 0)` for an empty census or a pool, and otherwise the name and a
+    whole number of at least nought. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    commonest = ""
+    for name in sorted(census):
+        if name == MISSING_WITHHELD:
+            return "", 0
+        if not commonest or census[name] > census[commonest]:
+            commonest = name
+    if not commonest:
+        return "", 0
+    room = census[commonest] - line
+    for name in sorted(census):
+        if name != commonest:
+            room = min(room, census[commonest] - census[name])
+    return commonest, max(room, 0)
+
+
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"
 PRECISION_MONTH = "month"
@@ -2514,6 +7429,78 @@ PRECISION_ORDER = (
     PRECISION_MONTH,
     PRECISION_QUARTER,
 )
+
+
+# THE UNIT A DATE OR CLOCK TAIL IS MEASURED IN (stage 3, plan P4-D328).
+# A column of dates publishes how far its outer values stand beyond each
+# tail boundary, and it says in which unit rather than leaving a reader
+# to combine the resolution, the precision and the midnight flag: a day
+# for dates and for moments that all stand at midnight, a month or a
+# quarter for those two resolutions, and a minute or a second for every
+# other moment. The words are this package's own and form a closed list.
+TAIL_UNIT_DAY = "day"
+TAIL_UNIT_MONTH = "month"
+TAIL_UNIT_QUARTER = "quarter"
+TAIL_UNIT_MINUTE = "minute"
+TAIL_UNIT_SECOND = "second"
+TAIL_UNITS = (
+    TAIL_UNIT_DAY,
+    TAIL_UNIT_MONTH,
+    TAIL_UNIT_QUARTER,
+    TAIL_UNIT_MINUTE,
+    TAIL_UNIT_SECOND,
+)
+
+# The keys of one published tail object, in the order a document writes
+# them (contract DT1): the boundary, how many cells lie beyond it, their
+# mean and root-mean-square distance from it, and -- where the tail holds
+# few values -- which values those are.
+TAIL_KEYS = ("boundary", "rows", "mean_distance", "rms_distance", "values")
+
+# THE DAYS A COLUMN'S OWN SPELLING CAN READ BACK (stage 3, plan P4-D331).
+# A twin that writes a date its own member reads as another century, or a
+# workbook cell its date system cannot store, writes a value the twin's own
+# description does not hold: a two-figure year of 1968 is read back as
+# 2068, and a workbook day before the system's first day is stored as
+# text. So a tail's outer values are placed only inside these days.
+_TWO_FIGURE_FIRST_YEAR = 1969
+_TWO_FIGURE_LAST_YEAR = 2068
+_SHEET_FIRST_YEAR = {"1900": 1900, "1904": 1904}
+
+
+def readable_days(format_name: str, date_system: str = "") -> "tuple[int, int]":
+    """The first and last day a column of this member can write and read.
+
+    The years 0001 to 9999 for every member; 1969 to 2068 for a member
+    that writes a two-figure year, whose century the reader settles with
+    `TWO_DIGIT_YEAR_PIVOT`; and from the first day of the date system
+    for a workbook column whose cells store days (`date_system` names
+    that system, "1900" or "1904", and is empty for a column of text).
+
+    Guarantees: accepts a member name and the date system; returns two
+    day numbers of `days_from_civil`, the first not after the last.
+    Determinism: a fixed function of the two. Raises nothing. No I/O.
+    """
+    first_year = 1
+    last_year = 9999
+    if format_name in TWO_FIGURE_MEMBERS:
+        first_year = _TWO_FIGURE_FIRST_YEAR
+        last_year = _TWO_FIGURE_LAST_YEAR
+    if is_layout_name(format_name):
+        # A LAYOUT READS ITS OWN BAND (landing R2a): a four-figure year in
+        # 1800 to 2299, a two-figure one in its column's window.
+        first_year = LAYOUT_FIRST_YEAR
+        last_year = LAYOUT_LAST_YEAR
+        window = layout_two_figure_year(format_name)
+        if window:
+            first_year = window
+            last_year = window + 99
+    if date_system in _SHEET_FIRST_YEAR:
+        first_year = max(first_year, _SHEET_FIRST_YEAR[date_system])
+    return (
+        days_from_civil(first_year, 1, 1),
+        days_from_civil(last_year, 12, 31),
+    )
 
 
 def is_digit_text(text: str) -> bool:
@@ -2576,9 +7563,11 @@ def overflowed(text: str) -> bool:
     if not body:
         return False
     if body[0] == "(" and body[len(body) - 1] == ")":
-        body = body[1 : len(body) - 1].strip()
+        body = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         if body and (body[0] == "+" or body[0] == "-"):
             return False
+    else:
+        body = _minus_written_first(body)
     ungrouped = _without_group_separators(body)
     if ungrouped is None:
         return False
@@ -2610,7 +7599,8 @@ def numeric_sign(text: str) -> str:
     negative = False
     if body[0] == "(" and body[len(body) - 1] == ")":
         negative = True
-        body = body[1 : len(body) - 1].strip()
+        body = trimmed(body[1 : len(body) - 1])
+    body = _minus_written_first(body)
     if body and body[0] == "-":
         negative = True
         body = body[1:]
@@ -2668,7 +7658,7 @@ def days_from_civil(year: int, month: int, day: int) -> int:
     Guarantees: accepts three whole numbers naming a calendar date;
     returns a whole number of days, which is negative before the epoch;
     raises nothing for whole-number input, and does not check that the
-    date exists in the calendar -- `_valid_date` is where that is asked.
+    date exists in the calendar -- `valid_date` is where that is asked.
     No I/O of any kind.
 
     It is PUBLIC because the generation method requires exactly this
@@ -2763,6 +7753,52 @@ def utc_canonical(canonical: str, offset: str) -> "str | None":
     )
 
 
+def utc_moment(canonical: str, offset: str) -> "str | None":
+    """``canonical`` on the shared clock, KEPT INSIDE THE CALENDAR IT CAN SPELL.
+
+    `utc_canonical` where the converted instant falls inside the years
+    `0001` to `9999`, and otherwise the nearest instant that form can
+    spell: the calendar's own first moment below it, its last above.
+    None only where the value names no instant at all, which is a
+    quarter.
+
+    WHY THE CLAMP IS THE ANSWER AND NOT THE LOCAL TEXT (the dates pass of
+    the stage-3 review, item 7). A column published on the shared clock
+    publishes every value as the instant it names, and those texts are
+    compared as plain text -- the ordering, the ladder and both tails are
+    read off them. A conversion that cannot be spelled left the LOCAL
+    text standing in the ordered sequence while the sort used the
+    instant, so the two disagreed: twelve
+    `0001-01-01T01:00:00+14:00` beside twenty `0001-01-01T00:00:00Z` and
+    sixty-eight `0001-01-02T12:00:00Z` published a low tail whose mean
+    distance was MINUS 3,600 and whose listed value stood above its own
+    boundary, and `synthtwin`'s own loader then told the person their
+    description had been changed since it was written.
+
+    The clamp is an approximation of hours at the very edge of a calendar
+    this format cannot write past, and it says so; the fallback was an
+    approximation of the offset's whole width AND an ordering that
+    contradicted itself. Clamping keeps the sequence non-decreasing in
+    the instant, because it is a non-decreasing function of it.
+
+    Guarantees: accepts two strings; returns text or None; raises
+    TypeError if handed anything that is not a string instance. Whole-
+    number arithmetic throughout. No I/O of any kind.
+    """
+    found = utc_canonical(canonical, offset)
+    if found is not None:
+        return found
+    seconds = instant_key(canonical, offset)
+    if seconds is None:
+        return None
+    first = 86400 * days_from_civil(1, 1, 1)
+    if len(canonical) < 19:
+        return "0001-01-01" if seconds < first else "9999-12-31"
+    if seconds < first:
+        return "0001-01-01 00:00:00"
+    return "9999-12-31 23:59:59"
+
+
 def instant_key(canonical: str, offset: str) -> "int | None":
     """The instant a canonical datetime names, in whole seconds.
 
@@ -2811,7 +7847,9 @@ def instant_key(canonical: str, offset: str) -> "int | None":
     return seconds - shift
 
 
-def _clock_of(text: str, format_name: str) -> "str | None":
+def _clock_of(
+    text: str, format_name: str, style: str = DEFAULT_CLOCK_STYLE
+) -> "str | None":
     """The time-of-day part of an iso-datetime cell, offset removed.
 
     THE JOINT READING IS ANSWERED CELL BY CELL. Under `iso-mixed` some
@@ -2824,27 +7862,38 @@ def _clock_of(text: str, format_name: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT ANSWERS FROM ITS READING (landing R2a): the clock it
+        # read, at the precision the layout writes, and the fraction as
+        # the cell wrote it.
+        items = layout_items(format_name)
+        if items is None:
+            return None
+        whole = layout_reading(text, items)
+        if whole is None or len(whole[0]) < 19:
+            return None
+        precision = layout_precision(format_name)
+        if precision == PRECISION_MINUTE:
+            return whole[0][11:16]
+        if whole[3]:
+            return f"{whole[0][11:19]}.{whole[3]}"
+        return whole[0][11:19]
     body = text.strip()
-    if (
-        format_name == "month-first-datetime"
-        or format_name == "day-first-datetime"
-    ):
-        # THE SLASHED STAMPS ANSWER FROM THEIR OWN TEXT. Their date
-        # half is not ten characters wide, so the ISO cut below finds
-        # nothing; the clock is what stands after the one space, and it
-        # is the time-of-day role's own two forms, so the same answer
-        # comes back here as the reader accepted.
-        if parse_datetime(text, format_name) is None:
+    if format_name in SLASHED_STAMPS:
+        # THE SLASHED STAMPS ANSWER FROM THEIR CANONICAL TEXT (landing
+        # T1). The reader has already read the clock, in any style, so
+        # it is taken from what it returned rather than read again --
+        # this is asked of every cell several times over -- at the
+        # precision the cell wrote: two colons where it wrote seconds,
+        # since the date half holds none. A column declared a 12-hour
+        # clock reads its top of the dial as the first hour of the day.
+        found = parse_datetime(text, format_name)
+        if found is None:
             return None
-        mark = 0
-        place = 0
-        for character in body:
-            if character == " ":
-                mark = place
-            place = place + 1
-        if mark < 1:
-            return None
-        return body[mark + 1 :]
+        clock = stamp_canonical(found[0], style)[11:]
+        if body.count(":") < 2:
+            return clock[0:5]
+        return clock
     if format_name != "iso-datetime" and format_name != "iso-mixed":
         return None
     if len(body) < 16:
@@ -2903,6 +7952,128 @@ def subsecond_digits(text: str, format_name: str) -> int:
     return len(clock) - 9
 
 
+# THE MARK BETWEEN A MOMENT'S DAY AND ITS CLOCK (stage 2, plan P4-D39).
+# `parse_datetime` accepts three and returns the canonical form, which
+# discards which one the cell wore; these are the names the description
+# publishes them under. Names and not the characters, as `numeric_styles`
+# names its styles: a key that is a single space is a key nobody can see.
+# In sorted order, which is the order the generator's rotation breaks a
+# tie in.
+SEPARATOR_LOWER_T = "lower_t"
+SEPARATOR_SPACE = "space"
+SEPARATOR_UPPER_T = "upper_t"
+DATETIME_SEPARATORS = (SEPARATOR_LOWER_T, SEPARATOR_SPACE, SEPARATOR_UPPER_T)
+SEPARATOR_MARKS = {
+    SEPARATOR_LOWER_T: "t",
+    SEPARATOR_SPACE: " ",
+    SEPARATOR_UPPER_T: "T",
+    # ...and every word of a slashed stamp names its clock's style after
+    # the same one space (landing T1, contract D12a).
+    **{word: " " for word in STAMP_SEPARATORS},
+}
+
+
+def separator_names(format_name: str) -> int:
+    """How many marks between day and clock a reading can write (P4-D222).
+
+    Three, and one -- a space -- on the slashed stamps, whose clock stands
+    after one space. The size of the closed vocabulary
+    `census_pools` reads for the census of marks; the loader asks it
+    with the same answer. Raises nothing. No I/O of any kind.
+    """
+    if format_name in SLASHED_STAMPS:
+        return 1
+    return len(DATETIME_SEPARATORS)
+
+
+def datetime_separator(text: str, format_name: str) -> "str | None":
+    """The name of the mark between a moment's day and its clock, or None.
+
+    Only a cell that writes a clock has one. A whole-date cell of an
+    `iso-mixed` column writes none, and is decided by the same reading
+    `taxonomy._resolution_mix` counts it by. The two slashed members
+    split their halves on exactly one space, so their mark is always
+    `space`.
+
+    Guarantees: accepts one cell and the format member it parsed under;
+    returns a member of `DATETIME_SEPARATORS`, or None for a cell that
+    writes no clock or does not parse. Determinism: a function of the
+    two. Raises TypeError if either is not a string instance. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT FIXES ITS OWN JOINT (rule LY4), so it counts no mark.
+        return None
+    if _clock_of(text, format_name) is None:
+        return None
+    if format_name in SLASHED_STAMPS:
+        return SEPARATOR_SPACE
+    if parse_datetime(text, "iso-datetime") is None:
+        return None
+    body = text.strip()
+    mark = body[10]
+    if mark == "T":
+        return SEPARATOR_UPPER_T
+    if mark == "t":
+        return SEPARATOR_LOWER_T
+    if mark == " ":
+        return SEPARATOR_SPACE
+    return None
+
+
+def clock_at_midnight(
+    text: str, format_name: str, style: str = DEFAULT_CLOCK_STYLE
+) -> bool:
+    """Whether a parsed cell names exactly the first instant of its day.
+
+    A cell that writes no clock names midnight of its day: that is how
+    the joint ISO reading reads a whole date, and it is what a whole
+    date means. The describing step asks this only of columns published
+    at `datetime` resolution, so a column of dates cannot claim the
+    fact through this answer. A cell that writes a clock names midnight
+    only where every figure of it is a zero -- hours, minutes, any
+    seconds and every fractional digit -- so `00:00:00.001` does not.
+
+    Guarantees: accepts one cell and its format member; returns False
+    for a cell that does not parse under that member. Determinism: a
+    function of the two. Raises TypeError if either is not a string
+    instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name in SLASHED_STAMPS:
+        # ONE READING (landing T1): a stamp writes no fraction, so its
+        # canonical clock is the whole of the question.
+        found = parse_datetime(text, format_name)
+        if found is None:
+            return False
+        return stamp_canonical(found[0], style)[11:19] == "00:00:00"
+    if parse_datetime(text, format_name) is None:
+        return False
+    clock = _clock_of(text, format_name, style)
+    if clock is None:
+        return True
+    if len(clock) < 5 or clock[0:5] != "00:00":
+        return False
+    rest = clock[5:]
+    if len(rest) == 0:
+        return True
+    if len(rest) < 3 or rest[0:3] != ":00":
+        return False
+    fraction = rest[3:]
+    place = 1
+    while place < len(fraction):
+        if fraction[place] != "0":
+            return False
+        place += 1
+    return True
+
+
 def looks_like_a_column_name(text: str) -> bool:
     """True when ``text`` could be a column name rather than a value.
 
@@ -2922,7 +8093,7 @@ def _average_ranks(values: "list[float]") -> "list[float]":
     # scan, and a tuple sorts on its first member anyway.
     pairs: "list[tuple[float, int]]" = []
     for seat in range(len(values)):
-        pairs = pairs + [(values[seat], seat)]
+        pairs += [(values[seat], seat)]
     pairs = sorted(pairs)
     ranks = [0.0 for _each in values]
     at = 0
@@ -3142,3 +8313,2646 @@ def histogram_bin(value: float, lowest: float, highest: float) -> int:
     if place >= HISTOGRAM_BINS:
         return HISTOGRAM_BINS - 1
     return place
+
+
+def scale_bin(value: float, lowest: float, highest: float) -> int:
+    """The bin of a value on a TAIL block's scale, or -1 outside it.
+
+    A tail block's bins divide the stretch between its two boundary rungs
+    (contract C6-31f as amended by stage 3, plan P4-D325), and the rows
+    beyond those rungs are described by the tail facts and stand in NO
+    bin. The clamp of `histogram_bin` would read a tail value below the
+    low boundary as bin nought, and method G6.7 would then walk it onto
+    the scale: measured on a 40-value block whose bin nought was empty,
+    twelve of its low ranks were dragged just above the boundary. Inside
+    the scale this is `histogram_bin` exactly.
+
+    Guarantees: accepts a value and the two boundary rungs; returns a bin
+    number, or -1 for a value outside `[lowest, highest]` or a scale with
+    no width. Raises nothing. No I/O of any kind.
+    """
+    if value - value != 0.0:
+        return -1
+    if lowest - lowest != 0.0 or highest - highest != 0.0:
+        return -1
+    if not highest > lowest:
+        return -1
+    if value < lowest or value > highest:
+        return -1
+    return histogram_bin(value, lowest, highest)
+
+
+# THE FEWEST UNITS A TAIL SPANS WHATEVER THE FLOOR (stage 3, plan
+# P4-D344). Two published moments over one or two cells solve for those
+# cells exactly, so a tail never holds fewer than three units. Here,
+# beside the bins, because the producer, the loader and the validator's
+# re-description all ask it and each already imports this module.
+TAIL_MINIMUM = 3
+
+
+def tail_units(floor: int) -> int:
+    """The fewest units each tail spans: the floor, and never below three."""
+    return max(floor, TAIL_MINIMUM)
+
+
+# HOW MANY CELLS SHARE A VALUE BEFORE IT IS NOBODY'S OWN (plan P4-D342).
+# Two, read twice: no value a tail lists is held by fewer than this many
+# of that tail's cells, and the column's own values are shared by at
+# least this many cells apiece on average. One cell is one person, and
+# the owner's ruling does not reach it.
+TAIL_SHARED_CELLS = 2
+
+# THE LARGEST VOCABULARY A COLUMN MAY HAVE for its tails to publish
+# values rather than a shape (plan P4-D342): a bounded scale a reader
+# could enumerate -- quarters over sixty-four years, months over
+# twenty-one, a pain score, a stage, a grade -- and not a fine grid. A
+# column of days over three years holds about eleven hundred different
+# values and publishes its shape; one of days over eight months holds
+# about two hundred and forty, and many rows stand on each of them.
+TAIL_SET_VALUES = 256
+
+# HOW WIDE A TAIL THE PUBLISHED PAIR ALREADY SETTLES (plan P4-D346). Two
+# different distances stand under two counts that add to `rows`, so the
+# rows, the mean and the root-mean-square leave one arithmetic.
+#
+# IT NO LONGER LICENSES A LISTING (plan P4-D349). P4-D346 let a tail this
+# narrow name its values on a column the owner's ruling does NOT reach, on
+# the reading that the pair names them anyway. That road is withdrawn: it
+# named values ONE CELL HOLDS -- `[1089, 1100]` where one row holds 1100,
+# `06:59` beside ten cells at `06:58` -- which is outside the premise of
+# the ruling it borrowed. And its premise went with the fail-closed rule,
+# because a tail whose pair settles it now publishes NO pair, so the
+# alternative to listing is silence and silence says less.
+#
+# What the number is still for is `contract._listed_counts`: a tail WIDER
+# than this was listed under the ruling's own premise, so each of its
+# values stands on at least `TAIL_SHARED_CELLS` cells and the solver may
+# start counting from there.
+TAIL_SETTLED_VALUES = 2
+
+
+def tail_may_list(
+    held: "list[int]", floor: int, distinct: int, cells: int
+) -> bool:
+    """Whether the owner's ruling of 2026-09-22 reaches this tail (P4-D346).
+
+    THE ONE LISTING RULE, AND IT IS ASKED BY BOTH ROLES. A column of
+    dates or clock times asks it of the cells beyond each boundary, a
+    numeric column of the rows beyond each boundary rung, and there is
+    no second statement of it anywhere: the two roads were written
+    apart, drifted apart, and the numeric one published a continuous
+    column's maximum -- held by ONE row -- in the same block that
+    withheld `percentiles.max`.
+
+    ``held`` is how many of the TAIL's own cells stand on each value it
+    would list; ``distinct`` and ``cells`` are the COLUMN's own count of
+    different values and of cells, which is a fact about the column and
+    not about either of its ends.
+
+    THE RULING'S PREMISE IS PART OF THE RULING. The owner ruled on
+    BOUNDED SCALES WITH FEW VALUES -- "many people will be there and
+    there is no big deal in knowing that it's there" -- so a tail may
+    list only where that premise holds of the column in front of it:
+
+    * every value it would list is held by at least `TAIL_SHARED_CELLS`
+      of its cells, so that no listed value is one person's own; AND
+    * the column's values come from a SMALL FIXED SET -- at most
+      `TAIL_SET_VALUES` different ones, standing under at least
+      `TAIL_SHARED_CELLS` cells apiece on average -- OR the tail is a
+      HEAP, every listed value held by at least the FLOOR's own number
+      of cells, which is "many people are there" by the project's own
+      measure of many and needs no grid to say so.
+
+    Where the premise fails the tail says its SHAPE instead. That costs
+    the twin something on a bounded scale whose own extreme stands on
+    one cell, and the cost is measured rather than argued away (plan
+    P4-D346): the twin then writes a handful of cells the scale does
+    not have, against naming the one person who holds that extreme.
+
+    Guarantees: accepts the per-value cell counts, the floor and the
+    column's two counts; returns a bool. Determinism: a function of the
+    four. Raises nothing. No I/O of any kind.
+    """
+    if not held:
+        return False
+    # AND THE FLOOR IS THE CEILING ON "NOBODY'S OWN". One cell is one
+    # person and the owner's ruling does not reach it -- unless the
+    # FLOOR is one, where the description names every value the column
+    # holds anyway (contract invariant C5-S13, and the owner's own
+    # reading of it: a floor lowered to one still names what it always
+    # named, which is what lowering it asks for). Reading two there
+    # would hold back what nothing else holds back, and it did: at a
+    # floor of one the two-valued tails of two realistic shapes and one
+    # coding system stopped listing and their twins missed an obligation
+    # (`K-2B-40`, `K-P4-11`).
+    line = TAIL_SHARED_CELLS if floor >= TAIL_SHARED_CELLS else floor
+    shared = True
+    heaped = True
+    for count in held:
+        if count < line:
+            shared = False
+        if count < floor:
+            heaped = False
+    coarse = (
+        distinct <= TAIL_SET_VALUES and distinct * TAIL_SHARED_CELLS <= cells
+    )
+    return shared and (coarse or heaped)
+
+
+def tail_percent(count: int, units: int) -> "int | None":
+    """The boundary percent of one side of a tail block (contract L4).
+
+    The smallest whole percent `p` from 1 to 50 whose type-7 reading
+    `floor((count - 1) p / 100)` leaves at least ``units`` order
+    statistics strictly outside it -- so no published rung reads any of
+    the outermost ``units`` values. None where no percent does, which is
+    a block of fewer than `2 units + 1` values. The high side's percent
+    is a hundred less the same answer.
+
+    Guarantees: accepts the count of used values and the units the tail
+    must span; returns a percent or None. Determinism: a fixed function
+    of the two. Raises nothing. No I/O of any kind.
+    """
+    for percent in range(1, 51):
+        if ((count - 1) * percent) // 100 >= units:
+            return percent
+    return None
+
+
+def tail_rows(count: int, percent: int, side: str) -> int:
+    """How many rows one tail holds (contract T3).
+
+    Low: the positions below `h = (count - 1) percent / 100`, which are
+    `ceil(h)` of them. High: the positions above it, `count - 1 -
+    floor(h)`. A rung at `h` reads `floor(h)` and `ceil(h)`, and neither
+    is a tail row.
+    """
+    steps = (count - 1) * percent
+    if side == "low":
+        return -((-steps) // 100)
+    return count - 1 - steps // 100
+
+
+# -- the closed-grammar LAYOUT member (landing R2a of stage 3b, plan P4-D383)
+#
+# ONE MEMBER FOR EVERY SPELLING THE NAMED MEMBERS DO NOT READ, and it is a
+# grammar rather than a list. A layout is a short text of FIELDS in braces
+# and LITERALS from a closed set -- `{DD}{MON}{YYYY}:{HH}:{MI}:{SS}` is SAS
+# DATETIME20., `{YYYY}{MM}{DD}{HH}{MI}{SS}.{F}{+HHMM}` an HL7 timestamp
+# with a fraction and an offset -- and a column read under one is published
+# as `format: "layout <text>"`. Every field and every literal comes from the
+# tables below and nothing else, a layout is at most `LAYOUT_TEXT_LIMIT`
+# characters, and `is_layout_format` is the one predicate every reader of a
+# format asks: the producer, the sentence guard, the publication guard and
+# the loader (rule LY1).
+#
+# THE MEMBER STANDS LAST IN THE FORMAT WALK, after `iso-mixed`, so a column
+# a named member reads keeps that reading byte for byte; it is asked only of
+# a column no member reads (`taxonomy._matching_layout`). One cell under one
+# layout gives the instant in ISO's own canonical form and the offset in
+# ISO's own spelling, so every published fact of a layout column is the fact
+# an ISO column of the same instants publishes; only how the cells are
+# WRITTEN differs, and the writer below is the exact inverse of the reader:
+# the twin writes every cell in its source's own spelling.
+#
+# THE DATE HALF IS BUILT (R2a): year, month (figures or an English name in
+# three cases, with the CLDR en-GB and en-AU short sets), day (padded, one
+# or two figures, or padded with a space), an optional weekday lead, a
+# two-figure 24-hour clock on `:` or `.`, a fraction of 1 to 9 figures, and
+# an offset that may be absent from some cells. THE CLOCK HALF IS BUILT
+# (R2b): an hour in one figure below ten or padded with a space, the
+# 12-hour face with its markers -- `AM`, `am`, `A.M.`, `a.m.` and their
+# afternoon pairs, after no gap, a space or a narrow no-break space -- and
+# T1's declared 12-hour face with no marker. Partial dates with their
+# question are R2c's; each widens the field table and the productions
+# below and nothing else.
+
+LAYOUT_PREFIX = "layout "
+LAYOUT_TEXT_LIMIT = 80
+
+# THE YEARS A LAYOUT READS (the R2 design, measured): a four-figure field
+# outside them is unread, which is what keeps a lot number or a serial whose
+# last part happens to be four figures from reading as a date.
+LAYOUT_FIRST_YEAR = 1800
+LAYOUT_LAST_YEAR = 2299
+
+# THE MOST FIGURES A LAYOUT'S FRACTION `{F}` READS: nanoseconds, the finest
+# any export of the reach audit wrote. Contract LY3 holds a description's
+# `subsecond_digits` to it (the Codex review of landing R2a, item 7).
+LAYOUT_FRACTION_FIGURES = 9
+
+# THE CENTURY OF A TWO-FIGURE YEAR (question Q5). `{YY}` reads 69 to 99 as
+# the 1900s and 00 to 68 as the 2000s, the POSIX window every two-figure
+# member reads; a column the person answered about reads in the window
+# whose first year they chose, written `{YY1930}` and so on. The default is
+# no declaration at all, so it has no field of its own beyond `{YY}`.
+CENTURY_DEFAULT_FIRST_YEAR = 1969
+CENTURY_WINDOW_YEARS = (1900, 1930, 1940)
+_LAYOUT_YEAR_WINDOWS = {
+    "YY": CENTURY_DEFAULT_FIRST_YEAR,
+    "YY1900": 1900,
+    "YY1930": 1930,
+    "YY1940": 1940,
+}
+
+# THE MONTH NAMES, BY SET AND CASE. The standard abbreviations and the full
+# names are the ones `month_of_name` reads; the CLDR sets are what Java and
+# JavaScript write for English locales -- en-GB abbreviates
+# September as `Sept`, en-AU writes `June`, `July` and `Sept` -- and a
+# column written in one of them reads under that set's own field, written
+# back word for word.
+_LAYOUT_MONTH_SETS = (
+    ("", ("jan", "feb", "mar", "apr", "may", "jun",
+          "jul", "aug", "sep", "oct", "nov", "dec")),
+    ("TH", ("january", "february", "march", "april", "may", "june",
+            "july", "august", "september", "october", "november",
+            "december")),
+    ("GB", ("jan", "feb", "mar", "apr", "may", "jun",
+            "jul", "aug", "sept", "oct", "nov", "dec")),
+    ("AU", ("jan", "feb", "mar", "apr", "may", "june",
+            "july", "aug", "sept", "oct", "nov", "dec")),
+)
+_LAYOUT_WEEKDAY_SETS = (
+    ("", ("mon", "tue", "wed", "thu", "fri", "sat", "sun")),
+    ("TH", ("monday", "tuesday", "wednesday", "thursday", "friday",
+            "saturday", "sunday")),
+)
+
+
+def _layout_cased(word: str, case: str) -> str:
+    """One lower-case word in one of the three cases a field fixes."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    if case == "upper":
+        return word.upper()
+    if case == "title":
+        return f"{word[0:1].upper()}{word[1:]}"
+    return word
+
+
+def _layout_name_fields(
+    sets: "tuple[tuple[str, tuple[str, ...]], ...]",
+    stems: "dict[str, tuple[str, str, str]]",
+) -> "dict[str, dict[str, int]]":
+    """Every name field of one family, with the words each reads (built once).
+
+    A field is named by its set and its case: for months `MON`, `Mon` and
+    `mon` are the standard abbreviations in upper, title and lower case,
+    `MONTH`, `Month` and `month` the full names, and `MONGB` and `MONAU`
+    with their cases the CLDR sets; for weekdays `DY` and `DAY` likewise.
+    ``stems`` gives each set's three names, upper, title and lower.
+    """
+    fields: "dict[str, dict[str, int]]" = {}
+    for suffix, words in sets:
+        names = stems[suffix]
+        position = 0
+        for case in ("upper", "title", "lower"):
+            table: "dict[str, int]" = {}
+            place = 0
+            for word in words:
+                place = place + 1
+                table[_layout_cased(word, case)] = place
+            fields[names[position]] = table
+            position = position + 1
+    return fields
+
+
+_LAYOUT_MONTH_STEMS = {
+    "": ("MON", "Mon", "mon"),
+    "TH": ("MONTH", "Month", "month"),
+    "GB": ("MONGB", "MonGB", "monGB"),
+    "AU": ("MONAU", "MonAU", "monAU"),
+}
+_LAYOUT_WEEKDAY_STEMS = {
+    "": ("DY", "Dy", "dy"),
+    "TH": ("DAY", "Day", "day"),
+}
+
+
+_LAYOUT_MONTH_FIELDS = _layout_name_fields(_LAYOUT_MONTH_SETS, _LAYOUT_MONTH_STEMS)
+_LAYOUT_WEEKDAY_FIELDS = _layout_name_fields(_LAYOUT_WEEKDAY_SETS, _LAYOUT_WEEKDAY_STEMS)
+# The rank a month field's set takes on a tie (`layout_order_key`): the
+# standard words first, then the CLDR sets, so a column whose months are
+# written alike in every set keeps the commonest spelling.
+_LAYOUT_SET_RANK = {"": 0, "GB": 1, "AU": 2}
+
+# THE OFFSET FIELDS. A zulu field reads only `Z` (written as the field
+# names it); `+HH` reads whole hours only. A trailing `?` makes the offset
+# one some cells omit (the R2 design skeptic, M2): such a cell reads with no
+# offset, counted under `utc_offsets`' own `(none)` member.
+_LAYOUT_ZULU_FIELDS = ("Z", "z", "UTC", "GMT")
+_LAYOUT_SIGNED_FIELDS = ("+HH:MM", "+HHMM", "+HH")
+_LAYOUT_OFFSET_FIELDS = _LAYOUT_ZULU_FIELDS + _LAYOUT_SIGNED_FIELDS
+
+# The fixed-width numeric fields, by width, and the flexible ones.
+_LAYOUT_FIXED_FIELDS = {
+    "YYYY": 4, "YY": 2, "YY1900": 2, "YY1930": 2, "YY1940": 2,
+    "MM": 2, "DD": 2, "HH": 2, "hh": 2, "MI": 2, "SS": 2,
+    # -- 3b.R2c (P4-D383): the day of the year, an ask-first field.
+    "DDD": 3,
+}
+_LAYOUT_FLEXIBLE_FIELDS = ("M", "D")
+_LAYOUT_SPACED_FIELDS = ("_D", "_H", "_h")
+_LAYOUT_CLOCK_FIELDS = ("HH", "MI", "SS", "F")
+
+# THE HOURS OF THE CLOCK HALF (landing R2b), on T1's semantics (plan
+# P4-D370). `HH` is two figures on the 24-hour clock; `H` is one figure
+# below ten and two from ten, never a padded `09`, so a cell read under
+# it is written back exactly; `_H` pads one figure with a space, as SQL
+# Server's style 100 does. `hh`, `h` and `_h` are the same three widths
+# on the 12-hour dial, 1 to 12: with a marker they read the marker's half
+# of the day (`12:30 AM` is 00:30, `12:30 PM` 12:30), and with none they
+# are T1's DECLARED face (`--twelve-hour`), where 12 is the top of the
+# dial and `12:15` is 00:15. The producer makes the unmarked 12-hour
+# fields only for a column the person declared, as it makes `{YY1930}`
+# only for a century they chose.
+_LAYOUT_TWENTY_FOUR_HOURS = ("HH", "H", "_H")
+_LAYOUT_TWELVE_HOURS = ("hh", "h", "_h")
+_LAYOUT_HOUR_FIELDS = _LAYOUT_TWENTY_FOUR_HOURS + _LAYOUT_TWELVE_HOURS
+# Each 24-hour field's 12-hour twin, the same width on the dial.
+_LAYOUT_ON_THE_DIAL = {"HH": "hh", "H": "h", "_H": "_h"}
+
+# THE MARKERS OF THE HALF OF THE DAY (landing R2b): each field reads its
+# morning word and its afternoon word, in its own case and points, and
+# writes the one its instant's half takes -- T1's four pairs.
+_LAYOUT_MERIDIEMS = {
+    "AM": ("AM", "PM"),
+    "am": ("am", "pm"),
+    "A.M.": ("A.M.", "P.M."),
+    "a.m.": ("a.m.", "p.m."),
+}
+
+# THE NARROW NO-BREAK SPACE, a literal only directly before a marker: what
+# JavaScript's `toLocaleString` writes in its recent releases between `2:05:00` and
+# `PM`, and nowhere else in a date.
+LAYOUT_NARROW_SPACE = " "
+
+# THE LITERALS, a closed set: the marks a date or a clock is written with,
+# the space, the ISO joint letter in either case, and the narrow no-break
+# space before a marker.
+_LAYOUT_LITERALS = ("-", "/", ".", ",", ":", " ", "T", "t", LAYOUT_NARROW_SPACE)
+
+# The joints between a date and its clock, in the order they are tried.
+_LAYOUT_JOINTS = (" ", "T", "t", ":", "-", ", ", "  ")
+
+
+def _layout_field_known(name: str) -> bool:
+    """Whether one field name is in the closed field table."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    bare = name
+    if name[len(name) - 1 : len(name)] == "?":
+        bare = name[0 : len(name) - 1]
+        return bare in _LAYOUT_OFFSET_FIELDS
+    return (
+        bare in _LAYOUT_FIXED_FIELDS
+        or bare in _LAYOUT_FLEXIBLE_FIELDS
+        or bare in _LAYOUT_SPACED_FIELDS
+        or bare == "F"
+        or bare in _LAYOUT_HOUR_FIELDS
+        or bare in _LAYOUT_MERIDIEMS
+        or bare in _LAYOUT_MONTH_FIELDS
+        or bare in _LAYOUT_WEEKDAY_FIELDS
+        or bare in _LAYOUT_OFFSET_FIELDS
+    )
+
+
+def compiled_layout(text: str) -> "tuple[tuple[str, str], ...] | None":
+    """One layout text as its items, `("f", field)` or `("l", literal)`, or None.
+
+    None for a text over `LAYOUT_TEXT_LIMIT` characters, an unbalanced or
+    empty brace, a field outside the closed table, a literal outside the
+    closed set, two fields of one kind (a second year, month, day, weekday
+    or offset), a clock field before any date field, an optional offset
+    that is not the last item, a marker with no 12-hour hour beside it, and
+    a narrow no-break space anywhere but directly before a marker (landing
+    R2b). This is the shape half of rule LY1;
+    `is_layout_format` adds the other half, that the grammar's own
+    productions make it.
+
+    Guarantees: accepts text; returns the items or None. Determinism: a
+    function of the text. Raises TypeError for anything that is not text.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) > LAYOUT_TEXT_LIMIT:
+        return None
+    items: "list[tuple[str, str]]" = []
+    kinds: "dict[str, int]" = {}
+    place = 0
+    size = len(text)
+    while place < size:
+        character = text[place]
+        if character == "{":
+            end = place + 1
+            while end < size and text[end] != "}":
+                end = end + 1
+            if end >= size:
+                return None
+            name = text[place + 1 : end]
+            if not name or "{" in name:
+                return None
+            if not _layout_field_known(name):
+                return None
+            kind = _layout_field_kind(name)
+            if kind in kinds:
+                return None
+            kinds[kind] = 1
+            items += [("f", name)]
+            place = end + 1
+            continue
+        if character not in _LAYOUT_LITERALS:
+            return None
+        items += [("l", character)]
+        place = place + 1
+    # -- 3b.R2c (P4-D383): a day of the year stands for both month and day.
+    if "yearday" in kinds and ("month" in kinds or "day" in kinds):
+        return None
+    if "yearday" in kinds and ("hour" in kinds or "weekday" in kinds):
+        return None
+    if "year" not in kinds or (
+        ("month" not in kinds or "day" not in kinds) and "yearday" not in kinds
+    ):
+        return None
+    if "minute" in kinds and "hour" not in kinds:
+        return None
+    if "second" in kinds and "minute" not in kinds:
+        return None
+    if "fraction" in kinds and "second" not in kinds:
+        return None
+    # -- 3b.R2b (P4-D383): a marker stands only beside a 12-hour hour, and
+    # the narrow no-break space only directly before a marker.
+    if "meridiem" in kinds:
+        twelve = False
+        for kind_of, name in items:
+            if kind_of == "f" and name in _LAYOUT_TWELVE_HOURS:
+                twelve = True
+        if not twelve:
+            return None
+    place = 0
+    for kind_of, name in items:
+        if kind_of == "l" and name == LAYOUT_NARROW_SPACE:
+            following = items[place + 1] if place + 1 < len(items) else ("", "")
+            if following[0] != "f" or following[1] not in _LAYOUT_MERIDIEMS:
+                return None
+        place = place + 1
+    last = len(items) - 1
+    index = 0
+    for kind_of, name in items:
+        if kind_of == "f" and name[len(name) - 1 : len(name)] == "?":
+            if index != last:
+                return None
+        index = index + 1
+    return tuple(items)
+
+
+def _layout_field_kind(name: str) -> str:
+    """Which part of an instant one field names: year, month, day, ..."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    bare = name
+    if name[len(name) - 1 : len(name)] == "?":
+        bare = name[0 : len(name) - 1]
+    if bare in _LAYOUT_YEAR_WINDOWS or bare == "YYYY":
+        return "year"
+    if bare in ("MM", "M") or bare in _LAYOUT_MONTH_FIELDS:
+        return "month"
+    if bare in ("DD", "D", "_D"):
+        return "day"
+    # -- 3b.R2c (P4-D383)
+    if bare == "DDD":
+        return "yearday"
+    if bare in _LAYOUT_WEEKDAY_FIELDS:
+        return "weekday"
+    if bare in _LAYOUT_HOUR_FIELDS:
+        return "hour"
+    if bare in _LAYOUT_MERIDIEMS:
+        return "meridiem"
+    if bare == "MI":
+        return "minute"
+    if bare == "SS":
+        return "second"
+    if bare == "F":
+        return "fraction"
+    return "offset"
+
+
+def _layout_digits(text: str, start: int, least: int, most: int) -> int:
+    """Where a run of ``least`` to ``most`` ASCII digits from ``start`` ends, or -1."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    end = start
+    size = len(text)
+    while end < size and end - start < most and "0" <= text[end] <= "9":
+        end = end + 1
+    if end - start < least:
+        return -1
+    return end
+
+
+def _layout_letters(text: str, start: int) -> int:
+    """Where a run of ASCII letters from ``start`` ends."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    end = start
+    size = len(text)
+    while end < size and (
+        "a" <= text[end] <= "z" or "A" <= text[end] <= "Z"
+    ):
+        end = end + 1
+    return end
+
+
+def _layout_tail(items: "tuple[tuple[str, str], ...]") -> int:
+    """Where a layout's optional offset begins, with the literals before it.
+
+    The length of the items where the last field is not optional, so a cell
+    may end there only where an optional offset follows.
+    """
+    size = len(items)
+    if not size:
+        return size
+    kind, name = items[size - 1]
+    if kind != "f" or name[len(name) - 1 : len(name)] != "?":
+        return size
+    start = size - 1
+    while start > 0 and items[start - 1][0] == "l":
+        start = start - 1
+    return start
+
+
+# THE LAYOUTS THAT STAND IN FOR A TWO-FIGURE MEMBER, AND SET SPACES ASIDE
+# AS IT DOES (skeptic 1 of landing R2a, item 1). A column whose century the
+# person declared (question Q5, `--century`) is read by the layout alone,
+# in that window, since the four two-figure members read the POSIX window
+# only; and every member reads a cell with its surrounding whitespace set
+# aside (`parse_datetime`'s `text.strip()`). So where the layout stands in
+# for one -- three fields on `/`, or padded on `.`, the year last and read
+# in a declared window -- it sets that whitespace aside too, and the answer
+# reads every cell the member read: 1,000 `MM/DD/YY` births, 3 per cent with
+# a trailing space, answered 1930, fell to 970 read, under the line, and the
+# column became free text. Nowhere else: a layout no member reads trims
+# nothing under every answer, so an answer changes the century and nothing
+# else. Each shape is written here up to its year, which every declared
+# window then completes (`{YY1900}`, `{YY1930}`, `{YY1940}`).
+_LAYOUT_MEMBER_DATES = (
+    "{M}/{D}/",
+    "{D}/{M}/",
+    "{MM}/{DD}/",
+    "{DD}/{MM}/",
+    "{MM}.{DD}.",
+    "{DD}.{MM}.",
+)
+
+
+def _layouts_read_as_members() -> "dict[tuple[tuple[str, str], ...], int]":
+    """The compiled items of every layout that reads a cell as a two-figure member does (built once)."""
+    found: "dict[tuple[tuple[str, str], ...], int]" = {}
+    for date in _LAYOUT_MEMBER_DATES:
+        for first_year in CENTURY_WINDOW_YEARS:
+            items = compiled_layout(f"{date}{{YY{first_year}}}")
+            if items is not None:
+                found[items] = 1
+    return found
+
+
+_LAYOUTS_READ_AS_MEMBERS = _layouts_read_as_members()
+
+
+def layout_sets_spaces_aside(name: str) -> bool:
+    """Whether a layout reads its cells with their surrounding whitespace set aside.
+
+    True only for a layout standing in for a two-figure member in a
+    declared century (`_LAYOUTS_READ_AS_MEMBERS`); every other layout reads
+    a cell whole. Guarantees: accepts a format name or a bare layout text;
+    returns a bool. Raises TypeError for anything that is not text. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    return items is not None and items in _LAYOUTS_READ_AS_MEMBERS
+
+
+def layout_reading(
+    text: str, items: "tuple[tuple[str, str], ...]"
+) -> "tuple[str, str, tuple[str, ...], str] | None":
+    """One cell read under one compiled layout, or None.
+
+    Returns the canonical instant -- `YYYY-MM-DD`, or `YYYY-MM-DD HH:MM:SS`
+    where the layout writes a clock -- the offset in ISO's own spelling
+    (`''`, `Z` or a signed `+HH:MM`), what each FLEXIBLE field showed in
+    layout order (`p` written padded, `u` written in one figure, `''` two
+    figures either way), and the fraction's figures as written. NOTHING IS
+    TRIMMED: a cell is read whole or not at all -- but by a layout standing
+    in for a two-figure member in a declared century, which sets the
+    cell's surrounding whitespace aside as that member does
+    (`_LAYOUTS_READ_AS_MEMBERS`). The calendar is checked, a
+    four-figure year outside `LAYOUT_FIRST_YEAR` to `LAYOUT_LAST_YEAR` is
+    unread, a weekday must be the date's own, an hour runs 0 to 23 -- 1 to
+    12 on the dial, where a marker names its half of the day and no marker
+    is T1's declared face, 12 the hour before one (landing R2b) -- a minute
+    or second 0 to 59, and an offset is at most 14 hours.
+
+    Guarantees: accepts a cell and the items `compiled_layout` made;
+    returns the reading or None. Determinism: a function of the two. Raises
+    TypeError for a cell that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(items) == 5 and items in _LAYOUTS_READ_AS_MEMBERS:
+        text = text.strip()
+    size = len(text)
+    tail = _layout_tail(items)
+    at = 0
+    year = -1
+    month = -1
+    day = -1
+    weekday = -1
+    hour = -1
+    minute = -1
+    second = 0
+    fraction = ""
+    offset = ""
+    yearday = -1
+    shows: "list[str]" = []
+    # -- 3b.R2b (P4-D383): the hour's dial and the half of the day its
+    # marker names, `''` where no marker is written.
+    twelve = False
+    half = ""
+    index = 0
+    for kind, name in items:
+        if index == tail and at == size:
+            break
+        index = index + 1
+        if kind == "l":
+            if at >= size or text[at] != name:
+                return None
+            at = at + 1
+            continue
+        if name in _LAYOUT_FIXED_FIELDS:
+            width = _LAYOUT_FIXED_FIELDS[name]
+            end = at + width
+            if end > size:
+                return None
+            value = 0
+            while at < end:
+                figure = text[at]
+                if figure < "0" or figure > "9":
+                    return None
+                value = value * 10 + (ord(figure) - 48)
+                at = at + 1
+            if name == "YYYY":
+                year = value
+            elif name in _LAYOUT_YEAR_WINDOWS:
+                first = _LAYOUT_YEAR_WINDOWS[name]
+                year = (first // 100) * 100 + value
+                if year < first:
+                    year = year + 100
+            elif name == "MM":
+                month = value
+            elif name == "DD":
+                day = value
+            elif name == "DDD":
+                # -- 3b.R2c (P4-D383): the day of the year, 001 to 366.
+                yearday = value
+            elif name == "HH":
+                hour = value
+            elif name == "hh":
+                hour = value
+                twelve = True
+            elif name == "MI":
+                minute = value
+            else:
+                second = value
+            continue
+        if name == "M" or name == "D":
+            end = _layout_digits(text, at, 1, 2)
+            if end < 0:
+                return None
+            written = text[at:end]
+            value = int(written)
+            if len(written) == 1:
+                shows += ["u"]
+            elif written[0] == "0":
+                shows += ["p"]
+            else:
+                shows += [""]
+            at = end
+            if name == "M":
+                month = value
+            else:
+                day = value
+            continue
+        if name == "H" or name == "h":
+            # -- 3b.R2b: one figure below ten, two from ten, never `09`.
+            end = _layout_digits(text, at, 1, 2)
+            if end < 0 or (end - at == 2 and text[at] == "0"):
+                return None
+            hour = int(text[at:end])
+            twelve = name == "h"
+            at = end
+            continue
+        if name == "_H" or name == "_h":
+            # -- 3b.R2b: two places, one figure below ten after a space.
+            if at + 2 > size:
+                return None
+            first_figure = text[at]
+            second_figure = text[at + 1]
+            if second_figure < "0" or second_figure > "9":
+                return None
+            if first_figure == " ":
+                hour = ord(second_figure) - 48
+            elif "1" <= first_figure <= "9":
+                hour = (ord(first_figure) - 48) * 10 + ord(second_figure) - 48
+            else:
+                return None
+            twelve = name == "_h"
+            at = at + 2
+            continue
+        if name in _LAYOUT_MERIDIEMS:
+            # -- 3b.R2b: the marker's morning or afternoon word, exactly.
+            morning, evening = _LAYOUT_MERIDIEMS[name]
+            if text[at : at + len(morning)] == morning:
+                half = "am"
+                at = at + len(morning)
+            elif text[at : at + len(evening)] == evening:
+                half = "pm"
+                at = at + len(evening)
+            else:
+                return None
+            continue
+        if name == "_D":
+            if at + 2 > size:
+                return None
+            first_figure = text[at]
+            second_figure = text[at + 1]
+            if second_figure < "0" or second_figure > "9":
+                return None
+            if first_figure == " ":
+                day = ord(second_figure) - 48
+            elif "1" <= first_figure <= "9":
+                day = (ord(first_figure) - 48) * 10 + ord(second_figure) - 48
+            else:
+                return None
+            at = at + 2
+            continue
+        if name == "F":
+            end = _layout_digits(text, at, 1, LAYOUT_FRACTION_FIGURES)
+            if end < 0:
+                return None
+            fraction = text[at:end]
+            at = end
+            continue
+        if name in _LAYOUT_MONTH_FIELDS:
+            end = _layout_letters(text, at)
+            word = text[at:end]
+            table = _LAYOUT_MONTH_FIELDS[name]
+            if word not in table:
+                return None
+            month = table[word]
+            at = end
+            continue
+        if name in _LAYOUT_WEEKDAY_FIELDS:
+            end = _layout_letters(text, at)
+            word = text[at:end]
+            table = _LAYOUT_WEEKDAY_FIELDS[name]
+            if word not in table:
+                return None
+            weekday = table[word] - 1
+            at = end
+            continue
+        # An offset field, optional or not.
+        bare = name
+        if name[len(name) - 1 : len(name)] == "?":
+            bare = name[0 : len(name) - 1]
+        if bare in _LAYOUT_ZULU_FIELDS:
+            end = at + len(bare)
+            if text[at:end] != bare:
+                return None
+            offset = "Z"
+            at = end
+            continue
+        if at >= size or (text[at] != "+" and text[at] != "-"):
+            return None
+        sign = text[at]
+        hours_end = _layout_digits(text, at + 1, 2, 2)
+        if hours_end < 0:
+            return None
+        hours = text[at + 1 : hours_end]
+        minutes = "00"
+        at = hours_end
+        if bare == "+HH:MM":
+            if at >= size or text[at] != ":":
+                return None
+            at = at + 1
+        if bare != "+HH":
+            minutes_end = _layout_digits(text, at, 2, 2)
+            if minutes_end < 0:
+                return None
+            minutes = text[at:minutes_end]
+            at = minutes_end
+        if int(hours) > 14 or int(minutes) > 59:
+            return None
+        if int(hours) == 14 and minutes != "00":
+            return None
+        offset = f"{sign}{hours}:{minutes}"
+    if at != size:
+        return None
+    if year < LAYOUT_FIRST_YEAR or year > LAYOUT_LAST_YEAR:
+        return None
+    if yearday >= 0:
+        # -- 3b.R2c (P4-D383): an ordinal day names its month and day.
+        if yearday < 1 or yearday > days_from_civil(year + 1, 1, 1) - days_from_civil(year, 1, 1):
+            return None
+        _year, month, day = civil_from_days(days_from_civil(year, 1, 1) + yearday - 1)
+    if not valid_date(year, month, day):
+        return None
+    if weekday >= 0 and (days_from_civil(year, month, day) + 3) % 7 != weekday:
+        return None
+    canonical = f"{year:04d}-{month:02d}-{day:02d}"
+    if twelve:
+        # -- 3b.R2b: on the dial, 1 to 12; a marker's afternoon adds
+        # twelve, and the top of the dial is the hour before one.
+        if hour < 1 or hour > 12:
+            return None
+        hour = hour % 12 + (12 if half == "pm" else 0)
+    if hour >= 0:
+        if hour > 23 or minute < 0 or minute > 59 or second > 59:
+            return None
+        canonical = f"{canonical} {hour:02d}:{minute:02d}:{second:02d}"
+    return canonical, offset, tuple(shows), fraction
+
+
+def layout_cell(
+    items: "tuple[tuple[str, str], ...]",
+    canonical: str,
+    offset: str = "",
+    widths: "tuple[bool, ...]" = (),
+    figures: int = 0,
+) -> str:
+    """One instant written under one compiled layout: `layout_reading` reversed.
+
+    THE TWIN'S CELL, WRITTEN AS ITS SOURCE WROTE IT. Every field comes from
+    the canonical instant -- an hour on the dial as its top, 12, and the
+    marker of its half of the day (landing R2b); a flexible field is written padded where its
+    entry in ``widths`` (layout order) is true or missing, and in as few
+    figures as it takes otherwise; the fraction is ``figures`` zeros, as
+    every member writes it until its own census is published; and the
+    offset is written in the field's own spelling -- `+0100`, `+01`, `Z`,
+    ` UTC`. An optional offset with no offset to write is written with
+    nothing, not even the literals before it; a field that must write one
+    and is handed none writes the shared clock's own, `+00:00` in its
+    spelling or its zulu word.
+
+    Guarantees: accepts compiled items and a canonical instant the layout
+    can show; returns the cell, which `layout_reading` reads back as that
+    instant, that offset and those widths. Determinism: a function of the
+    arguments. Raises TypeError for a canonical text that is not text. No
+    I/O of any kind.
+    """
+    if not isinstance(canonical, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    year = int(canonical[0:4])
+    month = int(canonical[5:7])
+    day = int(canonical[8:10])
+    hour = 0
+    minute = 0
+    second = 0
+    if len(canonical) >= 19:
+        hour = int(canonical[11:13])
+        minute = int(canonical[14:16])
+        second = int(canonical[17:19])
+    tail = _layout_tail(items)
+    if tail < len(items) and not offset:
+        items = items[0:tail]
+    shared = offset if offset else "+00:00"
+    written = ""
+    flexible = 0
+    for kind, name in items:
+        if kind == "l":
+            written = f"{written}{name}"
+            continue
+        bare = name
+        if name[len(name) - 1 : len(name)] == "?":
+            bare = name[0 : len(name) - 1]
+        if bare == "YYYY":
+            written = f"{written}{year:04d}"
+        elif bare in _LAYOUT_YEAR_WINDOWS:
+            written = f"{written}{year % 100:02d}"
+        elif bare == "MM":
+            written = f"{written}{month:02d}"
+        elif bare == "DD":
+            written = f"{written}{day:02d}"
+        elif bare == "DDD":
+            # -- 3b.R2c (P4-D383): the day of the year, three figures.
+            ordinal = days_from_civil(year, month, day) - days_from_civil(year, 1, 1) + 1
+            written = f"{written}{ordinal:03d}"
+        elif bare == "M" or bare == "D":
+            value = month if bare == "M" else day
+            padded = True
+            if flexible < len(widths):
+                padded = widths[flexible]
+            flexible = flexible + 1
+            if padded or value >= 10:
+                written = f"{written}{value:02d}"
+            else:
+                written = f"{written}{value}"
+        elif bare == "_D":
+            written = f"{written}{day:>2d}"
+        elif bare == "HH":
+            written = f"{written}{hour:02d}"
+        elif bare in _LAYOUT_HOUR_FIELDS:
+            # -- 3b.R2b: the other widths, and the dial, whose top is 12.
+            shown = hour
+            if bare in _LAYOUT_TWELVE_HOURS:
+                shown = hour % 12 if hour % 12 else 12
+            if bare == "hh":
+                written = f"{written}{shown:02d}"
+            elif bare == "H" or bare == "h":
+                written = f"{written}{shown}"
+            else:
+                written = f"{written}{shown:>2d}"
+        elif bare in _LAYOUT_MERIDIEMS:
+            morning, evening = _LAYOUT_MERIDIEMS[bare]
+            written = f"{written}{morning if hour < 12 else evening}"
+        elif bare == "MI":
+            written = f"{written}{minute:02d}"
+        elif bare == "SS":
+            written = f"{written}{second:02d}"
+        elif bare == "F":
+            written = f"{written}{'0' * figures}"
+        elif bare in _LAYOUT_MONTH_FIELDS:
+            written = f"{written}{_layout_word(_LAYOUT_MONTH_FIELDS[bare], month)}"
+        elif bare in _LAYOUT_WEEKDAY_FIELDS:
+            place = (days_from_civil(year, month, day) + 3) % 7 + 1
+            written = f"{written}{_layout_word(_LAYOUT_WEEKDAY_FIELDS[bare], place)}"
+        elif bare in _LAYOUT_ZULU_FIELDS:
+            written = f"{written}{bare}"
+        elif bare == "+HH:MM":
+            written = f"{written}{shared[0:6]}"
+        elif bare == "+HHMM":
+            written = f"{written}{shared[0:3]}{shared[4:6]}"
+        else:
+            written = f"{written}{shared[0:3]}"
+    return written
+
+
+def _layout_word(table: "dict[str, int]", place: int) -> str:
+    """The word a name field writes for one month or weekday."""
+    for word in table:
+        if table[word] == place:
+            return f"{word}"
+    return ""
+
+
+# -- the productions: every layout ONE cell can be read under ------------
+
+
+def _layout_tokens(text: str) -> "list[tuple[str, str]] | None":
+    """A cell as runs: `d` digits, `a` letters, `s` one literal mark; or None.
+
+    None for a cell holding any character outside the closed sets, which is
+    what makes most text of other kinds cost nothing here.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    runs: "list[tuple[str, str]]" = []
+    place = 0
+    size = len(text)
+    while place < size:
+        character = text[place]
+        if "0" <= character <= "9":
+            end = _layout_digits(text, place, 1, size)
+            runs += [("d", text[place:end])]
+            place = end
+            continue
+        if "a" <= character <= "z" or "A" <= character <= "Z":
+            end = _layout_letters(text, place)
+            runs += [("a", text[place:end])]
+            place = end
+            continue
+        if character in "-/.,: +" or character == LAYOUT_NARROW_SPACE:
+            runs += [("s", character)]
+            place = place + 1
+            continue
+        return None
+    return runs
+
+
+def _run(runs: "list[tuple[str, str]]", place: int) -> "tuple[str, str]":
+    """One run, or an empty one past either end."""
+    if 0 <= place < len(runs):
+        return runs[place]
+    return "", ""
+
+
+def _figures(runs: "list[tuple[str, str]]", place: int, sizes: "tuple[int, ...]") -> bool:
+    """Whether a run is digits of one of these lengths."""
+    kind, text = _run(runs, place)
+    return kind == "d" and len(text) in sizes
+
+
+def _mark(runs: "list[tuple[str, str]]", place: int, marks: str) -> bool:
+    """Whether a run is one of these marks."""
+    kind, text = _run(runs, place)
+    return kind == "s" and len(text) == 1 and text in marks
+
+
+def _names_of(word: str, fields: "dict[str, dict[str, int]]") -> "list[str]":
+    """Every name field of one family that reads this word."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    found: "list[str]" = []
+    for name in fields:
+        if word in fields[name]:
+            found += [name]
+    return found
+
+
+def _layout_date_core(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int, bool]]":
+    """Every date production starting at one run: (text, next run, clock inside)."""
+    found: "list[tuple[str, int, bool]]" = []
+    kind, first = _run(runs, place)
+    if kind == "d":
+        size = len(first)
+        # THREE FIELDS OF FIGURES ON ONE MARK, the same mark twice.
+        if (
+            _mark(runs, place + 1, "-/.")
+            and _figures(runs, place + 2, (1, 2))
+            and _run(runs, place + 3) == _run(runs, place + 1)
+            and _figures(runs, place + 4, (1, 2, 4))
+        ):
+            mark = runs[place + 1][1]
+            middle = len(runs[place + 2][1])
+            last = len(runs[place + 4][1])
+            after = place + 5
+            # A cell whose two fields are both two figures is read PADDED
+            # as well as flexible, and the padded layout is preferred on a
+            # tie (`layout_order_key`): a column every cell of which pads
+            # its fields says so in its layout and needs no width census.
+            padded = middle == 2 and (size == 2 or last == 2)
+            if size == 4 and last in (1, 2):
+                # Year first on dots is read padded only: `2023.5.17` is
+                # how a calendar version is written.
+                if padded:
+                    found += [(f"{{YYYY}}{mark}{{MM}}{mark}{{DD}}", after, False)]
+                if mark != ".":
+                    found += [(f"{{YYYY}}{mark}{{M}}{mark}{{D}}", after, False)]
+            elif size in (1, 2) and last in (2, 4):
+                year = "YYYY" if last == 4 else "YY"
+                # C6-22 for two figures: on dots only padded, since `1.2.24`
+                # is a version. With four, an unpadded dotted date is how
+                # de-DE and Finnish write the day (skeptic M3), read in the
+                # year band and preferred padded on a tie.
+                if padded:
+                    found += [(f"{{MM}}{mark}{{DD}}{mark}{{{year}}}", after, False)]
+                    found += [(f"{{DD}}{mark}{{MM}}{mark}{{{year}}}", after, False)]
+                if mark != "." or last == 4:
+                    found += [(f"{{M}}{mark}{{D}}{mark}{{{year}}}", after, False)]
+                    found += [(f"{{D}}{mark}{{M}}{mark}{{{year}}}", after, False)]
+        # A RUN OF FIGURES WITH NO MARK: a date, and HL7's timestamps.
+        if size == 8:
+            found += [("{YYYY}{MM}{DD}", place + 1, False)]
+        if size == 12:
+            found += [("{YYYY}{MM}{DD}{HH}{MI}", place + 1, True)]
+        if size == 14:
+            found += [("{YYYY}{MM}{DD}{HH}{MI}{SS}", place + 1, True)]
+        # A DAY, A MONTH NAME AND A YEAR, with no mark (SAS, Stata) or one.
+        # A two-figure day is read padded AND flexible, as every other
+        # production reads one (the Codex review of landing R2a, item 1):
+        # `{D}{MON}{YYYY}` reads `17MAR2023` too, so a column cycling
+        # `1MAR2023` to `28MAR2023` was offered it only by a one-figure
+        # day, and LY1, which writes its sample on the 17th, refused it.
+        if size in (1, 2):
+            second_kind, word = _run(runs, place + 1)
+            if second_kind == "a" and _figures(runs, place + 2, (2, 4)):
+                year = "YYYY" if len(runs[place + 2][1]) == 4 else "YY"
+                for name in _names_of(word, _LAYOUT_MONTH_FIELDS):
+                    for lead in ("DD", "D") if size == 2 else ("D",):
+                        found += [(f"{{{lead}}}{{{name}}}{{{year}}}", place + 3, False)]
+            if (
+                _mark(runs, place + 1, "- ./")
+                and _run(runs, place + 2)[0] == "a"
+                and _run(runs, place + 3) == _run(runs, place + 1)
+                and _figures(runs, place + 4, (2, 4))
+            ):
+                mark = runs[place + 1][1]
+                year = "YYYY" if len(runs[place + 4][1]) == 4 else "YY"
+                for name in _names_of(runs[place + 2][1], _LAYOUT_MONTH_FIELDS):
+                    for lead in ("DD", "D") if size == 2 else ("D",):
+                        found += [
+                            (
+                                f"{{{lead}}}{mark}{{{name}}}{mark}{{{year}}}",
+                                place + 5,
+                                False,
+                            )
+                        ]
+        # A YEAR, A MONTH NAME AND A DAY.
+        if (
+            size == 4
+            and _mark(runs, place + 1, "-/ ")
+            and _run(runs, place + 2)[0] == "a"
+            and _run(runs, place + 3) == _run(runs, place + 1)
+            and _figures(runs, place + 4, (1, 2))
+        ):
+            mark = runs[place + 1][1]
+            tail = ("DD", "D") if len(runs[place + 4][1]) == 2 else ("D",)
+            for name in _names_of(runs[place + 2][1], _LAYOUT_MONTH_FIELDS):
+                for lead in tail:
+                    found += [
+                        (f"{{YYYY}}{mark}{{{name}}}{mark}{{{lead}}}", place + 5, False)
+                    ]
+    if kind == "a":
+        for name in _names_of(first, _LAYOUT_MONTH_FIELDS):
+            # `Mar 17, 2023` and `Mar 17 2023`, and SQL Server's `Mar  1 2023`.
+            if _mark(runs, place + 1, " ") and _figures(runs, place + 2, (1, 2)):
+                after = place + 3
+                comma = ""
+                if _mark(runs, after, ","):
+                    comma = ","
+                    after = after + 1
+                if _mark(runs, after, " ") and _figures(runs, after + 1, (2, 4)):
+                    year = "YYYY" if len(runs[after + 1][1]) == 4 else "YY"
+                    two = len(runs[place + 2][1]) == 2
+                    for lead in ("DD", "D") if two else ("D",):
+                        found += [
+                            (
+                                f"{{{name}}} {{{lead}}}{comma} {{{year}}}",
+                                after + 2,
+                                False,
+                            )
+                        ]
+                    if len(runs[place + 2][1]) == 2 and not comma:
+                        found += [(f"{{{name}}} {{_D}} {{{year}}}", after + 2, False)]
+            # ...and a one-figure day padded with a space, before a year of
+            # either width, as a two-figure `{_D}` stands before either
+            # (the Codex review of landing R2a, item 1).
+            if (
+                _mark(runs, place + 1, " ")
+                and _mark(runs, place + 2, " ")
+                and _figures(runs, place + 3, (1,))
+                and _mark(runs, place + 4, " ")
+                and _figures(runs, place + 5, (2, 4))
+            ):
+                year = "YYYY" if len(runs[place + 5][1]) == 4 else "YY"
+                found += [(f"{{{name}}} {{_D}} {{{year}}}", place + 6, False)]
+            if (
+                _mark(runs, place + 1, "-")
+                and _figures(runs, place + 2, (1, 2))
+                and _mark(runs, place + 3, "-")
+                and _figures(runs, place + 4, (4,))
+            ):
+                for lead in ("DD", "D") if len(runs[place + 2][1]) == 2 else ("D",):
+                    found += [(f"{{{name}}}-{{{lead}}}-{{YYYY}}", place + 5, False)]
+    return found
+
+
+def _layout_dates(runs: "list[tuple[str, str]]") -> "list[tuple[str, int, bool]]":
+    """Every date production of a cell: the core, with or without a weekday lead."""
+    found = _layout_date_core(runs, 0)
+    kind, word = _run(runs, 0)
+    if kind == "a":
+        for name in _names_of(word, _LAYOUT_WEEKDAY_FIELDS):
+            if _mark(runs, 1, ",") and _mark(runs, 2, " "):
+                for text, after, timed in _layout_date_core(runs, 3):
+                    found += [(f"{{{name}}}, {text}", after, timed)]
+            elif _mark(runs, 1, " "):
+                for text, after, timed in _layout_date_core(runs, 2):
+                    found += [(f"{{{name}}} {text}", after, timed)]
+    return found
+
+
+def _layout_fractions(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """No fraction, or one on `.` or `,`, or SQL Server's three figures on `:`."""
+    found: "list[tuple[str, int]]" = [("", place)]
+    if _mark(runs, place, ".,") and _figures(runs, place + 1, (1, 2, 3, 4, 5, 6, 7, 8, 9)):
+        found += [(f"{runs[place][1]}{{F}}", place + 2)]
+    if _mark(runs, place, ":") and _figures(runs, place + 1, (3,)):
+        found += [(":{F}", place + 2)]
+    return found
+
+
+def _layout_hours(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """Every hour field one run starts: (24-hour field, next run).
+
+    Two figures are `HH`; and, unless the first is a nought, `H` and `_H`
+    too, which write an hour from ten in two figures (landing R2b). One
+    figure is `H`, and a space before one figure is `_H`.
+    """
+    found: "list[tuple[str, int]]" = []
+    kind, text = _run(runs, place)
+    if kind == "d" and len(text) == 2:
+        found += [("HH", place + 1)]
+        if text[0] != "0":
+            found += [("H", place + 1), ("_H", place + 1)]
+    if kind == "d" and len(text) == 1:
+        found += [("H", place + 1)]
+    if _mark(runs, place, " ") and _figures(runs, place + 1, (1,)):
+        found += [("_H", place + 2)]
+    return found
+
+
+def _layout_markers(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """A marker of the half of the day at one run, after no gap, a space or a narrow one.
+
+    (`{AM}`-style text with its gap, next run) for each; none where the
+    runs there are no marker (landing R2b). `a.m.` and `A.M.` are four
+    runs, a letter, a point, a letter and a point.
+    """
+    found: "list[tuple[str, int]]" = []
+    for gap in ("", " ", LAYOUT_NARROW_SPACE):
+        at = place
+        if gap:
+            if not _mark(runs, at, gap):
+                continue
+            at = at + 1
+        kind, word = _run(runs, at)
+        if kind != "a":
+            continue
+        for name in _LAYOUT_MERIDIEMS:
+            morning, evening = _LAYOUT_MERIDIEMS[name]
+            if "." not in name:
+                if word == morning or word == evening:
+                    found += [(f"{gap}{{{name}}}", at + 1)]
+                continue
+            if (
+                (word == morning[0:1] or word == evening[0:1])
+                and _mark(runs, at + 1, ".")
+                and _run(runs, at + 2) == ("a", morning[2:3])
+                and _mark(runs, at + 3, ".")
+            ):
+                found += [(f"{gap}{{{name}}}", at + 4)]
+    return found
+
+
+def _layout_clocks(
+    runs: "list[tuple[str, str]]", place: int, joint: str
+) -> "list[tuple[str, int]]":
+    """Every clock at one run: its hour, minutes, seconds, fraction and marker.
+
+    `H:MI`, `H:MI:SS` and `H.MI.SS` (a dotted clock writes its seconds),
+    each with any fraction, for every hour field the run starts
+    (`_layout_hours`) -- and, with a marker after it (`_layout_markers`),
+    the same clock on the dial, `hh`, `h` or `_h` (landing R2b); and a
+    compact `HHMI` or `HHMISS` after `T` or one space, which no marker
+    follows.
+    """
+    found: "list[tuple[str, int]]" = []
+    for hour, start in _layout_hours(runs, place):
+        for mark in (":", "."):
+            if not (_mark(runs, start, mark) and _figures(runs, start + 1, (2,))):
+                continue
+            base = f"{{{hour}}}{mark}{{MI}}"
+            after = start + 2
+            plain: "list[tuple[str, int]]" = []
+            if mark == ":":
+                plain += [(base, after)]
+            if _mark(runs, after, mark) and _figures(runs, after + 1, (2,)):
+                for fraction, end in _layout_fractions(runs, after + 2):
+                    plain += [(f"{base}{mark}{{SS}}{fraction}", end)]
+            dial = f"{{{_LAYOUT_ON_THE_DIAL[hour]}}}"
+            for text, end in plain:
+                found += [(text, end)]
+                for marker, last in _layout_markers(runs, end):
+                    found += [(f"{dial}{text[len(hour) + 2 :]}{marker}", last)]
+    if joint in ("T", "t", " ") and _figures(runs, place, (4, 6)):
+        text = "{HH}{MI}" + ("{SS}" if len(runs[place][1]) == 6 else "")
+        if len(runs[place][1]) == 6:
+            for fraction, end in _layout_fractions(runs, place + 1):
+                found += [(f"{text}{fraction}", end)]
+        else:
+            found += [(text, place + 1)]
+    return found
+
+
+def _layout_offsets(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """No offset, or one written directly or after one space."""
+    found: "list[tuple[str, int]]" = [("", place)]
+    kind, word = _run(runs, place)
+    if kind == "a" and (word == "Z" or word == "z"):
+        found += [(f"{{{word}}}", place + 1)]
+    for gap in ("", " "):
+        at = place
+        if gap:
+            if not _mark(runs, at, " "):
+                continue
+            at = at + 1
+        if _mark(runs, at, "+-"):
+            if (
+                _figures(runs, at + 1, (2,))
+                and _mark(runs, at + 2, ":")
+                and _figures(runs, at + 3, (2,))
+            ):
+                found += [(f"{gap}{{+HH:MM}}", at + 4)]
+            if _figures(runs, at + 1, (4,)):
+                found += [(f"{gap}{{+HHMM}}", at + 2)]
+            if _figures(runs, at + 1, (2,)):
+                found += [(f"{gap}{{+HH}}", at + 2)]
+        kind, word = _run(runs, at)
+        if gap and kind == "a" and (word == "UTC" or word == "GMT"):
+            found += [(f"{gap}{{{word}}}", at + 1)]
+    return found
+
+
+def _after_joint(runs: "list[tuple[str, str]]", place: int, joint: str) -> int:
+    """The run after one joint written at ``place``, or -1."""
+    if not isinstance(joint, str):
+        raise TypeError(_NOT_TEXT)
+    at = place
+    for character in joint:
+        kind, text = _run(runs, at)
+        if character == "T" or character == "t":
+            if kind != "a" or text != character:
+                return -1
+        elif kind != "s" or text != character:
+            return -1
+        at = at + 1
+    return at
+
+
+def layouts_of(text: str) -> "tuple[str, ...]":
+    """Every layout of the grammar one cell can be read under, by its syntax.
+
+    The productions, in a fixed order: a date (three fields of figures on
+    one mark; a run of 8, 12 or 14 figures; a month name with a day and a
+    year in either order or after the year; any of these after a weekday),
+    then, where the cell goes on, one joint, one clock of the date half and
+    any offset; a 12- or 14-figure run carries its clock inside. A layout
+    returned here reads the cell's SHAPE; whether it reads the cell as a
+    date -- the calendar, the year band, the weekday -- is
+    `layout_reading`'s question.
+
+    Guarantees: accepts one cell; returns layout texts (no prefix), each
+    once, in production order. Determinism: a function of the text. Raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    runs = _layout_tokens(text)
+    if not runs:
+        return ()
+    found: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    total = len(runs)
+    for date, after, timed in _layout_dates(runs):
+        written: "list[str]" = []
+        if timed:
+            for fraction, at in _layout_fractions(runs, after):
+                for offset, end in _layout_offsets(runs, at):
+                    if end == total:
+                        written += [f"{date}{fraction}{offset}"]
+        elif after == total:
+            written += [date]
+        else:
+            for joint in _LAYOUT_JOINTS:
+                at = _after_joint(runs, after, joint)
+                if at < 0:
+                    continue
+                for clock, end in _layout_clocks(runs, at, joint):
+                    for offset, last in _layout_offsets(runs, end):
+                        if last == total:
+                            written += [f"{date}{joint}{clock}{offset}"]
+        for layout in written:
+            if layout not in seen:
+                seen[layout] = 1
+                found += [layout]
+    return tuple(found)
+
+
+# -- one layout's own facts, read off its text ---------------------------
+
+
+def is_layout_name(name: str) -> bool:
+    """Whether a format name is in the layout member's form, `layout <text>`.
+
+    The cheap question, asked wherever a format name is routed: it says the
+    name CLAIMS to be a layout. `is_layout_format` says whether it is one.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return name[0 : len(LAYOUT_PREFIX)] == LAYOUT_PREFIX
+
+
+# THE COMPILED LAYOUTS ONE RUN HAS MET (landing R2a), so a reader asked of
+# a million cells under one layout compiles it once. A layout's items are a
+# fixed function of its text, so what this holds can never differ from a
+# fresh compile; it holds at most `_COMPILED_LAYOUT_LIMIT` layouts, and a
+# run meeting more compiles the rest each time. A run meets a handful.
+_COMPILED_LAYOUTS: "dict[str, tuple[tuple[str, str], ...] | None]" = {}
+_COMPILED_LAYOUT_LIMIT = 1024
+
+
+def layout_items(name: str) -> "tuple[tuple[str, str], ...] | None":
+    """The compiled items of a layout, named as a format or as its bare text.
+
+    `layout {DD}{MON}{YYYY}` and `{DD}{MON}{YYYY}` name the same layout:
+    no layout text begins with the prefix, so the two forms cannot be taken
+    for each other. None for anything that is not a layout.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if name in _COMPILED_LAYOUTS:
+        return _COMPILED_LAYOUTS[name]
+    found: "tuple[tuple[str, str], ...] | None" = None
+    if is_layout_name(name):
+        found = compiled_layout(name[len(LAYOUT_PREFIX) :])
+    elif name[0:1] == "{":
+        found = compiled_layout(name)
+    if len(_COMPILED_LAYOUTS) < _COMPILED_LAYOUT_LIMIT:
+        _COMPILED_LAYOUTS[name] = found
+    return found
+
+
+def layout_format(text: str) -> str:
+    """The format name of one layout text: `layout <text>`."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return f"{LAYOUT_PREFIX}{text}"
+
+
+def _layout_fields(name: str) -> "list[str]":
+    """The bare field names of a layout format name, in order (none if not one)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    found: "list[str]" = []
+    if items is None:
+        return found
+    for kind, field in items:
+        if kind != "f":
+            continue
+        bare = field
+        if field[len(field) - 1 : len(field)] == "?":
+            bare = field[0 : len(field) - 1]
+        found += [bare]
+    return found
+
+
+def layout_has_clock(name: str) -> bool:
+    """Whether a layout writes a time of day (rule LY2: `datetime` iff so)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(name):
+        if field in _LAYOUT_HOUR_FIELDS:
+            return True
+    return False
+
+
+def layout_asks_twelve_hours(name: str) -> bool:
+    """Whether a layout's clock could be a 12-hour clock written with no marker (landing R2b).
+
+    True for a layout whose hour is a 24-hour field (`HH`, `H`, `_H`)
+    with a mark after it, `14:05` or `14.05.09`: nothing in `8:34` says
+    which clock wrote it, so where every hour of such a column lies in 1
+    to 12 the person is asked T1's question, and a column they declare is
+    read on the dial (`layout_on_twelve_hours`). False for a compact clock
+    (`{HH}{MI}`), which HL7, ISO's basic form and a military clock write
+    on the 24-hour clock alone, for a layout with a marker, and for every
+    name that is no layout. Guarantees: a function of the name. Raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return False
+    place = 0
+    for kind, field in items:
+        place = place + 1
+        if kind != "f" or field not in _LAYOUT_TWENTY_FOUR_HOURS:
+            continue
+        if place < len(items) and items[place] in (("l", ":"), ("l", ".")):
+            return True
+    return False
+
+
+def layout_on_twelve_hours(name: str) -> str:
+    """A layout read on T1's declared 12-hour face: `{HH}:{MI}` becomes `{hh}:{MI}`.
+
+    The column the person answered `twelve-hour` about (`--twelve-hour`):
+    its 24-hour hour field becomes the same width on the dial, which reads
+    1 to 12 with 12 the hour before one and writes every instant on the
+    dial it shows. The name itself where `layout_asks_twelve_hours` is
+    false, as `layout_in_window` leaves a four-figure year. Guarantees: a
+    function of the name. Raises TypeError for anything that is not text.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not layout_asks_twelve_hours(name):
+        return name
+    return name.replace("{HH}", "{hh}").replace("{H}", "{h}").replace("{_H}", "{_h}")
+
+
+def _layout_off_the_dial(text: str) -> str:
+    """A layout on the declared face taken back to the production it stands for.
+
+    `{hh}:{MI}` with no marker is `{HH}:{MI}` read on the dial, which only
+    a declaration makes (rule LY1, landing R2b); a text with a marker, or
+    with no 12-hour field, is its own production.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    for name in _LAYOUT_MERIDIEMS:
+        if f"{{{name}}}" in text:
+            return text
+    return text.replace("{hh}", "{HH}").replace("{h}", "{H}").replace("{_h}", "{_H}")
+
+
+def layout_of_the_clock_half(name: str) -> bool:
+    """Whether a layout names a field only the clock half writes (Codex review of landing R2b, item 1).
+
+    An hour field other than `HH` -- `H`, `_H`, `hh`, `h`, `_h` -- or a
+    marker, once the layout is taken back off T1's declared dial
+    (`_layout_off_the_dial`), where `{hh}` with no marker stands for R2a's
+    `{HH}`. A layout naming none of them is one R2a's grammar writes, and
+    the choice weighs such a layout first (`taxonomy._chosen_layout`).
+    Guarantees: a function of the name; False for anything that is not a
+    layout. Raises TypeError for anything that is not text. No I/O.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(_layout_off_the_dial(name)):
+        if field in _LAYOUT_MERIDIEMS:
+            return True
+        if field in _LAYOUT_HOUR_FIELDS and field != "HH":
+            return True
+    return False
+
+
+def layout_clock_style(name: str) -> "str | None":
+    """The written clock a layout names, as T1's styles say it, or None where it writes none.
+
+    Its face -- `''` on the 24-hour clock, `CLOCK_TWELVE_HOUR` on the
+    declared dial with no marker, and a marker's pair otherwise, after a
+    space where a space or a narrow one is written -- with `h` for an hour
+    shown in one figure below ten and `hh` for two (landing R2b). The one
+    statement contract rule S8c and the command's notice ask of a layout
+    column, as they ask a stamp's mark word. Guarantees: a member of
+    `CLOCK_STYLES` or None. Raises TypeError for anything that is not
+    text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return None
+    width = ""
+    twelve = False
+    face = ""
+    before = ""
+    for kind, field in items:
+        if kind == "l":
+            before = field
+            continue
+        if field in _LAYOUT_HOUR_FIELDS:
+            width = "hh" if field in ("HH", "hh") else "h"
+            twelve = field in _LAYOUT_TWELVE_HOURS
+        if field in _LAYOUT_MERIDIEMS:
+            morning, evening = _LAYOUT_MERIDIEMS[field]
+            spaced = " " if before in (" ", LAYOUT_NARROW_SPACE) else ""
+            face = f"{spaced}{morning}-{evening}"
+        before = ""
+    if not width:
+        return None
+    if twelve and not face:
+        face = CLOCK_TWELVE_HOUR
+    return f"{width}{face}"
+
+
+def layout_precision(name: str) -> str:
+    """The finest detail a layout writes (rule LY3): one of the PRECISION_ words."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    fields = _layout_fields(name)
+    if "F" in fields:
+        return PRECISION_SUBSECOND
+    if "SS" in fields:
+        return PRECISION_SECOND
+    if "MI" in fields:
+        return PRECISION_MINUTE
+    return PRECISION_DATE
+
+
+def layout_flexible(name: str) -> int:
+    """How many fields of a layout show a width (rule LY5): none, one or two."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    count = 0
+    for field in _layout_fields(name):
+        if field in _LAYOUT_FLEXIBLE_FIELDS:
+            count = count + 1
+    return count
+
+
+def layout_offset_field(name: str) -> str:
+    """A layout's offset field, bare, or `''` where it writes none (rule LY4)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(name):
+        if field in _LAYOUT_OFFSET_FIELDS:
+            return field
+    return ""
+
+
+def layout_offset_optional(name: str) -> bool:
+    """Whether a layout's offset is one some cells omit (`{...?}`)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if not items:
+        return False
+    kind, field = items[len(items) - 1]
+    return kind == "f" and field[len(field) - 1 : len(field)] == "?"
+
+
+def layout_offset_writable(name: str, offset: str) -> bool:
+    """Whether a layout's offset field can write one published offset key.
+
+    `(none)` only where the field is optional or there is none; `Z` only on
+    a zulu field -- a signed field reads `+0000` as `+00:00` and never as
+    `Z`, so no column of its own publishes that key, and the writer handed
+    it wrote a literal `Z` the field cannot read back (the Codex review of
+    landing R2a, item 6); a signed offset only on a signed field,
+    and on `{+HH}` only a whole hour. `(withheld)` on every layout, with an
+    offset field or none (the Codex review of landing R2a, item 2): the
+    pool is the census's one count where no key reaches the line, and on a
+    layout with no field it pools `(none)` -- five SAS dates beside 995
+    blank cells published `{"(withheld)": 5}`, which the loader refused,
+    as the same five written in ISO's spelling are not. Rule LY4 asks this
+    of every key of `utc_offsets`.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    field = layout_offset_field(name)
+    if offset == MISSING_WITHHELD:
+        return True
+    if offset == "(none)":
+        return not field or layout_offset_optional(name)
+    if not field:
+        return False
+    if field in _LAYOUT_ZULU_FIELDS:
+        return offset == "Z"
+    if offset == "Z":
+        return False
+    if field == "+HH":
+        return offset[4:6] == "00"
+    return True
+
+
+# THE FIELDS A LAYOUT WRITING NUMBERS IS MADE OF (method G7.9b; skeptic 1
+# of landing R2a, item 2): a run of figures, the compact stamps HL7 writes.
+_LAYOUT_FIGURE_FIELDS = ("YYYY", "MM", "DD", "HH", "MI", "SS")
+
+
+def layout_writes_numbers(name: str) -> bool:
+    """Whether a layout's cells with no offset are numbers (method G7.9b).
+
+    A run of fixed figure fields, `{YYYY}{MM}{DD}{HH}{MI}{SS}`, with at most
+    a point and a fraction after it: `20230317140509` and
+    `20230317140509.0000` are numbers to every reader of numbers, and the
+    same cell with an offset after it is not. False for every other layout
+    and every name that is not one. Guarantees: a function of the name.
+    Raises TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return False
+    body = items[0 : _layout_tail(items)]
+    if body and body[len(body) - 1][1] in _LAYOUT_OFFSET_FIELDS:
+        return False
+    size = len(body)
+    if size >= 2 and body[size - 2] == ("l", ".") and body[size - 1] == ("f", "F"):
+        size = size - 2
+    if size < 1:
+        return False
+    for kind, field in body[0:size]:
+        if kind != "f" or field not in _LAYOUT_FIGURE_FIELDS:
+            return False
+    return True
+
+
+def layout_offset_added(cell: str, name: str, offset: str) -> "str | None":
+    """A cell a layout wrote with no offset, written again wearing one (method G7.9b).
+
+    Only under a layout whose offset some cells omit (`{+HHMM?}`): the cell
+    must read under it with no offset, and comes back with the marks before
+    the offset field and ``offset`` -- `Z`, or a signed `+HH:MM` -- in that
+    field's own spelling, which is what `layout_cell` writes for the same
+    instant at that offset. None where the layout has no such field, the
+    cell does not read with none, or the field cannot write the offset.
+
+    Guarantees: accepts text; returns the cell or None, and a cell it
+    returns reads back under the layout at ``offset``. Raises TypeError for
+    anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(cell, str) or not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return None
+    tail = _layout_tail(items)
+    if tail >= len(items):
+        return None
+    read = layout_reading(cell, items)
+    if read is None or read[1]:
+        return None
+    written = cell
+    for kind, field in items[tail:]:
+        if kind == "l":
+            written = f"{written}{field}"
+            continue
+        bare = field[0 : len(field) - 1]
+        if bare in _LAYOUT_ZULU_FIELDS:
+            if offset != "Z":
+                return None
+            written = f"{written}{bare}"
+        elif len(offset) != 6:
+            return None
+        elif bare == "+HH:MM":
+            written = f"{written}{offset}"
+        elif bare == "+HHMM":
+            written = f"{written}{offset[0:3]}{offset[4:6]}"
+        elif offset[4:6] == "00":
+            written = f"{written}{offset[0:3]}"
+        else:
+            return None
+    back = layout_reading(written, items)
+    if back is None or back[1] != offset:
+        return None
+    return written
+
+
+def layout_two_figure_year(name: str) -> int:
+    """The first year of a layout's two-figure window, or 0 for a four-figure year."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(name):
+        if field in _LAYOUT_YEAR_WINDOWS:
+            return _LAYOUT_YEAR_WINDOWS[field]
+    return 0
+
+
+def layout_in_window(name: str, first_year: int) -> str:
+    """A layout read in another two-figure window: `{YY}` becomes `{YY1930}`.
+
+    Nothing changes for a layout with a four-figure year, or for the
+    default window, which has no field of its own beyond `{YY}`.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    plain = str(_layout_produced(name))
+    if first_year == 1900:
+        return plain.replace("{YY}", "{YY1900}")
+    if first_year == 1930:
+        return plain.replace("{YY}", "{YY1930}")
+    if first_year == 1940:
+        return plain.replace("{YY}", "{YY1940}")
+    if first_year == CENTURY_DEFAULT_FIRST_YEAR:
+        return plain
+    return name
+
+
+def layout_day_order(name: str) -> str:
+    """`month-first` or `day-first` for a layout whose day order is a question, else `''`.
+
+    The question of the slashed pairs: a month and a day both written as
+    figures, BEFORE the year, so `03-04-2024` reads either way. A layout
+    whose year leads writes the ISO order, year then month then day, as
+    `slashed-iso-date` and the compact member do, and asks nothing; and a
+    month written as a name settles it.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    month = -1
+    day = -1
+    year = -1
+    place = 0
+    for field in _layout_fields(name):
+        if field in ("M", "MM"):
+            month = place
+        if field in ("D", "DD"):
+            day = place
+        if field == "YYYY" or field in _LAYOUT_YEAR_WINDOWS:
+            year = place
+        place = place + 1
+    if month < 0 or day < 0 or year < month or year < day:
+        return ""
+    return "month-first" if month < day else "day-first"
+
+
+def layout_swapped(name: str) -> str:
+    """The same layout with its numeric month and day fields changed round, or `''`."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not layout_day_order(name):
+        return ""
+    swapped = name.replace("{MM}", "{@@}").replace("{DD}", "{MM}")
+    swapped = swapped.replace("{@@}", "{DD}")
+    swapped = swapped.replace("{M}", "{@}").replace("{D}", "{M}")
+    return swapped.replace("{@}", "{D}")
+
+
+def layout_order_key(name: str, day_first: bool) -> "tuple[int, int, int, int, int, int, str]":
+    """Where a layout stands among others that read as many cells (the ties).
+
+    Month first before day first unless the person said the day comes first;
+    then a layout whose offset every cell writes before one some omit; then
+    fewer space-padded fields; then fewer flexible fields, so a padded
+    dotted date keeps its padding and a clock whose hours all show two
+    figures keeps `{HH}` (landing R2b); then the standard month names before the
+    CLDR sets; then the shorter text; then the text.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    order = layout_day_order(name)
+    swapped = 0
+    if order == "day-first":
+        swapped = 1
+    if order and day_first:
+        swapped = 1 - swapped
+    optional = 1 if layout_offset_optional(name) else 0
+    spaced = 0
+    flexible = 0
+    rank = 0
+    for field in _layout_fields(name):
+        if field in _LAYOUT_SPACED_FIELDS:
+            spaced = spaced + 1
+        # -- 3b.R2b: an hour in one figure below ten is flexible too, so
+        # a column whose every hour shows two figures keeps `{HH}`.
+        if field in _LAYOUT_FLEXIBLE_FIELDS or field in ("H", "h"):
+            flexible = flexible + 1
+        if field in _LAYOUT_MONTH_FIELDS:
+            suffix = field[len(field) - 2 : len(field)]
+            if suffix in _LAYOUT_SET_RANK:
+                rank = _LAYOUT_SET_RANK[suffix]
+    return swapped, optional, spaced, flexible, rank, len(name), name
+
+
+# THE FIXED INSTANT A LAYOUT IS WRITTEN AT TO SHOW IT (rule LY1 and the
+# evidence sentence): the 17th of March 2024 at 14:05, the instant every
+# example of this module's `_FORMAT_EXAMPLES` names.
+_LAYOUT_SAMPLE = "2024-03-17 14:05:00"
+
+
+def _layout_produced(text: str) -> str:
+    """The production a layout text stands for: its window and `?` set aside."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    plain = text.replace("?}", "}").replace("{YY1900}", "{YY}")
+    return plain.replace("{YY1930}", "{YY}").replace("{YY1940}", "{YY}")
+
+
+def layout_example(name: str) -> str:
+    """A layout written at the fixed sample instant: what its cells look like.
+
+    The text the evidence sentence shows in place of the layout's own
+    (`17MAR2024:14:05:00`), so a person reads a date and not a grammar.
+    A FLEXIBLE FIELD IS SHOWN IN AS FEW FIGURES AS IT TAKES (skeptic 1 of
+    landing R2a, item 5): `{D}.{M}.{YYYY}` is shown `17.3.2024`, as such a
+    column writes, and not `17.03.2024`, which is the padded member's; and
+    `{YYYY}-{M}-{D}` not as ISO's own `2024-03-17`. Rule LY1's sample, in
+    `is_layout_format`, keeps its padding. Empty for a name that is not a
+    layout.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return ""
+    offset = "Z" if layout_offset_field(name) in _LAYOUT_ZULU_FIELDS else "+01:00"
+    if not layout_offset_field(name):
+        offset = ""
+    return layout_cell(items, _LAYOUT_SAMPLE, offset, (False, False), 3)
+
+
+def is_layout_format(name: str) -> bool:
+    """Rule LY1: whether a format name is a layout this grammar produces.
+
+    The name is `layout <text>`, the text compiles under the closed tables
+    (`compiled_layout`), and the grammar's own productions make it: written
+    at the fixed sample instant, the cell reads back among `layouts_of`'s
+    answers for it. That last clause is what keeps out a text built only of
+    known fields that no production makes -- two flexible fields side by
+    side, which a lucky date reads -- and it is exact: what the producer
+    can publish and what this admits are one set. A clock on T1's declared
+    dial with no marker stands for the 24-hour production it was declared
+    from (`layout_on_twelve_hours`, landing R2b), as `{YY1930}` stands for
+    `{YY}`.
+
+    Guarantees: accepts any object; returns a bool; raises nothing. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        return False
+    if not is_layout_name(name):
+        return False
+    text = name[len(LAYOUT_PREFIX) :]
+    if compiled_layout(text) is None:
+        return False
+    plain = _layout_produced(text)
+    # -- 3b.R2b (P4-D383): a clock on the declared dial is the 24-hour
+    # production read there, and only where that production could be.
+    off = _layout_off_the_dial(plain)
+    if off != plain:
+        if not layout_asks_twelve_hours(off):
+            return False
+        plain = off
+    items = compiled_layout(plain)
+    if items is None:
+        return False
+    offset = ""
+    field = layout_offset_field(name)
+    if field:
+        offset = "Z" if field in _LAYOUT_ZULU_FIELDS else "+01:00"
+    cell = layout_cell(items, _LAYOUT_SAMPLE, offset, (), 3)
+    # -- 3b.R2c (P4-D383): ...or the ask-first productions, which no column
+    # is read under unless the person said it holds dates.
+    return plain in layouts_of(cell) or plain in ask_first_layouts_of(cell)
+
+
+def layout_without_offset(layout: str) -> str:
+    """A layout text with its trailing offset field and the literals before it set aside.
+
+    The text itself where it ends in no offset field. Guarantees: accepts
+    a layout text; returns a text. Raises TypeError for anything that is
+    not text. No I/O of any kind.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    end = len(layout)
+    if layout[end - 1 : end] != "}":
+        return layout
+    start = end - 1
+    while start > 0 and layout[start] != "{":
+        start = start - 1
+    field = layout[start + 1 : end - 1]
+    if field[len(field) - 1 : len(field)] == "?":
+        field = field[0 : len(field) - 1]
+    if field not in _LAYOUT_OFFSET_FIELDS:
+        return layout
+    cut = start
+    while cut > 0 and layout[cut - 1] in _LAYOUT_LITERALS:
+        cut = cut - 1
+    return layout[0:cut]
+
+
+def layout_optional(layout: str) -> str:
+    """The same layout text with its trailing offset made one some cells omit.
+
+    The text itself where it ends in no offset field, or in one already
+    optional. Guarantees: accepts a layout text; returns a text. Raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    if layout[len(layout) - 2 : len(layout)] == "?}":
+        return layout
+    if layout_without_offset(layout) == layout:
+        return layout
+    return f"{layout[0 : len(layout) - 1]}?}}"
+
+
+
+def layout_flexible_values(name: str, month: int, day: int) -> "list[int]":
+    """The month and day values a layout's flexible fields write, in layout order.
+
+    Read off the text with two searches rather than a compile, because the
+    twin's width rules ask it of every rank: `{M}` and `{D}` are the only
+    flexible fields, and neither is the head of any other field's name.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    month_at = name.find("{M}")
+    day_at = name.find("{D}")
+    if month_at < 0 and day_at < 0:
+        return []
+    if month_at < 0:
+        return [day]
+    if day_at < 0:
+        return [month]
+    if month_at < day_at:
+        return [month, day]
+    return [day, month]
+
+
+def width_field_count(format_name: str) -> int:
+    """How many numeric fields of a member's cells can show a width.
+
+    Two for the slashed and two-figure families (`VARIABLE_WIDTH_MEMBERS`),
+    one for the textual pair (the day beside a month name), a layout's own
+    count of flexible fields (landing R2a, rule LY5), and none for every
+    other member, which fixes its widths. The one statement every census
+    of widths, every twin rule and every check asks.
+    """
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name in VARIABLE_WIDTH_MEMBERS:
+        return 2
+    if format_name in TEXTUAL_MEMBERS:
+        return 1
+    if format_name[0:7] == LAYOUT_PREFIX:
+        return len(layout_flexible_values(format_name, 1, 1))
+    return 0
+
+
+def width_first_field(format_name: str) -> str:
+    """`month` or `day`: which field a member's FIRST width-showing field is.
+
+    The day for a day-first member, a textual member and a layout whose one
+    flexible field is its day; the month for a month-first member and a
+    layout whose month leads. Empty for a member that shows no width.
+    """
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name in VARIABLE_WIDTH_MEMBERS:
+        return "day" if format_name in DAY_FIRST_MEMBERS else "month"
+    if format_name in TEXTUAL_MEMBERS:
+        return "day"
+    if format_name[0:7] == LAYOUT_PREFIX:
+        month_at = format_name.find("{M}")
+        day_at = format_name.find("{D}")
+        if month_at < 0 and day_at < 0:
+            return ""
+        if month_at >= 0 and (day_at < 0 or month_at < day_at):
+            return "month"
+        return "day"
+    return ""
+
+
+def _layout_width_style(text: str, format_name: str) -> "str | None":
+    """`date_field_style` for a layout: the width word its flexible fields show.
+
+    One flexible field shows `padded` or `unpadded`, as a textual member's
+    day does; two show the joint or one-field words a slashed member's
+    month and day show, first and second in layout order (rule LY5); none
+    shows nothing.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(format_name)
+    if items is None:
+        return None
+    whole = layout_reading(text, items)
+    if whole is None:
+        return None
+    return layout_width_word(whole[2])
+
+
+def layout_width_word(shows: "tuple[str, ...]") -> "str | None":
+    """The width word one reading's flexible fields show, or None (rule LY5).
+
+    ``shows`` is `layout_reading`'s: `p` for a field written padded, `u` for
+    one written in one figure, `''` for two figures either way.
+    """
+    if len(shows) == 1:
+        if shows[0] == "p":
+            return WIDTH_PADDED
+        if shows[0] == "u":
+            return WIDTH_UNPADDED
+        return None
+    if len(shows) != 2:
+        return None
+    first = shows[0]
+    second = shows[1]
+    if not first and not second:
+        return None
+    if not first:
+        return WIDTH_SECOND_FIELD_PADDED if second == "p" else WIDTH_SECOND_FIELD_UNPADDED
+    if not second:
+        return WIDTH_FIRST_FIELD_PADDED if first == "p" else WIDTH_FIRST_FIELD_UNPADDED
+    if first == second:
+        return WIDTH_PADDED if first == "p" else WIDTH_UNPADDED
+    if first == "p":
+        return WIDTH_FIRST_PADDED
+    return WIDTH_SECOND_PADDED
+
+
+def written_layout_date(
+    format_name: str,
+    canonical: str,
+    offset: str = "",
+    width: str = DEFAULT_FIELD_WIDTH,
+    figures: int = 0,
+) -> str:
+    """One instant written in a layout column's own spelling (G7.5, landing R2a).
+
+    The writer the twin's every layout cell goes through: the width word
+    the rank was allocated is turned into a padding decision per flexible
+    field (`pair_widths`, layout order), and the offset is written by the
+    layout's own field, so nothing is appended after. A name that is not a
+    layout writes the canonical text.
+
+    Guarantees: accepts a layout format name, a canonical instant, its
+    offset in ISO's spelling, a width word and the fraction's figures;
+    returns the cell. Determinism: a function of the five. Raises
+    TypeError for a canonical text that is not text. No I/O of any kind.
+    """
+    if not isinstance(canonical, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(format_name)
+    if items is None:
+        return canonical
+    first_padded, second_padded = pair_widths(width)
+    if layout_flexible(format_name) == 1:
+        first_padded = width != WIDTH_UNPADDED
+    return layout_cell(
+        items, canonical, offset, (first_padded, second_padded), figures
+    )
+
+
+def layout_low_evidence(name: str) -> "str | None":
+    """Whether a layout is one nothing in its cells can tell from a code.
+
+    `-` for three numbers on `-` with a two-figure year -- no named member
+    reads a two-figure year on that mark, and `9-14-29` is a unit, a room
+    and a bed as readily as a date -- `.` for one or two figures, a dot,
+    one or two figures, a dot and a four-figure year, which is how a
+    version is written (`1.12.2024`; the dotted members read padded cells
+    alone for that reason, C6-22, and skeptic 1 of landing R2a, item 3,
+    found P4-D15's column of versions read as dates and asked nothing
+    else), and `''` for a run of 12 or 14 figures, which an order number
+    writes alike. None for every other layout and every name that is not
+    one (landing R2a; the R2 design skeptic, m4).
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not is_layout_name(name):
+        return None
+    plain = str(_layout_produced(name[len(LAYOUT_PREFIX) :]))
+    if plain == "{YYYY}{MM}{DD}{HH}{MI}" or plain == "{YYYY}{MM}{DD}{HH}{MI}{SS}":
+        return ""
+    if plain in ("{M}-{D}-{YY}", "{D}-{M}-{YY}", "{MM}-{DD}-{YY}", "{DD}-{MM}-{YY}"):
+        return "-"
+    if plain in ("{M}.{D}.{YYYY}", "{D}.{M}.{YYYY}"):
+        return "."
+    return None
+
+
+def layout_before_its_offset(name: str) -> str:
+    """The layout of a cell's figures before an offset written straight after them, or `''`.
+
+    `layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}` gives
+    `layout {YYYY}{MM}{DD}{HH}{MI}{SS}`: the cells that leave the offset
+    out are that layout's own cells, so a question asked of the one is
+    asked of the other (skeptic 2 of landing R2a, item 3). And so does
+    `{...}{SS}{+HHMM}`, whose every cell writes the offset (the Codex
+    review of landing R2a, item 3): a suffix every identifier carries is
+    the same suffix. `''` for a layout whose last item is no offset field
+    written straight after a field, and for every name that is not a
+    layout. Guarantees: a function of the name. Raises TypeError for
+    anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return ""
+    size = len(items)
+    if size < 2 or items[size - 2][0] != "f":
+        return ""
+    kind, last = items[size - 1]
+    if last[len(last) - 1 : len(last)] == "?":
+        last = last[0 : len(last) - 1]
+    if kind != "f" or last not in _LAYOUT_OFFSET_FIELDS:
+        return ""
+    text = ""
+    for place in range(size - 1):
+        kind, field = items[place]
+        if kind == "f":
+            text = f"{text}{{{field}}}"
+        else:
+            text = f"{text}{field}"
+    return layout_format(text)
+
+
+# -- 3b.R2c (P4-D383): ASK-FIRST LAYOUTS AND PARTIAL DATES -----------------
+#
+# THE ASK-FIRST LAYOUTS (the R2 design, section 3). A day of the year after
+# a four-figure year -- ISO 8601's ordinal date `2023-076` and the
+# seven-figure Julian date mainframe exports write, `2023076` -- is written
+# exactly as an accession number or a lot is, and nothing in the cells can
+# tell the two apart. So `layouts_of` never offers one, and a column is read
+# under one only where the person said it holds dates (question Q6,
+# `--date-column`, the settings key `forced_date_columns`); rule LY1 admits
+# them through their own productions, `ask_first_layouts_of`.
+#
+# PARTIAL DATES (the R2 design, section 4; its skeptic, M2, M5 and M6). A
+# FHIR `date` is written `2023`, `2023-03` or `2023-03-17`; an HL7 v2 DTM
+# stops at any field, so one feed holds 14, 12 and 10 figures; a CDISC or
+# Medidata export writes `UN MAR 2023` and `UN UNK 2023` where the day, or
+# the day and the month, are unknown. Each such cell is a TRUNCATION of the
+# column's one layout: the layout cut after a field (`layout_truncations`),
+# or its day -- or its day and month -- written as one of the closed
+# unknown markers. A truncated cell is read at its own precision and at no
+# other: it is counted in `resolution_mix` under its truncation's own name
+# and inside `n_unparsed`, and reaches no fact of the day, the clock or the
+# spread, so no partial cell is ever read at the start of its span (M5:
+# read there, the 1st of the month held 44.2 % of a FHIR column against
+# 4.1 % of its full dates).
+
+# The markers a partial date writes in place of its day, or its day and
+# month: the closed set the R2 design names.
+LAYOUT_UNKNOWN_MARKERS = ("UN", "UNK", "--", "XX")
+
+# The order a layout's fields are cut in, finest last: a truncation keeps
+# the fields at or above one of these levels.
+_PARTIAL_LEVELS = {
+    "year": 1, "month": 2, "day": 3, "hour": 4,
+    "minute": 5, "second": 6, "fraction": 7,
+}
+
+
+def _figures_only(text: str, start: int, size: int) -> bool:
+    """Whether ``size`` ASCII figures stand at ``start`` and the text ends there."""
+    return len(text) == start + size and _layout_digits(text, start, size, size) == start + size
+
+
+def ask_first_layouts_of(text: str) -> "tuple[str, ...]":
+    """The ask-first layouts one cell's shape is read under (landing R2c).
+
+    `{YYYY}-{DDD}` for a four-figure year, a hyphen and three figures, and
+    `{YYYY}{DDD}` for a run of seven figures. Whether the cell reads as a
+    date -- the year band, a day of the year that year has -- is
+    `layout_reading`'s question. Guarantees: a function of the text; raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(text) == 8 and text[4:5] == "-":
+        if _figures_only(text[0:4], 0, 4) and _figures_only(text, 5, 3):
+            return ("{YYYY}-{DDD}",)
+        return ()
+    if _figures_only(text, 0, 7):
+        return ("{YYYY}{DDD}",)
+    return ()
+
+
+def layout_asks_first(name: str) -> bool:
+    """Whether a layout is one no column is read under unless declared dates (rule LY7)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return "DDD" in _layout_fields(name)
+
+
+def _layout_core_end(items: "tuple[tuple[str, str], ...]") -> int:
+    """Where a layout's date-and-clock core ends: before an offset and the literals before it."""
+    end = len(items)
+    for place in range(len(items)):
+        kind, name = items[place]
+        if kind == "f" and _layout_field_kind(name) == "offset":
+            end = place
+            while end > 0 and items[end - 1][0] == "l":
+                end = end - 1
+            return end
+    return end
+
+
+def _items_text(items: "list[tuple[str, str]]") -> str:
+    """Compiled or partial items written back as a layout text."""
+    text = ""
+    for kind, name in items:
+        text = f"{text}{{{name}}}" if kind == "f" else f"{text}{name}"
+    return text
+
+
+def layout_truncations(name: str) -> "tuple[str, ...]":
+    """Every partial form of a layout, as format names, in one fixed order (rule LY6).
+
+    First the CUTS, finest first: the layout's core -- its offset set aside --
+    keeping only the fields at or above one level (year, month, day, hour,
+    minute, second), wherever those fields stand side by side in the text:
+    `{YYYY}-{MM}-{DD}` gives `{YYYY}-{MM}` and `{YYYY}`; HL7's
+    `{YYYY}{MM}{DD}{HH}{MI}{SS}` gives its 12, 10, 8, 6 and 4 figures;
+    `{DD}-{MON}-{YYYY}` gives `{MON}-{YYYY}` and `{YYYY}`; and `{MM}/{DD}/
+    {YYYY}`, whose month and year stand apart, gives `{YYYY}` alone. Then,
+    on a layout of a date alone with a day and a month, the MASKS: its day
+    written as each unknown marker, then its day and its month
+    (`{UN} {MON} {YYYY}`, `{UN} {UNK} {YYYY}`). None for a layout with a
+    weekday or an ordinal day, and none for a name that is not a layout.
+
+    Guarantees: a function of the name; returns format names, each once.
+    Raises TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return ()
+    core = items[0 : _layout_core_end(items)]
+    levels: "list[int]" = []
+    for kind, field in core:
+        if kind != "f":
+            levels += [0]
+            continue
+        part = _layout_field_kind(field)
+        if part not in _PARTIAL_LEVELS:
+            return ()
+        levels += [_PARTIAL_LEVELS[part]]
+    finest = 0
+    for level in levels:
+        finest = max(finest, level)
+    found: "list[str]" = []
+    for cut in range(finest - 1, 0, -1):
+        kept = [place for place in range(len(core)) if 0 < levels[place] <= cut]
+        if not kept:
+            continue
+        first = kept[0]
+        last = kept[len(kept) - 1]
+        apart = False
+        for place in range(first, last + 1):
+            if levels[place] > cut:
+                apart = True
+        if apart:
+            continue
+        text = layout_format(_items_text(list(core[first : last + 1])))
+        if text not in found:
+            found += [text]
+    if finest == _PARTIAL_LEVELS["day"] and len(core) == len(items):
+        day_at = -1
+        month_at = -1
+        for place in range(len(core)):
+            kind, field = core[place]
+            if kind == "f" and _layout_field_kind(field) == "day":
+                day_at = place
+            if kind == "f" and _layout_field_kind(field) == "month":
+                month_at = place
+        if day_at >= 0 and month_at >= 0:
+            for day_marker in LAYOUT_UNKNOWN_MARKERS:
+                masked = list(core)
+                masked[day_at] = ("f", day_marker)
+                found += [layout_format(_items_text(masked))]
+            for day_marker in LAYOUT_UNKNOWN_MARKERS:
+                for month_marker in LAYOUT_UNKNOWN_MARKERS:
+                    masked = list(core)
+                    masked[day_at] = ("f", day_marker)
+                    masked[month_at] = ("f", month_marker)
+                    found += [layout_format(_items_text(masked))]
+    return tuple(found)
+
+
+def partial_items(name: str) -> "tuple[tuple[str, str], ...] | None":
+    """The items of a partial form (`layout_truncations`), or None.
+
+    Its fields come from the closed table -- a year, a month, a day, the
+    clock's hour, minute and second -- or are unknown markers, its literals
+    from the closed set, it holds a year, and it is no more than
+    `LAYOUT_TEXT_LIMIT` characters: nothing out of a cell can stand in one.
+    Guarantees: a function of the name. Raises TypeError for anything that
+    is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not is_layout_name(name):
+        return None
+    text = name[len(LAYOUT_PREFIX) :]
+    if not text or len(text) > LAYOUT_TEXT_LIMIT:
+        return None
+    items: "list[tuple[str, str]]" = []
+    kinds: "dict[str, int]" = {}
+    place = 0
+    while place < len(text):
+        character = text[place]
+        if character == "{":
+            end = place + 1
+            while end < len(text) and text[end] != "}":
+                end = end + 1
+            if end >= len(text):
+                return None
+            field = text[place + 1 : end]
+            if field in LAYOUT_UNKNOWN_MARKERS:
+                items += [("f", field)]
+                place = end + 1
+                continue
+            if (
+                field not in _LAYOUT_FIXED_FIELDS
+                and field not in _LAYOUT_FLEXIBLE_FIELDS
+                and field not in _LAYOUT_SPACED_FIELDS
+                and field not in _LAYOUT_MONTH_FIELDS
+            ) or field == "DDD":
+                return None
+            kind = _layout_field_kind(field)
+            if kind in kinds:
+                return None
+            kinds[kind] = 1
+            items += [("f", field)]
+            place = end + 1
+            continue
+        if character not in _LAYOUT_LITERALS:
+            return None
+        items += [("l", character)]
+        place = place + 1
+    if "year" not in kinds:
+        return None
+    return tuple(items)
+
+
+def is_partial_layout_format(name: str) -> bool:
+    """Whether a name is a partial form a `resolution_mix` may count (the publication guard).
+
+    A name `partial_items` compiles that is not itself a layout of the
+    grammar -- or one that is, as HL7's eight figures are both a date and a
+    cut of a stamp. Which layout a column's partial forms belong to is the
+    loader's question (rule LY6, `layout_truncations`).
+    """
+    if not isinstance(name, str):
+        return False
+    return partial_items(name) is not None
+
+
+def layout_partial_reading(
+    text: str, items: "tuple[tuple[str, str], ...]"
+) -> "str | None":
+    """One cell read under a partial form, as the canonical text of its precision, or None.
+
+    `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, `YYYY-MM-DD HH`, `YYYY-MM-DD HH:MM` or
+    `YYYY-MM-DD HH:MM:SS`, as far as the form's fields reach; a marker reads
+    its own text and nothing else. The year band, the month, the day in its
+    month and the clock are checked as `layout_reading` checks them, and
+    nothing is trimmed. Guarantees: a function of the two; raises TypeError
+    for a cell that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    size = len(text)
+    at = 0
+    year = -1
+    month = -1
+    day = -1
+    hour = -1
+    minute = -1
+    second = -1
+    for kind, name in items:
+        if kind == "l":
+            if at >= size or text[at] != name:
+                return None
+            at = at + 1
+            continue
+        if name in LAYOUT_UNKNOWN_MARKERS:
+            if text[at : at + len(name)] != name:
+                return None
+            at = at + len(name)
+            continue
+        if name in _LAYOUT_FIXED_FIELDS:
+            width = _LAYOUT_FIXED_FIELDS[name]
+            if _layout_digits(text, at, width, width) != at + width:
+                return None
+            value = int(text[at : at + width])
+            at = at + width
+            if name == "YYYY":
+                year = value
+            elif name in _LAYOUT_YEAR_WINDOWS:
+                first = _LAYOUT_YEAR_WINDOWS[name]
+                year = (first // 100) * 100 + value
+                if year < first:
+                    year = year + 100
+            elif name == "MM":
+                month = value
+            elif name == "DD":
+                day = value
+            elif name == "HH":
+                hour = value
+            elif name == "MI":
+                minute = value
+            elif name == "SS":
+                second = value
+            continue
+        if name == "M" or name == "D":
+            end = _layout_digits(text, at, 1, 2)
+            if end < 0:
+                return None
+            value = int(text[at:end])
+            at = end
+            if name == "M":
+                month = value
+            else:
+                day = value
+            continue
+        if name == "_D":
+            if at + 2 > size or not ("0" <= text[at + 1] <= "9"):
+                return None
+            if text[at] == " ":
+                day = ord(text[at + 1]) - 48
+            elif "1" <= text[at] <= "9":
+                day = int(text[at : at + 2])
+            else:
+                return None
+            at = at + 2
+            continue
+        if name in _LAYOUT_MONTH_FIELDS:
+            end = _layout_letters(text, at)
+            table = _LAYOUT_MONTH_FIELDS[name]
+            if text[at:end] not in table:
+                return None
+            month = table[text[at:end]]
+            at = end
+            continue
+        return None
+    if at != size or year < LAYOUT_FIRST_YEAR or year > LAYOUT_LAST_YEAR:
+        return None
+    canonical = f"{year:04d}"
+    if month < 0:
+        return canonical if day < 0 and hour < 0 else None
+    if month < 1 or month > 12:
+        return None
+    canonical = f"{canonical}-{month:02d}"
+    if day < 0:
+        return canonical if hour < 0 else None
+    if not valid_date(year, month, day):
+        return None
+    canonical = f"{canonical}-{day:02d}"
+    if hour < 0:
+        return canonical
+    if hour > 23:
+        return None
+    canonical = f"{canonical} {hour:02d}"
+    if minute < 0:
+        return canonical if second < 0 else None
+    if minute > 59:
+        return None
+    canonical = f"{canonical}:{minute:02d}"
+    if second < 0:
+        return canonical
+    if second > 59:
+        return None
+    return f"{canonical}:{second:02d}"
+
+
+def layout_partial_cell(
+    items: "tuple[tuple[str, str], ...]", canonical: str
+) -> str:
+    """One instant written under a partial form: `layout_partial_reading` reversed.
+
+    Every field the form keeps comes from the canonical instant (`YYYY-MM-DD`
+    or `YYYY-MM-DD HH:MM:SS`), a flexible field in as few figures as it
+    takes, and each marker is written as itself. Guarantees: returns the
+    cell, which `layout_partial_reading` reads back at the form's own
+    precision. Raises TypeError for a canonical text that is not text. No
+    I/O of any kind.
+    """
+    if not isinstance(canonical, str):
+        raise TypeError(_NOT_TEXT)
+    year = int(canonical[0:4])
+    month = int(canonical[5:7])
+    day = int(canonical[8:10])
+    hour = int(canonical[11:13]) if len(canonical) >= 19 else 0
+    minute = int(canonical[14:16]) if len(canonical) >= 19 else 0
+    second = int(canonical[17:19]) if len(canonical) >= 19 else 0
+    written = ""
+    for kind, name in items:
+        if kind == "l" or name in LAYOUT_UNKNOWN_MARKERS:
+            written = f"{written}{name}"
+        elif name == "YYYY":
+            written = f"{written}{year:04d}"
+        elif name in _LAYOUT_YEAR_WINDOWS:
+            written = f"{written}{year % 100:02d}"
+        elif name == "MM":
+            written = f"{written}{month:02d}"
+        elif name == "DD":
+            written = f"{written}{day:02d}"
+        elif name == "M":
+            written = f"{written}{month}"
+        elif name == "D":
+            written = f"{written}{day}"
+        elif name == "_D":
+            written = f"{written}{day:>2d}"
+        elif name == "HH":
+            written = f"{written}{hour:02d}"
+        elif name == "MI":
+            written = f"{written}{minute:02d}"
+        elif name == "SS":
+            written = f"{written}{second:02d}"
+        elif name in _LAYOUT_MONTH_FIELDS:
+            written = f"{written}{_layout_word(_LAYOUT_MONTH_FIELDS[name], month)}"
+    return written
+
+
+def layout_partial_writes_numbers(name: str) -> bool:
+    """Whether every cell a partial form writes is a run of figures (a reader of numbers takes it)."""
+    items = partial_items(name)
+    if items is None:
+        return False
+    for kind, field in items:
+        if kind == "l" or field in LAYOUT_UNKNOWN_MARKERS:
+            return False
+        if field not in _LAYOUT_FIXED_FIELDS:
+            return False
+    return True

@@ -58,11 +58,16 @@ def _columns() -> "dict[str, list[str]]":
     """Three columns of digits, none of them separable from the others."""
     draw = random.Random(11)
     return {
-        # padded: a procedure code register written five wide
-        "padded_code": [
-            f"{draw.choice([80053, 9921, 2988, 453, 2061]):05d}"
-            for _index in range(120)
-        ],
+        # padded: a procedure code register written five wide, with a
+        # DIFFERENT code on every row. It held five codes over 120 rows
+        # until plan P4-D341: answering `identifier` on that column is
+        # answering that five people wrote the table, and the
+        # population floor then refuses it -- correctly, and nowhere
+        # near what this file is about. A register whose codes are all
+        # different raises the same padded question, is the shape
+        # `--identifier` exists for, and names a ROW rather than a
+        # person, so the population stays the 120 rows it always was.
+        "padded_code": [f"{index:05d}" for index in range(120)],
         # fixed width and not padded: a real reading, 100 to 999
         "reading": [f"{draw.randint(100, 999)}" for _index in range(120)],
         # fixed width and not padded: a year

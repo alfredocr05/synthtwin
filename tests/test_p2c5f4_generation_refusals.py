@@ -177,15 +177,30 @@ def test_a_one_character_shortest_value_with_no_figures_refuses(
     values is written in figures alone, the value carrying that length
     would have to be a one-character whole number -- which is a figure.
     The pair is decided by the published numbers, not by any walk.
+
+    REWRITTEN AS A WITNESS OF PLAN P4-D298 (the integration of the carried
+    passes, 2026-09-19). Since P4-D277 `n_all_digits` is published through
+    the disclosure rule, so a published nought reads "none" only where no
+    other count publishes as nought: `parsing.absorbed_total(1, n, 1)` is
+    nought whenever `2 * 1 < n`, because one cell is below the census line
+    of two. The eighteen values this test first used publish nought beside
+    a possible one cell in figures alone, and P4-D298 reads the refusal
+    over every count published alike -- `7` beside twenty `-3` is a real
+    table whose own description carries the pair. So the refusal is held
+    where the published numbers still decide it, a column of TWO values:
+    one cell in figures alone is half of two, `2 * 1 >= 2`, and would be
+    published as both, so nought there is nought. The eighteen are kept as
+    the ruling's witness: that description is generated.
     """
     document = _document(
         tmp_path,
-        fixtures.single_column_table("code", ["a"] * 9 + ["bb"] * 9),
+        fixtures.single_column_table("code", ["a", "bb"]),
         ["code"],
     )
     block = _column(document, "code")
     assert block["min_length"] == 1
     assert block["n_all_digits"] == 0
+    assert parsing.absorbed_total(1, block["n_present"], 1) == 2
     block["all_whole_numbers"] = True
     described = _loaded(tmp_path, document)
     with pytest.raises(errors.ProfileError) as raised:
@@ -195,9 +210,24 @@ def test_a_one_character_shortest_value_with_no_figures_refuses(
         "code",
         (
             "every value reads as a whole number",
-            "none of the 18 values is written in figures alone",
+            "none of the 2 values is written in figures alone",
         ),
     )
+    # THE RULING'S WITNESS: eighteen values, where one cell in figures
+    # alone would publish as nought, so the pair can be written.
+    wider = tmp_path / "eighteen"
+    wider.mkdir()
+    document = _document(
+        wider,
+        fixtures.single_column_table("code", ["a"] * 9 + ["bb"] * 9),
+        ["code"],
+    )
+    block = _column(document, "code")
+    assert block["min_length"] == 1
+    assert block["n_all_digits"] == 0
+    assert parsing.absorbed_total(1, block["n_present"], 1) == 0
+    block["all_whole_numbers"] = True
+    generation.plan_generation(_loaded(wider, document))
 
 
 # -- case 1b: the pair a real table holds, BUILT and flagged ----------

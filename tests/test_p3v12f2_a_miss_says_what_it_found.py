@@ -19,8 +19,9 @@ cell's own text, and V5.4's first rule is that no string read out of a
 measured file is ever printed -- which is what lets one report be handed
 to a person holding no file. So the line says WHY instead, and the two
 rules that keep a measured side back each say themselves:
-`_NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE` and
-`_NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE`. Nothing measured is printed that
+`_NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE`,
+`_NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE` and, since stage 3's tail rule,
+`_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE`. Nothing measured is printed that
 was not printed before this file existed.
 
 WHAT THIS FILE HOLDS THE TREE TO, in four bars.
@@ -91,7 +92,34 @@ MODULE = REPOSITORY / "src" / "synthtwin" / "validation.py"
 _THE_TWO_RULES = (
     "_NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE",
     "_NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE",
+    # ...AND THE THIRD, which stage 3's tail rule added (landing 3.3):
+    # a published END is checked one-sided, and the value it is checked
+    # against is the file's own smallest or largest, which may be one
+    # row's. The name says "two" still because the amendment this file
+    # is named for wrote two; a rule added to the module joins this
+    # tuple in the commit that adds it, which is what the walk below
+    # holds.
+    "_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE",
+    # ...AND THE FOURTH (plan P4-D346): a LISTED tail's values, which
+    # are numbers of the file with the file's own end among them. The
+    # numeric role printed them beside the description's list until this
+    # pass, which is what the third rule's own paragraph says never
+    # happens; the date and clock role had kept them back all along.
+    "_NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE",
 )
+
+def _reasons() -> "tuple[tuple[str, ...], ...]":
+    """The paragraphs of `_THE_TWO_RULES`, read off the module itself.
+
+    Named once above and read here, so that a rule added to the module
+    and to that tuple is held to the bar by the same edit, and a fourth
+    copy of the list cannot fall behind the first (plan P4-D346).
+    """
+    found: "tuple[tuple[str, ...], ...]" = ()
+    for name in _THE_TWO_RULES:
+        found = found + (getattr(validation, name),)
+    return found
+
 
 # What a reader must find under a blind MISSED line, whichever rule it
 # is. Read as substrings of the joined note rather than whole sentences:
@@ -130,13 +158,19 @@ _FAMILIES = (
     "label.levels",
     "label.variants",
     "label.variants_withheld",
-    "label.suppressed_level_counts",
-    "datetime.earliest",
-    "datetime.latest",
-    "datetime.earliest_utc_offset",
-    "datetime.latest_utc_offset",
-    "datetime.date_percentiles.min",
-    "datetime.date_percentiles.max",
+    # STAGE 3: the two ends, their offsets and the ladder's own two ends
+    # are no longer published, and what a date column can MISS with
+    # nothing to show in their place is a TAIL BOUNDARY (plan P4-D328).
+    # Each key of a tail is its own fact, and the other four print what
+    # they found: the rows beyond the boundary and the two distances are
+    # counts and numbers of the file. A LISTED tail's values are blind
+    # on both roles since plan P4-D346 -- the numeric one printed the
+    # file's own list until then -- so the numeric pair joins this
+    # floor.
+    "datetime.low_tail.boundary",
+    "datetime.high_tail.boundary",
+    "numeric.tails.low.values",
+    "numeric.tails.high.values",
     "free_text.n_distinct_by_occurrences",
 )
 
@@ -165,7 +199,8 @@ _CANONICAL = [f"{index}.2" for index in range(1, 61)]
 # The publication floor every description in this file is built at. Four
 # of the sixteen obligation families the corpus must reach exist only
 # where a floor holds something back -- `label.variants`,
-# `label.variants_withheld`, `label.suppressed_level_counts` and the
+# `label.variants_withheld`, the held-back level sizes -- pooled into one
+# total since the owner's ruling of 2026-09-17 (plan P4-D201) -- and the
 # pooled half of `label.levels` -- and at a floor of one nothing is held
 # back at all (contract invariant C5-S13). A floor of one became the
 # default under the owner ruling recorded as plan amendment A-P4-37, so
@@ -250,7 +285,8 @@ def _described(
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(folder, name, text)
     read = reading.read_table(
-        f"{table}", first_row=reading.FIRST_ROW_AUTOMATIC
+        f"{table}", first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=_SMALL_CELL_FLOOR,
     )
     document = profile.build_document(
         read, taxonomy.Settings(small_cell_floor=_SMALL_CELL_FLOOR), []
@@ -359,7 +395,7 @@ def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
         (
             "no rows, two lines",
             validation.measure(
-                dataclasses.replace(counted, n_rows=0), f"{two_lines}"
+                fixtures.zero_rows(counted), f"{two_lines}"
             ),
         )
     ]
@@ -388,6 +424,31 @@ def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
     )
     measured = measured + [
         ("plain numbers, dressed", validation.measure(numbers, f"{worn}"))
+    ]
+
+    # A BOUNDED SCALE WHOSE LOW TAIL LISTS ITS VALUES, against a file
+    # holding the same scale with its lowest step never used. The values
+    # a listed tail names are numbers of the FILE and the file's own end
+    # is among them, so the measured side of that obligation is kept
+    # back on both roles (plan P4-D346) -- and the high side of it is
+    # reached by the pair above while the low side was reached by
+    # nothing, so this pair is here for the low one.
+    scale = [f"{index % 11}" for index in range(242)]
+    bounded, _table = _described(
+        root / "scale",
+        "scale.csv",
+        fixtures.single_column_table("pain", scale),
+    )
+    lifted = fixtures.write(
+        root / "scale",
+        "lifted.csv",
+        fixtures.single_column_table(
+            "pain", [f"{max(1, index % 11)}" for index in range(242)]
+        ),
+    )
+    measured = measured + [
+        ("a scale with its lowest step unused",
+         validation.measure(bounded, f"{lifted}"))
     ]
 
     # Labels: one file whose rare spellings the floor holds back, and
@@ -696,10 +757,7 @@ def test_every_missed_obligation_names_one_of_the_two_rules(
             if check.note == validation._NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY:
                 fell = fell + [f"{name}: {check.subcheck} [{check.fact}]"]
                 continue
-            assert check.note in (
-                validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-                validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
-            ), (
+            assert check.note in _reasons(), (
                 f"{name}: {check.subcheck} keeps its measured side back "
                 f"and gives a reason that is neither of the two this "
                 f"repository states"
@@ -809,9 +867,7 @@ def test_a_held_obligation_is_left_silent(
         for check in outcome.checks:
             if check.verdict != validation.HELD:
                 continue
-            if check.note in (
-                validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-                validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+            if check.note in _reasons() + (
                 validation._NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY,
             ):
                 noisy = noisy + [f"{name}: {check.subcheck}"]
@@ -836,10 +892,7 @@ def test_the_two_reasons_carry_nothing_measured(
         for check in _blind(outcome):
             seen.add(check.note)
     assert seen, "no blind MISSED verdict in the corpus at all"
-    assert seen <= {
-        validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-        validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
-    }, (
+    assert seen <= set(_reasons()), (
         "a reason printed under a missed obligation differs between "
         "files, so it is carrying something measured"
     )

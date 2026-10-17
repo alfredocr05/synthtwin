@@ -62,7 +62,7 @@ import typing
 import pytest
 
 import fixtures
-from synthtwin import errors, profile, reading, taxonomy, writing
+from synthtwin import errors, parsing, profile, reading, taxonomy, writing
 from synthtwin.cli import _QUALITY_SUFFIX, main
 
 # ---------------------------------------------------------------------
@@ -70,8 +70,16 @@ from synthtwin.cli import _QUALITY_SUFFIX, main
 # ---------------------------------------------------------------------
 
 
-def _plain_table(rows: int = 48) -> str:
-    """A neutral two-column table: labels beside whole numbers."""
+def _plain_table(rows: int = parsing.POPULATION_FLOOR) -> str:
+    """A neutral two-column table: labels beside whole numbers.
+
+    A HUNDRED ROWS AND NOT FORTY-EIGHT (plan P4-D341): `synthtwin
+    profile` refuses a table under the population floor and writes
+    nothing, so a helper that describes one through the command
+    describes no table at all. The number is read from the rule, so a
+    floor that moves moves this table with it, and nothing this file
+    checks depends on how many rows the table has.
+    """
     made = [
         [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(rows)
     ]
@@ -406,7 +414,10 @@ def test_a_repeated_header_name_writes_a_report_and_quotes_nothing(
     description = _built(tmp_path, capsys)
     twin = _twin_of(description)
     marker = "zzmarkerzz"
-    rows = [f"{index % 4},{index % 7}" for index in range(48)]
+    rows = [
+        f"{index % 4},{index % 7}"
+        for index in range(parsing.POPULATION_FLOOR)
+    ]
     twin.write_text(
         f"{marker},{marker}\n" + "\n".join(rows) + "\n",
         encoding="utf-8",
@@ -570,6 +581,9 @@ def test_the_memory_refusal_is_reachable(
         raise MemoryError("no room")
 
     monkeypatch.setattr(pathlib.Path, "write_text", exhausted)
+    # The report is written from its pieces, as one buffer of bytes (stage
+    # 4 lane S4c, plan P4-D390), so the write that fails is that one.
+    monkeypatch.setattr(pathlib.Path, "write_bytes", exhausted)
     assert main(["validate", f"{description}"]) == 1
     told = capsys.readouterr().err
     assert "not enough memory" in told
@@ -1684,22 +1698,42 @@ def test_the_report_promises_nothing_about_a_later_version(
 
 
 def test_a_finished_generate_run_teaches_the_validate_command(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The chain's middle link, with this twin's own paths in it.
 
     The line is asserted to be RUNNABLE, not merely present: what it
-    prints is fed back through the command.
+    prints is fed back through the command. Since the Codex review of
+    lane R1 (item 1) a path on it is quoted for the shell wherever it
+    holds a character a shell reads as syntax, a space in a folder's
+    name among them, so the line is split here as a POSIX shell splits
+    it -- the command is asked to quote for one -- and the words it
+    gives are the ones run. Compared as written, the line matched only
+    under a temporary folder whose path needs no quotes, and a checkout
+    under a folder named with a space turned this red.
     """
+    import shlex
+
+    from synthtwin import cli
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
     description = _described(tmp_path, _plain_table())
     assert main(["generate", f"{description}"]) == 0
     printed = capsys.readouterr().out
-    expected = (
-        f"  synthtwin validate {description} --twin {_twin_of(description)}"
-    )
-    assert "Next, measure the twin against the description:" in printed
-    assert expected in printed
-    assert main(["validate", f"{description}", "--twin", f"{_twin_of(description)}"]) == 0
+    lead = "Next, measure the twin against the description:\n"
+    assert lead in printed
+    line = printed.split(lead, 1)[1].split("\n", 1)[0]
+    words = shlex.split(line)
+    assert words == [
+        "synthtwin",
+        "validate",
+        f"{description}",
+        "--twin",
+        f"{_twin_of(description)}",
+    ], line
+    assert main(words[1:]) == 0
     capsys.readouterr()
     assert _quality_of(description).is_file()
 

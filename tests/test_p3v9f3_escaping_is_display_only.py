@@ -113,17 +113,27 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(summary, "_raw_text_of", summary._text_of)
 
 
-def _column(odd: int = 0) -> "list[str]":
-    """Sixty numbers, twelve declared holes, five blanks below the floor.
+# THE ROWS THAT ARE NOT THE SHAPE (plan P4-D341). `synthtwin profile`
+# describes no table under the population floor, and this witness is
+# about the TWELVE declared holes and the FIVE blanks below the
+# publication floor beside them. Both stay where they are and the plain
+# readings are counted up to the floor.
+_HOLES = 12
+_BLANKS = 5
+_PLAIN = parsing.POPULATION_FLOOR - _HOLES - _BLANKS
 
-    ``odd`` writes that many of the sixty with a leading zero, which is
-    a spelling of the same value in a form the description does not
-    publish.
+
+def _column(odd: int = 0) -> "list[str]":
+    """Plain numbers, twelve declared holes, five blanks below the floor.
+
+    ``odd`` writes that many of the plain numbers with a leading zero,
+    which is a spelling of the same value in a form the description does
+    not publish.
     """
-    plain = 60 - odd
+    plain = _PLAIN - odd
     values = [f"{row + 1}" for row in range(plain)]
     values = values + [f"00{row + plain + 1}" for row in range(odd)]
-    return values + [MARKER] * 12 + [""] * 5
+    return values + [MARKER] * _HOLES + [""] * _BLANKS
 
 
 def _table(folder: pathlib.Path, name: str, odd: int = 0) -> pathlib.Path:

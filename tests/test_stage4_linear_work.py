@@ -1,0 +1,1131 @@
+"""Stage 4, tier 1: four paths whose work grew faster than the table (plan P4-D385).
+
+Each was measured on made-up tables before it was changed, and each
+changes no byte of any output -- so each change keeps
+the function it replaced as this file's ORACLE, asks both the same
+questions over seeded tables, and requires the same answers. Each also
+has a growth measure that needs no clock: a count of the work the path
+does, taken at N rows and at 2N, whose ratio is about 2 for a path whose
+work grows with the rows and about 4 for one whose work grows with their
+square. Every growth test takes the measure of the replaced function too
+and requires IT to grow as the square, so the measure is known to see
+the defect it guards against rather than assumed to.
+
+1. **The end-carrier search** (`generation._shape_choices`). The order
+   of the pairs of groups that may carry a free-text or identifier
+   column's two published ends was built as a list of every pair -- the
+   square of the groups, and an all-different column has one group per
+   row: 430 MB to build the twin of 2,000 such rows, 1,220 MB at 4,000,
+   and the twin of the health table could not be built at 100,000 rows.
+   The searches step over a pair whose two group SIZES were offered
+   already, so they are now handed only the first pair of each, and the
+   one walk that needs every pair works each one out from its step.
+2. **The held-back level lookups** (`taxonomy._levels_read_by_form`,
+   `taxonomy._read_the_column`'s level pass, and
+   `taxonomy._levels_read_by_class` beside them). Every cell asked a
+   LIST of the levels the floor holds back whether its own level was one
+   of them, so describing a code register cost its cells times its rare
+   codes: 36.2 s at 200,000 rows and 126.6 s at 400,000. Plan P4-D390
+   deleted the level pass and both readings with ruling 5, so this path
+   and its measures are gone.
+3. **The label column** (`generation._label_content`), which was grown
+   by copying the column written so far once per level: 16.7 s for the
+   twin of the same register at 200,000 rows and 44.0 s at 400,000,
+   measured the same way.
+4. **The role decision** (`taxonomy._decision`). A column is asked its
+   role up to four times over the same tally, and every question walked
+   the whole ladder of rules again. The tally now keeps each answer
+   under the question it answers, and the memory goes with the tally.
+"""
+
+from __future__ import annotations
+
+import ast
+import csv
+import gc
+import inspect
+import io
+import itertools
+import json
+import pathlib
+import random
+import sys
+import tempfile
+import textwrap
+import tracemalloc
+import weakref
+
+import pytest
+
+import fixtures
+import stage4_as_built
+from synthtwin import (
+    contract,
+    generation,
+    parsing,
+    profile,
+    reading,
+    rendering,
+    taxonomy,
+)
+
+# What a path whose work grows with the rows may grow by when the rows
+# double, and what the replaced path must reach to show the measure can
+# fail. Linear work doubles; work in the square of the rows quadruples.
+LINEAR_AT_MOST = 2.5
+SQUARE_AT_LEAST = 3.0
+
+
+def _table(values: "list[str]") -> str:
+    """A one-column table of ``values``, every cell quoted so an edge space survives."""
+    out = io.StringIO()
+    writer = csv.writer(out, quoting=csv.QUOTE_ALL, lineterminator="\n")
+    writer.writerow(["value"])
+    for value in values:
+        writer.writerow([value])
+    return out.getvalue()
+
+
+def _described(
+    folder: pathlib.Path,
+    values: "list[str]",
+    floor: "int | None" = None,
+    declared: "list[str] | None" = None,
+) -> contract.Profile:
+    """Write ``values`` as a one-column table, describe it with the real producer, load it."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = fixtures.write(folder, "table.csv", _table(values))
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
+    table = reading.read_table(str(path), small_cell_floor=settings.small_cell_floor)
+    document = profile.build_document(table, settings, declared or [])
+    target = fixtures.write_profile(folder, "table-profile.json", document)
+    return contract.load_profile(str(target))
+
+
+def _twin(loaded: contract.Profile, seed: int) -> "tuple[str, str]":
+    """The twin's bytes and its report, as `synthtwin generate` writes them."""
+    twin = generation.generate(loaded, seed)
+    return rendering.twin_csv(twin), rendering.report(loaded, twin)
+
+
+def _notes(rows: int, seed: int) -> "list[str]":
+    """``rows`` made-up notes, every one different: a column of free text."""
+    draw = random.Random(seed)
+    words = ("mild", "pain", "since", "left", "stable", "noted", "plan", "recheck")
+    return [
+        f"{' '.join(draw.choice(words) for _ in range(draw.randrange(3, 7)))} {place}"
+        for place in range(rows)
+    ]
+
+
+# -- 1. the end-carrier search ------------------------------------------
+
+
+def _shape_choices_as_built(total: int) -> "list[tuple[int, int]]":
+    """`generation._shape_choices` as 668f276 shipped it: every pair, listed."""
+    if total < 2:
+        return [(0, 0)]
+    return [
+        (low, high)
+        for low in range(total)
+        for high in range(total)
+        if high != low
+    ]
+
+
+def _first_of_each_shape(groups: "tuple[int, ...]") -> "list[tuple[int, int]]":
+    """The old walk with every pair whose two group sizes were offered left out."""
+    offered: "set[tuple[int, int]]" = set()
+    kept: "list[tuple[int, int]]" = []
+    for carriers in _shape_choices_as_built(len(groups)):
+        shape = (groups[carriers[0]], groups[carriers[1]])
+        if shape in offered:
+            continue
+        offered.add(shape)
+        kept += [carriers]
+    return kept
+
+
+def test_the_order_worked_out_is_the_order_the_list_held() -> None:
+    """Every step of the order is the pair the old list held at that place."""
+    for total in range(41):
+        worked = [
+            generation._shape_choice_at(total, step)
+            for step in range(generation._shape_choice_count(total))
+        ]
+        assert worked == _shape_choices_as_built(total), total
+
+
+def test_one_pair_per_shape_is_the_old_walk_without_its_repeats() -> None:
+    """The searches are handed exactly the pairs the old walk did not step over.
+
+    Over 3,000 seeded tuples of group sizes, in the ascending order
+    `generation._groups_of` builds and in no order at all, and with few
+    sizes and many.
+    """
+    draw = random.Random(385)
+    for case in range(3000):
+        sizes = (1, 1, 2, 3) if case % 3 else (1, 2, 2, 3, 4, 5, 8, 13, 21)
+        groups = tuple(draw.choice(sizes) for _ in range(draw.randrange(1, 41)))
+        if case % 2:
+            groups = tuple(sorted(groups))
+        assert generation._shape_choices(groups) == _first_of_each_shape(groups), groups
+
+
+# The free-text values of the text-shape battery (review item P2-C4-F2),
+# whose three-value columns reach several group sizes at once.
+_TEXT_POOL = (
+    "7", "42", "913", "5.5", "ab", "q_z", "x!", "no!!", "a b", "one two",
+    "x", "!!", "z9", "-3",
+)
+
+
+def _shape_battery() -> "list[tuple[list[str], int, list[str]]]":
+    """Free-text and record-number columns whose end-carrier search steps over shapes."""
+    import test_ap312_fold_repair as fold
+
+    cases: "list[tuple[list[str], int, list[str]]]" = []
+    for step, trio in enumerate(itertools.combinations(_TEXT_POOL, 3)):
+        if step % 7:
+            continue
+        for pattern in ((1, 5, 6), (2, 2, 8), (1, 2, 3)):
+            values: "list[str]" = []
+            for place in range(3):
+                values += [trio[place]] * pattern[place]
+            cases += [(values, 1, [])]
+    draw = random.Random(3851)
+    for _case in range(20):
+        values = []
+        for place in range(draw.randrange(8, 20)):
+            words = draw.choice(("a b", "one two", "x!", "q_z", "no!!"))
+            values += [f"{words} {place}"] * draw.choice((1, 1, 2, 3))
+        draw.shuffle(values)
+        cases += [(values, 1, [])]
+    for seed in range(4):
+        cases += [(fold._a_column(seed), 1, ["value"])]
+    for _shape, values in fold.WITNESSES:
+        cases += [(list(values), 1, ["value"])]
+    return cases
+
+
+def test_the_searches_give_what_the_whole_order_gave(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Handed the old list of every pair, every search answers as it does now.
+
+    Each search steps over a pair whose shape was offered, so handing it
+    the old list IS the old search. The twin's bytes and its report are
+    required equal, over free-text columns and declared record numbers
+    -- the fold repair's own battery among them. That repair's second
+    tier works each pair out from its step and is not handed this list,
+    so the patch does not reach it: the order test above holds that tier
+    to the old order. The search draws nothing, so one seed asks it all.
+    """
+    reached = {"text": 0, "identifier": 0}
+    for step, (values, floor, declared) in enumerate(_shape_battery()):
+        loaded = _described(tmp_path / f"case-{step}", values, floor, declared)
+        facts = loaded.columns[0].facts
+        if isinstance(facts, contract.TextFacts):
+            reached["text"] += 1
+        elif isinstance(facts, contract.IdentifierFacts):
+            reached["identifier"] += 1
+        else:
+            continue
+        shipped = _twin(loaded, 3)
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                generation,
+                "_shape_choices",
+                lambda groups: _shape_choices_as_built(len(groups)),
+            )
+            as_built = _twin(loaded, 3)
+        assert shipped == as_built, values
+    assert reached["text"] >= 120 and reached["identifier"] >= 10, reached
+
+
+def _lines_run(function: "object", *arguments: object) -> "tuple[object, int]":
+    """What ``function`` returns, and how many lines it and everything it calls ran.
+
+    Every line event of the call's own frame and of each frame opened
+    under it is counted, a loop's line once per pass -- so a function
+    that lists every pair before keeping a few runs as many lines as it
+    lists pairs, whatever it hands back (review of landing S1, item 4).
+    No clock plays a part.
+    """
+    code = function.__code__  # type: ignore[attr-defined]
+    ran = [0]
+    inside = [False]
+
+    def below(frame: object, event: str, argument: object) -> object:
+        if event == "line":
+            ran[0] += 1
+        return below
+
+    def top(frame: object, event: str, argument: object) -> object:
+        if event == "line":
+            ran[0] += 1
+        elif event == "return":
+            inside[0] = False
+        return top
+
+    def calls(frame: object, event: str, argument: object) -> object:
+        if event != "call":
+            return None
+        if frame.f_code is code and not inside[0]:  # type: ignore[attr-defined]
+            inside[0] = True
+            return top
+        return below if inside[0] else None
+
+    previous = sys.gettrace()
+    sys.settrace(calls)  # type: ignore[arg-type]
+    try:
+        answer = function(*arguments)  # type: ignore[operator]
+    finally:
+        sys.settrace(previous)
+    return answer, ran[0]
+
+
+def _first_of_each_shape_from_every_pair(groups: "tuple[int, ...]") -> "list[tuple[int, int]]":
+    """The review's probe (landing S1, item 4): the right pairs, found by listing every pair.
+
+    It hands the searches exactly what `generation._shape_choices` hands
+    them, so a count of the pairs handed sees nothing wrong with it,
+    while the list it builds first is the square of the groups.
+    """
+    total = len(groups)
+    if total < 2:
+        return [(0, 0)]
+    every = [(low, high) for low in range(total) for high in range(total) if high != low]
+    offered: "set[tuple[int, int]]" = set()
+    kept: "list[tuple[int, int]]" = []
+    for low, high in every:
+        if (groups[low], groups[high]) in offered:
+            continue
+        offered.add((groups[low], groups[high]))
+        kept += [(low, high)]
+    return sorted(kept)
+
+
+def shape_search_lines(rows: int, choices: "object | None" = None) -> int:
+    """Lines run choosing the end-carrier pairs for the twins of two all-different columns.
+
+    One column of free text and one declared column of record numbers,
+    each of ``rows`` different values, are described and their twin is
+    built; every call of `generation._shape_choices` is run under
+    `_lines_run`. ``choices``, where given, is run in its place: the
+    old list of every pair, or the review's probe.
+    """
+    spent = [0]
+    chooser = generation._shape_choices if choices is None else choices
+
+    def counted(groups: "tuple[int, ...]") -> "list[tuple[int, int]]":
+        pairs, ran = _lines_run(chooser, groups)
+        spent[0] += ran
+        return pairs  # type: ignore[return-value]
+
+    with tempfile.TemporaryDirectory() as home:
+        folder = pathlib.Path(home)
+        notes = _described(folder / "notes", _notes(rows, rows))
+        assert isinstance(notes.columns[0].facts, contract.TextFacts)
+        numbers = _described(
+            folder / "numbers",
+            [f"E{(place * 7919) % 1000003:07d}" for place in range(rows)],
+            declared=["value"],
+        )
+        assert isinstance(numbers.columns[0].facts, contract.IdentifierFacts)
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(generation, "_shape_choices", counted)
+            generation.generate(notes, 0)
+            generation.generate(numbers, 0)
+    return spent[0]
+
+
+def _every_pair_as_built(groups: "tuple[int, ...]") -> "list[tuple[int, int]]":
+    """The old list of every pair, handed to the searches as 668f276 handed it."""
+    return _shape_choices_as_built(len(groups))
+
+
+def test_the_end_carrier_search_runs_no_more_lines_per_row_as_the_rows_double() -> None:
+    """Lines run choosing the pairs at 2N rows against N: about two now, four for both regressions.
+
+    Two regressions are measured beside it and each must grow as the
+    square: the list of every pair 668f276 handed over, and the
+    review's probe, which lists every pair and keeps the first of each
+    shape -- the same pairs the search is handed now, so a count of the
+    pairs handed gave it a ratio of 1.0.
+    """
+    small, large = shape_search_lines(250), shape_search_lines(500)
+    assert large / small < LINEAR_AT_MOST, (small, large)
+    for regression in (_every_pair_as_built, _first_of_each_shape_from_every_pair):
+        old_small = shape_search_lines(250, regression)
+        old_large = shape_search_lines(500, regression)
+        assert old_large / old_small >= SQUARE_AT_LEAST, (regression.__name__, old_small, old_large)
+
+
+def test_the_probe_hands_the_searches_what_they_are_handed_now() -> None:
+    """The review's probe is a regression only of work: its pairs are the shipped ones."""
+    draw = random.Random(3854)
+    for _case in range(300):
+        groups = tuple(draw.choice((1, 1, 2, 3, 5)) for _ in range(draw.randrange(1, 30)))
+        assert _first_of_each_shape_from_every_pair(groups) == generation._shape_choices(groups)
+
+
+def _one_odd_group(k: int) -> "list[str]":
+    """The review's identifier (landing S1, item 1): only its last group can carry the shortest value.
+
+    `7` written ``2k + 1`` times, and ``k`` more values written 2, 4,
+    ... ``2k`` times: ``k + 1`` different group sizes, and of them only
+    the odd one, last in order, can hold the one-figure value the count
+    of ordinary numbers needs.
+    """
+    values = ["7"] * (2 * k + 1)
+    for place in range(1, k + 1):
+        values += [f"{place:04d}e999"] * (2 * place)
+    return values
+
+
+def window_cells_built(k: int) -> "tuple[int, int]":
+    """The rows of `_one_odd_group(k)` and the permissions built for its twin, group by group."""
+    values = _one_odd_group(k)
+    with tempfile.TemporaryDirectory() as home:
+        loaded = _described(pathlib.Path(home), values, declared=["value"])
+    assert isinstance(loaded.columns[0].facts, contract.IdentifierFacts)
+    built = [0]
+    shipped = generation._identifier_windows
+
+    def counted(*arguments: object) -> "list[int]":
+        permits = shipped(*arguments)  # type: ignore[arg-type]
+        built[0] += len(permits)
+        return permits
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_identifier_windows", counted)
+        generation.generate(loaded, 0)
+    return len(values), built[0]
+
+
+def test_a_repeated_carrier_choice_builds_no_permissions() -> None:
+    """The identifier search builds about one permission per row, not one per group per shape.
+
+    The review's witness asks ``k + 1`` different questions among
+    ``k * (k + 1)`` shapes, and every shape built a permission for every
+    group before the repeats were known: 8,421 at 461 rows and 65,641
+    at 1,721, the cube of ``k`` where the rows are its square. Each
+    repeat is known from its two carriers now, so only a new question
+    builds its vector.
+    """
+    for k in (10, 20):
+        rows, built = window_cells_built(k)
+        assert built <= 2 * rows, (k, rows, built)
+
+
+def _sorted_windows_as_built(
+    groups: "tuple[int, ...]",
+    carriers: "tuple[int, int]",
+    windows: "tuple[int, int, int]",
+) -> "tuple[tuple[int, int], ...]":
+    """What the identifier search compared before the review: every group beside its window, sorted."""
+    low, high, middle = windows
+    pairs: "list[tuple[int, int]]" = []
+    for place in range(len(groups)):
+        permit = middle
+        if place == carriers[0]:
+            permit = low
+        elif place == carriers[1]:
+            permit = high
+        pairs += [(groups[place], permit)]
+    return tuple(sorted(pairs))
+
+
+def test_a_carrier_choice_repeats_exactly_when_its_sorted_windows_did() -> None:
+    """`_window_change` tells two choices apart exactly where the sorted vectors did.
+
+    Over seeded groups and every pair of the old order, with windows
+    drawn from three values so the shortest, the longest and the middle
+    window coincide in every combination.
+    """
+    draw = random.Random(3852)
+    repeats = 0
+    for _case in range(400):
+        groups = tuple(draw.choice((1, 2, 2, 3, 5)) for _ in range(draw.randrange(1, 9)))
+        windows = (draw.choice((1, 2, 3)), draw.choice((1, 2, 3)), draw.choice((1, 2, 3)))
+        by_vector: "dict[object, int]" = {}
+        by_change: "dict[object, int]" = {}
+        for step, carriers in enumerate(_shape_choices_as_built(len(groups))):
+            vector = _sorted_windows_as_built(groups, carriers, windows)
+            change = generation._window_change(groups, carriers, windows)
+            first_vector = by_vector.setdefault(vector, step)
+            first_change = by_change.setdefault(change, step)
+            assert first_vector == first_change, (groups, windows, carriers)
+            repeats += first_vector != step
+    assert repeats >= 1000, repeats
+
+
+# -- 2. the held-back level lookups, retired with the level pass ---------
+#
+# Plan P4-D390 deleted the level pass of ruling 5 (`_levels_read_by_form`,
+# `_levels_read_by_class` and the pass in `_read_the_column`), so the
+# measures of its lookups and their oracle went with it. The register
+# and the mutation helper below serve section 3.
+
+
+def _register(rows: int, seed: int, codes: int, held_rows: "tuple[int, ...]") -> "list[str]":
+    """A made-up code register: common codes in several written forms, and rare ones."""
+    draw = random.Random(seed)
+    forms = ("C%03d", "AB-%03d", "X%d.%d", "%05d")
+    values: "list[str]" = []
+    for place in range(codes):
+        form = forms[place % len(forms)]
+        code = form % ((place, place % 7) if form.count("%") == 2 else (place,))
+        values += [code] * draw.randrange(12, 60)
+    while len(values) < rows:
+        place = draw.randrange(10**4)
+        form = forms[place % len(forms)]
+        code = form % ((place, place % 9) if form.count("%") == 2 else (place + 500,))
+        values += [code] * draw.choice(held_rows)
+    draw.shuffle(values)
+    return values[:rows]
+
+
+def _mutated(module: "object", name: str, mutation: "ast.NodeTransformer") -> "object":
+    """The product function ``name`` with one change of meaning made to it, compiled apart.
+
+    The mutant runs among a copy of the module's names; the module and
+    the frozen references are untouched. ``mutation`` must find the
+    one node it changes, which it counts in its own ``found``.
+    """
+    tree = ast.parse(textwrap.dedent(inspect.getsource(getattr(module, name))))
+    tree = ast.fix_missing_locations(mutation.visit(tree))
+    assert mutation.found == 1, (name, mutation.found)  # type: ignore[attr-defined]
+    names = dict(vars(module))
+    exec(compile(tree, f"<{name} mutated>", "exec"), names)
+    return names[name]
+
+
+# -- 3. the label column -------------------------------------------------
+
+
+def _label_content_as_built() -> "object":
+    """`generation._label_content` as 668f276 shipped it, the column copied once per level.
+
+    From the frozen text `stage4_as_built.LABEL_CONTENT`, so a change of
+    meaning made to the product function is not made to it (review of
+    landing S1, item 5).
+    """
+    function, _names = stage4_as_built.compiled(
+        generation, stage4_as_built.LABEL_CONTENT, "_label_content"
+    )
+    return function
+
+
+def _label_columns() -> "list[tuple[list[str], int]]":
+    """Label columns of every kind `_label_content` writes, at three floors."""
+    cases: "list[tuple[list[str], int]]" = []
+    for seed in range(6):
+        draw = random.Random(9385 + seed)
+        values: "list[str]" = []
+        for place in range(draw.randrange(8, 30)):
+            label = draw.choice(("Clinic", "ward", "Unit-", "Bay ", "12", "4.5"))
+            values += [f"{label}{place}"] * draw.randrange(1, 40)
+            if place % 5 == 0:
+                # Spellings of one label: case, and an edge space.
+                values += [f"{label}{place}".upper()] * draw.randrange(1, 4)
+                values += [f"{label}{place} "] * draw.randrange(1, 3)
+        draw.shuffle(values)
+        for floor in (1, 11, 36):
+            cases += [(values, floor)]
+    cases += [(_register(1200, 7, 9, (2, 3, 4, 5, 6)), 11)]
+    cases += [(["F"] * 480 + ["M"] * 519 + ["U"], 11)]
+    cases += [([f"{place % 23}" for place in range(300)] + ["n/a lab"] * 30 + ["pending"] * 4, 11)]
+    return cases
+
+
+def test_the_label_column_grown_in_place_is_the_column_grown_by_copying(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every label column `_label_content` writes is the column 668f276 wrote, and its notes."""
+    as_built = _label_content_as_built()
+    reached = 0
+    for step, (values, floor) in enumerate(_label_columns()):
+        loaded = _described(tmp_path / f"labels-{step}", values, floor)
+        plan = generation.plan_generation(loaded)
+        for column_plan in plan.columns:
+            if not isinstance(column_plan.column.facts, contract.LabelFacts):
+                continue
+            reached += 1
+            short_now: "list[int]" = []
+            short_then: "list[int]" = []
+            assert generation._label_content(column_plan, short_now) == as_built(
+                column_plan, short_then
+            ), values[:5]
+            assert short_now == short_then
+    assert reached >= 15, reached
+
+
+class _OneRowMore(ast.NodeTransformer):
+    """The review's mutation: each held-back group written one row longer."""
+
+    found = 0
+
+    def visit_Assign(self, node: ast.Assign) -> ast.Assign:
+        if (
+            len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "size"
+            and isinstance(node.value, ast.Subscript)
+            and isinstance(node.value.value, ast.Name)
+            and node.value.value.id == "sizes"
+        ):
+            self.found += 1
+            node.value = ast.BinOp(node.value, ast.Add(), ast.Constant(1))
+        return node
+
+
+def test_a_change_of_meaning_in_the_label_column_breaks_its_comparison(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The review's mutation of `_label_content` no longer passes for the reference.
+
+    With the held-back groups' size written `sizes[place] + 1`, the old
+    reference -- rebuilt from the product's own source -- wrote the same
+    extra cell per group and the two stayed equal (review of landing S1,
+    item 5). Against the frozen text they differ.
+    """
+    mutant = _mutated(generation, "_label_content", _OneRowMore())
+    as_built = _label_content_as_built()
+    differ = 0
+    for step, (values, floor) in enumerate(_label_columns()):
+        loaded = _described(tmp_path / f"mutant-{step}", values, floor)
+        for column_plan in generation.plan_generation(loaded).columns:
+            if not isinstance(column_plan.column.facts, contract.LabelFacts):
+                continue
+            differ += mutant(column_plan, []) != as_built(column_plan, [])  # type: ignore[operator]
+    assert differ >= 1, "the mutant wrote every column as the reference did"
+
+
+def _allocated_by_lines(function: "object", *arguments: object) -> int:
+    """The bytes ``function``'s own lines allocate above what each line found, summed.
+
+    A line that copies a list of n items allocates n more pointers while
+    the old list is still held; a line that grows one in place allocates
+    what it adds. Read off `tracemalloc`'s peak, which is taken and reset
+    at every line of the function's own frame, so no clock plays a part.
+    """
+    code = function.__code__  # type: ignore[attr-defined]
+    total = [0]
+    since = [0]
+
+    def local(frame: object, event: str, argument: object) -> object:
+        if event in ("line", "return"):
+            peak = tracemalloc.get_traced_memory()[1]
+            total[0] += max(0, peak - since[0])
+            tracemalloc.reset_peak()
+            since[0] = tracemalloc.get_traced_memory()[0]
+        return local
+
+    def calls(frame: object, event: str, argument: object) -> object:
+        if event == "call" and frame.f_code is code:  # type: ignore[attr-defined]
+            return local
+        return None
+
+    tracing = tracemalloc.is_tracing()
+    if not tracing:
+        tracemalloc.start()
+    previous = sys.gettrace()
+    try:
+        tracemalloc.reset_peak()
+        since[0] = tracemalloc.get_traced_memory()[0]
+        sys.settrace(calls)  # type: ignore[arg-type]
+        try:
+            function(*arguments)  # type: ignore[operator]
+        finally:
+            sys.settrace(previous)
+    finally:
+        if not tracing:
+            tracemalloc.stop()
+    return total[0]
+
+
+def _label_register(rows: int) -> "list[str]":
+    """Half the rows over published codes of twenty rows, half over codes of four the floor holds back."""
+    draw = random.Random(rows + 1)
+    values: "list[str]" = []
+    for place in range(rows // 40):
+        values += [f"P{place:05d}"] * 20
+    for place in range(rows // 8):
+        values += [f"H{place:05d}"] * 4
+    draw.shuffle(values)
+    return values
+
+
+def label_bytes(rows: int, as_built: bool = False) -> int:
+    """The bytes `_label_content`'s lines allocate writing one label column of ``rows``.
+
+    With ``as_built`` the column is grown by copying, as 668f276 grew it.
+    """
+    function = _label_content_as_built() if as_built else generation._label_content
+    with tempfile.TemporaryDirectory() as home:
+        loaded = _described(pathlib.Path(home), _label_register(rows))
+    column_plan = generation.plan_generation(loaded).columns[0]
+    facts = column_plan.column.facts
+    assert isinstance(facts, contract.LabelFacts) and facts.suppressed_levels, facts
+    return _allocated_by_lines(function, column_plan)
+
+
+def test_the_label_column_is_built_with_work_that_grows_with_its_rows() -> None:
+    """Bytes allocated at 2N rows against N: about two now, and over three as built."""
+    small, large = label_bytes(3000), label_bytes(6000)
+    assert large / small < LINEAR_AT_MOST, (small, large)
+    old_small = label_bytes(3000, as_built=True)
+    old_large = label_bytes(6000, as_built=True)
+    assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
+
+
+# -- 4. the role decision ------------------------------------------------
+
+
+def _mixed_table(rows: int) -> str:
+    """A made-up table whose columns reach every pass that asks a role again."""
+    draw = random.Random(4385 + rows)
+    header = [
+        "glucose", "admitted", "dose", "band", "result", "clinic",
+        "note", "visit", "charge",
+    ]
+    body: "list[list[str]]" = []
+    for place in range(rows):
+        glucose = "-999" if place % 23 == 0 else str(70 + draw.randrange(90))
+        admitted = (
+            "9999-12-31" if place % 19 == 0
+            else f"2024-{1 + place % 12:02d}-{1 + place % 28:02d}"
+        )
+        dose = "-999 mg" if place % 17 == 0 else f"{1 + draw.randrange(10)} mg"
+        band = "Z" if place == 7 else ("A" if place % 2 else "B")
+        result = (
+            "NOT DETECTED" if place % 29 == 0
+            else f"{draw.randrange(10, 400) / 10:.1f}"
+        )
+        clinic = f"C{place % 6}" if place % 50 else f"R{place:05d}"
+        note = f"seen today {draw.randrange(10**6)}"
+        visit = f"V{place:06d}"
+        charge = f"{draw.randrange(100, 99999)},{draw.randrange(100):02d}"
+        body += [[glucose, admitted, dose, band, result, clinic, note, visit, charge]]
+    return fixtures.rows_to_csv(header, body)
+
+
+def _described_table(
+    folder: pathlib.Path,
+    text: str,
+    floor: int = 11,
+    declared: "tuple[str, ...]" = (),
+    codes: "tuple[str, ...]" = (),
+) -> "dict":
+    """The description of a written table, with the record numbers and codes named declared."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = fixtures.write(folder, "table.csv", text)
+    settings = taxonomy.Settings(small_cell_floor=floor)
+    table = reading.read_table(str(path), small_cell_floor=floor)
+    return profile.build_document(table, settings, list(declared), list(codes))
+
+
+def test_every_remembered_role_is_the_role_the_ladder_gives(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each answer `_decision` hands back equals `_decide` walked afresh, at every call.
+
+    And the description built with the memory is the description built
+    without it, at two floors.
+    """
+    remembered = taxonomy._decision
+    asked = [0]
+
+    def checked(cells: "taxonomy._Cells", *arguments: object, **named: object) -> object:
+        verdict = remembered(cells, *arguments, **named)  # type: ignore[arg-type]
+        assert verdict == taxonomy._decide(cells, *arguments, **named)  # type: ignore[arg-type]
+        asked[0] += 1
+        return verdict
+
+    for floor in (1, 11):
+        text = _mixed_table(600)
+        with monkeypatch.context() as patch:
+            patch.setattr(taxonomy, "_decision", checked)
+            kept = _described_table(
+                tmp_path / f"kept-{floor}", text, floor, ("visit",), ("clinic",)
+            )
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                taxonomy,
+                "_decision",
+                lambda cells, *arguments, **named: taxonomy._decide(cells, *arguments, **named),
+            )
+            walked = _described_table(
+                tmp_path / f"walked-{floor}", text, floor, ("visit",), ("clinic",)
+            )
+        assert json.dumps(kept, sort_keys=True) == json.dumps(walked, sort_keys=True)
+    assert asked[0] >= 40, asked[0]
+
+
+def _plain_table(rows: int) -> str:
+    """A made-up table whose columns no pass takes a cell out of: each keeps one tally."""
+    draw = random.Random(5385 + rows)
+    header = ["glucose", "admitted", "band", "clinic", "note", "charge", "arrival"]
+    body: "list[list[str]]" = []
+    for place in range(rows):
+        body += [[
+            str(70 + draw.randrange(90)),
+            f"2024-{1 + place % 12:02d}-{1 + place % 28:02d}",
+            "Z" if place == 7 else ("A" if place % 2 else "B"),
+            f"C{place % 6}",
+            f"seen today {draw.randrange(10**6)}",
+            f"{draw.randrange(1, 99)},{draw.randrange(1000):03d}.{draw.randrange(100):02d}",
+            f"{draw.randrange(24):02d}:{draw.randrange(60):02d}",
+        ]]
+    return fixtures.rows_to_csv(header, body)
+
+
+def test_each_question_of_one_tally_is_remembered_under_its_own_arguments() -> None:
+    """Two questions of one tally get two answers, each the ladder's own.
+
+    No pass asks one tally two questions today -- a pass that takes cells
+    out builds a new tally -- so this asks them directly: a column of
+    labels decided as it stands, declared a record number, and declared
+    a code, each asked twice.
+    """
+    values = ["ward 1"] * 40 + ["ward 2"] * 35 + ["14"] * 30 + ["9"] * 25
+    tally = taxonomy._tally(taxonomy._classify_all(values), len(values), taxonomy.Settings())
+    questions = (
+        ((False,), {}),
+        ((True,), {}),
+        ((False,), {"forced_code": True}),
+    )
+    roles = []
+    for _again in range(2):
+        for arguments, named in questions:
+            verdict = taxonomy._decision(tally, *arguments, **named)
+            assert verdict == taxonomy._decide(tally, *arguments, **named), (arguments, named)
+            roles += [verdict.role]
+    assert len(set(roles)) >= 2, roles
+    assert len(tally.decided) == len(questions)
+
+
+def role_walks(rows: int, as_built: bool = False) -> "tuple[int, int, int]":
+    """How often the ladder of role rules is walked while one made-up table is described.
+
+    Returns the walks, the different questions they answered -- one
+    tally asked under one set of arguments -- and the columns. With
+    ``as_built`` every caller walks the ladder itself, as 668f276's did.
+    """
+    walks = [0]
+    questions: "dict[tuple[int, tuple[object, ...]], int]" = {}
+    held: "list[object]" = []
+    ladder = taxonomy._decide
+    signature = inspect.signature(ladder)
+
+    def watched(cells: "taxonomy._Cells", *arguments: object, **named: object) -> object:
+        nonlocal held
+        walks[0] += 1
+        held += [cells]  # alive, so no id is reused while counting
+        bound = signature.bind(cells, *arguments, **named)
+        bound.apply_defaults()
+        asked = tuple(bound.arguments[name] for name in list(bound.arguments)[1:])
+        questions[(id(cells), asked)] = 1
+        return ladder(cells, *arguments, **named)  # type: ignore[arg-type]
+
+    with tempfile.TemporaryDirectory() as home, pytest.MonkeyPatch.context() as patch:
+        patch.setattr(taxonomy, "_decide", watched)
+        if as_built:
+            patch.setattr(
+                taxonomy,
+                "_decision",
+                lambda cells, *arguments, **named: taxonomy._decide(cells, *arguments, **named),
+            )
+        document = _described_table(pathlib.Path(home), _plain_table(rows))
+    return walks[0], len(questions), len(document["columns"])
+
+
+def test_no_column_walks_the_ladder_twice_for_one_question() -> None:
+    """One walk per question at N rows and at 2N, and about three as built.
+
+    A question is one tally asked under one set of arguments, its
+    defaults filled in. A column a judged pass takes cells out of asks a
+    second question of a second tally, so there can be more questions
+    than columns.
+    """
+    for rows in (500, 1000):
+        walks, questions, columns = role_walks(rows)
+        assert walks == questions <= 2 * columns, (rows, walks, questions, columns)
+    old_walks, old_questions, _columns = role_walks(500, as_built=True)
+    assert old_walks >= 2.5 * old_questions, (old_walks, old_questions)
+
+
+def test_the_memory_goes_with_its_column(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No tally a role was decided for outlives the description of its column.
+
+    A memory kept beside the module, as the first sketch of this change
+    kept it, held the last four tallies alive -- about 0.7 GB for each
+    all-different column of 2,000,000 rows -- into the next column and
+    into generation.
+    """
+    tallies: "list[weakref.ref]" = []
+    ladder = taxonomy._decide
+
+    def watched(cells: "taxonomy._Cells", *arguments: object, **named: object) -> object:
+        nonlocal tallies
+        tallies += [weakref.ref(cells)]
+        return ladder(cells, *arguments, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(taxonomy, "_decide", watched)
+    values = _notes(300, 5) + ["-999"] * 20
+    block = taxonomy.profile_column("note", 1, values, len(values), taxonomy.Settings())
+    del block
+    gc.collect()
+    assert tallies, "no role was decided"
+    assert all(ref() is None for ref in tallies), "a tally outlived its column"
+
+
+def test_the_census_keeps_no_remembered_role() -> None:
+    """The reading the census keeps holds no verdict until the description ends.
+
+    `profile_column` is handed that reading as a new tally, which starts
+    with nothing remembered, so what the census's own tally was decided
+    as is never read again. Kept, it was measured at about 75 bytes a
+    row of a date column, held after every column.
+    """
+    values = [f"2023-{1 + i % 12:02d}-{1 + i % 28:02d}" for i in range(400)] + ["9999-12-31"] * 5
+    kept, _held = taxonomy._census_reading(
+        values, taxonomy.Settings(), False, False, False, False, ()
+    )
+    assert kept.reading.cells.decided == {}
+
+
+def test_every_argument_of_the_ladder_is_part_of_the_question() -> None:
+    """Each argument `_decide` takes keys the memory, so no stale role is handed back.
+
+    One tally is asked the plain question and then each argument
+    changed alone, with the identifier declared and not: every answer
+    is the ladder's own, and every question is remembered apart.
+    """
+    ladder = list(inspect.signature(taxonomy._decide).parameters)
+    assert ladder == list(inspect.signature(taxonomy._decision).parameters)
+    values = ["ward 1"] * 40 + ["ward 2"] * 35 + ["14"] * 30 + ["9"] * 25
+    tally = taxonomy._tally(taxonomy._classify_all(values), len(values), taxonomy.Settings())
+    flips: "dict[str, object]" = {
+        "removed": 1,
+        "after_removal": True,
+        "after_days": True,
+        "forced_code": True,
+        "forced_measurement": True,
+        "probing": True,
+        "described_as_pair": True,
+        # The argument plan P4-D382 gave the ladder beside this landing
+        # (the merge of both, 2026-10-02): a workbook's stored dates.
+        "stored_as": taxonomy.STORED_AS_DATES,
+    }
+    assert sorted(flips) == sorted(ladder[2:])
+    asked = 0
+    for forced in (False, True):
+        for name in [""] + sorted(flips):
+            named = {name: flips[name]} if name else {}
+            verdict = taxonomy._decision(tally, forced, **named)  # type: ignore[arg-type]
+            asked += 1
+            assert verdict == taxonomy._decide(tally, forced, **named)  # type: ignore[arg-type]
+            assert len(tally.decided) == asked, (forced, name)
+
+
+# -- 5. the made-up spellings of a label (review of landing S1, item 2) --
+
+
+def _case_spellings(label: str, count: int) -> "list[str]":
+    """The first ``count`` case flips of ``label``, in the counter order of method G8.2."""
+    spellings: "list[str]" = []
+    order = 1
+    while len(spellings) < count:
+        flip = generation._case_variant(label, order)
+        assert flip is not None, (label, count)
+        spellings += [flip]
+        order += 1
+    return spellings
+
+
+def _described_before_p4d275(
+    folder: pathlib.Path, values: "list[str]", floor: int = 11
+) -> "tuple[dict, contract.Profile]":
+    """A label column described the way the producer described it before plan P4-D275.
+
+    Today's producer counts every spelling below the floor into its
+    level's commonest (P4-D275) and so holds none back, while the loader
+    still accepts a level that holds spellings back. So the column is
+    described by today's producer and each level is then written again
+    by the earlier rule, from the column's own spellings: those the
+    floor clears named under `variants`, the rest counted by group size
+    under `variants_withheld` by the producer's own `_multiplicity_map`,
+    and `n_distinct` counting every spelling. The loader is then asked
+    to accept it.
+
+    THE DESCRIPTION IS THE EARLIER PRODUCER'S OWN, measured rather than
+    assumed (2026-10-03). For the columns of both tests below, the
+    producer of c5d09d5 -- the last commit before P4-D275 -- writes this
+    description byte for byte, but for three entries the format gained
+    after it and today's loader requires: `suppressed_numbers` in the
+    column, and `person_columns` and `forced_twelve_hour_clocks` among
+    the settings. Without them the loader refuses the earlier
+    description whole, so a level that holds spellings back reaches the
+    generator only in a description written or edited by hand; the
+    loader accepts the level itself, which is why its twin is bounded.
+    """
+    folder.mkdir(parents=True, exist_ok=True)
+    path = fixtures.write(folder, "table.csv", _table(values))
+    table = reading.read_table(str(path), small_cell_floor=floor)
+    document = profile.build_document(table, taxonomy.Settings(small_cell_floor=floor), [])
+    spellings: "dict[str, dict[str, int]]" = {}
+    for value in values:
+        own = spellings.setdefault(parsing.folded(value), {})
+        own[value] = own.get(value, 0) + 1
+    column = document["columns"][0]
+    for level in column["levels"]:
+        own = spellings[level["label"]]
+        level["variants"] = {
+            spelling: own[spelling] for spelling in sorted(own) if own[spelling] >= floor
+        }
+        level["variants_withheld"] = taxonomy._multiplicity_map(
+            sorted(own[spelling] for spelling in own if own[spelling] < floor)
+        )
+    column["n_distinct"] = sum(len(own) for own in spellings.values())
+    target = fixtures.write_profile(folder, "earlier-profile.json", document)
+    return document, contract.load_profile(str(target))
+
+
+def test_an_earlier_label_profile_is_answered_in_bounded_spellings(tmp_path: pathlib.Path) -> None:
+    """A level holding back more spellings than the supply reaches is built in bounded work.
+
+    The review's shape at a size a test can hold: a constant column of
+    `abcdef` written 20 times, beside 400 of its spellings written twice
+    each -- which no letters-only label of six letters can spell by case
+    alone, so the earlier producer published `variants_withheld {"2":
+    400}`. On 110cb46 the twin wrote 337 trailing-space spellings, the
+    longest 343 characters, and walked the 63 case flips again for every
+    group. Now it writes its 63 flips and 64 trailing spaces, walks the
+    flips once, and writes the other 273 groups in the commonest
+    spelling, the published `abcdef`, which its report names.
+    """
+    label = "abcdef"
+    values = [label] * 20
+    for spelling in [label] + _case_spellings(label, 63):
+        for pad in range(7):
+            text = f"{spelling}{' ' * (pad + 1)}" if pad else f" {spelling}"
+            if len(values) < 20 + 2 * 400:
+                values += [text, text]
+    assert len(values) == 820
+    document, loaded = _described_before_p4d275(tmp_path, values)
+    column = document["columns"][0]
+    level = column["levels"][0]
+    assert (column["role"], column["n_distinct"], len(column["levels"])) == ("constant", 401, 1)
+    assert (level["count"], level["shape_form_cells"]) == (820, 0)
+    assert level["variants"] == {label: 20} and level["variants_withheld"] == {"2": 400}
+    twin, flips = _twin_counting_flips(loaded)
+    cells = twin.columns[0]
+    assert len(cells) == len(values)
+    assert all(parsing.folded(cell) == label for cell in cells)
+    assert max(len(cell) for cell in cells) <= len(label) + 64
+    assert len(set(cells)) == 1 + 63 + 64
+    assert flips <= 64, flips
+    named = [
+        one.achieved for one in twin.deviations
+        if one.fact == "levels -> variants_withheld"
+    ]
+    assert named == [
+        "127 neutral spellings made up in their place, and 273 written "
+        "in their label's commonest spelling"
+    ], named
+    assert any(one.fact == "n_distinct" for one in twin.deviations)
+
+
+def _twin_counting_flips(loaded: contract.Profile) -> "tuple[generation.Twin, int]":
+    """The twin of ``loaded`` at seed 0, and how many case flips its labels asked for."""
+    flips = [0]
+    shipped = generation._case_variant
+
+    def counted(spelling: str, order: int) -> "str | None":
+        flips[0] += 1
+        return shipped(spelling, order)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_case_variant", counted)
+        twin = generation.generate(loaded, 0)
+    return twin, flips[0]
+
+
+def test_the_review_s_own_label_stops_at_the_counter_s_4096th_step(tmp_path: pathlib.Path) -> None:
+    """The review's label past both bounds: its flips walked once, to the counter's 4,096th step.
+
+    `abcdefghijklmnopqrstu` written 20 times beside 4,200 of its case
+    flips written twice each: the review's column of a million such
+    spellings at a size a test can hold, which c5d09d5 described as
+    `variants_withheld {"2": 4200}`. Twenty-one letters spell more than
+    two million flips, so here the bound stops the supply and the label
+    does not: 4,096 flips, then 64 trailing spaces, then the 40 groups
+    past both written in the commonest spelling, the published label.
+    On 110cb46 each group began its search again at one -- 8,816,640
+    flips for 4,200 groups -- and the trailing spaces reached 104, a
+    cell of 125 characters.
+    """
+    label = "abcdefghijklmnopqrstu"
+    values = [label] * 20
+    for spelling in _case_spellings(label, 4200):
+        values += [spelling, spelling]
+    document, loaded = _described_before_p4d275(tmp_path, values)
+    column = document["columns"][0]
+    level = column["levels"][0]
+    assert (column["role"], column["n_distinct"], len(column["levels"])) == ("constant", 4201, 1)
+    assert (level["count"], level["shape_form_cells"]) == (8420, 0)
+    assert level["variants"] == {label: 20} and level["variants_withheld"] == {"2": 4200}
+    twin, flips = _twin_counting_flips(loaded)
+    cells = twin.columns[0]
+    assert len(cells) == len(values)
+    assert all(parsing.folded(cell) == label for cell in cells)
+    # The bound of G8.2, and the walk taken once: 4,096 flips, 64 spaces.
+    assert flips == 4096, flips
+    assert max(len(cell) for cell in cells) == len(label) + 64
+    assert len(set(cells)) == 1 + 4096 + 64
+    # The 40 groups past both, two rows each, in the published label.
+    assert cells.count(label) == 20 + 2 * (4200 - 4096 - 64)
+    named = [
+        one.achieved for one in twin.deviations
+        if one.fact == "levels -> variants_withheld"
+    ]
+    assert named == [
+        "4160 neutral spellings made up in their place, and 40 written "
+        "in their label's commonest spelling"
+    ], named
+    # And the count of different values it falls short of, printed beside the published one (G12.7).
+    assert ("4201", "4161") in {(one.published, one.achieved) for one in twin.deviations if one.fact == "n_distinct"}
+
+
+def test_the_supply_walk_resumes_where_it_stopped() -> None:
+    """Asked group after group, the walk gives what a walk from the start gives.
+
+    Over seeded labels, used spellings and wanted forms, the walk handed
+    its memory answers exactly as the walk handed none -- the bound
+    aside, which neither reaches here.
+    """
+    draw = random.Random(3853)
+    asked = 0
+    for _case in range(200):
+        parent = draw.choice(("ab", "a-b", "x.y", "abc", "a1", "q"))
+        used_now: "dict[str, int]" = {}
+        used_then: "dict[str, int]" = {}
+        for taken in draw.sample(_case_spellings(parent, 1) + [parent + " "], draw.randrange(0, 2)):
+            used_now[taken] = used_then[taken] = 1
+        owners_now: "dict[str, str]" = {}
+        owners_then: "dict[str, str]" = {}
+        walked: "dict[tuple[str, str | None], int]" = {}
+        for _ask in range(draw.randrange(1, 30)):
+            wanted = draw.choice(("", parsing.shape_form(parent)))
+            now = generation._variant_spelling(parent, used_now, owners_now, wanted, False, walked)
+            then = generation._variant_spelling(parent, used_then, owners_then, wanted, False)
+            assert now == then, (parent, wanted)
+            asked += 1
+    assert asked >= 1000, asked

@@ -36,6 +36,7 @@ import random
 import pytest
 
 import fixtures
+import stage4_as_built
 from synthtwin import (
     contract,
     generation,
@@ -497,38 +498,118 @@ def test_the_ceiling_case_carries_the_counts_the_review_reported(
     assert len(generation._groups_of(facts.n_distinct_by_occurrences)) == 38
 
 
-def test_no_ceiling_stops_the_packing_walk_on_that_description(
+def _two_margins(
+    rows: "list[int]", columns: "list[int]"
+) -> "list[tuple[list[int], list[int]]]":
+    """The two margins `_allotted_pairs` hands the walk for a grid of ``rows`` by ``columns``."""
+    width = len(columns)
+    cells = len(rows) * width
+    return [
+        (rows, [cell // width for cell in range(cells)]),
+        (columns, [cell - (cell // width) * width for cell in range(cells)]),
+    ]
+
+
+def test_no_ceiling_stopped_the_packing_walk_the_review_measured(
     ceiling_case: contract.Profile,
 ) -> None:
-    """Defect 2, MEASURED: the walk runs past the withdrawn ceiling.
+    """Defect 2, MEASURED: the walk of that time ran past the withdrawn ceiling.
 
     The earlier revision packed this description over a grid of six
     invented classes against the three sign counts and stopped after
-    200,000 trips. That same grid, over these groups, enters more than
-    200,000 states before it answers -- and it does answer. So a ceiling
-    anywhere near the withdrawn one is not a bound on cost, it is a
-    published count traded away, and reinstating one of any size at or
-    below the number measured here fails this test.
+    200,000 trips. That same grid, over these groups, entered more than
+    200,000 states before it answered under every walk up to stage 4's,
+    measured here on the walk as 493f6f8 shipped it, frozen in
+    `tests/stage4_as_built.py` -- and it does answer. Stage 4's reading
+    of the counts (plan P4-D389) gives today's walk the same answer in
+    574 states, so the guard that no ceiling comes back is the next
+    test, on a question today's walk still needs more than the withdrawn
+    number for.
     """
     facts = _facts(ceiling_case)
     groups = generation._groups_of(facts.n_distinct_by_occurrences)
     invented = [592, 879, 0, 424, 815, 0]
     signs = [facts.n_negative, facts.n_positive, facts.n_sign_unknown]
     permitted = [generation._spread_pairs(6, 3) for _each in groups]
+    built, names = stage4_as_built.compiled(
+        generation, stage4_as_built.ALLOTTED_OVER, "_allotted_over"
+    )
+    entered = [0]
+    room = names["_cell_room"]
 
-    answer, entered = _states(
-        lambda: generation._allotted_pairs(
-            groups, invented, signs, permitted
-        )
+    def counting(*given):  # type: ignore[no-untyped-def]
+        entered[0] = entered[0] + 1
+        return room(*given)
+
+    names["_cell_room"] = counting
+    answer = built(  # type: ignore[operator]
+        groups, _two_margins(invented, signs), permitted
     )
     assert answer is not None, (
         "the walk found no answer at all on the description the review "
         "built, which is a different defect from the one measured here"
     )
-    assert entered > 200000, (
-        f"this description entered only {entered} states, so it no "
-        "longer demonstrates that a producer description reaches the "
+    assert entered[0] > 200000, (
+        f"this description entered only {entered[0]} states, so it no "
+        "longer demonstrates that a producer description reached the "
         "withdrawn ceiling"
+    )
+    today, fewer = _states(
+        lambda: generation._allotted_pairs(groups, invented, signs, permitted)
+    )
+    assert today == answer
+    assert fewer < entered[0], (fewer, entered[0])
+
+
+# THE GUARD ON TODAY'S WALK (plan P4-D389): a packing question of the
+# kind every role asks -- 28 groups of 1 to 5 rows against three row
+# counts and three column counts over a grid of nine cells, each group
+# permitted the whole grid, its middle row or its last -- drawn from the
+# lane's seeded battery (seed 2, question 2,886) and written out here,
+# so the case cannot move with a library's draws. It has an answer, the
+# one asserted below.
+_HARD_GROUPS = (
+    2, 5, 1, 2, 3, 4, 3, 4, 5, 3, 4, 1, 5, 3, 1, 4, 4, 5, 3, 1, 5, 3, 5,
+    4, 4, 1, 1, 4,
+)
+_HARD_ROWS = [28, 35, 27]
+_HARD_COLUMNS = [31, 20, 39]
+_HARD_PERMITTED = (
+    511, 511, 511, 60, 60, 448, 448, 511, 511, 448, 60, 511, 60, 60, 511,
+    448, 511, 448, 511, 511, 448, 448, 511, 60, 511, 60, 511, 60,
+)
+
+
+def test_no_ceiling_stops_today_s_walk_on_a_grid_with_an_answer() -> None:
+    """Defect 2's guard on the walk stage 4 left: past the withdrawn number, and an answer.
+
+    Stage 4's reading of the counts answers the review's own grid in a
+    few thousand states, and the grids built around an answer from the
+    review's 38 groups mostly in under 200,000, so neither shows a
+    ceiling coming back cheaply. This question does: today's walk
+    enters more than 200,000 states before it answers it -- 243,155 when
+    this was written, about five seconds -- and the answer meets every
+    count. So a ceiling at or below the withdrawn one, put back in any
+    form, stops this walk before its answer and fails here. Mutation,
+    run: a walk that gives up after 200,000 states returns no answer.
+    """
+    permitted = list(_HARD_PERMITTED)
+    answer, entered = _states(
+        lambda: generation._allotted_pairs(
+            _HARD_GROUPS, _HARD_ROWS, _HARD_COLUMNS, permitted
+        )
+    )
+    assert answer is not None, "a question with an answer was refused"
+    met_rows = [0 for _each in _HARD_ROWS]
+    met_columns = [0 for _each in _HARD_COLUMNS]
+    for place in range(len(_HARD_GROUPS)):
+        assert (permitted[place] >> answer[place]) & 1, place
+        met_rows[answer[place] // 3] += _HARD_GROUPS[place]
+        met_columns[answer[place] % 3] += _HARD_GROUPS[place]
+    assert (met_rows, met_columns) == (_HARD_ROWS, _HARD_COLUMNS)
+    assert entered > 200000, (
+        f"today's walk answered in {entered} states, so this question no "
+        "longer shows that a ceiling at the withdrawn number would stop it"
     )
 
 

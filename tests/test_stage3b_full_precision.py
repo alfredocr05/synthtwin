@@ -1,0 +1,1279 @@
+"""Columns of numbers written to full precision describe, and a column nothing reads is split once (plan P4-D380).
+
+THE DEFECT, MEASURED ON 668f276 BY THE DATE-AND-TIME REACH AUDIT'S
+SKEPTIC. A number a program computes and writes in full -- the hours
+between two times as seconds over 3,600, a ratio of two counts, an
+Excel time as a fraction of a day: what Python's `repr` and pandas
+write by default -- has a different spelling on almost every row, so
+the census of how many figures follow the point can be one pool beside
+about a thousand widths. Two things then went wrong in the walk that
+asks whether such a pool may stand (`parsing.mixture_pool_holds`):
+
+1. **It nested once per width.** `parsing._fill` called itself once per
+   convention, and `synthtwin profile` stopped on a bare
+   `RecursionError` with no file written: hours-between columns at
+   1,000 rows in 14 of 20 seeds, ratios in 7 of 20, CSV time fractions
+   in 15 of 20 and every workbook time column holding seconds.
+2. **One step of its budget could cost seconds.** `parsing._topped_up`
+   -- a reading of the free cells -- wrote the free conventions one at
+   a time over every count of written conventions, about ``seen``
+   times the free conventions in big-number steps, and the budget
+   charged the reading one step. Walking the same column iteratively
+   took 4.2 s at 1,000 rows, 41 s at 3,000 and more than twelve CPU
+   minutes at 10,000.
+
+AND A COLUMN NOTHING READS was split sixteen times a cell: four
+readings ask `taxonomy.affixed_split` of every present cell, in each of
+the census's and the description's passes. An unread column of 1,000
+Oracle-style timestamps took about ten seconds, nine of them there.
+
+THE REPAIR, AND WHAT THIS FILE PINS:
+
+- `_fill` carries its own stack and finds what the recursion found at
+  the same cost, against the pre-repair text carried below;
+- `_topped_up` is worked out as the sum it is, and answers what the
+  walk over every free convention answered, against that text too,
+  and `parsing._free_totals` holds exactly the totals free conventions
+  can hold;
+- the walk still answers by its steps counted one each, so within the
+  work's ceiling it finishes wherever it finished, and the work each
+  step does (`POOL_WORDS_A_STEP`, `POOL_CELLS_A_STEP`) is counted
+  against a second ceiling (`POOL_WORK_STEPS`), so the stop-short
+  answer the walk always had takes over where the work is too large; a
+  column the charges set against the steps themselves once changed is
+  described as 668f276 described it, byte for byte; each guard on the
+  two counts and on the table charged before a step turns a test red
+  when it is changed;
+- a value free on every width is neither charged nor handed to the walk
+  by the census of widths, so a column of values each written two ways
+  is not counted at one width where the walk shows its pool standing;
+- a census wider than the interpreter can nest describes through the
+  command, and the same column under the recursive walk ends in a
+  sentence, never a stack trace (`errors.stopped_nested_too_deep`);
+- computed numbers at 10,000 and 100,000 rows describe, with the work
+  counted machine-free and the seconds judged only where
+  `kpi_rules.seconds_judged_here` allows;
+- the description of such a column is the one the pre-repair walk
+  gives, byte for byte;
+- and `affixed_split` runs once per different text of a reading, its
+  answers the same.
+"""
+
+from __future__ import annotations
+
+import ast
+import contextlib
+import io
+import json
+import pathlib
+import random
+import sys
+import time
+
+import pytest
+
+import kpi_rules
+from synthtwin import cli, errors, generation, parsing, taxonomy, validation
+
+
+# -- the pre-repair walk, carried whole -----------------------------------
+#
+# VERBATIM, but for their names and for naming `parsing`'s helpers through
+# the module. They are the references the repair is proved against and the
+# mutations the regression tests are watched failing under, so they are
+# copied rather than paraphrased: a reference written afresh would prove
+# agreement with itself.
+
+
+def recursive_fill(state, slots, after, amounts, slot, left, parts, found, budget) -> None:
+    """`parsing._fill` as it stood before the repair: it calls itself once per slot."""
+    budget[0] = budget[0] - 1
+    if budget[0] < 1:
+        return
+    if left == 0:
+        grown = []
+        start = 0
+        for kind in range(len(state)):
+            loads = []
+            for position in range(len(state[kind])):
+                loads += [state[kind][position] + amounts[start + position]]
+            start = start + len(state[kind])
+            grown += [tuple(sorted(loads, reverse=True))]
+        found[tuple(grown)] = True
+        return
+    if slot >= len(slots) or parts < 1 or after[slot] < left:
+        return
+    kind, position, share = slots[slot]
+    top = min(share, left)
+    if position > 0 and state[kind][position - 1] == state[kind][position]:
+        top = min(top, amounts[slot - 1])
+    for amount in range(top, -1, -1):
+        amounts[slot] = amount
+        recursive_fill(
+            state, slots, after, amounts, slot + 1, left - amount,
+            parts - (1 if amount > 0 else 0), found, budget,
+        )
+    amounts[slot] = 0
+
+
+def walked_topped_up(population, kinds, state, seen, barred, empty, work=None) -> bool:
+    """`parsing._topped_up` as it stood before the repair: every free convention written one at a time.
+
+    ``work`` is accepted and left alone, so this can stand in the shipped
+    walk's place; the pre-repair walk charged a reading one step.
+    """
+    within = (1 << (population + 1)) - 1
+    layers = [1] + [0] * seen
+    for kind in range(len(kinds)):
+        most = kinds[kind][0]
+        loads = state[kind]
+        idle = 0
+        for load in loads:
+            if load == 0:
+                idle += 1
+        if kind == empty:
+            idle = idle - 1
+        for load in loads:
+            if load < 1:
+                continue
+            grown = [0] * (seen + 1)
+            for written in range(seen):
+                if layers[written]:
+                    grown[written + 1] = parsing._spread(layers[written], load, most, barred) & within
+            layers = grown
+        if idle < 1:
+            continue
+        batch = [0] * (seen + 1)
+        for written in range(seen + 1):
+            batch[written] = layers[written]
+        reach = layers
+        for _ in range(min(idle, seen)):
+            step = [0] * (seen + 1)
+            for written in range(seen):
+                if reach[written]:
+                    step[written + 1] = parsing._spread(reach[written], 1, most, barred) & within
+            for written in range(seen + 1):
+                batch[written] = batch[written] | step[written]
+            reach = step
+        layers = batch
+    for written in range(seen + 1):
+        if (layers[written] >> population) & 1:
+            return True
+    return False
+
+
+# -- the columns ------------------------------------------------------------
+
+
+def hours_between(rows: int, seed: int) -> "list[str]":
+    """Hours between two times at second resolution, written in full as Python and pandas write a float."""
+    draw = random.Random(seed)
+    return [repr(draw.randrange(1, 72 * 3600) / 3600) for _cell in range(rows)]
+
+
+# A 1,000-row column of `hours_between` whose fraction widths reach the walk
+# with more widths than the interpreter nests by default (1,014 at seed 1),
+# and the 10,000- and 100,000-row columns of the gate (seed 5000: 9,825
+# widths beside 16 values a reader places, and about 83,000 beside 364).
+NESTED_SEED = 1
+GATE_SEED = 5000
+
+
+# CPython's own recursion limit. Something else in the same process can raise
+# it and leave it raised -- the generation oracle's reference walk sets it to
+# `10 * total + 1000` and keeps it (1,100 in the suite's third shard) -- and a
+# 1,014-wide census then nests under the recursive walk without stopping, so
+# the two tests that need the interpreter's own depth pin it for themselves.
+INTERPRETER_DEFAULT_DEPTH = 1_000
+
+
+@pytest.fixture
+def default_depth():
+    """The interpreter's default recursion limit for one test, and the earlier limit put back after it."""
+    before = sys.getrecursionlimit()
+    sys.setrecursionlimit(INTERPRETER_DEFAULT_DEPTH)
+    try:
+        yield INTERPRETER_DEFAULT_DEPTH
+    finally:
+        sys.setrecursionlimit(before)
+
+
+def _table(folder: pathlib.Path, name: str, cells: "list[str]") -> pathlib.Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{name}.csv"
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("value\n" + "".join(cell + "\n" for cell in cells))
+    return path
+
+
+def _profile(path: pathlib.Path, out: pathlib.Path) -> "tuple[int, str]":
+    """`synthtwin profile` on one table: its exit code and what it said."""
+    out.mkdir(parents=True, exist_ok=True)
+    said = io.StringIO()
+    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+        code = cli.main(["profile", str(path), "--out-dir", str(out), "--replace"])
+    return code, said.getvalue()
+
+
+class _Widest:
+    """Counts the walk's placements, the widest state it placed onto, and its readings' big-number steps."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.placements = 0
+        self.widest = 0
+        self.spreads = 0
+        placements = parsing._placements
+        spread = parsing._spread
+
+        def counted_placements(state, kinds, index, rows, spellings, budget):
+            self.placements += 1
+            self.widest = max(self.widest, sum(len(loads) for loads in state))
+            return placements(state, kinds, index, rows, spellings, budget)
+
+        def counted_spread(sums, low, high, barred):
+            self.spreads += 1
+            return spread(sums, low, high, barred)
+
+        monkeypatch.setattr(parsing, "_placements", counted_placements)
+        monkeypatch.setattr(parsing, "_spread", counted_spread)
+
+
+# -- 1. the walk carries its own stack ---------------------------------------
+
+
+def _fill_shape(draw: random.Random) -> "tuple[tuple[tuple[int, ...], ...], list[tuple[int, ...]], int, int]":
+    """A state of loads over kinds, as `_pool_readings` builds them, and one value's rows and spellings."""
+    kinds: "list[tuple[int, ...]]" = []
+    state: "list[tuple[int, ...]]" = []
+    for _kind in range(draw.randint(1, 4)):
+        most = draw.randint(1, 12)
+        share = draw.randint(0, most)
+        size = draw.choice((1, 2, 3, 5, 9, draw.randint(1, 30)))
+        loads = sorted((draw.randint(0, most) if draw.random() < 0.5 else 0 for _slot in range(size)), reverse=True)
+        kinds += [(most, share)]
+        state += [tuple(loads)]
+    return tuple(state), kinds, draw.randint(0, 25), draw.randint(0, 8)
+
+
+def _slots(state, kinds) -> "tuple[list[tuple[int, int, int]], list[int]]":
+    """`_placements`' table, built as it builds it, for the one value ``kinds`` holds a share of."""
+    slots: "list[tuple[int, int, int]]" = []
+    for kind in range(len(kinds)):
+        for position in range(len(state[kind])):
+            slots += [(kind, position, max(0, min(kinds[kind][0] - state[kind][position], kinds[kind][1])))]
+    after = [0] * (len(slots) + 1)
+    for slot in range(len(slots) - 1, -1, -1):
+        after[slot] = after[slot + 1] + slots[slot][2]
+    return slots, after
+
+
+FILL_SHAPES = 1_500
+FILL_BUDGETS = (20_000, 1_000, 50, 7, 2, 1, 0)
+
+
+def test_the_walk_finds_what_the_recursion_found_at_the_same_cost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same states in the same order, same budget left, the amounts cleared: at every budget.
+
+    The charge this landing added for a state written out is set aside
+    (`POOL_CELLS_A_STEP` made too large to charge anything), so what is
+    compared is the recursion's own accounting, one step per call, at
+    budgets from one most shapes finish under down to none. Mutations:
+    skipping every other amount, or dropping the falling order among
+    conventions of one load, turns it red.
+    """
+    monkeypatch.setattr(parsing, "POOL_CELLS_A_STEP", 10**12)
+    draw = random.Random(20261001)
+    differed: "list[str]" = []
+    spent_out = found_some = 0
+    for _shape in range(FILL_SHAPES):
+        state, kinds, rows, spellings = _fill_shape(draw)
+        slots, after = _slots(state, kinds)
+        for budget in FILL_BUDGETS:
+            here: "dict" = {}
+            there: "dict" = {}
+            budget_here, budget_there = [budget], [budget]
+            amounts_here, amounts_there = [0] * len(slots), [0] * len(slots)
+            parsing._fill(state, slots, after, amounts_here, 0, rows, spellings, here, budget_here)
+            recursive_fill(state, slots, after, amounts_there, 0, rows, spellings, there, budget_there)
+            if list(here) != list(there) or budget_here != budget_there or amounts_here != amounts_there:
+                differed += [f"{kinds} {state} rows {rows} over {spellings} at {budget}: "
+                             f"{len(here)}/{len(there)} states, budget {budget_here}/{budget_there}"]
+            spent_out += budget_there[0] < 1
+            found_some += len(there) > 0
+    assert differed == [], "\n".join(differed[:10])
+    # BOTH ROADS ARE TAKEN OFTEN, or the agreement is about one of them.
+    assert spent_out >= FILL_SHAPES, spent_out
+    assert found_some >= FILL_SHAPES, found_some
+
+
+def test_a_state_written_out_is_charged_its_size() -> None:
+    """One step a call, and one more for every `POOL_CELLS_A_STEP` conventions a state found holds.
+
+    Forty conventions of one kind, none loaded, one value of three rows on
+    one spelling: the walk finds the one state (three rows on the first
+    convention). Mutation: the charge left out turns it red.
+    """
+    state = ((0,) * 40,)
+    kinds = [(10, 10)]
+    slots, after = _slots(state, kinds)
+    budget = [10**9]
+    found: "dict" = {}
+    parsing._fill(state, slots, after, [0] * len(slots), 0, 3, 1, found, budget)
+    plain = [10**9]
+    recursive_fill(state, slots, after, [0] * len(slots), 0, 3, 1, {}, plain)
+    assert list(found) == [((3,) + (0,) * 39,)], list(found)
+    assert plain[0] - budget[0] == len(found) * (40 // parsing.POOL_CELLS_A_STEP), (plain, budget)
+
+
+FILL_SHAPES_CHARGED = 300
+
+
+def test_the_walk_spends_the_recursion_s_steps_with_the_charges_live() -> None:
+    """With two counts, the steps are the recursion's to the step and the charges fall on the work alone.
+
+    The landing's review measured a column whose walk finished in 849,564
+    steps and, with the charges spent against the same count, stopped
+    short at 1,525,694 and described differently. So the walk's own
+    count is compared with the recursion's at the shipped rates, the
+    work given room enough never to stop it. Mutation: a state's charge
+    spent against the steps turns it red.
+    """
+    draw = random.Random(20261002)
+    differed: "list[str]" = []
+    charged = 0
+    for _shape in range(FILL_SHAPES_CHARGED):
+        state, kinds, rows, spellings = _fill_shape(draw)
+        slots, after = _slots(state, kinds)
+        for budget in FILL_BUDGETS:
+            here: "dict" = {}
+            there: "dict" = {}
+            two, plain = [budget, 10**12], [budget]
+            parsing._fill(state, slots, after, [0] * len(slots), 0, rows, spellings, here, two)
+            recursive_fill(state, slots, after, [0] * len(slots), 0, rows, spellings, there, plain)
+            if list(here) != list(there) or two[0] != plain[0]:
+                differed += [f"{kinds} {state} rows {rows} over {spellings} at {budget}: "
+                             f"{len(here)}/{len(there)} states, steps {two[0]}/{plain[0]}"]
+            charged += (10**12 - two[1]) > (budget - plain[0])
+    assert differed == [], "\n".join(differed[:10])
+    # THE CHARGES WERE TAKEN, or the agreement says nothing of them.
+    assert charged >= FILL_SHAPES_CHARGED // 4, charged
+
+
+def test_a_value_s_table_is_charged_its_slots_against_the_work() -> None:
+    """`_placements` charges its table of slots and each state it writes out, on the work count only.
+
+    Eighty conventions of one kind, none loaded, one value of three rows
+    on one spelling: a table of eighty slots, ten more of the work, and
+    the one state found, ten more again -- twenty past the recursion's
+    own steps, which are the steps' count to the step. Mutation: the
+    slots' charge left out takes ten, not twenty, and no other test turns
+    red without it (the landing's review, item 2).
+    """
+    state = ((0,) * 80,)
+    kinds = [(10, 10)]
+    slots, after = _slots(state, kinds)
+    budget = [10**9, 10**9]
+    grown = parsing._placements(state, kinds, 0, 3, 1, budget)
+    plain = [10**9]
+    recursive_fill(state, slots, after, [0] * len(slots), 0, 3, 1, {}, plain)
+    assert grown == [((3,) + (0,) * 79,)], grown
+    assert budget[0] == plain[0], (budget, plain)
+    assert (10**9 - budget[1]) - (10**9 - plain[0]) == 2 * (80 // parsing.POOL_CELLS_A_STEP), (budget, plain)
+
+
+def test_a_reading_is_charged_its_words_against_the_work_and_never_the_steps(monkeypatch) -> None:
+    """A million rows over forty conventions: each reading moves about sixty words a step and is charged them.
+
+    Fifty steps answer the census (no count is in every reading) and two
+    hundred of work do not, so the walk stops short; given work enough,
+    the same fifty steps answer. Mutations (the landing's review, items
+    1 and 2): the words' charge left out answers False under the small
+    ceiling; spent against the steps, it stops short under the large one.
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 50)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 200)
+    assert parsing.mixture_pool_holds(1_000_000, 11, [1_000_000] * 40, 40, (), None) is None
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 10**9)
+    assert parsing.mixture_pool_holds(1_000_000, 11, [1_000_000] * 40, 40, (), None) is False
+
+
+# THE SHAPE THE GUARDS BELOW ARE ASKED OF: a million rows over forty
+# conventions of the full room, no value. Its table, forty cells and
+# forty more, is charged five of the work before a step; at the shipped
+# rates it answers False in seventeen steps and 810 of the work.
+MILLION_OVER_FORTY = (1_000_000, 11, [1_000_000] * 40, 40, (), None)
+
+
+def test_the_table_charged_before_a_step_is_never_taken_of_the_steps(monkeypatch) -> None:
+    """Twelve steps answer the million over forty, the table's five charged to the work alone.
+
+    The landing's review, second round, item 2: the table's charge taken
+    of the steps as well (`[POOL_SEARCH_STEPS - spent, ...]`) needs
+    seventeen and stops short, and no other test turned red on it.
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 12)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 10**9)
+    assert parsing.mixture_pool_holds(*MILLION_OVER_FORTY) is False
+
+
+def test_the_table_charged_before_a_step_is_taken_of_the_work(monkeypatch) -> None:
+    """The million over forty stops short with 809 of the work and answers with 810: 805 the walk's and five the table's.
+
+    The landing's review, second round, item 2: the work's ceiling not
+    lessened by the table's charge answers False at 809 too.
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**9)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 809)
+    assert parsing.mixture_pool_holds(*MILLION_OVER_FORTY) is None
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 810)
+    assert parsing.mixture_pool_holds(*MILLION_OVER_FORTY) is False
+
+
+def test_a_walk_out_of_work_stops_at_its_next_step() -> None:
+    """Steps to spare and three of the work: the table of eighty slots spends ten, and the walk's first step stops it.
+
+    The landing's review, second round, item 2: `_fill` asking only its
+    steps (`if budget[0] >= 1:`) finds the state anyway, in 84 steps.
+    """
+    budget = [10**9, 3]
+    found = parsing._placements(((0,) * 80,), [(10, 10)], 0, 3, 1, budget)
+    assert found == [], found
+    assert 10**9 - budget[0] == 1, budget
+
+
+def test_the_table_is_charged_every_group_handed_in_before_a_step(monkeypatch) -> None:
+    """Forty conventions with nine values of two rows on two spellings stop short at fifty steps; with eight they answer.
+
+    Each value bounds nothing and is dropped before the table is built,
+    but dropping one looks at every convention, so the charge taken
+    before a step counts every group handed in: forty cells by ten is
+    fifty steps, the whole budget. The landing's review, second round,
+    item 2: `mixture_pool_holds` without its own check answers False for
+    both. Producers that hand in only the values that bound something
+    are pinned below (`taxonomy._width_bounds`).
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 50)
+    free = ((2, 2, (2,) * 40),)
+    assert parsing.mixture_pool_holds(1000, 11, [1000] * 40, 40, free * 9, None) is None
+    assert parsing.mixture_pool_holds(1000, 11, [1000] * 40, 40, free * 8, None) is False
+
+
+# A LEAF OF THE WALK ASKS ONE READING FOR EVERY COUNT UNDER THE LINE (the
+# Codex review of 3b-R0, item 1). At a floor raised with the rows that is
+# hundreds of thousands of readings in one leaf, and the budgets were asked
+# only after all of them: 1,000,001 cells of `i.5` and `i.50` at
+# `--smallest-group 500001` took a reading after 4,000,061 of the work.
+# Three conventions of 1,999 under a line of 2,000 hold 3,000 rows every
+# way but one, so a leaf of this pool asks about 2,000 readings and answers
+# True after them.
+RAISED_FLOOR = (3000, 2000, [2999] * 3, 3, (), None)
+
+
+def _counting_readings(monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
+    """Counts `_topped_up`'s readings, and the most of the work any walk had spent when it started one.
+
+    The work is charged here as `_pool_readings` charges it, one a
+    reading and one more for every `POOL_WORDS_A_STEP` words its
+    big-number steps move, from the table the walk is charged before a
+    step; this shape hands in no value, so no placement is charged.
+    """
+    tally = {"readings": 0, "spent": 0, "most_spent_at_a_reading": 0, "walks": 0}
+    walk = parsing._pool_readings
+    reading = parsing._topped_up
+
+    def counted_walk(population, held, seen, groups, line, shown=False, spent=0):
+        tally["walks"] += 1
+        tally["spent"] = spent
+        return walk(population, held, seen, groups, line, shown, spent)
+
+    def counted_reading(population, kinds, state, seen, barred, empty, work=None):
+        tally["most_spent_at_a_reading"] = max(tally["most_spent_at_a_reading"], tally["spent"])
+        tally["readings"] += 1
+        before = work[0] if work is not None else 0
+        answer = reading(population, kinds, state, seen, barred, empty, work)
+        moved = (work[0] - before) if work is not None else 0
+        tally["spent"] += 1 + moved // parsing.POOL_WORDS_A_STEP
+        return answer
+
+    monkeypatch.setattr(parsing, "_pool_readings", counted_walk)
+    monkeypatch.setattr(parsing, "_topped_up", counted_reading)
+    return tally
+
+
+def test_a_leaf_s_readings_stop_when_the_steps_run_out(monkeypatch) -> None:
+    """A hundred steps and about 2,000 readings in one leaf: the walk stops short after the hundredth, never answering True.
+
+    The Codex review of 3b-R0, item 1. Mutation: the steps asked only
+    after the leaf (110cb46) takes every reading and answers True.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 100)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 10**9)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is None
+    assert tally["readings"] == 100, tally
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**6)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is True
+
+
+def test_a_leaf_s_readings_stop_when_the_work_runs_out(monkeypatch) -> None:
+    """Steps to spare and a hundred of the work: no reading is started once the work is spent, and True is never accepted past it.
+
+    The Codex review of 3b-R0, item 1: the work asked between readings
+    and before the answer is taken. Mutation: the work asked only after
+    the leaf (110cb46) takes every reading and answers True.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**6)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 100)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is None
+    assert tally["most_spent_at_a_reading"] < 100, tally
+    assert tally["readings"] <= 100, tally
+
+
+def test_a_raised_floor_over_values_written_two_ways_is_bounded_in_work(tmp_path, monkeypatch) -> None:
+    """10,001 cells of `i.5` and `i.50` at `--smallest-group 5001`: no walk starts a reading past its work.
+
+    The shape the Codex review of 3b-R0, item 1 measured at 1,000,001
+    cells and the shipped ceiling, where a walk took 62,500 readings and
+    then another past 4,000,061 of the work and the CPU seconds grew with
+    the square of the rows; here at a ceiling of 3,000, which its leaf of
+    5,000 readings passes, so the test takes a second. The census is then
+    counted at one width, the stop-short answer. Mutation: the budgets
+    asked only after the leaf (110cb46) starts readings past 3,000.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 3000)
+    path = _table(tmp_path / "in", "pairs", values_written_two_ways(5000))
+    out = tmp_path / "out"
+    out.mkdir(parents=True)
+    said = io.StringIO()
+    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+        code = cli.main(["profile", str(path), "--out-dir", str(out), "--replace", "--smallest-group", "5001"])
+    assert code == 0, said.getvalue()
+    assert tally["walks"] > 0 and tally["readings"] > 0, tally
+    assert tally["most_spent_at_a_reading"] < 3000, tally
+    block = json.loads((out / "pairs-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert taxonomy.SUPPRESSED_LABEL not in block["fraction_widths"], block["fraction_widths"]
+
+
+def test_the_walk_can_never_reach_itself() -> None:
+    """Read off the source: `_fill` names no function that names `_fill`.
+
+    The defect counted directly rather than its symptom, as
+    `tests/test_tail_back_solve_without_recursion.py` counts it for the
+    tail's walk: a test that only described a wide census would go quiet
+    the day the census changed shape.
+    """
+    tree = ast.parse(pathlib.Path(parsing.__file__).resolve().read_text(encoding="utf-8"))
+    walk = ("_fill", "_placements", "_pool_readings", "_topped_up", "_free_totals", "_spread_over",
+            "_strided", "_total_among", "_charged")
+    names: "dict[str, set[str]]" = {name: set() for name in walk}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name in names:
+            for inner in ast.walk(node):
+                if isinstance(inner, ast.Name) and inner.id in names and inner.id != node.name:
+                    names[node.name] = names[node.name] | {inner.id}
+                if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Name) and inner.func.id == node.name:
+                    names[node.name] = names[node.name] | {node.name}
+    for start in walk:
+        reached = set(names[start])
+        while True:
+            onward = set(reached)
+            for name in reached:
+                onward = onward | names[name]
+            if onward == reached:
+                break
+            reached = onward
+        assert start not in reached, f"{start} reaches itself through {sorted(reached)}"
+
+
+# -- 2. a reading of the free cells is a sum -----------------------------------
+
+
+def _reading_case(draw: random.Random) -> "tuple[int, list[tuple[int, ...]], tuple[tuple[int, ...], ...], int, int, int]":
+    """One reading `_pool_readings` can ask: kinds of capacities under a line, loads, the room, a barred count, a kind to leave empty."""
+    line = draw.choice((2, 3, 4, 5, 6, 11, 12))
+    kinds: "list[tuple[int, ...]]" = []
+    state: "list[tuple[int, ...]]" = []
+    for _kind in range(draw.randint(1, 5)):
+        most = line - 1 if draw.random() < 0.7 else draw.randint(1, line - 1)
+        size = draw.choice((1, 1, 2, 3, 5, 8, draw.randint(1, 24), draw.randint(20, 60)))
+        loads = sorted((draw.randint(1, most) if draw.random() < 0.3 else 0 for _slot in range(size)), reverse=True)
+        kinds += [(most,)]
+        state += [tuple(loads)]
+    total = sum(len(loads) for loads in state)
+    seen = draw.randint(0, total + 2)
+    population = draw.randint(1, 10 * (line - 1) + 30)
+    barred = draw.choice((-1, -1) + tuple(range(1, line)))
+    empty = -1
+    if draw.random() < 0.4:
+        open_kinds = [kind for kind in range(len(state)) if state[kind][len(state[kind]) - 1] == 0]
+        if open_kinds:
+            empty = draw.choice(open_kinds)
+    return population, kinds, tuple(state), seen, barred, empty
+
+
+READINGS = 6_000
+
+
+def test_the_sum_answers_what_the_walk_over_every_free_convention_answered() -> None:
+    """Seeded readings, every capacity, room and barred count: the same truth value.
+
+    The family reaches every road of the sum -- one capacity of free
+    conventions or several, a room that holds them all or one too small
+    for them, a barred count at either end of the counts or inside them,
+    a kind with one convention left empty -- and both answers often.
+    Mutations: `_free_totals` holding ``count * most - 1`` where the
+    barred count is ``most - 1``; reading the largest pool with the whole
+    room where another pool already spent some of it; a loaded convention
+    allowed past ``seen``: each turns it red.
+    """
+    draw = random.Random(20261002)
+    differed: "list[str]" = []
+    held = bound = several = 0
+    for _case in range(READINGS):
+        case = _reading_case(draw)
+        shipped = parsing._topped_up(*case)
+        walked = walked_topped_up(*case)
+        if shipped != walked:
+            differed += [f"{case}: {shipped} where the walk read {walked}"]
+        held += walked
+        population, kinds, state, seen, _barred, _empty = case
+        idle = sum(1 for loads in state for load in loads if load == 0)
+        loaded = sum(1 for loads in state for load in loads if load > 0)
+        bound += 0 < seen - loaded < idle
+        several += len({kinds[kind][0] for kind in range(len(kinds)) if 0 in state[kind]}) > 1
+    assert differed == [], "\n".join(differed[:10])
+    assert READINGS // 10 <= held <= READINGS - READINGS // 10, held
+    assert bound >= READINGS // 10, bound
+    assert several >= READINGS // 10, several
+
+
+def _held_by(most: int, barred: int, count: int, ceiling: int) -> "set[int]":
+    """Every total ``count`` or fewer free conventions hold, found by writing them one at a time."""
+    counts = [value for value in range(1, most + 1) if value != barred]
+    reach = 1
+    every = 1
+    mask = (1 << (ceiling + 1)) - 1
+    for _convention in range(count):
+        moved = 0
+        for value in counts:
+            moved = moved | (reach << value)
+        reach = moved & mask
+        every = every | reach
+    return {total for total in range(ceiling + 1) if (every >> total) & 1}
+
+
+def _runs_hold(runs: "list[tuple[int, int]]", stride: int, ceiling: int) -> "set[int]":
+    held: "set[int]" = set()
+    for low, high in runs:
+        for total in range(low, min(high, ceiling) + 1, stride):
+            held.add(total)
+    return held
+
+
+def test_the_free_totals_are_every_total_the_free_conventions_hold() -> None:
+    """Every capacity to fifteen, every barred count, every number of conventions to thirty-nine.
+
+    The closed forms `parsing._free_totals` returns, against the totals
+    written out one convention at a time. Mutation: dropping the barred
+    count's own run where only one convention is written, or the lone
+    total the top loses where the barred count is one below it, turns it
+    red.
+    """
+    differed: "list[str]" = []
+    for most in range(1, 16):
+        for barred in [-1, 0] + list(range(1, 18)):
+            for count in range(0, 40):
+                ceiling = count * most + 2
+                runs, stride = parsing._free_totals(most, barred, count)
+                if _runs_hold(runs, stride, ceiling) != _held_by(most, barred, count, ceiling):
+                    differed += [f"capacity {most}, barred {barred}, {count} conventions: {runs} by {stride}"]
+    assert differed == [], "\n".join(differed[:10])
+
+
+# -- 3. a census wider than the interpreter can nest ---------------------------
+
+
+def test_a_census_wider_than_the_interpreter_can_nest_describes(tmp_path, monkeypatch, default_depth) -> None:
+    """The regression: the whole command, on hours between two times written in full.
+
+    The column's fraction widths are one pool beside more widths than
+    the interpreter's default recursion limit, so the pre-repair walk nested past it on
+    every reading; the walk is counted to show it was reached that wide.
+    """
+    counted = _Widest(monkeypatch)
+    path = _table(tmp_path / "in", "hours", hours_between(1000, NESTED_SEED))
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 0, said
+    assert counted.widest > default_depth == sys.getrecursionlimit(), (counted.widest, sys.getrecursionlimit())
+    block = json.loads((tmp_path / "out" / "hours-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert block["role"] == taxonomy.ROLE_CONTINUOUS, block["role"]
+    assert block["fraction_widths"], block["fraction_widths"]
+
+
+def test_the_same_column_under_the_recursive_walk_ends_in_a_sentence(tmp_path, monkeypatch, default_depth) -> None:
+    """RED CHECK, and the message: put the old walk back and the command stops, in words.
+
+    Without it the test above says only that a table describes. And the
+    stop is the catalogue's sentence on the error stream with the exit
+    code of a refusal, never a stack trace: a step that still nests too
+    deep ends the run the way every other refusal does.
+    """
+    monkeypatch.setattr(parsing, "_fill", recursive_fill)
+    path = _table(tmp_path / "in", "hours", hours_between(1000, NESTED_SEED))
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 1, said
+    assert errors.stopped_nested_too_deep(str(path)) in said, said
+    assert "Traceback" not in said and "RecursionError" not in said, said
+    assert not (tmp_path / "out" / "hours-profile.json").exists()
+
+
+@pytest.mark.parametrize("command", ("generate", "validate"))
+def test_a_step_nesting_too_deep_in_the_other_commands_ends_in_a_sentence(command, tmp_path, monkeypatch) -> None:
+    """The same sentence for a twin being built and a file being checked, on the description the person typed."""
+    path = _table(tmp_path / "in", "hours", hours_between(200, NESTED_SEED))
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 0, said
+    described = tmp_path / "out" / "hours-profile.json"
+
+    def too_deep(*_arguments: object, **_keywords: object) -> None:
+        raise RecursionError("maximum recursion depth exceeded")
+
+    if command == "generate":
+        monkeypatch.setattr(generation, "generate", too_deep)
+        argv = ["generate", str(described), "--seed", "0", "--out-dir", str(tmp_path / "twin")]
+    else:
+        monkeypatch.setattr(validation, "measure", too_deep)
+        argv = ["validate", str(described), "--twin", str(path), "--out-dir", str(tmp_path / "check")]
+    (tmp_path / "twin").mkdir()
+    (tmp_path / "check").mkdir()
+    heard = io.StringIO()
+    with contextlib.redirect_stdout(heard), contextlib.redirect_stderr(heard):
+        code = cli.main(argv)
+    assert code == 1, heard.getvalue()
+    assert errors.stopped_nested_too_deep(str(described)) in heard.getvalue(), heard.getvalue()
+    assert "Traceback" not in heard.getvalue(), heard.getvalue()
+
+
+# -- 4. the description is the pre-repair walk's own --------------------------
+
+
+def test_the_description_is_the_one_the_walk_over_every_free_convention_gives(tmp_path, monkeypatch) -> None:
+    """Byte for byte, against the pre-repair accounting and the pre-repair reading of the free cells.
+
+    The shipped run, then the same command with `_topped_up` replaced by
+    the pre-repair text and both work charges set aside, so every step
+    costs one as it did: the walk then answers exactly as the pre-repair
+    walk answered (its `_fill` is proved equal above). Both describe the
+    column the same.
+    """
+    path = _table(tmp_path / "in", "hours", hours_between(1000, NESTED_SEED))
+    code, said = _profile(path, tmp_path / "shipped")
+    assert code == 0, said
+    monkeypatch.setattr(parsing, "_topped_up", walked_topped_up)
+    monkeypatch.setattr(parsing, "POOL_CELLS_A_STEP", 10**12)
+    monkeypatch.setattr(parsing, "POOL_WORDS_A_STEP", 10**12)
+    code, said = _profile(path, tmp_path / "walked")
+    assert code == 0, said
+    for name in ("hours-profile.json", "hours-profile.txt", "hours-questions.json"):
+        shipped = (tmp_path / "shipped" / name).read_bytes()
+        walked = (tmp_path / "walked" / name).read_bytes()
+        assert shipped == walked, name
+
+
+def whole_numbers_and_quotients(rows: int, seed: int) -> "list[str]":
+    """Whole numbers beside quotients written in full: `str(randrange(1, 300))` two cells in five, else `repr(n / d)`."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _cell in range(rows):
+        if draw.random() < 0.4:
+            cells += [str(draw.randrange(1, 300))]
+        else:
+            cells += [repr(draw.randrange(1, 3000) / draw.choice((3, 7, 9, 11)))]
+    return cells
+
+
+# THE FILES 668f276 WROTE for that column at 1,000 rows, seed 8101, with
+# the interpreter's own recursion limit (it finished there): `synthtwin
+# profile`, then `generate --seed 0` on its description. sha256 of each.
+MIXED_SEED = 8101
+# THE DESCRIPTION'S DIGEST RE-RECORDED AT THE MERGE OF 3b.R0 (2026-10-02):
+# landing T1's settings block gains `forced_twelve_hour_clocks`, empty, and
+# that line is the whole of the difference from 668f276's file (diffed on
+# the merged tree), which hashed to ca9d1321...7d14ae. The other four
+# files are 668f276's byte for byte.
+# AND RE-RECORDED BY PLAN P4-D386 (the second key cut): the settings block
+# gains `century_windows`, `forced_date_columns` and `forced_date_counts`,
+# each empty (the column is numbers, so no block gains `count_form`); the
+# same bytes with those three taken out hash to 93996a59...5344cc, the
+# digest on 110cb46. The other four files did not move.
+MIXED_AT_668F276 = {
+    "mixed-1000-s1-profile.json": "4c31290cc223df3d9b92e42780ddbfe3ab86320bd6a12de702c4b7ca18987408",
+    "mixed-1000-s1-profile.txt": "1a615c0070fd7173faa26a3fa86ad6307232bb9d997c4514bbd2ecfbe2bddeed",
+    "mixed-1000-s1-questions.json": "a2364bd076a58f8eaf80aa5517a7d8b90438652e98022ee7b19523973bc30c47",
+    "mixed-1000-s1-twin.csv": "fcae8034d6551018be81752c89d66faff8d7589e764565b89225cc9bde9d235a",
+    "mixed-1000-s1-twin-report.txt": "03fb04b18cfefb7f15cb60309a209342d9e7a3a7166b923e868b6e05594bd213",
+}
+
+
+def test_a_walk_the_old_code_finished_describes_as_it_did(tmp_path) -> None:
+    """The landing's review, item 1: the five files 668f276 wrote for this column, byte for byte.
+
+    Its fraction widths are one pool of 605. The walk asked from
+    `taxonomy._end_pool_band` finishes in 849,564 steps and shows the
+    pool may stand; with the work charged against those steps it
+    reached 1,525,694, stopped short, and the census was counted at one
+    width of 16 -- a twin of 604 decimals at sixteen figures. Mutation:
+    the charges spent against the steps turn every file red.
+    """
+    import hashlib
+
+    folder = tmp_path / "in"
+    folder.mkdir()
+    path = folder / "mixed-1000-s1.csv"
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("x\n" + "".join(cell + "\n" for cell in whole_numbers_and_quotients(1000, MIXED_SEED)))
+    out = tmp_path / "out"
+    code, said = _profile(path, out)
+    assert code == 0, said
+    block = json.loads((out / "mixed-1000-s1-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert block["fraction_widths"] == {taxonomy.SUPPRESSED_LABEL: 605}, block["fraction_widths"]
+    heard = io.StringIO()
+    with contextlib.redirect_stdout(heard), contextlib.redirect_stderr(heard):
+        assert cli.main(["generate", str(out / "mixed-1000-s1-profile.json"), "--seed", "0",
+                         "--out-dir", str(out), "--replace"]) == 0, heard.getvalue()
+    differed: "list[str]" = []
+    for name, digest in MIXED_AT_668F276.items():
+        if hashlib.sha256((out / name).read_bytes()).hexdigest() != digest:
+            differed += [name]
+    assert differed == [], differed
+
+
+
+def values_written_two_ways(values: int) -> "list[str]":
+    """Each of ``values`` values written once as `i.5` and once as `i.50`, beside one `0.125`, shuffled by the count."""
+    cells: "list[str]" = []
+    for value in range(values):
+        cells += [f"{value}.5", f"{value}.50"]
+    cells += ["0.125"]
+    random.Random(values).shuffle(cells)
+    return cells
+
+
+def test_values_free_on_every_width_are_not_charged_for_the_table(tmp_path) -> None:
+    """25,001 rows of values each written two ways keep their fraction widths one pool.
+
+    The landing's review, second round, item 1. Every value of two rows
+    wears both its spellings and is no narrower than the narrowest
+    width, so it bounds nothing and the walk drops it before building
+    its table; charged anyway, 12,500 values over about 25,000 widths
+    were past the whole budget before a step, and the census was counted
+    at one width, `{"3": 25001}`, where the walk with no charge shows the
+    pool standing. Mutation: `taxonomy._width_bounds` counting such a
+    value turns it red.
+    """
+    path = _table(tmp_path / "in", "pairs", values_written_two_ways(12_500))
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 0, said
+    block = json.loads((tmp_path / "out" / "pairs-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert block["fraction_widths"] == {taxonomy.SUPPRESSED_LABEL: 25_001}, block["fraction_widths"]
+
+
+def test_the_census_of_widths_hands_on_only_values_a_reader_places() -> None:
+    """6,000 values written once and 3,000 written twice the same way: no group unplaced, a table past the budget placed.
+
+    The 3,000 each wear one spelling of two rows, so each bounds
+    something where a reader places it. None placed, the groups are
+    none of them and the table is small; all placed, 9,002 widths by
+    3,001 is past the budget and the groups are None, never built. The
+    landing's review, second round, item 2. Mutations: counting a value
+    no reader places gives None for the first; building the table
+    whatever its size gives groups for the second.
+    """
+    from types import SimpleNamespace
+
+    counted: "list" = []
+    for value in range(6000):
+        counted += [(SimpleNamespace(numeric_text=f"{value}.123", value=value + 0.123), 3, 3)]
+    for value in range(3000):
+        for _row in range(2):
+            counted += [(SimpleNamespace(numeric_text=f"{value}.25", value=value + 0.25), 2, 2)]
+    room, capacities, groups = taxonomy._width_bounds(counted, {})
+    assert groups == (), groups
+    assert room == 9000 and len(capacities) == 9002, (room, len(capacities))
+    placed = {value + 0.25: True for value in range(3000)}
+    assert taxonomy._width_bounds(counted, placed)[2] is None
+
+
+# -- 5. the gate: 10,000 and 100,000 rows ----------------------------------------
+
+# The most big-number steps the readings of the 10,000-row column may take
+# in all, across the four times the census is asked. Measured at 820; the
+# pre-repair readings of one 3,000-row column took about 1.5 million.
+SPREADS_AT_TEN_THOUSAND = 4_000
+
+# The seconds each size may take to describe on the quiet reference
+# machine, judged only there (`kpi_rules.seconds_judged_here`).
+SECONDS = {10_000: 30.0, 100_000: 120.0}
+
+
+@pytest.mark.parametrize("rows", (10_000, 100_000))
+def test_computed_numbers_describe_at_ten_thousand_and_a_hundred_thousand_rows(rows, tmp_path, monkeypatch) -> None:
+    """The gate: no stack trace, the stop-short answer standing, the work counted, the seconds judged where they are.
+
+    At 10,000 rows the walk is taken and spends its budget, and its
+    readings are a few big-number steps each. At 100,000 rows the table
+    of about 83,000 widths beside 364 values is more than the whole
+    budget before a step, so it is never built (`taxonomy._width_bounds`
+    gives no groups, the landing's review, item 3), no step is taken and
+    the census is counted at one width at once. Mutations: the pre-repair
+    reading of the free cells takes the 10,000-row column past the bound
+    on big-number steps; `parsing.pool_table_too_large` never true puts
+    the 100,000-row column's widths into the walk and builds the table.
+    """
+    counted = _Widest(monkeypatch)
+    bounds = taxonomy._width_bounds
+    built: "list[bool]" = []
+
+    def counted_bounds(*arguments):
+        nonlocal built
+        answer = bounds(*arguments)
+        built += [answer[2] is not None]
+        return answer
+
+    monkeypatch.setattr(taxonomy, "_width_bounds", counted_bounds)
+    path = _table(tmp_path / "in", "hours", hours_between(rows, GATE_SEED))
+    started = time.perf_counter()
+    code, said = _profile(path, tmp_path / "out")
+    seconds = time.perf_counter() - started
+    assert code == 0, said
+    block = json.loads((tmp_path / "out" / "hours-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert block["role"] == taxonomy.ROLE_CONTINUOUS, block["role"]
+    widths = block["fraction_widths"]
+    assert len(widths) == 1 and taxonomy.SUPPRESSED_LABEL not in widths, widths
+    assert sum(widths.values()) == rows, widths
+    if rows == 10_000:
+        assert counted.widest > rows // 2, counted.widest
+        assert counted.spreads <= SPREADS_AT_TEN_THOUSAND, counted.spreads
+        assert built and all(built), built
+    else:
+        assert counted.widest < rows // 2, counted.widest
+        assert built and not any(built), built
+    judged, why = kpi_rules.seconds_judged_here(kpi_rules.load_ledger())
+    if judged:
+        assert seconds < SECONDS[rows], seconds
+    else:
+        print(f"{rows} rows described in {seconds:.1f} s, reported and not judged here: {why}")
+
+
+# -- 6. a column nothing reads is split once per different text ---------------
+
+
+def oracle_timestamps(rows: int, seed: int) -> "list[str]":
+    """Oracle TIMESTAMP spellings with a zone word, `18-SEP-21 09.51.52.229882 PM EST`: a column no reader reads.
+
+    Landing R2b's layout reads Oracle's TIMESTAMP itself (plan P4-D383), so
+    the zone abbreviation after it, which no layout reads, keeps this a
+    column nothing reads, split as it was.
+    """
+    draw = random.Random(seed)
+    months = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+    cells: "list[str]" = []
+    for _cell in range(rows):
+        cells += [
+            f"{draw.randint(1, 28):02d}-{months[draw.randrange(12)]}-{draw.randint(19, 24):02d} "
+            f"{draw.randint(1, 12):02d}.{draw.randint(0, 59):02d}.{draw.randint(0, 59):02d}."
+            f"{draw.randrange(1000000):06d} {draw.choice(('AM', 'PM'))} EST"
+        ]
+    return cells
+
+
+def test_a_column_nothing_reads_is_split_once_per_different_text(tmp_path, monkeypatch) -> None:
+    """One `affixed_split` per different text across the census's reading and the description's, and the same files.
+
+    Counted through the command, where the census reads the column first
+    and the description takes its kept reading over. Then the same run
+    with every split worked out afresh, as before: the description and
+    the twin are the same bytes. Mutation: `_split_once` not keeping its
+    answer turns the count red at sixteen a text.
+    """
+    cells = oracle_timestamps(1000, 7)
+    path = _table(tmp_path / "in", "stamps", cells)
+    splits = {"calls": 0}
+    split = taxonomy.affixed_split
+
+    def counted_split(text, decimal_comma=False):
+        splits["calls"] += 1
+        return split(text, decimal_comma)
+
+    monkeypatch.setattr(taxonomy, "affixed_split", counted_split)
+    code, said = _profile(path, tmp_path / "once")
+    assert code == 0, said
+    assert splits["calls"] == len(set(cells)), (splits["calls"], len(set(cells)))
+    monkeypatch.setattr(taxonomy, "_split_once", lambda cells_, text: split(text, cells_.decimal_comma))
+    code, said = _profile(path, tmp_path / "afresh")
+    assert code == 0, said
+    for name in ("stamps-profile.json", "stamps-profile.txt", "stamps-questions.json"):
+        assert (tmp_path / "once" / name).read_bytes() == (tmp_path / "afresh" / name).read_bytes(), name
+    twins = {}
+    for run in ("once", "afresh"):
+        heard = io.StringIO()
+        with contextlib.redirect_stdout(heard), contextlib.redirect_stderr(heard):
+            assert cli.main(["generate", str(tmp_path / run / "stamps-profile.json"), "--seed", "4",
+                             "--out-dir", str(tmp_path / run), "--replace"]) == 0, heard.getvalue()
+        written = sorted((tmp_path / run).glob("*-twin.csv"))
+        assert len(written) == 1, written
+        twins[run] = written[0].read_bytes()
+    assert twins["once"] == twins["afresh"]
+
+
+def test_a_copy_of_a_reading_keeps_its_splits() -> None:
+    """The kept reading `profile_column` takes over is a `dataclasses.replace` copy, and it shares the answers.
+
+    And a reading under the other grammar never reads them: the answers
+    are kept by grammar. Mutation: the memo keyed by text alone turns the
+    second half red.
+    """
+    import dataclasses
+
+    settings = taxonomy.Settings()
+    cells = taxonomy._tally(taxonomy._classify_all(["5 mg", "7 mg", "5,5 mg"]), 3, settings)
+    assert taxonomy._split_once(cells, "5,5 mg") == taxonomy.affixed_split("5,5 mg", False)
+    copied = dataclasses.replace(cells, settings=taxonomy.Settings(small_cell_floor=3))
+    assert copied.affixes is cells.affixes
+    declared = dataclasses.replace(cells, decimal_comma=True)
+    assert taxonomy._split_once(declared, "5,5 mg") == taxonomy.affixed_split("5,5 mg", True)
+    assert taxonomy._split_once(cells, "5,5 mg") == taxonomy.affixed_split("5,5 mg", False)
+
+
+# -- 7. the first split of a distinct text is bounded (Codex, 3b-R0, item 2) --
+
+
+def every_substring_split(text: str, decimal_comma: bool = False) -> "tuple[str, str, str] | None":
+    """`taxonomy.affixed_split` as it stood on 110cb46: every substring of every span asked, longest and leftmost kept.
+
+    VERBATIM but for its name and for naming `taxonomy`'s helpers through
+    the module: the reference the single-pass search is proved against.
+    """
+    trimmed = parsing.trimmed(text)
+    best_start = -1
+    best_length = 0
+    for span_start, span_stop in taxonomy._core_spans(trimmed):
+        for begin in range(span_start, span_stop):
+            if span_stop - begin <= best_length:
+                break
+            for end in range(span_stop, begin + best_length, -1):
+                if taxonomy._reads_as_a_number(trimmed[begin:end], decimal_comma):
+                    best_start, best_length = begin, end - begin
+                    break
+    if best_length <= 0:
+        return None
+    prefix = trimmed[:best_start]
+    core = trimmed[best_start : best_start + best_length]
+    suffix = trimmed[best_start + best_length :]
+    while core and parsing.trimmed(core[:1]) == "":
+        prefix = prefix + core[:1]
+        core = core[1:]
+    while core and parsing.trimmed(core[-1:]) == "":
+        suffix = core[-1:] + suffix
+        core = core[:-1]
+    if not core:
+        return None
+    if not prefix and not suffix:
+        return None
+    return prefix, core, suffix
+
+
+class _TooManyAsks(Exception):
+    """Raised by the counted classifier past its cap, so the search over every substring fails in a moment."""
+
+
+def _counting_asks(monkeypatch: pytest.MonkeyPatch, cap: int) -> "dict[str, int]":
+    """Counts `taxonomy._reads_as_a_number`, raising past ``cap`` asks."""
+    asked = {"asks": 0, "characters": 0}
+    reads = taxonomy._reads_as_a_number
+
+    def counted(text, decimal_comma):
+        asked["asks"] += 1
+        asked["characters"] += len(text)
+        if asked["asks"] > cap:
+            raise _TooManyAsks(asked["asks"])
+        return reads(text, decimal_comma)
+
+    monkeypatch.setattr(taxonomy, "_reads_as_a_number", counted)
+    return asked
+
+
+def long_runs(length: int, seed: int) -> "dict[str, str]":
+    """Long runs of the characters a number is written with, none or few of them a long number."""
+    draw = random.Random(seed)
+    readings = " ".join(str(draw.randint(40, 180)) for _ in range(length // 3))
+    return {
+        "signs": "+" * length + "x",
+        "minus signs": "−" * length + " mg",
+        "alternating signs": "+-" * (length // 2) + "x",
+        "brackets": "(" * length + "x",
+        "closing brackets": "x" + ")" * length,
+        "points": "." * length + "x",
+        "commas": "x" + "," * length,
+        "apostrophes": "'" * length + "x",
+        "exponent letters": "e" * length + "x",
+        "spaces": "a" + " " * length + "b",
+        "figures and commas": "1," * (length // 2) + "x",
+        "figures and points": "1." * (length // 2) + "x",
+        "bracketed figures": "(1" * (length // 2) + "x",
+        "signed figures": "-1" * (length // 2) + "x",
+        "readings parted by spaces": readings + " mmHg",
+        "every character": "".join(draw.choice("0123456789+-.,()eE'’− ") for _ in range(length)) + "x",
+    }
+
+
+@pytest.mark.parametrize("decimal_comma", (False, True))
+def test_a_long_distinct_run_asks_the_classifier_a_few_times(decimal_comma, monkeypatch) -> None:
+    """Runs of 800 characters ask `_reads_as_a_number` fewer times than they have characters, and take a moment.
+
+    The Codex review of 3b-R0, item 2: `+` 800 times and an `x` asked
+    320,400 substrings in about eleven CPU seconds to answer None, and a
+    column of distinct annotations asked again for each. Mutation: the
+    search over every substring (110cb46) passes the cap of 800 asks on
+    the first run.
+    """
+    started = time.process_time()
+    for name, text in long_runs(800, 3).items():
+        asked = _counting_asks(monkeypatch, len(text))
+        taxonomy.affixed_split(text, decimal_comma)
+        assert asked["asks"] <= len(text), (name, asked)
+    seconds = time.process_time() - started
+    judged, why = kpi_rules.seconds_judged_here(kpi_rules.load_ledger())
+    if judged:
+        assert seconds < 2.0, seconds
+    else:
+        print(f"sixteen runs of 800 searched in {seconds:.2f} CPU s, reported and not judged here: {why}")
+
+
+def _split_cases(draw: random.Random) -> str:
+    """A short text of the characters a number is written with, figures and letters: the search's every road."""
+    alphabet = list("0123456789") * 3 + list("+-.,()eE'’−") + [" ", " ", "\t", " ", " ", " ", " ", "x"]
+    pieces = ["1", "12", "123", "1234", "0", "000", ",", ".", "e", "E", "-", "+", "−", "(", ")", " ", "'",
+              "’", " ", "e-", "e+", ",123", " 123", "99999", "x", "mg", " %", "$", "\t"]
+    if draw.random() < 0.5:
+        return "".join(draw.choice(alphabet) for _ in range(draw.randint(1, 14)))
+    return "".join(draw.choice(pieces) for _ in range(draw.randint(1, 8)))
+
+
+def test_the_single_pass_search_answers_what_every_substring_answered() -> None:
+    """6,000 seeded texts under both grammars, and texts at the edges of binary64's range, split as 110cb46 split them.
+
+    Every condition `_core_reach` stops or skips on is one every number
+    meets, so the longest and leftmost core is the one the search over
+    every substring found. Measured besides on 600,000 such texts and
+    600 texts of 300 to 330 figures under both grammars, grouped and
+    bracketed among them, with none apart. Mutations: a group
+    of thousands of two figures taken, the bracket's inner trailing
+    space refused, an exponent's sign read only after a lower-case `e`,
+    and either magnitude past the range read one figure early, each
+    part the two here.
+    """
+    draw = random.Random(380)
+    for _case in range(6000):
+        text = _split_cases(draw)
+        for decimal_comma in (False, True):
+            assert taxonomy.affixed_split(text, decimal_comma) == every_substring_split(text, decimal_comma), (
+                text, decimal_comma)
+    edges = [
+        "x" + "1" + "0" * 308 + " mg",
+        "x" + "9" * 309 + " mg",
+        "$" + "1" + "0" * 309 + "e-5x",
+        "a 0." + "0" * 323 + "5 mg",
+        "a 0." + "0" * 324 + "5 mg",
+        "x 1e" + "9" * 7 + " y",
+        "x 0e" + "9" * 8 + " y",
+        "x 5e-0000123456 y",
+    ]
+    for text in edges:
+        for decimal_comma in (False,):
+            assert taxonomy.affixed_split(text, decimal_comma) == every_substring_split(text, decimal_comma), (
+                text[:40], decimal_comma)
+
+
+def test_a_column_of_distinct_long_annotations_describes_with_few_asks(tmp_path, monkeypatch) -> None:
+    """A hundred rows, each a different run of signs and an `x`: described through the command, the classifier asked a few times a row.
+
+    The Codex review of 3b-R0, item 2, which stopped a 100-row
+    `profile_column` probe after 10,000 candidate checks. Mutation: the
+    search over every substring (110cb46) passes the cap.
+    """
+    cells = [f"{'+' * (400 + row)}x" for row in range(50)] + [f"{'(1' * (200 + row)} mg" for row in range(50)]
+    asked = _counting_asks(monkeypatch, 10_000)
+    path = _table(tmp_path / "in", "notes", cells)
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 0, said
+    assert asked["asks"] < 10_000, asked
+    assert (tmp_path / "out" / "notes-profile.json").exists()
+
+
+def test_a_search_past_its_bound_stops_the_run_with_a_sentence(tmp_path, monkeypatch) -> None:
+    """A bound of 50,000 characters and a cell of 3,000 nines and `e5x`: the run stops, says why, and writes nothing.
+
+    The Codex review of 3b-R0, item 2: where the search cannot answer in
+    a bounded time it refuses in a sentence, never answers otherwise.
+    The column's other cells search well within it. Mutation: the bound
+    never asked (110cb46) describes the column.
+    """
+    monkeypatch.setattr(taxonomy, "SPLIT_SEARCH_CHARACTERS", 50_000)
+    cells = [f"{row % 90 + 10} mg" for row in range(149)] + ["9" * 3000 + "e5x"]
+    path = _table(tmp_path / "in", "long", cells)
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 1, said
+    assert errors.cell_too_long_to_search(50_000) in said, said
+    assert not (tmp_path / "out" / "long-profile.json").exists()
+
+
+def dropped_runs() -> "dict[str, tuple[str, str, str, bool]]":
+    """Runs of characters a reading drops at an end of what it asks -- spaces of every kind, a declared column's points -- with and without a figure before them: the text before the run, one length of the run, the text after it, and the grammar."""
+    return {
+        "line feeds in a note": ("Note:", "\n", "Impression: stable", False),
+        "spaces after a sign": ("a +", " ", "b", False),
+        "spaces of every kind": ("x", "\u00a0\u2009 \t\u3000", "y", False),
+        "points on a declared column": ("Hemoglobin", ".", "high", True),
+        "spaces after a number past the range": ("1e400", " ", "y", False),
+        "spaces after 309 nines": ("9" * 309, " ", "y", False),
+        "points after a declared number past the range": ("1e400", ".", "y", True),
+    }
+
+
+def test_a_long_run_a_reading_drops_is_searched_once(monkeypatch) -> None:
+    """Runs of 50,000 characters a reading drops split as the old search splits them at 40, each character read about four times at most, a few questions asked.
+
+    The Codex review of 3b-R0, item 2, a residual measured after its
+    first fix: a start inside a run of spaces, line feeds or a declared
+    column's points read the run to its end, and an end inside one was
+    asked again for every character, so `Note:` and 7,000 line feeds
+    cost the square of the run and stopped the whole run at
+    `SPLIT_SEARCH_CHARACTERS` with no figure in the cell. A reading drops
+    such a run at either end of what it asks (`taxonomy._kept_places`),
+    so a start inside it reads what its next kept character starts, and
+    an end inside it reads what its last kept character ends. The split
+    at 50,000 is the one the search over every substring finds at 40,
+    the run as long in whichever part holds it. Mutations: the starts
+    inside the run each read it (the first fix) passes the bound of five
+    reads a character; every end inside it asked (the first fix) passes
+    the cap of ten asks; the search over every substring (110cb46)
+    passes that cap on the first run.
+    """
+    reads = taxonomy._reads_as_a_number
+    for name, (before, run, after, decimal_comma) in dropped_runs().items():
+        short, long = run * (40 // len(run)), run * (50_000 // len(run))
+        reference = every_substring_split(before + short + after, decimal_comma)
+        assert taxonomy.affixed_split(before + short + after, decimal_comma) == reference, name
+        text = before + long + after
+        monkeypatch.setattr(taxonomy, "SPLIT_SEARCH_CHARACTERS", 5 * len(text), raising=False)
+        asked = _counting_asks(monkeypatch, 10)
+        split = taxonomy.affixed_split(text, decimal_comma)
+        monkeypatch.setattr(taxonomy, "_reads_as_a_number", reads)
+        assert asked["asks"] <= 10, (name, asked)
+        if reference is None:
+            assert split is None, (name, split)
+        else:
+            assert split == tuple(part.replace(short, long) for part in reference), name

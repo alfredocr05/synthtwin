@@ -114,6 +114,19 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PAUSED_UNTIL_PHASE_CLOSE = True
 
 GOVERNING = (
+    # THE PLAN OF RECORD (the governance pass of stage 3's review,
+    # item 8). `docs/STATE.md` is not a working note: it says in its own
+    # words that it IS the plan of record, it fixes each landing's
+    # scope and its gate, and `CLAUDE.md`'s first instruction is to read
+    # it -- so a stage guarantee quietly rewritten there is the same
+    # defect this seal exists to catch, in the one document every
+    # session is told to read first. MEASURED: an in-memory edit to it
+    # permitting sentences to disclose withheld counts passed all four
+    # seal and document-coverage checks, because none of them opened
+    # it. It is under the seal now, so a changed stage guarantee moves a
+    # digest and the suite says so before anybody argues about what the
+    # sentence means.
+    "docs/STATE.md",
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
     # The Phase 4 plan joined at its ratification (2026-08-19, plan
@@ -242,9 +255,10 @@ class Fact(typing.NamedTuple):
     # several roles at once -- and name that region instead.
     plan_region: str = ""
     # Extra phrases by which a passage speaks about this fact without
-    # writing its name. `earliest` and `latest` carry one because the
+    # writing its name. The two removed ends carried one because the
     # paragraph that survived two reviews called them "the endpoint" and
-    # named neither field.
+    # named neither field; the mechanism stays for the next fact a
+    # document names in words rather than by its key.
     aliases: "tuple[str, ...]" = ()
     # Lesser outcomes the RATIFIED PLAN names for this fact. Each entry
     # is (phrase as the specifications write it, the plan's own words for
@@ -257,6 +271,59 @@ class Fact(typing.NamedTuple):
 def _facts(group: str, disposition: str, *fields: str) -> "list[Fact]":
     """Every field of one group that shares one disposition."""
     return [Fact(group, field, disposition) for field in fields]
+
+
+# The two tails a calendar or clock column publishes in place of its two
+# ends (stage 3, plan P4-D328), and what each of their keys owes. Both
+# roles publish the same five keys per side under the same bars, and the
+# plan states them once, in the decision that added them -- so they are
+# built once here as well, and a role that lowered one of them for
+# itself would have to write the lowering into that decision.
+_TAIL_PLAN = "### P4-D328 A column of dates or clock times publishes tails"
+
+_TAIL_CLASSES = (
+    ("boundary", EXACT_OBSERVABLE),
+    ("rows", EXACT_OBSERVABLE),
+    ("values", EXACT_OBSERVABLE),
+    ("mean_distance", APPROXIMATED),
+    ("rms_distance", APPROXIMATED),
+)
+
+
+# How a document speaks about a boundary without writing either key.
+# The two ends carried "the endpoint" for the same reason: a lowering
+# is written in prose, and prose calls this fact what a person calls
+# it. It is the OUTERMOST PUBLISHED VALUE of the column, so a sentence
+# that gives it a lesser outcome is this file's own history repeated
+# against the field that inherited it.
+_TAIL_ALIASES = {"boundary": ("tail boundary",)}
+
+
+def _tail_facts(group: str) -> "list[Fact]":
+    """One group's two tail blocks and the ten keys inside them."""
+    found: "list[Fact]" = []
+    for side in ("low", "high"):
+        # The container itself, which carries no value obligation: its
+        # membership is the five keys below it and each is disposed in
+        # its own right, exactly as `free_text`'s `length` and `words`
+        # are.
+        found += [
+            Fact(group, f"{side}_tail", STRUCTURAL, plan_region="tails")
+        ]
+        for key, disposition in _TAIL_CLASSES:
+            aliases = ()
+            if key in _TAIL_ALIASES:
+                aliases = _TAIL_ALIASES[key]
+            found += [
+                Fact(
+                    group,
+                    f"{side}_tail.{key}",
+                    disposition,
+                    plan_region="tails",
+                    aliases=aliases,
+                )
+            ]
+    return found
 
 
 # The plan's own paragraph markers inside P2-D6, and the two owner
@@ -308,8 +375,15 @@ PLAN3_REGIONS = {
 # edited to carry a role Phase 2 never had, so a role a later phase
 # adds is disposed in that phase's plan and looked for there.
 PLAN4_REGIONS = {
+    # The numeric tail (stage 3, landing 3.3). Its own region, because
+    # the facts it adds are disposed there and nowhere else.
+    "numeric-tails": "### P4-D344 The numeric tail (landing 3.3)",
     "affixed": "### P4-D4.1 The affixed-number role",
     "clock": "### P4-D4.2 The time-of-day role",
+    # The stage-3 decision that replaced both roles' ends with tails
+    # states what every tail key owes, for `datetime` and `time_of_day`
+    # alike, so both groups' tail facts are looked for there.
+    "tails": _TAIL_PLAN,
     "clock-cardinality": (
         "## Amendment A-P4-20 — the clock role's distinctness is "
         "approximated, under its own envelope"
@@ -358,6 +432,130 @@ PLAN4_REGIONS = {
         "### P4-D35 The stretch edges (owner ruling 2026-09-04)"
     ),
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
+    # The weekday census (stage 3b landing 3b.1), disposed in the decision
+    # that published it.
+    "weekday-census": (
+        "## Decision P4-D355 — the weekday census of a column of dates "
+        "(stage 3b landing 3b.1, 2026-09-26)"
+    ),
+    # The keys stage 3b reserves (plan P4-D364), disposed in the decision
+    # that reserved them until the landing that fills each disposes it in
+    # its own.
+    "stage-3b-reserves": (
+        "## Decision P4-D364 — the base every stage 3b landing builds on "
+        "(2026-10-01)"
+    ),
+    # ...and the key the second cut reserves (plan P4-D386), disposed in
+    # the decision that reserved it until landing R4 disposes it in its own.
+    "stage-3b-second-cut": (
+        "## Decision P4-D386 — the second key cut: three declarations and "
+        "the form of counted dates, reserved (2026-10-02)"
+    ),
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b names
+    # its own plan region below its own line.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    "day-of-month-census": (
+        "## Decision P4-D368 — the day-of-month census (2026-10-09)"
+    ),
+    # anchor 3b-D4 (P4-D369)
+    "heavy-dates": (
+        "## Decision P4-D369 — the count pass splits the tails first, and "
+        "dates that stand out (stage 3b lanes D4s and D4, 2026-10-12)"
+    ),
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # The hour census (landing 3b.2-H), disposed in the decision that
+    # published it.
+    "hour-census": (
+        "## Decision P4-D371 — the hour of the day on moments, counted and "
+        "met (landing 3b.2-H, 2026-10-06)"
+    ),
+    # anchor 3b-T3 (P4-D372)
+    # The minute and second censuses and heaps (landing 3b.4), disposed in
+    # the decision that published them.
+    "clock-field-censuses": (
+        "## Decision P4-D372 — the minutes and seconds of a timestamp, "
+        "counted and met with the hour (landing 3b.4, 2026-10-12)"
+    ),
+    # anchor 3b-C1 (P4-D373)
+    # The census, heaps, step and codes of a column of clock times
+    # (landing 3b.5), disposed in the decision that published them.
+    "clock-census": (
+        "## Decision P4-D373 — clock-only columns keep their time of day: "
+        "a census, heaps, a step and codes (stage 3b landing 3b.5, lane C1, "
+        "2026-10-03)"
+    ),
+    # anchor 3b-C2 (P4-D374)
+    # The minute census of a column of clock times (landing 3b.5's second
+    # step), disposed in the decision that published it.
+    "clock-minutes": (
+        "## Decision P4-D374 — the minute of the hour on clock-only columns, "
+        "counted and met (stage 3b landing 3b.5's second step, lane C2, "
+        "2026-10-13)"
+    ),
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # The joint member's forms, disposed in the landing that writes them.
+    "shared-clock": (
+        "## Decision P4-D378 — the calendar on each value's own clock: two "
+        "offsets and the joint member (stage 3b landing 3b.7, 2026-10-13)"
+    ),
+    # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
+    # The form of counted dates, disposed in the decision of the landing
+    # that fills the key the second cut reserved.
+    "counted-dates": (
+        "## Decision P4-D384 — numbers that are dates: read exactly, "
+        "described as dates, written back as counts (lane R4, 2026-10-06)"
+    ),
+    "group-separator": (
+        "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
+    ),
+    # ...and the landing that made the mark an obligation and added the
+    # notation of a negative and the count of signed decimals beside it.
+    # ...and the landing that published whether a column's wide runs of
+    # figures are its own values' text (landing 2b.7, whose part called
+    # itself 2b.13). Its fact is disposed here and not in P4-D41's region,
+    # whose words it never carried.
+    "wide-runs": (
+        "### P4-D90 The canonical spelling of a wide whole number is "
+        "published and checked (landing 2b.13, 2026-09-16)"
+    ),
+    "number-spellings": (
+        "### P4-D41 How a number's grouping and sign are written "
+        "(landing 2b.2, 2026-09-15)"
+    ),
+    # ...and the landing that stopped those majority keys throwing the
+    # minority away, publishing a count per convention instead.
+    "mixed-spellings": (
+        "### P4-D65.2 A mixture of conventions is published per "
+        "convention and generated (landing 2b.7, 2026-09-15)"
+    ),
+    # How a spreadsheet WORKBOOK holds the table (landing 2b.10): the
+    # sheet's place, the date system, where the table sits on the sheet
+    # and the census of what each column's cells were.
+    "workbook-form": (
+        "### P4-D77 A spreadsheet workbook is read, with the standard "
+        "library alone (landing 2b.10, 2026-09-15)"
+    ),
+    # The table's written form (owner ruling 2026-09-15): every fact the
+    # twin needs to be written the way its source file was.
+    "written-form": (
+        "### P4-D86 The twin is written the way its source file was "
+        "(owner ruling 2026-09-15)"
+    ),
+    "moment-spellings": (
+        "### P4-D39 The mark inside a moment, and a date held at midnight "
+        "(stage 2, 2026-09-14)"
+    ),
     "mode": (
         "### P4-D4.11 The mode (owner instruction 2026-08-26, fifth ask)"
     ),
@@ -384,6 +582,14 @@ PLAN4_REGIONS = {
     "per-level-forms": (
         "## Amendment A-P4-47 — the per-level form census is RULED IN "
         "(owner ruling 2026-08-31)"
+    ),
+    # THE SCALE OF THE HELD-BACK NUMBERS (ledger K-2B-50), which
+    # nothing disposed until the landing that built it: the label
+    # roles' own table in the Phase 2 matrix is the record of what
+    # Phase 2 ruled and has no row for a key Phase 2 never had.
+    "pooled-scale": (
+        "## Decision P4-D301 — the pooled numbers keep their scale "
+        "(2026-09-21)"
     ),
     # The joined role's own eight facts, disposed when the role was
     # found to have no table at all.
@@ -450,6 +656,14 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "mode"),
     ("numeric", "mode_count"),
     ("numeric", "percentiles_between"),
+    ("numeric", "group_separator"),
+    ("numeric", "negative_form"),
+    ("numeric", "decimal_plus"),
+    ("numeric", "negative_notations"),
+    ("numeric", "thousands_marks"),
+    ("datetime", "datetime_separators"),
+    ("datetime", "all_at_midnight"),
+    ("datetime", "n_at_midnight"),
 )
 
 
@@ -465,6 +679,17 @@ REGISTRY += [
     Fact("document", "columns", STRUCTURAL),
     Fact("document", "source", STRUCTURAL),
 ]
+# `settings` and `publication_notes` are disposed as WHOLE SUBTREES,
+# which is what contract 9.1 says of them too, so a key added inside
+# either is disposed the moment it is added and not by a row of its
+# own. Two were added by plan P4-D340 and P4-D341 and are named here so
+# that the decision is written down rather than inferred: the settings
+# key `person_columns`, which records which declared columns name the
+# people the rows belong to, and the first `publication_notes` entry
+# that names NO column, which carries what the run said about the
+# table's population. Neither is an output obligation -- the twin's
+# table carries no trace of either -- which is what LOADER-ONLY means
+# and why the subtree disposition already covers them.
 REGISTRY += _facts(
     "document",
     LOADER_ONLY,
@@ -485,6 +710,18 @@ REGISTRY += [
     Fact("document", "source.encoding", REPORT_ONLY),
     Fact("document", "source.used_fallback_encoding", REPORT_ONLY),
     Fact("document", "source.header_source", EXACT_CONTROL),
+    Fact(
+        "document",
+        "source.dialect",
+        EXACT_CONTROL,
+        plan_region="written-form",
+    ),
+    Fact(
+        "document",
+        "source.workbook",
+        EXACT_CONTROL,
+        plan_region="workbook-form",
+    ),
     Fact(
         "document",
         "source.header_by_convention",
@@ -532,11 +769,6 @@ _BEYOND_STEPS_SAID = (
     "anything after the point"
 )
 
-_JUDGED_PASS_SAID = (
-    "**A spelling a JUDGED PASS put there** (P4-D6.1, contract C6-116) "
-    "is REPORT-ONLY for that key"
-)
-
 REGISTRY += _facts("universal", REPORT_ONLY, "missing_by_class")
 # `missing_by_source` STOPPED BEING REPORT-ONLY at version 6 (plan
 # P4-D6.1, contract C6-115 and its 9.2 row). Version 5 wrote every
@@ -544,12 +776,12 @@ REGISTRY += _facts("universal", REPORT_ONLY, "missing_by_class")
 # twin writes each spelling at its published count and the field is
 # recounted from the written cells like any other exact fact.
 #
-# The exception is the judged passes'. A key a stand-in number or a
-# calendar placeholder put there stays blank in the twin, for the
-# reason C6-116 gives -- reproducing it would make the twin's own
-# measurement contingent on a re-judgement -- and for THAT key the
-# field is report-only, with the achieved zero named beside the
-# published count.
+# The judged passes' exception is WITHDRAWN (plan P4-D6.4, the owner's
+# ruling of 2026-09-15). A key a stand-in number or a calendar
+# placeholder put there was written blank and was report-only for that
+# key; the twin now writes it as the source wrote it, the validator
+# reads it as absent by the description's own verdict, and every key is
+# recounted like any other. So the fact carries no authorization.
 REGISTRY += [
     Fact(
         "universal",
@@ -558,9 +790,6 @@ REGISTRY += [
         plan_region="holes",
         plan_words="each `missing_by_source` spelling at exactly its "
         "count",
-        authorized=(
-            ("judged", _JUDGED_PASS_SAID),
-        ),
     )
 ]
 # The two counts contract version 5 moved out of `missing_by_source`
@@ -615,6 +844,14 @@ _ENVELOPE = (
 # The clause both specifications write for the same authorization.
 _ENVELOPE_SAID = "two-sided envelope only where even those cannot supply"
 REGISTRY += [
+    # THE TWO ENDS, AND WHAT THE TAIL RULE DID TO THEM (stage 3, plan
+    # P4-D344). They stay EXACT-OBSERVABLE, and a tail block publishes
+    # them only where at least `max(small_cell_floor, 3)` rows held the
+    # value: a heaped end is a value of a group, checked one-sided --
+    # no cell of the file beyond it -- and the file's own extreme is
+    # never printed. Where the rule withholds an end there is no
+    # published number to be exact about, and `synthtwin validate`
+    # LISTS the rung instead.
     Fact(
         "numeric",
         "percentiles.min",
@@ -777,17 +1014,253 @@ REGISTRY += (
         plan_region="kurtosis",
         aliases=("tail weight", "moment ratio"),
     ),
+    # THE MARK BETWEEN THOUSANDS (stage 2, 2026-09-14), an obligation
+    # since landing 2b.2 (P4-D41): the quality report holds a file to it
+    # through the file's own description, and beside it the notation of
+    # a negative and the count of signed decimals. It was REPORT-ONLY
+    # while no check held it.
+    Fact(
+        "numeric",
+        "group_separator",
+        EXACT_OBSERVABLE,
+        plan_words="the mark a column writes between thousands",
+        plan_region="number-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "numeric",
+        "negative_form",
+        EXACT_OBSERVABLE,
+        plan_words="how a column writes its negative numbers",
+        plan_region="number-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "numeric",
+        "decimal_plus",
+        EXACT_OBSERVABLE,
+        plan_words="how many cells written with a point carried a plus",
+        plan_region="number-spellings",
+        aliases=(),
+    ),
+    # THE WIDE-RUN WORD (landing 2b.13, plan P4-D90). EXACT-OBSERVABLE
+    # for the reason the spellings above are: a run of figures past what
+    # a double keeps is a spelling the source chose, `styles.spelled`
+    # cannot ask which run it chose, and a twin that respelled every one
+    # of them met every other published fact in silence.
+    Fact(
+        "numeric",
+        "wide_runs",
+        EXACT_OBSERVABLE,
+        plan_words="`wide_runs`, one word of three on every numeric block",
+        plan_region="wide-runs",
+        aliases=(),
+    ),
+    # THE TWO MIXED CONVENTIONS (landing 2b.7). EXACT-OBSERVABLE for the reason
+    # the three above are: the first goal says code developed on the
+    # twin meets the spelling the real table writes, and a twin that
+    # collapsed a mixture to its majority broke that silently.
+    Fact(
+        "numeric",
+        "negative_notations",
+        EXACT_OBSERVABLE,
+        plan_words="how many negative numbers wore each notation",
+        plan_region="mixed-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "numeric",
+        "thousands_marks",
+        EXACT_OBSERVABLE,
+        plan_words="how many grouped numbers wore each mark",
+        plan_region="mixed-spellings",
+        aliases=(),
+    ),
+    # EXACT-OBSERVABLE SINCE LANDING 2b.3. Both were REPORT-ONLY on the
+    # ground that a file is read the same way whatever its marks and its
+    # clocks; measured, a space column rewritten with a `T` and a midnight
+    # column moved to 09:30 both passed with nothing missed, which leaves
+    # goal 1 of the owner's 2026-09-12 ruling unchecked. The quality report
+    # measures both off the file's own description now, and lists them
+    # only where the description sets no obligation.
+    Fact(
+        "datetime",
+        "datetime_separators",
+        EXACT_OBSERVABLE,
+        plan_words="the mark a moment writes between its day and its clock",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "all_at_midnight",
+        EXACT_OBSERVABLE,
+        plan_words="a column whose every moment stands at midnight",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    # ...and the count of values at midnight a column only partly at
+    # midnight publishes (landing 2b.3), floored on both sides.
+    Fact(
+        "datetime",
+        "n_at_midnight",
+        EXACT_OBSERVABLE,
+        plan_words="how many of a column's moments stand at midnight",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    # THE FOUR CENSUSES OF HOW THE DATES WERE WRITTEN (landing 2b.6,
+    # plan P4-D61), which are what let the twin be written in the
+    # member that read the real column instead of in ISO. The widths and
+    # the month names owe a file their KEY SET and each key's floor
+    # rather than their count; the two marker cases owe it every count
+    # exactly (plan P4-D134); and the plan and the contract both say so.
+    Fact(
+        "datetime",
+        "date_field_widths",
+        EXACT_OBSERVABLE,
+        plan_words="how wide a date wrote its month and day fields",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "month_name_styles",
+        EXACT_OBSERVABLE,
+        plan_words="how a date wrote its month name",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "quarter_marker_case",
+        EXACT_OBSERVABLE,
+        plan_words="the case of a quarter's marker",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "zulu_case",
+        EXACT_OBSERVABLE,
+        plan_words="the case of a zulu offset marker",
+        plan_region="moment-spellings",
+        aliases=(),
+    ),
+    # ...and the weekday census (stage 3b landing 3b.1, plan P4-D355): the
+    # file's own body holds every published group's count exactly.
+    Fact(
+        "datetime",
+        "weekday_census",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own cells between the two published boundaries hold "
+            "every group's published count exactly"
+        ),
+        plan_region="weekday-census",
+        aliases=(),
+    ),
+    # ...and the seven keys stage 3b reserves there (plan P4-D364): `[]` on
+    # every block and refused as anything else, so the whole of what each
+    # owes is on the profile until the landing that fills it; lane by lane.
+    # -- 3b.T2 (P4-D371)
+    Fact(
+        "datetime",
+        "hour_census",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own moments between the two published boundaries "
+            "hold every group's published count exactly"
+        ),
+        plan_region="hour-census",
+        aliases=(),
+    ),
+    # -- 3b.T3 (P4-D372)
+    *[
+        Fact(
+            "datetime",
+            field,
+            EXACT_OBSERVABLE,
+            plan_words=(
+                "the file's own moments between the two published boundaries "
+                "hold every heap's and every group's published count exactly"
+            ),
+            plan_region="clock-field-censuses",
+            aliases=(),
+        )
+        for field in ("minute_census", "minute_heaps", "second_census", "second_heaps")
+    ],
+    # -- 3b.D3 (P4-D368): the day-of-month census, filled; the file's own
+    # body holds every published group's count exactly (V5-W2).
+    Fact(
+        "datetime",
+        "day_of_month_census",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own cells between the two published boundaries hold "
+            "every day-of-month group's published count exactly"
+        ),
+        plan_region="day-of-month-census",
+        aliases=(),
+    ),
+    # -- 3b.D4 (P4-D369): the dates that stand out, filled; the file's own
+    # cells on each listed date number its count exactly (V5-D1).
+    Fact(
+        "datetime",
+        "heavy_dates",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own parsed cells on each listed date, in any "
+            "spelling, number its published count exactly"
+        ),
+        plan_region="heavy-dates",
+        aliases=(),
+    ),
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386) and filled
+    # by the landing: the twin writes each date back in the published form,
+    # and every count of the file is held to it.
+    Fact(
+        "datetime",
+        "count_form",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "every count of the checked file is held to the published form"
+        ),
+        plan_region="counted-dates",
+        aliases=(),
+    ),
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b
+    # disposes its own facts below its own line.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
 )
 # THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric
 # block read over the cores and is registered above under `numeric`;
 # these are the five it adds, and every one is a count or a spelling a
 # written twin carries in plain sight.
-# THE CLOCK ROLE'S FIVE. Four are exactly observable off a written
-# twin -- the form its cells wear, its two ends, and how many cells no
-# clock reading accepted -- and the ladder is the one approximated
-# fact, for the reason the date ladder is: the construction writes a
-# value per rank, so an interior rung lands inside a window rather than
-# on the published value.
+# THE CLOCK ROLE'S THREE, AND ITS TWO TAILS. The form its cells wear
+# and how many cells no clock reading accepted are exactly observable
+# off a written twin; the ladder is the one approximated fact, for the
+# reason the date ladder is: the construction writes a value per rank,
+# so an interior rung lands inside a window rather than on the
+# published value.
 REGISTRY += [
     Fact(
         "clock",
@@ -796,22 +1269,17 @@ REGISTRY += [
         plan_words="an eleven-rung ordinal ladder",
         plan_region="clock",
     )
-    for field in ("clock_form", "earliest", "latest", "n_unparsed")
+    for field in ("clock_form", "n_unparsed")
 ]
-# The ladder's two ENDS are exact, and its interior is not: T2 makes
-# the ends the column's own two endpoints, which a written twin carries
-# character for character, while every rank between them is
-# interpolated into a window.
-REGISTRY += [
-    Fact(
-        "clock",
-        f"clock_percentiles.{end}",
-        EXACT_OBSERVABLE,
-        plan_words="an eleven-rung ordinal ladder",
-        plan_region="clock",
-    )
-    for end in ("min", "max")
-]
+# THE TWO ENDS ARE GONE (stage 3, plan P4-D328), and the ladder's two
+# END RUNGS with them: `clock_percentiles.min` and `.max` are null in
+# every description this version writes, so they oblige no cell of any
+# file and no document disposes them. What stands in their place is a
+# TAIL on each side, whose boundary and count of rows beyond it a
+# written twin carries exactly, whose values -- where it publishes
+# them -- come back cell for cell, and whose two distances are a
+# consequence of where the construction places the ranks between them.
+REGISTRY += _tail_facts("clock")
 REGISTRY += [
     Fact(
         "clock",
@@ -835,6 +1303,51 @@ REGISTRY += [
     )
     for field in ("n_distinct", "n_distinct_folded")
 ]
+# ...AND THE FIVE KEYS STAGE 3B RESERVES ON THE CLOCK ROLE (plan
+# P4-D364), on the terms of the seven on `datetime`, lane by lane.
+# -- 3b.C1 (P4-D373)
+REGISTRY += [
+    Fact(
+        "clock",
+        field,
+        EXACT_OBSERVABLE,
+        plan_words="The validator counts the file against them, V5-C1 and V5-C2",
+        plan_region="clock-census",
+    )
+    for field in ("clock_census", "clock_heaps", "clock_step", "clock_codes")
+]
+# -- 3b.C2 (P4-D374): filled by landing 3b.5's second step, and
+# EXACT-OBSERVABLE as on a column of moments.
+REGISTRY += [
+    Fact(
+        "clock",
+        "minute_census",
+        EXACT_OBSERVABLE,
+        plan_words="The validator counts the file against it, V5-C2",
+        plan_region="clock-minutes",
+    )
+]
+# THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b disposes
+# its own clock facts below its own line.
+# anchor 3b-D1 (P4-D365)
+# anchor 3b-D0 (P4-D366)
+# anchor 3b-D2 (P4-D367)
+# anchor 3b-D3 (P4-D368)
+# anchor 3b-D4 (P4-D369)
+# anchor 3b-T1 (P4-D370)
+# anchor 3b-T2 (P4-D371)
+# anchor 3b-T3 (P4-D372)
+# anchor 3b-C1 (P4-D373)
+# anchor 3b-C2 (P4-D374)
+# anchor 3b-G1 (P4-D375)
+# anchor 3b-G3 (P4-D376)
+# anchor 3b-G2 (P4-D377)
+# anchor 3b-7 (P4-D378)
+# anchor 3b-J (P4-D379)
+# anchor 3b-R2a (P4-D383)
+# anchor 3b-R2b (P4-D383)
+# anchor 3b-R2c (P4-D383)
+# anchor 3b-R4 (P4-D384)
 # THE JOINED ROLE (plan P4-D25, contract 9.4a). It had no group here at
 # all until residual R-P4-62's landing: `part_agreements`, `part_above`
 # and `part_min_widths` occurred zero times in this file, so the eight
@@ -1067,6 +1580,12 @@ REGISTRY += [
         plan_region="padding",
         aliases=("padding census", "field-width census"),
     ),
+    # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (contract 7.13, landing
+    # 2b.18 part 2, plan P4-D123). EXACT-OBSERVABLE, on the plainest
+    # terms any census here has: it names every cell read as a number
+    # with its own spelling and pools nothing, so a person opens the twin
+    # and counts each spelling back.
+    Fact("numeric", "number_spellings", EXACT_OBSERVABLE),
     # Plan P4-D30. The census of WHOLE-NUMBER field widths is the third
     # sibling of the styles map and is the ONE of the three that is not
     # exact. Its two siblings are facts about SPELLING and are bought
@@ -1150,6 +1669,84 @@ REGISTRY += [
         plan_phrase="per-column `n_rows` echo",
         plan_region="document",
     ),
+    # THE TAIL FACTS (stage 3, plan P4-D344, contract 6.7a). The two
+    # places and the two row counts follow from the count of values and
+    # the smallest group size, and the loader holds the description to
+    # both; the two distances are the group's own shape and take
+    # G12.13's window; the listed values are exact, because the
+    # generator writes the tail on those values and no others.
+    Fact(
+        "numeric",
+        "tails",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.percent",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.percent",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.rows",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.rows",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.mean_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.mean_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.rms_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.rms_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.values",
+        EXACT_OBSERVABLE,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.values",
+        EXACT_OBSERVABLE,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "bin_groups",
+        REPORT_ONLY,
+        plan_region="numeric-tails",
+    ),
 ]
 
 # `constant`, `binary`, `categorical`.
@@ -1165,7 +1762,6 @@ REGISTRY += _facts(
     EXACT_OBSERVABLE,
     "levels",
     "suppressed_levels",
-    "suppressed_level_counts",
     "suppressed_rows",
 )
 REGISTRY += [
@@ -1226,26 +1822,25 @@ _WITHHELD_OFFSETS = (
     "against the producer)"
 )
 
+# THE TWO ENDS AND THE TWO END OFFSETS ARE GONE (stage 3, plan
+# P4-D328): the four fields are removed from the role, and the ladder's
+# two end rungs are null in every description this version writes, so
+# nothing here disposes them. The TAILS stand in their place, disposed
+# once for both roles in the decision that added them.
+REGISTRY += _tail_facts("datetime")
 REGISTRY += [
+    # LOADER-ONLY AND NOT EXACT-CONTROL, which the entry table settled:
+    # a fact of this class must reach a verdict, and the only verdict
+    # this one could carry is a second reading of `resolution`,
+    # `time_precision` and `all_at_midnight`, which DT4 settles it from
+    # at load time. So its whole obligation lives on the profile, and
+    # `validation.INPUT_SIDE_ENTRIES` is where the shipped table binds it.
     Fact(
         "datetime",
-        field,
-        EXACT_OBSERVABLE,
-        plan_words="`earliest`, `latest` EXACT-OBSERVABLE in the "
-        "representation owner decision 5 fixes",
-        aliases=("endpoint", "end of a column of dates"),
-    )
-    for field in ("earliest", "latest")
-]
-REGISTRY += [
-    Fact(
-        "datetime",
-        field,
-        EXACT_OBSERVABLE,
-        plan_words="`date_percentiles` endpoints exact",
-        aliases=("ladder end",),
-    )
-    for field in ("date_percentiles.min", "date_percentiles.max")
+        "tail_unit",
+        LOADER_ONLY,
+        plan_region="tails",
+    ),
 ]
 REGISTRY += [
     Fact(
@@ -1258,17 +1853,12 @@ REGISTRY += [
 REGISTRY += [
     Fact(
         "datetime",
-        field,
+        "utc_offsets",
         EXACT_OBSERVABLE,
         authorized=(
             ("withheld", _WITHHELD_OFFSETS),
         ),
-    )
-    for field in (
-        "utc_offsets",
-        "earliest_utc_offset",
-        "latest_utc_offset",
-    )
+    ),
 ]
 REGISTRY += [
     Fact(
@@ -1292,18 +1882,21 @@ REGISTRY += [
     Fact(
         "datetime",
         "format",
-        REPORT_ONLY,
-        plan_words="**`format` is REPORT-ONLY, not EXACT-OBSERVABLE.**",
+        EXACT_OBSERVABLE,
+        plan_words="**`format` is EXACT-OBSERVABLE since the reversal of "
+        "owner decision 5.**",
     ),
 ]
 REGISTRY += [
+    # -- 3b.7 (P4-D378): REPORT-ONLY until the landing; the twin of a joint
+    # column writes the published count of bare dates now.
     Fact(
         "datetime",
         "resolution_mix",
-        REPORT_ONLY,
-        plan_region="date-readings",
-        plan_words="And it is REPORT-ONLY, deliberately, on the exact "
-        "precedent of the `format` fact itself",
+        EXACT_OBSERVABLE,
+        plan_region="shared-clock",
+        plan_words="`resolution_mix` and `format` are EXACT-OBSERVABLE on the "
+        "joint member",
         aliases=("form census", "how many wore each form"),
     ),
 ]
@@ -1376,6 +1969,36 @@ REGISTRY += [
         plan_region="per-level-forms",
         aliases=("per-level form census", "level form count"),
     ),
+    # THE SCALE OF THE HELD-BACK NUMBERS (plan P4-D301, ledger
+    # K-2B-50). APPROXIMATED and not exact, and the difference is the
+    # construction rather than a lowered bar: method G8.3c places the
+    # pool's made-up numbers on the published MEAN -- the owner's
+    # decision of 2026-09-21 withdrew the spread that stood beside it --
+    # and then rounds each onto a place the column writes at, stepping
+    # outward wherever a spelling is refused, so the twin's own pool
+    # comes back near that mean rather than on it. G12.12 draws the
+    # window and the validator holds the file to it.
+    Fact(
+        "label",
+        "suppressed_numbers",
+        STRUCTURAL,
+        plan_region="pooled-scale",
+        aliases=("pooled scale", "the pool's own scale"),
+    ),
+    Fact(
+        "label",
+        "suppressed_numbers.n_cells",
+        LOADER_ONLY,
+        plan_region="pooled-scale",
+        aliases=("pooled scale", "the pool's own scale"),
+    ),
+    Fact(
+        "label",
+        "suppressed_numbers.mean",
+        APPROXIMATED,
+        plan_region="pooled-scale",
+        aliases=("pooled scale", "the pool's own scale"),
+    ),
 ]
 REGISTRY += _facts(
     "free_text",
@@ -1416,6 +2039,20 @@ REGISTRY += _facts(
     "all_whole_numbers",
     "n_all_digits",
     "n_code_alphabet",
+    # THE CENSUS OF LAYOUTS (contract 7.12, landing 2b.18, plan
+    # P4-D120). EXACT-OBSERVABLE on exactly the terms the form census
+    # is: a person opens the twin, reads the layout off each cell and
+    # gets the published census back, with the pooled remainder
+    # widening the bar. It is owed INSIDE owner decision 6's infeasible
+    # corner as well as outside it -- that corner lowers three
+    # DISTINCTNESS facts and says nothing about what a cell LOOKS
+    # like -- so it carries no `authorized` entry.
+    "layout_forms",
+    # THE LITERAL PREFIX (contract 7.12a, owner ruling of 2026-09-17,
+    # item 1, plan P4-D202). EXACT-OBSERVABLE: a person opens the twin
+    # and finds every cell the prefix governs opening with it. Owed
+    # inside the infeasible corner for the reason the layouts are.
+    "layout_prefixes",
 )
 REGISTRY += [
     Fact(
@@ -1555,17 +2192,10 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
         "raw-versus-folded",
         APPROXIMATED,
     ),
-    # The one authorization the version 6 write rule carries: a
-    # spelling a JUDGED PASS put there stays blank in the twin, so for
-    # THAT key the field is report-only with the achieved zero named
-    # beside the published count (plan P4-D6.1, contract C6-116).
-    ("universal", "missing_by_source", "judged"): ("holes", REPORT_ONLY),
     # The one corner P2-D9 gives a column of dates: offsets the
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.
     ("datetime", "utc_offsets", "withheld"): ("P2-D9", REPORT_ONLY),
-    ("datetime", "earliest_utc_offset", "withheld"): ("P2-D9", REPORT_ONLY),
-    ("datetime", "latest_utc_offset", "withheld"): ("P2-D9", REPORT_ONLY),
     ("datetime", "datetimes_read_at", "withheld"): ("P2-D9", REPORT_ONLY),
     # Owner decision 6's infeasible corner, and the three distinctness
     # facts P2-D6 names inside it.
@@ -1837,6 +2467,21 @@ HISTORICAL: "dict[tuple[str, str], str]" = {
         "version 4 and version 5 wrote every absent cell empty; "
         "version 6 reproduces the recorded spellings (P4-D6.1)"
     ),
+    # THE SAME SHAPE OF SUPERSESSION, landing 2b.6. Version 4 of the
+    # contract states that `format` is not reproduced, because owner
+    # decision 5 had every twin datetime cell written in ISO at the
+    # recorded precision whatever the source's own member was. The owner
+    # reversed that decision on 2026-09-15: version 6's twin is written
+    # in the member that read the real column, so the field IS
+    # reproduced and is EXACT-OBSERVABLE, and residual R-P2-7 is retired
+    # with it. Version 4's sentences are the record of what was true
+    # then and are not edited to say otherwise -- which is the same
+    # treatment the absent-cell spellings above are given.
+    ("datetime", "format"): (
+        "version 4 wrote every twin datetime cell in ISO at the "
+        "recorded precision and did not reproduce the source's member; "
+        "version 6 writes the member that read the real column (P4-D61)"
+    ),
 }
 
 
@@ -1993,6 +2638,22 @@ ANCHORS: "tuple[tuple[str, str], ...]" = (
             "(`docs/spec/generation-method-v1.md` G12, "
             "`generation-whole-numbers-need-room`)"
         ),
+    ),
+    # THE PLAN OF RECORD'S OWN RAISING SENTENCES (item 8 of the
+    # governance pass). Sealing catches a stage guarantee somebody
+    # REWROTE; these two are the ones whose deletion would lower a bar
+    # just as surely -- the rule that keeps the page true, and stage 3's
+    # own guarantee about what a sentence may carry.
+    (
+        "docs/STATE.md",
+        (
+            "**The rule that keeps it true: this file moves in the same "
+            "commit as the work it describes.**"
+        ),
+    ),
+    (
+        "docs/STATE.md",
+        "no sentence carries a count a key withholds",
     ),
     (
         # THE COUNT MOVED FROM FOUR TO FIVE, and the anchor moved with

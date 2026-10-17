@@ -49,7 +49,16 @@ import typing
 import pytest
 
 import fixtures
-from synthtwin import canonical, contract, errors, profile, reading, taxonomy
+from synthtwin import (
+    canonical,
+    contract,
+    errors,
+    parsing,
+    profile,
+    reading,
+    taxonomy,
+    workbook,
+)
 
 Document = dict[str, typing.Any]
 Change = typing.Callable[[Document], None]
@@ -81,7 +90,7 @@ def table_text() -> str:
     """
     lines = [line for line in fixtures.every_role_table().split("\n") if line]
     joined = fixtures.joined_column_text()
-    rows = [f"{lines[0]},huge,logged_at,{fixtures.JOINED_COLUMN}"]
+    rows = [f"{lines[0]},huge,logged_at,{fixtures.JOINED_COLUMN},admitted_at"]
     for index, line in enumerate(lines[1:]):
         huge = "1e999" if index % 2 else "-2e400"
         offset = "+02:00" if index % 2 else "-05:00"
@@ -90,7 +99,16 @@ def table_text() -> str:
             f"{index % 24:02d}:{(index * 11) % 60:02d}:"
             f"{(index * 7) % 59 + 1:02d}{offset}"
         )
-        rows.append(f"{line},{huge},{stamp},{joined[index]}")
+        # ...AND A COLUMN OF MOMENTS ON ITS OWN CLOCK (landing 3b.D2, plan
+        # P4-D367), every third day of two years from Monday 2024-01-01,
+        # which publishes a weekday census for WC10 to be broken on.
+        day = (index * 3) % 731
+        year, month, date = parsing.civil_from_days(parsing.days_from_civil(2024, 1, 1) + day)
+        admitted = (
+            f"{year:04d}-{month:02d}-{date:02d} "
+            f"{7 + index % 12:02d}:{(index * 13) % 60:02d}:{(index * 29) % 60:02d}"
+        )
+        rows.append(f"{line},{huge},{stamp},{joined[index]},{admitted}")
     return "\n".join(rows) + "\n"
 
 
@@ -113,7 +131,7 @@ def base(tmp_path_factory: pytest.TempPathFactory) -> Document:
     """
     folder = tmp_path_factory.mktemp("contract")
     path = fixtures.write(folder, "table.csv", table_text())
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(
         table,
         taxonomy.Settings(small_cell_floor=11),
@@ -176,6 +194,229 @@ def edit(_column: str, **changes: object) -> Change:
     return change
 
 
+def on_the_other_face(_column: str, clock_form: str) -> Change:
+    """Write a clock column on the other face of the dial, its census carried with it.
+
+    Since landing 3b.5 (plan P4-D373) a column of clock times publishes a
+    census of ten-minute bins over its whole dial, 144 on the 24-hour
+    face and 72 on the 12-hour one (CC1), so a face moved alone breaks
+    CC1 before S8c is asked. The census's last group, a group of nought
+    past every value, ends at the new dial's last bin, so the face is the
+    one thing wrong (the merge of landing 3b.5 beside landing T1).
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["clock_form"] = clock_form
+        census = block["clock_census"]
+        if census:
+            end = 71 if clock_form.endswith(" twelve-hour") else 143
+            last = census[len(census) - 1]
+            assert last["count"] == 0 and last["first"] <= end, last
+            last["last"] = end
+    return change
+
+
+def _count_form_of(**changes: object) -> "dict[str, object]":
+    """A form of counts (landing R4), whole days written plainly, with ``changes``."""
+    form: "dict[str, object]" = {
+        "places": 0,
+        "trimmed": False,
+        "significant": None,
+        "exponent": False,
+        "mark": ".",
+        "contacts": None,
+    }
+    form.update(changes)
+    return form
+
+
+def _counted_with_contacts(member: str) -> Change:
+    """`recorded_on` named as counts in ``member``, its form carrying a census of contacts.
+
+    The census counts every date the column reads, at the disclosure
+    line, so the form itself is sound and the rule refused is the one
+    about which member may carry it (CD3).
+    """
+    def change(document: Document) -> None:
+        block = at(document, "recorded_on")
+        dates = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(count_form=_count_form_of(contacts={"(none)": dates - 11, "01": 11}))
+        document["settings"]["forced_date_counts"] = [["recorded_on", member]]
+    return change
+
+
+def _contacts_naming_none() -> Change:
+    """`recorded_on` carrying a census of contacts that names `(none)` alone (CD4).
+
+    Every date counted, at the disclosure line, under the one word for no
+    contact number: the producer publishes no such census since the
+    second review of landing R4 (item 1), where the twin of one wrote no
+    contact number and missed its own description.
+    """
+    def change(document: Document) -> None:
+        block = at(document, "recorded_on")
+        dates = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(count_form=_count_form_of(contacts={"(none)": dates}))
+    return change
+
+
+def _contacts_counting(sum_off: int, below_line: int) -> Change:
+    """`recorded_on` carrying a census of contacts off one CD4 rule alone (landing R4, review item 5).
+
+    ``sum_off`` dates more than the column reads, every count at the line;
+    or ``below_line`` dates written `01`, under the line, the census
+    summing to every date the column reads.
+    """
+    def change(document: Document) -> None:
+        block = at(document, "recorded_on")
+        dates = int(block["n_present"]) - int(block["n_unparsed"])
+        if below_line:
+            census = {"(none)": dates - below_line, "01": below_line}
+        else:
+            census = {"(none)": dates - 11 + sum_off, "01": 11}
+        block.update(count_form=_count_form_of(contacts=census))
+    return change
+
+
+def a_form_one_row_wore(_column: str) -> Change:
+    """Read a column of stamps jointly, one value of it a whole date (RM3).
+
+    The count of one is the disclosure: it says which reading exactly
+    one row of the column was written in, as plainly as a census naming
+    a spelling one row wore. The producer counts such a form into the
+    commonest form and publishes the column wholly in that form, so no
+    document it writes reaches this shape.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(
+            format="iso-mixed",
+            resolution_mix={"iso-date": 1, "iso-datetime": parsed - 1},
+        )
+    return change
+
+
+def a_partial_form_five_cells_wore(_column: str) -> Change:
+    """Read a column of dates as a layout, five of its cells cut to the month (RM3, landing R2c).
+
+    The five are left unread, as a partial form's cells are, and every
+    count of the cells read loses them; the producer names no form on
+    fewer cells than the census line, so no document it writes reaches
+    this shape.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - 5
+        block.update(
+            format="layout {YYYY}.{MM}.{DD}",
+            n_unparsed=5,
+            resolution_mix={"layout {YYYY}.{MM}.{DD}": parsed, "layout {YYYY}.{MM}": 5},
+            utc_offsets={"(none)": parsed},
+        )
+        census = typing.cast("list[dict[str, int]]", block["weekday_census"])
+        census[0]["count"] = census[0]["count"] - 5
+    return change
+
+
+def whole_dates_carrying_offsets(_column: str) -> Change:
+    """Read a column of stamps jointly, every value a whole date (D16).
+
+    Its offsets stay the two real ones the stamps carried, so the whole
+    dates would each have to wear one, which no whole date can.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(
+            format="iso-mixed",
+            resolution_mix={"iso-date": parsed, "iso-datetime": 0},
+            datetime_separators={},
+        )
+    return change
+
+
+def wide_runs_on_a_pooled_form(_column: str) -> Change:
+    """Claim wide runs where the forms map pools a single point-free cell.
+
+    The column is written `decimal` on every cell, so one of them is
+    moved into the withheld remainder: the room for a point-free cell is
+    then exactly one, which passes WR1's room clause and is far below
+    the floor of eleven this base is written at (plan P4-D91).
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        styles = dict(block["numeric_styles"])
+        styles["decimal"] = int(styles["decimal"]) - 1
+        styles["(withheld)"] = 1
+        block["numeric_styles"] = styles
+        block["wide_runs"] = "canonical"
+    return change
+
+
+def standing_at_midnight_in_days(_column: str) -> Change:
+    """Say a column of stamps stands at midnight, in day units (D14).
+
+    D14 is the rule under test, so everything the SWITCH to days carries
+    with it moves too: `tail_unit` follows the standing (DT4), and each
+    tail's two distances are counted in the unit the block names, so
+    they are divided by the seconds in a day. Leaving either behind is
+    refused one rule earlier and D14 is never reached, which is the
+    whole reason this battery exists.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["all_at_midnight"] = True
+        block["tail_unit"] = "day"
+        for side in ("low_tail", "high_tail"):
+            tail = block.get(side)
+            if not isinstance(tail, dict):
+                continue
+            for key in ("mean_distance", "rms_distance"):
+                if isinstance(tail.get(key), (int, float)):
+                    tail[key] = float(tail[key]) / 86400.0
+    return change
+
+
+def counted_past_the_values(_column: str) -> Change:
+    """Count more values at midnight than a column has (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = int(block["n_present"]) + 1
+    return change
+
+
+def one_value_at_midnight(_column: str) -> Change:
+    """Publish a count of values at midnight of exactly one (D15, landing 2b.6).
+
+    The reviewer's own shape said as a document: a count of one names the
+    one person who holds the value, so the loader refuses it however low
+    the run's smallest group size is.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = 1
+    return change
+
+
+def all_but_one_at_midnight(_column: str) -> Change:
+    """Publish a count leaving exactly one value off midnight (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - int(block["n_unparsed"])
+        block["n_at_midnight"] = parsed - 1
+        block["all_at_midnight"] = False
+    return change
+
+
+def nought_at_midnight(_column: str) -> Change:
+    """Publish a nought, which stopped being a value of this field (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = 0
+    return change
+
+
 def lower_a_finer_rung(_column: str, _rung: str) -> Change:
     """Push one rung of the finer ladder below the one before it.
 
@@ -206,10 +447,48 @@ def edit_top(**changes: object) -> Change:
     return change
 
 
+def _declared_and_read_by_a_member(_column: str) -> Change:
+    """A column read under a two-figure MEMBER, its century declared (S8e).
+
+    The members read the POSIX window alone, so a declared column is read
+    by the layout in its own window, and a description pairing the two
+    describes a reading no producer makes.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block.update(
+            format="two-digit-month-first-date",
+            resolution_mix={"two-digit-month-first-date": block["n_present"]},
+            date_field_widths={"padded": block["n_present"]},
+        )
+        document["settings"]["century_windows"] = [[_column, 1930]]
+    return change
+
+
 def edit_in(_place: str, **changes: object) -> Change:
     """Replace keys inside one top-level block."""
     def change(document: Document) -> None:
         document[_place].update(changes)
+    return change
+
+
+def edit_weekdays(_column: str, _group: int, count: int) -> Change:
+    """Replace one group's count of a column's weekday census."""
+    def change(document: Document) -> None:
+        at(document, _column)["weekday_census"][_group]["count"] = count
+    return change
+
+
+def middle_half_of(_column: str, days: int) -> Change:
+    """Pull a column's p75 (and its p50 with it) to `days` days after its p25 (WC10)."""
+    def change(document: Document) -> None:
+        ladder = at(document, _column)["date_percentiles"]
+        first = ladder["p25"]
+        year, month, date = parsing.civil_from_days(
+            parsing.days_from_civil(int(first[0:4]), int(first[5:7]), int(first[8:10])) + days
+        )
+        ladder["p75"] = f"{year:04d}-{month:02d}-{date:02d}{first[10:]}"
+        ladder["p50"] = first
     return change
 
 
@@ -230,7 +509,7 @@ def edit_level(_column: str, _index: int, **changes: object) -> Change:
 def _relabelled_as_a_long_tail(_column: str) -> Change:
     """Give a set of categories the long tail's role and key set.
 
-    The role's key set is the five shared label keys, the form census
+    The role's key set is the four shared label keys, the form census
     among them (P4-D18), so the relabelling supplies one -- otherwise the
     document is refused for a missing key and never reaches LT2, which
     is the rule this mutation exists to break.
@@ -272,9 +551,6 @@ def _long_tail_below_its_line(_column: str) -> Change:
         # DIFFERENT values did not change, and B2 counts the published
         # and the held-back levels against it.
         block["suppressed_rows"] = block["suppressed_rows"] + given
-        sizes = list(block["suppressed_level_counts"])
-        sizes[0] = sizes[0] + given
-        block["suppressed_level_counts"] = sorted(sizes)
     return change
 
 
@@ -309,17 +585,102 @@ def length_of(_column: str, shortest: int) -> Change:
 
 
 def sixtieth_second(name: str) -> Change:
-    """Publish the last second of a leap minute as a column's last value.
+    """Publish the last second of a leap minute as a tail's own boundary.
 
-    The ladder's own end is moved with it, so that the description
-    breaks D10 and not D11: what is under test is the seconds field on
-    the shared clock, not the tie between the two ends.
+    Since stage 3 no end is published, so what carries a seconds field
+    the shared clock cannot read back is a tail boundary -- a real cell
+    of the column, and the value D10 is stated over.
     """
     def change(document: Document) -> None:
         block = at(document, name)
-        end = f"{block['latest'][0:17]}60"
-        block["latest"] = end
-        block["date_percentiles"]["max"] = end
+        tail = block["high_tail"]
+        assert isinstance(tail, dict)
+        boundary = tail["boundary"]
+        assert isinstance(boundary, str)
+        tail["boundary"] = f"{boundary[0:17]}60"
+    return change
+
+
+def a_tail_with_values_and_spread(name: str) -> Change:
+    """Publish a tail's values beside the root-mean-square distance DT1 drops.
+
+    A tail that names which values it holds publishes no spread: the two
+    together settle how many cells hold each value, which is the count
+    the floor protects.
+    """
+    def change(document: Document) -> None:
+        block = at(document, name)
+        tail = block["low_tail"]
+        assert isinstance(tail, dict)
+        boundary = tail["boundary"]
+        assert isinstance(boundary, str)
+        tail["values"] = ["1970-01-01" if len(boundary) == 10 else "1970-01-01 00:00:00"]
+    return change
+
+
+def edit_inside_inside(_column: str, _key: str, **changes: object) -> Change:
+    """Change entries of a block inside a column's own block."""
+    def change(document: Document) -> None:
+        inner = at(document, _column)[_key]
+        assert isinstance(inner, dict)
+        for key in changes:
+            inner[key] = changes[key]
+    return change
+
+
+def without_tails(name: str) -> Change:
+    """Read one column's block the way a description written before stage
+    3 is read: no `tails`, no `bin_groups`, and both ends published.
+
+    THE LEGACY READING IS A LIVE PATH and these mutations are how it is
+    exercised. A block carrying `tails` is read by the tail rule --
+    "every value is the same one" is its spread being nought, the
+    histogram of every value is `{}`, and an end bin may hold nothing --
+    so the three rules below have no description to break there. They
+    have one on a block written before stage 3, which every loader this
+    version ships still reads (contract 6.7a).
+    """
+    def change(document: Document) -> None:
+        block = at(document, name)
+        block.pop("tails", None)
+        block.pop("bin_groups", None)
+        block["percentiles"] = dict(block["percentiles"])
+        block["value_histogram"] = {}
+        block["empty_bins"] = []
+        block["empty_edges"] = []
+    return change
+
+
+def move_tail_percent(name: str, percent: int) -> Change:
+    """Stand one tail of a column at a percent its row count does not give
+    it, which is what TL1 refuses."""
+    def change(document: Document) -> None:
+        block = at(document, name)
+        tails = dict(block["tails"])
+        low = dict(tails["low"])
+        low["percent"] = percent
+        tails["low"] = low
+        block["tails"] = tails
+    return change
+
+
+def one_tail(name: str) -> Change:
+    """Publish one tail of a column and not the other (TL3)."""
+    def change(document: Document) -> None:
+        block = at(document, name)
+        block["tails"] = {"low": None, "high": dict(block["tails"]["high"])}
+    return change
+
+
+def tail_field(name: str, side: str, **changes: object) -> Change:
+    """Change one field of one side of a column's tails."""
+    def change(document: Document) -> None:
+        block = at(document, name)
+        tails = dict(block["tails"])
+        held = dict(tails[side])
+        held.update(changes)
+        tails[side] = held
+        block["tails"] = tails
     return change
 
 
@@ -344,6 +705,295 @@ def flat_ladder(name: str) -> Change:
             rung: 5.0 for rung in contract.FINER_LADDER_KEYS
         }
     return change
+
+
+# -- 3b.T2 (P4-D371): THE HOUR CENSUS'S RULES need a column of moments on
+# its own clock, and the base's `logged_at` is read on the shared clock (two
+# offsets). Each of them swaps that block for the one the producer writes
+# for 240 moments of 2024 written with no offset -- the same name, place
+# and row count -- with its census published, and then breaks one rule.
+_HOUR_BLOCK: "list[Document]" = []
+
+
+def _moments_on_their_own_clock() -> Document:
+    """The block `synthtwin profile` writes for 240 moments of 2024, no offset, floor 11."""
+    if not _HOUR_BLOCK:
+        import random
+        import tempfile
+
+        draw = random.Random(371)
+        weights = (2, 2, 1, 1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 4, 4, 3, 3)
+        cells = []
+        for _row in range(240):
+            day = 1 + draw.randrange(28)
+            hour = draw.choices(range(24), weights=weights)[0]
+            cells += [
+                f"2024-{draw.randrange(12) + 1:02d}-{day:02d} "
+                f"{hour:02d}:{draw.randrange(60):02d}:{draw.randrange(1, 60):02d}"
+            ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = fixtures.write(pathlib.Path(folder), "moments.csv", "logged_at\n" + "\n".join(cells) + "\n")
+            document = profile.build_document(
+                reading.read_table(str(path), small_cell_floor=11),
+                taxonomy.Settings(small_cell_floor=11), [], [], [],
+            )
+        _HOUR_BLOCK.append(json.loads(json.dumps(document["columns"][0])))
+    return copy.deepcopy(_HOUR_BLOCK[0])
+
+
+def an_hour_census(change: "typing.Callable[[Document], None]") -> Change:
+    """`logged_at` swapped for moments on their own clock, its census published, then changed."""
+
+    def swapped(document: Document) -> None:
+        for place in range(len(document["columns"])):
+            if document["columns"][place]["name"] == "logged_at":
+                block = _moments_on_their_own_clock()
+                block["position"] = document["columns"][place]["position"]
+                document["columns"][place] = block
+        change(document)
+
+    return swapped
+
+
+def _hour_groups(document: Document) -> "list[Document]":
+    return typing.cast("list[Document]", at(document, "logged_at")["hour_census"])
+
+
+def _hours_wrapped(document: Document) -> None:
+    groups = _hour_groups(document)
+    groups[0]["first"] = 1
+    groups[-1]["last"] = 0
+
+
+def _hours_below_the_line(document: Document) -> None:
+    groups = _hour_groups(document)
+    moved = groups[0]["count"] - 5
+    groups[0]["count"] = 5
+    groups[1]["count"] += moved
+
+
+def _hours_past_the_body(document: Document) -> None:
+    _hour_groups(document)[0]["count"] += 11
+
+
+def _hours_of_a_few_days(document: Document) -> None:
+    ladder = at(document, "logged_at")["date_percentiles"]
+    ladder["p50"] = ladder["p25"]
+    ladder["p75"] = ladder["p25"]
+    # The same middle half withholds the weekday census these moments
+    # publish since landing 3b.D2 (WC10), as such a description would, so
+    # the rule judged is HC4's.
+    at(document, "logged_at")["weekday_census"] = []
+
+
+def _hours_short_of_their_sure_cells(document: Document) -> None:
+    block = at(document, "logged_at")
+    groups = _hour_groups(document)
+    boundary = int(block["low_tail"]["boundary"][11:13])
+    for place in range(len(groups)):
+        group = groups[place]
+        if group["first"] <= boundary <= group["last"]:
+            other = groups[place + 1] if place + 1 < len(groups) else groups[place - 1]
+            other["count"] += group["count"] - 11
+            group["count"] = 11
+            return
+
+
+def _hours_stored_two_ways(document: Document) -> None:
+    # The weekday census these moments publish since landing 3b.D2 stands
+    # only where the values are stored one way too (WC6), and a description
+    # storing them two ways withholds it, so the rule judged is HC6's.
+    at(document, "logged_at")["weekday_census"] = []
+    # Seventeen columns since landing 3b.D2 added one to the base, as every
+    # other workbook mutation below counts them.
+    form = _workbook_block(document, 17, 120)
+    place = [block["name"] for block in document["columns"]].index("logged_at")
+    rows = typing.cast(int, document["n_rows"])
+    form["columns"][place]["cell_classes"]["number"] = rows - 12
+    form["columns"][place]["cell_classes"]["text"] = 12
+
+
+# -- 3b.T3 (P4-D372): THE MINUTE AND SECOND CENSUSES' RULES need a column of
+# moments on its own clock whose minutes and seconds heap. Each of them swaps
+# the base's `logged_at` for the block the producer writes for 240 moments
+# of 2024 written `HH:MM:00`, seven in ten on :00 or :30 -- its minute heaps
+# and census and its second heap published -- and then breaks one rule.
+_MINUTE_BLOCK: "list[Document]" = []
+
+
+def _moments_on_the_minute() -> Document:
+    """The block `synthtwin profile` writes for 240 moments `HH:MM:00`, floor 11."""
+    if not _MINUTE_BLOCK:
+        import random
+        import tempfile
+
+        draw = random.Random(372)
+        cells = []
+        for _row in range(240):
+            minute = draw.choice((0, 30)) if draw.random() < 0.7 else draw.randrange(60)
+            cells += [
+                f"2024-{draw.randrange(12) + 1:02d}-{1 + draw.randrange(28):02d} "
+                f"{6 + draw.randrange(16):02d}:{minute:02d}:00"
+            ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = fixtures.write(pathlib.Path(folder), "moments.csv", "logged_at\n" + "\n".join(cells) + "\n")
+            document = profile.build_document(
+                reading.read_table(str(path), small_cell_floor=11),
+                taxonomy.Settings(small_cell_floor=11), [], [], [],
+            )
+        _MINUTE_BLOCK.append(json.loads(json.dumps(document["columns"][0])))
+    return copy.deepcopy(_MINUTE_BLOCK[0])
+
+
+def a_clock_field_census(change: "typing.Callable[[Document], None]") -> Change:
+    """`logged_at` swapped for moments on the minute, its censuses published, then changed."""
+
+    def swapped(document: Document) -> None:
+        for place in range(len(document["columns"])):
+            if document["columns"][place]["name"] == "logged_at":
+                block = _moments_on_the_minute()
+                block["position"] = document["columns"][place]["position"]
+                document["columns"][place] = block
+        change(document)
+
+    return swapped
+
+
+def _minute_groups(document: Document) -> "list[Document]":
+    return typing.cast("list[Document]", at(document, "logged_at")["minute_census"])
+
+
+def _minutes_shifted(document: Document) -> None:
+    _minute_groups(document)[0]["first"] = 1
+
+
+def _minutes_below_the_line(document: Document) -> None:
+    groups = _minute_groups(document)
+    first = next(index for index in range(len(groups)) if groups[index]["count"] > 16)
+    moved = groups[first]["count"] - 5
+    groups[first]["count"] = 5
+    groups[first - 1 if first else first + 1]["count"] += moved
+
+
+def _minutes_past_the_body(document: Document) -> None:
+    groups = _minute_groups(document)
+    next(group for group in groups if group["count"] > 0)["count"] += 11
+
+
+def _a_middle_half_of_one_instant(document: Document) -> None:
+    """The middle half at one instant, its hour census taken out first (HC4's),
+    and its weekday census (WC10's, landing 3b.D2, met at 3b.7's merge of lane
+    T3: the weekday census is read first)."""
+    block = at(document, "logged_at")
+    block["hour_census"] = []
+    block["weekday_census"] = []
+    ladder = block["date_percentiles"]
+    ladder["p50"] = ladder["p25"]
+    ladder["p75"] = ladder["p25"]
+
+
+def _minutes_short_of_their_sure_cells(document: Document) -> None:
+    block = at(document, "logged_at")
+    groups = _minute_groups(document)
+    on_heaps = {heap["value"] for heap in block["minute_heaps"]}
+    published = [block[side]["boundary"] for side in ("low_tail", "high_tail")]
+    published += [rung for rung in block["date_percentiles"].values() if isinstance(rung, str)]
+    for value in published:
+        minute = int(value[14:16])
+        if minute in on_heaps:
+            continue
+        for place in range(len(groups)):
+            group = groups[place]
+            if group["first"] <= minute <= group["last"] and group["count"] > 11:
+                other = next(index for index in range(len(groups)) if index != place and groups[index]["count"] > 0)
+                groups[other]["count"] += group["count"] - 11
+                group["count"] = 11
+                return
+    raise AssertionError("no published value off the heaps in a group of its own")
+
+
+def _clock_fields_stored_two_ways(document: Document) -> None:
+    """Two storages, the hour census taken out first (HC6's), and the weekday
+    census (its workbook rule, landing 3b.D2, met at 3b.7's merge of lane T3)."""
+    at(document, "logged_at")["hour_census"] = []
+    at(document, "logged_at")["weekday_census"] = []
+    # Seventeen columns since landing 3b.D2 added one to the base, as every
+    # other workbook mutation counts them (lane J2's merge of lane T3).
+    form = _workbook_block(document, 17, 120)
+    place = [block["name"] for block in document["columns"]].index("logged_at")
+    rows = typing.cast(int, document["n_rows"])
+    form["columns"][place]["cell_classes"]["number"] = rows - 12
+    form["columns"][place]["cell_classes"]["text"] = 12
+
+
+def _minute_heaps_reversed(document: Document) -> None:
+    block = at(document, "logged_at")
+    block["minute_heaps"] = list(reversed(block["minute_heaps"]))
+
+
+def _minute_heaps_past_the_body(document: Document) -> None:
+    at(document, "logged_at")["minute_heaps"][0]["count"] += 5000
+
+
+def _seconds_only(document: Document) -> None:
+    """The minute's facts emptied, the seconds' heap written as a census."""
+    block = at(document, "logged_at")
+    block["minute_census"] = []
+    block["minute_heaps"] = []
+    held = block["second_heaps"][0]["count"]
+    block["second_heaps"] = []
+    block["second_census"] = [
+        {"first": 0, "last": 0, "count": held}, {"first": 1, "last": 59, "count": 0},
+    ]
+
+
+def _second_groups(document: Document) -> "list[Document]":
+    _seconds_only(document)
+    return typing.cast("list[Document]", at(document, "logged_at")["second_census"])
+
+
+def _seconds_shifted(document: Document) -> None:
+    _second_groups(document)[1]["first"] = 2
+
+
+def _seconds_below_the_line(document: Document) -> None:
+    groups = _second_groups(document)
+    groups[0]["count"] -= 5
+    groups[1]["count"] = 5
+
+
+def _seconds_past_the_body(document: Document) -> None:
+    _second_groups(document)[0]["count"] += 11
+
+
+def _seconds_of_one_instant(document: Document) -> None:
+    _second_groups(document)
+    _a_middle_half_of_one_instant(document)
+
+
+def _seconds_short_of_their_sure_cells(document: Document) -> None:
+    groups = _second_groups(document)
+    groups[1]["count"] = groups[0]["count"]
+    groups[0]["count"] = 0
+
+
+def _seconds_stored_two_ways(document: Document) -> None:
+    _second_groups(document)
+    _clock_fields_stored_two_ways(document)
+
+
+def _second_heaps_twice(document: Document) -> None:
+    block = at(document, "logged_at")
+    block["minute_census"] = []
+    block["minute_heaps"] = []
+    block["second_heaps"] = block["second_heaps"] * 2
+
+
+def _second_heaps_past_the_body(document: Document) -> None:
+    block = at(document, "logged_at")
+    block["minute_census"] = []
+    block["minute_heaps"] = []
+    block["second_heaps"][0]["count"] += 5000
 
 
 @dataclasses.dataclass(frozen=True)
@@ -417,6 +1067,34 @@ def battery() -> list[Mutation]:
                 forced_codes=["amount"],
                 forced_decimal_commas=["amount"],
             ),
+        ),
+        Mutation(
+            # WHO THE ROWS ARE ABOUT, NAMED BY NOBODY (plan P4-D340).
+            # `person_columns` is DERIVED from the columns declared
+            # with `--identifier` and the cells, so every name in it is
+            # also under `forced_identifiers`. A name that is not says
+            # the rows were counted by a column whose values the
+            # description never looked at that way, which is a document
+            # no producer of this contract writes.
+            "S8b", "a person column that nobody declared",
+            edit_in("settings", person_columns=["amount"]),
+        ),
+        Mutation(
+            # THE 12-HOUR FACE WITH NO MARKER, AND NO DECLARATION BEHIND
+            # IT (the T1 review's item 7; contract C6-10a). `seen_at`
+            # writes `07:00` to `08:59`, which that face spells the same
+            # way, so the form is the one thing wrong.
+            "S8c", "a clock on the 12-hour face that nobody declared",
+            on_the_other_face("seen_at", "hh-mm twelve-hour"),
+        ),
+        Mutation(
+            # ...AND THE DECLARATION WITH NO 12-HOUR FACE BEHIND IT (the
+            # same item's second round): a declared column reads its
+            # unmarked hours on that face and on no other, so `seen_at`
+            # declared and still written on the 24-hour face is a
+            # document no producer writes.
+            "S8c", "a declared clock left on the 24-hour face",
+            edit_in("settings", forced_twelve_hour_clocks=["seen_at"]),
         ),
         Mutation(
             "S9", "more categories allowed at the floor than at the ceiling",
@@ -588,10 +1266,65 @@ def battery() -> list[Mutation]:
                             "verdict": "kept_as_a_number",
                             "reason": "not_an_outlier",
                             "n_occurrences": 13,
+                            "spellings": [],
                         },
                     ]
                 }
             ),
+        ),
+        # THE SPELLINGS A DECISION TOOK OUT (V5, repair pass of landing
+        # 2b.6). Both directions of the rule are damaged: a decision
+        # naming a spelling this column does not publish among its
+        # absent cells, and a decision that KEPT its candidate as a
+        # number naming one anyway. Neither is a document the producer
+        # can write, and each would tell the generator and the
+        # validator that a word the person declared was one column's
+        # own judgement -- the mistake this key exists to end.
+        Mutation(
+            "V5", "a decision naming a spelling the column never published",
+            edit_verdict("reading", 0, spellings=["zz"]),
+        ),
+        Mutation(
+            "V5", "a kept candidate naming the spellings it did not take",
+            edit_verdict(
+                "reading", 0, verdict="kept_as_a_number", reason="too_rare"
+            ),
+        ),
+        # ...and the two parts landing 2b.14 added, which are what make
+        # the key CHECKABLE rather than merely published (P4-D95). Each
+        # is a document the producer cannot write and the loader used to
+        # accept, and each tells both consumers that a word the PERSON
+        # DECLARED was one column's own judgement.
+        Mutation(
+            "V5", "two decisions of one column claiming one spelling's cells",
+            lambda document: at(document, "reading").update(
+                {
+                    "sentinel_verdicts": [
+                        at(document, "reading")["sentinel_verdicts"][0],
+                        {
+                            "candidate": "9999",
+                            "verdict": "read_as_missing",
+                            "reason": "outlier_and_frequent",
+                            "n_occurrences": 13,
+                            "spellings": ["-999"],
+                        },
+                    ]
+                }
+            ),
+        ),
+        Mutation(
+            "V5", "spellings covering more cells than rows held the candidate",
+            edit_verdict("reading", 0, n_occurrences=11),
+        ),
+        # ...and the OMISSION, which the two above left open (plan
+        # P4-D135; review of 158c811, item 6). A judged decision edited to
+        # name none of the spellings it took out, beside a pool too small
+        # to hold those cells: the link is gone, the validator reads the
+        # spelling as a declaration reaching the whole table, and a second
+        # column's unchanged values are read as holes.
+        Mutation(
+            "V5", "a judged decision naming none of the spellings it took out",
+            edit_verdict("reading", 0, spellings=[]),
         ),
         # -- the repetition patterns ----------------------------------
         Mutation(
@@ -618,10 +1351,6 @@ def battery() -> list[Mutation]:
         Mutation(
             "L1", "a ladder that goes down",
             edit_inside("amount", "percentiles", p05=1000.0),
-        ),
-        Mutation(
-            "L3", "a ladder of dates with nothing at one rung",
-            edit_inside("recorded_on", "date_percentiles", p50=None),
         ),
         # -- the empty column -----------------------------------------
         Mutation(
@@ -672,12 +1401,49 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "B4", "a held-back label with no size beside it",
-            edit("region", suppressed_level_counts=[]),
+            "B4", "labels held back on fewer rows than their number",
+            edit("region", suppressed_rows=0),
         ),
         Mutation(
-            "B5", "a label held back that the floor would have published",
-            edit("region", suppressed_level_counts=[20]),
+            "B4", "a pool too large to be written below the floor",
+            edit("region", suppressed_rows=11),
+        ),
+        Mutation(
+            # B4b AND B4c ARE RETIRED (plan P4-D390): a pool of one label
+            # on one row, and a class total one row above the labels that
+            # read that way, both load now -- see
+            # `test_the_level_rules_ruling_5_asked_load_now` below.
+            # B4d, A POOLED SCALE TAKEN OVER TOO FEW CELLS (plan
+            # P4-D302, ledger K-2B-50). Section 6.3 publishes the mean
+            # of the numbers the floor held back, and it is safe only
+            # because the pool it is taken over is a group: a mean over
+            # three cells is three people's values averaged, and over
+            # one it IS that value. The census line is asked here as it
+            # is of every other census this format carries.
+            "B4d", "a pooled scale taken over fewer cells than the line",
+            edit(
+                "region",
+                suppressed_numbers={"n_cells": 3, "mean": 5.0},
+            ),
+        ),
+        Mutation(
+            # B4d, A MEAN SPOKEN OVER NO CELLS AT ALL (owner's decision
+            # of 2026-09-21, plan P4-D302). Silence is total: where the
+            # count is nought the mean is absent, and where it is not
+            # the mean is written. A block that spoke one without the
+            # other would say by its shape what the count is for.
+            #
+            # THIS ENTRY REPLACES THE ONE THAT ASKED FOR A SPREAD ABOVE
+            # NOUGHT, and the replacement is a loss named rather than
+            # hidden: no spread is published any more, so no loader can
+            # refuse a hand-written pool of one value whose mean IS that
+            # value. Contract 6.3.3 says so, and the producer's own
+            # refusal is the only guard left for it.
+            "B4d", "a pooled mean spoken over no cells at all",
+            edit(
+                "region",
+                suppressed_numbers={"n_cells": 0, "mean": 5.0},
+            ),
         ),
         Mutation(
             "B5", "a label published below the floor",
@@ -756,6 +1522,20 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # W5b, A SPELLING ONE ROW WROTE (the owner's ruling of
+            # 2026-09-17, item 5; plan P4-D240). Every rule around it
+            # holds: the named spelling stays above the floor, the key
+            # is inside `1 .. floor - 1` (W5), and the two together
+            # still account for every row of the label (W4). What is
+            # left is the census saying, in its own definition, that one
+            # held-back spelling covered exactly one row -- and a twin
+            # then writes that row's spelling in exactly one row.
+            "W5b", "a spelling of a label that ONE row wrote",
+            edit_level(
+                "region", 0, variants={"west": 58}, variants_withheld={"1": 1}
+            ),
+        ),
+        Mutation(
             "W7", "a published label nobody wrote",
             edit_level("region", 0, variants={}, variants_withheld={}),
         ),
@@ -771,6 +1551,24 @@ def battery() -> list[Mutation]:
             "W8", "rows written in a form their label does not have",
             edit_level("region", 0, shape_form_cells=1),
         ),
+        Mutation(
+            # W9, THE SPELLINGS THE BLOCK SPEAKS OF (plan P4-D276; the
+            # carried numbers pass of 2026-09-18). `region` names four
+            # spellings and holds one label back over seven rows, so it
+            # holds between 4 + 1 = 5 and 4 + 7 = 11 different
+            # spellings: twelve is one more than a held-back label per
+            # row allows, and every other rule on the count still holds.
+            "W9", "more spellings than the labels and the held-back rows allow",
+            edit("region", n_distinct=12),
+        ),
+        Mutation(
+            # ...and with NOTHING held back the two ends meet: `answer`
+            # names `no` and `yes` and holds no label back, so it holds
+            # exactly two spellings. Three is the floor-eleven graft
+            # `tests/test_p3v5f1_floor_one.py` found accepted.
+            "W9", "a spelling no published label names, with nothing held back",
+            edit("answer", n_distinct=3),
+        ),
         # -- the datetime column --------------------------------------
         Mutation(
             "D1", "dates published in a form the reading does not give",
@@ -784,9 +1582,16 @@ def battery() -> list[Mutation]:
             "D3", "an offset carried by too few rows to name",
             edit("recorded_on", utc_offsets={"(none)": 239, "+02:00": 1}),
         ),
+        # ...AND NO POOL STANDS BESIDE A NAMED OFFSET (plans P4-D220 and
+        # P4-D222): three values held back beside 237 with no offset is the
+        # count of the rows that wore some other one, and the producer
+        # counts such rows into the commonest offset instead.
         Mutation(
-            "D4", "an endpoint naming an offset the map holds back",
-            edit("recorded_on", earliest_utc_offset="+02:00"),
+            "D3", "a withheld pool of offsets beside a named one",
+            edit(
+                "recorded_on",
+                utc_offsets={"(none)": 237, "(withheld)": 3},
+            ),
         ),
         Mutation(
             "D5", "two offsets published on the local clock",
@@ -828,27 +1633,1074 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "D9", "an offset on a column that publishes no time of day",
-            edit(
-                "recorded_on",
-                utc_offsets={"+02:00": 240},
-                earliest_utc_offset="+02:00",
-                latest_utc_offset="+02:00",
-            ),
+            edit("recorded_on", utc_offsets={"+02:00": 240}),
         ),
         Mutation(
             "D10", "a last value the shared clock cannot read back",
             sixtieth_second("logged_at"),
         ),
         Mutation(
-            "D10", "ends carrying seconds a column of whole minutes cannot",
-            edit("logged_at", time_precision="minute"),
+            # THE TAIL UNIT MOVES WITH THE PRECISION (stage 3, DT4), so
+            # that what this case breaks is D10 and not the unit rule one
+            # step earlier: a column recording whole minutes counts its
+            # tails in minutes, and its published boundary still carries
+            # a seconds field no cell of it can write.
+            "D10", "a boundary carrying seconds a column of whole minutes cannot",
+            edit("logged_at", time_precision="minute", tail_unit="minute"),
         ),
+        # THE LADDER AROUND THE TAILS (stage 3, D11). The two ends are
+        # always empty, a rung read from inside a tail is empty, and a
+        # rung read from between the two boundaries is published: each of
+        # the three is broken here in turn.
         Mutation(
-            "D11", "a ladder that begins before the column's first value",
+            "D11", "a ladder publishing an end the tail rule withholds",
             edit_inside(
                 "recorded_on", "date_percentiles", min="2023-01-01"
             ),
         ),
+        Mutation(
+            "D11", "a ladder with nothing at a rung between the boundaries",
+            edit_inside("recorded_on", "date_percentiles", p50=None),
+        ),
+        Mutation(
+            "D11", "a published rung outside the tail boundaries",
+            edit_inside_inside(
+                "recorded_on", "high_tail", boundary="2024-11-01"
+            ),
+        ),
+        # THE TAILS THEMSELVES (stage 3, DT1 to DT4).
+        Mutation(
+            "DT1", "a tail publishing its values and its spread as well",
+            a_tail_with_values_and_spread("recorded_on"),
+        ),
+        Mutation(
+            "DT2", "one tail published and the other not",
+            edit("recorded_on", low_tail=None),
+        ),
+        Mutation(
+            "DT2", "a tail holding fewer cells than the smallest group",
+            edit_inside_inside("recorded_on", "low_tail", rows=2),
+        ),
+        Mutation(
+            "DT3", "a tail whose cells lie less than a unit beyond it",
+            edit_inside_inside(
+                "recorded_on", "low_tail", mean_distance=0.5
+            ),
+        ),
+        Mutation(
+            "DT3", "a tail whose spread is below its own mean",
+            edit_inside_inside(
+                "recorded_on", "low_tail", rms_distance=1.0,
+                mean_distance=4.0,
+            ),
+        ),
+        Mutation(
+            "DT4", "tails counted in a unit the column does not publish",
+            edit("recorded_on", tail_unit="second"),
+        ),
+        Mutation(
+            "D12", "a mark between day and clock named for too few rows",
+            edit("logged_at", datetime_separators={"space": 1}),
+        ),
+        # A POOL OF MARKS STANDS ALONE (plan P4-D220; stage 2 closed by
+        # the owner rulings of 2026-09-17). Eleven values held back beside
+        # a named mark cleared the bound this replaced -- (floor - 1)
+        # times the two unnamed marks -- and told a reader that neither
+        # of those marks was nought. `{"(withheld)": 240}`, the witness
+        # this replaces, is the whole census and is admitted now.
+        Mutation(
+            "D12", "a withheld pool beside a named mark",
+            edit("logged_at", datetime_separators={"upper_t": 229, "(withheld)": 11}),
+        ),
+        # A POOL OF EVERY MARK OVER MORE VALUES THAN TWO MARKS HOLD BELOW THE
+        # LINE (plan P4-D222): it says each of the three was written, so the
+        # producer names the commonest mark there, `{"(withheld)": 240}`
+        # included.
+        Mutation(
+            "D12", "a pool of every mark that says each mark was written",
+            edit("logged_at", datetime_separators={"(withheld)": 240}),
+        ),
+        Mutation(
+            "D13", "marks counted on a column that writes no clock",
+            edit("recorded_on", datetime_separators={"space": 240}),
+        ),
+        # A SLASHED STAMP'S WRITTEN CLOCK named on a column of ISO moments
+        # (landing T1, plan P4-D370): the word belongs to a slashed stamp
+        # alone. Its other half, a stamp naming two, is in the reader's
+        # gate, `tests/test_stage3b_reader.py`, whose description holds
+        # such a stamp.
+        Mutation(
+            "D12a", "a slashed stamp's written clock named on a column of ISO moments",
+            edit("logged_at", datetime_separators={"space h": 240}),
+        ),
+        Mutation(
+            "GS1", "a column not declared to write a decimal comma grouped with a point",
+            edit("visits", group_separator="."),
+        ),
+        # The two spelling facts landing 2b.2 added beside the mark.
+        Mutation(
+            "NS1", "negatives said to wear brackets on a column that holds none",
+            edit("visits", negative_form="brackets"),
+        ),
+        Mutation(
+            "DP1", "signed decimals counted on a column with no decimal form",
+            edit("visits", decimal_plus={"+": 5}),
+        ),
+        # ...AND AT THE FLOOR, so only the room clause can refuse it: the
+        # case above is caught by the floor clause first, and withdrawing
+        # the room check left this battery green (the verification of
+        # landing 2b.2).
+        Mutation(
+            "DP1", "signed decimals counted past the cells the forms map can put in the decimal form",
+            edit("visits", decimal_plus={"+": 11}),
+        ),
+        # The wide-run word landing 2b.13 added beside them (plan
+        # P4-D90). Refused by its ROOM clause, which is the only clause
+        # of WR1 a conforming word can break: `amount` is written
+        # `decimal` on every one of its 240 cells, so the forms map
+        # leaves room for no cell written `plain` and no run of figures
+        # past 2**53 can be among them. A word outside the three is
+        # refused as a range rather than as this invariant.
+        Mutation(
+            "WR1", "wide runs claimed on a column with no cell written plain",
+            edit("amount", wide_runs="canonical"),
+        ),
+        # ...AND THE POOL OF ONE THAT USED TO WITNESS WR1's FLOOR CLAUSE
+        # (landing 2b.13's repair pass, plan P4-D91) is refused before the
+        # word is read: a pool below `parsing.census_floor` beside a named
+        # form is invariant P6's since plan P4-D221 (stage 2 closed by the
+        # owner rulings of 2026-09-17), so the room WR1's floor clause
+        # measures is nought, a named form, a pool of the line or more, or
+        # the whole numeric count of a column smaller than the floor.
+        Mutation(
+            "P6", "a pool of one cell beside a named form",
+            wide_runs_on_a_pooled_form("amount"),
+        ),
+        # The two mixture censuses landing 2b.7 added beside them. Each
+        # is refused by the clause the other cannot reach: the notations
+        # by their POPULATION, which the column's own `n_negative`
+        # bounds, and the marks by the CENSUS FLOOR, which is never one
+        # however low the smallest group size is set.
+        Mutation(
+            "NS2", "notations counted on a column that holds no negative number",
+            edit("visits", negative_notations={"brackets": 11}),
+        ),
+        Mutation(
+            "TM1", "a mark counted for a single grouped number",
+            edit("visits", thousands_marks={",": 1}),
+        ),
+        Mutation(
+            "D14", "a column of whole dates said to stand at midnight",
+            edit("recorded_on", all_at_midnight=True),
+        ),
+        Mutation(
+            # AND THE TAIL UNIT WITH IT (stage 3, DT4), AND THE TWO
+            # DISTANCES THE UNIT IS COUNTED IN (DT3, the dates pass of
+            # the stage-3 review): a column standing at midnight counts
+            # its tails in DAYS, so a mutation that says so and leaves
+            # either the unit or the distances in seconds is refused one
+            # rule earlier and D14 is never reached. A distance of
+            # 693,204 counted in days passes the end of the supported
+            # calendar, which DT3 now refuses.
+            "D14", "stamps on the shared clock said to stand at midnight",
+            standing_at_midnight_in_days("logged_at"),
+        ),
+        Mutation(
+            "D15", "more values counted at midnight than the column holds",
+            counted_past_the_values("logged_at"),
+        ),
+        Mutation(
+            "D15", "a count of values at midnight on a column that writes no clock",
+            edit("recorded_on", n_at_midnight=12),
+        ),
+        # THE DISCLOSURE FLOOR, landing 2b.6. One is not a group: a count
+        # of one names the person holding the value, and a count one short
+        # of every value names the person who does not. Nought is refused
+        # with them, because a nought a reader can tell from a suppressed
+        # singleton IS that singleton.
+        Mutation(
+            "D15", "a count of values at midnight that names one person",
+            one_value_at_midnight("logged_at"),
+        ),
+        Mutation(
+            "D15", "a count leaving exactly one value off midnight",
+            all_but_one_at_midnight("logged_at"),
+        ),
+        Mutation(
+            "D15", "a nought where the count is simply not published",
+            nought_at_midnight("logged_at"),
+        ),
+        Mutation(
+            "D16", "whole dates counted beside offsets only moments carry",
+            whole_dates_carrying_offsets("logged_at"),
+        ),
+        Mutation(
+            "RM3", "a form census counting one row's own reading",
+            a_form_one_row_wore("logged_at"),
+        ),
+        # HOW THE DATES WERE WRITTEN, landing 2b.6. `recorded_on` is read
+        # as `iso-date`: its fields are of fixed width, it writes no
+        # month NAME, it is no column of quarters and it names no zulu
+        # offset -- so each of the four censuses is a census that column
+        # can carry nothing in, and a document that fills one describes a
+        # column no producer wrote.
+        Mutation(
+            "D17", "a width census on a member of fixed field width",
+            edit("recorded_on", date_field_widths={"padded": 12}),
+        ),
+        Mutation(
+            "D18", "a month-name census on a column writing no month name",
+            edit(
+                "recorded_on",
+                month_name_styles={"title-abbreviated-space-no-comma": 12},
+            ),
+        ),
+        Mutation(
+            "D19", "a quarter-marker census on a column of whole dates",
+            edit("recorded_on", quarter_marker_case={"upper": 12}),
+        ),
+        Mutation(
+            "D20", "a zulu-case census where no zulu offset is named",
+            edit("recorded_on", zulu_case={"upper": 12}),
+        ),
+        # THE WEEKDAY CENSUS, landing 3b.1 (plan P4-D355). `recorded_on`
+        # publishes the seven weekday counts of its 217 body values,
+        # Monday first: 30, 27, 33, 36, 30, 26 and 35. Since plan P4-D365
+        # the loader holds a census to its shape alone (WC1 to WC4 and
+        # WC6); WC5, WC7, WC8 and WC9 are retired.
+        Mutation(
+            "WC1", "a weekday census whose groups run out of order",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 1, "last": 1, "count": 27},
+                    {"first": 0, "last": 0, "count": 30},
+                    {"first": 2, "last": 6, "count": 160},
+                ],
+            ),
+        ),
+        Mutation(
+            "WC2", "a weekday group counting fewer than the census line",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 0, "last": 0, "count": 5},
+                    {"first": 1, "last": 6, "count": 212},
+                ],
+            ),
+        ),
+        # ...a column on the shared clock is in WC3's scope since landing 3b.7
+        # (plan P4-D378), each value counted on the day it is written on, so
+        # its census is held to the body like any other.
+        Mutation(
+            "WC3", "a weekday census on the shared clock adding to more than the body",
+            edit(
+                "logged_at",
+                weekday_census=[{"first": 0, "last": 6, "count": 9218}],
+            ),
+        ),
+        Mutation(
+            "WC3", "weekday counts adding to more than the body",
+            edit_weekdays("recorded_on", 0, 31),
+        ),
+        Mutation(
+            "WC4", "a grouping of weekdays the census never uses",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 0, "last": 1, "count": 57},
+                    {"first": 2, "last": 6, "count": 160},
+                ],
+            ),
+        ),
+        Mutation(
+            "WC6", "a weekday census beside dates written two widths",
+            edit(
+                "recorded_on",
+                format="month-first-date",
+                resolution_mix={"month-first-date": 240},
+                date_field_widths={"padded": 117, "unpadded": 123},
+            ),
+        ),
+        # THE CENSUSES STAGE 3B RESERVES (plan P4-D364): each `[]`, and
+        # `clock_step` null, until the landing that fills it; the reader
+        # of that landing's stub refuses anything else, by the key's name.
+        # Lane by lane: a landing that fills a key retires its own
+        # mutations below its own `# -- 3b.X` line, keeps that line, and
+        # edits no other.
+        # -- 3b.T2 (P4-D371)
+        # -- 3b.T3 (P4-D372)
+        # Filled by its landing: its rules' mutations stand below its anchor.
+        # -- 3b.D3 (P4-D368)
+        # -- 3b.D4 (P4-D369)
+        # -- 3b.C1 (P4-D373)
+        # The base's `seen_at` publishes a step of 60 seconds, no heap, no
+        # code, and a census of 214 body cells from bin 42 to bin 53.
+        Mutation(
+            "CC1", "a clock census leaving a ten-minute bin out",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 43, "last": 143, "count": 214},
+                ],
+            ),
+        ),
+        Mutation(
+            "CC2", "a clock group of five",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 42, "count": 5},
+                    {"first": 43, "last": 143, "count": 209},
+                ],
+            ),
+        ),
+        Mutation(
+            "CC3", "a clock census one cell short of its body",
+            edit("seen_at", clock_census=[{"first": 0, "last": 143, "count": 213}]),
+        ),
+        Mutation(
+            "CC4", "a clock census beside no step",
+            edit("seen_at", clock_step=None),
+        ),
+        Mutation(
+            "CC4", "a step of two minutes beside rungs off it",
+            edit("seen_at", clock_step=120),
+        ),
+        Mutation(
+            "CC5", "a clock group counting cells below the low boundary",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 40, "count": 11},
+                    {"first": 41, "last": 143, "count": 203},
+                ],
+            ),
+        ),
+        Mutation(
+            "CH1", "a clock heap of seven",
+            edit("seen_at", clock_heaps=[{"value": "07:30", "count": 7}]),
+        ),
+        Mutation(
+            "CH2", "a clock code that reads as a time",
+            edit("seen_at", clock_codes=[{"spelling": "07:30", "count": 11}]),
+        ),
+        # ONE PER BRANCH (the 3b.5 skeptic's repair round, item 6): each of
+        # these reaches one raise and no other, so withdrawing that raise
+        # leaves the description loading and the entry red.
+        Mutation(
+            "CC4", "a step of ninety seconds, which no minute of the form is on",
+            edit("seen_at", clock_step=90),
+        ),
+        Mutation(
+            "CH1", "two clock heaps out of order",
+            edit(
+                "seen_at",
+                clock_heaps=[
+                    {"value": "08:00", "count": 11},
+                    {"value": "07:30", "count": 11},
+                ],
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 53, "count": 192},
+                    {"first": 54, "last": 143, "count": 0},
+                ],
+            ),
+        ),
+        Mutation(
+            "CH1", "a clock heap outside the boundaries, past its tail's rows",
+            edit("seen_at", clock_heaps=[{"value": "07:00", "count": 13}]),
+        ),
+        Mutation(
+            "CH1", "a clock heap in a tail that lists other values",
+            edit(
+                "seen_at",
+                low_tail={
+                    "boundary": "07:06",
+                    "rows": 12,
+                    "mean_distance": 3.5,
+                    "rms_distance": None,
+                    "values": ["07:00", "07:05"],
+                },
+                clock_heaps=[{"value": "07:02", "count": 11}],
+            ),
+        ),
+        Mutation(
+            "CH1", "clock heaps between the boundaries past the body's cells",
+            edit(
+                "seen_at",
+                clock_heaps=[{"value": "08:00", "count": 215}],
+                clock_census=[],
+            ),
+        ),
+        Mutation(
+            "CH2", "a clock code below the census line",
+            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 2}]),
+        ),
+        Mutation(
+            "CH2", "clock codes past the cells no time reading took",
+            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 11}]),
+        ),
+        Mutation(
+            "CC5", "a rung outside every group that counts cells",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 43, "count": 28},
+                    {"first": 44, "last": 44, "count": 20},
+                    {"first": 45, "last": 45, "count": 20},
+                    {"first": 46, "last": 46, "count": 40},
+                    {"first": 47, "last": 47, "count": 0},
+                    {"first": 48, "last": 48, "count": 20},
+                    {"first": 49, "last": 49, "count": 20},
+                    {"first": 50, "last": 50, "count": 19},
+                    {"first": 51, "last": 51, "count": 20},
+                    {"first": 52, "last": 53, "count": 27},
+                    {"first": 54, "last": 143, "count": 0},
+                ],
+            ),
+        ),
+        # ...AND THE LANDING'S REVIEW, item 5: a block publishing no census
+        # is asked of the one group its body's cells on no heap make, and a
+        # tail listing its values of the rows and the sum its heaps leave.
+        Mutation(
+            "CC5", "no clock census, every body cell on a heap the boundaries are not on",
+            edit(
+                "seen_at",
+                clock_census=[],
+                clock_heaps=[{"value": "07:30", "count": 214}],
+            ),
+        ),
+        Mutation(
+            "CH1", "a listing clock tail whose heap leaves its other value no row",
+            edit(
+                "seen_at",
+                low_tail={
+                    "boundary": "07:06",
+                    "rows": 12,
+                    "mean_distance": 3.5,
+                    "rms_distance": None,
+                    "values": ["07:00", "07:05"],
+                },
+                clock_heaps=[{"value": "07:00", "count": 12}],
+            ),
+        ),
+        Mutation(
+            "CH1", "a listing clock tail whose mean its heap and other value cannot add",
+            edit(
+                "seen_at",
+                low_tail={
+                    "boundary": "07:06",
+                    "rows": 12,
+                    "mean_distance": 3.5,
+                    "rms_distance": None,
+                    "values": ["07:00", "07:05"],
+                },
+                clock_heaps=[{"value": "07:00", "count": 11}],
+            ),
+        ),
+        # -- 3b.C2 (P4-D374)
+        # Filled by landing 3b.5's second step: a minute census beside no
+        # step, or not adding to the body, is MC3's (the landing's own
+        # refusals are tests/test_stage3b_clock_minutes.py's).
+        Mutation(
+            "MC3", "a minute census of clock times beside no step or adding to more than the body",
+            edit("seen_at", minute_census=[{"first": 0, "last": 59, "count": 200}]),
+        ),
+        # THE SECOND CUT (plan P4-D386): three declarations of the settings
+        # block, each `[]`, and `count_form` null, until the landing that
+        # fills each; and S8d, which holds a column whose dates are counts
+        # to no other reading BEFORE its key is refused as non-empty, so
+        # each S8d case below is refused for the pair and not for the key.
+        # -- 3b.R2a (P4-D383)
+        # THE LAYOUT MEMBER'S SIX RULES (contract LY1 to LY6): a column of
+        # the base read as a layout, with exactly one fact of it wrong.
+        Mutation(
+            "LY1", "a layout the closed grammar of dates does not make",
+            edit("recorded_on", format="layout {M}{D}{YYYY}"),
+        ),
+        Mutation(
+            "LY2", "a layout writing a clock on a column of whole dates",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}{MM}{DD}{HH}{MI}{SS}",
+                resolution_mix={"layout {YYYY}{MM}{DD}{HH}{MI}{SS}": 240},
+            ),
+        ),
+        Mutation(
+            "LY3", "a layout to the minute on a column given to the second",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}{+HH:MM}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}{+HH:MM}": 240},
+            ),
+        ),
+        Mutation(
+            "LY4", "an offset counted on a layout that writes none",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}": 240},
+                datetime_separators={},
+            ),
+        ),
+        Mutation(
+            "LY4", "marks before the clock counted on a layout",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
+            ),
+        ),
+        # ...and the zulu key on a signed field, which reads `+0000` as
+        # `+00:00` and never as `Z` (the Codex review of landing R2a, item
+        # 6): the writer handed it wrote a literal `Z` the field cannot
+        # read back. No case is counted, so LY4's offset clause alone
+        # refuses it before D20 asks for one.
+        Mutation(
+            "LY4", "a zulu offset counted on a signed offset field",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
+                datetime_separators={},
+                utc_offsets={"+02:00": 120, "Z": 120},
+            ),
+        ),
+        # ...and the case of a zulu offset, which a layout's own field
+        # fixes (skeptic 1 of landing R2a, item 6): the offset its zulu
+        # field writes, no mark counted, so LY4's zulu clause alone
+        # refuses it.
+        Mutation(
+            "LY4", "the case of the zulu offsets counted on a layout",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{Z}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{Z}": 240},
+                datetime_separators={},
+                utc_offsets={"Z": 240},
+                zulu_case={"upper": 240},
+            ),
+        ),
+        Mutation(
+            "LY5", "widths counted on a layout with no flexible field",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 240},
+                date_field_widths={"padded": 240},
+            ),
+        ),
+        Mutation(
+            "LY6", "a layout counted by form under another name",
+            edit("recorded_on", format="layout {YYYY}.{MM}.{DD}"),
+        ),
+        Mutation(
+            "R16", "a window for two-figure years question Q5 does not offer",
+            edit_in("settings", century_windows=[["recorded_on", 1950]]),
+            names="century_windows[0][1]",
+        ),
+        Mutation(
+            "R16", "windows for two-figure years out of order",
+            edit_in(
+                "settings",
+                century_windows=[["recorded_on", 1930], ["logged_at", 1930]],
+            ),
+            names="names in rising order, each of them once",
+        ),
+        Mutation(
+            "S8", "a window for two-figure years of a column this table lacks",
+            edit_in("settings", century_windows=[["no_such_column", 1930]]),
+        ),
+        Mutation(
+            "S8e", "a layout read in a century nobody declared",
+            edit(
+                "recorded_on",
+                format="layout {MM}/{DD}/{YY1930}",
+                resolution_mix={"layout {MM}/{DD}/{YY1930}": 240},
+            ),
+        ),
+        Mutation(
+            "S8e", "a declared century beside a member that reads the POSIX one",
+            _declared_and_read_by_a_member("recorded_on"),
+        ),
+        # The reader of `[column, value]` pairs refuses each of these
+        # before the key's own refusal is reached, so each check stays
+        # held when R2a deletes that refusal.
+        Mutation(
+            "R16", "a window that is not a pair",
+            edit_in("settings", century_windows=[["recorded_on"]]),
+            names="a column's name and one value beside it",
+        ),
+        Mutation(
+            "R16", "a column given two windows",
+            edit_in("settings", century_windows=[["recorded_on", 1930], ["recorded_on", 1940]]),
+            names="each column named once",
+        ),
+        Mutation(
+            "R15", "a window's first year written with a fractional part",
+            edit_in("settings", century_windows=[["recorded_on", 1930.5]]),
+            names="century_windows[0][1]",
+        ),
+        Mutation(
+            "R16", "a window holding a value past its first year",
+            edit_in("settings", century_windows=[["recorded_on", 1930, 2029]]),
+            names="a column's name and one value beside it",
+        ),
+        # -- 3b.R2c (P4-D383)
+        # Filled by its landing (question Q6): the names stay held to their
+        # order and their kind, S8 to the table, and S8f binds the
+        # ask-first layouts to the declaration.
+        Mutation(
+            "R16", "columns said to be dates out of order",
+            edit_in("settings", forced_date_columns=["visits", "recorded_on"]),
+            names="names in rising order, each of them once",
+        ),
+        # Each name once and each name a piece of text, both checked
+        # before the key's own refusal, so both stay held when R2c
+        # deletes that refusal.
+        Mutation(
+            "R16", "a column said to be dates twice",
+            edit_in("settings", forced_date_columns=["recorded_on", "recorded_on"]),
+            names="names in rising order, each of them once",
+        ),
+        Mutation(
+            "R15", "a column said to be dates named by a number",
+            edit_in("settings", forced_date_columns=[7]),
+            names="forced_date_columns[0]",
+        ),
+        Mutation(
+            "S8", "a column said to be dates this table lacks",
+            edit_in("settings", forced_date_columns=["no_such_column"]),
+        ),
+        Mutation(
+            "S8f", "a layout of the day of the year nobody declared dates",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}{DDD}",
+                resolution_mix={"layout {YYYY}{DDD}": 240},
+            ),
+        ),
+        # THE PARTIAL FORMS (LY6, LY7): a column of the base read as a
+        # layout, its census of forms counting one form wrong.
+        Mutation(
+            "LY6", "a partial form that is no cut of its layout",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 240, "layout {MM}.{YYYY}": 20},
+            ),
+        ),
+        Mutation(
+            "LY7", "partial forms counting cells the column read",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 240, "layout {YYYY}.{MM}": 20},
+            ),
+        ),
+        # ...AND ITS TWO COUNTS (the R2c repair, item 5): the layout's own
+        # count is the cells read, and no form is named below the line.
+        Mutation(
+            "RM2", "a partial-date column's layout counting fewer than it read",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 239, "layout {YYYY}.{MM}": 0},
+            ),
+        ),
+        Mutation(
+            "RM3", "a partial form named on five cells",
+            a_partial_form_five_cells_wore("recorded_on"),
+        ),
+        # -- 3b.R4 (P4-D384)
+        # LANDING R4 FILLED BOTH KEYS: a system outside the twelve and names
+        # out of order are refused for their range, a column of dates named
+        # as counts must carry a form of counts (CD1) and only such a column
+        # may (CD2), contacts stand on the 1840 member alone (CD3), a census
+        # of contacts counts every date at the disclosure line (CD4), and an
+        # exponent form writes fifteen significant figures (CD5).
+        Mutation(
+            "R16", "dates written as counts in a system synthtwin reads none of",
+            edit_in("settings", forced_date_counts=[["recorded_on", "excel-2000"]]),
+            names="forced_date_counts[0][1]",
+        ),
+        Mutation(
+            "R16", "counted columns out of order",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"], ["recorded_on", "excel-1900"]],
+            ),
+            names="names in rising order, each of them once",
+        ),
+        Mutation(
+            "R16", "a form of counts writing eighteen figures after the point",
+            edit("recorded_on", count_form=_count_form_of(places=18)),
+            names="count_form -> places",
+        ),
+        Mutation(
+            "R13", "a form of counts with a key no form has",
+            edit("recorded_on", count_form=dict(_count_form_of(), width=5)),
+            names="an entry called 'width'",
+        ),
+        Mutation(
+            "CD1", "a column of dates named as counts with no form of counts",
+            edit_in("settings", forced_date_counts=[["recorded_on", "excel-1900"]]),
+        ),
+        Mutation(
+            "CD2", "a form of counts on a column nobody named as counts",
+            edit("recorded_on", count_form=_count_form_of()),
+        ),
+        Mutation(
+            "CD3", "a census of contact numbers on a column of Excel serials",
+            _counted_with_contacts("excel-1900"),
+        ),
+        Mutation(
+            "CD4", "a census of contact numbers counting one date",
+            edit("recorded_on", count_form=_count_form_of(contacts={"01": 1})),
+        ),
+        # ...AND EACH HALF OF CD4 ON ITS OWN (the review of landing R4,
+        # item 5: one case tripping both left either half unpinned).
+        Mutation(
+            "CD4", "a census of contact numbers counting more dates than the column reads",
+            _contacts_counting(sum_off=3, below_line=0),
+        ),
+        Mutation(
+            "CD4", "a census of contact numbers with a count under the line",
+            _contacts_counting(sum_off=0, below_line=5),
+        ),
+        Mutation(
+            "CD4", "a census of contact numbers naming no contact number",
+            _contacts_naming_none(),
+        ),
+        Mutation(
+            "CD5", "an exponent form written to no number of significant figures",
+            edit("recorded_on", count_form=_count_form_of(exponent=True)),
+        ),
+        Mutation(
+            "S8", "dates written as counts in a column this table does not have",
+            edit_in("settings", forced_date_counts=[["no_such_column", "excel-1900"]]),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to be dates read another way",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_date_columns=["visits"],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also given a window for two-figure years",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                century_windows=[["visits", 1930]],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to be a 12-hour clock",
+            edit_in(
+                "settings",
+                forced_date_counts=[["logged_at", "seconds-since-1970"]],
+                forced_twelve_hour_clocks=["logged_at"],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to hold codes",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_codes=["visits"],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to hold record numbers",
+            edit_in(
+                "settings",
+                forced_date_counts=[["record_code", "excel-1900"]],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to hold measurements",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_measurements=["visits"],
+            ),
+        ),
+        Mutation(
+            "S8d", "the second of two counted columns also said to hold codes",
+            edit_in(
+                "settings",
+                forced_date_counts=[["recorded_on", "excel-1900"], ["visits", "excel-1900"]],
+                forced_codes=["visits"],
+            ),
+        ),
+        Mutation(
+            "R15", "a counted column named by a number",
+            edit_in("settings", forced_date_counts=[[7, "excel-1900"]]),
+            names="forced_date_counts[0][0]",
+        ),
+        # A DECIMAL COMMA MAY STAND BESIDE A COUNTED COLUMN: S8d names no
+        # such pair, so this description is refused for its column of
+        # numbers carrying no form of counts and saying nothing of it (CD1),
+        # and not for the pair.
+        Mutation(
+            "CD1", "a counted column of numbers beside a decimal comma, saying nothing",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_decimal_commas=["visits"],
+            ),
+        ),
+        # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
+        # its mutations below its own line.
+        # anchor 3b-D1 (P4-D365)
+        # anchor 3b-D0 (P4-D366)
+        # anchor 3b-D2 (P4-D367)
+        # -- 3b.D2 (P4-D367): `admitted_at`, moments on their own clock,
+        # publishes its weekday census; WC10 asks its middle half to span
+        # four weeks, and WC3 lets it stand.
+        Mutation(
+            "WC10", "a weekday census on moments whose middle half spans 27 days",
+            middle_half_of("admitted_at", 27),
+        ),
+        Mutation(
+            "WC3", "weekday counts of moments adding to more than the body",
+            edit_weekdays("admitted_at", 0, 1000),
+        ),
+        # anchor 3b-D3 (P4-D368)
+        # -- 3b.D3 (P4-D368): `recorded_on`'s 217 body values, counted over
+        # the day-of-month census's thirty-four bins; DM1 to DM4 asked of
+        # the groups and the middle half, DM5 of the column's scope.
+        Mutation(
+            "DM1", "day-of-month groups that run out of order",
+            edit(
+                "recorded_on",
+                day_of_month_census=[
+                    {"first": 2, "last": 34, "count": 200},
+                    {"first": 1, "last": 1, "count": 17},
+                ],
+            ),
+        ),
+        Mutation(
+            "DM1", "day-of-month groups that leave bins 31 to 34 uncovered",
+            edit(
+                "recorded_on",
+                day_of_month_census=[{"first": 1, "last": 30, "count": 217}],
+            ),
+        ),
+        Mutation(
+            "DM2", "a day-of-month group counting fewer than the census line",
+            edit(
+                "recorded_on",
+                day_of_month_census=[
+                    {"first": 1, "last": 1, "count": 5},
+                    {"first": 2, "last": 34, "count": 212},
+                ],
+            ),
+        ),
+        Mutation(
+            "DM3", "day-of-month counts adding to more than the body",
+            edit(
+                "recorded_on",
+                day_of_month_census=[
+                    {"first": 1, "last": 1, "count": 18},
+                    {"first": 2, "last": 34, "count": 200},
+                ],
+            ),
+        ),
+        Mutation(
+            "DM4", "a day-of-month census whose middle half spans 123 days",
+            both(
+                edit(
+                    "recorded_on",
+                    day_of_month_census=[
+                        {"first": 1, "last": 1, "count": 17},
+                        {"first": 2, "last": 34, "count": 200},
+                    ],
+                ),
+                middle_half_of("recorded_on", 123),
+            ),
+        ),
+        Mutation(
+            "DM5", "a day-of-month census on a column of moments on the shared clock",
+            edit(
+                "logged_at",
+                day_of_month_census=[{"first": 1, "last": 34, "count": 218}],
+            ),
+        ),
+        Mutation(
+            "DM5", "a day-of-month census on a column of moments with a clock",
+            edit(
+                "admitted_at",
+                day_of_month_census=[{"first": 1, "last": 34, "count": 218}],
+            ),
+        ),
+        Mutation(
+            "DM5", "a day-of-month census on a column with no tails",
+            edit(
+                "recorded_on",
+                low_tail=None,
+                high_tail=None,
+                date_percentiles={
+                    rung: None
+                    for rung in (
+                        "min", "p01", "p05", "p10", "p25", "p50",
+                        "p75", "p90", "p95", "p99", "max",
+                    )
+                },
+                weekday_census=[],
+                day_of_month_census=[{"first": 1, "last": 34, "count": 217}],
+            ),
+        ),
+        Mutation(
+            "R15", "a day-of-month census that is no list",
+            edit("recorded_on", day_of_month_census={"first": 1}),
+            names="day_of_month_census",
+        ),
+        # anchor 3b-D4 (P4-D369)
+        # -- 3b.D4 (P4-D369): `recorded_on`'s 217 body values, 12 below the
+        # low boundary of 2024-01-17 and 11 above the high one of
+        # 2024-12-12, its rungs at ranks 23 (02-06), 59 (03-27), 119
+        # (06-26), 179 (09-25), 215 (11-23) and 227 (12-12); the list asked
+        # HD1 to HD5, the scope on the two columns of moments.
+        Mutation(
+            "HD1", "listed dates out of order",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-05-10", "count": 11},
+                    {"date": "2024-04-10", "count": 11},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD1", "a listed date before the low boundary",
+            edit("recorded_on", heavy_dates=[{"date": "2024-01-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD1", "a listed date that is no canonical date",
+            edit("recorded_on", heavy_dates=[{"date": "2024-4-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD1", "dates that stand out on a column of moments with a clock",
+            edit("admitted_at", heavy_dates=[{"date": "2024-04-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD1", "dates that stand out on a column of moments on the shared clock",
+            edit("logged_at", heavy_dates=[{"date": "2024-04-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD2", "a listed date below the heavy line",
+            edit("recorded_on", heavy_dates=[{"date": "2024-04-10", "count": 5}]),
+        ),
+        Mutation(
+            "HD3", "a listed date holding more than the body",
+            edit("recorded_on", heavy_dates=[{"date": "2024-04-10", "count": 300}]),
+        ),
+        Mutation(
+            "HD3", "three listed dates on a column of two different values",
+            edit(
+                "recorded_on",
+                n_distinct=2,
+                n_distinct_folded=2,
+                heavy_dates=[
+                    {"date": "2024-04-10", "count": 11},
+                    {"date": "2024-05-10", "count": 11},
+                    {"date": "2024-06-12", "count": 11},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD3", "two listed Wednesdays holding more than the Wednesday group",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-04-10", "count": 20},
+                    {"date": "2024-04-17", "count": 20},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD4", "two listed dates between the p10 and p25 rungs holding more ranks than lie between them",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-02-20", "count": 20},
+                    {"date": "2024-02-28", "count": 20},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD5", "a listed date beside a listed neighbour more than twice its count",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-04-10", "count": 11},
+                    {"date": "2024-04-11", "count": 30},
+                ],
+            ),
+        ),
+        Mutation(
+            "R15", "a list of dates that stand out that is no list",
+            edit("recorded_on", heavy_dates={"date": "2024-04-10"}),
+            names="heavy_dates",
+        ),
+        # anchor 3b-T1 (P4-D370)
+        # anchor 3b-T2 (P4-D371)
+        # THE HOUR CENSUS (landing 3b.2-H): `logged_at` swapped for moments
+        # on their own clock, its census published (`an_hour_census`).
+        Mutation("HC1", "hour groups that run past midnight", an_hour_census(_hours_wrapped)),
+        Mutation("HC2", "an hour group counting fewer than the census line", an_hour_census(_hours_below_the_line)),
+        Mutation("HC3", "hour counts adding to more than the body", an_hour_census(_hours_past_the_body)),
+        Mutation(
+            "HC3", "an hour census on the shared clock adding to more than the body",
+            edit("logged_at", hour_census=[{"first": 0, "last": 23, "count": 9218}]),
+        ),
+        Mutation("HC4", "an hour census over a middle half of one instant", an_hour_census(_hours_of_a_few_days)),
+        Mutation("HC5", "an hour group short of the boundary standing in it", an_hour_census(_hours_short_of_their_sure_cells)),
+        Mutation("HC6", "an hour census beside values a workbook stores two ways", an_hour_census(_hours_stored_two_ways)),
+        # anchor 3b-T3 (P4-D372)
+        # THE MINUTE AND SECOND CENSUSES AND HEAPS (landing 3b.4): `logged_at`
+        # swapped for moments on the minute, its censuses published
+        # (`a_clock_field_census`).
+        Mutation("MC1", "minute groups starting past minute 0", a_clock_field_census(_minutes_shifted)),
+        Mutation("MC2", "a minute group counting fewer than the census line", a_clock_field_census(_minutes_below_the_line)),
+        Mutation("MC3", "minute counts adding to more than the body", a_clock_field_census(_minutes_past_the_body)),
+        # ...on the shared clock in scope since landing 3b.7's widening reached
+        # the minute (batch 3b's merge of lane J2, plan P4-D378), as HC3's.
+        Mutation(
+            "MC3", "a minute census on the shared clock adding to more than the body",
+            edit("logged_at", minute_census=[{"first": 0, "last": 59, "count": 9218}]),
+        ),
+        Mutation("MC4", "a minute census over a middle half of one instant", a_clock_field_census(_a_middle_half_of_one_instant)),
+        Mutation("MC5", "a minute group short of the boundary standing in it", a_clock_field_census(_minutes_short_of_their_sure_cells)),
+        Mutation("MC6", "a minute census beside values a workbook stores two ways", a_clock_field_census(_clock_fields_stored_two_ways)),
+        Mutation("MH1", "minute heaps out of order", a_clock_field_census(_minute_heaps_reversed)),
+        Mutation("MH2", "minute heaps holding more than the body", a_clock_field_census(_minute_heaps_past_the_body)),
+        Mutation("SE1", "second groups leaving second 1 out", a_clock_field_census(_seconds_shifted)),
+        Mutation("SE2", "a second group counting fewer than the census line", a_clock_field_census(_seconds_below_the_line)),
+        Mutation("SE3", "second counts adding to more than the body", a_clock_field_census(_seconds_past_the_body)),
+        Mutation("SE4", "a second census over a middle half of one instant", a_clock_field_census(_seconds_of_one_instant)),
+        Mutation("SE5", "a second group short of the values standing in it", a_clock_field_census(_seconds_short_of_their_sure_cells)),
+        Mutation("SE6", "a second census beside values a workbook stores two ways", a_clock_field_census(_seconds_stored_two_ways)),
+        Mutation("SH1", "a second heap listed twice", a_clock_field_census(_second_heaps_twice)),
+        Mutation("SH2", "second heaps holding more than the body", a_clock_field_census(_second_heaps_past_the_body)),
+        # anchor 3b-C1 (P4-D373)
+        # anchor 3b-C2 (P4-D374)
+        # anchor 3b-G1 (P4-D375)
+        # anchor 3b-G3 (P4-D376)
+        # anchor 3b-G2 (P4-D377)
+        # anchor 3b-7 (P4-D378)
+        # anchor 3b-J (P4-D379)
+        # anchor 3b-R2a (P4-D383)
+        # anchor 3b-R2b (P4-D383)
+        # anchor 3b-R2c (P4-D383)
+        # anchor 3b-R4 (P4-D384)
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
         Mutation(
@@ -869,11 +2721,16 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "Q6", "a spread on a column whose values are all the same",
-            both(flat_ladder("visits"), edit("visits", skew=None)),
+            all_of(
+                without_tails("visits"),
+                flat_ladder("visits"),
+                edit("visits", skew=None),
+            ),
         ),
         Mutation(
             "Q7", "no average on a column whose values are all the same",
             all_of(
+                without_tails("visits"),
                 flat_ladder("visits"),
                 edit("visits", skew=None, std=0.0, mean=None),
             ),
@@ -892,17 +2749,59 @@ def battery() -> list[Mutation]:
         Mutation(
             "Q15",
             "a shape whose bins do not account for the values",
-            edit("visits", value_histogram={"0": 3}),
+            both(
+                without_tails("visits"),
+                edit("visits", value_histogram={"0": 3}),
+            ),
         ),
         Mutation(
             "Q20",
             "the first bin named as holding nothing",
-            edit("visits", empty_bins=[0], value_histogram={}),
+            both(
+                without_tails("visits"),
+                edit("visits", empty_bins=[0], value_histogram={}),
+            ),
+        ),
+        # -- the tail rule (stage 3, contract 6.7a) -------------------
+        Mutation(
+            "TL1",
+            "a tail standing at a percent the row count does not give it",
+            move_tail_percent("visits", 1),
+        ),
+        Mutation(
+            "TL2",
+            "no tails at all on a column that publishes its rungs",
+            edit("visits", tails=None, bin_groups=[]),
+        ),
+        Mutation(
+            "TL3",
+            "one tail published and the other not",
+            one_tail("visits"),
+        ),
+        Mutation(
+            "TL4",
+            "a tail holding more rows than its percent leaves it",
+            tail_field("visits", "low", rows=13),
+        ),
+        Mutation(
+            "TL5",
+            "a mean distance larger than the root-mean-square beside it",
+            tail_field("visits", "high", mean_distance=9.0),
+        ),
+        Mutation(
+            "TL6",
+            "a tail listing a value inside its own boundary",
+            tail_field("visits", "high", values=[1.0]),
+        ),
+        Mutation(
+            "BG1",
+            "groups of bins that leave a bin in nobody's group",
+            edit("visits", bin_groups=[{"first": 0, "last": 5, "count": 205}]),
         ),
         Mutation(
             "Q21",
             "one pair of stretch edges more than there are stretches",
-            edit("visits", empty_edges=[[0.0, 1.0]]),
+            edit("visits", empty_edges=[[0.0, 1.0]] * 20),
         ),
         Mutation(
             "Q17",
@@ -990,16 +2889,162 @@ def battery() -> list[Mutation]:
             "a census counting more cells than the column has present",
             edit("region", shape_forms={"@@@-@": 117, "@@@-@@": 9999}),
         ),
+        # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (contract 7.13,
+        # landing 2b.18 part 2, plan P4-D123), on `visits`, the base
+        # description's count column: 229 number cells, 22 of them nought.
         Mutation(
-            "P8",
-            "two width censuses that are each possible and not both",
+            "SC1",
+            "a spelling named for fewer cells than the floor admits",
+            edit("visits", number_spellings={"07": 3, "7": 226}),
+        ),
+        Mutation(
+            "SC2",
+            "a census of spellings that leaves number cells unnamed",
+            edit("visits", number_spellings={"07": 11, "7": 11}),
+        ),
+        Mutation(
+            "SC3",
+            "a census whose spellings of nought are not the published noughts",
             edit(
                 "visits",
-                numeric_styles={
-                    "plain": 174, "leading_plus": 20, "(withheld)": 35,
-                },
-                fraction_widths={"(withheld)": 10},
+                number_spellings={"0": 11, "07": 11, "7": 207},
+            ),
+        ),
+        # ...AND ONLY WHERE THE COLUMN'S VALUES DO NOT FOLD ONTO ONE
+        # ANOTHER, which the two published distinct counts say.
+        Mutation(
+            "SF5",
+            "a lower-case form key on a column whose values fold together",
+            lambda document: at(document, "region").update(
+                {
+                    "shape_forms": {"&&&-&": 117},
+                    "n_distinct": int(at(document, "region")["n_distinct_folded"])
+                    + 1,
+                }
+            ),
+        ),
+        # THE LAYOUT CENSUS, on the one role that carries it (contract
+        # 7.12, landing 2b.18, plan P4-D120). `record_code` is the base
+        # description's declared identifier, so it is the only block
+        # these two rules can be broken on.
+        #
+        # THE KEY HERE MUST BE A LAYOUT THE PRODUCER COULD WRITE, for
+        # the reason the form census's own entries carry: a key the
+        # grammar refuses is refused BEFORE LF1 is reached, and the
+        # entry would then name a rule it does not exercise.
+        Mutation(
+            "LF1",
+            "a layout named by fewer cells than the floor admits",
+            edit("record_code", layout_forms={"@%%%%%": 3}),
+        ),
+        Mutation(
+            "LF3",
+            "a layout census counting more cells than the column holds",
+            edit("record_code", layout_forms={"@%%%%%": 9999}),
+        ),
+        # THE DISCLOSURE RULE OVER THE WHOLE CENSUS (contract C6-131b,
+        # landing 2b.18's repair pass, plan P4-D124). `record_code` holds
+        # 240 present cells, all 240 in the code alphabet and none of them
+        # figures alone, at a floor of eleven.
+        Mutation(
+            "LF2",
+            "a layout census writing a pool of one cell",
+            edit("record_code", layout_forms={"(withheld)": 1, "@%%%%%": 220}),
+        ),
+        Mutation(
+            "LF4",
+            "a layout census leaving exactly one present cell over",
+            edit("record_code", layout_forms={"@%%%%%": 239}),
+        ),
+        Mutation(
+            "LF5",
+            "code-alphabet layouts one cell short of n_code_alphabet",
+            edit(
+                "record_code",
+                layout_forms={"@%%%%%": 229, "@%%.%%": 11},
+                n_code_alphabet=230,
+            ),
+        ),
+        Mutation(
+            "LF6",
+            "a layout census whose keys say two conventions",
+            edit("record_code", layout_forms={"@%%%%%": 120, "~~~~~~": 120}),
+        ),
+        # THE SMALL SUPPLY, COUNTED THE CENSUS'S OWN WAY (contract
+        # C6-130, LF7, plan P4-D260). `record_code` has 240 different
+        # values at a floor of eleven, so a named layout needs a supply
+        # of 251. `%%` could have been worn by ninety cells -- ninety and
+        # not a hundred, because `05` wears `!%` -- so naming it names
+        # the values it describes.
+        Mutation(
+            "LF7",
+            "a layout named by fewer cells than could ever wear it",
+            edit("record_code", layout_forms={"@%%%%%": 229, "%%": 11}),
+        ),
+        # THE LITERAL PREFIX (contract 7.12a, owner ruling of 2026-09-17,
+        # item 1, plan P4-D202). `record_code` is `R` and five figures on
+        # 240 rows, so the base description publishes `{"(column)": "R"}`
+        # beside `{"@%%%%%": 240}`.
+        Mutation(
+            "LP1",
+            "a prefix for the whole column beside a prefix for a layout",
+            edit(
+                "record_code",
+                layout_prefixes={"(column)": "R", "@%%%%%": "R"},
+            ),
+        ),
+        Mutation(
+            "LP1",
+            "a prefix for a layout the census does not name",
+            edit("record_code", layout_prefixes={"@@%%%%": "RE"}),
+        ),
+        Mutation(
+            "LP2",
+            "a prefix whose own layout does not open the census's layout",
+            edit("record_code", layout_prefixes={"(column)": "RE"}),
+        ),
+        # LP3 (plan P4-D270). A prefix fixes characters of the layout it
+        # stands on, so the room left has to carry the column's own
+        # different values: `R` in front of `@%%` leaves a hundred cells
+        # for 240 different record numbers, which spells the column out.
+        Mutation(
+            "LP3",
+            "a prefix leaving its layout too little room for the column",
+            edit(
+                "record_code",
+                layout_forms={"@%%": 240},
+                layout_prefixes={"(column)": "R"},
+            ),
+        ),
+        Mutation(
+            "LP1",
+            "a prefix beside a layout census that names no layout",
+            edit(
+                "record_code",
+                layout_forms={},
+                layout_prefixes={"(column)": "R"},
+            ),
+        ),
+        Mutation(
+            "R16",
+            "a prefix holding a figure",
+            edit("record_code", layout_prefixes={"(column)": "R0"}),
+            names="layout_prefixes",
+        ),
+        # A WIDTH CENSUS SPEAKING FOR A HELD-BACK FORM (plans P4-D221 and
+        # P4-D222). The pool of eleven stands alone and passes the census's
+        # own line, so only P8 refuses it: the forms map holds every form
+        # back, and a total of widths names how many of its cells carried
+        # a point.
+        Mutation(
+            "P8",
+            "a width census counting cells of a form the forms map holds back",
+            edit(
+                "visits",
+                numeric_styles={"(withheld)": 229},
+                fraction_widths={"(withheld)": 11},
                 pad_widths={},
+                field_widths={},
             ),
         ),
         Mutation(
@@ -1044,8 +3089,8 @@ def battery() -> list[Mutation]:
             edit_inside("seen_at", "clock_percentiles", p50="07:59:00"),
         ),
         Mutation(
-            "T2", "a ladder that does not begin at the earliest time",
-            edit("seen_at", earliest="07:01"),
+            "T2", "a clock ladder publishing an end the tail rule withholds",
+            edit_inside("seen_at", "clock_percentiles", min="07:01"),
         ),
         Mutation(
             "T3", "clock rungs that go backwards",
@@ -1061,11 +3106,26 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "P6",
-            "a pool larger than the forms left to hold it",
+            "a pool beside named forms",
+            # No pool stands beside a named form (plan P4-D222): the
+            # producer counts a form below the line into the commonest one.
             edit(
                 "visits",
-                numeric_styles={"plain": 100, "decimal": 60, "(withheld)": 69},
+                numeric_styles={"plain": 98, "decimal": 60, "(withheld)": 71},
                 fraction_widths={"2": 60},
+            ),
+        ),
+        Mutation(
+            "P6",
+            "a pool of every form that says each form was written",
+            # 229 numbers are more than five forms hold below the line, so
+            # a pool of all six says every form was written (plan P4-D222).
+            edit(
+                "visits",
+                numeric_styles={"(withheld)": 229},
+                fraction_widths={},
+                pad_widths={},
+                field_widths={},
             ),
         ),
         # -- record numbers and text ----------------------------------
@@ -1134,6 +3194,11 @@ def battery() -> list[Mutation]:
         # replacement: "below the floor" would then reach counts of
         # nothing at all, which no count is.
         Mutation(
+            "R16", "a declared delimiter this format does not read",
+            edit_in("settings", forced_delimiter=":"),
+            names="forced_delimiter",
+        ),
+        Mutation(
             "R16", "a floor below the smallest one allowed",
             edit_in("settings", small_cell_floor=0),
             names="small_cell_floor",
@@ -1163,6 +3228,7 @@ def battery() -> list[Mutation]:
                         "verdict": "kept_as_a_number",
                         "reason": "too_rare",
                         "n_occurrences": 20,
+                        "spellings": [],
                     }
                 ],
             ),
@@ -1170,8 +3236,10 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "R16", "a date written in no canonical form",
-            edit("recorded_on", earliest="15/03/2024"),
-            names="earliest",
+            edit_inside_inside(
+                "recorded_on", "low_tail", boundary="15/03/2024"
+            ),
+            names="low_tail -> boundary",
         ),
         Mutation(
             "R16", "an offset in no form an offset takes",
@@ -1193,10 +3261,615 @@ def battery() -> list[Mutation]:
             edit_in("relationships", grain="one row per person"),
             names="update synthtwin",
         ),
+        # -- how the table's file is written (plan P4-D86) -------------
+        Mutation("FD1", "a written form one column short", _form_one_column_short),
+        Mutation("FD2", "line endings for one line too many", _form_one_line_too_many),
+        Mutation(
+            "FD2", "line endings counted out of their listed order",
+            _form_counted_out_of_order,
+        ),
+        Mutation(
+            "FD4", "blank lines counted below the cap on places",
+            _form_blank_lines_counted_below_the_cap,
+        ),
+        Mutation(
+            "FD3", "a byte-order mark on Latin-1 text", _form_marked_latin1
+        ),
+        Mutation(
+            "FD4", "blank lines after more records than the table has",
+            _form_blank_past_the_end,
+        ),
+        Mutation(
+            "FD5", "a record of nothing in a table with a column never absent",
+            _form_an_empty_record,
+        ),
+        Mutation(
+            "FD6", "a row sequence in a column with absent cells",
+            _form_sequence_with_holes,
+        ),
+        Mutation(
+            "FD7", "rows sorted by a column with absent cells",
+            _form_sorted_by_holes,
+        ),
+        Mutation(
+            "FD8", "a header cell written as another name",
+            _form_written_as_another_name,
+        ),
+        Mutation(
+            "FD9", "a quoting rule for rows of column descriptions that do not exist",
+            _form_rule_for_no_rows,
+        ),
+        Mutation(
+            "FD10", "rows with a trailing delimiter and left-out cells",
+            _form_trailing_and_short,
+        ),
+        Mutation(
+            "FD11", "a preamble recorded as withheld that holds nothing",
+            _form_withheld_nothing,
+        ),
+        Mutation(
+            "FD9", "rows of column descriptions nobody declared",
+            _form_rows_nobody_declared,
+        ),
+        Mutation(
+            "FD11", "a run of blank lines marked as a comment is",
+            _form_blank_run_marked_as_a_comment,
+        ),
+        Mutation(
+            "FD11", "a mark the twin could not write",
+            _form_preamble_marked_with_a_quote,
+        ),
+        # The rule that keeps a declared identifier out of the written
+        # form (plan P4-D76). `record_code` is declared in the base
+        # description above, so a row sequence published of it is the
+        # generator's instruction to write the very values the
+        # declaration exists to withhold.
+        Mutation(
+            "FD12", "a row sequence in a column declared to hold record numbers",
+            _form_sequence_on_a_declared_identifier,
+        ),
+        # The declared delimiter (plan P4-D110, review item CODEX-4). The
+        # base description declares none and reads its file with the
+        # comma, so a declaration of the semicolon says two things about
+        # one file; and a workbook has no delimiter to declare at all.
+        Mutation(
+            "FD13", "a declared delimiter the written form does not publish",
+            edit_in("settings", forced_delimiter=";"),
+        ),
+        Mutation(
+            "FD13", "a delimiter declared on a workbook",
+            _form_workbook_with_a_declared_delimiter,
+        ),
+        # The workbook block (plan P4-D77). The base is a delimited
+        # file's description, so each of these installs a conforming
+        # block first and then breaks one rule of it.
+        Mutation(
+            "WB1", "a workbook block describing the wrong number of columns",
+            _form_workbook_of_the_wrong_width,
+        ),
+        Mutation(
+            "WB2", "a sheet numbered past the last the workbook has",
+            _form_workbook_sheet_past_the_last,
+        ),
+        Mutation(
+            "WB3", "a cell census naming a single row",
+            _form_workbook_census_names_one_row,
+        ),
+        Mutation(
+            "WB4", "more records holding nothing than the table has rows",
+            _form_workbook_more_empty_rows_than_rows,
+        ),
+        Mutation(
+            "WB3", "a count of records holding nothing that names one row",
+            _form_workbook_empty_records_name_one_row,
+        ),
+        # The two rules the twin's WRITER needs (plan P4-D79). Both are
+        # rules a description can break, which is why they are
+        # invariants at all: the first two drafted in part 1 could not
+        # be broken by any document and were taken out again.
+        Mutation(
+            "WB5", "a workbook naming fewer sheets than it has",
+            _form_workbook_names_too_few_sheets,
+        ),
+        Mutation(
+            "WB6", "a format code of a kind the column's own census denies",
+            _form_workbook_format_code_denied_by_its_census,
+        ),
+        # A code carrying words out of somebody's file (plan P4-D189).
+        Mutation(
+            "WB6", "a format code carrying a quoted word",
+            _form_workbook_format_code_carrying_a_word,
+        ),
+        # What every sheet that is not the table's holds (plan P4-D82).
+        Mutation(
+            "WB7", "a block of cells on the sheet the table was read from",
+            _form_workbook_describes_the_tables_own_sheet,
+        ),
+        Mutation(
+            "WB7", "a second sheet holding a table this description does not carry",
+            _form_workbook_other_sheet_holds_a_table,
+        ),
+        # The files review's reproductions, one per rule it broke (plan
+        # P4-D164, P4-D170, P4-D171).
+        Mutation(
+            "WB3", "a census whose one withheld count the others rebuild",
+            _form_workbook_census_rebuilds_its_withheld_count,
+        ),
+        Mutation(
+            "WB3", "a census publishing a nought beside a withheld count",
+            _form_workbook_census_nought_beside_a_withheld_count,
+        ),
+        # The repair pass after the files review (plan P4-D174): each of
+        # WB3's two subtraction rules, on a census publishing no nought,
+        # so that nothing but the rule named can refuse it.
+        Mutation(
+            "WB3", "a census whose one withheld count no nought gives away",
+            _form_workbook_census_withholds_one_count,
+        ),
+        Mutation(
+            "WB3", "a census whose withheld counts come to fewer than the line",
+            _form_workbook_census_withholds_under_the_line,
+        ),
+        # The difference a column's count of numbers takes from its census
+        # of number cells: the figures stored as text (plan P4-D197).
+        Mutation(
+            "WB3", "numbers stored as text fewer than the line",
+            _form_workbook_numbers_stored_as_text_under_the_line,
+        ),
+        Mutation(
+            "WB5", "two sheets of one name in different cases",
+            _form_workbook_two_sheets_of_one_name,
+        ),
+        Mutation(
+            "WB7", "a second sheet holding a table one column wide",
+            _form_workbook_other_sheet_holds_a_narrow_table,
+        ),
+        Mutation(
+            "WB8", "a commonest class the column's own census denies",
+            _form_workbook_value_class_denied_by_its_census,
+        ),
     ]
 
 
+def _form(document: Document) -> Document:
+    """The written form of the base description (`source.dialect`)."""
+    return typing.cast(Document, document["source"]["dialect"])
+
+
+def _position_of(document: Document, name: str) -> int:
+    return typing.cast(int, at(document, name)["position"])
+
+
+def _form_one_column_short(document: Document) -> None:
+    _form(document)["columns"] = _form(document)["columns"][:-1]
+
+
+def _form_one_line_too_many(document: Document) -> None:
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_counted_out_of_order(document: Document) -> None:
+    """Counts that account for every line, with CRLF listed before LF."""
+    lines = typing.cast(int, _form(document)["line_endings"][0]["lines"])
+    _form(document)["line_endings"] = []
+    _form(document)["line_endings_spread"] = [
+        {"ending": "crlf", "lines": 1},
+        {"ending": "lf", "lines": lines - 1},
+    ]
+
+
+def _form_blank_lines_counted_below_the_cap(document: Document) -> None:
+    _form(document)["blank_lines_spread"] = {
+        "first": 0, "last": 1, "lines": 2, "text": "",
+    }
+    _form(document)["line_endings"][0]["lines"] += 2
+
+
+def _form_marked_latin1(document: Document) -> None:
+    document["source"]["encoding"] = "latin-1"
+    document["source"]["used_fallback_encoding"] = True
+    _form(document)["byte_order_mark"] = True
+
+
+def _form_blank_past_the_end(document: Document) -> None:
+    rows = typing.cast(int, document["n_rows"])
+    _form(document)["blank_lines"] = [{"after": rows + 1, "lines": 1, "text": ""}]
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_an_empty_record(document: Document) -> None:
+    _form(document)["empty_rows"]["interior"] = 1
+
+
+def _form_sequence_with_holes(document: Document) -> None:
+    place = _position_of(document, "visits") - 1
+    _form(document)["columns"][place]["sequence_start"] = 0
+
+
+def _form_sorted_by_holes(document: Document) -> None:
+    _form(document)["row_order"] = {
+        "collation": "number",
+        "column": _position_of(document, "visits"),
+        "direction": "ascending",
+    }
+
+
+def _form_written_as_another_name(document: Document) -> None:
+    _form(document)["written_names"] = [{"position": 1, "text": "renamed"}]
+
+
+def _form_rule_for_no_rows(document: Document) -> None:
+    _form(document)["header_rows_quoting"] = "always"
+
+
+def _form_trailing_and_short(document: Document) -> None:
+    _form(document)["short_rows"] = True
+    _form(document)["trailing_delimiter"]["rows"] = True
+
+
+def _form_withheld_nothing(document: Document) -> None:
+    _form(document)["preamble_withheld"] = True
+
+
+def _form_rows_nobody_declared(document: Document) -> None:
+    # TWO ROWS OF COLUMN DESCRIPTIONS AND NOBODY DECLARED THEM (FD9,
+    # plan P4-D81). `settings.forced_metadata_rows` is nought in the
+    # base, so this IS the description the producer wrote from a guess
+    # before landing 2b.11: two rows taken out of the table and
+    # published as schema text, held to no smallest group and written
+    # into the twin as they stand. That is how a person's own record
+    # became schema (review item CODEX-2), and the clause that refuses
+    # it -- the published rows are the DECLARED rows -- could be taken
+    # out with the whole required gate still green until this entry
+    # existed.
+    width = len(_form(document)["columns"])
+    _form(document)["header_rows"] = [
+        [f"what column {place + 1} holds" for place in range(width)],
+        [f"marker {place + 1}" for place in range(width)],
+    ]
+    # Two rows of column descriptions are two more LINES of the file, so
+    # the line endings account for them: FD2 is about the file's shape
+    # and would otherwise refuse this description before FD9 read it,
+    # leaving the clause under test unexercised.
+    _form(document)["line_endings"][0]["lines"] += 2
+
+
+def _form_blank_run_marked_as_a_comment(document: Document) -> None:
+    # A RUN PUBLISHED AS BLANK WHOSE MARK IS A COMMENT'S (FD11, plan
+    # P4-D80). The twin writes `# ` for such a run, the survey reads
+    # that line back as a COMMENT, and the description said blank: the
+    # twin's own form is then not the form published. FD11's shape
+    # clause is the only rule that refuses this, and nothing in the
+    # required tests noticed its removal until this entry.
+    _form(document)["preamble"] = [{"kind": "blank", "lines": 1, "mark": "# "}]
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_preamble_marked_with_a_quote(document: Document) -> None:
+    # A MARK THE TWIN CANNOT WRITE (FD11, plan P4-D83). The twin writes
+    # `"withheld line` for this run -- a quoted field nothing closes --
+    # and such a twin missed about 120 obligations of its own
+    # description while `synthtwin profile` refused to read it at all.
+    # The shape clause CANNOT catch it: `"withheld line` is read back
+    # as a comment marked `"`, which is exactly what is published here.
+    _form(document)["preamble"] = [{"kind": "comment", "lines": 1, "mark": '"'}]
+    _form(document)["preamble_withheld"] = True
+    _form(document)["line_endings"][0]["lines"] += 1
+
+
+def _form_sequence_on_a_declared_identifier(document: Document) -> None:
+    place = _position_of(document, "record_code") - 1
+    _form(document)["columns"][place]["sequence_start"] = 0
+
+
+def _workbook_block(document: Document, columns: int, rows: int) -> Document:
+    """Install a conforming workbook block on the base description.
+
+    The base is a description of a DELIMITED file, so it carries no
+    workbook block at all and no mutation of one could be built from it.
+    This writes the block the producer writes for a workbook of the same
+    shape -- every census holding to the base's floor of eleven -- so
+    that each entry below damages exactly one rule and nothing else.
+    """
+    # THE CENSUSES COUNT THE DESCRIPTION'S OWN ROWS, whatever `rows` says:
+    # a census is held to the table's row count now (plan P4-D164), and
+    # the base description has 240 of them.
+    rows = typing.cast(int, document["n_rows"])
+    classes: "dict[str, object]" = {}
+    for kind in workbook.CELL_CLASSES:
+        classes[kind] = 0
+    classes["number"] = rows
+    kinds: "dict[str, object]" = {}
+    for kind in workbook.FORMAT_KINDS:
+        kinds[kind] = 0
+    kinds["plain"] = rows
+    every: "list[object]" = []
+    for _place in range(columns):
+        every += [
+            {
+                "cell_classes": dict(classes),
+                "format_code": "General",
+                "format_kinds": dict(kinds),
+                # A nought of formulas is WITHHELD like any count that
+                # is not the whole or at the line on both sides, so that
+                # a withheld count is never told from a real nought (plan
+                # P4-D164).
+                "formulas": None,
+                "value_class": "number",
+            }
+        ]
+    block: Document = {
+        "autofilter": False,
+        "columns": every,
+        "date_system": "1900",
+        "defined_names": 0,
+        "defined_table": False,
+        "empty_rows_inside": None,
+        "frozen_rows": 0,
+        "macro_project": False,
+        "rows_above_header": 0,
+        "sheet_count": 2,
+        "sheet_hidden": False,
+        "sheet_names": ["Data", "Notes"],
+        # The table's own sheet describes no block of cells and every
+        # other sheet describes one (WB7, plan P4-D82). The second sheet
+        # here holds a single cell, which is the shape a notes page
+        # takes and the one the twin writes back with a word of
+        # synthtwin's own.
+        "sheet_extents": [None, {"columns": 1, "rows": 1}],
+        "sheet_position": 1,
+        "trailing_blank_columns": 0,
+        "trailing_blank_rows": 0,
+    }
+    document["source"]["workbook"] = block
+    return block
+
+
+def _form_workbook_with_a_declared_delimiter(document: Document) -> None:
+    _workbook_block(document, 17, 120)
+    document["settings"]["forced_delimiter"] = ","
+
+
+def _form_workbook_of_the_wrong_width(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    del block["columns"][-1]
+
+
+def _form_workbook_sheet_past_the_last(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    block["sheet_position"] = 3
+
+
+def _form_workbook_census_names_one_row(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # One cell of one class, at a floor of eleven: the row holding that
+    # cell is named by the count, and so is every other row by its
+    # complement.
+    block["columns"][0]["cell_classes"]["error"] = 1
+
+
+def _form_workbook_more_empty_rows_than_rows(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    block["empty_rows_inside"] = 1000
+
+
+def _form_workbook_empty_records_name_one_row(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # ONE record of 120 holding nothing, at a floor of eleven. The count
+    # names the row that holds nothing as surely as a census of one cell
+    # names the row that holds it, and its complement names every other
+    # row. Published raw at every floor until the repair of landing
+    # 2b.10, and the twin then wrote that one empty record back.
+    block["empty_rows_inside"] = 1
+
+
+def _form_workbook_names_too_few_sheets(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # Two sheets, one name. A twin built from this would have no name to
+    # write the second sheet under.
+    block["sheet_names"] = ["Data"]
+
+
+def _form_workbook_describes_the_tables_own_sheet(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # The sheet the table was read from is described by the table's own
+    # facts. A block of cells here as well says two things about one
+    # sheet, and the writer would put a page of withheld cells over the
+    # table it just wrote.
+    block["sheet_extents"] = [{"columns": 4, "rows": 12}, {"columns": 1, "rows": 1}]
+
+
+def _form_workbook_other_sheet_holds_a_table(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # A second sheet holding twelve rows by four columns is a TABLE this
+    # description does not carry. synthtwin refuses such a workbook when
+    # it reads one (plan P4-D82); a description asking for one would
+    # have the twin write a frame of withheld cells where a table stood,
+    # so code developed on it would read a table that is not there.
+    block["sheet_extents"] = [None, {"columns": 4, "rows": 12}]
+
+
+def _form_workbook_census_rebuilds_its_withheld_count(
+    document: Document,
+) -> None:
+    block = _workbook_block(document, 17, 120)
+    # THE REPRODUCTION (files review, item 4). Sixty numbers, fifty-nine
+    # texts and one boolean, the boolean withheld and every other class
+    # published: 120 - 60 - 59 rebuilds the withheld count of one.
+    census = block["columns"][0]["cell_classes"]
+    census["number"] = 120
+    census["text"] = 119
+    census["boolean"] = None
+
+
+def _form_workbook_census_nought_beside_a_withheld_count(
+    document: Document,
+) -> None:
+    block = _workbook_block(document, 17, 120)
+    # Two counts withheld, the rest published -- and the published
+    # noughts tell a reader the withheld ones are not nought, so each is
+    # "some, but few" (plan P4-D164).
+    census = block["columns"][0]["cell_classes"]
+    census["number"] = 200
+    census["text"] = None
+    census["boolean"] = None
+
+
+def _form_workbook_census_withholds_one_count(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    rows = typing.cast(int, document["n_rows"])
+    # Every class holds cells and every count but one is published, so
+    # the one withheld is the row count less the others (plan P4-D174).
+    census = block["columns"][0]["cell_classes"]
+    for kind in workbook.CELL_CLASSES:
+        census[kind] = 30
+    census["number"] = rows - 30 * 7
+    census["date"] = None
+
+
+def _form_workbook_census_withholds_under_the_line(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    rows = typing.cast(int, document["n_rows"])
+    # Two counts withheld, no nought beside them, and together they come
+    # to five cells at a floor of eleven (plan P4-D174).
+    census = block["columns"][0]["cell_classes"]
+    for kind in workbook.CELL_CLASSES:
+        census[kind] = 30
+    census["number"] = rows - 30 * 5 - 5
+    census["date"] = None
+    census["error"] = None
+
+
+def _form_workbook_numbers_stored_as_text_under_the_line(
+    document: Document,
+) -> None:
+    block = _workbook_block(document, 17, 120)
+    rows = typing.cast(int, document["n_rows"])
+    # `visits` publishes 229 numbers; a census of 224 number cells and 16
+    # text cells holds every count and complement to the line, and leaves
+    # five figures stored as text -- one subtraction away (plan P4-D197).
+    census = block["columns"][2]["cell_classes"]
+    census["number"] = 224
+    census["text"] = rows - 224
+
+
+def _form_workbook_two_sheets_of_one_name(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # A spreadsheet renames the second of two sheets whose names differ
+    # only in case, so the twin could not carry both (plan P4-D171).
+    block["sheet_names"] = ["Data", "DATA"]
+
+
+def _form_workbook_other_sheet_holds_a_narrow_table(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # A header and thirty values in one column: records, however narrow
+    # (files review, item 8; plan P4-D170).
+    block["sheet_extents"] = [None, {"columns": 1, "rows": 31}]
+
+
+def _form_workbook_value_class_denied_by_its_census(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # The census says no cell holds text, and the column names text as
+    # its commonest class.
+    block["columns"][0]["value_class"] = "text"
+
+
+def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # The column's census says not one of its cells wears a date format,
+    # and its twin is told to wear one. A twin written from this would
+    # come back from every reader as a column of dates where the
+    # description publishes none.
+    block["columns"][0]["format_code"] = "mm-dd-yy"
+
+
+def _form_workbook_format_code_carrying_a_word(document: Document) -> None:
+    block = _workbook_block(document, 17, 120)
+    # A code of the format language's own tokens alone is published as
+    # written; one carrying a quoted word is not, and a twin written from
+    # this would wear the word in every cell of the column.
+    block["columns"][0]["format_code"] = '"Record "0'
+
+
 BATTERY = battery()
+
+
+def test_the_weekday_census_is_held_to_its_shape_alone(tmp_path: pathlib.Path, base: Document) -> None:
+    """The loader asks a weekday census its shape, and nothing a reader could work out (plan P4-D365).
+
+    The four descriptions the retired rules refused -- a Wednesday its
+    knot days left one to ten rows (WC5), a count of different values
+    holding a group to a few dates (WC7), dates that never repeat (WC8)
+    and a Monday to Friday at its least (WC9) -- each keep a census of
+    the right cover, floor, total and menu, so each loads. Red when the
+    loader asks any of those rules again.
+    """
+    edits = (
+        edit(
+            "recorded_on",
+            weekday_census=[
+                {"first": 0, "last": 0, "count": 51},
+                {"first": 1, "last": 1, "count": 27},
+                {"first": 2, "last": 2, "count": 12},
+                {"first": 3, "last": 3, "count": 36},
+                {"first": 4, "last": 4, "count": 30},
+                {"first": 5, "last": 5, "count": 26},
+                {"first": 6, "last": 6, "count": 35},
+            ],
+        ),
+        edit("recorded_on", n_distinct=13, n_distinct_folded=13),
+        edit("recorded_on", n_distinct=240, n_distinct_folded=240),
+        edit(
+            "recorded_on",
+            n_distinct=150,
+            n_distinct_folded=150,
+            weekday_census=[{"first": 0, "last": 4, "count": 34}, {"first": 5, "last": 6, "count": 183}],
+        ),
+    )
+    for place, change in enumerate(edits):
+        document = copy.deepcopy(base)
+        change(document)
+        loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, f"shape-{place}-profile.json", document)))
+        assert loaded.columns, place
+    for retired in ("WC5", "WC7", "WC8", "WC9"):
+        assert retired not in contract.INVARIANTS, retired
+
+
+def test_the_level_rules_ruling_5_asked_load_now(
+    tmp_path: pathlib.Path, base: Document
+) -> None:
+    """The two descriptions B4b and B4c refused each load (plan P4-D390).
+
+    A pool of one label on one row -- `west` six rows more and the pool
+    one label over one row -- and a class total one row above the labels
+    that read that way, with every other rule of the block kept.
+    Ruling 5 of 2026-09-17 is set aside, so the loader asks neither; red
+    when it asks either again.
+    """
+    edits = (
+        both(
+            edit_level("region", 0, count=65),
+            both(
+                lambda document: at(document, "region")["levels"][0].update(
+                    {"variants": {"west": 65}}
+                ),
+                edit("region", suppressed_rows=1),
+            ),
+        ),
+        both(
+            edit("region", n_not_numeric=234),
+            edit("region", n_numeric=6),
+        ),
+    )
+    for place, change in enumerate(edits):
+        document = copy.deepcopy(base)
+        change(document)
+        loaded = contract.load_profile(
+            str(fixtures.write_profile(tmp_path, f"level-{place}-profile.json", document))
+        )
+        assert loaded.columns, place
+    for retired in ("B4b", "B4c"):
+        assert retired not in contract.INVARIANTS, retired
 
 
 @pytest.mark.parametrize(
@@ -1225,8 +3898,8 @@ def test_the_base_document_loads(
 ) -> None:
     """The description every mutation starts from is accepted as it is."""
     loaded = contract.load_profile(written(tmp_path, base))
-    assert loaded.n_columns == 16
-    assert len(loaded.columns) == 16
+    assert loaded.n_columns == 17
+    assert len(loaded.columns) == 17
 
 
 def test_every_mutation_starts_from_a_document_that_loads(
@@ -1690,3 +4363,95 @@ def test_the_loader_reaches_neither_the_reader_nor_pandas() -> None:
                         waiting.append(module)
     assert "reading" not in seen
     assert "profile" not in seen
+
+
+# -- the raised floor of the midnight count, which the battery above
+# cannot witness (landing 2b.14) --------------------------------------
+
+
+def _stamps_partly_at_midnight() -> str:
+    """Four hundred moments, five of them standing at midnight."""
+    rows: "list[str]" = []
+    for index in range(400):
+        if index < 5:
+            rows += [f"2024-03-{index + 1:02d} 00:00:00"]
+        else:
+            rows += [
+                f"2024-{(index % 12) + 1:02d}-{(index % 28) + 1:02d} "
+                f"{(index % 23) + 1:02d}:{index % 60:02d}:"
+                f"{(index * 7) % 59:02d}"
+            ]
+    return fixtures.single_column_table("when", rows)
+
+
+@pytest.fixture(scope="module")
+def at_a_floor_of_one(tmp_path_factory: pytest.TempPathFactory) -> Document:
+    """An honest description of that column, asked for at a floor of ONE.
+
+    THE BATTERY ABOVE CANNOT BE THIS DOCUMENT, and that is the point.
+    Its base declares a floor of eleven, because a whole family of rules
+    there can only be broken by damaging something held back, and at a
+    floor of one nothing is. But D15 carries a floor OF ITS OWN -- never
+    below two, whatever the run asked for -- and at a floor of eleven
+    that raise decides nothing: the ordinary floor refuses a count of one
+    long before the raise is consulted. So the raise sits underneath
+    every one of the battery's five D15 entries without being exercised
+    by any of them. Measured, not assumed: with the raise withdrawn from
+    the loader, `tests/test_contract_loader.py` passes entire.
+
+    This column is where the raise is the only rule standing. A floor of
+    one holds nothing back, so S13 is silent and the description loads;
+    five of the four hundred moments stand at midnight, which a floor of
+    one publishes as an ordinary count.
+    """
+    folder = tmp_path_factory.mktemp("midnight-floor-one")
+    path = fixtures.write(folder, "stamps.csv", _stamps_partly_at_midnight())
+    table = reading.read_table(str(path), small_cell_floor=1)
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=1), [], [], []
+    )
+    return json.loads(json.dumps(document))
+
+
+def test_the_witness_starts_from_a_description_that_loads(
+    tmp_path: pathlib.Path, at_a_floor_of_one: Document
+) -> None:
+    """A witness refused for some other reason would witness nothing."""
+    contract.load_profile(written(tmp_path, at_a_floor_of_one))
+    settings = typing.cast(Document, at_a_floor_of_one["settings"])
+    assert settings["small_cell_floor"] == 1, settings["small_cell_floor"]
+    block = at_a_floor_of_one["columns"][0]
+    assert block["n_at_midnight"] == 5, block["n_at_midnight"]
+    assert block["all_at_midnight"] is False, block["all_at_midnight"]
+
+
+@pytest.mark.parametrize(
+    "counted,names",
+    [
+        (1, "the one person who holds the value"),
+        (399, "the one person who does not hold it"),
+    ],
+)
+def test_the_count_at_midnight_names_nobody_even_at_a_floor_of_one(
+    tmp_path: pathlib.Path,
+    at_a_floor_of_one: Document,
+    counted: int,
+    names: str,
+) -> None:
+    """D15's own floor of two, at the one floor where it is the rule deciding.
+
+    Both directions, because the disclosure rule has two halves and the
+    raise is what enforces each: a count of one names the person holding
+    the value, and a count one short of every value names the person who
+    does not. At a floor of one the run's own floor admits both, so a
+    refusal here is the raise and nothing else -- which is exactly what
+    the battery above, written at a floor of eleven, cannot show.
+    """
+    document = copy.deepcopy(at_a_floor_of_one)
+    block = at_a_floor_of_one["columns"][0]
+    parsed = int(block["n_present"]) - int(block["n_unparsed"])
+    assert counted < parsed, "the count must leave the column short"
+    document["columns"][0]["n_at_midnight"] = counted
+    document["columns"][0]["all_at_midnight"] = False
+    message = refusal(tmp_path, document)
+    assert contract.INVARIANTS["D15"] in message, (names, message)

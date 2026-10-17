@@ -61,6 +61,7 @@ no path arrives except from the caller.
 
 import dataclasses
 import pathlib
+import zipfile
 
 from synthtwin import errors, parsing
 from synthtwin.paths import PathValidationError, validate_local_path
@@ -164,6 +165,12 @@ def _can_be_seen(target: pathlib.Path) -> str:
     except OSError:
         return "unknown"
     return "no"
+
+
+# THE ONE MOMENT EVERY MEMBER OF A WORKBOOK TWIN CARRIES. A zip member
+# ordinarily records when it was written, which would make the same twin
+# different bytes on every run; this is the earliest a zip can store.
+_PACKAGE_MOMENT = (1980, 1, 1, 0, 0, 0)
 
 
 def refuse_if_folder(
@@ -358,7 +365,7 @@ def _reach_for(claimed: "_Claimed | None", place: pathlib.Path) -> None:
     """
     if claimed is None:
         return
-    claimed.entries = claimed.entries + [
+    claimed.entries += [
         (pathlib.Path(place), CLAIM_REACHED)
     ]
 
@@ -379,9 +386,9 @@ def _settle(
     for one, code in claimed.entries:
         if f"{one}" == wanted:
             continue
-        kept = kept + [(one, code)]
+        kept += [(one, code)]
     if state:
-        kept = kept + [(pathlib.Path(place), state)]
+        kept += [(pathlib.Path(place), state)]
     claimed.entries = kept
 
 
@@ -408,9 +415,9 @@ def _unclaimed(
         if f"{place}" in known:
             continue
         if state == CLAIM_MADE:
-            extra = extra + [(place, errors.ON_DISK_EMPTY_WORKING)]
+            extra += [(place, errors.ON_DISK_EMPTY_WORKING)]
         else:
-            extra = extra + [(place, errors.ON_DISK_CLAIMED_WORKING)]
+            extra += [(place, errors.ON_DISK_CLAIMED_WORKING)]
     return extra
 
 
@@ -547,7 +554,7 @@ def _claim_working_name(
     while number <= WORKING_NAME_ATTEMPTS:
         candidate = pathlib.Path(f"{place}{suffix}-{number}")
         if len(tried) < 3:
-            tried = tried + [f"{candidate}"]
+            tried += [f"{candidate}"]
         number = number + 1
         try:
             validate_local_path(f"{candidate}", purpose="working file")
@@ -643,11 +650,11 @@ def _clear_away(
             # sends the reader looking for it.
             if _what_is_there(place) == "nothing":
                 continue
-            left = left + [(f"{pathlib.Path(place)}", code)]
+            left += [(f"{pathlib.Path(place)}", code)]
             continue
         if _remove_and_check(place):
             continue
-        left = left + [(f"{pathlib.Path(place)}", code)]
+        left += [(f"{pathlib.Path(place)}", code)]
     return left
 
 
@@ -779,7 +786,7 @@ def _state_part_way_through(
         holds = errors.ON_DISK_UNSETTLED
         if kept_holds_the_earlier_profile:
             holds = errors.ON_DISK_SET_ASIDE
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(kept, holds, errors.ON_DISK_ABSENT)
         ]
     return errors.rollback_failed([], on_disk + left, words)
@@ -846,7 +853,7 @@ def _stopped_broken(
         ),
     ]
     if kept is not None:
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(
                 kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
             )
@@ -1098,9 +1105,18 @@ def _move_into_place(
 
 
 def _write_part(
-    part: pathlib.Path, text: str, words: errors.ArtifactWords
+    part: pathlib.Path,
+    text: str,
+    words: errors.ArtifactWords,
+    encoding: str = "utf-8",
+    newline: str = "\n",
+    data: "bytes | None" = None,
+    members: "list[tuple[str, str]] | None" = None,
+    pieces: "list[str] | None" = None,
 ) -> "tuple[str, str]":
     """Fill one working file; say what went wrong and what it holds now.
+
+    ``pieces`` reaches `write_text_file` as it is, the text in pieces.
 
     Returns ("", ON_DISK_WORKING) when the text is on disk. On a refusal
     the first item is the message for the person and the second is what
@@ -1140,7 +1156,12 @@ def _write_part(
     """
     place = pathlib.Path(part)
     try:
-        write_text_file(place, text, words)
+        if members is not None:
+            write_workbook_file(place, members, words)
+        elif data is None:
+            write_text_file(place, text, words, encoding, newline, pieces)
+        else:
+            write_bytes_file(place, data, words)
     except PathValidationError as error:
         return (
             errors.output_not_writable(f"{place}", f"{error}", words),
@@ -1197,17 +1218,17 @@ def _describe_the_stop(
         return
     waiting: list[tuple[pathlib.Path, str]] = []
     if first_part is not None:
-        waiting = waiting + [(first_part, first_holds)]
+        waiting += [(first_part, first_holds)]
     if second_part is not None:
-        waiting = waiting + [(second_part, second_holds)]
+        waiting += [(second_part, second_holds)]
     # And then whatever a stop inside a creation left uncovered: a
     # working name whose file reached the disk before the call that made
     # it could hand the name back to the two variables above.
     known = [f"{first}", f"{second}"]
     for place, _code in waiting:
-        known = known + [f"{place}"]
+        known += [f"{place}"]
     if progress.kept is not None:
-        known = known + [f"{progress.kept}"]
+        known += [f"{progress.kept}"]
     extra = _unclaimed(claimed, known)
     if progress.moving:
         _remember(
@@ -1226,7 +1247,7 @@ def _describe_the_stop(
         # Claimed for the earlier profile, and the move of that profile
         # into it had not begun: the name holds the empty file synthtwin
         # created there, which is synthtwin's own to clear away.
-        waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
+        waiting += [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
     _remember(
         state, _state_nothing_published(first, second, waiting + extra, words)
     )
@@ -1240,8 +1261,19 @@ def write_both_files(
     table_path: "pathlib.Path | None" = None,
     state: "DiskState | None" = None,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    first_encoding: str = "utf-8",
+    first_newline: str = "\n",
+    first_data: "bytes | None" = None,
+    first_members: "list[tuple[str, str]] | None" = None,
 ) -> "list[str]":
     """Write the two files as one outcome, or leave the folder untouched.
+
+    ``first_encoding`` and ``first_newline`` are how the FIRST file's
+    text is written. Left out, it is UTF-8 with line feeds like every
+    file this package writes; the generator passes the twin's source
+    encoding and an empty newline, because a twin is written in its
+    table's own form, its line endings already in its text (plan
+    P4-D86). The second file is always UTF-8 with line feeds.
 
     The two files are one thing: the machine-readable profile is what
     the twin gets built from, and the summary is the only place the
@@ -1432,7 +1464,7 @@ def write_both_files(
             raise errors.ProfileError(
                 errors.output_would_replace_the_table(f"{source}", words)
             )
-        forbidden = forbidden + [source]
+        forbidden += [source]
 
     # EVERYTHING THE HANDLER WILL NEED IS BOUND HERE, before the guard
     # opens -- and this is the only place it can be done, because right
@@ -1487,7 +1519,15 @@ def write_both_files(
             )
 
         first_holds = errors.ON_DISK_WORKING
-        trouble, holds = _write_part(first_part, profile_text, words)
+        trouble, holds = _write_part(
+            first_part,
+            profile_text,
+            words,
+            first_encoding,
+            first_newline,
+            first_data,
+            first_members,
+        )
         if trouble:
             raise _stopped_clean(
                 trouble,
@@ -1649,7 +1689,7 @@ def _state_part_way_through_one(
         holds = errors.ON_DISK_UNSETTLED
         if kept_holds_the_earlier_file:
             holds = errors.ON_DISK_SET_ASIDE
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(kept, holds, errors.ON_DISK_ABSENT)
         ]
     return errors.rollback_failed([], on_disk + left, words)
@@ -1688,7 +1728,7 @@ def _stopped_broken_one(
         _named_state(target, errors.ON_DISK_NEW, errors.ON_DISK_TAKEN_AWAY)
     ]
     if kept is not None:
-        on_disk = on_disk + [
+        on_disk += [
             _named_state(
                 kept, errors.ON_DISK_SET_ASIDE, errors.ON_DISK_ABSENT
             )
@@ -1741,12 +1781,12 @@ def _describe_the_stop_one(
         return
     waiting: list[tuple[pathlib.Path, str]] = []
     if part is not None:
-        waiting = waiting + [(part, holds)]
+        waiting += [(part, holds)]
     known = [f"{target}"]
     for place, _code in waiting:
-        known = known + [f"{place}"]
+        known += [f"{place}"]
     if progress.kept is not None:
-        known = known + [f"{progress.kept}"]
+        known += [f"{progress.kept}"]
     extra = _unclaimed(claimed, known)
     if progress.moving:
         _remember(
@@ -1760,7 +1800,7 @@ def _describe_the_stop_one(
         # Claimed for the earlier file, and the move of that file into it
         # had not begun: the name holds the empty file synthtwin created
         # there, which is synthtwin's own to clear away.
-        waiting = waiting + [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
+        waiting += [(progress.kept, errors.ON_DISK_EMPTY_WORKING)]
     _remember(
         state, _state_nothing_published_one(target, waiting + extra, words)
     )
@@ -1926,8 +1966,13 @@ def write_one_file(
     sources: "list[tuple[pathlib.Path, str]] | None" = None,
     state: "DiskState | None" = None,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    pieces: "list[str] | None" = None,
 ) -> "list[str]":
     """Write one file whole, or leave the folder exactly as it was.
+
+    ``pieces``, where given, is the text in pieces, written one after
+    another in place of ``text`` (`write_text_file`); every rule below
+    holds for it as for one text.
 
     THE ONE-TARGET FORM OF THE TRANSACTION (plan P3-D1). `validate`
     produces a single artifact, so two-files-or-neither is not a rule it
@@ -2021,7 +2066,7 @@ def write_one_file(
     _refuse_unless_plain_file(place, words)
     forbidden = [place]
     for source, _noun in guarded:
-        forbidden = forbidden + [pathlib.Path(source)]
+        forbidden += [pathlib.Path(source)]
 
     # EVERYTHING THE HANDLER WILL NEED IS BOUND HERE, before the guard
     # opens, and this is the only place it can be done: right now nothing
@@ -2043,7 +2088,7 @@ def write_one_file(
         # than after, because a write that stops half way has already put
         # some of the report there.
         holds = errors.ON_DISK_WORKING
-        trouble, holding = _write_part(part, text, words)
+        trouble, holding = _write_part(part, text, words, pieces=pieces)
         if trouble:
             raise _stopped_clean_one(
                 trouble, place, [(part, holding)], words
@@ -2081,12 +2126,169 @@ def write_one_file(
         raise
 
 
+def write_workbook_file(
+    target: pathlib.Path,
+    members: "list[tuple[str, str]]",
+    words: errors.ArtifactWords = errors.PROFILE_WORDS,
+) -> None:
+    """Write the parts of a spreadsheet package as one file.
+
+    THE ONE WRITE THIS PACKAGE MAKES OF A WORKBOOK (plan P4-D79).
+    `sheetwriting` builds the parts and never reaches a path; the zip
+    container is assembled here, where every other output of this
+    package is written, so the rule that one module writes still holds.
+
+    Guarantees:
+
+    - Inputs: one local path, the parts in the order they are to be
+      written, and the words this command uses for its own files.
+      Each part is handed over as TEXT and `writestr` writes it as
+      UTF-8, which is the same road `write_text_file` takes through
+      pathlib: nothing in this package encodes text by hand.
+    - Determinism: every member is given ONE FIXED MOMENT rather than
+      the clock and they are written in the order given, so the same
+      parts give the same file. Across platforms the compressed stream
+      itself may differ between zlib builds, which the landing states
+      as a limit rather than claiming past.
+    - Errors raised: PathValidationError when the path is not a plain
+      local one, and ProfileError, with a plain-language message, when
+      the location cannot be written.
+    - Boundary: one file is written and nothing is read.
+    """
+    validated = validate_local_path(f"{target}", purpose="output file")
+    destination = pathlib.Path(validated)
+    try:
+        bundle = zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED)
+        try:
+            for name, data in members:
+                entry = zipfile.ZipInfo(name, _PACKAGE_MOMENT)
+                entry.compress_type = zipfile.ZIP_DEFLATED
+                entry.external_attr = 0o600 << 16
+                bundle.writestr(entry, data)
+        finally:
+            bundle.close()
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.output_not_writable(f"{destination}", f"{error}", words)
+        ) from error
+
+
+def write_bytes_file(
+    target: pathlib.Path,
+    data: bytes,
+    words: errors.ArtifactWords = errors.PROFILE_WORDS,
+) -> None:
+    """Write ``data`` to ``target`` exactly as it stands.
+
+    THE TWIN OF A WORKBOOK IS BYTES (plan P4-D79). Every other file this
+    package writes is text, and text is written through an encoding and
+    a line-ending rule; a zip package is neither, and putting one
+    through either would corrupt it. So this is the one write that
+    translates nothing at all.
+
+    Guarantees:
+
+    - Inputs: one local path, the whole bytes to put there, and the
+      words this command uses for its own files.
+    - Determinism: the same bytes give the same file on every platform.
+    - Errors raised: PathValidationError when the path is not a plain
+      local one -- checked immediately before the write, as the text
+      writer checks it -- and ProfileError, with a plain-language
+      message, when the location cannot be written.
+    - Boundary: one file is written and nothing is read.
+    """
+    validated = validate_local_path(f"{target}", purpose="output file")
+    destination = pathlib.Path(validated)
+    try:
+        destination.write_bytes(data)
+    except OSError as error:
+        raise errors.ProfileError(
+            errors.output_not_writable(f"{destination}", f"{error}", words)
+        ) from error
+
+
+# The spellings of UTF-8 `_pieces_taken_in` takes.
+_UTF_8_SPELLINGS = ("utf-8", "UTF-8", "utf_8", "UTF_8", "utf8", "UTF8")
+
+
+def _pieces_taken_in(encoding: str) -> bool:
+    """Whether ``pieces`` may be written in ``encoding``: UTF-8 only, in one of its usual spellings.
+
+    UTF-8 WRITES EACH CHARACTER ON ITS OWN, so pieces encoded one by one
+    and added are the bytes of their whole text, wherever it is cut.
+    Other encodings carry a state across the text that a piece encoded
+    on its own starts again (Codex's review of lane S4c, item 4): UTF-16,
+    UTF-32 and UTF-8 with a signature wrote a byte-order mark before
+    every piece, ``["one\n", "two\n"]`` in UTF-16 reading back as
+    ``"one\n\ufefftwo\n"``; ISO-2022-JP shifts back at every cut and
+    UTF-7 closes its run of base64. The quality report, the one text
+    written in pieces, is UTF-8, so pieces are refused in every other
+    encoding rather than carried through an encoder's state.
+
+    Guarantees: accepts an encoding's name; returns True for ``utf-8``,
+    ``utf_8`` and ``utf8``, in lower or upper case (`_UTF_8_SPELLINGS`),
+    and False for every other name.
+    Determinism: a function of the name. Raises nothing. No I/O.
+    """
+    return encoding in _UTF_8_SPELLINGS
+
+
+def _pieces_encoded(pieces: "list[str]", encoding: str) -> bytearray:
+    """The bytes `write_text_file` writes for ``pieces`` added in order.
+
+    ONE BUFFER OF THE FILE'S OWN SIZE, filled piece by piece (stage 4
+    lane S4c, plan P4-D390). A text made whole out of many pieces passes
+    through a size class for every length it grows by, and on this
+    machine each class stays mapped once freed: the 60.4 MB quality
+    report of a register of 997,770 rows, joined in halves, held the
+    command at 1,323 MB. The length is read first, each piece encoded
+    once for it, so the buffer is taken once at its size and never grown.
+    Nothing is translated, which is what a ``newline`` of ``"\n"`` or
+    ``""`` writes, and only UTF-8 is taken (`_pieces_taken_in`).
+
+    Guarantees: accepts the pieces and the encoding; returns
+    their bytes, the bytes their whole text is written as. Raises
+    ValueError for an encoding `_pieces_taken_in` refuses, and what
+    encoding the text raises, as writing it would. No I/O of any kind.
+    """
+    if not _pieces_taken_in(encoding):
+        raise ValueError("pieces are written in UTF-8 only")
+    total = 0
+    for piece in pieces:
+        total = total + len(bytes(piece, encoding))
+    buffer = bytearray(total)
+    at = 0
+    for piece in pieces:
+        encoded = bytes(piece, encoding)
+        buffer[at : at + len(encoded)] = encoded
+        at = at + len(encoded)
+    return buffer
+
+
 def write_text_file(
     target: pathlib.Path,
     text: str,
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
+    encoding: str = "utf-8",
+    newline: str = "\n",
+    pieces: "list[str] | None" = None,
 ) -> None:
     """Write ``text`` to ``target`` as UTF-8 with newline line endings.
+
+    ``pieces``, where given, is written in place of ``text``: the bytes
+    are those the pieces added in order would be written as, and the
+    text is never made whole (stage 4 lane S4c, plan P4-D390; the
+    quality report of a register of a million rows and more). Pieces are
+    written untranslated, so they are taken only with a ``newline`` of
+    ``"\n"`` or ``""``, and ValueError is raised for any other; and
+    only in UTF-8, the one encoding whose bytes never depend on where
+    the text is cut, ValueError raised for any other
+    (`_pieces_taken_in`), before anything is written.
+
+    ``encoding`` and ``newline`` change that for one file only, and one
+    caller passes them: a twin is written in its source table's encoding
+    with its line endings already in its text, so it is written with an
+    empty ``newline``, which translates nothing (plan P4-D86).
 
     Guarantees:
 
@@ -2105,10 +2307,17 @@ def write_text_file(
       running command writes, when the location cannot be written.
     - Boundary: one file is written and nothing is read.
     """
+    if pieces is not None and newline not in ("\n", ""):
+        raise ValueError("pieces are written with no newline translation")
+    if pieces is not None and not _pieces_taken_in(encoding):
+        raise ValueError("pieces are written in UTF-8 only")
     validated = validate_local_path(f"{target}", purpose="output file")
     destination = pathlib.Path(validated)
     try:
-        destination.write_text(text, encoding="utf-8", newline="\n")
+        if pieces is None:
+            destination.write_text(text, encoding=encoding, newline=newline)
+        else:
+            destination.write_bytes(_pieces_encoded(pieces, encoding))
     except OSError as error:
         raise errors.ProfileError(
             errors.output_not_writable(f"{destination}", f"{error}", words)
