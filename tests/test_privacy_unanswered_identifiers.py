@@ -333,6 +333,49 @@ def test_a_register_of_codes_the_person_question_reaches_beside_declared_people(
     assert [entry for entry in asked if entry["column"] == "dx"] == []
 
 
+@pytest.mark.parametrize("shape", ["clock", "stamp", "point"])
+def test_a_question_about_dates_or_times_holds_nothing(
+    tmp_path: pathlib.Path, shape: str
+) -> None:
+    """Clock times put the two-numbers question, HL7 stamps the codes question: kept.
+
+    Each question offers `identifier`, and neither is about record
+    numbers: the cells were read as times of day or as dates, and held
+    they would write record numbers where the times and dates stood.
+    ...and the question of a point between thousands (`12.345`), which
+    is about how a number is written and is not one the ruling names.
+    """
+    draw = random.Random(3)
+    cells: "list[str]" = []
+    for _row in range(_ROWS):
+        if shape == "clock":
+            cells += [f"{draw.randint(0, 23)}:{('00', '15', '30', '45')[draw.randrange(4)]}"]
+        elif shape == "stamp":
+            cells += [f"2023{draw.randint(1, 12):02d}{draw.randint(1, 28):02d}"
+                      f"{draw.randint(0, 23):02d}{draw.randint(0, 59):02d}"
+                      f"{draw.randint(0, 59):02d}"]
+        elif draw.random() < 0.5:
+            cells += [f"{draw.randint(1, 99)}.{draw.randint(0, 999):03d}"]
+        else:
+            cells += [f"{draw.randint(1, 999)}"]
+    code, document = _profile_rows(
+        tmp_path, shape, ["t,value"] + [f"{cell},{draw.randint(1, 9)}" for cell in cells]
+    )
+    assert code == 0
+    expected = {"clock": taxonomy.ROLE_CLOCK, "stamp": taxonomy.ROLE_DATETIME,
+                "point": taxonomy.ROLE_CONTINUOUS}[shape]
+    assert _block(document, "t")["role"] == expected
+    assert document["settings"]["forced_identifiers"] == []
+    asked = json.loads(
+        (tmp_path / f"{shape}-questions.json").read_text(encoding="utf-8")
+    )["asked"]
+    offered = [
+        [choice["answer"] for choice in entry["answers_you_can_give"]]
+        for entry in asked if entry["column"] == "t"
+    ]
+    assert offered and asking.ANSWER_IDENTIFIER in offered[0], "still asked"
+
+
 def test_a_column_of_free_text_put_the_person_question_is_not_held(
     tmp_path: pathlib.Path,
 ) -> None:
