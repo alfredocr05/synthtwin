@@ -1026,7 +1026,7 @@ def edge_columns(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
 
 
 TITLE_LINES = "Ward Activity Report\nExported 16/10/2026 by the information office\n"
-WARDS = (("Ward 1", 30.0), ("Ward 2", 25.0), ("ICU", 15.0), ("HDU", 10.0), ("Maternity", 20.0))
+WARDS = (("Ward 1", 30.0), ("Ward 2", 25.0), ("Ward 3", 15.0), ("HDU", 10.0), ("Maternity", 20.0))
 
 
 def titled_report(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
@@ -1037,7 +1037,7 @@ def titled_report(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     in, and the person says.
     """
     draw = random.Random(seed)
-    header = ["report_ref", "ward", "admitted", "discharged"]
+    header = ["report_ref", "ward", "admitted", "went_home"]
     rows: "list[list[str]]" = []
     for index in range(n):
         admitted = _day(draw, datetime.date(2024, 1, 1), datetime.date(2024, 12, 31))
@@ -2149,7 +2149,7 @@ TABLES: "tuple[Table, ...]" = (
     Table(
         "titled_report", ".csv", titled_report,
         lambda header, rows: TITLE_LINES.encode("utf-8") + csv_bytes(header, rows),
-        {"title_rows_above_header": ("report_ref", "ward", "admitted", "discharged")},
+        {"title_rows_above_header": ("report_ref", "ward", "admitted", "went_home")},
         {"report_ref": "identifier"},
         _csv_reader(skiprows=2),
         (
@@ -2158,7 +2158,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("title_rows_above_header", "report references", "report_ref", r"RPT\d{6}"),
             _listed("title_rows_above_header", "wards", "ward", _levels(WARDS)),
             _dated("title_rows_above_header", "admitted parses as %Y-%m-%d", "admitted", "%Y-%m-%d"),
-            _dated("title_rows_above_header", "discharged parses as %Y-%m-%d", "discharged", "%Y-%m-%d"),
+            _dated("title_rows_above_header", "went_home parses as %Y-%m-%d", "went_home", "%Y-%m-%d"),
         ),
     ),
     Table(
