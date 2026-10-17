@@ -46,6 +46,11 @@ _ROWS = 600
 
 def _check_held(seen: "dict[str, object]", kind: str) -> None:
     assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
+    # THE TWIN MEETS ITS OWN DESCRIPTION (lane HX's tripwire, item 4),
+    # but where the generator misses a declared record number the same
+    # way (`shapes.VALIDATION_LIMITS`, plan P4-D401).
+    if kind not in shapes.VALIDATION_LIMITS:
+        assert seen["validate_exit"] == 0, seen
     assert seen["description_values"] == 0, seen
     assert seen["description_fragments"] == 0, seen
     assert seen["twin_cells"] == 0, seen
@@ -494,18 +499,144 @@ def test_no_column_held_back_describes_the_table_as_before(
 
 
 def test_the_data_rules_name_no_blood_pressure_code_or_date() -> None:
-    """The e-mail, telephone and beneficiary routes, against their neighbours."""
-    assert asking._a_register_of_addresses(["a.b@host.org", "c@d.co"])
-    assert not asking._a_register_of_addresses(["a.b@host.org", "nobody"])
-    assert not asking._a_register_of_addresses(["a@b", "x@y.z w"])
-    assert asking._telephone_or_social_security(
-        ["319-555-1234", "123-45-6789", "+1-319-555-1234", "319 555 1234",
-         "319.555.1234", "+1 (319) 555-1234", "1-319-555-1234"]
+    """Route three's cells against their neighbours, and judged by share."""
+    for one in ("a.b@host.org", "c@d.co", "Pat 3 <pat3.x1@mailhost.org>",
+                "319-555-1234", "123-45-6789", "+1-319-555-1234", "319 555 1234",
+                "319.555.1234", "+1 (319) 555-1234", "1-319-555-1234",
+                "319-555-1234 x12", "319-555-1234 ext. 7", "123 45 6789",
+                "4111 1111 1111 1111", "4111-1111-1111-1111", "10.0.12.254",
+                "https://portal.example.org/p/12345", "www.example.org/p",
+                "1EG4TE5MK73", "9AA0-CC0-DE12"):
+        assert asking._names_one_person(one), one
+    for neighbour in ("120/80", "12345-6789-01", "2024-01-05", "1:2:3",
+                      "(319) 555-12345", "12.5.2024", "a@b", "x@y.z w",
+                      "nobody", "0EG4TE5MK73", "1SG4TE5MK73", "HCC108", "I10",
+                      "1EG4TE5MK7", "NM_000546.6", "10.0.12.256", "1.2.3",
+                      "319-555-1234 x", "http:/x", "2024-01-05 x12"):
+        assert not asking._names_one_person(neighbour), neighbour
+    # BY SHARE (lane HX's tripwire, item 2): one cell in three may be
+    # something else, not more.
+    addresses = ["a.b@host.org", "c@d.co"]
+    assert asking._a_register_naming_one_person_a_cell(addresses + ["not given"])
+    assert not asking._a_register_naming_one_person_a_cell(
+        addresses + ["not given", "none"]
     )
-    for neighbour in (["120/80"], ["12345-6789-01"], ["2024-01-05"], ["1:2:3"],
-                      ["(319) 555-12345"], ["12.5.2024"]):
-        assert not asking._telephone_or_social_security(neighbour)
-    assert asking._beneficiary_identifiers(["1EG4TE5MK73", "9AA0-CC0-DE12"])
-    for neighbour in (["0EG4TE5MK73"], ["1SG4TE5MK73"], ["HCC108"], ["I10"],
-                      ["1EG4TE5MK7"], ["NM_000546.6"]):
-        assert not asking._beneficiary_identifiers(neighbour)
+    assert not asking._a_register_naming_one_person_a_cell([])
+
+
+def test_route_four_reaches_a_key_of_figures_and_no_scale() -> None:
+    """A repeating key five figures wide, beside placeholders; no bounded scale."""
+    def rows_of(keys: "list[str]", each: int = 3) -> "list[str]":
+        return [key for key in keys for _row in range(each)]
+
+    wide = [f"{100000 + 211 * one}" for one in range(44)]
+    assert asking._a_key_of_figures_repeating(rows_of(wide))
+    # Across a power of ten: more than half the keys five figures wide.
+    assert asking._a_key_of_figures_repeating(
+        rows_of([f"{9900 + 13 * one}" for one in range(44)])
+    )
+    # Exported as decimals, grouped by points, or beside what a key
+    # writes for nobody -- under half of the cells.
+    assert asking._a_key_of_figures_repeating(rows_of([f"{key}.0" for key in wide]))
+    assert asking._a_key_of_figures_repeating(
+        rows_of([f"{123456789 + 1013 * one:,}".replace(",", ".") for one in range(44)])
+    )
+    for nobody in ("0", "-1", "-99", "-999", "UNKNOWN"):
+        assert asking._a_key_of_figures_repeating(rows_of(wide) + [nobody] * 60), nobody
+    assert not asking._a_key_of_figures_repeating(rows_of(wide) + ["-1"] * 132)
+    # NOT a key: a scale or a weight under five figures, a key on one row
+    # each, one value, a decimal, or a cell that is neither.
+    assert not asking._a_key_of_figures_repeating(rows_of([f"{one}" for one in range(11)], 50))
+    assert not asking._a_key_of_figures_repeating(
+        rows_of([f"{2500 + 10 * one}" for one in range(200)])
+    )
+    assert not asking._a_key_of_figures_repeating(wide)
+    assert not asking._a_key_of_figures_repeating(["100000"] * 60)
+    assert not asking._a_key_of_figures_repeating(rows_of([f"{one}.25" for one in wide]))
+    assert not asking._a_key_of_figures_repeating(rows_of(wide) + ["n/a"])
+    # Only five figures or more count as wide: half of them is not more
+    # than half.
+    half = [f"{1000 + one}" for one in range(22)] + wide[:22]
+    assert not asking._a_key_of_figures_repeating(rows_of(half))
+
+
+def test_route_four_is_put_to_a_column_of_counts(tmp_path: pathlib.Path) -> None:
+    """A key read as a count gets the person question, and no question of dates."""
+    seen = shapes.run(tmp_path, "randkey", _ROWS)
+    assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    _check_held(seen, "randkey")
+
+
+def test_a_wider_placeholder_and_a_narrow_measurement() -> None:
+    """`0` and nines beside a six-figure key; a three-figure reading is no key."""
+    keys = [f"{100000 + one % 60}" for one in range(588)]
+    for nobody in ("0", "999999999", "-1"):
+        assert asking._beside_sign_placeholders(keys + [nobody] * 12) == keys
+    # A systolic pressure writing `-1` or `-9` for a missing reading keeps
+    # its description (lane HX's tripwire, item 7).
+    systolic = [f"{100 + one % 81}" for one in range(588)]
+    assert asking._beside_sign_placeholders(systolic + ["-9"] * 12) == []
+    weights = [f"{2500 + one % 1500}" for one in range(588)]
+    assert asking._beside_sign_placeholders(weights + ["-1"] * 12) == []
+
+
+def test_a_three_figure_measurement_beside_minus_one_is_asked_nothing(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Platelets in thousands, `-1` for a missing count: described as before."""
+    draw = random.Random(7)
+    cells = [f"{draw.randint(150, 450)}" if draw.random() > 0.02 else "-1"
+             for _row in range(_ROWS)]
+    code, document = _profile_rows(tmp_path, "platelets", ["platelets"] + cells)
+    assert code == 0
+    block = _block(document, "platelets")
+    assert block["role"] != taxonomy.ROLE_IDENTIFIER
+    settings = document["settings"]
+    assert isinstance(settings, dict) and settings["forced_identifiers"] == []
+
+
+@pytest.mark.parametrize("answer", [asking.ANSWER_MEASUREMENT, asking.ANSWER_CODE])
+def test_an_answer_survives_the_file_it_wrote_handed_back(
+    tmp_path: pathlib.Path, answer: str
+) -> None:
+    """Three runs: held, answered, and the rewritten file handed back unchanged.
+
+    Lane HX's tripwire, item 6: the file the answering run writes carries
+    the answer beside its entry, so the third description is the second.
+    """
+    shapes.run(tmp_path, "plain6", _ROWS)
+    code, second = _answer(tmp_path, "plain6", answer)
+    assert code == 0
+    assert _block(second, "plain6")["role"] != taxonomy.ROLE_IDENTIFIER
+    entry = _asked_of(tmp_path, "plain6")
+    assert [(one["read_as_now"], one["your_answer"]) for one in entry] == [
+        (answer, answer)
+    ]
+    code, third = _answer(tmp_path, "plain6", None)
+    assert code == 0
+    assert profile.serialize(third) == profile.serialize(second)
+
+
+def test_the_count_finds_figures_beside_letters() -> None:
+    """`ACC30000484` printed as a number, as the tripwire measured it."""
+    real = ["ACC30000484"]
+    assert shapes.count_real(real, ['"mode": 30000484.0'], [])["description_values"] == 1
+    assert shapes.count_real(real, ['"p50": 130000484.0'], [])["description_values"] == 0
+    assert shapes.count_real(real, ['"p50": 0.30000484'], [])["description_values"] == 0
+    assert shapes.count_real(real, [], ["KXA30000484"])["twin_cells"] == 1
+    # ...and figures alone are not found inside a decimal of another column.
+    assert shapes.count_real(["100000"], ['"p53": 82.34100000000001'], [])[
+        "description_values"
+    ] == 0
+
+
+def test_the_contract_quotes_the_sentence_the_product_writes() -> None:
+    """NF125's quoted line is `rendered(EVIDENCE_UNANSWERED_IDENTITY)`, character for character."""
+    contract = (
+        pathlib.Path(__file__).resolve().parents[1]
+        / "docs" / "spec" / "profile-contract-v6.md"
+    ).read_text(encoding="utf-8")
+    entry = contract[contract.index("**NF125. `evidence_unanswered_identity`"):]
+    quoted = entry[entry.index("\n\n> ") + len("\n\n> "):]
+    said = taxonomy.rendered(taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ())
+    assert quoted[: quoted.index("\n")] == said

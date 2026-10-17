@@ -3035,6 +3035,9 @@ def _run_profile(
     # answered `keep` (plan P4-D401): nothing is declared, and their
     # values are published as their reading publishes them.
     identities_kept: "tuple[str, ...]" = ()
+    # ...and the entries the file answered with a declaration, written
+    # into the file this run writes again (plan P4-D401).
+    answered_entries: "tuple[asking.Question, ...]" = ()
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -3201,6 +3204,7 @@ def _run_profile(
         # asked again under the reading in force.
         if not reading_changed:
             identities_kept = written.identities_kept
+            answered_entries = written.declared_entries
         # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
         # `day-first` is `--day-first`, and it is applied before the read
         # because it decides how the columns of dates are read. It goes
@@ -4638,7 +4642,13 @@ def _run_profile(
                     _shown(pathlib.Path(table).name),
                     # -- P4-D401: a column held back is read as record
                     # numbers until answered, and its entry says so.
-                    asking.held_back(asked_about, withheld),
+                    asking.held_back(asked_about, withheld)
+                    # ...and an entry the file answered with a
+                    # declaration is written back answered, so handing
+                    # this file back keeps the answer (plan P4-D401).
+                    + asking.answered_again(
+                        answered_entries, asked_about + listed_about
+                    ),
                     listed_about,
                     asking.file_questions(
                         surveyed is not None

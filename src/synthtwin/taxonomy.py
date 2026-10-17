@@ -748,7 +748,7 @@ EVIDENCE_COMPOUND_SMALL_SET = "evidence_numbers_with_a_few_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 # ...and the one a column takes where a question offering `identifier`
-# was put to it and nobody has answered (plan P4-D401, contract NF117).
+# was put to it and nobody has answered (plan P4-D401, contract NF125).
 # Nobody declared it, so the declared sentence would be false; it is
 # described as record numbers until the question is answered.
 EVIDENCE_UNANSWERED_IDENTITY = "evidence_unanswered_identity"
@@ -25681,8 +25681,9 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     values cover one row, two rows and so on, counts of one to ten among
     them, which the owner accepted for a column a person NAMED (review
     item P1-R8-F4). Nobody named this one, so it publishes the census
-    the two counts it already prints imply -- the rows spread as evenly
-    as they go over the different values -- and nothing more.
+    the counts it already prints imply -- the rows of each layout spread
+    as evenly as they go over that layout's share of the different
+    values -- and nothing more.
 
     Guarantees: accepts a column described with ``forced_identifier``;
     returns it with those two fields changed, or unchanged where its
@@ -25700,9 +25701,12 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     census: object = None
     if "n_distinct_by_occurrences" in details:
         census = details["n_distinct_by_occurrences"]
+    forms: object = None
+    if "layout_forms" in details:
+        forms = details["layout_forms"]
     if isinstance(census, dict) and census:
         details["n_distinct_by_occurrences"] = _even_census(
-            column.n_present, census
+            column.n_present, census, forms if isinstance(forms, dict) else {}
         )
     return dataclasses.replace(
         column,
@@ -25711,23 +25715,34 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     )
 
 
-def _even_census(n_present: int, census: "dict[str, object]") -> "dict[str, int]":
-    """The census of repetition two published counts imply, and nothing more.
+def _even_census(
+    n_present: int, census: "dict[str, object]", forms: "dict[str, object]"
+) -> "dict[str, int]":
+    """The census of repetition published counts imply, and nothing more.
 
     PLAN P4-D401. ``census`` is a column's own census; only how many
     different values it counts is read from it -- the sum of its entries,
-    the `n_distinct` the block already publishes. The rows present are
-    spread over those values as evenly as whole rows go: each value
-    covers `n_present // n_distinct` rows, and `n_present % n_distinct`
-    of them one row more. The result closes as the contract requires
-    (entries sum to the values, keys weighted by entries to the rows)
-    and is a function of those two published counts alone, so no group
-    size of the table reaches it.
+    the `n_distinct` the block already publishes. ``forms`` is the
+    block's own `layout_forms`, which it publishes beside: the rows of
+    each named layout, of the pool, and of the cells no layout names
+    (the present cells left over) are each a PART. The values are
+    shared over the parts in proportion to their rows (`_values_per_part`),
+    at least one a part, and each part's rows are spread over its values
+    as evenly as whole rows go. The result closes as the contract
+    requires (entries sum to the values, keys weighted by entries to the
+    rows), is a function of counts the block publishes, so no group size
+    of the table reaches it, and the twin can meet it beside the layouts:
+    each part's values cover exactly that part's rows. AN EVEN SPREAD
+    OVER THE WHOLE COLUMN could not (lane HX's tripwire, item 4): 600
+    beneficiary identifiers in four layouts of 141 to 160 rows spread as
+    14 and 15 rows a value left no way to fill a layout of 141, and the
+    twin failed its own validation.
 
-    Guarantees: accepts the count of present cells and a census closing
-    on it; returns the even census in `_multiplicity_map`'s key form, or
-    the census unchanged where it counts no value. Determinism: a fixed
-    function of the two counts. Raises nothing. No I/O.
+    Guarantees: accepts the count of present cells, a census closing on
+    it and the layout census beside it; returns the census in
+    `_multiplicity_map`'s key form, or the census unchanged where it
+    counts no value. Determinism: a fixed function of the counts.
+    Raises nothing. No I/O.
     """
     values = 0
     for key in census:
@@ -25739,14 +25754,80 @@ def _even_census(n_present: int, census: "dict[str, object]") -> "dict[str, int]
         for key in census:
             kept[key] = int(f"{census[key]}")
         return kept
-    share = n_present // values
-    over = n_present % values
-    width = len(f"{share + 1 if over else share}")
-    if values > over:
-        kept[_left_padded(share, width)] = values - over
-    if over:
-        kept[_left_padded(share + 1, width)] = over
+    parts: "list[int]" = []
+    named = 0
+    for key in sorted(forms):
+        entry = forms[key]
+        if isinstance(entry, int) and entry > 0:
+            parts += [entry]
+            named = named + entry
+    if n_present > named:
+        parts += [n_present - named]
+    shares = _values_per_part(values, parts, n_present)
+    if not shares:
+        parts = [n_present]
+        shares = [values]
+    sizes: "dict[int, int]" = {}
+    for place, rows in enumerate(parts):
+        count = shares[place]
+        share = rows // count
+        over = rows % count
+        if count > over:
+            sizes[share] = (sizes[share] if share in sizes else 0) + count - over
+        if over:
+            sizes[share + 1] = (
+                sizes[share + 1] if share + 1 in sizes else 0
+            ) + over
+    widest = 0
+    for size in sizes:
+        widest = max(widest, size)
+    width = len(f"{widest}")
+    for size in sorted(sizes):
+        kept[_left_padded(size, width)] = sizes[size]
     return kept
+
+
+def _values_per_part(values: int, parts: "list[int]", n_present: int) -> "list[int]":
+    """How many of the values each part of the rows holds, or empty where none fits.
+
+    In proportion to the part's rows, rounded down, at least one and at
+    most its rows; then one value at a time taken from the part holding
+    most (the earliest on a tie) while there are too many, and given to
+    the part with most rows a value that can take one more (the
+    earliest on a tie) while there are too few. Empty where the parts
+    outnumber the values or the rows cannot hold them. Guarantees: a
+    fixed function of the counts. Raises nothing. No I/O.
+    """
+    if not parts or len(parts) > values or n_present < 1:
+        return []
+    counts: "list[int]" = []
+    total = 0
+    for rows in parts:
+        one = max(1, min(rows, values * rows // n_present))
+        counts += [one]
+        total = total + one
+    while total > values:
+        most = -1
+        for place, count in enumerate(counts):
+            if count > 1 and (most < 0 or count > counts[most]):
+                most = place
+        if most < 0:
+            return []
+        counts[most] = counts[most] - 1
+        total = total - 1
+    while total < values:
+        roomiest = -1
+        for place, count in enumerate(counts):
+            if count < parts[place] and (
+                roomiest < 0
+                or parts[place] * counts[roomiest] > parts[roomiest] * count
+            ):
+                roomiest = place
+        if roomiest < 0:
+            return []
+        counts[roomiest] = counts[roomiest] + 1
+        total = total + 1
+    return counts
 
 
 # How many of each unit a day holds. The seconds figure is the one

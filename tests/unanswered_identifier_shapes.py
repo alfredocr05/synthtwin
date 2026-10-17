@@ -75,7 +75,52 @@ def _beneficiary(draw: random.Random) -> str:
     return written
 
 
+def _patient_more(kind: str, place: int, draw: random.Random) -> str:
+    """The shapes the verify and the tripwire of lane HX's repair measured.
+
+    Drawn apart from `_patient`, so every shape there keeps its table.
+    """
+    area = f"{draw.randint(201, 989)}"
+    exchange = f"{draw.randint(200, 999)}"
+    line = f"{draw.randint(0, 9999):04d}"
+    if kind == "randkey":
+        return f"{draw.randint(1, 3000000)}"
+    if kind == "mixw":
+        return f"{9900 + 13 * place}"
+    if kind in ("zerokey", "nines"):
+        return f"{100000 + 211 * place}"
+    if kind in ("key_m99", "key_m1_40", "key_word"):
+        return f"{100000 + place}"
+    if kind == "key_point0":
+        return f"{100000 + place}.0"
+    if kind == "varkey":
+        return f"{draw.randint(1000, 99999999)}"
+    if kind == "dotted9":
+        return f"{123456789 + 1013 * place:,}".replace(",", ".")
+    if kind == "phone_ext":
+        return f"{area}-{exchange}-{line} x{draw.randint(10, 99)}"
+    if kind == "ssn_space":
+        return (f"{draw.randint(100, 899):03d} {draw.randint(10, 99):02d} "
+                f"{draw.randint(1000, 9999):04d}")
+    if kind == "ip":
+        return f"10.{draw.randint(0, 255)}.{draw.randint(0, 255)}.{draw.randint(1, 254)}"
+    if kind == "url":
+        return f"https://portal.example.org/p/{draw.randint(10000, 99999)}"
+    if kind == "card16":
+        return " ".join(f"{draw.randint(1000, 9999)}" for _group in range(4))
+    if kind == "email_angle":
+        return f"Pat {place} <pat{place}.x{draw.randint(1, 99)}@mailhost.org>"
+    if kind == "email_one_bad":
+        return f"user{place}.x{draw.randint(1, 99)}@mailhost.org"
+    if kind == "record2":
+        return f"ACC{30000000 + 11 * place:08d}"
+    return f"XKH{draw.randint(100000000, 999999999)}"
+
+
 def _patient(kind: str, place: int, draw: random.Random) -> str:
+    base = kind[: -len("_beside")] if kind.endswith("_beside") else kind
+    if base in MORE:
+        return _patient_more(base, place, draw)
     first = _FIRST[draw.randrange(len(_FIRST))]
     last = _LAST[draw.randrange(len(_LAST))]
     area = f"{draw.randint(201, 989)}"
@@ -121,13 +166,38 @@ def _patient(kind: str, place: int, draw: random.Random) -> str:
     return shapes[kind]
 
 
+# The shapes `_patient_more` writes (lane HX's second repair).
+MORE = ("randkey", "mixw", "zerokey", "nines", "key_m99", "key_m1_40",
+        "key_word", "key_point0", "varkey", "dotted9", "phone_ext",
+        "ssn_space", "ip", "url", "card16", "email_angle", "email_one_bad",
+        "record2", "plan2")
+
 HELD = ("record", "plan", "email", "email_upper", "account", "phone",
         "phone_space", "phone_plus", "phone_dot", "phone_paren", "phone10",
         "ssn", "ssn9", "subject", "beneficiary", "rec6", "letter6",
         "account_dash", "dash9", "plain6", "plain7", "npi", "padded",
-        "grouped", "spaced", "durable", "zip", "udi", "mixed")
+        "grouped", "spaced", "durable", "zip", "udi", "mixed",
+        "randkey", "mixw", "zerokey", "nines", "key_m99", "key_m1_40",
+        "key_word", "key_point0", "varkey", "dotted9", "phone_ext",
+        "ssn_space", "ip", "url", "card16", "email_angle", "email_one_bad")
 BESIDE = ("email_beside", "beneficiary_beside", "phone_beside")
-STATED = ("name", "address", "dob")
+STATED = ("name", "address", "dob", "plan2_beside", "record2_beside")
+# The STATED shapes beside a declared person column, owned by lane HX2's
+# rule widened to a declared person column (plan P4-D401); the others no
+# question flags, owned by lane HX2.
+STATED_BESIDE = ("plan2_beside", "record2_beside")
+
+# THE HELD SHAPES WHOSE TWIN FAILS ITS OWN VALIDATION, each a stated limit
+# of the generator for a DECLARED record number too (plan P4-D401):
+# `-1` for nobody (CODES-1 part C), a telephone layout opening `+`, and a
+# key written `100001.0` whose twin writes a figure after the point.
+VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "key_point0")
+
+# What each key shape writes for an unknown patient, and on what share
+# of its rows (`write_table`).
+PLACEHOLDERS = {"durable": ("-1", 0.02), "zerokey": ("0", 0.03),
+                "nines": ("999999999", 0.03), "key_m99": ("-99", 0.02),
+                "key_m1_40": ("-1", 0.40), "key_word": ("UNKNOWN", 0.02)}
 
 # The one short number among a register of record numbers (`mixed`).
 SHORT_AMONG_LONG = "P00017"
@@ -159,8 +229,10 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
         who = people[place]
         if kind == "mixed" and row == 0:
             who = SHORT_AMONG_LONG
-        if kind == "durable" and draw.random() < 0.02:
-            who = UNKNOWN_KEY
+        if kind == "email_one_bad" and row == 0:
+            who = "not given"
+        elif kind in PLACEHOLDERS and draw.random() < PLACEHOLDERS[kind][1]:
+            who = PLACEHOLDERS[kind][0]
         else:
             seen[who] = True
         test = ("Sodium", "Potassium", "Glucose")[draw.randrange(3)]
@@ -171,6 +243,9 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
             lines += [f"{_cell(who)},{test},{value}"]
     path = folder / f"{kind}_long.csv"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    if kind == "key_point0":
+        # `100001.0` is the key `100001`, and found as that.
+        return path, sorted(value[: -len(".0")] for value in seen)
     return path, sorted(seen)
 
 
@@ -222,14 +297,44 @@ def _as_number(value: str) -> str:
     return figures.lstrip("0")
 
 
+def _longest_figures(value: str) -> str:
+    """A value's longest run of figures, leading zeros off, where five figures or more."""
+    longest = ""
+    run = ""
+    for character in value + " ":
+        if "0" <= character <= "9":
+            run = run + character
+            continue
+        if len(run.lstrip("0")) > len(longest):
+            longest = run.lstrip("0")
+        run = ""
+    return longest if len(longest) >= 5 else ""
+
+
 def _found_in(needle: str, text: str) -> bool:
-    """Whether a value's text, or its figures as a number, stands anywhere in a text."""
-    if needle in text:
+    """Whether a value's text, or its figures as a number, stands anywhere in a text.
+
+    AND THE FIGURES OF A VALUE WRITTEN BESIDE LETTERS (lane HX's
+    tripwire, item 5): `ACC30000484` read as an affixed number is printed
+    `"mode": 30000484.0`, so its longest run of five figures or more is
+    looked for as a whole number too -- with no figure or point before
+    it, so a decimal of another column does not count.
+    """
+    if needle.isascii() and needle.isdigit():
+        # A value of figures alone stands with no figure or point against
+        # it: `9991` inside a decimal of another column, `82.34100000000001`,
+        # is no key published.
+        if re.search(f"(?<![0-9.]){needle}(?![0-9])", text) is not None:
+            return True
+    elif needle in text:
         return True
     number = _as_number(needle)
-    if not number:
+    if number:
+        return re.search(f"(?<![0-9.]){number}(?![0-9])", text) is not None
+    figures = _longest_figures(needle)
+    if not figures:
         return False
-    return re.search(f"(?<![0-9]){number}(?![0-9])", text) is not None
+    return re.search(f"(?<![0-9.]){figures}(?![0-9])", text) is not None
 
 
 def _opening_in(opening: str, text: str) -> bool:
@@ -318,6 +423,11 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             generated = cli.main(["generate", f"{described}", "--out-dir", f"{folder}",
                                   "--seed", "0", "--replace"])
+            # ...and the twin is judged against its own description (lane
+            # HX's tripwire, item 4: a held census the twin cannot meet).
+            validated = cli.main(["validate", f"{described}", "--twin",
+                                  f"{folder / (kind + '_long-twin.csv')}",
+                                  "--out-dir", f"{folder}", "--replace"])
     texts = {
         name: (folder / name).read_text(encoding="utf-8")
         for name in (f"{kind}_long-profile.json", f"{kind}_long-profile.txt",
@@ -332,6 +442,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     seen: "dict[str, object]" = {
         "profile_exit": profiled,
         "generate_exit": generated,
+        "validate_exit": validated,
         "different": len(real),
         "role": block["role"],
         "evidence": block["detection_evidence"],

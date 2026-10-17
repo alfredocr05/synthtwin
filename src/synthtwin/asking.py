@@ -607,6 +607,11 @@ class Question:
     shape: str
     choices: "list[Choice]"
     taken: str
+    # THE ANSWER A FILE ALREADY GAVE, written back beside it (plan
+    # P4-D401; lane HX's tripwire, item 6). Empty for every question
+    # put; filled only for an entry `answered_again` carries into the
+    # file a run answering it writes.
+    answered: str = ""
 
 
 # THE READING THAT STANDS WHERE NOBODY ANSWERS, as an answer of its
@@ -1639,25 +1644,50 @@ def questions_and_splits_for(
 # fixed-width question, so the key was read as a measurement with
 # nothing asked -- and published 57 of its 60 real keys as rungs, mode
 # and tail values. Set aside, such cells -- a minus sign and one figure,
-# at most a third of the cells -- leave the question the rest raise.
+# a lone `0`, or nines alone (lane HX's verify, item 1: `0` and
+# `999999999` silenced it the same way), at most a third of the cells --
+# leave the question the rest raise, WHERE THE REST ARE FIVE FIGURES OR
+# MORE: a systolic pressure, a platelet count in thousands or a birth
+# weight in grams writing `-1` or `-9` for a missing reading is three or
+# four figures wide, and the rule held them (lane HX's tripwire, item 7).
 _SIGN_PLACEHOLDER_SHARE = 3
+_KEY_FIGURES = 5
+
+
+def _a_width_placeholder(value: str) -> bool:
+    """Whether a cell is a minus sign and one figure, a lone `0`, or nines alone."""
+    if value == "0":
+        return True
+    if len(value) == 2 and value[0] == "-" and "1" <= value[1] <= "9":
+        return True
+    if len(value) < 2:
+        return False
+    for character in value:
+        if character != "9":
+            return False
+    return True
 
 
 def _beside_sign_placeholders(present: "list[str]") -> "list[str]":
-    """The cells left once those written as a minus sign and one figure are set aside.
+    """The cells left once the placeholders a key writes are set aside.
 
-    Empty where none is, where nothing else is left, or where they are
-    more than a third of the cells. Guarantees: a fixed function of the
-    cells. Raises nothing. No I/O.
+    A placeholder is a minus sign and one figure, a lone `0`, or nines
+    alone (`_a_width_placeholder`). Empty where none is, where nothing
+    else is left, where they are more than a third of the cells, or
+    where a cell left is shorter than five characters. Guarantees: a
+    fixed function of the cells. Raises nothing. No I/O.
     """
     rest: "list[str]" = []
     for value in present:
-        if len(value) == 2 and value[0] == "-" and "1" <= value[1] <= "9":
+        if _a_width_placeholder(value):
             continue
         rest += [value]
     signs = len(present) - len(rest)
     if signs == 0 or not rest or signs * _SIGN_PLACEHOLDER_SHARE > len(present):
         return []
+    for value in rest:
+        if len(value) < _KEY_FIGURES:
+            return []
     return rest
 
 
@@ -1666,8 +1696,9 @@ def _signs_said(signs: int, population: int, floor: int) -> str:
     if signs == 0:
         return ""
     return (
-        f", beside {_sayable(signs, population, floor)} written as a minus "
-        f"sign and one figure"
+        f", beside {_sayable(signs, population, floor)} written as a "
+        f"placeholder -- a minus sign and one figure, a lone 0, or nines "
+        f"alone"
     )
 
 
@@ -3235,9 +3266,15 @@ def _names_people(
     function of those. Raises nothing. No I/O, and no cell reaches
     anything it returns.
     """
-    if role in _PERSON_ROLES_EXCLUDED:
-        return False
     if not present:
+        return False
+    # ROUTE FOUR -- A KEY OF FIGURES REPEATING ON ITS PATIENTS' ROWS (plan
+    # P4-D401), asked whatever its reading but dates and clock times:
+    # `_a_key_of_figures_repeating` says why the numeric roles' exclusion
+    # below does not cover it.
+    if role not in _KEY_ROLES_EXCLUDED and _a_key_of_figures_repeating(present):
+        return True
+    if role in _PERSON_ROLES_EXCLUDED:
         return False
     different: "dict[str, int]" = {}
     for value in present:
@@ -3267,6 +3304,134 @@ def _names_people(
     return _a_register_of_codes(present) or _a_register_naming_one_person_a_cell(
         present
     )
+
+
+# THE READINGS ROUTE FOUR IS NOT PUT TO: none at all, dates, clock times
+# and joined numbers. A column of dates written as counts is asked
+# question Q3 already, and one of joined numbers is no key of figures.
+_KEY_ROLES_EXCLUDED = (
+    taxonomy.ROLE_EMPTY,
+    taxonomy.ROLE_DATETIME,
+    taxonomy.ROLE_CLOCK,
+    taxonomy.ROLE_JOINED,
+)
+
+
+def _key_figures(value: str) -> "str | None":
+    """The figures of a cell written as a whole number, or None.
+
+    Plain figures (`100001`); figures with a point and zeros after it,
+    as a table export writes a whole number held as a decimal
+    (`100001.0`); figures grouped in threes by one mark (`123,456,789`,
+    `123 456 789`); or figures grouped in threes by points, two points
+    or more (`123.456.789`), which no decimal is written as.
+    """
+    if _is_plain_whole_number(value):
+        return value
+    point = value.find(".")
+    if point > 0 and value.count(".") == 1:
+        whole = value[:point]
+        after = value[point + 1:]
+        if (
+            _is_plain_whole_number(whole)
+            and after
+            and after == "0" * len(after)
+        ):
+            return whole
+    grouped = _grouped_figures(value)
+    if grouped is not None:
+        return grouped
+    groups = value.split(".")
+    if len(groups) < 3:
+        return None
+    if not (1 <= len(groups[0]) <= 3) or not _is_plain_whole_number(groups[0]):
+        return None
+    for group in groups[1:]:
+        if len(group) != 3 or not _is_plain_whole_number(group):
+            return None
+    return "".join(groups)
+
+
+def _a_key_placeholder(value: str) -> bool:
+    """Whether a cell is what a key writes for nobody: a lone `0`, a minus
+    sign and one to three figures, or one word of letters alone."""
+    if value == "0":
+        return True
+    if value[:1] == "-" and 2 <= len(value) <= 4:
+        return _is_plain_whole_number(value[1:])
+    if not value:
+        return False
+    for character in value:
+        if not (("a" <= character <= "z") or ("A" <= character <= "Z")):
+            return False
+    return True
+
+
+def _a_key_of_figures_repeating(present: "list[str]") -> bool:
+    """Route four: a key of figures, repeating on the rows of each patient.
+
+    PLAN P4-D401 (lane HX's verify, item 1, and its tripwire, item 1; the
+    orchestrator's addendum 2 of 2026-10-17). A warehouse key -- a
+    `PatientDurableKey` drawn from one to three million, a register
+    crossing a power of ten, keys written with `0`, `-99` or `UNKNOWN` for
+    nobody, or exported as `100001.0` -- is read as a count or a
+    measurement, asked nothing but the checklist, and published as rungs,
+    percentiles, mode and tail values: 42 of 44 real keys and 426 twin
+    cells at 600 rows, all 44 at 20,000. Routes one and two exclude the
+    numeric readings, because a bounded scale repeats too; a scale is
+    never five figures wide. So a column is asked the person question
+    where:
+
+    * every present cell is a whole number in figures (`_key_figures`)
+      or a placeholder (`_a_key_placeholder`), fewer than half of them
+      placeholders;
+    * the whole numbers REPEAT -- at least `PERSON_ROWS_PER_VALUE` rows
+      per different value, routes one and two's first condition -- over
+      two different values or more;
+    * and more than half of the different values are five figures or
+      more.
+
+    THE CATEGORIES CEILING IS NOT ASKED. The verify's wording asked for
+    more different values than a set of categories may hold, and that
+    line is a tenth of the rows: 60 at 600 rows and 1,000 at 20,000, so
+    the 44 patients of every measured table fall under it at both sizes
+    and the route would have held none of them.
+
+    WHAT IT ALSO REACHES, AND IS ACCEPTED (the owner's principle of
+    2026-10-01: HIPAA exposure is the one threat; the orchestrator's
+    addendum 2): a measurement five figures wide that repeats -- a
+    platelet count per microlitre, a charge in cents -- is asked the
+    person question and held until answered. Plan P4-D401 lists the
+    battery columns it reaches.
+
+    Guarantees: accepts the present cells; returns a truth value. A
+    fixed function of them. Raises nothing. No I/O, and no cell reaches
+    anything it returns.
+    """
+    keys: "dict[str, int]" = {}
+    present_keys = 0
+    placeholders = 0
+    for value in present:
+        figures = _key_figures(value)
+        if figures is None:
+            if not _a_key_placeholder(value):
+                return False
+            placeholders = placeholders + 1
+            continue
+        present_keys = present_keys + 1
+        if figures in keys:
+            keys[figures] = keys[figures] + 1
+        else:
+            keys[figures] = 1
+    if placeholders * 2 >= len(present) or len(keys) < 2:
+        return False
+    if present_keys < PERSON_ROWS_PER_VALUE * len(keys):
+        return False
+    wide = 0
+    for figures in keys:
+        if len(figures.lstrip("0")) >= _KEY_FIGURES:
+            wide = wide + 1
+    return wide * 2 > len(keys)
 
 
 def _repeats_naming_one_person_a_cell(present: "list[str]", role: str) -> bool:
@@ -3321,25 +3486,6 @@ def _a_register_of_codes(present: "list[str]") -> bool:
             elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
                 letter = True
         if not figure or not letter:
-            return False
-    return True
-
-
-def _a_register_of_addresses(present: "list[str]") -> bool:
-    """Route three's second condition: every cell is an e-mail address.
-
-    One `@` with text on both sides, a point inside the part after it,
-    and no space anywhere. Nothing reads a cell as meaning: this is the
-    shape alone, and every cell must wear it.
-
-    Guarantees: accepts the present cells; returns a truth value. A
-    fixed function of them. Raises nothing. No I/O, and no cell reaches
-    anything it returns.
-    """
-    if not present:
-        return False
-    for value in present:
-        if not _is_an_address(value):
             return False
     return True
 
@@ -3656,6 +3802,12 @@ _TELEPHONE_AND_SOCIAL_SECURITY_LAYOUTS = (
     "+9.999.999.9999",
     "9-999-999-9999",
     "999-99-9999",
+    # ...and, after lane HX's tripwire (item 2), a social security
+    # number spaced, and an account or card number of sixteen figures in
+    # four groups (Safe Harbor identifier 10).
+    "999 99 9999",
+    "9999 9999 9999 9999",
+    "9999-9999-9999-9999",
 )
 
 
@@ -3670,8 +3822,19 @@ def _layout_of_figures(value: str) -> str:
     return written
 
 
-def _telephone_or_social_security(present: "list[str]") -> bool:
-    """Whether every present cell is a telephone or social security number.
+def _a_register_naming_one_person_a_cell(present: "list[str]") -> bool:
+    """Route three: a register whose cells each name one person.
+
+    A cell names one person where it is an e-mail address (bare, or in
+    angle brackets after a name), a telephone number (an extension after
+    it set aside) or a social security, card or account number in one of
+    `_TELEPHONE_AND_SOCIAL_SECURITY_LAYOUTS`, a beneficiary identifier,
+    an internet address (Safe Harbor identifier 15) or a web address
+    (identifier 14). JUDGED BY SHARE (lane HX's tripwire, item 2): every
+    cell but a minority of at most a third must name one, as the
+    placeholders beside a key are set aside -- one `not given` among the
+    e-mail addresses of 44 patients silenced the route, and the long
+    table published 29 of them.
 
     Guarantees: accepts the present cells; returns a truth value, false
     for none. A fixed function of them. Raises nothing. No I/O, and no
@@ -3679,19 +3842,81 @@ def _telephone_or_social_security(present: "list[str]") -> bool:
     """
     if not present:
         return False
+    misses = 0
     for value in present:
-        if _layout_of_figures(value) not in _TELEPHONE_AND_SOCIAL_SECURITY_LAYOUTS:
+        if _names_one_person(value):
+            continue
+        misses = misses + 1
+        if misses * _SIGN_PLACEHOLDER_SHARE > len(present):
             return False
     return True
 
 
-def _a_register_naming_one_person_a_cell(present: "list[str]") -> bool:
-    """Route three: every cell an e-mail address, a telephone or social security number, or a beneficiary identifier."""
+def _names_one_person(value: str) -> bool:
+    """Whether one cell is written as something that names one person."""
     return (
-        _a_register_of_addresses(present)
-        or _telephone_or_social_security(present)
-        or _beneficiary_identifiers(present)
+        _is_an_address(value)
+        or _is_an_address_after_a_name(value)
+        or _layout_of_figures(_without_an_extension(value))
+        in _TELEPHONE_AND_SOCIAL_SECURITY_LAYOUTS
+        or _is_a_beneficiary_identifier(value)
+        or _is_an_internet_address(value)
+        or _is_a_web_address(value)
     )
+
+
+# What follows a telephone number to name its extension (lane HX's
+# tripwire, item 2: `319-555-1234 x12`), each after a space.
+_EXTENSION_MARKS = (" x", " ext.", " ext", " extension")
+
+
+def _without_an_extension(value: str) -> str:
+    """The cell with an extension after a space set aside, or the cell itself."""
+    lowered = value.lower()
+    for mark in _EXTENSION_MARKS:
+        at = lowered.rfind(mark)
+        if at < 1:
+            continue
+        figures = lowered[at + len(mark):].strip()
+        if 1 <= len(figures) <= 6 and _is_plain_whole_number(figures):
+            return value[:at]
+    return value
+
+
+def _is_an_address_after_a_name(value: str) -> bool:
+    """Whether a cell is an e-mail address in angle brackets: `Pat <p@host.org>`."""
+    if value[-1:] != ">":
+        return False
+    opening = value.rfind("<")
+    if opening < 0:
+        return False
+    return _is_an_address(value[opening + 1:-1])
+
+
+def _is_an_internet_address(value: str) -> bool:
+    """Whether a cell is four numbers of 0 to 255 joined by points."""
+    parts = value.split(".")
+    if len(parts) != 4:
+        return False
+    for part in parts:
+        if not (1 <= len(part) <= 3) or not _is_plain_whole_number(part):
+            return False
+        if int(part) > 255:
+            return False
+    return True
+
+
+def _is_a_web_address(value: str) -> bool:
+    """Whether a cell is a web address: a scheme and `://`, or `www.`, and no space."""
+    if " " in value or "\t" in value:
+        return False
+    marker = value.find("://")
+    if marker >= 2 and len(value) > marker + 3:
+        for character in value[:marker]:
+            if not (("a" <= character <= "z") or ("A" <= character <= "Z")):
+                return False
+        return True
+    return value[:4].lower() == "www." and "." in value[4:]
 
 
 # A MEDICARE BENEFICIARY IDENTIFIER (plan P4-D401; Safe Harbor
@@ -3706,21 +3931,6 @@ def _a_register_naming_one_person_a_cell(present: "list[str]") -> bool:
 _BENEFICIARY_PLACES = "9AX9AX9AA99"
 _BENEFICIARY_LETTERS = "ACDEFGHJKMNPQRTUVWXY"
 _BENEFICIARY_LETTERS_EITHER_CASE = _BENEFICIARY_LETTERS + "acdefghjkmnpqrtuvwxy"
-
-
-def _beneficiary_identifiers(present: "list[str]") -> bool:
-    """Whether every present cell is written as a Medicare beneficiary identifier.
-
-    Guarantees: accepts the present cells; returns a truth value, false
-    for none. A fixed function of them. Raises nothing. No I/O, and no
-    cell reaches anything it returns.
-    """
-    if not present:
-        return False
-    for value in present:
-        if not _is_a_beneficiary_identifier(value):
-            return False
-    return True
 
 
 def _is_a_beneficiary_identifier(value: str) -> bool:
@@ -5008,7 +5218,7 @@ def _question_entry(question: Question) -> "dict[str, object]":
         "what_synthtwin_saw": question.shape,
         "read_as_now": question.taken,
         "answers_you_can_give": offered,
-        "your_answer": "",
+        "your_answer": question.answered,
     }
 
 
@@ -5184,6 +5394,15 @@ class Answers:
     # publishes what its reading publishes, which it does not while
     # that question is open.
     identities_kept: "tuple[str, ...]" = ()
+    # ...and every entry of a question offering `identifier` that the
+    # file answered with anything but `keep` (plan P4-D401), as the
+    # question its file put, with the answer written beside it: the file
+    # this run writes carries it again (`answered_again`), so a person
+    # handing that file back keeps the answer. Measured on lane HX's
+    # repair: a six-figure key answered `measurement`, the file the
+    # answering run wrote handed back as it stood, and the column was
+    # held as record numbers once more.
+    declared_entries: "tuple[Question, ...]" = ()
 
 
 def _entry_answer(
@@ -5377,6 +5596,7 @@ def answers_in(document: object, shown: str) -> Answers:
     date_columns: "list[str]" = []
     date_columns_kept: "list[str]" = []
     identities_kept: "list[str]" = []
+    declared_entries: "list[Question]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -5404,6 +5624,10 @@ def answers_in(document: object, shown: str) -> Answers:
                     shown, name, written, list(offered)
                 )
             )
+        if written != ANSWER_KEEP and ANSWER_IDENTIFIER in offered:
+            carried = _entry_as_answered(entry, name, written)
+            if carried is not None:
+                declared_entries += [carried]
         if written == ANSWER_CODE:
             codes += [name]
         elif written == ANSWER_IDENTIFIER:
@@ -5511,4 +5735,68 @@ def answers_in(document: object, shown: str) -> Answers:
         date_columns_kept=tuple(date_columns_kept),
         date_columns=tuple(date_columns),
         identities_kept=tuple(identities_kept),
+        declared_entries=tuple(declared_entries),
     )
+
+
+def _entry_as_answered(entry: object, name: str, written: str) -> "Question | None":
+    """An answered entry as the question its file put, the answer beside it.
+
+    Plan P4-D401. The entry's own words -- what synthtwin saw, and each
+    answer with what it means and publishes -- written back as the file
+    held them, with `read_as_now` and `your_answer` both the answer
+    given. None where an edited entry lacks any of those words. Read by
+    index and never by `.get`, as `_entry_answer` reads (plan D6.2).
+    Raises nothing. No I/O.
+    """
+    if not isinstance(entry, dict) or "what_synthtwin_saw" not in entry:
+        return None
+    saw = entry["what_synthtwin_saw"]
+    if not isinstance(saw, str) or "answers_you_can_give" not in entry:
+        return None
+    offered = entry["answers_you_can_give"]
+    if not isinstance(offered, list):
+        return None
+    choices: "list[Choice]" = []
+    for one in offered:
+        if not isinstance(one, dict):
+            return None
+        if (
+            "answer" not in one
+            or "means" not in one
+            or "then_the_description_publishes" not in one
+        ):
+            return None
+        answer = one["answer"]
+        means = one["means"]
+        publishes = one["then_the_description_publishes"]
+        if not (
+            isinstance(answer, str)
+            and isinstance(means, str)
+            and isinstance(publishes, str)
+        ):
+            return None
+        choices += [Choice(answer, means, publishes)]
+    return Question(name, "", "", saw, choices, written, written)
+
+
+def answered_again(
+    declared: "tuple[Question, ...]", asked: "list[Question]"
+) -> "list[Question]":
+    """The answered entries the file a run writes carries again (plan P4-D401).
+
+    Each entry `answers_in` read as answered, in the file's own order,
+    except one whose column this run asks a question of again -- a file
+    holds one entry a column. Guarantees: a fixed function of the two.
+    Raises nothing. No I/O.
+    """
+    spoken: "dict[str, bool]" = {}
+    for question in asked:
+        spoken[question.name] = True
+    carried: "list[Question]" = []
+    for question in declared:
+        if question.name in spoken:
+            continue
+        spoken[question.name] = True
+        carried += [question]
+    return carried
