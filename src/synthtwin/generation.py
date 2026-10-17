@@ -2214,7 +2214,7 @@ def _cell_entry(
     in turn fixes another cell of its class at nought; no fact about one
     count says so, and the walk offered that other cell every fill it
     could before learning it, past 1.6 GB before stage 4 and past twenty
-    minutes with conditions 2, 3 and 4 alone. Five necessary conditions
+    minutes with conditions 2, 3 and 4 alone. Six necessary conditions
     are now read on entering a cell, each a fact about the counts still
     owed and the groups still unplaced, so a fill any of them refuses
     held no answer and the answer the walk returns is the one it
@@ -2235,7 +2235,8 @@ def _cell_entry(
     3. **Every count still owed can be made** (review items P2-C2-F1
        and P2-C3-F1), from the sizes that can still reach one of its
        cells. It says nothing about whether the counts can be met
-       TOGETHER -- that is the question the walk itself answers.
+       TOGETHER -- 6 reads that over rows, and the walk itself answers
+       it over whole groups.
     4. **What this cell may total.** Something from its least to its
        most under 1, and for each count it answers for, a total the
        cells after it answering for the same count can complete exactly,
@@ -2268,6 +2269,18 @@ def _cell_entry(
        over `_WALKED_BEFORE_TABLE` times the sizes it reads, since the
        walk came to the cell, is read from a table of what the undecided
        sizes leave owed (`_owed_table`).
+    6. **The counts of one margin can be met together** (lane H2,
+       2026-10-17). For every set of the counts one margin still owes,
+       what they owe together must not pass the rows still unplaced
+       whose groups can stand, under 2, in a cell answering for one of
+       them (`_owed_together`). Conditions 3 and 5 read each count, and
+       each cell after this one, on its own, and on a signed-change
+       column of 4,000 rows, whose made-up values could wear a
+       point-free spelling on 1,416 rows while `leading_plus` and
+       `plain` owed 1,425 together, no fill of the cell answering for
+       `leading_plus` could leave `plain` enough, and the walk read 24
+       million reserves in that one cell and was still reading after
+       five minutes, where this refuses the first cell it enters.
 
     ``part_cells[m][p]`` names the cells, as their places in the order
     they fill, that answer for count ``p`` of margin ``m``, and
@@ -2340,6 +2353,8 @@ def _cell_entry(
             forced = forced + left[place] * size
     if forced > highest:
         return None
+    if not _owed_together(keys, left, where, owed, part_cells):
+        return None
     here_on = ~((1 << cell) - 1)
     for margin in range(len(owed)):
         for part in range(len(owed[margin])):
@@ -2399,6 +2414,82 @@ def _cell_entry(
         for place in reserve[2]:
             reserves[place] += [reserve]
     return accept, need, _binary_length(accept) - 1, reserves, filed
+
+
+# HOW MANY COUNTS OF ONE MARGIN CONDITION 6 READS TOGETHER (lane H2).
+# Every set of the counts a margin still owes is read, 2 ** n sets for
+# n counts, so a margin owing more than this many is not read: the
+# condition is a necessary one, so reading it less often never changes
+# an answer. The six styles, the four classes and the three signs,
+# wholes and alphabets all fit; an identifier's layouts may not.
+_TOGETHER_COUNTS = 8
+
+
+def _owed_together(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    where: "list[int]",
+    owed: "list[list[int]]",
+    part_cells: "list[list[int]]",
+) -> bool:
+    """Whether every set of the counts one margin still owes can be met by the rows that can still reach it (`_cell_entry`, condition 6).
+
+    Every group still unplaced has to stand in one of the cells
+    ``where`` names for its size, and every cell answers for one count
+    of each margin. So for any set of the counts one margin still owes,
+    the rows they owe together must be found among the groups that can
+    stand in a cell answering for at least one of them. Where some set
+    owes more than those groups hold, no way of placing whole groups --
+    nor of splitting them into rows -- meets that margin, and the walk
+    has no answer from here. Each count and each cell is read on its own
+    by conditions 3 and 5; this reads them together, which is Hall's
+    condition for the margin.
+
+    The groups are summed once by the counts they can reach, as one
+    whole number whose bit ``i`` names the ``i``-th count still owed, so
+    each set is read over those sums rather than over every group. A
+    margin owing fewer than two counts is met whenever the rows add up,
+    and one owing more than `_TOGETHER_COUNTS` is not read.
+
+    Guarantees: a fixed function of its arguments; it changes none of
+    them. Returns False only where no filling of the cells meets every
+    count of some margin.
+    """
+    for margin in range(len(owed)):
+        parts: list[int] = []
+        for part in range(len(owed[margin])):
+            if owed[margin][part] > 0:
+                parts += [part]
+        if len(parts) < 2 or len(parts) > _TOGETHER_COUNTS:
+            continue
+        reach_of: dict[int, int] = {}
+        rows_of: dict[int, int] = {}
+        for place in range(len(keys)):
+            if left[place] < 1:
+                continue
+            spot = where[place]
+            if spot not in reach_of:
+                reach = 0
+                for index in range(len(parts)):
+                    if spot & part_cells[margin][parts[index]]:
+                        reach = reach | (1 << index)
+                reach_of[spot] = reach
+            rows = left[place] * keys[place][0]
+            if reach_of[spot] in rows_of:
+                rows = rows + rows_of[reach_of[spot]]
+            rows_of[reach_of[spot]] = rows
+        for chosen in range(1, 1 << len(parts)):
+            due = 0
+            for index in range(len(parts)):
+                if (chosen >> index) & 1:
+                    due = due + owed[margin][parts[index]]
+            held = 0
+            for reach in rows_of:
+                if reach & chosen:
+                    held = held + rows_of[reach]
+            if due > held:
+                return False
+    return True
 
 
 def _owed_less(

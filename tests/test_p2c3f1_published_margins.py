@@ -562,21 +562,24 @@ def test_no_ceiling_stopped_the_packing_walk_the_review_measured(
 
 
 # THE GUARD ON TODAY'S WALK (plan P4-D389): a packing question of the
-# kind every role asks -- 28 groups of 1 to 5 rows against three row
+# kind every role asks -- 29 groups of 1 to 5 rows against three row
 # counts and three column counts over a grid of nine cells, each group
-# permitted the whole grid, its middle row or its last -- drawn from the
-# lane's seeded battery (seed 2, question 2,886) and written out here,
-# so the case cannot move with a library's draws. It has an answer, the
-# one asserted below.
+# permitted the whole grid or one of the two windows 60 and 448 -- drawn
+# around an answer (lane H2's search, seed 1) and written out here, so
+# the case cannot move with a library's draws. It has an answer, the one
+# asserted below. The question stage 4 wrote here, 28 groups against
+# rows 28, 35, 27 and columns 31, 20, 39, is answered in 1,584 states
+# since condition 6 of `_cell_entry` reads the counts together (243,155
+# before), so it no longer shows a ceiling.
 _HARD_GROUPS = (
-    2, 5, 1, 2, 3, 4, 3, 4, 5, 3, 4, 1, 5, 3, 1, 4, 4, 5, 3, 1, 5, 3, 5,
-    4, 4, 1, 1, 4,
+    1, 5, 4, 4, 1, 2, 5, 3, 2, 5, 5, 4, 1, 3, 1, 3, 5, 3, 2, 5, 1, 3, 1,
+    2, 5, 2, 2, 1, 5,
 )
-_HARD_ROWS = [28, 35, 27]
-_HARD_COLUMNS = [31, 20, 39]
+_HARD_ROWS = [9, 33, 44]
+_HARD_COLUMNS = [22, 24, 40]
 _HARD_PERMITTED = (
-    511, 511, 511, 60, 60, 448, 448, 511, 511, 448, 60, 511, 60, 60, 511,
-    448, 511, 448, 511, 511, 448, 448, 511, 60, 511, 60, 511, 60,
+    511, 511, 448, 60, 60, 511, 448, 448, 448, 448, 448, 511, 60, 60, 448,
+    448, 511, 60, 60, 60, 511, 60, 511, 511, 511, 448, 511, 448, 60,
 )
 
 
@@ -587,8 +590,8 @@ def test_no_ceiling_stops_today_s_walk_on_a_grid_with_an_answer() -> None:
     few thousand states, and the grids built around an answer from the
     review's 38 groups mostly in under 200,000, so neither shows a
     ceiling coming back cheaply. This question does: today's walk
-    enters more than 200,000 states before it answers it -- 243,155 when
-    this was written, about five seconds -- and the answer meets every
+    enters more than 200,000 states before it answers it -- 223,973 when
+    this was written, about three seconds -- and the answer meets every
     count. So a ceiling at or below the withdrawn one, put back in any
     form, stops this walk before its answer and fails here. Mutation,
     run: a walk that gives up after 200,000 states returns no answer.
