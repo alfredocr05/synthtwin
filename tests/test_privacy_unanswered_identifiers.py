@@ -482,6 +482,22 @@ def test_the_held_census_is_the_even_one_the_two_counts_imply(
     assert flat == steep == {"15": 40}
 
 
+def test_the_held_census_fits_each_layout() -> None:
+    """Each layout's values are what it can write, the largest remainders closing.
+
+    Lane HX's tripwire, item 4, at 20,000 rows: a six-figure key beside a
+    lone `0` on 620 rows gave the `0` two values, which one figure written
+    `0` cannot be, and the twin failed its own validation. A layout of one
+    figure holds ten values at most.
+    """
+    assert taxonomy._even_census(20000, {"444": 45}, {"%%%%%%": 19380}) == {
+        "440": 24, "441": 20, "620": 1,
+    }
+    assert taxonomy._even_census(600, {"20": 30}, {"%": 300, "%%%%%%": 300}) == {
+        "15": 20, "30": 10,
+    }
+
+
 def test_no_column_held_back_describes_the_table_as_before(
     tmp_path: pathlib.Path,
 ) -> None:
