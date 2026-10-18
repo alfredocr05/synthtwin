@@ -582,7 +582,7 @@ def test_a_run_of_groups_is_held_together(tmp_path: pathlib.Path, monkeypatch: p
 def test_the_walk_held_before_is_let_go_before_the_next_walk_is_read(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The sweep reads each walk after the one before is let go, so two walks' cells are never held at once."""
+    """The reading takes each walk after the one before is let go, so two walks' cells are never held at once."""
     table = tmp_path / "t.csv"
     table.write_text("a,b,c\n" + "".join(f"{k},x{k},{k % 7}\n" for k in range(80)), encoding="utf-8", newline="\n")
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)

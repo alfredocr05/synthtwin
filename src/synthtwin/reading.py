@@ -2655,8 +2655,8 @@ GROUP_BYTES = 256 * 1024 * 1024
 # (`tools/measurements/kpi_describe_groups.py`).
 _CELL_BYTES = 65
 
-# How many groups one walk holds at once: a walk of the sweep, or of the
-# questions (`column_walks`). A walk holds its groups' cells and no
+# How many groups one walk holds at once: a walk of the reading, or of
+# the questions (`column_walks`). A walk holds its groups' cells and no
 # column's description, which at two million rows holds more than six
 # groups' cells, so the file is walked a sixth as often.
 _GROUPS_A_WALK = 6
@@ -3247,7 +3247,7 @@ def _walk_a_group(
 
 @dataclasses.dataclass
 class _Swept:
-    """What a sweep of the file's groups found: the reading, the groups, the group held, and each column's evidence about the first row."""
+    """What a walk over the file's groups found: the reading, the groups, the group held, and each column's evidence about the first row."""
 
     reading: _Reading
     groups: "tuple[tuple[int, int], ...]"
@@ -3258,7 +3258,7 @@ class _Swept:
     walks: "tuple[tuple[int, int], ...]" = ()
 
 
-def _sweep(
+def _walk_the_groups(
     raw_path: str,
     table_path: pathlib.Path,
     shown: str,
@@ -3372,7 +3372,7 @@ def _sweep(
         # the next walk is read after both are let go, never beside it.
         del reading, surveyed
     if last is None or last.survey is None:
-        raise ValueError("synthtwin internal check: a sweep of no group")
+        raise ValueError("synthtwin internal check: a walk of no group")
     if differences:
         first = differences[0]
         for one in differences:
@@ -3466,8 +3466,8 @@ def _read_in_groups(
 
     A table that fits one group is read as before, its text a line at a
     time: walked, checked by the standard reader and by pandas, its first
-    row settled, and every column held. A larger one is swept a group at
-    a time (`_sweep`) and handed over holding its first group, the rest
+    row settled, and every column held. A larger one is walked a group at
+    a time (`_walk_the_groups`) and handed over holding its first group, the rest
     asked of `column_values`. The reading, the refusals and every value
     are the ones `read_table` makes holding the whole file.
     """
@@ -3478,7 +3478,7 @@ def _read_in_groups(
         raise errors.ProfileError(errors.looks_like_utf16(shown))
     if facts.zero:
         raise errors.ProfileError(errors.looks_like_utf16(shown))
-    swept = _sweep(
+    swept = _walk_the_groups(
         raw_path, table_path, shown, first_row, refusals, encoding, facts,
         metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
         declared_delimiter, small_cell_floor,
@@ -3542,7 +3542,7 @@ def _read_in_groups(
         )
         if seen:
             swept.held = []
-            again = _sweep(
+            again = _walk_the_groups(
                 raw_path, table_path, shown, FIRST_ROW_DATA, refusals,
                 encoding, facts, metadata_rows, decimal_comma_columns,
                 metadata_rows_confirmed, declared_delimiter, small_cell_floor,
