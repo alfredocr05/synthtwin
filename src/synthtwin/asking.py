@@ -3321,6 +3321,8 @@ def _key_figures(value: str) -> "str | None":
     `123 456 789`); or figures grouped in threes by points, two points
     or more (`123.456.789`), which no decimal is written as.
     """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
     if _is_plain_whole_number(value):
         return value
     point = value.find(".")
@@ -3344,7 +3346,10 @@ def _key_figures(value: str) -> "str | None":
     for group in groups[1:]:
         if len(group) != 3 or not _is_plain_whole_number(group):
             return None
-    return "".join(groups)
+    joined = ""
+    for group in groups:
+        joined = joined + group
+    return joined
 
 
 def _a_key_placeholder(value: str) -> bool:
@@ -3360,6 +3365,13 @@ def _a_key_placeholder(value: str) -> bool:
         if not (("a" <= character <= "z") or ("A" <= character <= "Z")):
             return False
     return True
+
+
+def _five_figures_or_more(value: str) -> bool:
+    """Whether a whole number's figures, leading zeros off, are five or more."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    return len(value.lstrip("0")) >= _KEY_FIGURES
 
 
 def _a_key_of_figures_repeating(present: "list[str]") -> bool:
@@ -3424,7 +3436,7 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
         return False
     wide = 0
     for figures in keys:
-        if len(figures.lstrip("0")) >= _KEY_FIGURES:
+        if _five_figures_or_more(figures):
             wide = wide + 1
     return wide * 2 > len(keys)
 
@@ -3867,9 +3879,14 @@ _EXTENSION_MARKS = (" x", " ext.", " ext", " extension")
 
 def _without_an_extension(value: str) -> str:
     """The cell with an extension after a space set aside, or the cell itself."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
     lowered = value.lower()
     for mark in _EXTENSION_MARKS:
-        at = lowered.rfind(mark)
+        at = -1
+        for place in range(len(lowered) - len(mark) + 1):
+            if lowered[place:place + len(mark)] == mark:
+                at = place
         if at < 1:
             continue
         figures = lowered[at + len(mark):].strip()
@@ -3880,9 +3897,14 @@ def _without_an_extension(value: str) -> str:
 
 def _is_an_address_after_a_name(value: str) -> bool:
     """Whether a cell is an e-mail address in angle brackets: `Pat <p@host.org>`."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
     if value[-1:] != ">":
         return False
-    opening = value.rfind("<")
+    opening = -1
+    for place in range(len(value)):
+        if value[place] == "<":
+            opening = place
     if opening < 0:
         return False
     return _is_an_address(value[opening + 1:-1])
@@ -3890,6 +3912,8 @@ def _is_an_address_after_a_name(value: str) -> bool:
 
 def _is_an_internet_address(value: str) -> bool:
     """Whether a cell is four numbers of 0 to 255 joined by points."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
     parts = value.split(".")
     if len(parts) != 4:
         return False
@@ -3903,6 +3927,8 @@ def _is_an_internet_address(value: str) -> bool:
 
 def _is_a_web_address(value: str) -> bool:
     """Whether a cell is a web address: a scheme and `://`, or `www.`, and no space."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
     if " " in value or "\t" in value:
         return False
     marker = value.find("://")
