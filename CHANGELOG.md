@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### `synthtwin profile` describes a big table one group of columns at a time (2026-10-18)
+
+**A table of 2,000,000 rows by 50 columns is described a group of
+columns at a time** (plan P4-D400, lane SR of the December plan; the
+owner's big table, TRACKED T5). `synthtwin profile` no longer holds the
+file's text whole: it reads the file a line at a time as it is decoded.
+A table whose cells would cost more than 256 MiB held at once is read
+one group of columns at a time -- walked, checked by the standard reader
+and by pandas, described, counted and asked its questions a group at a
+time -- and the file is read again for each group a later step needs.
+Nothing is written to disk, and a file that changes between two
+readings is refused in plain words. A column of record numbers that
+never repeat holds less while it is described. Every description,
+summary, questions file and refusal is the same bytes as before.
+`reading.column_values` is the one way to ask a table for a column, for
+every lane to come. Describe's peak at 2,000,000 x 50 projects to
+2,204.5 MB on the mixed health table and 461.6 MB on the Gaussian one,
+4,008 and 2,723 MB before; its CPU to 1.33 and 0.87 hours, about a third
+more than before. KPIs `K-S4-09` (OPEN: the peak of each step at
+2,000,000 x 50; describe's part measured) and `K-S4-11` (recorded).
+
 ### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
 
 **Records of batch 4b** (push critic 7; the orchestrator's rulings of
