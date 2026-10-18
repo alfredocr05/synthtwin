@@ -20,18 +20,30 @@ grouped with commas or spaces), telephone numbers in six layouts,
 social security numbers, e-mail addresses, a numeric patient key beside
 missing cells, five-figure ZIP codes, device identifiers, a study
 subject code of five figures, and a register of record numbers with one
-short number among them. `BESIDE`: three tables of 150 patients whose
+short number among them; and, after the second repair's reviews, numeric
+patient keys route four of the person rule reaches (drawn from one to
+three million, across a power of ten, beside `0`, nines, `-99`, `-1` on
+40 % of rows or `UNKNOWN`, exported as `100001.0`, of varying width, or
+grouped by points) and registers route three reaches (an extension after
+a telephone number, a spaced social security number, an internet or web
+address, sixteen figures in four groups, an e-mail address after a name
+or beside one `not given`). `BESIDE`: three tables of 150 patients whose
 record number is DECLARED a person column, carrying an e-mail address, a
 beneficiary identifier or a telephone number beside it. `STATED`: a
 patient's name, a street address and a full birth date, which no
-question flags -- a stated limit owned by lane HX2 (plan P4-D401).
+question flags, and a health plan or account number beside a declared
+person column, which no question flags there -- stated limits owned by
+lane HX2 (plan P4-D401).
 
 WHAT IS COUNTED (`count_real`, a pure function the gate also tests on
 cases made for it). In the description, its summary, the questions file and
 the screen: each real value written whole anywhere -- or its figures
 written as a number, without separators or leading zeros -- and each
 FRAGMENT of one: a run of five or more letters and figures out of a real
-value, or the text every real value opens with. In the twin's column:
+value, or the text every real value opens with -- and a value's longest
+run of five figures or more written as a number. A value of figures
+alone counts only with no figure or point against it, so a decimal of
+another column is not one. In the twin's column:
 cells holding a real value, or its figures, anywhere inside them, and the
 fragments found inside its cells.
 """

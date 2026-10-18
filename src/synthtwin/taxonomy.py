@@ -25755,15 +25755,18 @@ def _even_census(
             kept[key] = int(f"{census[key]}")
         return kept
     parts: "list[int]" = []
+    room: "list[int]" = []
     named = 0
     for key in sorted(forms):
         entry = forms[key]
         if isinstance(entry, int) and entry > 0:
             parts += [entry]
+            room += [_layout_room(key, values)]
             named = named + entry
     if n_present > named:
         parts += [n_present - named]
-    shares = _values_per_part(values, parts, n_present)
+        room += [values]
+    shares = _values_per_part(values, parts, room, n_present)
     if not shares:
         parts = [n_present]
         shares = [values]
@@ -25787,45 +25790,79 @@ def _even_census(
     return kept
 
 
-def _values_per_part(values: int, parts: "list[int]", n_present: int) -> "list[int]":
+def _layout_room(layout: str, values: int) -> int:
+    """How many different values a layout can write, counted up to ``values``.
+
+    A figure's place holds ten, a letter's twenty-six, a hexadecimal
+    character's sixteen, and every other character one; the pool of
+    layouts under the floor (`SUPPRESSED_LABEL`) is not one layout and
+    holds any number. Guarantees: a whole number of one or more, at most
+    ``values`` (or one). Raises nothing. No I/O.
+    """
+    if layout == SUPPRESSED_LABEL:
+        return max(values, 1)
+    room = 1
+    for character in layout:
+        if character == parsing.LAYOUT_DIGIT:
+            room = room * 10
+        elif character in (parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER):
+            room = room * 26
+        elif character in (parsing.LAYOUT_LOWER_HEX, parsing.LAYOUT_UPPER_HEX):
+            room = room * 16
+        if room >= values:
+            return max(values, 1)
+    return room
+
+
+def _values_per_part(
+    values: int, parts: "list[int]", room: "list[int]", n_present: int
+) -> "list[int]":
     """How many of the values each part of the rows holds, or empty where none fits.
 
     In proportion to the part's rows, rounded down, at least one and at
-    most its rows; then one value at a time taken from the part holding
-    most (the earliest on a tie) while there are too many, and given to
-    the part with most rows a value that can take one more (the
-    earliest on a tie) while there are too few. Empty where the parts
-    outnumber the values or the rows cannot hold them. Guarantees: a
-    fixed function of the counts. Raises nothing. No I/O.
+    most its rows or what its layout can write (``room``); then, while
+    there are too many, one taken from the part furthest over its exact
+    share, and while there are too few, one given to the part furthest
+    under it that has room (the earliest on a tie): the largest
+    remainders. A lone `0` heaped on three rows in a hundred of a key's
+    is one layout of one figure, and the share it takes is its own, not
+    a value of the key's. Empty where the parts outnumber the values or
+    cannot hold them. Guarantees: a fixed function of the counts. Raises
+    nothing. No I/O.
     """
     if not parts or len(parts) > values or n_present < 1:
         return []
     counts: "list[int]" = []
     total = 0
-    for rows in parts:
-        one = max(1, min(rows, values * rows // n_present))
+    for place, rows in enumerate(parts):
+        one = max(1, min(rows, room[place], values * rows // n_present))
         counts += [one]
         total = total + one
     while total > values:
-        most = -1
+        over = -1
         for place, count in enumerate(counts):
-            if count > 1 and (most < 0 or count > counts[most]):
-                most = place
-        if most < 0:
+            if count > 1 and (
+                over < 0
+                or values * parts[place] - count * n_present
+                < values * parts[over] - counts[over] * n_present
+            ):
+                over = place
+        if over < 0:
             return []
-        counts[most] = counts[most] - 1
+        counts[over] = counts[over] - 1
         total = total - 1
     while total < values:
-        roomiest = -1
+        under = -1
         for place, count in enumerate(counts):
-            if count < parts[place] and (
-                roomiest < 0
-                or parts[place] * counts[roomiest] > parts[roomiest] * count
+            if count < min(parts[place], room[place]) and (
+                under < 0
+                or values * parts[place] - count * n_present
+                > values * parts[under] - counts[under] * n_present
             ):
-                roomiest = place
-        if roomiest < 0:
+                under = place
+        if under < 0:
             return []
-        counts[roomiest] = counts[roomiest] + 1
+        counts[under] = counts[under] + 1
         total = total + 1
     return counts
 
