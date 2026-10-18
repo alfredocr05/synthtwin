@@ -3026,8 +3026,8 @@ alone, are checked before G5.2:
 - **(P3)** every band with cells has room: it holds at least one value
   the column may write, that is a whole number where `integer_valued`
   is true, a point of the written grid where G5.2a step 1 finds one,
-  inside the published `min` and `max`, and outside every stretch
-  `empty_edges` names;
+  inside `min` and `max` where they are published, and outside every
+  stretch `empty_edges` names;
 - **(P4)** on a tail block every edge lies at or between the two
   boundary rungs (the rungs outside them are null, G5.1a), `R_j >= m_lo`
   for every edge above the low boundary rung, and `K - R_j >= m_hi` for
@@ -3082,10 +3082,14 @@ with `PCT[j] * D`, `D = K * 2**64`). Today rung `j` stands at position
 `K * PCT[j] / 100`. On an eligible column the rungs stand at KNOTS:
 
 - **an edge.** Let `k_j` be the SMALLEST percent whose rung equals
-  `e_j`, and `P_j = K * k_j / 100`. The edge is a knot of value `e_j` at
-  position `R_j`. Where `P_j` lies above `R_j`, a second knot of the
-  same value stands at `P_j`, so every position between them reads
-  `e_j` and nothing else;
+  `e_j`, and `P_j = K * k_j / 100`. The edge's LOWER KNOT, of value
+  `e_j`, stands at position `R_j`. Its UPPER KNOT, of the same value,
+  stands at `min(max(R_j, P_j), R_next)`, where `R_next` is the next
+  edge's cut rank (the high boundary's knot after the last edge on a
+  tail block, `K` otherwise), so every position between the two knots
+  reads `e_j` and nothing else, and no knot ever stands behind the one
+  before it. An edge whose band holds no cell has its two knots on one
+  position;
 - **the ends and the tails.** Rank 0 keeps percent 0 and rank `K` keeps
   percent 100. On a tail block the tail rows keep G5.3b's and G5.3e's
   own readings, row by row, so the map moves no tail row; the low
@@ -3094,10 +3098,12 @@ with `PCT[j] * D`, `D = K * 2**64`). Today rung `j` stands at position
   to a boundary rung takes the boundary's knot;
 - **every other rung** stands between the two knots around it in
   proportion to its percent: a rung at percent `q` between knots at
-  percents `k < q < k'` and positions `X < X'` stands at
-  `X + (X' - X) * (q - k) / (k' - k)`.
+  percents `k < q < k'` and positions `X <= X'` stands at
+  `X + (X' - X) * (q - k) / (k' - k)`, the knot below it being an
+  edge's upper knot and the knot above it an edge's lower knot.
 
-Positions are rationals. The segment search of G5.3 is taken over them
+Positions are rationals. A segment whose two knots share a position
+holds no position and is passed over. The segment search of G5.3 is taken over them
 with the denominators cleared, so every comparison is between whole
 numbers, and the fraction inside a segment is one integer quotient: for
 a position `x` between knots at `X_a` and `X_b`,
@@ -3179,8 +3185,8 @@ lowest piece with cells and `max` in the highest, and the zero stratum
 is 0.
 
 **The piece fallback.** For a piece of values from `a` up to `b`, a
-value is ADMISSIBLE where it is inside the published `min` and `max`,
-on the piece's side of zero, a whole number where `integer_valued` is
+value is ADMISSIBLE where it is inside `min` and `max` where they are
+published, on the piece's side of zero, a whole number where `integer_valued` is
 true, a point of the written grid where the column is on one (G5.2a
 step 1), and outside every stretch `empty_edges` names.
 
@@ -3191,14 +3197,16 @@ step 1), and outside every stretch `empty_edges` names.
   inward one grid unit at a time, at most 64 units, to the first
   admissible point no stratum holds, as G5.5's grid rule walks; where
   every point within reach is held, the first point is taken.
-- **Off a grid**, the low fallback is `a` itself where it is admissible
-  and no other stratum holds it. Otherwise it is `u/2 + v/2`, where `u`
-  is `a` and `v` the smallest value any stratum of the piece holds above
-  `a` (`b` where none). The high fallback is `h/2 + b/2`, where `h` is
-  the largest value any stratum of the piece holds below `b` (`a` where
-  none). Where such a midpoint rounds onto one of its two ends, the
-  fallback is the end inside the piece. Each is two divisions and one
-  addition.
+- **Off a grid**, the low fallback is the first admissible value at or
+  above `a`: `a` itself, or, where `a` lies in a stretch `empty_edges`
+  names, that stretch's upper end. The high fallback is the largest
+  value any other stratum of the piece already holds below `b`, and the
+  low fallback where none holds one. Neither is a value the walls make
+  up, so neither can stand in an empty stretch, and a stretch holding
+  `a` ends inside the piece, because the piece's real values lie outside
+  every empty stretch (P3). Where a fallback is a value another stratum
+  holds, the two strata share it until G6.5a's separation, which acts
+  inside the piece, pulls them apart.
 - **Beside zero**, on a piece whose upper end is 0 or whose lower end is
   0, G5.5's own fallback (`-1`, `1`, or its grid walk) is taken where it
   lies inside the piece, and the piece's fallback otherwise.
@@ -11026,11 +11034,12 @@ G7A.4b, every heap.
 **Laid by G7A.4 (no `clock_step`): the knots.** Each edge `e_j`, taken
 at the smallest percent `k_j` whose rung is `e_j`, is a knot at
 position `100 * R_j * 2**64`, rank `R_j` in the units G7A.4 counts
-positions in. Where the rung's own position `P * PCT[k_j] / 100` lies
-above that, a second knot of value `e_j` stands at its own position.
-Every other published rung between two knots is respaced between them
-in proportion to its percent, as G5.7c respaces them, and the two
-boundaries keep their positions. G7A.4's floor reading then meets every
+positions in. Its upper knot, of the same value, stands at the rung's
+own position `P * PCT[k_j] / 100` where that lies above, but never past
+the next knot's position, as in G5.7c. Every other published rung
+between two knots is respaced between them in proportion to its
+percent, as G5.7c respaces them, and the two boundaries keep their
+positions. G7A.4's floor reading then meets every
 band total with no repair. A rank `r` below `R_j` reading word `w`
 stands at `100 * (r * 2**64 + w)`, below the knot by at least one unit
 of position, so its share is less than `p1 - p0` and
