@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### The method for twins whose columns meet their band counts exactly, written before its code (2026-10-18)
+
+**Lane BTp of the December plan** (plan P4-D404). Nothing synthtwin
+does changes yet: this entry records a method written before its code.
+When the relationships between columns land, a column that takes part
+in them will make its cells so that each of its published bands, the
+stretches between the rungs its description publishes, holds exactly
+the count the real column held. Every other published fact of the
+column is still met, or, where this method cannot meet both, the band
+count is kept and the other fact is named in the twin's report.
+Measured on today's twins of an invented table, every number, date and
+clock column missed its band counts, by 4 to 262 rows. The same method
+takes the records holding nothing, rows empty in every column, from
+each column's empty cells by their spelling before any other cell is
+placed, for text files and workbooks alike, so no step after the
+placement moves a cell. A twin made from a description without
+relationships between columns stays the same bytes.
+
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
 **A follow-up to batch 4b** (lane CF4b of the December plan; CI run

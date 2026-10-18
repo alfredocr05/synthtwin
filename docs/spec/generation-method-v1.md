@@ -838,6 +838,164 @@ places everything else, which is what makes their positions
 seeded-random (P2-D9) without a second mechanism and without a second
 draw budget.
 
+### G4.2a The reservation of records holding nothing (layer L0, plan P4-D404; specified, NOT BUILT)
+
+**No generator in this repository runs this section yet; lane BT builds
+it.** It runs only where `relationships.statistical` holds at least one
+family, which is the switch of G16, the arrangement of stage 6 (lane
+MBC's section, not yet written into this document). Everywhere else
+G2.1 step 2 and G2.2 step 6 place the records holding nothing exactly
+as they are written, and the twin is byte for byte the twin it is
+today.
+
+**Why it exists.** The outside review of lane M6's stage-6 page (its
+items 2 and 3) found two defects in placing these records after the
+arrangement. A 120-row workbook with twelve records holding nothing
+publishes its tables over 108 rows, but the arrangement read only the
+text file's counts, reserved no row and arranged 120; and the workbook
+writer's own exchanges then moved single cells of every column after
+any table had been met. And a reservation of "absent cells" that does
+not say which ones can put an `NA` into a record that must hold
+nothing: twelve empty cells beside twelve `NA` cells, with twelve
+published records, are both absent, but only the empty ones make a
+record hold nothing. This section takes the cells at G4, by their
+spelling, the same way for both kinds of file, so the reserved rows are
+fixed before any table is laid and no step after the arrangement moves
+a cell.
+
+**A record holding nothing** is a record every cell of which holds
+nothing: in a text file, a cell whose text is empty or holds only
+spaces and tabs (contract 4.3a, `empty_rows`; plan P4-D84); in a
+workbook, a cell holding no text, which G2.2 step 1 gives one of the
+three classes that hold nothing.
+
+**How many: `E`.** In a text file, the number of target rows G2.1
+step 2 fixes from `source.dialect.empty_rows`, after that step's caps.
+In a workbook, `empty_rows_inside`, nought where it is `null`. In a
+table of one column, nought.
+
+**Where: the reserved rows.** In a text file, the rows G2.1 step 2's
+arithmetic places, unchanged (it reads no cell). In a workbook, the
+first `E_eff` rows, the rows G2.2 step 6 brings the cells holding
+nothing to today. Every other row is ARRANGED, and `n' = n_rows -
+E_eff` is their number.
+
+**Which cells: by spelling.** After a column's two stages of G4.2, its
+content and its placement, with every word drawn as before, the
+column's cells holding nothing are listed in this order:
+
+1. in a text file, the cells written as the empty text, in G4.2's
+   order (ascending by the row the placement wrote each in); then the
+   cells of each published `missing_by_source` spelling made only of
+   spaces and tabs, the shorter spelling first and, at one length, by
+   code points, each spelling's cells in G4.2's order;
+2. in a workbook, the cells holding no text, in G4.2's order.
+
+The first `E_eff` cells of that list are the column's RESERVED cells.
+Nothing else is: a spelling of absence holding any other character
+(`NA`, `-999`, a no-break space) is never reserved, so in the review's
+case the twelve empty cells are taken and the twelve `NA` cells are
+not. Every reserved cell keeps its own text, so no spelling census
+moves.
+
+```
+E_eff = min(E, the fewest cells holding nothing any column has)
+```
+
+**`E_eff` is `E` on every description a producer writes.** Each of the
+`E` real records held nothing in every column, so every real column
+held at least `E` cells holding nothing. Each of those is absent
+(contract 4.3a counts a cell of spaces and tabs absent), and the twin
+writes every absent cell either as a published spelling at its count,
+a spelling of spaces and tabs among them, or as the empty text (the
+blank count and the withheld remainder, G10.1). So each twin column
+holds at least as many cells holding nothing as the real column. A
+hand-written description can break this; the twin then writes `E_eff`
+records, and the twin's report names the shortfall beside the published
+count, as G2.2 step 6 already does for a workbook.
+
+**Where the cells stand.** The k-th reserved cell of a column stands in
+the k-th reserved row, in row order. Every other cell of the column
+stands in an arranged row. For an eligible column G16 decides which
+one (G4.2b hands the cells over). For any other column the arranged
+rows, in row order, take its other cells in G4.2's order, and that is
+the column's placement.
+
+**What no longer runs where this section runs.** G2.1 step 2's first
+walk (emptying the target rows) and G2.2 step 6's exchanges do not run,
+because the reserved rows already hold nothing in every column. G2.2
+step 1 then hands out the three classes that hold nothing in row order,
+exactly as written, so the reserved rows take `absent` first, and step
+6's second bullet and step 7 write them as records holding nothing,
+exactly as written. G2.1's second walk (no other row is left holding
+nothing), the row sequence (step 1) and the sort (step 3) belong to
+G16.5 (lane MBC's section). Whatever G16.5 does, it moves no cell of an
+eligible column after the arrangement.
+
+**What it leaves to G16.5.** An arranged row can still hold nothing in
+every column, but only where every column keeps a cell holding nothing
+among its arranged cells. A single column with no absent cell beyond
+`E_eff` (a key, or a measure present on every row) rules that out for
+the whole table.
+
+**Draws.** None. G4.2's placement words are drawn exactly as before;
+the reservation reads the placement and the cells' texts and nothing
+else.
+
+### G4.2b The interface G16 calls: the column's cells, grouped by L0 band (plan P4-D404; specified, NOT BUILT)
+
+`cells_by_band(column)` is called by G16 (lane MBC's section) once for
+each eligible column, in schema order, after that column's G4.2, G4.2a
+and the L0 passes (G5.7, G7.3l, G7A.4d). It returns the column's cells
+standing in the ARRANGED rows, that is every cell except the reserved
+ones of G4.2a, as one GROUP per L0 band, in BAND ORDER: the range bands
+in ascending order of their lower edge (the lowest band has no lower
+edge and comes first), then `missing`, `other` and `labels`, wherever
+the column has them. On a label column the range bands are the levels
+the column's L0 block names, in its published order; G8 already writes
+each published level at its count, so nothing in G5.7 changes such a
+column.
+
+**The band of a cell.** A cell with a READING lies in the range band
+whose lower edge is at most its reading and whose upper edge exceeds
+it. The reading is compared in the space the band's edges are published
+in: binary64 numbers, or ordinals on the column's own clock (G7.1,
+G7A.1). A present cell with no reading in that space is in `other`, a
+label cell of a numbers-with-labels column is in `labels`, and an
+absent cell is in `missing`.
+
+**What each group carries.** Each group lists its cells in G4.2's order,
+ascending by the row the placement wrote each in. Each cell is handed
+over as three things:
+
+- its TEXT, exactly as written. G16 never respells a cell;
+- its READING on a cell of a range band (the binary64 value G5 gave its
+  stratum, or its ordinal), and none on any other cell. G16 sorts a
+  band's cells by it;
+- whether it HOLDS NOTHING, by G4.2a's test, for G16.5.
+
+**What it promises**, each a function of the description and the seed
+alone:
+
+1. **Exact group sizes.** The group of a range band holds exactly that
+   band's published count (G5.7, G7.3l, G7A.4d). The `missing` group
+   holds `n_missing - E_eff` cells, and `other` and `labels` hold the
+   class counts they stand for. The groups sum to `n'`. Where a column
+   was made without L0 because G5.7a's preconditions failed, the call
+   says so and hands over the groups its cells fell into, with their
+   sizes, for G16.6.
+2. **The same cells.** The texts handed over, as a multiset, are the
+   column's cells less its reserved cells. Nothing is made, dropped or
+   rewritten.
+3. **No word.** The call draws nothing, and reads only the column's own
+   cells and its published L0 block.
+4. **One column at a time.** It holds one column's cells, plus one
+   integer per cell for the band. Where lane SG's spill file holds a
+   column, the call reads it back group by group.
+
+What G16 may do with the groups is choose the arranged row each cell
+stands in, by G16's own rule, and nothing else.
+
 ### G4.3 The draw budget, as a function of published content
 
 | role | content words | placement words |
@@ -2804,6 +2962,404 @@ honest answer on the rule's reading; drawn with the rule withdrawn
 instead, those windows would fail 13 checks on 9 twins the rule
 improved, a kurtosis of 352.1 against a published 356.6 outside a window
 of 1 to 250 among them, where 110cb46's twin held 7.9 inside it.
+
+### G5.7 The L0 band totals (layer L0 of stage 6, plan P4-D404; specified, NOT BUILT)
+
+**No generator in this repository runs anything in this section yet;
+lane BT builds it.** It fixes how an ELIGIBLE number column makes its
+cells so that each of its published L0 bands holds EXACTLY its
+published count, with every other published fact of the column still
+met, or, where this construction cannot meet both, settled by a rule
+stated here (G5.7h). G7.3l does the same for a date column and G7A.4d
+for a clock column. Where `relationships.statistical` is `null`, or
+gives a column no L0 block, nothing here runs and the column's cells
+are byte for byte what G5 and G6 make today.
+
+**Why.** Today a column meets its percentile rungs inside a window and
+not its counts between them, so its twin puts some rows on the wrong
+side of a rung. Measured on the product's own twins of an invented
+ten-column table (G5.7i): at the decile edges, every number, date and
+clock column missed its band totals at every seed, by 4 to 94 rows a
+column at 5,000 rows and by 8 to 262 at 20,000. A band holding one
+value of a count column (the fours of a count of visits) held 1,400
+rows against 1,320. Lane M6's held stage-6 prototype measured the same
+defect at 100,000 rows on a count of few values: 30,000 rows on the
+value 3 where the real column held 12,471, and 29,729 rows off its band
+totals. A table between two columns can be met cell for cell only where
+each column's own band totals are the table's margins. So stage 6 makes
+those totals exact in the generator, as its layer L0, rather than
+adjusting each table to the twin's own margins.
+
+**What it keeps.** The single stream: nothing here draws a word, and
+every word G4.3 hands a column is still drawn, in the same order. The
+arithmetic: binary64 `+ - * /` and exact integers, in the order
+written, and G5.3's four-operation convex form; no logarithm,
+exponential or sine. The floor: nothing here is published, and no count
+of the real table is printed anywhere it was not printed before.
+
+#### G5.7a When it runs, and what it reads
+
+A number column is ELIGIBLE where `relationships.statistical` gives it
+an L0 block. Lane MBC's contract fixes which columns are eligible and
+which rungs form L0; this section takes both as given. The block
+publishes:
+
+- the EDGES `e_1 < e_2 < ... < e_m`, each a published, non-null rung of
+  the hundred-and-one-rung ladder G5.3 reads (after G5.1's fill);
+- one COUNT `c_j` for each RANGE band: band 0 holds the readings below
+  `e_1`, band `j` the readings at least `e_j` and below `e_(j+1)`, and
+  band `m` the readings at least `e_m`. Each count is nought or at least
+  the floor. A narrower band is merged into its neighbour before it is
+  published, so every published count is a count of the real column,
+  never a rounded one;
+- the counts of the bands `missing`, `other` and `labels`.
+
+The CUT RANK of edge `j` is `R_j = c_0 + ... + c_(j-1)`: the number of
+cells below `e_j`. Five PRECONDITIONS, each a fact of the description
+alone, are checked before G5.2:
+
+- **(P1)** `c_0 + ... + c_m = K`, the cells G5 lays out (on an affixed
+  column, the cores' count of G6A.2);
+- **(P2)** the cut ranks agree with the sign counts: `R_j <= G` where
+  `e_j <= 0`, with `R_j = G` where `e_j = 0`, and `R_j >= G + Z` where
+  `e_j > 0`;
+- **(P3)** every band with cells has room: it holds at least one value
+  the column may write, that is a whole number where `integer_valued`
+  is true, a point of the written grid where G5.2a step 1 finds one,
+  inside the published `min` and `max`, and outside every stretch
+  `empty_edges` names;
+- **(P4)** on a tail block every edge lies at or between the two
+  boundary rungs (the rungs outside them are null, G5.1a), `R_j >= m_lo`
+  for every edge above the low boundary rung, and `K - R_j >= m_hi` for
+  every edge below the high one (a tail's rows lie at or beyond its
+  boundary);
+- **(P5)** a published `min` lies in the band holding rank 0, and a
+  published `max` in the band holding rank `K - 1`.
+
+Every description a producer writes passes all five, because each is an
+identity of the real column, whose counts the L0 block and the column's
+own facts both publish. Where one fails, which only a hand-written
+description can do, the column is made WITHOUT L0, exactly as G5 and G6
+make it today. G4.2b says so to G16, which then meets that column's
+families by G16.6, and the twin's report names the column and the
+precondition that failed (rule B3, G5.7h).
+
+#### G5.7b Cuts and pieces
+
+A CUT is a value with a rank: exactly `R` of the `K` cells lie below the
+value. The method already holds the two sign cuts of G5.2 and G5.5
+exactly: `G` cells below 0, and `G + Z` cells at or below it. L0 adds
+one cut for each edge, at `R_j`.
+
+Taken together in rank order, the cuts divide the `K` ranks into
+PIECES. A piece is a maximal run of ranks between two consecutive
+cuts, together with the stretch of values between their two values,
+lower end included and upper end excluded; the ZERO PIECE is the value
+0 alone. Each piece's cell count `C_p` is a difference of two cut
+ranks, so it is a count of the real column itself, and (P2) and (P4)
+make the cut ranks rise with their values.
+
+**A piece is what G5.2 calls a band, refined.** G5.2's negative band is
+the union of the pieces below 0, its zero stratum is the zero piece,
+and its positive band is the union of the pieces above 0. This
+section's one rule follows, and the rest of it is that rule applied:
+
+**EVERY CLAUSE OF G5, G6, G6A AND G6B THAT KEEPS A CELL, A STRATUM OR A
+VALUE INSIDE ITS SIGN BAND KEEPS IT INSIDE ITS PIECE.** The method meets
+the sign counts exactly because nothing it does moves a cell across
+zero. The layout moves cells only by moving the boundaries between
+strata of one band, and every value step either keeps a stratum's
+value on its band's side of zero or repairs it there (G5.5). A piece is
+the same object with more walls, so the same steps meet each piece's
+count, and a band's total is a sum of piece counts.
+
+#### G5.7c The band map: where the ladder is read
+
+G5.2a step 1, G5.2b's reach step and G5.3 read the ladder at a rank
+POSITION: the rank of a cell, or a point `N_s / 2**64` inside a
+stratum's share, against the scale `K` (the comparisons of `100 * N`
+with `PCT[j] * D`, `D = K * 2**64`). Today rung `j` stands at position
+`K * PCT[j] / 100`. On an eligible column the rungs stand at KNOTS:
+
+- **an edge.** Let `k_j` be the SMALLEST percent whose rung equals
+  `e_j`, and `P_j = K * k_j / 100`. The edge is a knot of value `e_j` at
+  position `R_j`. Where `P_j` lies above `R_j`, a second knot of the
+  same value stands at `P_j`, so every position between them reads
+  `e_j` and nothing else;
+- **the ends and the tails.** Rank 0 keeps percent 0 and rank `K` keeps
+  percent 100. On a tail block the tail rows keep G5.3b's and G5.3e's
+  own readings, row by row, so the map moves no tail row; the low
+  boundary rung is a knot at `m_lo`, the low tail's rows, where the body
+  begins, and the high boundary rung a knot at `K - m_hi`. An edge equal
+  to a boundary rung takes the boundary's knot;
+- **every other rung** stands between the two knots around it in
+  proportion to its percent: a rung at percent `q` between knots at
+  percents `k < q < k'` and positions `X < X'` stands at
+  `X + (X' - X) * (q - k) / (k' - k)`.
+
+Positions are rationals. The segment search of G5.3 is taken over them
+with the denominators cleared, so every comparison is between whole
+numbers, and the fraction inside a segment is one integer quotient: for
+a position `x` between knots at `X_a` and `X_b`,
+`T = floor(2**53 * (x - X_a) / (X_b - X_a))`, then `t = ldexp(T, -53)`
+and G5.3's convex form and clamp, unchanged.
+
+**How far the map moves a position.** The profiler reads a numeric rung
+by the type-7 rule at `h = (K - 1) * k_j / 100`. Where the rung falls
+strictly between two different order statistics, `R_j` is the next
+rank above `h`, so `R_j` and `P_j` lie less than one rank apart. Where
+the rung IS a value the column held, `R_j` lies at or below `P_j`, by up
+to about one percent of `K` where that value is held by many rows (the
+twos of a count). There the flat segment between the two knots is that
+value's heap, which the real column holds at those ranks too. So on a
+column whose edges are not heaped, the map moves no position by a whole
+rank.
+
+#### G5.7d The layout over pieces
+
+G5.2, G5.2a and G5.2b run with PIECE in place of BAND wherever they read
+a sign band:
+
+1. **Reading.** G5.2a step 1 reads the ladder through the band map at
+   every rank of each piece, `lo` being the piece's first rank, with
+   G5.4's integer rule and, on a written grid, `GridValue`, as that step
+   says. Step 1a, the band's own sign, becomes the PIECE'S OWN STRETCH:
+   in a piece of values from `a` up to `b`, every value read below `a`
+   is replaced by the first value of the piece read at or above `a`, and
+   every value read at or above `b` by the last value of the piece read
+   below `b`. A piece none of whose ranks reads a value inside it keeps
+   what it read, and G5.7e answers for it.
+2. **Runs, joins and the cap.** Steps 2 to 4 run inside each piece. A
+   run never crosses a cut; step 3 joins only two runs of one piece and
+   divides the longest run of a piece; the levelling under the cap moves
+   cells only to the nearest run of the same piece; and `Cap_band` is
+   taken per piece, `max(Cap, ceil(C_p / M_p))`.
+3. **The share over pieces** replaces G5.2b's share between the two sign
+   bands. `M_zero` and `M_rest` are G5.2's. Each piece `p` with cells,
+   other than the zero piece, has `C_p` cells and `A_p` runs from step
+   2. It starts at `lo_p = 1`, raised to `ceil(C_p / Cap)` where
+   `Cap > 0` and the raised floors together come to at most `M_rest`
+   (G5.2b's own condition), and is held to at most `hi_p = C_p`. The
+   remaining `M_rest - sum(lo_p)` strata are handed out one at a time,
+   each to the piece below its `hi_p` with the largest
+   `A_p / (2 m_p + 1)`, compared exactly as
+   `A_p * (2 m_q + 1) > A_q * (2 m_p + 1)`, the lower piece on a tie.
+   This is the Sainte-Lague rule, which rounds to the nearest share, as
+   G5.2b's formula does for two bands. Where the pieces with cells
+   outnumber `M_rest`, `M` is raised to their number and the raised
+   count is named, as G5.2 raises it for the sign facts. (On a
+   description a producer writes this happens only where `M_rest` falls
+   below the real column's count of different non-zero numbers, which
+   G5.2b's floor already names.)
+4. **The carrier and reach steps** of G5.2b read piece for band. The
+   band step moves one stratum into a piece that cannot carry from the
+   nearest piece in rank order (the lower on a tie) that keeps at least
+   its `lo_p`. The cell step moves cells only within one piece. The
+   reach step asks for a whole number inside the stratum's own piece
+   (and, as before, inside `min` and `max` and on its sign), and the
+   fallbacks it treats as spoken for are G5.7e's piece fallbacks.
+
+Every step of the layout moves cells only by moving boundaries between
+strata of one piece. So when the layout ends, the strata of piece `p`
+hold exactly `C_p` cells.
+
+#### G5.7e The values inside their pieces, and the piece fallback
+
+G5.3 gives each stratum its value as before, reading the ladder through
+the band map: the pinned `min` and `max`, the zero stratum's 0, a
+drawn stratum's convex form at its share, a grid stratum's grid value
+at one of its own ranks, and the tail readings of G5.3b to G5.3e on the
+tail's own ranks. G5.4's integer rule follows. Then G5.5's sign repair
+is widened into the PIECE REPAIR, applied to every stratum in stratum
+order: a stratum whose value is not inside its piece takes the piece's
+FALLBACK on the side it left.
+
+The pinned strata are never moved by it. By (P5) `min` stands in the
+lowest piece with cells and `max` in the highest, and the zero stratum
+is 0.
+
+**The piece fallback.** For a piece of values from `a` up to `b`, a
+value is ADMISSIBLE where it is inside the published `min` and `max`,
+on the piece's side of zero, a whole number where `integer_valued` is
+true, a point of the written grid where the column is on one (G5.2a
+step 1), and outside every stretch `empty_edges` names.
+
+- **On a grid** (the whole numbers, or a written grid of `f` figures),
+  the low fallback is the smallest admissible grid point at or above
+  `a`, and the high fallback the largest admissible grid point below
+  `b`. Where another stratum already holds that point, the walk goes
+  inward one grid unit at a time, at most 64 units, to the first
+  admissible point no stratum holds, as G5.5's grid rule walks; where
+  every point within reach is held, the first point is taken.
+- **Off a grid**, the low fallback is `a` itself where it is admissible
+  and no other stratum holds it. Otherwise it is `u/2 + v/2`, where `u`
+  is `a` and `v` the smallest value any stratum of the piece holds above
+  `a` (`b` where none). The high fallback is `h/2 + b/2`, where `h` is
+  the largest value any stratum of the piece holds below `b` (`a` where
+  none). Where such a midpoint rounds onto one of its two ends, the
+  fallback is the end inside the piece. Each is two divisions and one
+  addition.
+- **Beside zero**, on a piece whose upper end is 0 or whose lower end is
+  0, G5.5's own fallback (`-1`, `1`, or its grid walk) is taken where it
+  lies inside the piece, and the piece's fallback otherwise.
+
+By (P3) every piece with cells holds an admissible value, so the repair
+always ends inside the piece. After it, every stratum's value lies in
+its piece, so every piece holds its cells where its cut ranks say.
+
+#### G5.7f The value passes after G5 keep each stratum in its piece
+
+Every later step that changes a stratum's VALUE takes its candidate
+values inside the stratum's piece, wherever today it takes them inside
+the stratum's sign band, inside `min` and `max`, or inside a histogram
+bin. No step changes a stratum's size across a cut. The steps are
+named here so that an implementer finds each one:
+
+- G5.2a's narrower-width exchanges and moves: two neighbouring strata
+  exchange values only within one piece, and a move's new number lies
+  inside the stratum's piece, beside "keeps the sign, and stands in the
+  same histogram bin";
+- G6.4's values step, which may take a stratum to a whole number: the
+  whole number lies inside the stratum's piece;
+- G6.5a's separation and its fill: a stratum moves only onto a free
+  grid point inside its piece, and "a grid with no spare point is
+  filled" is read piece by piece, so where a piece's strata number
+  exactly the grid points it holds inside `min` and `max`, they take
+  those points in ascending order, each once. This is how a count of
+  few values gets the cells of a band holding one value onto that one
+  value;
+- G6.6's snap to a published width, and G6.6.8's rules: the snapped
+  value lies inside the stratum's piece;
+- G6.7's moves out of an empty stretch: the stretch a stratum moves to
+  is the nearest occupied one inside its piece, and (P3) proves there is
+  one;
+- G6A: the core view is G5 and G6 unchanged (G6A.2), so it takes all of
+  the above. G6B: where lane MBC's contract gives a joined column's
+  positions an L0 block each, each position handed to G5 (G6B.2) runs
+  this section on its own block; the pairing walk of G6B.4 exchanges
+  values between cells without changing either position's multiset, so
+  it moves no band total;
+- G6.8: a count column publishing every spelling is written as those
+  spellings at their counts, which is the real multiset itself, so every
+  band holds its count with nothing to do.
+
+Where a step finds no candidate inside the piece that its own rule
+accepts, it leaves the stratum where it stands, never outside its
+piece, and the fact the step was serving gives way, named (rule B1,
+G5.7h).
+
+#### G5.7g The last guard
+
+After the last value step (G6.7 and G6.8) and before any cell is
+written as text, every stratum's value is read against its piece once
+more, and a stratum outside its piece takes the piece fallback of
+G5.7e. On the rules above this finds nothing to do. It stands so that
+the band totals hold by construction even where a later amendment adds
+a value step that forgets the walls. Every stratum it moves is named in
+the twin's report, with the fact the move cost, if any.
+
+#### G5.7h What each published fact owes on an eligible column
+
+**The band totals are EXACT.** By G5.7b to G5.7g, every piece holds the
+cells its cut ranks give it, every stratum's value lies inside its
+piece, and a band is a union of pieces.
+
+| fact | class today | with L0 | why |
+|---|---|---|---|
+| `n_zero`, `n_negative`, `n_negative_unrepresentable` | EXACT | held | the sign cuts are cuts; the zero piece is the zero stratum; the piece repair keeps the sign |
+| `min`, `max` where published | EXACT | held | pinned in the extreme pieces with cells (P5) |
+| a tail block's rows, distances, listed values, heaped ends and derived ends | as G5.6a and G12.13 | held as today where no edge equals a boundary rung; where one does, rule B1 | the band map moves no tail row and (P4) keeps every edge inside the boundaries; where an edge equals the low boundary rung, the piece repair puts on the boundary the tail rows the cut puts at or above it, as the real column's own rows at that boundary stood, and a tail distance that moves is named |
+| the four class counts, `n_present`, `n_missing`, `numeric_share`, `n_used_in_statistics`, `n_left_out_of_statistics` | EXACT | held | L0 lays out the `K` cells G5 lays out and touches no other cell |
+| `integer_valued` | EXACT | held | every fallback on a whole column is whole |
+| the eleven rungs and `percentiles_between` | APPROXIMATED | held, in windows read through the band map | G12.15 |
+| `mean`, `std`, `skew`, `kurtosis` | APPROXIMATED | held, in windows read through the band map | G12.15 |
+| `mode`, `mode_count` | REPORT-ONLY, the count a ceiling | held | the cap is kept piece by piece; a piece of `C_p` cells with `v_p` admissible values held at most `v_p * Cap` cells in the real column too, and `lo_p` asks only `ceil(C_p / Cap)` strata |
+| `empty_bins`, `empty_edges` | EXACT | held | every candidate and every fallback lies outside the named stretches, and (P3) gives each piece room |
+| `numeric_styles`, `fraction_widths`, `pad_widths`, `group_separator`, the field widths of G6.6 | EXACT | held where the carrier, reach and width steps find room inside the pieces; otherwise rule B1 | G5.7d item 4, G5.7f |
+| `n_distinct`, `n_distinct_folded`, `n_distinct_values` | EXACT where reachable | held where G6.5 and G6.5a find free values inside the pieces; otherwise rule B1 | G5.7d item 3, G5.7f |
+| `value_histogram` | REPORT-ONLY | measured as today | |
+
+**RULE B1: the band totals stand.** Where a step cannot meet another
+published fact without moving a cell across a cut, the cut stands and
+that fact gives way, named in the twin's report exactly as the step
+names a miss today. Why the cut wins: the band totals are the margins
+of every published family table holding the column, so giving one up
+sends every such table to G16.6's moved targets, while a missed style
+count or count of different values costs that one count; and plan
+P2-D6's feasibility rule 4 already ranks a published count above ladder
+conformance. The real column meets both facts at once, so each such
+miss is this construction's and not the description's. Lane BT counts
+them on its battery (K-S6-02 (iv) below).
+
+**RULE B2: no conflict where the arithmetic proves none.** The sign
+counts, the ends, the class counts, `integer_valued` and the empty
+stretches never conflict with the band totals on a description passing
+(P1) to (P5), because each is an identity of the real column that the
+cut ranks restate.
+
+**RULE B3: a description that is no real column's.** Where (P1) to (P5)
+fail, the column is made without L0 and named, and G16.6 meets its
+families.
+
+**`K-S6-02`, reworded.** The stage-6 KPI read "every within-column fact
+unchanged with and without stage 6". With L0 an eligible column's cells
+are no longer today's cells, so a twin made with stage 6 can no longer
+be compared with one made without it. For lane BT to stamp, it reads:
+
+1. with `relationships.statistical` `null`, every twin is byte for byte
+   today's twin, over the every-role battery: 0 differences;
+2. each eligible column's cells, as a multiset, are identical before
+   and after G16's arrangement, and so is every column's description of
+   the twin: 0 differences;
+3. each eligible column's twin holds every published L0 band count
+   exactly, on the every-role battery and on the product's own twins at
+   5,000, 20,000 and 200,000 rows: 0 rows off;
+4. every within-column fact that the twin made without L0 HOLDS, the
+   twin made with it holds too, save the misses rule B1 names, each
+   listed by column and fact and never silent; the rule-computed columns
+   of stage 6 (a column computed from an order rule, a column rebuilt
+   from the visit order) are listed the same way.
+
+No new KPI is added, and no count is published that was not published
+before.
+
+#### G5.7i Measured today
+
+On the product's own twins (plan P4-D404): an invented table of ten
+columns (a one-figure age, a one-figure blood pressure with 5 per cent
+absent, a two-figure skewed stay, a count of few values shaped like M6's
+prototype, a count of visits, a count with 55 per cent zeros, money at
+two figures, a one-figure change around zero, a date with 3 per cent
+absent, and a clock time with a heap on `08:00`), profiled once and
+generated at seeds 0, 1 and 2. Rows off is the number of twin rows that
+would have to move to another band, counted at the decile edges for
+numbers and at the nine interior rungs for the date and the clock,
+equal edges taken once.
+
+| column | 5,000 rows | 20,000 rows |
+|---|---|---|
+| age, one figure | 31 | 47 |
+| blood pressure, one figure | 21 | 61 |
+| stay, two figures, skewed | 11 | 33 |
+| count of few values (0 to 12) | 10 | 90 |
+| count of visits | 33 | 81 |
+| count, 55 per cent zeros | 24 | 63 |
+| money, two figures | 4 | 8 |
+| change around zero, one figure | 94 | 262 |
+| date | 8 to 12 | 33 to 45 |
+| clock time | 10 | 19 |
+
+The number and clock columns missed by the same rows at all three
+seeds: which band each of their cells fell in did not move with the
+words. The date column's misses moved with the seed. The misses on
+columns with many tied readings come from the ties: the real one-figure
+change put 1,785
+to 2,318 rows in each of its ten bands where the twin put 1,799 to
+2,201, near a tenth each, because the ladder says where a rung stands
+and not how many rows share it. On the counts, the band holding only
+the value 4 held 1,400 rows against 1,320 at 20,000 rows, and the band
+holding only the value 2 of the count of few values held 5,867 against
+5,957. The 200,000-row leg is run by lane BT in a night window.
 
 ## G6. Numeric spelling
 
@@ -8483,6 +9039,81 @@ can read a rank's clock only once its offset is known.
    envelope, and the twin's report says so. The move to midnight then
    counts every bare date as standing at midnight and owes only the rest.
 
+#### G7.3l The L0 band totals of a date column (layer L0, plan P4-D404; specified, NOT BUILT)
+
+**No generator in this repository runs this section yet; lane BT builds
+it.** An ELIGIBLE datetime column (G5.7's switch) carries an L0 block
+whose edges `e_1 < ... < e_m` are among its published interior rungs,
+with one count for each range band over its `P` parsed cells, compared
+in G7.1's ordinal space on the clock its ladder is read on. The cut
+rank of edge `j` is `R_j = c_0 + ... + c_(j-1)`, and `k_j` is the rank
+the edge's rung is selected from (the smallest such rank where several
+rungs select `e_j`). Its preconditions are G5.7a's, read for this role:
+
+- **(D1)** the range counts sum to `P`;
+- **(D2)** every pinned rank of G7.3 (the boundaries, the rungs, and the
+  covered runs of G7.3j) stands below `R_j` where its value is below
+  `e_j`, and at or above `R_j` where its value is `e_j` or later.
+
+Every description a producer writes passes both, because the pins are
+the real column's own order statistics. Where one fails, the column is
+made without L0 and named (rule B3 of G5.7h).
+
+**THE EDGE RUN.** G7.3 pins rank `k_j` to `e_j`. On an eligible column
+every rank from `R_j` to `k_j` is pinned to `e_j`. The real column held
+`e_j` at every one of those ranks: sorted, its first value at or after
+`e_j` stands at rank `R_j` and its value at `k_j` is `e_j`, so every
+rank between them holds `e_j`. A pinned rank spends no word (G7.3), so
+the run's ranks read none; the column is still handed its `P - 2`
+words, and no column after it moves.
+
+**THE GAP BELOW AN EDGE RUN ENDS ONE UNIT SHORT OF THE EDGE.** Its upper
+place is the START of the edge's unit, `X_b = e_j * 2**20`, and not the
+unit's middle or the straightest place, and its ordinals are kept
+inside `[Lo_a, e_j - 1]`. Since `Lo_a`, the pin below, is earlier than
+`e_j` (D2), the gap is never empty of room. The gap above the run starts
+at the run's value, as every gap starts at its lower pin.
+
+**Every pass keeps the band totals.** G7.3's count passes, the day pass
+(G7.3f), the clock passes (G7.3g, G7.3h), the joint day plan (G7.3i),
+the dates that stand out (G7.3j) and the calendar and form steps
+(G7.3k) move a body rank only inside its own gap and never move a
+pinned rank. That is the method's own invariant, the one that keeps
+every rung on its published value. With each gap below an edge run
+ending one unit short of the edge, the same invariant keeps every band
+total: `R_j` ranks stand below `e_j` and the rest at or after it,
+whatever the passes do.
+
+**A listed date on an edge** (G7.3j). A listed date equal to `e_j` is a
+covered knot, and its run starts at `R_j`. That start lies inside the
+interval contract HD4 gives it, because `R_j` is the real run's own
+start and the real column meets HD4. Step 3's repair never moves it.
+An unlisted edge's day is a day of the part ABOVE the edge only, where
+G7.3j step 1 makes an unlisted knot's day a day of both parts beside it.
+
+**The tails.** An edge equal to the low boundary has `R_j = m_lo` by
+(D2), so its run is the boundary's own pinned rank, and the tails are
+placed exactly as today: the low tail's ranks lie below the low
+boundary, which is at or before `e_1`, and the high tail's after the
+high boundary, which is at or after `e_m`.
+
+**What each fact owes.** The rungs stay exact (every pin is still a
+pin). The tails, their rows and their distances are as today. The
+weekday, hour, day-of-month, minute and second censuses, the count at
+midnight, the widths, the listed dates' counts and `n_distinct` within
+G12.5's envelope are met wherever the passes find room inside the
+gaps, which are now a unit narrower below each edge and short of each
+edge run's ranks; otherwise rule B1 applies, and every census row the
+walls leave unmet is named exactly as each pass names a miss today.
+Inside the walls, the orchestrator's rulings (a) to (c) of 2026-10-13
+order the list, the census and the count as before (G7.3j step 5). The
+edge run adds no value the column did not hold, since each `e_j` is a
+published rung.
+
+**Measured** (G5.7i): the invented date column missed 8 to 12 rows of
+its band totals at 5,000 rows and 33 to 45 at 20,000, over seeds 0 to
+2.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell
@@ -10381,6 +11012,66 @@ reads no sixtieth second: `23:59:60` is unparsed). With `k` the step:
 group alone, by largest remainders, misses the columns' counts: the
 design measured med_round's minute-of-hour distance moving from 0.10 to
 0.15 so, where the table rounded with both kept meets every count.
+
+### G7A.4d The L0 band totals of a clock column (layer L0, plan P4-D404; specified, NOT BUILT)
+
+**No generator in this repository runs this section yet; lane BT builds
+it.** An ELIGIBLE clock column carries an L0 block whose edges are among
+its published interior rungs, with one count for each range band over
+its `P` parsed cells, compared in G7A.1's ordinal space. `R_j` is the
+cut rank of edge `j`. The preconditions are G7.3l's (D1) and (D2), read
+for this role's pins: the two boundaries and, on a column laid by
+G7A.4b, every heap.
+
+**Laid by G7A.4 (no `clock_step`): the knots.** Each edge `e_j`, taken
+at the smallest percent `k_j` whose rung is `e_j`, is a knot at
+position `100 * R_j * 2**64`, rank `R_j` in the units G7A.4 counts
+positions in. Where the rung's own position `P * PCT[k_j] / 100` lies
+above that, a second knot of value `e_j` stands at its own position.
+Every other published rung between two knots is respaced between them
+in proportion to its percent, as G5.7c respaces them, and the two
+boundaries keep their positions. G7A.4's floor reading then meets every
+band total with no repair. A rank `r` below `R_j` reading word `w`
+stands at `100 * (r * 2**64 + w)`, below the knot by at least one unit
+of position, so its share is less than `p1 - p0` and
+`(share * (e_j - v0)) // (p1 - p0)` is at most `e_j - v0 - 1`: the
+rank is earlier than `e_j`. A rank at or above `R_j` reads `e_j` or
+later, since every knot from `R_j` on is at least `e_j`.
+
+**The all-different repair runs inside each piece**, the stretch
+between two consecutive edges (the boundaries close the outer two). Its
+clamp is one unit below the piece's upper edge, and in the top piece one
+unit below the high boundary, as now. Where the upward step reaches the
+clamp, a pass downward from the clamp gives each earlier rank of the
+piece one unit less than the rank above it. The piece has room for
+that, because the real column held that many different times inside it
+(G7A.4's obligation applies only where every parsed value is
+different).
+
+**Laid by G7A.4b: each edge cuts the dial.** A heap stands wholly on one
+side of every edge. A census group whose steps lie on both sides of
+`e_j` becomes two groups: its steps before `e_j`, and its steps from
+`e_j` on. The count of the half before `e_j` is `R_j` less every cell
+the layout places wholly before `e_j` (the low tail and its boundary,
+the heaps before `e_j`, and the whole groups and halves before it), and
+the half from `e_j` on takes the rest of the group's count. Each half
+then takes its runs and run shares by G7A.4b step 2, as a group of its
+own. Both counts are counts of the real column, which met every
+published count, so on every description a producer writes each lies
+between nought and the group's count; where one does not, the column is
+made without L0 (rule B3). The minute census of G7A.4c and every later
+step move a cell only inside its own half. Where the minute census
+cannot be met inside the halves, rule B1 applies and the rows left
+unmet are named.
+
+**What each fact owes.** The boundaries, the tails and the heaps are as
+today. The rungs are held in G12.10's window, read through the knots
+above (G12.15). The all-different obligation is held inside each piece.
+The hour and minute censuses are held where the halves find room;
+otherwise rule B1. **Measured** (G5.7i): the invented clock column, a
+clinic's day with a heap on `08:00`, missed 10 rows of its band totals
+at 5,000 rows and 19 at 20,000, at every seed. The band starting at the
+heap held its count exactly; the misses fell in the bands after it.
 
 ### G7A.5 The stand-ins
 
@@ -16240,6 +16931,34 @@ P4-D329, which removes most of that population; what is left is the
 V6.1-A1 pattern, where the real table passes by exact equality and the
 report says the window does not reach the value.
 
+### G12.15 The windows on an eligible column (layer L0, plan P4-D404; specified, NOT BUILT)
+
+On an eligible number column (G5.7), G5.6's rank form is read through
+the band map of G5.7c. `Ladder(p)` there becomes the published ladder
+read at the position the map gives the share `p`, the same knots the
+construction reads, so `d = (g_max + 2) / K` is unchanged, and the
+windows of G12.2, G12.3 and G12.3a, which are drawn from the rank form,
+are drawn through the map as well. The argument of G5.6 carries over
+word for word: the cell at a recomputed rank comes from the stratum
+covering that rank, and that stratum read the ladder through the map
+inside its own share. Two widenings change. On a whole-valued column
+and on a written grid, each end widens by ONE unit of the grid, not
+half: the piece repair (G5.7e) can take a value that G5.4's rounding
+carried just past a cut back to the last point before it, up to one
+unit from the ladder's reading. The map is a function of the published
+ladder, `K` and the published L0 counts alone, so the twin's report and
+the quality report can both draw it.
+
+On an eligible clock column, G12.10's `Knots` is G7A.4's reading
+between G7A.4d's knots. On an eligible date column nothing changes,
+because every rung is still a pin.
+
+**The quality report's mirror.** The validation method must draw the
+same windows through the same map. Lane BT writes that mirror in the
+landing that builds this section, and not later: a quality report still
+drawing today's windows could call a rung or a moment MISSED, on a
+column whose edges are heaped, that the twin's own report calls inside.
+
 ## G13. Residuals this method carries
 
 - **R-P2-1 — CLOSED in revision 4, and its remaining deviation
@@ -17663,6 +18382,73 @@ publishes that nought any more, so there is no rule left for a case to
 pin and the case went with it rather than being left to freeze a branch
 nothing reaches. Withdrawing a case is recorded here because a case that
 quietly disappears is a branch that quietly stops being checked.
+
+### G14.3a The L0 cases (layer L0, plan P4-D404; specified, NOT BUILT)
+
+Lane BT adds these cases to the oracle in the landing that builds G4.2a,
+G4.2b, G5.7, G7.3l, G7A.4d and G12.15, and amends the oracle in the same
+commit as the method (amendment A-P4-59). Each case freezes the twin's
+cells, given its words, and stands beside a MUTANT that must move it.
+A case whose mutant does not move it is not kept.
+
+1. **A count of few values** (the shape of lane M6's prototype, whose
+   twin put 30,000 rows on the value 3 where the real column held
+   12,471). A 1,000-row column holding 80, 416, 295, 125, 50, 20, 8, 3,
+   1, 1 and 1 cells at 0 to 9 and 16; its deciles give the edges 1, 2
+   and 3, and the bands hold 80, 416, 295 and 209. Today's product
+   writes 80, 415, 300 and 205 (measured at seeds 0 and 1). The vector
+   freezes the twin's count at each value; the 416 ones and the 295
+   twos are exact, since each of those bands holds one value. Mutant:
+   G5.7d's walls withdrawn from step 3's join and G6.5a's fill read over
+   the whole column.
+2. **An empty band.** A count with 55 per cent zeros, whose lowest edge
+   is 0: the band below 0 publishes nought. The piece below 0 has no
+   cells and receives no stratum (`lo_p = 0`), and no value below 0 is
+   written. Mutant: `lo_p = 1` for every piece.
+3. **A band holding one value.** The band from 4 to 5 of a count of
+   visits: its count is the number of fours, exactly. Mutant: G6.5a's
+   fill read over the whole column.
+4. **A heavy value at a band edge.** (a) The zeros of case 2, at the
+   edge 0: the zero piece holds `n_zero`, and the band from 0 holds
+   exactly the zeros. (b) A one-figure reading held by 9 of 1,000 rows
+   at the median, the only rung of the ladder holding it, so that the
+   rungs beside it differ from it: `R_j` lies up to nine ranks below
+   `P_j`, and the flat segment between the edge's two knots keeps those
+   ranks on the reading. Mutant: the second knot withdrawn, which reads
+   those ranks above the reading and moves its count, not the band
+   totals.
+5. **The piece fallback.** On a one-figure grid, an edge rung of 47.35
+   read at 47.3 inside the piece from 47.35 takes 47.4; on a whole
+   column, a value rounded to 2 inside the piece from 1 to 2 takes 1.
+   Mutant: G5.5's plain fallback.
+6. **The share over pieces.** Two pieces with 10 and 3 runs and
+   `M_rest = 7` share 5 and 2 strata. Mutant: the d'Hondt divisor
+   `m_p + 1`, which gives 6 and 1.
+7. **A date column.** 400 dates over a year, one interior rung held by
+   30 rows: the edge run from `R_j` to `k_j` is pinned, and the gap
+   below draws inside `[Lo_a, e_j - 1]`. Mutant: the gap's upper place
+   at the unit's middle, which lets a rank below `R_j` draw `e_j`.
+8. **A listed date on an edge** (G7.3j): its covered run starts at
+   `R_j`. Mutant: the start left to step 3's repair.
+9. **A clock column laid by G7A.4**, 400 times with a heap on `08:00` at
+   an edge: the knot at `R_j` and the flat segment. Mutant: the knot left
+   at `P * PCT[k_j] / 100`.
+10. **A clock column laid by G7A.4b**, one hour's census group cut by an
+    edge into two halves with derived counts. Mutant: the group not cut.
+11. **The reservation in a text file.** Three columns over 120 rows with
+    twelve interior records holding nothing; one column holds twelve
+    empty cells and twelve `NA` cells, another twelve empty cells and
+    five cells of two spaces. The twelve empty cells of each are
+    reserved, in the rows G2.1 step 2 places. Mutant: absent cells
+    reserved in G4.2's order whatever their spelling, which puts `NA`
+    into a reserved row.
+12. **The reservation in a workbook.** The same table as a workbook with
+    `empty_rows_inside` 12: the first twelve rows are reserved, the
+    arranged rows number 108, and no cell moves after the arrangement.
+    Mutant: G2.2 step 6's exchanges run after the arrangement.
+13. **The interface.** A 40-row eligible column with absent and
+    unreadable cells and two reserved rows: the groups, their sizes and
+    their order. Mutant: a reserved cell left in the `missing` group.
 
 ### G14.4 What the vectors do NOT freeze
 
