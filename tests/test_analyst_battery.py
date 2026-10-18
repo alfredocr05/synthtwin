@@ -6,7 +6,20 @@ controls do not behave as controls is void; these tests show the
 mechanism biting rather than assume it:
 
 * a run whose shuffled twin is really a fresh replicate, or whose
-  replicate is really a shuffle, is void on every KPI that reads them;
+  replicate is really a shuffle, is void on every KPI that reads them --
+  each of K-BC-01 to K-BC-10 named, on the fast part's own run, and
+  K-BC-12 (twin-seed stability) on a run made up to its shape;
+* K-BC-01 is void where one family's shuffle meets the family target,
+  and leaves out the margins a shuffle keeps exactly;
+* K-BC-02 charges the twin only with truths the replicate gets back,
+  K-BC-05 keeps a clustered table out of its maximum, K-BC-06 reads the
+  fixed effects against the replicate's, and K-BC-10 charges no twin with
+  an analysis a replicate draw stops on too;
+* the automatic panel holds every number to the real table's range and
+  admits an indicator term into a logistic model only where it holds 22
+  events and 22 non-events; at the slow tier a trained model predicts
+  every two-valued column;
+* the null table tests a label against a many-valued number by ranks;
 * the half split is a partition, and on ST2 it never splits a subject;
 * the shuffled twin keeps every column's cells, as written, and only
   their order changes;
@@ -15,7 +28,8 @@ mechanism biting rather than assume it:
 * the report reading finds a block of family lines where one exists, so
   K-BC-11's "no line exists" is a reading and not a constant.
 
-ST2 at 1,500 rows keeps the whole file to a few seconds.
+ST2 at 1,500 rows keeps most of the file to a few seconds; the swaps read
+the fast part's run (`analyst_battery.fast_run`, made once a process).
 """
 
 from __future__ import annotations
@@ -27,6 +41,7 @@ import pathlib
 import pytest
 
 import analyst_battery as B
+import analyst_kit as K
 import analyst_tables as T
 
 
@@ -43,14 +58,12 @@ def _swapped(run: B.TableRun, side: str, by: str) -> B.TableRun:
 
 
 def test_a_run_whose_controls_are_swapped_is_void(small_run: B.TableRun) -> None:
-    """The shuffled twin replaced by the replicate, or the replicate by the shuffle: controls_hold is false."""
-    assert B.kpi_01([small_run])["controls_hold"] is True
+    """On ST2 alone at 1,500 rows: the ICC's controls hold, and fail with either control swapped."""
     assert B.kpi_06([small_run])["controls_hold"] is True
     for side, by in (("shuffled", "replicate"), ("replicate", "shuffled")):
         broken = _swapped(small_run, side, by)
-        assert B.kpi_01([broken])["controls_hold"] is False, (side, by)
         assert B.kpi_06([broken])["controls_hold"] is False, (side, by)
-        assert B.controls_failing(B.kpi_values([broken])), (side, by)
+        assert "K-BC-06" in B.controls_failing(B.kpi_values([broken])), (side, by)
 
 
 def test_the_replicate_control_is_a_binomial_bound_under_the_fresh_share() -> None:
@@ -119,3 +132,186 @@ def test_a_value_the_ledger_cannot_hold_is_written_as_none() -> None:
     """NaN and the infinities become None, at any depth; other values stand."""
     assert B.finite({"a": math.nan, "b": {"c": math.inf}, "d": 1.5, "e": True}) == {
         "a": None, "b": {"c": None}, "d": 1.5, "e": True}
+
+
+# -- the controls of every KPI, on the fast part's own run -------------------
+
+
+@pytest.fixture(scope="module")
+def fast_runs(tmp_path_factory: pytest.TempPathFactory) -> "list[B.TableRun]":
+    """The fast part's runs: ST1 and ST2 at 5,000 rows, seed 1, today's twin at seed 0, both controls."""
+    return B.fast_run(tmp_path_factory.mktemp("battery-fast"))["runs"]  # type: ignore[return-value]
+
+
+CONTROLLED = ("K-BC-01", "K-BC-02", "K-BC-03", "K-BC-04", "K-BC-05", "K-BC-06", "K-BC-07", "K-BC-08",
+              "K-BC-09", "K-BC-10")
+
+
+def test_every_kpis_controls_hold_on_the_fast_run_and_fail_on_either_swap(fast_runs: "list[B.TableRun]") -> None:
+    """K-BC-01 to K-BC-10 each: controls_hold on the run as made, false with either control swapped."""
+    values = B.kpi_values(fast_runs)
+    assert [k for k in CONTROLLED if values[k]["controls_hold"] is not True] == []
+    for side, by in (("shuffled", "replicate"), ("replicate", "shuffled")):
+        broken = B.kpi_values([_swapped(r, side, by) for r in fast_runs])
+        assert [k for k in CONTROLLED if broken[k]["controls_hold"] is not False] == [], (side, by)
+
+
+def test_k_bc_01_is_void_where_one_familys_shuffle_meets_its_target(fast_runs: "list[B.TableRun]") -> None:
+    """F7's shuffled rows replaced by the replicate's: the pooled control still holds, F7's does not."""
+    def leaky(run: B.TableRun) -> B.TableRun:
+        rep = {c.key: c for c in run.sides["replicate"][0].compared if c.family == "F7"}
+        sides = dict(run.sides)
+        sides["shuffled"] = [dataclasses.replace(s, compared=[rep.get(c.key, c) for c in s.compared])
+                             for s in run.sides["shuffled"]]
+        return dataclasses.replace(run, sides=sides)
+
+    broken = B.kpi_01([leaky(r) for r in fast_runs])
+    assert broken["families_control_void"] == 1 and broken["controls_hold"] is False
+    assert "void: F7" in str(broken["_detail"])
+    assert B.kpi_01(fast_runs)["families_control_void"] == 0
+
+
+def test_a_margin_is_kept_exactly_by_the_shuffle_and_left_out_of_k_bc_01(fast_runs: "list[B.TableRun]") -> None:
+    """Every estimate tagged 'margin' reads the same on the shuffled twin; K-BC-01 counts none of them."""
+    margins = [c for r in fast_runs for c in r.sides["shuffled"][0].compared if "margin" in c.tags]
+    assert {c.key.split(":")[0] for c in margins} >= {"ST2/rows", "ST1/rate", "ST1/complete"}
+    assert all(c.value is not None and abs(c.value - c.real) < 1e-12 for c in margins)
+    joint = sum(1 for r in fast_runs for c in r.sides["replicate"][0].compared
+                if not c.key.startswith("ST5/") and "margin" not in c.tags)
+    assert B.kpi_01(fast_runs)["supported_estimates"] == joint + sum(len(r.tstr_yard) for r in fast_runs)
+
+
+def _perfect(run: B.TableRun) -> B.TableRun:
+    """Today's twin replaced by the replicate: what a perfect twin reads."""
+    return _swapped(run, "twin", "replicate")
+
+
+def test_a_perfect_twin_is_charged_with_no_truth_and_no_fixed_effect(fast_runs: "list[B.TableRun]") -> None:
+    """K-BC-02 misses only what the replicate gets back; K-BC-06 counts fixed effects against the replicate's."""
+    perfect = [_perfect(r) for r in fast_runs]
+    two = B.kpi_02(perfect)
+    assert two["truths_missed_unnamed"] == 0 and two["three_way_missed_unnamed"] == 0
+    assert two["replicate_missed"] == two["truths_measured"] - two["replicate_recovered"] > 0
+    assert B.kpi_06(perfect)["fixed_effects_outside_over_replicate"] == 0
+    today = B.kpi_02(fast_runs)
+    assert today["truths_missed_unnamed"] == today["replicate_recovered"] - today["truths_recovered"]
+
+
+def test_k_bc_05_reads_a_clustered_table_beside_its_maximum(fast_runs: "list[B.TableRun]") -> None:
+    """ST2 alone gives no maximum and no control, only its ratio beside; ST1 sets the maximum."""
+    st2 = [r for r in fast_runs if r.table == "ST2"]
+    alone = B.kpi_05(st2)
+    assert alone["pmse_over_replicate"] is None and alone["controls_hold"] is False
+    assert alone["clustered_pmse_over_replicate"] is not None
+    both = B.kpi_05(fast_runs)
+    assert both["pmse_over_replicate"] == B.kpi_05([r for r in fast_runs if r.table == "ST1"])["pmse_over_replicate"]
+
+
+def test_k_bc_10_charges_no_twin_with_an_analysis_a_replicate_draw_stops_on(fast_runs: "list[B.TableRun]") -> None:
+    """The wide table made to stop on the replicate draw: it leaves the twin's count and is named fragile."""
+    def fragile_wide(run: B.TableRun) -> B.TableRun:
+        if run.table != "ST2":
+            return run
+        sides = dict(run.sides)
+        sides["replicate"] = [dataclasses.replace(s, panel=B.Panel(s.panel.estimates,
+                                                                   dict(s.panel.status, **{"ST2 wide table": "error"})))
+                              for s in run.sides["replicate"]]
+        return dataclasses.replace(run, sides=sides)
+
+    before = B.kpi_10(fast_runs)
+    after = B.kpi_10([fragile_wide(r) for r in fast_runs])
+    assert before["fragile_analyses"] == 0 and after["fragile_analyses"] == 1
+    assert after["analyses_stopping"] == before["analyses_stopping"] - 1 >= 0
+    assert after["shuffled_stopping"] == before["shuffled_stopping"] - 1
+
+
+def _made_up_stability_run() -> B.TableRun:
+    """Twenty estimates, yardstick 1: the replicate near and steady, the shuffle steady and far, the thin noisy."""
+    keys = [f"ST1/made:{k}" for k in range(20)]
+    real = B.Panel({k: B.Estimate(k, "F3", 0.0, 0.1, 100) for k in keys}, {})
+
+    def side(values: "list[float]") -> B.Side:
+        panel = B.Panel({k: B.Estimate(k, "F3", v + 0.01 * i, 0.1, 100) for i, k in enumerate(keys)
+                         for v in [values[i % len(values)]]}, {})
+        return B.Side([], [], panel, {}, math.nan, [])
+
+    sides = {"replicate": [side([0.3]), side([-0.2]), side([0.1])],
+             "twin": [side([5.0]), side([5.1]), side([5.0])],
+             "shuffled": [side([5.0]), side([5.1]), side([5.0])],
+             "thin": [side([3.0]), side([-3.0]), side([0.4])]}
+    return B.TableRun("ST1", 1000, 1, B.Yardstick(real, {k: 1.0 for k in keys}, set()), {}, sides, {}, 0.0, 0.0)
+
+
+def test_k_bc_12_is_stable_and_inside_and_void_on_any_swap() -> None:
+    """Stable at the wrong answer scores nothing; the thin, shuffled or replicate side swapped voids the run."""
+    run = _made_up_stability_run()
+    value = B.kpi_12([run])
+    assert value["stable_share"] == 0.0 and value["replicate_stable_share"] == 1.0
+    assert value["shuffled_stable_share"] == 0.0 and value["thin_stable_share"] == 0.0
+    assert value["controls_hold"] is True
+    for side, by in (("thin", "replicate"), ("shuffled", "replicate"), ("replicate", "shuffled")):
+        assert B.kpi_12([_swapped(run, side, by)])["controls_hold"] is False, (side, by)
+
+
+# -- the automatic panel and the null table ----------------------------------
+
+
+def test_an_automatic_term_holds_its_number_to_the_real_tables_range() -> None:
+    """A value far past the real table's largest reads as the largest, in the number and its spline terms."""
+    column = B.Column("cost", "number", [], [1.0, 3.0, 5.0, 9.0], 0.0, "", 4.0, 2.0, 0.0, 10.0)
+    terms = B.column_terms(column, 3)
+    assert [n for n, _t in terms] == ["cost", "cost_s1", "cost_s2"]
+    far = [t({"cost": [1e6, 10.0, -5.0, 0.0, math.nan]}) for _n, t in terms]
+    for values in far:
+        assert values[0] == values[1] and values[2] == values[3]
+        assert values[4] != values[4]
+    assert far[0][1] == (10.0 - 4.0) / 2.0
+
+
+def test_a_logistic_model_admits_no_indicator_short_of_the_floors_events() -> None:
+    """A label level of 120 rows and 3 events stays out of the automatic logistic model; the others go in."""
+    import pandas
+
+    rows = []
+    for i in range(3000):
+        group = "rare" if i < 120 else ("b" if i % 3 == 0 else "a")
+        event = (i % 40 == 0) if group == "rare" else (i % 7 == 0 if group == "a" else i % 4 == 0)
+        rows += [{"y": int(event), "grp": group, "x": float(i % 13)}]
+    view = B.View(pandas.DataFrame(rows), "made up")
+    columns = B.schema(view)
+    assert next(c for c in columns if c.name == "grp").levels[1:] == ["b", "rare"]
+    analysis = next(a for a in B.plan_auto(view, columns, "slow", "TX") if a.name == "TX auto y")
+    keys = {e.key for e in analysis.run(view)}
+    assert "TX/auto:y:lvl_grp=b" in keys
+    assert "TX/auto:y:lvl_grp=rare" not in keys
+
+
+def test_the_null_tables_test_of_a_label_and_a_many_valued_number_is_by_ranks() -> None:
+    """Cost doubled for one language: Kruskal-Wallis finds it, a table of cost's values does not."""
+    lines = T.text("ST5", 3000, 3).splitlines()
+    head = lines[0].split(",")
+    lang, cost = head.index("language"), head.index("cost")
+    shifted = [lines[0]]
+    for line in lines[1:]:
+        cells = line.split(",")
+        if cells[lang] == "es" and cells[cost]:
+            cells[cost] = "%.2f" % (float(cells[cost]) * 2.0)
+        shifted += [",".join(cells)]
+    view = B.read("\n".join(shifted) + "\n", "shifted")
+    assert B.st5_pair_p(view, "language", "cost") < 1e-6
+    assert B.st5_pair_p(B.read(T.text("ST5", 3000, 3), "null"), "language", "cost") > 0.05
+    ta, tb = view.text("language"), view.text("cost")
+    both = [(a, b) for a, b in zip(ta, tb) if a is not None and b is not None]
+    stat, df, _small = K.chi_square(K.contingency([a for a, _b in both], [b for _a, b in both]))
+    assert df > 1000 and K.chi2_sf(stat, df) > 0.05
+
+
+def test_at_the_slow_tier_a_trained_model_predicts_every_two_valued_column() -> None:
+    """The seeded outcome first, then every binary column at the slow tier; the seeded one alone elsewhere."""
+    columns = B.schema(B.read(T.text("ST1", 600, 1), "ST1"))
+    binary = [c.name for c in columns if c.kind == "binary"]
+    slow = [c.name for c in B.trained_outcomes(columns, "ST1", "slow")]
+    assert slow[0] == "died" and sorted(slow) == sorted(binary) and len(binary) >= 5
+    assert [c.name for c in B.trained_outcomes(columns, "ST1", "fast")] == ["died"]
+    assert [c.name for c in B.trained_outcomes(columns, "ST1", "night")] == ["died"]
+    assert B.trained_outcomes(columns, "ST3", "fast") == []

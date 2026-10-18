@@ -9165,7 +9165,7 @@
    "headline": true,
    "name": "Replication parity: each analysis family's estimates inside the half-split yardstick, against the fresh replicate",
    "status": "OPEN",
-   "rule": "For each analysis family F1 to F9 -- subgroup rates, correlations, linear, logistic and count regression, time to event, several rows per subject, trained models (a model trained on a twin of half A, tested on half B), missing cells -- the share of supported estimates whose twin value lies within the half-split yardstick of the real table's, against the fresh replicate's share in the same run (the null table ST5 left out). Bound (must not get worse): the run's controls hold -- the replicate's pooled share no more than three binomial standard deviations under the 77 % a fresh sample reaches, the shuffled twin more than 10 points under the replicate -- and today's twin stands no more than 20 points (fast) and 10 (20,000 rows) under the shuffled twin of the same run -- 4.5 binomial standard deviations of a difference of two shares over the supported estimates, 318/sqrt(n), never under 10, since estimates of one model are not independent -- and the supported estimates do not fall below the baseline's. Target: pooled at most 10 points under the replicate and every family of at least five supported estimates at most 25, at both sizes (checkpoint 4; the finished product's, 5 and 10). Targets are relative to the replicate because even a perfect twin is inside only about 77 % of the time (JUDGEMENT, plan P4-D398).",
+   "rule": "For each analysis family F1 to F9 -- subgroup rates, correlations, linear, logistic and count regression, time to event, several rows per subject, trained models (a model trained on a twin of half A, tested on half B), missing cells -- the share of supported estimates whose twin value lies within the half-split yardstick of the real table's, against the fresh replicate's share in the same run; the null table ST5 and the margins left out (one column's own count, which a column-wise shuffle keeps exactly: rows per subject, zero shares, a complete-case share). Bound (must not get worse): the run's controls hold -- the replicate's pooled share no more than three binomial standard deviations under the 77 % a fresh sample reaches, the shuffled twin more than 10 points under the replicate pooled and more than 25 in every family of at least five supported estimates, families_control_void naming the ones it is not -- and today's twin stands no more than 20 points (fast) and 10 (20,000 rows) under the shuffled twin of the same run -- 4.5 binomial standard deviations of a difference of two shares over the supported estimates, 318/sqrt(n), never under 10, since estimates of one model are not independent -- and the supported estimates do not fall below the baseline's. Target: pooled at most 10 points under the replicate and every family of at least five supported estimates at most 25, at both sizes (checkpoint 4; the finished product's, 5 and 10). Targets are relative to the replicate because even a perfect twin is inside only about 77 % of the time (JUDGEMENT, plan P4-D398).",
    "rule_kind": "at_most",
    "expected": {
     "points_below_shuffled": 20,
@@ -9181,7 +9181,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_01",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. Every family's analyses: the targeted panel (each seeded truth's analysis and the naive models analysts fit) and the automatic panel the schema alone gives.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). Every family's analyses: the targeted panel (each seeded truth's analysis and the naive models analysts fit) and the automatic panel the schema alone gives.",
    "evidence": "The S2 design probe (planning notes, 2026-10-16) put a shuffled twin at 22 % of 321 estimates inside against the replicate's 61 to 71 %. Today's twin carries no joint structure (CLAUDE.md), so it sits at the shuffled twin's share. Headline by the orchestrator's recorded call; the owner may veto.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9227,7 +9227,7 @@
    "headline": true,
    "name": "Seeded truths: each recovered inside its yardstick with the real table's significance decision, or named as not carried",
    "status": "OPEN",
-   "rule": "Each truth of the six tables' truth files (tests/analyst_tables.py: curves, thresholds, interactions, a three-way parity, a rare outcome, dependent missing cells, zero mass, overdispersion, hazards, the ICC, dropout, a fading hazard, censoring by centre, a competing event, a formula, the null table's quiet) is recovered where its estimate is supported, lies inside its yardstick and keeps the real table's significance decision and sign -- on a majority of twin seeds -- or is named in the twin's report as not carried with a reason the floor arithmetic confirms (no such line exists today, K-BC-11). K-S7-01's three-way clause is folded in: three_way_missed_unnamed counts the truths of three columns or more. Bound: the controls hold (the replicate gets back at least half the floor-eligible truths, the shuffled twin at least 25 points fewer) and the truths measured do not fall. Target: none missed and unnamed, none of three columns, at both sizes (checkpoint 4); the finished product's, every floor-eligible truth recovered on four twin seeds of five.",
+   "rule": "Each truth of the six tables' truth files (tests/analyst_tables.py: curves, thresholds, interactions, a three-way parity, a rare outcome, dependent missing cells, zero mass, overdispersion, hazards, the ICC, dropout, a fading hazard, censoring by centre, a competing event, a formula, the null table's quiet) is recovered where its estimate is supported, lies inside its yardstick and keeps the real table's significance decision and sign -- on a majority of twin seeds -- or is named in the twin's report as not carried with a reason the floor arithmetic confirms (no such line exists today, K-BC-11). A truth is charged only where the replicate of the same run gets it back; the replicate's misses are counted beside (replicate_missed), never as the twin's. K-S7-01's three-way clause is folded in: three_way_missed_unnamed counts the truths of three columns or more. Bound: the controls hold (the replicate gets back at least half the floor-eligible truths, the shuffled twin at least 25 points fewer) and the truths measured do not fall. Target: none missed and unnamed, none of three columns, at both sizes (checkpoint 4); the finished product's, every truth recovered on four twin seeds of five wherever the replicate is. At 5,000 rows the diabetes x current smoker cell holds about 10 events, under the floor, so the fast part's three-way clause rests on ventilation x age over 75 alone.",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9241,7 +9241,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_02",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. The truths and the estimate measuring each: analyst_tables.TRUTHS; the three-way ones: analyst_tables.THREE_WAY.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). The truths and the estimate measuring each: analyst_tables.TRUTHS; the three-way ones: analyst_tables.THREE_WAY.",
    "evidence": "The S2 probe recovered none of about 20 on its shuffled twin. A truth whose cells fall under the floor of 11 cannot be recovered by any description and is missed until a report line names it (plan P4-D398). Headline by the orchestrator's recorded call; the owner may veto.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9291,7 +9291,7 @@
    "headline": false,
    "name": "Decisions: real-significant estimates kept significant with their sign, and significance invented where the real table has none",
    "status": "OPEN",
-   "rule": "Among supported estimates with a standard error, rates left out: the share of the real-significant ones (|z| > 1.96) the twin keeps significant with the same sign, and the share of the real-not-significant ones the twin makes significant, each against the replicate; on the null table ST5, the share of its 105 column pairs a 5 % test calls associated. Bound: the controls hold (the replicate keeps at least 80 %, the shuffled twin at least 10 points fewer; on ST5 the replicate at most 8 % and the structured table ST1, set against ST5's columns, more), today's twin keeps no fewer than the shuffled twin less 27 points (fast) and 10 (20,000 rows) -- 318/sqrt(n) over the real-significant estimates, never under 10 -- and invents at most 15 % on ST5. Target: kept at most 10 points under the replicate, invented at most 2 points over it, ST5 at most 8 % (checkpoint 4).",
+   "rule": "Among supported estimates with a standard error, rates and margins left out: the share of the real-significant ones (|z| > 1.96) the twin keeps significant with the same sign, and the share of the real-not-significant ones the twin makes significant, each against the replicate; on the null table ST5, the share of its 105 column pairs a 5 % test calls associated. Bound: the controls hold (the replicate keeps at least 80 %, the shuffled twin at least 10 points fewer; on ST5 the replicate at most 8 % and the structured table ST1, set against ST5's columns, more), today's twin keeps no fewer than the shuffled twin less 27 points (fast) and 10 (20,000 rows) -- 318/sqrt(n) over the real-significant estimates, never under 10 -- and invents at most 15 % on ST5. Target: kept at most 10 points under the replicate, invented at most 2 points over it, ST5 at most 8 % (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9307,7 +9307,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_03",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. ST5's test: chi-square for a pair with a label, Spearman's z otherwise.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). ST5's test: chi-square for a pair with a label, Spearman's z otherwise.",
    "evidence": "The S2 probe kept 25 of 184 on its shuffled twin against the replicate's 173 and invented 2 of 74 against 19. On a null table a shuffle is a perfect twin, so ST5's negative control is the structured table (plan P4-D398).",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9356,7 +9356,7 @@
    "headline": false,
    "name": "Prediction: a model trained on a twin of half the table and tested on the other half (TSTR)",
    "status": "OPEN",
-   "rule": "Boosted trees (60 rounds, depth 3; 40 at 5,000 rows) trained on today's twin of half A, made by the product from half A alone, tested on half B: the AUC gap to the model trained on half A itself over the AUC's yardstick (the root mean square of AUC(A to B) minus AUC(B to A) over the four splits), and the rank correlation of the twin-trained model's gains with half A's against the replicate's, on the seeded outcomes a tree can learn (death on ST1 and ST6; ST4's parity has flat pair margins, so a greedy tree finds no first split on the real table either). Bound: the controls hold (the replicate within 3 yardsticks, the shuffled twin beyond) and today's twin no more than 15 yardsticks (fast) and 20 (20,000 rows) past the shuffled twin. Target: within 3 yardsticks and a rank correlation at most 0.3 under the replicate's (checkpoint 4).",
+   "rule": "Boosted trees (60 rounds, depth 3; 40 at 5,000 rows) trained on today's twin of half A, made by the product from half A alone, tested on half B: the AUC gap to the model trained on half A itself over the AUC's yardstick (the root mean square of AUC(A to B) minus AUC(B to A) over the four splits), and the rank correlation of the twin-trained model's gains with half A's against the replicate's, on the seeded outcomes a tree can learn and, at 20,000 rows, every other two-valued column whose half-A model reaches an AUC of 0.6 on half B (S2 3.2: one model per binary outcome; trained_models counts them) (death on ST1 and ST6; ST4's parity has flat pair margins, so a greedy tree finds no first split on the real table either). Bound: the controls hold (the replicate within 3 yardsticks, the shuffled twin beyond) and today's twin no more than 15 yardsticks (fast) and 20 (20,000 rows) past the shuffled twin. Target: within 3 yardsticks and a rank correlation at most 0.3 under the replicate's (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9370,7 +9370,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_04",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. The model trained on a twin of half A never sees half B, so its score is not flattered by the test rows (Esteban et al. 2017).",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). The model trained on a twin of half A never sees half B, so its score is not flattered by the test rows (Esteban et al. 2017).",
    "evidence": "The S2 probe's shuffled twin trained to AUC 0.51 to 0.55 against 0.73 for the real half, a yardstick of 0.005 to 0.009.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9410,7 +9410,7 @@
    "headline": false,
    "name": "The broad discriminator: real rows told from twin rows, the pMSE ratio over the replicate's",
    "status": "OPEN",
-   "rule": "A logistic discriminator of real rows against twin rows on every usable column's main effect (numbers and dates standardized, numbers with two spline terms, labels by level, missing indicators) and the products of the first ten key columns (six at 5,000 rows); its propensity mean-squared error over its value under no difference, (k - 1)(1 - c)^2 c / N (Woo et al. 2009; Snoke et al. 2018), today's twin's over the replicate's, the worst table; the ten columns it rests on most named in the detail. On the null table ST5 a shuffle is a perfect twin with exact marginals, its ratio under 1, so the controls and the comparison with the shuffle leave ST5 out and its ratio over the replicate stands beside them (null_pmse_over_replicate). Bound: the controls hold (the shuffled twin over three times the replicate on every other table) and today's twin at most 1.5 times the shuffled twin there. Target: at most 3 times the replicate on every table (checkpoint 4; the finished product's, 1.5).",
+   "rule": "A logistic discriminator of real rows against twin rows on every usable column's main effect (numbers and dates standardized, numbers with two spline terms, labels by level, missing indicators) and the products of the first eight key columns (six at 5,000 rows), every number held to the real table's range; its propensity mean-squared error over its value under no difference, (k - 1)(1 - c)^2 c / N (Woo et al. 2009; Snoke et al. 2018), today's twin's over the replicate's, the worst table; the ten columns it rests on most named in the detail. On the null table ST5 a shuffle is a perfect twin with exact marginals, its ratio under 1, and ST2's rows come several to a subject, which that null value does not allow for (the replicate's own ratio ran 2.6 to 15.2 at 20,000 rows), so the maximum, the controls and the comparison with the shuffle leave both out, their ratios over the replicate standing beside (null_pmse_over_replicate, clustered_pmse_over_replicate). Bound: the controls hold (the shuffled twin over three times the replicate on every table read) and today's twin at most 1.5 times the shuffled twin there. Target: at most 3 times the replicate on every table (checkpoint 4; the finished product's, 1.5).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9424,7 +9424,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_05",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds).",
    "evidence": "The S2 probe measured 65 to 68 for its shuffled twin against the replicate's 1.9 to 3.0 at 20,000 rows. It looks at every relation at once, the ones nobody named. Lane E0b, ST5 at 20,000 rows, seed 1, twin seed 0: today's twin 4.28, the replicate 2.01, the shuffle 0.87 -- the twin's own column shapes told apart (it rests most on procedures, sbp and glucose), no relation between columns; ST4 833 against the shuffle's 875, ST3 136 against 134.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9460,7 +9460,7 @@
    "headline": false,
    "name": "Several rows per subject: the intra-class correlation, the mixed model's fixed effects, rows per subject",
    "status": "OPEN",
-   "rule": "On ST2 (up to eight visits per subject, a random intercept of ICC 0.72, an arm x visit slope, dropout on the previous value): the gap between the twin's ICC and the real table's from a random-intercept model by maximum likelihood, the fixed effects outside their yardsticks (halves split by subject), and the distance between the rows-per-subject distributions. Bound: the controls hold (the replicate's ICC within 0.05, the shuffled twin's not) and today's twin's ICC gap no more than 0.05 past the shuffled twin's. Target: the ICC within 0.05 of the real one and every fixed effect inside its yardstick (checkpoint 4).",
+   "rule": "On ST2 (up to eight visits per subject, a random intercept of ICC 0.72, an arm x visit slope, dropout on the previous value): the gap between the twin's ICC and the real table's from a random-intercept model by maximum likelihood, the fixed effects outside their yardsticks (halves split by subject) against the replicate's own count (a perfect twin had two outside at 20,000 rows), and the distance between the rows-per-subject distributions. Bound: the controls hold (the replicate's ICC within 0.05, the shuffled twin's not) and today's twin's ICC gap no more than 0.05 past the shuffled twin's. A grouping where no subject holds two rows, or one subject all of them, stops the model (lme4 refuses it; the likelihood is flat), counted in K-BC-10. Target: the ICC within 0.05 of the real one and at most one fixed effect more outside than the replicate (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9474,7 +9474,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_06",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. ST2 only.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). ST2 only.",
    "evidence": "The S2 probe: the real ICC 0.71 to 0.72, every row-level twin 0.00, the replicate 0.71 to 0.72.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9504,9 +9504,9 @@
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
    "target": {
     "icc_gap": 0.05,
-    "fixed_effects_outside": 0,
+    "fixed_effects_outside_over_replicate": 1,
     "icc_gap_20k": 0.05,
-    "fixed_effects_outside_20k": 0
+    "fixed_effects_outside_over_replicate_20k": 1
    }
   },
   {
@@ -9516,11 +9516,10 @@
    "headline": false,
    "name": "Time to event: Cox hazards, Kaplan-Meier medians, censored shares and a fading hazard inside their yardsticks",
    "status": "OPEN",
-   "rule": "The time-to-event family F6 (ST1's Cox model and medians, ST3's cause-specific hazards, the stage effect early and late, censoring by centre, the competing event, the automatic Cox model of each detected time and event pair): today's twin's share inside against the replicate's. Bound: the controls hold (the replicate within three binomial standard deviations of 77 %, the shuffled twin more than 25 points under it) and today's twin stands no more than 100 points (fast) and 24 (20,000 rows) under the shuffled twin of the same run -- 4.5 binomial standard deviations of a difference of two shares over the supported estimates, 318/sqrt(n), never under 10, since estimates of one model are not independent -- and the supported estimates do not fall below the baseline's. Target: at most 25 points under the replicate at both sizes (checkpoint 4).",
+   "rule": "The time-to-event family F6 (ST1's Cox model and medians, ST3's cause-specific hazards, the stage effect early and late, censoring by centre, the competing event, the automatic Cox model of each detected time and event pair): today's twin's share inside against the replicate's. Bound: the controls hold (the replicate within three binomial standard deviations of 77 %, the shuffled twin more than 25 points under it) and at 20,000 rows today's twin stands no more than 24 points under the shuffled twin of the same run (318/sqrt(n), never under 10, as K-BC-01 states) and the supported estimates do not fall below the baseline's; at 5,000 rows, whose few estimates put that margin at 67 points or more, a bound that cannot fail, the controls alone are judged. Target: at most 25 points under the replicate at both sizes (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
-    "points_below_shuffled": 100,
     "supported_estimates": 10,
     "controls_hold_20k": true,
     "points_below_shuffled_20k": 24,
@@ -9532,7 +9531,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_07",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. A follow-up time below zero stops the analysis, as survival software refuses it; that is counted in K-BC-10.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). A follow-up time below zero stops the analysis, as survival software refuses it; that is counted in K-BC-10.",
    "evidence": "The S2 probe: 0 of 12 Cox hazards inside for its shuffled twin, 9 of 12 for the replicate.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9574,11 +9573,10 @@
    "headline": false,
    "name": "Missing cells: who is missing, the models of missing cells, dropout and the date pattern inside their yardsticks",
    "status": "OPEN",
-   "rule": "The estimates of how missing cells depend on other columns: the logistic models of glucose and CRP going missing, the missing shares by age band and by ventilation, ST2's dropout on the previous value and ST3's event date against its status; today's twin's share inside against the replicate's. The pattern shares and the complete-case share stay in F9 for K-BC-01 and are left out here, being mostly each column's own missing share, which a shuffle keeps. Bound: the controls hold (as K-BC-07, 25 points) and today's twin stands no more than 92 points (fast) and 53 (20,000 rows) under the shuffled twin of the same run -- 4.5 binomial standard deviations of a difference of two shares over the supported estimates, 318/sqrt(n), never under 10, since estimates of one model are not independent -- and the supported estimates do not fall below the baseline's. Target: at most 25 points under the replicate (checkpoint 4).",
+   "rule": "The estimates of how missing cells depend on other columns: the logistic models of glucose and CRP going missing, the missing shares by age band and by ventilation, ST2's dropout on the previous value and ST3's event date against its status; today's twin's share inside against the replicate's. The pattern shares and the complete-case share stay in F9 for K-BC-01 and are left out here, being mostly each column's own missing share, which a shuffle keeps. Bound: the controls hold (as K-BC-07, 25 points) and at 20,000 rows today's twin stands no more than 53 points under the shuffled twin of the same run (318/sqrt(n), never under 10, as K-BC-01 states) and the supported estimates do not fall below the baseline's; at 5,000 rows, whose few estimates put that margin at 67 points or more, a bound that cannot fail, the controls alone are judged. Target: at most 25 points under the replicate (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
-    "points_below_shuffled": 92,
     "supported_estimates": 12,
     "controls_hold_20k": true,
     "points_below_shuffled_20k": 53,
@@ -9590,7 +9588,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_08",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds).",
    "evidence": "The S2 probe: 4 of 18 inside for its shuffled twin, 12 of 18 for the replicate.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9632,11 +9630,10 @@
    "headline": false,
    "name": "Curves: the seeded nonlinear, threshold and interaction terms on fixed grids inside their yardsticks",
    "status": "OPEN",
-   "rule": "The fitted value at each point of a fixed grid minus its value at a reference, for each seeded curve, threshold and interaction: blood pressure and the death risk splined in age, the diabetes and ventilation rates around their thresholds, ventilation's effect over 75 (ST1), death splined in glucose and creatinine (ST6); today's twin's share inside against the replicate's. Bound: the controls hold (as K-BC-07, 20 points) and today's twin stands no more than 67 points (fast) and 32 (20,000 rows) under the shuffled twin of the same run -- 4.5 binomial standard deviations of a difference of two shares over the supported estimates, 318/sqrt(n), never under 10, since estimates of one model are not independent -- and the supported estimates do not fall below the baseline's. Target: at most 20 points under the replicate (checkpoint 4).",
+   "rule": "The fitted value at each point of a fixed grid minus its value at a reference, for each seeded curve, threshold and interaction: blood pressure and the death risk splined in age, the diabetes and ventilation rates around their thresholds, ventilation's effect over 75 (ST1), death splined in glucose and creatinine (ST6); today's twin's share inside against the replicate's. Bound: the controls hold (as K-BC-07, 20 points) and at 20,000 rows today's twin stands no more than 32 points under the shuffled twin of the same run (318/sqrt(n), never under 10, as K-BC-01 states) and the supported estimates do not fall below the baseline's; at 5,000 rows, whose few estimates put that margin at 67 points or more, a bound that cannot fail, the controls alone are judged. Target: at most 20 points under the replicate (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
-    "points_below_shuffled": 67,
     "supported_estimates": 23,
     "controls_hold_20k": true,
     "points_below_shuffled_20k": 32,
@@ -9648,7 +9645,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_09",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. A curve, not its spline coefficients, which are collinear and unstable even on the real table.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). A curve, not its spline coefficients, which are collinear and unstable even on the real table.",
    "evidence": "Not measured as curves before this lane.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9690,7 +9687,7 @@
    "headline": false,
    "name": "Code runs unchanged: analyses that stop on the twin and not on the real table",
    "status": "OPEN",
-   "rule": "The analyses that run on the real table and all eight of its halves (robust ones) but stop on today's twin: an error the analyst's code meets (a wide table by subject and visit, a subject table merged back many-to-one, a date that does not parse), a follow-up time below zero, a model that does not converge or separates, a label level the model names with no row, a filter that keeps no row. Bound: the controls hold (no robust analysis stops on the replicate, at least one stops on the shuffled twin) and no more stop on today's twin than the baseline's 2 (fast) and 15 (20,000 rows, the median over twin seeds). Target: none (checkpoint 4 and the finished product).",
+   "rule": "The analyses that run on the real table and all eight of its halves (robust ones) but stop on today's twin: an error the analyst's code meets (a wide table by subject and visit, a subject table merged back many-to-one, a date that does not parse), a follow-up time below zero, a model that does not converge or separates, a label level the model names with no row, a filter that keeps no row. A twin is charged only with analyses that run on every replicate draw of the table run; one a fresh sample stops on too is counted beside (fragile_analyses). Every automatic term holds its number to the real table's range, as a model fitted there is applied, and admits an indicator into a logistic model only where it holds 22 events and 22 non-events. Bound: the controls hold (no robust analysis stops on the replicate, at least one stops on the shuffled twin) and no more stop on today's twin than the baseline's 2 (fast) and 15 (20,000 rows, the median over twin seeds). Target: none (checkpoint 4 and the finished product).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9704,7 +9701,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_10",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Fast: ST1 and ST2 at 5,000 rows, table seed 1, twin seed 0 (tests/analyst_battery.py). Slow (tools/measurements/kpi_analyst_battery.py --kpi): six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds. Supported estimates, the yardstick and the two controls as plan P4-D398 states them. Every table is read with pandas.read_csv's defaults, as the analyst's script reads it.",
+   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). Every table is read with pandas.read_csv's defaults, as the analyst's script reads it.",
    "evidence": "The owner's first goal is code that runs unchanged on the real table; these are the analyses of the battery that would not.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9774,13 +9771,13 @@
    "phase_stage": "The broad between-columns program (plan P4-D398), measured now as a baseline",
    "category": "STATS",
    "headline": false,
-   "name": "Twin-seed stability: a second twin from the same description tells the same story",
+   "name": "Twin-seed stability: a second twin from the same description tells the same, right story",
    "status": "OPEN",
-   "rule": "Per supported estimate, the standard deviation of today's twin's value over twin seeds 0 to 4 against the half-split yardstick, at 20,000 rows over table seeds 1 to 3: the share at or within it. A shuffle adds no noise of its own and cannot fail this check, so the negative control is the thin replicate -- a fresh draw of a tenth of the rows resampled back to the full count, a method that adds its own noise. Bound: the controls hold (the replicate at least 80 %, the thin replicate under 80 %) and today's twin at least half. Target: at least 80 % (checkpoint 4; the finished product's, 90 %). Stability is not fidelity: a twin with no joint structure is stable at the wrong answer, and the shuffled twin's share stands beside it.",
+   "rule": "Per supported joint estimate (margins and ST5 left out), at 20,000 rows over table seeds 1 to 3: whether today's twin's values over twin seeds 0 to 4 spread no more than the half-split yardstick AND lie inside it on a majority of the seeds; the share that do. Stability alone is not fidelity -- today's twin and a column-wise shuffle were each stable on 0.86 of estimates, at the wrong answer -- so both are asked. Bound: the controls hold (the replicate at least 50 %, the shuffled twin and the thin replicate -- a fresh tenth of the rows resampled to the full count, a method with noise of its own -- each more than 25 points under it) and today's twin no more than 10 points under the shuffled twin (318/sqrt(n), never under 10). Target: at most 10 points under the replicate (checkpoint 4; the finished product's, 5).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold_20k": true,
-    "stable_share_20k": 0.5
+    "points_below_shuffled_20k": 10
    },
    "tier": "SLOW",
    "source": "driver",
@@ -9791,8 +9788,7 @@
    "measured_on": "Slow part only (tools/measurements/kpi_analyst_battery.py --kpi): all six tables at 20,000 rows, table seeds 1 to 3, twin seeds 0 to 4.",
    "evidence": "Not measured before this lane (the S2 probe ran one twin seed).",
    "key_kinds": {
-    "controls_hold_20k": "exact",
-    "stable_share_20k": "at_least"
+    "controls_hold_20k": "exact"
    },
    "value_at": {
     "commit": "2a92bea",
@@ -9808,7 +9804,7 @@
    },
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
    "target": {
-    "stable_share_20k": 0.8
+    "points_below_replicate_20k": 10
    }
   },
   {
@@ -9818,10 +9814,10 @@
    "headline": false,
    "name": "The harness itself: its seconds and memory, its fitters held to closed forms, its controls behaving as controls",
    "status": "OPEN",
-   "rule": "The battery's fast part (ST1 and ST2 at 5,000 rows, the product's describe and generate included) finishes in under 120 s, target 60, judged on the quiet reference machine only; no KPI's controls fail in it; the fourteen pinned nodes -- the fitting kit held to closed forms it shares no code with (tests/test_analyst_kit.py) -- pass; and at 200,000 rows (tools/measurements/kpi_analyst_battery.py --night, each table in a child process of its own, never beside a whole suite) every table finishes in under an hour, target 20 minutes, and peaks under 2,000 MB, target 1,000 (the child's whole peak, the product's describe and generate included), all six tables run, and the KPIs whose controls fail at that size are counted. Seconds and peak memory are the machine's as much as the code's.",
+   "rule": "The battery's fast part (ST1 and ST2 at 5,000 rows, the product's describe and generate included) finishes in under 60 s, judged on the quiet reference machine only; no KPI's controls fail in it; the nineteen pinned nodes -- the fitting kit held to closed forms it shares no code with, and its refusals (tests/test_analyst_kit.py) -- pass; and at 200,000 rows (tools/measurements/kpi_analyst_battery.py --night, each table in a child process of its own, never beside a whole suite) every table finishes in under an hour, target 20 minutes, and peaks under 2,000 MB, target 1,000 (the child's whole peak, the product's describe and generate included), all six tables run, and the KPIs whose controls fail at that size are counted. Seconds and peak memory are the machine's as much as the code's.",
    "rule_kind": "at_most",
    "expected": {
-    "fast_part_seconds": 120.0,
+    "fast_part_seconds": 60.0,
     "controls_failing": 0,
     "pinned_nodes_failing": 0,
     "seconds_per_table_200k": 3600.0,
@@ -9845,14 +9841,19 @@
     "tests/test_analyst_kit.py::test_the_kaplan_meier_median_is_the_hand_count",
     "tests/test_analyst_kit.py::test_a_fit_the_table_cannot_carry_is_refused_by_name",
     "tests/test_analyst_kit.py::test_the_booster_finds_a_seeded_threshold_and_ignores_noise",
-    "tests/test_analyst_kit.py::test_the_design_never_holds_more_than_a_chunk_of_terms"
+    "tests/test_analyst_kit.py::test_the_design_never_holds_more_than_a_chunk_of_terms",
+    "tests/test_analyst_kit.py::test_the_kaplan_meier_median_is_the_first_time_the_curve_reaches_a_half",
+    "tests/test_analyst_kit.py::test_kruskal_wallis_is_its_formula_over_ranks_counted_pair_by_pair",
+    "tests/test_analyst_kit.py::test_a_flag_whose_rows_hold_no_event_is_quasi_separation",
+    "tests/test_analyst_kit.py::test_a_random_intercept_with_no_group_of_two_rows_is_refused",
+    "tests/test_analyst_kit.py::test_the_booster_keeps_a_missing_cell_in_a_bin_of_its_own"
    ],
    "test": "tests/test_kpi_ledger.py::test_k_bc_13",
    "driver": "tools/measurements/kpi_analyst_battery.py --night",
    "pin_strength": "EXACT",
    "measured_on": "The fast part as test_k_bc_13 runs it; the night as tools/measurements/kpi_analyst_battery.py --night runs it, one table per child process.",
    "evidence": "The S2 probe took 88 to 106 s at 20,000 rows with four stand-in twins and 220 MB; it projected 12 to 15 minutes a table at 200,000 rows.",
-   "nodes_min_collected": 21,
+   "nodes_min_collected": 29,
    "key_kinds": {
     "fast_part_seconds": "seconds_below",
     "controls_failing": "exact",

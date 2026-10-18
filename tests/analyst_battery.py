@@ -26,8 +26,12 @@ exactly as an analyst's script would read it:
   numbers at the real table's quantile knots, label levels of at least
   22 rows, the five strongest predictors' pairwise products, and the
   terms capped by the events per variable (ten events a term; Peduzzi
-  et al. 1996) and by the tier's cap. Every choice is fixed on the real
-  table and then asked of every other table unchanged.
+  et al. 1996) and by the tier's cap; in a logistic model an indicator
+  term only where its own ones and zeros hold 22 events and 22
+  non-events. Every choice is fixed on the real table and then asked of
+  every other table unchanged, each number held to the range the real
+  table showed, as a model fitted there is applied. At the slow tier a
+  trained model predicts every two-valued column it can learn.
 
 THE TWO CONTROLS, IN EVERY RUN. The FRESH REPLICATE is the same
 generator at another seed: what a perfect twin scores in this very run.
@@ -45,7 +49,10 @@ table (on which a shuffle IS a perfect twin) uses the structured table.
 SUPPORTED ESTIMATES ONLY. An estimate is scored only where every cell
 defining it holds at least 22 rows on the real table -- 11 in each half
 -- and, on a two-valued outcome, 22 events and 22 non-events, and only
-where its analysis ran on the real table and all eight halves.
+where its analysis ran on the real table and all eight halves. A MARGIN
+(tag 'margin': one column's own count, which a column-wise shuffle keeps
+exactly, such as ST2's rows per subject) is scored where it is read on
+its own and left out of the KPIs of joint structure.
 
 THE TIERS. `run_tables(..., tier="fast")` is the suite's part: ST1 and
 ST2 at 5,000 rows, one table seed, one twin seed, the controls and
@@ -91,13 +98,14 @@ FAMILIES = {
 REPORT_FAMILIES = tuple(FAMILIES) + ("F10",)
 REPORT_HEADING = "What you can analyse on this twin"
 TIERS = {
-    # rows, table seeds, twin seeds, automatic term cap, automatic outcomes, pMSE key columns, boosting rounds
+    # rows, table seeds, twin seeds, automatic term cap, automatic outcomes, pMSE key columns, boosting
+    # rounds, and which outcomes a trained model predicts: the seeded one, or every two-valued column
     "fast": {"rows": 5000, "tables": ("ST1", "ST2"), "seeds": (1,), "twins": (0,),
-             "cap": 8, "outcomes": 6, "keys": 6, "rounds": 40},
+             "cap": 8, "outcomes": 6, "keys": 6, "rounds": 40, "trained": "seeded"},
     "slow": {"rows": 20000, "tables": T.TABLES, "seeds": (1, 2, 3), "twins": (0, 1, 2, 3, 4),
-             "cap": 16, "outcomes": 99, "keys": 8, "rounds": 60},
+             "cap": 16, "outcomes": 99, "keys": 8, "rounds": 60, "trained": "binary"},
     "night": {"rows": 200000, "tables": T.TABLES, "seeds": (1,), "twins": (0,),
-              "cap": 16, "outcomes": 99, "keys": 8, "rounds": 60},
+              "cap": 16, "outcomes": 99, "keys": 8, "rounds": 60, "trained": "seeded"},
 }
 # The controls' discriminator and trained models are run at these twin
 # seeds only (today's twin at every seed): they are the costliest parts,
@@ -106,8 +114,13 @@ CONTROL_HEAVY_SEEDS = (0, 1)
 # The seeded outcomes a trained model predicts (F8, K-BC-04), per table.
 # ST4's readmission is left out: its signal is a pure three-way parity,
 # whose every pair margin is flat, so a greedy tree finds no first split
-# on the real table either (measured: AUC 0.48 trained on half A).
+# on the real table either (measured: AUC 0.48 trained on half A). At the
+# slow tier every other two-valued column is an outcome as well, where a
+# model trained on half A reaches TRAINED_AUC on half B (S2 3.2: one
+# boosting model per binary outcome); below it a model has nothing to
+# carry, and its AUC's yardstick measures noise.
 PREDICTED = {"ST1": "died", "ST6": "died"}
+TRAINED_AUC = 0.6
 # A family with fewer supported estimates does not set K-BC-01's worst family.
 FAMILY_MINIMUM = 5
 
@@ -494,7 +507,7 @@ def st1_rates(v: View) -> "list[Estimate]":
         out += rate(f"ST1/curve:vent_lactate_{low}", "F1", vent,
                     [low < x <= high for x in lact], ("curve",))
     out += rate("ST1/rate:cost_zero", "F1", [float(c == 0.0) if c == c else c for c in v.num("cost")],
-                [True] * v.rows)
+                [True] * v.rows, ("margin",))
     readmit, ward = v.num("readmit"), v.text("ward")
     for w in T.WARDS:
         out += rate(f"ST1/rate:readmit_{w}", "F1", readmit, [x == w for x in ward])
@@ -651,14 +664,16 @@ def st1_missing(v: View) -> "list[Estimate]":
     for g in (0.0, 1.0):
         out += rate(f"ST1/miss:crp_by_vent{int(g)}", "F9", crp_miss, [x == g for x in v.num("ventilated")],
                     ("missing",))
-    # The pattern shares and the complete-case share are mostly each
-    # column's own missing share, which a shuffle keeps: they stay in F9
-    # for K-BC-01 and are left out of K-BC-08's joint measure.
+    # The pattern shares are mostly each column's own missing share,
+    # which a shuffle keeps: they stay in F9 for K-BC-01 and are left out
+    # of K-BC-08's joint measure. The complete-case share IS one column's
+    # (glucose alone goes missing among the model's columns): a margin.
     for a in (0.0, 1.0):
         for b in (0.0, 1.0):
             out += rate(f"ST1/pattern:glucose{int(a)}_crp{int(b)}", "F9",
                         [float(x == a and y == b) for x, y in zip(glucose_miss, crp_miss)], [True] * v.rows)
-    out += rate("ST1/complete:logistic_main", "F9", [1.0 - m for m in glucose_miss], [True] * v.rows)
+    out += rate("ST1/complete:logistic_main", "F9", [1.0 - m for m in glucose_miss], [True] * v.rows,
+                ("margin",))
     return out
 
 
@@ -702,7 +717,7 @@ def st2_subjects(v: View) -> "list[Estimate]":
         hit = sum(1 for c in counts.values() if c == k)
         share = hit / total
         out += [Estimate(f"ST2/rows:{k}", "F7", share, math.sqrt(max(share * (1 - share), 1e-12) / total),
-                         min(hit, total - hit), ("subject",))]
+                         min(hit, total - hit), ("subject", "margin"))]
     by: "dict[tuple[str | None, float], float]" = {}
     for s, x, h in zip(sid, visit, y):
         by[(s, x)] = h
@@ -911,7 +926,7 @@ def st4_linear(v: View) -> "list[Estimate]":
     d2 = K.Design(cols2, [("int", K.intercept), ("lv", col("lv")), ("private", col("private"))])
     out += coefs(K.ols(d2, y2), "ST4/ols_amount", "F3", supports(d2, None, False), d2.names)
     out += rate("ST4/rate:amount_zero", "F1", [float(x == 0.0) if x == x else x for x in amount],
-                [True] * v.rows)
+                [True] * v.rows, ("margin",))
     payer = v.text("payer")
     for p in T.PAYERS:
         out += mean(f"ST4/mean:visits_{p}", "F1", visits, [x == p for x in payer])
@@ -936,25 +951,50 @@ def plan_st4(real: View) -> "list[Analysis]":
 ST5_LABELS = {"urban", "language", "ward", "smoker"}
 
 
+# A number of more different values than this is tested against a label
+# by its ranks, not by a table of its values.
+FEW_VALUES = 30
+
+
+def st5_pair_p(v: View, a: str, b: str) -> float:
+    """The p-value an analyst's test of association gives one column pair.
+
+    Two labels, or a label and a number of at most `FEW_VALUES` different
+    values: Pearson's chi-square of their table. A label and a number of
+    more: Kruskal-Wallis on the number's ranks by the label's levels -- a
+    table of a many-valued number's values has thousands of degrees of
+    freedom (language by cost: 69,295) and sees a shifted level about as
+    often as its false alarms (measured: a 25 % cost shift in one language
+    found on 5 of 20 seeds by the table, 20 of 20 by the ranks). Two
+    numbers: Spearman's correlation through Fisher's z.
+    """
+    ta, tb = v.text(a), v.text(b)
+    keep = [x is not None and y is not None for x, y in zip(ta, tb)]
+    if a in ST5_LABELS or b in ST5_LABELS:
+        label, number = (a, b) if a in ST5_LABELS else (b, a)
+        labels = [x for x, k in zip(v.text(label), keep) if k]
+        if number not in ST5_LABELS:
+            values = [x for x, k in zip(v.num(number), keep) if k]
+            if len(set(values)) > FEW_VALUES:
+                h, df = K.kruskal_wallis(values, labels)
+                return K.chi2_sf(h, df) if df > 0 else 1.0
+        counts = K.contingency([x for x, k in zip(ta, keep) if k], [y for y, k in zip(tb, keep) if k])
+        stat, df, _small = K.chi_square(counts)
+        return K.chi2_sf(stat, df) if df > 0 else 1.0
+    xa = [x for x, k in zip(v.num(a), keep) if k]
+    xb = [y for y, k in zip(v.num(b), keep) if k]
+    r = max(-0.999999, min(0.999999, K.spearman(xa, xb)))
+    return 2.0 * (1.0 - statistics.NormalDist().cdf(abs(math.atanh(r)) * math.sqrt(len(xa) - 3)))
+
+
 def st5_null(v: View) -> "list[Estimate]":
     """The share of the 105 column pairs a 5 % test calls associated: about 5 % on a null table."""
     names = T.ST5_COLUMNS
     significant = tests = 0
     for i, a in enumerate(names):
         for b in names[i + 1:]:
-            ta, tb = v.text(a), v.text(b)
-            keep = [x is not None and y is not None for x, y in zip(ta, tb)]
-            if a in ST5_LABELS or b in ST5_LABELS:
-                counts = K.contingency([x for x, k in zip(ta, keep) if k], [y for y, k in zip(tb, keep) if k])
-                stat, df, _small = K.chi_square(counts)
-                p = K.chi2_sf(stat, df) if df > 0 else 1.0
-            else:
-                xa = [x for x, k in zip(v.num(a), keep) if k]
-                xb = [y for y, k in zip(v.num(b), keep) if k]
-                r = max(-0.999999, min(0.999999, K.spearman(xa, xb)))
-                p = 2.0 * (1.0 - statistics.NormalDist().cdf(abs(math.atanh(r)) * math.sqrt(len(xa) - 3)))
             tests += 1
-            significant += 1 if p < 0.05 else 0
+            significant += 1 if st5_pair_p(v, a, b) < 0.05 else 0
     return [Estimate("ST5/null:significant_share", "F2", significant / tests, None, v.rows, ("null",))]
 
 
@@ -1032,7 +1072,7 @@ def knots_of(values: "list[float]") -> "list[float]":
 
 @dataclasses.dataclass
 class Column:
-    """One column as the schema reads it: kind, levels, knots, missing share, the value read as 1."""
+    """One column as the schema reads it: kind, levels, knots, missing share, the value read as 1, its range."""
 
     name: str
     kind: str
@@ -1042,6 +1082,26 @@ class Column:
     one: str = ""
     center: float = 0.0
     scale: float = 1.0
+    low: float = -math.inf
+    high: float = math.inf
+
+
+def clamped(c: Column, value: float) -> float:
+    """A number held to the real table's range, NaN kept: an automatic model never extrapolates.
+
+    A heavy-tailed number drawn afresh can land far past the real table's
+    largest (measured: a fresh ST1 at 20,000 rows put cost at 50,015
+    standard deviations), where a number and its two straight-armed
+    spline terms are proportional and the model's cross products
+    singular. Every automatic term reads its number clamped to the range
+    the real table showed, as a model fitted there would be applied.
+    """
+    return value if value != value else min(max(value, c.low), c.high)
+
+
+def standardized(c: Column) -> "K.Term":
+    """(the clamped number - the real table's mean) / its spread."""
+    return lambda ch: [(clamped(c, v) - c.center) / c.scale for v in ch[c.name]]
 
 
 def schema(real: View) -> "list[Column]":
@@ -1099,7 +1159,8 @@ def schema(real: View) -> "list[Column]":
             except AnalysisError:
                 knots = None
         center = statistics.fmean(numbers)
-        out += [Column(name, kind, [], knots, missing, "", center, statistics.pstdev(numbers) or 1.0)]
+        out += [Column(name, kind, [], knots, missing, "", center, statistics.pstdev(numbers) or 1.0,
+                       min(numbers), max(numbers))]
     return out
 
 
@@ -1125,12 +1186,12 @@ def column_terms(c: Column, room: int) -> "list[tuple[str, K.Term]]":
         return [(c.name, col(c.name))]
     if c.kind == "label":
         return [(f"lvl_{c.name}={lv}", col(f"lvl_{c.name}={lv}")) for lv in c.levels[1:]][:room]
-    terms: "list[tuple[str, K.Term]]" = [(c.name, scaled(c.name, c.center, c.scale))]
+    terms: "list[tuple[str, K.Term]]" = [(c.name, standardized(c))]
     if c.knots is not None and room >= 3:
         for j in (0, 1):
             term = K.rcs_term(standard_knots(c), j)
-            terms += [(f"{c.name}_s{j + 1}", lambda ch, n=c.name, m=c.center, sd=c.scale, f=term:
-                       [f((v - m) / sd) for v in ch[n]])]
+            terms += [(f"{c.name}_s{j + 1}", lambda ch, c=c, f=term:
+                       [f((clamped(c, v) - c.center) / c.scale) for v in ch[c.name]])]
     return terms
 
 
@@ -1177,6 +1238,34 @@ def time_event(columns: "list[Column]") -> "tuple[str, list[str], str] | None":
     return None
 
 
+def indicator_supported(real: View, sources: "list[Column]", term: "K.Term", y: object) -> bool:
+    """Whether a term holds `SUPPORT` events and non-events on each of its sides on the real table.
+
+    A term that takes any value but 0 and 1 (a number, a product with a
+    number) is not an indicator and always holds. An indicator -- a
+    two-valued column, a label level, a product of two of them -- whose
+    ones or zeros hold fewer events or non-events than the floor would
+    leave a half of the table, or a fresh sample, with a separated term:
+    the events-per-variable rule counts terms, this counts each term's
+    own events (the rare outcomes' automatic models lost a half to it in
+    5 of 18 table runs at 20,000 rows).
+    """
+    columns: "dict[str, object]" = {}
+    for c in sources:
+        columns.update(column_values(real, c))
+    e1 = n1 = e0 = n0 = 0.0
+    for value, outcome in zip(term(columns), y):  # type: ignore[arg-type, call-overload]
+        if value != value or outcome != outcome:
+            continue
+        if value not in (0.0, 1.0):
+            return True
+        if value:
+            n1, e1 = n1 + 1, e1 + outcome
+        else:
+            n0, e0 = n0 + 1, e0 + outcome
+    return min(e1, n1 - e1, e0, n0 - e0) >= SUPPORT
+
+
 def plan_auto(real: View, columns: "list[Column]", tier: str, table: str) -> "list[Analysis]":
     """The automatic panel of one table: its models fixed on the real table, asked of any table."""
     settings = TIERS[tier]
@@ -1203,7 +1292,10 @@ def plan_auto(real: View, columns: "list[Column]", tier: str, table: str) -> "li
             room = budget - len(terms)
             if room < 1:
                 break
-            add = column_terms(c, room)
+            add = column_terms(c, len(c.levels) if c.kind == "label" else room)
+            if kind == "logistic":
+                add = [(n, t) for n, t in add if indicator_supported(real, [c], t, y)]
+            add = add[:room]
             if add:
                 terms += add
                 used += [c]
@@ -1214,7 +1306,8 @@ def plan_auto(real: View, columns: "list[Column]", tier: str, table: str) -> "li
             for b in strongest[i + 1:]:
                 if len(terms) < budget:
                     (na, ta), (nb, tb) = column_terms(a, 1)[0], column_terms(b, 1)[0]
-                    terms += [(f"{na}*{nb}", product(ta, tb))]
+                    if kind != "logistic" or indicator_supported(real, [a, b], product(ta, tb), y):
+                        terms += [(f"{na}*{nb}", product(ta, tb))]
         chosen += [(outcome, kind, family, used, terms)]
     if tier == "fast":
         by_kind = {"logistic": 3, "poisson": 1, "ols": 2}
@@ -1263,7 +1356,7 @@ def auto_model(table: str, outcome: Column, kind: str, family: str, used: "list[
             standard = standard_knots(c)
 
             def at(x: float, c: Column = c, standard: "list[float]" = standard) -> "dict[str, float]":
-                z = (x - c.center) / c.scale
+                z = (clamped(c, x) - c.center) / c.scale
                 s = K.rcs(z, standard)
                 return {c.name: z, f"{c.name}_s1": s[0], f"{c.name}_s2": s[1]}
 
@@ -1305,8 +1398,7 @@ def auto_cox(table: str, pair: "tuple[str, list[str], str]", eligible: "list[Col
         cols, _y = complete(columns)
         names = [c.name for c in used]
         design = K.Design({n: cols[n] for n in names},
-                          [(c.name, col(c.name) if c.kind == "binary" else scaled(c.name, c.center, c.scale))
-                           for c in used])
+                          [(c.name, col(c.name) if c.kind == "binary" else standardized(c)) for c in used])
         fit = K.cox(design, cols["t"], [int(e) for e in cols["e"]])
         return coefs(fit, f"{table}/auto_cox", "F6", supports(design, cols["e"], True), names, ("time",))
 
@@ -1533,10 +1625,10 @@ def pmse(real: View, other: View, columns: "list[Column]", keys: int) -> "tuple[
     """The propensity mean-squared error over its value under no difference, and the columns it rests on most.
 
     A logistic discriminator of real rows against the other table's, on
-    every usable column's main effect (numbers and dates standardized,
-    numbers with their two spline terms, labels by level, a missing
-    indicator where a column has empty cells) and the products of the
-    first ``keys`` columns that are not labels. The ratio is pMSE / ((k - 1)(1 - c)^2 c / N) (Woo et
+    every usable column's main effect (numbers and dates standardized and
+    held to the real table's range, numbers with their two spline terms,
+    labels by level, a missing indicator where a column has empty cells)
+    and the products of the first ``keys`` columns that are not labels. The ratio is pMSE / ((k - 1)(1 - c)^2 c / N) (Woo et
     al. 2009; Snoke et al. 2018): about 1 where the two cannot be told
     apart. Terms are built a chunk at a time from the two tables' own
     columns, so memory is the two tables.
@@ -1559,13 +1651,15 @@ def pmse(real: View, other: View, columns: "list[Column]", keys: int) -> "tuple[
         present = [x for x in a if x == x]  # type: ignore[attr-defined]
         m = statistics.fmean(present)
         sd = statistics.pstdev(present) or 1.0
-        standard[c.name] = (lambda ch, n=c.name, m=m, sd=sd: [0.0 if x != x else (x - m) / sd for x in ch[n]])
+        held = dataclasses.replace(c, low=min(present), high=max(present))
+        standard[c.name] = (lambda ch, h=held, m=m, sd=sd: [0.0 if x != x else (clamped(h, x) - m) / sd
+                                                             for x in ch[h.name]])
         terms += [(c.name, standard[c.name])]
         if c.knots is not None:
             for j in (0, 1):
                 term = K.rcs_term(c.knots, j, 1.0 / sd)
-                terms += [(f"{c.name}_s{j + 1}", lambda ch, n=c.name, m=m, f=term:
-                           [f(m if x != x else x) for x in ch[n]])]
+                terms += [(f"{c.name}_s{j + 1}", lambda ch, h=held, m=m, f=term:
+                           [f(m if x != x else clamped(h, x)) for x in ch[h.name]])]
         if c.missing > 0:
             terms += [(f"{c.name}_na", lambda ch, n=c.name: [1.0 if x != x else 0.0 for x in ch[n]])]
     key_names = [c.name for c in usable if c.kind != "label"][:keys]
@@ -1630,10 +1724,18 @@ class TableRun:
     product_seconds: float
 
 
+def trained_outcomes(columns: "list[Column]", table: str, tier: str) -> "list[Column]":
+    """The outcomes a trained model is asked to predict: the seeded one; at the slow tier every two-valued column."""
+    seeded = [c for c in columns if c.name == PREDICTED.get(table)]
+    if TIERS[tier]["trained"] != "binary":
+        return seeded
+    return seeded + [c for c in columns if c.kind == "binary" and c.name != PREDICTED.get(table)]
+
+
 def _side(y: Yardstick, plan: "list[Analysis]", real: View, view: View, columns: "list[Column]",
-          tier: str, train: "View | None", test: "View | None", predicted: "Column | None",
-          imp_a: "list[float]", heavy: bool = True) -> Side:
-    """One table against the real one; ``heavy`` adds the discriminator and the trained model.
+          tier: str, train: "View | None", test: "View | None", predicted: "list[Column]",
+          imp_a: "dict[str, list[float]]", heavy: bool = True) -> Side:
+    """One table against the real one; ``heavy`` adds the discriminator and the trained models.
 
     A discriminator or a model that cannot be fitted on this table leaves
     its number out, and a missing trained-model AUC is scored outside.
@@ -1647,12 +1749,13 @@ def _side(y: Yardstick, plan: "list[Analysis]", real: View, view: View, columns:
             ratio, leaning = pmse(real, view, columns, settings["keys"])
         except (K.FitTrouble, AnalysisError):
             ratio, leaning = math.nan, ["(the discriminator could not be fitted)"]
-        if predicted is not None and train is not None and test is not None:
-            try:
-                auc, gain = tstr(train, test, columns, predicted, settings["rounds"])
-                found[predicted.name] = (auc, K.spearman(gain, imp_a))
-            except (K.FitTrouble, AnalysisError):
-                pass
+        if train is not None and test is not None:
+            for outcome in predicted:
+                try:
+                    auc, gain = tstr(train, test, columns, outcome, settings["rounds"])
+                    found[outcome.name] = (auc, K.spearman(gain, imp_a[outcome.name]))
+                except (K.FitTrouble, AnalysisError):
+                    pass
     return Side(compare(y, panel), stops(y, panel), panel, found, ratio, leaning, heavy)
 
 
@@ -1669,29 +1772,49 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: 
     plan = TARGETED[table](real) + plan_auto(real, columns, tier, table)
     g = groups_of(real, table, seed)
     y = yardstick(plan, real, g)
-    predicted = next((c for c in columns if c.name == PREDICTED.get(table)), None)
+    candidates = trained_outcomes(columns, table, tier)
     a_rows, b_rows = split(g, 0)
-    half_a = real.subset(a_rows, "A") if predicted is not None else None
-    half_b = real.subset(b_rows, "B") if predicted is not None else None
+    half_a = real.subset(a_rows, "A") if candidates else None
+    half_b = real.subset(b_rows, "B") if candidates else None
     tstr_yard: "dict[str, tuple[float, float, float]]" = {}
-    imp_a: "list[float]" = []
-    if predicted is not None and half_a is not None and half_b is not None:
-        rounds = TIERS[tier]["rounds"]
-        auc_ab, imp_a = tstr(half_a, half_b, columns, predicted, rounds)
-        auc_ba, imp_b = tstr(half_b, half_a, columns, predicted, rounds)
-        diffs = [auc_ab - auc_ba]
-        for s in (1, 2, 3):
-            sa, sb = split(g, s)
-            va, vb = real.subset(sa, "A"), real.subset(sb, "B")
-            diffs += [tstr(va, vb, columns, predicted, rounds)[0] - tstr(vb, va, columns, predicted, rounds)[0]]
-        tstr_yard[predicted.name] = (auc_ab, math.sqrt(sum(d * d for d in diffs) / 4.0),
-                                     K.spearman(imp_a, imp_b))
+    imp_a: "dict[str, list[float]]" = {}
+    predicted: "list[Column]" = []
+    rounds = TIERS[tier]["rounds"]
+    # Split 0 first, every candidate: a model kept is one the seeded
+    # table names or one whose half-A model reaches TRAINED_AUC on half B.
+    # Then the other three splits, one pair of halves held at a time.
+    first: "dict[str, tuple[float, list[float], list[float], float]]" = {}
+    for outcome in candidates if half_a is not None and half_b is not None else []:
+        try:
+            auc_ab, gain_a = tstr(half_a, half_b, columns, outcome, rounds)  # type: ignore[arg-type]
+            if outcome.name != PREDICTED.get(table) and auc_ab < TRAINED_AUC:
+                continue
+            auc_ba, gain_b = tstr(half_b, half_a, columns, outcome, rounds)  # type: ignore[arg-type]
+        except (K.FitTrouble, AnalysisError):
+            continue
+        first[outcome.name] = (auc_ab, gain_a, gain_b, auc_ab - auc_ba)
+    diffs: "dict[str, list[float]]" = {name: [held[3]] for name, held in first.items()}
+    for s in (1, 2, 3) if first else ():
+        sa, sb = split(g, s)
+        va, vb = real.subset(sa, "A"), real.subset(sb, "B")
+        for outcome in [c for c in candidates if c.name in diffs]:
+            try:
+                diffs[outcome.name] += [tstr(va, vb, columns, outcome, rounds)[0]
+                                        - tstr(vb, va, columns, outcome, rounds)[0]]
+            except (K.FitTrouble, AnalysisError):
+                del diffs[outcome.name]
+    for outcome in [c for c in candidates if c.name in diffs]:
+        auc_ab, gain_a, gain_b, _d = first[outcome.name]
+        found = diffs[outcome.name]
+        tstr_yard[outcome.name] = (auc_ab, math.sqrt(sum(d * d for d in found) / 4.0), K.spearman(gain_a, gain_b))
+        imp_a[outcome.name] = gain_a
+        predicted += [outcome]
     sides: "dict[str, list[Side]]" = {"twin": [], "replicate": [], "shuffled": [], "thin": []}
     product_seconds = 0.0
     clock = time.perf_counter()
     described = describe(folder / "product", f"{table}-{seed}", text)
     described_a = (describe(folder / "product", f"{table}-{seed}-A", rows_text(text, a_rows))
-                   if predicted is not None else None)
+                   if predicted else None)
     product_seconds += time.perf_counter() - clock
     report: "dict[str, object]" = {}
     for k in twins:
@@ -1706,11 +1829,11 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", tier: 
         replicate_seed = seed * 1000 + 100 + k
         heavy = k in CONTROL_HEAVY_SEEDS
         rep_a = (read(T.text(table, len(a_rows), replicate_seed + 500), "replicate A")
-                 if predicted is not None and heavy else None)
+                 if predicted and heavy else None)
         sides["replicate"] += [_side(y, plan, real, read(T.text(table, rows, replicate_seed), "replicate"),
                                      columns, tier, rep_a, half_b, predicted, imp_a, heavy)]
         shuf_a = read(shuffled_text(rows_text(text, a_rows), seed * 31 + k + 7), "shuffled A") \
-            if predicted is not None and heavy else None
+            if predicted and heavy else None
         sides["shuffled"] += [_side(y, plan, real, read(shuffled_text(text, seed * 31 + k), "shuffled"),
                                     columns, tier, shuf_a, half_b, predicted, imp_a, heavy)]
         if thin:
@@ -1813,6 +1936,19 @@ def _not_null(c: Compared) -> bool:
     return not c.key.startswith("ST5/")
 
 
+def _joint(c: Compared) -> bool:
+    """An estimate of how columns go together: not the null table's, and not one column's own margin.
+
+    A margin -- rows per subject, a zero share, the complete-case share
+    of a model whose columns but one are whole -- is one column's own
+    count, which a column-wise shuffle keeps exactly (measured: the
+    shuffle inside on all eight of ST2's rows-per-subject shares), so it
+    says nothing of the relations the joint KPIs measure. K-BC-06 reads
+    the rows per subject on their own.
+    """
+    return _not_null(c) and "margin" not in c.tags
+
+
 def _f8_rows(runs: "list[TableRun]", side: str, k: int) -> "list[Compared]":
     out = []
     for r in runs:
@@ -1840,7 +1976,7 @@ def family_shares(runs: "list[TableRun]", side: str) -> "dict[str, list[float]]"
                 rows = _f8_rows(runs, side, k)
             else:
                 rows = [c for r in runs if k < len(r.sides[side]) for c in r.sides[side][k].compared
-                        if c.family == family and _not_null(c)]
+                        if c.family == family and _joint(c)]
             value = _share(rows)
             if value is not None:
                 per += [value]
@@ -1849,15 +1985,29 @@ def family_shares(runs: "list[TableRun]", side: str) -> "dict[str, list[float]]"
     return out
 
 
+# A family's checkpoint target, in points under the replicate (K-BC-01):
+# its shuffled twin must stand further under than this, or the family's
+# clause cannot fail for a twin with no joint structure.
+FAMILY_TARGET = 25.0
+
+
 def kpi_01(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
-    """K-BC-01, replication parity family by family (F1 to F9)."""
+    """K-BC-01, replication parity family by family (F1 to F9), margins left out.
+
+    Its controls hold where the replicate's pooled share is a fresh
+    sample's, the shuffled twin's pooled share stands more than 10 points
+    under it, and the shuffled twin stands more than `FAMILY_TARGET`
+    points under the replicate in EVERY family of at least
+    `FAMILY_MINIMUM` supported estimates -- a family whose shuffle meets
+    the family target is named, and the run is void for this KPI.
+    """
     fam = {side: family_shares(runs, side) for side in ("twin", "replicate", "shuffled")}
 
     def pooled(side: str) -> "list[float]":
         count = max((len(r.sides[side]) for r in runs), default=0)
         out = []
         for k in range(count):
-            rows = [c for r in runs if k < len(r.sides[side]) for c in r.sides[side][k].compared if _not_null(c)]
+            rows = [c for r in runs if k < len(r.sides[side]) for c in r.sides[side][k].compared if _joint(c)]
             rows += _f8_rows(runs, side, k)
             value = _share(rows)
             if value is not None:
@@ -1868,15 +2018,19 @@ def kpi_01(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     gap = round(100.0 * (_median(p["replicate"]) - _median(p["twin"])), 1)
     shuf_gap = 100.0 * (_median(p["replicate"]) - _median(p["shuffled"]))
     sizes = {f: sum(1 for r in runs for c in r.sides["replicate"][0].compared
-                    if c.family == f and _not_null(c)) + (sum(len(r.tstr_yard) for r in runs) if f == "F8" else 0)
+                    if c.family == f and _joint(c)) + (sum(len(r.tstr_yard) for r in runs) if f == "F8" else 0)
              for f in fam["replicate"]}
-    worst = max((100.0 * (_median(fam["replicate"][f]) - _median(fam["twin"].get(f, [0.0])))
-                 for f in fam["replicate"] if sizes[f] >= FAMILY_MINIMUM), default=math.nan)
-    supported = sum(1 for r in runs for c in r.sides["replicate"][0].compared if _not_null(c)) + sum(
+    judged = [f for f in sorted(fam["replicate"]) if sizes[f] >= FAMILY_MINIMUM]
+    worst = max((100.0 * (_median(fam["replicate"][f]) - _median(fam["twin"].get(f, [0.0]))) for f in judged),
+                default=math.nan)
+    void = [f for f in judged
+            if not 100.0 * (_median(fam["replicate"][f]) - _median(fam["shuffled"].get(f, [math.nan]))) > FAMILY_TARGET]
+    supported = sum(1 for r in runs for c in r.sides["replicate"][0].compared if _joint(c)) + sum(
         len(r.tstr_yard) for r in runs)
     detail = "; ".join(
         f"{f} twin {_median(fam['twin'].get(f, [math.nan])):.2f} rep {_median(fam['replicate'][f]):.2f} "
         f"shuf {_median(fam['shuffled'].get(f, [math.nan])):.2f}" for f in sorted(fam["replicate"]))
+    detail += "; the shuffle meets the family target, void: " + (", ".join(void) or "none")
     return {
         f"pooled_points_below_replicate{suffix}": gap,
         f"worst_family_points_below_replicate{suffix}": round(worst, 1),
@@ -1885,7 +2039,9 @@ def kpi_01(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"shuffled_pooled_share{suffix}": round(_median(p["shuffled"]), 3),
         f"supported_estimates{suffix}": supported,
         f"points_below_shuffled{suffix}": round(gap - shuf_gap, 1),
-        f"controls_hold{suffix}": bool(replicate_holds(_median(p["replicate"]), supported) and shuf_gap > 10.0),
+        f"families_control_void{suffix}": len(void),
+        f"controls_hold{suffix}": bool(replicate_holds(_median(p["replicate"]), supported) and shuf_gap > 10.0
+                                       and not void),
         "_detail": detail,
     }
 
@@ -1913,7 +2069,14 @@ def _recovered(r: TableRun, key: str, side: Side) -> bool:
 
 
 def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
-    """K-BC-02, the seeded truths recovered, or named as not carried (today: none named)."""
+    """K-BC-02, the seeded truths recovered, or named as not carried (today: none named).
+
+    A truth is charged to the twin only where the fresh replicate of the
+    same run gets it back: one the replicate misses (a yardstick of four
+    splits is noisy, and a perfect twin missed 15 of 96 at 20,000 rows
+    where the replicate missed 12) is counted beside, as
+    `replicate_missed`, never as the twin's.
+    """
     truths = _truth_rows(runs)
     eligible = [(r, p, k) for r, p, k in truths if k in r.yard.h]
 
@@ -1928,7 +2091,7 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
 
     got = {side: recovered(side) for side in ("twin", "replicate", "shuffled")}
     named: "list[tuple[TableRun, str, str]]" = []
-    missed = [x for x in truths if x not in got["twin"] and x not in named]
+    missed = [x for x in truths if x not in got["twin"] and x not in named and x in got["replicate"]]
     three = [x for x in missed if x[1] in T.THREE_WAY]
     rep_share = len([x for x in got["replicate"] if x in eligible]) / max(1, len(eligible))
     shuf_share = len([x for x in got["shuffled"] if x in eligible]) / max(1, len(eligible))
@@ -1940,6 +2103,7 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"truths_recovered{suffix}": len(got["twin"]),
         f"truths_named{suffix}": len(named),
         f"replicate_recovered{suffix}": len(got["replicate"]),
+        f"replicate_missed{suffix}": len(truths) - len(got["replicate"]),
         f"shuffled_recovered{suffix}": len(got["shuffled"]),
         f"truths_recovered_below_shuffled{suffix}": len(got["shuffled"]) - len(got["twin"]),
         f"controls_hold{suffix}": bool(rep_share >= 0.5 and shuf_share <= rep_share - 0.25),
@@ -1951,14 +2115,14 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
 def kpi_03(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     """K-BC-03, decisions kept and significance invented; on ST5 the share of pairs called associated."""
     significant = sum(1 for r in runs for c in (r.sides["replicate"][0].compared if r.sides["replicate"] else [])
-                      if c.sig_real and c.family != "F1" and _not_null(c))
+                      if c.sig_real and c.family != "F1" and _joint(c))
 
     def rates(side: str) -> "tuple[float, float]":
         kept, fabricated = [], []
         count = max((len(r.sides[side]) for r in runs), default=0)
         for k in range(count):
             rows = [c for r in runs if k < len(r.sides[side]) for c in r.sides[side][k].compared
-                    if c.sig_real is not None and c.family != "F1" and _not_null(c)]
+                    if c.sig_real is not None and c.family != "F1" and _joint(c)]
             sig = [c for c in rows if c.sig_real]
             not_sig = [c for c in rows if not c.sig_real]
             if sig:
@@ -2000,58 +2164,76 @@ def kpi_03(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
 
 def kpi_04(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     """K-BC-04, prediction: the trained model's AUC gap over its yardstick; importance ranks against the replicate."""
-    gaps: "dict[str, list[float]]" = {"twin": [], "replicate": [], "shuffled": []}
-    ranks: "dict[str, list[float]]" = {"twin": [], "replicate": [], "shuffled": []}
+    gaps: "dict[str, dict[tuple[str, int, str], float]]" = {"twin": {}, "replicate": {}, "shuffled": {}}
+    ranks: "dict[str, dict[tuple[str, int, str], float]]" = {"twin": {}, "replicate": {}, "shuffled": {}}
     for r in runs:
         for name, (auc_ab, yard, _rank) in r.tstr_yard.items():
-            if auc_ab < 0.6:
+            if auc_ab < TRAINED_AUC:
                 continue
             for side in gaps:
                 per = [s.tstr[name] for s in r.sides[side] if name in s.tstr]
                 if per:
-                    gaps[side] += [_median([(auc_ab - a) / max(yard, 0.005) for a, _i in per])]
-                    ranks[side] += [_median([i for _a, i in per])]
-    if not gaps["twin"]:
+                    gaps[side][(r.table, r.seed, name)] = _median([(auc_ab - a) / max(yard, 0.005) for a, _i in per])
+                    ranks[side][(r.table, r.seed, name)] = _median([i for _a, i in per])
+    if not gaps["twin"] or not gaps["replicate"] or not gaps["shuffled"]:
         return {f"controls_hold{suffix}": False}
-    worst = {side: max(v) for side, v in gaps.items()}
-    rank_gap = max(rr - tt for rr, tt in zip(ranks["replicate"], ranks["twin"]))
+    worst = {side: max(v.values()) for side, v in gaps.items()}
+    rank_gap = max((ranks["replicate"][k] - ranks["twin"][k] for k in ranks["twin"] if k in ranks["replicate"]),
+                   default=math.nan)
     return {
         f"auc_gap_over_yardstick{suffix}": round(worst["twin"], 2),
         f"auc_gap_over_shuffled{suffix}": round(worst["twin"] - worst["shuffled"], 2),
         f"importance_rank_below_replicate{suffix}": round(rank_gap, 3),
         f"replicate_auc_gap_over_yardstick{suffix}": round(worst["replicate"], 2),
         f"shuffled_auc_gap_over_yardstick{suffix}": round(worst["shuffled"], 2),
-        f"controls_hold{suffix}": bool(worst["replicate"] <= 3.0 and min(gaps["shuffled"]) > 3.0),
+        f"trained_models{suffix}": len(gaps["replicate"]),
+        f"controls_hold{suffix}": bool(worst["replicate"] <= 3.0 and min(gaps["shuffled"].values()) > 3.0),
+        "_detail": "trained models scored: " + ", ".join(f"{t}-{d} {n}" for t, d, n in sorted(gaps["replicate"])),
     }
 
 
+# Tables whose rows are not independent: ST2's rows come several to a
+# subject, which the discriminator's null value (Woo et al.) does not
+# allow for -- the replicate's own ratio there ranged from 2.57 to 15.16
+# over twin seeds at 20,000 rows -- so its ratio stands beside the
+# maximum, not in it; K-BC-06 measures that table.
+CLUSTERED = ("ST2",)
+
+
 def kpi_05(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
-    """K-BC-05, the broad discriminator: the twin's pMSE ratio over the replicate's, worst table."""
+    """K-BC-05, the broad discriminator: the twin's pMSE ratio over the replicate's, worst table.
+
+    On the null table a shuffle IS a perfect twin with exact marginals,
+    its ratio under 1, and on a clustered table the ratio's null value
+    does not hold; the maximum, the shuffled control and the twin's ratio
+    to the shuffle are read on the other tables, and the null and
+    clustered tables' ratios over the replicate stand beside them.
+    """
     over: "dict[str, list[float]]" = {"twin": [], "shuffled": []}
     leaning = []
-    # On the null table a shuffle IS a perfect twin with exact marginals,
-    # its ratio under 1, so the shuffled control and the twin's ratio to
-    # the shuffle are read on the other tables only; the twin's ratio to
-    # the replicate on every table, and on the null table beside it.
     shuffled_control: "list[float]" = []
     twin_control: "list[float]" = []
-    null: "list[float]" = []
+    beside: "dict[str, list[float]]" = {"null": [], "clustered": []}
     for r in runs:
         rep = _median([s.pmse for s in r.sides["replicate"] if s.pmse == s.pmse])
-        for side in over:
-            over[side] += [_median([s.pmse for s in r.sides[side] if s.pmse == s.pmse]) / rep]
-        if r.table != "ST5":
-            shuffled_control += [over["shuffled"][-1]]
-            twin_control += [over["twin"][-1] / over["shuffled"][-1]]
+        ratios = {side: _median([s.pmse for s in r.sides[side] if s.pmse == s.pmse]) / rep for side in over}
+        if r.table == "ST5":
+            beside["null"] += [ratios["twin"]]
+        elif r.table in CLUSTERED:
+            beside["clustered"] += [ratios["twin"]]
         else:
-            null += [over["twin"][-1]]
+            over["twin"] += [ratios["twin"]]
+            shuffled_control += [ratios["shuffled"]]
+            twin_control += [ratios["twin"] / ratios["shuffled"]]
         if r.sides["twin"]:
             leaning += [f"{r.table}: " + ", ".join(r.sides["twin"][0].leaning)]
     return {
-        f"pmse_over_replicate{suffix}": round(max(over["twin"]), 2),
+        f"pmse_over_replicate{suffix}": round(max(over["twin"]), 2) if over["twin"] else None,
         f"pmse_over_shuffled{suffix}": round(max(twin_control), 2) if twin_control else None,
-        f"shuffled_pmse_over_replicate{suffix}": round(min(shuffled_control), 2),
-        f"null_pmse_over_replicate{suffix}": round(max(null), 2) if null else None,
+        f"shuffled_pmse_over_replicate{suffix}": round(min(shuffled_control), 2) if shuffled_control else None,
+        f"null_pmse_over_replicate{suffix}": round(max(beside["null"]), 2) if beside["null"] else None,
+        f"clustered_pmse_over_replicate{suffix}": (round(max(beside["clustered"]), 2)
+                                                   if beside["clustered"] else None),
         f"controls_hold{suffix}": bool(shuffled_control and min(shuffled_control) > 3.0),
         "_detail": "the discriminator rests most on " + "; ".join(leaning),
     }
@@ -2068,8 +2250,11 @@ def kpi_06(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
                                 - r.yard.real.estimates["ST2/mixed:icc"].value) for s in r.sides[side]])
                    for r in st2)
 
-    outside = max(_median([sum(1 for c in s.compared if c.key.startswith("ST2/mixed:") and c.key != "ST2/mixed:icc"
-                               and not c.inside) for s in r.sides["twin"]]) for r in st2)
+    def outside(side: str) -> int:
+        return int(max(_median([sum(1 for c in s.compared if c.key.startswith("ST2/mixed:")
+                                    and c.key != "ST2/mixed:icc" and not c.inside) for s in r.sides[side]])
+                       for r in st2))
+
     def held(panel: Panel, key: str) -> float:
         got = panel.estimates.get(key)
         return 0.0 if got is None else got.value
@@ -2077,10 +2262,16 @@ def kpi_06(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     tvd = max(_median([0.5 * sum(abs(held(s.panel, f"ST2/rows:{k}") - held(r.yard.real, f"ST2/rows:{k}"))
                                  for k in range(1, 9)) for s in r.sides["twin"]]) for r in st2)
     gaps = {side: icc_gap(side) for side in ("twin", "replicate", "shuffled")}
+    # A fixed effect is outside its yardstick for a fresh sample too (a
+    # perfect twin had two of five outside, median over seeds, at 20,000
+    # rows): the twin's count is read against the replicate's.
+    twin_out, rep_out = outside("twin"), outside("replicate")
     return {
         f"icc_gap{suffix}": round(gaps["twin"], 3),
         f"icc_gap_over_shuffled{suffix}": round(gaps["twin"] - gaps["shuffled"], 3),
-        f"fixed_effects_outside{suffix}": int(outside),
+        f"fixed_effects_outside{suffix}": twin_out,
+        f"replicate_fixed_effects_outside{suffix}": rep_out,
+        f"fixed_effects_outside_over_replicate{suffix}": twin_out - rep_out,
         f"rows_per_subject_tvd{suffix}": round(tvd, 3),
         f"replicate_icc_gap{suffix}": round(gaps["replicate"], 3),
         f"shuffled_icc_gap{suffix}": round(gaps["shuffled"], 3),
@@ -2133,25 +2324,43 @@ def kpi_09(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     return _gap_kpi(runs, lambda c: "curve" in c.tags, 20.0, suffix)
 
 
+def fragile(run: TableRun) -> "set[str]":
+    """The robust analyses that stop on at least one replicate draw of the run: no twin is charged for them."""
+    return {n for n in run.yard.robust
+            if any(s.panel.status.get(n, "missing") != "ok" for s in run.sides["replicate"])}
+
+
 def kpi_10(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
-    """K-BC-10, runs unchanged: robust analyses that stop on the table and not on the real one."""
+    """K-BC-10, runs unchanged: robust analyses that stop on the table and not on the real one.
+
+    A twin or shuffle is charged only with analyses that run on every
+    replicate draw of the same table run: one a fresh sample stops on too
+    is the analysis's fragility, not the twin's, and is named beside. The
+    replicate's own count stays whole, as its control.
+    """
+    weak = {(r.table, r.seed): fragile(r) for r in runs}
+
     def count(side: str) -> int:
         per = []
         k_max = max((len(r.sides[side]) for r in runs), default=0)
         for k in range(k_max):
-            per += [sum(len(r.sides[side][k].stops) for r in runs if k < len(r.sides[side]))]
+            per += [sum(len([n for n in r.sides[side][k].stops
+                             if side == "replicate" or n not in weak[(r.table, r.seed)]])
+                        for r in runs if k < len(r.sides[side]))]
         return int(_median(per)) if per else 0
 
     named = sorted({f"{n} ({r.sides['twin'][0].panel.status.get(n)})" for r in runs if r.sides["twin"]
-                    for n in r.sides["twin"][0].stops})
+                    for n in r.sides["twin"][0].stops if n not in weak[(r.table, r.seed)]})
     counts = {side: count(side) for side in ("twin", "replicate", "shuffled")}
     return {
         f"analyses_stopping{suffix}": counts["twin"],
         f"replicate_stopping{suffix}": counts["replicate"],
         f"shuffled_stopping{suffix}": counts["shuffled"],
         f"robust_analyses{suffix}": sum(len(r.yard.robust) for r in runs),
+        f"fragile_analyses{suffix}": sum(len(v) for v in weak.values()),
         f"controls_hold{suffix}": bool(counts["replicate"] == 0 and counts["shuffled"] >= 1),
-        "_detail": "stopping on today's twin: " + ("; ".join(named) or "none"),
+        "_detail": "stopping on today's twin: " + ("; ".join(named) or "none") + "; stopping on a replicate draw: "
+        + ("; ".join(f"{t}-{d} {n}" for (t, d), names in sorted(weak.items()) for n in sorted(names)) or "none"),
     }
 
 
@@ -2168,31 +2377,53 @@ def kpi_11(runs: "list[TableRun]") -> "dict[str, object]":
             "report_block": block}
 
 
+# K-BC-12's controls: the replicate's stable-and-inside share is at least
+# this, and the shuffled twin and the thin replicate each stand more than
+# STABLE_GAP points under it.
+STABLE_REPLICATE = 0.5
+STABLE_GAP = 25.0
+
+
 def kpi_12(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
-    """K-BC-12, twin-seed stability: the spread over twin seeds against the yardstick."""
-    def stable(side: str) -> float:
+    """K-BC-12, twin-seed stability that is also fidelity.
+
+    Per supported joint estimate, a side scores it where its values over
+    the twin seeds spread no more than the yardstick AND lie inside the
+    yardstick on a majority of the seeds. Stability alone is not fidelity
+    -- today's twin and a column-wise shuffle are each stable at the
+    wrong answer (0.857 and 0.858 of estimates at 20,000 rows, against
+    the replicate's 0.897) -- so both are asked. The negative controls are
+    the shuffled twin (stable, not inside) and the thin replicate (inside
+    no more steadily than its own noise allows).
+    """
+    def share(side: str) -> float:
         hits = total = 0
         for r in runs:
             seeds = r.sides[side]
             if len(seeds) < 2:
                 continue
             for key, h in r.yard.h.items():
-                if key.startswith("ST5/"):
-                    continue
-                values = [s.panel.estimates[key].value for s in seeds if key in s.panel.estimates]
-                if len(values) < 2:
+                real = r.yard.real.estimates[key]
+                if key.startswith("ST5/") or "margin" in real.tags:
                     continue
                 total += 1
-                hits += 1 if statistics.stdev(values) <= h else 0
+                values = [s.panel.estimates[key].value for s in seeds if key in s.panel.estimates]
+                inside = sum(1 for v in values if abs(v - real.value) <= h)
+                if len(values) >= 2 and statistics.stdev(values) <= h and inside * 2 > len(seeds):
+                    hits += 1
         return hits / total if total else math.nan
 
-    values = {side: stable(side) for side in ("twin", "replicate", "shuffled", "thin")}
+    values = {side: share(side) for side in ("twin", "replicate", "shuffled", "thin")}
+    under = {side: 100.0 * (values["replicate"] - values[side]) for side in values}
     return {
         f"stable_share{suffix}": round(values["twin"], 3),
+        f"points_below_replicate{suffix}": round(under["twin"], 1),
+        f"points_below_shuffled{suffix}": round(under["twin"] - under["shuffled"], 1),
         f"replicate_stable_share{suffix}": round(values["replicate"], 3),
         f"shuffled_stable_share{suffix}": round(values["shuffled"], 3),
         f"thin_stable_share{suffix}": round(values["thin"], 3),
-        f"controls_hold{suffix}": bool(values["replicate"] >= 0.8 and values["thin"] < 0.8),
+        f"controls_hold{suffix}": bool(values["replicate"] >= STABLE_REPLICATE and under["shuffled"] > STABLE_GAP
+                                       and under["thin"] > STABLE_GAP),
     }
 
 
@@ -2223,14 +2454,24 @@ def controls_failing(values: "dict[str, dict[str, object]]") -> "list[str]":
                   and hold is False)
 
 
+_FAST: "dict[str, object]" = {}
+
+
 def fast_run(folder: pathlib.Path) -> "dict[str, object]":
-    """The suite's part: ST1 and ST2 at 5,000 rows, one seed, the controls and today's twin, timed."""
-    started = time.perf_counter()
-    runs = run_tables("fast", folder)
-    values = kpi_values(runs)
-    values["K-BC-11"] = kpi_11(runs)
-    seconds = time.perf_counter() - started
-    return {"runs": runs, "values": values, "seconds": seconds}
+    """The suite's part: ST1 and ST2 at 5,000 rows, one seed, the controls and today's twin, timed.
+
+    Run once per process and kept (a few megabytes of panels, no table):
+    the KPI tests (`tests/test_kpi_ledger.py`) and the controls' own tests
+    (`tests/test_analyst_battery.py`) read the same run, so a shard holding
+    both runs it once. ``folder`` is the first caller's.
+    """
+    if not _FAST:
+        started = time.perf_counter()
+        runs = run_tables("fast", folder)
+        values = kpi_values(runs)
+        values["K-BC-11"] = kpi_11(runs)
+        _FAST.update({"runs": runs, "values": values, "seconds": time.perf_counter() - started})
+    return dict(_FAST)
 
 
 def iterate(runs: "list[TableRun]") -> "Iterator[Compared]":

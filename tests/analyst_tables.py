@@ -263,6 +263,56 @@ def st4(rows: int, seed: int) -> "Iterator[list[str]]":
         ]
 
 
+def st4_outcome_estimand(step: float = 0.5) -> float:
+    """The chapter-B coefficient that ST4's targeted outcome model reaches on the whole population.
+
+    The model `outcome ~ chB + chD + chG + weight10` (the battery's
+    `st4_chapters`) keeps every other chapter in its reference, and the
+    even ones among them carry the rare codes' 2.5 on the codes from the
+    twentieth on. So chapter B's estimand is not CHAPTER_OUTCOME[1] but
+    the population maximum-likelihood coefficient of that misspecified
+    model: the zero of its expected score over the generator's own
+    distributions -- chapters by CHAPTER_WEIGHT, codes by CODE_WEIGHT,
+    weight max(35, N(80, 15)) on a grid of ``step`` kilograms -- found by
+    Newton's method on the five coefficients.
+    """
+    import statistics
+
+    import analyst_kit as K
+
+    chapter_share = [w / sum(CHAPTER_WEIGHT) for w in CHAPTER_WEIGHT]
+    rare_share = sum(CODE_WEIGHT[20:]) / sum(CODE_WEIGHT)
+    normal = statistics.NormalDist(80.0, 15.0)
+    grid = [35.0 + step * i for i in range(int((150.0 - 35.0) / step) + 1)]
+    weights = [(normal.cdf(w + step / 2) - (0.0 if w == 35.0 else normal.cdf(w - step / 2)), w) for w in grid]
+    cells: "list[tuple[float, list[float], float]]" = []
+    hot = {1: 1, 3: 2, 6: 3}
+    for chapter, share in enumerate(chapter_share):
+        for rare, rare_p in ((0, 1.0 - rare_share), (1, rare_share)):
+            lift = 2.5 if rare and chapter % 2 == 0 else 0.0
+            for mass, w in weights:
+                x = [1.0, 0.0, 0.0, 0.0, (w - 80.0) / 10.0]
+                if chapter in hot:
+                    x[hot[chapter]] = 1.0
+                mu = _logistic(-5.6 + CHAPTER_OUTCOME[chapter] + lift + 0.02 * (w - 80.0))
+                cells += [(share * rare_p * mass, x, mu)]
+    beta = [math.log(0.005 / 0.995), 0.0, 0.0, 0.0, 0.0]
+    for _ in range(50):
+        score = [0.0] * 5
+        info = [[0.0] * 5 for _ in range(5)]
+        for p, x, mu in cells:
+            fitted = _logistic(sum(b * v for b, v in zip(beta, x)))
+            for i in range(5):
+                score[i] += p * x[i] * (mu - fitted)
+                for j in range(5):
+                    info[i][j] += p * x[i] * x[j] * fitted * (1.0 - fitted)
+        move = K.solve(K.cholesky(info), score)
+        beta = [b + m for b, m in zip(beta, move)]
+        if max(abs(m) for m in move) < 1e-12:
+            break
+    return beta[1]
+
+
 BUILDERS = {"ST1": st1, "ST2": st2, "ST3": st3, "ST4": st4, "ST5": st5, "ST6": st6}
 HEADERS = {
     "ST1": ST1_COLUMNS, "ST2": ST2_COLUMNS, "ST3": ST3_COLUMNS,
@@ -338,7 +388,10 @@ _ST4_TRUTHS = {
     "dose from weight and rate": ("ST4/ols:dose_weight", None),
     "visits by chapter D": ("ST4/poisson:visits_chD", 0.5),
     "private payer visits": ("ST4/poisson:visits_private", 0.2),
-    "outcome by chapter": ("ST4/logistic:outcome_chB", 1.0),
+    # Not CHAPTER_OUTCOME[1] = 1.0: the model's reference holds the even
+    # chapters' rare codes, so its population estimand is lower, as
+    # st4_outcome_estimand() computes from the generator's constants.
+    "outcome by chapter": ("ST4/logistic:outcome_chB", 0.702),
 }
 _ST5_TRUTHS = {
     "no association anywhere": ("ST5/null:significant_share", 0.05),

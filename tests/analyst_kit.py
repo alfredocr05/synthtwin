@@ -373,10 +373,13 @@ def glm(
         if max(abs(s) for s in step) < tol * (1.0 + max(abs(b) for b in beta)):
             converged = True
             break
-    if strict and not converged:
-        raise FitTrouble("no convergence", f"{max_iter} steps did not settle")
+    # Separation first: a separated term's coefficient runs off without
+    # end, so its steps never settle either, and the name an analyst's
+    # software gives it is the separation, not the steps.
     if strict and family == "logistic" and extreme:
         raise FitTrouble("separation", "a fitted probability reached 0 or 1")
+    if strict and not converged:
+        raise FitTrouble("no convergence", f"{max_iter} steps did not settle")
     extra = {"deviance": deviance, "settled": 1.0 if converged and not extreme else 0.0}
     if family == "poisson":
         extra["dispersion"] = pearson / (n - p)
@@ -506,6 +509,13 @@ def random_intercept(
             held[2] += part[k]
     _symmetrize(xtx)
     stats = [(held[0], held[1], held[2]) for held in per.values()]
+    # Where no group holds two rows, or one group holds them all, the
+    # likelihood is flat in lam (measured: an ICC anywhere from 0.003 to
+    # 0.98 over eight seeds of one-row groups), and an analyst's software
+    # refuses the model (lme4: a grouping factor with as many levels as
+    # rows, or one level). So does this one.
+    if sum(ni - 1 for ni, _x1, _y1 in stats) == 0 or len(stats) < 2:
+        raise FitTrouble("singular", "no group holds two rows, or one group holds every row")
     total = design.rows
 
     def at(lam: float) -> "tuple[float, list[float], float, list[list[float]]]":
@@ -691,6 +701,31 @@ def chi2_sf(statistic: float, df: int) -> float:
         if abs(delta - 1.0) < 1e-15:
             break
     return lead * h
+
+
+def kruskal_wallis(values: "Sequence[float]", labels: "Sequence[object]") -> "tuple[float, int]":
+    """Kruskal-Wallis H with the ties correction, and its degrees of freedom (groups - 1).
+
+    H = 12 / (n (n + 1)) sum R_g^2 / n_g - 3 (n + 1), over average ranks,
+    divided by 1 - sum (t^3 - t) / (n^3 - n) over the tied runs; its tail
+    is `chi2_sf(H, groups - 1)`. Where every value is tied, H is 0.
+    """
+    n = len(values)
+    if n == 0:
+        raise FitTrouble("empty", "no values")
+    r = ranks(values)
+    sums: "dict[object, float]" = {}
+    counts: "dict[object, int]" = {}
+    for rank, label in zip(r, labels):
+        sums[label] = sums.get(label, 0.0) + rank
+        counts[label] = counts.get(label, 0) + 1
+    h = 12.0 / (n * (n + 1.0)) * sum(sums[g] ** 2 / counts[g] for g in sums) - 3.0 * (n + 1.0)
+    runs: "dict[float, int]" = {}
+    for v in values:
+        runs[v] = runs.get(v, 0) + 1
+    tied = sum(t ** 3 - t for t in runs.values())
+    correction = 1.0 - tied / (n ** 3 - n) if n > 1 else 0.0
+    return (max(h, 0.0) / correction if correction > 0 else 0.0), len(sums) - 1
 
 
 def contingency(a: "Sequence[object]", b: "Sequence[object]") -> "dict[tuple[object, object], int]":

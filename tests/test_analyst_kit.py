@@ -22,9 +22,15 @@ another way:
   zero and its information the numerical second derivative;
 * the spline to Harrell's formula, linear past its outer knots;
 * the chi-square tail to its closed forms at one and two degrees of
-  freedom, and the Kaplan-Meier median to a hand count;
-* and the fits a table cannot carry -- a separated outcome, a repeated
-  term, no rows -- refused by name.
+  freedom, and the Kaplan-Meier median to a hand count, a curve landing
+  on exactly a half among them;
+* Kruskal-Wallis H to its formula over ranks counted pair by pair, with
+  the ties correction;
+* the booster's own bin for a missing cell, where the missing cell carries the
+  signal;
+* and the fits a table cannot carry -- a separated outcome (complete or
+  quasi), a repeated term, no rows, a random intercept with no group of
+  two rows -- refused by name.
 
 Every case is built here from fixed numbers or a seeded draw.
 """
@@ -252,19 +258,98 @@ def test_the_kaplan_meier_median_is_the_hand_count() -> None:
     assert K.km_median(time, event) == 9.0
 
 
+def test_the_kaplan_meier_median_is_the_first_time_the_curve_reaches_a_half() -> None:
+    """Four subjects, events at 1 and 2: the curve steps to 0.75, then to exactly 0.5 at 2, the median."""
+    assert K.km_median([1, 2, 3, 4], [1, 1, 0, 0]) == 2.0
+    assert K.km_median([1, 2, 3, 4], [1, 0, 0, 0]) is None
+
+
+@pytest.mark.parametrize("groups", [
+    ([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]),
+    ([1.0, 2.0, 2.0], [2.0, 3.0, 3.0], [1.0, 3.0]),
+    ([5.0, 5.0, 5.0, 1.0], [5.0, 2.0], [9.0, 9.0, 1.0]),
+])
+def test_kruskal_wallis_is_its_formula_over_ranks_counted_pair_by_pair(groups: "tuple[list[float], ...]") -> None:
+    """H = 12/(n(n+1)) sum R^2/n_g - 3(n+1), over 1 - sum(t^3 - t)/(n^3 - n); two groups of three untied: 27/7."""
+    values = [v for g in groups for v in g]
+    labels = [k for k, g in enumerate(groups) for _v in g]
+    n = len(values)
+    counted = [sum(1 for w in values if w < v) + (sum(1 for w in values if w == v) + 1) / 2 for v in values]
+    sums = [sum(r for r, k in zip(counted, labels) if k == g) for g in range(len(groups))]
+    h = 12 / (n * (n + 1)) * sum(s * s / len(g) for s, g in zip(sums, groups)) - 3 * (n + 1)
+    ties = sum(values.count(v) ** 3 - values.count(v) for v in set(values))
+    expected = h / (1 - ties / (n ** 3 - n))
+    got, df = K.kruskal_wallis(values, labels)
+    assert df == len(groups) - 1
+    assert got == pytest.approx(expected, abs=1e-12)
+    if len(groups) == 2 and groups[0] == [1.0, 2.0, 3.0]:
+        assert got == pytest.approx(27 / 7, abs=1e-12)
+
+
 def test_a_fit_the_table_cannot_carry_is_refused_by_name() -> None:
     """A separated outcome, a repeated term and no rows each stop with their trouble's name."""
     x = [float(i) for i in range(20)]
     y = [1.0 if v > 9 else 0.0 for v in x]
     with pytest.raises(K.FitTrouble) as separated:
         K.glm(_design({"x": x}, ["x"]), y, "logistic")
-    assert separated.value.kind in ("separation", "no convergence")
+    assert separated.value.kind == "separation"
     with pytest.raises(K.FitTrouble) as repeated:
         K.ols(_design({"x": x, "z": [2.0 * v for v in x]}, ["x", "z"]), [v + 1 for v in x])
     assert repeated.value.kind == "singular"
     with pytest.raises(K.FitTrouble) as empty:
         K.glm(_design({"x": [1.0, 2.0]}, ["x"]), [1.0, 1.0], "logistic")
     assert empty.value.kind == "empty"
+
+
+def test_a_flag_whose_rows_hold_no_event_is_quasi_separation() -> None:
+    """Sixty rows of a flag, every one a non-event, beside a mixed rest: 'separation', not 'no convergence'."""
+    r = random.Random(29)
+    flag = [1.0] * 60 + [0.0] * 340
+    other = [r.gauss(0, 1) for _ in flag]
+    y = [0.0] * 60 + [1.0 if r.random() < 0.3 else 0.0 for _ in range(340)]
+    with pytest.raises(K.FitTrouble) as quasi:
+        K.glm(_design({"flag": flag, "other": other}, ["flag", "other"]), y, "logistic")
+    assert quasi.value.kind == "separation"
+
+
+@pytest.mark.parametrize("groups", ["each row its own", "one for every row"])
+def test_a_random_intercept_with_no_group_of_two_rows_is_refused(groups: str) -> None:
+    """Groups of one row each, or a single group: the likelihood is flat in the variance ratio, so 'singular'."""
+    r = random.Random(31)
+    x = [float(r.randrange(8)) for _ in range(300)]
+    y = [7.5 + 0.02 * v + r.gauss(0, 0.9) for v in x]
+    labels = list(range(300)) if groups == "each row its own" else ["one"] * 300
+    with pytest.raises(K.FitTrouble) as refused:
+        K.random_intercept(_design({"x": x}, ["x"]), y, labels)
+    assert refused.value.kind == "singular"
+    two = [i // 2 for i in range(300)]
+    fit, icc = K.random_intercept(_design({"x": x}, ["x"]), y, two)
+    assert 0.0 <= icc < 0.2 and fit.coef("x")[0] == pytest.approx(0.02, abs=0.05)
+
+
+def test_the_booster_keeps_a_missing_cell_in_a_bin_of_its_own() -> None:
+    """Missing x means an event, the lowest x a non-event: a missing row and a lowest-x row score apart."""
+    r = random.Random(37)
+
+    def draw(n: int) -> "tuple[list[list[float | None]], list[int]]":
+        x: "list[float | None]" = []
+        y = []
+        for _ in range(n):
+            if r.random() < 0.25:
+                x += [None]
+                y += [1 if r.random() < 0.9 else 0]
+            else:
+                v = r.random()
+                x += [v]
+                y += [1 if r.random() < (0.05 if v < 0.2 else 0.4) else 0]
+        return [x], y
+
+    features, y = draw(3000)
+    booster = K.Booster(rounds=20).fit(features, y)
+    missing, lowest = booster.predict([[None, min(v for v in features[0] if v is not None)]])
+    assert missing > lowest + 2.0
+    test_features, test_y = draw(2000)
+    assert K.auc(booster.predict(test_features), test_y) > 0.8
 
 
 def test_the_booster_finds_a_seeded_threshold_and_ignores_noise() -> None:

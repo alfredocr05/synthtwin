@@ -16,7 +16,13 @@ the kit (itself held to closed forms in `tests/test_analyst_kit.py`):
   real table's own estimate;
 * each shape (overdispersion, the centre's censoring, the dose formula,
   the null table's 5 %), and the shares and counts the tables are built
-  to have.
+  to have;
+* the two truths a table of these sizes cannot hold to four standard
+  errors, at sizes that can: ST4's chapter-B outcome, a population
+  estimand of a misspecified model (its stated value checked against its
+  computation from the generator's constants, and a 200,000-row table's
+  estimate within four standard errors under 0.3), and ST1's ward x
+  diabetes readmission, positive and significant at 20,000 rows.
 """
 
 from __future__ import annotations
@@ -145,3 +151,45 @@ def test_a_table_is_its_seeds_bytes_and_every_line_holds_every_column(table: str
     lines = first.splitlines()
     assert lines[0].split(",") == T.HEADERS[table]
     assert all(len(line.split(",")) == len(T.HEADERS[table]) for line in lines[1:])
+
+
+def test_the_chapter_b_truth_is_its_models_population_estimand() -> None:
+    """0.702 from the constants (not CHAPTER_OUTCOME's 1.0), and a 200,000-row table's estimate within 4 SE of it."""
+    key, stated = T.TRUTHS["ST4"]["outcome by chapter"]
+    assert key == "ST4/logistic:outcome_chB"
+    assert abs(T.st4_outcome_estimand() - stated) < 0.005
+    hot = ("B", "D", "G")
+    columns: "dict[str, list[float]]" = {k: [] for k in hot + ("w",)}
+    y: "list[float]" = []
+    at = T.ST4_COLUMNS.index
+    for row in T.st4(200_000, SEED):
+        for k in hot:
+            columns[k] += [float(row[at("code")][:1] == k)]
+        columns["w"] += [(float(row[at("weight")]) - 80.0) / 10.0]
+        y += [float(row[at("outcome")])]
+    terms: "list[tuple[str, K.Term]]" = [("int", K.intercept)] + [(k, B.col(k)) for k in hot + ("w",)]
+    value, se = K.glm(K.Design(columns, terms), y, "logistic").coef("B")
+    assert 4.0 * se < 0.3, se
+    assert abs(value - stated) <= 4.0 * se, (value, se, stated)
+
+
+def test_readmission_by_ward_x_diabetes_is_positive_and_significant_at_20000_rows() -> None:
+    """The rare outcome's plant, which the 2 % readmission hides at 5,000 rows: z over 1.96 at 20,000."""
+    key, _value = T.TRUTHS["ST1"]["readmission by ward x diabetes"]
+    view = B.read(T.text("ST1", 20_000, SEED), "ST1")
+    estimate = {e.key: e for e in B.st1_rare_band(view)}[key]
+    assert estimate.se and estimate.value / estimate.se > B.Z, (estimate.value, estimate.se)
+
+
+def test_the_fast_tiers_three_way_clause_rests_on_one_plant_as_k_bc_02_states(panels: "dict") -> None:
+    """At 5,000 rows diabetes x current smoker's smallest cell is under 22 and ventilation x over 75's is not."""
+    import json
+
+    import kpi_rules
+
+    est = panels["ST1"][1].estimates
+    assert est[T.TRUTHS["ST1"]["diabetes x current smoker on death"][0]].support < B.SUPPORT
+    assert est[T.TRUTHS["ST1"]["ventilation x age over 75 on death"][0]].support >= B.SUPPORT
+    ledger = json.loads(kpi_rules.LEDGER_PATH.read_text(encoding="utf-8"))
+    rule = next(e["rule"] for e in ledger["entries"] if e["id"] == "K-BC-02")
+    assert "diabetes x current smoker" in rule and "ventilation x age over 75 alone" in rule

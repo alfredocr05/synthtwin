@@ -25,6 +25,15 @@ ways:
 written to (default: a temporary folder, removed after). Nothing is
 committed: every table is drawn from its seed at run time.
 
+A RUN KEPT FOR ITS KPIs. Where the environment names a folder in
+``SYNTHTWIN_ANALYST_RUNS``, ``--kpi`` writes each table run there as JSON
+beside a digest of the code its panels come from -- the product's
+source, the kit, the tables, and the battery up to its KPI functions --
+and on a later ``--kpi`` reads a run back instead of running it again
+only where that digest is unchanged: a KPI function changed after the
+runs is re-read over the same panels, and any change to what makes a
+panel runs the tables afresh.
+
 THE NIGHT WAITS ITS TURN. Where the environment names paths in
 ``SYNTHTWIN_PAUSE_WHILE`` (separated as PATH is), the night starts each
 table only once every one of them is absent or an empty folder -- point
@@ -38,6 +47,7 @@ table starts beside a whole suite.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -70,16 +80,44 @@ def emit_values(values: "dict[str, dict[str, object]]") -> None:
         kpi_rules.emit(kpi, B.finite(value), detail)
 
 
+KPI_MARK = "# -- the KPIs --"
+
+
+def panel_code_digest() -> str:
+    """The sha256 of the code a table run's panels come from: src/, the kit, the tables, the battery to its KPIs."""
+    digest = hashlib.sha256()
+    for path in sorted((ROOT / "src").rglob("*.py")):
+        digest.update(str(path.relative_to(ROOT)).encode("utf-8") + b"\0" + path.read_bytes())
+    for name in ("analyst_kit.py", "analyst_tables.py"):
+        digest.update((ROOT / "tests" / name).read_bytes())
+    battery = (ROOT / "tests" / "analyst_battery.py").read_text(encoding="utf-8")
+    digest.update(battery.split(KPI_MARK)[0].encode("utf-8"))
+    return digest.hexdigest()
+
+
 def run_kpi(folder: pathlib.Path) -> None:
-    """The 20,000-row tier, every table and seed in this process."""
+    """The 20,000-row tier, every table and seed in this process (or read back where kept, see the module)."""
     started = time.perf_counter()
+    kept = os.environ.get("SYNTHTWIN_ANALYST_RUNS")
+    code = panel_code_digest()
     runs = []
     for table in B.TIERS["slow"]["tables"]:
         for seed in B.TIERS["slow"]["seeds"]:
+            saved = pathlib.Path(kept) / f"{table}-{seed}.json" if kept else None
+            if saved is not None and saved.exists():
+                record = json.loads(saved.read_text(encoding="utf-8"))
+                if record.get("code") == code:
+                    runs += [B.run_from_dict(record["run"])]
+                    print(f"{table} seed {seed}: read back from {saved}", flush=True)
+                    continue
             run = B.run_table(table, B.TIERS["slow"]["rows"], seed, B.TIERS["slow"]["twins"], "slow",
                               folder / f"{table}-{seed}", thin=True)
             print(f"{table} seed {seed}: {run.seconds:.0f} s ({run.product_seconds:.0f} s in the product)",
                   flush=True)
+            if saved is not None:
+                saved.parent.mkdir(parents=True, exist_ok=True)
+                saved.write_text(json.dumps({"code": code, "run": B.run_to_dict(run)}), encoding="utf-8",
+                                 newline="\n")
             runs += [run]
     values = B.kpi_values(runs, "_20k")
     values["K-BC-12"] = B.kpi_12(runs, "_20k")
