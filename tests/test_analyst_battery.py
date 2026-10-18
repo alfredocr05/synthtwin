@@ -191,6 +191,8 @@ def test_a_perfect_twin_is_charged_with_no_truth_and_no_fixed_effect(fast_runs: 
     perfect = [_perfect(r) for r in fast_runs]
     two = B.kpi_02(perfect)
     assert two["truths_missed_unnamed"] == 0 and two["three_way_missed_unnamed"] == 0
+    assert two["missed_over_replicate_z"] == 0.0 and two["three_way_missed_over_replicate_z"] == 0.0
+    assert B.mcnemar(6, 3) == 1.0 and B.mcnemar(78, 0) > 8.0 and B.mcnemar(0, 0) == 0.0
     assert two["replicate_missed"] == two["truths_measured"] - two["replicate_recovered"] > 0
     assert B.kpi_06(perfect)["fixed_effects_outside_over_replicate"] == 0
     today = B.kpi_02(fast_runs)

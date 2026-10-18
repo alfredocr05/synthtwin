@@ -9227,7 +9227,7 @@
    "headline": true,
    "name": "Seeded truths: each recovered inside its yardstick with the real table's significance decision, or named as not carried",
    "status": "OPEN",
-   "rule": "Each truth of the six tables' truth files (tests/analyst_tables.py: curves, thresholds, interactions, a three-way parity, a rare outcome, dependent missing cells, zero mass, overdispersion, hazards, the ICC, dropout, a fading hazard, censoring by centre, a competing event, a formula, the null table's quiet) is recovered where its estimate is supported, lies inside its yardstick and keeps the real table's significance decision and sign -- on a majority of twin seeds -- or is named in the twin's report as not carried with a reason the floor arithmetic confirms (no such line exists today, K-BC-11). A truth is charged only where the replicate of the same run gets it back; the replicate's misses are counted beside (replicate_missed), never as the twin's. K-S7-01's three-way clause is folded in: three_way_missed_unnamed counts the truths of three columns or more. Bound: the controls hold (the replicate gets back at least half the floor-eligible truths, the shuffled twin at least 25 points fewer) and the truths measured do not fall. Target: none missed and unnamed, none of three columns, at both sizes (checkpoint 4); the finished product's, every truth recovered on four twin seeds of five wherever the replicate is. At 5,000 rows the diabetes x current smoker cell holds about 10 events, under the floor, so the fast part's three-way clause rests on ventilation x age over 75 alone.",
+   "rule": "Each truth of the six tables' truth files (tests/analyst_tables.py: curves, thresholds, interactions, a three-way parity, a rare outcome, dependent missing cells, zero mass, overdispersion, hazards, the ICC, dropout, a fading hazard, censoring by centre, a competing event, a formula, the null table's quiet) is recovered where its estimate is supported, lies inside its yardstick and keeps the real table's significance decision and sign -- on a majority of twin seeds -- or is named in the twin's report as not carried with a reason the floor arithmetic confirms (no such line exists today, K-BC-11). A truth is charged only where the replicate of the same run gets it back; the replicate's misses are counted beside (replicate_missed), never as the twin's. K-S7-01's three-way clause is folded in: three_way_missed_unnamed counts the truths of three columns or more. Bound: the controls hold (the replicate gets back at least half the floor-eligible truths, the shuffled twin at least 25 points fewer) and the truths measured do not fall. Target, at both sizes: McNemar's z of the truths only the replicate gets back against those only the twin gets back at most 2, for all truths and for those of three columns (a perfect twin cannot promise none missed: a stand-in at 20,000 rows missed 6 the replicate got and got 3 it missed, z 1.0). At 5,000 rows the diabetes x current smoker cell holds about 10 events, under the floor, so the fast part's three-way clause rests on ventilation x age over 75 alone.",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9278,10 +9278,10 @@
    },
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
    "target": {
-    "truths_missed_unnamed": 0,
-    "three_way_missed_unnamed": 0,
-    "truths_missed_unnamed_20k": 0,
-    "three_way_missed_unnamed_20k": 0
+    "missed_over_replicate_z": 2,
+    "three_way_missed_over_replicate_z": 2,
+    "missed_over_replicate_z_20k": 2,
+    "three_way_missed_over_replicate_z_20k": 2
    }
   },
   {

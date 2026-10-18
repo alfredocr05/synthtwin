@@ -2068,14 +2068,24 @@ def _recovered(r: TableRun, key: str, side: Side) -> bool:
     return not (row.sig_real and not row.same_sign)
 
 
+def mcnemar(only_replicate: int, only_twin: int) -> float:
+    """McNemar's z of a paired count: (b - c) / sqrt(b + c), 0 where neither side holds one alone."""
+    total = only_replicate + only_twin
+    return 0.0 if total == 0 else round((only_replicate - only_twin) / math.sqrt(total), 2)
+
+
 def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     """K-BC-02, the seeded truths recovered, or named as not carried (today: none named).
 
     A truth is charged to the twin only where the fresh replicate of the
-    same run gets it back: one the replicate misses (a yardstick of four
-    splits is noisy, and a perfect twin missed 15 of 96 at 20,000 rows
-    where the replicate missed 12) is counted beside, as
-    `replicate_missed`, never as the twin's.
+    same run gets it back: one the replicate misses is counted beside, as
+    `replicate_missed`, never as the twin's. Even so a perfect twin, a
+    second draw of the same noise, misses some truths the replicate gets
+    and gets some it misses (measured at 20,000 rows: 6 and 3 of 96 on a
+    stand-in perfect twin, one of the 6 of three columns), so the target
+    is McNemar's paired comparison of the two: the truths only the
+    replicate gets less those only the twin gets, over the square root of
+    their sum, at most 2 -- for all truths and for those of three columns.
     """
     truths = _truth_rows(runs)
     eligible = [(r, p, k) for r, p, k in truths if k in r.yard.h]
@@ -2093,11 +2103,16 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     named: "list[tuple[TableRun, str, str]]" = []
     missed = [x for x in truths if x not in got["twin"] and x not in named and x in got["replicate"]]
     three = [x for x in missed if x[1] in T.THREE_WAY]
+    beyond = [x for x in got["twin"] if x not in got["replicate"]]
+    beyond_three = [x for x in beyond if x[1] in T.THREE_WAY]
     rep_share = len([x for x in got["replicate"] if x in eligible]) / max(1, len(eligible))
     shuf_share = len([x for x in got["shuffled"] if x in eligible]) / max(1, len(eligible))
     return {
         f"truths_missed_unnamed{suffix}": len(missed),
         f"three_way_missed_unnamed{suffix}": len(three),
+        f"missed_over_replicate_z{suffix}": mcnemar(len(missed), len(beyond)),
+        f"three_way_missed_over_replicate_z{suffix}": mcnemar(len(three), len(beyond_three)),
+        f"truths_recovered_beyond_replicate{suffix}": len(beyond),
         f"truths_measured{suffix}": len(truths),
         f"truths_floor_eligible{suffix}": len(eligible),
         f"truths_recovered{suffix}": len(got["twin"]),
