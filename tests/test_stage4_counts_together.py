@@ -13,7 +13,10 @@ reserve readings in five minutes inside one cell. Condition 6 refuses the
 question on entering the first cell.
 """
 
+import importlib.util
+import pathlib
 import random
+import sys
 
 import pytest
 
@@ -231,3 +234,37 @@ def test_seeded_style_questions_are_answered_as_the_walk_as_built_answered(
         fewer += new_states[0] < old_states[0]
         refused += expected is None
     assert refused > 300 and fewer > 30, (refused, fewer)
+
+
+def _sweep_driver() -> object:
+    """tools/measurements/kpi_packing_sweep.py, loaded (it measures nothing on import); sys.path as it was."""
+    place = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_packing_sweep.py"
+    loaded = importlib.util.spec_from_file_location("kpi_packing_sweep_here", place)
+    assert loaded is not None and loaded.loader is not None
+    module = importlib.util.module_from_spec(loaded)
+    was = tuple(sys.path)
+    try:
+        loaded.loader.exec_module(module)
+    finally:
+        sys.path[:] = was
+    return module
+
+
+def test_the_sweep_counts_only_twins_finished_in_under_its_limit() -> None:
+    """K-S4-19's count is of twins that took less than 30 s, never of every twin that ended.
+
+    Codex's review of lane H2 (2026-10-18): the driver counted a twin as
+    finished whenever `generate` returned, so where no alarm stops it
+    (a platform without SIGALRM) a 40-second twin counted toward
+    `sweep_finished_within_30_s`. One late twin beside 29 quick ones is
+    now 29 finished, its 40 s kept as the slowest; a twin at exactly
+    the limit is not under it; a twin the alarm stopped stands at the
+    limit and is not counted.
+    """
+    driver = _sweep_driver()
+    tally = getattr(driver, "sweep_tally")
+    assert getattr(driver, "LIMIT_SECONDS") == 30
+    assert tally([40.0] + [0.5] * 29) == (29, 40.0)
+    assert tally([29.99, 30.0, 1.25]) == (2, 30.0)
+    assert tally([None, 2.5]) == (1, 30.0)
+    assert tally([0.66, 2.6]) == (2, 2.6)

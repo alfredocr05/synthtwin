@@ -20,11 +20,13 @@ at the shipped floor and its twin generated at seed 0:
 * the sweep: the same shape at 3,000, 4,000, 5,000, 6,000, 8,000 and
   10,000 rows, column seeds 1 to 5, 30 twins, each given at most 30 s by
   this driver's own alarm (the product has no limit, plan P2-C3-F1). It
-  records how many finish inside it and the slowest; on 36ad3061, 21 of
-  the 30 passed 30 s.
+  records how many finish in under 30 s and the slowest; on 36ad3061, 21
+  of the 30 passed 30 s.
 
-About two minutes. POSIX only (the alarm); on a platform without
-SIGALRM each twin runs to its end.
+About two minutes. The alarm is POSIX only; on a platform without SIGALRM
+each twin runs to its end, and one that took 30 s or more is still not
+counted as finished in time (`sweep_tally`), its seconds kept as the
+slowest.
 
     .venv/bin/python tools/measurements/kpi_packing_sweep.py --kpi
 """
@@ -44,8 +46,6 @@ sys.path.insert(0, str(ROOT))
 import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
 from synthtwin import generation, rendering  # noqa: E402
-
-kpi_rules.guard_this_tree()
 
 H1_SEED = 20261016
 SWEEP_ROWS = (3000, 4000, 5000, 6000, 8000, 10000)
@@ -83,8 +83,27 @@ def on_alarm(signum: int, frame: object) -> None:
 
 
 ALARM = getattr(signal, "SIGALRM", None)
-if ALARM is not None:
-    signal.signal(ALARM, on_alarm)
+
+
+def sweep_tally(took: "list[float | None]") -> "tuple[int, float]":
+    """The twins that finished in under LIMIT_SECONDS, and the slowest twin's seconds.
+
+    ``took`` holds each twin's seconds, or None where the alarm stopped
+    it. Only a twin that took less than the limit counts as finished in
+    time, so a run that ended late -- where no alarm stopped it -- is
+    measured and kept as the slowest, never counted. A stopped twin
+    stands at the limit, the least it would have taken.
+    """
+    finished = 0
+    slowest = 0.0
+    for seconds in took:
+        if seconds is None:
+            slowest = max(slowest, float(LIMIT_SECONDS))
+            continue
+        if seconds < LIMIT_SECONDS:
+            finished += 1
+        slowest = max(slowest, seconds)
+    return finished, slowest
 
 
 def timed(folder: pathlib.Path, stem: str, text: str) -> "tuple[float | None, str]":
@@ -104,26 +123,32 @@ def timed(folder: pathlib.Path, stem: str, text: str) -> "tuple[float | None, st
     return seconds, hashlib.sha256(rendering.twin_csv(twin).encode("utf-8")).hexdigest()
 
 
-value: "dict[str, object]" = {}
-with tempfile.TemporaryDirectory() as folder:
-    home = pathlib.Path(folder)
-    seconds, digest = timed(home / "h1", "h1-5000", signed_changes(5000, H1_SEED))
-    print(f"H1's column at 5,000 rows: {seconds} s, twin {digest[:16]}", flush=True)
-    value["generate_seconds_5000_rows"] = (
-        round(seconds, 2) if seconds is not None else float(LIMIT_SECONDS)
-    )
-    finished = 0
-    slowest = 0.0
-    for seed in SWEEP_SEEDS:
-        for rows in SWEEP_ROWS:
-            took, digest = timed(home / f"s{seed}-{rows}", f"a-{rows}-s{seed}", signed_changes(rows, seed))
-            print(f"seed {seed}, {rows} rows: {took} s", flush=True)
-            if took is None:
-                slowest = float(LIMIT_SECONDS)
-            else:
-                finished += 1
-                slowest = max(slowest, took)
-    value["sweep_twins"] = len(SWEEP_SEEDS) * len(SWEEP_ROWS)
-    value["sweep_finished_within_30_s"] = finished
-    value["sweep_slowest_generate_seconds"] = round(slowest, 2)
-kpi_rules.emit("K-S4-19", value)
+def main() -> None:
+    kpi_rules.guard_this_tree()
+    if ALARM is not None:
+        signal.signal(ALARM, on_alarm)
+    value: "dict[str, object]" = {}
+    with tempfile.TemporaryDirectory() as folder:
+        home = pathlib.Path(folder)
+        seconds, digest = timed(home / "h1", "h1-5000", signed_changes(5000, H1_SEED))
+        print(f"H1's column at 5,000 rows: {seconds} s, twin {digest[:16]}", flush=True)
+        value["generate_seconds_5000_rows"] = (
+            round(seconds, 2) if seconds is not None else float(LIMIT_SECONDS)
+        )
+        took: "list[float | None]" = []
+        for seed in SWEEP_SEEDS:
+            for rows in SWEEP_ROWS:
+                spent, digest = timed(
+                    home / f"s{seed}-{rows}", f"a-{rows}-s{seed}", signed_changes(rows, seed)
+                )
+                print(f"seed {seed}, {rows} rows: {spent} s", flush=True)
+                took += [spent]
+        finished, slowest = sweep_tally(took)
+        value["sweep_twins"] = len(SWEEP_SEEDS) * len(SWEEP_ROWS)
+        value["sweep_finished_within_30_s"] = finished
+        value["sweep_slowest_generate_seconds"] = round(slowest, 2)
+    kpi_rules.emit("K-S4-19", value)
+
+
+if __name__ == "__main__":
+    main()
