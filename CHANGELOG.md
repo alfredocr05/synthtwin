@@ -18,9 +18,10 @@ such a question at once: the twin builds in under a second at 5,000 rows,
 and 30 of 30 such columns from 3,000 to 10,000 rows finish in under three
 seconds, where 21 took more than 30. Every twin and report is the same
 bytes as before (plan P4-D403). New KPIs: `K-S4-18`, the refusal's
-counts of work, and `K-S4-19`, the seconds, recorded. A packing question
-that holds enough rows but no fill of whole groups can still walk a long
-time (`K-S4-04`, open).
+counts of work, and `K-S4-19`, the seconds, recorded; its driver counts
+a column as finished only when it took under 30 s, even where no alarm
+stops a slow one. A packing question that holds enough rows but no fill
+of whole groups can still walk a long time (`K-S4-04`, open).
 
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
