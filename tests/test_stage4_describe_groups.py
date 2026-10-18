@@ -37,7 +37,8 @@ which is the code before the lane:
 3. The file's text is never read whole for a plain file, and the reader
    holds one group: the most `tracemalloc` sees `synthtwin profile`
    hold, reading a wide table one column a group, is under half what it
-   holds reading it whole.
+   holds reading it whole; and each walk is read only once the walk
+   before it is let go.
 4. A file that changes between two readings is refused, however small
    the change, and no reading of it is mixed with another.
 5. `reading.column_values` gives back any column, in any order, any
@@ -57,6 +58,7 @@ import pathlib
 import random
 import tracemalloc
 import warnings
+import weakref
 
 import pytest
 
@@ -575,3 +577,30 @@ def test_a_run_of_groups_is_held_together(tmp_path: pathlib.Path, monkeypatch: p
     assert reading.column_values(read, 4) == [f"{k % 3}" for k in range(60)]
     assert reading.column_values(read, 3)[2] == "y2"
     assert reads == []
+
+
+def test_the_walk_held_before_is_let_go_before_the_next_walk_is_read(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sweep reads each walk after the one before is let go, so two walks' cells are never held at once."""
+    table = tmp_path / "t.csv"
+    table.write_text("a,b,c\n" + "".join(f"{k},x{k},{k % 7}\n" for k in range(80)), encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "_GROUPS_A_WALK", 1)
+    walked: "list[weakref.ref[object]]" = []
+    alive_when_read: "list[int]" = []
+    walk = reading._walk_a_group
+
+    def watched(*arguments: object) -> object:
+        if arguments[6]:
+            alive_when_read.append(sum(1 for one in walked if one() is not None))
+        found = walk(*arguments)  # type: ignore[arg-type]
+        if arguments[6]:
+            walked.append(weakref.ref(found[0]))  # type: ignore[index]
+        return found
+
+    monkeypatch.setattr(reading, "_walk_a_group", watched)
+    read = reading.read_table(str(table), in_groups=True)
+    assert reading.column_groups(read) == ((0, 1), (1, 2), (2, 3))
+    assert alive_when_read == [0, 0, 0]
+    assert reading.column_values(read, 1)[3] == "x3"

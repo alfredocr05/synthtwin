@@ -3368,6 +3368,9 @@ def _sweep(
         ]
         held_from = start
         last = reading
+        # Only `last` and `held` keep this walk once its loop is done, so
+        # the next walk is read after both are let go, never beside it.
+        del reading, surveyed
     if last is None or last.survey is None:
         raise ValueError("synthtwin internal check: a sweep of no group")
     if differences:
