@@ -31,9 +31,17 @@ beside a declared person column, and a key's `-1` no longer silences its
 width question. A scripted run holds 158 column readings of the suite's
 batteries until they are answered, the price the ruling accepted.
 Names, street addresses and birth dates stay published and are stated
-limits owned by lane HX2. KPI `K-S3-64` (new): real identifier values
-over 32 shapes at 600 and 20,000 rows, 2,569 in what is published and
-580,712 twin cells before, 0 now.
+limits owned by lane HX2. A numeric patient key that repeats on its
+patients' rows -- five figures or more, beside `0`, `-99` or `UNKNOWN`
+for nobody, or exported as `100001.0` -- is asked the person question and
+held too, and so are registers of telephone numbers with an extension,
+spaced social security numbers, internet and web addresses, card
+numbers and e-mail addresses after a name, even with a stray cell among
+them. An answer written in a questions file survives the file the run
+writes being handed back, and a held column's twin meets its own
+validation. KPI `K-S3-64` (new): real identifier values over 49 shapes
+at 600 and 20,000 rows, 3,809 in what is published and 884,739 twin
+cells before, 0 now.
 
 ### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
 

@@ -4351,7 +4351,7 @@ and then, always:
 
 > as you said, this column writes its dates as MEANS («1»). Its cells are read as the dates they count and described as dates, and the twin writes each date back as the same count, spelled as this column spells its counts (`count_form`); a number that counts no date -- or one of the numbers such a count writes where no date was given, 1 January 1900 or 31 December 9999 -- is counted as no value and written back as it was written, whatever --keep-value names
 
-**NF125. `evidence_unanswered_identity` — a record number nobody declared** — arity 0 (lane HX, plan P4-D401). The detection evidence of a column a question offering `identifier` was put to and nobody answered -- the person question, the two-numbers question, or the question answered by a measurement, a code or a record number; no question about dates or times alone, and not the checklist of columns read as numbers (C6-80a). Its block is the record-number block NF16's column carries, with `layout_prefixes` empty and the census of repetition C6-80a defines, and its name stands in `settings.forced_identifiers` beside the declared ones; `settings.person_columns` does not change, so the population stays counted as it was. Any answer gives the column the block that answer describes.
+**NF125. `evidence_unanswered_identity` — a record number nobody declared** — arity 0 (lane HX, plan P4-D401). The detection evidence of a column a question offering `identifier` was put to and nobody answered -- the person question, the two-numbers question, or the question answered by a measurement, a code or a record number; no question about dates or times alone, and not the checklist of columns read as numbers (C6-80a), though a key of figures repeating on its patients' rows is put the person question by its route four. Its block is the record-number block NF16's column carries, with `layout_prefixes` empty and the census of repetition C6-80a defines, and its name stands in `settings.forced_identifiers` beside the declared ones; `settings.person_columns` does not change, so the population stays counted as it was. Any answer gives the column the block that answer describes.
 
 > synthtwin asked a question about this column that the answer `identifier` is among, and nobody has answered it yet, so until it is answered it is described as record numbers and none of its values is published
 
@@ -7962,15 +7962,20 @@ offering `identifier` to -- the person question, the two-numbers
 question, or the question answered by a measurement, a code or a
 record number; never a question about dates or times alone, nor the
 checklist of columns read as numbers, which lists every measurement of
-a table -- that nobody answered, where the run was scripted. Its
+a table (a key of figures repeating on its patients' rows, which only
+the checklist listed until lane HX's second repair, is put the person
+question by its route four, plan P4-D401) -- that nobody answered,
+where the run was scripted. Its
 detection evidence is NF125 and its `layout_prefixes` is empty; its
 census of repetition is the one counts the block already publishes
 imply: each PART of the present cells -- each layout `layout_forms`
 names, its pool, and the cells no layout names -- holds a share of
-`n_distinct` in proportion to its rows (rounded down, at least one and
-at most its rows, then moved one value at a time until the shares close
-on `n_distinct`), and each part's rows are spread over its values as
-evenly as whole rows go, so the twin can meet the census beside the
+`n_distinct` in proportion to its rows (rounded down, at least one, at
+most its rows and at most the values its layout can write -- ten a
+figure's place, twenty-six a letter's, sixteen a hexadecimal
+character's; then the largest remainders move one value at a time until
+the shares close on `n_distinct`), and each part's rows are spread over
+its values as evenly as whole rows go, so the twin can meet the census beside the
 layouts. No count, shape or measure of the values sends it here
 either: the question was put, and the answer did not come. Any answer
 gives the column the block that answer names.
