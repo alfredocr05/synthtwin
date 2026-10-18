@@ -315,3 +315,26 @@ def test_at_the_slow_tier_a_trained_model_predicts_every_two_valued_column() -> 
     assert [c.name for c in B.trained_outcomes(columns, "ST1", "fast")] == ["died"]
     assert [c.name for c in B.trained_outcomes(columns, "ST1", "night")] == ["died"]
     assert B.trained_outcomes(columns, "ST3", "fast") == []
+
+
+def test_the_battery_entries_bounds_can_fail_and_state_the_tiers_they_judge() -> None:
+    """No share-gap bound at 100 points or more, the fast part's seconds bound at the lane's 60, K-BC-05's key columns as run."""
+    import json
+
+    import kpi_rules
+
+    ledger = json.loads(kpi_rules.LEDGER_PATH.read_text(encoding="utf-8"))
+    entries = {e["id"]: e for e in ledger["entries"] if e["id"].startswith("K-BC-")}
+    assert len(entries) == 13
+    for kid, entry in entries.items():
+        for key, bound in entry["expected"].items():
+            if key.startswith("points_below_shuffled"):
+                assert bound < 100, (kid, key, bound)
+    for kid in ("K-BC-07", "K-BC-08", "K-BC-09"):
+        assert "points_below_shuffled" not in entries[kid]["expected"]
+        assert "the controls alone are judged" in entries[kid]["rule"]
+    assert entries["K-BC-13"]["expected"]["fast_part_seconds"] <= 60.0
+    words = {6: "six", 8: "eight", 10: "ten"}
+    assert (f"the first {words[B.TIERS['slow']['keys']]} key columns ({words[B.TIERS['fast']['keys']]} at 5,000 rows)"
+            in entries["K-BC-05"]["rule"])
+    assert B.TIERS["night"]["keys"] == B.TIERS["slow"]["keys"]
