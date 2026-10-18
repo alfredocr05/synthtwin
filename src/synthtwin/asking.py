@@ -3348,10 +3348,10 @@ def _key_figures(value: str) -> "str | None":
 
 
 def _a_key_placeholder(value: str) -> bool:
-    """Whether a cell is what a key writes for nobody: a lone `0`, a minus
-    sign and one to three figures, or one word of letters alone."""
-    if value == "0":
-        return True
+    """Whether a cell is what a key writes for nobody: a minus sign and one
+    to three figures, or one word of letters alone. A lone `0` is a whole
+    number (`_key_figures`), so route four counts it with the keys, as one
+    narrow value beside values five figures wide."""
     if value[:1] == "-" and 2 <= len(value) <= 4:
         return _is_plain_whole_number(value[1:])
     if not value:
