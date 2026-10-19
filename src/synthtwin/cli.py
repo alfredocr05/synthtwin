@@ -2812,6 +2812,29 @@ def _withheld_notice(names: "tuple[str, ...]") -> str:
     )
 
 
+def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
+    """What the screen says of the columns whose values were counted in people.
+
+    Plan P4-D406. On a table of several rows a person, a value fewer
+    than the smallest group size of PEOPLE hold is not published however
+    many rows hold it; its cells are counted with the blanks, and the
+    twin writes blanks there.
+
+    Guarantees: accepts the columns and the floor; returns one
+    paragraph. A fixed function of the names, which are the table's own
+    column names and are published in the description like every other.
+    Raises nothing, opens no file.
+    """
+    return (
+        f"\nVALUES HELD BY FEWER THAN {floor} PEOPLE\n"
+        f"This table has several rows a person, so each value of "
+        f"{_joined(list(names), ' and ')} was counted in people as well "
+        f"as rows: a value fewer than {floor} people hold is not "
+        f"published however many rows hold it. Its cells are counted "
+        f"with the blanks, and the twin writes blanks there."
+    )
+
+
 def _small_population_notice(spoken: str, person_columns: str) -> str:
     """The notice a table between the floor and the line gets, on the screen.
 
@@ -3702,6 +3725,9 @@ def _run_profile(
 
     census_box = [census_readings]
     census_readings = ()
+    # The columns whose values the count in people changed (plan
+    # P4-D406), named on the screen.
+    counted_in_people: "list[str]" = []
     document = profile.build_document(
         read,
         settings,
@@ -3719,6 +3745,9 @@ def _run_profile(
         # until the whole table is.
         readings=_handed_once(census_box),
         stored_as=storage,
+        # -- P4-D406: every value counted in the declared people too.
+        subjects=list(person_columns),
+        counted_in_subjects=counted_in_people,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -4066,6 +4095,7 @@ def _run_profile(
                 )
                 census_box = [census_readings]
                 census_readings = ()
+                counted_in_people = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -4078,6 +4108,8 @@ def _run_profile(
                     table_notes=population_notes,
                     readings=_handed_once(census_box),
                     stored_as=storage,
+                    subjects=list(person_columns),
+                    counted_in_subjects=counted_in_people,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -4249,6 +4281,9 @@ def _run_profile(
     published = document
     if withheld:
         _warn(_withheld_notice(withheld))
+        # ...and the candidates of the open person question are the
+        # people every other value is counted in (plan P4-D406).
+        counted_in_people = []
         published = profile.build_document(
             read,
             settings,
@@ -4261,6 +4296,15 @@ def _run_profile(
             table_notes=population_notes,
             stored_as=storage,
             unanswered=list(withheld),
+            subjects=list(person_columns)
+            + [name for name in person_asked if name in withheld],
+            counted_in_subjects=counted_in_people,
+        )
+    if counted_in_people:
+        _warn(
+            _counted_in_people_notice(
+                tuple(dict.fromkeys(counted_in_people)), settings.small_cell_floor
+            )
         )
 
     # The summary crosses the boundary ONCE, here, and the same text is

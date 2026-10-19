@@ -130,7 +130,7 @@ def _patient_more(kind: str, place: int, draw: random.Random) -> str:
 
 
 def _patient(kind: str, place: int, draw: random.Random) -> str:
-    base = kind[: -len("_beside")] if kind.endswith("_beside") else kind
+    base = _base(kind)
     if base in MORE:
         return _patient_more(base, place, draw)
     first = _FIRST[draw.randrange(len(_FIRST))]
@@ -173,9 +173,7 @@ def _patient(kind: str, place: int, draw: random.Random) -> str:
         "address": f"{draw.randint(10, 9899)} {_STREETS[draw.randrange(len(_STREETS))]}",
         "dob": f"{draw.randint(1930, 2005)}-{draw.randint(1, 12):02d}-{draw.randint(1, 28):02d}",
     }
-    if kind.endswith("_beside"):
-        return shapes[kind[: -len("_beside")]]
-    return shapes[kind]
+    return shapes[_base(kind)]
 
 
 # The shapes `_patient_more` writes (lane HX's second repair).
@@ -193,10 +191,20 @@ HELD = ("record", "plan", "email", "email_upper", "account", "phone",
         "key_word", "key_point0", "varkey", "dotted9", "phone_ext",
         "ssn_space", "ip", "url", "card16", "email_angle", "email_one_bad")
 BESIDE = ("email_beside", "beneficiary_beside", "phone_beside")
-STATED = ("name", "address", "dob", "plan2_beside", "record2_beside")
-# The STATED shapes beside a declared person column, owned by lane HX2's
-# rule widened to a declared person column (plan P4-D401); the others no
-# question flags, owned by lane HX2.
+# COUNTED IN PEOPLE (lane HX2, plan P4-D406): values no question flags,
+# on a long table with a subject column -- a health plan or account
+# number beside a DECLARED person column, and a name, a street address or
+# a full birth date beside a patient key whose person question is OPEN
+# (`_open`: 44 patients, nothing declared). Every value is held by one
+# patient, so none is published and the twin writes none.
+COUNTED = ("plan2_beside", "record2_beside", "name_open", "address_open",
+           "dob_open")
+# The STATED shapes: a name, a street address and a full birth date on a
+# long table with NO subject column -- the value is the only thing that
+# says who the rows are, nothing is declared and no person question is
+# put -- so there are no people to count in (plan P4-D406, item (a)).
+STATED = ("name", "address", "dob")
+# The shapes beside a declared person column (`--identifier patient`).
 STATED_BESIDE = ("plan2_beside", "record2_beside")
 
 # THE HELD SHAPES WHOSE TWIN FAILS ITS OWN VALIDATION, each a stated limit
@@ -217,6 +225,19 @@ SHORT_AMONG_LONG = "P00017"
 UNKNOWN_KEY = "-1"
 
 
+def _base(kind: str) -> str:
+    """The shape a kind writes: `plan2_beside` and `name_open` write `plan2` and `name`."""
+    for ending in ("_beside", "_open"):
+        if kind.endswith(ending):
+            return kind[: -len(ending)]
+    return kind
+
+
+def _beside(kind: str) -> bool:
+    """Whether the table carries a patient key beside the shape's column."""
+    return kind.endswith("_beside") or kind.endswith("_open")
+
+
 def _cell(value: str) -> str:
     """A CSV cell, quoted where it holds the delimiter."""
     return f'"{value}"' if "," in value else value
@@ -225,8 +246,8 @@ def _cell(value: str) -> str:
 def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Path, list[str]]":
     """The table, written as a CSV file; its path and its different identifiers."""
     draw = random.Random(SEED + len(kind))
-    beside = kind.endswith("_beside")
-    patients = PATIENTS_BESIDE if beside else PATIENTS
+    beside = _beside(kind)
+    patients = PATIENTS_BESIDE if kind.endswith("_beside") else PATIENTS
     people: "list[str]" = []
     for place in range(patients):
         one = _patient(kind, place, draw)
@@ -424,8 +445,8 @@ def _csv_column(path: pathlib.Path, place: int) -> "list[str]":
 def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     """Profile the table unanswered, generate seed 0, and count what is real."""
     table, real = write_table(folder, kind, rows)
-    beside = kind.endswith("_beside")
-    declared = ["--identifier", "patient"] if beside else []
+    beside = _beside(kind)
+    declared = ["--identifier", "patient"] if kind.endswith("_beside") else []
     screen = io.StringIO()
     with nobody_at_the_keyboard():
         with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):

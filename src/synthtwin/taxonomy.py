@@ -25715,6 +25715,40 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     )
 
 
+def with_even_census(column: ColumnProfile) -> ColumnProfile:
+    """A person column's census of repetition, held (plan P4-D406).
+
+    The census a declared record number publishes says how many values
+    cover one row, two rows and so on (review item P1-R8-F4). On the
+    column that names the PEOPLE, each entry is how many people have
+    that many rows, and an entry of one to ten is a group of people
+    smaller than the floor, published under no floor (contract 5.3, I2;
+    accepted within one column by P4-D363 while nobody counted in
+    people). Lane HX2 holds it: the column publishes the census its
+    published counts imply (`_even_census`, which lane HX built for a
+    column whose person question is open), and nothing more. A column
+    different on every row keeps its census, which is that one already.
+
+    Guarantees: accepts a described column; returns it with that one
+    field changed, or unchanged where its role publishes no census.
+    Determinism: a fixed function of the argument. Raises nothing. No
+    I/O.
+    """
+    if column.role != ROLE_IDENTIFIER:
+        return column
+    census = column.details.get("n_distinct_by_occurrences")
+    forms = column.details.get("layout_forms")
+    if not isinstance(census, dict) or not census:
+        return column
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    details["n_distinct_by_occurrences"] = _even_census(
+        column.n_present, census, forms if isinstance(forms, dict) else {}
+    )
+    return dataclasses.replace(column, details=details)
+
+
 def _even_census(
     n_present: int, census: "dict[str, object]", forms: "dict[str, object]"
 ) -> "dict[str, int]":
