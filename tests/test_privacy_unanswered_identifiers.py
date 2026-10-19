@@ -611,6 +611,63 @@ def test_a_three_figure_measurement_beside_minus_one_is_asked_nothing(
     assert isinstance(settings, dict) and settings["forced_identifiers"] == []
 
 
+def test_income_in_whole_thousands_is_held_and_keep_gives_back_the_count(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A repeating measurement five figures wide is held; `keep` is 68dae22f's.
+
+    Lane HX's second verify, item 1 (P4-D401's price beyond the
+    batteries): route four reaches a repeating whole-number measurement
+    whose values are mostly five figures or more. Income in whole
+    thousands, 15,000 to 180,000 on one row a person, repeats at 600
+    rows, so a scripted run asks it the person question and holds it;
+    68dae22f read it as a count and asked nothing. The answer `keep`
+    gives back, byte for byte, the description made where route four
+    asks nothing -- 68dae22f's own.
+    """
+    draw = random.Random(11)
+    lines = ["age,income"] + [
+        f"{draw.randint(18, 90)},{draw.randint(15, 180) * 1000}" for _row in range(_ROWS)
+    ]
+    table = tmp_path / "income.csv"
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+
+    def described(folder: pathlib.Path, extra: "list[str]") -> bytes:
+        folder.mkdir(exist_ok=True)
+        with shapes.nobody_at_the_keyboard():
+            code = cli.main(["profile", f"{table}", "--out-dir", f"{folder}"] + extra)
+        assert code == 0
+        return (folder / "income-profile.json").read_bytes()
+
+    # 68dae22f's reading: the description where route four asks nothing.
+    with monkeypatch.context() as before_route_four:
+        before_route_four.setattr(
+            asking, "_a_key_of_figures_repeating", lambda present: False
+        )
+        before = described(tmp_path / "before", [])
+    assert _block(json.loads(before), "income")["role"] == taxonomy.ROLE_COUNT
+
+    held = json.loads(described(tmp_path / "held", []))
+    assert _block(held, "income")["role"] == taxonomy.ROLE_IDENTIFIER
+    settings = held["settings"]
+    assert isinstance(settings, dict) and settings["forced_identifiers"] == ["income"]
+    questions = json.loads(
+        (tmp_path / "held" / "income-questions.json").read_text(encoding="utf-8")
+    )
+    asked = [entry for entry in questions["asked"] if entry["column"] == "income"]
+    assert [
+        [choice["answer"] for choice in entry["answers_you_can_give"]] for entry in asked
+    ] == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    assert [entry["read_as_now"] for entry in asked] == [asking.ANSWER_IDENTIFIER]
+
+    for entry in asked:
+        entry["your_answer"] = asking.ANSWER_KEEP
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    kept = described(tmp_path / "held", ["--replace", "--answers", f"{answers}"])
+    assert kept == before
+
+
 @pytest.mark.parametrize("answer", [asking.ANSWER_MEASUREMENT, asking.ANSWER_CODE])
 def test_an_answer_survives_the_file_it_wrote_handed_back(
     tmp_path: pathlib.Path, answer: str
