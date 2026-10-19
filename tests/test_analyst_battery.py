@@ -197,6 +197,10 @@ def test_a_perfect_twin_is_charged_with_no_truth_and_no_fixed_effect(fast_runs: 
     assert B.kpi_06(perfect)["fixed_effects_outside_over_replicate"] == 0
     today = B.kpi_02(fast_runs)
     assert today["truths_missed_unnamed"] == today["replicate_recovered"] - today["truths_recovered"]
+    exchanged = B.kpi_02([dataclasses.replace(r, sides=dict(r.sides, twin=r.sides["replicate"],
+                                                            replicate=r.sides["twin"])) for r in fast_runs])
+    assert exchanged["truths_recovered_beyond_replicate"] == today["truths_missed_unnamed"] > 0
+    assert exchanged["missed_over_replicate_z"] == -today["missed_over_replicate_z"] < 0
 
 
 def test_k_bc_05_reads_a_clustered_table_beside_its_maximum(fast_runs: "list[B.TableRun]") -> None:

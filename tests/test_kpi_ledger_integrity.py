@@ -815,6 +815,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 656,000 from 655,000, ON LANE E0b'S BRANCH AFTER ITS REVIEW (plan
+    # P4-D398, 2026-10-19), for the integrator to settle the same way: the
+    # review's rules (controls by family, margins left out, McNemar's z, the
+    # replicate's own counts beside the twin's), five more pinned nodes on
+    # `K-BC-13` and the note's second clause, 655,649 bytes.
+    #
     # 655,000 from 610,000, ON LANE E0b'S BRANCH (the analyst battery, plan
     # P4-D398, 2026-10-16), the least round figure that fits, for the
     # integrator to settle with the integration branch's cap: the lane adds
@@ -1072,7 +1078,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 655_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 656_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
