@@ -17710,7 +17710,8 @@ G16.0 to G16.2, G16.4 to G16.6, and G16.8 to G16.12.
 
 **When.** After the last column's content and placement (G4.2) and
 before G2.1's three steps, and only where `relationships.statistical`
-holds a family with a parent and at least two rows are arranged.
+holds a family with a parent or a carried rule (contract 4.6b.5,
+`rules`), and at least two rows are arranged.
 Elsewhere nothing in this section runs, no word is drawn, and the twin
 is byte for byte the twin the other sections make.
 
@@ -17817,14 +17818,27 @@ parents `P` at `F`'s levels, target `t`:
    more than 16,777,215 cells). The row's band code and value code are
    written (G16.1); `L` and the hidden scores are freed. A column that
    is not FINE is final here, and G16.4 writes it at once.
-5. **Computed columns, after the last family.** Each column the
-   description marks computed (contract 4.6b.7) is written row by row
-   from its published rule, in its own layout: for an order rule `A <=
-   B` carried by `D`, `B`'s cell in a row is `A + D` where both hold a
-   reading. Its cells are not made by G4 to G14 and draw no word. Lane
-   MR's page fixes every other row and every other rule kind. The rule
-   words of the description are zeros of family targets, met by step 3,
-   which deals no row into a cell whose target is nought.
+5. **Carried rules, after the last family.** The entries of `rules`
+   are taken in their published order.
+   - A DERIVED column's family `{D | A}` is dealt by steps 1 to 4 as a
+     family whose one parent is `A` at the family's level of `A`, read
+     from the band of `A`'s cell in each row (its `L0` group, G16.0,
+     coarsened to that level), and whose target is its published table.
+     `D`'s readings are made by lane MR's page from the published level,
+     each reading inside its band: in the phrase class none below 0, in
+     a count class exactly the published count below 0, inside the parts
+     the cut at 0 publishes. The rows of `A`'s `missing` band all take
+     `D`'s `missing` band, since the table's structural zeros leave them
+     no other target.
+   - Then each column the description marks computed is written row by
+     row from its rule, in its own layout: for an order rule `A <= B`
+     carried by `D` (a source column or a derived one), `B`'s cell in a
+     row is `A + D` where both hold a reading, and absent where either
+     does not. Its cells are not made by G4 to G14 and draw no word.
+     Lane MR's page fixes a formula rule's arithmetic and every other
+     row.
+   - The rule words of the description are zeros of family targets, met
+     by step 3, which deals no row into a cell whose target is nought.
 
 **Why every family's target is met (by induction on the chain).** When
 `F` is dealt, each row's parent cell is fixed by families dealt before
@@ -17921,9 +17935,11 @@ that page lands, a table is arranged in rows like any other.
   last block shorter), one `integers` call (G3.3) of three words a row
   of the block: the hidden scores of the family's child for those rows,
   words `3 k`, `3 k + 1` and `3 k + 2` of the call for the block's
-  `k`-th row. Then G16.3's words, which lane MPOL's page counts. Nothing
-  is drawn after. The walk draws `3 e n'` words in all, a function of
-  published facts (`e`, `n'`). Each such call is a stage in G3.3's
+  `k`-th row; then, in the same way, for each derived family in the
+  order of `rules`. Then G16.3's words, which lane MPOL's page counts.
+  Nothing is drawn after. The walk draws `3 (e + d) n'` words in all,
+  `d` the derived families, a function of published facts (`e`, `d`,
+  `n'`). Each such call is a stage in G3.3's
   sense; lane CHb adds them to G4's list of stages in the landing that
   ships them.
 - **The hidden score** of a row: the twelve 16-bit pieces of its three
@@ -18038,7 +18054,11 @@ each case beside a mutant that must move it:
 7. an order rule carried by its difference: `B` written as `A + D` on
    every row, so `B >= A` on every row (mutant: `B` dealt as a column of
    its own); this replaces version 2's sorted matching inside one shared
-   band, which the difference made unneeded;
+   band, which the difference made unneeded; and a derived `D` dealt as
+   the child of `{D | A}` with its structural zeros, every row of `A`'s
+   `missing` band taking `D`'s `missing` band (mutant: `D` dealt by its
+   band totals alone, the first draft's rule, which puts a reading of `D`
+   beside an absent `A`);
 8. the cell index read back, at 3 bytes and at 4;
 9. a stray row given a cell by an ineligible column, and one with no
    ineligible giver, which stays and is named (mutant: an eligible
@@ -18053,7 +18073,14 @@ W1's part-C band, where the fine option is not eligible and `L1` is, and
 the three cases of contract 4.6b.9 (c) (mutant: the design's own
 clause); the stated exponential on fixed gaps against exact bounds, a
 word taking the uniform share, and the weighted choice on a fixed word;
-and a re-profile under one name and key giving the same bytes.
+a re-profile under one name and key giving the same bytes, and the
+ledger refusing a second description of one table after an answer makes
+one more column eligible (mutant: a ledger comparing content, name and
+key alone); row 9's sufficient form on a fixed base, its largest counts
+and its zero world (mutant: `S(K)` read up to `f` instead of `f - 1`);
+and the first review's derived difference, where the family's floor
+leaves only "not carried" eligible (mutant: the derived column's band
+totals published alone).
 
 ---
 

@@ -3629,13 +3629,13 @@ contract 4.6b.6's fit on the measured file's codes.
 
 | object | check | kind |
 |---|---|---|
-| a family's table | the measured table equals the family's TARGET cell for cell: the published table where the file's band totals of every member, and its counts of the family's parent cells, equal the published ones; otherwise the moved table of the generation method's G16.6, which the validator re-derives from the published table and the file's own totals, and from nothing else. The line names how many rows the totals differ by, the cells the move changed and each unit in a published nought, as named facts and never as a miss | EXACT-OBSERVABLE: HELD or MISSED |
+| a family's table | the measured table equals the family's TARGET cell for cell: the published table where the file's band totals of every member, and its counts of the family's parent cells, equal the published ones; otherwise the moved table of the generation method's G16.6, which the validator re-derives from the published table and the file's own totals, and from nothing else. The line names where the totals differ, the cells the move changed and the units placed in a published nought, as named facts and never as a miss, each number only as V12.3 allows | EXACT-OBSERVABLE: HELD or MISSED |
 | a published nought of a family (a rule word among them) | no measured row stands in it, beyond the units the moved table names | part of the line above |
 | an `L0` band total | the file's count of each `L0` band over its tabled rows equals the published total | EXACT-OBSERVABLE with layer L0; REPORT-ONLY without it, every family then judged against its moved table |
-| a pair reading `implied` | the total-variation distance between the file's table of the two columns at their chain levels and the table the chain IMPLIES (the junction-tree product of the published families along the path between them, in exact fractions), beside the DEALING SPREAD `s`: half the sum over the implied table's cells of `sqrt(p (1 - p) / n')`, `p` each cell's implied share, a function of published facts alone; marked inside (at most `s`) or outside | REPORT-ONLY |
-| a slope | the measured `beta` against the published one, in standard errors: the published `sigma` over the root of the file's pooled within-cell sum of squares of the parent's codes; marked inside (within one) or outside | REPORT-ONLY |
-| an order rule carried by its difference | `B >= A` on every row where both hold a reading | EXACT-OBSERVABLE |
-| a published rule's failing rows | the count, against the phrase or the published count (contract 4.6b.7) | EXACT-OBSERVABLE where the rule is published |
+| a pair reading `implied` | printed as the description publishes it: the table the chain IMPLIES at the two columns' chain levels (the junction-tree product of the published families along the path between them, in exact fractions) and its DEALING SPREAD `s`, half the sum over the implied table's cells of `sqrt(p (1 - p) / n')`, `p` each cell's implied share and `n'` the description's tabled rows; nothing measured on the file is printed for it (V12.3) | REPORT-ONLY, named, never a check |
+| a slope | the measured `beta` against the published one, in standard errors: the published `sigma` times the root of the slope parent's diagonal entry in the inverse of the parents' pooled within-cell cross-product matrix of codes on the file (with one slope parent, `sigma` over the root of its pooled within-cell sum of squares); marked inside (within one) or outside | REPORT-ONLY |
+| a carried rule (contract 4.6b.7, `rules`) | the file's failing rows, counted as the contract defines them, lie in the published class: at most `f - 1` under the phrase, exactly the published count in a count class; the verdict alone is printed | EXACT-OBSERVABLE: HELD or MISSED |
+| a derived column's family | the derived column recomputed on the file (`B - A` where both hold a reading, absent elsewhere) and `{D \| A}` counted at its published levels equals the published table cell for cell, or its moved table (G16.6) | EXACT-OBSERVABLE: HELD or MISSED |
 | stray rows (generation method G16.5) | the arranged rows holding nothing in every column, and whether the file's own counts of records holding nothing differ from the description's | REPORT-ONLY, named |
 | the structural words | printed as the description publishes them; the loader has already checked them (contract S27) | named, never a check |
 | the description itself | invariants S23 to S28 | the loader refuses, naming the family or column |
@@ -3647,48 +3647,82 @@ role, is NOT CHECKABLE (V3.3) and named as such.
 quantity the chain implies, not one it meets: the dealing spread is the
 spread of an independent dealing given the published families, not a
 bound the construction proves (G12.1 asks for the latter before a fact
-can be APPROXIMATED). So the report prints it, inside or outside, beside
-the verdict and never folded into it, which is what a passing report
-promises (V6).
+can be APPROXIMATED). So the report prints a slope, inside or outside,
+beside the verdict and never folded into it, which is what a passing
+report promises (V6), and prints for an implied pair only what the
+description already holds (V12.3). How far a twin's implied pairs lie
+from the real table's is measured by the KPI harness, which holds the
+real table (`K-S6-01` (iii)), and judged for the person's own table by
+the self-test in the private report (contract 4.6b.8), never by this
+report.
 
-**V12.3 What a report may print about the measured file** follows V5
+**V12.3 What a report may print about the measured file** follows V5.1
 unchanged: no more than `synthtwin profile` run on that file would
-publish at the published levels. A measured cell is printed only where
-it is nought or at least the floor `f` (contract 4.6b); a table holding
-a cell of 1 to `f - 1` is reported as holding one, with no count.
-Distances, slopes and standard errors are printed to four decimals,
-which are not counts. A measured slope is printed only where the
-description publishes one AND contract 4.6b.6's rule allows one on the
-measured file itself. No count of a computed column's own rows is
-printed (contract 4.6b.7), and no reason a pair reads `implied`.
+publish at the published levels. So:
+- a family's measured cells are printed only where every cell of its
+  measured table is nought or at least the floor `f` (contract 4.6b). A
+  measured table holding a cell of 1 to `f - 1` prints no cell, no count
+  and no flag: its line gives its verdict, MISSED, alone. Printing its
+  other cells would give the small one back by subtraction from the
+  published totals (D3's reason for never hiding a cell), and a flag
+  "holds a cell below the floor" would bound a cell itself: beside a
+  margin of `f` rows, a two-by-two table holds such a cell exactly when
+  its free cell lies in 1 to `f - 1`;
+- a measured total, its difference from a published total, and a count
+  of units the moved table of G16.6 placed or moved are each printed
+  only where it is nought or at least `f`; otherwise the line says only
+  that the total differs, or that units were moved or placed in a
+  published nought, with no number;
+- a pair reading `implied` prints nothing measured: `profile` publishes
+  nothing about a pair outside a family, and a measured statistic of its
+  table can give a cell back. The first review's case: on 1,000 rows, a
+  column of 15 and 985 rows beside one of 400 and 600, the implied cell
+  6, a distance printed to four decimals as 0.0060 leaves the real cell
+  3 or 9. Even inside or outside alone can: on 60 rows, columns of 15
+  and 45 and of 30 and 30, "inside" holds the cell to 5 to 10;
+- a slope is printed only where the description publishes one AND
+  contract 4.6b.6's rule allows one on the measured file itself, with
+  its standard errors, to four decimals;
+- no count of a computed column's own rows is printed (contract 4.6b.7),
+  no count of a carried rule's failing rows (its line gives the verdict
+  alone), and no reason a pair reads `implied`.
 
 **V12.4 The six data mutants (`K-S6-04`).** Each is a twin damaged one
 way, and each must come out as stated, on fixtures with no sort column,
 no records holding nothing and no row sequence unless the mutant names
 one, since each of those fixes facts by row position:
-1. one column's cells exchanged between two rows of DIFFERENT parent
-   cells of a family where it is the child, every band total kept: that
-   family MISSED (the held page's skeptic finding 12);
-2. one column shuffled on its own: every family holding it MISSED;
+1. one column's cells exchanged between two rows that lie in DIFFERENT
+   parent cells, and in DIFFERENT bands of the column at the family's
+   level, of a family where it is the child, every band total kept: that
+   family MISSED (the held page's skeptic finding 12; an exchange inside
+   one band would leave every table as it was);
+2. one column shuffled on its own: every family holding it as a child
+   under a parent, or as a parent, MISSED; a family where it is the child
+   of no parent holds its own band totals, which a shuffle keeps, and
+   stays HELD;
 3. the records holding nothing placed after G16 by G2.1 step 2's
    within-column exchanges, which move eligible columns' cells: a family
    MISSED;
 4. whole rows shuffled together: every line exactly as before;
-5. a twin generated from a copy of the description whose family `F` lost
-   one parent, validated against the original: `F` MISSED, and the
-   implied lines of the pairs whose path runs through `F` printed
-   outside;
+5. a twin generated from a copy of the description whose family `F`
+   lost one parent, validated against the original: `F` MISSED;
 6. a file whose band totals differ from the published totals: every
    family judged against its moved table (G16.6), HELD where the file
-   meets it with the moved units named, MISSED where it does not.
+   meets it with the moved units named as V12.3 allows, MISSED where it
+   does not.
 
 **V12.5 Not vacuous.** Every EXACT-OBSERVABLE line has a red case in the
-suite (mutants 1 to 3, 5 and 6, and a computed `B` below its `A` on one
-row), and each REPORT-ONLY line has a case where it prints outside. Two
-green cases stand beside them: the moved table of G16.6 on the held
-page's Codex case, HELD with its 20 units in a nought named; and a twin
-with a stray row given a cell by an ineligible column, every family
-HELD.
+suite: mutants 1 to 3, 5 and 6; a twin whose order rule fails on `f`
+rows under the phrase; and a derived family dealt by its band totals
+alone, with a reading of the derived column beside an absent `A`. The
+slope's line has a case where it prints outside. Four green cases stand
+beside them: the moved table of G16.6 on the held page's Codex case,
+HELD with its 20 units in a nought named; a twin with a stray row given
+a cell by an ineligible column, every family HELD; the first review's
+1,000-row pair and the 60-row pair above, where the report prints the
+implied table and its spread and no measured number; and a family whose
+measured table holds a cell of 1 to `f - 1`, whose line prints MISSED
+alone.
 
 **V12.6 What it costs.** The tables are counted from the band codes, one
 byte a row and column, a cell being the rows whose codes match: the held
