@@ -52,8 +52,8 @@ def _quiet(argv: "list[str]") -> int:
             return cli.main(argv)
 
 
-def _rule_off(described: object, *_args: object, **_kwargs: object) -> object:
-    return described
+def _rule_off(*_args: object, **_kwargs: object) -> bool:
+    return False
 
 
 def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "dict[str, object]":
@@ -80,6 +80,15 @@ def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "d
     found["validated"] = _quiet(["validate", f"{described}", "--twin",
                                  f"{ruled / (stem + '-twin.csv')}", "--out-dir",
                                  f"{ruled}", "--replace"])
+    # A twin missing its own validation is the count's only where the
+    # twin of the description made without it meets its own.
+    found["validated_without"] = 0
+    if found["validated"] != 0:
+        alone = plain / f"{stem}-profile.json"
+        _quiet(["generate", f"{alone}", "--out-dir", f"{plain}", "--seed", "0", "--replace"])
+        found["validated_without"] = _quiet(["validate", f"{alone}", "--twin",
+                                             f"{plain / (stem + '-twin.csv')}",
+                                             "--out-dir", f"{plain}", "--replace"])
     return found
 
 
@@ -164,14 +173,18 @@ with tempfile.TemporaryDirectory() as scratch_name:
             continue
         value["tables"] = int(value["tables"]) + 1
         value["few"] = int(value["few"]) + int(found["few"])
-        if found["validated"] != 0:
+        if found["validated"] != 0 and found["validated_without"] == 0:
             value["twins_failing_validation"] = int(value["twins_failing_validation"]) + 1
+        elif found["validated"] != 0:
+            value["twins_failing_without_it_too"] = int(
+                value.get("twins_failing_without_it_too", 0)) + 1
         for key in ("literal", "withheld"):
             name = f"{key}_{battery}"
             value[name] = int(value.get(name, 0)) + int(found[key])
         lines += [f"{battery:7s} {path.parent.name}: subjects {found['subjects']}, few "
                   f"{found['few']} {found['named'][:3]}, literal {found['literal']}, withheld "
-                  f"{found['withheld']}, validate {found['validated']}"]
+                  f"{found['withheld']}, validate {found['validated']} "
+                  f"(without the count {found['validated_without']})"]
     value["zoo_on_this_tree"] = zoo_measured
 for line in lines:
     print(line)

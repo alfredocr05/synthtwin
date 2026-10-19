@@ -8916,7 +8916,7 @@
    "headline": false,
    "name": "Real identifier values an unanswered long table publishes in its description and its twin",
    "status": "GREEN",
-   "rule": "over the 54 long tables of tests/unanswered_identifier_shapes.py (44 patients, 150 beside a declared person column, one identifier repeated on each patient's rows) at 600 and 20,000 rows, profiled scripted with nothing answered, generated at seed 0 and validated: across the 49 shapes held until their question is answered (record, plan, account, beneficiary, card and social security numbers, telephone numbers, e-mail, internet and web addresses, ZIP codes, device identifiers, numeric patient keys beside placeholders for nobody or of varying width, and three registers beside a declared person column; the shapes file lists them) no real value is written, whole or as a number (its longest run of five figures or more among them), in the description, its summary, the questions file or the screen, no fragment of one (a run of five letters and figures, or the text every value opens with) stands there, no twin cell holds a real value or a fragment of one, every comparison by substring, and no held twin fails its own validation but the generator's stated limits; across the five STATED shapes owned by lane HX2 (a name, a street address and a full birth date, which no question flags, and a plan and an account number beside a declared person column) the real values in the description and the twin cells holding one may not rise",
+   "rule": "over the 57 long tables of tests/unanswered_identifier_shapes.py (44 patients, 150 beside a declared person column, one identifier repeated on each patient's rows) at 600 and 20,000 rows, profiled scripted with nothing answered, generated at seed 0 and validated: across the 49 shapes held until their question is answered (record, plan, account, beneficiary, card and social security numbers, telephone numbers, e-mail, internet and web addresses, ZIP codes, device identifiers, numeric patient keys beside placeholders for nobody or of varying width, and three registers beside a declared person column; the shapes file lists them) and the five lane HX2's count in people holds (plan P4-D406: a plan and an account number beside a declared person column, and a name, a street address and a full birth date beside a patient key whose person question is open) no real value is written, whole or as a number (its longest run of five figures or more among them), in the description, its summary, the questions file or the screen, no fragment of one (a run of five letters and figures, or the text every value opens with) stands there, no twin cell holds a real value or a fragment of one, every comparison by substring, and no held twin fails its own validation but the generator's stated limits; across the three STATED shapes (a name, a street address and a full birth date on a long table with no subject column, so no people to count in; plan P4-D406 item (a)) the real values in the description and the twin cells holding one may not rise",
    "rule_kind": "exact",
    "expected": {
     "description_fragments": 0,
@@ -8940,7 +8940,7 @@
    "driver": "tools/measurements/kpi_unanswered_identifiers.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "the driver's 54 seeded long tables at 600 and 20,000 rows through the real profile (scripted whatever the terminal, nothing answered), generate (seed 0) and validate; the 600-row cases are the gate's (tests/test_privacy_unanswered_identifiers.py)",
-   "evidence": "On 68dae22f the same driver, with this round's counter, read 3,809 real values in what is published, 2,674 fragments and 884,739 twin cells holding a real value, 2,292 twin fragments, over the 49 held shapes (record numbers 26 of 40 at 600 rows and 44 of 44 at 20,000; the critic's own probe, 26 of 44; a key drawn from one to three million 37 of 41 at 600 rows and 41 of 44 at 20,000), and the stated shapes' 633 and 101,539 as now (wave6/HX/repair2/kpi-base-68dae22f-r2.jsonl). Lane HX's build (a8cd99e) read 0 over its six shapes; its first repair (4b0c276) read 0 over 32; its second repair holds the shapes the combined verify and the tripwire skeptic measured.",
+   "evidence": "On 68dae22f the same driver, with this round's counter, read 3,809 real values in what is published, 2,674 fragments and 884,739 twin cells holding a real value, 2,292 twin fragments, over the 49 held shapes (record numbers 26 of 40 at 600 rows and 44 of 44 at 20,000; the critic's own probe, 26 of 44; a key drawn from one to three million 37 of 41 at 600 rows and 41 of 44 at 20,000), and the stated shapes' 633 and 101,539 as now (wave6/HX/repair2/kpi-base-68dae22f-r2.jsonl). Lane HX's build (a8cd99e) read 0 over its six shapes; its first repair (4b0c276) read 0 over 32; its second repair holds the shapes the combined verify and the tripwire skeptic measured. Lane HX2 (plan P4-D406) moved the plan and account numbers beside a declared person column from the stated shapes to the held ones, with a name, a street address and a birth date beside a patient key whose person question is open: on 5793f7b0 those five published 633 - (214 for the three stated shapes alone) real values and their twins held real cells; 0 now. The stated three have no subject column.",
    "nodes_min_collected": 0,
    "value_at": {
     "commit": "e98ad3b",
@@ -8954,6 +8954,43 @@
      "stated_twin_cells": 101539,
      "twin_cells": 0,
      "twin_fragments": 0,
+     "twins_failing_validation": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-65",
+   "phase_stage": "December plan lane HX2, every published value counted in persons on a table of several rows a person (plan P4-D406)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "Published values fewer than eleven people hold, on tables with a subject column",
+   "status": "GREEN",
+   "rule": "over the long tables of tools/measurements/kpi_counted_in_persons.py -- K-S3-64's shapes (the held ones at 600 rows, those beside a declared person column and those the count holds at 600 and 20,000), the population floor's repeated-measures tables with declared people, the person question's four negatives, the gate's two tables and, where the tree has it, the healthcare catalogue (tests/health_zoo.py) at 600 rows -- profiled scripted with nothing answered, generated at seed 0 and validated, and counted by tests/persons_counted.py, written apart from the product's own count: no value of a column but the subject columns (the declared person columns and the open person question's candidates that repeat and hold at least eleven different values) is published that one to ten different subjects hold under any subject column, in the rule's scope (a column attached to its subject, one value a subject, whatever its rows; any other where eleven rows or more hold the value and it is published off the rungs and the tails' boundaries); and no twin misses its own validation where the twin of the description made without the count meets its own. Recorded beside it, never failed: the published values one to ten subjects hold out of that scope (the rungs of a measurement a subject holds on a row or two), the values the count withholds that the row floor alone publishes, per battery, and the twins missing validation either way",
+   "rule_kind": "exact",
+   "expected": {
+    "few": 0,
+    "tables": 54,
+    "twins_failing_validation": 0
+   },
+   "key_kinds": {
+    "tables": "at_least"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_counted_in_persons.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "the driver's seeded long tables through the real profile (scripted whatever the terminal, nothing answered) with the count in people and without it, generate (seed 0) and validate; the gate's cases are tests/test_stage4_counted_in_persons.py",
+   "evidence": "On lane HX's head 5793f7b0 the count did not exist: beside a declared person column a plan number published 71 of 132 values at 600 rows and 139 of 150 at 20,000, an account number 72 of 128 and 137 of 150, and beside a patient key whose person question is open a birth date 44 of 44 at 20,000. With the healthcare catalogue on the path (wave6/HX2/kpi65-with-zoo.log, 67 tables), 0 values in scope, 1,415 out of scope recorded, 838 values withheld, and one catalogue twin (diagnoses and procedures at 600 rows, five code columns held beside candidates of the person question) misses the published forms of a held code of small supply, the identifier generator's, lane CODES-1 part C's.",
+   "nodes_min_collected": 0,
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-65 --print-values",
+    "value": {
+     "few": 0,
+     "tables": 54,
      "twins_failing_validation": 0
     }
    }

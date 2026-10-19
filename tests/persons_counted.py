@@ -140,13 +140,31 @@ def held_by(values: "list[str]", subjects: "list[str]") -> "tuple[dict[str, set[
     return holders, rows, again > 0 and other * 10 <= again
 
 
-def table_columns(path: pathlib.Path) -> "tuple[list[str], list[list[str]]]":
-    """A CSV table's names and columns, as text."""
-    with open(path, encoding="utf-8-sig", newline="") as handle:
-        rows = list(csv.reader(handle))
+def table_columns(path: pathlib.Path, encoding: str = "utf-8-sig",
+                  delimiter: str = ",") -> "tuple[list[str], list[list[str]]]":
+    """A CSV table's names and columns, as text, read as its description says it is written."""
+    with open(path, encoding=encoding, newline="") as handle:
+        rows = list(csv.reader(handle, delimiter=delimiter))
     names = rows[0]
     return names, [[row[place] if place < len(row) else "" for row in rows[1:]]
                    for place in range(len(names))]
+
+
+def _written(described: "dict[str, object]") -> "tuple[str, str]":
+    source = described["source"]
+    assert isinstance(source, dict)
+    encoding = f"{source['encoding']}"
+    if encoding in ("utf-8", "ascii"):
+        encoding = "utf-8-sig"
+    dialect = source["dialect"]
+    delimiter = dialect.get("delimiter", ",") if isinstance(dialect, dict) else ","
+    return encoding, f"{delimiter}" or ","
+
+
+def counts_people(cells: "list[str]") -> bool:
+    """A subject column the count uses: it repeats and holds at least FLOOR values."""
+    present = [cell for cell in cells if cell.strip()]
+    return len(set(present)) >= FLOOR and len(set(present)) < len(present)
 
 
 def subject_columns(described: "dict[str, object]",
@@ -207,8 +225,9 @@ def count_files(table: pathlib.Path, folder: pathlib.Path) -> "dict[str, object]
     described = json.loads((folder / f"{stem}-profile.json").read_text(encoding="utf-8"))
     asked = folder / f"{stem}-questions.json"
     questions = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else None
-    names, columns = table_columns(table)
-    subjects = [name for name in subject_columns(described, questions) if name in names]
+    names, columns = table_columns(table, *_written(described))
+    subjects = [name for name in subject_columns(described, questions)
+                if name in names and counts_people(columns[names.index(name)])]
     found = count(names, columns, described, subjects)
     found["subjects"] = subjects
     return found
@@ -271,8 +290,9 @@ def withheld_values(table: pathlib.Path, ruled: pathlib.Path, plain: pathlib.Pat
     off = json.loads((plain / f"{stem}-profile.json").read_text(encoding="utf-8"))
     asked = ruled / f"{stem}-questions.json"
     questions = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else None
-    names, columns = table_columns(table)
-    subjects = [name for name in subject_columns(on, questions) if name in names]
+    names, columns = table_columns(table, *_written(on))
+    subjects = [name for name in subject_columns(on, questions)
+                if name in names and counts_people(columns[names.index(name)])]
     blocks_on = {block["name"]: block for block in on["columns"]}
     blocks_off = {block["name"]: block for block in off["columns"]}
     lost = 0
