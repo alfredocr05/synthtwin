@@ -17,11 +17,16 @@ same measure that a reader can run:
   a score at or above 0.60);
 - the SHARE of the scored functions at or above 0.60 is what the ledger
   bounds, and the functions are named, so a NEW close copy is named
-  rather than summed. The bound was a count, 176, until the oracle grew
-  past the 485 functions it was set over; at batch 4c's integration
-  (2026-10-19, the orchestrator's ruling on push critic 8) it became
-  the share it stood for, 176 of 485, and the count is recorded beside
-  it.
+  rather than summed. The bound was a count, 176, set over 371 scored
+  functions when the ledger was built (7e5c34d5). At batch 4c's
+  integration (2026-10-19, the orchestrator's rulings on push critic 8
+  and Codex's merge review) it became a share, 0.363: a changed policy,
+  not the count restated. 0.363 is 176 of 485, the entry's last stamp
+  under the count (2f03adc), chosen as the reference and rounded up
+  from 0.36289; at 873 scored it allows up to 316 close functions where
+  the count allowed 176, an allowance the orchestrator accepted and
+  named (a fixed count fails a growing oracle for its size alone). The
+  count is recorded beside the share.
 
 It scores all the oracle's functions, not only the 53 document
 transforms, so its count is not G14.2's 13. A few minutes.

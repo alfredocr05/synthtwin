@@ -22,9 +22,21 @@ which names are quoted). Three KPI drops older than batch 4b are owned:
 `K-2B-47`'s date remainder (9 against 6) by lane RT2 and `K-S3-44`'s one
 census miss by lane S4bc2, each entry still OPEN; and `K-2B-42`, which
 read GREEN while its run read 297 of 873 oracle functions against a
-count of 176, is bounded by the share that count stood for, 176 of 485
-(0.363), and reads 0.340 (plans P4-D299, P4-D320 and P4-D368; the rule
-change is named for Codex's merge review). Six fast entries whose
+count of 176 (set over 371 scored), is now bounded by a share, a
+changed policy and not the count restated: at most 0.363, 176 of the
+485 of a later stamp chosen as the reference and rounded up, which at
+today's 873 allows up to 316 close functions where the count allowed
+176, an allowance the orchestrator accepted and named after Codex's
+merge review; it reads 0.340 (plans P4-D299, P4-D320 and P4-D368).
+After Codex's merge review and push critic 9 (the orchestrator's
+rulings of 2026-10-19): the health data zoo's one failure at 20,000
+rows that had no lane, the mixed result column's mean, is lane G2T's
+on the generation side and lane SV's for `validate`'s miss; answering
+the questions file in two rounds is lane AQ's (plan P4-D399); lane
+H2's signed-change style miss is the forms lane FM's (plan P4-D403);
+plan P4-D395 records its ratification of 2026-10-16; and the KPI
+counts in plans P4-D397 and P4-D403 are marked as their lanes' branch
+figures. Six fast entries whose
 counts had drifted are restamped from one run of the merged head
 (`K-P2-01`, `K-P3-02`, `K-P4-23`, `K-S2-02`, `K-S4-03`, `K-S4-08`); the
 seconds of `K-S1-07`, `K-2B-38` and the four time entries wait for a
@@ -39,9 +51,12 @@ a number column of signed changes -- values written `+3.25`, `+12`, `12`,
 spelling each made-up value wears had no answer, and the walk that packs
 them tried every way of filling one spelling's count before saying so.
 It now reads the counts one column's spellings owe together, and refuses
-such a question at once: the twin builds in under a second at 5,000 rows,
-and 30 of 30 such columns from 3,000 to 10,000 rows finish in under three
-seconds, where 21 took more than 30. Every twin and report is the same
+such a question at once: in the lane's build run the twin built in
+0.88 s at 5,000 rows, and 30 of 30 such columns from 3,000 to 10,000
+rows finished in 0.66 to 2.60 s, where 21 took more than 30
+(`K-S4-19`'s stamp, a run on e170a24 at a load average of 18.1, reads
+1.42 s at 5,000 rows and the slowest of the 30 at 4.35 s). Every twin
+and report is the same
 bytes as before (plan P4-D403). New KPIs: `K-S4-18`, the refusal's
 counts of work, and `K-S4-19`, the seconds, recorded; its driver counts
 a column as finished only when it took under 30 s, even where no alarm
@@ -60,10 +75,13 @@ walks forward over a roster per style with a next-alive list, a reach
 per trial and a cursor per wearing key, and the plus exchange beside it
 the same way; every partner is the one the scan chose, so no twin byte
 changes (seed-0 twins of three such columns at 50,000 to 200,000 rows
-identical to 68dae22f's). Measured in a window, loaded: post_code's
-generate took 7.2, 17.6 and 35.1 s at 100,000, 250,000 and 500,000
-rows (16.0, 84.4 and 269.3 s before), about 164 s projected at
-2,000,000. New KPIs: `K-S4-16`, the exchange's predicate calls
+identical to 68dae22f's). Measured in lane H1's window, loaded, by
+lane B0's runner: post_code's generate took 7.2, 17.6 and 35.1 s at
+100,000, 250,000 and 500,000 rows (16.0, 84.4 and 269.3 s before);
+`K-S4-17`'s driver, a run of its own on 167a609 in the same window,
+read 7.0, 20.7 and 37.8 s, a growth of 2.084 a doubling, and projects
+about 164 s at 2,000,000. New KPIs: `K-S4-16`, the exchange's
+predicate calls
 and its walk's own lines 200,000 over 100,000 cells, x2.0 each, and the
 point-free form asked once (68dae22f's calls: x3.65 from 12,500 to
 25,000 cells); `K-S4-17`, the
@@ -107,9 +125,11 @@ CODES-3 (codes and rare levels written as `group-N` or made up, a DICOM
 UID), GG (a missing code inside a score's range), TR (DICOM's time,
 partial dates), LISTS (several codes in one cell), UN-2 (feet and
 inches), NOTES (notes without their breaks, tokens and lengths) and KV
-(the flowsheet's long form); one failure at 20,000 rows still needs a
-lane. Measured beside it, not repaired: answering the questions file in
-two rounds loses the first round's answers. The workbook is read through
+(the flowsheet's long form); one failure at 20,000 rows had no lane
+(lanes G2T's and SV's since batch 4c's records). Measured beside it,
+not repaired: answering the questions file in two rounds loses the
+first round's answers (lane AQ's since batch 4c's records). The
+workbook is read through
 the suite's cross-check reader, so CI's `minimums` cell skips that part
 alone. New KPIs: `K-HZ-01` (headline; the cap goes from 32 to 33 by the
 orchestrator's recorded call D15, the owner may veto), `K-HZ-02` and

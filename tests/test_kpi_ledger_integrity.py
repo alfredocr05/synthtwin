@@ -821,10 +821,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # of the three lanes kept by id and the measurement note merged clause
     # by clause, 646,550 bytes as merged; then the batch's records (push
     # critic 8): six drifted fast entries restamped with their clause,
-    # `K-2B-42`'s bound restated as the share it stood for, and the owners
-    # of `K-2B-47`'s date remainder and `K-S3-44`'s miss, 648,567 bytes.
-    # Every cap raise is the orchestrator's recorded call D15 (the owner
-    # may veto). A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # `K-2B-42`'s count bound replaced by a share bound, and the owners
+    # of `K-2B-47`'s date remainder and `K-S3-44`'s miss, 648,567 bytes;
+    # then Codex's merge review and push critic 9: `K-2B-42`'s rule names
+    # its change of policy, and `K-HZ-01` and `K-HZ-02` the owners of the
+    # zoo's 'needs owner' line, 648,948 bytes, the new prose written to
+    # fit the cap. Every cap raise is the orchestrator's recorded call D15
+    # (the owner may veto). A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 638,000 from 635,000, LANE E0A'S REPAIR 2 (2026-10-16, plan P4-D399),
     # the least round figure the lane's ledger fits under: the three K-HZ
