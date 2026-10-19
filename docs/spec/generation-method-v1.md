@@ -9425,9 +9425,10 @@ both ranges are cut to the rank's PIECE, the units from its band's
 lower edge up to the unit before its upper edge (from `earliest` in the
 lowest band, to `latest` in the highest): the rank above is written
 January 29. Where no unit of the piece qualifies, the allocated form
-stands, as G7.5 lets it stand where no unit qualifies today: the report
-names the cell as a deviation of `n_present`, and rule B1 names the
-band row it leaves short. The cell never crosses a cut. The partial
+stands, as G7.5 lets it stand where no unit qualifies today, counted as
+a deviation of `n_present`, and rule B1 names the band row it leaves
+short. The cell never crosses a cut. The step reaches interior ranks
+only, so neither end of the column moves. The partial
 cells and the stand-ins of G7.5 stand inside `n_unparsed`, in the
 `other` group, so their walks move no band total.
 
