@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4c's records: more stated limits given owners, three KPI drops owned (2026-10-19)
+
+**Records of batch 4c** (push critic 8 and the push critic of lane
+CF4b; the orchestrator's rulings, the owner may reverse any). Nothing a
+command prints, writes or exits changes. L3's other stated limits are
+the forms lane FM's; J3's six published pairs that still miss are lane
+RT1's; a column whose values never repeat holding a record a row past
+3,000,000 rows, and reading holding the file's bytes and decoded text,
+are lane SR's, and lane SV's where `validate` describes the file again;
+on Windows PowerShell 5.1 a printed command drops an empty value, a new
+stated limit owned by the terminal track's lane TT (plan P4-D397, whose
+sentence on the times-of-day notice now says the quoting rule decides
+which names are quoted). Three KPI drops older than batch 4b are owned:
+`K-2B-47`'s date remainder (9 against 6) by lane RT2 and `K-S3-44`'s one
+census miss by lane S4bc2, each entry still OPEN; and `K-2B-42`, which
+read GREEN while its run read 297 of 873 oracle functions against a
+count of 176, is bounded by the share that count stood for, 176 of 485
+(0.363), and reads 0.340 (plans P4-D299, P4-D320 and P4-D368; the rule
+change is named for Codex's merge review). Six fast entries whose
+counts had drifted are restamped from one run of the merged head
+(`K-P2-01`, `K-P3-02`, `K-P4-23`, `K-S2-02`, `K-S4-03`, `K-S4-08`); the
+seconds of `K-S1-07`, `K-2B-38` and the four time entries wait for a
+quiet window. STATE counts 12,572 cases and 224 KPIs, 33 of them
+headlines.
+
 ### A column of signed changes no longer stalls generate (2026-10-17)
 
 **Lane H2 of the December plan.** `synthtwin generate` never finished on
@@ -146,7 +171,7 @@ read as times of day now quotes the column it names in its
 `&` is typed as one word; every other printed line, and every
 description, twin and report, is the same bytes as before.
 
-### Every stated limit of last week names its owner, and the largest tables' work is counted (2026-10-16)
+### Stated limits of last week given owners, and the largest tables' work is counted (2026-10-16)
 
 **Records of batch 4b** (push critic 7; the orchestrator's rulings of
 2026-10-16, the owner may reverse any). `validate` describing the file
@@ -243,7 +268,8 @@ word written at that length (as at 7d27335 for `…Z`): the cause is
 G9.5's length pin, not the forms: a stated limit owned by the forms lane
 FM (the orchestrator's ruling of 2026-10-16; `T` stamps written straight
 on beside short rare words at floors 2 and 11 miss `length.mean` only).
-No lane owns the other limits yet. Since the lane's Codex review, a
+The other limits are lane FM's too (recorded at batch 4c). Since the
+lane's Codex review, a
 column writing its stamps or clock times in both cases of the marker
 (`9:15 AM` and `9:15 am`) keeps every marker a whole word in its twin --
 where it wrote `9:15 aM`, 199 of 388 for 194 stamps written both ways
