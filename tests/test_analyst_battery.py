@@ -500,19 +500,23 @@ def test_the_automatic_panel_keeps_room_for_pair_products() -> None:
     assert sum(1 for n in products.values() if n == B.TIERS["slow"]["cap"] // B.INTERACTION_SHARE) >= 8
 
 
-def _driver() -> object:
-    import importlib.util
+def _driver(monkeypatch: pytest.MonkeyPatch) -> object:
+    """The slow driver, imported afresh by its name from tools/measurements, the search path restored after.
 
-    path = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_analyst_battery.py"
-    spec = importlib.util.spec_from_file_location("kpi_analyst_battery_under_test", path)
-    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
+    A plain import, not a file loaded as a module: `tests/test_version_reach.py`
+    holds the loads of that second kind to a recorded count.
+    """
+    import importlib
+    import sys
+
+    monkeypatch.syspath_prepend(str(pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements"))
+    monkeypatch.delitem(sys.modules, "kpi_analyst_battery", raising=False)
+    return importlib.import_module("kpi_analyst_battery")
 
 
-def test_the_slow_drivers_cache_reads_every_module_its_panels_come_from() -> None:
+def test_the_slow_drivers_cache_reads_every_module_its_panels_come_from(monkeypatch: pytest.MonkeyPatch) -> None:
     """kpi_shapes, fixtures and workbooks are in the digest beside the kit, the tables and the battery; the judge is not."""
-    driver = _driver()
+    driver = _driver(monkeypatch)
     names = {p.name for p in driver.panel_code_files()}  # type: ignore[attr-defined]
     assert {"analyst_kit.py", "analyst_tables.py", "analyst_battery.py", "kpi_shapes.py", "fixtures.py",
             "workbooks.py", "generation.py"} <= names
@@ -524,5 +528,5 @@ def test_the_slow_driver_runs_where_resource_does_not_exist(monkeypatch: pytest.
     import sys
 
     monkeypatch.setitem(sys.modules, "resource", None)  # type: ignore[arg-type]
-    driver = _driver()
+    driver = _driver(monkeypatch)
     assert driver.peak_mb() is None  # type: ignore[attr-defined]
