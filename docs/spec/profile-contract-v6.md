@@ -3818,8 +3818,10 @@ count of 1 to 10 even when every printed cell is 0 or at least 11
 restated below where it is used.
 
 **Who writes what.** This section (lane MBC) writes the objects O1 to
-O4, O7 and O8, the search that chooses them, the invariants S23 to S28,
-the dispositions and the proofs. Three neighbours enter only where this
+O4, O7 and O8, the entries of `rules` that carry an order rule or a
+formula rule (their fields and when they are published; lane MR writes
+each rule kind's arithmetic), the search that chooses them, the
+invariants S23 to S28, the dispositions and the proofs. Three neighbours enter only where this
 section must name their place, each marked RESERVED: the moments (O5 and
 O6: correlations between fine columns, cell means; lane MPOL), several
 rows per patient (O9, the slot `grain`; lane MG) and the arithmetic of
@@ -4293,8 +4295,9 @@ at 200,000 rows.
 
 **`procedure`** records the constants the profile ran under (4.6b.14),
 so a loader checks a description against its own rules and a later
-amendment moves no older description: `{k_max, tau, w_rule, w_te,
-w_seed, uniform_share_bits, l0_cut, selftest_sample}`, each weight a
+amendment moves no older description:
+`{k_max, tau, w_rule, w_te, w_seed, uniform_share_bits, l0_cut, selftest_sample}`,
+each weight a
 fraction written as a string (`"1/20"`), `uniform_share_bits` 30 and
 `l0_cut` naming the rungs `L0` uses (`deciles` in December).
 
@@ -4306,9 +4309,10 @@ computes (`B` of an order rule `A <= B`, or a formula's output);
 `inputs` names its other columns in schema order; `carrier` is `null`,
 or for an order rule the source column carrying its difference, or
 `derived`; `class` is `"phrase"` or the count of failing rows (4.6b.7);
-`derived` is `null` or the derived column's entry `{name, edges, totals,
-parent, table}`: its one level's edges and band totals, `parent` as
-`{column, level}` naming `A` and the level of `A` its family holds, and
+`derived` is `null` or the derived column's entry
+`{name, edges, totals, parent, table}`: its one level's edges and band
+totals, `parent` as `{column, level}` naming `A` and the level of `A`
+its family holds, and
 `table` the family `{D | A}`'s complete table laid out as a `chain`
 table is. An inferred rule that is not carried is not listed.
 
@@ -4396,13 +4400,15 @@ INPUTS, on every row but a few), is published only by a step of kind
 `rule` of the draw (4.6b.4): one step for each inferred rule, all of
 them taken before the chain is searched, in the schema order of the
 column the rule would COMPUTE (`B` of an order rule, `C` of a formula
-rule). The step's options are "not carried", which is ALWAYS eligible,
-and the CARRIED options below. "Not carried" scores 0, and a carried
-option scores `w_rule n`, plus, where it places a family, that family's
-`u` (4.6b.3). A rule whose computed column is an input of a rule carried
-before it, or one of whose inputs a rule carried before it computes, has
-"not carried" as its only option, so a column is computed by at most one
-carried rule and no carried rule reads a computed column.
+rule; ties by kind, `order` first, then by the inputs in schema order).
+The step's options are "not carried", which is ALWAYS eligible, and the
+CARRIED options below. "Not carried" scores 0, and a carried option
+scores `w_rule n`, plus, where it places a family, that family's `u`
+(4.6b.3). A rule whose computed column a rule carried before it computes
+or reads as an input, or one of whose inputs a rule carried before it
+computes, has "not carried" as its only option, so a column is computed
+by at most one carried rule and no carried rule reads a computed
+column.
 
 *Its failing rows.* Each carried option has its own count `v` of
 failing rows: for an order rule carried by a derived `D`, the rows where
@@ -4411,11 +4417,11 @@ those rows and the rows where `B` differs from `A + D` (a reading on one
 side and none on the other included); for a formula rule, the rows where
 `C` holds a reading and the formula gives another value or none (an
 input absent), and the rows where every input holds a reading and `C`
-holds none. Its PARTITION is the PHRASE "holds, except on at most `f -
-1` rows" ("at most 10 rows" at the default floor) for `v` from 0 to `f -
-1`, the COUNT `v` itself for each `v` from `f` up to MR's inference
-limit, and nothing above; the PHRASE-ONLY partition is the phrase for
-`v` up to `f - 1` and nothing above. A carried rule publishes the class
+holds none. Its PARTITION is the PHRASE "holds, except on at most
+`f - 1` rows" ("at most 10 rows" at the default floor) for `v` from 0
+to `f - 1`, the COUNT `v` itself for each `v` from `f` up to MR's
+inference limit, and nothing above; the PHRASE-ONLY partition is the
+phrase for `v` up to `f - 1` and nothing above. A carried rule publishes the class
 its real `v` falls in (`rules[].class`, 4.6b.5) and nothing else of `v`.
 
 *Its BASE.* The rule's base is the facts the description publishes
@@ -4443,7 +4449,12 @@ cells LEAKS in `K` where its count lies inside 1 to `f - 1` in every
 world of `K`. The test, in each class `K`: let `S(K)` be the joint cells
 whose largest count over the worlds of `K` is at most `f - 1`; the class
 PASSES where one world of `K` holds every cell of `S(K)` at 0. A
-partition passes where each of its classes does.
+partition passes where each of its classes that publishes something
+does. The joint cells read the base at its bands: a base column's own
+facts finer than its bands (a source `D`'s count of negative readings, a
+date's censuses) enter only through RULE W1 as own-fact groups, and
+their crossing with the mark is a remainder (4.6b.9 (h)); lane MR's
+measurement left the dates' censuses out in the same way.
 
 - *Why a passing class leaks no union (proven).* Take a union `U` of
   joint cells. If `U` lies inside `S(K)`, the world that holds `S(K)` at
@@ -4452,9 +4463,10 @@ partition passes where each of its classes does.
   `U`. Either way `U`'s count is not inside 1 to `f - 1` in every world
   of `K`. ∎
 - *It is computable.* Each largest count and each world is one exact
-  integer program over the joint cells, of a few hundred cells at most
-  (each base column's `L0` bands, twice), so the test never lists the
-  unions. A class that does not pass is refused whether or not some
+  integer program over the joint cells (the product of the base
+  columns' `L0` band counts, twice; lane MR's fuller reading, which held
+  the computed column's bands too, had 111 to 860 cells on its shapes),
+  so the test never lists the unions. A class that does not pass is refused whether or not some
   union leaks there: the test may refuse more than it must, never pass a
   leak.
 - *The implementation route* (the orchestrator's ruling of 2026-10-19,
@@ -4487,17 +4499,17 @@ broken on about half the twin's rows (below).
 carried by its DIFFERENCE `D = B - A`, in one of two kinds of option,
 both offered by the rule's step where eligible: by a SOURCE column `D`
 that lane MR's inference names (a column equal to `B - A` on most rows;
-the option's failing rows then count the rows where `B` differs from `A
-+ D` as well, so the identity is held to the same partition and the same
-test as the order; inventory row 10), or by a DERIVED `D` (below). `B`
-is COMPUTED: in every row of the twin it is written as `A + D` in `B`'s
-own layout (the generation method's G16.2), where both hold a reading,
-and absent elsewhere, so `B >= A` on every row where `D >= 0`. Where a
-source `D` carries the rule, the weight raise goes to the chain's option
-`{D | A}`. MR's page writes how the twin treats the rows where a source
-`D` is negative, and a formula rule's arithmetic. In the phrase class
-the twin breaks the rule on no row; in a count class on exactly `v` rows
-(MR's page).
+the option's failing rows then count the rows where `B` differs from
+`A + D` as well, so the identity is held to the same partition and the
+same test as the order; inventory row 10), or by a DERIVED `D` (below).
+`B` is COMPUTED: in every row of the twin it is written as `A + D` in
+`B`'s own layout (the generation method's G16.2), where both hold a
+reading, and absent elsewhere, so `B >= A` on every row where `D >= 0`.
+Where a source `D` carries the rule, the weight raise goes to the
+chain's option `{D | A}`. MR's page writes how the twin treats the rows
+where a source `D` is negative, and a formula rule's arithmetic. In the
+phrase class the twin breaks the rule on no row; in a count class on
+exactly `v` rows (MR's page).
 
 **What a computed column publishes: nothing of its own rows.** A column
 a carried rule computes publishes no count of its own, so no exact
@@ -4966,7 +4978,7 @@ type with levels A 280, B 240, C 240 and D 240 rows, its `L2` being A
 against the rest; the family row of that band reading A 56, B 0, C 44,
 D 0. W1 passes (A and C lie in two `L2` bands of the type), and "days 0
 AND type A or C" is 6 in every table: the union {A, C} is every
-combination the tables admit beside the band. A reader learns that the
+combination the tables admit beside the band. A reader is told that the
 six rows with days 0 have type A or C, a set of levels that is no band
 of any published level of the type. Why that differs from part C's
 single band: there the union was a band of another column's published
@@ -5014,8 +5026,8 @@ Lemma 3 is exact for the description without slopes and moments.
   eligible under one test read once on the rule's base, which the
   description publishes in either outcome (inventory rows 9, 9b and 10,
   class (a), and the paragraph on every count in (b)). The phrase covers
-  0 to `f - 1` failing rows at once, so no word tells 0 from 1 to `f -
-  1`.
+  0 to `f - 1` failing rows at once, so no word tells 0 from 1 to
+  `f - 1`.
 - A COMPUTED column publishes no count of its own (4.6b.7's inventory of
   absent facts, its absent cells among them), so no exact cumulative
   count of it exists. A count of its rows below a value `x` is a count
@@ -5143,7 +5155,8 @@ and nothing in it enters a shared file.
   column ((d)); the bound on a derived column's pinned order statistics
   ((e)); a carried rule's class beside the chain's families, for an
   order rule carried by a source column and for a formula rule ((b),
-  every count); several carried rules sharing a column beyond the
+  every count), and beside its base columns' own facts finer than their
+  bands (4.6b.7); several carried rules sharing a column beyond the
   step order of 4.6b.7 (the third attack's two-rules table, a `K-S6-08`
   fixture); and the pseudorandom property of keyed BLAKE2b ((b), the
   model).

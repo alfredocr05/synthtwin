@@ -17829,7 +17829,9 @@ parents `P` at `F`'s levels, target `t`:
      a count class exactly the published count below 0, inside the parts
      the cut at 0 publishes. The rows of `A`'s `missing` band all take
      `D`'s `missing` band, since the table's structural zeros leave them
-     no other target.
+     no other target. A derived column is no column of the table, so
+     the twin writes none: its readings serve only to write `B`, and are
+     freed once `B` is written.
    - Then each column the description marks computed is written row by
      row from its rule, in its own layout: for an order rule `A <= B`
      carried by `D` (a source column or a derived one), `B`'s cell in a

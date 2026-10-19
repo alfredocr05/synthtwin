@@ -31,6 +31,22 @@ shared report the twin carries prints one structural word a pair; the
 private report of the person who runs synthtwin prints both grades and
 says which twin to use for which analyses.
 
+The page's first review round repaired it before any code. A rule
+between two columns, such as admission before discharge, is now carried
+only by a drawn step that may always leave it out, and is tested once on
+the facts published whether or not it is carried, in a form a solver can
+compute and the page proves. A length of stay the profiler derives is
+published only inside its table with the admission column, so it can no
+longer fix how many rows hold an admission and no discharge (the review
+found 7 of 1,000 fixed). Describing the same table again after an
+answer changed what would be published is refused unless the person
+says the first description was never shared. A validation report prints
+nothing measured for a pair outside a family and no cell of a table
+holding a small one, since a distance at four decimals gave a small cell
+back. The settings and the targets are restated against what was
+actually measured, the stage-6 gate's measured risk is told, and
+`tests/test_chain_method_page.py` holds every repaired item.
+
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
 **A follow-up to batch 4b** (lane CF4b of the December plan; CI run
