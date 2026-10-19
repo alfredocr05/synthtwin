@@ -69,6 +69,10 @@ other work was loading: lane D3's day-of-month census, 44.68 s; and the
 layout file, which lanes R2b and R2c took from 32.30 s to 145.56 s,
 re-measured the same way.
 
+ONE ROW ADDED 2026-10-19, at the integration of batch 4c: lane E0a's
+health data zoo, `tests/test_health_zoo.py`, 22.78 s, timed ON ITS OWN
+on the integrated tree as above, on a machine other work was loading.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -118,6 +122,7 @@ SECONDS = {
     "tests/test_final_skeptic_repairs.py": 18.68,
     "tests/test_generation.py": 7.12,
     "tests/test_generation_reference.py": 95.29,
+    "tests/test_health_zoo.py": 22.78,
     "tests/test_held_unit_search.py": 25.61,
     "tests/test_joined_battery_readings.py": 215.32,
     "tests/test_joined_pair_round_trip.py": 103.91,

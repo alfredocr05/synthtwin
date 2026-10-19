@@ -79,8 +79,17 @@ MACHINE_KINDS = ("seconds_below", "peak_memory_below")
 # The phases and stages an id may name. P0-P4 are the closed phases,
 # S1 and S2 the stages of reopened Phase 4, 2B stage 2b, and S3-S8 the
 # stages still to come, whose stage checks may be measured early as baselines.
-ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B)-(\d\d)([a-z])?$")
+# HZ is the health data zoo (lane E0a, plan P4-D399): the catalogue of
+# every kind of healthcare data, re-run at every merge (TRACKED T3).
+ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B|HZ)-(\d\d)([a-z])?$")
 HEADLINES_AT_LEAST = 20
+# 33 from 32, THE ORCHESTRATOR'S RECORDED CALL D15 OF THE DECEMBER PLAN
+# (2026-10-16, plan P4-D399; the owner may veto it): the health data
+# zoo's `K-HZ-01` -- the kinds of healthcare data that pass end to end
+# with the analyst's code running unchanged on the twin -- is the
+# headline its group must have, and the owner's "all" of 2026-10-16
+# is what it counts. One step, with its reason; nothing is demoted.
+#
 # 32 from 31, THE ORCHESTRATOR'S RECORDED CALL D15 OF THE DECEMBER PLAN
 # (2026-10-15, plan P4-D397; the owner may veto it): the terminal takes
 # stage 8's ids now the screen is dropped, and its first entry, lane TI's
@@ -94,7 +103,7 @@ HEADLINES_AT_LEAST = 20
 # stage adds one headline of its own -- `K-S3-38`, time of day comes
 # back -- while `K-S3-31` widens in place to "the calendar comes back".
 # A deliberate raise, never a demotion made to fit.
-HEADLINES_AT_MOST = 32
+HEADLINES_AT_MOST = 33
 
 # Verdict words, printed by the runner and stored in its report.
 PASS = "PASS"

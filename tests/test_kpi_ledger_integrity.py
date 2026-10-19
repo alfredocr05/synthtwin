@@ -815,6 +815,21 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 638,000 from 635,000, LANE E0A'S REPAIR 2 (2026-10-16, plan P4-D399),
+    # the least round figure the lane's ledger fits under: the three K-HZ
+    # entries restated for forty kinds over twenty-five exports and the
+    # zoo-fix track's owners, 637,073 bytes. A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
+    #
+    # 635,000 from 622,000, LANE E0A OF THE DECEMBER PLAN (2026-10-16, plan
+    # P4-D399, at its repair 1), the least round figure the lane's ledger
+    # fits under: the health data zoo's three entries, `K-HZ-01` (its
+    # headline, with the failing kinds named at both sizes), `K-HZ-02`
+    # with each of thirty-six kinds' step and owners, and `K-HZ-03`, with
+    # their note clause, 634,217 bytes (630,776 before the repair widened
+    # the zoo). The integrator sets the cap for the batch as a whole. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 622,000 from 619,000, AT BATCH 4B'S RECORDS (2026-10-16), the least
     # round figure the ledger fits under: `K-S4-15` (entered as `K-S4-13`
     # and moved to the id the December plan gives it by Codex's review of
@@ -1095,7 +1110,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 622_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 638_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
@@ -1863,6 +1878,43 @@ def _kpi_call_lines(path: pathlib.Path, function: str) -> "list[int]":
                 and inner.func.id == "_kpi"
             ]
     raise AssertionError(f"{function} is not defined in {path.name}")
+
+
+def test_no_workbook_read_in_the_suite_goes_around_the_cross_check_reader() -> None:
+    """LANE E0A'S FIRST REVIEW (skeptic 1, item 1; Codex, item 8), and the guard it widened.
+
+    The health data zoo (`tests/health_zoo.py`), which K-HZ-01 and
+    K-HZ-02 run, read its survey workbook with `pandas.read_excel`
+    directly, so CI's `minimums` cell, which has no openpyxl, would have
+    failed four cases and the two KPIs rather than skipping one part.
+    The guard below only read `tests/test_kpi_ledger.py`, so it could
+    not see a helper module a KPI test calls. So: no file of the suite
+    but `tests/crosscheck.py` calls `read_excel` on anything but
+    `crosscheck`, and the zoo asks the cross-check reader only in the
+    ways that never skip.
+    """
+    tests = kpi_rules.REPO_ROOT / "tests"
+    direct = []
+    for path in sorted(tests.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        if path.name == "crosscheck.py" or "read_excel(" not in text:
+            continue
+        for node in ast.walk(ast.parse(text)):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "read_excel"
+                and not (isinstance(node.func.value, ast.Name) and node.func.value.id == "crosscheck")
+            ):
+                direct += [f"{path.name}:{node.lineno}"]
+    assert not direct, (
+        f"a workbook read goes around tests/crosscheck.py: {direct}; pandas opens an "
+        ".xlsx through openpyxl, which CI's minimums cell lacks"
+    )
+    asks = _crosscheck_calls(tests / "health_zoo.py")
+    assert asks, "the zoo reads its workbook through the cross-check reader"
+    skipping = [f"{function}: {name}" for function, name, _line in asks if name not in CROSSCHECK_ASKS_THAT_NEVER_SKIP]
+    assert not skipping, f"the zoo, which KPI tests run, would skip them: {skipping}"
 
 
 def test_no_kpi_test_can_be_skipped_by_the_absent_cross_check_reader() -> None:
