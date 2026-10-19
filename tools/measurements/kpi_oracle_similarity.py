@@ -15,8 +15,13 @@ same measure that a reader can run:
   by `difflib.SequenceMatcher.ratio` on those sequences (candidates whose
   node-kind multisets cannot reach 0.60 are skipped, which cannot change
   a score at or above 0.60);
-- the count at or above 0.60 is the ledger value, and the functions are
-  named, so a NEW close copy is named rather than summed.
+- the SHARE of the scored functions at or above 0.60 is what the ledger
+  bounds, and the functions are named, so a NEW close copy is named
+  rather than summed. The bound was a count, 176, until the oracle grew
+  past the 485 functions it was set over; at batch 4c's integration
+  (2026-10-19, the orchestrator's ruling on push critic 8) it became
+  the share it stood for, 176 of 485, and the count is recorded beside
+  it.
 
 It scores all the oracle's functions, not only the 53 document
 transforms, so its count is not G14.2's 13. A few minutes.
@@ -88,4 +93,9 @@ for name, kinds in oracle:
 print(f"oracle functions scored: {len(oracle)} against {len(shipped)} shipped", flush=True)
 for line in close:
     print("  ", line)
-kpi_rules.emit("K-2B-42", {"at_or_above_0_60": len(close), "scored": len(oracle)}, ", ".join(close))
+share = len(close) / len(oracle) if oracle else 0.0
+kpi_rules.emit(
+    "K-2B-42",
+    {"at_or_above_0_60": len(close), "scored": len(oracle), "share_at_or_above_0_60": share},
+    ", ".join(close),
+)
