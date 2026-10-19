@@ -603,3 +603,357 @@ def test_the_walk_held_before_is_let_go_before_the_next_walk_is_read(
     assert reading.column_groups(read) == ((0, 1), (1, 2), (2, 3))
     assert alive_when_read == [0, 0, 0]
     assert reading.column_values(read, 1)[3] == "x3"
+
+
+# -- 7. skeptic 1's and Codex's review of the lane (repair 1) -------------
+#
+# Each case below is red on the mutant named in its docstring.
+
+
+def _walk_entries(path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> "list[tuple[bool, int]]":
+    """Read ``path`` one column a group: at each walk the survey makes, whether it holds a column and the bytes traced then."""
+    entries: "list[tuple[bool, int]]" = []
+    walked = dialect.survey
+
+    def entered(*arguments: object, **named: object) -> object:
+        keep = named.get("keep", arguments[14] if len(arguments) > 14 else None)
+        if named.get("quoted_closing", arguments[13] if len(arguments) > 13 else None) is not None:
+            holds = keep is None or True in keep  # type: ignore[operator]
+            entries.append((holds, tracemalloc.get_traced_memory()[0]))
+        return walked(*arguments, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1)
+    monkeypatch.setattr(dialect, "survey", entered)
+    tracemalloc.start()
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            reading.read_table(str(path), in_groups=True)
+    finally:
+        tracemalloc.stop()
+        monkeypatch.undo()
+    return entries
+
+
+def _long_rows(row: int) -> "list[str]":
+    """Three cells of about fifty characters, different on every row."""
+    return [f"{row:06d}{'q' * 40}{row % 97:03d}", f"w{row}-{'z' * 44}", f"{row * 7:09d}{'m' * 38}"]
+
+
+_RETRIED: "dict[str, bytes]" = {
+    # Comma-space guessed from the first records, broken by two spaces
+    # late in the file: walked again without the space.
+    "comma-space shown wrong": (
+        "a, b, c\n"
+        + "".join(", ".join(_long_rows(row)) + "\n" for row in range(2_500))
+        + "x,  y, z\n"
+    ).encode(),
+    # A doubled-quote reading leaving text after a closing quote, which
+    # the backslash reading reads clean: walked again with backslashes.
+    "a malformed doubled quote read with backslashes": (
+        "a,b,c\n"
+        + "".join(",".join(_long_rows(row)) + "\n" for row in range(2_500))
+        + '1,"x\\"y",3\n'
+    ).encode(),
+    # The doubled-quote reading refused (a field split in three), the
+    # backslash reading clean: the refusal kept while the next walk is made.
+    "a refusal then the backslash reading": (
+        "a,b\n"
+        + "".join(f"{_long_rows(row)[0]},{_long_rows(row)[1]}\n" for row in range(2_500))
+        + '1,"hello \\"quoted, text\\""\n'
+    ).encode(),
+    # Every walk reading `""` as a value refused, the walks made again
+    # reading it as a closing (lane R6's table, Codex's case, long).
+    "a closing written two quotes": (
+        "site;dx\n"
+        + f"{_long_rows(0)[0]};{_long_rows(0)[1]};\"\"\n"
+        + "".join(f"{_long_rows(row)[0]};{_long_rows(row)[1]};\n" for row in range(1, 2_500))
+    ).encode(),
+    # Trailing delimiters guessed and broken: walked again without them.
+    "trailing delimiters shown wrong": (
+        "a,b,c,\n"
+        + "".join(",".join(_long_rows(row)) + ",\n" for row in range(2_500))
+        + "1,2,3,4\n"
+    ).encode(),
+}
+
+
+@pytest.mark.parametrize("shape", sorted(_RETRIED))
+def test_a_walk_made_again_holds_no_earlier_walk_and_reads_no_whole_text(
+    shape: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1, item 4, and Codex's item 3: a walk made again reads the lines afresh, and no earlier walk's cells are held beside it.
+
+    Read in groups, as read whole; the file's bytes never read whole nor
+    decoded whole; and at every walk that holds a column, the bytes
+    traced are within a third of one column's cells of the least seen at
+    any walk. Red on each mutant: the walk shown wrong kept (`del found`
+    taken out), the refusal kept with its frames (`_let_go` taken out),
+    the backslash reading tried holding the columns beside the walk it
+    may replace, the trailing retry made beside its walk's cells.
+    """
+    path = tmp_path / "retried.csv"
+    path.write_bytes(_RETRIED[shape])
+    found = _same_reading(path, "auto", monkeypatch)
+    assert found[0] == "read", found
+
+    def refused(*_arguments: object) -> object:
+        raise AssertionError("the whole file was read or decoded")
+
+    monkeypatch.setattr(pathlib.Path, "read_bytes", refused)
+    monkeypatch.setattr(dialect, "decoded", refused)
+    monkeypatch.setattr(dialect, "decoded_as", refused)
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    table = reading.read_table(str(path), in_groups=True)
+    assert table.source is not None and len(reading.column_values(table, 1)) >= 2_500
+    monkeypatch.undo()
+    entries = _walk_entries(path, monkeypatch)
+    # Some walk was made again.
+    assert len(entries) > 2 * len(table.column_names) + 1, entries
+    one_column = 2_500 * 100
+    least = min(traced for _holds, traced in entries)
+    for holds, traced in entries:
+        if holds:
+            assert traced - least < one_column // 3, (shape, entries)
+
+
+def test_a_text_repeated_late_in_a_column_is_shared_when_read_again(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's item 1: past `parsing.SPELLING_MEMO_TEXTS` different texts, a text written on every later row is held once, read again as the survey holds it.
+
+    Red on the mutant that keeps only the bound (`_read_group`'s memo as
+    shipped at dad8ed3e): one text a row.
+    """
+    from synthtwin import parsing
+
+    late = "n" * 300
+    rows = parsing.SPELLING_MEMO_TEXTS + 2_000
+    table = tmp_path / "late.csv"
+    with table.open("w", encoding="utf-8", newline="\n") as out:
+        out.write("k,note\n")
+        for row in range(rows):
+            note = f"t{row}" if row < parsing.SPELLING_MEMO_TEXTS else late
+            out.write(f"{row % 5},{note}\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=True)
+    reading.column_values(read, 0)
+    cells = reading.column_values(read, 1)
+    assert cells[rows - 1] == late
+    held = {id(cells[row]) for row in range(parsing.SPELLING_MEMO_TEXTS, rows)}
+    assert len(held) <= 2, len(held)
+
+
+@pytest.mark.parametrize("change", ["a record shorter", "a value too long to read"])
+def test_a_record_no_longer_where_it_was_is_refused_as_a_changed_file(
+    change: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's item 5: a file whose records moved since the first reading is refused in the catalogued words, never an IndexError or a csv error.
+
+    Red on the mutant that catches only OSError and UnicodeDecodeError
+    around the reading again.
+    """
+    table = tmp_path / "t.csv"
+    text = "a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(60))
+    table.write_text(text, encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=True)
+    if change == "a record shorter":
+        table.write_text(text.replace("7,14,x7\n", "7,14\n"), encoding="utf-8", newline="\n")
+    else:
+        table.write_text(text.replace(",x7\n", ",x" + "7" * 300 + "\n"), encoding="utf-8", newline="\n")
+        monkeypatch.setattr(reading, "FIELD_SIZE_LIMIT", 100)
+    with pytest.raises(errors.ProfileError) as refused:
+        reading.column_values(read, 2)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+
+
+def test_the_columns_held_are_let_go_before_the_next_are_read(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1, item 5 (M8): `column_values` and `hold_columns` let go of what they hold before reading the next columns.
+
+    Red on the mutant that reads the next group while the one held is
+    still held.
+    """
+    table = tmp_path / "t.csv"
+    table.write_text("a,b,c,d\n" + "".join(f"{k},x{k},{k % 7},y{k}\n" for k in range(80)), encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=True)
+    source = read.source
+    assert source is not None
+    held_when_read: "list[int]" = []
+    group_read = reading._read_group
+
+    def watched(*arguments: object) -> object:
+        held_when_read.append(len(source.held))
+        return group_read(*arguments)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading, "_read_group", watched)
+    assert reading.column_values(read, 2)[3] == "3"
+    reading.hold_columns(read, (0, 3))
+    assert reading.column_values(read, 3)[1] == "y1" and reading.column_values(read, 0)[4] == "4"
+    assert reading.column_values(read, 1)[5] == "x5"
+    assert held_when_read == [0, 0, 0]
+
+
+def test_a_file_changed_while_pandas_reads_it_is_refused(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1, item 5 (M3): a file whose moment of change moves while pandas reads it is refused, even where pandas read the same values.
+
+    Red on the mutant that makes `reading._still_the_same` inert: a
+    table that fits one walk is read no more after pandas.
+    """
+    table = tmp_path / "t.csv"
+    table.write_text("a,b\n" + "".join(f"{k},w{k % 9}\n" for k in range(60)), encoding="utf-8", newline="\n")
+    read_by_pandas = reading.pandas.read_csv
+
+    def touched(*arguments: object, **named: object) -> object:
+        found = read_by_pandas(*arguments, **named)  # type: ignore[call-overload]
+        seen = table.stat()
+        os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns + 2_000_000_000))
+        return found
+
+    monkeypatch.setattr(reading.pandas, "read_csv", touched)
+    with pytest.raises(errors.ProfileError) as refused:
+        reading.read_table(str(table), in_groups=True)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+
+
+def test_what_a_text_costs_to_hold_is_never_less_than_python_holds_it_in() -> None:
+    """Codex's item 4: the survey's measure of a column's cells counts each text at its own width.
+
+    Every text is measured at least at what `sys.getsizeof` says it
+    holds, on this Python; a column of texts carrying one character
+    beyond the Basic Multilingual Plane measures four bytes a character.
+    Red on the mutant that measures characters as bytes.
+    """
+    import sys
+
+    for text in ["a", "ab" * 30, "é" * 7, "café", "€" * 11, "x\U0001f600" * 50, "\U0001f600"]:
+        assert dialect._stored_bytes(text) >= sys.getsizeof(text), text
+    texts = [f"{row:05d}" + "q" * 94 + "\U0001f600" for row in range(40)]
+    surveyed = dialect.settle(
+        "a,b\n" + "".join(f"{row},{texts[row]}\n" for row in range(40)), "utf-8", False, False, "t.csv", keep=()
+    )
+    assert surveyed.cell_bytes[1] >= sum(sys.getsizeof(text) for text in texts)
+    assert surveyed.cell_bytes[1] >= 40 * 4 * 100
+
+
+def test_wide_columns_are_grouped_and_walked_by_their_own_bytes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1, item 3: four adjacent note columns beside six short ones; groups and walks cut by each column's bytes, and no walk holds more than its budget.
+
+    A note column costs about a megabyte here and a short one a seventh
+    of that: with a group of a MiB and a walk of two, every note column
+    is a group of its own, the short columns share groups, and the cells
+    each walk holds -- every text as `sys.getsizeof` says, and its place
+    in the column -- stay within the walk's budget. Red on the mutant
+    that sizes groups by the table's average cell and walks six groups
+    at a time (every column in one walk here).
+    """
+    import sys
+
+    draw = random.Random(31)
+    rows = 2_000
+    lines = ["k0,k1,k2,note0,note1,note2,note3,k3,k4,k5"]
+    for row in range(rows):
+        notes = [" ".join(f"w{draw.randrange(10 ** 6)}" for _word in range(55)) for _note in range(4)]
+        lines += [",".join([f"{row}", f"{row % 7}", f"c{row % 3}"] + notes + [f"{row * 3}", "x", f"{row % 11}"])]
+    table = tmp_path / "notes.csv"
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    mebibyte = 1024 * 1024
+    monkeypatch.setattr(reading, "GROUP_BYTES", mebibyte)
+    monkeypatch.setattr(reading, "WALK_BYTES", 2 * mebibyte)
+    held_a_walk: "list[int]" = []
+    walk = reading._walk_a_group
+
+    def weighed(*arguments: object) -> object:
+        found = walk(*arguments)  # type: ignore[arg-type]
+        cells = 0
+        for column in found[0].columns:  # type: ignore[index]
+            shared: "set[int]" = set()
+            for value in column:
+                cells = cells + 8
+                if id(value) not in shared:
+                    shared.add(id(value))
+                    cells = cells + sys.getsizeof(value)
+        held_a_walk.append(cells)
+        return found
+
+    monkeypatch.setattr(reading, "_walk_a_group", weighed)
+    read = reading.read_table(str(table), in_groups=True)
+    assert reading.column_groups(read) == ((0, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 10))
+    assert reading.column_walks(read) == ((0, 4), (4, 6), (6, 10))
+    # The walk that plans holds nothing; each other walk holds its cells.
+    assert held_a_walk[0] == 0 and len(held_a_walk) == 4
+    assert max(held_a_walk) <= 2 * mebibyte, held_a_walk
+    assert max(held_a_walk) > mebibyte, held_a_walk
+    whole = reading.read_table(str(table))
+    for place in range(10):
+        assert reading.column_values(read, place) == whole.columns[place]
+
+
+@pytest.mark.parametrize("declared", [["patient", "visit"], ["patient", "ward", "dose"]])
+def test_the_census_of_several_identifiers_counts_as_the_whole_census_counts(
+    declared: "list[str]", tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's item 2: several declared identifiers, counted one column at a time, as the whole census counts them."""
+    table = tmp_path / "clinic.csv"
+    table.write_text(_table_of_every_question(), encoding="utf-8", newline="\n")
+    settings = taxonomy.Settings()
+    whole = reading.read_table(str(table))
+    expected = profile.population_census_of(whole, settings, declared, [], [], [], ())
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    grouped = reading.read_table(str(table), in_groups=True)
+    found = profile.population_census_of(grouped, settings, declared, [], [], [], ())
+    assert found[:2] == expected[:2]
+    assert found[0], found
+
+
+def test_the_census_holds_one_declared_column_at_a_time(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's item 2: six declared identifiers of long codes, read one column a group; the census holds about one column's cells, never all six.
+
+    The most `tracemalloc` sees held while `profile.population_census_of`
+    counts the table read one column a group, above what the table held
+    before, is under twice what one column's cells and its census
+    reading hold; and it counts as the whole census counts. Red on the
+    mutant that gathers every declared column before counting.
+    """
+    rows = 3_000
+    names = [f"id{k}" for k in range(6)]
+    table = tmp_path / "ids.csv"
+    table.write_text(
+        ",".join(names) + "\n"
+        + "".join(",".join(f"{k}-{row // 2:06d}-{'c' * 60}" for k in range(6)) + "\n" for row in range(rows)),
+        encoding="utf-8",
+        newline="\n",
+    )
+    settings = taxonomy.Settings()
+    whole = reading.read_table(str(table))
+    expected = profile.population_census_of(whole, settings, names, [], [], [], ())
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    grouped = reading.read_table(str(table), in_groups=True)
+    tracemalloc.start()
+    try:
+        reading.column_values(grouped, 5)
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        taxonomy.repeats_in(reading.column_values(grouped, 0), "id0", settings)
+        one_column = tracemalloc.get_traced_memory()[1] - before
+        reading.column_values(grouped, 5)
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        found = profile.population_census_of(grouped, settings, names, [], [], [], ())
+        census = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        tracemalloc.stop()
+    assert found[:2] == expected[:2] and len(found[0]) == 6
+    assert census < 2 * one_column, (census, one_column)
+
+

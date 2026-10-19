@@ -5456,7 +5456,10 @@ def survey(
                 declared_delimiter, small_cell_floor, True, keep, streamed,
             )
         except errors.ProfileError:
-            raise refused from None
+            # Raised below, outside this handler, so the refusal of the
+            # walk made again is not kept beside it as its context.
+            pass
+        raise refused
     if streamed is None:
         body = _text(text)
         end_mark = _ends(body, _END_OF_FILE)
@@ -5993,8 +5996,10 @@ def survey(
             columns = []
             flags = []
             spelled = []
+            spelled_here = {}
             noted = []
             older = []
+            opening = None
             return survey(
                 text,
                 encoding,
@@ -6567,7 +6572,9 @@ def settle(
             declared_delimiter, small_cell_floor, True, keep, streamed,
         )
     except errors.ProfileError:
-        raise refused from None
+        # Raised below, outside this handler (`survey` says why).
+        pass
+    raise refused
 
 
 def _settled(
@@ -6611,8 +6618,9 @@ def _settled(
         # file was readable all along, and removing the embedded comma
         # made the very same escaping work, which is what said the
         # refusal was about the reading and not about the file.
+        backslashed: "Survey | None" = None
         try:
-            other = survey(
+            backslashed = survey(
                 text, encoding, byte_order_mark, first_row_is_data, shown,
                 None, ESCAPE_BACKSLASH, metadata_rows=metadata_rows,
                 decimal_comma_columns=decimal_comma_columns,
@@ -6624,10 +6632,12 @@ def _settled(
                 streamed=streamed,
             )
         except errors.ProfileError:
-            raise refused from None
-        if other.malformed == 0:
-            return other
-        raise refused from None
+            # Raised below, outside this handler (`survey` says why).
+            pass
+        if backslashed is not None and backslashed.malformed == 0:
+            return backslashed
+        backslashed = None
+        raise refused
     if found.initial_space_broken:
         # The walk that showed the guess wrong is not needed after it.
         del found
