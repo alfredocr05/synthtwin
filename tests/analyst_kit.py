@@ -24,7 +24,15 @@ fitters raise `FitTrouble` with one of `TROUBLES` rather than return a
 number nobody should read: a design whose cross-product matrix is not
 positive definite (`singular`), Newton steps that do not settle
 (`no convergence`), a logistic fit whose fitted probabilities reach 0 or
-1 (`separation`), an empty set of rows (`empty`).
+1 while its steps do not settle (`separation`), an empty set of rows
+(`empty`).
+
+SUMS THAT DO NOT CANCEL. A sum of squares taken from raw moments loses
+every digit where the values sit far from zero (an outcome near 1e8: a
+residual sum of 9.7 read as 0), so least squares sums its residuals in a
+pass of their own, the mixed model centres its outcome on its mean where
+the design holds the intercept, and Cox's model centres each term on its
+mean and takes every risk relative to one common bound.
 
 Every function is deterministic: no randomness is drawn here except by
 `Booster`, which draws none either -- its splits are exhaustive.
@@ -33,6 +41,7 @@ Every function is deterministic: no randomness is drawn here except by
 from __future__ import annotations
 
 import math
+import sys
 from operator import mul
 from typing import Callable, Iterator, Sequence
 
@@ -228,23 +237,27 @@ def linear(columns: "list[list[float]]", beta: "list[float]") -> "list[float]":
 def ols(design: Design, y: "Sequence[float]") -> Fit:
     """Ordinary least squares; FitTrouble 'empty' or 'singular'.
 
-    One pass: X'X, X'y and y'y are summed chunk by chunk, so the
-    residual sum of squares comes from the sums and no second pass is
-    needed. The covariance is s^2 (X'X)^-1 with s^2 = RSS / (n - p);
-    ``extra`` carries `r2` and `rss`.
+    Two passes. The first sums X'X and X'y chunk by chunk, and the
+    outcome's squares about its mean; the second sums the squared
+    residuals themselves, row by row: the residual sum taken from the
+    raw moments, y'y - 2 b'X'y + b'X'X b, cancels away every digit where
+    the outcome sits far from zero (an outcome of 2x +/- 1 + 1e8 read a
+    residual sum of 0 and standard errors of 0). The covariance is
+    s^2 (X'X)^-1 with s^2 = RSS / (n - p); ``extra`` carries `r2` and
+    `rss`.
     """
     p = len(design.names)
     n = design.rows
     if n <= p:
         raise FitTrouble("empty", f"{n} rows for {p} terms")
+    center = math.fsum(y) / n
     xtx = [[0.0] * p for _ in range(p)]
     xty = [0.0] * p
-    yy = 0.0
-    ysum = 0.0
+    tss = 0.0
     for start, stop, cols in design.chunks():
         part = list(y[start:stop])
-        yy += _dot(part, part)
-        ysum += sum(part)
+        about = [v - center for v in part]
+        tss += _dot(about, about)
         for i in range(p):
             ci = cols[i]
             xty[i] += _dot(ci, part)
@@ -253,12 +266,14 @@ def ols(design: Design, y: "Sequence[float]") -> Fit:
                 row[j] += _dot(ci, cols[j])
     _symmetrize(xtx)
     beta = solve(cholesky(xtx), xty)
-    rss = yy - 2.0 * _dot(beta, xty) + sum(beta[i] * _dot(xtx[i], beta) for i in range(p))
-    rss = max(rss, 0.0)
+    parts: "list[float]" = []
+    for start, stop, cols in design.chunks():
+        residual = [v - f for v, f in zip(y[start:stop], linear(cols, beta))]
+        parts += [_dot(residual, residual)]
+    rss = math.fsum(parts)
     s2 = rss / (n - p)
     inv = inverse(xtx)
     cov = [[s2 * v for v in row] for row in inv]
-    tss = yy - ysum * ysum / n
     return Fit(design.names, beta, cov, 1, {"rss": rss, "r2": 1.0 - rss / tss if tss > 0 else 0.0})
 
 
@@ -281,8 +296,11 @@ def glm(
     be the intercept); stops when no coefficient moves more than ``tol``.
     FitTrouble: 'empty' with no rows or an outcome with one value,
     'no convergence' after ``max_iter`` steps, 'separation' where a
-    logistic fit puts a fitted probability within 1e-9 of 0 or 1,
-    'singular' from the cross-product matrix. The covariance is the
+    logistic fit puts a fitted probability within 1e-9 of 0 or 1 AND its
+    steps do not settle, 'singular' from the cross-product matrix. A fit
+    that settles with a probability that close (a steep slope the data
+    still pin down) is returned, as R's glm returns it with a warning,
+    and ``extra`` says `settled` 0.0 for it. The covariance is the
     inverse Fisher information; ``extra`` carries the deviance and, for
     Poisson, the Pearson dispersion (chi-square over n - p). With
     ``strict`` False the last step is returned where the steps did not
@@ -361,7 +379,10 @@ def glm(
                 beta = [(a + b) / 2.0 for a, b in zip(beta, accepted)]
                 halvings += 1
                 continue
-            beta, state, converged = accepted, accepted_state, True
+            # No halving lowers the deviance: the maximum, within the
+            # arithmetic -- unless a probability sits at 0 or 1, where a
+            # separated coefficient has only stalled on its way out.
+            beta, state, converged = accepted, accepted_state, not accepted_state[4]
             info, _score, deviance, pearson, extreme = state
             break
         halvings = 0
@@ -373,11 +394,15 @@ def glm(
         if max(abs(s) for s in step) < tol * (1.0 + max(abs(b) for b in beta)):
             converged = True
             break
-    # Separation first: a separated term's coefficient runs off without
-    # end, so its steps never settle either, and the name an analyst's
-    # software gives it is the separation, not the steps.
-    if strict and family == "logistic" and extreme:
-        raise FitTrouble("separation", "a fitted probability reached 0 or 1")
+    # Separation is a probability at 0 or 1 whose steps never settle: a
+    # separated term's coefficient runs off without end, and the name an
+    # analyst's software gives that is the separation, not the steps. A
+    # fit that settles there is a steep slope, not a separation
+    # (measured: x uniform on (-4, 4) with a slope of 6 settles in 11
+    # steps at 5.58, se 0.30; the complete and quasi separations run all
+    # 30 steps).
+    if strict and family == "logistic" and extreme and not converged:
+        raise FitTrouble("separation", "a fitted probability reached 0 or 1 and the steps did not settle")
     if strict and not converged:
         raise FitTrouble("no convergence", f"{max_iter} steps did not settle")
     extra = {"deviance": deviance, "settled": 1.0 if converged and not extreme else 0.0}
@@ -400,8 +425,15 @@ def cox(
 
     The rows are taken longest time first, so each risk set is a running
     sum: every row of a tied time joins the sums before that time's
-    events are scored (Breslow). FitTrouble 'empty' with no event,
-    'no convergence', or 'singular'.
+    events are scored (Breslow). A tied time keeps only its event count
+    and its events' term sums, never its rows, so a common censoring day
+    held by thousands of rows costs O(p) and memory stays the table plus
+    O(p^2). Each term is centred on its mean (a shift of a term leaves the
+    partial likelihood unchanged) and every risk is taken relative to one
+    common bound on the linear predictor, the same for every row of a
+    step, so no risk is clipped and none overflows: x and x + 100 give the
+    same fit. FitTrouble 'empty' with no event, 'no convergence', or
+    'singular'.
     """
     p = len(design.names)
     n = design.rows
@@ -411,20 +443,53 @@ def cox(
     ranked = design.reordered(order)
     times = [time[i] for i in order]
     events = [1 if event[i] else 0 for i in order]
+    sums = [0.0] * p
+    lows = [math.inf] * p
+    highs = [-math.inf] * p
+    for _start, _stop, cols in ranked.chunks():
+        for a in range(p):
+            sums[a] += math.fsum(cols[a])
+            lows[a] = min(lows[a], min(cols[a]))
+            highs[a] = max(highs[a], max(cols[a]))
+    means = [v / n for v in sums]
     beta = [0.0] * p
     info: "list[list[float]]" = []
     for iterations in range(1, max_iter + 1):
+        # The largest the centred linear predictor can be: every risk is
+        # exp(eta - top), at most 1, the same factor for every row.
+        top = sum(max(b * (hi - m), b * (lo - m)) for b, hi, lo, m in zip(beta, highs, lows, means))
         score = [0.0] * p
         info = [[0.0] * p for _ in range(p)]
         s0 = 0.0
         s1 = [0.0] * p
         s2 = [[0.0] * p for _ in range(p)]
-        group: "list[tuple[tuple[float, ...], float, int]]" = []
-        group_time = None
+        tied_time: "float | None" = None
+        failures = 0
+        failed = [0.0] * p
 
-        def close(group: "list[tuple[tuple[float, ...], float, int]]") -> None:
-            nonlocal s0
-            for x, r, _e in group:
+        def close() -> None:
+            if not failures:
+                return
+            if not s0 > 0.0:
+                raise FitTrouble("no convergence", "every risk at an event time fell to zero")
+            m = [v / s0 for v in s1]
+            for a in range(p):
+                score[a] += failed[a] - failures * m[a]
+                row = info[a]
+                for c in range(a, p):
+                    row[c] += failures * (s2[a][c] / s0 - m[a] * m[c])
+
+        for start, stop, cols in ranked.chunks():
+            centred = [[v - m for v in column] for column, m in zip(cols, means)]
+            eta = linear(centred, beta) if p else [0.0] * (stop - start)
+            for k, x in enumerate(zip(*centred)):
+                t = times[start + k]
+                if tied_time is not None and t != tied_time:
+                    close()
+                    failures = 0
+                    failed = [0.0] * p
+                tied_time = t
+                r = math.exp(min(0.0, eta[k] - top))
                 s0 += r
                 for a in range(p):
                     ra = r * x[a]
@@ -432,32 +497,11 @@ def cox(
                     row = s2[a]
                     for c in range(a, p):
                         row[c] += ra * x[c]
-            failures = 0
-            for x, _r, e in group:
-                if e:
+                if events[start + k]:
                     failures += 1
                     for a in range(p):
-                        score[a] += x[a]
-            if failures:
-                m = [v / s0 for v in s1]
-                for a in range(p):
-                    score[a] -= failures * m[a]
-                    row = info[a]
-                    for c in range(a, p):
-                        row[c] += failures * (s2[a][c] / s0 - m[a] * m[c])
-
-        for start, stop, cols in ranked.chunks():
-            eta = _eta(cols, beta, [0.0] * (stop - start))
-            risk = [math.exp(min(60.0, e)) for e in eta]
-            for k, x in enumerate(zip(*cols)):
-                t = times[start + k]
-                if group and t != group_time:
-                    close(group)
-                    group = []
-                group_time = t
-                group += [(x, risk[k], events[start + k])]
-        if group:
-            close(group)
+                        failed[a] += x[a]
+        close()
         _symmetrize(info)
         step = solve(cholesky(info), score)
         beta = [b + s for b, s in zip(beta, step)]
@@ -470,7 +514,7 @@ def cox(
 
 
 def random_intercept(
-    design: Design, y: "Sequence[float]", groups: "Sequence[object]"
+    design: Design, y: "Sequence[float]", groups: "Sequence[object]", min_repeated: int = 1
 ) -> "tuple[Fit, float]":
     """A linear mixed model with one random intercept per group, by profiled maximum likelihood.
 
@@ -478,21 +522,34 @@ def random_intercept(
     sb2 / (sb2 + se2). The ratio lam = sb2 / se2 is searched by golden
     section on log lam over [1e-4, 1e3]; for each lam the fixed effects
     and se2 are closed forms. Per group only its row count, term sums and
-    outcome sum are kept (O(p) each); the p x p sums are global.
+    outcome sum are kept (O(p) each); the p x p sums are global. Where the
+    design holds the intercept (a term of ones), the outcome is summed
+    about its mean, which moves only the intercept's coefficient (added
+    back) and keeps the quadratic forms from cancelling (ten groups of
+    two read an ICC of 0.693 for 0.941 once 1e8 was added to every
+    outcome). ``extra`` carries `repeated`, the groups of two rows or
+    more: FitTrouble 'singular' where fewer than ``min_repeated`` (at
+    least one) hold two rows, or one group holds every row.
     """
     p = len(design.names)
-    if design.rows <= p:
-        raise FitTrouble("empty", f"{design.rows} rows for {p} terms")
+    n = design.rows
+    if n <= p:
+        raise FitTrouble("empty", f"{n} rows for {p} terms")
+    shift = math.fsum(y) / n
     xtx = [[0.0] * p for _ in range(p)]
     xty = [0.0] * p
+    colsum = [0.0] * p
     yy = 0.0
+    ysum = 0.0
     per: "dict[object, list]" = {}
     for start, stop, cols in design.chunks():
-        part = list(y[start:stop])
+        part = [v - shift for v in y[start:stop]]
         yy += _dot(part, part)
+        ysum += math.fsum(part)
         for i in range(p):
             ci = cols[i]
             xty[i] += _dot(ci, part)
+            colsum[i] += math.fsum(ci)
             row = xtx[i]
             for j in range(i, p):
                 row[j] += _dot(ci, cols[j])
@@ -508,15 +565,29 @@ def random_intercept(
                 sums[a] += x[a]
             held[2] += part[k]
     _symmetrize(xtx)
+    ones = [i for i in range(p) if colsum[i] == n and xtx[i][i] == n]
+    if not ones:
+        # No intercept: the shift is not the model's, so the raw sums are
+        # restored, exactly.
+        yy += 2.0 * shift * ysum + n * shift * shift
+        xty = [v + shift * c for v, c in zip(xty, colsum)]
+        for held in per.values():
+            held[2] += shift * held[0]
+        shift = 0.0
     stats = [(held[0], held[1], held[2]) for held in per.values()]
     # Where no group holds two rows, or one group holds them all, the
     # likelihood is flat in lam (measured: an ICC anywhere from 0.003 to
     # 0.98 over eight seeds of one-row groups), and an analyst's software
     # refuses the model (lme4: a grouping factor with as many levels as
-    # rows, or one level). So does this one.
-    if sum(ni - 1 for ni, _x1, _y1 in stats) == 0 or len(stats) < 2:
-        raise FitTrouble("singular", "no group holds two rows, or one group holds every row")
-    total = design.rows
+    # rows, or one level). A few groups of two among one-row groups are
+    # nearly as flat (a 5,000-row ST2 with unique subjects but k pairs:
+    # the real ICC 0.70 read within 0.05 on 1 of 20 seeds at one pair, 3
+    # at three, 2 at ten), so a caller names the fewest it will read.
+    repeated = sum(1 for ni, _x1, _y1 in stats if ni >= 2)
+    if repeated < max(1, min_repeated) or len(stats) < 2:
+        raise FitTrouble("singular", f"{repeated} groups hold two rows or more (fewer than "
+                         f"{max(1, min_repeated)}), or one group holds every row")
+    total = n
 
     def at(lam: float) -> "tuple[float, list[float], float, list[list[float]]]":
         a = [row[:] for row in xtx]
@@ -558,8 +629,11 @@ def random_intercept(
             f2 = at(math.exp(c2))[0]
     lam = math.exp((low + high) / 2.0)
     _ll, beta, s2, a = at(lam)
+    if ones:
+        beta[ones[0]] += shift
     cov = [[s2 * v for v in row] for row in inverse(a)]
-    return Fit(design.names, beta, cov, 1, {"sigma2": s2, "lambda": lam}), lam / (1.0 + lam)
+    return Fit(design.names, beta, cov, 1, {"sigma2": s2, "lambda": lam, "repeated": float(repeated)}), \
+        lam / (1.0 + lam)
 
 
 # -- ranks, correlation, discrimination ----------------------------------
@@ -765,8 +839,15 @@ def cramers_v(counts: "dict[tuple[object, object], int]") -> float:
     return math.sqrt(statistic / (n * (k - 1)))
 
 
+# A curve within this of one half has reached it: the product of many
+# steps leaves its rounding behind (88 subjects, 44 events then 44
+# censored: the curve is 44/88 exactly and reads 0.5000000000000002).
+# R's quantile.survfit takes the same tolerance, sqrt(.Machine$double.eps).
+HALF_TOLERANCE = math.sqrt(sys.float_info.epsilon)
+
+
 def km_median(time: "Sequence[float]", event: "Sequence[int]") -> "float | None":
-    """The Kaplan-Meier median: the first time the survival curve reaches 0.5 or below."""
+    """The Kaplan-Meier median: the first time the survival curve reaches 0.5 or below (`HALF_TOLERANCE`)."""
     pairs = sorted(zip(time, event))
     at_risk = len(pairs)
     survival = 1.0
@@ -780,7 +861,7 @@ def km_median(time: "Sequence[float]", event: "Sequence[int]") -> "float | None"
             i += 1
         if failures:
             survival *= 1.0 - failures / at_risk
-            if survival <= 0.5:
+            if survival <= 0.5 + HALF_TOLERANCE:
                 return float(t)
         at_risk -= removed
     return None

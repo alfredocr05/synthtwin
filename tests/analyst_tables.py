@@ -24,9 +24,16 @@ statistical one.
   a competing event that depends on age, and every end date after its
   entry date.
 * ST4, claims: 500 diagnosis-like codes under 20 chapters, chapter
-  effects on visits and on a 0.5 % outcome, code effects on purpose only
-  on codes too rare to publish, a pure three-way parity effect (flat
-  pair margins) and a dose that is weight times the dose rate.
+  effects on visits and on a 0.5 % outcome, code effects on the five
+  rarest codes of each even chapter (50 codes), a pure three-way parity
+  effect (flat pair margins) and a dose that is weight times the dose
+  rate. Those 50 codes are rare by weight, not by the table's size: at
+  seed 1, 3 of them hold 11 rows or more at 5,000 rows, 4 at 8,000, 14
+  at 20,000 and all 50 at 200,000 (32 to 455 rows each). So an effect
+  on codes too rare to publish is what ST4 holds at the sizes the suite
+  reads and on most codes at 20,000 rows, and not at 200,000; K-BC-02's
+  chapter-B truth reads it at every size, the rare codes' lift sitting in
+  that model's reference (`st4_outcome_estimand`).
 * ST5, the null table: fifteen of ST1's columns, each drawn from its own
   ST1 stream, so no two are associated.
 * ST6, curves that turn: ST1 with a creatinine column, a U-shaped glucose
@@ -313,6 +320,30 @@ def st4_outcome_estimand(step: float = 0.5) -> float:
     return beta[1]
 
 
+def st4_chapter_b_fit(rows: int, seed: int) -> "tuple[float, float]":
+    """The chapter-B coefficient of ``outcome ~ chB + chD + chG + weight10`` on an ST4 table, and its standard error.
+
+    Streamed from the generator, one row at a time into the model's five
+    columns (no text, no product): the slow tier's check of the stated
+    estimand at 200,000 rows (`tools/measurements/kpi_analyst_battery.py
+    --night`), about 3 s and 85 MB.
+    """
+    import analyst_kit as K
+
+    hot = ("B", "D", "G")
+    columns: "dict[str, list[float]]" = {k: [] for k in hot + ("w",)}
+    y: "list[float]" = []
+    code_at, weight_at, outcome_at = (ST4_COLUMNS.index(k) for k in ("code", "weight", "outcome"))
+    for row in st4(rows, seed):
+        for k in hot:
+            columns[k] += [float(row[code_at][:1] == k)]
+        columns["w"] += [(float(row[weight_at]) - 80.0) / 10.0]
+        y += [float(row[outcome_at])]
+    terms: "list[tuple[str, K.Term]]" = [("int", K.intercept)] + [
+        (k, (lambda c, k=k: list(c[k]))) for k in hot + ("w",)]
+    return K.glm(K.Design(columns, terms), y, "logistic").coef("B")
+
+
 BUILDERS = {"ST1": st1, "ST2": st2, "ST3": st3, "ST4": st4, "ST5": st5, "ST6": st6}
 HEADERS = {
     "ST1": ST1_COLUMNS, "ST2": ST2_COLUMNS, "ST3": ST3_COLUMNS,
@@ -385,7 +416,9 @@ _ST3_TRUTHS = {
 _ST4_TRUTHS = {
     "three-way parity on readmission": ("ST4/logistic:readmit_abc", 8 * 0.4),
     "no pair effect of the parity": ("ST4/logistic_pairs:readmit_ab", 0.0),
-    "dose from weight and rate": ("ST4/ols:dose_weight", None),
+    # The formula itself, the share of rows breaking it: 0. A regression
+    # coefficient keeps its value under a dose that breaks the formula.
+    "dose from weight and rate": ("ST4/rule:dose_formula", 0.0),
     "visits by chapter D": ("ST4/poisson:visits_chD", 0.5),
     "private payer visits": ("ST4/poisson:visits_private", 0.2),
     # Not CHAPTER_OUTCOME[1] = 1.0: the model's reference holds the even

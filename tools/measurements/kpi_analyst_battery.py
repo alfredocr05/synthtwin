@@ -17,19 +17,29 @@ ways:
   product's describe and generate as well as the battery). It prints
   K-BC-13's `_200k` keys: the slowest table's seconds, the largest peak,
   the tables run, and the KPIs whose controls do not hold at that size.
-  About two hours; never beside a whole suite (the machine's rule).
+  About two hours; never beside a whole suite (the machine's rule). It
+  first checks ST4's chapter-B truth on a 200,000-row table (about 3 s and
+  85 MB, the table generator and one fit, no product): the estimate within
+  four standard errors of the estimand `analyst_tables` states, and those
+  under 0.3; a miss exits 1 before any table runs. The suite checks the
+  estimand against the generator's constants, and the generator against
+  them row by row, at a few thousand rows.
 * ``--one TABLE`` -- one table in this process (what ``--night`` runs in
   each child), its results written as JSON to ``--json``.
 
 ``--out`` names the folder the tables, descriptions and twins are
 written to (default: a temporary folder, removed after). Nothing is
-committed: every table is drawn from its seed at run time.
+committed: every table is drawn from its seed at run time. Peak memory
+is read from `resource`, which Windows lacks: there the peak is not
+measured and every statistic still is.
 
 A RUN KEPT FOR ITS KPIs. Where the environment names a folder in
 ``SYNTHTWIN_ANALYST_RUNS``, ``--kpi`` writes each table run there as JSON
 beside a digest of the code its panels come from -- the product's
-source, the kit, the tables, and the battery up to its KPI functions --
-and on a later ``--kpi`` reads a run back instead of running it again
+source, and every module under tests/ the battery loads to make them
+(the kit, the tables, `kpi_shapes` and what it loads, the battery up to
+its KPI functions) -- and on a later ``--kpi`` reads a run back instead
+of running it again
 only where that digest is unchanged: a KPI function changed after the
 runs is re-read over the same panels, and any change to what makes a
 panel runs the tables afresh.
@@ -51,7 +61,6 @@ import hashlib
 import json
 import os
 import pathlib
-import resource
 import subprocess
 import sys
 import tempfile
@@ -61,13 +70,22 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 import analyst_battery as B  # noqa: E402
+import analyst_tables as T  # noqa: E402
 import kpi_rules  # noqa: E402
 
 THIS = pathlib.Path(__file__).resolve()
 
 
-def peak_mb() -> float:
-    """This process's peak resident memory in MB (macOS reports bytes, Linux kilobytes)."""
+def peak_mb() -> "float | None":
+    """This process's peak resident memory in MB (macOS reports bytes, Linux kilobytes); None without `resource`.
+
+    `resource` is Unix's: imported here, not at the top, so that on
+    Windows the driver still runs and only the peak goes unmeasured.
+    """
+    try:
+        import resource
+    except ImportError:
+        return None
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return round(peak / 1e6 if sys.platform == "darwin" else peak / 1e3, 1)
 
@@ -83,15 +101,39 @@ def emit_values(values: "dict[str, dict[str, object]]") -> None:
 KPI_MARK = "# -- the KPIs --"
 
 
+# Modules under tests/ that never make a panel: the ledger's judge reads
+# the KPI values only.
+NOT_PANEL = ("kpi_rules",)
+
+
+def panel_code_files() -> "list[pathlib.Path]":
+    """Every file a table run's panels come from: src/, and each module under tests/ the battery loads.
+
+    The battery reaches the product's description through `kpi_shapes`,
+    which loads `fixtures` and `workbooks`. Loading it here loads that
+    whole chain, and every module then loaded from tests/ is read: a
+    digest of the kit, the tables and the battery alone let panels made
+    by an old helper be read back as current (Codex's review).
+    """
+    import kpi_shapes  # noqa: F401  (the chain the battery's description reaches)
+
+    tests = (ROOT / "tests").resolve()
+    files = sorted((ROOT / "src").rglob("*.py"))
+    for name, module in sorted(list(sys.modules.items())):
+        where = getattr(module, "__file__", None)
+        if where and name not in NOT_PANEL and pathlib.Path(where).resolve().parent == tests:
+            files += [pathlib.Path(where).resolve()]
+    return files
+
+
 def panel_code_digest() -> str:
-    """The sha256 of the code a table run's panels come from: src/, the kit, the tables, the battery to its KPIs."""
+    """The sha256 of the code a table run's panels come from (`panel_code_files`), the battery to its KPIs."""
     digest = hashlib.sha256()
-    for path in sorted((ROOT / "src").rglob("*.py")):
-        digest.update(str(path.relative_to(ROOT)).encode("utf-8") + b"\0" + path.read_bytes())
-    for name in ("analyst_kit.py", "analyst_tables.py"):
-        digest.update((ROOT / "tests" / name).read_bytes())
-    battery = (ROOT / "tests" / "analyst_battery.py").read_text(encoding="utf-8")
-    digest.update(battery.split(KPI_MARK)[0].encode("utf-8"))
+    for path in panel_code_files():
+        text = path.read_bytes()
+        if path.name == "analyst_battery.py":
+            text = text.decode("utf-8").split(KPI_MARK)[0].encode("utf-8")
+        digest.update(path.resolve().relative_to(ROOT.resolve()).as_posix().encode("utf-8") + b"\0" + text)
     return digest.hexdigest()
 
 
@@ -150,8 +192,20 @@ def busy() -> "list[str]":
     return held
 
 
+def chapter_b_truth(rows: int = 200_000) -> bool:
+    """ST4's chapter-B truth on a table of ``rows`` rows: within 4 standard errors of the estimand, and those under 0.3."""
+    _key, stated = T.TRUTHS["ST4"]["outcome by chapter"]
+    value, se = T.st4_chapter_b_fit(rows, 1)
+    held = 4.0 * se < 0.3 and abs(value - stated) <= 4.0 * se
+    print(f"ST4 chapter B at {rows:,} rows: {value:.3f} (se {se:.3f}) against the estimand {stated:.3f}: "
+          + ("held" if held else "MISSED"), flush=True)
+    return held
+
+
 def run_night(folder: pathlib.Path) -> None:
-    """The 200,000-row tier: each table in a child process of its own."""
+    """The 200,000-row tier: the chapter-B truth first, then each table in a child process of its own."""
+    if not chapter_b_truth():
+        sys.exit(1)
     found = []
     for table in B.TIERS["night"]["tables"]:
         waited = 0
@@ -174,7 +228,7 @@ def run_night(folder: pathlib.Path) -> None:
     values = B.kpi_values(runs, "_200k")
     failing = B.controls_failing(values)
     slowest = max(found, key=lambda r: r["seconds"])
-    largest = max(found, key=lambda r: r["peak_mb"])
+    largest = max(found, key=lambda r: -1.0 if r["peak_mb"] is None else r["peak_mb"])
     gaps = values.get("K-BC-01", {})
     kpi_rules.emit("K-BC-13", {
         "seconds_per_table_200k": slowest["seconds"],

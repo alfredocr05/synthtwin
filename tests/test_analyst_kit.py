@@ -30,7 +30,13 @@ another way:
   signal;
 * and the fits a table cannot carry -- a separated outcome (complete or
   quasi), a repeated term, no rows, a random intercept with no group of
-  two rows -- refused by name.
+  two rows or fewer than its caller's floor -- refused by name, while a
+  steep slope that settles is a fit;
+* the sums that cancel: an outcome moved by 1e8 moves only the
+  intercept, in least squares and in the mixed model, and a term moved
+  by 100 leaves Cox's fit as it was;
+* a Kaplan-Meier curve landing on one half after many steps, and a tied
+  time of every row costing no more memory than distinct times.
 
 Every case is built here from fixed numbers or a seeded draw.
 """
@@ -381,3 +387,102 @@ def test_the_design_never_holds_more_than_a_chunk_of_terms() -> None:
     design = K.Design({"x": [float(i % 7) for i in range(rows)]}, [("int", K.intercept), ("x", term)])
     K.ols(design, [float(i % 5) for i in range(rows)])
     assert largest[0] == K.CHUNK
+
+
+def test_a_steep_slope_that_settles_is_a_fit_and_a_separation_is_not() -> None:
+    """x on (-4, 4), slope 6, 5,000 rows: a fit within 4 SE of 6, `settled` 0.0; complete separation stays refused."""
+    r = random.Random(41)
+    x = [r.uniform(-4.0, 4.0) for _ in range(5000)]
+    y = [1.0 if r.random() < 1.0 / (1.0 + math.exp(-6.0 * v)) else 0.0 for v in x]
+    fit = K.glm(_design({"x": x}, ["x"]), y, "logistic")
+    value, se = fit.coef("x")
+    assert abs(value - 6.0) <= 4.0 * se and se < 1.0, (value, se)
+    assert fit.extra["settled"] == 0.0
+    separated = [1.0 if v > 0 else 0.0 for v in x]
+    with pytest.raises(K.FitTrouble) as refused:
+        K.glm(_design({"x": x}, ["x"]), separated, "logistic")
+    assert refused.value.kind == "separation"
+
+
+def test_an_outcome_moved_by_a_constant_moves_only_the_intercept() -> None:
+    """Least squares and the mixed model on y and on y + 1e8: the same residual sum, standard errors and ICC."""
+    x = [float(i) for i in range(10)]
+    y = [2.0 * v + (-1.0 if i % 2 == 0 else 1.0) for i, v in enumerate(x)]
+    n, mx, my = len(x), sum(x) / len(x), sum(y) / len(y)
+    sxx = sum((v - mx) ** 2 for v in x)
+    b = sum((v - mx) * (w - my) for v, w in zip(x, y)) / sxx
+    rss = sum((w - (my - b * mx) - b * v) ** 2 for v, w in zip(x, y))
+    assert rss == pytest.approx(9.69697, abs=1e-5)
+    for shift in (0.0, 1e8):
+        fit = K.ols(_design({"x": x}, ["x"]), [w + shift for w in y])
+        assert fit.extra["rss"] == pytest.approx(rss, rel=1e-6), shift
+        assert fit.coef("x")[1] == pytest.approx(math.sqrt(rss / (n - 2) / sxx), rel=1e-6), shift
+        assert fit.coef("int")[0] - shift == pytest.approx(my - b * mx, abs=1e-6), shift
+    groups = [g for g in range(10) for _ in range(2)]
+    values = [g + (0.5 if i % 2 else -0.5) for i, g in enumerate(groups)]
+    # Balanced one-way ANOVA at maximum likelihood (k = 10 groups of m = 2).
+    k, m = 10, 2
+    grand = sum(values) / len(values)
+    ssb = m * sum((g - grand) ** 2 for g in range(k))
+    se2 = sum((v - g) ** 2 for v, g in zip(values, groups)) / (k * (m - 1))
+    sb2 = (ssb / k - se2) / m
+    for shift in (0.0, 1e8):
+        _fit, icc = K.random_intercept(_design({"z": [0.0] * 20}, []), [v + shift for v in values], groups)
+        assert icc == pytest.approx(sb2 / (sb2 + se2), abs=1e-6), shift
+    assert sb2 / (sb2 + se2) == pytest.approx(0.941176, abs=1e-6)
+
+
+def test_cox_is_the_same_fit_with_a_term_moved_by_a_constant() -> None:
+    """x = 1,1,0,1,0,0 at times 1 to 6, every one an event: 1.687846, and the same with x + 100."""
+    time = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    event = [1] * 6
+    for shift in (0.0, 100.0):
+        x = [v + shift for v in (1.0, 1.0, 0.0, 1.0, 0.0, 0.0)]
+        fit = K.cox(_design({"x": x}, ["x"], intercept=False), time, event)
+        assert fit.coef("x")[0] == pytest.approx(1.687846, abs=1e-6), shift
+        score = (_breslow([fit.beta[0] + 1e-6], [[v] for v in x], time, event)
+                 - _breslow([fit.beta[0] - 1e-6], [[v] for v in x], time, event)) / 2e-6
+        assert abs(score) < 1e-5, shift
+
+
+def test_a_tied_time_of_every_row_costs_no_more_memory_than_distinct_times() -> None:
+    """20,000 rows at one censoring day against 20,000 distinct days: the same peak, within half a megabyte."""
+    import tracemalloc
+
+    r = random.Random(43)
+    rows = 20_000
+    columns = {"a": [r.gauss(0, 1) for _ in range(rows)], "b": [float(r.random() < 0.4) for _ in range(rows)]}
+    event = [1 if r.random() < 0.3 else 0 for _ in range(rows)]
+    peaks = []
+    for time in ([5.0] * rows, [float(i + 1) for i in range(rows)]):
+        design = _design(columns, ["a", "b"], intercept=False)
+        tracemalloc.start()
+        try:
+            K.cox(design, time, event)
+            peaks += [tracemalloc.get_traced_memory()[1]]
+        finally:
+            tracemalloc.stop()
+    assert peaks[0] < peaks[1] + 500_000, peaks
+
+
+def test_the_kaplan_meier_median_lands_on_a_half_reached_after_many_steps() -> None:
+    """88 subjects, events at 1 to 44 and censored after: the curve is 44/88 at 44, read as the median."""
+    time = list(range(1, 89))
+    event = [1] * 44 + [0] * 44
+    assert K.km_median(time, event) == 44.0
+    assert K.km_median(time, [1] * 43 + [0] * 45) is None
+
+
+def test_a_random_intercept_reads_no_fewer_repeated_groups_than_its_caller_names() -> None:
+    """Three groups of two among 294 one-row groups: fitted at the kit's floor of one, 'singular' at 22; 22 pairs fit."""
+    r = random.Random(47)
+    x = [float(r.randrange(8)) for _ in range(300)]
+    y = [7.5 + 0.02 * v + r.gauss(0, 0.9) for v in x]
+    three = [i // 2 if i < 6 else i for i in range(300)]
+    fit, _icc = K.random_intercept(_design({"x": x}, ["x"]), y, three)
+    assert fit.extra["repeated"] == 3.0
+    with pytest.raises(K.FitTrouble) as refused:
+        K.random_intercept(_design({"x": x}, ["x"]), y, three, min_repeated=22)
+    assert refused.value.kind == "singular"
+    pairs = [i // 2 if i < 44 else i for i in range(300)]
+    assert K.random_intercept(_design({"x": x}, ["x"]), y, pairs, min_repeated=22)[0].extra["repeated"] == 22.0

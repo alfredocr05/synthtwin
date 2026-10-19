@@ -24,9 +24,10 @@ exactly as an analyst's script would read it:
   of linear models, a detected time and event pair of a Cox model;
   predictors ranked by their strength on the real table, splines on
   numbers at the real table's quantile knots, label levels of at least
-  22 rows, the five strongest predictors' pairwise products, and the
-  terms capped by the events per variable (ten events a term; Peduzzi
-  et al. 1996) and by the tier's cap; in a logistic model an indicator
+  22 rows, the five strongest predictors' pairwise products (a quarter
+  of the terms kept for them), and the terms capped by the events per
+  variable (ten events a term; Peduzzi et al. 1996) and by the tier's
+  cap; in a logistic model an indicator
   term only where its own ones and zeros hold 22 events and 22
   non-events. Every choice is fixed on the real table and then asked of
   every other table unchanged, each number held to the range the real
@@ -47,9 +48,14 @@ REPLICATE, a tenth of the rows resampled back to the full count; the null
 table (on which a shuffle IS a perfect twin) uses the structured table.
 
 SUPPORTED ESTIMATES ONLY. An estimate is scored only where every cell
-defining it holds at least 22 rows on the real table -- 11 in each half
--- and, on a two-valued outcome, 22 events and 22 non-events, and only
-where its analysis ran on the real table and all eight halves. A MARGIN
+defining it holds at least 22 rows on the real table and at least 11 in
+each of the eight halves -- on a two-valued outcome, events and
+non-events alike -- and only where its analysis ran on the real table
+and all eight halves. A RULE the real table keeps on every row (the dose
+formula, an event date present exactly where the status is not
+censored) is read as the share of rows breaking it, supported by the
+rows it reads: its yardstick is 0, and a table is inside only where it
+breaks the rule exactly as often as the real one. A MARGIN
 (tag 'margin': one column's own count, which a column-wise shuffle keeps
 exactly, such as ST2's rows per subject) is scored where it is read on
 its own and left out of the KPIs of joint structure.
@@ -81,6 +87,8 @@ import analyst_kit as K
 import analyst_tables as T
 
 SUPPORT = 22
+# Each half's own floor: 11 rows in every defining cell of every half.
+HALF_SUPPORT = SUPPORT // 2
 Z = 1.959963984540054
 FAMILIES = {
     "F1": "subgroup rates",
@@ -434,6 +442,23 @@ def rate(key: str, family: str, flags: "list[float]", keep: "list[bool]",
                      min(n, e, n - e), tags)]
 
 
+def rule(key: str, family: str, broken: "list[float]", tags: "tuple[str, ...]" = ()) -> "list[Estimate]":
+    """The share of rows breaking a rule (1.0 broken, 0.0 kept, NaN not read), supported by the rows read.
+
+    A rule the real table keeps on every row has no breaking row, and a
+    rate's support -- its rarer side -- would leave that genuine zero
+    unscored for ever (the date-against-status check was never scored,
+    nor could the dose formula be). Its support is the rows it reads, so
+    its half-split yardstick is 0 and a table is inside only where it
+    breaks the rule on exactly the real table's share of rows. No
+    standard error: a rule is a fact about the rows, not a test.
+    """
+    read_rows = [f for f in broken if f == f]
+    if not read_rows:
+        return []
+    return [Estimate(key, family, sum(read_rows) / len(read_rows), None, len(read_rows), tags)]
+
+
 def mean(key: str, family: str, values: "list[float]", keep: "list[bool]") -> "list[Estimate]":
     """The mean of the kept, present values."""
     kept = [v for v, k in zip(values, keep) if k and v == v]
@@ -690,7 +715,15 @@ def plan_st1(real: View) -> "list[Analysis]":
 
 
 def st2_mixed(v: View) -> "list[Estimate]":
-    """marker ~ visit * arm + age + (1 | sid): the fixed effects and the ICC."""
+    """marker ~ visit * arm + age + (1 | sid): the fixed effects and the ICC.
+
+    The subjects of two rows or more carry the ICC, so they are its
+    support and the fixed effects', and fewer than `SUPPORT` of them stop
+    the model ('singular', K-BC-10): a twin whose subject numbers collide
+    a few times among unique ones (one collision at 5,000 rows, as a
+    random 7-figure number gives) would otherwise read an arbitrary ICC
+    over a support of thousands.
+    """
     sid = v.text("sid")
     keep = [s is not None for s in sid]
     cols, y = complete({"visit": v.num("visit"), "arm": v.num("arm"), "age": v.num("age"),
@@ -699,8 +732,8 @@ def st2_mixed(v: View) -> "list[Estimate]":
     d = K.Design(cols, [("int", K.intercept), ("visit", col("visit")), ("arm", col("arm")),
                         ("arm_visit", product(col("arm"), col("visit"))),
                         ("age10", scaled("age", 55.0, 10.0))])
-    fit, icc = K.random_intercept(d, y, groups)
-    subjects = len(set(groups))
+    fit, icc = K.random_intercept(d, y, groups, min_repeated=SUPPORT)
+    subjects = int(fit.extra["repeated"])
     out = coefs(fit, "ST2/mixed", "F7", {n: subjects for n in d.names}, d.names, ("subject",))
     return out + [Estimate("ST2/mixed:icc", "F7", icc, None, subjects, ("subject",))]
 
@@ -849,9 +882,9 @@ def st3_censoring(v: View) -> "list[Estimate]":
         keep = [s == g for s in stage]
         out += rate(f"ST3/rate:event_stage{int(g)}", "F1", [float(x == "event") for x in status], keep)
         out += rate(f"ST3/rate:competing_stage{int(g)}", "F1", [float(x == "competing") for x in status], keep)
-    out += rate("ST3/pattern:event_date_vs_status", "F9",
+    out += rule("ST3/pattern:event_date_vs_status", "F9",
                 [float((m == 1.0) != (s == "censored")) for m, s in zip(v.missing("event_date"), status)],
-                [True] * v.rows, ("missing",))
+                ("missing",))
     return out
 
 
@@ -911,14 +944,26 @@ def st4_parity(v: View) -> "list[Estimate]":
 
 
 def st4_linear(v: View) -> "list[Estimate]":
-    """The dose on weight and dose rate (a formula); amounts; zero amounts; visits by payer; rates; pairs."""
-    cols, y = complete({"weight": v.num("weight"), "rate": v.num("dose_rate")}, v.num("dose"))
+    """The dose formula and the dose on weight and dose rate; amounts; zero amounts; visits by payer; rates; pairs.
+
+    The formula is read as itself: the share of rows whose dose is not
+    weight times dose rate to the tenth (`round(weight * rate, 1)`, within
+    0.051 for the written decimals). A regression cannot stand in for it:
+    a dose of 2 x fitted - dose keeps the weight's coefficient, its
+    standard error and R^2 to the last digit while breaking the formula
+    on 2,989 of 3,000 rows (Codex's review).
+    """
+    weight, dose_rate, dose = v.num("weight"), v.num("dose_rate"), v.num("dose")
+    out = rule("ST4/rule:dose_formula", "F3",
+               [math.nan if w != w or q != q or x != x else float(abs(x - round(w * q, 1)) > 0.051)
+                for w, q, x in zip(weight, dose_rate, dose)])
+    cols, y = complete({"weight": weight, "rate": dose_rate}, dose)
     d = K.Design(cols, [("int", K.intercept), ("weight", col("weight")), ("rate", col("rate"))])
     fit = K.ols(d, y)
     sup = supports(d, None, False)
-    out = [one(fit, "ST4/ols:dose_weight", "weight", "F3", sup),
-           one(fit, "ST4/ols:dose_rate", "rate", "F3", sup),
-           Estimate("ST4/ols:dose_r2", "F3", fit.extra["r2"], None, d.rows)]
+    out += [one(fit, "ST4/ols:dose_weight", "weight", "F3", sup),
+            one(fit, "ST4/ols:dose_rate", "rate", "F3", sup),
+            Estimate("ST4/ols:dose_r2", "F3", fit.extra["r2"], None, d.rows)]
     amount, visits = v.num("amount"), v.num("visits")
     cols2, y2 = complete({"lv": [math.log1p(x) if x == x else x for x in visits],
                           "private": v.eq("payer", "private")},
@@ -1096,12 +1141,22 @@ def clamped(c: Column, value: float) -> float:
     singular. Every automatic term reads its number clamped to the range
     the real table showed, as a model fitted there would be applied.
     """
-    return value if value != value else min(max(value, c.low), c.high)
+    return clamped_chunk(c, [value])[0]
+
+
+def clamped_chunk(c: Column, values: "list[float]") -> "list[float]":
+    """`clamped` over a chunk of values in one comprehension (NaN fails both comparisons and is kept).
+
+    A call a value made 29 million calls in one fast part (counted
+    under a profiler).
+    """
+    low, high = c.low, c.high
+    return [low if v < low else high if v > high else v for v in values]
 
 
 def standardized(c: Column) -> "K.Term":
     """(the clamped number - the real table's mean) / its spread."""
-    return lambda ch: [(clamped(c, v) - c.center) / c.scale for v in ch[c.name]]
+    return lambda ch: [(v - c.center) / c.scale for v in clamped_chunk(c, ch[c.name])]
 
 
 def schema(real: View) -> "list[Column]":
@@ -1191,7 +1246,7 @@ def column_terms(c: Column, room: int) -> "list[tuple[str, K.Term]]":
         for j in (0, 1):
             term = K.rcs_term(standard_knots(c), j)
             terms += [(f"{c.name}_s{j + 1}", lambda ch, c=c, f=term:
-                       [f((clamped(c, v) - c.center) / c.scale) for v in ch[c.name]])]
+                       [f((v - c.center) / c.scale) for v in clamped_chunk(c, ch[c.name])])]
     return terms
 
 
@@ -1266,6 +1321,10 @@ def indicator_supported(real: View, sources: "list[Column]", term: "K.Term", y: 
     return min(e1, n1 - e1, e0, n0 - e0) >= SUPPORT
 
 
+# One term in this many of an automatic model is kept for pair products.
+INTERACTION_SHARE = 4
+
+
 def plan_auto(real: View, columns: "list[Column]", tier: str, table: str) -> "list[Analysis]":
     """The automatic panel of one table: its models fixed on the real table, asked of any table."""
     settings = TIERS[tier]
@@ -1288,8 +1347,13 @@ def plan_auto(real: View, columns: "list[Column]", tier: str, table: str) -> "li
                         key=lambda c: (-strength(real, c, y), c.name))
         terms: "list[tuple[str, K.Term]]" = []
         used: "list[Column]" = []
+        # A quarter of the terms is kept for the pair products: with the
+        # main terms first, every automatic model on ST1, ST4 and ST6 at
+        # 20,000 rows held no product (Codex's review), so an interaction
+        # nobody named was never asked of a twin.
+        kept_for_pairs = budget // INTERACTION_SHARE
         for c in ranked:
-            room = budget - len(terms)
+            room = budget - kept_for_pairs - len(terms)
             if room < 1:
                 break
             add = column_terms(c, len(c.levels) if c.kind == "label" else room)
@@ -1465,7 +1529,13 @@ class Yardstick:
 
 
 def yardstick(plan: "list[Analysis]", real: View, g: "list[int]") -> Yardstick:
-    """Run the plan on the real table and its eight halves, one half at a time; keep what is supported."""
+    """Run the plan on the real table and its eight halves, one half at a time; keep what is supported.
+
+    Supported: 22 rows in every defining cell on the real table and
+    `HALF_SUPPORT` (11) in each of the eight halves -- a cell of 22 events
+    split 21 and 1 in every half has a yardstick of noise (Codex's review:
+    0.909, and a twin's 1.0 read inside against the real 0.5).
+    """
     panel = run_panel(plan, real)
     diffs: "dict[str, list[float]]" = {k: [] for k, e in panel.estimates.items() if e.support >= SUPPORT}
     robust = {name for name, s in panel.status.items() if s == "ok"}
@@ -1475,7 +1545,8 @@ def yardstick(plan: "list[Analysis]", real: View, g: "list[int]") -> Yardstick:
         pb = run_panel(plan, real.subset(b, f"{real.name} B{s}"))
         robust &= {n for n in pa.status if pa.status[n] == "ok" and pb.status.get(n) == "ok"}
         for key in diffs:
-            if key in pa.estimates and key in pb.estimates:
+            if (key in pa.estimates and key in pb.estimates
+                    and min(pa.estimates[key].support, pb.estimates[key].support) >= HALF_SUPPORT):
                 diffs[key] += [pa.estimates[key].value - pb.estimates[key].value]
     h = {k: math.sqrt(sum(d * d for d in v) / 4.0) for k, v in diffs.items() if len(v) == 4}
     return Yardstick(panel, h, robust)
@@ -1652,14 +1723,14 @@ def pmse(real: View, other: View, columns: "list[Column]", keys: int) -> "tuple[
         m = statistics.fmean(present)
         sd = statistics.pstdev(present) or 1.0
         held = dataclasses.replace(c, low=min(present), high=max(present))
-        standard[c.name] = (lambda ch, h=held, m=m, sd=sd: [0.0 if x != x else (clamped(h, x) - m) / sd
-                                                             for x in ch[h.name]])
+        standard[c.name] = (lambda ch, h=held, m=m, sd=sd: [0.0 if x != x else (x - m) / sd
+                                                             for x in clamped_chunk(h, ch[h.name])])
         terms += [(c.name, standard[c.name])]
         if c.knots is not None:
             for j in (0, 1):
                 term = K.rcs_term(c.knots, j, 1.0 / sd)
                 terms += [(f"{c.name}_s{j + 1}", lambda ch, h=held, m=m, f=term:
-                           [f(m if x != x else clamped(h, x)) for x in ch[h.name]])]
+                           [f(m if x != x else x) for x in clamped_chunk(h, ch[h.name])])]
         if c.missing > 0:
             terms += [(f"{c.name}_na", lambda ch, n=c.name: [1.0 if x != x else 0.0 for x in ch[n]])]
     key_names = [c.name for c in usable if c.kind != "label"][:keys]
@@ -2086,6 +2157,10 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     is McNemar's paired comparison of the two: the truths only the
     replicate gets less those only the twin gets, over the square root of
     their sum, at most 2 -- for all truths and for those of three columns.
+    A twin recovering none reads sqrt(replicate_recovered) (all truths)
+    and sqrt(three_way_replicate_recovered) (three columns), so a clause
+    can fail only where that count exceeds 4; the ledger states no target
+    where it does not (the fast part's three-way clause: one truth).
     """
     truths = _truth_rows(runs)
     eligible = [(r, p, k) for r, p, k in truths if k in r.yard.h]
@@ -2118,6 +2193,7 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"truths_recovered{suffix}": len(got["twin"]),
         f"truths_named{suffix}": len(named),
         f"replicate_recovered{suffix}": len(got["replicate"]),
+        f"three_way_replicate_recovered{suffix}": len([x for x in got["replicate"] if x[1] in T.THREE_WAY]),
         f"replicate_missed{suffix}": len(truths) - len(got["replicate"]),
         f"shuffled_recovered{suffix}": len(got["shuffled"]),
         f"truths_recovered_below_shuffled{suffix}": len(got["shuffled"]) - len(got["twin"]),
@@ -2177,19 +2253,50 @@ def kpi_03(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     return value
 
 
+def _over(gap: float, yard: float) -> float:
+    """An AUC gap in yardsticks: the yardstick as measured; at a yardstick of 0, any shortfall is infinite."""
+    if yard > 0.0:
+        return gap / yard
+    return 0.0 if gap <= 0.0 else math.inf
+
+
 def kpi_04(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
-    """K-BC-04, prediction: the trained model's AUC gap over its yardstick; importance ranks against the replicate."""
+    """K-BC-04, prediction: the trained model's AUC gap over its yardstick; importance ranks against the replicate.
+
+    Every scored model is asked of every side at every seed it is
+    expected on -- today's twin at each twin seed, the controls at their
+    heavy seeds -- and one missing there (a model that could not be
+    trained or scored) counts as an infinite gap and a rank correlation
+    of -1, never as nothing: a twin whose models fail cannot read as a
+    twin that matches (Codex's review). The controls hold only where
+    neither control misses a model. The gap's denominator is the model's
+    half-split yardstick as measured, as the ledger states it.
+    """
     gaps: "dict[str, dict[tuple[str, int, str], float]]" = {"twin": {}, "replicate": {}, "shuffled": {}}
     ranks: "dict[str, dict[tuple[str, int, str], float]]" = {"twin": {}, "replicate": {}, "shuffled": {}}
+    missing = {side: 0 for side in gaps}
     for r in runs:
         for name, (auc_ab, yard, _rank) in r.tstr_yard.items():
             if auc_ab < TRAINED_AUC:
                 continue
             for side in gaps:
-                per = [s.tstr[name] for s in r.sides[side] if name in s.tstr]
-                if per:
-                    gaps[side][(r.table, r.seed, name)] = _median([(auc_ab - a) / max(yard, 0.005) for a, _i in per])
-                    ranks[side][(r.table, r.seed, name)] = _median([i for _a, i in per])
+                expected = [s for s in r.sides[side] if s.heavy]
+                per_gap: "list[float]" = []
+                per_rank: "list[float]" = []
+                for s in expected:
+                    got = s.tstr.get(name)
+                    if got is None:
+                        missing[side] += 1
+                        per_gap += [math.inf]
+                        per_rank += [-1.0]
+                    else:
+                        per_gap += [_over(auc_ab - got[0], yard)]
+                        per_rank += [got[1]]
+                if not expected:
+                    missing[side] += 1
+                    per_gap, per_rank = [math.inf], [-1.0]
+                gaps[side][(r.table, r.seed, name)] = _median(per_gap)
+                ranks[side][(r.table, r.seed, name)] = _median(per_rank)
     if not gaps["twin"] or not gaps["replicate"] or not gaps["shuffled"]:
         return {f"controls_hold{suffix}": False}
     worst = {side: max(v.values()) for side, v in gaps.items()}
@@ -2202,8 +2309,12 @@ def kpi_04(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"replicate_auc_gap_over_yardstick{suffix}": round(worst["replicate"], 2),
         f"shuffled_auc_gap_over_yardstick{suffix}": round(worst["shuffled"], 2),
         f"trained_models{suffix}": len(gaps["replicate"]),
-        f"controls_hold{suffix}": bool(worst["replicate"] <= 3.0 and min(gaps["shuffled"].values()) > 3.0),
-        "_detail": "trained models scored: " + ", ".join(f"{t}-{d} {n}" for t, d, n in sorted(gaps["replicate"])),
+        f"twin_models_missing{suffix}": missing["twin"],
+        f"controls_hold{suffix}": bool(worst["replicate"] <= 3.0 and min(gaps["shuffled"].values()) > 3.0
+                                       and missing["replicate"] == 0 and missing["shuffled"] == 0),
+        "_detail": "trained models scored: " + ", ".join(f"{t}-{d} {n}" for t, d, n in sorted(gaps["replicate"]))
+        + "; missing on today's twin, the replicate, the shuffle: "
+        + ", ".join(str(missing[side]) for side in ("twin", "replicate", "shuffled")),
     }
 
 
@@ -2223,15 +2334,34 @@ def kpi_05(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     does not hold; the maximum, the shuffled control and the twin's ratio
     to the shuffle are read on the other tables, and the null and
     clustered tables' ratios over the replicate stand beside them.
+
+    A discriminator is expected on every side at every heavy seed. One
+    that could not be fitted is never left out (a NaN in a maximum hides
+    it, or not, by the tables' order -- Codex's review): on today's twin
+    it counts as an infinite ratio, and on either control it voids the
+    controls, as does a replicate whose discriminator is missing.
     """
     over: "dict[str, list[float]]" = {"twin": [], "shuffled": []}
     leaning = []
     shuffled_control: "list[float]" = []
     twin_control: "list[float]" = []
     beside: "dict[str, list[float]]" = {"null": [], "clustered": []}
+    failed = {"twin": 0, "replicate": 0, "shuffled": 0}
+
+    def measured(r: TableRun, side: str) -> float:
+        """The median ratio over the side's heavy seeds; NaN where any is missing."""
+        values = [s.pmse for s in r.sides[side] if s.heavy]
+        if not values or any(v != v for v in values):
+            failed[side] += 1
+            return math.nan
+        return _median(values)
+
     for r in runs:
-        rep = _median([s.pmse for s in r.sides["replicate"] if s.pmse == s.pmse])
-        ratios = {side: _median([s.pmse for s in r.sides[side] if s.pmse == s.pmse]) / rep for side in over}
+        rep = measured(r, "replicate")
+        found = {side: measured(r, side) for side in over}
+        ratios = {side: (math.inf if found[side] != found[side] else found[side] / rep) for side in over}
+        if rep != rep:
+            ratios = {side: math.inf for side in over}
         if r.table == "ST5":
             beside["null"] += [ratios["twin"]]
         elif r.table in CLUSTERED:
@@ -2239,7 +2369,7 @@ def kpi_05(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         else:
             over["twin"] += [ratios["twin"]]
             shuffled_control += [ratios["shuffled"]]
-            twin_control += [ratios["twin"] / ratios["shuffled"]]
+            twin_control += [ratios["twin"] / ratios["shuffled"] if math.isfinite(ratios["shuffled"]) else math.inf]
         if r.sides["twin"]:
             leaning += [f"{r.table}: " + ", ".join(r.sides["twin"][0].leaning)]
     return {
@@ -2249,8 +2379,12 @@ def kpi_05(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
         f"null_pmse_over_replicate{suffix}": round(max(beside["null"]), 2) if beside["null"] else None,
         f"clustered_pmse_over_replicate{suffix}": (round(max(beside["clustered"]), 2)
                                                    if beside["clustered"] else None),
-        f"controls_hold{suffix}": bool(shuffled_control and min(shuffled_control) > 3.0),
-        "_detail": "the discriminator rests most on " + "; ".join(leaning),
+        f"discriminators_failed{suffix}": failed["twin"],
+        f"controls_hold{suffix}": bool(shuffled_control and min(shuffled_control) > 3.0
+                                       and failed["replicate"] == 0 and failed["shuffled"] == 0),
+        "_detail": "the discriminator rests most on " + "; ".join(leaning)
+        + "; discriminators that could not be fitted on today's twin, the replicate, the shuffle: "
+        + ", ".join(str(failed[side]) for side in ("twin", "replicate", "shuffled")),
     }
 
 

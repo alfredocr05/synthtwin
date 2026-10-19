@@ -23,8 +23,17 @@ mechanism biting rather than assume it:
 * the half split is a partition, and on ST2 it never splits a subject;
 * the shuffled twin keeps every column's cells, as written, and only
   their order changes;
-* an estimate whose smallest defining cell is under 22 rows is never
-  scored, whatever its value;
+* an estimate whose smallest defining cell is under 22 rows, or under
+  11 in any half, is never scored, whatever its value; a rule the real
+  table keeps on every row is scored, with a yardstick of 0;
+* a mixed model over fewer than 22 subjects of two rows stops;
+* K-BC-04 counts a model missing on a side or seed as a failure and
+  divides by the yardstick as measured; K-BC-05 never leaves out a
+  discriminator that could not be fitted; K-BC-02's McNemar targets are
+  stated only where a twin recovering nothing would miss them;
+* the automatic panel keeps room for pair products;
+* the slow driver's cache reads every module the panels come from, and
+  the driver runs where `resource` does not exist;
 * the report reading finds a block of family lines where one exists, so
   K-BC-11's "no line exists" is a reading and not a constant.
 
@@ -324,7 +333,12 @@ def test_at_the_slow_tier_a_trained_model_predicts_every_two_valued_column() -> 
 
 
 def test_the_battery_entries_bounds_can_fail_and_state_the_tiers_they_judge() -> None:
-    """No share-gap bound at 100 points or more, the fast part's seconds bound at the lane's 60, K-BC-05's key columns as run."""
+    """No share-gap bound at 100 points or more, the fast part's seconds bound at the lane's 60, K-BC-05's key columns as run.
+
+    And every McNemar target of K-BC-02 one a twin recovering no truth
+    would miss: such a twin reads sqrt(the replicate's recoveries), so a
+    target of 2 binds only where the replicate gets back more than 4.
+    """
     import json
 
     import kpi_rules
@@ -344,3 +358,171 @@ def test_the_battery_entries_bounds_can_fail_and_state_the_tiers_they_judge() ->
     assert (f"the first {words[B.TIERS['slow']['keys']]} key columns ({words[B.TIERS['fast']['keys']]} at 5,000 rows)"
             in entries["K-BC-05"]["rule"])
     assert B.TIERS["night"]["keys"] == B.TIERS["slow"]["keys"]
+    two = entries["K-BC-02"]
+    measured = two["value_at"]["value"]
+    stated = [key for key in two["target"] if "missed_over_replicate_z" in key]
+    assert {"missed_over_replicate_z", "missed_over_replicate_z_20k", "three_way_missed_over_replicate_z_20k"} <= set(stated)
+    for key in stated:
+        suffix = "_20k" if key.endswith("_20k") else ""
+        count = measured[("three_way_replicate_recovered" if key.startswith("three_way") else "replicate_recovered")
+                         + suffix]
+        assert B.mcnemar(count, 0) > two["target"][key], (key, count)
+
+
+# -- the second review round's guarantees ------------------------------------
+
+
+@pytest.mark.parametrize("pairs", [1, 3, 10])
+def test_a_mixed_model_over_a_few_repeated_subjects_stops(pairs: int) -> None:
+    """ST2 with a subject number of its own on every row but a few pairs: 'singular', never an ICC; 30 pairs fit."""
+    lines = T.text("ST2", 1500, 2).splitlines()
+
+    def renumbered(k: int) -> B.View:
+        out = [lines[0]]
+        for i, line in enumerate(lines[1:]):
+            sid = f"P{i // 2:05d}" if i < 2 * k else f"U{i:06d}"
+            out += [sid + line[line.index(","):]]
+        return B.read("\n".join(out) + "\n", f"{k} pairs")
+
+    with pytest.raises(K.FitTrouble) as refused:
+        B.st2_mixed(renumbered(pairs))
+    assert refused.value.kind == "singular"
+    held = {e.key: e for e in B.st2_mixed(renumbered(30))}
+    assert held["ST2/mixed:icc"].support == 30
+
+
+def test_a_rule_the_real_table_keeps_is_scored_with_a_yardstick_of_zero() -> None:
+    """The dose formula: in the yardstick at 0, the real rows inside, one broken row outside; a rate's support would drop it."""
+    real = B.read(T.text("ST4", 1200, 4), "ST4")
+    plan = [B.Analysis("formula", lambda v: [e for e in B.st4_linear(v) if e.key == "ST4/rule:dose_formula"])]
+    y = B.yardstick(plan, real, B.groups_of(real, "ST4", 4))
+    assert y.h == {"ST4/rule:dose_formula": 0.0}
+    assert [c.inside for c in B.compare(y, B.run_panel(plan, real))] == [True]
+    lines = T.text("ST4", 1200, 4).splitlines()
+    cells = lines[5].split(",")
+    cells[T.ST4_COLUMNS.index("dose")] = "%.1f" % (float(cells[T.ST4_COLUMNS.index("dose")]) + 1.0)
+    broken = B.read("\n".join(lines[:5] + [",".join(cells)] + lines[6:]) + "\n", "one broken")
+    assert [c.inside for c in B.compare(y, B.run_panel(plan, broken))] == [False]
+
+
+def test_a_dose_that_keeps_the_regression_and_breaks_the_formula_misses_the_truth() -> None:
+    """Dose replaced by 2 x fitted - dose: the weight's coefficient stands to the last digits, the formula's share does not."""
+    key, value = T.TRUTHS["ST4"]["dose from weight and rate"]
+    assert (key, value) == ("ST4/rule:dose_formula", 0.0)
+    lines = T.text("ST4", 3000, 1).splitlines()
+    real = B.read("\n".join(lines) + "\n", "ST4")
+    cols, y = B.complete({"weight": real.num("weight"), "rate": real.num("dose_rate")}, real.num("dose"))
+    fit = K.ols(K.Design(cols, [("int", K.intercept), ("weight", B.col("weight")), ("rate", B.col("rate"))]), y)
+    at = T.ST4_COLUMNS.index
+    out = [lines[0]]
+    for line in lines[1:]:
+        cells = line.split(",")
+        w, q, d = float(cells[at("weight")]), float(cells[at("dose_rate")]), float(cells[at("dose")])
+        fitted = fit.beta[0] + fit.beta[1] * w + fit.beta[2] * q
+        cells[at("dose")] = repr(2.0 * fitted - d)
+        out += [",".join(cells)]
+    attacked = {e.key: e for e in B.st4_linear(B.read("\n".join(out) + "\n", "attacked"))}
+    original = {e.key: e for e in B.st4_linear(real)}
+    assert attacked["ST4/ols:dose_weight"].value == pytest.approx(original["ST4/ols:dose_weight"].value, rel=1e-9)
+    assert original[key].value == 0.0 and attacked[key].value > 0.9
+
+
+def test_an_estimate_thin_in_any_half_is_never_scored() -> None:
+    """22 events and 22 non-events, 21 and 1 in every half: left out; 64 and 64, 32 in every half: scored."""
+    import pandas
+
+    rows = 400
+
+    def view_of(events: int) -> B.View:
+        flag = [1.0 if i < 2 * events else 0.0 for i in range(rows)]
+        event = [1.0 if i < events else 0.0 for i in range(rows)]
+        return B.View(pandas.DataFrame({"x": flag, "y": event}), "made up")
+
+    def rates(v: B.View) -> "list[B.Estimate]":
+        return B.rate("events", "F1", v.num("y"), [a == 1.0 for a in v.num("x")])
+
+    plan = [B.Analysis("rates", rates)]
+    lopsided = [0 if i < 21 else 15 if i < 43 else 0 if i < 44 else i % 16 for i in range(rows)]
+    thin = B.yardstick(plan, view_of(22), lopsided)
+    assert thin.real.estimates["events"].support == B.SUPPORT and "events" not in thin.h
+    assert "events" in B.yardstick(plan, view_of(64), [i % 16 for i in range(rows)]).h
+
+
+def _with_side(run: B.TableRun, side: str, change: "dict[str, object]") -> B.TableRun:
+    sides = dict(run.sides)
+    sides[side] = [dataclasses.replace(s, **change) for s in run.sides[side]]  # type: ignore[arg-type]
+    return dataclasses.replace(run, sides=sides)
+
+
+def test_k_bc_04_counts_a_missing_model_as_a_failure_and_divides_by_the_yardstick(
+        fast_runs: "list[B.TableRun]") -> None:
+    """The twin's model gone: an infinite gap, counted missing; a control's gone: void; a yardstick of 0.001 is not floored."""
+    st1 = next(r for r in fast_runs if r.table == "ST1")
+    assert list(st1.tstr_yard) == ["died"]
+    before = B.kpi_04([st1])
+    assert before["controls_hold"] is True and before["twin_models_missing"] == 0
+    gone = B.kpi_04([_with_side(st1, "twin", {"tstr": {}})])
+    assert gone["auc_gap_over_yardstick"] == math.inf and gone["twin_models_missing"] == 1
+    assert gone["importance_rank_below_replicate"] >= before["importance_rank_below_replicate"]
+    assert B.kpi_04([_with_side(st1, "replicate", {"tstr": {}})])["controls_hold"] is False
+    assert B.kpi_04([_with_side(st1, "shuffled", {"tstr": {}})])["controls_hold"] is False
+    auc_ab, _yard, rank = st1.tstr_yard["died"]
+    tiny = dataclasses.replace(st1, tstr_yard={"died": (auc_ab, 0.001, rank)})
+    tiny = _with_side(tiny, "twin", {"tstr": {"died": (auc_ab - 0.01, 0.5)}})
+    assert B.kpi_04([tiny])["auc_gap_over_yardstick"] == pytest.approx(10.0)
+
+
+def test_k_bc_05_never_leaves_out_a_discriminator_that_could_not_be_fitted(
+        fast_runs: "list[B.TableRun]") -> None:
+    """A twin's failed discriminator on a second table: infinite whichever table comes first; a control's: void."""
+    st1 = next(r for r in fast_runs if r.table == "ST1")
+    failed = dataclasses.replace(_with_side(st1, "twin", {"pmse": math.nan}), table="ST3")
+    for runs in ([st1, failed], [failed, st1]):
+        value = B.kpi_05(runs)
+        assert value["pmse_over_replicate"] == math.inf and value["discriminators_failed"] == 1
+    assert B.kpi_05([st1])["controls_hold"] is True and B.kpi_05([st1])["discriminators_failed"] == 0
+    for side in ("shuffled", "replicate"):
+        assert B.kpi_05([st1, dataclasses.replace(_with_side(st1, side, {"pmse": math.nan}), table="ST3")])[
+            "controls_hold"] is False, side
+
+
+def test_the_automatic_panel_keeps_room_for_pair_products() -> None:
+    """ST1 at 3,000 rows, the slow tier's cap: every automatic model but the rare readmission's holds a product."""
+    view = B.read(T.text("ST1", 3000, 1), "ST1")
+    panel = B.run_panel(B.plan_auto(view, B.schema(view), "slow", "ST1"), view)
+    products: "dict[str, int]" = {}
+    for key in panel.estimates:
+        if "/auto:" in key:
+            outcome = key.split(":")[1]
+            products[outcome] = products.get(outcome, 0) + ("*" in key)
+    assert len(products) >= 10
+    assert [o for o, n in products.items() if n == 0 and o != "readmit"] == []
+    assert sum(1 for n in products.values() if n == B.TIERS["slow"]["cap"] // B.INTERACTION_SHARE) >= 8
+
+
+def _driver() -> object:
+    import importlib.util
+
+    path = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_analyst_battery.py"
+    spec = importlib.util.spec_from_file_location("kpi_analyst_battery_under_test", path)
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module
+
+
+def test_the_slow_drivers_cache_reads_every_module_its_panels_come_from() -> None:
+    """kpi_shapes, fixtures and workbooks are in the digest beside the kit, the tables and the battery; the judge is not."""
+    driver = _driver()
+    names = {p.name for p in driver.panel_code_files()}  # type: ignore[attr-defined]
+    assert {"analyst_kit.py", "analyst_tables.py", "analyst_battery.py", "kpi_shapes.py", "fixtures.py",
+            "workbooks.py", "generation.py"} <= names
+    assert "kpi_rules.py" not in names
+
+
+def test_the_slow_driver_runs_where_resource_does_not_exist(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With `resource` missing, as on Windows, the driver loads and the peak reads None."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "resource", None)  # type: ignore[arg-type]
+    driver = _driver()
+    assert driver.peak_mb() is None  # type: ignore[attr-defined]

@@ -18,11 +18,15 @@ the kit (itself held to closed forms in `tests/test_analyst_kit.py`):
   the null table's 5 %), and the shares and counts the tables are built
   to have;
 * the two truths a table of these sizes cannot hold to four standard
-  errors, at sizes that can: ST4's chapter-B outcome, a population
-  estimand of a misspecified model (its stated value checked against its
-  computation from the generator's constants, and a 200,000-row table's
-  estimate within four standard errors under 0.3), and ST1's ward x
-  diabetes readmission, positive and significant at 20,000 rows.
+  errors: ST4's chapter-B outcome, a population estimand of a
+  misspecified model -- its stated value checked against its computation
+  from the generator's constants, and the generator held to those
+  constants row by row (the 200,000-row fit within four standard errors
+  is the slow tier's, `tools/measurements/kpi_analyst_battery.py
+  --night`: no table of that size is built beside a whole suite) -- and
+  ST1's ward x diabetes readmission, positive and significant at 20,000
+  rows;
+* ST4's effect-bearing codes, rare as the module states them.
 """
 
 from __future__ import annotations
@@ -57,7 +61,7 @@ COEFFICIENTS = [
     (table, name) for table, truths in T.TRUTHS.items()
     for name, (key, value) in truths.items()
     if value is not None and ":" in key and "/curve:" not in key and "/null:" not in key
-    and key != "ST2/mixed:icc"
+    and "/rule:" not in key and key != "ST2/mixed:icc"
 ]
 
 
@@ -113,6 +117,8 @@ def test_the_curves_are_the_generators_own_shapes(panels: "dict") -> None:
 def test_the_shapes_the_truth_files_state_hold(panels: "dict") -> None:
     """Overdispersed procedures, the ICC near 0.72, the centres' censoring, the dose formula, a null 5 %."""
     est = {t: p.estimates for t, (_v, p) in panels.items()}
+    assert est["ST4"]["ST4/rule:dose_formula"].value == T.TRUTHS["ST4"]["dose from weight and rate"][1] == 0.0
+    assert est["ST3"]["ST3/pattern:event_date_vs_status"].value == 0.0
     assert est["ST1"]["ST1/poisson:procedures_dispersion"].value > 1.5
     assert abs(est["ST2"]["ST2/mixed:icc"].value - 0.64 / 0.89) < 0.04
     assert est["ST3"]["ST3/logistic:censored_low_centres"].value > 1.0
@@ -153,24 +159,48 @@ def test_a_table_is_its_seeds_bytes_and_every_line_holds_every_column(table: str
     assert all(len(line.split(",")) == len(T.HEADERS[table]) for line in lines[1:])
 
 
-def test_the_chapter_b_truth_is_its_models_population_estimand() -> None:
-    """0.702 from the constants (not CHAPTER_OUTCOME's 1.0), and a 200,000-row table's estimate within 4 SE of it."""
+def test_the_chapter_b_truth_is_its_models_population_estimand(monkeypatch: pytest.MonkeyPatch) -> None:
+    """0.702 from the constants (not CHAPTER_OUTCOME's 1.0), and every row's outcome drawn from those constants.
+
+    The generator's log odds for each row's outcome, read as it draws
+    them, are -5.6 + CHAPTER_OUTCOME[chapter] + 2.5 on an effect-bearing
+    code + 0.02 (weight - 80), from the row's own code and weight. The
+    estimate on a 200,000-row table is the slow tier's check.
+    """
     key, stated = T.TRUTHS["ST4"]["outcome by chapter"]
     assert key == "ST4/logistic:outcome_chB"
     assert abs(T.st4_outcome_estimand() - stated) < 0.005
-    hot = ("B", "D", "G")
-    columns: "dict[str, list[float]]" = {k: [] for k in hot + ("w",)}
-    y: "list[float]" = []
+    drawn: "list[float]" = []
+    real_logistic = T._logistic
+
+    def recorded(x: float) -> float:
+        nonlocal drawn
+        drawn += [x]
+        return real_logistic(x)
+
+    monkeypatch.setattr(T, "_logistic", recorded)
+    rows = list(T.st4(3000, SEED))
+    assert len(drawn) == 2 * len(rows)
     at = T.ST4_COLUMNS.index
-    for row in T.st4(200_000, SEED):
-        for k in hot:
-            columns[k] += [float(row[at("code")][:1] == k)]
-        columns["w"] += [(float(row[at("weight")]) - 80.0) / 10.0]
-        y += [float(row[at("outcome")])]
-    terms: "list[tuple[str, K.Term]]" = [("int", K.intercept)] + [(k, B.col(k)) for k in hot + ("w",)]
-    value, se = K.glm(K.Design(columns, terms), y, "logistic").coef("B")
-    assert 4.0 * se < 0.3, se
-    assert abs(value - stated) <= 4.0 * se, (value, se, stated)
+    for row, logit in zip(rows, drawn[1::2]):
+        chapter = T.CHAPTERS.index(row[at("code")][0])
+        k = (int(row[at("code")][1:3]) - 10) * 5 + int(row[at("code")][4])
+        lift = 2.5 if k >= 20 and chapter % 2 == 0 else 0.0
+        expected = -5.6 + T.CHAPTER_OUTCOME[chapter] + lift + 0.02 * (float(row[at("weight")]) - 80.0)
+        assert logit == pytest.approx(expected, abs=1e-12), (row, logit, expected)
+    assert sum(1 for row in rows if row[at("code")][0] == "B") > 100
+
+
+def test_the_effect_bearing_codes_are_as_rare_as_the_module_states() -> None:
+    """At seed 1: of the 50 codes carrying an effect, 4 hold 11 rows or more at 8,000 rows and 14 at 20,000."""
+    for rows, common in ((8000, 4), (20_000, 14)):
+        counts: "dict[str, int]" = {}
+        for row in T.st4(rows, SEED):
+            code = row[0]
+            k = (int(code[1:3]) - 10) * 5 + int(code[4])
+            if k >= 20 and T.CHAPTERS.index(code[0]) % 2 == 0:
+                counts[code] = counts.get(code, 0) + 1
+        assert sum(1 for n in counts.values() if n >= 11) == common, (rows, sorted(counts.values()))
 
 
 def test_readmission_by_ward_x_diabetes_is_positive_and_significant_at_20000_rows() -> None:
