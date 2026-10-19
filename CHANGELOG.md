@@ -37,6 +37,17 @@ runs the battery's fast part in about 30 s; the rest runs through
 the six tables took 4 to 21 minutes and at most 1,062 MB in a process of
 its own (K-BC-13). Nothing in the product changes.
 
+After two reviews (2026-10-18) every control of every KPI is tested by
+name, a family whose shuffle meets its target voids K-BC-01, and every
+target is one a perfect twin meets: a seeded truth is charged only where
+the replicate gets it back, judged by McNemar's paired comparison; the
+automatic panel holds each number to the real table's range, so a fresh
+sample no longer stops it; the null table tests a label against a
+many-valued number by ranks; and twin-seed stability (K-BC-12) counts
+only estimates that are also inside, where the shuffle fails. Restamped
+at 20,000 rows, today's twin still stands where the shuffle stands: 40 %
+of 2,930 supported estimates inside against the replicate's 78 %.
+
 ### Repeated grids of timestamps meet their counts (2026-10-15)
 
 **A column of timestamps on a regular grid that starts off midnight, or
