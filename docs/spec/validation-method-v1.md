@@ -3398,6 +3398,26 @@ a catalogued refusal, which is validation that could not run at all; 2
 on a usage error. Automation therefore tells a bad twin from a file it
 never evaluated without reading prose.
 
+**V6.5-A1 The exit status is read off the run's result** (2026-10-16,
+plan P4-D395; specified, NOT BUILT until lane S5a). From stage 5 a
+validate run, like a run of every other command, returns one result
+object, and its exit status is computed from that object alone, by one
+function of the command and the verdict: 0 when the check ran to
+completion and missed no obligation it could judge (the verdict
+`no-miss`, which claims no more: the within-bound,
+authorized-deviation, withheld and not-checkable counts stand beside it
+in the same object, and every withheld obligation is listed, as V7.3
+item 4 asks of a pass), 3 when it ran to completion and missed a
+checkable obligation, 1 on a refusal (a refusal keeps exactly the
+misses whose report had already been shown, so one while writing the
+report keeps them all, and still exits 1), 2 when the command line
+could not be used. The values are V6.5's and do not
+move. What moves is that no code path chooses an exit status of its
+own, so a caller reading the result and a caller reading the exit
+status are never told two different things. The same object holds the
+misses in the one order the plan fixes, and the quality report keeps
+the order V7.1 gives it.
+
 ---
 
 ## V7. The quality report
