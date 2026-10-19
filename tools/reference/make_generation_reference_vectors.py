@@ -1697,6 +1697,221 @@ def tail_steps(column, side, boundary, shape, end, low):
     return placed
 
 
+def shared_staircases(column, sides, boundaries, shapes, ends, steps):
+    """G5.3b's shared staircase (plan P4-D405), written from the method's words.
+
+    A side is read through it where its tail is unlisted, publishes its
+    pair, is not flat, the column is on a grid (not the format's own) and
+    holds at least two cells a number on average, and the one-point-a-row
+    staircase stands more than half a grid step further out than the
+    published mean distance -- and only where no row passes the one
+    field width the census names (a figure short where a pad is
+    published) and the reach rule of G6.6.8 moved neither end of the
+    block.  Each row then stands at its
+    own reading on the grid, the point of the row before it where it reads
+    that point or one nearer the boundary, never past the end, the
+    outermost on the end -- every zero where the end is nought and the
+    column holds zeros -- and off a stand-in the block does not hold.
+    Then the outermost rows are spread for the count (`spread_for_count`).
+    """
+    figures = tail_figures(column)
+    kept = held_by_the_block(column)
+    numbers = column["n_used_in_statistics"]
+    if figures == -1 or 2 * column["n_distinct_values"] > numbers:
+        return steps
+    moved = False
+    for place, side in enumerate(sides):
+        if heaped_end(column["percentiles"]["min" if place == 0 else "max"]) is not None:
+            continue
+        if side["values"] or tail_withheld(side):
+            continue
+        low = place == 0
+        if fitted_end(column, side, boundaries[place], shapes[place], low, False) != ends[place]:
+            moved = True
+    if moved:
+        return steps
+    chosen = list(steps)
+    shared = []
+    for place, side in enumerate(sides):
+        low = place == 0
+        if not steps[place] or side["values"] or tail_withheld(side):
+            continue
+        mean = side["mean_distance"]
+        if mean is None or not math.isfinite(mean):
+            continue
+        boundary = boundaries[place]
+        stair = staircase_mean(
+            [boundary - step if low else step - boundary for step in steps[place]]
+        )
+        if not math.isfinite(stair) or not stair - mean > tail_unit(figures) / 2.0:
+            continue
+        rows = side["rows"]
+        readings = []
+        for row in range(rows):
+            share = math.ldexp(((2 * row + 1) << 53) // (2 * rows), -53)
+            distance = shape_at(share, shapes[place])
+            readings.append(tail_grid(boundary - distance if low else boundary + distance, figures))
+        on_end = 1
+        if ends[place] == 0.0 and column["n_zero"] > 0:
+            on_end = max(1, min(column["n_zero"], rows))
+        rows_read = []
+        for row in range(rows):
+            value = readings[row]
+            if rows_read and ((value >= rows_read[-1]) if low else (value <= rows_read[-1])):
+                value = rows_read[-1]
+            if (value < ends[place]) if low else (value > ends[place]):
+                value = ends[place]
+            if row >= rows - on_end:
+                value = ends[place]
+            rows_read.append(row_off_the_stand_ins(value, ends[place], low, figures, kept))
+        if past_one_width(column, rows_read):
+            continue
+        chosen[place] = rows_read
+        shared.append(place)
+    if not shared:
+        return steps
+    return spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, kept)
+
+
+def past_one_width(column, rows):
+    """Whether a row stands at the one field width's ceiling or past it.
+
+    The census names one width `w` of 1 to 15 figures; where a pad is
+    published the values stop at `w - 1` figures, so the ceiling is ten to
+    that power.
+    """
+    widths = column.get("field_widths") or {}
+    if len(widths) != 1:
+        return False
+    key = next(iter(widths))
+    if not key.isdigit():
+        return False
+    width = int(key)
+    if not 1 <= width <= 15:
+        return False
+    if column.get("pad_widths"):
+        width -= 1
+    ceiling = F(10) ** width
+    return any(math.isfinite(row) and abs(F(row)) >= ceiling for row in rows)
+
+
+def interior_points(column, low_percent, high_percent, unit):
+    """The grid points the published ladder between the two boundaries reaches.
+
+    From the method's words: one for the boundary rung, and for each pair
+    of adjacent whole-percent rungs the fewer of the ranks between them
+    (ranks `k` with `p K <= 100 k < (p + 1) K`) and the grid steps their
+    distance holds, rounded half up; a null rung takes the nearest held
+    rung below it, or the first held one.
+    """
+    numbers = column["n_used_in_statistics"]
+    held = [p for p in range(low_percent, high_percent + 1) if _rung_at(column, p) is not None]
+    if not held or numbers <= 0:
+        return 0
+    rungs = []
+    for percent in range(low_percent, high_percent + 1):
+        value = _rung_at(column, percent)
+        if value is None:
+            under = [p for p in held if p < percent]
+            value = _rung_at(column, under[-1] if under else held[0])
+        rungs.append(value)
+    total = 1
+    for index in range(len(rungs) - 1):
+        percent = low_percent + index
+        ranks = -((-(percent + 1) * numbers) // 100) - (-((-percent * numbers) // 100))
+        span = (rungs[index + 1] - rungs[index]) / unit
+        if not math.isfinite(span) or span <= 0.0:
+            continue
+        total += min(max(ranks, 0), int(span + 0.5))
+    return total
+
+
+def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, kept):
+    """The shared staircases' outermost rows pushed apart for the count of different numbers.
+
+    The shortfall is `n_distinct_values` (at most the cells) less the
+    interior's points and every point a tail's rows or listed values take
+    past its boundary.  A shared side gains `g` points by pushing its
+    fewest outermost rows inside the end one grid point past the row
+    before them each, the last of them still inside the end; the
+    shortfall is shared in proportion to the most each side can gain, the
+    low side's part rounded down, the other taking what the first cannot.
+    """
+    unit = tail_unit(figures)
+    reached = interior_points(column, sides[0]["percent"], sides[1]["percent"], unit)
+    for place, side in enumerate(sides):
+        low = place == 0
+        beyond = {
+            value for value in list(chosen[place]) + list(side["values"])
+            if ((value < boundaries[place]) if low else (value > boundaries[place]))
+        }
+        reached += len(beyond)
+    short = min(column["n_distinct_values"], column["n_used_in_statistics"]) - reached
+    if short <= 0:
+        return chosen
+    scale = 10 ** max(figures, 0)
+    best = {}
+    for place in shared:
+        rows = chosen[place]
+        low = place == 0
+        if any(not math.isfinite(row) or abs(row) * scale >= 2.0 ** 52 for row in rows):
+            continue
+        signed = [(-1 if low else 1) * int(round(row * scale)) for row in rows]
+        # the rows on the end are the end's; the pushed ones stand inside it
+        while len(signed) >= 2 and signed[-2] == signed[-1]:
+            signed.pop(len(signed) - 2)
+        options = {0: 0}
+        if len(signed) >= 3:
+            end = signed[-1]
+            had = len(set(signed))
+            for pushed in range(1, len(signed) - 1):
+                first = len(signed) - 1 - pushed
+                at = signed[first - 1]
+                for row in range(first, len(signed) - 1):
+                    at = max(signed[row], at + 1)
+                if at >= end:
+                    break
+                gain = len(set(signed[:first])) + pushed + 1 - had
+                if gain not in options:
+                    for missing in range(max(options) + 1, gain + 1):
+                        options[missing] = pushed
+        best[place] = options
+    if not best:
+        return chosen
+    most = {place: max(options) for place, options in best.items()}
+    total = sum(most.values())
+    if total <= 0:
+        return chosen
+    order = sorted(best)
+    if len(order) == 1:
+        wanted = {order[0]: min(short, most[order[0]])}
+    else:
+        first = min(most[order[0]], short * most[order[0]] // total)
+        second = min(most[order[1]], short - first)
+        first = min(most[order[0]], short - second)
+        wanted = {order[0]: first, order[1]: second}
+    spread = list(chosen)
+    for place in order:
+        if wanted[place] <= 0:
+            continue
+        pushed = best[place][wanted[place]]
+        rows = list(chosen[place])
+        low = place == 0
+        toward = -1 if low else 1
+        inside = len(rows)
+        while inside >= 2 and rows[inside - 2] == rows[-1]:
+            inside -= 1
+        first = inside - 1 - pushed
+        at = toward * int(round(rows[first - 1] * scale))
+        for row in range(first, inside - 1):
+            at = max(toward * int(round(rows[row] * scale)), at + 1)
+            rows[row] = row_off_the_stand_ins(
+                tail_grid((toward * at) / scale, figures), ends[place], low, figures, kept
+            )
+        spread[place] = rows
+    return spread
+
+
 def row_off_the_stand_ins(value, end, low, figures, kept=()):
     """G5.3b step 5's rows (plan P4-D353): no staircase row is a stand-in number.
 
@@ -1817,7 +2032,7 @@ def derived_end(column, side, boundary, shape, low, published):
     return (withheld_end if tail_withheld(side) else fitted_end)(column, side, boundary, shape, low)
 
 
-def fitted_end(column, side, boundary, shape, low):
+def fitted_end(column, side, boundary, shape, low, reach_rule=True):
     """G5.3b step 4, then step 5: the end of a tail read through its fitted shape.
 
     The shape read at the outermost row's own share, moved outward, held
@@ -1846,7 +2061,9 @@ def fitted_end(column, side, boundary, shape, low):
         step = tail_unit(figures)
         placed = tail_grid(placed + step if low else placed - step, figures)
     kept = held_by_the_block(column)
-    held = held_end(placed, low, boundary, column, figures, mean, root, kept)
+    held = held_end(
+        placed, low, boundary, column, figures, mean, root if reach_rule else None, kept
+    )
     return off_the_stand_ins(held, low, boundary, figures, kept)
 
 
@@ -2204,6 +2421,13 @@ def tail_ladder(column):
         tail_steps(column, low, low_boundary, shapes[0], ends[0], True),
         tail_steps(column, high, high_boundary, shapes[1], ends[1], False),
     ]
+    # ...OR, ON A COLUMN THAT REPEATS ITS NUMBERS, EACH ROW AT ITS OWN
+    # READING, rows on one point sharing it, and the outermost rows spread
+    # as far as the count of different numbers asks (G5.3b's shared
+    # staircase, plan P4-D405).
+    steps = shared_staircases(
+        column, (low, high), (low_boundary, high_boundary), shapes, ends, steps
+    )
     held = [
         percent
         for percent in range(low["percent"], high["percent"] + 1)
@@ -4503,8 +4727,8 @@ def dense_grid_of(column, reader, published):
 
     Every number different, one grid, an unlisted tail read through its
     shape with its pair published, every staircase row on a point of its
-    own, and the staircase more than half a grid step further out than
-    the published mean distance.
+    own but the rows its derived end holds, and the staircase more than
+    half a grid step further out than the published mean distance.
     """
     # A listed tail, one that withholds its pair and a flat one (its mean
     # distance nought) are never dense, each asked on its own.
@@ -4523,7 +4747,14 @@ def dense_grid_of(column, reader, published):
     low = reader["percent"] < 50
     boundary = reader["boundary"]
     distances = [boundary - step if low else step - boundary for step in reader["steps"]]
+    # Rows held on the derived end are the staircase's own crowd there
+    # (plan P4-D405): only the rows inside it must each stand on a point
+    # of their own.
+    end = reader["end"]
+    reach = boundary - end if low else end - boundary
     for index in range(1, len(distances)):
+        if distances[index] == distances[index - 1] == reach:
+            continue
         if not distances[index] > distances[index - 1]:
             return -1
     stair = staircase_mean(distances)

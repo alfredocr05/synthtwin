@@ -1193,8 +1193,13 @@ def test_the_grid_staircase_is_what_keeps_a_tail_s_rows_apart(
     ladder = contract.tail_ladder(facts)
     assert ladder is not None and ladder.low is not None
     assert ladder.low.steps, "a tail on a grid reads its rows through the staircase"
-    assert len(set(ladder.low.steps)) == len(ladder.low.steps), (
-        "every row of the tail stands on its own grid point"
+    # The pushed staircase keeps every row apart. This column repeats its
+    # numbers and that staircase stands more than half a step past the
+    # published mean distance, so the ladder reads the shared staircase
+    # (method G5.3b, plan P4-D405), spread as far as the count asks.
+    pushed = contract._tail_steps(ladder.low, contract._tail_figures(facts))
+    assert len(set(pushed)) == len(pushed), (
+        "every row of the pushed staircase stands on its own grid point"
     )
 
     monkeypatch.setattr(contract, "_tail_steps", lambda side, figures: ())

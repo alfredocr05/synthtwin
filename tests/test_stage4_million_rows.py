@@ -533,8 +533,14 @@ def test_which_staircases_are_dense() -> None:
     assert contract._dense_grid(out, facts, 8.0) == 0, "pushed outward: 9.0 against 8.0"
     assert contract._dense_grid(out, facts, 8.6) == -1, "within half a step"
     assert contract._dense_grid(out, facts, 10.0) == -1, "further in than the published mean"
+    # Rows held together on the derived end are the pushed staircase's own
+    # crowd there, and the side is dense (plan P4-D405: G2's dense tail at
+    # 300,000 rows crowds fifteen rows on its end); rows held together
+    # inside it are not.
     held = dataclasses.replace(_HIGH, steps=(101.0, 102.0, 130.0, 130.0))
-    assert contract._dense_grid(held, facts, 5.0) == -1, "rows held together at the end"
+    assert contract._dense_grid(held, facts, 5.0) == 0, "rows held together at the end"
+    inside = dataclasses.replace(_HIGH, steps=(101.0, 101.0, 102.0, 130.0))
+    assert contract._dense_grid(inside, facts, 5.0) == -1, "rows held together inside the end"
     assert contract._dense_grid(out, _numeric_facts(39, 40), 8.0) == -1, "a column that repeats a number"
 
 

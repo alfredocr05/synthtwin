@@ -13882,6 +13882,24 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
     `parsing.NUMERIC_SENTINELS` the block does not publish as held takes
     the next grid point outward, as a row landing on the row before it
     does (`_row_off_the_stand_ins`).
+
+    AND ON A COLUMN THAT REPEATS ITS NUMBERS, ROWS THE GRID CROWDS SHARE
+    THEIR POINT (method G5.3b, the shared staircase; stage 4 lane G2T,
+    plan P4-D405). One point a row is the model of a column whose every
+    number is different; a column that repeats its numbers holds several
+    rows on one point wherever its tail is denser than its grid. Pushing
+    each of them a point further out stretched a tail of `m` rows over at
+    least `m` points: 100,000 readings of a bell at two places published
+    a low tail of 1,000 rows at a mean distance of 1.76 from its boundary,
+    the staircase stood at 5.03, and so did the twin, its spread 4.3 per
+    cent above the column's (12 per cent at 250,000 rows); and a count of
+    a few values put 194 of its 200 high-tail rows on the derived end. So
+    where the block repeats its numbers and this staircase stands more
+    than half a grid step further out than the published mean distance
+    -- the test `_dense_grid` asks of a column whose every number is
+    different -- `tail_ladder` reads the tail through `_shared_steps`
+    instead (`_shares_its_points`). A tail this staircase already meets
+    is left as it was.
     """
     if side.listed or side.rows <= 0:
         return ()
@@ -13934,6 +13952,360 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
         if side.low and value < side.end:
             value = side.end
         if not side.low and value > side.end:
+            value = side.end
+        placed += [_row_off_the_stand_ins(value, side, figures)]
+    return tuple(placed)
+
+
+def _interior_points(
+    facts: NumericFacts,
+    named: "dict[int, float | None]",
+    low_percent: int,
+    high_percent: int,
+    unit: float,
+) -> int:
+    """How many grid points the ladder between the two tail boundaries reaches, read at the column's ranks (G5.3b, plan P4-D405).
+
+    Between two adjacent rungs the ranks read a straight line, so they
+    reach every grid point of the segment where they are more than its
+    points and one point a rank where they are fewer: each segment adds
+    the smaller of its ranks and its grid steps, and the boundary rung
+    adds one. A rung the description leaves null takes the nearest
+    published rung below it, as the ladder does. The count is the
+    estimate the shared staircase spreads its outermost rows by
+    (`_spread_for_the_count`), worked out from the published rungs and
+    the column's number of cells alone.
+    """
+    numbers = facts.n_used_in_statistics
+    held = [
+        percent
+        for percent in range(low_percent, high_percent + 1)
+        if named[percent] is not None
+    ]
+    if not held or numbers <= 0 or not unit > 0.0:
+        return 0
+    values: "list[float]" = []
+    for percent in range(low_percent, high_percent + 1):
+        value = named[percent]
+        if value is None:
+            below = [step for step in held if step < percent]
+            value = named[below[len(below) - 1] if below else held[0]]
+        values += [value if value is not None else 0.0]
+    points = 1
+    for index in range(len(values) - 1):
+        percent = low_percent + index
+        first = (percent * numbers + 99) // 100
+        after = ((percent + 1) * numbers + 99) // 100
+        ranks = max(after - first, 0)
+        span = (values[index + 1] - values[index]) / unit
+        if not math.isfinite(span) or span <= 0.0:
+            continue
+        steps = int(span + 0.5)
+        points = points + (ranks if ranks < steps else steps)
+    return points
+
+
+def _grid_index(value: float, figures: int) -> "int | None":
+    """A grid value as a whole number of its grid's steps, or None past 2**52 steps."""
+    scale = 1.0
+    for _figure in range(max(figures, 0)):
+        scale = scale * 10.0
+    if not math.isfinite(value) or abs(value) * scale >= 2.0**52:
+        return None
+    return int(round(value * scale))
+
+
+def _spread_gains(steps: "tuple[float, ...]", low: bool, figures: int) -> "list[int] | None":
+    """How many points the shared staircase gains as its outermost rows are pushed apart (G5.3b, plan P4-D405).
+
+    Entry `g` is the fewest rows inside the end that, pushed outward one
+    grid point past the row before them each, give the staircase `g`
+    more different points while the last of them stays inside the end;
+    the list stops at the most it can gain. None where a row's grid
+    index is past 2**52 steps.
+    """
+    toward = -1 if low else 1
+    indices: "list[int]" = []
+    for step in steps:
+        index = _grid_index(step, figures)
+        if index is None:
+            return None
+        indices += [toward * index]
+    end = indices[len(indices) - 1]
+    # THE ROWS ON THE END ARE THE END'S: the pushed rows stand inside it.
+    rows = len(indices)
+    while rows >= 2 and indices[rows - 2] == end:
+        rows = rows - 1
+    indices = indices[:rows]
+    if rows < 3:
+        return [0]
+    seen: "dict[int, bool]" = {}
+    prefix = [0]
+    for index in indices[: rows - 1]:
+        seen[index] = True
+        prefix += [len(seen)]
+    have = len(seen) + (0 if end in seen else 1)
+    gains = [0]
+    reach = indices[rows - 2]
+    for start in range(rows - 2, 0, -1):
+        # rows `start` .. rows - 2 pushed: the last of them stands at the
+        # furthest of each pushed row's own point and the row before the
+        # pushed ones, each a step a row further out.
+        reach = max(reach, indices[start] + (rows - 2 - start))
+        reach = max(reach, indices[start - 1] + (rows - 1 - start))
+        if reach >= end:
+            break
+        gained = prefix[start] + (rows - 1 - start) + 1 - have
+        while len(gains) <= gained:
+            gains += [rows - 1 - start]
+    return gains
+
+
+def _spread_steps(
+    side: TailReader, figures: int, pushed: int
+) -> "tuple[float, ...]":
+    """The shared staircase with its `pushed` outermost rows inside the end pushed one grid point apart (G5.3b, plan P4-D405)."""
+    steps = side.steps
+    end = steps[len(steps) - 1]
+    rows = len(steps)
+    while rows >= 2 and steps[rows - 2] == end:
+        rows = rows - 1
+    if pushed <= 0 or pushed > rows - 2:
+        return steps
+    toward = -1 if side.low else 1
+    scale = 1.0
+    for _figure in range(max(figures, 0)):
+        scale = scale * 10.0
+    placed = list(steps[: rows - 1 - pushed])
+    last = _grid_index(placed[len(placed) - 1], figures)
+    if last is None:
+        return steps
+    at = toward * last
+    for row in range(rows - 1 - pushed, rows - 1):
+        own = _grid_index(steps[row], figures)
+        if own is None:
+            return steps
+        at = max(toward * own, at + 1)
+        value = _on_tail_grid((toward * at) / scale, figures)
+        placed += [_row_off_the_stand_ins(value, side, figures)]
+    return tuple(placed) + steps[rows - 1 :]
+
+
+def _spread_for_the_count(
+    sides: "list[TailReader]",
+    shared: "list[int]",
+    facts: NumericFacts,
+    named: "dict[int, float | None]",
+    low_percent: int,
+    high_percent: int,
+) -> "list[TailReader]":
+    """The shared staircases' outermost rows pushed apart as far as the column's count of different numbers asks (G5.3b, plan P4-D405).
+
+    ROWS SHARING THEIR POINTS HOLD FEWER DIFFERENT NUMBERS THAN ONE
+    POINT A ROW, and a column's count of them is published. Where the
+    ladder between the boundaries (`_interior_points`) and the two tails
+    reach fewer points than `n_distinct_values`, the division of G5.2a
+    divides its longest run and the walks of G6.5a push its strata
+    apart through the body of the column: counts of visits 0 to 23 came
+    back with 1,119 ones where the table holds 4,477. A real tail's
+    furthest rows stand apart, so the shortfall is met there instead:
+    each shared side pushes its outermost rows inside the end one grid
+    point past the row before them, the fewest rows that reach its part
+    of the shortfall, never onto the end. The shortfall is shared
+    between the shared sides in proportion to the most each can gain,
+    the low side's part rounded down, and what one cannot take the other
+    takes as far as it can.
+
+    Guarantees: accepts the two tail readers, which of them read the
+    shared staircase, the block's facts, its named rungs and the two
+    boundary percents; returns the two readers, a pushed side's
+    staircase replaced. Determinism: a function of its arguments.
+    Raises nothing. No I/O.
+    """
+    figures = _tail_figures(facts)
+    unit = _tail_unit(figures)
+    reached = _interior_points(facts, named, low_percent, high_percent, unit)
+    for place in range(2):
+        side = sides[place]
+        beyond: "dict[float, bool]" = {}
+        for step in side.steps + side.listed:
+            if (step < side.boundary) if side.low else (step > side.boundary):
+                beyond[step] = True
+        reached = reached + len(beyond)
+    short = min(facts.n_distinct_values, facts.n_used_in_statistics) - reached
+    if short <= 0:
+        return sides
+    gains: "dict[int, list[int]]" = {}
+    for place in shared:
+        found = _spread_gains(sides[place].steps, sides[place].low, figures)
+        if found is not None:
+            gains[place] = found
+    if not gains:
+        return sides
+    most: "dict[int, int]" = {}
+    total = 0
+    for place in gains:
+        most[place] = len(gains[place]) - 1
+        total = total + most[place]
+    if total <= 0:
+        return sides
+    wanted: "dict[int, int]" = {}
+    places = sorted(gains)
+    if len(places) == 1:
+        wanted[places[0]] = min(short, most[places[0]])
+    else:
+        first = min(most[places[0]], short * most[places[0]] // total)
+        second = min(most[places[1]], short - first)
+        first = min(most[places[0]], short - second)
+        wanted[places[0]] = first
+        wanted[places[1]] = second
+    moved = list(sides)
+    for place in places:
+        if wanted[place] <= 0:
+            continue
+        pushed = gains[place][wanted[place]]
+        moved[place] = dataclasses.replace(
+            sides[place],
+            steps=_spread_steps(sides[place], figures, pushed),
+        )
+    return moved
+
+
+def _past_one_width(steps: "tuple[float, ...]", facts: NumericFacts) -> bool:
+    """Whether a shared staircase puts a row past the one field width the block's census names (G5.3b, plan P4-D405).
+
+    G6.6.8's width walk takes a tail's rows past the width back under
+    it by the pushed staircase's totals, so where the census names one
+    width and the shared staircase stands a row of more whole figures
+    the pushed staircase stands: a thousand two-figure readings beside
+    one `185` at a floor of 36 read the shared staircase's far rows at
+    `102` to `172` and came back with the spread 1.2 per cent off the
+    real one, where the pushed one leaves 0.3, and padded to `010` to
+    `099` they wrote five cells of four figures.
+    """
+    if len(facts.field_widths) != 1:
+        return False
+    for key in facts.field_widths:
+        if not key or any(letter not in "0123456789" for letter in key):
+            return False
+        width = int(key)
+    if width < 1 or width > 15:
+        return False
+    # A PADDED CELL'S WIDTH IS NOT ITS VALUE'S (plan P4-D14): where a pad
+    # is published, a pad figure stands in front, so the values stop a
+    # figure short of the width -- `010` to `099` beside one `185`.
+    if facts.pad_widths:
+        width = width - 1
+    ceiling = 1.0
+    for _figure in range(width):
+        ceiling = ceiling * 10.0
+    for step in steps:
+        if abs(step) >= ceiling:
+            return True
+    return False
+
+
+def _end_rows(side: TailReader, facts: NumericFacts) -> int:
+    """How many of a shared staircase's outermost rows stand on its end (G5.3b, plan P4-D405).
+
+    One, the rank the pinned stratum holds; and where the end is nought
+    and the column holds zeros, every zero, which the zero stratum holds
+    at the tail's outermost ranks (G5.2) -- a row read inside them is a
+    zero, and a point it took would be no point of the twin.
+    """
+    if side.end == 0.0 and facts.n_zero > 0:
+        return max(1, min(facts.n_zero, side.rows))
+    return 1
+
+
+def _shares_its_points(
+    side: TailReader, facts: NumericFacts, mean_distance: "float | None"
+) -> bool:
+    """Whether a tail is read through the shared staircase (G5.3b, plan P4-D405).
+
+    ONE POINT A ROW IS THE MODEL OF A COLUMN WHOSE EVERY NUMBER IS
+    DIFFERENT. A column that repeats its numbers holds several rows on
+    one point wherever its tail is denser than its grid, and pushing
+    each of them a point further out stretched a tail of `m` rows over
+    at least `m` points: 100,000 readings of a bell at two places
+    published a low tail of 1,000 rows at a mean distance of 1.76 from
+    its boundary, the staircase stood at 5.03 and so did the twin, its
+    spread 4.3 per cent above the column's (12 per cent at 250,000
+    rows), and a count of a few values put 194 of its 200 high-tail rows
+    on the derived end. So an unlisted tail read through its shape, on
+    a grid (`_tail_figures` not -1), of a block that repeats its numbers
+    -- at least two cells a number on average -- whose pushed staircase stands more than half a grid step further out
+    than the published mean distance -- the test `_dense_grid` asks of
+    a column whose every number is different, where rule 4 of G6.6.8
+    answers instead -- is read through `_shared_steps`.
+
+    Guarantees: accepts the side's reader carrying its pushed staircase,
+    the block's facts and the published mean distance; answers yes or
+    no. Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    if side.listed or side.withheld or side.flat or not side.steps:
+        return False
+    if mean_distance is None or not math.isfinite(mean_distance):
+        return False
+    # REPEATS ITS NUMBERS: each number on two cells or more on average.
+    # A column of codes nearly all different -- 128 numbers over 141
+    # cells beside one `99999` -- keeps the pushed staircase, whose one
+    # point a row is its own model; the shared one stacked fourteen of its
+    # high tail's 37 rows on the boundary.
+    if 2 * facts.n_distinct_values > facts.n_used_in_statistics:
+        return False
+    figures = _tail_figures(facts)
+    if figures == -1:
+        return False
+    distances: "list[float]" = []
+    for step in side.steps:
+        distances += [side.boundary - step if side.low else step - side.boundary]
+    stair = _finite_mean(distances)
+    if not math.isfinite(stair):
+        return False
+    return stair - mean_distance > _tail_unit(figures) / 2.0
+
+
+def _shared_steps(
+    side: TailReader, figures: int, end_rows: int = 1
+) -> "tuple[float, ...]":
+    """The shared staircase: each row of a fitted tail at its own reading on the grid (G5.3b, plan P4-D405).
+
+    Row `i` of `m` reads the shape at the middle of its own share,
+    `(2 i + 1) / (2 m)`, as the pushed staircase does, and is placed on
+    the grid; a row reading the point of the row before it, or one nearer
+    the boundary, takes that row's point -- its very number, so `-0.0`
+    and `0.0` are one point -- and the rows never turn back; none
+    stands past the end, the outermost ``end_rows`` stand ON it -- the
+    rank the pinned stratum holds, so the end is a run of its own and the
+    row before it is not taken for the end, and every zero where the end
+    is nought and the zero stratum holds the column's zeros
+    (`_end_rows`) -- and a row on a stand-in number
+    the block does not hold takes the next grid point outward
+    (`_row_off_the_stand_ins`).
+    Rows reading one point share it, as the rows of a column that
+    repeats its numbers do.
+
+    Guarantees: accepts a fitted, unlisted tail reader and its grid's
+    figures (0 or more, or -2 for the whole numbers); returns its rows' values, innermost first.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    placed: "list[float]" = []
+    for row in range(side.rows):
+        width = 2 * side.rows
+        share = math.ldexp((((2 * row + 1) << 53) // width), -53)
+        step = _shape_at(side, share)
+        value = side.boundary - step if side.low else side.boundary + step
+        value = _on_tail_grid(value, figures)
+        if placed:
+            last = placed[len(placed) - 1]
+            if (value >= last) if side.low else (value <= last):
+                value = last
+        if side.low and value < side.end:
+            value = side.end
+        if not side.low and value > side.end:
+            value = side.end
+        if row >= side.rows - end_rows:
             value = side.end
         placed += [_row_off_the_stand_ins(value, side, figures)]
     return tuple(placed)
@@ -14221,7 +14593,16 @@ def _dense_grid(
     distances: "list[float]" = []
     for step in side.steps:
         distances += [side.boundary - step if side.low else step - side.boundary]
+    # ...SAVE THE ROWS THE END HOLDS (plan P4-D405): a staircase that runs
+    # out of grid before its rows do crowds them on its derived end, and
+    # that is the pushed staircase too. G2's dense tail at 300,000 rows
+    # crowds fifteen high-tail rows on `1160442` and was read as no dense
+    # side, so rule 4 left it and the twin missed the tail's two distances
+    # and the column's mean and skew.
+    reach = side.end - side.boundary if not side.low else side.boundary - side.end
     for index in range(1, len(distances)):
+        if distances[index] == distances[index - 1] == reach:
+            continue
         if not distances[index] > distances[index - 1]:
             return -1
     stair = _finite_mean(distances)
@@ -14230,6 +14611,136 @@ def _dense_grid(
     if stair - mean_distance > _tail_unit(figures) / 2.0:
         return figures
     return -1
+
+
+def dense_placed(ladder: ShapedLadder, facts: NumericFacts) -> "ShapedLadder | None":
+    """The ladder with each DENSE side read as G6.6.8's rule 4 places it, or None where no side is dense (G12.3, plan P4-D405).
+
+    Rule 4 places a dense side's strata past their run so the tail's
+    distances sum to `m d1`, and the staircase the ladder reads stands
+    where the grid pushed them: G2's dense tail of 1,000,000 rows (whole
+    numbers from 5 to 999999 beside five of seven figures) publishes a
+    high tail of 10,000 rows at a mean distance of 5,780.5, the staircase
+    stands near 10,200 and the twin at the published one, so G12.3's
+    mean window, drawn through the staircase, stood at 500,051.9 to
+    500,061.4 around a published 500,012.3 and missed the twin at
+    500,013.3, as did the skew and the kurtosis. So the moments' windows
+    are drawn through this ladder too, and each is the hull of the two
+    (`taxonomy.windows_of`, `generation._numeric_approximations`): a twin
+    rule 4 placed and one it left as the staircase put it each stand in
+    it.
+
+    THE PLACEMENT, in grid steps on the side's own grid: the staircase's
+    run of consecutive points from its first row stays; of the `c` rows
+    past it the first `c - q` continue the run a point each and the last
+    `q` stand together one point apart, starting where the side's
+    distances sum to `m d1` (rounded to the step), past the continued
+    run; `q` is the count whose distances' squares stand nearest
+    `m rms**2`, the fewest on a tie. A side whose staircase is one run,
+    or where no `q` lands past the run, is read as it stands. This is
+    rule 4's shape and not its every refusal: the hull holds the twin
+    whichever of the two the generator writes.
+
+    Guarantees: accepts a shaped ladder (each caller asks
+    `isinstance` first) and the block's facts; returns a shaped ladder
+    whose dense sides' staircases are placed, or None.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    if facts.tails is None:
+        return None
+    readers = [ladder.low, ladder.high]
+    published = [facts.tails.low, facts.tails.high]
+    changed = False
+    for place in range(2):
+        reader = readers[place]
+        side = published[place]
+        if reader is None or side is None or reader.dense_grid < 0:
+            continue
+        placed = _dense_steps_placed(reader, side)
+        if placed is not None:
+            readers[place] = dataclasses.replace(reader, steps=placed)
+            changed = True
+    if not changed:
+        return None
+    return _shaped(tuple(ladder), readers[0], readers[1])
+
+
+def _dense_steps_placed(
+    reader: TailReader, side: TailSide
+) -> "tuple[float, ...] | None":
+    """One dense side's staircase placed as `dense_placed` states, or None where it stands."""
+    mean = side.mean_distance
+    root = side.rms_distance
+    steps = reader.steps
+    rows = len(steps)
+    if mean is None or root is None or rows < 2:
+        return None
+    if not math.isfinite(mean) or not math.isfinite(root):
+        return None
+    figures = reader.dense_grid
+    scale = 1.0
+    for _figure in range(figures):
+        scale = scale * 10.0
+    toward = -1 if reader.low else 1
+    signed: "list[int]" = []
+    for step in steps:
+        index = _grid_index(step, figures)
+        if index is None:
+            return None
+        signed += [toward * index]
+    start = toward * reader.boundary * scale
+    if not math.isfinite(start):
+        return None
+    run = 1
+    while run < rows and signed[run] == signed[run - 1] + 1:
+        run = run + 1
+    count = rows - run
+    if count < 1:
+        return None
+    inner = 0.0
+    inner_squares = 0.0
+    for index in range(run):
+        distance = signed[index] - start
+        inner = inner + distance
+        inner_squares = inner_squares + distance * distance
+    wanted = rows * (mean * scale)
+    wanted_squares = rows * (root * scale) * (root * scale)
+    last = signed[run - 1]
+    best: "tuple[float, int, int] | None" = None
+    for far in range(1, count + 1):
+        near = count - far
+        base = last - start
+        near_sum = near * base + near * (near + 1) / 2.0
+        near_squares = (
+            near * base * base
+            + base * near * (near + 1)
+            + near * (near + 1) * (2 * near + 1) / 6.0
+        )
+        first = start + (wanted - inner - near_sum - far * (far - 1) / 2.0) / far
+        if not math.isfinite(first):
+            continue
+        point = int(round(first))
+        if point <= last + near:
+            continue
+        offset = point - start
+        far_squares = (
+            far * offset * offset
+            + offset * far * (far - 1)
+            + (far - 1) * far * (2 * far - 1) / 6.0
+        )
+        miss = abs(inner_squares + near_squares + far_squares - wanted_squares)
+        if best is None or miss < best[0]:
+            best = (miss, far, point)
+    if best is None:
+        return None
+    far = best[1]
+    near = count - far
+    placed = list(steps[:run])
+    for index in range(near):
+        placed += [_on_tail_grid(toward * (last + 1 + index) / scale, figures)]
+    for index in range(far):
+        placed += [_on_tail_grid(toward * (best[2] + index) / scale, figures)]
+    return tuple(placed)
 
 
 def dense_tail_mean_window(
@@ -15235,6 +15746,9 @@ def tail_ladder(
     if low_boundary is None or high_boundary is None:
         return _tail_ramp(facts)
     sides: "list[TailReader]" = []
+    shared: "list[int]" = []
+    candidates: "dict[int, tuple[float, ...]]" = {}
+    reached = False
     for side, boundary, is_low, published in (
         (low, low_boundary, True, named[0]),
         (high, high_boundary, False, named[100]),
@@ -15284,12 +15798,42 @@ def tail_ladder(
             side_reader,
             steps=_tail_steps(side_reader, _tail_figures(facts)),
         )
+        # ...AND ON A COLUMN THAT REPEATS ITS NUMBERS, ROWS THE GRID
+        # CROWDS SHARE THEIR POINT where the pushed staircase stands
+        # more than half a step past the published mean distance (G5.3b,
+        # the shared staircase, plan P4-D405): see `_shared_steps`.
+        if _shares_its_points(stepped, facts, side.mean_distance):
+            rows_shared = _shared_steps(
+                stepped, _tail_figures(facts), _end_rows(stepped, facts)
+            )
+            if not _past_one_width(rows_shared, facts):
+                candidates[len(sides)] = rows_shared
+        if stepped.end != _derived_end(
+            facts, side, boundary, shape, is_low, published, not reach_rule
+        ):
+            reached = True
         sides += [
             dataclasses.replace(
                 stepped,
                 dense_grid=_dense_grid(stepped, facts, side.mean_distance),
             )
         ]
+    # NOT WHERE G6.6.8'S RULE 1 MOVED AN END: rule 3 weighs the two
+    # readings of such a block, each built on the pushed staircase, and
+    # the width walk's totals are drawn from it -- 150 two-figure
+    # readings beside one `185`, whose end the pair's reach moved to
+    # `103`, kept fourteen cells past `99` read through the shared one,
+    # where the pushed one keeps none.
+    if not reached:
+        for place in sorted(candidates):
+            sides[place] = dataclasses.replace(
+                sides[place], steps=candidates[place]
+            )
+            shared += [place]
+    if shared:
+        sides = _spread_for_the_count(
+            sides, shared, facts, named, low.percent, high.percent
+        )
     held = [
         percent
         for percent in range(low.percent, high.percent + 1)

@@ -66118,6 +66118,17 @@ def _numeric_approximations(
     else:
         slack = _grid_half_unit(_pinned_fraction(column, facts))
     lows, highs, middles = _numeric_window(rungs, held, widest, slack)
+    # AND ON A DENSE SIDE THE MOMENTS' WINDOWS ARE THE HULL WITH THOSE
+    # RULE 4'S PLACEMENT DRAWS (method G12.3, plan P4-D405), as the
+    # quality report's are (`contract.dense_placed`).
+    dense = (
+        contract.dense_placed(rungs, facts)
+        if isinstance(rungs, contract.ShapedLadder)
+        else None
+    )
+    placed_window = (
+        None if dense is None else _numeric_window(dense, held, widest, slack)
+    )
     found: list[Approximation] = []
     for step in range(1, 10):
         percent = _PCT[step]
@@ -66153,6 +66164,9 @@ def _numeric_approximations(
     if facts.mean is not None:
         lowest = _average(lows)
         highest = _average(highs)
+        if placed_window is not None:
+            lowest = min(lowest, _average(placed_window[0]))
+            highest = max(highest, _average(placed_window[1]))
         found += [
             Approximation(
                 column=column.name,
@@ -66186,6 +66200,10 @@ def _numeric_approximations(
         middle = centre if centre is not None else 0.0
         lowest = max(0.0, middle - room)
         highest = middle + room
+        if placed_window is not None:
+            other_lowest, other_highest = _spread_window(placed_window, held)
+            lowest = min(lowest, other_lowest)
+            highest = max(highest, other_highest)
         found += [
             Approximation(
                 column=column.name,
@@ -66201,6 +66219,13 @@ def _numeric_approximations(
         ]
     if facts.skew is not None and shape is not None:
         lowest, highest = _shape_window(lows, highs, middles, reach, held)
+        if placed_window is not None:
+            other_lowest, other_highest = _shape_window(
+                placed_window[0], placed_window[1], placed_window[2],
+                _window_reach(placed_window, held), held,
+            )
+            lowest = min(lowest, other_lowest)
+            highest = max(highest, other_highest)
         found += [
             Approximation(
                 column=column.name,
@@ -66219,6 +66244,13 @@ def _numeric_approximations(
         ]
     if facts.kurtosis is not None and tails is not None and held >= 4:
         lowest, highest = _tails_window(lows, highs, middles, reach, held)
+        if placed_window is not None:
+            other_lowest, other_highest = _tails_window(
+                placed_window[0], placed_window[1], placed_window[2],
+                _window_reach(placed_window, held), held,
+            )
+            lowest = min(lowest, other_lowest)
+            highest = max(highest, other_highest)
         found += [
             Approximation(
                 column=column.name,
@@ -66238,7 +66270,7 @@ def _numeric_approximations(
     # quality report reads the same window off the same block, so the
     # two reports print one window.
     found = found + _tail_approximations(
-        column, facts, values, lows, highs, subject
+        column, facts, values, lows, highs, subject, placed_window
     )
     if not cardinalities:
         # A POSITION OF A JOINED COLUMN PUBLISHES NO DISTINCTNESS OF ITS
@@ -66250,6 +66282,26 @@ def _numeric_approximations(
         # the earlier attempt at this report.
         return found
     return found + _numeric_cardinalities(column, plan, written)
+
+
+def _window_reach(
+    window: "tuple[list[float], list[float], list[float]]", held: int
+) -> float:
+    """`E` of method G12.3 for one rank window: the root-mean-square of each rank's furthest reach."""
+    lows, highs, middles = window
+    return _root_mean_square(
+        [max(middles[rank] - lows[rank], highs[rank] - middles[rank]) for rank in range(held)]
+    )
+
+
+def _spread_window(
+    window: "tuple[list[float], list[float], list[float]]", held: int
+) -> "tuple[float, float]":
+    """G12.3's `std` window for one rank window, in the order the report's own takes."""
+    room = _window_reach(window, held) * math.sqrt(held / (held - 1))
+    centre = taxonomy.spread_of(list(window[2]))
+    middle = centre if centre is not None else 0.0
+    return max(0.0, middle - room), middle + room
 
 
 def _tail_facts_of(
@@ -66302,6 +66354,7 @@ def _tail_approximations(
     lows: "list[float]",
     highs: "list[float]",
     subject: str,
+    placed_window: "tuple[list[float], list[float], list[float]] | None" = None,
 ) -> "list[Approximation]":
     """Each tail's two distances, measured and bounded (method G12.13).
 
@@ -66328,7 +66381,24 @@ def _tail_approximations(
         measured = _tail_facts_of(values, side.percent, low)
         if measured is None:
             continue
+        # A DENSE SIDE'S ROOT-MEAN-SQUARE ANSWERS TO THE HULL WITH THE
+        # WINDOW THE PLACED LADDER DRAWS (plan P4-D405, `contract.dense_placed`),
+        # the checker's too: rule 4 puts the far strata where their squares
+        # stand nearest the published total, past the staircase's reach.
+        placed_root: "tuple[float, float] | None" = None
+        reader = (ladder.low if low else ladder.high) if isinstance(
+            ladder, contract.ShapedLadder
+        ) else None
+        if placed_window is not None and reader is not None and reader.dense_grid >= 0:
+            placed_root = _tail_window_of(
+                placed_window[0], placed_window[1], side.percent, low, len(values)
+            )[1]
         window = _tail_window_of(lows, highs, side.percent, low, len(values))
+        if placed_root is not None:
+            window = (
+                window[0],
+                (min(window[1][0], placed_root[0]), max(window[1][1], placed_root[1])),
+            )
         # A DENSE TAIL'S MEAN DISTANCE ANSWERS TO THE WINDOW G6.6.8's
         # RULE 4 DRAWS (stage 4 lane S4c, plan P4-D377), the checker's
         # own (`contract.dense_tail_mean_window`).

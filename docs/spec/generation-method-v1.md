@@ -1047,7 +1047,13 @@ furthest it admits for a tail's distances and a rung -- and to that
 window's own ends, or the stretch from it to the value where it misses
 the value, but within a band near the value (validation method V6.1-A2;
 Codex's review of lane G2, item 1, and the two verifiers of its
-corrections).
+corrections). **A second exception, named** (stage 4 lane G2T, plan P4-D405): on
+a side G6.6.8's rule 4 reads as DENSE, the generator may place the
+tail's outer strata where the staircase does not stand, so both
+reports draw the windows of the four moments (G12.3, G12.3a) and the
+tail's root-mean-square distance (G12.13) through the ladder with each
+dense side's staircase placed as rule 4 places it as well
+(`contract.dense_placed`), and take the hull of the two.
 
 A tail block whose `tails` is null publishes no rung and no moment (the
 block floor, TL2), and its ladder is G5.3d's ramp; one whose two sides
@@ -2310,6 +2316,73 @@ boundary rung itself where that percent falls between the two tails.
    width census took `9999` and the twin missed seven obligations at
    seeds 0, 4 and 9; three-figure negatives beside five of four figures
    took `-999` at every seed.
+
+**THE STAIRCASE, PUSHED OR SHARED** (stage 4 lane G2T, plan P4-D405).
+An unlisted tail read through its shape, on a grid, places its rows on
+the grid from the boundary outward, each at its own reading at the share
+`(2 i + 1) / (2 m)`, and a row that lands where the row before it stands
+takes the next grid point outward, never past the end -- the PUSHED
+staircase, one point a row (`contract._tail_steps`). One point a row is
+the model of a column whose every number is different. On a column that
+repeats its numbers it stretched a tail of `m` rows over at least `m`
+points: 100,000 readings of a bell at two places published a low tail
+of 1,000 rows at a mean distance of 1.76, the staircase stood at 5.03
+and so did the twin, its spread 4.3 per cent above the published one;
+on lane B0's table of fifty such columns at 250,000 rows every spread
+came back about 12 per cent high and `validate` exited 3 on all fifty;
+a count of few values
+at 20,000 rows held 194 of its 200 high-tail rows on the derived end `13`,
+past the source's own largest. So a side reads the SHARED staircase
+(`contract._shared_steps`) where all of these hold: its tail is unlisted,
+publishes its pair and is not flat; the block is on a grid (whole
+numbers, or the widest width `fraction_widths` names); it repeats its
+numbers, at least two cells a number on average (`2 n_distinct_values <=
+n_used_in_statistics` -- 128 numbers over 141 cells beside one `99999`
+keep the pushed staircase, whose model they are); the pushed staircase's
+mean distance stands more than half a grid step FURTHER OUT than the
+published one, the test G6.6.8's rule 4 asks of a column whose every
+number is different; no row of the shared staircase reaches the one
+field width the census names, where it names one (ten to that power, a
+figure short where a pad is published: a thousand two-figure readings
+beside one `185` read rows at `102` to `172` and lost the width walk's
+answer); and G6.6.8's rule 1 moved neither end of the block (rule 3 then
+weighs two readings each built on the pushed staircase). Each row of the
+shared staircase stands at its own reading on the grid; a row reading
+the point of the row before it, or one nearer the boundary, takes that
+row's very number; none stands past the end; the outermost row stands
+ON the end, and where the end is nought and the column holds zeros,
+every one of the outermost `min(n_zero, m)` rows does, the ranks the
+zero stratum holds (`contract._end_rows`); a row on a stand-in the block
+does not hold steps outward as before. Rounding a row moves its distance
+by half a step at the most, so the shared staircase meets the published
+mean to within half a step where the shape fits the tail.
+
+**AND THE SHARED STAIRCASE'S OUTERMOST ROWS SPREAD AS FAR AS THE COUNT
+ASKS** (`contract._spread_for_the_count`). Rows sharing points hold fewer
+different numbers than one point a row, and G5.2a then divides the
+column's longest run and G6.5a's walks push its strata apart through
+the body: counts of visits 0 to 23 came back with 1,119 ones where the
+source holds 4,477. So the shortfall is met where a real tail's furthest
+rows stand apart. It is `min(n_distinct_values, n_used_in_statistics)`
+less the points the ladder reaches: one for the boundary rung `P_lo`,
+and for each pair of adjacent whole-percent rungs `p` and `p + 1` from
+`P_lo` to `P_hi` the fewer of the ranks between them (`k` with
+`p K <= 100 k < (p + 1) K`, counted as `ceil((p + 1) K / 100) -
+ceil(p K / 100)`) and the grid steps between them (their distance over
+the step, rounded half up), a null rung taking the nearest held rung
+below it; and every point each side's rows or listed values take past
+its boundary. A shared side gains `g` points by pushing its fewest
+outermost rows inside the end -- the rows standing on the end are the
+end's and are never pushed -- one grid point past the row before them
+each, the last of them still strictly inside the end; with `r` the rows
+inside the end and the end itself, pushing rows `s` to `r - 2` gains
+`P(s) + (r - 1 - s) + 1 - D`, `P(s)` the different points of rows `0`
+to `s - 1` and `D` those of the shared side. The shortfall is shared
+between the shared sides in proportion to the most each can gain, the
+low side's part rounded down and the other taking what the first cannot,
+and each side takes the fewest rows that reach its part. Counted in
+grid steps, each row a whole number of them, so no sum rounds; a side
+with a row past `2**52` steps is not spread.
 
 **Why each step** (measured on the 16-shape battery of plan P4-D344 at
 floors 1 and 11). The two moments are what the rows beyond the boundary
@@ -4707,9 +4780,18 @@ or `kurtosis` window can cover the whole range and is listed (G5.6a).
    one grid (whole numbers, or one width of figures that every number
    used in the statistics carries: `contract.tail_grid`), its tail is
    unlisted, read through its shape and publishes its pair, every row of
-   its staircase stands on a point of its own, and the staircase's mean
-   distance stands more than half a grid step FURTHER OUT than the
-   published one (`TailReader.dense_grid`). As the last of the value
+   its staircase stands on a point of its own but the rows held together
+   on its derived end, and the staircase's mean distance stands more than
+   half a grid step FURTHER OUT than the published one
+   (`TailReader.dense_grid`). The rows the end holds are the pushed
+   staircase's own crowd there (stage 4 lane G2T, plan P4-D405): read as
+   no dense side, G2's tail at 200,000 and 300,000 rows -- fifteen rows
+   on the derived end `1160442` at 300,000 -- was left as the staircase
+   put it, its twin's tail stood at a mean distance of 2,035 and a
+   root-mean-square of 9,592 against a published 2,280 and 19,306, and
+   `validate` missed both and the column's mean and skew; placed, the
+   twin stands at 2,280 and 19,281 and the column's four moments within
+   a ten-thousandth of their published values. As the last of the value
    passes, on each dense side whose own strata crowd too -- counted
    outward from the published boundary, a run of consecutive grid points
    holding at least half the tail's cells -- and whose distances from the
@@ -4757,11 +4839,23 @@ or `kurtosis` window can cover the whole range and is listed (G5.6a).
    source's `1155999` to `1156003`), the tail's mean distance the
    published one and its spread 11,102 against 11,116; at 1,000,000 the
    same at `2558000` to `2558004`, and the twin no longer misses the
-   tail's spread or the column's; its mean, skew and kurtosis still
-   miss G12.3's windows, which do not reach the published values there
-   (500,051.9 to 500,061.4 around a published mean of 500,012.3, where
-   the twin stands at 500,013.3; skew 0.0017037 and kurtosis 1.81200
-   against 0.0017093 and 1.81205). G12.13's mean-distance window on a
+   tail's spread or the column's. Its mean, skew and kurtosis missed
+   G12.3's windows drawn through the staircase, which did not reach the
+   published values there (500,051.9 to 500,061.4 around a published
+   mean of 500,012.3, where the twin stands at 500,013.3; skew 0.0017037
+   and kurtosis 1.81200 against 0.0017093 and 1.81205), so on a dense
+   side the four moments' windows, and the tail's root-mean-square
+   distance's, are the hull with those drawn through the ladder whose
+   dense sides this rule places (`contract.dense_placed`, plan P4-D405;
+   G12.3, G12.13): the run of consecutive points from the staircase's
+   first row stays, of the `c` rows past it the first `c - q` continue
+   it a point each and the last `q` stand together one point apart from
+   the point that brings the side's distances to `m d1`, rounded to the
+   step, past the continued run, `q` the count whose squares stand
+   nearest `m rms**2`, the fewest on a tie -- this rule's shape without
+   its refusals, since the hull holds the twin either way; a side
+   whose staircase is one run, or where no `q` lands past it, reads as
+   it stands. G12.13's mean-distance window on a
    dense side is the hull of the rank form's and the window this rule
    draws: the published mean distance, moved by how far the file's own
    boundary rung stands from the published one within its own window,
@@ -15281,6 +15375,21 @@ intervals, taken with the sign rule division needs: a negative
 numerator end is divided by the SMALLEST denominator and a positive one
 by the largest, and the reverse for the upper end.
 
+**On a dense side, the hull of two readings of the ladder** (stage 4 lane G2T, plan
+P4-D405). Where a side of a tail block is DENSE (G6.6.8 rule 4), the
+generator places its outer strata past the staircase the ladder reads,
+so a window drawn through that ladder alone need not hold the twin: G2's
+dense tail at 1,000,000 rows drew the mean's window at 500,051.9 to
+500,061.4 around a published 500,012.3, with the twin at 500,013.3, and
+the skew's and kurtosis's windows missed in the same way. So each of
+the four windows of this section and G12.3a is drawn twice, through the
+ladder and through the same ladder with each dense side's staircase
+placed as rule 4 places it (`contract.dense_placed`, G6.6.8 rule 4's
+last paragraph), each by the order below, and the window is the hull of
+the two: the lower of the two low ends and the higher of the two high
+ends. The quality report (`taxonomy.windows_of`) and the twin's own
+(`generation._numeric_approximations`) draw the same two.
+
 **The one column with no bound at all.** A description whose ladder is
 null at EVERY rung publishes no shape for the values to take: G5.3 puts
 them on the sign counts alone, and there is no `Ladder` for any of the
@@ -16228,6 +16337,13 @@ stands from the published one, between `lo` at rank `floor(h)` and `hi`
 at rank `ceil(h)`, and one grid step either way. At 1,000,000 rows of
 G2's dense tail the window above ran 10,079.4 to 10,348.1 around a
 published 5,780.5 and the hull runs from 5,775.0.
+
+**And its root-mean-square distance** (stage 4 lane G2T, plan P4-D405):
+on a dense side the window is the hull of the one above and the one the
+same rank form draws through the ladder rule 4's placement reads
+(`contract.dense_placed`): G2's dense tail at 300,000 rows, placed, wrote
+a root-mean-square of 19,281.5 against a published 19,305.9, past the
+window the staircase alone drew (14,417.0 to 16,165.9).
 
 **Where the window does not cover the published value.** The window
 certifies that the twin was built by the construction, not that it

@@ -27846,6 +27846,30 @@ def windows_of(
     numbers = window_numeric_cells(facts)
     widest = window_stratum(facts, floor, reach_rule)
     half = window_half_unit(facts)
+    found = _windows_through(rungs, numbers, widest, half)
+    # AND ON A DENSE SIDE, THE HULL WITH THE WINDOWS RULE 4'S PLACEMENT
+    # DRAWS (method G12.3, plan P4-D405): see `contract.dense_placed`.
+    placed = (
+        contract.dense_placed(rungs, facts)
+        if isinstance(rungs, contract.ShapedLadder)
+        else None
+    )
+    if placed is None:
+        return found
+    other = _windows_through(placed, numbers, widest, half)
+    for field in other:
+        if field in found:
+            found[field] = (
+                min(found[field][0], other[field][0]),
+                max(found[field][1], other[field][1]),
+            )
+    return found
+
+
+def _windows_through(
+    rungs: "tuple[float, ...]", numbers: int, widest: int, half: float
+) -> "dict[str, tuple[float, float]]":
+    """G12.3's windows through one ladder, by the rank form (`windows_of`)."""
     lows: list[float] = []
     highs: list[float] = []
     ladder: list[float] = []
