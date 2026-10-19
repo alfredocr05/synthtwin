@@ -25770,8 +25770,14 @@ def with_even_census(column: ColumnProfile) -> ColumnProfile:
     """
     if column.role != ROLE_IDENTIFIER:
         return column
-    census = column.details.get("n_distinct_by_occurrences")
-    forms = column.details.get("layout_forms")
+    census = (
+        column.details["n_distinct_by_occurrences"]
+        if "n_distinct_by_occurrences" in column.details
+        else None
+    )
+    forms = (
+        column.details["layout_forms"] if "layout_forms" in column.details else None
+    )
     if not isinstance(census, dict) or not census:
         return column
     details: dict[str, object] = {}

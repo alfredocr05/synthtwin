@@ -43,7 +43,6 @@ importlib.metadata.version, pathlib, and this package's own modules.
 import dataclasses
 import importlib.metadata
 import pathlib
-import typing
 
 from synthtwin import (
     calendar_clock,
@@ -4265,7 +4264,10 @@ def build_document(
     for subject in subjects if subjects else []:
         if subject in subject_names or subject not in table.column_names:
             continue
-        held_cells = table.columns[table.column_names.index(subject)]
+        held_cells: "list[str]" = []
+        for place, column_name in enumerate(table.column_names):
+            if column_name == subject:
+                held_cells = table.columns[place]
         if _repeats(held_cells) and _reaches_the_floor(
             held_cells, settings.small_cell_floor
         ):
@@ -4619,40 +4621,38 @@ class SubjectCount:
     holders: "tuple[str, ...]"
 
 
-class KeysOf(typing.Protocol):
-    """What one cell is counted as: the keys it holds, perhaps none."""
-
-    def __call__(self, cell: str) -> "tuple[str, ...]": ...
-
-
 def subjects_holding(
-    values: "list[str]",
-    subjects: "list[str]",
-    keys_of: KeysOf,
-    floor: int,
+    values: "list[str]", subjects: "list[str]", floor: int
 ) -> "dict[str, SubjectCount]":
-    """Each key's rows and its different subjects, capped at the floor.
+    """Each value's rows and its different subjects, capped at the floor.
 
     PLAN P4-D406. ``values`` is one column's cells and ``subjects`` the
-    subject column's cells, both in row order and of one length;
-    ``keys_of`` names what a cell is counted as (a value, its reading as
-    a number, a published prefix it opens with), so the same count
-    serves a column's values here and a family of columns read in
-    patients later (lanes MG and GR). A subject cell is the subject as
-    written: blank cells are one subject between them, the reading that
-    can only make a value look held by FEWER people.
+    subject column's cells, both in row order and of one length; each
+    present cell, as written, is a value. Lanes MG and GR reuse it for a
+    family read in patients, and it reads lane SR's `reading.
+    column_values` unchanged. A subject cell is the subject as written:
+    blank cells are one subject between them, the reading that can only
+    make a value look held by FEWER people.
 
-    Guarantees: accepts two lists of text of one length, a function from
-    a cell to its keys and the floor; returns, for every key some cell
-    holds, its rows and at most `floor` different subjects in the order
-    first met. Memory: one entry a key, each at most `floor` subjects.
-    Determinism: a fixed function of the arguments. Raises nothing of
-    its own. No I/O.
+    Guarantees: accepts two lists of text of one length and the floor;
+    returns, for every value some present cell holds, its rows and at
+    most `floor` different subjects in the order first met. Memory: one
+    entry a value, each at most `floor` subjects. Determinism: a fixed
+    function of the arguments. Raises nothing. No I/O.
     """
+    keyed: "list[tuple[str, ...]]" = []
+    for cell in values:
+        keyed += [(cell,) if parsing.folded(cell) else ()]
+    return _holding(keyed, subjects, floor)
+
+
+def _holding(
+    keyed: "list[tuple[str, ...]]", subjects: "list[str]", floor: int
+) -> "dict[str, SubjectCount]":
+    """`subjects_holding` over the keys each row's cell is counted as."""
     rows: "dict[str, int]" = {}
     held: "dict[str, list[str]]" = {}
-    for place, cell in enumerate(values):
-        keys = keys_of(cell)
+    for place, keys in enumerate(keyed):
         if not keys:
             continue
         subject = subjects[place]
@@ -4675,7 +4675,7 @@ def _repeats(cells: "list[str]") -> bool:
     """Whether two present cells of a column hold the same text."""
     seen: "dict[str, bool]" = {}
     for cell in cells:
-        if not cell.strip():
+        if not parsing.folded(cell):
             continue
         if cell in seen:
             return True
@@ -4695,7 +4695,7 @@ def _reaches_the_floor(cells: "list[str]", floor: int) -> bool:
     """
     seen: "dict[str, bool]" = {}
     for cell in cells:
-        if cell.strip() and cell not in seen:
+        if parsing.folded(cell) and cell not in seen:
             seen[cell] = True
             if len(seen) >= floor:
                 return True
@@ -4744,9 +4744,44 @@ def _under(key: str, names: "tuple[str, ...]") -> bool:
     return False
 
 
+def _parts(key: str) -> "list[str]":
+    """A block path's parts, between its points."""
+    if not isinstance(key, str):
+        raise TypeError("internal check: a block path was not text")
+    found: "list[str]" = []
+    part = ""
+    for character in key:
+        if character == ".":
+            found += [part]
+            part = ""
+        else:
+            part = part + character
+    return found + [part]
+
+
+def _words(text: str) -> "list[str]":
+    """A sentence's words, each without the marks at its ends."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: a sentence was not text")
+    found: "list[str]" = []
+    word = ""
+    for character in text + " ":
+        if character in " \t\r\n":
+            while word and word[0] in _WORD_EDGES:
+                word = word[1:]
+            while word and word[-1] in _WORD_EDGES:
+                word = word[:-1]
+            if word:
+                found += [word]
+            word = ""
+        else:
+            word = word + character
+    return found
+
+
 def _a_rung(key: str) -> bool:
     """Whether a leaf's path runs through a rung (`_RUNG_KEYS`)."""
-    for part in key.split("."):
+    for part in _parts(key):
         if part in _RUNG_KEYS:
             return True
     return False
@@ -4792,7 +4827,7 @@ def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
     """
     words: "dict[str, bool]" = {}
     numbers: "dict[float, bool]" = {}
-    prefixes: "list[str]" = []
+    prefixes: "dict[str, bool]" = {}
     waiting: "list[tuple[str, object]]" = []
     for key in block:
         if key != "name":
@@ -4817,7 +4852,7 @@ def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
                 waiting += [(key, item)]
             continue
         if isinstance(leaf, (int, float)):
-            own = key.split(".")[-1]
+            own = _parts(key)[-1]
             if own != "percent" and _a_field(own) and not _under(
                 own, _COUNT_KEYS
             ):
@@ -4827,25 +4862,23 @@ def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
             continue
         words[parsing.folded(leaf)] = True
         if "prefix" in key and leaf:
-            prefixes += [parsing.folded(leaf)]
+            prefixes[parsing.folded(leaf)] = True
         number = _number_of(leaf)
         if number is not None:
             numbers[number] = True
-        for word in leaf.split():
-            trimmed = parsing.folded(word.strip(_WORD_EDGES))
-            if trimmed:
-                words[trimmed] = True
-                number = _number_of(trimmed)
-                if number is not None:
-                    numbers[number] = True
+        for word in _words(leaf):
+            trimmed = parsing.folded(word)
+            words[trimmed] = True
+            number = _number_of(trimmed)
+            if number is not None:
+                numbers[number] = True
     shown = block["format"] if "format" in block else ""
+    role = block["role"] if "role" in block else ""
     return _Published(
         frozenset(words),
         frozenset(numbers),
-        tuple(sorted(dict.fromkeys(prefixes))),
-        shown if isinstance(shown, str) and block.get("role") in (
-            taxonomy.ROLE_DATETIME,
-        ) else "",
+        tuple(sorted(prefixes)),
+        shown if isinstance(shown, str) and role == taxonomy.ROLE_DATETIME else "",
     )
 
 
@@ -4863,40 +4896,37 @@ def _longest_figures(text: str) -> str:
     return run if len(run) > len(longest) else longest
 
 
-def _keys_published(published: _Published) -> KeysOf:
+def _keys_of(
+    cell: str, published: _Published, memo: "dict[str, tuple[str, ...]]"
+) -> "tuple[str, ...]":
     """What a cell is counted as: each published value it reads as."""
-    memo: "dict[str, tuple[str, ...]]" = {}
-
-    def keys_of(cell: str) -> "tuple[str, ...]":
-        if cell in memo:
-            return memo[cell]
-        found: "tuple[str, ...]" = ()
-        folded = parsing.folded(cell)
-        if folded:
-            if folded in published.words:
-                found = found + (f"w{folded}",)
-            if published.numbers:
-                number = _number_of(cell)
-                if number is None:
-                    figures = _longest_figures(folded)
-                    if figures:
-                        number = float(int(figures))
-                if number is not None and number in published.numbers:
-                    found = found + (f"n{number!r}",)
-            if published.date_format:
-                read = parsing.parse_datetime(cell, published.date_format)
-                if read is not None:
-                    day = parsing.folded(read[0])
-                    if day in published.words and day != folded:
-                        found = found + (f"w{day}",)
-            for prefix in published.prefixes:
-                if folded[: len(prefix)] == prefix:
-                    found = found + (f"p{prefix}",)
-        if len(memo) < 65536:
-            memo[cell] = found
-        return found
-
-    return keys_of
+    if cell in memo:
+        return memo[cell]
+    found: "tuple[str, ...]" = ()
+    folded = parsing.folded(cell)
+    if folded:
+        if folded in published.words:
+            found = found + (f"w{folded}",)
+        if published.numbers:
+            number = _number_of(cell)
+            if number is None:
+                figures = _longest_figures(folded)
+                if figures:
+                    number = float(int(figures))
+            if number is not None and number in published.numbers:
+                found = found + (f"n{number!r}",)
+        if published.date_format:
+            read = parsing.parse_datetime(cell, published.date_format)
+            if read is not None:
+                day = parsing.folded(read[0])
+                if day in published.words and day != folded:
+                    found = found + (f"w{day}",)
+        for prefix in published.prefixes:
+            if folded[: len(prefix)] == prefix:
+                found = found + (f"p{prefix}",)
+    if len(memo) < 65536:
+        memo[cell] = found
+    return found
 
 
 def _counted_in_subjects(
@@ -4909,7 +4939,7 @@ def _counted_in_subjects(
 
     PLAN P4-D406. Every value the column's description publishes is read
     back off its block (`_published_in`) and counted in each subject
-    column (`subjects_holding`): one held by one to `floor` - 1 different
+    column (`_holding`): one held by one to `floor` - 1 different
     subjects, under any subject column, is one the column may not
     publish -- in a column attached to that subject whatever its rows,
     in any other where `floor` rows or more hold it and it stands off the
@@ -4923,10 +4953,13 @@ def _counted_in_subjects(
     if not published.words and not published.numbers and not published.prefixes:
         return False
     plain = _published_in(shown, False)
-    keys_of = _keys_published(published)
+    memo: "dict[str, tuple[str, ...]]" = {}
+    keyed: "list[tuple[str, ...]]" = []
+    for cell in cells:
+        keyed += [_keys_of(cell, published, memo)]
     for subject in subject_cells:
         attached = _attached(cells, subject)
-        counted = subjects_holding(cells, subject, keys_of, floor)
+        counted = _holding(keyed, subject, floor)
         for key in counted:
             held = counted[key]
             if len(held.holders) < floor and (

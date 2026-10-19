@@ -203,7 +203,7 @@ def test_a_value_passing_under_one_candidate_and_failing_under_another_is_not_pu
 
 
 def test_the_count_is_of_subjects_not_rows() -> None:
-    held = profile.subjects_holding(["x"] * 14, ["s1"] * 14, lambda cell: (cell,), 11)
+    held = profile.subjects_holding(["x"] * 14, ["s1"] * 14, 11)
     assert held["x"].rows == 14
     assert held["x"].holders == ("s1",)
 
@@ -211,12 +211,11 @@ def test_the_count_is_of_subjects_not_rows() -> None:
 def test_the_cap_keeps_at_most_the_floor_and_never_a_subject_twice() -> None:
     values = ["x"] * 40
     subjects = [f"s{place % 20}" for place in range(40)]
-    held = profile.subjects_holding(values, subjects, lambda cell: (cell,), 11)
+    held = profile.subjects_holding(values, subjects, 11)
     assert held["x"].rows == 40
     assert len(held["x"].holders) == 11
     assert len(set(held["x"].holders)) == 11
-    twice = profile.subjects_holding(["y"] * 6, ["a", "a", "b", "b", "a", "c"],
-                                     lambda cell: (cell,), 11)
+    twice = profile.subjects_holding(["y"] * 6, ["a", "a", "b", "b", "a", "c"], 11)
     assert twice["y"].holders == ("a", "b", "c")
 
 

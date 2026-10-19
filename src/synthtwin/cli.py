@@ -4302,11 +4302,11 @@ def _run_profile(
             counted_in_subjects=counted_in_people,
         )
     if counted_in_people:
-        _warn(
-            _counted_in_people_notice(
-                tuple(dict.fromkeys(counted_in_people)), settings.small_cell_floor
-            )
-        )
+        named_once: "tuple[str, ...]" = ()
+        for name in counted_in_people:
+            if name not in named_once:
+                named_once = named_once + (name,)
+        _warn(_counted_in_people_notice(named_once, settings.small_cell_floor))
 
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
