@@ -211,15 +211,20 @@ def test_readmission_by_ward_x_diabetes_is_positive_and_significant_at_20000_row
     assert estimate.se and estimate.value / estimate.se > B.Z, (estimate.value, estimate.se)
 
 
-def test_the_fast_tiers_three_way_clause_rests_on_one_plant_as_k_bc_02_states(panels: "dict") -> None:
-    """At 5,000 rows diabetes x current smoker's smallest cell is under 22 and ventilation x over 75's is not."""
+def test_the_fast_tier_supports_no_three_way_truth_as_k_bc_02_states(panels: "dict") -> None:
+    """At 5,000 rows diabetes x current smoker is under 22, and ventilation x over 75 under 11 in a half: neither scored."""
     import json
 
     import kpi_rules
 
-    est = panels["ST1"][1].estimates
-    assert est[T.TRUTHS["ST1"]["diabetes x current smoker on death"][0]].support < B.SUPPORT
-    assert est[T.TRUTHS["ST1"]["ventilation x age over 75 on death"][0]].support >= B.SUPPORT
+    view, panel = panels["ST1"]
+    key_dc = T.TRUTHS["ST1"]["diabetes x current smoker on death"][0]
+    key_vo = T.TRUTHS["ST1"]["ventilation x age over 75 on death"][0]
+    assert panel.estimates[key_dc].support < B.SUPPORT <= panel.estimates[key_vo].support
+    plan = [a for a in B.TARGETED["ST1"](view) if a.name == "ST1 logistic"]
+    held = B.yardstick(plan, view, B.groups_of(view, "ST1", SEED)).h
+    assert key_dc not in held and key_vo not in held
     ledger = json.loads(kpi_rules.LEDGER_PATH.read_text(encoding="utf-8"))
-    rule = next(e["rule"] for e in ledger["entries"] if e["id"] == "K-BC-02")
-    assert "diabetes x current smoker" in rule and "ventilation x age over 75 alone" in rule
+    entry = next(e for e in ledger["entries"] if e["id"] == "K-BC-02")
+    assert "so the fast part's three-way clause is reported, not judged" in entry["rule"]
+    assert "three_way_missed_over_replicate_z" not in entry["target"]

@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 103 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying its tree and, in its value_at's measured_by, the run that took it, and test_kpi_ledger_integrity.py holds this note's names to that set; a clause's earlier trees are the lane's own commits before the stamp. TWENTY-TWO OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, the repair pass of the mean-only landing; K-2B-38 on 335fec3, the hostile workbook, its peak memory recorded everywhere and judged only here; K-P4-20 on 3f6cd9f, landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND FIVE STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), one quiet run, seconds judged. Three moved with their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds (governance item 9), and K-S3-05 is measured over the 1,800-row population it tests and a node bounding the 900-row refusal (item 6). Two are RE-STAMPED SECONDS, taken quiet where the recorded ones were taken under load, each entry naming the seconds it recorded before: K-S1-01, to profile and to generate 20,000 rows by 20, and K-P3-12, to validate the same. AND ONE STANDS OFF 5cd28db, the tail's back-solve walking its own stack (2026-09-24): K-S1-06, whose driver crashed with RecursionError on every tree from ee56999 to a7bbc21, run quiet, seconds judged. AND TWO STAND OFF 1578bee, the tree that closed stage 3, each by its own driver after the whole suite passed there in five shards: K-P0-10, the whole suite in one process, seconds judged; and K-P4-06 with both its pinned nodes passing, at the ceiling its entry already stated. AND ONE STANDS OFF 1c9e767, stage 3's last merge: K-S1-05, faster than 5cd28db read it, quiet, seconds judged. AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352): K-S3-16, a value no earlier tree gives, which 2bc1418 and 47f20ef read the same. AND ONE STANDS OFF 2f03adc, a count no placement inside the gaps reaches met past the strata (plan P4-D354), after the whole suite passed there: K-2B-42, where 84f09b9 read the same share of two fewer scored functions. AND ONE STANDS OFF 6b167c4, the weekday census of a column of dates (plan P4-D355), after the whole suite passed there (the weekday headline, new there, now off 2c53bbf): K-P2-01, where earlier trees read six or seven cases fewer. AND ONE STANDS OFF 67ba1de, the band searched a half at a time (plan P4-D359), after the whole suite passed there: K-S3-34, the owner's accepted limit of 2026-09-30, new, which 82b1f1a gives back too. AND TWO STAND OFF a47108a, the weekday guards dropped (plan P4-D365) and repaired at its review: K-S3-32, floor-only now, its certificate's verifier deleted (it had stood off e689072); and K-S3-39, its drawn-hole node asking the count pass on its census emptied (it had stood off 3168f65). AND ONE STANDS OFF de0acce, the second repair of that drop: K-S3-35, new at a47108a, the few-dates and room rules, the room rule asked again beside placeholder and declared days (it had stood off a47108a); the entry that counted the certificate's cost is retired with it. AND SEVEN STAND OFF e43a540, the tail-withholding drop and the end floor (plan P4-D375), re-based: K-S3-13, K-S3-15, K-S3-19, K-S3-23, K-S3-24, K-S3-25 and K-S3-30. AND FIVE STAND OFF 0abbd35, the same product, re-based by each driver: K-S3-11, K-S3-17, K-S3-18, K-S3-20 and K-S3-21. AND ONE STANDS OFF 8b41373, the same product with the evenly spaced columns its driver gained at the review of landing 3b.G1: K-S3-50, its other keys as they were (it had stood off 74cb50e). AND ONE STANDS OFF 6701c68, the second repair round of landing T1 (plan P4-D370), at a load average of 13.4: K-S3-52, new, over more pinned cases than its earlier trees. AND ONE STANDS OFF 784ef3e, landing R0 (plan P4-D380) after its Codex review, every pinned node passing, at a load average of 46, so no seconds judged: K-S3-54, new, which earlier trees gave at the same counts over fewer nodes; its readings take half the big-number steps 3827f20's did. AND ONE STANDS OFF fbbfeb2, the same code with the residual of that review's item 2, every pinned node passing, at a load average of 10.3: K-S3-55, new, which earlier trees gave at the same counts over fewer nodes, before a run of spaces or declared points was read once. AND ONE STANDS OFF e8c6651, the repair of the two items left open in the review of lane R1 (plan P4-D381), the tree clean, at a load average of 6.6: K-S3-56, which bounds not_described at nought, where earlier trees read the same counts over fewer nodes and cases. AND ONE STANDS OFF 3821405, the third pass over item 3 of Codex's review of the typed workbook cells (plan P4-D382), at a load average near ten: K-S3-57, where earlier trees read the same over fewer nodes and cases. AND ONE STANDS OFF 6eed1e8, lane G3 at the fix of its Codex review, the count pass's paid merge kept between attempts (plan P4-D376): K-S3-51, new at the lane's repair round, reading 110cb46's pass, 311cf30's pool and 5f28017's files of ranks beside it, where earlier trees read the same before the entry counted the moves. AND ONE STANDS OFF 8f20979, landing 3b.5's second step after its Codex round's verification (plan P4-D374), by kpi_run.py --slow with the clock columns' driver beside it and --print-values at a one-minute load average of 10.7, so no seconds were judged (that driver stood there too, M3 compared off the heaps): K-S3-49, route 1's stand-in times repeated below the floor, one hundred and eleven pinned (it had stood off 7b39fd6 over one hundred and nine, before that off cdd739c, the merge of the route-2 correction into round 2 of landing 3b.5's review stream, over one hundred and seven, which 82bb46b read the same over one hundred and seven, 82e4858 over one hundred and five and 144ebcd over ninety-four, 9dc86d2, 2fe77b1, 42186cc and 126f32d over sixty-nine, 5888a44 over sixty-seven, 014d977 over sixty, 25c96ec over forty-two, 20c709b over twenty-eight and the lane's commit before it over twelve). AND ONE STANDS OFF fca00b5, lane G2's width rule (plan P4-D377) after the corrections its Codex round's verifier asked, its pinned node passing, its moment misses read by a checker holding each rung the rule moved to its windows: K-S3-22 (it had stood off the lane's earlier trees, which read the same, and 0abbd35 before them). AND ONE STANDS OFF c5d34b8, stage 4's tier 2a (plan P4-D387) after its Codex review: K-S4-02, new, its memory recorded and not judged on a loaded machine, its two ratios of the survey's traced peak judged everywhere. AND ONE STANDS OFF b5532ee, stage 4's packing walk reading the counts together (plan P4-D389): K-S4-04, new and open, with the walk as 493f6f8 shipped it measured beside it on the same twins and questions, where earlier trees gave the same counts. AND TWO STAND OFF 01264bd, the subtraction guard dropped and the stand-in walk's bound lifted (plan P4-D390): K-2B-28, its pooled label's count of one read off the pool where the base read it as n_missing; and K-S4-03, its held-back lookups and class pass deleted with that pass (it had stood off 256a3bc and before that d943f6f). AND ONE STANDS OFF 51a48ca, lane L1, codes written as the source wrote them, its Codex repair round (plan P4-D390; it stood off 921d549, the Codex fix round, and 7e604ea, the repair round): K-S3-61, repaired, where d5ac43f read the limit the review of plan P4-D390 states, a form of a code read as a number by its exponent filling. AND ONE STANDS OFF ca9d612, the last repair of the Codex review of plan P4-D390, the tree clean, at a load average near twenty: K-S3-12, whose evidence says what the counts of one to ten and the roles do block by block against 493f6f8, at the counts 01264bd gave (it had stood off earlier trees of that review, and before them off 3587709, the repair pass of landing 3.5, whose seeded battery it counts). AND ONE STANDS OFF d09a966, the Codex review of batch 3's first integration (plan P4-D383), the tree clean, at a load average of 6.8, so no seconds were judged: K-S3-58, over fifty-two spellings and one hundred and seventy-four pinned nodes, its seven scale pairs ratios of times taken side by side in one process and so judged on any machine; db922f0 (that integration, R2a, R2b and R2c merged) read the same over one hundred and seventy nodes at 25.9, f3babc3 (landing R2c) read forty-five spellings over one hundred and twenty nodes and three hundred and forty-three cases at a load average of about 7, and 72e4085 (landing R2b's Codex review) forty-six over one hundred and sixteen nodes and two hundred and eighty-one cases at 6.5; earlier trees read the same over fewer nodes and cases (90224e8 the thirty-nine of the date half over seventy-nine nodes and two hundred and eight cases). AND ONE STANDS OFF 9383c71, landing 3b.2-H's hour census (plan P4-D371) as the repair of its Codex review's verification left it, at a load average of 16.9: K-S3-40, new, over the review's clauses and its verification's (it had stood off 0bfbe4a, and before it d0e1808). AND TWO STAND OFF 4bbddb5, lane J3's repeated grids after its Codex review (plan P4-D391), on lane J2's merge of landing 3b.4 (plan P4-D372) beside lanes D2 and J, at a load average of 10.9, so no seconds were judged: K-S3-41, the accepted class widened to minutes and seconds; and K-S3-62, lane J's (they had stood off b989692, and before it 34788b3, 1484c52, b747d4e, c45bb07, 9c3881d, 9c3881d and 493d9c8). AND ONE STANDS OFF 7e9caa6, the Codex review of batch 3b part 2d's integration (plans P4-D374, P4-D378), at a load average near 16, so no seconds were judged: K-S3-48, two fewer minute censuses as M3 asks the fine table, the clinic's withheld (it had stood off 8f20979). AND TWO STAND OFF 2c53bbf, that review's fix stream merged into batch 3b part 2f (its commits after the owner's authorship rule carried one by one), at a load average of 14.6, so no seconds were judged: K-S3-38, its seconds alone (it had stood off the fix stream's own item 3 commit, 7e9caa6, c0fb24c, 9383c71 and b989692); and K-S3-31, its values equal to its stamp on 6b167c4 (the sixth push's critic, minor 6); the other five of that run held their stamps. AND ONE STANDS OFF 4d17225, the weekday census of a column of moments (plan P4-D367) after Codex's review of the landing, every item fixed: K-S3-37, new at the lane's first commit, an accepted limit stated by status alone (the two had stood off the lane's earlier trees; the other, stamped there beside it, stands off lane D4s's commit since, below). AND ONE STANDS OFF 5de77e8, G5.5's sign repairs without the square of the strata (plan P4-D387), their walks begun again where nought stops being held, their growth taken on counted values with ordering comparisons counted too: K-S4-05, new, whose tests take the measure of 564c61a's function too (it had stood off the lane's earlier trees). AND ONE STANDS OFF 1f3d9af, landing R4 (plan P4-D384) as the verification of Codex's review left it, the tree clean, at a load average of 4 to 11, so no seconds were judged: K-S3-60, new, over ninety-one pinned nodes and 310 cases, every value as 02dd9b3 read it over eighty-seven and 290 before that verification pinned four clauses more, a1a34bc before the offline scan's repair, b3bc82b over sixty-six nodes and 137 cases before Codex's review pinned twenty-one more, c31329a over thirty-two before the review added seven keys (the heap at 10,000 rows, NF113's names, the figures of COARSE, the writers, an Epic twin's halves), c7ae131 over forty-eight before the repair's second pass added an eighth (the columns of COARSE Q3 asks), c7b2690 over forty-nine before the second review added a ninth (the stated limits) and widened the heap to two placeholders at one end and every system offered, and 0ce697d over sixty-one nodes and 116 cases before its verification pinned five clauses more. AND TWO STAND OFF 6d5a86c, the records pass after the push critic of 2026-10-09, the tree clean: K-2B-26 and K-2B-52, each re-stamped after plan P4-D390 took its ruling-5 node, their rule unchanged. AND TWO STAND OFF 48f71d5, the day-of-month census (plan P4-D368) after its Codex review, and its own commit, by kpi_run.py --only K-S3-43 --print-values and kpi_run.py --slow --only K-S3-44 --print-values: K-S3-43, new, where 6efe103 read it over twenty-six nodes, 1b38df7 over twenty-two and bdf0566 over eighteen; and K-S3-44, new, where 1b38df7 read it before the review. AND ONE STANDS OFF 2dfa4d7, the count pass splitting the two tails' ranks first (lane D4s, plan P4-D369 part one; first on d618ee5) and its Codex review's texts, by kpi_run.py --print-values with its two ids each named by --only: K-S3-59, re-based there over its thirty-four pinned nodes. Before it K-S3-59 stood off f53ec9e, landing 3b.D1b after the orchestrator's rulings of 2026-10-07 and 2026-10-08 (plan P4-D388), where earlier trees read the same over fewer nodes and cases. AND TWO STAND OFF b6eca79, the dates that stand out (plan P4-D369) at their Codex review's fix, by kpi_run.py --slow --print-values with the lane's ids each named by --only: K-S3-46 and K-S3-47, where 3197634 read them alike under the orchestrator's rulings of 2026-10-13; 81bff8c read K-S3-46's lists_given_way 2, listed_off 76 and count_missed 0, and e34b853 count_missed 2 and listed_off 0. AND TWO STAND OFF 865b61f, batch 3b's first part merged with a tail date alone in its stratum traded (the Codex review of landing I3b1), by kpi_run.py --only K-S3-36 --only K-S3-45 --print-values: K-S3-36 over its thirty-seven nodes, where 2dfa4d7 read thirty-two, and K-S3-45 over thirty-nine, where 6620a31 read thirty-eight, b6eca79 thirty-six, 0ab4e5d twenty-nine, 3197634 twenty-five, 81bff8c twenty-one and e34b853 twenty. AND ONE STANDS OFF d9f09d4, landing 3b.7's shared clock and joint member (plan P4-D378) after its Codex fix, over every node its rule names, at a load average near 14 (b27ba1e, adbbe45, f0092e6, 9abca34, 98c823b and 057702e read the same over fewer nodes before it): K-S3-53, new. AND TWO STAND OFF d46be94, stage 4 lane S4c's report in pieces and dense tail (plans P4-D390 and P4-D377) after Codex's review of the lane and its verifier, by kpi_run.py --print-values with the lane's ids named by --only: K-S4-06 and K-S4-07, new, where 059f273 read the same but two lines fewer of the placement at a million strata. AND ONE STANDS OFF 808af08, batch 4a's merge of lanes S4b-num, S4c, R6, L2 and J3 (plans P4-D377, P4-D387, P4-D390, P4-D391 and P4-D392), by kpi_run.py --slow --print-values with five ids named by --only, at a load average of 4.2 to 5.3, so no seconds were judged: K-S3-42, its seconds alone (it had stood off 2c53bbf); the other four of that run held their stamps. AND TWELVE STAND OFF fc26d5d, lane E0b's analyst battery after its review (plan P4-D398), new, by kpi_run.py --slow --print-values with the lane's ids named by --only, at a load average of 4.8, so no seconds were judged: K-BC-01, K-BC-02, K-BC-03, K-BC-04, K-BC-05, K-BC-06, K-BC-07, K-BC-08, K-BC-09, K-BC-10, K-BC-11 and K-BC-12 through the 20,000-row driver, where 2a92bea read them by the rules before the review and f2b2a2c the same but K-BC-05's comparison. AND ONE STANDS OFF 2a92bea, the same lane's build, by its night's kpi_run.py --slow --only K-BC-13: K-BC-13. EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 103 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying its tree and, in its value_at's measured_by, the run that took it, and test_kpi_ledger_integrity.py holds this note's names to that set; a clause's earlier trees are the lane's own commits before the stamp. TWENTY-TWO OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, the repair pass of the mean-only landing; K-2B-38 on 335fec3, the hostile workbook, its peak memory recorded everywhere and judged only here; K-P4-20 on 3f6cd9f, landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND FIVE STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), one quiet run, seconds judged. Three moved with their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds (governance item 9), and K-S3-05 is measured over the 1,800-row population it tests and a node bounding the 900-row refusal (item 6). Two are RE-STAMPED SECONDS, taken quiet where the recorded ones were taken under load, each entry naming the seconds it recorded before: K-S1-01, to profile and to generate 20,000 rows by 20, and K-P3-12, to validate the same. AND ONE STANDS OFF 5cd28db, the tail's back-solve walking its own stack (2026-09-24): K-S1-06, whose driver crashed with RecursionError on every tree from ee56999 to a7bbc21, run quiet, seconds judged. AND TWO STAND OFF 1578bee, the tree that closed stage 3, each by its own driver after the whole suite passed there in five shards: K-P0-10, the whole suite in one process, seconds judged; and K-P4-06 with both its pinned nodes passing, at the ceiling its entry already stated. AND ONE STANDS OFF 1c9e767, stage 3's last merge: K-S1-05, faster than 5cd28db read it, quiet, seconds judged. AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352): K-S3-16, a value no earlier tree gives, which 2bc1418 and 47f20ef read the same. AND ONE STANDS OFF 2f03adc, a count no placement inside the gaps reaches met past the strata (plan P4-D354), after the whole suite passed there: K-2B-42, where 84f09b9 read the same share of two fewer scored functions. AND ONE STANDS OFF 6b167c4, the weekday census of a column of dates (plan P4-D355), after the whole suite passed there (the weekday headline, new there, now off 2c53bbf): K-P2-01, where earlier trees read six or seven cases fewer. AND ONE STANDS OFF 67ba1de, the band searched a half at a time (plan P4-D359), after the whole suite passed there: K-S3-34, the owner's accepted limit of 2026-09-30, new, which 82b1f1a gives back too. AND TWO STAND OFF a47108a, the weekday guards dropped (plan P4-D365) and repaired at its review: K-S3-32, floor-only now, its certificate's verifier deleted (it had stood off e689072); and K-S3-39, its drawn-hole node asking the count pass on its census emptied (it had stood off 3168f65). AND ONE STANDS OFF de0acce, the second repair of that drop: K-S3-35, new at a47108a, the few-dates and room rules, the room rule asked again beside placeholder and declared days (it had stood off a47108a); the entry that counted the certificate's cost is retired with it. AND SEVEN STAND OFF e43a540, the tail-withholding drop and the end floor (plan P4-D375), re-based: K-S3-13, K-S3-15, K-S3-19, K-S3-23, K-S3-24, K-S3-25 and K-S3-30. AND FIVE STAND OFF 0abbd35, the same product, re-based by each driver: K-S3-11, K-S3-17, K-S3-18, K-S3-20 and K-S3-21. AND ONE STANDS OFF 8b41373, the same product with the evenly spaced columns its driver gained at the review of landing 3b.G1: K-S3-50, its other keys as they were (it had stood off 74cb50e). AND ONE STANDS OFF 6701c68, the second repair round of landing T1 (plan P4-D370), at a load average of 13.4: K-S3-52, new, over more pinned cases than its earlier trees. AND ONE STANDS OFF 784ef3e, landing R0 (plan P4-D380) after its Codex review, every pinned node passing, at a load average of 46, so no seconds judged: K-S3-54, new, which earlier trees gave at the same counts over fewer nodes; its readings take half the big-number steps 3827f20's did. AND ONE STANDS OFF fbbfeb2, the same code with the residual of that review's item 2, every pinned node passing, at a load average of 10.3: K-S3-55, new, which earlier trees gave at the same counts over fewer nodes, before a run of spaces or declared points was read once. AND ONE STANDS OFF e8c6651, the repair of the two items left open in the review of lane R1 (plan P4-D381), the tree clean, at a load average of 6.6: K-S3-56, which bounds not_described at nought, where earlier trees read the same counts over fewer nodes and cases. AND ONE STANDS OFF 3821405, the third pass over item 3 of Codex's review of the typed workbook cells (plan P4-D382), at a load average near ten: K-S3-57, where earlier trees read the same over fewer nodes and cases. AND ONE STANDS OFF 6eed1e8, lane G3 at the fix of its Codex review, the count pass's paid merge kept between attempts (plan P4-D376): K-S3-51, new at the lane's repair round, reading 110cb46's pass, 311cf30's pool and 5f28017's files of ranks beside it, where earlier trees read the same before the entry counted the moves. AND ONE STANDS OFF 8f20979, landing 3b.5's second step after its Codex round's verification (plan P4-D374), by kpi_run.py --slow with the clock columns' driver beside it and --print-values at a one-minute load average of 10.7, so no seconds were judged (that driver stood there too, M3 compared off the heaps): K-S3-49, route 1's stand-in times repeated below the floor, one hundred and eleven pinned (it had stood off 7b39fd6 over one hundred and nine, before that off cdd739c, the merge of the route-2 correction into round 2 of landing 3b.5's review stream, over one hundred and seven, which 82bb46b read the same over one hundred and seven, 82e4858 over one hundred and five and 144ebcd over ninety-four, 9dc86d2, 2fe77b1, 42186cc and 126f32d over sixty-nine, 5888a44 over sixty-seven, 014d977 over sixty, 25c96ec over forty-two, 20c709b over twenty-eight and the lane's commit before it over twelve). AND ONE STANDS OFF fca00b5, lane G2's width rule (plan P4-D377) after the corrections its Codex round's verifier asked, its pinned node passing, its moment misses read by a checker holding each rung the rule moved to its windows: K-S3-22 (it had stood off the lane's earlier trees, which read the same, and 0abbd35 before them). AND ONE STANDS OFF c5d34b8, stage 4's tier 2a (plan P4-D387) after its Codex review: K-S4-02, new, its memory recorded and not judged on a loaded machine, its two ratios of the survey's traced peak judged everywhere. AND ONE STANDS OFF b5532ee, stage 4's packing walk reading the counts together (plan P4-D389): K-S4-04, new and open, with the walk as 493f6f8 shipped it measured beside it on the same twins and questions, where earlier trees gave the same counts. AND TWO STAND OFF 01264bd, the subtraction guard dropped and the stand-in walk's bound lifted (plan P4-D390): K-2B-28, its pooled label's count of one read off the pool where the base read it as n_missing; and K-S4-03, its held-back lookups and class pass deleted with that pass (it had stood off 256a3bc and before that d943f6f). AND ONE STANDS OFF 51a48ca, lane L1, codes written as the source wrote them, its Codex repair round (plan P4-D390; it stood off 921d549, the Codex fix round, and 7e604ea, the repair round): K-S3-61, repaired, where d5ac43f read the limit the review of plan P4-D390 states, a form of a code read as a number by its exponent filling. AND ONE STANDS OFF ca9d612, the last repair of the Codex review of plan P4-D390, the tree clean, at a load average near twenty: K-S3-12, whose evidence says what the counts of one to ten and the roles do block by block against 493f6f8, at the counts 01264bd gave (it had stood off earlier trees of that review, and before them off 3587709, the repair pass of landing 3.5, whose seeded battery it counts). AND ONE STANDS OFF d09a966, the Codex review of batch 3's first integration (plan P4-D383), the tree clean, at a load average of 6.8, so no seconds were judged: K-S3-58, over fifty-two spellings and one hundred and seventy-four pinned nodes, its seven scale pairs ratios of times taken side by side in one process and so judged on any machine; db922f0 (that integration, R2a, R2b and R2c merged) read the same over one hundred and seventy nodes at 25.9, f3babc3 (landing R2c) read forty-five spellings over one hundred and twenty nodes and three hundred and forty-three cases at a load average of about 7, and 72e4085 (landing R2b's Codex review) forty-six over one hundred and sixteen nodes and two hundred and eighty-one cases at 6.5; earlier trees read the same over fewer nodes and cases (90224e8 the thirty-nine of the date half over seventy-nine nodes and two hundred and eight cases). AND ONE STANDS OFF 9383c71, landing 3b.2-H's hour census (plan P4-D371) as the repair of its Codex review's verification left it, at a load average of 16.9: K-S3-40, new, over the review's clauses and its verification's (it had stood off 0bfbe4a, and before it d0e1808). AND TWO STAND OFF 4bbddb5, lane J3's repeated grids after its Codex review (plan P4-D391), on lane J2's merge of landing 3b.4 (plan P4-D372) beside lanes D2 and J, at a load average of 10.9, so no seconds were judged: K-S3-41, the accepted class widened to minutes and seconds; and K-S3-62, lane J's (they had stood off b989692, and before it 34788b3, 1484c52, b747d4e, c45bb07, 9c3881d, 9c3881d and 493d9c8). AND ONE STANDS OFF 7e9caa6, the Codex review of batch 3b part 2d's integration (plans P4-D374, P4-D378), at a load average near 16, so no seconds were judged: K-S3-48, two fewer minute censuses as M3 asks the fine table, the clinic's withheld (it had stood off 8f20979). AND TWO STAND OFF 2c53bbf, that review's fix stream merged into batch 3b part 2f (its commits after the owner's authorship rule carried one by one), at a load average of 14.6, so no seconds were judged: K-S3-38, its seconds alone (it had stood off the fix stream's own item 3 commit, 7e9caa6, c0fb24c, 9383c71 and b989692); and K-S3-31, its values equal to its stamp on 6b167c4 (the sixth push's critic, minor 6); the other five of that run held their stamps. AND ONE STANDS OFF 4d17225, the weekday census of a column of moments (plan P4-D367) after Codex's review of the landing, every item fixed: K-S3-37, new at the lane's first commit, an accepted limit stated by status alone (the two had stood off the lane's earlier trees; the other, stamped there beside it, stands off lane D4s's commit since, below). AND ONE STANDS OFF 5de77e8, G5.5's sign repairs without the square of the strata (plan P4-D387), their walks begun again where nought stops being held, their growth taken on counted values with ordering comparisons counted too: K-S4-05, new, whose tests take the measure of 564c61a's function too (it had stood off the lane's earlier trees). AND ONE STANDS OFF 1f3d9af, landing R4 (plan P4-D384) as the verification of Codex's review left it, the tree clean, at a load average of 4 to 11, so no seconds were judged: K-S3-60, new, over ninety-one pinned nodes and 310 cases, every value as 02dd9b3 read it over eighty-seven and 290 before that verification pinned four clauses more, a1a34bc before the offline scan's repair, b3bc82b over sixty-six nodes and 137 cases before Codex's review pinned twenty-one more, c31329a over thirty-two before the review added seven keys (the heap at 10,000 rows, NF113's names, the figures of COARSE, the writers, an Epic twin's halves), c7ae131 over forty-eight before the repair's second pass added an eighth (the columns of COARSE Q3 asks), c7b2690 over forty-nine before the second review added a ninth (the stated limits) and widened the heap to two placeholders at one end and every system offered, and 0ce697d over sixty-one nodes and 116 cases before its verification pinned five clauses more. AND TWO STAND OFF 6d5a86c, the records pass after the push critic of 2026-10-09, the tree clean: K-2B-26 and K-2B-52, each re-stamped after plan P4-D390 took its ruling-5 node, their rule unchanged. AND TWO STAND OFF 48f71d5, the day-of-month census (plan P4-D368) after its Codex review, and its own commit, by kpi_run.py --only K-S3-43 --print-values and kpi_run.py --slow --only K-S3-44 --print-values: K-S3-43, new, where 6efe103 read it over twenty-six nodes, 1b38df7 over twenty-two and bdf0566 over eighteen; and K-S3-44, new, where 1b38df7 read it before the review. AND ONE STANDS OFF 2dfa4d7, the count pass splitting the two tails' ranks first (lane D4s, plan P4-D369 part one; first on d618ee5) and its Codex review's texts, by kpi_run.py --print-values with its two ids each named by --only: K-S3-59, re-based there over its thirty-four pinned nodes. Before it K-S3-59 stood off f53ec9e, landing 3b.D1b after the orchestrator's rulings of 2026-10-07 and 2026-10-08 (plan P4-D388), where earlier trees read the same over fewer nodes and cases. AND TWO STAND OFF b6eca79, the dates that stand out (plan P4-D369) at their Codex review's fix, by kpi_run.py --slow --print-values with the lane's ids each named by --only: K-S3-46 and K-S3-47, where 3197634 read them alike under the orchestrator's rulings of 2026-10-13; 81bff8c read K-S3-46's lists_given_way 2, listed_off 76 and count_missed 0, and e34b853 count_missed 2 and listed_off 0. AND TWO STAND OFF 865b61f, batch 3b's first part merged with a tail date alone in its stratum traded (the Codex review of landing I3b1), by kpi_run.py --only K-S3-36 --only K-S3-45 --print-values: K-S3-36 over its thirty-seven nodes, where 2dfa4d7 read thirty-two, and K-S3-45 over thirty-nine, where 6620a31 read thirty-eight, b6eca79 thirty-six, 0ab4e5d twenty-nine, 3197634 twenty-five, 81bff8c twenty-one and e34b853 twenty. AND ONE STANDS OFF d9f09d4, landing 3b.7's shared clock and joint member (plan P4-D378) after its Codex fix, over every node its rule names, at a load average near 14 (b27ba1e, adbbe45, f0092e6, 9abca34, 98c823b and 057702e read the same over fewer nodes before it): K-S3-53, new. AND TWO STAND OFF d46be94, stage 4 lane S4c's report in pieces and dense tail (plans P4-D390 and P4-D377) after Codex's review of the lane and its verifier, by kpi_run.py --print-values with the lane's ids named by --only: K-S4-06 and K-S4-07, new, where 059f273 read the same but two lines fewer of the placement at a million strata. AND ONE STANDS OFF 808af08, batch 4a's merge of lanes S4b-num, S4c, R6, L2 and J3 (plans P4-D377, P4-D387, P4-D390, P4-D391 and P4-D392), by kpi_run.py --slow --print-values with five ids named by --only, at a load average of 4.2 to 5.3, so no seconds were judged: K-S3-42, its seconds alone (it had stood off 2c53bbf); the other four of that run held their stamps. AND TWELVE STAND OFF 9109683, lane E0b's analyst battery after its second review (plan P4-D398), new, by kpi_run.py --slow --print-values with the lane's ids named by --only, on a loaded machine, so no seconds were judged: K-BC-01, K-BC-02, K-BC-03, K-BC-04, K-BC-05, K-BC-06, K-BC-07, K-BC-08, K-BC-09, K-BC-10, K-BC-11 and K-BC-12 through the 20,000-row driver, where fc26d5d read them before the second review, 2a92bea by the rules before the first and f2b2a2c the same but K-BC-05's comparison. AND ONE STANDS OFF 2a92bea, the same lane's build, by its night's kpi_run.py --slow --only K-BC-13: K-BC-13. EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -9165,15 +9165,15 @@
    "headline": true,
    "name": "Replication parity: each analysis family's estimates inside the half-split yardstick, against the fresh replicate",
    "status": "OPEN",
-   "rule": "For each analysis family F1 to F9 -- subgroup rates, correlations, linear, logistic and count regression, time to event, several rows per subject, trained models (a model trained on a twin of half A, tested on half B), missing cells -- the share of supported estimates whose twin value lies within the half-split yardstick of the real table's, against the fresh replicate's share in the same run; the null table ST5 and the margins left out (one column's own count, which a column-wise shuffle keeps exactly: rows per subject, zero shares, a complete-case share). Bound (must not get worse): the run's controls hold -- the replicate's pooled share no more than three binomial standard deviations under the 77 % a fresh sample reaches, the shuffled twin more than 10 points under the replicate pooled and more than 25 in every family of at least five supported estimates, families_control_void naming the ones it is not -- and today's twin stands no more than 21 points (fast) and 10 (20,000 rows) under the shuffled twin of the same run -- 4.5 binomial standard deviations of a difference of two shares over the supported estimates, 318/sqrt(n), never under 10, since estimates of one model are not independent -- and the supported estimates do not fall below the baseline's. Target: pooled at most 10 points under the replicate and every family of at least five supported estimates at most 25, at both sizes (checkpoint 4; the finished product's, 5 and 10). Targets are relative to the replicate because even a perfect twin is inside only about 77 % of the time (JUDGEMENT, plan P4-D398).",
+   "rule": "For each analysis family F1 to F9 -- subgroup rates, correlations, linear, logistic and count regression, time to event, several rows per subject, trained models (a model trained on a twin of half A, tested on half B), missing cells -- the share of supported estimates (every defining cell at 22 rows on the real table and 11 in each half) whose twin value lies within the half-split yardstick of the real table's, against the fresh replicate's share in the same run; the null table ST5 and the margins left out (one column's own count, which a column-wise shuffle keeps exactly: rows per subject, zero shares, a complete-case share). Bound (must not get worse): the run's controls hold -- the replicate's pooled share no more than three binomial standard deviations under the 77 % a fresh sample reaches, the shuffled twin more than 10 points under the replicate pooled and more than 25 in every family of at least five supported estimates, families_control_void naming the ones it is not -- and today's twin stands no more than 21 points (fast) and 10 (20,000 rows) under the shuffled twin of the same run -- 4.5 binomial standard deviations of a difference of two shares over the supported estimates, 318/sqrt(n), never under 10, since estimates of one model are not independent -- and the supported estimates do not fall below the baseline's. Target: pooled at most 10 points under the replicate and every family of at least five supported estimates at most 25, at both sizes (checkpoint 4; the finished product's, 5 and 10). Targets are relative to the replicate because even a perfect twin is inside only about 77 % of the time (JUDGEMENT, plan P4-D398).",
    "rule_kind": "at_most",
    "expected": {
     "points_below_shuffled": 21,
     "controls_hold": true,
-    "supported_estimates": 251,
+    "supported_estimates": 245,
     "points_below_shuffled_20k": 10,
     "controls_hold_20k": true,
-    "supported_estimates_20k": 2930
+    "supported_estimates_20k": 2913
    },
    "tier": "FAST",
    "source": "pytest",
@@ -9181,7 +9181,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_01",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). Every family's analyses: the targeted panel (each seeded truth's analysis and the naive models analysts fit) and the automatic panel the schema alone gives.",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. Every family's analyses: the targeted panel (each seeded truth's analysis and the naive models analysts fit) and the automatic panel the schema alone gives.",
    "evidence": "The S2 design probe (planning notes, 2026-10-16) put a shuffled twin at 22 % of 321 estimates inside against the replicate's 61 to 71 %. Today's twin carries no joint structure (CLAUDE.md), so it sits at the shuffled twin's share. Headline by the orchestrator's recorded call; the owner may veto.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9190,27 +9190,27 @@
     "supported_estimates_20k": "at_least"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold": true,
      "controls_hold_20k": true,
      "families_control_void": 0,
      "families_control_void_20k": 0,
-     "points_below_shuffled": -1.6,
-     "points_below_shuffled_20k": 0.0,
-     "pooled_points_below_replicate": 53.4,
-     "pooled_points_below_replicate_20k": 38.0,
-     "replicate_pooled_share": 0.837,
-     "replicate_pooled_share_20k": 0.782,
-     "shuffled_pooled_share": 0.287,
-     "shuffled_pooled_share_20k": 0.402,
-     "supported_estimates": 251,
-     "supported_estimates_20k": 2930,
-     "twin_pooled_share": 0.303,
-     "twin_pooled_share_20k": 0.402,
-     "worst_family_points_below_replicate": 65.2,
+     "points_below_shuffled": 0.4,
+     "points_below_shuffled_20k": -0.5,
+     "pooled_points_below_replicate": 53.1,
+     "pooled_points_below_replicate_20k": 36.5,
+     "replicate_pooled_share": 0.833,
+     "replicate_pooled_share_20k": 0.765,
+     "shuffled_pooled_share": 0.306,
+     "shuffled_pooled_share_20k": 0.394,
+     "supported_estimates": 245,
+     "supported_estimates_20k": 2913,
+     "twin_pooled_share": 0.302,
+     "twin_pooled_share_20k": 0.4,
+     "worst_family_points_below_replicate": 62.5,
      "worst_family_points_below_replicate_20k": 89.7
     }
    },
@@ -9229,7 +9229,7 @@
    "headline": true,
    "name": "Seeded truths: each recovered inside its yardstick with the real table's significance decision, or named as not carried",
    "status": "OPEN",
-   "rule": "Each truth of the six tables' truth files (tests/analyst_tables.py: curves, thresholds, interactions, a three-way parity, a rare outcome, dependent missing cells, zero mass, overdispersion, hazards, the ICC, dropout, a fading hazard, censoring by centre, a competing event, a formula, the null table's quiet) is recovered where its estimate is supported, lies inside its yardstick and keeps the real table's significance decision and sign -- on a majority of twin seeds -- or is named in the twin's report as not carried with a reason the floor arithmetic confirms (no such line exists today, K-BC-11). A truth is charged only where the replicate of the same run gets it back; the replicate's misses are counted beside (replicate_missed), never as the twin's. K-S7-01's three-way clause is folded in: three_way_missed_unnamed counts the truths of three columns or more. Bound: the controls hold (the replicate gets back at least half the floor-eligible truths, the shuffled twin at least 25 points fewer) and the truths measured do not fall. Target, at both sizes: McNemar's z of the truths only the replicate gets back against those only the twin gets back at most 2, for all truths and for those of three columns (a perfect twin cannot promise none missed: a stand-in at 20,000 rows missed 6 the replicate got and got 3 it missed, z 1.0). At 5,000 rows the diabetes x current smoker cell holds about 10 events, under the floor, so the fast part's three-way clause rests on ventilation x age over 75 alone.",
+   "rule": "Each truth of the six tables' truth files (tests/analyst_tables.py: curves, thresholds, interactions, a three-way parity, a rare outcome, dependent missing cells, zero mass, overdispersion, hazards, the ICC, dropout, a fading hazard, censoring by centre, a competing event, a formula read as the share of rows breaking it, the null table's quiet) is recovered where its estimate is supported, lies inside its yardstick and keeps the real table's significance decision and sign -- on a majority of twin seeds -- or is named in the twin's report as not carried with a reason the floor arithmetic confirms (no such line exists today, K-BC-11). A truth is charged only where the replicate of the same run gets it back; the replicate's misses are counted beside (replicate_missed), never as the twin's. K-S7-01's three-way clause is folded in: three_way_missed_unnamed counts the truths of three columns or more. Bound: the controls hold (the replicate gets back at least half the floor-eligible truths, the shuffled twin at least 25 points fewer) and the truths measured do not fall. Target: McNemar's z of the truths only the replicate gets back against those only the twin gets back at most 2, for all truths at both sizes and for those of three columns at 20,000 rows (a perfect twin cannot promise none missed: a stand-in at 20,000 rows missed 6 the replicate got and got 3 it missed, z 1.0). At 5,000 rows no three-way truth is supported -- the diabetes x current smoker cell holds about 10 events, and ventilation x age over 75's 31 fall to 10 in one half -- so the fast part's three-way clause is reported, not judged. A twin recovering no truth reads the square root of the replicate's recoveries (replicate_recovered, three_way_replicate_recovered), so a clause binds only where the replicate gets back more than 4.",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9243,7 +9243,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_02",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). The truths and the estimate measuring each: analyst_tables.TRUTHS; the three-way ones: analyst_tables.THREE_WAY.",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. The truths and the estimate measuring each: analyst_tables.TRUTHS; the three-way ones: analyst_tables.THREE_WAY.",
    "evidence": "The S2 probe recovered none of about 20 on its shuffled twin. A truth whose cells fall under the floor of 11 cannot be recovered by any description and is missed until a report line names it (plan P4-D398). Headline by the orchestrator's recorded call; the owner may veto.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9252,30 +9252,32 @@
     "truths_measured_20k": "at_least"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold": true,
      "controls_hold_20k": true,
-     "missed_over_replicate_z": 3.46,
-     "missed_over_replicate_z_20k": 8.83,
-     "replicate_missed": 6,
-     "replicate_missed_20k": 12,
-     "replicate_recovered": 12,
-     "replicate_recovered_20k": 84,
+     "missed_over_replicate_z": 3.32,
+     "missed_over_replicate_z_20k": 8.72,
+     "replicate_missed": 7,
+     "replicate_missed_20k": 14,
+     "replicate_recovered": 11,
+     "replicate_recovered_20k": 82,
      "shuffled_recovered": 0,
      "shuffled_recovered_20k": 6,
-     "three_way_missed_over_replicate_z": 1.0,
-     "three_way_missed_over_replicate_z_20k": 2.83,
-     "three_way_missed_unnamed": 1,
-     "three_way_missed_unnamed_20k": 8,
-     "truths_floor_eligible": 16,
-     "truths_floor_eligible_20k": 95,
+     "three_way_missed_over_replicate_z": 0.0,
+     "three_way_missed_over_replicate_z_20k": 2.65,
+     "three_way_missed_unnamed": 0,
+     "three_way_missed_unnamed_20k": 7,
+     "three_way_replicate_recovered": 0,
+     "three_way_replicate_recovered_20k": 7,
+     "truths_floor_eligible": 15,
+     "truths_floor_eligible_20k": 93,
      "truths_measured": 18,
      "truths_measured_20k": 96,
-     "truths_missed_unnamed": 12,
-     "truths_missed_unnamed_20k": 78,
+     "truths_missed_unnamed": 11,
+     "truths_missed_unnamed_20k": 76,
      "truths_named": 0,
      "truths_named_20k": 0,
      "truths_recovered": 0,
@@ -9289,7 +9291,6 @@
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
    "target": {
     "missed_over_replicate_z": 2,
-    "three_way_missed_over_replicate_z": 2,
     "missed_over_replicate_z_20k": 2,
     "three_way_missed_over_replicate_z_20k": 2
    }
@@ -9301,11 +9302,11 @@
    "headline": false,
    "name": "Decisions: real-significant estimates kept significant with their sign, and significance invented where the real table has none",
    "status": "OPEN",
-   "rule": "Among supported estimates with a standard error, rates and margins left out: the share of the real-significant ones (|z| > 1.96) the twin keeps significant with the same sign, and the share of the real-not-significant ones the twin makes significant, each against the replicate; on the null table ST5, the share of its 105 column pairs a 5 % test calls associated. Bound: the controls hold (the replicate keeps at least 80 %, the shuffled twin at least 10 points fewer; on ST5 the replicate at most 8 % and the structured table ST1, set against ST5's columns, more), today's twin keeps no fewer than the shuffled twin less 28 points (fast) and 10 (20,000 rows) -- 318/sqrt(n) over the real-significant estimates, never under 10 -- and invents at most 15 % on ST5. Target: kept at most 10 points under the replicate, invented at most 2 points over it, ST5 at most 8 % (checkpoint 4).",
+   "rule": "Among supported estimates with a standard error, rates and margins left out: the share of the real-significant ones (|z| > 1.96) the twin keeps significant with the same sign, and the share of the real-not-significant ones the twin makes significant, each against the replicate; on the null table ST5, the share of its 105 column pairs a 5 % test calls associated. Bound: the controls hold (the replicate keeps at least 80 %, the shuffled twin at least 10 points fewer; on ST5 the replicate at most 8 % and the structured table ST1, set against ST5's columns, more), today's twin keeps no fewer than the shuffled twin less 29 points (fast) and 10 (20,000 rows) -- 318/sqrt(n) over the real-significant estimates, never under 10 -- and invents at most 15 % on ST5. Target: kept at most 10 points under the replicate, invented at most 2 points over it, ST5 at most 8 % (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
-    "kept_points_below_shuffled": 28,
+    "kept_points_below_shuffled": 29,
     "controls_hold_20k": true,
     "kept_points_below_shuffled_20k": 10,
     "null_controls_hold_20k": true,
@@ -9317,7 +9318,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_03",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). ST5's test: chi-square for two labels or a label and a number of at most 30 values, Kruskal-Wallis on ranks for a label and a number of more, Spearman's z for two numbers.",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. ST5's test: chi-square for two labels or a label and a number of at most 30 values, Kruskal-Wallis on ranks for a label and a number of more, Spearman's z for two numbers.",
    "evidence": "The S2 probe kept 25 of 184 on its shuffled twin against the replicate's 173 and invented 2 of 74 against 19. On a null table a shuffle is a perfect twin, so ST5's negative control is the structured table (plan P4-D398).",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9325,29 +9326,29 @@
     "null_controls_hold_20k": "exact"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold": true,
      "controls_hold_20k": true,
-     "fabricated_points_above_replicate": -10.2,
-     "fabricated_points_above_replicate_20k": -3.0,
-     "kept_points_below_replicate": 70.9,
-     "kept_points_below_replicate_20k": 74.2,
-     "kept_points_below_shuffled": -0.7,
-     "kept_points_below_shuffled_20k": -0.9,
+     "fabricated_points_above_replicate": -10.5,
+     "fabricated_points_above_replicate_20k": -4.6,
+     "kept_points_below_replicate": 70.4,
+     "kept_points_below_replicate_20k": 73.6,
+     "kept_points_below_shuffled": 1.6,
+     "kept_points_below_shuffled_20k": -0.8,
      "null_controls_hold_20k": true,
      "null_replicate_share_20k": 0.038,
      "null_significant_share_20k": 0.048,
-     "real_significant": 134,
-     "real_significant_20k": 1261,
-     "replicate_kept": 0.948,
-     "replicate_kept_20k": 0.914,
-     "shuffled_kept": 0.231,
-     "shuffled_kept_20k": 0.163,
-     "twin_kept": 0.239,
-     "twin_kept_20k": 0.172
+     "real_significant": 125,
+     "real_significant_20k": 1302,
+     "replicate_kept": 0.944,
+     "replicate_kept_20k": 0.905,
+     "shuffled_kept": 0.256,
+     "shuffled_kept_20k": 0.161,
+     "twin_kept": 0.24,
+     "twin_kept_20k": 0.169
     }
    },
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
@@ -9366,7 +9367,7 @@
    "headline": false,
    "name": "Prediction: a model trained on a twin of half the table and tested on the other half (TSTR)",
    "status": "OPEN",
-   "rule": "Boosted trees (60 rounds, depth 3; 40 at 5,000 rows) trained on today's twin of half A, made by the product from half A alone, tested on half B: the AUC gap to the model trained on half A itself over the AUC's yardstick (the root mean square of AUC(A to B) minus AUC(B to A) over the four splits), and the rank correlation of the twin-trained model's gains with half A's against the replicate's, on the seeded outcomes a tree can learn and, at 20,000 rows, every other two-valued column whose half-A model reaches an AUC of 0.6 on half B (S2 3.2: one model per binary outcome; trained_models counts them) (death on ST1 and ST6; ST4's parity has flat pair margins, so a greedy tree finds no first split on the real table either). Bound: the controls hold (the replicate within 3 yardsticks, the shuffled twin beyond) and today's twin no more than 15 yardsticks (fast) and 20 (20,000 rows) past the shuffled twin. Target: within 3 yardsticks and a rank correlation at most 0.3 under the replicate's (checkpoint 4).",
+   "rule": "Boosted trees (60 rounds, depth 3; 40 at 5,000 rows) trained on today's twin of half A, made by the product from half A alone, tested on half B: the AUC gap to the model trained on half A itself over the AUC's yardstick (the root mean square of AUC(A to B) minus AUC(B to A) over the four splits), and the rank correlation of the twin-trained model's gains with half A's against the replicate's, on the seeded outcomes a tree can learn and, at 20,000 rows, every other two-valued column whose half-A model reaches an AUC of 0.6 on half B (S2 3.2: one model per binary outcome; trained_models counts them) (death on ST1 and ST6; ST4's parity has flat pair margins, so a greedy tree finds no first split on the real table either). A model missing on a side or seed it is expected on (today's twin at every twin seed, the controls at theirs) counts as an infinite gap and a rank correlation of -1 (twin_models_missing), and the yardstick is the one measured, unfloored (a yardstick of 0 makes any shortfall infinite). Bound: the controls hold (the replicate within 3 yardsticks, the shuffled twin beyond, neither missing a model) and today's twin no more than 15 yardsticks (fast) and 20 (20,000 rows) past the shuffled twin. Target: within 3 yardsticks and a rank correlation at most 0.3 under the replicate's (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9380,21 +9381,21 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_04",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). The model trained on a twin of half A never sees half B, so its score is not flattered by the test rows (Esteban et al. 2017).",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. The model trained on a twin of half A never sees half B, so its score is not flattered by the test rows (Esteban et al. 2017).",
    "evidence": "The S2 probe's shuffled twin trained to AUC 0.51 to 0.55 against 0.73 for the real half, a yardstick of 0.005 to 0.009.",
    "key_kinds": {
     "controls_hold": "exact",
     "controls_hold_20k": "exact"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "auc_gap_over_shuffled": -1.24,
-     "auc_gap_over_shuffled_20k": 6.93,
+     "auc_gap_over_shuffled_20k": 12.94,
      "auc_gap_over_yardstick": 7.22,
-     "auc_gap_over_yardstick_20k": 84.86,
+     "auc_gap_over_yardstick_20k": 92.65,
      "controls_hold": true,
      "controls_hold_20k": true,
      "importance_rank_below_replicate": -0.244,
@@ -9402,9 +9403,11 @@
      "replicate_auc_gap_over_yardstick": -0.78,
      "replicate_auc_gap_over_yardstick_20k": 1.43,
      "shuffled_auc_gap_over_yardstick": 8.46,
-     "shuffled_auc_gap_over_yardstick_20k": 77.93,
+     "shuffled_auc_gap_over_yardstick_20k": 79.71,
      "trained_models": 1,
-     "trained_models_20k": 29
+     "trained_models_20k": 29,
+     "twin_models_missing": 0,
+     "twin_models_missing_20k": 0
     }
    },
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
@@ -9422,7 +9425,7 @@
    "headline": false,
    "name": "The broad discriminator: real rows told from twin rows, the pMSE ratio over the replicate's",
    "status": "OPEN",
-   "rule": "A logistic discriminator of real rows against twin rows on every usable column's main effect (numbers and dates standardized, numbers with two spline terms, labels by level, missing indicators) and the products of the first eight key columns (six at 5,000 rows), every number held to the real table's range; its propensity mean-squared error over its value under no difference, (k - 1)(1 - c)^2 c / N (Woo et al. 2009; Snoke et al. 2018), today's twin's over the replicate's, the worst table; the ten columns it rests on most named in the detail. On the null table ST5 a shuffle is a perfect twin with exact marginals, its ratio under 1, and ST2's rows come several to a subject, which that null value does not allow for (the replicate's own ratio ran 2.6 to 15.2 at 20,000 rows), so the maximum, the controls and the comparison with the shuffle leave both out, their ratios over the replicate standing beside (null_pmse_over_replicate, clustered_pmse_over_replicate). Bound: the controls hold (the shuffled twin over three times the replicate on every table read) and today's twin at most 1.5 times the shuffled twin there. Target: at most 3 times the replicate on every table (checkpoint 4; the finished product's, 1.5).",
+   "rule": "A logistic discriminator of real rows against twin rows on every usable column's main effect (numbers and dates standardized, numbers with two spline terms, labels by level, missing indicators) and the products of the first eight key columns (six at 5,000 rows), every number held to the real table's range; its propensity mean-squared error over its value under no difference, (k - 1)(1 - c)^2 c / N (Woo et al. 2009; Snoke et al. 2018), today's twin's over the replicate's, the worst table; the ten columns it rests on most named in the detail. On the null table ST5 a shuffle is a perfect twin with exact marginals, its ratio under 1, and ST2's rows come several to a subject, which that null value does not allow for (the replicate's own ratio ran 2.6 to 15.2 at 20,000 rows), so the maximum, the controls and the comparison with the shuffle leave both out, their ratios over the replicate standing beside (null_pmse_over_replicate, clustered_pmse_over_replicate). A discriminator that could not be fitted is never left out: on today's twin it is an infinite ratio (discriminators_failed), and on either control it voids the run. Bound: the controls hold (the shuffled twin over three times the replicate on every table read) and today's twin at most 1.5 times the shuffled twin there. Target: at most 3 times the replicate on every table (checkpoint 4; the finished product's, 1.5).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9436,21 +9439,23 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_05",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds).",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398.",
    "evidence": "The S2 probe measured 65 to 68 for its shuffled twin against the replicate's 1.9 to 3.0 at 20,000 rows. It looks at every relation at once, the ones nobody named. Lane E0b, ST5 at 20,000 rows, seed 1, twin seed 0: today's twin 4.28, the replicate 2.01, the shuffle 0.87 -- the twin's own column shapes told apart (it rests most on procedures, sbp and glucose), no relation between columns; ST4 833 against the shuffle's 875, ST3 136 against 134.",
    "key_kinds": {
     "controls_hold": "exact",
     "controls_hold_20k": "exact"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "clustered_pmse_over_replicate": 10.35,
      "clustered_pmse_over_replicate_20k": 43.22,
      "controls_hold": true,
      "controls_hold_20k": true,
+     "discriminators_failed": 0,
+     "discriminators_failed_20k": 0,
      "null_pmse_over_replicate": null,
      "null_pmse_over_replicate_20k": 1.88,
      "pmse_over_replicate": 13.48,
@@ -9474,7 +9479,7 @@
    "headline": false,
    "name": "Several rows per subject: the intra-class correlation, the mixed model's fixed effects, rows per subject",
    "status": "OPEN",
-   "rule": "On ST2 (up to eight visits per subject, a random intercept of ICC 0.72, an arm x visit slope, dropout on the previous value): the gap between the twin's ICC and the real table's from a random-intercept model by maximum likelihood, the fixed effects outside their yardsticks (halves split by subject) against the replicate's own count (a perfect twin had two outside at 20,000 rows), and the distance between the rows-per-subject distributions. Bound: the controls hold (the replicate's ICC within 0.05, the shuffled twin's not) and today's twin's ICC gap no more than 0.05 past the shuffled twin's. A grouping where no subject holds two rows, or one subject all of them, stops the model (lme4 refuses it; the likelihood is flat), counted in K-BC-10. Target: the ICC within 0.05 of the real one and at most one fixed effect more outside than the replicate (checkpoint 4).",
+   "rule": "On ST2 (up to eight visits per subject, a random intercept of ICC 0.72, an arm x visit slope, dropout on the previous value): the gap between the twin's ICC and the real table's from a random-intercept model by maximum likelihood, the fixed effects outside their yardsticks (halves split by subject) against the replicate's own count (a perfect twin had two outside at 20,000 rows), and the distance between the rows-per-subject distributions. Bound: the controls hold (the replicate's ICC within 0.05, the shuffled twin's not) and today's twin's ICC gap no more than 0.05 past the shuffled twin's. A grouping where fewer than 22 subjects hold two rows or more, or one subject holds all of them, stops the model (lme4 refuses the extremes; a few repeated subjects among unique ones leave the likelihood nearly as flat), counted in K-BC-10; the ICC's support is the subjects of two rows or more. Target: the ICC within 0.05 of the real one and at most one fixed effect more outside than the replicate (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9488,16 +9493,16 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_06",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). ST2 only.",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. ST2 only.",
    "evidence": "The S2 probe: the real ICC 0.71 to 0.72, every row-level twin 0.00, the replicate 0.71 to 0.72.",
    "key_kinds": {
     "controls_hold": "exact",
     "controls_hold_20k": "exact"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold": true,
      "controls_hold_20k": true,
@@ -9549,7 +9554,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_07",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). A follow-up time below zero stops the analysis, as survival software refuses it; that is counted in K-BC-10.",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. A follow-up time below zero stops the analysis, as survival software refuses it; that is counted in K-BC-10.",
    "evidence": "The S2 probe: 0 of 12 Cox hazards inside for its shuffled twin, 9 of 12 for the replicate.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9558,9 +9563,9 @@
     "supported_estimates_20k": "at_least"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold": true,
      "controls_hold_20k": true,
@@ -9591,14 +9596,14 @@
    "headline": false,
    "name": "Missing cells: who is missing, the models of missing cells, dropout and the date pattern inside their yardsticks",
    "status": "OPEN",
-   "rule": "The estimates of how missing cells depend on other columns: the logistic models of glucose and CRP going missing, the missing shares by age band and by ventilation, ST2's dropout on the previous value and ST3's event date against its status; today's twin's share inside against the replicate's. The pattern shares and the complete-case share stay in F9 for K-BC-01 and are left out here, being mostly each column's own missing share, which a shuffle keeps. Bound: the controls hold (as K-BC-07, 25 points) and at 20,000 rows today's twin stands no more than 53 points under the shuffled twin of the same run (318/sqrt(n), never under 10, as K-BC-01 states) and the supported estimates do not fall below the baseline's; at 5,000 rows, whose few estimates put that margin at 67 points or more, a bound that cannot fail, the controls alone are judged. Target: at most 25 points under the replicate (checkpoint 4).",
+   "rule": "The estimates of how missing cells depend on other columns: the logistic models of glucose and CRP going missing, the missing shares by age band and by ventilation, ST2's dropout on the previous value and ST3's event date against its status (a rule the real table keeps on every row, read as the share of rows breaking it, its yardstick 0); today's twin's share inside against the replicate's. The pattern shares and the complete-case share stay in F9 for K-BC-01 and are left out here, being mostly each column's own missing share, which a shuffle keeps. Bound: the controls hold (as K-BC-07, 25 points) and at 20,000 rows today's twin stands no more than 51 points under the shuffled twin of the same run (318/sqrt(n), never under 10, as K-BC-01 states) and the supported estimates do not fall below the baseline's; at 5,000 rows, whose few estimates put that margin at 67 points or more, a bound that cannot fail, the controls alone are judged. Target: at most 25 points under the replicate (checkpoint 4).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
     "supported_estimates": 12,
     "controls_hold_20k": true,
-    "points_below_shuffled_20k": 53,
-    "supported_estimates_20k": 36
+    "points_below_shuffled_20k": 51,
+    "supported_estimates_20k": 39
    },
    "tier": "FAST",
    "source": "pytest",
@@ -9606,7 +9611,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_08",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds).",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398.",
    "evidence": "The S2 probe: 4 of 18 inside for its shuffled twin, 12 of 18 for the replicate.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9615,24 +9620,24 @@
     "supported_estimates_20k": "at_least"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold": true,
      "controls_hold_20k": true,
      "points_below_replicate": 83.3,
-     "points_below_replicate_20k": 63.9,
+     "points_below_replicate_20k": 66.7,
      "points_below_shuffled": 0.0,
      "points_below_shuffled_20k": 0.0,
      "replicate_share": 1.0,
-     "replicate_share_20k": 0.806,
+     "replicate_share_20k": 0.821,
      "shuffled_points_below_replicate": 83.3,
-     "shuffled_points_below_replicate_20k": 63.9,
+     "shuffled_points_below_replicate_20k": 66.7,
      "supported_estimates": 12,
-     "supported_estimates_20k": 36,
+     "supported_estimates_20k": 39,
      "worst_seed_points_below_replicate": 83.3,
-     "worst_seed_points_below_replicate_20k": 66.7
+     "worst_seed_points_below_replicate_20k": 69.2
     }
    },
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
@@ -9652,7 +9657,7 @@
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
-    "supported_estimates": 23,
+    "supported_estimates": 22,
     "controls_hold_20k": true,
     "points_below_shuffled_20k": 32,
     "supported_estimates_20k": 102
@@ -9663,7 +9668,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_09",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). A curve, not its spline coefficients, which are collinear and unstable even on the real table.",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. A curve, not its spline coefficients, which are collinear and unstable even on the real table.",
    "evidence": "Not measured as curves before this lane.",
    "key_kinds": {
     "controls_hold": "exact",
@@ -9672,23 +9677,23 @@
     "supported_estimates_20k": "at_least"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold": true,
      "controls_hold_20k": true,
-     "points_below_replicate": 60.9,
+     "points_below_replicate": 63.6,
      "points_below_replicate_20k": 60.8,
      "points_below_shuffled": 0.0,
      "points_below_shuffled_20k": 2.0,
-     "replicate_share": 0.783,
+     "replicate_share": 0.773,
      "replicate_share_20k": 0.725,
-     "shuffled_points_below_replicate": 60.9,
+     "shuffled_points_below_replicate": 63.6,
      "shuffled_points_below_replicate_20k": 58.8,
-     "supported_estimates": 23,
+     "supported_estimates": 22,
      "supported_estimates_20k": 102,
-     "worst_seed_points_below_replicate": 60.9,
+     "worst_seed_points_below_replicate": 63.6,
      "worst_seed_points_below_replicate_20k": 63.7
     }
    },
@@ -9705,7 +9710,7 @@
    "headline": false,
    "name": "Code runs unchanged: analyses that stop on the twin and not on the real table",
    "status": "OPEN",
-   "rule": "The analyses that run on the real table and all eight of its halves (robust ones) but stop on today's twin: an error the analyst's code meets (a wide table by subject and visit, a subject table merged back many-to-one, a date that does not parse), a follow-up time below zero, a model that does not converge or separates, a label level the model names with no row, a filter that keeps no row. A twin is charged only with analyses that run on every replicate draw of the table run; one a fresh sample stops on too is counted beside (fragile_analyses). Every automatic term holds its number to the real table's range, as a model fitted there is applied, and admits an indicator into a logistic model only where it holds 22 events and 22 non-events. Bound: the controls hold (no robust analysis stops on the replicate, at least one stops on the shuffled twin) and no more stop on today's twin than the baseline's 2 (fast) and 15 (20,000 rows, the median over twin seeds). Target: none (checkpoint 4 and the finished product).",
+   "rule": "The analyses that run on the real table and all eight of its halves (robust ones) but stop on today's twin: an error the analyst's code meets (a wide table by subject and visit, a subject table merged back many-to-one, a date that does not parse), a follow-up time below zero, a model that does not converge or separates (a probability at 0 or 1 whose steps do not settle), a label level the model names with no row, a filter that keeps no row. A twin is charged only with analyses that run on every replicate draw of the table run; one a fresh sample stops on too is counted beside (fragile_analyses). Every automatic term holds its number to the real table's range, as a model fitted there is applied, and admits an indicator into a logistic model only where it holds 22 events and 22 non-events. Bound: the controls hold (no robust analysis stops on the replicate, at least one stops on the shuffled twin) and no more stop on today's twin than the baseline's 2 (fast) and 15 (20,000 rows, the median over twin seeds). Target: none (checkpoint 4 and the finished product).",
    "rule_kind": "at_most",
    "expected": {
     "controls_hold": true,
@@ -9719,16 +9724,16 @@
    "test": "tests/test_kpi_ledger.py::test_k_bc_10",
    "driver": "tools/measurements/kpi_analyst_battery.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Tiers, yardstick and controls as plan P4-D398 states them (fast: ST1 and ST2 at 5,000 rows, seed 1; slow: six tables at 20,000 rows, seeds 1 to 3, twin seeds 0 to 4, medians over twin seeds). Every table is read with pandas.read_csv's defaults, as the analyst's script reads it.",
+   "measured_on": "Tiers, yardstick and controls: plan P4-D398. Every table is read with pandas.read_csv's defaults, as the analyst's script reads it.",
    "evidence": "The owner's first goal is code that runs unchanged on the real table; these are the analyses of the battery that would not.",
    "key_kinds": {
     "controls_hold": "exact",
     "controls_hold_20k": "exact"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "analyses_stopping": 2,
      "analyses_stopping_20k": 15,
@@ -9739,9 +9744,9 @@
      "replicate_stopping": 0,
      "replicate_stopping_20k": 0,
      "robust_analyses": 24,
-     "robust_analyses_20k": 245,
+     "robust_analyses_20k": 246,
      "shuffled_stopping": 2,
-     "shuffled_stopping_20k": 15
+     "shuffled_stopping_20k": 16
     }
    },
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
@@ -9772,9 +9777,9 @@
    "measured_on": "Fast part: the report of today's twin of ST1 and ST2 at 5,000 rows, seed 0.",
    "evidence": "Measured as 'no line exists' (the lane's brief): 10 of 10 families unnamed.",
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "families_unnamed": 10,
      "overclaims": 0,
@@ -9811,17 +9816,17 @@
     "controls_hold_20k": "exact"
    },
    "value_at": {
-    "commit": "fc26d5d",
-    "date": "2026-10-18",
-    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on fc26d5d4 at a load average of 4.8 (no seconds judged): the fast keys from the tests, the _20k keys from kpi_analyst_battery.py --kpi",
+    "commit": "9109683",
+    "date": "2026-10-19",
+    "measured_by": "kpi_run.py --slow --only 'K-BC-0*' --only 'K-BC-1[012]' --print-values on 9109683f, the machine loaded (no seconds judged)",
     "value": {
      "controls_hold_20k": true,
-     "points_below_replicate_20k": 38.8,
-     "points_below_shuffled_20k": -0.7,
-     "replicate_stable_share_20k": 0.793,
-     "shuffled_stable_share_20k": 0.398,
-     "stable_share_20k": 0.405,
-     "thin_stable_share_20k": 0.129
+     "points_below_replicate_20k": 37.4,
+     "points_below_shuffled_20k": -0.5,
+     "replicate_stable_share_20k": 0.775,
+     "shuffled_stable_share_20k": 0.396,
+     "stable_share_20k": 0.4,
+     "thin_stable_share_20k": 0.127
     }
    },
    "target_stage": "the broad between-columns program (TRACKED T1; plan P4-D398): its checkpoint 4",
@@ -9836,7 +9841,7 @@
    "headline": false,
    "name": "The harness itself: its seconds and memory, its fitters held to closed forms, its controls behaving as controls",
    "status": "OPEN",
-   "rule": "The battery's fast part (ST1 and ST2 at 5,000 rows, the product's describe and generate included) finishes in under 60 s, judged on the quiet reference machine only; no KPI's controls fail in it; the nineteen pinned nodes -- the fitting kit held to closed forms it shares no code with, and its refusals (tests/test_analyst_kit.py) -- pass; and at 200,000 rows (tools/measurements/kpi_analyst_battery.py --night, each table in a child process of its own, never beside a whole suite) every table finishes in under an hour, target 20 minutes, and peaks under 2,000 MB, target 1,000 (the child's whole peak, the product's describe and generate included), all six tables run, and the KPIs whose controls fail at that size are counted. Seconds and peak memory are the machine's as much as the code's.",
+   "rule": "The battery's fast part (ST1 and ST2 at 5,000 rows, the product's describe and generate included) finishes in under 60 s, judged on the quiet reference machine only; no KPI's controls fail in it; the twenty-five pinned nodes -- the fitting kit held to closed forms it shares no code with, its refusals, and its sums that must not cancel (tests/test_analyst_kit.py) -- pass; and at 200,000 rows (tools/measurements/kpi_analyst_battery.py --night, each table in a child process of its own, never beside a whole suite) every table finishes in under an hour, target 20 minutes, and peaks under 2,000 MB, target 1,000 (the child's whole peak, the product's describe and generate included), all six tables run, and the KPIs whose controls fail at that size are counted. Seconds and peak memory are the machine's as much as the code's.",
    "rule_kind": "at_most",
    "expected": {
     "fast_part_seconds": 60.0,
@@ -9868,14 +9873,20 @@
     "tests/test_analyst_kit.py::test_kruskal_wallis_is_its_formula_over_ranks_counted_pair_by_pair",
     "tests/test_analyst_kit.py::test_a_flag_whose_rows_hold_no_event_is_quasi_separation",
     "tests/test_analyst_kit.py::test_a_random_intercept_with_no_group_of_two_rows_is_refused",
-    "tests/test_analyst_kit.py::test_the_booster_keeps_a_missing_cell_in_a_bin_of_its_own"
+    "tests/test_analyst_kit.py::test_the_booster_keeps_a_missing_cell_in_a_bin_of_its_own",
+    "tests/test_analyst_kit.py::test_a_steep_slope_that_settles_is_a_fit_and_a_separation_is_not",
+    "tests/test_analyst_kit.py::test_an_outcome_moved_by_a_constant_moves_only_the_intercept",
+    "tests/test_analyst_kit.py::test_cox_is_the_same_fit_with_a_term_moved_by_a_constant",
+    "tests/test_analyst_kit.py::test_a_tied_time_of_every_row_costs_no_more_memory_than_distinct_times",
+    "tests/test_analyst_kit.py::test_the_kaplan_meier_median_lands_on_a_half_reached_after_many_steps",
+    "tests/test_analyst_kit.py::test_a_random_intercept_reads_no_fewer_repeated_groups_than_its_caller_names"
    ],
    "test": "tests/test_kpi_ledger.py::test_k_bc_13",
    "driver": "tools/measurements/kpi_analyst_battery.py --night",
    "pin_strength": "EXACT",
    "measured_on": "The fast part as test_k_bc_13 runs it; the night as tools/measurements/kpi_analyst_battery.py --night runs it, one table per child process.",
    "evidence": "The S2 probe took 88 to 106 s at 20,000 rows with four stand-in twins and 220 MB; it projected 12 to 15 minutes a table at 200,000 rows.",
-   "nodes_min_collected": 29,
+   "nodes_min_collected": 35,
    "key_kinds": {
     "fast_part_seconds": "seconds_below",
     "controls_failing": "exact",

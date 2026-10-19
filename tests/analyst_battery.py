@@ -2160,7 +2160,8 @@ def kpi_02(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
     A twin recovering none reads sqrt(replicate_recovered) (all truths)
     and sqrt(three_way_replicate_recovered) (three columns), so a clause
     can fail only where that count exceeds 4; the ledger states no target
-    where it does not (the fast part's three-way clause: one truth).
+    where it does not (the fast part's three-way clause: at 5,000 rows no
+    three-way truth is supported).
     """
     truths = _truth_rows(runs)
     eligible = [(r, p, k) for r, p, k in truths if k in r.yard.h]
