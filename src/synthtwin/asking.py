@@ -5330,7 +5330,8 @@ def questions_document(
     # what this run asks. Absent where there is none, so a file no
     # answer was carried into is written as before, byte for byte.
     if answered:
-        written["answered_before"] = answered
+        written[ANSWERED_BEFORE_SAYS] = ANSWERED_BEFORE_MEANS
+        written[ANSWERED_BEFORE] = answered
     return written
 
 
@@ -5424,19 +5425,30 @@ class Answers:
     # publishes what its reading publishes, which it does not while
     # that question is open.
     identities_kept: "tuple[str, ...]" = ()
-    # ...and every entry of a question offering `identifier` that the
-    # file answered with anything but `keep` (plan P4-D401), as the
-    # question its file put, with the answer written beside it: the file
-    # this run writes carries it again (`answered_again`), so a person
-    # handing that file back keeps the answer. Measured on lane HX's
-    # repair: a six-figure key answered `measurement`, the file the
-    # answering run wrote handed back as it stood, and the column was
-    # held as record numbers once more.
-    declared_entries: "tuple[dict[str, object], ...]" = ()
+    # ...and of those, the ones a person WROTE `keep` for, here or in an
+    # earlier round (plan P4-D408): the file the run writes keeps these.
+    # A blank entry keeping its reading is not among them -- the file the
+    # run writes asks that question again, under that reading, so the
+    # blank answers it again -- and a checklist of forty columns left
+    # blank is not forty answers to keep.
+    identities_kept_answered: "tuple[str, ...]" = ()
+    # THE ANSWERS AN EARLIER RUN CARRIED THAT STILL STAND (plan P4-D408):
+    # each `(column, answer, family)` read from the file's
+    # `answered_before` section that no later answer -- one in this file
+    # or one typed on this command line -- changed. The run checks that
+    # every one reaches the file it writes (`answers_not_kept`) and
+    # refuses where one would be dropped. The column is a file
+    # question's subject where the answer is about the whole file.
+    carried: "tuple[tuple[str, str, str], ...]" = ()
+    # ...and the questions about HOW THE FILE IS READ whose standing
+    # answer is a carried one. The run that wrote the file had read the
+    # table that way already, so the names in the file are the names
+    # under that reading, and the answer moves no name.
+    reading_carried: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
-    entry: object, place: str
+    entry: object, place: str, carried: bool = False
 ) -> "tuple[str, str, tuple[str, ...]] | None":
     """One entry read back: its column, the answer given, what was offered.
 
@@ -5446,6 +5458,11 @@ def _entry_answer(
 
     Raises ValueError, with a message written for a person, where the
     entry is not shaped like one this module wrote.
+
+    `carried` (plan P4-D408): the entry is one of `answered_before`, an
+    answer an earlier run kept, and a blank `your_answer` there keeps the
+    answer named in `read_as_now` -- the answer stands until another
+    answer replaces it, and clearing the line is not that.
     """
     if not isinstance(entry, dict):
         raise ValueError(errors.answers_entry_is_not_a_question(place))
@@ -5465,6 +5482,10 @@ def _entry_answer(
     if not isinstance(given, str):
         raise ValueError(errors.answers_entry_is_not_a_question(place))
     written = parsing.trimmed(given)
+    if not written and carried and "read_as_now" in entry:
+        standing = entry["read_as_now"]
+        if isinstance(standing, str):
+            written = parsing.trimmed(standing)
     if not written:
         return None
     # A MALFORMED CHOICE LIST MAY NOT TURN THE CHECK OFF (review item
@@ -5529,7 +5550,9 @@ def _left_under_a_reading(entry: object) -> str:
     return ""
 
 
-def _entries_of(document: object, shown: str) -> "list[tuple[object, str]]":
+def _entries_of(
+    document: object, shown: str
+) -> "list[tuple[object, str, bool]]":
     """Every entry of a questions file, each with the place to name it by.
 
     Both sections, in the order the file writes them, because a person
@@ -5550,7 +5573,7 @@ def _entries_of(document: object, shown: str) -> "list[tuple[object, str]]":
     listed = checklist["columns"]
     if not isinstance(listed, list):
         raise ValueError(errors.answers_file_is_not_one(shown))
-    found: list[tuple[object, str]] = []
+    found: list[tuple[object, str, bool]] = []
     # THE FILE'S OWN SECTION FIRST, and tolerated absent: a questions
     # file written before plan P4-D81 carries no such section, and
     # refusing a person's older file for a question it could not have
@@ -5563,26 +5586,26 @@ def _entries_of(document: object, shown: str) -> "list[tuple[object, str]]":
         place = 0
         for entry in about:
             place += 1
-            found += [(entry, f"about_your_file[{place}]")]
+            found += [(entry, f"about_your_file[{place}]", False)]
     place = 0
     for entry in asked:
         place += 1
-        found += [(entry, f"asked[{place}]")]
+        found += [(entry, f"asked[{place}]", False)]
     place = 0
     for entry in listed:
         place += 1
-        found += [(entry, f"checklist[{place}]")]
-    # ...AND THE ANSWERS AN EARLIER FILE GAVE, carried (plan P4-D401),
-    # tolerated absent: a file carries them only where it was written by
-    # a run that read answers.
-    if "answered_before" in document:
-        before = document["answered_before"]
+        found += [(entry, f"checklist[{place}]", False)]
+    # ...AND THE ANSWERS EARLIER RUNS GAVE, carried (plans P4-D401 and
+    # P4-D408), tolerated absent: a file carries them only where it was
+    # written by a run that was given answers.
+    if ANSWERED_BEFORE in document:
+        before = document[ANSWERED_BEFORE]
         if not isinstance(before, list):
             raise ValueError(errors.answers_file_is_not_one(shown))
         place = 0
         for entry in before:
             place += 1
-            found += [(entry, f"answered_before[{place}]")]
+            found += [(entry, f"{ANSWERED_BEFORE}[{place}]", True)]
     return found
 
 
@@ -5615,6 +5638,16 @@ def answers_in(document: object, shown: str) -> Answers:
     `keep` and `measurement` on a column already read as a measurement
     add no declaration, because there is nothing to change. Every other
     answer becomes the declaration that makes it true.
+
+    EVERY ANSWER OF AN EARLIER ROUND STANDS UNTIL A LATER ONE REPLACES IT
+    (plan P4-D408). The `answered_before` section holds what earlier runs
+    were told; each of its answers is read like any other, unless this
+    file answers the same question about the same column again: the
+    later answer wins. Two questions are the same question where they
+    offer a common answer other than `keep` (`_same_question`). A
+    declaration typed on this command line is later too, and
+    `typed_over_kept` takes the answers it replaces out of the file
+    before this reads it.
     """
     codes: list[str] = []
     identifiers: list[str] = []
@@ -5637,9 +5670,22 @@ def answers_in(document: object, shown: str) -> Answers:
     date_columns: "list[str]" = []
     date_columns_kept: "list[str]" = []
     identities_kept: "list[str]" = []
-    declared_entries: "list[dict[str, object]]" = []
-    for entry, place in _entries_of(document, shown):
-        read = _entry_answer(entry, place)
+    identities_kept_answered: "list[str]" = []
+    carried: "list[tuple[str, str, str]]" = []
+    reading_carried: "list[str]" = []
+    # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
+    # against every later one before any is acted on (plan P4-D408).
+    entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
+    later: "list[tuple[str, tuple[str, ...]]]" = []
+    for entry, place, from_before in _entries_of(document, shown):
+        read = _entry_answer(entry, place, from_before)
+        entries += [(entry, place, from_before, read)]
+        if read is not None and not from_before:
+            later += [(read[0], read[2])]
+    for entry, place, from_before, read in entries:
+        if read is not None and from_before:
+            if _answered_again(read[0], read[2], later):
+                continue
         if read is None:
             # A BLANK ANSWER KEEPS THE READING THE FILE NAMED (review item
             # L17b-R1-3), and where that reading is not `identifier` on a
@@ -5655,6 +5701,11 @@ def answers_in(document: object, shown: str) -> Answers:
                 identities_kept += [kept_blank]
             continue
         name, written, offered = read
+        if from_before and written in offered:
+            family = _family_of(written, offered)
+            carried += [(name, written, family)]
+            if family == _FAMILY_FIRST_ROW or family == _FAMILY_DELIMITER:
+                reading_carried += [_FAMILY_SUBJECTS[family]]
         # UNCONDITIONALLY (review item L17b-R1-5). `_entry_answer`
         # refuses an entry that offers nothing, so `offered` is a
         # non-empty tuple by the time it arrives here and this check
@@ -5665,10 +5716,6 @@ def answers_in(document: object, shown: str) -> Answers:
                     shown, name, written, list(offered)
                 )
             )
-        if written != ANSWER_KEEP and ANSWER_IDENTIFIER in offered:
-            carried = _entry_as_answered(entry, name, written)
-            if carried is not None:
-                declared_entries += [carried]
         if written == ANSWER_CODE:
             codes += [name]
         elif written == ANSWER_IDENTIFIER:
@@ -5738,6 +5785,7 @@ def answers_in(document: object, shown: str) -> Answers:
             # (plan P4-D401): nothing declared, and the column's values
             # are no longer held back for want of an answer.
             identities_kept += [name]
+            identities_kept_answered += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -5776,83 +5824,437 @@ def answers_in(document: object, shown: str) -> Answers:
         date_columns_kept=tuple(date_columns_kept),
         date_columns=tuple(date_columns),
         identities_kept=tuple(identities_kept),
-        declared_entries=tuple(declared_entries),
+        identities_kept_answered=tuple(identities_kept_answered),
+        carried=tuple(carried),
+        reading_carried=tuple(reading_carried),
     )
 
 
-def _entry_as_answered(
-    entry: object, name: str, written: str
-) -> "dict[str, object] | None":
-    """An answered entry as its file put it, the answer written beside it.
+# -- every answer kept across rounds (plan P4-D408) ----------------------
+#
+# A person answers the questions file, runs again, and answers the file
+# that run wrote. Until this landing that second file carried only the
+# questions still open -- and from lane HX's P4-D401 on, the answers to
+# questions offering `identifier` -- so every other answer of the first
+# round was gone after the second: measured by lane E0a on 68dae22f, a
+# table of vitals whose person column was answered in round one read
+# that column as an affixed number after round two, and a table of
+# diagnoses lost its encounter key and a SNOMED code answer. So the file
+# a run writes carries EVERY answer that run acted on, from a questions
+# file or from the command line, in one section of its own, written from
+# the declarations themselves and not from the question each answered:
+# the same answers given in one round or in several write the same bytes.
 
-    Plan P4-D401. The entry's own words -- what synthtwin saw, and each
-    answer with what it means and publishes -- as the file held them,
-    with `read_as_now` and `your_answer` both the answer given. None
-    where an edited entry lacks any of those words. Read by index and
-    never by `.get`, as `_entry_answer` reads (plan D6.2). Raises
-    nothing. No I/O.
+# The section, and the sentence that says what it is. Both are written
+# only where the run was given an answer, so a file no answer reached is
+# written as before, byte for byte.
+ANSWERED_BEFORE = "answered_before"
+ANSWERED_BEFORE_SAYS = "what_answered_before_is"
+ANSWERED_BEFORE_MEANS = (
+    "Every answer this run was given -- in a questions file or on the "
+    "command line -- kept so that the next run is given it too. Leave "
+    "these as they are to keep them. To change one, write another of the "
+    "answers it offers beside 'your_answer'; answering the same question "
+    "again above, or on the command line, changes it as well."
+)
+# What each kept answer says it saw. A kept answer names no shape, since
+# it may have been typed rather than asked; the shape a question about
+# codes in a column of dates described is the one exception, because the
+# run reading the answer finds those codes again by it.
+ANSWERED_BEFORE_SAW = (
+    "You gave this answer in an earlier run; it is kept here."
+)
+ANSWERED_BEFORE_PUBLISHES = (
+    "what the description written under this answer publishes for this "
+    "column, as the question that first asked it said"
+)
+
+# THE FAMILIES OF QUESTIONS AN ANSWER BELONGS TO, each with the answers
+# a kept entry of it offers: the answers of the question it stands for,
+# and those another question about the same column offers in its place,
+# so that a later answer to either is seen to replace it.
+_FAMILY_KIND = "kind"
+_FAMILY_CLOCK = "clock"
+_FAMILY_COUNTED = "counted"
+_FAMILY_DATE_CODES = "date-codes"
+_FAMILY_CENTURY = "century"
+_FAMILY_DATES = "dates"
+_FAMILY_FIRST_ROW = "first-row"
+_FAMILY_METADATA = "metadata"
+_FAMILY_DELIMITER = "delimiter"
+_FAMILY_DAY_ORDER = "day-order"
+_FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
+    _FAMILY_KIND: (
+        ANSWER_KEEP, ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT,
+        ANSWER_DECIMAL_COMMA,
+    ),
+    _FAMILY_CLOCK: (ANSWER_KEEP, ANSWER_TWELVE_HOUR, ANSWER_CODE),
+    _FAMILY_COUNTED: (
+        (ANSWER_MEASUREMENT,) + date_counts.MEMBERS
+        + (ANSWER_CODE, ANSWER_IDENTIFIER)
+    ),
+    _FAMILY_DATE_CODES: (ANSWER_KEEP, ANSWER_NO_DATE, ANSWER_REAL_VALUE),
+    _FAMILY_CENTURY: (
+        ANSWER_CENTURY_POSIX, ANSWER_CENTURY_1930, ANSWER_CENTURY_1940,
+        ANSWER_CENTURY_1900,
+    ),
+    _FAMILY_DATES: (ANSWER_KEEP, ANSWER_DATES),
+    _FAMILY_FIRST_ROW: (ANSWER_FIRST_ROW_DATA, ANSWER_FIRST_ROW_NAMES),
+    _FAMILY_METADATA: (ANSWER_DATA, ANSWER_METADATA_ROWS),
+    _FAMILY_DELIMITER: ("comma", "semicolon", "tab", "vertical-bar"),
+    _FAMILY_DAY_ORDER: (ANSWER_MONTH_FIRST, ANSWER_DAY_FIRST),
+}
+# The subject a question about the whole file is filed under, which is
+# the `column` its entry names.
+_FAMILY_SUBJECTS: "dict[str, str]" = {
+    _FAMILY_FIRST_ROW: FIRST_ROW_SUBJECT,
+    _FAMILY_METADATA: METADATA_SUBJECT,
+    _FAMILY_DELIMITER: DELIMITER_SUBJECT,
+    _FAMILY_DAY_ORDER: DAY_FIRST_SUBJECT,
+}
+# The families whose answers are about the whole file and not a column.
+FILE_FAMILIES = (
+    _FAMILY_FIRST_ROW, _FAMILY_METADATA, _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
+)
+# What each kept answer means, in a few words: the question that first
+# asked it said it in full, and the description written under it shows it.
+_KEPT_MEANS: "dict[str, str]" = {
+    ANSWER_KEEP: "nothing declared: the column keeps the reading it has",
+    ANSWER_CODE: "codes or labels",
+    ANSWER_IDENTIFIER: "record numbers: no value of the column is published",
+    ANSWER_MEASUREMENT: "measurements",
+    ANSWER_DECIMAL_COMMA: "numbers written with a comma before the decimals",
+    ANSWER_TWELVE_HOUR: "a 12-hour clock written without AM or PM",
+    ANSWER_NO_DATE: "its few repeated codes stand for a missing date or time",
+    ANSWER_REAL_VALUE: "its few repeated codes are values of their own",
+    ANSWER_DATES: "dates, with the values written another way left unread",
+    ANSWER_FIRST_ROW_DATA: "the first row is a record of the table",
+    ANSWER_FIRST_ROW_NAMES: "the first row holds the column names",
+    ANSWER_DATA: "the rows under the column names are records",
+    ANSWER_METADATA_ROWS: "the two rows under the column names describe them",
+    ANSWER_MONTH_FIRST: "the month comes first in the dates",
+    ANSWER_DAY_FIRST: "the day comes first in the dates",
+}
+
+
+def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
+    """The family of questions `answer` answers; empty for none this module keeps.
+
+    `keep` belongs to whichever question offered it, so `offered` tells
+    them apart; every other answer names its family alone. Plan P4-D408.
+    A fixed function of the two. Raises nothing. No I/O.
     """
-    if not isinstance(entry, dict) or "what_synthtwin_saw" not in entry:
-        return None
-    saw = entry["what_synthtwin_saw"]
-    if not isinstance(saw, str) or "answers_you_can_give" not in entry:
-        return None
-    given = entry["answers_you_can_give"]
-    if not isinstance(given, list):
-        return None
+    if answer == ANSWER_KEEP:
+        if ANSWER_IDENTIFIER in offered:
+            return _FAMILY_KIND
+        if ANSWER_DATES in offered:
+            return _FAMILY_DATES
+        return ""
+    if answer == ANSWER_JOINED:
+        return _FAMILY_KIND
+    for family in (
+        _FAMILY_KIND, _FAMILY_CLOCK, _FAMILY_COUNTED, _FAMILY_DATE_CODES,
+        _FAMILY_CENTURY, _FAMILY_DATES, _FAMILY_FIRST_ROW, _FAMILY_METADATA,
+        _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
+    ):
+        if answer in _FAMILY_WORDS[family]:
+            return family
+    return ""
+
+
+def _family_words(family: str) -> "tuple[str, ...]":
+    """The answers a kept entry of `family` offers; none for no family."""
+    if family in _FAMILY_WORDS:
+        return _FAMILY_WORDS[family]
+    return ()
+
+
+def _same_question(
+    earlier: "tuple[str, ...]", later: "tuple[str, ...]"
+) -> bool:
+    """Whether two questions about one column are the same question.
+
+    Plan P4-D408: they are where they offer a common answer other than
+    `keep`, which every kind of question offers. A fixed function of the
+    two. Raises nothing. No I/O.
+    """
+    for word in earlier:
+        if word != ANSWER_KEEP and word in later:
+            return True
+    return False
+
+
+def _answered_again(
+    name: str,
+    offered: "tuple[str, ...]",
+    later: "list[tuple[str, tuple[str, ...]]]",
+) -> bool:
+    """Whether a later answer replaces the kept answer about `name` (plan P4-D408)."""
+    for later_name, later_offered in later:
+        if later_name == name and _same_question(offered, later_offered):
+            return True
+    return False
+
+
+def typed_over_kept(
+    document: object, typed: "tuple[tuple[str, str], ...]"
+) -> object:
+    """The questions file less each kept answer a typed declaration replaces.
+
+    Plan P4-D408. `typed` is this command line's declarations as
+    `(column, answer)`, a question about the whole file named by its
+    subject; each is later than any answer an earlier run kept, so a kept
+    answer to the same question about the same column (`_same_question`)
+    is left out of the `answered_before` section `answers_in` reads. The
+    file itself is not changed: a new mapping is returned where anything
+    is left out, and the same object otherwise. An entry not shaped like
+    one this module writes is kept, for `answers_in` to refuse. Read by
+    index and never by `.get`, as `_entry_answer` reads (plan D6.2).
+    Raises nothing. No I/O.
+    """
+    if not typed or not isinstance(document, dict):
+        return document
+    if ANSWERED_BEFORE not in document:
+        return document
+    before = document[ANSWERED_BEFORE]
+    if not isinstance(before, list):
+        return document
+    later: "list[tuple[str, tuple[str, ...]]]" = []
+    for name, answer in typed:
+        later += [(name, _family_words(_family_of(answer, ())))]
+    kept: "list[object]" = []
+    for entry in before:
+        offered: "list[str]" = []
+        name = ""
+        if isinstance(entry, dict) and "column" in entry:
+            name = f"{entry['column']}"
+            choices = (
+                entry["answers_you_can_give"]
+                if "answers_you_can_give" in entry
+                else []
+            )
+            if isinstance(choices, list):
+                for choice in choices:
+                    if isinstance(choice, dict) and "answer" in choice:
+                        offered += [f"{choice['answer']}"]
+        if name and _answered_again(name, tuple(offered), later):
+            continue
+        kept += [entry]
+    if len(kept) == len(before):
+        return document
+    narrowed: "dict[object, object]" = {}
+    for key in document:
+        narrowed[key] = document[key]
+    narrowed[ANSWERED_BEFORE] = kept
+    return narrowed
+
+
+@dataclasses.dataclass(frozen=True)
+class Given:
+    """Every answer a run acted on, as the declarations it made of them.
+
+    Plan P4-D408. Whatever route each arrived by -- a questions file, a
+    section of one an earlier run kept, the command line or the screen --
+    it is here as its declaration, so the section written from it is the
+    same for the same answers given in one round or in several.
+    `columns` is the table's own order, which the section follows.
+    """
+
+    columns: "tuple[str, ...]" = ()
+    codes: "tuple[str, ...]" = ()
+    identifiers: "tuple[str, ...]" = ()
+    measurements: "tuple[str, ...]" = ()
+    decimal_commas: "tuple[str, ...]" = ()
+    twelve_hours: "tuple[str, ...]" = ()
+    date_counts: "tuple[tuple[str, str], ...]" = ()
+    centuries: "tuple[tuple[str, int], ...]" = ()
+    centuries_kept: "tuple[str, ...]" = ()
+    date_columns: "tuple[str, ...]" = ()
+    date_columns_kept: "tuple[str, ...]" = ()
+    identities_kept: "tuple[str, ...]" = ()
+    # `(column, what the question saw)`: the run reading the answer
+    # finds the codes again by those words.
+    missing_dates: "tuple[tuple[str, str], ...]" = ()
+    real_values: "tuple[tuple[str, str], ...]" = ()
+    # The answers about the whole file, each as its answer word, or empty.
+    first_row: str = ""
+    metadata: str = ""
+    delimiter: str = ""
+    day_order: str = ""
+
+
+def delimiter_answer(character: str) -> str:
+    """The answer word a delimiter is written as; empty for one no answer names."""
+    for word in ANSWER_DELIMITERS:
+        if ANSWER_DELIMITERS[word] == character:
+            return word
+    return ""
+
+
+def century_answer(first_year: int) -> str:
+    """The answer word a century window is written as; empty for none."""
+    for word in CENTURY_ANSWERS:
+        if CENTURY_ANSWERS[word] == first_year:
+            return word
+    return ""
+
+
+def _kept_entry(
+    column: str, answer: str, family: str, saw: str
+) -> "dict[str, object]":
+    """One kept answer, as an entry `answers_in` reads back as that answer."""
     offered: "list[dict[str, str]]" = []
-    for one in given:
-        if not isinstance(one, dict):
-            return None
-        if (
-            "answer" not in one
-            or "means" not in one
-            or "then_the_description_publishes" not in one
-        ):
-            return None
-        answer = one["answer"]
-        means = one["means"]
-        publishes = one["then_the_description_publishes"]
-        if not (
-            isinstance(answer, str)
-            and isinstance(means, str)
-            and isinstance(publishes, str)
-        ):
-            return None
+    for word in _family_words(family):
+        means = _KEPT_MEANS[word] if word in _KEPT_MEANS else ""
+        if not means and family == _FAMILY_COUNTED:
+            means = f"dates, kept as {date_counts.TABLE[word].means}"
+        if not means and family == _FAMILY_CENTURY:
+            means = f"two-figure years read as the years {word}"
+        if not means and family == _FAMILY_DELIMITER:
+            means = f"the columns are separated by a {word}"
         offered += [
             {
-                "answer": answer,
+                "answer": word,
                 "means": means,
-                "then_the_description_publishes": publishes,
+                "then_the_description_publishes": ANSWERED_BEFORE_PUBLISHES,
             }
         ]
     return {
-        "column": name,
-        "what_synthtwin_saw": saw,
-        "read_as_now": written,
+        "column": column,
+        "what_synthtwin_saw": saw if saw else ANSWERED_BEFORE_SAW,
+        "read_as_now": answer,
         "answers_you_can_give": offered,
-        "your_answer": written,
+        "your_answer": answer,
     }
 
 
-def answered_again(
-    declared: "tuple[dict[str, object], ...]", asked: "list[Question]"
-) -> "list[dict[str, object]]":
-    """The answered entries the file a run writes carries again (plan P4-D401).
+def answered_before(given: Given) -> "list[dict[str, object]]":
+    """The `answered_before` section a run writes: every answer it acted on.
 
-    Each entry `answers_in` read as answered, in the file's own order,
-    except one whose column this run asks a question of again -- a file
-    holds one entry a column. Guarantees: a fixed function of the two.
-    Raises nothing. No I/O.
+    Plan P4-D408. The answers about the whole file first, in the order
+    the file is read; then each column in the table's own order (a name
+    the table does not hold after them, in the order of its text), and
+    for each its answers in a fixed order of families. A column declared
+    by any answer of the first family keeps no `keep` beside it.
+
+    Guarantees: a fixed function of `given`, so the same answers given in
+    one round or in several write the same entries. Carries no value of
+    the table: names, answer words and, for codes in a column of dates,
+    the shape their question described. Raises nothing. No I/O.
     """
-    spoken: "dict[str, bool]" = {}
-    for question in asked:
-        spoken[question.name] = True
-    carried: "list[dict[str, object]]" = []
-    for entry in declared:
+    found: "list[dict[str, object]]" = []
+    for family, word in (
+        (_FAMILY_FIRST_ROW, given.first_row),
+        (_FAMILY_METADATA, given.metadata),
+        (_FAMILY_DELIMITER, given.delimiter),
+        (_FAMILY_DAY_ORDER, given.day_order),
+    ):
+        if word:
+            found += [_kept_entry(_FAMILY_SUBJECTS[family], word, family, "")]
+    kinds: "dict[str, str]" = {}
+    for answer, names in (
+        (ANSWER_CODE, given.codes),
+        (ANSWER_IDENTIFIER, given.identifiers),
+        (ANSWER_MEASUREMENT, given.measurements),
+        (ANSWER_DECIMAL_COMMA, given.decimal_commas),
+    ):
+        for name in names:
+            if name not in kinds:
+                kinds[name] = answer
+    kept_identity = {name: True for name in given.identities_kept}
+    clocks = {name: True for name in given.twelve_hours}
+    counted = {name: member for name, member in given.date_counts}
+    coded: "dict[str, tuple[str, str]]" = {}
+    for name, saw in given.missing_dates:
+        if name not in coded:
+            coded[name] = (ANSWER_NO_DATE, saw)
+    for name, saw in given.real_values:
+        if name not in coded:
+            coded[name] = (ANSWER_REAL_VALUE, saw)
+    centuries: "dict[str, str]" = {}
+    for name, first_year in given.centuries:
+        word = century_answer(first_year)
+        if word:
+            centuries[name] = word
+    for name in given.centuries_kept:
+        if name not in centuries:
+            centuries[name] = ANSWER_CENTURY_POSIX
+    dated: "dict[str, str]" = {name: ANSWER_DATES for name in given.date_columns}
+    for name in given.date_columns_kept:
+        if name not in dated:
+            dated[name] = ANSWER_KEEP
+    named: "dict[str, bool]" = {}
+    order: "list[str]" = []
+    for name in given.columns:
+        if name not in named:
+            named[name] = True
+            order += [name]
+    others: "dict[str, bool]" = {}
+    for table in (kinds, kept_identity, clocks, counted, coded, centuries, dated):
+        for name in table:
+            if name not in named:
+                others[name] = True
+    order += sorted(others)
+    for name in order:
+        if name in kinds:
+            found += [_kept_entry(name, kinds[name], _FAMILY_KIND, "")]
+        elif name in kept_identity:
+            found += [_kept_entry(name, ANSWER_KEEP, _FAMILY_KIND, "")]
+        if name in clocks:
+            found += [
+                _kept_entry(name, ANSWER_TWELVE_HOUR, _FAMILY_CLOCK, "")
+            ]
+        if name in counted:
+            found += [_kept_entry(name, counted[name], _FAMILY_COUNTED, "")]
+        if name in coded:
+            answer, saw = coded[name]
+            found += [_kept_entry(name, answer, _FAMILY_DATE_CODES, saw)]
+        if name in centuries:
+            found += [
+                _kept_entry(name, centuries[name], _FAMILY_CENTURY, "")
+            ]
+        if name in dated:
+            found += [_kept_entry(name, dated[name], _FAMILY_DATES, "")]
+    return found
+
+
+def answers_not_kept(
+    carried: "tuple[tuple[str, str, str], ...]",
+    section: "list[dict[str, object]]",
+) -> "list[str]":
+    """The columns whose earlier answer the section a run writes would drop.
+
+    Plan P4-D408. `carried` is `Answers.carried`, the earlier answers no
+    later one replaced; `section` is what `answered_before` writes. An
+    answer is kept where the section holds the same answer to the same
+    family of question about the same column; a kept `keep` of a column
+    the section declares otherwise is kept by that declaration, since a
+    declared column is not held. Each column or file subject once, in
+    the order `carried` names them. A fixed function of the two. Raises
+    nothing. No I/O.
+    """
+    written: "dict[tuple[str, str, str], bool]" = {}
+    declared: "dict[str, bool]" = {}
+    for entry in section:
         name = f"{entry['column']}"
-        if name in spoken:
+        answer = f"{entry['your_answer']}"
+        offered: "list[str]" = []
+        choices = entry["answers_you_can_give"]
+        if isinstance(choices, list):
+            for choice in choices:
+                if isinstance(choice, dict) and "answer" in choice:
+                    offered += [f"{choice['answer']}"]
+        family = _family_of(answer, tuple(offered))
+        written[(name, family, answer)] = True
+        if family == _FAMILY_KIND and answer != ANSWER_KEEP:
+            declared[name] = True
+    dropped: "list[str]" = []
+    for name, answer, family in carried:
+        said = ANSWER_MEASUREMENT if answer == ANSWER_JOINED else answer
+        if not family or (name, family, said) in written:
             continue
-        spoken[name] = True
-        carried += [entry]
-    return carried
+        if said == ANSWER_KEEP and family == _FAMILY_KIND and name in declared:
+            continue
+        if name not in dropped:
+            dropped += [name]
+    return dropped

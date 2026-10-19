@@ -1706,15 +1706,209 @@ def _answers_that_change_the_reading(
     this module's own question headings.
     """
     changed: "list[str]" = []
+    # AN ANSWER AN EARLIER RUN KEPT MOVES NO NAME (plan P4-D408): the run
+    # that wrote the file read the table that way already, so the names
+    # in the file are the names under it. Measured before: the two runs
+    # the refusal below asks for ended with the second refused again, or
+    # with the first run's answer lost.
+    carried_first_row = asking.FIRST_ROW_SUBJECT in written.reading_carried
+    carried_delimiter = asking.DELIMITER_SUBJECT in written.reading_carried
     if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
-        if first_row != _FIRST_ROW_NAMES:
+        if first_row != _FIRST_ROW_NAMES and not carried_first_row:
             changed += [asking.FIRST_ROW_SUBJECT]
     elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
-        if first_row == _FIRST_ROW_NAMES:
+        if first_row == _FIRST_ROW_NAMES and not carried_first_row:
             changed += [asking.FIRST_ROW_SUBJECT]
-    if written.delimiter and written.delimiter != declared_delimiter:
+    if (
+        written.delimiter
+        and written.delimiter != declared_delimiter
+        and not carried_delimiter
+    ):
         changed += [asking.DELIMITER_SUBJECT]
     return changed
+
+
+def _typed_answers(
+    codes: "list[str]",
+    identifiers: "list[str]",
+    measurements: "list[str]",
+    commas: "list[str]",
+    twelve_hours: "list[str]",
+    counted: "dict[str, str]",
+    centuries: "dict[str, int]",
+    date_columns: "list[str]",
+    day_first: bool,
+    delimiter: str,
+    first_row: str,
+) -> "tuple[tuple[str, str], ...]":
+    """This command line's declarations as `(column, answer)` (plan P4-D408).
+
+    What `asking.answers_in` sets against the answers an earlier run
+    kept: a declaration typed now is later than any of them, so it
+    replaces one about the same column. A question about the whole file
+    is named by its subject. A fixed function of the arguments. Raises
+    nothing. No I/O.
+    """
+    said: "list[tuple[str, str]]" = []
+    for answer, names in (
+        (asking.ANSWER_CODE, codes),
+        (asking.ANSWER_IDENTIFIER, identifiers),
+        (asking.ANSWER_MEASUREMENT, measurements),
+        (asking.ANSWER_DECIMAL_COMMA, commas),
+        (asking.ANSWER_TWELVE_HOUR, twelve_hours),
+        (asking.ANSWER_DATES, date_columns),
+    ):
+        for name in names:
+            said += [(name, answer)]
+    for name in sorted(counted):
+        said += [(name, counted[name])]
+    for name in sorted(centuries):
+        word = asking.century_answer(centuries[name])
+        if word:
+            said += [(name, word)]
+    if day_first:
+        said += [(asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST)]
+    word = asking.delimiter_answer(delimiter)
+    if word:
+        said += [(asking.DELIMITER_SUBJECT, word)]
+    if first_row == _FIRST_ROW_NAMES:
+        said += [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_NAMES)]
+    elif first_row == _FIRST_ROW_DATA:
+        said += [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_DATA)]
+    return tuple(said)
+
+
+def _answers_given(
+    columns: "list[str]",
+    codes: "list[str]",
+    identifiers: "list[str]",
+    measurements: "list[str]",
+    commas: "list[str]",
+    twelve_hours: "list[str]",
+    counted: "dict[str, str]",
+    centuries: "dict[str, int]",
+    centuries_kept: "list[str]",
+    date_columns: "list[str]",
+    dates_kept: "list[str]",
+    identities_kept: "tuple[str, ...]",
+    missing_dates: "list[str]",
+    real_values: "list[str]",
+    code_shapes: "dict[str, str]",
+    first_row: str,
+    metadata_answer: str,
+    delimiter: str,
+    day_first: bool,
+    month_first: bool,
+) -> "asking.Given":
+    """Every answer this run acts on, as `asking.answered_before` writes it.
+
+    Plan P4-D408: the declarations in force, whichever route each came
+    by -- a questions file, an earlier run's kept answers, the command
+    line or the screen. A typed `--metadata-rows` is not among them: the
+    file asks to confirm it where the file does not bear it out, and
+    writing it as an answer would confirm it for the person. Typed
+    `--keep-value` and `--missing-value` name values, and the questions
+    file carries none. A fixed function of the arguments. Raises nothing.
+    """
+    day_order = ""
+    if day_first:
+        day_order = asking.ANSWER_DAY_FIRST
+    elif month_first:
+        day_order = asking.ANSWER_MONTH_FIRST
+    first_row_word = ""
+    if first_row == _FIRST_ROW_NAMES:
+        first_row_word = asking.ANSWER_FIRST_ROW_NAMES
+    elif first_row == _FIRST_ROW_DATA:
+        first_row_word = asking.ANSWER_FIRST_ROW_DATA
+    return asking.Given(
+        columns=tuple(columns),
+        codes=tuple(codes),
+        identifiers=tuple(identifiers),
+        measurements=tuple(measurements),
+        decimal_commas=tuple(commas),
+        twelve_hours=tuple(twelve_hours),
+        date_counts=tuple((name, counted[name]) for name in sorted(counted)),
+        centuries=tuple((name, centuries[name]) for name in sorted(centuries)),
+        centuries_kept=tuple(centuries_kept),
+        date_columns=tuple(date_columns),
+        date_columns_kept=tuple(dates_kept),
+        identities_kept=identities_kept,
+        missing_dates=tuple(
+            (name, code_shapes[name] if name in code_shapes else "")
+            for name in missing_dates
+        ),
+        real_values=tuple(
+            (name, code_shapes[name] if name in code_shapes else "")
+            for name in real_values
+        ),
+        first_row=first_row_word,
+        metadata=metadata_answer,
+        delimiter=asking.delimiter_answer(delimiter),
+        day_order=day_order,
+    )
+
+
+def _in_table_order(names: "list[str]", columns: "list[str]") -> "list[str]":
+    """`names` in the order the table holds them, each as often as named.
+
+    Plan P4-D408: the answers about codes in a column of dates are acted
+    on in this order, which is the order one questions file asks them
+    in, so answers given over several rounds are acted on as one round's
+    are. A name the table does not hold keeps its place after the rest.
+    """
+    times: "dict[str, int]" = {}
+    for name in names:
+        times[name] = (times[name] if name in times else 0) + 1
+    ordered: "list[str]" = []
+    for name in columns:
+        if name in times:
+            ordered += [name] * times[name]
+            del times[name]
+    for name in names:
+        if name in times:
+            ordered += [name]
+    return ordered
+
+
+def _earlier_answers_dropped(
+    carried: "tuple[tuple[str, str, str], ...]",
+    columns: "list[str]",
+    given: "asking.Given",
+) -> "list[str]":
+    """The columns whose kept answer this run would drop (plan P4-D408).
+
+    Each answer an earlier run kept and no later one replaced that names
+    a column `columns` does not hold, or that the section written from
+    `given` would not keep (`asking.answers_not_kept`): each name once,
+    in the order `carried` names them. A fixed function of the three.
+    Raises nothing. No I/O.
+    """
+    held = {one: 1 for one in columns}
+    dropped: "list[str]" = []
+    for name, _answer, family in carried:
+        if family in asking.FILE_FAMILIES or name in held:
+            continue
+        if name not in dropped:
+            dropped += [name]
+    for name in asking.answers_not_kept(carried, asking.answered_before(given)):
+        if name not in dropped:
+            dropped += [name]
+    return dropped
+
+
+def _earlier_answers_not_kept(path: str, dropped: "list[str]") -> str:
+    """The refusal of a run that would drop an answer an earlier run kept (plan P4-D408)."""
+    named = ", ".join(f"'{one}'" for one in dropped)
+    return (
+        f"The questions file at {path} keeps answers given in an earlier "
+        f"run, and this run cannot keep the ones about {named}: the table "
+        f"has no column of that name, or another answer in the file or on "
+        f"the command line contradicts it. synthtwin does not drop an "
+        f"answer you gave without telling you. Check that the file was "
+        f"written for this table, then answer those again under "
+        f"'answered_before' -- or clear the answer that contradicts them "
+        f"-- and run the command again. Nothing was written."
+    )
 
 
 def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
@@ -3035,13 +3229,30 @@ def _run_profile(
     # answered `keep` (plan P4-D401): nothing is declared, and their
     # values are published as their reading publishes them.
     identities_kept: "tuple[str, ...]" = ()
-    # ...and the entries the file answered with a declaration, written
-    # into the file this run writes again (plan P4-D401).
-    answered_entries: "tuple[dict[str, object], ...]" = ()
+    # ...and the answers an earlier run kept that still stand, each set
+    # against the section this run writes, and the answers the file gave
+    # about the rows under the column names and the windows that stand
+    # (plan P4-D408).
+    carried_answers: "tuple[tuple[str, str, str], ...]" = ()
+    identities_kept_answered: "tuple[str, ...]" = ()
+    metadata_answer = ""
+    centuries_kept: "list[str]" = []
     if answers_path is not None:
         try:
             written = asking.answers_in(
-                contract.load_answers(answers_path), _shown(answers_path)
+                # LESS THE KEPT ANSWERS THIS COMMAND LINE REPLACES: a
+                # declaration typed now is later than any answer an
+                # earlier run kept (plan P4-D408).
+                asking.typed_over_kept(
+                    contract.load_answers(answers_path),
+                    _typed_answers(
+                        typed_codes, typed_identifiers, typed_measurements,
+                        typed_commas, twelve_hours, typed_counted, centuries,
+                        date_columns, day_first, declared_delimiter,
+                        first_row,
+                    ),
+                ),
+                _shown(answers_path),
             )
         except ValueError as error:
             _warn(_shown(f"{error}"))
@@ -3106,6 +3317,14 @@ def _run_profile(
             # ...and the columns answered `dates` (landing R2c), or `keep`.
             + list(written.date_columns)
             + list(written.date_columns_kept)
+            # ...and every column an earlier run's answer kept (plan
+            # P4-D408): its name is the name under the reading that run
+            # took, which an answer changing the reading moves.
+            + [
+                one_name
+                for one_name, _answer, family in written.carried
+                if family not in asking.FILE_FAMILIES
+            ]
         ):
             # Each name once: a column answered in both sections of the
             # file would otherwise stand twice in one sentence.
@@ -3204,7 +3423,15 @@ def _run_profile(
         # asked again under the reading in force.
         if not reading_changed:
             identities_kept = written.identities_kept
-            answered_entries = written.declared_entries
+            identities_kept_answered = written.identities_kept_answered
+        carried_answers = written.carried
+        if written.metadata_rows_answered:
+            metadata_answer = (
+                asking.ANSWER_METADATA_ROWS
+                if written.metadata_rows
+                else asking.ANSWER_DATA
+            )
+        centuries_kept = list(written.centuries_kept)
         # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
         # `day-first` is `--day-first`, and it is applied before the read
         # because it decides how the columns of dates are read. It goes
@@ -3543,6 +3770,44 @@ def _run_profile(
         _warn(errors.column_declared_twice(both[0]))
         return 2
 
+    # NO ANSWER AN EARLIER RUN KEPT IS DROPPED IN SILENCE (plan P4-D408).
+    # Each still standing must reach the file this run writes, where the
+    # next run reads it again; one naming a column this table does not
+    # hold, or one another answer here contradicts, is refused in plain
+    # words before anything is written -- an `identifier` answer lost
+    # between rounds is a person column read as numbers, and a held
+    # column's answer lost is the hold put back on it without a word.
+    if carried_answers:
+        not_kept = _earlier_answers_dropped(
+            carried_answers,
+            read.column_names,
+            _answers_given(
+                read.column_names, forced_codes, forced_identifiers,
+                forced_measurements, forced_decimal_commas, twelve_hours,
+                counted, centuries, centuries_kept, date_columns,
+                dates_kept, identities_kept_answered,
+                answered_missing_dates, answered_real_values,
+                answered_code_shapes, first_row, metadata_answer,
+                declared_delimiter, day_first, answered_month_first,
+            ),
+        )
+        if not_kept:
+            _warn(
+                _earlier_answers_not_kept(
+                    _shown(f"{answers_path}"), [_shown(one) for one in not_kept]
+                )
+            )
+            return 2
+    # ...AND THE ANSWERS ABOUT CODES IN A COLUMN OF DATES ARE ACTED ON IN
+    # THE TABLE'S ORDER, which is the order one questions file asks them
+    # in, so the same answers given over several rounds declare the same
+    # values in the same order as one round's (plan P4-D408).
+    answered_missing_dates = _in_table_order(
+        answered_missing_dates, read.column_names
+    )
+    answered_real_values = _in_table_order(
+        answered_real_values, read.column_names
+    )
     # THE CODES THE QUESTIONS FILE ANSWERED, FOUND AGAIN IN THE TABLE
     # (plan P4-D381). The file names the column and never its codes --
     # it carries no value of the table -- so the codes are read here,
@@ -4371,8 +4636,9 @@ def _run_profile(
         _say(
             f"\nYour answers were read from {shown_questions_path} and "
             f"are recorded in the description. That file is about to be "
-            f"written again: it will hold the questions still open, and "
-            f"will no longer ask the ones you have answered."
+            f"written again: it will hold the questions still open, will "
+            f"no longer ask the ones you have answered, and keeps every "
+            f"answer given so far under '{asking.ANSWERED_BEFORE}'."
         )
     # BOTH WARNINGS GO HERE, before the write, for the one reason (plan
     # P1-D6): a person weighs what a file carries before it exists, not
@@ -4676,11 +4942,22 @@ def _run_profile(
                     # of a small table without saying it is a small
                     # table says less than the other four do.
                     _table_sentences(document),
-                    # ...and an entry the file answered with a
-                    # declaration, written back answered so that handing
-                    # this file back keeps the answer (plan P4-D401).
-                    answered=asking.answered_again(
-                        answered_entries, asked_about + listed_about
+                    # ...and EVERY ANSWER THIS RUN ACTED ON, from the file,
+                    # from an earlier run's kept answers or from the
+                    # command line, so that handing this file back keeps
+                    # them all (plans P4-D401 and P4-D408).
+                    answered=asking.answered_before(
+                        _answers_given(
+                            read.column_names, forced_codes,
+                            forced_identifiers, forced_measurements,
+                            forced_decimal_commas, twelve_hours, counted,
+                            centuries, centuries_kept, date_columns,
+                            dates_kept, identities_kept_answered,
+                            answered_missing_dates, answered_real_values,
+                            answered_code_shapes, first_row,
+                            metadata_answer, declared_delimiter, day_first,
+                            answered_month_first,
+                        )
                     ),
                 )
             ),
