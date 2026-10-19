@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### A big table's numbers keep their spread, their tails and their range (2026-10-19)
+
+**Stage 4 lane G2T** (plan P4-D405). On a column that repeats its
+numbers -- readings written to one or two places, counts, amounts -- the
+twin used to place each row of a tail on a number of its own, so on big
+tables a tail stretched far past where the real one stands: fifty columns
+of bell-shaped readings at 250,000 rows came back with every spread about
+12 per cent too wide, and `validate` named all fifty; a count of a few
+values put almost its whole top tail on one number above the real
+largest. Rows of a tail now share their numbers the way the real rows do,
+and the furthest few stand apart only as far as the column's published
+count of different numbers asks. The twin of such a column now meets its
+published spread to within a few parts per thousand, its tails' distances
+and its range. A column whose every number is different, such as one
+counting upward, keeps one number a row; at 200,000 and 300,000 rows its
+far values are now placed where its description says, and at any size the
+quality report and the twin's own report measure its average, spread,
+skew and tail weight against windows that hold the twin that was built.
+No description changes; twins of columns whose tails already met their
+description are the same bytes.
+
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
 **A follow-up to batch 4b** (lane CF4b of the December plan; CI run
