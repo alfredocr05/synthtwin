@@ -16,13 +16,18 @@ stretches between the rungs its description publishes, holds exactly
 the count the real column held. Every other published fact of the
 column is still met, or, where this method cannot meet both, the band
 count is kept and the other fact is named in the twin's report.
-Measured on today's twins of an invented table, every number, date and
-clock column missed its band counts, by 4 to 262 rows. The same method
-takes the records holding nothing, rows empty in every column, from
-each column's empty cells by their spelling before any other cell is
-placed, for text files and workbooks alike, so no step after the
-placement moves a cell. A twin made from a description without
-relationships between columns stays the same bytes.
+Measured on today's twins of invented tables, every number, date and
+clock column missed its band counts, by 2 to 375 rows at 20,000 rows,
+and a count of few values with one rare high value by 29,676 rows of
+100,000, with 30,000 rows on a value the real column held 12,465
+times; the method stops that count's values from being lifted one step
+up. The same method takes the records holding nothing, rows empty in
+every column, from each column's empty cells before any other cell is
+placed, by their spelling in a text file and by their kind of cell in a
+workbook, so no step after the placement moves a cell and a workbook's
+formatted blank records come back blank. A twin made from a
+description without relationships between columns stays the same
+bytes.
 
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
