@@ -3599,3 +3599,100 @@ pandas imports numpy. What is enforced, at three levels, is:
 The third is the property the determinism clause above needs. A random
 source being present in the process is not a defect; drawing from one
 would be.
+
+## V12. Between columns: the chain's families checked (stage 6, plan P4-D407; specified, NOT BUILT)
+
+**No validator in this repository runs anything in this section**, and
+the sentence at the head of this document (no cross-column check of any
+kind, because the profile publishes none) stays true until the landing
+that ships stage 6. What follows is what lane CHv builds for the chain,
+layer L1, against the families `docs/spec/profile-contract-v6.md`
+section 4.6b publishes and the arrangement
+`docs/spec/generation-method-v1.md` G16 makes. The held page of plan
+P4-D394 numbered its checks V11; that page is superseded (plan P4-D407)
+and the number V11 stays unused. The moments' lines are lane MPOL's to
+add, and the patient layer's lane MG's.
+
+**V12.1 The measurement re-uses the published choices and makes none of
+its own.** The file is re-described as V2 says. Each eligible column is
+cut at its PUBLISHED ladder (contract 4.6b.2), and every published
+family is counted at its published levels over the measured file's
+tabled rows (contract 4.6b.5, read on the file's own records holding
+nothing), by the profiler's own counting. The validator never merges a
+band, never chooses a level, a family or a chain, never draws, and never
+reads the installation's key: re-choosing would measure the file's own
+best families, which a twin could meet while missing every published
+one. A slope is read, only where the description publishes one, by
+contract 4.6b.6's fit on the measured file's codes.
+
+**V12.2 The checks.**
+
+| object | check | kind |
+|---|---|---|
+| a family's table | the measured table equals the family's TARGET cell for cell: the published table where the file's band totals of every member, and its counts of the family's parent cells, equal the published ones; otherwise the moved table of the generation method's G16.6, which the validator re-derives from the published table and the file's own totals, and from nothing else. The line names how many rows the totals differ by, the cells the move changed and each unit in a published nought, as named facts and never as a miss | EXACT-OBSERVABLE: HELD or MISSED |
+| a published nought of a family (a rule word among them) | no measured row stands in it, beyond the units the moved table names | part of the line above |
+| an `L0` band total | the file's count of each `L0` band over its tabled rows equals the published total | EXACT-OBSERVABLE with layer L0; REPORT-ONLY without it, every family then judged against its moved table |
+| a pair reading `implied` | the total-variation distance between the file's table of the two columns at their chain levels and the table the chain IMPLIES (the junction-tree product of the published families along the path between them, in exact fractions), beside the DEALING SPREAD `s`: half the sum over the implied table's cells of `sqrt(p (1 - p) / n')`, `p` each cell's implied share, a function of published facts alone; marked inside (at most `s`) or outside | REPORT-ONLY |
+| a slope | the measured `beta` against the published one, in standard errors: the published `sigma` over the root of the file's pooled within-cell sum of squares of the parent's codes; marked inside (within one) or outside | REPORT-ONLY |
+| an order rule carried by its difference | `B >= A` on every row where both hold a reading | EXACT-OBSERVABLE |
+| a published rule's failing rows | the count, against the phrase or the published count (contract 4.6b.7) | EXACT-OBSERVABLE where the rule is published |
+| stray rows (generation method G16.5) | the arranged rows holding nothing in every column, and whether the file's own counts of records holding nothing differ from the description's | REPORT-ONLY, named |
+| the structural words | printed as the description publishes them; the loader has already checked them (contract S27) | named, never a check |
+| the description itself | invariants S23 to S28 | the loader refuses, naming the family or column |
+
+A family whose column the measured file lacks, or reads under another
+role, is NOT CHECKABLE (V3.3) and named as such.
+
+**Why an implied pair and a slope never decide a verdict.** Each is a
+quantity the chain implies, not one it meets: the dealing spread is the
+spread of an independent dealing given the published families, not a
+bound the construction proves (G12.1 asks for the latter before a fact
+can be APPROXIMATED). So the report prints it, inside or outside, beside
+the verdict and never folded into it, which is what a passing report
+promises (V6).
+
+**V12.3 What a report may print about the measured file** follows V5
+unchanged: no more than `synthtwin profile` run on that file would
+publish at the published levels. A measured cell is printed only where
+it is nought or at least the floor `f` (contract 4.6b); a table holding
+a cell of 1 to `f - 1` is reported as holding one, with no count.
+Distances, slopes and standard errors are printed to four decimals,
+which are not counts. A measured slope is printed only where the
+description publishes one AND contract 4.6b.6's rule allows one on the
+measured file itself. No count of a computed column's own rows is
+printed (contract 4.6b.7), and no reason a pair reads `implied`.
+
+**V12.4 The six data mutants (`K-S6-04`).** Each is a twin damaged one
+way, and each must come out as stated, on fixtures with no sort column,
+no records holding nothing and no row sequence unless the mutant names
+one, since each of those fixes facts by row position:
+1. one column's cells exchanged between two rows of DIFFERENT parent
+   cells of a family where it is the child, every band total kept: that
+   family MISSED (the held page's skeptic finding 12);
+2. one column shuffled on its own: every family holding it MISSED;
+3. the records holding nothing placed after G16 by G2.1 step 2's
+   within-column exchanges, which move eligible columns' cells: a family
+   MISSED;
+4. whole rows shuffled together: every line exactly as before;
+5. a twin generated from a copy of the description whose family `F` lost
+   one parent, validated against the original: `F` MISSED, and the
+   implied lines of the pairs whose path runs through `F` printed
+   outside;
+6. a file whose band totals differ from the published totals: every
+   family judged against its moved table (G16.6), HELD where the file
+   meets it with the moved units named, MISSED where it does not.
+
+**V12.5 Not vacuous.** Every EXACT-OBSERVABLE line has a red case in the
+suite (mutants 1 to 3, 5 and 6, and a computed `B` below its `A` on one
+row), and each REPORT-ONLY line has a case where it prints outside. Two
+green cases stand beside them: the moved table of G16.6 on the held
+page's Codex case, HELD with its 20 units in a nought named; and a twin
+with a stray row given a cell by an ineligible column, every family
+HELD.
+
+**V12.6 What it costs.** The tables are counted from the band codes, one
+byte a row and column, a cell being the rows whose codes match: the held
+page's prototype counted a six-by-six table in 26 milliseconds at
+2,000,000 rows by bit masks. The implied tables are products of
+published tables, independent of the rows. Lane CHv measures the whole
+check at 200,000 and 2,000,000 rows under `K-S6-15`.

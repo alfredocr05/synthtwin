@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### Between columns: the chain's method page, written before its code (2026-10-19)
+
+**Nothing is built by this entry, and no twin carries any structure
+between columns yet.** It writes, before any code, how the first layer
+of the between-columns work is to carry links between columns (lane MBC
+of the December plan; plan P4-D407, which supersedes the held page of
+P4-D394). The profile contract's section 4.6b specifies what is to be
+published: each column cut at nested levels of rungs it already
+publishes, and a chain of small family tables, each column with up to
+three related columns, every printed cell 0 or at least the floor, zeros
+included, never a hidden cell. Which families are placed is drawn with a
+private key kept once per installation, keyed by the table's name, so
+that the choices tell a reader nothing the numbers do not; the section
+proves that no group of 1 to 10 rows can be worked out from the
+published tables, levels and words, for a table with one row per
+patient, and states what it does not promise (several descriptions of
+one table, a reader who guesses, the averages and correlations of the
+next page, several rows per patient). The generation method's G16
+specifies the arrangement: each column's cells made as today, only their
+rows chosen, family by family, so every family table comes back cell for
+cell. The validation method's V12 checks each family cell for cell. The
+shared report the twin carries prints one structural word a pair; the
+private report of the person who runs synthtwin prints both grades and
+says which twin to use for which analyses.
+
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
 **A follow-up to batch 4b** (lane CF4b of the December plan; CI run
