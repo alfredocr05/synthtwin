@@ -10,7 +10,12 @@ found the page wrong in ten places; each check of the first round is red
 on the page as it stood at 8aa98356, and each says which finding it
 holds. The lane's verify of 0147e236 and the outside review of that head
 found nine more (the second round, at the end of this file); each of
-those checks is red on the page at 0147e236.
+those checks is red on the page at 0147e236. The verify of 11dd0b6b found
+two more (a band written only at widths the census does not name, and a
+stretch of no free point read as a gap); each of those checks is red on
+the page at 11dd0b6b. The verify of that repair found three places that
+read the first of them as always failing (P3), where it only can; their
+checks are red on the repair as that verify read it.
 
 WHAT IS COMPUTED HERE, NOT READ. The share over pieces is run as G5.7d
 item 3 writes it, with and without its ceiling `hi_p`, on the oracle's
@@ -31,6 +36,8 @@ lane BT runs the method.
 import pathlib
 import re
 from fractions import Fraction
+
+from synthtwin.parsing import census_floor
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 METHOD = REPOSITORY / "docs" / "spec" / "generation-method-v1.md"
@@ -628,9 +635,9 @@ def test_the_word_budget_is_the_columns_without_l0():
     assert "still draws its 100 words" in case
 
 
-def _make_in_gap(strata, low_end, high_end, eligible_only):
-    """G5.7d item 3a on whole numbers: make one stratum in the widest gap,
-    the lowest on a tie, dividing the stratum of more cells beside it."""
+def _gap_taken(strata, low_end, high_end, eligible_only, empty_is_gap=False):
+    """G5.7d item 3a's choice of gap on whole numbers: the widest, the
+    lowest on a tie; None where no gap qualifies (`M` lowered)."""
     taken = {v for v, _ in strata}
     best = None
     for i in range(len(strata) + 1):
@@ -640,10 +647,22 @@ def _make_in_gap(strata, low_end, high_end, eligible_only):
         high = above[0] - 1 if above else high_end
         free = [v for v in range(low, high + 1) if v not in taken]
         sides = [s for s in (below, above) if s is not None]
-        if not free or (eligible_only and max(c for _, c in sides) < 2):
+        if not free and not empty_is_gap:
+            continue
+        if eligible_only and max(c for _, c in sides) < 2:
             continue
         if best is None or len(free) > best[0]:
             best = (len(free), i, free)
+    return best
+
+
+def _make_in_gap(strata, low_end, high_end, eligible_only):
+    """G5.7d item 3a on whole numbers: make one stratum in the widest gap,
+    the lowest on a tie, dividing the stratum of more cells beside it;
+    None where no gap is eligible."""
+    best = _gap_taken(strata, low_end, high_end, eligible_only)
+    if best is None:
+        return None
     _, i, free = best
     below = strata[i - 1] if i > 0 else None
     above = strata[i] if i < len(strata) else None
@@ -675,6 +694,132 @@ def test_a_stratum_is_made_only_in_an_eligible_gap():
     case = _case(16)
     assert "the 100 cells at 11 divided into 50 and 50" in case
     assert "strata of 0 and 1" in case
+
+
+def test_a_stretch_of_no_free_point_is_not_a_gap():
+    """Verify of 11dd0b6b, finding 2: item 3a did not say whether a stretch
+    holding no free point is a gap, and read literally it took one and
+    divided a stratum with nowhere to put the new part."""
+    strata = [(1, 1), (10, 1), (11, 100), (12, 100)]
+    assert _gap_taken(strata, 1, 12, False) == (8, 1, list(range(2, 10)))
+    assert _gap_taken(strata, 1, 12, True) is None
+    assert _make_in_gap(strata, 1, 12, True) is None
+    mutant = _gap_taken(strata, 1, 12, True, empty_is_gap=True)
+    assert mutant == (0, 2, [])
+    layout = _g57d()
+    assert "**A GAP holds at least one free point; a stretch of none is not a gap.**" in layout
+    assert "so they are no gaps: none is eligible, the stratum is not made" in layout
+    case = _case(16)
+    assert "(b) The strata `(1, 1), (10, 1), (11, 100), (12, 100)`" in case
+    assert "so the stratum is not made and `M` is lowered by one" in case
+    assert "Mutant: a stretch of no free point read as a gap" in case
+
+
+CASE_17_SPELLINGS = []
+for _k in range(1, 11):
+    CASE_17_SPELLINGS += ["%.1f" % (_k / 10)] * 20
+CASE_17_SPELLINGS += ["1.0%d" % _k for _k in range(1, 10)] + ["1.01"]
+CASE_17_SPELLINGS += ["1.0%02d" % _k for _k in range(11, 21)]
+CASE_17_SPELLINGS += ["1.0%03d" % _k for _k in range(211, 221)]
+CASE_17_SPELLINGS += ["1.0%04d" % _k for _k in range(2211, 2221)]
+for _k in range(11, 21):
+    CASE_17_SPELLINGS += ["%.1f" % (_k / 10)] * 16
+L0_PERCENTS = (10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90)
+
+
+def test_p3_fails_where_a_band_was_written_only_at_unnamed_widths():
+    """Verify of 11dd0b6b, finding 1: the proof said every real cell was
+    written at a named width, but a width fewer than the census floor of
+    cells wrote is counted into the commonest one and never named.
+
+    The verify of the repair, its finding 1: the CHANGELOG, P4-D404 and
+    rule B3 read that exception as always failing (P3). It is needed for
+    a failure but not enough: a finer width the census names elsewhere in
+    the column can put a point of its grid inside the band."""
+    floor = census_floor(11)
+    widths = {}
+    for spelling in CASE_17_SPELLINGS:
+        width = len(spelling.split(".")[1])
+        widths[width] = widths.get(width, 0) + 1
+    assert len(CASE_17_SPELLINGS) == 400
+    assert widths == {1: 360, 2: 10, 3: 10, 4: 10, 5: 10}
+    named = [w for w, n in widths.items() if n >= floor]
+    assert named == [1]
+    cells = sorted(Fraction(v) for v in CASE_17_SPELLINGS)
+    edges = sorted({_type7(cells, k) for k in L0_PERCENTS})
+    assert _type7(cells, 50) == Fraction(1005, 1000)
+    assert _type7(cells, 60) == Fraction(1094, 1000)
+    counts = {}
+    for value in cells:
+        counts[value] = counts.get(value, 0) + 1
+    bands = _bands(counts, edges)
+    assert len(bands) == 12 and min(bands) >= 16
+    low, high = Fraction(1005, 1000), Fraction(1094, 1000)
+    inside = [v for v in CASE_17_SPELLINGS if low <= Fraction(v) < high]
+    assert len(inside) == 40
+    assert all(widths[len(v.split(".")[1])] < floor for v in inside)
+    assert min(Fraction(v) for v in inside) == Fraction(101, 100)
+    assert max(Fraction(v) for v in inside) == Fraction(109, 100)
+    # The widest named width's grid holds no point of the band: passing
+    # (P3) on it alone, the mutant, leaves a band that cannot be laid out.
+    assert _points(max(named), low, high) == []
+    assert _points(2, low, high) != []
+    # The same values, twenty written `0.10` and the ten two-figure cells
+    # written at six figures: hundredths are named, and their grid holds
+    # `1.01` inside the band although each of its 40 cells was written at
+    # a width the census does not name. So the exception CAN fail (P3).
+    variant = [
+        "0.10" if v == "0.1" else v + "0000" if len(v.split(".")[1]) == 2 else v
+        for v in CASE_17_SPELLINGS
+    ]
+    variant_widths = {}
+    for spelling in variant:
+        width = len(spelling.split(".")[1])
+        variant_widths[width] = variant_widths.get(width, 0) + 1
+    assert variant_widths == {1: 340, 2: 20, 3: 10, 4: 10, 5: 10, 6: 10}
+    variant_named = sorted(w for w, n in variant_widths.items() if n >= floor)
+    assert variant_named == [1, 2]
+    assert sorted(Fraction(v) for v in variant) == cells
+    variant_inside = [v for v in variant if low <= Fraction(v) < high]
+    assert len(variant_inside) == 40
+    assert all(variant_widths[len(v.split(".")[1])] < floor for v in variant_inside)
+    assert Fraction(101, 100) in _points(max(variant_named), low, high)
+    preconditions = _g57a()
+    assert "40 cells from `1.01` to `1.09` written ten each" in preconditions
+    assert "1.0222" not in preconditions
+    assert ("**(P3) holds on every description a producer writes EXCEPT where a "
+            "band's or a piece's cells were all written at widths the census "
+            "counts into its commonest width**") in preconditions
+    assert "every real cell was written at a named width" not in preconditions
+    assert "which only a hand-written description can do" not in preconditions
+    assert "Such a column is made WITHOUT L0 under rule B3 and named" in preconditions
+    rule = _g57h()
+    assert "**RULE B3: a description that is no real column's.**" not in rule
+    assert "so that (P3) fails" not in rule
+    assert ("a column where a band's or a piece's cells were all written at "
+            "widths the census counts into its commonest width can fail (P3), "
+            "and where it does it is made without L0 under this rule and named "
+            "(G5.7a; G14.3a case 17)") in rule
+    case = _case(17)
+    assert "40 from `1.01` to `1.09`, ten each written" in case
+    assert "1.0222" not in case
+    assert "ten each written at two, three, four and five figures" in case
+    assert "`fraction_widths` `{\"1\": 400}`" in case
+    assert "made without L0 under rule B3, named" in case
+    assert "Mutant: (P3) passed on the widest named width's grid alone" in case
+    decision = _decision()
+    assert "**A stated limit, owned by lane BT**, which may lift it later with a measured cost" in decision
+    assert "(G14.3a case 17, expected outcome B3)" in decision
+    assert "and such a column is made without L0 under rule B3 and named" not in decision
+    assert ("such a column can fail (P3), and where it does it is made without "
+            "L0 under rule B3 and named") in decision
+    assert "40 cells from 1.01 to 1.09 written ten each" in decision
+    assert "1.0222" not in decision
+    change = _change()
+    assert "counted on its own, is made as today" not in change
+    assert ("can fail one of the checks the method makes before it places a "
+            "cell; where it does, the column is made as today and named in "
+            "the twin's report") in change
 
 
 def test_a_label_cells_band_is_its_level_never_its_text():

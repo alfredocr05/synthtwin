@@ -3154,20 +3154,36 @@ alone, are checked before G5.2:
 - **(P5)** a published `min` lies in the band holding rank 0, and a
   published `max` in the band holding rank `K - 1`.
 
-Every description a producer writes passes all five, because each is an
-identity of the real column, whose counts the L0 block and the column's
-own facts both publish. For (P3) that holds because it is read on the
-widest named width's grid: every real cell was written at a named width,
-and a value written at a width is a point of the grid of every width
-at least as wide, so each real cell of a band or a piece is a point of that grid,
-inside `min` and `max` and outside every empty stretch. Read on the
+Every description a producer writes passes (P1), (P2), (P4) and (P5),
+because each is an identity of the real column, whose counts the L0
+block and the column's own facts both publish. **(P3) holds on every
+description a producer writes EXCEPT where a band's or a piece's cells
+were all written at widths the census counts into its commonest width**,
+each such width written by fewer than `parsing.census_floor` cells: the
+validation method (amended 2026-09-17, plans P4-D221 and P4-D222)
+counts such a width into the commonest one and never names it, so no
+named width's grid need hold a point of that band or piece. Elsewhere
+(P3) holds because it is read on the widest named width's grid: a cell
+written at a named width is a point of the grid of every width at least
+as wide, so each band or piece holding one such cell holds a point of
+that grid, inside `min` and `max` and outside every empty stretch. The
+exception is measured (lane BTp's verify of 11dd0b6b, on the
+profiler): a 400-row column of 20 cells at each of `0.1` to `1.0`, 40
+cells from `1.01` to `1.09` written ten each at two, three, four and
+five figures, and 16 at each of `1.1` to `2.0` publishes
+`fraction_widths` `{"1": 400}`, its 50th percentile `1.005` and its
+60th `1.094`; every band holds 16 cells or more, and the band between
+those two holds the 40 cells and no tenth (G14.3a case 17). Such a
+column is made WITHOUT L0 under rule B3 and named, a limit plan P4-D404
+names. Read on the
 grid G5.2a step 1 chooses, the commonest width's, (P3) failed a real
 column (the outside review of this page, its item 3): 100 cells at each
 of `0.1` to `0.6`, 150 at `1.01`, 150 at `1.02` and 100 at `2.0` are on
 the grid of tenths, and the band from the 70th percentile, `1.01`, to
 the 80th, `1.02`, holds 150 real cells and no tenth (G14.3a case 14).
-Where one fails, which only a hand-written description can do, the
-column is made WITHOUT L0, exactly as G5 and G6 make it today. G4.2b says so to G16, which then meets that column's
+Where one fails, on a hand-written description or on a column of the
+exception above, the column is made WITHOUT L0, exactly as G5 and G6
+make it today. G4.2b says so to G16, which then meets that column's
 families by G16.6, and the twin's report names the column and the
 precondition that failed (rule B3, G5.7h).
 
@@ -3346,7 +3362,8 @@ a sign band:
    piece's longest run. Each stratum beyond the runs is made, one at a
    time, in the piece's WIDEST ELIGIBLE GAP. A GAP is the stretch of
    free points between two consecutive strata of the piece (or between
-   the piece's published end and its first or last stratum), and it is
+   the piece's published end and its first or last stratum). **A GAP
+   holds at least one free point; a stretch of none is not a gap.** It is
    ELIGIBLE where a stratum beside it holds two or more cells (beside a
    published end, where the one stratum there does). Of the eligible
    gaps the one holding the most free points is taken, the lowest gap
@@ -3369,7 +3386,12 @@ a sign band:
    make, the gap 2 to 9 is the widest, and dividing the one cell beside
    it makes a stratum of none, while the eligible gap, 12, divides the
    100 cells at 11 into 50 and 50 (the outside review of this page, its
-   item 5; G14.3a case 16). Off a grid, step 3 divides the piece's longest run as it does
+   item 5; G14.3a case 16). With the last stratum at 12 and the
+   published ends 1 and 12, the free points 2 to 9 lie beside two
+   strata of one cell, and the stretches from 10 to 11 and from 11 to
+   12 hold no free point, so they are no gaps: none is eligible, the
+   stratum is not made and `M` is lowered by one (lane BTp's verify of
+   11dd0b6b, its finding 2; G14.3a case 16 (b)). Off a grid, step 3 divides the piece's longest run as it does
    today, and G6.5a's separation finds a free number between any two
    different values inside the piece. **Why.** Today the strata beyond
    the runs come from dividing the longest run, and on a grid with no
@@ -3538,9 +3560,13 @@ stretches never conflict with the band totals on a description passing
 (P1) to (P5), because each is an identity of the real column that the
 cut ranks restate.
 
-**RULE B3: a description that is no real column's.** Where (P1) to (P5)
+**RULE B3: a description L0 cannot lay out.** Where (P1) to (P5)
 fail, the column is made without L0 and named, and G16.6 meets its
-families.
+families. A hand-written description reaches it, and so can a real
+column a producer describes: a column where a band's or a piece's
+cells were all written at widths the census counts into its commonest
+width can fail (P3), and where it does it is made without L0 under
+this rule and named (G5.7a; G14.3a case 17).
 
 **`K-S6-02`, reworded.** The stage-6 KPI read "every within-column fact
 unchanged with and without stage 6". With L0 an eligible column's cells
@@ -18969,13 +18995,32 @@ A case whose mutant does not move it is not kept.
     column still draws its 100 words, and the second column's cells are
     byte for byte its cells without L0. Mutant: the budget read off the
     lowered `M`, which moves every cell of the second column.
-16. **The eligible gap** (G5.7d item 3a). A piece whose strata stand
+16. **The eligible gap** (G5.7d item 3a). (a) A piece whose strata stand
     at `(value, cells)` = `(1, 1), (10, 1), (11, 100), (13, 100)`, the
     whole numbers 1 to 13 its published ends, with one stratum to make:
     it is made in the gap 12, the 100 cells at 11 divided into 50 and
     50 and the new stratum on 12. Mutant: the widest gap taken whether
     or not it is eligible, which divides the one cell at 1 into strata
-    of 0 and 1.
+    of 0 and 1. (b) The strata `(1, 1), (10, 1), (11, 100), (12, 100)`
+    on the whole numbers 1 to 12, with one stratum to make: the free
+    points 2 to 9 lie beside two strata of one cell, and the stretches
+    from 10 to 11 and from 11 to 12 hold no free point and are no gaps,
+    so the stratum is not made and `M` is lowered by one. Mutant: a
+    stretch of no free point read as a gap, which takes the stretch
+    from 10 to 11, the lowest of the ties at nought, and divides the
+    100 cells at 11 with no free point for the new part.
+17. **A band written only at widths the census does not name** (G5.7a's
+    (P3), rule B3; lane BTp's verify of 11dd0b6b, its finding 1). 400
+    cells: 20 at each of `0.1` to `1.0`; 40 from `1.01` to `1.09`,
+    ten each written at two, three, four and five figures; and 16 at
+    each of `1.1` to `2.0`. Each finer width is written by fewer than
+    `parsing.census_floor` cells, so the profiler publishes
+    `fraction_widths` `{"1": 400}`, the 50th percentile `1.005` and
+    the 60th `1.094`; every band holds 16 cells or more, and the band
+    between those two holds the 40 cells and no tenth. Expected
+    outcome: (P3) fails and the column is made without L0 under rule
+    B3, named. Mutant: (P3) passed on the widest named width's grid
+    alone, which makes a band that cannot be laid out.
 
 ### G14.4 What the vectors do NOT freeze
 
