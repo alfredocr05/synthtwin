@@ -29,11 +29,13 @@ a telephone number, a spaced social security number, an internet or web
 address, sixteen figures in four groups, an e-mail address after a name
 or beside one `not given`). `BESIDE`: three tables of 150 patients whose
 record number is DECLARED a person column, carrying an e-mail address, a
-beneficiary identifier or a telephone number beside it. `STATED`: a
-patient's name, a street address and a full birth date, which no
-question flags, and a health plan or account number beside a declared
-person column, which no question flags there -- stated limits owned by
-lane HX2 (plan P4-D401).
+beneficiary identifier or a telephone number beside it. `COUNTED` (lane
+HX2, plan P4-D406): a health plan or account number beside a declared
+person column, and a patient's name, a street address or a full birth
+date beside a patient key whose person question is open -- held by the
+count in people. `STATED`: a name, a street address and a full birth date
+on a long table with no subject column, which no question flags and no
+count in people reaches (plan P4-D406 item (a)).
 
 WHAT IS COUNTED (`count_real`, a pure function the gate also tests on
 cases made for it). In the description, its summary, the questions file and
@@ -204,8 +206,6 @@ COUNTED = ("plan2_beside", "record2_beside", "name_open", "address_open",
 # says who the rows are, nothing is declared and no person question is
 # put -- so there are no people to count in (plan P4-D406, item (a)).
 STATED = ("name", "address", "dob")
-# The shapes beside a declared person column (`--identifier patient`).
-STATED_BESIDE = ("plan2_beside", "record2_beside")
 
 # THE HELD SHAPES WHOSE TWIN FAILS ITS OWN VALIDATION, each a stated limit
 # of the generator for a DECLARED record number too (plan P4-D401):

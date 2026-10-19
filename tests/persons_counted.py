@@ -37,6 +37,7 @@ from __future__ import annotations
 import csv
 import json
 import pathlib
+import random
 
 from synthtwin import parsing
 
@@ -141,7 +142,7 @@ def held_by(values: "list[str]", subjects: "list[str]") -> "tuple[dict[str, set[
 
 def table_columns(path: pathlib.Path) -> "tuple[list[str], list[list[str]]]":
     """A CSV table's names and columns, as text."""
-    with open(path, encoding="utf-8", newline="") as handle:
+    with open(path, encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.reader(handle))
     names = rows[0]
     return names, [[row[place] if place < len(row) else "" for row in rows[1:]]
@@ -207,7 +208,77 @@ def count_files(table: pathlib.Path, folder: pathlib.Path) -> "dict[str, object]
     asked = folder / f"{stem}-questions.json"
     questions = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else None
     names, columns = table_columns(table)
-    subjects = subject_columns(described, questions)
+    subjects = [name for name in subject_columns(described, questions) if name in names]
     found = count(names, columns, described, subjects)
     found["subjects"] = subjects
     return found
+
+
+# -- the gate's own tables, shared with the KPI driver ----------------------
+
+
+def two_candidates(rows: int) -> str:
+    """`site` North stands on five visit codes only, beside twenty patients and more."""
+    draw = random.Random(7)
+    lines = ["patient,visit,site,value"]
+    for _row in range(rows):
+        person = draw.randrange(44)
+        if draw.random() < 0.15:
+            visit = draw.randrange(5)
+            site = "North"
+        else:
+            visit = 5 + draw.randrange(25)
+            site = ("South", "East")[draw.randrange(2)]
+        lines += [f"REC{20000000 + 7 * person:08d},V{100 + visit:03d},{site},"
+                  f"{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def site_table(rows: int) -> str:
+    """120 declared patients; `site` C on 15 rows of three of them, B beside fifty."""
+    draw = random.Random(9)
+    lines = ["patient,site,value"]
+    for place in range(rows):
+        person = place % 120
+        if person < 3 and (place // 120) % 2 == 0:
+            site = "C"
+        elif person < 50:
+            site = "B"
+        else:
+            site = "A"
+        lines += [f"REC{30000000 + 11 * person:08d},{site},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def published_values(cells: "list[str]", block: "dict[str, object]") -> "set[str]":
+    """The different values of a column, folded, that its block publishes."""
+    seen = leaves(block)
+    spelled: "dict[str, str]" = {}
+    for cell in cells:
+        spelled.setdefault(parsing.folded(cell), cell)
+    return {folded for folded, cell in spelled.items()
+            if folded and is_published(cell, block, seen)}
+
+
+def withheld_values(table: pathlib.Path, ruled: pathlib.Path, plain: pathlib.Path) -> int:
+    """Values the count in people withholds that the row floor alone publishes.
+
+    ``ruled`` and ``plain`` hold the table's description made with the count
+    and without it; the subject columns themselves are left out.
+    """
+    stem = table.name[: -len(".csv")]
+    on = json.loads((ruled / f"{stem}-profile.json").read_text(encoding="utf-8"))
+    off = json.loads((plain / f"{stem}-profile.json").read_text(encoding="utf-8"))
+    asked = ruled / f"{stem}-questions.json"
+    questions = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else None
+    names, columns = table_columns(table)
+    subjects = [name for name in subject_columns(on, questions) if name in names]
+    blocks_on = {block["name"]: block for block in on["columns"]}
+    blocks_off = {block["name"]: block for block in off["columns"]}
+    lost = 0
+    for name, cells in zip(names, columns):
+        if name in subjects or name not in blocks_on or name not in blocks_off:
+            continue
+        lost += len(published_values(cells, blocks_off[name])
+                    - published_values(cells, blocks_on[name]))
+    return lost

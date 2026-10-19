@@ -169,28 +169,11 @@ def test_a_subject_column_different_on_every_row_counts_nothing(tmp_path: pathli
 # -- (3) two candidates ----------------------------------------------------
 
 
-def _two_candidates(rows: int) -> str:
-    """`site` North stands on five visit codes only, beside twenty patients and more."""
-    draw = random.Random(7)
-    lines = ["patient,visit,site,value"]
-    for _row in range(rows):
-        person = draw.randrange(44)
-        if draw.random() < 0.15:
-            visit = draw.randrange(5)
-            site = "North"
-        else:
-            visit = 5 + draw.randrange(25)
-            site = ("South", "East")[draw.randrange(2)]
-        lines += [f"REC{20000000 + 7 * person:08d},V{100 + visit:03d},{site},"
-                  f"{draw.uniform(3, 150):.1f}"]
-    return "\n".join(lines) + "\n"
-
-
 def test_a_value_passing_under_one_candidate_and_failing_under_another_is_not_published(
     tmp_path: pathlib.Path,
 ) -> None:
     table = tmp_path / "two.csv"
-    table.write_text(_two_candidates(600), encoding="utf-8", newline="\n")
+    table.write_text(persons_counted.two_candidates(600), encoding="utf-8", newline="\n")
     code, screen = _profile(table, tmp_path)
     assert code == 0
     north = [row for row in table.read_text(encoding="utf-8").splitlines() if ",North," in row]
@@ -229,26 +212,10 @@ def test_the_cap_keeps_at_most_the_floor_and_never_a_subject_twice() -> None:
     assert twice["y"].holders == ("a", "b", "c")
 
 
-def _site_table(rows: int) -> str:
-    """120 declared patients; `site` C on 15 rows of three of them, B beside fifty."""
-    draw = random.Random(9)
-    lines = ["patient,site,value"]
-    for place in range(rows):
-        person = place % 120
-        if person < 3 and (place // 120) % 2 == 0:
-            site = "C"
-        elif person < 50:
-            site = "B"
-        else:
-            site = "A"
-        lines += [f"REC{30000000 + 11 * person:08d},{site},{draw.uniform(3, 150):.1f}"]
-    return "\n".join(lines) + "\n"
-
-
 def test_the_remainder_is_held_by_eleven_people_or_none(tmp_path: pathlib.Path) -> None:
     """C (three patients) is withheld, and its blanks reach eleven people with B."""
     table = tmp_path / "sites.csv"
-    table.write_text(_site_table(1200), encoding="utf-8", newline="\n")
+    table.write_text(persons_counted.site_table(1200), encoding="utf-8", newline="\n")
     rows = [line.split(",") for line in table.read_text(encoding="utf-8").splitlines()[1:]]
     c_people = {row[0] for row in rows if row[1] == "C"}
     c_rows = [row for row in rows if row[1] == "C"]
