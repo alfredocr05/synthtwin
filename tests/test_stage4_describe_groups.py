@@ -1006,16 +1006,12 @@ def test_the_census_holds_one_declared_column_at_a_time(
 
 
 
-def _the_driver() -> object:
-    """`tools/measurements/kpi_describe_groups.py`, imported from its path."""
-    import importlib.util
+def _the_driver(monkeypatch: pytest.MonkeyPatch) -> object:
+    """`tools/measurements/kpi_describe_groups.py`, imported by name from its folder put first on the path for this test."""
+    monkeypatch.syspath_prepend(str(pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements"))
+    import kpi_describe_groups
 
-    path = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_describe_groups.py"
-    spec = importlib.util.spec_from_file_location("kpi_describe_groups_under_test", path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return kpi_describe_groups
 
 
 @pytest.mark.parametrize("resident", [True, False])
@@ -1030,7 +1026,7 @@ def test_the_driver_records_no_peak_it_could_not_read(resident: bool, monkeypatc
     the largest peak of its hash seeds. Red on the mutant that records
     the -1 as a peak.
     """
-    driver = _the_driver()
+    driver = _the_driver(monkeypatch)
     runs: "list[tuple[str, str]]" = []
 
     def child(table: str, out: pathlib.Path, _budget: int, trace: bool, seed: str = "0") -> "dict[str, object]":
@@ -1043,7 +1039,7 @@ def test_the_driver_records_no_peak_it_could_not_read(resident: bool, monkeypatc
         return {"exit": 0, "cpu_seconds": rows / 10_000, "peak_rss_bytes": peak, "traced_peak_bytes": 4_000_000 if trace else -1}
 
     monkeypatch.setattr(driver, "_child", child)
-    monkeypatch.setattr(driver, "write", lambda _kind, _rows, path: path.write_text("x\n", encoding="utf-8"))
+    monkeypatch.setattr(driver, "write", lambda _kind, _rows, path: path.write_text("x\n", encoding="utf-8", newline="\n"))
     memory, seconds = driver.measure()  # type: ignore[attr-defined]
     peaks = [key for key in memory if "_peak_mb" in key or key == "imports_mb"]
     assert "mixed_describe_seconds_2m_projected" in seconds and "gaussian_describe_cpu_seconds" in seconds
