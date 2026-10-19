@@ -24,9 +24,11 @@ THE GATE, one case per shape at 600 rows (20,000 rows through
 `tools/measurements/kpi_run.py --slow`, ledger K-S3-64): 0 real values and
 0 fragments in the description, the summary, the questions file and the
 screen, 0 in the twin, and the question still asked. Three shapes no
-question flags -- a name, a street address, a full birth date -- are a
-STATED LIMIT owned by lane HX2, pinned as strict expected failures that
-turn red the day it closes.
+question flags -- a name, a street address, a full birth date -- on a long
+table with no subject column are a STATED LIMIT (P4-D406 item (a)), pinned
+as strict expected failures that turn red the day it closes; beside a
+patient key the count in people of lane HX2 holds them
+(`tests/test_stage4_counted_in_persons.py`).
 """
 
 from __future__ import annotations
@@ -84,20 +86,35 @@ def test_an_unanswered_identifier_publishes_nothing_real(
 def test_an_identifier_beside_a_declared_person_column_is_held(
     tmp_path: pathlib.Path, kind: str
 ) -> None:
-    """Route three is put beside a declared person column, and holds."""
+    """Beside a declared person column, no value of a register one person holds is published.
+
+    Lane HX2 (plan P4-D406): every value is counted in the declared people
+    before any question is worked out, and each of these values is one
+    person's, so the column is described blank -- its cells counted with
+    the blanks -- and route three's question, which no answer could turn
+    into a published value, is not put.
+    """
     seen = shapes.run(tmp_path, kind, _ROWS)
-    _check_held(seen, kind)
-    assert seen["forced_identifiers"] == sorted(["patient", kind])
+    assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
+    assert seen["validate_exit"] == 0, seen
+    assert seen["description_values"] == 0, seen
+    assert seen["description_fragments"] == 0, seen
+    assert seen["twin_cells"] == 0, seen
+    assert seen["twin_fragments"] == 0, seen
+    assert seen["role"] == taxonomy.ROLE_EMPTY
+    assert seen["forced_identifiers"] == ["patient"]
     assert seen["person_columns"] == ["patient"]
+    assert "VALUES HELD BY FEWER THAN 11 PEOPLE" in f"{seen['screen']}"
 
 
 @pytest.mark.parametrize("kind", shapes.STATED)
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "STATED LIMIT owned by lane HX2 (P4-D401): no identity question "
-        "flags a name, a street address or a birth date, and no general "
-        "rule reaches them without hiding columns that identify nobody"
+        "STATED LIMIT (P4-D401, P4-D406 item (a)): a name, a street address "
+        "or a birth date on a long table with no subject column -- nothing "
+        "declared and no person question put -- has no people to count in; "
+        "beside a patient key (`shapes.COUNTED`) lane HX2 holds them"
     ),
 )
 def test_a_shape_no_question_flags_is_a_stated_limit(
