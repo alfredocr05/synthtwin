@@ -1001,7 +1001,7 @@ _MAYBE_OBJECT = "object-or-nothing"
 # A list, or nothing at all: the values a date or clock tail holds, which
 # it publishes only where it holds few of them (stage 3, contract DT1).
 _MAYBE_ARRAY = "array-or-nothing"
-# A canonical moment, or nothing at all: a rung of a date or clock rung
+# A canonical moment, or nothing at all: a rung of a date or clock ladder
 # the tail rule withholds (stage 3, contract D11 and T2).
 _MAYBE_MOMENT = "canonical-datetime-or-nothing"
 _HEADER_TEXT = "a-header-cell-as-written"
@@ -1390,7 +1390,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "percentiles"): _OBJECT,
     ("columns", _EACH, "percentiles", _KEY_OF): _WORD,
     ("columns", _EACH, "percentiles", _ANY_KEY): _MAYBE_NUMBER,
-    # The ninety rungs the rung above does not name (plan P4-D4.10).
+    # The ninety rungs the ladder above does not name (plan P4-D4.10).
     ("columns", _EACH, "percentiles_between"): _OBJECT,
     ("columns", _EACH, "percentiles_between", _KEY_OF): _WORD,
     ("columns", _EACH, "percentiles_between", _ANY_KEY): _MAYBE_NUMBER,
@@ -1400,7 +1400,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "kurtosis"): _MAYBE_NUMBER,
     ("columns", _EACH, "n_distinct_values"): _COUNT,
     # THE MODE PAIR (plan P4-D4.11). The value is a published number
-    # like a rung rung and may be absent, which is what the withheld
+    # like a ladder rung and may be absent, which is what the withheld
     # pair looks like; the count is a count, and is nought exactly when
     # the value is absent.
     ("columns", _EACH, "mode"): _MAYBE_NUMBER,
@@ -1660,7 +1660,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
     # ...and the REAL edges of each of those stretches (residual
     # R-P4-138). One `[below, above]` pair per run of empty bins, each
-    # a value of a real cell -- the same kind of fact a rung rung is,
+    # a value of a real cell -- the same kind of fact a ladder rung is,
     # which is what the owner's ruling of 2026-09-03 on the small-cell
     # floor already covers.
     ("columns", _EACH, "empty_edges"): _ARRAY,
@@ -2069,11 +2069,11 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "sentinel_verdicts", _EACH, "reason"): (
         taxonomy.SENTINEL_REASONS
     ),
-    ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.RUNG_NAMES,
-    # The ninety rungs the rung does not name (plan P4-D4.10), whose
+    ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    # The ninety rungs the ladder does not name (plan P4-D4.10), whose
     # words come from the same one place for the same reason.
     ("columns", _EACH, "percentiles_between", _KEY_OF): (
-        taxonomy.FINER_RUNG_NAMES
+        taxonomy.FINER_LADDER_NAMES
     ),
     # THE SAME TWO VOCABULARIES ONE LEVEL DOWN (plan P4-D21). A joined
     # column's `parts` holds one quantitative block per position, and a
@@ -2081,10 +2081,10 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # words admitted in its keys are the same words, named again because
     # this table is matched on the whole path.
     ("columns", _EACH, "parts", _EACH, "percentiles", _KEY_OF): (
-        taxonomy.RUNG_NAMES
+        taxonomy.LADDER_NAMES
     ),
     ("columns", _EACH, "parts", _EACH, "percentiles_between", _KEY_OF): (
-        taxonomy.FINER_RUNG_NAMES
+        taxonomy.FINER_LADDER_NAMES
     ),
     # The notation a negative wore (landing 2b.2), from the one place
     # the four names are defined, at both depths a numeric block sits.
@@ -2119,8 +2119,8 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "parts", _EACH, "thousands_marks", _KEY_OF): (
         _MIXTURE_MARKS
     ),
-    ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.RUNG_NAMES,
-    ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.RUNG_NAMES,
+    ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     # Read from the one place the forty forms are named, so the word a
     # producer writes and the word this guard admits cannot drift.
     ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
