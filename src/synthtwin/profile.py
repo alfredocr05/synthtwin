@@ -4266,7 +4266,9 @@ def build_document(
         if subject in subject_names or subject not in table.column_names:
             continue
         held_cells = table.columns[table.column_names.index(subject)]
-        if _repeats(held_cells):
+        if _repeats(held_cells) and _reaches_the_floor(
+            held_cells, settings.small_cell_floor
+        ):
             subject_cells += [held_cells]
             subject_names += [subject]
     described_identifiers = forced_identifiers + [
@@ -4410,18 +4412,17 @@ def build_document(
         # COUNTED IN PEOPLE, NOT ROWS (plan P4-D406).
         if name in subject_names:
             described = taxonomy.with_even_census(described)
-        elif subject_cells:
-            counted = _counted_in_subjects(
-                described,
-                cells,
-                subject_cells,
-                described_from,
-                settings.small_cell_floor,
+        elif (
+            subject_cells
+            and name not in described_identifiers
+            and _counted_in_subjects(
+                described, cells, subject_cells, settings.small_cell_floor
             )
-            if counted is not described:
-                described = counted
-                if counted_in_subjects is not None:
-                    counted_in_subjects += [name]
+        ):
+            described_identifiers += [name]
+            described = taxonomy.as_held_in_people(described_from(cells, None))
+            if counted_in_subjects is not None:
+                counted_in_subjects += [name]
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
@@ -4515,13 +4516,14 @@ def build_document(
 # person declared or answered, or every candidate of the person question
 # while it is open -- a value the description publishes for any other
 # column is held to the floor in DIFFERENT SUBJECTS as well as in rows,
-# under every subject column at once. A value held by one to ten
-# subjects is withheld: its cells are described as blanks, the
-# remainder the description already counts, and that remainder is held
-# to the floor in subjects too. The column is then described again from
-# what is left, so every fact it publishes -- levels, rungs, percentiles,
-# mode, tails, forms, prefixes and their counts -- is one the twin is
-# built and validated against exactly as before.
+# under every subject column at once. A column that would publish a
+# value one to ten subjects hold is described as a held record number,
+# as lane HX describes a column whose identity question is open: no
+# level, rung, percentile, mode, tail value or prefix, the census its
+# counts imply, and made-up values in its layouts in the twin. Its
+# printed counts are the whole column's, held by every subject of it.
+# The real table still meets its own description, which a description
+# with the withheld cells counted as blanks would not.
 #
 # WHICH VALUES. A column ATTACHED to a subject -- one value a person, as
 # a name, a birth date or a plan number is (`_attached`) -- is a fact
@@ -4531,13 +4533,17 @@ def build_document(
 # do. A measurement one patient holds on one row is judged as the floor
 # judges it on a table of one row a person, which is the base product.
 #
+# WHICH SUBJECTS. A subject column that repeats and holds at least
+# `floor` different values (`_reaches_the_floor`): one of fewer is under
+# the population floor once declared, and counted in it no value could
+# be published at all.
+#
 # SCALE. The count is a distinct count capped at the floor: at most
 # `floor` subject identifiers are kept a value (`subjects_holding`), and
-# only for the values the description publishes. A table whose subject
-# columns are each different on every row, or that has none, is
-# described byte for byte as before.
-SUBJECT_ROUNDS = 4
-
+# only for the values the description publishes, in one pass over the
+# column's cells beside each subject column's. A column it holds is
+# described once more. A table whose subject columns are each different
+# on every row, or that has none, is described byte for byte as before.
 # THE SHARE OF REPEATED ROWS THAT MAY DIFFER FROM THE SUBJECT'S FIRST
 # VALUE in a column still attached to it: one in ten, so a typing slip
 # or a changed address does not undo the attachment.
@@ -4619,14 +4625,6 @@ class KeysOf(typing.Protocol):
     def __call__(self, cell: str) -> "tuple[str, ...]": ...
 
 
-class _Describes(typing.Protocol):
-    def __call__(
-        self,
-        column_cells: "list[str]",
-        reading: "taxonomy.HeldReading | None",
-    ) -> taxonomy.ColumnProfile: ...
-
-
 def subjects_holding(
     values: "list[str]",
     subjects: "list[str]",
@@ -4682,6 +4680,25 @@ def _repeats(cells: "list[str]") -> bool:
         if cell in seen:
             return True
         seen[cell] = True
+    return False
+
+
+def _reaches_the_floor(cells: "list[str]", floor: int) -> bool:
+    """Whether a subject column holds at least `floor` different values.
+
+    A candidate of fewer cannot be the people of a table this command
+    describes once answered -- declared, it is under the population floor
+    and the run is refused -- and, counted in, no value of any other
+    column could reach the floor, so the description would publish
+    nothing: a ward code of eight values put the person question would
+    blank every other column of its table (plan P4-D406).
+    """
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell.strip() and cell not in seen:
+            seen[cell] = True
+            if len(seen) >= floor:
+                return True
     return False
 
 
@@ -4882,143 +4899,41 @@ def _keys_published(published: _Published) -> KeysOf:
     return keys_of
 
 
-def _folded_value(cell: str) -> "tuple[str, ...]":
-    folded = parsing.folded(cell)
-    return (folded,) if folded else ()
-
-
-def _held_together(
-    cells: "list[str]", subjects: "list[str]", floor: int
-) -> "list[str]":
-    """The different subjects of the blank cells, up to the floor."""
-    holders: "list[str]" = []
-    for place, cell in enumerate(cells):
-        if cell.strip():
-            continue
-        subject = subjects[place]
-        if subject not in holders:
-            holders += [subject]
-            if len(holders) >= floor:
-                break
-    return holders
-
-
 def _counted_in_subjects(
     described: taxonomy.ColumnProfile,
     cells: "list[str]",
     subject_cells: "list[list[str]]",
-    describe: _Describes,
     floor: int,
-) -> taxonomy.ColumnProfile:
-    """One column described with every published value counted in subjects.
+) -> bool:
+    """Whether a column publishes a value fewer than `floor` subjects hold.
 
-    PLAN P4-D406. Returns ``described`` itself where every value it
-    publishes is held by no subject or by at least `floor` under every
-    subject column; otherwise the column described again from its cells
-    with each withheld value's cells blank, repeated while a new
-    description publishes another (at most `SUBJECT_ROUNDS` times, then
-    the whole column blank). The blanks are the remainder, and where
-    they are held by one to `floor` - 1 subjects the next rarest
-    published values join them until they reach the floor (or the
-    column is blank).
+    PLAN P4-D406. Every value the column's description publishes is read
+    back off its block (`_published_in`) and counted in each subject
+    column (`subjects_holding`): one held by one to `floor` - 1 different
+    subjects, under any subject column, is one the column may not
+    publish -- in a column attached to that subject whatever its rows,
+    in any other where `floor` rows or more hold it and it stands off the
+    rungs. Such a column is then described as a held record number
+    (`taxonomy.as_held_in_people`), as lane HX describes a column whose
+    identity question is open, so the twin writes made-up values in the
+    column's layouts and the real table still meets its own description.
     """
-    attached = [_attached(cells, subject) for subject in subject_cells]
-    current = cells
-    column = described
-    rounds = 0
-    while True:
-        shown = _column_block(column)
-        published = _published_in(shown, True)
-        plain = _published_in(shown, False)
-        keys_of = _keys_published(published)
-        rare: "dict[str, bool]" = {}
-        counts: "list[dict[str, SubjectCount]]" = []
-        for place, subject in enumerate(subject_cells):
-            counted = subjects_holding(current, subject, keys_of, floor)
-            counts += [counted]
-            for key in counted:
-                held = counted[key]
-                if len(held.holders) < floor and (
-                    attached[place]
-                    or (held.rows >= floor and _plainly(key, plain))
-                ):
-                    rare[key] = True
-        # A COLUMN ATTACHED TO A SUBJECT is counted whole, once: every
-        # value of it is a fact about one person.
-        rare_values: "dict[str, bool]" = {}
-        if rounds == 0:
-            for place, subject in enumerate(subject_cells):
-                if not attached[place]:
-                    continue
-                whole = subjects_holding(current, subject, _folded_value, floor)
-                for key in whole:
-                    if len(whole[key].holders) < floor:
-                        rare_values[key] = True
-        if not rare and not rare_values:
-            return column
-        if rounds >= SUBJECT_ROUNDS:
-            return describe(["" for _cell in current], None)
-        kept: "list[str]" = []
-        for cell in current:
-            gone = parsing.folded(cell) in rare_values
-            if not gone:
-                for key in keys_of(cell):
-                    if key in rare:
-                        gone = True
-                        break
-            kept += ["" if gone else cell]
-        current = _remainder_in_subjects(
-            kept, subject_cells, counts, rare, keys_of, floor
-        )
-        column = describe(current, None)
-        rounds = rounds + 1
-
-
-def _remainder_in_subjects(
-    cells: "list[str]",
-    subject_cells: "list[list[str]]",
-    counts: "list[dict[str, SubjectCount]]",
-    rare: "dict[str, bool]",
-    keys_of: KeysOf,
-    floor: int,
-) -> "list[str]":
-    """The blanks held to the floor in subjects, under every subject column.
-
-    Where the blank cells are held by one to `floor` - 1 subjects, the
-    published values held by the fewest subjects join them, one at a
-    time, until they reach the floor; where none is left, every cell is
-    blank.
-    """
-    current = cells
-    for place, subject in enumerate(subject_cells):
-        holders = _held_together(current, subject, floor)
-        if not holders or len(holders) >= floor:
-            continue
-        counted = counts[place]
-        order = sorted(
-            [key for key in counted if key not in rare],
-            key=lambda one: (len(counted[one].holders), counted[one].rows, one),
-        )
-        joined: "dict[str, bool]" = {}
-        for key in order:
-            joined[key] = True
-            for one in counted[key].holders:
-                if one not in holders:
-                    holders += [one]
-            if len(holders) >= floor:
-                break
-        if len(holders) < floor:
-            return ["" for _cell in current]
-        widened: "list[str]" = []
-        for cell in current:
-            gone = False
-            for key in keys_of(cell):
-                if key in joined:
-                    gone = True
-                    break
-            widened += ["" if gone else cell]
-        current = widened
-    return current
+    shown = _column_block(described)
+    published = _published_in(shown, True)
+    if not published.words and not published.numbers and not published.prefixes:
+        return False
+    plain = _published_in(shown, False)
+    keys_of = _keys_published(published)
+    for subject in subject_cells:
+        attached = _attached(cells, subject)
+        counted = subjects_holding(cells, subject, keys_of, floor)
+        for key in counted:
+            held = counted[key]
+            if len(held.holders) < floor and (
+                attached or (held.rows >= floor and _plainly(key, plain))
+            ):
+                return True
+    return False
 
 
 def _without_table_suffix(name: str) -> str:

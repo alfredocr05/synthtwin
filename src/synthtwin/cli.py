@@ -2817,8 +2817,8 @@ def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
 
     Plan P4-D406. On a table of several rows a person, a value fewer
     than the smallest group size of PEOPLE hold is not published however
-    many rows hold it; its cells are counted with the blanks, and the
-    twin writes blanks there.
+    many rows hold it: its column is described as record numbers, and the
+    twin writes made-up values in the column's layouts.
 
     Guarantees: accepts the columns and the floor; returns one
     paragraph. A fixed function of the names, which are the table's own
@@ -2830,8 +2830,9 @@ def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
         f"This table has several rows a person, so each value of "
         f"{_joined(list(names), ' and ')} was counted in people as well "
         f"as rows: a value fewer than {floor} people hold is not "
-        f"published however many rows hold it. Its cells are counted "
-        f"with the blanks, and the twin writes blanks there."
+        f"published however many rows hold it, so these columns are "
+        f"described as record numbers and the twin writes made-up values "
+        f"there. No answer gives such a value back."
     )
 
 

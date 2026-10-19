@@ -89,10 +89,9 @@ def test_an_identifier_beside_a_declared_person_column_is_held(
     """Beside a declared person column, no value of a register one person holds is published.
 
     Lane HX2 (plan P4-D406): every value is counted in the declared people
-    before any question is worked out, and each of these values is one
-    person's, so the column is described blank -- its cells counted with
-    the blanks -- and route three's question, which no answer could turn
-    into a published value, is not put.
+    as the column is described, and each of these values is one person's,
+    so the column is held as a record number counted in people (NF126)
+    before any question is worked out; no answer could give a value back.
     """
     seen = shapes.run(tmp_path, kind, _ROWS)
     assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
@@ -101,8 +100,9 @@ def test_an_identifier_beside_a_declared_person_column_is_held(
     assert seen["description_fragments"] == 0, seen
     assert seen["twin_cells"] == 0, seen
     assert seen["twin_fragments"] == 0, seen
-    assert seen["role"] == taxonomy.ROLE_EMPTY
-    assert seen["forced_identifiers"] == ["patient"]
+    assert seen["role"] == taxonomy.ROLE_IDENTIFIER
+    assert seen["evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
+    assert seen["forced_identifiers"] == sorted(["patient", kind])
     assert seen["person_columns"] == ["patient"]
     assert "VALUES HELD BY FEWER THAN 11 PEOPLE" in f"{seen['screen']}"
 

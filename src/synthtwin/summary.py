@@ -1114,6 +1114,8 @@ def _one_blocks_empty_bin_lines(
 _UNANSWERED_EVIDENCE = taxonomy.rendered(
     taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ()
 )
+# ...and one counted in people (plan P4-D406): no answer gives it back.
+_HELD_IN_PEOPLE_EVIDENCE = taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
 
 
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
@@ -1123,11 +1125,20 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         role == taxonomy.ROLE_IDENTIFIER
         and _text_of(column["detection_evidence"]) == _UNANSWERED_EVIDENCE
     )
+    held_in_people = (
+        role == taxonomy.ROLE_IDENTIFIER
+        and _text_of(column["detection_evidence"]) == _HELD_IN_PEOPLE_EVIDENCE
+    )
     said_role = _role_words(role)
     if unanswered:
         said_role = (
             "record numbers or codes, until you answer the question "
             "about this column"
+        )
+    if held_in_people:
+        said_role = (
+            "record numbers or codes, because too few people hold "
+            "its values"
         )
     lines = [
         f"  {_text_of(column['name'])}",
@@ -1283,6 +1294,14 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                     "about this column. Answer it in the questions file and "
                     "describe the table again with --answers, and the "
                     "column is described as your answer says."
+                ),
+            ]
+        elif held_in_people:
+            lines += [
+                (
+                    "    Each row of this table belongs to a person, and "
+                    "some value of this column is held by too few people "
+                    "to be published, so none of its values is."
                 ),
             ]
         else:

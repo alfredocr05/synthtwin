@@ -16,18 +16,22 @@ passing the row floor. A column ATTACHED to the subject (one value a person,
 as a name or a birth date is) counts every value it publishes; any other
 column counts the values the row floor would publish because eleven rows hold
 them, while its points along the range stay judged as the floor judges them
-on a table of one row a person. A withheld value's cells are counted with the
-blanks, and that remainder is held to the floor in subjects too. A table
-whose subject columns are each different on every row, or that has none, is
-described exactly as before.
+on a table of one row a person. A column that would publish such a value is
+held as a record number counted in people (contract NF126): no value, the
+census its counts imply, made-up values in its layouts in the twin, and its
+printed counts the whole column's, held by every subject. A subject column
+counts only where it repeats and holds at least eleven different values. A
+table whose subject columns are each different on every row, or that has
+none, is described exactly as before.
 
 THE GATE: (1) the counted shapes at 600 and 20,000 rows publish no value
 fewer than eleven subjects hold and the twin writes none; (2) byte identity
 where no subject column repeats; (3) two candidates, a value passing under one
 and failing under the other: not published; (4) every twin validates; (5) the
-pieces the four mutants break -- rows counted for subjects, the first
-candidate alone, a subject counted twice under the cap, the remainder floored
-in rows -- each pinned here.
+pieces the mutants break -- rows counted for subjects, the first candidate
+alone, a subject counted twice under the cap, the remainder (the held
+column's counts) counted where fewer than eleven subjects stand -- each pinned
+here.
 """
 
 from __future__ import annotations
@@ -92,9 +96,12 @@ def test_a_value_fewer_than_eleven_people_hold_is_not_published(
     assert seen["twin_cells"] == 0, seen
     assert seen["twin_fragments"] == 0, seen
     assert _NOTICE in f"{seen['screen']}"
+    assert seen["role"] == taxonomy.ROLE_IDENTIFIER
+    assert seen["evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
     # ...and the counter written apart from the product finds no value of
     # ANY column, under any subject column, that one to ten subjects hold.
     table = tmp_path / f"{kind}_long.csv"
+    assert _real_misses(table, tmp_path) <= _CENSUS_ONLY
     counted = persons_counted.count_files(table, tmp_path)
     assert counted["subjects"] == ["patient"], counted
     assert counted["few"] == 0, counted
@@ -189,6 +196,7 @@ def test_a_value_passing_under_one_candidate_and_failing_under_another_is_not_pu
     assert counted["few"] == 0, counted
     assert _NOTICE in screen
     assert _twin_validates(table, tmp_path) == 0
+    assert _real_misses(table, tmp_path) <= _CENSUS_ONLY
 
 
 # -- (5) the pieces the mutants break --------------------------------------
@@ -213,7 +221,12 @@ def test_the_cap_keeps_at_most_the_floor_and_never_a_subject_twice() -> None:
 
 
 def test_the_remainder_is_held_by_eleven_people_or_none(tmp_path: pathlib.Path) -> None:
-    """C (three patients) is withheld, and its blanks reach eleven people with B."""
+    """C (three patients) is withheld, and what the column prints is held by eleven or more.
+
+    The column is held whole, so its printed counts are its totals, and the
+    rows behind them -- every row whose value it does not name -- belong to
+    eleven patients or more; the real table meets its own description.
+    """
     table = tmp_path / "sites.csv"
     table.write_text(persons_counted.site_table(1200), encoding="utf-8", newline="\n")
     rows = [line.split(",") for line in table.read_text(encoding="utf-8").splitlines()[1:]]
@@ -230,3 +243,48 @@ def test_the_remainder_is_held_by_eleven_people_or_none(tmp_path: pathlib.Path) 
     counted = persons_counted.count_files(table, tmp_path)
     assert counted["few"] == 0, counted
     assert _twin_validates(table, tmp_path) == 0
+    assert _real_misses(table, tmp_path) <= _CENSUS_ONLY
+
+
+def _real_misses(table: pathlib.Path, folder: pathlib.Path) -> "set[str]":
+    """What the REAL table misses of its own description.
+
+    A held column publishes the census of repetition its counts imply, not
+    the table's own (C6-80a, as under P4-D401), so the real table may miss
+    that census and nothing else.
+    """
+    stem = table.name[: -len(".csv")]
+    quiet = io.StringIO()
+    checked = folder / "real-check"
+    checked.mkdir(exist_ok=True)
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        cli.main(["validate", f"{folder / (stem + '-profile.json')}", "--twin",
+                  f"{table}", "--out-dir", f"{checked}", "--replace"])
+    missed: "set[str]" = set()
+    for report in checked.glob("*.txt"):
+        for line in report.read_text(encoding="utf-8").splitlines():
+            if line.rstrip().endswith(": MISSED"):
+                missed.add(line.strip().split(" ")[0])
+    return missed
+
+
+_CENSUS_ONLY = {"distinct.n_distinct_by_occurrences"}
+
+
+def test_a_candidate_of_fewer_than_eleven_values_counts_nothing(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A code of seven values put the person question is no subject: every other column stands."""
+    draw = random.Random(5)
+    lines = ["value,other"]
+    for place in range(800):
+        lines += [f"{('north', 'south', 'east')[draw.randrange(3)]},row{place % 7}"]
+    table = tmp_path / "seven.csv"
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    code, screen = _profile(table, tmp_path)
+    assert code == 0
+    assert "other" in json.dumps(json.loads(
+        (tmp_path / "seven-questions.json").read_text(encoding="utf-8"))["asked"])
+    assert _NOTICE not in screen
+    block = _block(_described(tmp_path, "seven"), "value")
+    assert sorted(level["label"] for level in block["levels"]) == ["east", "north", "south"]

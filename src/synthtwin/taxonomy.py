@@ -752,6 +752,11 @@ EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 # Nobody declared it, so the declared sentence would be false; it is
 # described as record numbers until the question is answered.
 EVIDENCE_UNANSWERED_IDENTITY = "evidence_unanswered_identity"
+# ...and the one a column takes where the table has several rows a person
+# and a value its reading would publish is held by fewer people than the
+# smallest group size (plan P4-D406, contract NF126): it is described as
+# record numbers, and an answer cannot give its values back.
+EVIDENCE_HELD_IN_PEOPLE = "evidence_held_in_people"
 
 # Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
@@ -1141,6 +1146,7 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     EVIDENCE_UNANSWERED_IDENTITY: 0,
+    EVIDENCE_HELD_IN_PEOPLE: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     # THE LINE, and nothing else (contract NF60). One argument, and it
@@ -2657,6 +2663,13 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             "you told synthtwin that this column holds record numbers "
             "rather than measurements"
+        )
+    if form == EVIDENCE_HELD_IN_PEOPLE:
+        return (
+            "this table has several rows a person, and a value this column "
+            "would publish is held by fewer people than the smallest group "
+            "size, so it is described as record numbers and none of its "
+            "values is published"
         )
     if form == EVIDENCE_UNANSWERED_IDENTITY:
         return (
@@ -25712,6 +25725,27 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
         column,
         detection_evidence=note(EVIDENCE_UNANSWERED_IDENTITY),
         details=details,
+    )
+
+
+def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
+    """A record-number description, for a column counted in people (plan P4-D406).
+
+    The column was described with ``forced_identifier`` because a value its
+    own reading would publish is held by fewer people than the floor. It
+    takes `as_unanswered_identity`'s block -- no prefix, the census its
+    published counts imply -- with its own evidence (contract NF126).
+
+    Guarantees: accepts a column described with ``forced_identifier``;
+    returns it with those fields changed, or unchanged where its role is
+    not `identifier`. Determinism: a fixed function of the argument. Raises
+    nothing. No I/O.
+    """
+    held = as_unanswered_identity(column)
+    if held.role != ROLE_IDENTIFIER:
+        return held
+    return dataclasses.replace(
+        held, detection_evidence=note(EVIDENCE_HELD_IN_PEOPLE)
     )
 
 
