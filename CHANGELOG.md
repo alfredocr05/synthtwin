@@ -25,9 +25,11 @@ up. The same method takes the records holding nothing, rows empty in
 every column, from each column's empty cells before any other cell is
 placed, by their spelling in a text file and by their kind of cell in a
 workbook, so no step after the placement moves a cell and a workbook's
-formatted blank records come back blank. A twin made from a
-description without relationships between columns stays the same
-bytes.
+formatted blank records come back blank, each cell keeping its kind
+of cell wherever the arrangement puts it. A column's draws are the
+ones it has today, so no other column of the twin moves because one
+takes part. A twin made from a description without relationships
+between columns stays the same bytes.
 
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 

@@ -1,4 +1,4 @@
-"""Layer L0's method page holds what its first repair round fixed (plan P4-D404).
+"""Layer L0's method page holds what its two repair rounds fixed (plan P4-D404).
 
 WHY A FILE OF ITS OWN. Layer L0 of stage 6 is written before its code:
 G4.2a, G4.2b, G5.7, G7.3l, G7A.4d, G12.15 and G14.3a of the generation
@@ -6,8 +6,11 @@ method bind lane BT, which has not started, and nothing in the product
 reads them yet. The seal turns red on any edit of a sealed passage and
 is re-sealed by whoever makes the edit, so it cannot tell a correction
 from its undoing. This file can. Lane BTp's two reviews of 2026-10-18
-found the page wrong in ten places; each check below is red on the page
-as it stood at 8aa98356, and each says which finding it holds.
+found the page wrong in ten places; each check of the first round is red
+on the page as it stood at 8aa98356, and each says which finding it
+holds. The lane's verify of 0147e236 and the outside review of that head
+found nine more (the second round, at the end of this file); each of
+those checks is red on the page at 0147e236.
 
 WHAT IS COMPUTED HERE, NOT READ. The share over pieces is run as G5.7d
 item 3 writes it, with and without its ceiling `hi_p`, on the oracle's
@@ -81,6 +84,30 @@ def _g1215():
 
 def _g143a():
     return _flat(_between(METHOD, "### G14.3a ", "### G14.4 "))
+
+
+def _g43():
+    return _flat(_between(METHOD, "### G4.3 ", "## G5. "))
+
+
+def _g57a():
+    return _flat(_between(METHOD, "#### G5.7a ", "#### G5.7b "))
+
+
+def _g57b():
+    return _flat(_between(METHOD, "#### G5.7b ", "#### G5.7c "))
+
+
+def _g73l():
+    return _flat(_between(METHOD, "#### G7.3l ", "### G7.4 "))
+
+
+def _g75():
+    return _flat(_between(METHOD, "### G7.5 ", "### G7.9 "))
+
+
+def _g7a4():
+    return _flat(_between(METHOD, "### G7A.4 ", "### G7A.4b "))
 
 
 def _case(number):
@@ -451,3 +478,259 @@ def test_a_half_groups_derived_count_is_never_printed():
     clocks = _g7a4d()
     assert "**A half's count is never printed.**" in clocks
     assert "named against the whole group's published count" in clocks
+
+
+# ------------------------------------------------- the second repair round
+#
+# The lane's verify of 0147e236 (its item 1) and the outside review of that
+# head (its items 1 to 8). Every check below is red on the page at 0147e236.
+
+
+def test_the_interface_hands_over_a_workbook_cells_class():
+    """The verify's item 1: G4.2a said G4.2b hands a cell's class over, and
+    G4.2b handed over three things, none of them the class, so a writer had
+    to deal the classes out again in row order after the arrangement."""
+    interface = _g42b()
+    assert "Each cell is handed over as four things" in interface
+    assert "three things" not in interface
+    assert ("in a workbook, its CLASS, the one G2.2 step 1 fixed for it before "
+            "the arrangement (G4.2a)") in interface
+    assert "one of the five value classes on a cell holding text" in interface
+    assert "G16 never changes any of them" in interface
+    assert ("The texts handed over, and in a workbook their classes, as a "
+            "multiset, are the column's cells less its reserved cells") in interface
+    reservation = _g42a()
+    assert "**The cells holding text take their classes before the arrangement too**" in reservation
+    assert "None of them is handed out again after the arrangement" in reservation
+    assert ("step 7 writes each arranged cell by the class G4.2b handed over, "
+            "with its format kind and its date or clock kind, never by a class "
+            "handed out again after the arrangement") in reservation
+    case = _case(13)
+    assert ("the class not handed over, step 1 run again in row order after "
+            "the arrangement") in case
+
+
+def _half_before(cut, others_before):
+    """G7A.4d: the half of a cut group before the edge holds the cut rank
+    less the cells of every OTHER stretch wholly before the edge."""
+    return cut - sum(others_before)
+
+
+def test_a_cut_clock_group_counts_its_boundary_once():
+    """Codex item 1: the half count subtracted the low boundary on its own,
+    though G7A.4b step 2's `f_j` already counts it inside its group."""
+    low_tail, group, cut = 11, 100, 39
+    ranks = ["tail"] * low_tail + ["group"] * group
+    assert ranks[low_tail] == "group"  # the boundary is the group's first rank
+    below = sum(1 for r in ranks[:cut] if r == "group")
+    assert _half_before(cut, [low_tail]) == below == 28
+    assert group - below == 72
+    boundary_again = _half_before(cut, [low_tail, 1])
+    assert boundary_again == 27 and low_tail + boundary_again == 38
+    clocks = _g7a4d()
+    assert "the low tail and its boundary" not in clocks
+    assert "so it is never subtracted on its own" in clocks
+    assert "its halves count 28 and 72" in clocks
+    case = _case(10)
+    assert "the halves count 28 and 72" in case
+    assert "which gives 27 and 73 and puts 38 cells below the edge" in case
+
+
+def _nearest_free(drawn, absent, low, high):
+    """G7.5's step: the nearest unit not absent, earlier before later at one
+    distance, inside [low, high]."""
+    for distance in range(0, high - low + 1):
+        for unit in (drawn - distance, drawn + distance):
+            if low <= unit <= high and unit not in absent:
+                return unit
+    return None
+
+
+def test_the_absent_spelling_steps_never_cross_a_cut():
+    """Codex item 2: G7.5's last spelling step searched the window and then
+    the whole range, so a rank below the edge could be written on it."""
+    jan29, edge = 29, 32  # days of January; the edge is February 1
+    absent = {30, 31}
+    assert _nearest_free(31, absent, 1, 366) == edge
+    assert _nearest_free(31, absent, jan29, edge - 1) == jan29
+    dates = _g73l()
+    assert "**And the spelling step keeps the piece.**" in dates
+    assert "both ranges are cut to the rank's PIECE" in dates
+    assert "The cell never crosses a cut." in dates
+    assert "both ranges are cut to the rank's L0 piece" in _g75()
+    assert "the window is cut to the rank's piece" in _g7a4()
+    assert "**The absent-spelling step keeps the piece.**" in _g7a4d()
+    assert "which writes February 1 and moves a row across the cut" in _case(7)
+    assert "Mutant: the window uncut" in _case(9)
+
+
+CASE_14 = {Fraction(k, 10): 100 for k in range(1, 7)}
+CASE_14[Fraction(101, 100)] = 150
+CASE_14[Fraction(102, 100)] = 150
+CASE_14[Fraction(2)] = 100
+
+
+def _points(width, low, high):
+    """The points of the grid of `width` figures in [low, high)."""
+    step = Fraction(1, 10 ** width)
+    first = -((-low) // step)
+    return [k * step for k in range(int(first), int(-((-high) // step)))]
+
+
+def test_p3_reads_the_widest_grid_and_a_piece_takes_a_finer_one():
+    """Codex item 3: (P3) read on the commonest width's grid refused a real
+    column whose band between two hundredths holds no tenth."""
+    cells = _cells(CASE_14)
+    assert len(cells) == 1000
+    deciles = sorted({_type7(cells, k) for k in range(10, 100, 10)})
+    assert Fraction(101, 100) in deciles and Fraction(102, 100) in deciles
+    band = sum(c for v, c in CASE_14.items() if Fraction(101, 100) <= v < Fraction(102, 100))
+    assert band == 150
+    assert _points(1, Fraction(101, 100), Fraction(102, 100)) == []
+    assert _points(2, Fraction(101, 100), Fraction(102, 100)) == [Fraction(101, 100)]
+    preconditions = _g57a()
+    assert "a point of the grid of the WIDEST named width" in preconditions
+    assert "a point of the written grid where G5.2a step 1 finds one" not in preconditions
+    assert "and so does every piece with cells of G5.7b" in preconditions
+    assert "**THE PIECE GRID.**" in _g57b()
+    assert "NARROWEST named width of `fraction_widths`" in _g57b()
+    case = _case(14)
+    assert "150 at `1.01`, 150 at `1.02`" in case
+    assert "which makes the column without L0 (rule B3)" in case
+
+
+CASE_15 = {Fraction(1): 800, Fraction(2): 100}
+for _k in range(1, 101):
+    CASE_15[1 + Fraction(_k, 1000)] = 1
+
+
+def test_the_word_budget_is_the_columns_without_l0():
+    """Codex item 4: G4.3's budget read the lowered `M`, so every later
+    column drew other words."""
+    cells = _cells(CASE_15)
+    edges = sorted({_type7(cells, k) for k in range(10, 100, 10)})
+    assert edges == [1, Fraction(10002, 10000), Fraction(119, 100)]
+    pieces = [(1, edges[1]), (edges[1], edges[2]), (edges[2], Fraction(2001, 1000))]
+    points = sum(len(_points(1, low, high)) for low, high in pieces)
+    assert points == 11
+    strata = len(CASE_15)
+    assert strata == 102 and strata - 2 == 100
+    budget = _g43()
+    assert ("**On an eligible column (layer L0, G5.7) `S`, `pinned` and `zeroed` "
+            "are read as G5.2 gives them to the column WITHOUT L0**") in budget
+    layout = _g57d()
+    assert "**Neither moves the word budget.**" in layout
+    assert "G4.3's word budget reads the lowered `M`" not in layout
+    assert "as if its word were `2**63`" in layout
+    case = _case(15)
+    assert "`M = 102` without L0 is lowered to at most 11" in case
+    assert "still draws its 100 words" in case
+
+
+def _make_in_gap(strata, low_end, high_end, eligible_only):
+    """G5.7d item 3a on whole numbers: make one stratum in the widest gap,
+    the lowest on a tie, dividing the stratum of more cells beside it."""
+    taken = {v for v, _ in strata}
+    best = None
+    for i in range(len(strata) + 1):
+        below = strata[i - 1] if i > 0 else None
+        above = strata[i] if i < len(strata) else None
+        low = below[0] + 1 if below else low_end
+        high = above[0] - 1 if above else high_end
+        free = [v for v in range(low, high + 1) if v not in taken]
+        sides = [s for s in (below, above) if s is not None]
+        if not free or (eligible_only and max(c for _, c in sides) < 2):
+            continue
+        if best is None or len(free) > best[0]:
+            best = (len(free), i, free)
+    _, i, free = best
+    below = strata[i - 1] if i > 0 else None
+    above = strata[i] if i < len(strata) else None
+    if below is None or (above is not None and above[1] > below[1]):
+        value, cells = above
+        point, at = free[-1], i
+    else:
+        value, cells = below
+        point, at = free[0], i - 1
+    kept, moved = cells - cells // 2, cells // 2
+    out = list(strata)
+    out[at] = (value, kept)
+    out.insert(at + 1 if point > value else at, (point, moved))
+    return sorted(out)
+
+
+def test_a_stratum_is_made_only_in_an_eligible_gap():
+    """Codex item 5: the widest gap between two strata of one cell each
+    divided a single cell into strata of none and one."""
+    strata = [(1, 1), (10, 1), (11, 100), (13, 100)]
+    made = _make_in_gap(strata, 1, 13, True)
+    assert made == [(1, 1), (10, 1), (11, 50), (12, 50), (13, 100)]
+    assert min(c for _, c in made) >= 1
+    mutant = _make_in_gap(strata, 1, 13, False)
+    assert min(c for _, c in mutant) == 0
+    layout = _g57d()
+    assert "in the piece's WIDEST ELIGIBLE GAP" in layout
+    assert "a gap no stratum beside which can be divided is never taken" in layout
+    case = _case(16)
+    assert "the 100 cells at 11 divided into 50 and 50" in case
+    assert "strata of 0 and 1" in case
+
+
+def test_a_label_cells_band_is_its_level_never_its_text():
+    """Codex item 6: label cells have no number or clock reading, so the
+    page sent every one of them to `other`."""
+    interface = _g42b()
+    assert "**On a label column a cell's band is its LEVEL, never its text.**" in interface
+    assert "read off the cell's place in G8.4's content list" in interface
+    assert "A cell G8.3 writes for a WITHHELD level has no published level and lies in `other`" in interface
+    assert "the place of its level in the block's published order, counted from nought" in interface
+    case = _case(13)
+    assert "two level groups of 60 each, by level and not by text" in case
+
+
+def test_a_short_text_reservation_reserves_the_first_targets():
+    """Codex item 7: with `E_eff` below `E` the page still reserved every
+    target row and declared one arranged row more than stood outside them."""
+    rows, interior, e_eff = 120, 12, 11
+    targets = []
+    for k in range(1, interior + 1):
+        row = k * rows // (interior + 1)
+        while row in targets:
+            row = row + 1
+        targets += [row]
+    assert len(set(targets)) == interior
+    reserved = sorted(targets)[:e_eff]
+    arranged = [r for r in range(rows) if r not in reserved]
+    assert len(arranged) == rows - e_eff == 109
+    assert rows - interior == 108
+    reservation = _g42a()
+    assert "the first `E_eff` of the `E` target rows" in reservation
+    assert "a target after the first `E_eff` is an arranged row" in reservation
+    case = _case(11)
+    assert "the first eleven target rows in row order are reserved" in case
+    assert "which declares 109 arranged rows with 108 left" in case
+
+
+PCT = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
+
+
+def test_the_clock_knots_name_index_and_percent_apart():
+    """Codex item 8: `k_j` was a percent and was then used as an index of
+    the eleven-entry `PCT`."""
+    rows, cut, index = 400, 180, PCT.index(50)
+    assert index == 5
+    lower, upper = 100 * cut, rows * PCT[index]
+    assert (lower, upper) == (18000, 20000)
+    try:
+        PCT[50]
+    except IndexError:
+        pass
+    else:
+        raise AssertionError("PCT has eleven entries")
+    clocks = _g7a4d()
+    assert "own position `P * PCT[k_j] / 100`" not in clocks
+    assert "the smallest INDEX of the eleven-entry `PCT`" in clocks
+    assert "at `P * q_j * 2**64`" in clocks
+    assert "they stand at `18000 * 2**64` and `20000 * 2**64`" in clocks
+    case = _case(9)
+    assert "the upper knot at `20000 * 2**64`" in case
