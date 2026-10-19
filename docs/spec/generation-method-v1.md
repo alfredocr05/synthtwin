@@ -3316,7 +3316,10 @@ a sign band:
    different numbers gives way under rule B1, named in the twin's
    report beside the published count. Where the pieces with cells
    outnumber `M_rest`, `M` is raised to their number and the raised
-   count is named, as G5.2 raises it for the sign facts. **Neither
+   count is named, as G5.2 raises it for the sign facts (on a
+   description a producer writes this happens only where `M_rest` falls
+   below the real column's count of different non-zero numbers, which
+   G5.2b's floor already names). **Neither
    moves the word budget.** G4.3 reads the column's `S` without L0, and
    the column draws exactly those words, in G5.3's order: the drawn
    strata take them in ascending `s` while they last; where `M` was
@@ -3329,10 +3332,7 @@ a sign band:
    cells at `1.0`, one at each of `1.001` to `1.100` and 100 at `2.0`,
    on the grid of tenths, has `M = 102` and 100 words without L0, while
    its pieces hold at most eleven grid points between them (the outside
-   review of this page, its item 4; G14.3a case 15). (On a
-   description a producer writes this happens only where `M_rest` falls
-   below the real column's count of different non-zero numbers, which
-   G5.2b's floor already names.) **Why `hi_p`.** Held only to `C_p`, the
+   review of this page, its item 4; G14.3a case 15). **Why `hi_p`.** Held only to `C_p`, the
    rule gives a piece holding one value several strata where the
    strata outnumber the runs, and no step can separate them inside it:
    pieces from 1 to 2, 2 to 4, 4 to 5 and 5 up, with runs 1, 2, 1 and 8
