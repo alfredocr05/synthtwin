@@ -38,6 +38,9 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "quoted_empty_name_over_an_empty_column": ("/data/table.csv", "a semicolon"),
     "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
+    # A file that changed between two readings of it (lane SR, plan
+    # P4-D400): a path.
+    "file_changed_while_read": ("/data/table.csv",),
     "unreadable_as_csv": ("/data/table.csv", "unexpected end of data"),
     "readers_disagree": ("/data/table.csv", "12 rows", "13 rows"),
     "out_of_memory": ("/data/table.csv", 4_000_000_000),

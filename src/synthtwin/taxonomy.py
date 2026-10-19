@@ -4282,6 +4282,136 @@ def _rows_holding_a_value(
     return holding, held
 
 
+def repeats_in(
+    cells: "list[str]",
+    name: str,
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: str = "",
+) -> bool:
+    """Whether one declared column repeats a folded present value: `repeating_identifiers`, one column at a time.
+
+    For a caller that holds a table one group of columns at a time (lane
+    SR, plan P4-D400; Codex's review of lane SR, item 2): each declared
+    column is asked on its own and let go, so the census never holds
+    every declared column at once. The column is read as
+    `_repeating_identifiers_held` reads it, and the answer is the one it
+    gives that column.
+
+    Guarantees: a fixed function of the arguments. Raises what
+    `_present_spellings` raises. No I/O of any kind.
+    """
+    standing, _held = _present_spellings(
+        cells, settings, name, declarations, (), stored_as
+    )
+    seen: "dict[str, int]" = {}
+    for value in cells:
+        if value not in standing:
+            continue
+        key = parsing.folded(value)
+        if key in seen:
+            return True
+        seen[key] = 1
+    return False
+
+
+@dataclasses.dataclass
+class PeopleJoined:
+    """The rows `people_in` has joined so far, one person column at a time (`people_joined_by`).
+
+    ``home[row]`` is the row this one has been merged onto, always the
+    earlier of the two; ``named[row]`` says some person column named it.
+    """
+
+    home: "list[int]"
+    named: "list[bool]"
+
+
+def people_joined(rows: int) -> PeopleJoined:
+    """No row joined to another yet, and none named: where `people_joined_by` starts.
+
+    Guarantees: ``rows`` rows, each its own. Raises nothing. No I/O.
+    """
+    home: "list[int]" = []
+    named: "list[bool]" = []
+    for place in range(rows):
+        home += [place]
+        named += [False]
+    return PeopleJoined(home, named)
+
+
+def people_joined_by(
+    joined: PeopleJoined,
+    cells: "list[str]",
+    name: str,
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: str = "",
+) -> None:
+    """Join the rows one person column says are one person: `people_in`'s walk of one column.
+
+    For a caller that holds a table one group of columns at a time (lane
+    SR, plan P4-D400; Codex's review of lane SR, item 2): each person
+    column is asked on its own, in the order `people_in` reads them, and
+    let go. ``joined`` is changed in place exactly as `_people_held`
+    changes its rows for that column. Guarantees: a fixed function of
+    the arguments. Raises what `_present_spellings` raises. No I/O.
+    """
+    home = joined.home
+    named = joined.named
+
+    def first_of(place: int) -> int:
+        while home[place] != place:
+            home[place] = home[home[place]]
+            place = home[place]
+        return place
+
+    standing, _held = _present_spellings(
+        cells, settings, name, declarations, (), stored_as
+    )
+    earliest: "dict[str, int]" = {}
+    place = 0
+    for value in cells:
+        if value not in standing:
+            place = place + 1
+            continue
+        named[place] = True
+        key = parsing.folded(value)
+        if key not in earliest:
+            earliest[key] = place
+            place = place + 1
+            continue
+        one, two = first_of(earliest[key]), first_of(place)
+        if one != two:
+            if one < two:
+                home[two] = one
+            else:
+                home[one] = two
+        place = place + 1
+
+
+def people_counted(joined: PeopleJoined, holding: "list[bool]") -> int:
+    """`people_in`'s count over the rows ``joined`` holds and the rows holding a value.
+
+    Guarantees: the count `_people_held` returns where some person
+    column was read. Raises nothing. No I/O of any kind.
+    """
+    home = joined.home
+    people = 0
+    unknown = 0
+    for place in range(len(home)):
+        if not joined.named[place]:
+            if holding[place]:
+                unknown = 1
+            continue
+        root = place
+        while home[root] != root:
+            root = home[root]
+        if root == place:
+            people = people + 1
+    return people + unknown
+
+
 def rows_holding_a_value_in(
     column: "list[str]",
     name: str,

@@ -249,7 +249,9 @@ def test_the_call_check_is_not_vacuous() -> None:
     passed = (
         "                small_cell_floor,\n"
         "                # ...and so does the reading of a closing `\"\"` (lane R6).\n"
-        "                bool(quoted_closing),\n            )\n"
+        "                bool(quoted_closing),\n"
+        # Lane SR passes the columns a walk holds and the lines it reads.
+        "                keep,\n                streamed,\n            )\n"
         "        raise errors.ProfileError(\n            errors.ragged_rows("
     )
     assert retry.count(passed) == 1

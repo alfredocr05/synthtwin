@@ -2659,21 +2659,19 @@ def _lowered_floor_warning(given: int) -> str:
 
 
 def _population_of(
-    column_names: "list[str]",
-    columns: "list[list[str]]",
+    table: object,
     settings: object,
     declared: "list[str]",
     codes: "list[str] | None" = None,
     measurements: "list[str] | None" = None,
     decimal_commas: "list[str] | None" = None,
     stored_as: "tuple[str, ...]" = (),
-    holding: "list[bool] | None" = None,
 ) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
     """The person columns, the population and the word it is counted in.
 
-    ``holding`` is `taxonomy.population_census`'s: where a table read in
-    groups of columns is counted (lane SR, plan P4-D400), which rows hold
-    a value, worked out a group at a time (`profile.census_columns_of`).
+    The census is `profile.population_census_of`'s: a table read in
+    groups of columns (lane SR, plan P4-D400) is counted one column at a
+    time, never every declared column at once.
 
     Returns (person columns, how many, the unit word, the readings the
     census took). The readings are handed to `profile.build_document`
@@ -2702,32 +2700,31 @@ def _population_of(
     with nothing declared at all -- and the description that came out of
     the same run recorded twenty present cells.
 
-    Guarantees: accepts the table's column names, its columns as text
-    in the same order, the settings in force and the columns declared
-    with `--identifier`, `--code`, `--measurement` and
+    Guarantees: accepts the table, the settings in force and the
+    columns declared with `--identifier`, `--code`, `--measurement` and
     `--decimal-comma`, and how a workbook stores each column
     (`profile.stored_as_of`, plan P4-D382), which the description is
     handed too; returns the four. A fixed function of them.
-    Raises TypeError where the settings are not settings, which is an
-    internal invariant. Opens no file and prints nothing.
+    Raises TypeError where the settings are not settings or the table
+    not a table, which are internal invariants, and what
+    `reading.column_values` raises. Opens
+    no file for a table read whole, reads a table read in groups again
+    one column at a time, and prints nothing.
     """
-    from synthtwin import taxonomy
+    from synthtwin import profile, reading, taxonomy
 
     if not isinstance(settings, taxonomy.Settings):
         raise TypeError("internal check: the settings are not settings")
-    declarations = taxonomy.Declarations(
-        identifiers=tuple(declared),
-        codes=tuple(codes if codes is not None else []),
-        measurements=tuple(
-            measurements if measurements is not None else []
-        ),
-        decimal_commas=tuple(
-            decimal_commas if decimal_commas is not None else []
-        ),
-    )
-    people, counted, readings = taxonomy.population_census(
-        column_names, columns, declared, settings, declarations, stored_as,
-        holding,
+    if not isinstance(table, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    people, counted, readings = profile.population_census_of(
+        table,
+        settings,
+        declared,
+        codes if codes is not None else [],
+        measurements if measurements is not None else [],
+        decimal_commas if decimal_commas is not None else [],
+        stored_as,
     )
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
@@ -3648,23 +3645,15 @@ def _run_profile(
     # census and the description alike (plan P4-D382), so the column
     # the census reads is read once.
     storage = profile.stored_as_of(read, settings)
-    census_columns, census_holding = profile.census_columns_of(
-        read, settings, forced_identifiers, forced_codes,
-        forced_measurements, forced_decimal_commas, storage,
-    )
     person_columns, population, unit, census_readings = _population_of(
-        read.column_names,
-        census_columns,
+        read,
         settings,
         forced_identifiers,
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
         storage,
-        census_holding,
     )
-    census_columns = []
-    census_holding = None
     if population < parsing.POPULATION_FLOOR:
         _warn(
             errors.the_population_is_too_small(
@@ -4003,25 +3992,17 @@ def _run_profile(
                 # READ AFRESH under the final declarations, and handed
                 # over again: the first census's readings were the
                 # first description's.
-                census_columns, census_holding = profile.census_columns_of(
-                    read, settings, forced_identifiers, forced_codes,
-                    forced_measurements, forced_decimal_commas, storage,
-                )
                 person_columns, population, unit, census_readings = (
                     _population_of(
-                        read.column_names,
-                        census_columns,
+                        read,
                         settings,
                         forced_identifiers,
                         forced_codes,
                         forced_measurements,
                         forced_decimal_commas,
                         storage,
-                        census_holding,
                     )
                 )
-                census_columns = []
-                census_holding = None
                 if population < parsing.POPULATION_FLOOR:
                     _warn(
                         errors.the_population_is_too_small(

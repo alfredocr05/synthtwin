@@ -2639,27 +2639,38 @@ def read_table(
 # digest of them -- and a file that changed in between is refused, so two
 # versions of it are never mixed.
 
-# How many bytes the cells of one group may take, at most, by the
-# measured cost below. Tests lower it to read small tables in groups.
+# How many bytes the cells of one group may take, at most, by what each
+# column's cells cost to hold (`dialect.Survey.cell_bytes`, beside
+# `_CELL_BYTES` a cell): the cells `column_values` holds at once while a
+# column is described. Tests lower it to read small tables in groups.
 # At 2,000,000 rows it holds one column of the made-up health table: the
-# description of one column of different record numbers holds about a
-# kilobyte a row at its peak, two gigabytes there, so the group beside it
-# is kept to the column itself (`kpi_describe_groups`).
+# description of one column of different record numbers holds several
+# hundred bytes a row at its peak, so the group beside it is kept to the
+# column itself (`kpi_describe_groups`). A column whose own cells cost
+# more is a group of its own (P4-D400 states that limit).
 GROUP_BYTES = 256 * 1024 * 1024
 
-# What one cell costs beside its characters, held as a column: its place
-# in the column's list (8 bytes), its quoting flag in the survey (1) and,
-# where its text is held on its own, a Python text object's header (56,
-# rounded as the allocator rounds it). Measured on the made-up health
-# table and the Gaussian table at 200,000 rows by 50 columns
-# (`tools/measurements/kpi_describe_groups.py`).
-_CELL_BYTES = 65
+# How many bytes the cells one walk holds may take, at most: a walk of
+# the reading (the survey, the standard reader's check and pandas'), or
+# of the questions (`column_walks`), holds its groups' cells and no
+# column's description, so it holds more than one group and the file is
+# read fewer times. Walks are made of whole groups, each walk as many
+# as fit (skeptic 1 of lane SR, item 3: a walk of six groups, whatever
+# their width, held four columns of notes at once).
+WALK_BYTES = 768 * 1024 * 1024
 
-# How many groups one walk holds at once: a walk of the reading, or of
-# the questions (`column_walks`). A walk holds its groups' cells and no
-# column's description, which at two million rows holds more than six
-# groups' cells, so the file is walked a sixth as often.
-_GROUPS_A_WALK = 6
+# What one cell costs beside its text, held as a column: its place in
+# the column's list (8 bytes) and its quoting flag in the survey (1).
+# Its text costs what `dialect.Survey.cell_bytes` measures, its own
+# characters at their own width (Codex's review of lane SR, item 4).
+_CELL_BYTES = 9
+
+# The most one character of a file's text can cost held as cells: a
+# cell of one character beyond the Basic Multilingual Plane and its
+# delimiter, two characters, held in 80 bytes of text and 9 beside it.
+# A file of fewer characters than GROUP_BYTES over this fits one group
+# however it is written, and is read whole, a line at a time.
+_BYTES_A_CHARACTER_AT_MOST = 45
 
 # The text's first characters the survey's detection reads: a MiB past a
 # separator line of at most seven characters, and some.
@@ -2701,9 +2712,9 @@ class _Facts:
     ``characters`` counts the text without that mark, ``size`` and
     ``last`` without an end-of-file mark too, which ``end_mark`` says the
     text ends with; ``head`` is the text's first characters
-    (`dialect.Streamed`). ``zero``, ``breaks`` and ``high`` say whether
-    the text holds a zero character, a line break, and (read as Latin-1)
-    a byte between 0x80 and 0x9F. ``lines`` and ``digest`` are the
+    (`dialect.Streamed`). ``zero``, ``breaks``, ``high`` and ``doubled``
+    say whether the text holds a zero character, a line break, (read as
+    Latin-1) a byte between 0x80 and 0x9F, and two quotes side by side. ``lines`` and ``digest`` are the
     reading's (`_Pass`), and ``file_bytes`` and ``changed_at`` the file's
     size and the moment it last changed.
     """
@@ -2719,6 +2730,7 @@ class _Facts:
     zero: bool
     breaks: bool
     high: bool
+    doubled: bool
     lines: int
     digest: int
     file_bytes: int
@@ -2733,9 +2745,10 @@ class ColumnSource:
     person wrote it, ``facts`` what its first reading found and
     ``survey`` the reading of every column, gathered from each group's
     walk; ``headed`` says the first record is the column names;
-    ``groups`` are the groups, each from its first column to the one past
-    its last; and ``held`` holds the columns of the one group starting at
-    ``held_from`` -- the only cells of the table held at all.
+    ``groups`` are the groups and ``walks`` the runs of groups a walk
+    holds, each from its first column to the one past its last; and
+    ``held`` holds the columns at ``held_places``, in that order -- the
+    only cells of the table held at all.
     """
 
     path: str
@@ -2744,7 +2757,7 @@ class ColumnSource:
     survey: dialect.Survey
     headed: bool
     groups: "tuple[tuple[int, int], ...]"
-    held_from: int
+    held_places: "tuple[int, ...]"
     held: "list[list[str]]"
     walks: "tuple[tuple[int, int], ...]" = ()
 
@@ -2754,31 +2767,46 @@ def column_values(table: Table, place: int) -> "list[str]":
 
     THE GENERIC COLUMN ACCESS (lane SR, plan P4-D400). Where the table
     was read whole it hands over its column. Where it was read in groups
-    (`Table.source`), the group holding the column is held -- the one
-    already held, or, letting that one go first, the group read from
-    the file again, with the standard reader as the survey's form
-    configures it, whose every value the reading held equal to the
-    survey's. Any column can be asked for any number of times, in any
-    order; asking in column order reads each group once. What is held is
-    one group's columns: a caller that keeps a column it was handed while
-    asking for another group keeps that column alive beside it.
+    (`Table.source`), the column is handed over from the columns held --
+    or, letting those go first, the group holding it is read from the
+    file again, with the standard reader as the survey's form configures
+    it, whose every value the reading held equal to the survey's. Any
+    column can be asked for any number of times, in any order. What is
+    held is one group's columns (`column_groups`), or the places
+    `hold_columns` asked for: a caller that keeps a column it was handed
+    while asking for another keeps that column alive beside it.
+
+    WHAT IT COSTS (skeptic 1 of lane SR, item 7). A column held is handed
+    over at no cost. A column outside them costs ONE READING OF THE WHOLE
+    FILE -- every record parsed by the standard reader, every cell of the
+    group kept -- however few columns the group holds: at 2,000,000 rows
+    by 50 columns of lane B0's made-up health table, a reading of about
+    the time `csv` takes over the file (under 200 seconds, lane B0's cost
+    table, section 1). Asking in column order reads each group once:
+    `synthtwin profile` of a table read one column a group reads the file
+    about twice a column (the description, then the census and the
+    questions, which read a walk of groups at a time), measured 89 to 98
+    readings of a table of 50 columns (P4-D400). A caller that pairs
+    columns far apart holds both at once with `hold_columns`, one reading
+    for the pair, rather than switching between their groups.
 
     Guarantees: returns the column's values exactly as `read_table`
     read them. Raises ProfileError where the file changed since it was
-    first read (`errors.file_changed_while_read`) or can no longer be
-    read; IndexError for a place past the last column. Reads the file
-    only for a table read in groups.
+    first read, or can no longer be read as it was
+    (`errors.file_changed_while_read`); IndexError for a place past the
+    last column. Reads the file only for a table read in groups.
     """
     source = table.source
     if source is None:
         return table.columns[place]
-    if not source.held_from <= place < source.held_from + len(source.held):
-        for start, end in source.groups:
-            if start <= place < end:
-                source.held = []
-                source.held = _read_group(source, start, end)
-                source.held_from = start
-    return source.held[place - source.held_from]
+    for at in range(len(source.held_places)):
+        if source.held_places[at] == place:
+            return source.held[at]
+    for start, end in source.groups:
+        if start <= place < end:
+            _hold(source, tuple(range(start, end)))
+            return source.held[place - start]
+    raise IndexError(f"column {place} of a table of {len(source.survey.form.columns)}")
 
 
 def column_groups(table: Table) -> "tuple[tuple[int, int], ...]":
@@ -2793,49 +2821,77 @@ def column_groups(table: Table) -> "tuple[tuple[int, int], ...]":
 
 
 def column_walks(table: Table) -> "tuple[tuple[int, int], ...]":
-    """Runs of `_GROUPS_A_WALK` groups, for a step that holds no column's description (`hold_columns`).
+    """Runs of groups whose cells fit one walk (`WALK_BYTES`), for a step that holds no column's description (`hold_columns`).
 
     A table read whole is one run. A step whose own work beside the cells
-    is small -- the questions, which split each column's cells -- reads
-    a run at a time and the file a sixth as often as group by group.
+    is small -- the questions, which split each column's cells -- holds a
+    run at a time and reads the file once a run rather than once a group.
     """
     if table.source is None or not table.source.walks:
         return column_groups(table)
     return table.source.walks
 
 
-def hold_columns(table: Table, start: int, end: int) -> None:
-    """Hold the columns ``start`` to ``end`` together, read from the file at once, for `column_values` to hand over.
+def hold_columns(table: Table, places: "tuple[int, ...]") -> None:
+    """Hold the columns at ``places``, any columns in any order, read from the file at once, for `column_values` to hand over.
 
-    Nothing is read where they are held already, or where the table was
-    read whole; otherwise the group held is let go first. Guarantees:
-    `column_values`'s for each column of the range. Raises what it
-    raises.
+    Nothing is read where every one of them is held already, or where the
+    table was read whole; otherwise what is held is let go first, and one
+    reading of the file holds them all (skeptic 1 of lane SR, item 7: a
+    step that pairs columns far apart holds the pair in one reading).
+    What is held is what the caller asks for: the caller sizes it
+    (`column_groups`, `column_walks`). Guarantees: `column_values`'s for
+    each of them. Raises what it raises.
     """
     source = table.source
     if source is None:
         return
-    if source.held_from <= start and end <= source.held_from + len(source.held):
+    wanted = tuple(sorted(set(places)))
+    held = True
+    for place in wanted:
+        if place not in source.held_places:
+            held = False
+    if held:
         return
+    _hold(source, wanted)
+
+
+def _hold(source: ColumnSource, places: "tuple[int, ...]") -> None:
+    """Let go of the columns held, then hold the columns at ``places``, read from the file again.
+
+    What was held is let go BEFORE the next columns are read, so two
+    groups are never held at once (skeptic 1 of lane SR, item 5).
+    """
     source.held = []
-    source.held = _read_group(source, start, end)
-    source.held_from = start
+    source.held_places = ()
+    source.held = _read_group(source, places)
+    source.held_places = places
 
 
-def _read_group(source: ColumnSource, start: int, end: int) -> "list[list[str]]":
-    """The columns ``start`` to ``end`` of a table read in groups, read from its file again.
+def _read_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[str]]":
+    """The columns at ``places`` of a table read in groups, read from its file again.
 
     The records are the standard reader's, as `_standard_records` places
     them -- the records the reading's check held equal to the survey's
     value by value -- and the file is the one first read, which is
     checked once it has been read (`_unchanged`). A text met again in a
-    column is held once, as the survey holds it (lane S4d, plan P4-D390),
-    up to `parsing.SPELLING_MEMO_TEXTS` texts a column.
+    column is held once, by the survey's own rule (lane S4d, plan
+    P4-D390; `parsing.memo_takes`, `parsing.memo_notes`): up to
+    `parsing.SPELLING_MEMO_TEXTS` texts a column, and past them a text
+    met again from its second sighting, so a text repeated late in a
+    column is shared as the survey shares it (Codex's review of lane SR,
+    item 1). A record that is no longer where the first reading found it
+    -- shorter, or no longer read as the same records at all -- is the
+    file changed, and refused so (Codex's review of lane SR, item 5).
     """
     table_path = pathlib.Path(source.path)
     run = _Pass()
-    held: "list[list[str]]" = [[] for _place in range(start, end)]
-    memos: "list[dict[str, str]]" = [{} for _place in range(start, end)]
+    width = len(places)
+    held: "list[list[str]]" = [[] for _place in range(width)]
+    spelled: "list[dict[str, str]]" = [{} for _place in range(width)]
+    shared: "list[int]" = [0 for _place in range(width)]
+    noted: "list[dict[str, str]]" = [{} for _place in range(width)]
+    older: "list[dict[str, str]]" = [{} for _place in range(width)]
     previous_limit = csv.field_size_limit()
     try:
         csv.field_size_limit(FIELD_SIZE_LIMIT)
@@ -2847,15 +2903,28 @@ def _read_group(source: ColumnSource, start: int, end: int) -> "list[list[str]]"
             ):
                 if kind != _RECORD_DATA:
                     continue
-                for place in range(start, end):
-                    value = cells[place]
-                    memo = memos[place - start]
-                    if value in memo:
-                        value = memo[value]
-                    elif len(memo) < parsing.SPELLING_MEMO_TEXTS:
-                        memo[value] = value
-                    held[place - start] += [value]
-        except (OSError, UnicodeDecodeError) as error:
+                for at in range(width):
+                    value = cells[places[at]]
+                    if value in spelled[at]:
+                        value = spelled[at][value]
+                        shared[at] = shared[at] + 1
+                    elif value in noted[at] or value in older[at]:
+                        # Met again past the bound: taken now, its first text.
+                        if value in noted[at]:
+                            value = noted[at][value]
+                        else:
+                            value = older[at][value]
+                        spelled[at][value] = value
+                        shared[at] = shared[at] + 1
+                    elif parsing.memo_takes(len(spelled[at]), shared[at]):
+                        spelled[at][value] = value
+                    elif parsing.memo_notes(len(noted[at])):
+                        noted[at][value] = value
+                    else:
+                        older[at] = noted[at]
+                        noted[at] = {}
+                    held[at] += [value]
+        except (OSError, UnicodeDecodeError, IndexError, csv.Error) as error:
             raise errors.ProfileError(
                 errors.file_changed_while_read(source.shown)
             ) from error
@@ -2922,6 +2991,7 @@ def _facts_under(
     tail = ""
     zero = False
     high = False
+    doubled = False
     first = True
     try:
         for line in _opened_lines(table_path, codec, run):
@@ -2938,6 +3008,8 @@ def _facts_under(
                 tail = tail[len(tail) - 1 :] + line
             if not zero and "\x00" in line:
                 zero = True
+            if not doubled and '""' in line:
+                doubled = True
             if encoding == dialect.ENCODING_LATIN1 and not high:
                 for character in _WINDOWS_ONLY:
                     if character in line:
@@ -2945,8 +3017,11 @@ def _facts_under(
                         break
     except UnicodeDecodeError:
         return None
-    if _stat_of(table_path) != (file_bytes, changed_at):
-        raise errors.ProfileError(errors.file_changed_while_read(shown))
+    # No check of the file's size and moment of change here: every later
+    # reading holds the file to the size and moment taken BEFORE this one
+    # (`_unchanged`), so a file changed while this reading read it is
+    # refused by the first reading after it (skeptic 1 of lane SR, item
+    # 5: the check this replaced was never the one that refused).
     end_mark = tail[len(tail) - 1 :] == "\x1a"
     size = characters - 1 if end_mark else characters
     last = tail[len(tail) - 2 : len(tail) - 1] if end_mark else tail[len(tail) - 1 :]
@@ -2964,6 +3039,7 @@ def _facts_under(
         zero=zero,
         breaks=run.lines >= 2 or tail[len(tail) - 1 :] in ("\r", "\n"),
         high=high,
+        doubled=doubled,
         lines=run.lines,
         digest=run.digest,
         file_bytes=file_bytes,
@@ -3061,17 +3137,49 @@ def _text_lines(
             yield pending
 
 
+def _walks(
+    table_path: pathlib.Path, facts: _Facts, runs: "list[_Pass]"
+) -> "typing.Iterator[typing.Iterator[str]]":
+    """The text's lines afresh for each walk the survey makes, each reading noted in ``runs``.
+
+    A walk takes its lines with `next`, and the file is opened only when
+    the walk reads its first line, so a walk never made never opens it.
+    """
+    while True:
+        run = _Pass()
+        runs += [run]
+        yield _text_lines(table_path, facts, run)
+
+
 def _streamed(
-    table_path: pathlib.Path, facts: _Facts, run: _Pass
+    table_path: pathlib.Path, facts: _Facts, runs: "list[_Pass]"
 ) -> dialect.Streamed:
-    """The text as the survey walks it a line at a time (`dialect.Streamed`)."""
+    """The text as the survey walks it a line at a time, afresh for each walk (`dialect.Streamed`)."""
     return dialect.Streamed(
         head=facts.head,
         size=facts.size,
         last=facts.last,
         end_mark=facts.end_mark,
-        lines=_text_lines(table_path, facts, run),
+        doubled=facts.doubled,
+        walks=_walks(table_path, facts, runs),
     )
+
+
+def _walked_unchanged(
+    table_path: pathlib.Path, facts: _Facts, runs: "list[_Pass]", shown: str
+) -> None:
+    """Refuse walks that were not of the file first read: every walk read to the end read it exactly, and one did.
+
+    A walk a refusal stopped part way read too little to be compared; the
+    survey kept is one read to its end.
+    """
+    finished = 0
+    for run in runs:
+        if run.done:
+            finished = finished + 1
+            _unchanged(table_path, facts, run, shown)
+    if not finished:
+        raise errors.ProfileError(errors.file_changed_while_read(shown))
 
 
 def _unchanged(
@@ -3099,53 +3207,11 @@ def _still_the_same(table_path: pathlib.Path, facts: _Facts, shown: str) -> None
         raise errors.ProfileError(errors.file_changed_while_read(shown))
 
 
-def _whole_text(
-    table_path: pathlib.Path, shown: str, facts: _Facts, encoding: str
-) -> str:
-    """The file's whole text, for a file the survey walks more than once (`dialect.WalkAgain`).
-
-    Decoded exactly as before this lane, and held to the first reading:
-    the same encoding, the same lines and the same digest.
-    """
-    file_path = pathlib.Path(table_path)
-    try:
-        data = file_path.read_bytes()
-    except MemoryError as error:
-        raise errors.ProfileError(
-            errors.out_of_memory(shown, _file_size(table_path))
-        ) from error
-    if encoding:
-        text, found, marked = dialect.decoded_as(data, shown, encoding)
-    else:
-        text, found, marked = dialect.decoded(data, shown)
-    size = len(data)
-    data = b""
-    run = _Pass()
-    digest = 0
-    count = 0
-    for line in dialect.lines_in_turn(text):
-        if not count and marked:
-            line = "﻿" + line
-        digest = (digest * _DIGEST_STEP + hash(line)) % _DIGEST_MODULUS
-        count = count + 1
-    if marked and not count:
-        digest = hash("﻿") % _DIGEST_MODULUS
-        count = 1
-    run.digest = digest
-    run.lines = count
-    run.done = True
-    if found != facts.encoding or marked != facts.marked or size != facts.file_bytes:
-        raise errors.ProfileError(errors.file_changed_while_read(shown))
-    _unchanged(table_path, facts, run, shown)
-    return text
-
-
 def _walk_a_group(
     table_path: pathlib.Path,
     shown: str,
     first_row: str,
     refusals: str,
-    encoding: str,
     facts: _Facts,
     keep: "tuple[bool, ...] | None",
     metadata_rows: int,
@@ -3158,9 +3224,11 @@ def _walk_a_group(
 
     The survey walks the file's lines as they are read (`_streamed`) and
     holds the group's columns; the standard reader then reads the lines
-    again and is held to them. A file the survey would walk twice is
-    walked from its whole text instead, as before (`_whole_text`). With
-    ``keep`` None every column is held and every difference refused as
+    again and is held to them. A file the survey walks more than once --
+    a guess its first walk shows wrong, a reading one walk refuses and
+    another may stand -- is read again, line by line, for each walk, and
+    never decoded whole (skeptic 1 of lane SR, item 4). With ``keep``
+    None every column is held and every difference refused as
     `_read_authoritatively` refuses it; otherwise the check's first
     difference in the group is returned for the reader to weigh
     (`_agrees_with_the_standard_reader`).
@@ -3171,38 +3239,23 @@ def _walk_a_group(
     try:
         csv.field_size_limit(FIELD_SIZE_LIMIT)
         try:
-            try:
-                run = _Pass()
-                surveyed = dialect.settle(
-                    "", facts.encoding, facts.marked, not headed, shown,
-                    metadata_rows, decimal_comma_columns,
-                    metadata_rows_confirmed, declared_delimiter,
-                    small_cell_floor, keep=keep,
-                    streamed=_streamed(table_path, facts, run),
+            runs: "list[_Pass]" = []
+            surveyed = dialect.settle(
+                "", facts.encoding, facts.marked, not headed, shown,
+                metadata_rows, decimal_comma_columns,
+                metadata_rows_confirmed, declared_delimiter,
+                small_cell_floor, keep=keep,
+                streamed=_streamed(table_path, facts, runs),
+            )
+            _walked_unchanged(table_path, facts, runs, shown)
+            if keep is None or True in keep:
+                checked = _Pass()
+                found = _agrees_with_the_standard_reader(
+                    _text_lines(table_path, facts, checked),
+                    surveyed, headed, shown, refusals, keep,
                 )
-                _unchanged(table_path, facts, run, shown)
-                if keep is None or True in keep:
-                    checked = _Pass()
-                    found = _agrees_with_the_standard_reader(
-                        _text_lines(table_path, facts, checked),
-                        surveyed, headed, shown, refusals, keep,
-                    )
-                    if found is None:
-                        _unchanged(table_path, facts, checked, shown)
-            except dialect.WalkAgain:
-                text = _whole_text(table_path, shown, facts, encoding)
-                surveyed = dialect.settle(
-                    text, facts.encoding, facts.marked, not headed, shown,
-                    metadata_rows, decimal_comma_columns,
-                    metadata_rows_confirmed, declared_delimiter,
-                    small_cell_floor, keep=keep,
-                )
-                if keep is None or True in keep:
-                    found = _agrees_with_the_standard_reader(
-                        _body_lines(text, surveyed.form), surveyed, headed,
-                        shown, refusals, keep,
-                    )
-                text = ""
+                if found is None:
+                    _unchanged(table_path, facts, checked, shown)
         except csv.Error as error:
             detail = f"{error}"
             if "field larger than field limit" in detail:
@@ -3247,15 +3300,37 @@ def _walk_a_group(
 
 @dataclasses.dataclass
 class _Swept:
-    """What a walk over the file's groups found: the reading, the groups, the group held, and each column's evidence about the first row."""
+    """What a walk over the file's groups found: the reading, the groups, the columns held, and each column's evidence about the first row."""
 
     reading: _Reading
     groups: "tuple[tuple[int, int], ...]"
-    held_from: int
+    held_places: "tuple[int, ...]"
     held: "list[list[str]]"
     record_rules: "list[int]"
     names_shown: "list[bool]"
     walks: "tuple[tuple[int, int], ...]" = ()
+
+
+def runs_under(costs: "list[int]", budget: int) -> "tuple[tuple[int, int], ...]":
+    """Cut places in order into runs, each from its first place to the one past its last, whose costs add up to at most ``budget``.
+
+    Greedy, in order: a run takes the next place while its costs stay
+    within the budget, and a place that alone costs more is a run of its
+    own (skeptic 1 of lane SR, item 3). Guarantees: the runs cover every
+    place once, in order. Raises nothing. No I/O.
+    """
+    runs: "list[tuple[int, int]]" = []
+    start = 0
+    total = 0
+    for place in range(len(costs)):
+        if place > start and total + costs[place] > budget:
+            runs += [(start, place)]
+            start = place
+            total = 0
+        total = total + costs[place]
+    if start < len(costs):
+        runs += [(start, len(costs))]
+    return tuple(runs)
 
 
 def _walk_the_groups(
@@ -3264,7 +3339,6 @@ def _walk_the_groups(
     shown: str,
     first_row: str,
     refusals: str,
-    encoding: str,
     facts: _Facts,
     metadata_rows: int,
     decimal_comma_columns: "tuple[str, ...]",
@@ -3272,23 +3346,27 @@ def _walk_the_groups(
     declared_delimiter: str,
     small_cell_floor: int,
 ) -> "_Swept | None":
-    """Walk and check a large table one group of columns at a time, or None where it fits one group.
+    """Walk and check a large table one walk of groups at a time, or None where it fits one group.
 
-    A file that may not fit in one group (`GROUP_BYTES`, by the cost of a
-    cell -- `_CELL_BYTES` beside its characters) is first walked holding
-    no column, which settles its shape; the groups are then as many
-    columns as fit, and they are walked `_GROUPS_A_WALK` at a time, each
-    walk checked by the standard reader and by pandas, the last walk
-    first, so the first group is the one held at the end. What each check would refuse is weighed
-    once every group is read, so the refusal is the one reading every
-    column at once makes: the standard reader's first difference, a file
-    of no records, then pandas' first.
+    A file that may not fit in one group (`GROUP_BYTES`, at most
+    `_BYTES_A_CHARACTER_AT_MOST` a character of its text) is first
+    walked holding no column, which settles its shape and measures what
+    each column's cells cost to hold (`dialect.Survey.cell_bytes`, and
+    `_CELL_BYTES` beside each cell). The groups are then as many columns,
+    in order, as `GROUP_BYTES` holds by each column's own cost, and the
+    walks as many groups as `WALK_BYTES` holds (`runs_under`); each walk
+    is checked by the standard reader and by pandas, the last walk
+    first, so the first walk's first group is the one held at the end.
+    What each check would refuse is weighed once every group is read, so
+    the refusal is the one reading every column at once makes: the
+    standard reader's first difference, a file of no records, then
+    pandas' first.
     """
     headed = first_row != FIRST_ROW_DATA
-    if facts.characters * (_CELL_BYTES + 1) <= GROUP_BYTES:
+    if facts.characters * _BYTES_A_CHARACTER_AT_MOST <= GROUP_BYTES:
         return None
     plan, _nothing = _walk_a_group(
-        table_path, shown, first_row, refusals, encoding, facts, (),
+        table_path, shown, first_row, refusals, facts, (),
         metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
         declared_delimiter, small_cell_floor,
     )
@@ -3296,17 +3374,23 @@ def _walk_the_groups(
     rows = plan.n_rows
     if not rows or not width:
         return None
-    cost = _CELL_BYTES + facts.size // (rows * width)
-    per_group = max(1, GROUP_BYTES // (rows * cost))
-    if per_group >= width:
+    surveyed_plan = plan.survey
+    if surveyed_plan is None or len(surveyed_plan.cell_bytes) != width:
+        raise ValueError("synthtwin internal check: a plan walk that measured no column")
+    costs = [
+        surveyed_plan.cell_bytes[place] + rows * _CELL_BYTES
+        for place in range(width)
+    ]
+    del plan, surveyed_plan
+    groups = runs_under(costs, GROUP_BYTES)
+    if len(groups) == 1:
         return None
-    groups = tuple(
-        (start, min(width, start + per_group))
-        for start in range(0, width, per_group)
-    )
+    group_costs = [
+        sum(costs[place] for place in range(start, end)) for start, end in groups
+    ]
     walks = tuple(
-        (groups[at][0], groups[min(at + _GROUPS_A_WALK, len(groups)) - 1][1])
-        for at in range(0, len(groups), _GROUPS_A_WALK)
+        (groups[first][0], groups[last - 1][1])
+        for first, last in runs_under(group_costs, WALK_BYTES)
     )
     forms: "list[dialect.ColumnForm]" = [dialect.plain_column() for _place in range(width)]
     holds: "list[tuple[frozenset[str], ...]]" = [() for _place in range(width)]
@@ -3318,7 +3402,7 @@ def _walk_the_groups(
     differences: "list[tuple[int, int, int]]" = []
     refused: "list[tuple[tuple[int, int], errors.ProfileError]]" = []
     held: "list[list[str]]" = []
-    held_from = 0
+    held_places: "tuple[int, ...]" = ()
     last: "_Reading | None" = None
     for start, end in reversed(walks):
         keep = tuple(start <= place < end for place in range(width))
@@ -3326,7 +3410,7 @@ def _walk_the_groups(
         held = []
         last = None
         reading, found = _walk_a_group(
-            table_path, shown, first_row, refusals, encoding, facts, keep,
+            table_path, shown, first_row, refusals, facts, keep,
             metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
             declared_delimiter, small_cell_floor,
         )
@@ -3362,11 +3446,11 @@ def _walk_the_groups(
             best_order = found_order
         # The walk's first group is held, the first walk's at the end:
         # the description starts there.
-        held = [
-            reading.columns[place]
-            for place in range(start, min(width, start + per_group))
-        ]
-        held_from = start
+        held_places = ()
+        for group_start, group_end in groups:
+            if group_start == start:
+                held_places = tuple(range(group_start, group_end))
+        held = [reading.columns[place] for place in held_places]
         last = reading
         # Only `last` and `held` keep this walk once its loop is done, so
         # the next walk is read after both are let go, never beside it.
@@ -3403,7 +3487,7 @@ def _walk_the_groups(
     return _Swept(
         reading=dataclasses.replace(last, columns=[], survey=gathered),
         groups=groups,
-        held_from=held_from,
+        held_places=held_places,
         held=held,
         record_rules=record_rules,
         names_shown=names_shown,
@@ -3479,13 +3563,13 @@ def _read_in_groups(
     if facts.zero:
         raise errors.ProfileError(errors.looks_like_utf16(shown))
     swept = _walk_the_groups(
-        raw_path, table_path, shown, first_row, refusals, encoding, facts,
+        raw_path, table_path, shown, first_row, refusals, facts,
         metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
         declared_delimiter, small_cell_floor,
     )
     if swept is None:
         found, _nothing = _walk_a_group(
-            table_path, shown, first_row, refusals, encoding, facts, None,
+            table_path, shown, first_row, refusals, facts, None,
             metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
             declared_delimiter, small_cell_floor,
         )
@@ -3504,7 +3588,7 @@ def _read_in_groups(
                 # Walked again as a file with no names in it, as
                 # `read_table` walks it (plan P4-D232).
                 found, _nothing = _walk_a_group(
-                    table_path, shown, FIRST_ROW_DATA, refusals, encoding,
+                    table_path, shown, FIRST_ROW_DATA, refusals,
                     facts, None, metadata_rows, decimal_comma_columns,
                     metadata_rows_confirmed, declared_delimiter,
                     small_cell_floor,
@@ -3544,7 +3628,7 @@ def _read_in_groups(
             swept.held = []
             again = _walk_the_groups(
                 raw_path, table_path, shown, FIRST_ROW_DATA, refusals,
-                encoding, facts, metadata_rows, decimal_comma_columns,
+                facts, metadata_rows, decimal_comma_columns,
                 metadata_rows_confirmed, declared_delimiter, small_cell_floor,
             )
             if again is None:
@@ -3586,7 +3670,7 @@ def _read_in_groups(
             survey=surveyed,
             headed=reading.header_source == HEADER_FROM_FILE,
             groups=swept.groups,
-            held_from=swept.held_from,
+            held_places=swept.held_places,
             held=held,
             walks=swept.walks,
         ),

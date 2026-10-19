@@ -99,7 +99,7 @@ def _same_reading(path: pathlib.Path, first_row: str, monkeypatch: pytest.Monkey
         whole = _read(path, first_row, False)
         # One column a group and a group a walk: the finest the reading goes.
         monkeypatch.setattr(reading, "GROUP_BYTES", 1)
-        monkeypatch.setattr(reading, "_GROUPS_A_WALK", 1)
+        monkeypatch.setattr(reading, "WALK_BYTES", 1)
         grouped = _read(path, first_row, True)
         monkeypatch.undo()
     assert whole[0] == grouped[0], (path.read_bytes()[:300], whole, grouped)
@@ -301,7 +301,8 @@ def test_profile_read_one_column_a_group_writes_the_same_files(
     table.write_text(_table_of_every_question(), encoding="utf-8", newline="\n")
     whole = _profiled(table, tmp_path / "whole", options)
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
-    monkeypatch.setattr(reading, "_GROUPS_A_WALK", walk)
+    # One column a group; a walk of one group, or of every group.
+    monkeypatch.setattr(reading, "WALK_BYTES", 1 if walk == 1 else 1 << 40)
     grouped = _profiled(table, tmp_path / "groups", options)
     assert sorted(whole) == sorted(grouped)
     for name in whole:
@@ -372,9 +373,9 @@ def test_a_table_read_in_groups_holds_one_group(tmp_path: pathlib.Path, monkeypa
     source = read.source
     assert source is not None
     assert reading.column_groups(read) == ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5))
-    assert source.held_from == 0 and len(source.held) == 1
+    assert source.held_places == (0,) and len(source.held) == 1
     reading.column_values(read, 3)
-    assert source.held_from == 3 and len(source.held) == 1
+    assert source.held_places == (3,) and len(source.held) == 1
 
 
 # -- 4. a file that changes ----------------------------------------------
@@ -560,12 +561,10 @@ def test_a_run_of_groups_is_held_together(tmp_path: pathlib.Path, monkeypatch: p
     table = tmp_path / "t.csv"
     table.write_text("a,b,c,d,e\n" + "".join(f"{k},{k * 2},x{k},y{k % 5},{k % 3}\n" for k in range(60)), encoding="utf-8", newline="\n")
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
-    monkeypatch.setattr(reading, "_GROUPS_A_WALK", 3)
     read = reading.read_table(str(table), in_groups=True)
-    assert reading.column_walks(read) == ((0, 3), (3, 5))
-    reading.hold_columns(read, 3, 5)
+    reading.hold_columns(read, (3, 4))
     source = read.source
-    assert source is not None and source.held_from == 3 and len(source.held) == 2
+    assert source is not None and source.held_places == (3, 4) and len(source.held) == 2
     reads: "list[int]" = []
     group_read = reading._read_group
 
@@ -586,16 +585,16 @@ def test_the_walk_held_before_is_let_go_before_the_next_walk_is_read(
     table = tmp_path / "t.csv"
     table.write_text("a,b,c\n" + "".join(f"{k},x{k},{k % 7}\n" for k in range(80)), encoding="utf-8", newline="\n")
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
-    monkeypatch.setattr(reading, "_GROUPS_A_WALK", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1)
     walked: "list[weakref.ref[object]]" = []
     alive_when_read: "list[int]" = []
     walk = reading._walk_a_group
 
     def watched(*arguments: object) -> object:
-        if arguments[6]:
+        if arguments[5]:
             alive_when_read.append(sum(1 for one in walked if one() is not None))
         found = walk(*arguments)  # type: ignore[arg-type]
-        if arguments[6]:
+        if arguments[5]:
             walked.append(weakref.ref(found[0]))  # type: ignore[index]
         return found
 

@@ -4196,8 +4196,16 @@ def build_document(
       no environment, no random source, and every mapping written out
       is written in sorted key order.
     - Errors raised: TypeError if a cell is not text (an internal
-      invariant of the readers).
-    - Boundary: no file is opened here, and no value of a suppressed
+      invariant of the readers); and, for a table read in groups of
+      columns (`reading.Table.source`, lane SR, plan P4-D400), whatever
+      `reading.column_values` raises: ProfileError where the file
+      changed since it was first read, or can no longer be read
+      (`errors.file_changed_while_read`).
+    - Boundary: a table read whole opens no file here. A table read in
+      groups of columns is READ AGAIN FROM ITS FILE, one group at a
+      time, as each group's first column is described (Codex's review of
+      lane SR, item 8): its file must stay where it was, readable and
+      unchanged, until this returns. No value of a suppressed
       kind reaches the document. The settings block records how many
       values were named with --keep-value and --missing-value and the
       rule that matched them, never the spellings (review item
@@ -4474,14 +4482,14 @@ def _parts_of(
             part[key] = document[key]
         if isinstance(blocks, list):
             part["columns"] = blocks[start:end]
-        reading.hold_columns(table, start, end)
+        reading.hold_columns(table, tuple(range(start, end)))
         cells = [reading.column_values(table, place) for place in range(start, end)]
         yield start, part, cells
         # Let go before the next group is read.
         cells = []
 
 
-def census_columns_of(
+def population_census_of(
     table: Table,
     settings: taxonomy.Settings,
     declared: "list[str]",
@@ -4489,24 +4497,32 @@ def census_columns_of(
     measurements: "list[str]",
     decimal_commas: "list[str]",
     stored_as: "tuple[str, ...]",
-) -> "tuple[list[list[str]], list[bool] | None]":
-    """What `taxonomy.population_census` is handed for this table: its columns, and which rows hold a value.
+) -> "tuple[tuple[str, ...], int, tuple[taxonomy.HeldReading, ...]]":
+    """`taxonomy.population_census` of this table: the person columns, how many people, and the readings kept.
 
-    A table read whole hands over every column and None, and the census
-    works out the rows itself. A table read in groups hands over the
-    columns declared with `--identifier` alone, the others empty, and the
+    A table read whole is handed over whole. A table read in groups
+    (lane SR, plan P4-D400) is counted ONE COLUMN AT A TIME, every
+    column asked of `reading.column_values` and let go before the next
+    (Codex's review of lane SR, item 2: every declared identifier was
+    held at once, about 3 GB for fifty of them at a million rows): the
     rows holding a value worked out a column at a time, in column order,
-    until every row holds one (`taxonomy.rows_holding_a_value_in`), as
-    the census works them out.
+    until every row holds one (`taxonomy.rows_holding_a_value_in`); each
+    declared column asked whether it repeats (`taxonomy.repeats_in`), in
+    `taxonomy.repeating_identifiers`' order; and the rows each repeating
+    one names joined (`taxonomy.people_joined_by`). Its answers are the
+    census's; it keeps no reading, which the description reads again.
     """
-    if table.source is None:
-        return table.columns, None
     declarations = taxonomy.Declarations(
         identifiers=tuple(declared),
         codes=tuple(codes),
         measurements=tuple(measurements),
         decimal_commas=tuple(decimal_commas),
     )
+    if table.source is None:
+        return taxonomy.population_census(
+            table.column_names, table.columns, declared, settings,
+            declarations, stored_as,
+        )
     names = table.column_names
     holding: "list[bool]" = [False for _row in range(table.n_rows)]
     outstanding = table.n_rows
@@ -4523,13 +4539,49 @@ def census_columns_of(
                 declarations,
                 stored_as[place] if place < len(stored_as) else "",
             )
-    columns: "list[list[str]]" = []
+    people: "list[str]" = []
+    places: "list[int]" = []
+    for name in sorted(declared):
+        if people and people[len(people) - 1] == name:
+            continue
+        place = _first_place_named(names, name)
+        if place < 0:
+            continue
+        if taxonomy.repeats_in(
+            reading.column_values(table, place),
+            name,
+            settings,
+            declarations,
+            stored_as[place] if place < len(stored_as) else "",
+        ):
+            people += [name]
+            places += [place]
+    if not people:
+        counted = 0
+        for row in range(table.n_rows):
+            if holding[row]:
+                counted = counted + 1
+        return (), counted, ()
+    joined = taxonomy.people_joined(table.n_rows)
+    for at in range(len(people)):
+        place = places[at]
+        taxonomy.people_joined_by(
+            joined,
+            reading.column_values(table, place),
+            people[at],
+            settings,
+            declarations,
+            stored_as[place] if place < len(stored_as) else "",
+        )
+    return tuple(people), taxonomy.people_counted(joined, holding), ()
+
+
+def _first_place_named(names: "list[str]", name: str) -> int:
+    """The place of the first column called ``name``, as `taxonomy`'s census finds it, or -1."""
     for place in range(len(names)):
-        if names[place] in declared:
-            columns += [reading.column_values(table, place)]
-        else:
-            columns += [[]]
-    return columns, holding
+        if names[place] == name:
+            return place
+    return -1
 
 
 @dataclasses.dataclass
