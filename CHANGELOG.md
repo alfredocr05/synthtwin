@@ -48,6 +48,20 @@ only estimates that are also inside, where the shuffle fails. Restamped
 at 20,000 rows, today's twin still stands where the shuffle stands: 40 %
 of 2,930 supported estimates inside against the replicate's 78 %.
 
+A second review (2026-10-19) hardened the kit and the scoring: least
+squares and the mixed model keep their digits for an outcome far from
+zero, Cox's model is the same fit for a term moved by a constant and
+holds no rows for a tied day, a steep slope that settles is a fit
+rather than a separation, and a curve at exactly one half has its
+median; a mixed model over a few repeated subjects stops rather than
+report an arbitrary ICC; an estimate thin in either half of a split is
+not scored; a rule the real table keeps on every row (the dose formula,
+an event date present exactly where the status is not censored) is
+scored; a model or a discriminator that cannot be fitted on the twin
+counts against it; and automatic models carry pair products. Restamped
+at 20,000 rows: 40 % of 2,913 supported estimates inside against the
+replicate's 77 %.
+
 ### Repeated grids of timestamps meet their counts (2026-10-15)
 
 **A column of timestamps on a regular grid that starts off midnight, or

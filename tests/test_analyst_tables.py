@@ -182,12 +182,12 @@ def test_the_chapter_b_truth_is_its_models_population_estimand(monkeypatch: pyte
     rows = list(T.st4(3000, SEED))
     assert len(drawn) == 2 * len(rows)
     at = T.ST4_COLUMNS.index
-    for row, logit in zip(rows, drawn[1::2]):
+    for row, log_odds in zip(rows, drawn[1::2]):
         chapter = T.CHAPTERS.index(row[at("code")][0])
         k = (int(row[at("code")][1:3]) - 10) * 5 + int(row[at("code")][4])
         lift = 2.5 if k >= 20 and chapter % 2 == 0 else 0.0
         expected = -5.6 + T.CHAPTER_OUTCOME[chapter] + lift + 0.02 * (float(row[at("weight")]) - 80.0)
-        assert logit == pytest.approx(expected, abs=1e-12), (row, logit, expected)
+        assert log_odds == pytest.approx(expected, abs=1e-12), (row, log_odds, expected)
     assert sum(1 for row in rows if row[at("code")][0] == "B") > 100
 
 
