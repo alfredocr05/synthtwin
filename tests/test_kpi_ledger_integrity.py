@@ -815,13 +815,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 642,000 from 638,000 (lane E0a) and 626,000 (lane H1), AT THE
-    # INTEGRATION OF BATCH 4C (2026-10-19), the least round figure the
-    # merged ledger fits under: every entry of both lanes kept by id and
-    # the measurement note merged clause by clause, 641,359 bytes as
-    # merged. The cap is set once for the batch, the orchestrator's
-    # recorded call D15 (the owner may veto). A MEASUREMENT IS NEVER
-    # TRIMMED TO FIT.
+    # 647,000 from 638,000 (lane E0a), 626,000 (lane H1) and 627,000
+    # (lane H2), AT THE INTEGRATION OF BATCH 4C (2026-10-19), the least
+    # round figure the merged ledger fits under: every entry of the three
+    # lanes kept by id and the measurement note merged clause by clause,
+    # 646,550 bytes as merged. The cap is set once for the batch, the
+    # orchestrator's recorded call D15 (the owner may veto). A MEASUREMENT
+    # IS NEVER TRIMMED TO FIT.
     #
     # 638,000 from 635,000, LANE E0A'S REPAIR 2 (2026-10-16, plan P4-D399),
     # the least round figure the lane's ledger fits under: the three K-HZ
@@ -843,6 +843,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # plan's lane spec gives it, `K-S4-16` and `K-S4-17`, made lean first,
     # with their note clauses, 625,357 bytes. A MEASUREMENT IS NEVER
     # TRIMMED TO FIT.
+    #
+    # 627,000 from 622,000, AT LANE H2 OF THE DECEMBER PLAN (2026-10-17),
+    # the least round figure the ledger fits under: `K-S4-18` and
+    # `K-S4-19`, the packing walk reading the counts of one margin
+    # together (plan P4-D403), with their note clause, 626,773 bytes on
+    # the lane's branch. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 622,000 from 619,000, AT BATCH 4B'S RECORDS (2026-10-16), the least
     # round figure the ledger fits under: `K-S4-15` (entered as `K-S4-13`
@@ -1124,7 +1130,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 642_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 647_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
