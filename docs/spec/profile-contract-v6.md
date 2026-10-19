@@ -4209,7 +4209,8 @@ level, parents, anchor, table, slopes}`:
   level or coarser in every family that holds it (4.6b.3), so its chain
   level is the finest at which any table cuts it;
 - `parents`: `[{column, level}]`, in schema order; empty for a family
-  with no parent (a root, or "no family", whose child stands at `L0`);
+  with no parent: the root pair's first column, at the level the root
+  pair placed it, or a column placed by "no family", at `L0`;
 - `anchor`: the index in `chain` of the earliest family holding every
   parent, or `null` where there is no parent;
 - `table`: the family's COMPLETE count table over the tabled rows: one
@@ -4230,9 +4231,10 @@ of one earlier family, at levels no finer than that family holds them,
 and each column's `L0` totals (4.6b.2) form a family of their own whose
 one parent is the column's band at its chain level, a coarsening.
 
-**Its size.** At 50 eligible columns, `k_max` 3 and ten bands a column,
-a family's table holds at most about 11,000 cells and usually under a
-hundred; a prototype measured 37 to 95 cells a family at 17 columns and
+**Its size.** RULE W3 keeps a family's cells to at most `n / f`: each
+member's bands each hold at least `f` times the product of the other
+members' band counts, so `n` is at least `f` times the product of every
+member's band count. A prototype measured 37 to 95 cells a family at 17 columns and
 20,000 rows (plan P4-D407). JUDGEMENT: 0.1 to 2 MB of text at 200,000
 rows.
 
@@ -4576,9 +4578,10 @@ independent choices with the chances 4.6b.4 gives them: a reader without
 the key cannot tell keyed BLAKE2b words from such choices (the
 pseudorandom property of keyed BLAKE2b, ASSUMED, not proven here). R3's
 "no key-unknown draw could have published `D`" is read in that model:
-what counts is the chance a draw gives, never a search of the key space,
-which a reader without the key cannot make and a reader who holds the
-key has no need of (stated limit 2).
+what counts is the chance a draw gives, never a search of the key's
+`2**256` values, which is beyond any reader's computation (an assumption
+of the same kind) and which a reader who holds the key has no need of
+(stated limit 2).
 
 *Lemma 2.* Let `CONS(D)` be every table, with its readings, whose every
 published fact equals `D`'s. If every decision the procedure takes from
@@ -4740,7 +4743,7 @@ forbid publishing any small own-fact group beside any published zero of
 any table, including zeros between columns `G`'s column never meets.
 
 *Why W1 is read at the coarsest level, member by member and across the
-chain.* Version 2.3's clause, "the row of `beta` in the option's table
+chain.* The design's own clause, "the row of `beta` in the option's table
 holds at least two non-zero cells", lets three cases through, each a
 count of the part-C kind: (1) a parent cut at `L0` whose two non-zero
 cells beside `beta` both lie below its median: "`G` AND the parent below
@@ -4779,13 +4782,13 @@ Lemma 3 is exact for the description without slopes and moments.
   covers 0 to 10 failing rows at once, so no word tells 0 from 1 to 10.
 - A COMPUTED column publishes no count of its own (4.6b.7's inventory of
   absent facts), so no exact cumulative count of it exists. A count of
-  its rows below a value `x` is a count over `(A, D)`; at the bands of
-  `A` and `D`, its lower end is a sum of the family cells whose rows
-  surely lie below `x` and its upper end adds the cells that may, each a
-  sum of published cells, so each end is 0 or at least `f` and the count
-  is never bounded inside 1 to `f - 1` there. Finer than the bands,
-  `A`'s and `D`'s own facts read across the two columns (the design's
-  straddle count): CHECKED, NOT PROVEN; the design's emergency, lab and
+  its rows below a value `x` is a count over `(A, D)`. With the readings
+  free inside their bands, it reaches the count of the union of the
+  cells of `A` and `D` whose rows may lie below `x`, and Theorem 1 gives
+  that union a table holding at least `f` rows unless it holds none in
+  every table; so at the bands the count is never bounded inside 1 to
+  `f - 1`. With `A`'s and `D`'s own facts read across the two columns
+  (the design's straddle count): CHECKED, NOT PROVEN; the design's emergency, lab and
   stay tables at 20,000 and 200,000 rows, two seeds each, read 0 of 108
   rung intervals inside 1 to 10.
 
