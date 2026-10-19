@@ -529,7 +529,8 @@ def test_a_cut_clock_group_counts_its_boundary_once():
     assert boundary_again == 27 and low_tail + boundary_again == 38
     clocks = _g7a4d()
     assert "the low tail and its boundary" not in clocks
-    assert "so it is never subtracted on its own" in clocks
+    assert ("so it is never subtracted on its own, and never where it stands "
+            "in the group being cut") in clocks
     assert "its halves count 28 and 72" in clocks
     case = _case(10)
     assert "the halves count 28 and 72" in case
