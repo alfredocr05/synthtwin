@@ -258,8 +258,9 @@ def _real_misses(table: pathlib.Path, folder: pathlib.Path) -> "set[str]":
     checked = folder / "real-check"
     checked.mkdir(exist_ok=True)
     with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
-        cli.main(["validate", f"{folder / (stem + '-profile.json')}", "--twin",
-                  f"{table}", "--out-dir", f"{checked}", "--replace"])
+        code = cli.main(["validate", f"{folder / (stem + '-profile.json')}", "--twin",
+                         f"{table}", "--out-dir", f"{checked}", "--replace"])
+    assert code in (0, 3)
     missed: "set[str]" = set()
     for report in checked.glob("*.txt"):
         for line in report.read_text(encoding="utf-8").splitlines():
