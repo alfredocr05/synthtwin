@@ -69,9 +69,11 @@ other work was loading: lane D3's day-of-month census, 44.68 s; and the
 layout file, which lanes R2b and R2c took from 32.30 s to 145.56 s,
 re-measured the same way.
 
-ONE ROW ADDED 2026-10-19, at the integration of batch 4c: lane E0a's
-health data zoo, `tests/test_health_zoo.py`, 22.78 s, timed ON ITS OWN
-on the integrated tree as above, on a machine other work was loading.
+ROWS ADDED 2026-10-19, at the integration of batch 4c, each file timed
+ON ITS OWN on the integrated tree as above, on a machine other work was
+loading: lane E0a's health data zoo, `tests/test_health_zoo.py`,
+22.78 s, and lane H1's padded swaps at scale,
+`tests/test_stage4_padded_swap_scale.py`, 67.35 s.
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
@@ -360,6 +362,7 @@ SECONDS = {
     "tests/test_stage3b_weekday_review.py": 295.32,
     "tests/test_stage3b_width.py": 122.91,
     "tests/test_stage4_allocator_walk.py": 18.04,
+    "tests/test_stage4_padded_swap_scale.py": 67.35,
     "tests/test_stage4_sign_repairs.py": 18.92,
     "tests/test_stage4_tier2a.py": 88.39,
     "tests/test_summary_and_properties.py": 41.37,
