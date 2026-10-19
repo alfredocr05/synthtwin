@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 12,461 collected (lane HX at its second repair round, on batch 4b: lanes S4d, L3 and TI merged on batch 4a, with Codex's two conditions on its integration). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 12,178, on `3d893032` (batch 4a), the five shards took 20.7 to 30.5 minutes each, 124.6 minutes summed and 30.5 end to end, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 12,479 collected (lane HX2 on lane HX's second repair round, on batch 4b: lanes S4d, L3 and TI merged on batch 4a, with Codex's two conditions on its integration). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 12,178, on `3d893032` (batch 4a), the five shards took 20.7 to 30.5 minutes each, 124.6 minutes summed and 30.5 end to end, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 217 KPIs over phases 0-4, stages 1, 2, 2b, 3, 3b and 4 and the terminal, 32 of them headlines under a cap of 32 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H; and from 31 by the orchestrator's recorded call D15 of the December plan, plan P4-D397, for the terminal's `K-S8-01`, the owner may veto it); 187 green, 14 open, 16 limits the owner accepted. Of the 14 open, as each one's `target_stage` reads: 8 have the stage or lane that owns the whole (`K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-44` lane S4b, `K-S8-01` the terminal's lanes TT and TS); 1 is owned in part (`K-2B-47`: stage 3 owns the carried fidelity items, its residue of 2026-09-19, the identifier-layout misses, has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-08` and `K-S4-15` (`K-S4-09` to `K-S4-14` reserved by the December plan), `K-S4-03` a headline in `K-2B-14`'s place; the terminal's (stage 8's ids, lane TI) `K-S8-01`, a headline, and `K-S8-04`. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -595,11 +595,13 @@ cannot get worse unseen.
   them on a table of 12 patients over 1,196 visits (`K-S3-14`, an
   accepted limit, plan P4-D348). The design for counting people per
   value is written and shelved.
-- **A long table publishes a patient's name, street address or birth
-  date while nobody has answered the person question.** No identity
-  question flags them, and no general rule reaches them without hiding
-  columns that identify nobody: 214 real values in the description over
-  600 and 20,000 rows (`K-S3-64`, plan P4-D401). Lane HX2 owns them.
+- **A name, street address or birth date is held beside a patient
+  key, declared or asked about, and published where nothing says who
+  the rows are.** Beside a subject column every published value is
+  counted in people (plan P4-D406, `K-S3-65` at 0); a long table whose
+  only clue to the person is the name itself has no people to count in:
+  214 real values over 600 and 20,000 rows (`K-S3-64`'s stated shapes),
+  owned by CODES-1 part C and CODES-2's allowlist.
 - **A record-number key written beside `-1` gets a twin that misses its
   published forms** (validate exit 3), declared or held until answered:
   on 68dae22f a declared key of 1,200 rows wrote fewer than 11 of its
@@ -607,13 +609,10 @@ cannot get worse unseen.
   P4-D401). So does a telephone number opening `+` (its `+` layout) and
   a key exported as `100001.0` (the twin writes a figure after the
   point). Lane CODES-1 part C owns them.
-- **A second record number beside a declared person column is
-  published.** A health plan or account number written with letters
-  and figures is read as a number with an affix or as labels and asked
-  nothing, since the declaration answers the person question: 71 of 132
-  values at 600 rows, 139 of 150 at 20,000 (`K-S3-64`'s stated shapes,
-  plan P4-D401). Lane HX2's rule, widened to a declared person column,
-  owns it.
+- **A second record number beside a declared person column is held**
+  (plan P4-D406): each of its values is one person's, so the column is
+  described as record numbers counted in people and publishes none
+  (`K-S3-64`, 0 at 600 and 20,000 rows).
 - **A pool's spread is no longer verified.** The owner chose on
   2026-09-21 to publish a pooled column's mean and not its spread,
   because publishing both solved for the held-back values. The twin's

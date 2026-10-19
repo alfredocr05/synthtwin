@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### On a table of several rows a person, every published value is counted in persons (2026-10-19)
+
+**A value fewer than 11 people hold is not published, however many rows
+hold it** (plan P4-D406, lane HX2 of the December plan). The floor
+counted rows, so a value one patient holds on fourteen rows passed it:
+beside a declared person column, health plan and account numbers were
+published (139 and 137 of 150 at 20,000 rows), and beside a patient key
+whose person question was open, names, street addresses and birth
+dates. Now, where a person column is declared or answered, or the person
+question is open, each value another column would publish is counted in
+different people under every such column; a column that would publish
+one held by fewer than 11 of them is described as record numbers
+(contract NF126), its twin writes made-up values in its layouts, and the
+screen names it. A column with one value a person (a birth date, a name)
+counts every value it publishes; any other counts the values eleven rows
+or more hold, and keeps its points along the range as on a table of one
+row a person. A person column publishes the census of repetition its
+counts imply rather than how many people hold each number of rows. A
+table with no such column, or whose person column is different on every
+row, is described exactly as before, and a code of fewer than eleven
+values put the person question counts nothing. KPI `K-S3-65` (new): 0
+published values in the rule's scope over 53 long tables; `K-S3-64`
+now holds the five counted shapes at 0. Measured costs and the limits
+left to lanes MG, CODES-1 part C and CODES-2 are in P4-D406.
+
 ### No real identifier is published while its question is open (2026-10-16)
 
 **A column synthtwin asked whether it holds record numbers, and nobody
