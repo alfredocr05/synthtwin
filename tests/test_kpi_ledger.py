@@ -2039,6 +2039,21 @@ def test_k_s4_07(record_property, tmp_path) -> None:
     _kpi(record_property, "K-S4-07", million.dense_tail_measures(tmp_path))
 
 
+def test_k_s4_20(record_property, tmp_path) -> None:
+    """A number column's twin writes nothing past its published range and misses no spread obligation (stage 4 lane G2T, plan P4-D405).
+
+    Machine-free: over the gate's fixtures at 20,000 rows -- a bell at one
+    place and two counts of few values -- the twin cells past the range
+    each description publishes and the moments' and tails' obligations
+    `validate` MISSED, with the widest spread and tail mean distance off
+    their published values and the most cells on a derived end recorded
+    beside them. `tests/test_stage4_number_tail.py` owns the measures.
+    """
+    import test_stage4_number_tail as number_tail
+
+    _kpi(record_property, "K-S4-20", number_tail.number_tail_measures(tmp_path))
+
+
 def test_k_s4_08(record_property, tmp_path) -> None:
     """Describe holds one record, one date pair and one text per spelling, and few bytes per row (stage 4 lane S4d, plan P4-D390).
 

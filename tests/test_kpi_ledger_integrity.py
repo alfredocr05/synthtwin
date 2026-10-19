@@ -1095,7 +1095,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 622_000
+    #
+    # 627,500 from 622,000 (stage 4 lane G2T, plan P4-D405): the ledger
+    # stood at 621,793 bytes, 207 under the cap, and the lane adds two
+    # entries, K-S4-20 (the number tail's range and spread over the gate's
+    # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
+    # integrator settles this beside the other lanes' raises.
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 627_500
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

@@ -9240,6 +9240,67 @@
    }
   },
   {
+   "id": "K-S4-20",
+   "phase_stage": "Stage 4 (plan P4-D405)",
+   "category": "STATS",
+   "headline": false,
+   "name": "A number column's twin stays inside its published range and meets its spread and tails",
+   "status": "GREEN",
+   "rule": "machine-free: over a bell written at one place and two counts of few values, 20,000 rows each, seed 0: the twin cells past the range each description publishes (its min and max where printed, the ladder's derived ends otherwise) are 0 and the moments' and tails' obligations validate MISSED are 0; the widest spread and tail mean distance off their published values and the most cells on a derived end are recorded beside them",
+   "rule_kind": "exact",
+   "expected": {
+    "spread_misses": 0,
+    "twin_cells_outside_the_published_range": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s4_20",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "tests/test_stage4_number_tail.py's number_tail_measures",
+   "evidence": "On 36ad3061 the bell's twin spread stood 76 per thousand above the published one, its tails' mean distances four times theirs (7.4 and 7.3 against 1.7 and 1.6), and a count of few values held 193 of its 200 high-tail rows on its derived end; validate missed none of it, every window being drawn through the same pushed staircase. Lane B0's 250,000 x 50 table missed every column's spread (validate exit 3).",
+   "value_at": {
+    "commit": "501e1412",
+    "date": "2026-10-19",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S4-20' --print-values, over the code of 501e1412 (lane G2T's KPI commit; its README row added after, no code), at a one-minute load average of 8.7; every key is a count or a ratio and machine-free, so it is judged everywhere",
+    "value": {
+     "most_cells_on_a_derived_end": 4,
+     "spread_misses": 0,
+     "twin_cells_outside_the_published_range": 0,
+     "widest_spread_off_per_thousand": 4.4,
+     "widest_tail_mean_distance_off_per_thousand": 61.0
+    }
+   }
+  },
+  {
+   "id": "K-S4-21",
+   "phase_stage": "Stage 4 (plan P4-D405)",
+   "category": "STATS",
+   "headline": false,
+   "name": "G2's dense tail at 1,000,000 rows meets its moments and its tail's distances",
+   "status": "GREEN",
+   "rule": "machine-free: G2's dense tail at 1,000,000 rows (whole numbers to 999999 beside five far ones, a measurement, at a floor of eleven), seed 0: the moments' and tails' obligations validate MISSED are 0; the twin's mean (in parts per million of the published spread), spread, skew, kurtosis and high tail's two distances off the published ones are recorded beside it",
+   "rule_kind": "at_most",
+   "expected": {
+    "moment_and_tail_misses_1m": 0
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_dense_million.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "tools/measurements/kpi_dense_million.py, one process at a time, in a measurement window",
+   "evidence": "On 36ad3061 (lane S4c's measurement) the twin stood at a mean of 500,013.3 against a published 500,012.3 and missed it, the skew and the kurtosis, because G12.3's windows were drawn through the staircase alone (the mean's 500,051.9 to 500,061.4).",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-19",
+    "measured_by": "PENDING",
+    "value": {}
+   }
+  },
+  {
    "id": "K-S8-01",
    "phase_stage": "The terminal, lane TI: install and first run (plan P4-D397), measured now as the terminal's baseline",
    "category": "CODE",
