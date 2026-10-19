@@ -452,6 +452,34 @@ def test_answers_typed_in_round_one_are_kept_by_the_file(tmp_path: pathlib.Path)
     assert (asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST) in held
 
 
+def test_codes_in_dates_read_either_way_answered_after_the_order(tmp_path: pathlib.Path) -> None:
+    """The order of day and month in round one, the codes in round two: one round's bytes.
+
+    The question about the codes counts the cells the reading of its
+    round reads, and that reading moves with the order; the kept answer
+    is kept by the codes' own words, which every round finds alike. Found
+    by replaying tests/test_stage3b_date_questions.py's answered runs in
+    two rounds: the questions file differed until it was.
+    """
+    draw = random.Random(11)
+    lines = ["seen_at,other"]
+    for place in range(ROWS):
+        lines += [",".join([
+            "UNK" if place % 40 == 0 else f"{draw.randrange(1, 13):02d}/{draw.randrange(1, 13):02d}/20{draw.randrange(10, 24)}",
+            "UNK" if place % 40 == 7 else f"2023-{draw.randrange(1, 13):02d}-{draw.randrange(1, 29):02d}",
+        ])]
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    table = Table(fixtures.write(tmp_path, "real.csv", "\n".join(lines) + "\n"), "real")
+    plan = [
+        [(asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST)],
+        [("seen_at", asking.ANSWER_NO_DATE), ("other", asking.ANSWER_NO_DATE)],
+    ]
+    rounds, differs = compare(table, by_round(plan))
+    assert len(rounds.given) == 2 and len(rounds.standing) == 3
+    assert rounds.lost == []
+    assert not any(differs.values()), differs
+
+
 # -- a later answer changes an earlier one -------------------------------
 
 
@@ -724,6 +752,7 @@ def measure(folder: pathlib.Path) -> "dict[str, int]":
             continue
         counted(rounds, differs)
     for case in (
+        test_codes_in_dates_read_either_way_answered_after_the_order,
         test_answers_typed_in_round_one_are_kept_by_the_file,
         test_a_later_round_changes_an_earlier_answer,
         test_a_later_answer_to_the_question_asked_again_wins,

@@ -6083,6 +6083,17 @@ class Given:
     day_order: str = ""
 
 
+def kept_codes_saw(found: DateCodes) -> str:
+    """What a kept answer about codes in a column of dates says it saw (plan P4-D408).
+
+    The codes' own words (`_codes_said`), which `date_codes_answered`
+    finds them again by, after the sentence every kept answer opens
+    with; and not the question's other counts, which the reading of the
+    round that asked it decides. A fixed function of `found`. No I/O.
+    """
+    return f"{ANSWERED_BEFORE_SAW} It is about every value that is {_codes_said(found)}"
+
+
 def delimiter_answer(character: str) -> str:
     """The answer word a delimiter is written as; empty for one no answer names."""
     for word in ANSWER_DELIMITERS:

@@ -1826,6 +1826,19 @@ def test_k_s3_61(record_property, tmp_path: pathlib.Path) -> None:
     })
 
 
+def test_k_s3_66(record_property, tmp_path: pathlib.Path) -> None:
+    """Answers lost between rounds, and one round against several (lane AQ, plan P4-D408).
+
+    Over every table of the health data zoo at 600 rows, answered by the
+    zoo's general answerer until a round answers nothing new, and over
+    the gate's answered cases. `tests/test_answers_across_rounds.py`
+    owns the measure.
+    """
+    import test_answers_across_rounds as rounds
+
+    _kpi(record_property, "K-S3-66", rounds.measure(tmp_path))
+
+
 # -- Stage 4 (tier 1, plan P4-D385) -------------------------------------------
 
 

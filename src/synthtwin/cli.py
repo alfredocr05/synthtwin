@@ -1898,7 +1898,9 @@ def _earlier_answers_dropped(
 
 def _earlier_answers_not_kept(path: str, dropped: "list[str]") -> str:
     """The refusal of a run that would drop an answer an earlier run kept (plan P4-D408)."""
-    named = ", ".join(f"'{one}'" for one in dropped)
+    named = ""
+    for one in dropped:
+        named = f"{named}, '{one}'" if named else f"'{one}'"
     return (
         f"The questions file at {path} keeps answers given in an earlier "
         f"run, and this run cannot keep the ones about {named}: the table "
@@ -3833,6 +3835,7 @@ def _run_profile(
         return 2
     added_missing: "list[str]" = []
     added_kept: "list[str]" = []
+    kept_code_shapes: "dict[str, str]" = dict(answered_code_shapes)
     # Each declaration once, by the identity it matches by: two columns
     # both answered `missing` about `UNK` declare it once, and the line
     # that repeats the run names it once. Once for EACH answer: `UNK`
@@ -3877,6 +3880,11 @@ def _run_profile(
         if seen is None:
             _warn(errors.the_date_codes_answer_reached_nothing(name))
             continue
+        # ...and the file this run writes keeps the answer by the codes
+        # found here, which every round finds alike (plan P4-D408), and
+        # not by the words of the question it answered, which count the
+        # cells the reading of that round read.
+        kept_code_shapes[name] = asking.kept_codes_saw(seen)
         for spelling, _rows in seen.codes:
             identity = asking.declared_identity(spelling)
             if missing:
@@ -4954,7 +4962,7 @@ def _run_profile(
                             centuries, centuries_kept, date_columns,
                             dates_kept, identities_kept_answered,
                             answered_missing_dates, answered_real_values,
-                            answered_code_shapes, first_row,
+                            kept_code_shapes, first_row,
                             metadata_answer, declared_delimiter, day_first,
                             answered_month_first,
                         )

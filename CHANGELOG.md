@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### The questions file keeps every answer across rounds (2026-10-19)
+
+**An answer given in one run of the questions file is kept by every later
+run** (plan P4-D408, lane AQ of the December plan). A person who answered
+the file in two rounds lost the first round's answers -- the file the
+first `--answers` run wrote held only the questions still open -- so a
+person column, a 12-hour clock, a column of dates, the order of day and
+month or the row of the column names answered in round one was
+unanswered after round two, and the two runs the refusal of a reading
+answer beside column answers asks for put the second run's answer on
+another column. Now the file every run writes keeps, under
+`answered_before`, every answer that run acted on -- from the file, from
+an earlier round or typed on the command line -- and a kept answer
+stands until a later one replaces it: an answer to the same question in
+the file, a new answer written beside it, or a declaration typed. The
+same answers given in one round or in several write the same
+description, summary, questions file and twin, byte for byte (`K-S3-66`,
+new: 0 answers lost and 0 differing files over the health data zoo's 25
+tables and eight answered cases, where lane HX's head read 14 and 20). A
+run that would drop a kept answer refuses in plain words and writes
+nothing. Where answers are given once, only the questions file changes.
+
 ### No real identifier is published while its question is open (2026-10-16)
 
 **A column synthtwin asked whether it holds record numbers, and nobody
