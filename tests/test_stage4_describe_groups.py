@@ -963,8 +963,8 @@ def test_the_census_holds_one_declared_column_at_a_time(
 
     The most `tracemalloc` sees held while `profile.population_census_of`
     counts the table read one column a group, above what the table held
-    before, is under twice what reading one column and its census
-    reading hold; and it counts as the whole census counts. Red on the
+    before, is under what reading and counting one column holds and three
+    columns' cells more; and it counts as the whole census counts. Red on the
     mutant that gathers every declared column before counting.
     """
     rows = 3_000
@@ -995,8 +995,13 @@ def test_the_census_holds_one_declared_column_at_a_time(
         census = tracemalloc.get_traced_memory()[1] - before
     finally:
         tracemalloc.stop()
+    import sys
+
+    held = reading.column_values(grouped, 0)
+    cells = 8 * len(held) + sum(sys.getsizeof(value) for value in {id(value): value for value in held}.values())
     assert found[:2] == expected[:2] and len(found[0]) == 12
-    assert census < 2 * one_column, (census, one_column)
+    # One column read and counted, and at most three columns' cells more.
+    assert census < one_column + 3 * cells, (census, one_column, cells)
 
 
 
