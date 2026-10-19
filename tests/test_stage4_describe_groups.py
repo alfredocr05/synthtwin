@@ -610,21 +610,27 @@ def test_the_walk_held_before_is_let_go_before_the_next_walk_is_read(
 # Each case below is red on the mutant named in its docstring.
 
 
-def _walk_entries(path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> "list[tuple[bool, int]]":
-    """Read ``path`` one column a group: at each walk the survey makes, whether it holds a column and the bytes traced then."""
-    entries: "list[tuple[bool, int]]" = []
+def _walk_entries(path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> "list[tuple[object, int]]":
+    """Read ``path`` one column a group: at each walk the survey makes, the columns it holds and the bytes traced above what was traced when that group's settling began."""
+    entries: "list[tuple[object, int]]" = []
+    began = [0]
     walked = dialect.survey
+    settled = dialect.settle
+
+    def settling(*arguments: object, **named: object) -> object:
+        began[0] = tracemalloc.get_traced_memory()[0]
+        return settled(*arguments, **named)  # type: ignore[arg-type]
 
     def entered(*arguments: object, **named: object) -> object:
         keep = named.get("keep", arguments[14] if len(arguments) > 14 else None)
         if named.get("quoted_closing", arguments[13] if len(arguments) > 13 else None) is not None:
-            holds = keep is None or True in keep  # type: ignore[operator]
-            entries.append((holds, tracemalloc.get_traced_memory()[0]))
+            entries.append((keep, tracemalloc.get_traced_memory()[0] - began[0]))
         return walked(*arguments, **named)  # type: ignore[arg-type]
 
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     monkeypatch.setattr(reading, "WALK_BYTES", 1)
     monkeypatch.setattr(dialect, "survey", entered)
+    monkeypatch.setattr(dialect, "settle", settling)
     tracemalloc.start()
     try:
         with warnings.catch_warnings():
@@ -686,9 +692,11 @@ def test_a_walk_made_again_holds_no_earlier_walk_and_reads_no_whole_text(
     """Skeptic 1, item 4, and Codex's item 3: a walk made again reads the lines afresh, and no earlier walk's cells are held beside it.
 
     Read in groups, as read whole; the file's bytes never read whole nor
-    decoded whole; and at every walk that holds a column, the bytes
-    traced are within a third of one column's cells of the least seen at
-    any walk. Red on each mutant: the walk shown wrong kept (`del found`
+    decoded whole; and at every walk the survey makes, the bytes traced
+    are within a third of one column's cells of what was traced when the
+    settling of that group began -- so no walk is held while the next is
+    made -- except beside a walk holding no column, which may be made
+    beside the one walk it may replace. Red on each mutant: the walk shown wrong kept (`del found`
     taken out), the refusal kept with its frames (`_let_go` taken out),
     the backslash reading tried holding the columns beside the walk it
     may replace, the trailing retry made beside its walk's cells.
@@ -712,10 +720,13 @@ def test_a_walk_made_again_holds_no_earlier_walk_and_reads_no_whole_text(
     # Some walk was made again.
     assert len(entries) > 2 * len(table.column_names) + 1, entries
     one_column = 2_500 * 100
-    least = min(traced for _holds, traced in entries)
-    for holds, traced in entries:
-        if holds:
-            assert traced - least < one_column // 3, (shape, entries)
+    for keep, above in entries:
+        if keep is None or True in keep:  # type: ignore[operator]
+            assert above < one_column // 3, (shape, keep, entries)
+        else:
+            # A walk holding no column may be made beside the one walk
+            # it may replace, and holds nothing itself.
+            assert above < one_column * 3 // 2, (shape, keep, entries)
 
 
 def test_a_text_repeated_late_in_a_column_is_shared_when_read_again(
@@ -914,6 +925,29 @@ def test_the_census_of_several_identifiers_counts_as_the_whole_census_counts(
     assert found[0], found
 
 
+def test_rows_naming_nobody_are_one_unknown_person_counted_in_groups(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`taxonomy.people_counted`: rows that hold a value but name no person are one more person, as `taxonomy.people_in` counts them.
+
+    Red on the mutant that counts without the rows holding a value.
+    """
+    table = tmp_path / "people.csv"
+    table.write_text(
+        "p,x\n" + "".join(f"{'' if row % 7 == 0 else f'P{row // 3:04d}'},{row % 5}\n" for row in range(420)),
+        encoding="utf-8",
+        newline="\n",
+    )
+    settings = taxonomy.Settings()
+    whole = reading.read_table(str(table))
+    expected = profile.population_census_of(whole, settings, ["p"], [], [], [], ())
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    grouped = reading.read_table(str(table), in_groups=True)
+    found = profile.population_census_of(grouped, settings, ["p"], [], [], [], ())
+    named = {f"P{row // 3:04d}" for row in range(420) if row % 7}
+    assert found[:2] == expected[:2] == (("p",), len(named) + 1)
+
+
 def test_the_census_holds_one_declared_column_at_a_time(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -957,3 +991,94 @@ def test_the_census_holds_one_declared_column_at_a_time(
     assert census < 2 * one_column, (census, one_column)
 
 
+
+
+def _the_driver() -> object:
+    """`tools/measurements/kpi_describe_groups.py`, imported from its path."""
+    import importlib.util
+
+    path = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_describe_groups.py"
+    spec = importlib.util.spec_from_file_location("kpi_describe_groups_under_test", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("resident", [True, False])
+def test_the_driver_records_no_peak_it_could_not_read(resident: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 6, and skeptic 1's items 2 and 6: the measuring driver's keys.
+
+    Where resident memory cannot be read (`_resident_peak` -1, as on
+    Windows), no peak and no projection of one is recorded, and the
+    evidence says so, while the CPU seconds and the traced bytes are
+    kept; where it can, the mixed table is projected from its three
+    largest sizes (1,000,000 rows the largest) and each Gaussian size is
+    the largest peak of its hash seeds. Red on the mutant that records
+    the -1 as a peak.
+    """
+    driver = _the_driver()
+    runs: "list[tuple[str, str]]" = []
+
+    def child(table: str, out: pathlib.Path, _budget: int, trace: bool, seed: str = "0") -> "dict[str, object]":
+        if not trace:
+            runs.append((table, seed))
+        # The rows are in the run's folder name (`measure` names it so).
+        rows = int(out.name.split("-")[1]) if out.name.count("-") == 2 else 0
+        mebibytes = 80 + rows / 10_000 + (50 if seed == "2" else 0)
+        peak = -1 if not resident else int(mebibytes * driver.MEBIBYTE)  # type: ignore[attr-defined]
+        return {"exit": 0, "cpu_seconds": rows / 10_000, "peak_rss_bytes": peak, "traced_peak_bytes": 4_000_000 if trace else -1}
+
+    monkeypatch.setattr(driver, "_child", child)
+    monkeypatch.setattr(driver, "write", lambda _kind, _rows, path: path.write_text("x\n", encoding="utf-8"))
+    memory, seconds = driver.measure()  # type: ignore[attr-defined]
+    peaks = [key for key in memory if "_peak_mb" in key or key == "imports_mb"]
+    assert "mixed_describe_seconds_2m_projected" in seconds and "gaussian_describe_cpu_seconds" in seconds
+    assert memory["mixed_traced_bytes_a_cell"] == 0.4
+    if not resident:
+        assert peaks == [] and "unavailable" in f"{memory['resident_memory']}"
+        return
+    assert "resident_memory" not in memory
+    assert len(memory["mixed_describe_peak_mb"]) == 4 and memory["sizes"]["mixed"][-1] == 1_000_000
+    assert memory["gaussian_describe_peak_mb"] == [140.0, 155.0, 180.0]
+    assert memory["mixed_describe_peak_mb_2m_projected"] == 280.0
+    assert sorted({seed for table, seed in runs if table.endswith("gaussian.csv")}) == ["1", "2", "3"]
+
+
+def test_a_file_changed_only_while_the_survey_walks_it_is_refused(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every walk the survey reads to its end is held to the first reading (`reading._walked_unchanged`).
+
+    The file is changed while the survey's first walk reads it and put
+    back, its moment of change too, before the standard reader's check:
+    only the walk's own digest shows it, and the file is refused as
+    changed rather than as a difference between the readers. Red on the
+    mutant that does not compare a finished walk's digest.
+    """
+    table = tmp_path / "t.csv"
+    text = "a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(60))
+    table.write_text(text, encoding="utf-8", newline="\n")
+    seen = table.stat()
+    walks = reading._walks
+
+    def changed_while_read(*arguments: object) -> object:
+        first = True
+        for lines in walks(*arguments):  # type: ignore[arg-type]
+            if not first:
+                yield lines
+                continue
+            first = False
+
+            def reading_the_change(lines: object = lines) -> object:
+                table.write_text(text.replace("x7\n", "x8\n"), encoding="utf-8", newline="\n")
+                yield from lines  # type: ignore[misc]
+                table.write_text(text, encoding="utf-8", newline="\n")
+                os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns))
+
+            yield reading_the_change()
+
+    monkeypatch.setattr(reading, "_walks", changed_while_read)
+    with pytest.raises(errors.ProfileError) as refused:
+        reading.read_table(str(table), in_groups=True)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
