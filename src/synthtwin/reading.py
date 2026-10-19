@@ -262,19 +262,21 @@ taken as the decoder hands them over -- a loop over the open file, no
 method called on it -- which cuts them exactly as `dialect.physical_lines`
 cuts a decoded text. The encoding is chosen as `dialect.decoded` chooses
 it, each encoding tried by reading the file through under it. A table too
-large for one group of columns (`GROUP_BYTES`) is then walked a group at
-a time -- the survey holds the group's cells, the standard reader and
-pandas check them, and what either check would refuse is weighed once
-every group is read, so the refusal is the one reading every column makes
--- and handed over holding one group; every column after is asked of
-`column_values`, which reads the file again for the next group. Nothing
-is written to disk. Every reading is held to the first -- the file's
-size, the moment it last changed, how many lines and a digest of them --
-and a file that changed in between is refused
-(`errors.file_changed_while_read`). A file whose survey would walk it
-twice (a retried guess about its spacing, its escaping or its closing,
-or a refusal another reading might lift) is walked from its whole text,
-as before.
+large for one group of columns (`GROUP_BYTES`) is then walked a walk of
+groups at a time (`WALK_BYTES`), groups and walks cut by what each
+column's own cells cost to hold -- the survey holds the walk's cells,
+the standard reader and pandas check them, and what either check would
+refuse is weighed once every walk is read, so the refusal is the one
+reading every column makes -- and handed over holding one group; every
+column after is asked of `column_values`, which reads the file again for
+the next group. Nothing is written to disk. Every reading is held to the
+first -- the file's size, the moment it last changed, how many lines and
+a digest of them -- and a file that changed in between is refused
+(`errors.file_changed_while_read`). A file the survey walks more than
+once (a retried guess about its spacing, its escaping or its closing, or
+a refusal another reading might lift) is read again, line by line, for
+each walk: its text is never held whole, only its first MiB and some
+(lane SR's repair 1, skeptic 1's item 4).
 
 IMPORTS
 =======
@@ -2782,11 +2784,15 @@ def column_values(table: Table, place: int) -> "list[str]":
     group kept -- however few columns the group holds: at 2,000,000 rows
     by 50 columns of lane B0's made-up health table, a reading of about
     the time `csv` takes over the file (under 200 seconds, lane B0's cost
-    table, section 1). Asking in column order reads each group once:
-    `synthtwin profile` of a table read one column a group reads the file
-    about twice a column (the description, then the census and the
-    questions, which read a walk of groups at a time), measured 89 to 98
-    readings of a table of 50 columns (P4-D400). A caller that pairs
+    table, section 1). Asking in column order reads each group once.
+    Measured (P4-D400; machine-free, both of lane B0's tables of 50
+    columns at budgets scaled as at 2,000,000 rows, 45 and 50 groups, 11
+    and 10 walks): `synthtwin profile` reads the file 103 times -- 3 to
+    choose its encoding, one walk of the survey a walk of groups and one
+    more to plan them (12 and 11), one standard reader's check a walk (11
+    and 10), and 77 and 79 readings by this access and `hold_columns` for
+    the description, the census and the questions -- and pandas reads it
+    once a walk. A caller that pairs
     columns far apart holds both at once with `hold_columns`, one reading
     for the pair, rather than switching between their groups.
 

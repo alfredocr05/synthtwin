@@ -27,10 +27,9 @@ which is the code before the lane:
    knows (quoted line breaks, every line ending, a title line, a
    separator line, metadata rows, byte-order marks, UTF-16, Latin-1 and
    Windows-1252, an end-of-file mark, trailing delimiters, short rows,
-   blank lines, a first row that is a record, comma-space files, which
-   are walked whole, a text longer than the part the survey's detection
-   reads), and the refusals are word for word the same over seeded
-   adversarial files.
+   blank lines, a first row that is a record, comma-space files, a text
+   longer than the part the survey's detection reads), and the refusals
+   are word for word the same over seeded adversarial files.
 2. `synthtwin profile` of tables read one column a group writes the
    same files, byte for byte, and says the same words, on tables that
    raise every kind of question it asks.
@@ -169,7 +168,7 @@ _SHAPES: "dict[str, tuple[bytes, str]]" = {
         b'a;b;""\n' + b"".join(f"{k};{k % 4}\n".encode() for k in range(40)),
         "auto",
     ),
-    "comma-space, walked whole": (
+    "comma-space": (
         b"a, b, c\n" + b"".join(f"{k}, x{k % 3},  {k}\n".encode() for k in range(30)),
         "auto",
     ),
@@ -607,7 +606,16 @@ def test_the_walk_held_before_is_let_go_before_the_next_walk_is_read(
 
 # -- 7. skeptic 1's and Codex's review of the lane (repair 1) -------------
 #
-# Each case below is red on the mutant named in its docstring.
+# Each case below is red on the mutant named in its docstring
+# (planning-notes/work-2026-10/wave6/SR/repair1/mutants.py and its log).
+# 8. A walk the survey makes again reads the file's lines afresh and
+#    holds no earlier walk; a text repeated late is shared when read
+#    again; a record no longer where it was is a changed file; the
+#    columns held are let go before the next are read; a file changed
+#    while pandas or the survey reads it is refused; a text is measured
+#    at its own width, and groups and walks are cut by those bytes; the
+#    census reads one declared column at a time; the measuring driver
+#    records no peak it could not read.
 
 
 def _walk_entries(path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> "list[tuple[object, int]]":
@@ -951,20 +959,20 @@ def test_rows_naming_nobody_are_one_unknown_person_counted_in_groups(
 def test_the_census_holds_one_declared_column_at_a_time(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Codex's item 2: six declared identifiers of long codes, read one column a group; the census holds about one column's cells, never all six.
+    """Codex's item 2: twelve declared identifiers of long codes, read one column a group; the census holds about one column's cells, never all twelve.
 
     The most `tracemalloc` sees held while `profile.population_census_of`
     counts the table read one column a group, above what the table held
-    before, is under twice what one column's cells and its census
+    before, is under twice what reading one column and its census
     reading hold; and it counts as the whole census counts. Red on the
     mutant that gathers every declared column before counting.
     """
     rows = 3_000
-    names = [f"id{k}" for k in range(6)]
+    names = [f"id{k}" for k in range(12)]
     table = tmp_path / "ids.csv"
     table.write_text(
         ",".join(names) + "\n"
-        + "".join(",".join(f"{k}-{row // 2:06d}-{'c' * 60}" for k in range(6)) + "\n" for row in range(rows)),
+        + "".join(",".join(f"{k}-{row // 2:06d}-{'c' * 60}" for k in range(12)) + "\n" for row in range(rows)),
         encoding="utf-8",
         newline="\n",
     )
@@ -975,19 +983,19 @@ def test_the_census_holds_one_declared_column_at_a_time(
     grouped = reading.read_table(str(table), in_groups=True)
     tracemalloc.start()
     try:
-        reading.column_values(grouped, 5)
+        reading.column_values(grouped, 11)
         before = tracemalloc.get_traced_memory()[0]
         tracemalloc.reset_peak()
         taxonomy.repeats_in(reading.column_values(grouped, 0), "id0", settings)
         one_column = tracemalloc.get_traced_memory()[1] - before
-        reading.column_values(grouped, 5)
+        reading.column_values(grouped, 11)
         before = tracemalloc.get_traced_memory()[0]
         tracemalloc.reset_peak()
         found = profile.population_census_of(grouped, settings, names, [], [], [], ())
         census = tracemalloc.get_traced_memory()[1] - before
     finally:
         tracemalloc.stop()
-    assert found[:2] == expected[:2] and len(found[0]) == 6
+    assert found[:2] == expected[:2] and len(found[0]) == 12
     assert census < 2 * one_column, (census, one_column)
 
 
