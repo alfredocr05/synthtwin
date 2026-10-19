@@ -487,7 +487,7 @@ def test_the_kpi_minimums_are_read_against_the_batterys_ledger():
         assert withdrawn not in decision
 
 
-def test_the_stage_six_gates_risk_is_stated():
+def test_the_stage_six_gate_risk_is_stated():
     """Statistics item 4: the gate's K-BC-01 minimum is judged on the chain
     alone, which A0b's 50-column panel puts short of the midpoint."""
     decision = _decision()
