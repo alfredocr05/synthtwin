@@ -1001,7 +1001,7 @@ _MAYBE_OBJECT = "object-or-nothing"
 # A list, or nothing at all: the values a date or clock tail holds, which
 # it publishes only where it holds few of them (stage 3, contract DT1).
 _MAYBE_ARRAY = "array-or-nothing"
-# A canonical moment, or nothing at all: a rung of a date or clock ladder
+# A canonical moment, or nothing at all: a rung of a date or clock rung
 # the tail rule withholds (stage 3, contract D11 and T2).
 _MAYBE_MOMENT = "canonical-datetime-or-nothing"
 _HEADER_TEXT = "a-header-cell-as-written"
@@ -1390,7 +1390,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "percentiles"): _OBJECT,
     ("columns", _EACH, "percentiles", _KEY_OF): _WORD,
     ("columns", _EACH, "percentiles", _ANY_KEY): _MAYBE_NUMBER,
-    # The ninety rungs the ladder above does not name (plan P4-D4.10).
+    # The ninety rungs the rung above does not name (plan P4-D4.10).
     ("columns", _EACH, "percentiles_between"): _OBJECT,
     ("columns", _EACH, "percentiles_between", _KEY_OF): _WORD,
     ("columns", _EACH, "percentiles_between", _ANY_KEY): _MAYBE_NUMBER,
@@ -1400,7 +1400,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "kurtosis"): _MAYBE_NUMBER,
     ("columns", _EACH, "n_distinct_values"): _COUNT,
     # THE MODE PAIR (plan P4-D4.11). The value is a published number
-    # like a ladder rung and may be absent, which is what the withheld
+    # like a rung rung and may be absent, which is what the withheld
     # pair looks like; the count is a count, and is nought exactly when
     # the value is absent.
     ("columns", _EACH, "mode"): _MAYBE_NUMBER,
@@ -1660,7 +1660,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "empty_bins", _EACH): _EMPTY_BIN,
     # ...and the REAL edges of each of those stretches (residual
     # R-P4-138). One `[below, above]` pair per run of empty bins, each
-    # a value of a real cell -- the same kind of fact a ladder rung is,
+    # a value of a real cell -- the same kind of fact a rung rung is,
     # which is what the owner's ruling of 2026-09-03 on the small-cell
     # floor already covers.
     ("columns", _EACH, "empty_edges"): _ARRAY,
@@ -2069,11 +2069,11 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "sentinel_verdicts", _EACH, "reason"): (
         taxonomy.SENTINEL_REASONS
     ),
-    ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
-    # The ninety rungs the ladder does not name (plan P4-D4.10), whose
+    ("columns", _EACH, "percentiles", _KEY_OF): taxonomy.RUNG_NAMES,
+    # The ninety rungs the rung does not name (plan P4-D4.10), whose
     # words come from the same one place for the same reason.
     ("columns", _EACH, "percentiles_between", _KEY_OF): (
-        taxonomy.FINER_LADDER_NAMES
+        taxonomy.FINER_RUNG_NAMES
     ),
     # THE SAME TWO VOCABULARIES ONE LEVEL DOWN (plan P4-D21). A joined
     # column's `parts` holds one quantitative block per position, and a
@@ -2081,10 +2081,10 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # words admitted in its keys are the same words, named again because
     # this table is matched on the whole path.
     ("columns", _EACH, "parts", _EACH, "percentiles", _KEY_OF): (
-        taxonomy.LADDER_NAMES
+        taxonomy.RUNG_NAMES
     ),
     ("columns", _EACH, "parts", _EACH, "percentiles_between", _KEY_OF): (
-        taxonomy.FINER_LADDER_NAMES
+        taxonomy.FINER_RUNG_NAMES
     ),
     # The notation a negative wore (landing 2b.2), from the one place
     # the four names are defined, at both depths a numeric block sits.
@@ -2119,8 +2119,8 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ("columns", _EACH, "parts", _EACH, "thousands_marks", _KEY_OF): (
         _MIXTURE_MARKS
     ),
-    ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
-    ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
+    ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.RUNG_NAMES,
+    ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.RUNG_NAMES,
     # Read from the one place the forty forms are named, so the word a
     # producer writes and the word this guard admits cannot drift.
     ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
@@ -4544,12 +4544,14 @@ SUBJECT_ROUNDS = 4
 ATTACHED_DIFFERENT_AT_MOST = 10
 
 # Where in a column block a NUMBER is a count, a share or a size rather
-# than a value of the column; a leaf under any of these keys is no value.
+# than a value of the column: a leaf whose own key holds any of these is
+# no value, and nor is one whose key is a value of the column itself
+# (`variants`, a census), which is the count beside it. `percent` is a
+# whole key: `percentiles` are values.
 _COUNT_KEYS = (
     "count",
     "rows",
     "n_",
-    "percent",
     "share",
     "width",
     "length",
@@ -4570,11 +4572,29 @@ _COUNT_KEYS = (
     "slack",
     "uniqueness",
     "suppressed",
+    # The places of a histogram's bins and of a calendar census -- a bin,
+    # a weekday, a day of the month, an hour -- are no value of a cell.
+    "first",
+    "last",
+    "bins",
 )
 
 # Where a whole entry -- its keys and its leaves -- holds no value of the
 # column: spellings of nothing, withheld totals, repetition censuses.
 _NO_VALUE_KEYS = ("missing", "withheld", "occurrences", "widths")
+
+# THE RUNGS: points along a column's range and the boundaries of its
+# tails. The floor publishes them whatever the rows at the point, so a
+# column NOT attached to the subject keeps them as a table of one row a
+# person does (a measurement one patient holds on a row or two); a column
+# attached to the subject counts them like every other value.
+_RUNG_KEYS = (
+    "percentiles",
+    "percentiles_between",
+    "date_percentiles",
+    "clock_percentiles",
+    "boundary",
+)
 
 # What is trimmed from each word of a sentence before it is compared.
 _WORD_EDGES = ",.;:()[]{}'\"`"
@@ -4707,6 +4727,35 @@ def _under(key: str, names: "tuple[str, ...]") -> bool:
     return False
 
 
+def _a_rung(key: str) -> bool:
+    """Whether a leaf's path runs through a rung (`_RUNG_KEYS`)."""
+    for part in key.split("."):
+        if part in _RUNG_KEYS:
+            return True
+    return False
+
+
+def _plainly(key: str, plain: _Published) -> bool:
+    """Whether a counted key is published off the rungs too."""
+    if key[:1] == "w":
+        return key[1:] in plain.words
+    if key[:1] == "p":
+        return key[1:] in plain.prefixes
+    if key[:1] == "n":
+        return _number_of(key[1:]) in plain.numbers
+    return True
+
+
+def _a_field(key: str) -> bool:
+    """Whether a block key is a field's name: small letters, figures, `_`."""
+    if not key or not ("a" <= key[0] <= "z"):
+        return False
+    for character in key:
+        if not ("a" <= character <= "z" or "0" <= character <= "9" or character == "_"):
+            return False
+    return True
+
+
 def _number_of(text: str) -> "float | None":
     try:
         return parsing.parse_number(text)
@@ -4714,14 +4763,15 @@ def _number_of(text: str) -> "float | None":
         return None
 
 
-def _published_in(block: "dict[str, object]") -> _Published:
+def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
     """Every value a column block publishes, read as a cell could be.
 
     Each text leaf and each mapping key, folded, and each word of a
     sentence; each number leaf that is not a count, share or size
     (`_COUNT_KEYS`); each text leaf under a key naming a prefix; and the
     format the block reads its dates in, so a cell is compared with the
-    date as the block writes it.
+    date as the block writes it. ``rungs`` false leaves out the points
+    along the range and the tails' boundaries (`_RUNG_KEYS`).
     """
     words: "dict[str, bool]" = {}
     numbers: "dict[float, bool]" = {}
@@ -4736,6 +4786,8 @@ def _published_in(block: "dict[str, object]") -> _Published:
         cursor = cursor + 1
         if _under(key, _NO_VALUE_KEYS):
             continue
+        if not rungs and _a_rung(key):
+            continue
         if isinstance(leaf, bool) or leaf is None:
             continue
         if isinstance(leaf, dict):
@@ -4748,7 +4800,10 @@ def _published_in(block: "dict[str, object]") -> _Published:
                 waiting += [(key, item)]
             continue
         if isinstance(leaf, (int, float)):
-            if not _under(key, _COUNT_KEYS):
+            own = key.split(".")[-1]
+            if own != "percent" and _a_field(own) and not _under(
+                own, _COUNT_KEYS
+            ):
                 numbers[float(leaf)] = True
             continue
         if not isinstance(leaf, str):
@@ -4872,7 +4927,9 @@ def _counted_in_subjects(
     column = described
     rounds = 0
     while True:
-        published = _published_in(_column_block(column))
+        shown = _column_block(column)
+        published = _published_in(shown, True)
+        plain = _published_in(shown, False)
         keys_of = _keys_published(published)
         rare: "dict[str, bool]" = {}
         counts: "list[dict[str, SubjectCount]]" = []
@@ -4882,7 +4939,8 @@ def _counted_in_subjects(
             for key in counted:
                 held = counted[key]
                 if len(held.holders) < floor and (
-                    attached[place] or held.rows >= floor
+                    attached[place]
+                    or (held.rows >= floor and _plainly(key, plain))
                 ):
                     rare[key] = True
         # A COLUMN ATTACHED TO A SUBJECT is counted whole, once: every
