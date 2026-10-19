@@ -288,3 +288,32 @@ def test_a_candidate_of_fewer_than_eleven_values_counts_nothing(
     assert _NOTICE not in screen
     block = _block(_described(tmp_path, "seven"), "value")
     assert sorted(level["label"] for level in block["levels"]) == ["east", "north", "south"]
+
+
+def test_a_column_attached_to_its_people_counts_every_value_it_publishes(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Birth dates of 150 patients on four rows each: no date reaches eleven rows, none is published.
+
+    The row floor's reason fails nowhere here -- no birth date stands on
+    eleven rows -- so only the attachment (one date a patient) reaches the
+    dates the ladder of the column prints.
+    """
+    draw = random.Random(13)
+    born = [f"{draw.randint(1930, 2005)}-{draw.randint(1, 12):02d}-{draw.randint(1, 28):02d}"
+            for _person in range(150)]
+    lines = ["patient,dob,value"]
+    for place in range(600):
+        person = place % 150
+        lines += [f"REC{40000000 + 13 * person:08d},{born[person]},{draw.uniform(3, 150):.1f}"]
+    table = tmp_path / "born.csv"
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    code, screen = _profile(table, tmp_path, "--identifier", "patient")
+    assert code == 0
+    block = _block(_described(tmp_path, "born"), "dob")
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER
+    for day in set(born):
+        assert day not in json.dumps(block)
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _NOTICE in screen
+    assert _twin_validates(table, tmp_path) == 0
