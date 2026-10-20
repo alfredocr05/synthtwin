@@ -734,6 +734,41 @@ def test_the_kept_reading_changed_beside_kept_columns_is_refused(tmp_path: pathl
     assert subject_codes_published(table) == 0
 
 
+@pytest.mark.parametrize("route", ["typed-code", "fresh-keep"])
+def test_the_kept_names_deleted_beside_one_named_column_is_refused(tmp_path: pathlib.Path, route: str) -> None:
+    """The kept `names` deleted beside ONE column answer of either source: refused, no subject code printed.
+
+    The names check runs where a kept column answer (`typed-code`: round
+    two types `--code column_1` for the visit labels) or a `keep` to a
+    question offering `identifier` (`fresh-keep`: round two's file
+    answers `column_1 keep` and deletes the kept `names`) names a column.
+    Measured on 8901146b (lane AQ's verify, L1 and L2): with the one
+    source the case carries left out of the check, the run read the
+    subject codes as `column_1`, categorical, and published 200 of 200.
+    """
+    table = two_hundred_subjects(tmp_path)
+    assert profile(table) == 0
+    first = questions(table)
+    give(first, [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_NAMES)])
+    hand_back(table, first)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    document = questions(table)
+    if route == "typed-code":
+        hand_back(table, document)
+        assert profile(table, "--answers", f"{table.path('questions.json')}", "--code", "column_1") == 0
+        assert ("column_1", "code") in kept(table)
+        assert subject_codes_published(table) == 0
+        document = questions(table)
+    else:
+        assert give(document, [("column_1", asking.ANSWER_KEEP)]) == [("column_1", asking.ANSWER_KEEP, "kind")]
+    section = document[ANSWERED_BEFORE]
+    assert isinstance(section, list)
+    document[ANSWERED_BEFORE] = [entry for entry in section if entry["column"] != asking.FIRST_ROW_SUBJECT]
+    words = refused_with_nothing_written(table, document)
+    assert _OTHER_NAMES in " ".join(words.split())
+    assert subject_codes_published(table) == 0
+
+
 @pytest.mark.parametrize("route", ["edited", "typed"])
 def test_the_kept_delimiter_changed_beside_a_kept_column_is_refused(tmp_path: pathlib.Path, route: str) -> None:
     """A kept delimiter edited or typed over, beside a kept column answer: refused by the reading's words."""
@@ -751,7 +786,11 @@ def test_the_kept_delimiter_changed_beside_a_kept_column_is_refused(tmp_path: pa
 
 
 def test_the_kept_reading_unchanged_or_typed_alike_is_acted_on(tmp_path: pathlib.Path) -> None:
-    """The kept `names` handed back as it stands, or typed alike: the run goes on, no code printed."""
+    """The kept `names` handed back as it stands, or typed alike: the run goes on, no code printed.
+
+    The same for a kept delimiter typed alike: `--delimiter ,` beside the
+    kept `comma` is read as the file's writer read the table.
+    """
     table = two_hundred_subjects(tmp_path)
     answered_in_two_rounds(table)
     once = outputs(table)
@@ -760,6 +799,15 @@ def test_the_kept_reading_unchanged_or_typed_alike_is_acted_on(tmp_path: pathlib
     assert outputs(table) == once
     assert profile(table, "--answers", f"{table.path('questions.json')}", "--first-row", "names") == 0
     assert outputs(table) == once
+    comma = mixed_table(tmp_path / "comma")
+    assert profile(comma, "--delimiter", ",", "--code", "reg") == 0
+    assert (asking.DELIMITER_SUBJECT, "comma") in kept(comma)
+    hand_back(comma, questions(comma))
+    assert profile(comma, "--answers", f"{comma.path('questions.json')}") == 0
+    handed = outputs(comma)
+    hand_back(comma, questions(comma))
+    assert profile(comma, "--answers", f"{comma.path('questions.json')}", "--delimiter", ",") == 0
+    assert outputs(comma) == handed
 
 
 # -- every typed form replaces a kept answer (skeptic 1, item 2) -----------
