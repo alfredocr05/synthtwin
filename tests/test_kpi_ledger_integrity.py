@@ -824,8 +824,10 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # below) and lane XW's `K-S4-22` (653,000 on its branch, below), with
     # their note clauses, beside batch 4c's entries, every entry kept by
     # id and the note merged clause by clause; then `K-HZ-02`'s moved
-    # bound and its status note; 710,487 bytes as merged. A MEASUREMENT
-    # IS NEVER TRIMMED TO FIT.
+    # bound and its status note; 710,487 bytes as merged; then the
+    # batch's records, `K-S3-41` and `K-S3-62` restamped with their
+    # clause and `K-P0-09` naming the four libraries, 710,683 bytes. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 653,000 from 649,000, LANE XW (2026-10-19, plan P4-D411), the
     # least round figure the lane's ledger fits under: K-S4-22 new, the

@@ -6,6 +6,32 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4d's records: stated limits given owners, the zoo answering under the identifier hold (2026-10-20)
+
+**Records of batch 4d** (the orchestrator's namings of 2026-10-19 and
+2026-10-20, the owner may reverse any). Nothing a command prints,
+writes or exits changes. The clone install's unpinned build backend and
+the install scripts run only in CI are lane DEP's; `doctor` weighing
+total memory is lane TT's (plan P4-D397). The register's peak growing
+about 245 MB a million rows, and texts more than 8,192 new texts apart
+answered once a row, pass from lane SR, which closed here, to lane H3
+(plan P4-D390); so do describe's cost on a column whose values all
+differ, `K-S4-09` still OPEN with describe's part RED, and one wide
+note column, while workbooks at scale are lane XL's (plan P4-D400).
+`analyst_kit.chi2_sf`'s 500-term cap, 0.7 % off at 69,295 degrees of
+freedom and p 0.5, is lane E0L's (plan P4-D398). The health data zoo's
+person now answers `keep` where a question offers `identifier` and it
+knows the column as something else, since a blank holds such a column
+under lane HX's rule; the zoo's SNOMED ids still wait a round for their
+`code` answer, so `K-HZ-02`'s analyst bound moves from 100 to 101, the
+integrator's call for the orchestrator to keep or reverse (plan
+P4-D401). `K-S3-41` and `K-S3-62` are restamped on the merged head,
+each value as before; `K-P0-09` names the four runtime libraries. STATE
+says stage 8, the screen, was dropped on 2026-10-15, names CI's Python
+3.11 to 3.14, and counts 13,018 cases and 241 KPIs, 35 of them
+headlines (two more for the analyst battery's `K-BC-01` and `K-BC-02`,
+the orchestrator's call D15).
+
 ### Python 3.11 and later, four runtime libraries held to their zones (lane DEP-1, 2026-10-19)
 
 **The libraries' mechanics** (plan P4-D410, building P4-D409; the owner's
@@ -99,7 +125,15 @@ registers of e-mail addresses, telephone or social security numbers and
 Medicare beneficiary identifiers are asked the person question, also
 beside a declared person column, and a key's `-1` no longer silences its
 width question. A scripted run holds 158 column readings of the suite's
-batteries until they are answered, the price the ruling accepted.
+batteries until they are answered, the price the ruling accepted, and
+the price grows with the table: income in whole thousands, one row a
+person, is held at 600 rows; daily steps and charges in cents from
+200,000 rows; and at 1,000,000 rows any repeating whole-number
+measurement mostly five figures or more is held until its question is
+answered, `keep` giving back the description as it was. In the health
+data zoo the SNOMED ids of a diagnoses export are asked the person
+question in place of the checklist, so the `code` answer comes a round
+later (batch 4d's integration; answering in two rounds is lane AQ's).
 Names, street addresses and birth dates stay published and are stated
 limits owned by lane HX2. A numeric patient key that repeats on its
 patients' rows -- five figures or more, beside `0`, `-99` or `UNKNOWN`
