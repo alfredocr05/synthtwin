@@ -2266,12 +2266,16 @@ def kpi_04(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
 
     Every scored model is asked of every side at every seed it is
     expected on -- today's twin at each twin seed, the controls at their
-    heavy seeds -- and one missing there (a model that could not be
-    trained or scored) counts as an infinite gap and a rank correlation
-    of -1, never as nothing: a twin whose models fail cannot read as a
-    twin that matches (Codex's review). The controls hold only where
-    neither control misses a model. The gap's denominator is the model's
-    half-split yardstick as measured, as the ledger states it.
+    heavy seeds -- and one missing on ANY of them (a model that could not
+    be trained or scored) makes that model's gap infinite and its rank
+    correlation -1 for that side, whatever its other seeds read, as
+    K-BC-05's discriminator is read: a twin whose models fail cannot read
+    as a twin that matches (Codex's review), and a median over the seeds
+    let one that failed on one or two of five read the good seeds' gap
+    (the verify after it). `twin_models_missing` counts the missing
+    seeds. The controls hold only where neither control misses a model.
+    The gap's denominator is the model's half-split yardstick as
+    measured, as the ledger states it.
     """
     gaps: "dict[str, dict[tuple[str, int, str], float]]" = {"twin": {}, "replicate": {}, "shuffled": {}}
     ranks: "dict[str, dict[tuple[str, int, str], float]]" = {"twin": {}, "replicate": {}, "shuffled": {}}
@@ -2281,23 +2285,16 @@ def kpi_04(runs: "list[TableRun]", suffix: str = "") -> "dict[str, object]":
             if auc_ab < TRAINED_AUC:
                 continue
             for side in gaps:
-                expected = [s for s in r.sides[side] if s.heavy]
-                per_gap: "list[float]" = []
-                per_rank: "list[float]" = []
-                for s in expected:
-                    got = s.tstr.get(name)
-                    if got is None:
-                        missing[side] += 1
-                        per_gap += [math.inf]
-                        per_rank += [-1.0]
-                    else:
-                        per_gap += [_over(auc_ab - got[0], yard)]
-                        per_rank += [got[1]]
-                if not expected:
-                    missing[side] += 1
-                    per_gap, per_rank = [math.inf], [-1.0]
-                gaps[side][(r.table, r.seed, name)] = _median(per_gap)
-                ranks[side][(r.table, r.seed, name)] = _median(per_rank)
+                found = [s.tstr.get(name) for s in r.sides[side] if s.heavy]
+                scored = [got for got in found if got is not None]
+                lost = len(found) - len(scored)
+                missing[side] += lost if found else 1
+                key = (r.table, r.seed, name)
+                if lost or not found:
+                    gaps[side][key], ranks[side][key] = math.inf, -1.0
+                else:
+                    gaps[side][key] = _median([_over(auc_ab - got[0], yard) for got in scored])
+                    ranks[side][key] = _median([got[1] for got in scored])
     if not gaps["twin"] or not gaps["replicate"] or not gaps["shuffled"]:
         return {f"controls_hold{suffix}": False}
     worst = {side: max(v.values()) for side, v in gaps.items()}

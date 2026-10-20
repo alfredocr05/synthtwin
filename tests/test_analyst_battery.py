@@ -27,10 +27,11 @@ mechanism biting rather than assume it:
   11 in any half, is never scored, whatever its value; a rule the real
   table keeps on every row is scored, with a yardstick of 0;
 * a mixed model over fewer than 22 subjects of two rows stops;
-* K-BC-04 counts a model missing on a side or seed as a failure and
-  divides by the yardstick as measured; K-BC-05 never leaves out a
-  discriminator that could not be fitted; K-BC-02's McNemar targets are
-  stated only where a twin recovering nothing would miss them;
+* K-BC-04 counts a model missing on any seed of a side as that side's
+  failure and divides by the yardstick as measured; K-BC-05 never
+  leaves out a discriminator that could not be fitted; K-BC-02's
+  McNemar targets are stated only where a twin recovering nothing would
+  miss them;
 * the automatic panel keeps room for pair products;
 * the slow driver's cache reads every module the panels come from, and
   the driver runs where `resource` does not exist;
@@ -456,7 +457,13 @@ def _with_side(run: B.TableRun, side: str, change: "dict[str, object]") -> B.Tab
 
 def test_k_bc_04_counts_a_missing_model_as_a_failure_and_divides_by_the_yardstick(
         fast_runs: "list[B.TableRun]") -> None:
-    """The twin's model gone: an infinite gap, counted missing; a control's gone: void; a yardstick of 0.001 is not floored."""
+    """The twin's model gone: an infinite gap, counted missing; a control's gone: void; a yardstick of 0.001 is not floored.
+
+    Gone on one of five twin seeds whose other four score as the
+    replicate does, the gap is infinite and the rank correlation -1, not
+    the four seeds' median, which meets the target (the verify after
+    Codex's review: one or two failed seeds of five read as none).
+    """
     st1 = next(r for r in fast_runs if r.table == "ST1")
     assert list(st1.tstr_yard) == ["died"]
     before = B.kpi_04([st1])
@@ -464,6 +471,15 @@ def test_k_bc_04_counts_a_missing_model_as_a_failure_and_divides_by_the_yardstic
     gone = B.kpi_04([_with_side(st1, "twin", {"tstr": {}})])
     assert gone["auc_gap_over_yardstick"] == math.inf and gone["twin_models_missing"] == 1
     assert gone["importance_rank_below_replicate"] >= before["importance_rank_below_replicate"]
+    good = dataclasses.replace(st1.sides["twin"][0], tstr=dict(st1.sides["replicate"][0].tstr))
+    lost = dataclasses.replace(good, tstr={})
+    whole, one_lost = [B.kpi_04([dataclasses.replace(st1, sides=dict(st1.sides, twin=twin))])
+                       for twin in ([good] * 5, [good, good, lost, good, good])]
+    assert whole["auc_gap_over_yardstick"] == whole["replicate_auc_gap_over_yardstick"] <= 3.0
+    assert whole["importance_rank_below_replicate"] == 0.0 and whole["twin_models_missing"] == 0
+    assert one_lost["auc_gap_over_yardstick"] == math.inf and one_lost["twin_models_missing"] == 1
+    assert one_lost["importance_rank_below_replicate"] == pytest.approx(
+        st1.sides["replicate"][0].tstr["died"][1] + 1.0, abs=1e-3)
     assert B.kpi_04([_with_side(st1, "replicate", {"tstr": {}})])["controls_hold"] is False
     assert B.kpi_04([_with_side(st1, "shuffled", {"tstr": {}})])["controls_hold"] is False
     auc_ab, _yard, rank = st1.tstr_yard["died"]
