@@ -92,16 +92,17 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   P4-D410). Every first-party module sits in one zone: G, generation
   (any byte of the twin); D, description and shared report (any
   published byte); P, private report and self-test; R, reading the
-  person's file; W, writing the twin's. The generation path is
-  COMPUTED from the tree: every module synthtwin.generation or
-  synthtwin.contract reaches by import, from any line, is zone G
-  (_GENERATION_ROOTS); _MODULE_ZONES names the R, W and P modules and
-  the polish kernel (G); every other first-party module is D. Every
-  admitted library module carries the zones it may run in
-  (_LIBRARY_ZONES; the standard library runs everywhere), a use outside
-  them is a violation, a module of zone G may not even IMPORT a library
-  not admitted for G, and no module outside zone P imports a module
-  inside it. The rule is what keeps library floats -- reductions whose
+  person's file; W, writing the twin's. _MODULE_ZONES names the R, W
+  and P modules and the polish kernel (G); the generation path is
+  COMPUTED from the tree: every other module the generator, the
+  description's loader or the twin's three writers reach by import,
+  from any line, is zone G (_GENERATION_ROOTS); every other first-party
+  module is D. Every admitted library module carries the zones it may
+  run in (_LIBRARY_ZONES; the standard library runs everywhere, and no
+  library is admitted for W), a use outside them is a violation, a
+  module of zone G may not even IMPORT a library not admitted for G, no
+  module of zone G or W imports a zone R module, and no module outside
+  zone P imports a module inside it. The rule is what keeps library floats -- reductions whose
   order no build promises, solver tolerances, platform LAPACK -- away
   from every byte of the twin and of anything published.
 * THE ARGUMENT RULES (P4-D409 part 3 (d); _ARGUMENT_RULES). An admitted
@@ -791,19 +792,28 @@ _ZONE_R = "R"
 _ZONE_W = "W"
 
 # THE GENERATION PATH IS COMPUTED, NOT LISTED (P4-D409 part 3 (a)): every
-# first-party module these two reach by import, at any depth and from
-# any line of the file, is zone G -- so a module joins the path on the
-# commit that imports it, as `tests/test_contract_loader.py` walks the
-# loader's closure. A module reached from both the generation path and
-# anywhere else is G.
-_GENERATION_ROOTS = ("synthtwin.generation", "synthtwin.contract")
+# first-party module the generator, the description's loader and the
+# twin's three writers reach by import, at any depth and from any line
+# of the file, is zone G -- so a module joins the path on the commit
+# that imports it, as `tests/test_contract_loader.py` walks the loader's
+# closure. A module reached from both the generation path and describe
+# is G. The writers themselves are zone W (the table below).
+_GENERATION_ROOTS = (
+    "synthtwin.generation",
+    "synthtwin.contract",
+    "synthtwin.rendering",
+    "synthtwin.sheetwriting",
+    "synthtwin.writing",
+)
 
-# The modules a table names for a zone other than D, each entered with
-# its lane's plan decision. A module the generation path reaches is G
-# whatever this table says; a first-party module neither names is held
-# to zone D. The polish kernel is G wherever it is imported from: what
-# it computes is bytes of the twin. No module is zone P yet: lane ST
-# enters the self-test's.
+# The modules a table names for a zone, each entered with its lane's
+# plan decision; the table is read FIRST, so a reading module stays R
+# and a writer stays W wherever it is imported from, and the generation
+# path reaching a zone R or zone P module is a violation of its own
+# (P4-D409 part 3 (b)). A module the table does not name is G when the
+# generation path reaches it and D otherwise. The polish kernel is G
+# wherever it is imported from: what it computes is bytes of the twin.
+# No module is zone P yet: lane ST enters the self-test's.
 _MODULE_ZONES: "dict[str, str]" = {
     _POLISH_KERNEL: _ZONE_G,
     "synthtwin.reading": _ZONE_R,
@@ -868,6 +878,16 @@ def _zone_import_message(name: str, prefix: str) -> str:
         "synthtwin.contract reaches by import decides bytes of the twin, "
         "and may import only what is admitted there. Keep the import in "
         "a module the generation path does not reach."
+    )
+
+
+def _reading_module_message(module: str, zone: str) -> str:
+    return (
+        "imports the zone R module '" + module + "' from a module of "
+        + _ZONE_NAMES[zone] + " (plan P4-D409 part 3 (b)). The generation "
+        "path and the twin's writers reach no module that reads the "
+        "person's table: the generator reads the description and nothing "
+        "else (plan P2-D1)."
     )
 
 
@@ -3977,11 +3997,21 @@ class _Checker(ast.NodeVisitor):
             self._flag(node, _zone_import_message(name, prefix))
 
     def _check_private_import(self, node: ast.AST, module: str) -> None:
-        """No module outside zone P imports a zone P module (P4-D409 part 3 (b))."""
-        if not self.zone or self.zone == _ZONE_P:
+        """P4-D409 part 3 (b), at the import that would break it.
+
+        No module outside zone P imports a zone P module, and no module
+        of the generation path or of the twin's writers (zones G and W)
+        imports a reading module (zone R): what those modules import, a
+        generate run loads, and the generator reads the description and
+        nothing else (P2-D1).
+        """
+        if not self.zone:
             return
-        if _MODULE_ZONES.get(module) == _ZONE_P:
+        target = _MODULE_ZONES.get(module)
+        if target == _ZONE_P and self.zone != _ZONE_P:
             self._flag(node, _private_module_message(module))
+        elif target == _ZONE_R and self.zone in (_ZONE_G, _ZONE_W):
+            self._flag(node, _reading_module_message(module, self.zone))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self._handle_import_from(node, report=True)
@@ -5549,10 +5579,12 @@ def _generation_path(imports: "dict[str, set[str]]") -> "set[str]":
 
 
 def _zone_of(module_name: str, generation_path: "set[str]") -> str:
-    """A first-party module's zone: G on the path, else its table entry, else D."""
+    """A first-party module's zone: its table entry, else G on the path, else D."""
+    if module_name in _MODULE_ZONES:
+        return _MODULE_ZONES[module_name]
     if module_name in generation_path:
         return _ZONE_G
-    return _MODULE_ZONES.get(module_name, _ZONE_D)
+    return _ZONE_D
 
 
 def scan_source(

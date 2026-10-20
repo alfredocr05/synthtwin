@@ -3748,12 +3748,42 @@ def test_the_generator_may_not_draw_outside_zone_g(tmp_path):
     _assert_red(violations, "in a module of zone W")
 
 
-def test_the_real_generation_path_is_the_one_the_loader_reaches(tmp_path):
-    """The computed path on the shipped tree: the generator and loader's closure.
+def test_the_writers_reach_the_generation_path_too(tmp_path):
+    """Plan P4-D409 part 3 (a): what the twin's writers import decides the twin too.
 
-    It holds the generator, the loader and the pure helpers they import,
-    and none of the modules that read the person's table, write the twin
-    or speak to the person.
+    `synthtwin.writing` is zone W itself, and a helper it imports is on
+    the generation path, zone G: the reader's library may not be used
+    there.
+    """
+    violations = _scan_in(
+        tmp_path,
+        "helper",
+        "import pandas\n\n\ndef peek(path):\n    return pandas.read_csv(path)\n",
+        {"synthtwin/writing.py": "from synthtwin import helper\n"},
+    )
+    _assert_red(violations, "imports 'pandas' into the generation path (zone G)")
+
+
+def test_the_generation_path_and_the_writers_reach_no_reading_module(tmp_path):
+    """Plan P4-D409 part 3 (b): no generate run loads the module that reads the table."""
+    extra = {"synthtwin/reading.py": "def read_table(path):\n    return path\n"}
+    for module in ("generation", "contract", "writing", "sheetwriting"):
+        violations = _scan_in(
+            tmp_path / module,
+            module,
+            "from synthtwin import reading\n",
+            extra,
+        )
+        _assert_red(violations, "imports the zone R module 'synthtwin.reading'")
+    assert _scan_in(tmp_path / "profile", "profile", "from synthtwin import reading\n", extra) == []
+
+
+def test_the_real_generation_path_is_the_one_the_loader_reaches(tmp_path):
+    """The computed path on the shipped tree: the generator's, loader's and writers' closure.
+
+    It holds the generator, the loader, the three writers (themselves
+    zone W) and the pure helpers they import, and none of the modules
+    that read the person's table or speak to the person.
     """
     files = sorted(SRC_TREE.rglob("*.py"))
     trees = {}
@@ -3771,13 +3801,16 @@ def test_the_real_generation_path_is_the_one_the_loader_reaches(tmp_path):
     path = _SCANNER._generation_path(imports)
     for inside in ("synthtwin.generation", "synthtwin.contract", "synthtwin.parsing"):
         assert inside in path, sorted(path)
+        assert _SCANNER._zone_of(inside, path) == "G"
+    for writer in ("synthtwin.writing", "synthtwin.sheetwriting", "synthtwin.rendering"):
+        assert writer in path and _SCANNER._zone_of(writer, path) == "W"
     for outside in (
         "synthtwin.reading",
         "synthtwin.workbook",
-        "synthtwin.writing",
-        "synthtwin.sheetwriting",
-        "synthtwin.rendering",
         "synthtwin.cli",
         "synthtwin.profile",
+        "synthtwin.validation",
     ):
         assert outside not in path, (outside, sorted(path))
+    assert _SCANNER._zone_of("synthtwin.reading", path) == "R"
+    assert _SCANNER._zone_of("synthtwin.profile", path) == "D"
