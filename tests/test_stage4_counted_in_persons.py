@@ -924,14 +924,18 @@ def test_held_layouts_are_asked_of_a_set() -> None:
 
 
 def test_a_raised_floor_asks_a_set_of_subjects() -> None:
-    """Codex's item 10: at a floor of 20,001 the count keeps a set beside each list."""
+    """Codex's item 10: at a floor of 50,001 the count keeps a set beside each list.
+
+    Asked of the list alone, 100,000 subjects cost about 3.75 billion
+    comparisons before the cap; asked of a set, a hundred thousand.
+    """
     import time
 
-    subjects = [f"s{index}" for index in range(40000)]
+    subjects = [f"s{index}" for index in range(100000)]
     began = time.perf_counter()
-    held = profile.subjects_holding(["x"] * 40000, subjects, 20001)
-    assert len(held["x"].holders) == 20001
-    assert time.perf_counter() - began < 2.0
+    held = profile.subjects_holding(["x"] * 100000, subjects, 50001)
+    assert len(held["x"].holders) == 50001
+    assert time.perf_counter() - began < 3.0
     # At the default floor the list alone is kept, as before.
     assert profile.subjects_holding(["x"] * 30, subjects[:15] * 2, 11)["x"].holders == tuple(
         subjects[:11])
