@@ -402,7 +402,7 @@ def test_no_layout_fewer_than_eleven_people_wear_is_named(
 
 @pytest.mark.parametrize("small", (False, True))
 def test_the_person_census_is_counted_in_people(tmp_path: pathlib.Path, small: bool) -> None:
-    """Item 6: groups of eleven people or more stand as they are; a group of three is pooled."""
+    """Item 6: groups of eleven people or more stand as they are; a pool of three takes more in."""
     table, _screen = _profiled(tmp_path, "people", persons_counted.census_table(small),
                                "--identifier", "patient")
     block = _block(_described(tmp_path, "people"), "patient")
@@ -413,7 +413,7 @@ def test_the_person_census_is_counted_in_people(tmp_path: pathlib.Path, small: b
         assert census == {1: 30, 2: 40, 3: 25, 4: 20, 5: 15}
         assert _real_misses(table, tmp_path) == set()
     else:
-        assert 9 not in census, census
+        assert 9 not in census and 7 not in census, census
         assert sum(census.values()) == 133
         assert sum(size * people for size, people in census.items()) == len(cells)
     assert _twin_validates(table, tmp_path) == 0

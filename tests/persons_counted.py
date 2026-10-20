@@ -506,12 +506,13 @@ def visit_table(rows: int, written: str) -> str:
 def census_table(small: bool) -> str:
     """Declared patients on one to five rows; every rows-a-person group has eleven people or more.
 
-    ``small`` adds three patients on nine rows each: a group of three.
+    ``small`` adds two patients on six rows and one on nine: a pool of
+    three, which spread alone would print three people on seven rows.
     """
     draw = random.Random(37)
     sizes = [1] * 30 + [2] * 40 + [3] * 25 + [4] * 20 + [5] * 15
     if small:
-        sizes += [9] * 3
+        sizes += [6, 6, 9]
     lines = ["patient,value"]
     for person, size in enumerate(sizes):
         for _row in range(size):
