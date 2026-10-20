@@ -818,9 +818,9 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 653,000 from 649,000, LANE XW (2026-10-19, plan P4-D411), the
     # least round figure the lane's ledger fits under: K-S4-22 new, the
     # workbook twin written as a stream, with its note clause, 651,886
-    # bytes, and 652,445 at its repair 1 (the zlib-ng reading and the
-    # memory split skeptic 1 asked for). The integrator of the batch
-    # sets the batch's own figure.
+    # bytes, 652,445 at its repair 1 (the zlib-ng reading and the
+    # memory split skeptic 1 asked for) and 652,532 at its repair 2.
+    # The integrator of the batch sets the batch's own figure.
     # A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 649,000 from 638,000 (lane E0a), 626,000 (lane H1) and 627,000
