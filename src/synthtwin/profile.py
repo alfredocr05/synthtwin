@@ -4762,6 +4762,30 @@ def _attached(values: "list[str]", subjects: "list[str]") -> bool:
     return again > 0 and different * ATTACHED_DIFFERENT_AT_MOST <= again
 
 
+def _names_its_people(values: "list[str]", subjects: "list[str]") -> bool:
+    """Whether an attached column tells its subjects apart (plan P4-D406).
+
+    A column all but constant is attached to any key that repeats: four
+    hundred `north` beside fifteen `south` and one `west` hold one value a
+    filler code of seven values nearly everywhere. It says which subject
+    a row is only where no one value is the first one met for more than
+    half the subjects -- a name, a birth date, a plan number. Asked under
+    a subject column of fewer than the floor's number of values, where
+    every value is held by fewer subjects than the floor.
+    """
+    first: "dict[str, str]" = {}
+    for place, cell in enumerate(values):
+        text = parsing.folded(cell)
+        if text and subjects[place] not in first:
+            first[subjects[place]] = text
+    met: "dict[str, int]" = {}
+    commonest = 0
+    for text in first.values():
+        met[text] = (met[text] if text in met else 0) + 1
+        commonest = max(commonest, met[text])
+    return len(first) >= 2 and commonest * 2 <= len(first)
+
+
 @dataclasses.dataclass(frozen=True)
 class _Published:
     """What a column block publishes that a cell could be: its values."""
@@ -5040,9 +5064,10 @@ def _counted_in_subjects(
     ``enough`` says, per subject column, whether it holds `floor`
     different values (None: every one does). Under one of fewer every
     value is held by fewer subjects than the floor, so only a column
-    attached to it is counted there: the filler code of seven values a
-    question was put to blanks no column of measurements, labels or dates
-    beside it, and the names and birth dates of seven patients are held.
+    attached to it, and telling its subjects apart (`_names_its_people`),
+    is counted there: the filler code of seven values a question was put
+    to blanks no column of measurements, labels or dates beside it, and
+    the names and birth dates of seven patients are held.
     Their visit dates, attached to nobody's one value, are counted in
     rows there (plan P4-D406's stated limit, lane PS).
 
@@ -5064,7 +5089,7 @@ def _counted_in_subjects(
     for place, subject in enumerate(subject_cells):
         people = enough is None or enough[place]
         attached = _attached(cells, subject)
-        if not people and not attached:
+        if not people and not (attached and _names_its_people(cells, subject)):
             continue
         counted = _holding(keyed, subject, floor)
         for key in counted:
@@ -5142,7 +5167,9 @@ def _layouts_in_subjects(
         keyed += [key]
     held: "dict[str, bool]" = {}
     for place, subject in enumerate(subject_cells):
-        if not enough[place] and not _attached(cells, subject):
+        if not enough[place] and not (
+            _attached(cells, subject) and _names_its_people(cells, subject)
+        ):
             continue
         counted = _holding(keyed, subject, floor)
         for layout in counted:

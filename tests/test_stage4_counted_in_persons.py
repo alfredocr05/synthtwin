@@ -513,6 +513,8 @@ def test_a_filler_code_put_the_person_question_blanks_no_date(tmp_path: pathlib.
     table, _screen = _profiled(tmp_path, "filler", persons_counted.filler_table(800))
     block = _block(_described(tmp_path, "filler"), "seen")
     assert block["role"] == taxonomy.ROLE_DATETIME, block["role"]
+    region = _block(_described(tmp_path, "filler"), "region")
+    assert [level["label"] for level in region["levels"]] == ["north", "south"], region
     counted = persons_counted.count_files(table, tmp_path)
     assert counted["subjects"] == ["other"], counted
     assert counted["few"] == 0, counted

@@ -11,7 +11,7 @@ in one is seen by the other. The SUBJECT columns are the declared person
 columns (`settings.person_columns`) and the candidates of an open person
 question (the columns the questions file asks it of), each that repeats;
 one of fewer than eleven different values counts only the columns ATTACHED
-to it. For every other column and each subject column:
+to it that tell its subjects apart (`names_people`). For every other column and each subject column:
 
 - each different value of the column, folded, is held by some rows and by
   some different subjects;
@@ -152,6 +152,19 @@ def held_by(values: "list[str]", subjects: "list[str]") -> "tuple[dict[str, set[
         else:
             first[subject] = folded
     return holders, rows, again > 0 and other * 10 <= again
+
+
+def names_people(values: "list[str]", subjects: "list[str]") -> bool:
+    """No one value is the first met for more than half the subjects (and two or more are met)."""
+    first: "dict[str, str]" = {}
+    for value, subject in zip(values, subjects):
+        folded = parsing.folded(value)
+        if folded and subject not in first:
+            first[subject] = folded
+    tally: "dict[str, int]" = {}
+    for folded in first.values():
+        tally[folded] = tally.get(folded, 0) + 1
+    return len(first) >= 2 and max(tally.values()) * 2 <= len(first)
 
 
 def table_columns(path: pathlib.Path, encoding: str = "utf-8-sig",
@@ -300,7 +313,7 @@ def count(names: "list[str]", columns: "list[list[str]]",
             people = columns[names.index(subject)]
             holders, rows, attached = held_by(values, people)
             enough = counts_people(people)
-            if not enough and not attached:
+            if not enough and not (attached and names_people(values, people)):
                 continue
             for value, who in holders.items():
                 if len(who) < FLOOR:
@@ -560,15 +573,19 @@ def census_twin_table() -> str:
 
 
 def filler_table(rows: int) -> str:
-    """A date column beside a filler code of seven values (`row0` to `row6`), nobody's key.
+    """Dates and a region all but constant beside a filler code of seven values (`row0` to `row6`).
 
     The filler repeats, so the person question is put to it; a column of
-    fewer than eleven values counts only the columns attached to it, and
-    the dates are not.
+    fewer than eleven values counts only the columns attached to it that
+    tell its values apart: the dates are not attached, and the region,
+    `north` on all but sixteen rows, is attached to anything but tells
+    nothing apart.
     """
     draw = random.Random(47)
-    lines = ["seen,other"]
+    lines = ["seen,region,other"]
+    regions = ["north"] * (rows - 16) + ["south"] * 15 + ["west"]
+    draw.shuffle(regions)
     for place in range(rows):
         year, month, day = draw.randint(2015, 2022), draw.randint(1, 12), draw.randint(1, 28)
-        lines += [f"{year}-{month:02d}-{day:02d},row{place % 7}"]
+        lines += [f"{year}-{month:02d}-{day:02d},{regions[place]},row{place % 7}"]
     return "\n".join(lines) + "\n"
