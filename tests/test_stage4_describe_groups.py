@@ -1200,13 +1200,13 @@ def test_the_census_reads_each_declared_column_once(
     """
     table = tmp_path / "t.csv"
     table.write_text(
-        "mrn,acct,ward,x\n"
+        "patient,acct,ward,x\n"
         + "".join(f"{'' if row % 9 == 0 else f'M{row // 3:05d}'},A{row // 2:05d},w{row % 4},{row % 11}\n" for row in range(900)),
         encoding="utf-8",
         newline="\n",
     )
     settings = taxonomy.Settings()
-    declared = ["mrn", "acct"]
+    declared = ["patient", "acct"]
     expected = profile.population_census_of(reading.read_table(str(table)), settings, declared, [], [], [], ())
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     grouped = reading.read_table(str(table), in_groups=True)
@@ -1239,7 +1239,7 @@ def test_the_census_reads_each_declared_column_once(
     reading.column_values(grouped, 3)
     counts.update(column=0, file=0, holding=0)
     found = profile.population_census_of(grouped, settings, declared, [], [], [], ())
-    assert found[:2] == expected[:2] and found[0] == ("acct", "mrn")
+    assert found[:2] == expected[:2] and found[0] == ("acct", "patient")
     # Once a declared column outside the rows-holding pass, and the file
     # read again at most once a column that pass asked and once a
     # declared column.
