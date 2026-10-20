@@ -24,7 +24,7 @@ whose records move, is refused in plain words. Every description,
 summary, questions file and refusal is the same bytes as before.
 `reading.column_values` is the one way to ask a table for a column, and
 `reading.hold_columns` holds any set of columns in one reading, for every
-lane to come. Describe's peak at 2,000,000 x 50 is not yet shown under the 2.5 GB watchdog on the mixed health table: projected 2,204.5 MB before this repair, but 2,572 MB taken linearly from the largest doubling measured, and its re-measure at 1,000,000 rows is scheduled for a night window. Each Gaussian size is now the largest of three hash seeds. CPU is about a third more than before, inside the owner's twelve hours. KPIs `K-S4-09` (OPEN: the peak of each
+lane to come. Describe's peak at 2,000,000 x 50 is not yet shown under the 2.5 GB watchdog on the mixed health table: projected 2,204.5 MB before this repair, but 2,572 MB taken linearly from the largest doubling measured, and its re-measure at 1,000,000 rows is scheduled for a night window. Each size of both tables is now the largest of three hash seeds. A file that stops decoding between two readings is refused as changed, and a declared identifier is read once by the census. CPU is about a third more than before, inside the owner's twelve hours. KPIs `K-S4-09` (OPEN: the peak of each
 step at 2,000,000 x 50; describe's part measured and not yet met) and
 `K-S4-11` (recorded).
 
