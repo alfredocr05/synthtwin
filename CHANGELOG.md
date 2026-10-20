@@ -45,6 +45,27 @@ dates' layout that do not read as dates (lane PS pools them). Measured
 costs and the limits left to lanes MG, PS, CODES-1 part C and CODES-2
 are in P4-D406.
 
+**People are counted as the run reads them** (lane HX2's third repair,
+after its combined verify and Codex's review). A patient key written in twelve
+cases is one person, and every spelling of nobody (`NA`, `null`,
+`#DIV/0!`, a blank) is one unknown person, so a label five patients hold
+on 60 rows is no longer published. Every candidate of an open person
+question counts, even one read as free text, so the birth dates beside it
+are held. A cell is matched to the value its column prints as the column
+reads it: `8:30` is the `08:30` of a clock column, `19000` the date a
+declared count of days names, `10,07` the number a declared decimal
+comma writes. Dates declared as counts that do not read as dates (`42.345`
+for an Excel day) are held beside the people they belong to instead of
+being published as plain numbers. A declared person column's census of
+rows a person never prints a real group of one to ten people, and is
+always one its twin can deal into the column's layouts; a record
+number's layouts are pooled in people even when only its pool is
+printed. A run of four hundred figures in a note no longer stops the
+profile, and pooling many layouts, or counting under a raised floor,
+costs a sort and a set rather than a scan a value. KPI `K-S3-65` now
+fails when a table is lost to the count. The costs and the limits left
+to lanes MG, PS and CODES-1 part C are in P4-D406.
+
 ### No real identifier is published while its question is open (2026-10-16)
 
 **A column synthtwin asked whether it holds record numbers, and nobody
