@@ -4902,11 +4902,11 @@ def _keys_of(
     """What a cell is counted as: each published value it reads as."""
     if cell in memo:
         return memo[cell]
-    found: "tuple[str, ...]" = ()
+    found: "list[str]" = []
     folded = parsing.folded(cell)
     if folded:
         if folded in published.words:
-            found = found + (f"w{folded}",)
+            found += [f"w{folded}"]
         if published.numbers:
             number = _number_of(cell)
             if number is None:
@@ -4914,19 +4914,20 @@ def _keys_of(
                 if figures:
                     number = float(int(figures))
             if number is not None and number in published.numbers:
-                found = found + (f"n{number!r}",)
+                found += [f"n{number!r}"]
         if published.date_format:
             read = parsing.parse_datetime(cell, published.date_format)
             if read is not None:
                 day = parsing.folded(read[0])
                 if day in published.words and day != folded:
-                    found = found + (f"w{day}",)
+                    found += [f"w{day}"]
         for prefix in published.prefixes:
             if folded[: len(prefix)] == prefix:
-                found = found + (f"p{prefix}",)
+                found += [f"p{prefix}"]
+    frozen = tuple(found)
     if len(memo) < 65536:
-        memo[cell] = found
-    return found
+        memo[cell] = frozen
+    return frozen
 
 
 def _counted_in_subjects(
