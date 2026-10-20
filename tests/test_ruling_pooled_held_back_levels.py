@@ -49,6 +49,10 @@ from tests.test_final_review_labels import _round_trip
 from tests.test_numbers_beside_labels import SHAPES, _numbers
 from tests.test_stage2_round_trip import _round_trip as _one_column_trip
 
+import pytest
+
+import keyboard
+
 
 def _codes(rows: int, seed: int) -> "list[str]":
     """A long tail of codes: a letter, two figures, a point and a figure."""
@@ -68,6 +72,7 @@ def _column(result: dict) -> dict:
 
 def test_a_long_tail_publishes_its_pool_and_no_size(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """2,000 codes at a floor of eleven: the pool, and every twin level under it.
 
@@ -77,6 +82,7 @@ def test_a_long_tail_publishes_its_pool_and_no_size(
     and the twin described again publishes the same levels and the same
     pool.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = _codes(2000, 4)
     result = _round_trip(
         tmp_path, {"code": cells}, ("--smallest-group", "11")

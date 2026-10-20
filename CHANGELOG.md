@@ -6,6 +6,43 @@ exists).
 
 ## [Unreleased]
 
+### No real identifier is published while its question is open (2026-10-16)
+
+**A column synthtwin asked whether it holds record numbers, and nobody
+answered, publishes no value of it** (plan P4-D401, lane HX of the
+December plan, applied literally by the orchestrator's ruling of
+2026-10-16). On a long table -- several rows per patient -- a record
+number on each patient's rows was read as labels while its question went
+unanswered, and the description named every one shared by 11 rows or
+more (26 of 44 on the critic's 600-row table) and the twin wrote them
+back. Now, where nobody is at the keyboard, a column put the person
+question, the two-numbers question or the question answered by a
+measurement, a code or a record number (padded figures, figures all one
+width or grouped, a date count all one width) is described as record
+numbers until it is answered: no level name, rung, percentile, mode,
+tail value, form or prefix, the twin writes made-up record numbers, and
+the screen names the column. Dates and times are never held. The
+question is still asked, and any answer gives back exactly the
+description that answer made before; a questions file's `keep` is
+carried, also when the file it wrote is handed back blank. Repeating
+registers of e-mail addresses, telephone or social security numbers and
+Medicare beneficiary identifiers are asked the person question, also
+beside a declared person column, and a key's `-1` no longer silences its
+width question. A scripted run holds 158 column readings of the suite's
+batteries until they are answered, the price the ruling accepted.
+Names, street addresses and birth dates stay published and are stated
+limits owned by lane HX2. A numeric patient key that repeats on its
+patients' rows -- five figures or more, beside `0`, `-99` or `UNKNOWN`
+for nobody, or exported as `100001.0` -- is asked the person question and
+held too, and so are registers of telephone numbers with an extension,
+spaced social security numbers, internet and web addresses, card
+numbers and e-mail addresses after a name, even with a stray cell among
+them. An answer written in a questions file survives the file the run
+writes being handed back, and a held column's twin meets its own
+validation. KPI `K-S3-64` (new): real identifier values over 49 shapes
+at 600 and 20,000 rows, 3,809 in what is published and 884,739 twin
+cells before, 0 now.
+
 ### The analyst battery: what an analysis of the twin gives back, measured (2026-10-16)
 
 **Lane E0b** (plan P4-D398). A battery in the tests asks of a twin what

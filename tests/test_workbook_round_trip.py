@@ -36,6 +36,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 import crosscheck
 import workbooks
 from synthtwin import errors, reading, workbook
@@ -332,13 +334,15 @@ def _block_of(described: pathlib.Path) -> "dict":
 @pytest.mark.parametrize("shape", STUDY_SHAPES)
 @pytest.mark.parametrize("n_rows,seed", STUDY_SIZES)
 def test_a_realistic_workbook_is_described_generated_and_described_again(
-    tmp_path: pathlib.Path, shape: str, n_rows: int, seed: int
+    tmp_path: pathlib.Path, shape: str, n_rows: int, seed: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The whole gate, on a workbook of sixteen typed columns.
 
     Profile, generate, profile the twin, validate the twin AND the real
     workbook. Every published workbook fact has to come back.
     """
+    keyboard.every_reading_kept(monkeypatch)
     path = _written(
         tmp_path, f"{shape}.xlsx", workbooks.study_book(n_rows, seed, shape)
     )
@@ -466,7 +470,8 @@ def test_a_large_workbook_keeps_every_workbook_fact_in_its_twin(
 
 @pytest.mark.parametrize("shape", STUDY_SHAPES)
 def test_both_readers_see_the_same_columns_and_types_in_the_twin(
-    tmp_path: pathlib.Path, shape: str
+    tmp_path: pathlib.Path, shape: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """pandas and openpyxl answer the same about the twin as the source.
 
@@ -476,6 +481,7 @@ def test_both_readers_see_the_same_columns_and_types_in_the_twin(
     must stay TEXT and a date-formatted column must stay DATE-formatted,
     which is exactly what decides the dtype pandas hands back.
     """
+    keyboard.every_reading_kept(monkeypatch)
     path = _written(
         tmp_path, f"{shape}.xlsx", workbooks.study_book(200, 0, shape)
     )

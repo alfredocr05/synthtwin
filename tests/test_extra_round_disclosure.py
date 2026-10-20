@@ -82,6 +82,10 @@ from tests import cost_rule_window, workbooks
 from tests.test_final_review_labels import _round_trip
 from tests.test_stage2_round_trip import _exit_of
 
+import pytest
+
+import keyboard
+
 FLOOR = ("--smallest-group", "11")
 # A floor of one is no longer the default (plan P4-D316): a test about
 # what a floor of one keeps asks for it.
@@ -490,6 +494,7 @@ def test_at_a_floor_of_one_every_spelling_is_still_named(
 
 def test_the_questions_file_cannot_restore_an_absorbed_count(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`00001`-`00399` and one `12345` at a floor of eleven.
 
@@ -506,6 +511,7 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     lives. The twin meets its mean and spread and the real table still
     passes at exit 0.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = [f"{index:05}" for index in range(1, 400)] + ["12345"]
     result = _round_trip(tmp_path, {"value": cells}, FLOOR)
     block = _column(result)
@@ -843,6 +849,7 @@ def _sites(published: int, held: int) -> "list[str]":
 
 def test_a_pool_of_one_row_a_level_is_published_at_every_width(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """120 lone sites beside 200 published rows, and 700 beside 1,200.
 
@@ -852,6 +859,7 @@ def test_a_pool_of_one_row_a_level_is_published_at_every_width(
     plan P4-D390 it is published, and the twin writes as many lone
     made-up sites as the table held, every row present.
     """
+    keyboard.every_reading_kept(monkeypatch)
     for folder, published, held in (
         ("small", 200, 120), ("large", 1200, 700),
     ):

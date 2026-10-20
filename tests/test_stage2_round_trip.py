@@ -29,6 +29,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from synthtwin import parsing
 from tests import fixtures
 
@@ -383,9 +385,11 @@ def test_the_producer_helper_refuses_a_flag_it_does_not_implement(
 
 @pytest.mark.parametrize("shape", sorted(_shapes()))
 def test_every_stage_2_fact_comes_back_from_the_twin(
-    tmp_path: pathlib.Path, shape: str
+    tmp_path: pathlib.Path, shape: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The twin, described again, publishes what the real table published."""
+    keyboard.every_reading_kept(monkeypatch)
     cells, flags, check_real, mark = _shapes()[shape]
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "shape", cells, flags, check_real
@@ -900,6 +904,11 @@ def test_a_sparse_signed_column_meets_every_published_rung(
     assert second["percentiles"]["p95"] is not None
 
 
+# The wide keys declared measurements (plan P4-D401): unanswered, a column
+# of figures all one width is held as record numbers.
+_WIDE_MEASURED = ("--measurement", "record_id")
+
+
 def _wide_keys(seed: int, count: int = 800) -> "list[str]":
     """Canonical seventeen-figure keys: the figures each value itself writes."""
     draw = _numbers(seed)
@@ -950,8 +959,12 @@ def test_a_column_of_wide_keys_keeps_the_spelling_its_own_values_write(
     keys have to be wide enough that a neighbour exists at all.
     """
     cells = _wide_keys(seed)
+    # Declared what they are (plan P4-D401): seventeen figures all one
+    # width are asked whether they are record numbers, and held as such
+    # until answered; this test is about how they are spelled.
     first, second, written, twin_exit, real_exit = _round_trip(
-        tmp_path / "wide", cells, (), True, seed=str(seed), header="record_id"
+        tmp_path / "wide", cells, _WIDE_MEASURED, True, seed=str(seed),
+        header="record_id",
     )
     # The shape the question turns on, asserted before the answer.
     assert first["n_present"] == 800, first["n_present"]
@@ -1029,7 +1042,8 @@ def test_a_real_export_that_respells_its_wide_keys_is_not_accused(
     # The shape: this really is an export whose runs are not canonical.
     assert odd > 400, odd
     first, second, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / "literal", cells, (), True, seed="1", header="record_id"
+        tmp_path / "literal", cells, _WIDE_MEASURED, True, seed="1",
+        header="record_id",
     )
     assert first["wide_runs"] == "respelled", first["wide_runs"]
     assert twin_exit == 0
@@ -1145,7 +1159,8 @@ def test_a_real_export_whose_wide_keys_wear_a_sign_or_a_space_is_not_accused(
 
 @pytest.mark.parametrize("dress", WIDE_DRESSES, ids=[d[0] for d in WIDE_DRESSES])
 def test_a_wide_column_that_groups_or_pads_its_keys_still_says_so(
-    dress: "tuple[str, object, str]", tmp_path: pathlib.Path
+    dress: "tuple[str, object, str]", tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A word that was false about its own file, and a check that slept (P4-D91).
 
@@ -1162,6 +1177,7 @@ def test_a_wide_column_that_groups_or_pads_its_keys_still_says_so(
     FAIL on the same shape -- a word that is merely truthful would be
     worth nothing if the check beside it never fired.
     """
+    keyboard.every_reading_kept(monkeypatch)
     _name, wear, form = dress
     figures = _wide_keys(313)
     cells = [wear(figure) for figure in figures]

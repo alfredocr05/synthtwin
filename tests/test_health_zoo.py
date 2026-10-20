@@ -522,7 +522,10 @@ def test_the_answers_are_general_and_only_ones_the_file_offers() -> None:
     asked, general = zoo.answer_generally(table, document)
     assert general
     given = {entry["column"]: entry["given"] for entry in asked}
-    assert given == {"loinc": "code", "result": "", "viral_load": "measurement", "patient_id": "identifier"}
+    # `result` is offered `identifier` and not what the person knows of it:
+    # since lane HX (plan P4-D401) a blank there would hold it as record
+    # numbers, so the person answers `keep` (batch 4d's integration).
+    assert given == {"loinc": "code", "result": "keep", "viral_load": "measurement", "patient_id": "identifier"}
     assert document["checklist"]["columns"][0]["your_answer"] == "identifier"
     document["asked"][0]["answers_you_can_give"] += [{"answer": "outcome-of-interest"}]
     _asked, general = zoo.answer_generally(table, document)

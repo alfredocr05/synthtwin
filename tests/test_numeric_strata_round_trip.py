@@ -34,6 +34,8 @@ import re
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, generation, parsing, profile, reading, rendering, taxonomy
 from synthtwin import validation
 from tests import fixtures
@@ -349,9 +351,11 @@ def _figures(cell: str) -> int:
     ids=[f"{shape[0]}-{shape[2]}" for shape in SHAPES],
 )
 def test_the_numeric_facts_come_back_from_the_twin(
-    tmp_path: pathlib.Path, name: str, build, rows: int, data_seed: int
+    tmp_path: pathlib.Path, name: str, build, rows: int, data_seed: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Described, built, described again: the broken facts return."""
+    keyboard.every_reading_kept(monkeypatch)
     cells = build(random.Random(data_seed), rows)
     real = collections.Counter(_number(cell) for cell in cells)
     real_most = max(real.values())

@@ -21,6 +21,8 @@ import re
 
 import pytest
 
+import keyboard
+
 from synthtwin import parsing
 from tests.test_stage2_round_trip import _round_trip, at_the_floor
 
@@ -202,6 +204,7 @@ def test_a_column_publishing_exponents_is_not_told_it_published_none(
 
 def test_a_text_stand_in_is_never_a_number_of_another_class(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A group owing ORDINARY TEXT was written `47E807`.
 
@@ -213,6 +216,7 @@ def test_a_text_stand_in_is_never_a_number_of_another_class(
     against a published twenty-five and eighteen text against twenty,
     three checks missed, and the table passing its own description.
     """
+    keyboard.every_reading_kept(monkeypatch)
     spec = {
         "12e400": 1, "14e400": 5, "15e400": 1, "16e400": 2,
         "17e400": 8, "18e400": 1, "19e400": 2, "20e400": 5,

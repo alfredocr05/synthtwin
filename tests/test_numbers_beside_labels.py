@@ -28,6 +28,8 @@ import statistics
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, generation, parsing
 from tests import fixtures
 from tests.test_stage2_round_trip import (
@@ -496,6 +498,7 @@ def test_a_column_read_with_a_decimal_comma_writes_its_numbers_with_one(
 
 def test_numbers_nothing_published_places_are_named_as_such(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A long tail that published none of its readings: which sentence stands.
 
@@ -514,6 +517,7 @@ def test_numbers_nothing_published_places_are_named_as_such(
     table and its spread is NOT, because nothing published says how far
     apart the held-back readings lay.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = _readings_beside_notes(1000, random.Random(1000 * 31 + 1))
     first, second, _written, twin_exit, _real = _round_trip(
         tmp_path / "unplaced", cells, ("--smallest-group", "20"), False, "1"

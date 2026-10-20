@@ -2080,10 +2080,11 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 118 forms and 127 argument positions.
+**The census.** The table holds 119 forms and 127 argument positions.
 Of those, 91 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
-other kind. Lane J2 (plan P4-D391) added the two forms NF121 and NF122
+other kind. Lane HX (plan P4-D401) added the one form NF125 and no
+position. Lane J2 (plan P4-D391) added the two forms NF121 and NF122
 and no position, and its Codex review the two forms NF123 and NF124 and
 no position. The minute and second censuses (landing 3b.4, plan P4-D372)
 added the twelve forms NF93 to NF101 and NF118 to NF120 and four
@@ -2145,7 +2146,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 127 of them exactly as the form table
-is closed over the 118 forms. A position nobody bound is a number a
+is closed over the 119 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2469,10 +2470,13 @@ its place.
 
 ---
 
-##### B. The detection-evidence forms (fifteen forms)
+##### B. The detection-evidence forms (seventeen forms)
 
-**Its members are NF7 through NF16, NF45 through NF48, NF52 and
-NF53.** NF53 was defined and emitted for a landing before this
+**Its members are NF7 through NF16, NF45 through NF48, NF52, NF53 and
+NF125.** NF125 is the evidence of a column held as record numbers until
+its question is answered (lane HX, plan P4-D401); it was defined
+beside the other forms of its landing and left off this list until
+that landing's review (Codex's review of lane HX, item 7). NF53 was defined and emitted for a landing before this
 membership statement named it, so a consumer following the closed list
 would have read a valid producer sentence as outside the family
 (review round 4 of landing L8, item 6). The second
@@ -3745,7 +3749,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 118 in section 4.5.1 |
+| NG14 | the form is one of the 119 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -6304,6 +6308,10 @@ and then, always:
 **NF116. `remark_dates_written_as_counts` — dates written as counts, read as dates** — arity 1 (landing R4, plan P4-D384). Carried by a column `settings.forced_date_counts` names whose cells read as the dates they count, the column that carries a `count_form` (6.6.2, dates written as counts): «1» the system's word, a package word.
 
 > as you said, this column writes its dates as MEANS («1»). Its cells are read as the dates they count and described as dates, and the twin writes each date back as the same count, spelled as this column spells its counts (`count_form`); a number that counts no date -- or one of the numbers such a count writes where no date was given, 1 January 1900 or 31 December 9999 -- is counted as no value and written back as it was written, whatever --keep-value names
+
+**NF125. `evidence_unanswered_identity` — a record number nobody declared** — arity 0 (lane HX, plan P4-D401). The detection evidence of a column a question offering `identifier` was put to and nobody answered -- the person question, the two-numbers question, or the question answered by a measurement, a code or a record number; no question about dates or times alone, and not the checklist of columns read as numbers (C6-80a), though a key of figures repeating on its patients' rows is put the person question by its route four. Its block is the record-number block NF16's column carries, with `layout_prefixes` empty and the census of repetition C6-80a defines, and its name stands in `settings.forced_identifiers` beside the declared ones; `settings.person_columns` does not change, so the population stays counted as it was. Any answer gives the column the block that answer describes.
+
+> synthtwin asked a question about this column that the answer `identifier` is among, and nobody has answered it yet, so until it is answered it is described as record numbers and none of its values is published
 
 **Question Q3, "number or date?"** (landing R4, plan P4-D384). A column of numbers is asked whether it holds dates written as counts where one of three rules holds over its present cells, each system's set-aside numbers taken out first (6.6.2, dates written as counts) and the rest at least nine tenths of the present cells and at least eleven, with text cells standing to the date role's own line: `inside-a-band` -- at most one in a hundred of the rest (one at least) lies outside where the system writes 1 January 1990 to 31 December 2050, and the whole figures of those inside are all one width; counts of a system of days that are not whole write four figures after the point or more, or fifteen significant figures, as a spreadsheet's date-times do and a salary in cents does not; and a column read as `days-since-1840` writes no contact number on at least half of the rest, as Epic's first contact of a day does and a charge in cents does not; `at-midnight` -- the rest are whole counts of a system finer than the day, every one at midnight UTC, at least eleven different, inside 1900 to 2050 but for one in a hundred, more than half of them a year or more from the system's first day, and not every one a whole thousand days from it -- a length of stay kept as whole days of seconds names days of 1970, and whole days of milliseconds read as seconds stand every thousand days; `fixed-width-days` -- the rest, strays outside the band among them, are written in figures alone, all one width of at least five, so the column is one the fixed-width question asks already, set-aside numbers aside, and a system counting days reads them inside 1900 to 2050 but for one in a hundred (the second review of landing R4, item 4: letting the strays stand at another width asked five-figure record numbers with half a percent six-figure on 37 of 40 draws). The systems OFFERED are every system counting in the unit of one a rule held for whose band from 1900 to 2050 holds the column on the same terms, so a column of SAS days from 1985 is offered the 1960 system beside the 1970 one -- and, on a column some count of which is not whole, only a system whose declaration would keep every figure the column writes (6.6.2, dates written as counts; NF115): Unix seconds written with tenths, or four figures of a day of moments off the whole minute, are offered none and not asked, since every answer would be refused (the review of landing R4, item 2). Each rule is taken to its end -- its numbers, its text and the systems it would offer -- before the next is tried, and the first that offers one is the one NF113 names (the Codex review of landing R4, item 6: Unix counts at midnight crossing from nine figures to ten held the band's numbers, failed its text, and were asked nothing); `at-midnight` asks integrality and midnight of a count reduced, so `315532800.0` is midnight (item 5); and a column some cell of which writes an ISO date is not asked (item 1). A column under `--date-count` is not asked. The person answers in the questions file or with `--date-count NAME SYSTEM`; the answer is recorded under `settings.forced_date_counts`. Limits are stated, not repaired: a date kept at LOCAL midnight comes back as instants at the zone's offset and is not asked by `at-midnight`; a column whose counts cross a power of ten inside the band -- SAS seconds of 1987 to 1991 -- is two widths, and is not asked by `inside-a-band`; a column of spreadsheet date-times every one of which falls on a quarter of a day writes one or two figures and is not asked; and a length of time of a year or more kept as whole days of seconds or of milliseconds -- an age, a follow-up, a survival time -- reads as a date and is asked, Enter keeping it as numbers; so are identifiers of one width with half a percent one figure shorter (`inside-a-band` lets a stray of another width stand outside the band, so that a century slip -- Excel's 2016 keyed as 1916, four figures -- silences no question), a salary in the band of Epic's days a third of it in cents, and five-figure codes whose "none" is `0` (`inside-a-band`) or `-1` (`fixed-width-days`): the second review of landing R4, item 4, each pinned in `tests/counted_dates.py`'s `STATED`. A count written with more figures than the rest, one in a hundred at most, is a stray, held to its own last figure (6.6.2, dates written as counts), and silences nothing.
 
@@ -9904,6 +9912,31 @@ declaration wins immediately after. Which columns were declared is on
 the document's own face — `settings.forced_identifiers` (section 4.4)
 carries the declared names, sorted. No count, no shape and no measure
 of the values sends a column here.
+
+**C6-80a (the column held until its question is answered; lane HX,
+plan P4-D401).** One more column stands in `settings.forced_identifiers`
+and takes `role: identifier`: a column the profiling run put a question
+offering `identifier` to -- the person question, the two-numbers
+question, or the question answered by a measurement, a code or a
+record number; never a question about dates or times alone, nor the
+checklist of columns read as numbers, which lists every measurement of
+a table (a key of figures repeating on its patients' rows, which only
+the checklist listed until lane HX's second repair, is put the person
+question by its route four, plan P4-D401) -- that nobody answered,
+where the run was scripted. Its
+detection evidence is NF125 and its `layout_prefixes` is empty; its
+census of repetition is the one counts the block already publishes
+imply: each PART of the present cells -- each layout `layout_forms`
+names, its pool, and the cells no layout names -- holds a share of
+`n_distinct` in proportion to its rows (rounded down, at least one, at
+most its rows and at most the values its layout can write -- ten a
+figure's place, twenty-six a letter's, sixteen a hexadecimal
+character's; then the largest remainders move one value at a time until
+the shares close on `n_distinct`), and each part's rows are spread over
+its values as evenly as whole rows go, so the twin can meet the census beside the
+layouts. No count, shape or measure of the values sends it here
+either: the question was put, and the answer did not come. Any answer
+gives the column the block that answer names.
 
 **C6-81 (the uniqueness thresholds decide NO role).** The settings
 `identifier_uniqueness` and `identifier_minimum_rows` (section 4.4)
@@ -15449,7 +15482,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 118 the note grammar enumerates |
+| NG14 | for every form: one of the 119 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -16772,7 +16805,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 118 closed forms: 127 argument positions, of which 91 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 119 closed forms: 127 argument positions, of which 91 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -17836,7 +17869,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 118 forms
+### 14.8 The note grammar — 119 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 127 argument positions: 91 whole numbers, 14 package words, 17
@@ -18013,6 +18046,7 @@ nested forms, 5 bound affix strings.
 | NG114 | `remark_read_as_counted_dates` | 3 |
 | NG115 | `remark_counted_dates_not_read` | 1 |
 | NG116 | `remark_dates_written_as_counts` | 1 |
+| NG125 | `evidence_unanswered_identity` | 0 |
 
 **The twenty-one words of dates written as counts** (landing R4, plan
 P4-D384) are package words too: the twelve systems of 6.6.2, each at

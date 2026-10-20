@@ -33,6 +33,8 @@ import re
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, generation, parsing, profile, reading, rendering
 from synthtwin import taxonomy, validation
 from tests import fixtures
@@ -260,7 +262,8 @@ def _validated(
     "name,build,rows", CASES, ids=[f"{case[0]}-{case[2]}" for case in CASES]
 )
 def test_the_two_reports_print_one_window_and_the_faithful_twin_misses_nothing(
-    tmp_path: pathlib.Path, name: str, build, rows: int
+    tmp_path: pathlib.Path, name: str, build, rows: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Faithful twins pass, the real table passes, and every window agrees.
 
@@ -270,6 +273,7 @@ def test_the_two_reports_print_one_window_and_the_faithful_twin_misses_nothing(
     HELD and prints none, which is why the count compared is asserted
     separately rather than assumed to be thirteen.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = build(random.Random(rows * 31 + len(name)), rows)
     compared = 0
     for seed in SEEDS:
@@ -331,7 +335,8 @@ def _scaled(cell: str, factor: float) -> str:
 
 @pytest.mark.parametrize("name,build", GATE, ids=[shape[0] for shape in GATE])
 def test_a_twin_scaled_by_three_or_five_percent_is_caught_inside_the_ladder(
-    tmp_path: pathlib.Path, name: str, build
+    tmp_path: pathlib.Path, name: str, build,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The windows are honest AND they still bind (the power mutant).
 
@@ -341,6 +346,7 @@ def test_a_twin_scaled_by_three_or_five_percent_is_caught_inside_the_ladder(
     or moment MISSED. The two exact ends are not counted: they would catch
     any scaling on their own, and stage 3 stops publishing them exactly.
     """
+    keyboard.every_reading_kept(monkeypatch)
     rows = 2000
     cells = build(random.Random(rows * 31 + len(name)), rows)
     table, described, twin = _described_files(tmp_path, cells, "1")

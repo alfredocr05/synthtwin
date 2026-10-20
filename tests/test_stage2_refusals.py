@@ -16,6 +16,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, errors, parsing
 from tests import fixtures
 
@@ -105,7 +107,8 @@ def test_the_proving_cells_must_reach_the_smallest_group(tmp_path: pathlib.Path)
     assert _mark(tmp_path / "at-default", cells) == ""
 
 
-def test_bare_cells_that_outnumber_the_grouped_withhold_the_mark(tmp_path: pathlib.Path) -> None:
+def test_bare_cells_that_outnumber_the_grouped_withhold_the_mark(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    keyboard.every_reading_kept(monkeypatch)
     grouped = [f"{2000 + place * 11:,}" for place in range(20)]
     bare = [f"{3000 + place * 13}" for place in range(21)]
     assert _mark(tmp_path / "fewer", grouped + bare) == ""
@@ -167,7 +170,9 @@ def test_the_loader_refuses_a_mark_it_never_writes(tmp_path: pathlib.Path) -> No
 
 def test_the_loader_refuses_a_point_on_a_column_without_a_decimal_comma(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    keyboard.every_reading_kept(monkeypatch)
     document = copy.deepcopy(_numbers_document(tmp_path))
     column = _column(document)
     column["group_separator"] = "."

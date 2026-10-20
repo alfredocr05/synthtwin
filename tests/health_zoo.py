@@ -2595,7 +2595,12 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     record number, which holds codes, how a date orders its day and
     month, that a pressure is two numbers in one cell, which character
     divides the columns. Nothing about the analysis. An answer the file
-    does not offer is left blank, which keeps the reading synthtwin took.
+    does not offer is left blank, which keeps the reading synthtwin took
+    -- save where the question offers `identifier`: since lane HX (plan
+    P4-D401) such a question left blank holds the column as record
+    numbers until it is answered, so the person who knows the column is
+    something else answers `keep`, which keeps the reading as the blank
+    did before (batch 4d's integration, 2026-10-20).
     Returns what was asked -- column (or subject), the answers offered
     and the answer given -- and whether every question was general.
 
@@ -2625,6 +2630,8 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
             # in"): the person answers it with what they know of the file.
             known = next((answer for answer in offered if answer in file_facts), "")
         given = known if known in offered else ""
+        if not given and known and "identifier" in offered and "keep" in offered:
+            given = "keep"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(

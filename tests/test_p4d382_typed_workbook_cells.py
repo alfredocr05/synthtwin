@@ -43,6 +43,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from synthtwin import dialect, errors, generation, sheetwriting, taxonomy, workbook
 from tests import crosscheck
 from tests.test_workbook_dates import _oracle
@@ -766,6 +768,7 @@ def test_each_reading_withdrawn_brings_its_defect_back(
 ) -> None:
     """The witnesses: a rule withdrawn, and the twin of the person's table fails again."""
     # The stored dates beside text cells, read as text again.
+    keyboard.every_reading_kept(monkeypatch)
     with monkeypatch.context() as patched:
         patched.setattr(workbook, "stored_as_dates", lambda *arguments: False)
         trip = _trip(tmp_path / "dates", _dates_beside(random.Random(20), 20, "dates"))

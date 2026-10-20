@@ -33,6 +33,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from tests import cost_rule_window, fixtures
 
 from synthtwin import contract, errors, parsing
@@ -181,6 +183,11 @@ def test_the_rule_names_no_count_and_no_complement_below_the_floor() -> None:
     assert not parsing.census_nameable([800, 5], [805], 11)
 
 
+# The wide keys declared measurements (plan P4-D401): unanswered, a column
+# of figures all one width is held as record numbers.
+_MEASURED = ("--measurement", "code")
+
+
 def _wide_keys() -> "list[str]":
     """The review's column: 800 keys past 2**53, each its own value's text."""
     return [str(10**17 + step * 128) for step in range(800)]
@@ -202,8 +209,13 @@ def test_one_respelled_wide_key_moves_nothing_a_reader_can_see(
     changed = list(cells)
     changed[432] = "100000000000055297"
     assert float(changed[432]) == float(cells[432])
-    kept = _round_trip(tmp_path / "kept", ["code"], [[c] for c in cells], "1")
-    moved = _round_trip(tmp_path / "moved", ["code"], [[c] for c in changed], "1")
+    # Declared what they are (plan P4-D401): eighteen figures all one
+    # width are asked whether they are record numbers, and held as such
+    # until answered; this test is about how they are spelled.
+    kept = _round_trip(tmp_path / "kept", ["code"], [[c] for c in cells], "1",
+                       flags=_MEASURED)
+    moved = _round_trip(tmp_path / "moved", ["code"], [[c] for c in changed], "1",
+                        flags=_MEASURED)
     assert kept["first"] == moved["first"]
     assert kept["first"]["wide_runs"] == "canonical"
     for run in (kept, moved):
@@ -226,10 +238,12 @@ def test_a_group_of_respelled_keys_still_moves_the_word_and_the_ceiling_bites(
         group[step * 50] = f"{int(group[step * 50]) + 1}"
     for place in range(len(cells)):
         assert float(group[place]) == float(cells[place])
-    code, described = _describe(tmp_path / "group", ["code"], [[c] for c in group])
+    code, described = _describe(tmp_path / "group", ["code"], [[c] for c in group],
+                                flags=_MEASURED)
     assert code == 0
     assert _block(described)["wide_runs"] == "respelled"
-    code, described = _describe(tmp_path / "canon", ["code"], [[c] for c in cells])
+    code, described = _describe(tmp_path / "canon", ["code"], [[c] for c in cells],
+                                flags=_MEASURED)
     assert code == 0
     assert _block(described)["wide_runs"] == "canonical"
     ten = list(cells)
@@ -622,7 +636,8 @@ def _rest(block: "dict[str, object]", key: str, width: str) -> int:
     [(False, "12345"), (True, "+00123")],
 )
 def test_the_width_censuses_leave_no_one_to_subtract(
-    plus: bool, extra: str, tmp_path: pathlib.Path
+    plus: bool, extra: str, tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """THE REPAIR PASS'S BLOCKER, AS A TEST (plan P4-D148).
 
@@ -633,6 +648,7 @@ def test_the_width_censuses_leave_no_one_to_subtract(
     every difference a reader can take is nought or a group, and every
     file validates.
     """
+    keyboard.every_reading_kept(monkeypatch)
     floor = 11
     for label, rows in (("without", _codes([], plus)), ("with", _codes([extra], plus))):
         run = _round_trip(
@@ -699,9 +715,11 @@ def test_the_width_censuses_leave_no_one_to_subtract(
     ],
 )
 def test_the_loader_refuses_a_width_complement_of_one(
-    key: str, census: "dict[str, int]", refused: str, tmp_path: pathlib.Path
+    key: str, census: "dict[str, int]", refused: str, tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Enforced where a description is READ (plan P4-D148)."""
+    keyboard.every_reading_kept(monkeypatch)
     rows = _codes(["12345" if key == "field_widths" else "+00123"], key == "pad_widths")
     code, described = _describe(tmp_path / "base", ["code", "label"], rows)
     assert code == 0

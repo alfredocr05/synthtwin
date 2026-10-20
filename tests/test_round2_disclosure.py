@@ -43,6 +43,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 import fixtures
 from synthtwin import parsing, reading
 from tests import crosscheck, workbooks
@@ -648,6 +650,7 @@ def _form_column() -> str:
 
 def test_a_form_census_names_no_held_back_label(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Item 3, closed by ruling 5's form reading until plan P4-D390.
 
@@ -659,6 +662,7 @@ def test_a_form_census_names_no_held_back_label(
     level's form is the difference, no label of it is printed, and the
     twin writes a made-up label in that form where the table held one.
     """
+    keyboard.every_reading_kept(monkeypatch)
     read = _round_trip(
         tmp_path / "forms",
         _form_column(),
@@ -680,6 +684,7 @@ def test_a_form_census_names_no_held_back_label(
 
 def test_a_form_census_leaving_two_cells_over_is_unmoved(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The rule fires at ONE cell and at no other number.
 
@@ -689,6 +694,7 @@ def test_a_form_census_leaving_two_cells_over_is_unmoved(
     and the census publishes 202. A rule that counted out every
     held-back level would have emptied this column for nothing.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = (
         ["ABC-100"] * 100
         + ["ABC-200"] * 100

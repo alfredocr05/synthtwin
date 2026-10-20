@@ -628,6 +628,25 @@ cannot get worse unseen.
   them on a table of 12 patients over 1,196 visits (`K-S3-14`, an
   accepted limit, plan P4-D348). The design for counting people per
   value is written and shelved.
+- **A long table publishes a patient's name, street address or birth
+  date while nobody has answered the person question.** No identity
+  question flags them, and no general rule reaches them without hiding
+  columns that identify nobody: 214 real values in the description over
+  600 and 20,000 rows (`K-S3-64`, plan P4-D401). Lane HX2 owns them.
+- **A record-number key written beside `-1` gets a twin that misses its
+  published forms** (validate exit 3), declared or held until answered:
+  on 68dae22f a declared key of 1,200 rows wrote fewer than 11 of its
+  1,176 six-figure forms, and lane HX's hold reaches such a key (plan
+  P4-D401). So does a telephone number opening `+` (its `+` layout) and
+  a key exported as `100001.0` (the twin writes a figure after the
+  point). Lane CODES-1 part C owns them.
+- **A second record number beside a declared person column is
+  published.** A health plan or account number written with letters
+  and figures is read as a number with an affix or as labels and asked
+  nothing, since the declaration answers the person question: 71 of 132
+  values at 600 rows, 139 of 150 at 20,000 (`K-S3-64`'s stated shapes,
+  plan P4-D401). Lane HX2's rule, widened to a declared person column,
+  owns it.
 - **A pool's spread is no longer verified.** The owner chose on
   2026-09-21 to publish a pooled column's mean and not its spread,
   because publishing both solved for the held-back values. The twin's

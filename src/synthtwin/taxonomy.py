@@ -747,6 +747,11 @@ EVIDENCE_COMPOUND = "evidence_numbers_with_labels"
 EVIDENCE_COMPOUND_SMALL_SET = "evidence_numbers_with_a_few_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
+# ...and the one a column takes where a question offering `identifier`
+# was put to it and nobody has answered (plan P4-D401, contract NF125).
+# Nobody declared it, so the declared sentence would be false; it is
+# described as record numbers until the question is answered.
+EVIDENCE_UNANSWERED_IDENTITY = "evidence_unanswered_identity"
 
 # Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
@@ -1135,6 +1140,7 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_COMPOUND_SMALL_SET: 4,
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
+    EVIDENCE_UNANSWERED_IDENTITY: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     # THE LINE, and nothing else (contract NF60). One argument, and it
@@ -2651,6 +2657,13 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             "you told synthtwin that this column holds record numbers "
             "rather than measurements"
+        )
+    if form == EVIDENCE_UNANSWERED_IDENTITY:
+        return (
+            "synthtwin asked a question about this column that the answer "
+            "`identifier` is among, and nobody has answered it yet, so "
+            "until it is answered it is described as record numbers and "
+            "none of its values is published"
         )
     if form == SAID_WRITTEN_AS_NUMBERS:
         written = _whole(arguments, 0)
@@ -25648,6 +25661,210 @@ def _identifier_verdict(
         notes=notes,
         remarks=remarks,
     )
+
+
+def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
+    """A record-number description, for a column whose question is open.
+
+    PLAN P4-D401. A column a question offering `identifier` was put to,
+    and nobody answered, is described as a declared record number is
+    (`_identifier_verdict`) with two differences, and only those: its
+    evidence says nobody has answered, and it publishes NO PREFIX.
+    The literal run a declared column publishes is the owner's ruling of
+    2026-09-17, item 1, for a column a person NAMED; this one was named
+    by nobody, and `REC` or `XKH` opening every value is a fragment of
+    every real value. The layouts stay: a layout says which kind of
+    character stood at each place and never which one.
+
+    AND ITS CENSUS OF REPETITION IS THE EVEN ONE (`_even_census`; lane
+    HX's review, item 5): the declared block's census says how many
+    values cover one row, two rows and so on, counts of one to ten among
+    them, which the owner accepted for a column a person NAMED (review
+    item P1-R8-F4). Nobody named this one, so it publishes the census
+    the counts it already prints imply -- the rows of each layout spread
+    as evenly as they go over that layout's share of the different
+    values -- and nothing more.
+
+    Guarantees: accepts a column described with ``forced_identifier``;
+    returns it with those two fields changed, or unchanged where its
+    role is not `identifier` (the identifier reading does not reach a
+    column of dates read on its days). Determinism: a fixed function of
+    the argument. Raises nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER:
+        return column
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    if "layout_prefixes" in details:
+        details["layout_prefixes"] = {}
+    census: object = None
+    if "n_distinct_by_occurrences" in details:
+        census = details["n_distinct_by_occurrences"]
+    forms: object = None
+    if "layout_forms" in details:
+        forms = details["layout_forms"]
+    if isinstance(census, dict) and census:
+        details["n_distinct_by_occurrences"] = _even_census(
+            column.n_present, census, forms if isinstance(forms, dict) else {}
+        )
+    return dataclasses.replace(
+        column,
+        detection_evidence=note(EVIDENCE_UNANSWERED_IDENTITY),
+        details=details,
+    )
+
+
+def _even_census(
+    n_present: int, census: "dict[str, object]", forms: "dict[str, object]"
+) -> "dict[str, int]":
+    """The census of repetition published counts imply, and nothing more.
+
+    PLAN P4-D401. ``census`` is a column's own census; only how many
+    different values it counts is read from it -- the sum of its entries,
+    the `n_distinct` the block already publishes. ``forms`` is the
+    block's own `layout_forms`, which it publishes beside: the rows of
+    each named layout, of the pool, and of the cells no layout names
+    (the present cells left over) are each a PART. The values are
+    shared over the parts in proportion to their rows (`_values_per_part`),
+    at least one a part, and each part's rows are spread over its values
+    as evenly as whole rows go. The result closes as the contract
+    requires (entries sum to the values, keys weighted by entries to the
+    rows), is a function of counts the block publishes, so no group size
+    of the table reaches it, and the twin can meet it beside the layouts:
+    each part's values cover exactly that part's rows. AN EVEN SPREAD
+    OVER THE WHOLE COLUMN could not (lane HX's tripwire, item 4): 600
+    beneficiary identifiers in four layouts of 141 to 160 rows spread as
+    14 and 15 rows a value left no way to fill a layout of 141, and the
+    twin failed its own validation.
+
+    Guarantees: accepts the count of present cells, a census closing on
+    it and the layout census beside it; returns the census in
+    `_multiplicity_map`'s key form, or the census unchanged where it
+    counts no value. Determinism: a fixed function of the counts.
+    Raises nothing. No I/O.
+    """
+    values = 0
+    for key in census:
+        entry = census[key]
+        if isinstance(entry, int):
+            values = values + entry
+    kept: "dict[str, int]" = {}
+    if values < 1 or n_present < values:
+        for key in census:
+            kept[key] = int(f"{census[key]}")
+        return kept
+    parts: "list[int]" = []
+    room: "list[int]" = []
+    named = 0
+    for key in sorted(forms):
+        entry = forms[key]
+        if isinstance(entry, int) and entry > 0:
+            parts += [entry]
+            room += [_layout_room(key, values)]
+            named = named + entry
+    if n_present > named:
+        parts += [n_present - named]
+        room += [values]
+    shares = _values_per_part(values, parts, room, n_present)
+    if not shares:
+        parts = [n_present]
+        shares = [values]
+    sizes: "dict[int, int]" = {}
+    for place, rows in enumerate(parts):
+        count = shares[place]
+        share = rows // count
+        over = rows % count
+        if count > over:
+            sizes[share] = (sizes[share] if share in sizes else 0) + count - over
+        if over:
+            sizes[share + 1] = (
+                sizes[share + 1] if share + 1 in sizes else 0
+            ) + over
+    widest = 0
+    for size in sizes:
+        widest = max(widest, size)
+    width = len(f"{widest}")
+    for size in sorted(sizes):
+        kept[_left_padded(size, width)] = sizes[size]
+    return kept
+
+
+def _layout_room(layout: str, values: int) -> int:
+    """How many different values a layout can write, counted up to ``values``.
+
+    A figure's place holds ten, a letter's twenty-six, a hexadecimal
+    character's sixteen, and every other character one; the pool of
+    layouts under the floor (`SUPPRESSED_LABEL`) is not one layout and
+    holds any number. Guarantees: a whole number of one or more, at most
+    ``values`` (or one). Raises nothing. No I/O.
+    """
+    if layout == SUPPRESSED_LABEL:
+        return max(values, 1)
+    room = 1
+    for character in layout:
+        if character == parsing.LAYOUT_DIGIT:
+            room = room * 10
+        elif character in (parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER):
+            room = room * 26
+        elif character in (parsing.LAYOUT_LOWER_HEX, parsing.LAYOUT_UPPER_HEX):
+            room = room * 16
+        if room >= values:
+            return max(values, 1)
+    return room
+
+
+def _values_per_part(
+    values: int, parts: "list[int]", room: "list[int]", n_present: int
+) -> "list[int]":
+    """How many of the values each part of the rows holds, or empty where none fits.
+
+    In proportion to the part's rows, rounded down, at least one and at
+    most its rows or what its layout can write (``room``); then, while
+    there are too many, one taken from the part furthest over its exact
+    share, and while there are too few, one given to the part furthest
+    under it that has room (the earliest on a tie): the largest
+    remainders. A lone `0` heaped on three rows in a hundred of a key's
+    is one layout of one figure, and the share it takes is its own, not
+    a value of the key's. Empty where the parts outnumber the values or
+    cannot hold them. Guarantees: a fixed function of the counts. Raises
+    nothing. No I/O.
+    """
+    if not parts or len(parts) > values or n_present < 1:
+        return []
+    counts: "list[int]" = []
+    total = 0
+    for place, rows in enumerate(parts):
+        one = max(1, min(rows, room[place], values * rows // n_present))
+        counts += [one]
+        total = total + one
+    while total > values:
+        over = -1
+        for place, count in enumerate(counts):
+            if count > 1 and (
+                over < 0
+                or values * parts[place] - count * n_present
+                < values * parts[over] - counts[over] * n_present
+            ):
+                over = place
+        if over < 0:
+            return []
+        counts[over] = counts[over] - 1
+        total = total - 1
+    while total < values:
+        under = -1
+        for place, count in enumerate(counts):
+            if count < min(parts[place], room[place]) and (
+                under < 0
+                or values * parts[place] - count * n_present
+                > values * parts[under] - counts[under] * n_present
+            ):
+                under = place
+        if under < 0:
+            return []
+        counts[under] = counts[under] + 1
+        total = total + 1
+    return counts
 
 
 # How many of each unit a day holds. The seconds figure is the one

@@ -45,6 +45,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from tests import fixtures
 
 ROWS = 800
@@ -211,7 +213,8 @@ def _postal_codes(seed: int) -> "list[str]":
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_no_twin_cell_is_wider_than_the_field_its_description_publishes(
-    seed: int, tmp_path: pathlib.Path
+    seed: int, tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """THE DEFECT, AS A TEST (audit item M4).
 
@@ -219,6 +222,7 @@ def test_no_twin_cell_is_wider_than_the_field_its_description_publishes(
     and `010035` at seed 11: six characters in a field its own
     description publishes as five.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = _postal_codes(seed)
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / f"codes-{seed}", cells, str(seed)
@@ -240,6 +244,7 @@ def test_no_twin_cell_is_wider_than_the_field_its_description_publishes(
 
 def test_where_the_census_cannot_be_met_the_field_holds_and_the_miss_is_named(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The pinned case: 85 padded cells asked for, 84 values to wear them.
 
@@ -247,6 +252,7 @@ def test_where_the_census_cannot_be_met_the_field_holds_and_the_miss_is_named(
     published count -- no value in hand can wear the field -- so it
     keeps the FIELD and gives the form up, and both counts are named.
     """
+    keyboard.every_reading_kept(monkeypatch)
     folder = tmp_path / "unmeetable"
     first, second, written, twin_exit, real_exit = _round_trip(
         folder, _postal_codes(UNMEETABLE_SEED), str(UNMEETABLE_SEED)
@@ -557,12 +563,14 @@ def test_an_undeclared_grouped_price_column_still_publishes_the_comma(
 
 def test_a_column_of_month_codes_keeps_its_two_character_field(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The shape plan P4-D66.4 was opened on, at the seed that failed.
 
     Month codes `01` to `12`: the twin wrote `012` at seed 11, three
     characters in a two-character field, three cells of eight hundred.
     """
+    keyboard.every_reading_kept(monkeypatch)
     draw = random.Random(11)
     cells = [f"{draw.randrange(1, 13):02d}" for _ in range(ROWS)]
     first, _second, written, _twin_exit, real_exit = _round_trip(
@@ -664,7 +672,8 @@ def _accused_of_respelling(folder: pathlib.Path, cells: "list[str]") -> int:
 
 @pytest.mark.parametrize("seed", [1, 7])
 def test_a_padded_column_of_wide_keys_is_asked_the_canonical_question(
-    seed: int, tmp_path: pathlib.Path
+    seed: int, tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The limit landing 2b.13 named, closed by reading the pad first.
 
@@ -679,6 +688,7 @@ def test_a_padded_column_of_wide_keys_is_asked_the_canonical_question(
     The shape is asserted before the answer, because a column of narrow
     padded codes passes every line below with the defect still in place.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = _canonical_wide_keys(seed)
     folder = tmp_path / "padded"
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -717,7 +727,8 @@ def test_a_padded_column_of_wide_keys_is_asked_the_canonical_question(
 
 @pytest.mark.parametrize("seed", [1, 7])
 def test_a_real_padded_export_that_respells_its_keys_is_never_accused(
-    seed: int, tmp_path: pathlib.Path
+    seed: int, tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The other direction, which is the one that must not break.
 
@@ -729,6 +740,7 @@ def test_a_real_padded_export_that_respells_its_keys_is_never_accused(
     `respelled` about its own writer and the fact is LISTED rather than
     checked.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = [
         _a_value_preserving_neighbour(cell)
         for cell in _canonical_wide_keys(seed)
@@ -788,6 +800,7 @@ def test_a_plus_signed_padded_column_reads_its_pad_off_too(
 
 def test_a_narrow_padded_code_column_still_says_none(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """And the ordinary padded column is untouched, which is the control.
 
@@ -796,6 +809,7 @@ def test_a_narrow_padded_code_column_still_says_none(
     rule that read the pad off and then forgot the bound would call
     this column canonical and file a ceiling on it.
     """
+    keyboard.every_reading_kept(monkeypatch)
     draw = random.Random(1)
     cells = [f"{draw.randrange(0, 99999):05d}" for _ in range(ROWS)]
     first, second, _written, twin_exit, real_exit = _round_trip(

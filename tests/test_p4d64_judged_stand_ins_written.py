@@ -39,6 +39,8 @@ import random
 import pandas
 import pytest
 
+import keyboard
+
 from synthtwin import (
     contract,
     generation,
@@ -398,7 +400,8 @@ def _cases() -> "list[tuple[str, str, int]]":
 
 @pytest.mark.parametrize("name,suffix,floor", _cases())
 def test_a_judged_spelling_comes_back_and_both_files_validate(
-    tmp_path: pathlib.Path, name: str, suffix: str, floor: int
+    tmp_path: pathlib.Path, name: str, suffix: str, floor: int,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Profile, generate, describe the twin again, validate twin AND table.
 
@@ -409,6 +412,7 @@ def test_a_judged_spelling_comes_back_and_both_files_validate(
     sixteen files parted a reader's type, and describing the twin again
     recovered `missing_by_source` on none.
     """
+    keyboard.every_reading_kept(monkeypatch)
     shape = [one for one in _judged_shapes() if one[0] == name][0]
     _name, names, rows, numeric, flags, spelling = shape
     table = tmp_path / f"real{suffix}"
@@ -612,6 +616,7 @@ def test_every_judged_pass_is_handed_over_end_to_end(
     suffix: str,
     spelling: str,
     seeds: "tuple[int, ...]",
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The hand-over of V2.4-A8 reaches the core and placeholder passes too.
 
@@ -626,6 +631,7 @@ def test_every_judged_pass_is_handed_over_end_to_end(
     description's verdict says, so the twin validates at nought, and so
     does the table.
     """
+    keyboard.every_reading_kept(monkeypatch)
     rows = [
         [cell, random.Random(124 + place).choice(["a", "b"])]
         for place, cell in enumerate(_near_fence_cells(kind))

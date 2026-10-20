@@ -637,7 +637,11 @@ def test_c2_the_question_names_no_value_and_says_the_set_aside_numbers(tmp_path:
     assert len(entries) == 1
     entry = entries[0]
     offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
-    assert offered[0] == asking.ANSWER_MEASUREMENT and entry["read_as_now"] == asking.ANSWER_MEASUREMENT
+    # ITS `0` SET ASIDE, the rest is figures all one width (plan P4-D401,
+    # lane HX's second repair), so the count is asked beside the width
+    # question -- `identifier` among its answers -- and the column is held
+    # as record numbers until somebody answers.
+    assert offered[0] == asking.ANSWER_MEASUREMENT and entry["read_as_now"] == asking.ANSWER_IDENTIFIER
     assert "excel-1900" in offered and "excel-1904" in offered
     shown = entry["what_synthtwin_saw"]
     assert "some cells hold 0" in shown and "they run from 2016 to 2025" in shown

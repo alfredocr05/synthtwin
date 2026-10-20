@@ -39,6 +39,8 @@ import statistics
 
 import pytest
 
+import keyboard
+
 import tail_rule
 from synthtwin import contract, profile, reading, validation
 from tests.test_stage2_round_trip import _exit_of, _round_trip
@@ -118,8 +120,10 @@ CASES = [
     ids=[case[0] for case in CASES],
 )
 def test_an_undeclared_pressure_comes_back_as_two_numbers(
-    tmp_path: pathlib.Path, rows: int, data_seed: int, spaced: bool, seed: str
+    tmp_path: pathlib.Path, rows: int, data_seed: int, spaced: bool, seed: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    keyboard.every_reading_kept(monkeypatch)
     cells = _pressures(rows, data_seed, spaced)
     mark = " / " if spaced else "/"
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -247,8 +251,10 @@ NEAR_THE_LINE = [
     ids=[case[0] for case in NEAR_THE_LINE],
 )
 def test_a_twin_past_the_long_tail_line_is_checked_as_two_numbers(
-    tmp_path: pathlib.Path, form: str, rows: int, data_seed: int, seed: str
+    tmp_path: pathlib.Path, form: str, rows: int, data_seed: int, seed: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    keyboard.every_reading_kept(monkeypatch)
     cells = (
         _pressures(rows, data_seed)
         if form == "plain"
@@ -299,7 +305,8 @@ def test_a_twin_past_the_long_tail_line_is_checked_as_two_numbers(
     "remainder", ("0120/080", "120/80.5"), ids=["a padded pair", "a pointed part"]
 )
 def test_a_real_table_with_one_pair_rule_9c_leaves_unparsed_meets_its_description(
-    tmp_path: pathlib.Path, remainder: str
+    tmp_path: pathlib.Path, remainder: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The integration verdict: the real table failed its own description.
 
@@ -307,6 +314,7 @@ def test_a_real_table_with_one_pair_rule_9c_leaves_unparsed_meets_its_descriptio
     left unparsed; the validator counted them into the positions anyway,
     and the real table exited 3 on `leading_zero` and on `remainder`.
     """
+    keyboard.every_reading_kept(monkeypatch)
     cells = [f"{100 + i}/{50 + i % 61}" for i in range(299)] + [remainder]
     first, _second, _written, twin_exit, real_exit = _round_trip(
         tmp_path / "trip", cells, seed="4", header="bp"
@@ -349,6 +357,7 @@ def test_a_column_read_as_pairs_from_its_values_is_always_asked(
 
 def test_a_pair_too_large_for_this_format_is_not_admitted_as_a_pair(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """300 pairs opening `10 ** 310`: every part is past what binary64 holds.
 
@@ -373,6 +382,7 @@ def test_a_pair_too_large_for_this_format_is_not_admitted_as_a_pair(
     Q2, so `synthtwin profile` wrote a file `synthtwin generate` would not
     read (exit 1). Both now generate.
     """
+    keyboard.every_reading_kept(monkeypatch)
     folder = tmp_path / "huge"
     folder.mkdir()
     table = folder / "real.csv"
@@ -429,10 +439,12 @@ def test_a_pair_too_large_for_this_format_is_not_admitted_as_a_pair(
 
 def test_the_carried_reading_still_misses_a_file_that_is_not_pairs(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # The reading is carried over, not the verdict: a file whose cells
     # are joined by a hyphen is not read as slashed pairs, falls to the
     # ordinary rules, and its role is reported MISSED.
+    keyboard.every_reading_kept(monkeypatch)
     cells = _pressures(300, 3)
     home = tmp_path / "trip"
     first, _second, _written, twin_exit, _real_exit = _round_trip(
