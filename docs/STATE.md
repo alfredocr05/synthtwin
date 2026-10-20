@@ -600,13 +600,16 @@ cannot get worse unseen.
   because publishing both solved for the held-back values. The twin's
   pooled mean is now exact and its spread is unchecked, about 2 out
   (`K-2B-50`, green on the mean). Stated, not hidden.
-- **The patient layer's within-patient correlation on long tables**
-  (2026-10-20; specified, not built, plan P4-D412). On the design's
-  invented long table (a median of 20 rows a patient) the layer's own
-  route brings the correlation back 0.077 to 0.081 below the real one,
-  outside `K-BC-06`'s 0.07 (stated on short tables, where it holds);
-  the visit trend publishes no cell there. Owners: lane GR's
-  generation-only patient term first; otherwise the January stretch.
+- **The patient layer's within-patient correlation** (2026-10-20;
+  specified, not built, plan P4-D412). On the design's invented long
+  table (a median of 20 rows a patient) the study's route brought the
+  correlation back 0.076 to 0.081 below the real one, outside
+  `K-BC-06`'s 0.07; the cause, measured, is the patient weight fitted on
+  real rows inside cells that include the child's band, not the banding.
+  The page's route (G16.15's weight read on the published row family):
+  ``STLONG``. Clause (5), where run 3 still misses it: ``STC5``; owner
+  the January stretch item. The visit trend publishes no cell on long
+  tables (owner the January `r`-band form).
 
 ## The rules an assistant breaks first here
 

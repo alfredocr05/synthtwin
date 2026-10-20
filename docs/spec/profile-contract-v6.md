@@ -6068,7 +6068,7 @@ is in the grid model for `x` (4.6c's setting). Fix a cell `P` whose
    2026-10-20, on the fifteen fixtures with each cell's code total
    published beside `Q`): where one cell holds every row and every
    reading sits on the grid, 873 descriptions SWING passed leak because
-   `Q` stands beside the total (odd `r` among them, 38 on F6 and F7, the
+   `Q` stands beside the total (odd `r` among them, 38 on `F6` and `F7`, the
    witness's reset code sums being no world there). Item (b) 6 refuses
    exactly that regime: no description it passes fixes the code total of
    the cells' patients, so no total pins the parity. MEASURED by this
@@ -7257,7 +7257,7 @@ its expected reading:
    `[p01, p99]`: `Q` refused by 4.6c.1 (b) 6 (the skeptic's 873); a
    FINE child with a band of one reading: the floored split taken; a
    number column of few readings whose tie world would use more than
-   20: not position-like; fixture F14 and a pattern with two rows in a
+   20: not position-like; fixture `F14` and a pattern with two rows in a
    one-code band between wider ones: read rigid by 4.6c.1 (b) 2.
 
 #### 4.6c.11 What this section promises, its scope and its stated limits
@@ -7266,25 +7266,30 @@ its expected reading:
 fact but not the key, given one description per table and name, with
 R1 read as R3 states it, and whatever true cap on `r` the reader
 knows):
-- in the band model: the gate and the census of `r` (4.6c.3, 4.6c.4);
-  the classes' own counts and the position list (4.6c.5, 4.6c.6); dates
-  ordered by role (4.6c.7); every union of types under PWIT with `R*`
-  and under residual PWIT (4.6c.8, 4.6c.2); a patient union crossed
-  with a type union where grain cells hold one `r` and row families'
-  parent cells are grain cells, or under the floored split (4.6c.8 step
-  5);
-- in the grid model: every union of types under the own-mean floored
-  split (4.6c.2) and beside a published trend `Q_P` (4.6c.1).
+- in the band model: the gate, its "off" drawn on every table, and the
+  census of `r` (4.6c.3, 4.6c.4); every class's own counts, by the
+  patient-fixed world, the tie world and the class witness (4.6c.5,
+  4.6c.6), and the position list with its `null` entries (4.6c.6); dates
+  ordered by role (4.6c.7); every union of types under each certificate
+  4.6c.8 (a) assigns, and a patient union crossed with a type union
+  under each of them (4.6c.8 step 5);
+- in the grid model, where 4.6c.1 (b) 6 leaves the code total of the
+  cells' patients unfixed: every union of types under the own-mean
+  floored split (4.6c.2) and beside a published trend `Q_P` (4.6c.1).
 
 **Checked, not proven** (each a `K-S6-08` case of 4.6c.10): the
-within-column lemma (a FINE column's exact mean, spread, rungs inside a
-band and single-reading counts, beside a trend or an own-mean parent);
-a patient union crossed with a type union in an `r`-band grain cell or
-under PWIT in a pooled parent cell; the witness worlds of a label column
-classed not patient-fixed or not position-like keeping its class; the
-position list's omissions; an own-mean column's pinned order
-statistics, as 4.6b.9 (e) states for a derived column; and every
-remainder 4.6b.9 (h) names.
+within-column lemma beyond 4.6c.1 (b) 6 (the equations a FINE column's
+exact moments, rungs inside a band and single-reading counts set over
+the readings off the cells and off the grid, beside a trend or an
+own-mean parent; its proof route, absorbing patients that move only by
+exchanging their own readings, is measured in 4.6c.1 (d) 4); for a
+FINE number or date column, the joint of its own `L0` totals with its
+row family's coarser table beyond each table's own certificate; an
+own-mean column's pinned order statistics, as 4.6b.9 (e) states for a
+derived column; and every remainder 4.6b.9 (h) names. The first build's
+other checked items (the cross in `r`-band and pooled cells, a label
+column's class kept by the witness worlds, the position list's
+omissions) are proven now.
 
 **Not promised:** ruling R3's Bayesian residual, sharper here because
 `Q_P` is exact; several descriptions of one table (4.6b.13's limit 2).
@@ -7309,80 +7314,89 @@ columns at one visit beyond what their patient-level parents imply.
 2. **Change over visits.** Change over visit ORDER, not time (a moment
    on the gap-coded date is January's); a column with a reading on every
    row; cells of one `r`; FINE columns only; no row-level product moment
-   on the same column. Only `F_S`'s parent groups carry a trend: every
-   other group's trend over visits is flat in the twin, and the private
-   report says so in plain words (ruling R7 (2)). On a long table SWING
-   publishes no cell: MEASURED by the design study's second run on its
-   long table (rows per patient lognormal, median 20, at most 120): 0
-   cells of one `r` at 3,000 patients, and all 76 refused at 6,000 (the
-   largest 95 to 107 patients), the arm-by-visit trend recovered at
-   0.014 to 0.019, as without the object. Cells of about 100 patients
-   cannot hold the `f` reserve, which grows with `r` squared. The
-   `r`-band form (one moment per `r`-band cell, each patient's moment
-   scaled to one unit of swing, SWING's classes taken over (own-mean
-   band, pattern, `r`) under `R*`) is the January stretch item
-   "`K-BC-06` (8) at 50 per cent through the `r`-band form".
-3. **The within-patient correlation at 100,000 rows** (the orchestrator's
-   ruling of 2026-10-20). December reads `K-BC-06`'s ICC clause (4),
-   0.07: every one of the design study's fifteen runs is inside it,
-   within 0.024. Its clause (5) misses on two runs, both on `ST2` at
-   100,000 rows: seed 1, the twin's correlation further from the real
-   than without the trend by 0.00589 against a half-split yardstick of
-   0.00407, and seed 3, 0.00430 against 0.00425 (MEASURED). Owner: the
-   January stretch item "the ICC inside its yardstick at 100,000 rows".
+   on the same column; a column some of whose readings lie off its
+   grid's range or off the trend's cells (4.6c.1 (b) 6). Only `F_S`'s
+   parent groups carry a trend: every other group's trend over visits is
+   flat in the twin, and the private report says so in plain words
+   (ruling R7 (2)). On a long table SWING publishes no cell: MEASURED by
+   the design study's second run on its long table (rows per patient
+   lognormal, median 20, at most 120): 0 cells of one `r` at 3,000
+   patients, and all 76 refused at 6,000 (the largest 95 to 107
+   patients), the arm-by-visit trend recovered at 0.014 to 0.019, as
+   without the object. Cells of about 100 patients cannot hold the `f`
+   reserve, which grows with `r` squared. The `r`-band form (one moment
+   per `r`-band cell, each patient's moment scaled to one unit of swing,
+   SWING's classes taken over (own-mean band, pattern, `r`) under `R*`)
+   is the January stretch item "`K-BC-06` (8) at 50 per cent through the
+   `r`-band form".
+3. **The within-patient correlation and `K-BC-06`'s clause (5), as run 3
+   measured them** (the orchestrator's rulings of 2026-10-20: December
+   reads the correlation at 100,000 rows under clause (4), 0.07; READY
+   asks clauses (1) to (4) at 100,000 rows on at least 5 of 6 runs). The
+   design study's second run met clause (4) on all fifteen runs but was
+   measured, at 100,000 rows, on an own-mean family holding cells of 1 to
+   10 patients (4.6c.1 (f)); held to the floor in its own generator,
+   clauses (1) and (4) failed on 5 of 6 runs. Run 3 (this page's route:
+   the floor enforced, the child at the median, the floored split by
+   exact search, the published weight of the generation method's G16.15,
+   no noise shrink): ``RUN3L3``. Owner of what clause (5) still misses:
+   the January stretch item "the ICC inside its yardstick at 100,000
+   rows", widened to name those runs.
 4. **The within-patient correlation on long tables: a measured limit of
    today's layer, found 2026-10-20.** On the design study's long table
-   the twin's correlation is 0.077 to 0.081 below the real one: 0.6462
-   against 0.7230 and 0.6278 against 0.7091 at 3,000 patients (seeds 1
-   and 2), 0.6433 against 0.7194 at 6,000 (MEASURED by the study's
-   second run, which publishes no trend there, so the figure is the
-   layer's own route and is outside clause (4)'s 0.07). `K-BC-06`'s ICC
+   its route brought the correlation back 0.076 to 0.081 below the real
+   one: 0.6462 against 0.7230 and 0.6278 against 0.7091 at 3,000
+   patients (seeds 1 and 2), 0.6433 against 0.7194 at 6,000 (MEASURED by
+   the study's second run, which publishes no trend there, so the figure
+   is the layer's own route), outside clause (4)'s 0.07. `K-BC-06`'s ICC
    clause is stated on `ST2`, so this is no KPI miss today; it is stated
-   so that no report claims the 0.07 on long tables. *The cause*
-   (JUDGEMENT, not measured): the derived own-mean parent carries each
-   patient's level only to its published band, and inside its cell the
-   twin deals each patient's readings from the cell's pool. Deciles of a
-   normal law keep 95.9 per cent of the between-patient variance (MY
-   ARITHMETIC), about 0.01 of the gap; the rest is the dealing. The
-   spread the dealing adds to a patient's mean is the cell's within
-   spread over `r`: on short patients (at most eight rows) it refills
-   much of the between-patient variance the bands and the pooled
-   readings lose, and at a median of 20 rows a fifth or less of it.
-   *The December route*, generation only: the row walk's hidden score
-   for a repeated FINE column gains a PATIENT TERM, one draw a patient,
-   so that a patient's readings sit together inside its cell's bands
-   (the generation method's G16.15, beside the trend's latent term).
-   It publishes nothing and changes no disclosure argument: the twin
-   stays a function of the description and its seed, every row stays in
-   its band and every patient in its own-mean band. Its weight is a
-   function of published facts (the row family's shares by own-mean
-   band against the within-band spread a normal law gives the
-   published bands). Lane GR measures it on the long table and on
-   `ST2` (where it must keep clauses (4) and (5)) in its first run; if
-   it does not bring the long table inside 0.07, the limit goes to the
-   January stretch item "the ICC inside its yardstick at 100,000 rows",
-   widened to long tables, and `STATE.md` keeps it.
+   so that no report claims the 0.07 on long tables without its run.
+   *The cause, MEASURED* (the page's statistics skeptic, 2026-10-20, in
+   the study's own generator): not the banding of the own mean (bands of
+   200 instead of deciles moved the long table's correlation by 0.000
+   and -0.002) but the patient term's WEIGHT, which the study fitted on
+   real rows inside cells that include the child's band: 0.604 and 0.588
+   on the long table against 0.695 on `ST2`; the same weight times 1.15
+   brings the gap within 0.021 (-0.0174 and -0.0205), times 1.3 past it
+   (+0.029 and +0.028). The first build's cause (the dealing refilling
+   the spread on short patients) is withdrawn. *The December route*, the
+   generation method's G16.15 weight, read on the published row family's
+   table and not on the child's level: ``RUN3LONG``.
 5. **Tables the gate turns off** (4.6c.3 (e)): two or more person
    columns, a tabled row lacking a person value, 1 to `f - 1` extra
-   rows, or no eligible census. They are described in rows, as today.
+   rows, or no eligible census (and, with the draw's uniform share, about
+   one table in a billion that has one). They are described in rows, as
+   today. MEASURED on the health data zoo's 25 tables: 14 ON, the two new
+   conditions turning none off.
 6. **A patient-fixed column's row census on a long table** (4.6c.5 (c)).
-   MEASURED by this page's probe (`ST2` at 20,000 and 100,000 rows, and
-   the design's long table at 3,000 and 6,000 patients; plan P4-D412):
-   on `ST2` the finest eligible census has an empty top band and the
-   arm's row census is published; on the long table the finest eligible
-   census opens its top band at 50, 54 and 62 rows (414, 381 and 601
-   patients), the arm's row census is withheld, and a twin splitting
-   the top band's excess in proportion to its patients misses the arm's
-   row counts by 2.4, 167.4 and 52.7 rows (0.006, 0.42 and 0.06 per
-   cent).
+   MEASURED by this page's probe (`ST2` at 20,000 rows, seeds 1 to 3, and
+   100,000 rows, and the design's long table at 3,000 and 6,000
+   patients; the three-value search over every three values of `0 .. t`,
+   as 4.6c.4 (b) states, which left the counts unchanged): on `ST2` the
+   finest eligible census has an empty top band and the arm's row census
+   is published; on the long table the finest eligible census opens its
+   top band at 50, 54 and 62 rows (414, 381 and 601 patients) and, where
+   no row family has the arm as a parent, the arm's row census is
+   withheld. The twin's miss on the arm's rows: 2.4, 167.4 and 52.7 rows
+   as the expectation of a split in proportion to the top band's
+   patients (0.006 to 0.42 per cent), and REALIZED by the generation
+   method's straight line dealt without regard to the arm a median of
+   126, 181 and 146 rows and a 90th percentile of 293, 380 and 360, at
+   most 0.89 per cent of the arm (MEASURED by the page's statistics
+   skeptic, 2,000 deals each). Where a row family has the arm as a
+   parent, the census is published by summation and the twin meets it
+   (G16.14 deals the excess grain cell by grain cell).
 7. **Dates ordered by role** (4.6c.7 (b)): a non-monotone dealt date
-   column comes back sorted within each patient; the share of patients
-   affected is in the private report.
+   column comes back sorted within each patient. MEASURED on the zoo's
+   `encounters`: 4.85 per cent of patients at 600 rows and 6.57 per
+   cent at 20,000 hold a decreasing discharge, which the twin sorts; the
+   data test's trigger (more than half) is met by no zoo column.
 8. **Given up while the layer is on, named in the private report only:**
    a patient-fixed column's other values held by its `V_K` patients; a
    position-like column's repeats held by its `V` patients; every
    repeating multiplicity map; a row census that is not a function of
-   the rest.
+   the rest; a repeated column the KEY test reads that has no class
+   witness, drawn HELD (4.6c.5 (e)).
 
 ---
 

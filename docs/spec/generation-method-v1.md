@@ -18201,8 +18201,10 @@ G16.0 to G16.12 like any other.
    (contract 4.6c.3 (c)) has its present cells written with its
    published `n_distinct` values, each value on `floor(n_present /
    n_distinct)` or one more of its rows in value order, placed by
-   G4.2; the private report names the given-up map. Every other column
-   keeps G4.2's placement.
+   G4.2; the private report names the given-up map. A column of class
+   `held` (contract 4.6c.5 (e)) is written as a held column of plan
+   P4-D401 is written, stand-ins and no value of the table. Every other
+   column keeps G4.2's placement.
 
 ### G16.14 `r`, and the row families
 
@@ -18218,6 +18220,31 @@ met exactly and the top band keeps a tail up to about twice its mean
 (JUDGEMENT; lane GR measures the rows-per-patient spread it gives). Which
 patients take which `r` is the patient chain's walk, `r` being one of
 its columns (step 1).
+
+**The top band's excess, grain cell by grain cell, where a row family
+stands** (the page's first skeptic, item 7). A placed row family
+publishes each parent cell's row total, the sum of `r` over the cell's
+patients, and the twin must meet it (V12.7's row-family line; and,
+summed over the parent cells inside a band of a patient-fixed column,
+that column's row census, contract 4.6c.5 (c)). One straight line over
+the whole top band ignores those totals: wherever grain cells hold the
+open top band, which is every long table, the twin's parent-cell row
+totals then differ from the published ones, the walk's targets cannot be
+met, and V12.7 reads MISSED. So, where any row family is placed, each
+grain cell `C` takes a TOTAL top-band excess `q_C`, whole numbers with
+`sum q_C = q`, such that for every placed row family and every parent
+cell `P` the rows of `P`'s grain cells (their single values of `r`, `lo`
+for each top-band patient, and their `q_C`) sum to `P`'s published row
+total; then `C`'s top-band patients take `q_C` by the straight line
+above, read inside `C`. The split exists, since `R*`'s tie (contract
+4.6c.8 step 4 item 3) exhibits one from the same published counts; the
+generator finds one by exact integer search (a small linear system in
+the `q_C`, one equation a parent cell of each family, `q_C` whole and
+at least 0; lane GR's, through the scipy route of plan P4-D407, subject
+to lane DEP's bundle and lane MDEP's zones of plan P4-D409), the least
+`sum (q_C - q m_C / m)^2` among its solutions, `m_C` the cell's
+top-band patients, so the excess stays near proportional. With no row
+family placed, the one line over the whole top band stands.
 
 **A row family `{y | parents}`.** Its parent cells are cells of the
 patient table, so each patient's parent cell is known after step 1.
@@ -18236,20 +18263,39 @@ never reaches `generate`.
 
 ### G16.15 The patient term, the derived columns' close, and the trend over visits
 
-**The patient term (the within-patient correlation's December route on
-long tables, contract 4.6c.11 limit 4).** For each repeated FINE column
-`y` with a row family, every patient draws one PATIENT SCORE `z_p` (one
-`integers` call of three words a patient, G16.8's hidden score), and row
-`j` of patient `p` is ranked inside its parent cell by
-`sqrt(omega) z_p + sqrt(1 - omega) z_pj` (each square root correctly
-rounded, as IEEE 754 requires of it on every machine), where `omega` is
-the column's patient weight. `omega` is a function of the description:
-lane GR fixes the rule (JUDGEMENT: the share of the column's
-between-patient variance its published own-mean bands do not carry,
-read from the row family's band shares by own-mean band under a normal
-law), and `omega` is 0 where the column has no own-mean parent. The term
-moves no published count: it only orders rows inside a cell before the
-cell's target counts are placed.
+**The patient term (the within-patient correlation's route, short and
+long tables; contract 4.6c.2 (e) and 4.6c.11 limits 3 and 4).** For each
+repeated FINE column `y` with an own-mean parent, every patient draws
+one PATIENT SCORE: a uniform `u_p` inside its own-mean band's share of
+patients AT THE PUBLISHED LEVEL (the band's patient counts, published by
+the patient chain), `z_p` the normal quantile of `u_p` (one `integers`
+call of three words a patient, G16.8's hidden score); row `j` of patient
+`p` is ranked inside its parent cell by `omega z_p + sqrt(1 - omega^2)
+z_pj` (the square root correctly rounded, as IEEE 754 requires of it on
+every machine). THE WEIGHT `omega` is the latent correlation of a row's
+reading with its patient's own-mean score that the PUBLISHED row
+family's table implies under a bivariate normal law: the value on the
+grid `0, 0.005, ..., 0.995` that maximises the multinomial likelihood
+of the table's rows by (own-mean band at the row family's level, band of
+the child), pooled over the other parents, with the own-mean score
+uniform on each band's share of patients (24 equal quantile points a
+band) and the child's band edges at the normal quantiles of its
+published row shares. It reads published counts only, so it is a
+function of the description, and it does not depend on the child's
+level: a finer child refines the table the same law is fitted to. The
+trend term below is added to that score as it is: the row's noise is
+not shrunk by the trend's variance. `omega` is 0 where the column has
+no own-mean parent. The term moves no published count: it only orders
+rows inside a cell before the cell's target counts are placed.
+*MEASURED by run 3* (contract 4.6c.2 (f)): ``G16W``. *Why not the
+first build's rule* (the share of between-patient variance the bands do
+not carry): for deciles that share is about 0.04, so the term would
+have reproduced the probe's base twin and not closed the long table's
+gap (the page's statistics skeptic, item 2); and the base twin's own
+weight, fitted on real rows inside cells that include the child's
+band, falls when the child is finer (0.604 and 0.588 on the long table
+against 0.695 on `ST2`), which is the measured cause of both the long
+table's gap and the 100,000-row misses of the floor-respecting runs.
 
 **The derived columns' close.** After step 4 every patient's own mean
 of each column with an own-mean parent, and its first date of each date
@@ -18289,7 +18335,11 @@ the design study's second run: every published `Q_P` met, 106 of 106
 cells, with 0 gaps; the random exchanges alone reached every window, so
 the one-or-two-exchange step never ran (lane GR's gate case below forces
 it). The later polish (G16.3) exchanges `x` only between rows of the
-same band, the same position and the same cell of `F_S`.
+same band, the same position and the same cell of `F_S`, and only where
+both patients' own means stay inside their own-mean bands; an exchange
+that would move either out is not made (the page's first skeptic, item
+8), and a patient the derived columns' close left outside its band is
+named in DEVIATIONS as that close says.
 
 ### G16.16 Computed dates in the patient layer
 
@@ -18343,7 +18393,24 @@ mutant that must move it:
    window (mutant: one exchange only, which leaves the gap);
 7. the computed date: `B` equal to `A + D` on every row, and the overlap
    removed by the nearest exchange (mutant: `D` sorted within the
-   patient).
+   patient);
+8. the top band's excess under a row family: two grain cells holding the
+   open top band, a row family under them, each parent cell's row total
+   met and the arm's row census with it (mutant: the one straight line
+   over the whole top band, which misses both);
+9. the patient weight: a row family whose child is at the median and
+   one at quartiles and the 90th percentile, drawn from one table: the
+   two weights within 0.02 of each other (mutant: the weight fitted
+   inside cells that include the child's band, which falls with the
+   finer child);
+10. **lane GR's floor gate case (the orchestrator's ruling of
+   2026-10-20, 10:41):** a description whose own-mean family, at its
+   finest levels, would hold a cell of 1 to `f - 1` patients is never
+   handed to the generator: the profile publishes a coarser option
+   (contract 4.6c.2 (b); `K-S6-08`'s case), and GR's harness asserts
+   every published patient-level cell is 0 or at least `f` (mutant: the
+   design study's `fixed_levels`, W3 and NE without the floor, which
+   published 7 to 13 such cells at 100,000 rows).
 
 ## Conformance checklist
 

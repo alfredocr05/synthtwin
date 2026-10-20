@@ -13,29 +13,36 @@ patient as patients yet.** It writes, before any code, how the patient
 layer of the broad between-columns design is to be described,
 generated and checked, beside the chain's page of 2026-10-19 (plan
 P4-D412; contract section 4.6c; generation method G16.13 to G16.17;
-validation V12.7 to V12.9):
+validation V12.7 to V12.9), and its first review round's repairs:
 
 - **Change over visits, first.** One integer a patient cell, the trend
   over visit position halved (`Q`), behind a certificate read on
   published facts alone, with its proof; the exact sum is never
-  published. On the design's invented test table its second run
-  recovered the arm-by-visit trend at 0.974 to 0.999 of the real one (a
-  fresh sample: 0.939 to 0.999), with 0 leaking descriptions over 1,516
-  on its fixtures and every published cell met.
+  published, and the trend is offered only where no published fact of
+  the column fixes its cells' total. ``CLTREND``
 - **The within-patient correlation.** A patient's own level and first
-  date become patient-level parents of the repeated readings, under a
-  certificate that respects what each derivation allows: within 0.024
-  of the real on fifteen runs of that table.
+  date become patient-level parents of the repeated readings; the row
+  family under an own mean takes its child at the median and a floored
+  split found by exact integer search, and the generator's patient
+  weight is read on that published table. ``CLICC``
 - **When the layer is on, and what it replaces.** At least `f` extra
-  rows, one person column, no row without a person, and an eligible
-  census of rows per patient; that drawn census then replaces the person
-  column's exact repetition census, and every other census of the same
-  rows is withheld or counted in patients.
+  rows, one person column, no row without a person, and a drawn census
+  of rows per patient (the draw may take "off" on any table, so the gate
+  never reads the person census another lane pools); that census then
+  replaces the person column's exact repetition census, and every other
+  census of the same rows is withheld or counted in patients. On the
+  health data zoo the layer is on for 14 of 25 tables, and the two new
+  conditions turn none off.
+- **Classes beside the row families.** A column's class read on a
+  threshold (position-like, patient-fixed) is published only beside a
+  world that keeps it, which the review showed was missing (330 leaking
+  descriptions on its probe, all refused now).
 - **Stated limits, each with its owner:** the trend is not carried on
-  long tables (January's stretch); the correlation on long tables is
-  0.077 to 0.081 below the real today (lane GR's generation-only route
-  first, January's stretch otherwise); at 100,000 rows two runs miss
-  the correlation's tighter clause (January's stretch, as ruled).
+  long tables (January's stretch); the correlation on long tables was
+  0.076 to 0.081 below the real under the study's route, its cause the
+  patient weight, its route the published weight (``CLLONG``); the
+  tighter clause of the correlation where run 3 still misses it
+  (January's stretch, widened).
 
 ### Between columns: the chain's method page, written before its code (2026-10-19)
 
