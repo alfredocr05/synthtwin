@@ -28,7 +28,6 @@ oracle's cases (G16.17) are where lanes CHa, GR and CHo run the method.
 """
 import itertools
 import pathlib
-import re
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 CONTRACT = REPOSITORY / "docs" / "spec" / "profile-contract-v6.md"
@@ -166,6 +165,30 @@ def test_the_trend_stands_only_where_no_published_fact_fixes_its_cells_code_tota
     assert "873 descriptions SWING passed leak because `Q` stands beside the total" in part
     assert "4.6c.1 (b) 6); the loader recomputes SWING" in _part("10")
     assert "``MEAN" not in part
+    assert "passes NO description of the fifteen fixtures" in part
+    limits = _part("11")
+    assert "9. **Counts of patients by their exact readings beside a trend or an own-mean parent**" in limits
+    assert "125 to 136 on `F3`" in limits
+
+
+def test_each_proof_states_its_objects():
+    """The orchestrator's ruling of 2026-10-20 10:22, item 3: each proof's
+    stated objects, pinned where they stand. Mutant: any one heading removed."""
+    text = _flat(_section())
+    for words in (
+        "**The one-world lemma.** *If some world of the preimage gives every union of a set of types a count of 0 or at least `f`, no union of those types leaks.*",
+        "1. **The slice lemma.**",
+        "2. **The sign-flip chain.**",
+        "3. **The witness worlds keep the cell's trend.**",
+        "*Proof that an eligible census leaves every count of `r` 0-able or f-able, for a reader knowing any true cap.*",
+        "*The cap lemma.*",
+        "**Step 3: one value of `r` in a parent cell: PWIT in closed form.**",
+        "3. THE TIE:",
+        "Consider the TIE WORLD",
+        "**(e) The class witness",
+        "*Under the floored split*",
+    ):
+        assert words in text, words
 
 
 # --- the gate ---------------------------------------------------------------
@@ -396,9 +419,30 @@ def test_no_100000_row_figure_of_run_2_stands_unqualified():
     trend = _part("1")
     assert "ITS 100,000-ROW FIGURES WERE MEASURED ON A DESCRIPTION THIS PAGE FORBIDS" in trend
     assert "at 100,000 rows all 14" not in trend
-    assert "within 0.024 of the real on fifteen runs" not in _flat(_section())
-    assert "within 0.024 on fifteen runs" not in _entry()
+    assert "fifteen runs is inside it" not in _flat(_section())
+    assert "within 0.024 of the real on fifteen runs" not in _entry()
     assert "``RUN3" not in _flat(_section())
+    assert "ITS 100,000-ROW FIGURES WERE MEASURED ON AN OWN-MEAN FAMILY HOLDING 7 TO 13 CELLS" in _decision()
+
+
+def test_run_3_is_cited_as_measured_with_its_variants():
+    """The orchestrator's ruling of 2026-10-20 10:41: run 3 in-lane, the floor
+    enforced, (a) the child at the median and (b) a weight independent of the
+    child's level; READY needs clauses (1) to (4) at 100,000 rows on 5 of 6."""
+    limits = _part("11")
+    assert "clauses (1) to (4) held on all 10 route-runs at 100,000 rows (6 of 6 on `ST2`)" in limits
+    assert "broke clause (5) on 21 of 23 runs, so G16.15 takes none" in limits
+    assert "So the limit is CLOSED in method for December" in limits
+    assert "the trend fell to 0.013 to 0.503 of the real on 5 of 8 runs" in _part("2")
+    assert "a split exists at the first option offered, the child at the median, on all 24 route-runs" in _part("2")
+    assert "READY's 5 of 6 met" in _decision()
+
+
+def test_the_rigid_rule_was_rerun_on_the_fifteen_fixtures():
+    """The orchestrator's ruling of 2026-10-20 10:22, item 2: 0 leaks required,
+    the pass count beside run 2's 1,516."""
+    assert "the same 1,516 with the rigid rule of 4.6c.1 (b) 2 as repaired" in _part("10")
+    assert "the fourteenth's one-code band being its lowest" in _decision()
 
 
 def test_the_long_tables_gap_reads_0_076():

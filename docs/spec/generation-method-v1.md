@@ -18287,7 +18287,13 @@ trend term below is added to that score as it is: the row's noise is
 not shrunk by the trend's variance. `omega` is 0 where the column has
 no own-mean parent. The term moves no published count: it only orders
 rows inside a cell before the cell's target counts are placed.
-*MEASURED by run 3* (contract 4.6c.2 (f)): ``G16W``. *Why not the
+*MEASURED by run 3* (contract 4.6c.2 (f)): the correlation within 0.0091 of the real on all
+6 `ST2` runs at 100,000 rows, within 0.0317 on every route-run at
+20,000 and 100,000 rows, and within 0.0093 on the long table, where the
+first build's rule left it 0.076 to 0.081 low; with the child at
+quartiles and the 90th percentile the weight moved by at most 0.005
+(0.855 to 0.87 either way), where the study's own weight fell from about
+0.69 to 0.32. *Why not the
 first build's rule* (the share of between-patient variance the bands do
 not carry): for deciles that share is about 0.04, so the term would
 have reproduced the probe's base twin and not closed the long table's

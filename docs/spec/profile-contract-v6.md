@@ -5972,7 +5972,7 @@ worlds). Step (d) 2 says why: the window holds both parities.
    moments read and no code does), or at least `f` rows of `x` lie
    outside every cell of `F_S` holding one `r >= 2` (a count read on
    the census and `F_S`'s published counts). Step (d) 4 says what this
-   closes and what stays checked.
+   closes and what stays open.
 
 `Q_P` is ELIGIBLE when SWING passes, item 6 holds and `x`'s row family
 is eligible under its own certificate (4.6c.8). Every quantity read is
@@ -6058,30 +6058,50 @@ is in the grid model for `x` (4.6c's setting). Fix a cell `P` whose
    the worlds that make every union of types 0-able or f-able without
    `Q_P` remain worlds with it, and no union of types leaks. ∎
 4. **The within-column lemma (what the moves keep, what item (b) 6
-   closes, what stays checked).** The moves of steps 1 to 3 keep every
+   closes, what stays open).** The moves of steps 1 to 3 keep every
    row's band of `x` in the row family's bands, so every row family's
    table and every patient's own-mean band; inside a band they move
    codes, so `x`'s totals at its finer `L0` levels, its exact mean,
    spread and moments, its rungs inside a band and its counts of single
-   readings are NOT kept by them. A reader holding those holds equations
-   the grid model leaves free. MEASURED (the page's first skeptic,
-   2026-10-20, on the fifteen fixtures with each cell's code total
-   published beside `Q`): where one cell holds every row and every
-   reading sits on the grid, 873 descriptions SWING passed leak because
-   `Q` stands beside the total (odd `r` among them, 38 on `F6` and `F7`, the
-   witness's reset code sums being no world there). Item (b) 6 refuses
-   exactly that regime: no description it passes fixes the code total of
-   the cells' patients, so no total pins the parity. MEASURED by this
-   page's repair (`mean_ab.py`, the same fixtures, the reader given
-   `Q`, the exact sum AND the exact sum of squares of the codes over the
-   cell and `k` readings outside it that it does not see): ``MEANB``.
+   readings are NOT kept by them: beside those published facts the
+   witness of step 3 need not be a world (it resets code sums, which
+   moves the total the exact mean reads, and moves codes, which moves
+   the sum of squares the exact spread reads). The first skeptic
+   measured where that bites (the fifteen fixtures, each cell's code
+   total published beside `Q`, a cell holding every row and every
+   reading on the grid): 873 descriptions SWING passed leak because `Q`
+   stands beside the total, odd `r` among them (38 on `F6` and `F7`).
+   MEASURED by this page's repair (`mean_ab2.py`, the reader also given
+   the exact sum AND sum of squares of the codes, the exact mean and
+   spread, over the cell and `k` readings off it that it does not see),
+   at two levels:
+   - *at this page's level*, unions of TYPES (own-mean band, pattern):
+     on fixture `F3`, 0 leaking descriptions over 324 SWING passes with
+     `k = 0`, where the moments fix the cell's code total, and 0 over
+     1,144 with `k = 2` (the other fourteen fixtures at this level are lane CHa's `K-S6-08` case). The promise of 4.6c.11 for types
+     holds there, MEASURED, not proven;
+   - *at the level of exact readings*, unions of patients by their exact
+     code vectors, finer than any band the description publishes (the
+     design study's own fixture standard): with `k = 0`, the regime item
+     (b) 6 refuses, fixture `F1` alone holds 3,808 descriptions leaking
+     only because `Q` stands beside the moments; with `k = 1` to `4`
+     readings off the cell, fixture `F3` still holds 125, 132, 133 and
+     136 (and 81 to 87 that leak from the families and the moments
+     alone, without `Q`). Item (b) 6 removes the regime where the
+     published facts FIX the cells' total; it does not close this
+     residue.
    *The exchange form*, the skeptic's proof route (absorbing patients
-   move only by exchanging their own readings, which keeps every fact of
-   `x` alone): ``MEANA``. So the lemma beyond item (b) 6 (the moments'
-   equations over the readings off the cells and off the grid) stays
-   CHECKED, NOT PROVEN, a `K-S6-08` case (4.6c.10) owed by lane CHa,
-   with the exchange form the route to a proof (lane GR measures
-   `K-BC-06` on any cells it passes before it is adopted).
+   exchanging only their own readings, which keeps every fact of `x`
+   alone), passes NO description of the fifteen fixtures (MEASURED,
+   `mean_ab.py`): a patient's permutations move `S` in steps of twice
+   its code differences, so its reach is contiguous only where its codes
+   lie one apart, and a certificate valid in every world must take each
+   class's worst multiset; as written it carries no trend. So the lemma
+   at the level of exact readings is OPEN, a stated limit (4.6c.11 limit
+   9) whose owner is the orchestrator's ruling (R1 read at the level of
+   exact readings, against the owner's principle of 2026-10-01 that the
+   threat is HIPAA exposure and not reconstruction) and lane CHa's
+   product-scale `K-S6-08` run (4.6c.10) before the stage-6 gate.
 5. **The census tie.** In an `r`-band parent cell the witness worlds use
    the floored vector `R*` of 4.6c.8, which is tied to every published
    table holding `r`; `F_S`'s cells are cut by single values of `r`, and
@@ -6123,7 +6143,20 @@ within-patient correlation missed by 0.127 to 0.137 on 5 of 6 runs.
 *This page's run 3* (2026-10-20; the floor enforced on every
 patient-level family; the row family's child at the median; the
 floored split of 4.6c.2 (d) decided by exact integer search; the
-patient weight of the generation method's G16.15): ``RUN3F``.
+patient weight of the generation method's G16.15): on 24 route-runs (`ST2` at 20,000 rows, seeds 1 to 3 and 21 to 23,
+and at 100,000 rows, seeds 1 to 3, by both coarsening orders the floor
+leaves; `ST2-AGE` with and without the age band a parent; `ST2` without
+dropout) no patient-level family published a cell of 1 to 10 patients;
+SWING published 2 of 14 one-`r` cells at 20,000 rows and 10 to 14 of 14
+at 100,000 (4 or 19 of 28 on `ST2-AGE`'s (arm, old) route); the
+arm-by-visit coefficient came back at 0.968 to 0.998 of the real one at
+20,000 rows and 0.987 to 0.996 at 100,000, the old-by-visit trend at
+0.969 to 0.984, and every published `Q_P` was met: `K-BC-06`'s clauses
+(1) to (4) held on all 14 runs at 20,000 rows and all 10 at 100,000 (6
+of 6 on `ST2`, where READY asks 5 of 6). With the child left free to
+move to quartiles and the 90th percentile the trend fell to 0.013 to
+0.503 on 5 of 8 runs at 100,000 rows: the child's median of 4.6c.2 (e)
+is what carries it. Clause (5) is 4.6c.11 limit 3's.
 On a long table (median 20 rows a patient) SWING publishes 0 cells, and
 the trend is not carried (4.6c.11).
 
@@ -6249,8 +6282,14 @@ rows of its own source column, never another column's rows.
   to lane DEP's bundle; patterns, class totals, the ties of `R*` and
   the parent cells' row counts are linear, each pattern's count 0 or at
   least `f` one binary beside it), and its failure means "not
-  eligible", which the draw masks. MEASURED by this page's run 3 (2026-
-  10-20; the search with scipy's HiGHS through `milp`): ``RUN3S``.
+  eligible", which the draw masks. MEASURED by this page's run 3
+  (2026-10-20, scipy's HiGHS through `milp`, in the evaluation
+  environment): a split exists at the first option offered, the child
+  at the median, on all 24 route-runs at 20,000 and 100,000 rows; the
+  search took at most 11.3 seconds (1,248 unknowns) at 20,000 rows,
+  where each grain cell pools `r` and `R*` is searched with the split,
+  and at most 0.83 seconds at 100,000. It was not run on the long table
+  (lane CHa's).
   In the grid model the split's world gives codes freely inside their
   bands, so it is offered only where item (b) 6 of 4.6c.1 holds for its
   child (the published `min` below `p01` or `max` above `p99`): there
@@ -6303,10 +6342,12 @@ two-band level of its ladder, whenever that level is not finer than
 the one W3 and NE fix: its options are the median of the child with
 each coarser option of its parents, and finer levels of the child are
 not offered. The rule is a function of the placed chain and the
-child's published ladder (class (b)), and it is what run 3 measured
-(the design's harness let the child move to quartiles and the 90th
-percentile once the own-mean family was floored, and there the
-within-patient correlation and the trend fell, (f)). This is the route
+child's published ladder (class (b)), and run 3 measured why: with the
+child free to move to quartiles and the 90th percentile once the
+own-mean family was floored, the published weight still kept the
+correlation (within 0.031), but SWING published fewer cells and the
+trend fell to 0.013 to 0.503 of the real on 5 of 8 runs at 100,000
+rows; at the median every clause (1) to (4) held (f). This is the route
 the design measured, with its child pinned.
 
 **(f) MEASURED** (plan P4-D412 cites each run). With the own-mean
@@ -6324,7 +6365,14 @@ parent, 30-day readmission came back at 32 per cent against a real 37
 (9,000 patients); with no time parent, 13. *This page's run 3* (the
 floor enforced, the child at the median by (e), the floored split by
 exact search, the patient weight of the generation method's G16.15):
-``RUN3I``.
+within 0.0091 of the real on all 6 `ST2` runs at 100,000 rows, within
+0.0317 on all 10 route-runs there (twin 0.7103 to 0.7350 against real
+0.7033 to 0.7209) and within 0.0263 on the 14 at 20,000 (twin 0.6997
+to 0.7334, real 0.7014 to 0.7257), inside clause (4)'s 0.07 everywhere.
+The weight is what changed: the study's weight, fitted on real rows
+inside cells that include the child's band, fell from about 0.69 to
+0.32 to 0.33 when the child moved to quartiles and the 90th
+percentile; the published one stayed at 0.855 to 0.87.
 
 #### 4.6c.3 The gate: when the layer is on, and the person column's census it replaces
 
@@ -6634,8 +6682,8 @@ over the column's bands, and where no row family has the column as a
 parent the row census is withheld: the twin then meets the column's
 census in PATIENTS exactly and its rows only as its patients' `r` fall,
 and the private report names the column. Limit 6 gives the twin's
-misses, the expected one of a proportional split and the realized one
-of G16.14's dealing.
+misses, the expected one of a proportional split and the one
+G16.14's dealing actually gives.
 
 **(d) Every count (ruling R8 (2)), and the class.** A class read on a
 threshold is published with a count of the real table on one side of
@@ -6769,7 +6817,10 @@ the list's own rule it lies in a level no earlier listed entry uses;
 at a `null` position the tie makes the entry `null`, as published.
 The listed values lie in pairwise different levels and every other
 value is used at one position only, so no patient holds a level twice:
-`V = 0`, inside the class's `[0, T]`. For a number column the readings
+`V = 0`, inside the class's `[0, T]`; and every patient of two or more
+rows holds two different values, so `V_K = N2 >= T + 1` (the real
+`V_K >= T + 1` patients each hold two rows), and the column is not
+patient-fixed there either. For a number column the readings
 the world uses number the listed entries, plus two or three for each
 `null` entry, plus one for each position from `L + 1` to `lo + t`, `t`
 the top band's tight cap (4.6c.4 (b)), the largest position any world
@@ -7225,14 +7276,17 @@ its expected reading:
    patients published;
 3. the visit-trend fixtures (`repair_fix.py`, fifteen fixtures, and the
    attack's `attack_fix.py` and `attack_scale.py`): under `Q`, 0 leaking
-   descriptions (MEASURED: 1,516 of 1,516); under `S` exact, reported as
-   the reason `S` is never published (220 leak);
+   descriptions (MEASURED: 1,516 of 1,516, and the same 1,516 with the
+   rigid rule of 4.6c.1 (b) 2 as repaired, which reads no class of them
+   rigid); under `S` exact, reported as the reason `S` is never
+   published (220 leak);
 4. NEW, owed by lane CHa before the stage-6 gate: a trend fixture
    publishing `x`'s exact mean, spread and one heap beside `Q_P` (the
    within-column lemma of 4.6c.1 (d) 4); a label column at `V = T` and
-   `T + 1` for the KEY test and for the patient-fixed class (4.6c.5 (d),
-   4.6c.6 (e)); a position list with a `null` entry and with an end
-   before `L`; a top band whose excess falls where no floored split
+   `T + 1` for the KEY test and for the patient-fixed class, under the
+   class witness (4.6c.5 (e)); a position list with a `null` entry by
+   count, by tie and by a repeated level, rebuilt by its tie world
+   (4.6c.6 (d)); a top band whose excess falls where no floored split
    exists (refused) and one where the exact check would pass and the
    split fails (refused: breadth, never a leak); an `R*` whose tie
    fails; a first-date cell whose residual is 1 to 10 rows (refused);
@@ -7257,8 +7311,11 @@ its expected reading:
    `[p01, p99]`: `Q` refused by 4.6c.1 (b) 6 (the skeptic's 873); a
    FINE child with a band of one reading: the floored split taken; a
    number column of few readings whose tie world would use more than
-   20: not position-like; fixture `F14` and a pattern with two rows in a
-   one-code band between wider ones: read rigid by 4.6c.1 (b) 2.
+   20: not position-like; a class with one or two rows in a one-code
+   band with wider bands before and after it: read rigid by 4.6c.1 (b)
+   2 (none of the fifteen visit-trend fixtures has one, `F14`'s
+   one-code band being its lowest; MEASURED: under the rule they read
+   1,516 passes and 0 leaks under `Q`, as before).
 
 #### 4.6c.11 What this section promises, its scope and its stated limits
 
@@ -7273,16 +7330,17 @@ knows):
   ordered by role (4.6c.7); every union of types under each certificate
   4.6c.8 (a) assigns, and a patient union crossed with a type union
   under each of them (4.6c.8 step 5);
-- in the grid model, where 4.6c.1 (b) 6 leaves the code total of the
-  cells' patients unfixed: every union of types under the own-mean
-  floored split (4.6c.2) and beside a published trend `Q_P` (4.6c.1).
+- in the grid model (which holds no fact of a FINE column finer than its
+  bands), where 4.6c.1 (b) 6 leaves the code total of the cells'
+  patients unfixed: every union of types under the own-mean floored
+  split (4.6c.2) and beside a published trend `Q_P` (4.6c.1).
 
 **Checked, not proven** (each a `K-S6-08` case of 4.6c.10): the
-within-column lemma beyond 4.6c.1 (b) 6 (the equations a FINE column's
-exact moments, rungs inside a band and single-reading counts set over
-the readings off the cells and off the grid, beside a trend or an
-own-mean parent; its proof route, absorbing patients that move only by
-exchanging their own readings, is measured in 4.6c.1 (d) 4); for a
+within-column lemma for unions of types (a FINE column's exact moments,
+rungs inside a band and single-reading counts beside a trend or an
+own-mean parent: MEASURED 0 leaking descriptions at the level of types
+on the fixture 4.6c.1 (d) 4 names, even where the moments fix the cell's
+code total); for a
 FINE number or date column, the joint of its own `L0` totals with its
 row family's coarser table beyond each table's own certificate; an
 own-mean column's pinned order statistics, as 4.6b.9 (e) states for a
@@ -7292,7 +7350,10 @@ column's class kept by the witness worlds, the position list's
 omissions) are proven now.
 
 **Not promised:** ruling R3's Bayesian residual, sharper here because
-`Q_P` is exact; several descriptions of one table (4.6b.13's limit 2).
+`Q_P` is exact; several descriptions of one table (4.6b.13's limit 2);
+counts of patients by their EXACT readings beside a trend or an
+own-mean parent, finer than any band the description publishes (limit
+9).
 
 **The grade of 4.6b.8's family "several rows per patient".** `E` for
 patient-level rates and tables inside one family of the patient chain,
@@ -7339,7 +7400,20 @@ columns at one visit beyond what their patient-level parents imply.
    clauses (1) and (4) failed on 5 of 6 runs. Run 3 (this page's route:
    the floor enforced, the child at the median, the floored split by
    exact search, the published weight of the generation method's G16.15,
-   no noise shrink): ``RUN3L3``. Owner of what clause (5) still misses:
+   no noise shrink): clauses (1) to (4) held on all 10
+   route-runs at 100,000 rows (6 of 6 on `ST2`) and all 14 at 20,000;
+   clause (5) held on all 6 `ST2` runs at 100,000 rows, the stretch's own
+   case (the correlation within 0.0091 of the real, its excess over BASE
+   inside the yardstick at every seed and order), and missed on 3
+   route-runs: `ST2` at 20,000 rows seed 1 (the correlation, -0.0210
+   against BASE's -0.0105, yardstick 0.0075; the study's own weight
+   misses there too, -0.0099 against +0.0003), and `ST2-AGE` at 100,000
+   rows on its (arm, old) route by both orders (the lag-1 correlation,
+   +0.0055 against BASE's -0.0012, yardstick 0.0037; with `r` coarsened
+   first also the age coefficient and the arm mean difference). A noise
+   shrink by the trend's variance raised the correlation 0.015 to 0.051
+   above the real and broke clause (5) on 21 of 23 runs, so G16.15 takes
+   none. Owner of what clause (5) still misses:
    the January stretch item "the ICC inside its yardstick at 100,000
    rows", widened to name those runs.
 4. **The within-patient correlation on long tables: a measured limit of
@@ -7361,7 +7435,16 @@ columns at one visit beyond what their patient-level parents imply.
    (+0.029 and +0.028). The first build's cause (the dealing refilling
    the spread on short patients) is withdrawn. *The December route*, the
    generation method's G16.15 weight, read on the published row family's
-   table and not on the child's level: ``RUN3LONG``.
+   table and not on the child's level: MEASURED by run 3 on the same long tables
+   (the study's route otherwise unchanged, its row family judged by its
+   capped PWIT; the floored split's own pass rate there is lane CHa's):
+   the correlation 0.7137 against 0.7230, 0.7106 against 0.7091 and
+   0.7161 against 0.7194, gaps -0.0093, +0.0015 and -0.0033, where the
+   study's weight gave -0.0770, -0.0815 and -0.0762; taking the own
+   mean's own noise out of the weight gives -0.0193 to -0.0085 and is
+   not taken. So the limit is CLOSED in method for December, the long
+   table inside clause (4)'s 0.07; lane GR's first run confirms it on the
+   built generator, and `STATE.md` keeps the line until it does.
 5. **Tables the gate turns off** (4.6c.3 (e)): two or more person
    columns, a tabled row lacking a person value, 1 to `f - 1` extra
    rows, or no eligible census (and, with the draw's uniform share, about
@@ -7379,7 +7462,7 @@ columns at one visit beyond what their patient-level parents imply.
    no row family has the arm as a parent, the arm's row census is
    withheld. The twin's miss on the arm's rows: 2.4, 167.4 and 52.7 rows
    as the expectation of a split in proportion to the top band's
-   patients (0.006 to 0.42 per cent), and REALIZED by the generation
+   patients (0.006 to 0.42 per cent), and AS DEALT by the generation
    method's straight line dealt without regard to the arm a median of
    126, 181 and 146 rows and a 90th percentile of 293, 380 and 360, at
    most 0.89 per cent of the arm (MEASURED by the page's statistics
@@ -7397,6 +7480,25 @@ columns at one visit beyond what their patient-level parents imply.
    repeating multiplicity map; a row census that is not a function of
    the rest; a repeated column the KEY test reads that has no class
    witness, drawn HELD (4.6c.5 (e)).
+9. **Counts of patients by their exact readings beside a trend or an
+   own-mean parent** (4.6c.1 (d) 4; the page's first skeptic, item 2).
+   MEASURED on the visit-trend fixtures with the column's exact mean and
+   spread published: at the level of exact code vectors, descriptions
+   leak only because `Q` stands beside the moments (3,808 on `F1` where
+   the moments fix the cell's total, which 4.6c.1 (b) 6 refuses; 125 to
+   136 on `F3` with one to four readings off the cell, which it does
+   not), and some leak from the own-mean family and the moments alone
+   (81 to 87 on `F3`); at the level of the page's types, 0. The
+   fixtures are the worst case (at most 9 patients of two rows, codes 0
+   to 3, `f` of 2 or 3); at product scale the moments are four equations
+   over thousands of readings, and nothing is measured there yet. The
+   exchange form that would prove the lemma carries no trend as written.
+   *Owner:* the orchestrator's ruling on whether R1 reaches counts of
+   patients by their exact readings (the owner's principle of
+   2026-10-01: the threat is HIPAA exposure, not reconstruction), and
+   lane CHa's product-scale `K-S6-08` run before the stage-6 gate; until
+   the ruling, `Q_P` and the own-mean parent stand as this page writes
+   them, NOT IN FORCE like the rest of the section.
 
 ---
 

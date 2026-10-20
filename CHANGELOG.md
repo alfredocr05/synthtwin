@@ -19,12 +19,19 @@ validation V12.7 to V12.9), and its first review round's repairs:
   over visit position halved (`Q`), behind a certificate read on
   published facts alone, with its proof; the exact sum is never
   published, and the trend is offered only where no published fact of
-  the column fixes its cells' total. ``CLTREND``
+  the column fixes its cells' total. Its run 3, with the floor enforced on every
+  patient-level family, recovered the arm-by-visit trend at 0.968 to
+  0.998 of the real one on 24 runs up to 100,000 rows; the design
+  study's 100,000-row figures, measured on a description the floor
+  forbids, are restated.
 - **The within-patient correlation.** A patient's own level and first
   date become patient-level parents of the repeated readings; the row
   family under an own mean takes its child at the median and a floored
   split found by exact integer search, and the generator's patient
-  weight is read on that published table. ``CLICC``
+  weight is read on that published table. Run 3: within 0.0317 of the real
+  on 24 runs (0.0091 on the test table at 100,000 rows) and within
+  0.0093 on the long table, where the first build's route was 0.076 to
+  0.081 low.
 - **When the layer is on, and what it replaces.** At least `f` extra
   rows, one person column, no row without a person, and a drawn census
   of rows per patient (the draw may take "off" on any table, so the gate
@@ -40,7 +47,8 @@ validation V12.7 to V12.9), and its first review round's repairs:
 - **Stated limits, each with its owner:** the trend is not carried on
   long tables (January's stretch); the correlation on long tables was
   0.076 to 0.081 below the real under the study's route, its cause the
-  patient weight, its route the published weight (``CLLONG``); the
+  patient weight, its route the published weight (within 0.0093 in run 3, which lane
+  GR confirms on the built generator); the
   tighter clause of the correlation where run 3 still misses it
   (January's stretch, widened).
 
