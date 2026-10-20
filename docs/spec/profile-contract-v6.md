@@ -5886,7 +5886,7 @@ measured them (plan P4-D412).
 
 **(a) The object.** Let `x` be a FINE repeated column holding a reading
 on every row of the table, and carrying no row-level product moment of
-lane MPOL (item (f)). `F_S` is the placed family of the patient chain
+lane MPOL (item (e)). `F_S` is the placed family of the patient chain
 that holds `r` and every member of `G` that is a parent of `x`'s row
 family and is not derived (4.6c.2), at the finest level of `r` among
 such families; where none holds them all, the one holding `r` with the
@@ -5930,7 +5930,11 @@ worlds). Step (d) 2 says why: the window holds both parities.
    interval whose greedy maximum is largest: `b_c` is the greedy
    maximum of `S` (code units placed into the highest weights first,
    each position inside its band's range) and `a_c` the greedy minimum
-   (units into the lowest weights first).
+   (units into the lowest weights first). Where the sorted arrangement
+   puts a position whose band holds ONE code between two positions whose
+   bands hold more, `a_c` is set to `b_c`: the class is read as reaching
+   only `b_c` and `-b_c`, less than it can, never more (step (d) 1 says
+   why).
 3. **Its bound.** `u_c = min(|P|, n_b, floor(s_beta / k_beta))` over the
    bands `beta` the pattern uses, `n_b` the published patient count of
    the grain cells of `P`'s patients in band `b` and `s_beta` the
@@ -5973,10 +5977,17 @@ is in the grid model for `x` (4.6c's setting). Fix a cell `P` whose
    `j` to position `j + 1` keeps the sum and raises `S` by exactly 2,
    since the weights of adjacent positions differ by 2. Starting from
    the greedy minimum, while `S < b_c` such a move exists that keeps
-   every position inside its band's range: if none existed, every
-   position before the first position above its band's floor would sit
-   at its floor and every later position at its ceiling, which is the
-   greedy maximum, `S = b_c`. Each move changes `S` by 2, so every
+   every position inside its band's range: if none existed, let `k` be
+   the first position above its band's floor; the move from `k` to
+   `k + 1` is refused only if `k + 1` sits at its ceiling, which lies
+   above its floor when its band holds two or more codes, so the same
+   holds at `k + 1`, and so on: every later position sits at its
+   ceiling and every earlier one at its floor, which is the greedy
+   maximum, `S = b_c`. A band of ONE code between wider ones breaks
+   that step (its position is at floor and ceiling at once, and a unit
+   must jump over it, moving `S` by 4 or more), which is why item (b) 2
+   reads such a class as reaching `b_c` and `-b_c` only; the lemma holds
+   for that pair trivially. Each move changes `S` by 2, so every
    value of the parity of `a_c` between `a_c` and `b_c` is met; the
    pattern, the sum and so the own-mean band never change, so the class
    is kept. Reversing the positions (`j` to `r + 1 - j`) negates every
@@ -6055,8 +6066,8 @@ until lanes MG and MPOL write that joint argument, `Q_P` and such a
 moment on one column are exclusive options of the draw.
 
 **(f) What it carries, MEASURED** (the design study's second run on its
-invented test table `ST2`, about 2,850 patients and 20,000 rows, and
-about 14,300 patients and 100,000 rows; plan P4-D412). SWING publishes
+invented test table `ST2`, about 3,000 patients and 20,000 rows, and
+15,000 patients and 100,000 rows; plan P4-D412). SWING publishes
 every one-`r` cell of 500 or more patients: at 20,000 rows the two
 `r = 8` cells (about 1,000 patients each), at 100,000 rows all 14; the
 smaller refused cells are carried by generation's extension (the
@@ -6136,7 +6147,10 @@ rows of its own source column, never another column's rows.
   readings. Exactly then some code vector of pattern `k` has its mean in
   `b`, since the code sum moves by single units between those ends.
 - A row family whose child is NOT the derived column's source has its
-  patterns unrestricted by it.
+  patterns unrestricted by it. A row family whose child IS the source is
+  restricted whether or not the derived column is its parent, since
+  every world must keep each patient's derived value; 4.6c.8 (a) says
+  how such a family is placed.
 
 **(d) The certificates.**
 - **First date: residual PWIT.** For a parent cell `P` of first-date
@@ -6174,6 +6188,15 @@ rows of its own source column, never another column's rows.
   so by the one-world lemma no union of types leaks. ∎ It is stronger
   than it must be (it asks for blocks of `f` patients alike, where
   PWIT's two worlds need not), and it costs breadth, never a leak.
+  *Beside other row families.* A type crosses every row family. Read a
+  pattern of a floored family as HOSTABLE when it is one of its split's
+  blocks; then 4.6c.8 step 3's argument runs family by family: a union
+  holding a type whose every pattern is hostable gets at least `f`
+  patients by choosing the `f` patients of each PWIT family's hostable
+  world inside the floored block (row worlds assign patterns freely
+  within a class, step 2), and a union holding no such type holds 0 in
+  the world made of the floored split and every PWIT family's zero
+  world.
 - **Why the own mean cannot use PWIT's round robin.** PWIT's zero world
   deals each band's rows in turn; a patient so dealt can be given every
   row below its own-mean band, a pattern no table allows, and the
@@ -6357,7 +6380,11 @@ and by the one-world lemma it does not leak. The split's largest value
 is at most `t`, the least largest excess any table of the band can
 have, so the split is the census of a table under EVERY cap the real
 table obeys: a true cap is at least the real largest excess, which is at
-least `t`. ∎
+least `t`. ∎ The census's values inside its top band are facts of `r`
+alone, finer than its bands; crossed with other columns they are read
+by RULE W1 in patients (4.6b.9 (c)), and by this proof no group of them
+is fixed or bounded inside 1 to `f - 1`, so W1 finds no own-fact group
+of `r` to filter.
 
 *The cap lemma.* A count's range over a set of tables only widens as the
 set grows, so a count that is 0-able or f-able under a tight cap stays
@@ -6620,17 +6647,22 @@ counts both residuals.
 section 4.6b run on the patient table, in patients (the setting). `G`,
 the GRAIN FAMILY, is the family of the patient chain whose members
 parent the row families: the latest family in chain order that holds
-`r`, unless the draw's `row` step takes an earlier one (a function of
-the placed chain, class (b)). A ROW FAMILY `{y | parents}` has one
+`r` (a function of the placed chain, class (b)). A ROW FAMILY `{y | parents}` has one
 repeated or dealt date column `y` as its child, at one of `y`'s levels,
 and as parents some members of `G`, each at its level in `G` or
 coarser; its table counts ROWS in each (parent cell, band of `y`), each
 cell 0 or at least `f` rows. Row families are placed after the patient
 chain, one step of kind `row` for each eligible column `y` in schema
 order (word keyed over `[name, "row", index, [y]]`), the options every
-offered (parents, levels) and "no family", always eligible. A row family
-whose parent is a derived column of `y` itself takes the certificate of
-4.6c.2; every other takes PWIT below. A row family is never a parent.
+offered (parents, levels) and "no family", always eligible. A derived
+column of the patient table ties its source's rows whether or not it is
+a parent, so: a derived column whose source is the child of a row family
+is a member of `G`; a row family whose child is the source of a first
+date takes that first date as a parent at its own level; a row family
+whose child is the source of an own mean takes the floored split of
+4.6c.2, the own mean read in each grain cell; and residual PWIT serves
+the first date. Every other row family takes PWIT below. A row family
+is never a parent.
 
 **(b) The theorem (the design's 10.7 items 1 and 2).** *Let every placed
 row family hold 0 or at least `f` rows in every cell, pass RULE W1 in
@@ -6706,7 +6738,9 @@ a grain cell `C` holds a band of `r`, the reader does not know how its
 patients split over the band's values. The producer exhibits `R*`, a
 whole-number table `R*_C(rho)` over grain cells and values of `r`, with:
 1. `sum over rho of R*_C(rho) = |C|` and `R*_C(rho) = 0` outside `C`'s
-   band of `r`;
+   band of `r`, and every value of `r` in the census's top band is at
+   most `lo + t`, `t` the top band's tight cap (4.6c.4 (b)), so that
+   `R*`'s world is a table under every cap the reader may know;
 2. every `R*_C(rho)` is 0 or at least `f` (FLOORED);
 3. THE TIE: summed over the grain cells inside each cell of every
    published table holding `r` (`r`'s census, every family of the
@@ -6850,10 +6884,9 @@ of the description. Every dealt date column is declared ordered.
 
 **Invariant S31 (row families).** Each entry of `rows` has a repeated or
 dealt date child, parents that are members of `G` at their level in `G`
-or coarser, and a table that sums over the child to each parent cell's
-row total, which equals the sum of `r` over that cell's patients as `G`
-and the census give it, and over the parents to the child's `L0` totals
-summed to the entry's level. No parent is a column counted in rows. The
+or coarser, and a complete table whose every cell is 0 or at least
+`settings.small_cell_floor` rows and whose sum over the parents is the
+child's `L0` totals summed to the entry's level. No parent is a column counted in rows. The
 loader recomputes each entry's certificate from published counts (PWIT
 with `R*` by 4.6c.8's construction; residual PWIT; the floored split by
 4.6c.2's stated search order) and finds it passes, and finds RULE W1
@@ -6893,7 +6926,7 @@ argument that the decision removes no witness world of any count
 | 35b | the trend's latent term, its one rescale, the extension and the close | none: generation only | the generation method's G16.15 |
 | 35c | the family `F_S` | (b): a function of the placed chain | 4.6c.1 (a) |
 | 35d | the grid code's `u`, `L` and `K` | (b): facts of one column | the setting |
-| 36 | the grain family `G` | (b): a function of the placed chain and the draw's `row` step | 4.6c.8 (a) |
+| 36 | the grain family `G` | (b): a function of the placed chain | 4.6c.8 (a) |
 | 37 | a multiplicity map withheld, a person column's row counts read in patients | (b): the class and the layer | 4.6c.3 (b), (c) |
 | 38 | a patient-fixed column's row census published | (b): read on `D0` | 4.6c.5 (c) |
 
