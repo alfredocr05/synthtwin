@@ -7256,19 +7256,26 @@ def _shape_sizes(
     # source holds fifty of each, and the fifty published pluses split
     # across two values -- four spellings of three numbers.
     evens = lead > whole[0] or trail > whole[1]
-    # A PINNED END'S RUN IS NEVER JOINED WHERE A TAIL READS THE SHARED
-    # STAIRCASE (G5.3b, plan P4-D405). Its rows share points, so the
-    # runs beside a pinned end are runs of a few rows, the smallest a
+    # A PINNED END'S RUN IS NEVER JOINED WHERE ITS OWN TAIL READS THE
+    # SHARED STAIRCASE (G5.3b, plan P4-D405). Its rows share points, so
+    # the runs beside a pinned end are runs of a few rows, the smallest a
     # join takes first, and a join keeps the pinned stratum's value: a
     # clipped bell at one place, 20,000 rows, joined its five outermost runs of
     # two rows, 47.4 to 47.8, into the end and wrote 11 cells on its
-    # derived end `55.1` where the source holds one at 52.2.
-    shared = isinstance(rungs, contract.ShapedLadder) and (
-        (rungs.low is not None and rungs.low.shared)
-        or (rungs.high is not None and rungs.high.shared)
-    )
-    first = shared and start == 0
-    last = shared and start + cells == numbers
+    # derived end `55.1` where the source holds one at 52.2. An end whose
+    # tail reads the pushed staircase joins as it did on 36ad3061 (the
+    # second repair): protected beside a shared low tail, the high end of
+    # P4-D390's eight-figure dates moved its joins and the twin's `p75`
+    # left its window at seed 7.
+    first = False
+    last = False
+    if isinstance(rungs, contract.ShapedLadder):
+        first = start == 0 and rungs.low is not None and rungs.low.shared
+        last = (
+            start + cells == numbers
+            and rungs.high is not None
+            and rungs.high.shared
+        )
     if lead + trail > 0 and strata > lead + trail:
         inner = lengths[lead : len(lengths) - trail]
         inner_values = values[lead : len(values) - trail]

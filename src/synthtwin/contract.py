@@ -14068,110 +14068,570 @@ def _interior_points(
     return points
 
 
-def _grid_index(value: float, figures: int) -> "int | None":
-    """A grid value as a whole number of its grid's steps, or None past 2**52 steps."""
-    scale = 1.0
+_GRID_REACH = 4503599627370496
+
+
+def _ten_to(figures: int) -> int:
+    """Ten to the power ``figures`` (nought or more), a whole number."""
+    power = 1
     for _figure in range(max(figures, 0)):
-        scale = scale * 10.0
-    if not math.isfinite(value) or abs(value) * scale >= 2.0**52:
+        power = power * 10
+    return power
+
+
+def _grid_steps(value: float, figures: int) -> "int | None":
+    """A finite value as the nearest whole number of grid steps, exactly, half to even; None where it is not finite."""
+    if not math.isfinite(value):
         return None
-    return int(round(value * scale))
+    fraction, exponent = math.frexp(value)
+    top = int(math.ldexp(fraction, 53)) * _ten_to(figures)
+    bottom = 1
+    if exponent >= 53:
+        top = top << (exponent - 53)
+    else:
+        bottom = 1 << (53 - exponent)
+    index, rest = divmod(top, bottom)
+    if 2 * rest > bottom or (2 * rest == bottom and index % 2 == 1):
+        index = index + 1
+    return index
+
+
+def _grid_exact(value: float, figures: int) -> float:
+    """``value`` on a tail grid, the shared staircase's way (G5.3b, plan P4-D405): G5.4's rule on whole numbers, and on a width the nearest grid point to the value's own binary fraction, half to even, read back as the binary64 nearest it -- what writing the value at that width does, with no rounding twice."""
+    if figures < 0:
+        return _on_tail_grid(value, figures)
+    index = _grid_steps(value, figures)
+    if index is None:
+        return value
+    return _grid_value(index, figures)
+
+
+def _grid_index(value: float, figures: int) -> "int | None":
+    """A grid value as a whole number of its grid's steps, EXACTLY, or None past 2**52 steps (G5.3b, plan P4-D405).
+
+    The value's own binary fraction times ten to the grid's figures, in
+    whole-number arithmetic, rounded half to even. A scale built by
+    multiplying tens in binary64 is not ten to that power past 1e22, and
+    a product rounded twice moves a point: Codex's review of the lane
+    G2T repair measured 5,000 readings at 25 places near `4e-10`, whose
+    grid point `4000000000000001` read back as `4000000000000000`, five
+    low-tail rows standing above their boundary and five high-tail rows
+    below theirs. Determinism: a function of the two. Raises nothing.
+    """
+    index = _grid_steps(value, figures)
+    if index is None or abs(index) >= _GRID_REACH:
+        return None
+    return index
+
+
+def _grid_value(index: int, figures: int) -> float:
+    """A whole number of grid steps as the binary64 nearest it (the inverse of `_grid_index`): one correctly rounded division of two whole numbers."""
+    return index / _ten_to(figures)
+
+
+def _rank_band(rank: int, negatives: int, zeros: int) -> int:
+    """G5.2's sign band of one rank: -1 for the negatives, 0 for the zero stratum, 1 for the positives."""
+    if rank < negatives:
+        return -1
+    if rank < negatives + zeros:
+        return 0
+    return 1
+
+
+def _row_rank(side: TailReader, row: int) -> int:
+    """The column rank of a tail's row `row`, counted from the boundary outward."""
+    if side.low:
+        return side.rows - 1 - row
+    return side.numbers - side.rows + row
+
+
+def _band_counts(facts: NumericFacts) -> "tuple[int, int]":
+    """The negatives and zeros G5.2 lays out at the column's lowest ranks."""
+    negatives = facts.n_negative - facts.n_negative_unrepresentable
+    return max(negatives, 0), max(facts.n_zero, 0)
+
+
+def _sign_held(
+    steps: "tuple[float, ...]", side: TailReader, facts: NumericFacts, figures: int
+) -> "tuple[float, ...]":
+    """A shared staircase's rows held to G5.2's sign bands at their ranks (G5.3b, plan P4-D405).
+
+    G5.2 lays the column out negatives first, then the zero stratum, then
+    the positives, at the published counts, and holds each band's values
+    to its own sign (G5.2a step 1a, `generation._band_signed`). So a row
+    of the shared staircase standing at a rank of the zero stratum reads
+    nought, and no other row does; a row at a rank of the negatives that
+    reads nought or above stands on the grid point nearest below nought,
+    and a row at a rank of the positives that reads nought or below on
+    the one nearest above it, each never past the row outside it, so the
+    rows keep their order; a row so moved steps off a stand-in as any row
+    does. Read otherwise, the staircase counted points the twin never
+    holds: 50 less a lognormal count at 20,000 rows read `0`, `1` and `2`
+    at three of its six negative ranks, the twin held them at `-1`, the
+    spread for the count gained two points too few, G5.2a divided two
+    runs of the body and G6.5a pushed them down until the median missed.
+    """
+    negatives, zeros = _band_counts(facts)
+    unit = _tail_unit(figures)
+    below = -unit
+    above = unit
+    if figures >= 0:
+        below = _grid_value(-1, figures)
+        above = _grid_value(1, figures)
+    held = list(steps)
+    # FROM THE OUTERMOST ROW INWARD, each held against the row outside it.
+    order = range(len(held) - 1, -1, -1)
+    outside: "float | None" = None
+    for row in order:
+        band = _rank_band(_row_rank(side, row), negatives, zeros)
+        value = held[row]
+        moved = value
+        if band == 0:
+            moved = 0.0 if value != 0.0 else value
+        elif band < 0 and not value < 0.0:
+            moved = below
+        elif band > 0 and not value > 0.0:
+            moved = above
+        if moved != value and band != 0:
+            if outside is not None:
+                if side.low and moved < outside:
+                    moved = outside
+                if not side.low and moved > outside:
+                    moved = outside
+            moved = _row_off_the_stand_ins(moved, side, figures)
+        held[row] = moved
+        outside = moved
+    return tuple(held)
+
+
+def _sign_frozen(side: TailReader, facts: NumericFacts) -> int:
+    """How many of a side's outermost rows stand in another sign band than its innermost row, or -1 where that row's band is the zero stratum (G5.3b, plan P4-D405): rows the spread never moves."""
+    if side.rows <= 0:
+        return 0
+    negatives, zeros = _band_counts(facts)
+    inner = _rank_band(_row_rank(side, 0), negatives, zeros)
+    if inner == 0:
+        return -1
+    if side.low:
+        start = 0 if inner < 0 else negatives + zeros
+        return min(side.rows, max(start, 0))
+    stop = negatives if inner < 0 else side.numbers
+    return min(side.rows, max(side.numbers - stop, 0))
 
 
 def _runs_on_the_grid(
-    side: TailReader, figures: int
-) -> "tuple[list[list[int]], int, int, int] | None":
-    """A shared side's rows as runs on its grid, counted outward (G5.3b, plan P4-D405).
+    side: TailReader, figures: int, frozen: int
+) -> "tuple[list[int], int, int, list[int]] | None":
+    """A shared side's rows on its grid, counted outward (G5.3b, plan P4-D405).
 
-    Each run is `[point, rows]`, innermost first, its point in grid steps
-    signed so that further out is larger; returned with the boundary's
-    point, the end's point and how many rows stand ON the end -- the
-    end's own, which no spread moves. None where a row, the boundary or
-    the end is past 2**52 steps.
+    Returns the rows the spread may move, each a point in grid steps
+    signed so that further out is larger, innermost first; the
+    boundary's point; the LIMIT no moved row reaches -- the end's point,
+    or nought's where the outermost rows stand in another sign band
+    (`_sign_frozen`), whose band the moved rows never leave -- and the
+    points of the rows that never move: the outermost ``frozen`` rows
+    and every row on the end. None where a row, the boundary or the end
+    is past 2**52 steps, or where ``frozen`` is -1.
     """
+    if frozen < 0:
+        return None
     toward = -1 if side.low else 1
     found = _grid_index(side.boundary, figures)
     end = _grid_index(side.end, figures)
     if found is None or end is None:
         return None
-    runs: "list[list[int]]" = []
+    signed: "list[int]" = []
     for step in side.steps:
         index = _grid_index(step, figures)
         if index is None:
             return None
-        point = toward * index
-        if runs and runs[len(runs) - 1][0] == point:
-            runs[len(runs) - 1][1] = runs[len(runs) - 1][1] + 1
-        else:
-            runs += [[point, 1]]
+        signed += [toward * index]
     on_end = 0
-    if runs and runs[len(runs) - 1][0] == toward * end:
-        on_end = runs[len(runs) - 1][1]
-        runs = runs[: len(runs) - 1]
-    return runs, toward * found, toward * end, on_end
+    while on_end < len(signed) and signed[len(signed) - 1 - on_end] == toward * end:
+        on_end = on_end + 1
+    still = max(frozen, on_end)
+    limit = toward * end
+    if frozen > 0 and limit > 0:
+        limit = 0
+    cut = len(signed) - still
+    return signed[:cut], toward * found, limit, signed[cut:]
 
 
-def _spread_move(
-    runs: "list[list[int]]",
-    boundary: int,
-    end: int,
-    gain: bool,
-    outward: bool,
-    refused: "dict[int, bool]",
-) -> "tuple[int, int, int] | None":
-    """The nearest move of one row that gains (or loses) one point, outward or inward (G5.3b, plan P4-D405).
+def _found_at(points: "list[int]", point: int) -> int:
+    """How many entries of the ascending ``points`` stand at or below ``point``."""
+    low = 0
+    high = len(points)
+    while low < high:
+        middle = (low + high) // 2
+        if points[middle] <= point:
+            low = middle + 1
+        else:
+            high = middle
+    return low
 
-    TO GAIN, a row leaves a point that keeps a row -- a run of two or
-    more, or the boundary's own point, which the ladder inside holds --
-    for the nearest grid point that way no row holds, strictly between
-    the boundary and the end. TO LOSE, the row of a run of one joins the
-    nearest occupied point that way -- the boundary's, never the end's.
-    The rows are a sorted list, so a move is a change of one row's value
-    and the order holds. Returns `(run, target, distance)`, the move whose
-    distance is least, the outermost on a tie, or None; `refused` names
-    the stand-ins the block does not hold, which are no point.
+
+def _sorted_in(points: "list[int]", point: int) -> None:
+    """Put ``point`` into the ascending ``points`` in place."""
+    place = _found_at(points, point)
+    points[place:place] = [point]
+
+
+def _sorted_out(points: "list[int]", point: int) -> None:
+    """Take ``point`` out of the ascending ``points`` in place, where it stands."""
+    place = _found_at(points, point) - 1
+    if place >= 0 and points[place] == point:
+        points[place : place + 1] = []
+
+
+def _heap_in(heap: "list[tuple[int, int]]", entry: "tuple[int, int]") -> None:
+    """Add ``entry`` to the binary heap ``heap``, least first."""
+    heap += [entry]
+    place = len(heap) - 1
+    while place > 0:
+        parent = (place - 1) // 2
+        if heap[parent] <= heap[place]:
+            break
+        heap[parent], heap[place] = heap[place], heap[parent]
+        place = parent
+
+
+def _heap_out(heap: "list[tuple[int, int]]") -> "tuple[int, int]":
+    """Take the least entry off the non-empty binary heap ``heap``."""
+    least = heap[0]
+    last = heap[len(heap) - 1]
+    heap[len(heap) - 1 :] = []
+    if heap:
+        heap[0] = last
+        place = 0
+        size = len(heap)
+        while True:
+            child = 2 * place + 1
+            if child >= size:
+                break
+            if child + 1 < size and heap[child + 1] < heap[child]:
+                child = child + 1
+            if heap[place] <= heap[child]:
+                break
+            heap[place], heap[child] = heap[child], heap[place]
+            place = child
+    return least
+
+
+class _Spread:
+    """One shared side's movable rows on its grid, and the moves of G5.3b's spread (plan P4-D405).
+
+    THE SAME MOVES AS SCANNING EVERY RUN FOR EACH ONE, which is how the
+    method states them and how the oracle reads them, kept in
+    near-linear time: the occupied points are held as BLOCKS of
+    consecutive points, so the free point past a run is its block's
+    edge; the points a row may leave and the runs of one row are sorted
+    lists; and each kind of move keeps a heap into which every change
+    pushes the true best move of each block (or point) it touches, so an
+    entry that comes to the top is either that true best or stale, and a
+    stale one is dropped. Rescanning every run for each move made the spread quadratic in
+    the tail's rows: one ladder of a Pareto column at two places took
+    321.6 s at 250,000 rows and 6,017 s at 500,000 (lane G2T's combined
+    verify), against 0.05 s on 36ad3061.
+
+    Points are whole numbers of grid steps counted outward. A row may
+    move to a point strictly between the boundary and the limit that is
+    no refused stand-in. Determinism: every choice is a fixed function
+    of the rows. Raises nothing. No I/O.
     """
-    best: "tuple[int, int, int] | None" = None
-    count = len(runs)
-    # THE NEAREST FREE POINT PAST EACH RUN, found in one pass each way.
-    beyond: "list[int]" = [0] * count
-    within: "list[int]" = [0] * count
-    for place in range(count - 1, -1, -1):
-        point = runs[place][0]
-        if place + 1 < count and runs[place + 1][0] == point + 1:
-            beyond[place] = beyond[place + 1]
-        else:
-            beyond[place] = point + 1
-    for place in range(count):
-        point = runs[place][0]
-        if place > 0 and runs[place - 1][0] == point - 1:
-            within[place] = within[place - 1]
-        else:
-            within[place] = point - 1
-    for place in range(count - 1, -1, -1):
-        point = runs[place][0]
-        rows = runs[place][1]
-        if gain:
-            if rows < 2 and point != boundary:
-                continue
-            target = beyond[place] if outward else within[place]
-            if not boundary < target < end or target in refused:
-                continue
-            if not outward and place == 0 and point == boundary:
-                continue
-        else:
-            if rows != 1 or point == boundary:
-                continue
-            if outward:
-                if place + 1 >= count:
-                    continue
-                target = runs[place + 1][0]
+
+    def __init__(self, points: "list[int]", boundary: int, limit: int) -> None:
+        self.boundary = boundary
+        self.limit = limit
+        self.count: "dict[int, int]" = {}
+        for point in points:
+            self.count[point] = (self.count[point] if point in self.count else 0) + 1
+        self.refused: "dict[int, bool]" = {}
+        self.starts: "list[int]" = []
+        self.stops: "dict[int, int]" = {}
+        self.able: "list[int]" = []
+        self.lone: "list[int]" = []
+        # Eight heaps: a gain, a loss, a shift and a settling move, each
+        # outward and inward; gains and losses least distance first and
+        # the outermost on a tie, shifts and settling moves innermost
+        # first.
+        self.heaps: "list[list[tuple[int, int]]]" = [[] for _heap in range(8)]
+        for point in sorted(self.count):
+            if self.starts and self.stops[self.starts[len(self.starts) - 1]] == point - 1:
+                self.stops[self.starts[len(self.starts) - 1]] = point
             else:
-                target = runs[place - 1][0] if place > 0 else boundary
-        distance = target - point if outward else point - target
-        if best is None or distance < best[2]:
-            best = (place, target, distance)
-    return best
+                self.starts += [point]
+                self.stops[point] = point
+            if self._is_able(point):
+                self.able += [point]
+            if self._is_lone(point):
+                self.lone += [point]
+        self._touched(sorted(self.count))
+
+    def _is_able(self, point: int) -> bool:
+        held = self.count[point] if point in self.count else 0
+        return held >= 2 or (held >= 1 and point == self.boundary)
+
+    def _is_lone(self, point: int) -> bool:
+        held = self.count[point] if point in self.count else 0
+        return held == 1 and point != self.boundary
+
+    def _block(self, point: int) -> "tuple[int, int] | None":
+        place = _found_at(self.starts, point) - 1
+        if place < 0:
+            return None
+        start = self.starts[place]
+        stop = self.stops[start]
+        if stop < point:
+            return None
+        return start, stop
+
+    def _after(self, point: int) -> "int | None":
+        """The next occupied point outward, or None."""
+        block = self._block(point)
+        if block is None:
+            return None
+        if point < block[1]:
+            return point + 1
+        place = _found_at(self.starts, point)
+        return self.starts[place] if place < len(self.starts) else None
+
+    def _before(self, point: int) -> "int | None":
+        """The next occupied point inward, or None."""
+        block = self._block(point)
+        if block is None:
+            return None
+        if point > block[0]:
+            return point - 1
+        place = _found_at(self.starts, point) - 2
+        return self.stops[self.starts[place]] if place >= 0 else None
+
+    def _free(self, target: int) -> bool:
+        return self.boundary < target < self.limit and target not in self.refused
+
+    def _gain_best(self, block: "tuple[int, int]", outward: bool) -> "tuple[int, int] | None":
+        """The block's gain: (distance, point), its outermost able point outward, its innermost inward."""
+        start, stop = block
+        if outward:
+            place = _found_at(self.able, stop) - 1
+            if place < 0 or self.able[place] < start or not self._free(stop + 1):
+                return None
+            point = self.able[place]
+            return stop + 1 - point, point
+        place = _found_at(self.able, start - 1)
+        if place >= len(self.able) or self.able[place] > stop or not self._free(start - 1):
+            return None
+        point = self.able[place]
+        return point - start + 1, point
+
+    def _shift_room(self, point: int, outward: bool) -> int:
+        """How far a lone row at its block's edge may shift that way through free points, or nought (G5.3b, plan P4-D405).
+
+        The free points beside it that way, up to the next occupied point,
+        the boundary or the limit, and short of any refused stand-in.
+        """
+        if not self._is_lone(point):
+            return 0
+        block = self._block(point)
+        if block is None or block[1 if outward else 0] != point:
+            return 0
+        if outward:
+            after = self._after(point)
+            wall = self.limit if after is None else min(after, self.limit)
+        else:
+            before = self._before(point)
+            wall = self.boundary if before is None else max(before, self.boundary)
+        for refused in self.refused:
+            if outward and point < refused < wall:
+                wall = refused
+            if not outward and wall < refused < point:
+                wall = refused
+        return wall - point - 1 if outward else point - wall - 1
+
+    def _lose_best(self, point: int, outward: bool) -> "int | None":
+        """A lone point's loss distance that way, or None."""
+        if not self._is_lone(point):
+            return None
+        if outward:
+            after = self._after(point)
+            return None if after is None else after - point
+        before = self._before(point)
+        return point - (self.boundary if before is None else before)
+
+    def _touched(self, points: "list[int]") -> None:
+        """Push the true entries of every move a change at these points may have shortened (or, for a shift, lengthened)."""
+        blocks: "dict[int, int]" = {}
+        seen: "dict[int, bool]" = {}
+        for point in points:
+            if point in seen or point not in self.count:
+                continue
+            seen[point] = True
+            block = self._block(point)
+            if block is None:
+                continue
+            blocks[block[0]] = block[1]
+            for side in range(2):
+                lose = self._lose_best(point, side == 0)
+                if lose is not None:
+                    _heap_in(self.heaps[2 + side], (lose, -point))
+                if self._shift_room(point, side == 0) > 0:
+                    _heap_in(self.heaps[4 + side], (point, point))
+                if self._settles(point, side == 0):
+                    _heap_in(self.heaps[6 + side], (point, point))
+        for start in blocks:
+            block = (start, blocks[start])
+            for side in range(2):
+                outward = side == 0
+                gain = self._gain_best(block, outward)
+                if gain is not None:
+                    _heap_in(self.heaps[side], (gain[0], -gain[1]))
+                edge = block[1] if outward else block[0]
+                if self._shift_room(edge, outward) > 0:
+                    _heap_in(self.heaps[4 + side], (edge, edge))
+
+    def gain(self, outward: bool) -> "tuple[int, int, int] | None":
+        """The nearest gaining move that way: (from, to, distance), or None."""
+        heap = self.heaps[0 if outward else 1]
+        while heap:
+            distance, negative = heap[0]
+            point = -negative
+            block = self._block(point) if point in self.count else None
+            best: "tuple[int, int] | None" = None
+            if block is not None:
+                best = self._gain_best(block, outward)
+                if best == (distance, point):
+                    target = block[1] + 1 if outward else block[0] - 1
+                    return point, target, distance
+            _heap_out(heap)
+        return None
+
+    def lose(self, outward: bool) -> "tuple[int, int, int] | None":
+        """The nearest losing move that way: (from, to, distance), or None."""
+        heap = self.heaps[2 if outward else 3]
+        while heap:
+            distance, negative = heap[0]
+            point = -negative
+            best = self._lose_best(point, outward)
+            if best is not None and best == distance:
+                return point, point + distance if outward else point - distance, distance
+            _heap_out(heap)
+        return None
+
+    def shift(self, outward: bool, owed: float) -> "tuple[int, int, int] | None":
+        """The shift that way G5.3b names: the innermost lone row at its block's edge with a free point beside it, through free points as far as the sum owes; (from, to, distance), or None."""
+        heap = self.heaps[4 if outward else 5]
+        while heap:
+            point = heap[0][0]
+            room = self._shift_room(point, outward)
+            if room <= 0:
+                _heap_out(heap)
+                continue
+            most = int(math.floor(owed)) if math.isfinite(owed) else room
+            distance = min(room, most)
+            if distance < 1:
+                if not 1.0 - owed < owed:
+                    return None
+                distance = 1
+            return point, point + distance if outward else point - distance, distance
+        return None
+
+    def _settles(self, point: int, outward: bool) -> bool:
+        """Whether a row may leave ``point`` for the occupied point beside it that way: no point gained or lost."""
+        beside = point + 1 if outward else point - 1
+        return self._is_able(point) and beside in self.count
+
+    def settle(self, outward: bool) -> "tuple[int, int] | None":
+        """The innermost settling move that way: one row of a point that keeps a row to the occupied point one step beside it; (from, to), or None."""
+        heap = self.heaps[6 if outward else 7]
+        while heap:
+            point = heap[0][0]
+            if self._settles(point, outward):
+                return point, point + 1 if outward else point - 1
+            _heap_out(heap)
+        return None
+
+    def refuse(self, point: int) -> None:
+        """Mark a stand-in point no row may move to."""
+        self.refused[point] = True
+
+    def move(self, source: int, target: int) -> None:
+        """One row from ``source`` to ``target``; the blocks, the sorted lists and the heaps follow."""
+        near = [source, target]
+        for point in (source, target):
+            for other in (self._before(point), self._after(point)):
+                if other is not None:
+                    near += [other]
+        self.count[source] = self.count[source] - 1
+        if self.count[source] == 0:
+            del self.count[source]
+            self._vacate(source)
+        if target in self.count:
+            self.count[target] = self.count[target] + 1
+        else:
+            self.count[target] = 1
+            self._occupy(target)
+        for point in (source, target):
+            if self._is_able(point):
+                if not self._listed(self.able, point):
+                    _sorted_in(self.able, point)
+            else:
+                _sorted_out(self.able, point)
+            if self._is_lone(point):
+                if not self._listed(self.lone, point):
+                    _sorted_in(self.lone, point)
+            else:
+                _sorted_out(self.lone, point)
+        for point in (source, target):
+            for other in (self._before(point), self._after(point), point - 1, point + 1):
+                if other is not None:
+                    near += [other]
+        self._touched(near)
+
+    def _listed(self, points: "list[int]", point: int) -> bool:
+        place = _found_at(points, point) - 1
+        return place >= 0 and points[place] == point
+
+    def _occupy(self, point: int) -> None:
+        left = self._block(point - 1)
+        right = self._block(point + 1)
+        if left is not None and right is not None:
+            self.stops[left[0]] = right[1]
+            del self.stops[right[0]]
+            _sorted_out(self.starts, right[0])
+        elif left is not None:
+            self.stops[left[0]] = point
+        elif right is not None:
+            del self.stops[right[0]]
+            place = _found_at(self.starts, right[0]) - 1
+            self.starts[place] = point
+            self.stops[point] = right[1]
+        else:
+            _sorted_in(self.starts, point)
+            self.stops[point] = point
+
+    def _vacate(self, point: int) -> None:
+        place = _found_at(self.starts, point) - 1
+        start = self.starts[place]
+        stop = self.stops[start]
+        if start == stop:
+            self.starts[place : place + 1] = []
+            del self.stops[start]
+        elif point == start:
+            self.starts[place] = start + 1
+            del self.stops[start]
+            self.stops[start + 1] = stop
+        elif point == stop:
+            self.stops[start] = stop - 1
+        else:
+            self.stops[start] = point - 1
+            self.starts[place + 1 : place + 1] = [point + 1]
+            self.stops[point + 1] = stop
+
+    def rows(self) -> "list[int]":
+        """Every movable row's point, innermost first."""
+        placed: "list[int]" = []
+        for point in sorted(self.count):
+            placed += [point] * self.count[point]
+        return placed
 
 
 def _spread_side(
@@ -14179,52 +14639,54 @@ def _spread_side(
     figures: int,
     change: int,
     mean_distance: float,
+    frozen: int = 0,
 ) -> "tuple[float, ...]":
     """One shared side with `change` more (or, negative, fewer) different points, its summed distance held (G5.3b, plan P4-D405).
 
-    Each move is `_spread_move`'s nearest, outward while the side's
-    summed distance stands at or inside the published `m d1` (in grid
-    steps) and inward while it stands past it -- the other way where no
-    move is left this way -- so the moves alternate about the published
-    sum and the tail's mean distance does not drift: a count of Pareto
-    draws spread outward only stood 10.8 per cent past its published
-    mean distance at 20,000 rows. A side stops where no move is left.
-    Rows on the end never move.
+    Each move is the nearest gaining (or losing) move, outward while the
+    side's summed distance stands at or inside the published `m d1` (in
+    grid steps) and inward while it stands past it -- the other way where
+    no move is left this way -- so the moves alternate about the
+    published sum and the tail's mean distance does not drift: a count
+    of Pareto draws spread outward only stood 10.8 per cent past its
+    published mean distance at 20,000 rows. A side stops where no move is
+    left. Rows on the end, and the outermost ``frozen`` rows standing in
+    another sign band (`_sign_frozen`), never move; the moved rows stay
+    inside their own band. The moves are `_Spread`'s.
     """
-    found = _runs_on_the_grid(side, figures)
-    if found is None or change == 0:
+    found = _runs_on_the_grid(side, figures, frozen)
+    if found is None:
         return side.steps
-    runs, boundary, end, on_end = found
+    points, boundary, limit, still = found
     toward = -1 if side.low else 1
-    scale = 1.0
-    for _figure in range(max(figures, 0)):
-        scale = scale * 10.0
     wanted = side.rows * (mean_distance / _tail_unit(figures))
-    total = on_end * (end - boundary)
-    for run in runs:
-        total = total + run[1] * (run[0] - boundary)
+    total = 0
+    for point in still:
+        total = total + (point - boundary)
+    for point in points:
+        total = total + (point - boundary)
     # THE SUM'S BOUND: half a grid step a row past the published sum,
     # or as far as the shared staircase already stood, whichever is
     # further -- the precision the shared staircase itself keeps.
     bound = abs(total - wanted)
     if bound < side.rows / 2.0:
         bound = side.rows / 2.0
-    refused: "dict[int, bool]" = {}
+    spread = _Spread(points, boundary, limit)
     gain = change > 0
     left = change if gain else -change
     while left > 0:
         outward = total <= wanted
-        move = _spread_move(runs, boundary, end, gain, outward, refused)
+        move = spread.gain(outward) if gain else spread.lose(outward)
         if move is None:
             outward = not outward
-            move = _spread_move(runs, boundary, end, gain, outward, refused)
+            move = spread.gain(outward) if gain else spread.lose(outward)
         if move is None:
             break
-        place, target, distance = move
-        if gain and _refused_point(target, toward, scale, side, figures):
-            refused[target] = True
+        source, target, distance = move
+        if gain and _refused_point(target, toward, side, figures):
+            spread.refuse(target)
             continue
-        runs = _moved_row(runs, runs[place][0], target)
+        spread.move(source, target)
         total = total + (distance if outward else -distance)
         left = left - 1
         # AND THE SUM BROUGHT BACK by rows of one run moved to a free
@@ -14233,116 +14695,66 @@ def _spread_side(
         # of occupied points gains only past that run, and the rows the
         # sum then owes are taken from its sparse outer rows.
         while abs(total - wanted) > bound:
-            shift = _spread_shift(
-                runs, boundary, end, total < wanted, abs(total - wanted), refused
-            )
+            onward = total < wanted
+            shift = spread.shift(onward, abs(total - wanted))
             if shift is None:
                 break
             source, point, moved = shift
-            if _refused_point(point, toward, scale, side, figures):
-                refused[point] = True
+            if _refused_point(point, toward, side, figures):
+                spread.refuse(point)
                 continue
-            runs = _moved_row(runs, source, point)
-            total = total + (moved if total < wanted else -moved)
+            spread.move(source, point)
+            total = total + (moved if onward else -moved)
+    # AND THE SUM SETTLED TO HALF A STEP (the second repair): a row of a
+    # point that keeps a row moves one step to the occupied point beside
+    # it, the innermost first -- no point gained or lost, the least a
+    # square moves -- until the summed distance stands within half a
+    # grid step of `m d1`. Within `m / 2` steps is no bound on a coarse
+    # tail: 20,000 negated lognormal counts with one `-0` published a
+    # high tail of 200 rows at a mean distance of 0.5 from `-2`, and the
+    # shared staircase stood 122 rows on `-2` and 77 on `-1`, 21 per cent
+    # short, where the source holds 101 and 98.
+    while abs(total - wanted) > 0.5:
+        onward = total < wanted
+        settled = spread.settle(onward)
+        if settled is None:
+            break
+        spread.move(settled[0], settled[1])
+        total = total + (1 if onward else -1)
     placed: "list[float]" = []
-    for run in runs:
-        value = _on_tail_grid((toward * run[0]) / scale, figures)
-        for _row in range(run[1]):
-            placed += [value]
-    for _row in range(on_end):
-        placed += [side.end]
-    return tuple(placed)
+    for point in spread.rows():
+        placed += [_grid_value(toward * point, figures)]
+    cut = len(side.steps) - len(still)
+    return tuple(placed) + side.steps[cut:]
 
 
-def _refused_point(
-    point: int, toward: int, scale: float, side: TailReader, figures: int
-) -> bool:
+def _refused_point(point: int, toward: int, side: TailReader, figures: int) -> bool:
     """Whether a grid point is a stand-in the block does not hold (G5.3b step 5), and so no point a row may move to."""
-    value = _on_tail_grid((toward * point) / scale, figures)
+    value = _grid_value(toward * point, figures)
     return _row_off_the_stand_ins(value, side, figures) != value
 
 
-def _moved_row(
-    runs: "list[list[int]]", source: int, target: int
-) -> "list[list[int]]":
-    """The runs with one row moved from point `source` to point `target`, in order."""
-    held: "dict[int, int]" = {}
-    for run in runs:
-        held[run[0]] = run[1]
-    held[source] = held[source] - 1
-    held[target] = (held[target] if target in held else 0) + 1
-    return [[point, held[point]] for point in sorted(held) if held[point] > 0]
-
-
-def _spread_shift(
-    runs: "list[list[int]]",
-    boundary: int,
-    end: int,
-    outward: bool,
-    owed: float,
-    refused: "dict[int, bool]",
-) -> "tuple[int, int, int] | None":
-    """The row of a run of one moved to the nearest free point that way, its distance the most at or under `owed` (G5.3b, plan P4-D405).
-
-    No point is gained or lost. Where every such move is longer than
-    `owed`, the shortest, if it leaves the sum nearer; the innermost on a
-    tie. Returns `(from, to, distance)` or None.
-    """
-    count = len(runs)
-    beyond: "list[int]" = [0] * count
-    within: "list[int]" = [0] * count
-    for place in range(count - 1, -1, -1):
-        point = runs[place][0]
-        if place + 1 < count and runs[place + 1][0] == point + 1:
-            beyond[place] = beyond[place + 1]
-        else:
-            beyond[place] = point + 1
-    for place in range(count):
-        point = runs[place][0]
-        if place > 0 and runs[place - 1][0] == point - 1:
-            within[place] = within[place - 1]
-        else:
-            within[place] = point - 1
-    under: "tuple[int, int, int] | None" = None
-    over: "tuple[int, int, int] | None" = None
-    for place in range(count):
-        point = runs[place][0]
-        if runs[place][1] != 1 or point == boundary:
-            continue
-        target = beyond[place] if outward else within[place]
-        if not boundary < target < end or target in refused:
-            continue
-        distance = target - point if outward else point - target
-        if distance <= owed:
-            if under is None or distance > under[2]:
-                under = (point, target, distance)
-        elif over is None or distance < over[2]:
-            over = (point, target, distance)
-    if under is not None:
-        return under
-    if over is not None and over[2] - owed < owed:
-        return over
-    return None
-
-
-def _spread_room(side: TailReader, figures: int, gain: bool) -> int:
-    """How many points one shared side can gain (or lose) at the most (G5.3b, plan P4-D405): its spare rows against the free points between the boundary and the end, or its runs of one row."""
-    found = _runs_on_the_grid(side, figures)
+def _spread_room(side: TailReader, figures: int, gain: bool, frozen: int = 0) -> int:
+    """How many points one shared side can gain (or lose) at the most (G5.3b, plan P4-D405): its spare rows against the free points between the boundary and the limit, or its runs of one row."""
+    found = _runs_on_the_grid(side, figures, frozen)
     if found is None:
         return 0
-    runs, boundary, end, _on_end = found
+    points, boundary, limit, _still = found
+    held: "dict[int, int]" = {}
+    for point in points:
+        held[point] = (held[point] if point in held else 0) + 1
     lone = 0
     spare = 0
     taken = 0
-    for run in runs:
-        if run[1] == 1 and run[0] != boundary:
+    for point in held:
+        if held[point] == 1 and point != boundary:
             lone = lone + 1
-        spare = spare + (run[1] if run[0] == boundary else run[1] - 1)
-        if boundary < run[0] < end:
+        spare = spare + (held[point] if point == boundary else held[point] - 1)
+        if boundary < point < limit:
             taken = taken + 1
     if not gain:
         return lone
-    return max(0, min(spare, end - boundary - 1 - taken))
+    return max(0, min(spare, limit - boundary - 1 - taken))
 
 
 def _spread_for_the_count(
@@ -14395,12 +14807,13 @@ def _spread_for_the_count(
     if facts.strata_asked > asked:
         asked = facts.strata_asked
     change = min(asked, facts.n_used_in_statistics) - reached
-    if change == 0 or facts.tails is None:
+    if facts.tails is None:
         return sides
     gain = change > 0
     short = change if gain else -change
     published = [facts.tails.low, facts.tails.high]
     most: "dict[int, int]" = {}
+    frozen: "dict[int, int]" = {}
     total = 0
     for place in shared:
         one = published[place]
@@ -14408,15 +14821,18 @@ def _spread_for_the_count(
             continue
         if not math.isfinite(one.mean_distance):
             continue
-        most[place] = _spread_room(sides[place], figures, gain)
+        frozen[place] = _sign_frozen(sides[place], facts)
+        most[place] = _spread_room(sides[place], figures, gain, frozen[place])
         total = total + most[place]
-    if total <= 0:
-        return sides
     places = sorted(most)
     wanted: "dict[int, int]" = {}
-    if len(places) == 1:
+    for place in places:
+        wanted[place] = 0
+    # EVERY SHARED SIDE SETTLES ITS SUM, whether or not the count moves
+    # it (`_spread_side`); the count's difference is shared out first.
+    if total > 0 and change != 0 and len(places) == 1:
         wanted[places[0]] = min(short, most[places[0]])
-    else:
+    if total > 0 and change != 0 and len(places) == 2:
         first = min(most[places[0]], short * most[places[0]] // total)
         second = min(most[places[1]], short - first)
         first = min(most[places[0]], short - second)
@@ -14425,7 +14841,7 @@ def _spread_for_the_count(
     moved = list(sides)
     for place in places:
         one = published[place]
-        if wanted[place] <= 0 or one is None or one.mean_distance is None:
+        if one is None or one.mean_distance is None:
             continue
         moved[place] = dataclasses.replace(
             sides[place],
@@ -14434,6 +14850,7 @@ def _spread_for_the_count(
                 figures,
                 wanted[place] if gain else -wanted[place],
                 one.mean_distance,
+                frozen[place],
             ),
         )
     return moved
@@ -14564,7 +14981,7 @@ def _shared_steps(
         share = math.ldexp((((2 * row + 1) << 53) // width), -53)
         step = _shape_at(side, share)
         value = side.boundary - step if side.low else side.boundary + step
-        value = _on_tail_grid(value, figures)
+        value = _grid_exact(value, figures)
         if placed:
             last = placed[len(placed) - 1]
             if (value >= last) if side.low else (value <= last):
@@ -15015,9 +15432,9 @@ def _dense_steps_placed(
     near = count - far
     placed = list(steps[:run])
     for index in range(near):
-        placed += [_on_tail_grid(toward * (last + 1 + index) / scale, figures)]
+        placed += [_grid_value(toward * (last + 1 + index), figures)]
     for index in range(far):
-        placed += [_on_tail_grid(toward * (best[2] + index) / scale, figures)]
+        placed += [_grid_value(toward * (best[2] + index), figures)]
     return tuple(placed)
 
 
@@ -16114,8 +16531,13 @@ def tail_ladder(
         # more than half a step past the published mean distance (G5.3b,
         # the shared staircase, plan P4-D405): see `_shared_steps`.
         if _shares_its_points(stepped, facts, side.mean_distance):
-            rows_shared = _shared_steps(
-                stepped, _tail_figures(facts), _end_rows(stepped, facts)
+            rows_shared = _sign_held(
+                _shared_steps(
+                    stepped, _tail_figures(facts), _end_rows(stepped, facts)
+                ),
+                stepped,
+                facts,
+                _tail_figures(facts),
             )
             if not _past_one_width(rows_shared, facts):
                 candidates[len(sides)] = rows_shared

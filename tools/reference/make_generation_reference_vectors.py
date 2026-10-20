@@ -1764,6 +1764,7 @@ def shared_staircases(column, sides, boundaries, shapes, ends, steps):
             if row >= rows - on_end:
                 value = ends[place]
             rows_read.append(row_off_the_stand_ins(value, ends[place], low, figures, kept))
+        rows_read = staircase_sign_held(column, rows_read, low, ends[place], figures, kept)
         if past_one_width(column, rows_read):
             continue
         chosen[place] = rows_read
@@ -1841,6 +1842,80 @@ def strata_asked(column):
     return numbers_class_budget(column, column["n_distinct_folded"])
 
 
+def grid_point(value, figures):
+    """A value as a whole number of grid steps, exactly: its binary fraction times ten to the figures, half to even; None past 2**52 steps."""
+    if not math.isfinite(value):
+        return None
+    point = round(F(value) * 10 ** max(figures, 0))
+    return None if abs(point) >= 2 ** 52 else int(point)
+
+
+def grid_number(point, figures):
+    """A whole number of grid steps as the binary64 nearest it."""
+    return float(F(point, 10 ** max(figures, 0)))
+
+
+def rank_band(rank, column):
+    """G5.2's band of a rank: -1 the negatives, 0 the zero stratum, 1 the positives."""
+    negatives = max(column["n_negative"] - column["n_negative_unrepresentable"], 0)
+    zeros = max(column["n_zero"], 0)
+    if rank < negatives:
+        return -1
+    return 0 if rank < negatives + zeros else 1
+
+
+def row_rank(column, rows, low, row):
+    """The column rank of a tail's row, counted from the boundary outward."""
+    return rows - 1 - row if low else column["n_used_in_statistics"] - rows + row
+
+
+def staircase_sign_held(column, rows_read, low, end, figures, kept):
+    """G5.3b's shared staircase held to G5.2's sign bands (plan P4-D405), from the method's words.
+
+    From the outermost row inward: a row at a rank of the zero stratum
+    reads nought; one at a rank of the negatives reading nought or above
+    stands one grid step below nought, one at a rank of the positives
+    reading nought or below one step above it, never past the row outside
+    it, then off a stand-in.
+    """
+    rows = len(rows_read)
+    step = grid_number(1, figures) if figures >= 0 else 1.0
+    held = list(rows_read)
+    outside = None
+    for row in range(rows - 1, -1, -1):
+        band = rank_band(row_rank(column, rows, low, row), column)
+        value = held[row]
+        moved = value
+        if band == 0:
+            moved = value if value == 0.0 else 0.0
+        elif band < 0 and not value < 0.0:
+            moved = -step
+        elif band > 0 and not value > 0.0:
+            moved = step
+        if moved != value and band != 0:
+            if outside is not None and ((moved < outside) if low else (moved > outside)):
+                moved = outside
+            moved = row_off_the_stand_ins(moved, end, low, figures, kept)
+        held[row] = moved
+        outside = moved
+    return held
+
+
+def sign_frozen(column, rows, low):
+    """The outermost rows standing in another sign band than the innermost, or -1 where that one is the zero stratum."""
+    if rows <= 0:
+        return 0
+    negatives = max(column["n_negative"] - column["n_negative_unrepresentable"], 0)
+    zeros = max(column["n_zero"], 0)
+    numbers = column["n_used_in_statistics"]
+    inner = rank_band(row_rank(column, rows, low, 0), column)
+    if inner == 0:
+        return -1
+    if low:
+        return min(rows, max(0 if inner < 0 else negatives + zeros, 0))
+    return min(rows, max(numbers - (negatives if inner < 0 else numbers), 0))
+
+
 def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, kept):
     """The shared staircases spread, or drawn together, to the count G5.2 divides into.
 
@@ -1848,18 +1923,31 @@ def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, k
     `n_distinct_values` and the strata a plain column's spellings ask
     (`strata_asked`), at most the cells; the difference is that count
     less the interior's points and every point a tail's rows or listed
-    values take past its boundary.  A shared side gains a point by moving
-    one row from a point that keeps a row (a run of two or more, or the
-    boundary's own) to the nearest grid point no row holds, strictly
-    between the boundary and the end; it loses one by moving the row of a
-    run of one onto the nearest occupied point (the boundary's, never the
-    end's).  Each move is the nearest -- the outermost on a tie --
-    outward while the side's summed distance in grid steps stands at or
-    inside the published `m d1` and inward while past it, the other way
-    where none is left that way; rows on the end never move.  The
-    difference is shared in proportion to the most each side can move,
-    the low side's part rounded down, the other taking what the first
-    cannot.
+    values take past its boundary.  Points are whole numbers of grid
+    steps counted outward, read EXACTLY.  The rows on the end and the
+    outermost rows standing in another sign band than the innermost
+    (`sign_frozen`) never move, and the moved rows stay strictly between
+    the boundary and the LIMIT -- the end, or nought where rows are
+    frozen by their band.  A shared side gains a point by moving one row
+    from a point that keeps a row (a run of two or more, or the
+    boundary's own) to the nearest grid point no row holds that way; it
+    loses one by moving the row of a run of one onto the nearest
+    occupied point (the boundary's, never past it).  Each move is the
+    nearest -- the outermost on a tie -- outward while the side's summed
+    distance in grid steps stands at or inside the published `m d1` and
+    inward while past it, the other way where none is left that way.
+    Where a move leaves the sum more than `m / 2` steps (or the
+    unspread staircase's distance) from `m d1`, the innermost row of a
+    run of one standing at the edge of its consecutive points with a
+    free point beside it that way moves on through the free points --
+    never onto or past an occupied point or a refused stand-in -- as
+    far as the sum owes, rounded down, until the sum is back inside or
+    no such row is left.  Then every shared side, moved or not, settles
+    its sum to half a step: the innermost row of a point that keeps a row
+    moves one step the way the sum owes onto the occupied point beside
+    it.  The difference is shared in proportion to the most each side can
+    move, the low side's part rounded down, the other taking what the
+    first cannot.
     """
     unit = tail_unit(figures)
     reached = interior_points(column, sides[0]["percent"], sides[1]["percent"], unit)
@@ -1872,10 +1960,7 @@ def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, k
         reached += len(beyond)
     asked = max(column["n_distinct_values"], strata_asked(column))
     change = min(asked, column["n_used_in_statistics"]) - reached
-    if change == 0:
-        return chosen
     gain = change > 0
-    scale = 10 ** max(figures, 0)
     found = {}
     for place in shared:
         side = sides[place]
@@ -1884,52 +1969,56 @@ def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, k
             continue
         low = place == 0
         toward = -1 if low else 1
-        values = list(chosen[place]) + [boundaries[place], ends[place]]
-        if any(not math.isfinite(v) or abs(v) * scale >= 2.0 ** 52 for v in values):
+        frozen = sign_frozen(column, side["rows"], low)
+        if frozen < 0:
             continue
-        rows = [toward * int(round(row * scale)) for row in chosen[place]]
-        boundary = toward * int(round(boundaries[place] * scale))
-        end = toward * int(round(ends[place] * scale))
+        points = [grid_point(v, figures) for v in list(chosen[place]) + [boundaries[place], ends[place]]]
+        if any(point is None for point in points):
+            continue
+        rows = [toward * point for point in points[:-2]]
+        boundary = toward * points[-2]
+        end = toward * points[-1]
         on_end = 0
-        while rows and rows[-1] == end:
-            rows.pop()
+        while on_end < len(rows) and rows[len(rows) - 1 - on_end] == end:
             on_end += 1
+        still_count = max(frozen, on_end)
+        limit = 0 if frozen > 0 and end > 0 else end
+        still = rows[len(rows) - still_count:] if still_count else []
+        rows = rows[: len(rows) - still_count]
         held = {}
         for row in rows:
             held[row] = held.get(row, 0) + 1
         if gain:
             spare = sum(n if p == boundary else n - 1 for p, n in held.items())
-            taken = len([p for p in held if boundary < p < end])
-            room = max(0, min(spare, end - boundary - 1 - taken))
+            taken = len([p for p in held if boundary < p < limit])
+            room = max(0, min(spare, limit - boundary - 1 - taken))
         else:
             room = len([p for p, n in held.items() if n == 1 and p != boundary])
-        found[place] = (held, boundary, end, on_end, room, toward, mean)
-    total = sum(entry[4] for entry in found.values())
-    if total <= 0:
-        return chosen
+        found[place] = (held, boundary, limit, still, still_count, room, toward, mean)
+    total = sum(entry[5] for entry in found.values())
     short = abs(change)
     order = sorted(found)
-    if len(order) == 1:
-        wanted = {order[0]: min(short, found[order[0]][4])}
-    else:
-        first = min(found[order[0]][4], short * found[order[0]][4] // total)
-        second = min(found[order[1]][4], short - first)
-        first = min(found[order[0]][4], short - second)
-        wanted = {order[0]: first, order[1]: second}
+    wanted = {place: 0 for place in order}
+    if total > 0 and change != 0:
+        if len(order) == 1:
+            wanted = {order[0]: min(short, found[order[0]][5])}
+        else:
+            first = min(found[order[0]][5], short * found[order[0]][5] // total)
+            second = min(found[order[1]][5], short - first)
+            first = min(found[order[0]][5], short - second)
+            wanted = {order[0]: first, order[1]: second}
     spread = list(chosen)
     for place in order:
-        if wanted[place] <= 0:
-            continue
-        held, boundary, end, on_end, _room, toward, mean = found[place]
+        held, boundary, limit, still, still_count, _room, toward, mean = found[place]
         low = place == 0
         rows = sides[place]["rows"]
         goal = rows * (mean / unit)
-        summed = on_end * (end - boundary) + sum(n * (p - boundary) for p, n in held.items())
+        summed = sum(p - boundary for p in still) + sum(n * (p - boundary) for p, n in held.items())
         bound = max(abs(summed - goal), rows / 2.0)
         refused = set()
 
         def refused_point(point):
-            value = tail_grid((toward * point) / scale, figures)
+            value = grid_number(toward * point, figures)
             return row_off_the_stand_ins(value, ends[place], low, figures, kept) != value
 
         def move_row(source, target):
@@ -1941,10 +2030,10 @@ def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, k
         left = wanted[place]
         while left > 0:
             outward = summed <= goal
-            move = spread_move(held, boundary, end, gain, outward, refused)
+            move = spread_move(held, boundary, limit, gain, outward, refused)
             if move is None:
                 outward = not outward
-                move = spread_move(held, boundary, end, gain, outward, refused)
+                move = spread_move(held, boundary, limit, gain, outward, refused)
             if move is None:
                 break
             source, target = move
@@ -1954,10 +2043,10 @@ def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, k
             move_row(source, target)
             summed += target - source
             left -= 1
-            # the sum brought back past the bound by rows of a run of one
-            # moved to a free point: no point gained or lost
+            # the sum brought back past the bound by a lone edge row
+            # moved on through free points: no point gained or lost
             while abs(summed - goal) > bound:
-                shift = spread_shift(held, boundary, end, summed < goal, abs(summed - goal), refused)
+                shift = spread_shift(held, boundary, limit, summed < goal, abs(summed - goal), refused)
                 if shift is None:
                     break
                 source, target = shift
@@ -1966,36 +2055,51 @@ def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, k
                     continue
                 move_row(source, target)
                 summed += target - source
+        # and the sum settled to half a step: the innermost row of a point
+        # that keeps a row (two or more, or the boundary's) moves one step
+        # to the occupied point beside it
+        while abs(summed - goal) > 0.5:
+            onward = summed < goal
+            able = [
+                p for p in sorted(held)
+                if (held[p] >= 2 or p == boundary) and (p + 1 if onward else p - 1) in held
+            ]
+            if not able:
+                break
+            move_row(able[0], able[0] + 1 if onward else able[0] - 1)
+            summed += 1 if onward else -1
         placed = []
         for point in sorted(held):
-            placed += [tail_grid((toward * point) / scale, figures)] * held[point]
-        spread[place] = placed + [ends[place]] * on_end
+            placed += [grid_number(toward * point, figures)] * held[point]
+        spread[place] = placed + list(chosen[place][len(chosen[place]) - still_count:]) if still_count else placed
     return spread
 
 
-def spread_shift(held, boundary, end, outward, owed, refused):
-    """A row of a run of one moved to the nearest free point that way, the longest such move at or under `owed`; else the shortest if it leaves the sum nearer; the innermost on a tie."""
-    points = sorted(held)
-    occupied = set(points)
-    under = over = None
-    for point in points:
+def spread_shift(held, boundary, limit, outward, owed, refused):
+    """A lone row at the edge of its consecutive points moved on through the free points that way, as far as `owed` rounded down; the innermost such row; (from, to) or None."""
+    occupied = set(held)
+    for point in sorted(held):
         if held[point] != 1 or point == boundary:
             continue
-        target = point + 1 if outward else point - 1
-        while target in occupied:
-            target = target + 1 if outward else target - 1
-        if not boundary < target < end or target in refused:
+        beside = point + 1 if outward else point - 1
+        if beside in occupied:
             continue
-        distance = abs(target - point)
-        if distance <= owed:
-            if under is None or distance > under[0]:
-                under = (distance, point, target)
-        elif over is None or distance < over[0]:
-            over = (distance, point, target)
-    if under is not None:
-        return under[1], under[2]
-    if over is not None and over[0] - owed < owed:
-        return over[1], over[2]
+        if outward:
+            further = [p for p in occupied if p > point] + [limit] + [r for r in refused if r > point]
+            wall = min(further)
+            room = wall - point - 1
+        else:
+            nearer = [p for p in occupied if p < point] + [boundary] + [r for r in refused if r < point]
+            wall = max(nearer)
+            room = point - wall - 1
+        if room <= 0:
+            continue
+        distance = min(room, math.floor(owed))
+        if distance < 1:
+            if not 1.0 - owed < owed:
+                return None
+            distance = 1
+        return point, point + distance if outward else point - distance
     return None
 
 
@@ -2857,14 +2961,11 @@ def band_allotment(
         reader_high["rows"] if reader_high and reader_high["listed"] else 0,
     )
     lead, trail = listed_runs(lengths, listed[0], listed[1], low, numeric)
-    # A PINNED END'S RUN IS NEVER JOINED where a tail reads the shared
-    # staircase (G5.3b, plan P4-D405): the join that would take the band's
-    # first run at rank 0, or its last at the column's last rank, takes the
-    # pair beside it inward instead, unless that pair touches the other.
-    shared = bool(
-        (reader_low and reader_low.get("shared"))
-        or (reader_high and reader_high.get("shared"))
-    )
+    # A PINNED END'S RUN IS NEVER JOINED where its own tail reads the
+    # shared staircase (G5.3b, plan P4-D405): the join that would take the
+    # band's first run at rank 0 (a shared low tail), or its last at the
+    # column's last rank (a shared high tail), takes the pair beside it
+    # inward instead, unless that pair touches the other.
 
     def pinned_pair(sizes, index, first, last):
         if last and index + 1 == len(sizes) - 1 and index >= 1 and not (first and index - 1 == 0):
@@ -2873,8 +2974,8 @@ def band_allotment(
             return index + 1
         return index
 
-    first_pinned = shared and low == 0
-    last_pinned = shared and low + count == numeric
+    first_pinned = bool(reader_low and reader_low.get("shared")) and low == 0
+    last_pinned = bool(reader_high and reader_high.get("shared")) and low + count == numeric
     if lead + trail > 0 and strata > lead + trail:
         inner_lengths = lengths[lead:len(lengths) - trail]
         inner_heights = heights[lead:len(heights) - trail]

@@ -220,7 +220,10 @@ def test_the_spread_gives_the_count_its_points_past_the_shared_rows(tmp_path: pa
     figures = contract._tail_figures(facts)
     shared = contract._shared_steps(ladder.high, figures, contract._end_rows(ladder.high, facts))
     assert len(set(ladder.high.steps)) > len(set(shared)), "the spread adds points"
-    assert ladder.high.steps[: len(shared) // 2] == shared[: len(shared) // 2], "the inner rows stay"
+    inner = len(shared) // 2
+    assert all(
+        abs(moved - read) <= 1.0 for moved, read in zip(ladder.high.steps[:inner], shared[:inner])
+    ), "the inner rows stay, or settle one step"
     written = _twin_numbers(described, 0)["visits"]
     assert len(set(written)) == facts.n_distinct_values
     ones = len([value for value in written if value == 1.0])
@@ -293,11 +296,15 @@ def test_the_spread_holds_the_tail_s_summed_distance() -> None:
     A row leaves a point that keeps a row for the nearest free point,
     outward while the sum stands at or inside the published one and
     inward past it; where only outward room is left, rows of a run of one
-    are brought back inward (the sparse `40` to `32` below). Spread
-    outward only, the build's rule, a count of Pareto draws stood 10.8
-    per cent past its published mean distance at 20,000 rows. Mutant:
-    without the shifts back the second staircase's sum stands 14 past
-    the published one, more than the bound of half a step a row.
+    are brought back inward, through the free points as far as the sum
+    owes (the sparse `40` to `32` below, one move since the second
+    repair), and a row of a point that keeps a row then settles one step
+    onto the occupied point beside it while the sum stands more than half
+    a step off (the first staircase's last `1` onto `0`). Spread outward
+    only, the build's rule, a count of Pareto draws stood 10.8 per cent
+    past its published mean distance at 20,000 rows. Mutant: without the
+    shifts back the second staircase's sum stands 14 past the published
+    one, more than the bound of half a step a row.
     """
 
     def spread(steps: "tuple[float, ...]", change: int) -> "tuple[float, ...]":
@@ -307,7 +314,7 @@ def test_the_spread_holds_the_tail_s_summed_distance() -> None:
         return contract._spread_side(side, -2, change, math.fsum(steps) / len(steps))
 
     near = (0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 9.0, 15.0)
-    assert spread(near, 2) == (0.0, 0.0, 1.0, 1.0, 2.0, 3.0, 4.0, 9.0, 15.0)
+    assert spread(near, 2) == (0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 9.0, 15.0), "two points, one row settled"
     heavy = (1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 40.0, 70.0, 100.0)
     spread_heavy = spread(heavy, 4)
     assert spread_heavy == (1.0, 1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 32.0, 70.0, 100.0)
@@ -464,26 +471,38 @@ def test_a_column_written_two_ways_spreads_to_the_strata_it_divides_into(
     assert mutant["exits"]["twin"] == 3, "the mutant misses the count"
 
 
+def _delays(rows: int) -> "list[str]":
+    """Delays rounded from `lognormal(0.3, 1.0)`: lane G2T's combined verify's `dly` at seed 1, its draws taken in that battery's order."""
+    draw = random.Random(1 * 6007 + rows)
+    written: "list[str]" = []
+    for _row in range(rows):
+        draw.lognormvariate(2, 0.6)
+        draw.lognormvariate(2, 0.6)
+        written += [str(round(draw.lognormvariate(0.3, 1.0)))]
+    return written
+
+
 def test_a_pinned_end_s_run_is_joined_last(
     tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
 ) -> None:
-    """A clipped bell at one place, 20,000 rows: one cell on its derived end, the high tail's mean distance within 5 per cent (item 2).
+    """20,000 delays: one cell on the shared high tail's derived end, its mean distance within 5 per cent (item 2; the second repair's fixture).
 
-    The ladder reaches a few more points than the 355 published, and
-    G5.2a's join took the outermost runs of two rows into the pinned end
-    -- 11 cells on `55.1` where the source holds one at `52.2`, the
-    tail 18 per cent out. The join that would take the pinned run now
-    takes the pair beside it, inward. Mutant: the pinned runs joined like
-    any other.
+    The ladder reaches a few more points than the column publishes, and
+    G5.2a's join took the outermost runs of a few rows into the pinned
+    end. The join that would take the pinned run now takes the pair
+    beside it, inward. Mutant: the pinned runs joined like any other --
+    9 cells on the derived end `54` and the tail 9.2 per cent out. (The
+    first repair's clipped bell no longer needs the rule since the sums
+    settle, and keeps its own case in K-S4-20's battery.)
     """
-    described = kpi_shapes.describe(tmp_path / "clipped", "clipped", _table({"reading": _clipped_bell(20000)}))
+    described = kpi_shapes.describe(tmp_path / "delays", "delays", _table({"delay": _delays(20000)}))
     facts = described.loaded.columns[0].facts
     assert isinstance(facts, contract.NumericFacts) and facts.tails is not None and facts.tails.high is not None
     ladder = contract.tail_ladder(facts)
     assert isinstance(ladder, contract.ShapedLadder) and ladder.high is not None and ladder.high.shared
 
     def measured() -> "tuple[int, float]":
-        written = _twin_numbers(described, 0)["reading"]
+        written = _twin_numbers(described, 0)["delay"]
         assert ladder.high is not None and facts.tails is not None and facts.tails.high is not None
         published = facts.tails.high.mean_distance
         assert published is not None
@@ -648,6 +667,349 @@ def test_the_million_row_driver_keeps_the_caller_s_environment(monkeypatch: "pyt
     assert seen and seen[0]["G2T_KEPT_FOR_THE_CHILD"] == "kept"
     assert seen[0]["PYTHONHASHSEED"] == "0" and seen[0]["PYTHONPATH"].endswith("src")
     assert seen[0].get("PATH") == os.environ.get("PATH")
+
+
+# -- the second repair (lane G2T's combined verify and Codex's review, plan P4-D405) --------
+
+
+def _sign_crossing(rows: int, seed: int) -> "dict[str, list[str]]":
+    """The combined verify's `make6` columns at one of its seeds, its draws taken in that battery's order: `hb` is 50 less a rounded `lognormal(1.9, 0.6)`, a few negatives and zeros at its low tail's outermost ranks; `wt` a bell at two places about 0.6 per cent below nought."""
+    draw = random.Random(seed * 2741 + rows)
+    found: "dict[str, list[str]]" = {"hb": [], "wt": []}
+    for _row in range(rows):
+        draw.gauss(5, 2)
+        draw.gauss(3, 1.2)
+        found["hb"] += [str(50 - round(draw.lognormvariate(1.9, 0.6)))]
+        found["wt"] += [f"{draw.gauss(4, 1.6):.2f}"]
+        if draw.random() > 0.0008:
+            draw.gauss(30, 8)
+    return found
+
+
+def _signs_withdrawn(monkeypatch: "pytest.MonkeyPatch") -> None:
+    """The mutant: the shared staircase read without G5.2's sign bands."""
+    monkeypatch.setattr(contract, "_sign_held", lambda steps, _side, _facts, _figures: steps)
+    monkeypatch.setattr(contract, "_sign_frozen", lambda _side, _facts: 0)
+
+
+def test_a_shared_tail_crossing_nought_holds_the_sign_bands(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """`hb` and `wt` at 20,000 rows, data seeds 1 to 4: every rung and the count held, `hb`'s mean within 0.05 published spreads (new item 1).
+
+    G5.2 lays the negatives and the zero stratum at the column's lowest
+    ranks, and the shared staircase read `0`, `1` and `2` at three of
+    `hb`'s six negative ranks; the twin held them at `-1`, the count of
+    points was two short, G5.2a divided two runs of the body and G6.5a
+    pushed them down: `hb`'s median 41 against 43 at seed 1, `wt`'s p25
+    and p50 at seed 1, p75 and p90 at seed 2 and `n_distinct_values` at
+    seeds 3 and 4 missed, where 36ad3061 met them (`contract._sign_held`,
+    `contract._sign_frozen`). Mutant: the sign bands withdrawn.
+    """
+    tables = {seed: _table(_sign_crossing(20000, seed)) for seed in (1, 2, 3, 4)}
+    for seed, text in tables.items():
+        described = kpi_shapes.describe(tmp_path / f"head{seed}", f"signs{seed}", text)
+        assert _missed(described, 0) == [], seed
+        if seed == 1:
+            facts = described.loaded.columns[0].facts
+            assert isinstance(facts, contract.NumericFacts) and facts.mean is not None and facts.std is not None
+            ladder = contract.tail_ladder(facts)
+            assert isinstance(ladder, contract.ShapedLadder) and ladder.low is not None and ladder.low.shared
+            assert facts.n_negative > 0 and facts.n_zero > 0, "premise: the low tail crosses nought"
+            written = _twin_numbers(described, 0)["hb"]
+            assert abs(math.fsum(written) / len(written) - facts.mean) / facts.std < 0.05
+    _signs_withdrawn(monkeypatch)
+    missed: "list[str]" = []
+    for seed, text in tables.items():
+        missed += _missed(kpi_shapes.describe(tmp_path / f"mutant{seed}", f"signs{seed}", text), 0)
+    assert "hb:ladder.p50" in missed and "wt:distinct.n_distinct_values" in missed, missed
+
+
+def _negskew(rows: int) -> "list[str]":
+    """Skeptic 1's `negskew`, 100 less a `lognormal(1.0, 0.8)` at two places, its draws taken in that battery's order at seed 1: two cells below nought at 250,000 rows."""
+    draw = random.Random(1 * 104729 + rows)
+    written: "list[str]" = []
+    for _row in range(rows):
+        draw.gauss(0, 1)
+        share = draw.random()
+        draw.gauss(0, 1)
+        value = 100 - draw.lognormvariate(1.0, 0.8)
+        draw.gauss(0, 1)
+        draw.gammavariate(1.5, 2.0)
+        draw.gauss(0, 1)
+        draw.gauss(0, 1)
+        if share >= 0.8:
+            draw.expovariate(0.5)
+        draw.paretovariate(1.5)
+        draw.lognormvariate(1.2, 0.9)
+        draw.gauss(28, 6)
+        written += [f"{value:.2f}"]
+    return written
+
+
+def test_two_cells_below_nought_at_250000_rows_keep_the_count_and_the_spellings(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """`negskew` at 250,000 rows: `n_distinct_values` held and no signed leading-zero spelling written (new item 1).
+
+    The source holds `-1.98` and `-11.44` below nought. Read without the
+    sign bands, the shared staircase counted a point the twin never
+    holds, the twin held 2,936 numbers against 2,937 and filled its
+    spelling count with `-01.00`, a spelling the source never wrote.
+    Mutant: the sign bands withdrawn.
+    """
+    text = _table({"negskew": _negskew(250000)})
+    assert text.count("\n-") == 2, "premise: two cells below nought"
+    described = kpi_shapes.describe(tmp_path / "head", "negskew", text)
+    written = kpi_shapes.twin_text(described, 0)
+    assert "\n-0" not in written
+    assert kpi_shapes.missed(kpi_shapes.measure(described, written, "twin-0.csv")) == []
+    _signs_withdrawn(monkeypatch)
+    mutant = kpi_shapes.describe(tmp_path / "mutant", "negskew", text)
+    assert "negskew:distinct.n_distinct_values" in _missed(mutant, 0)
+
+
+def test_a_coarse_tail_settles_its_sum_to_half_a_step(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """20,000 negated rounded `lognormal(2, 0.6)` with one `-0`: the high tail's mean distance within 5 per cent (new item 1's `lsk`).
+
+    The high tail publishes 200 rows at 0.5 from its boundary `-2`, and
+    the shared staircase stood 122 rows on `-2` and 77 on `-1`, 21 per
+    cent short, where the source holds 101 and 98: within `m / 2` steps of
+    the sum is no bound on a tail of three points. Every shared side now
+    settles its sum to half a step, a row of a point that keeps a row
+    moving one step onto the occupied point beside it. Mutant: no
+    settling move left.
+    """
+    draw = random.Random("g2t/lsk")
+    cells = [f"{-draw.lognormvariate(2, 0.6):.0f}" for _row in range(20000)]
+    cells[10000] = "-0"
+    described = kpi_shapes.describe(tmp_path / "lsk", "lsk", _table({"lsk": cells}))
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts) and facts.tails is not None and facts.tails.high is not None
+
+    def off() -> float:
+        ladder = contract.tail_ladder(facts)
+        assert isinstance(ladder, contract.ShapedLadder) and ladder.high is not None and ladder.high.shared
+        assert facts.tails is not None and facts.tails.high is not None and facts.tails.high.mean_distance
+        written = _twin_numbers(described, 0)["lsk"]
+        reached = _tail_mean(written, ladder.high.boundary, facts.tails.high.rows, False)
+        return reached / facts.tails.high.mean_distance - 1.0
+
+    assert abs(off()) < 0.05, off()
+    assert _missed(described, 0) == []
+    monkeypatch.setattr(contract._Spread, "settle", lambda _self, _outward: None)
+    assert off() < -0.15, "the mutant stands short"
+
+
+def _counted_units(monkeypatch: "pytest.MonkeyPatch") -> "list[int]":
+    """Count the spread's work units: every search of a sorted list and every heap push and pop."""
+    counted = [0]
+    for name in ("_found_at", "_heap_in", "_heap_out"):
+        shipped = getattr(contract, name)
+
+        def counting(*arguments: object, _shipped: object = shipped) -> object:
+            counted[0] = counted[0] + 1
+            return _shipped(*arguments)  # type: ignore[operator]
+
+        monkeypatch.setattr(contract, name, counting)
+    return counted
+
+
+def _units(facts: contract.NumericFacts, counted: "list[int]") -> "tuple[int, int]":
+    """The work units of one `tail_ladder` and the tail's rows `m`."""
+    counted[0] = 0
+    ladder = contract.tail_ladder(facts)
+    assert isinstance(ladder, contract.ShapedLadder) and ladder.low is not None and ladder.high is not None
+    return counted[0], max(ladder.low.rows, ladder.high.rows)
+
+
+def test_the_spread_works_in_near_linear_time(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """A Pareto column at two places, 250,000 rows: one ladder's work at most `16 m log2 m` units (new item 2).
+
+    Rescanning every run for each move, and moving the sum back one step
+    at a time, one ladder took 321.6 s here (6,017 s at 500,000 rows)
+    against 0.05 s on 36ad3061; the moves are found in logarithmic time
+    now (`contract._Spread`), and a shift moves on through the free points
+    as far as the sum owes. Counted, not timed: machine-free. Mutant: the
+    sum moved back one step a shift, as the repair did.
+    """
+    draw = random.Random(1 * 7919 + 250000 * 3)
+    cells = [f"{draw.paretovariate(1.1):.2f}" for _row in range(250000)]
+    described = kpi_shapes.describe(tmp_path / "pareto", "pareto", _table({"par2": cells}))
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    counted = _counted_units(monkeypatch)
+    units, rows = _units(facts, counted)
+    bound = 16 * rows * math.log2(rows)
+    assert units <= bound, (units, bound)
+    shipped = contract._Spread.shift
+
+    def one_step(self: contract._Spread, outward: bool, owed: float) -> "tuple[int, int, int] | None":
+        return shipped(self, outward, min(owed, 1.0) if owed >= 1.0 else owed)
+
+    monkeypatch.setattr(contract._Spread, "shift", one_step)
+    assert _units(facts, counted)[0] > 10 * bound, "the mutant moves one step at a time"
+
+
+def test_the_spread_s_work_doubles_with_the_rows(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """Codex's measurement columns, `50000 + (N / 100) gauss` at one place, 40,000 and 80,000 rows: the work at most 2.5 times as much at twice the rows (Codex's item 4).
+
+    Each changed point rescanned every run and rebuilt the runs:
+    119,277 and 481,700 entries inspected, 4.04 times as many. Mutant:
+    every point's entries pushed again after each move, a rescan.
+    """
+    counted = _counted_units(monkeypatch)
+    facts_of: "dict[int, contract.NumericFacts]" = {}
+    for rows in (40000, 80000):
+        draw = random.Random(77)
+        cells = [f"{50000 + (rows / 100) * draw.gauss(0, 1):.1f}" for _row in range(rows)]
+        described = kpi_shapes.describe(tmp_path / f"m{rows}", "measure", _table({"x": cells}))
+        facts = described.loaded.columns[0].facts
+        assert isinstance(facts, contract.NumericFacts)
+        facts_of[rows] = facts
+    work = {rows: _units(facts_of[rows], counted)[0] for rows in facts_of}
+    assert work[80000] <= 2.5 * work[40000], work
+    shipped = contract._Spread.move
+
+    def rescanning(self: contract._Spread, source: int, target: int) -> None:
+        shipped(self, source, target)
+        self._touched(sorted(self.count))
+
+    monkeypatch.setattr(contract._Spread, "move", rescanning)
+    mutant = {rows: _units(facts_of[rows], counted)[0] for rows in facts_of}
+    assert mutant[80000] > 3.0 * mutant[40000], mutant
+
+
+def test_a_decimal_grid_is_read_exactly(tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    """Codex's 5,000 readings at 25 places near `4e-10`: every tail reading on the decimal grid, inside its boundary, and the oracle's (Codex's item 1).
+
+    A scale built by multiplying tens is `9.999999999999999e24`, not ten
+    to the 25th, and the point `4000000000000001` read back as
+    `...000`: 82 of the 100 readings differed from the oracle's and ten
+    crossed their boundary. The grid check here is the decimal module's,
+    derived apart from both. Mutant: the floating scale.
+    """
+    import decimal
+
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    draw = random.Random("g2t/decimal-index")
+    cells = [f"0.{4000000000000000 + round(50 * draw.gauss(0, 1)):025d}" for _row in range(5000)]
+    described = kpi_shapes.describe(tmp_path / "decimal", "decimal", _table({"reading": cells}), floor=11)
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts) and contract._tail_figures(facts) == 25
+    numbers = facts.n_used_in_statistics
+    context = decimal.Context(prec=80)
+    power = context.power(decimal.Decimal(10), 25)
+
+    def on_the_grid(value: float) -> bool:
+        steps = context.multiply(decimal.Decimal(value), power).to_integral_value(rounding=decimal.ROUND_HALF_EVEN)
+        return float(context.divide(steps, power)) == value
+
+    def readings() -> "tuple[int, int, int]":
+        mine = contract.tail_ladder(facts)
+        theirs = oracle.tail_ladder(oracle.plain_numbers(described.document["columns"][0]))  # type: ignore[attr-defined]
+        assert isinstance(mine, contract.ShapedLadder) and mine.low is not None and mine.high is not None
+        assert mine.low.shared and mine.high.shared, "premise: both sides read the shared staircase"
+        differ = crossed = off = 0
+        for side in (mine.low, mine.high):
+            for row in range(side.rows):
+                rank = side.rows - 1 - row if side.low else numbers - side.rows + row
+                read = contract.tail_read(mine, 2 * rank + 1, 2 * numbers)
+                assert read is not None
+                differ += read != oracle.tail_read_at(theirs, 2 * rank + 1, 2 * numbers)  # type: ignore[attr-defined]
+                crossed += (read > side.boundary) if side.low else (read < side.boundary)
+                off += not on_the_grid(read)
+        return differ, crossed, off
+
+    assert readings() == (0, 0, 0)
+
+    def floating(value: float, figures: int) -> "int | None":
+        scale = 1.0
+        for _figure in range(max(figures, 0)):
+            scale = scale * 10.0
+        if not math.isfinite(value) or abs(value) * scale >= 2.0**52:
+            return None
+        return int(round(value * scale))
+
+    monkeypatch.setattr(contract, "_grid_index", floating)
+    monkeypatch.setattr(contract, "_grid_value", lambda index, figures: index / float(contract._ten_to(figures)))
+    differ, crossed, _off = readings()
+    assert differ > 0 and crossed > 0, (differ, crossed)
+
+
+def test_the_oracle_s_tail_mirrors_are_each_read_against_the_product(tmp_path: pathlib.Path) -> None:
+    """Three mirrors no case read (new item 3): `tail_read_at`'s shared high side, `band_allotment`'s pinned join and `heap_floor`.
+
+    Each mutant passed the gate and both reference files: O2 rounds the
+    shared high side's rank up, O1 turns the pinned redirect off, O3
+    returns a heap floor of nought. Here the oracle reads the Pareto
+    count's high tail at every row's middle share as `contract.tail_read`
+    does, divides the delays' positive band as `generation._shape_sizes`
+    does, and reads the length of stay's heap-listed low tail as
+    `contract.tail_ladder` does.
+    """
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    pareto = kpi_shapes.describe(tmp_path / "pareto", "pareto", _table({"count": _pareto(20000)}))
+    facts = pareto.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    mine = contract.tail_ladder(facts)
+    theirs = oracle.tail_ladder(oracle.plain_numbers(pareto.document["columns"][0]))  # type: ignore[attr-defined]
+    assert isinstance(mine, contract.ShapedLadder) and mine.high is not None and mine.high.shared
+    numbers = facts.n_used_in_statistics
+    for rank in range(numbers - mine.high.rows, numbers):
+        read = contract.tail_read(mine, 2 * rank + 1, 2 * numbers)
+        assert read == oracle.tail_read_at(theirs, 2 * rank + 1, 2 * numbers), rank  # type: ignore[attr-defined]
+
+    delays = kpi_shapes.describe(tmp_path / "delays", "delays", _table({"delay": _delays(20000)}))
+    delay_facts = delays.loaded.columns[0].facts
+    assert isinstance(delay_facts, contract.NumericFacts) and delay_facts.n_zero > 0
+    ladder = contract.tail_ladder(delay_facts)
+    other = oracle.tail_ladder(oracle.plain_numbers(delays.document["columns"][0]))  # type: ignore[attr-defined]
+    assert isinstance(ladder, contract.ShapedLadder) and ladder.high is not None and ladder.high.shared
+    count = delay_facts.n_used_in_statistics
+    zeros = delay_facts.n_zero
+    strata = delay_facts.n_distinct_values - 1
+    sizes = generation._shape_sizes(
+        zeros, count - zeros, strata, ladder, count, True, -1, 0, generation._BAND_POSITIVE
+    )
+    assert sizes == oracle.band_allotment(  # type: ignore[attr-defined]
+        count - zeros, strata, other, zeros, count, True, -1, 0, generation._BAND_POSITIVE
+    )
+    assert sizes[len(sizes) - 1] == 1, "the pinned end keeps its own row"
+
+    stay = kpi_shapes.describe(tmp_path / "stay", "stay", _table({"stay": _stay(100000)}))
+    stay_facts = stay.loaded.columns[0].facts
+    assert isinstance(stay_facts, contract.NumericFacts) and contract._heap_floor(stay_facts) > 0
+    read = contract.tail_ladder(stay_facts)
+    heaped = oracle.tail_ladder(oracle.plain_numbers(stay.document["columns"][0]))  # type: ignore[attr-defined]
+    assert isinstance(read, contract.ShapedLadder) and read.low is not None and read.low.listed
+    assert list(read) == list(heaped)
+    assert list(read.low.counts) == list(heaped.low["counts"])
+
+
+def test_k_s4_20_s_ceilings_fail_on_the_pushed_staircase(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """K-S4-20's ceilings judge the repair (Codex's item 3): the fixtures read through 36ad3061's pushed staircase break all three.
+
+    Spread off at most 20 per thousand, a tail's mean distance at most
+    100 per thousand and at most five cells on a derived end; 36ad3061
+    stood at 76, 3,355 and 193, its counts of misses and of cells past the
+    range nought as here. Mutant: no side reads the shared staircase.
+    """
+    monkeypatch.setattr(contract, "_shares_its_points", lambda _side, _facts, _mean: False)
+    measured = number_tail_measures(tmp_path)
+    assert measured["widest_spread_off_per_thousand"] > 20.0, measured
+    assert measured["widest_tail_mean_distance_off_per_thousand"] > 100.0, measured
+    assert measured["most_cells_on_a_derived_end"] > 5, measured
 
 
 # -- K-S4-20 -------------------------------------------------------------------------

@@ -1491,8 +1491,7 @@ def test_a_column_the_pass_had_thinned_reads_further_up_the_order(
     continuous, as a count and as dates then and as numbers beside labels
     now (path B). At seed 7 each twin meets every check but the
     eight-figure dates' twin, which misses `ladder.p25`, as 493f6f8's twin
-    of that table did at a floor of one, and since plan P4-D405
-    `ladder.p75` too (the note at `missed_at_seed_7`).
+    of that table did at a floor of one.
     """
     expected = {
         "sparse_columns": {
@@ -1530,15 +1529,7 @@ def test_a_column_the_pass_had_thinned_reads_further_up_the_order(
         "numbers_beside_two_notes_f11": [],
         "readings_beside_low_and_high_f11": [],
         "whole_numbers_beside_low_and_high_f11": [],
-        # AND `ladder.p75` SINCE PLAN P4-D405 (2026-10-19, stage 4 lane
-        # G2T's repair): the eight-figure dates read their high tail
-        # through G5.3b's shared staircase, whose pinned end G5.2a no
-        # longer joins (the end holds one cell where five stood), and the
-        # joins that follow move by one at this seed, the twin's `p75` one
-        # past its window (20,220,628 against 20,220,627.7). Measured over
-        # seeds 0 to 19 on this table: 30 rung misses here against 36 on
-        # 36ad3061, `p75` at 7 seeds against 9.
-        "dates_beside_low_and_high_f11": ["ladder.p25", "ladder.p75"],
+        "dates_beside_low_and_high_f11": ["ladder.p25"],
     }
     for name in sorted(expected):
         now = roles(described(tmp_path, name))

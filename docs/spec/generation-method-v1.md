@@ -1538,25 +1538,34 @@ the other two get wrong:**
   size, so a column of thousands and a column of thousandths are judged
   the same way.
 
-**A PINNED END'S RUN IS NEVER JOINED WHERE A TAIL READS THE SHARED
-STAIRCASE** (G5.3b; stage 4 lane G2T's repair, plan P4-D405). Where
-either tail of the ladder reads the shared staircase, the join the key
-above chooses that would take the band's first run at rank 0 or its last
-run at rank `K - 1` -- the runs the two pinned strata hold -- takes the
-pair beside it instead, inward: the run before the last joined to the one
-before it, the run after the first to the one after it, unless that pair
-touches the other pinned run (`generation._merge_down`'s `pinned`). The
-shared staircase's rows share points, so the runs beside a pinned end
-are runs of a few rows, the smallest a join takes first, and a join
-keeps the left run's value, which on the high side is the pinned
-stratum's: a clipped bell at one place, 20,000 rows, joined its five
-outermost runs of two rows, `47.4` to `47.8`, into its end and wrote 11
-cells on the derived end `55.1` where the source holds one cell at
-`52.2`, its high tail's mean distance 18 per cent past the published
-one. With the rule one cell stands there and the tail is 3.5 per cent
-off. (Ranking such pairs after every other pair instead, the first
-writing of this rule, moved every join of a column of 10,268 runs
-joined to 3,433 by one place.) A ladder whose tails read the pushed
+**A PINNED END'S RUN IS NEVER JOINED WHERE ITS OWN TAIL READS THE
+SHARED STAIRCASE** (G5.3b; stage 4 lane G2T's repair, plan P4-D405,
+narrowed by its second repair). Where the low tail reads the shared
+staircase, the join the key above chooses that would take the band's
+first run at rank 0 -- the run the low pinned stratum holds -- takes the
+pair beside it instead, inward: the run after the first joined to the
+one after it; where the high tail reads it, the join that would take
+the last run at rank `K - 1` takes the run before the last joined to
+the one before it; neither where that pair touches the other pinned run
+(`generation._merge_down`'s `pinned`). The shared staircase's rows share
+points, so the runs beside a pinned end are runs of a few rows, the
+smallest a join takes first, and a join keeps the left run's value,
+which on the high side is the pinned stratum's: a clipped bell at one
+place, 20,000 rows, joined its five outermost runs of two rows, `47.4`
+to `47.8`, into its end and wrote 11 cells on the derived end `55.1`
+where the source holds one cell at `52.2`, its high tail's mean distance
+18 per cent past the published one; 20,000 delays rounded from
+`lognormal(0.3, 1.0)`, as the second repair reads them, write 9 cells on
+the derived end `54` and stand 9.2 per cent past the published mean
+distance without the rule, and with it one cell and 0.4 per cent.
+(Ranking such pairs after every other pair instead, the first writing of
+this rule, moved every join of a column of 10,268 runs joined to 3,433
+by one place.) An end whose own tail reads the pushed staircase joins as
+before, though the other tail reads the shared one: protected beside a
+shared low tail, the high end of P4-D390's eight-figure dates moved its
+joins and the twin's `p75` stood at 20,220,628, one past its window
+(20,220,597.6 to 20,220,627.7), where 36ad3061 writes 20,220,623 (Codex's
+review of the repair). A ladder whose tails both read the pushed
 staircase joins as before, so no twin of such a column moves.
 
 While `R < M`, divide the longest run in two — leftmost on a tie — into
@@ -2386,7 +2395,12 @@ figure short where a pad is published: a thousand two-figure readings
 beside one `185` read rows at `102` to `172` and lost the width walk's
 answer); and G6.6.8's rule 1 moved neither end of the block (rule 3 then
 weighs two readings each built on the pushed staircase). Each row of the
-shared staircase stands at its own reading on the grid; a row reading
+shared staircase stands at its own reading on the grid -- on a width,
+the grid point nearest the reading's own binary fraction, half to even,
+read back as the binary64 nearest it, rounded once (`contract._grid_exact`;
+the shortest figures of the reading rounded again to the width moved
+four rows of 5,000 readings at 25 places one point, Codex's review of
+the repair) --; a row reading
 the point of the row before it, or one nearer the boundary, takes that
 row's very number; none stands past the end; the outermost row stands
 ON the end, and where the end is nought and the column holds zeros,
@@ -2395,6 +2409,24 @@ zero stratum holds (`contract._end_rows`); a row on a stand-in the block
 does not hold steps outward as before. Rounding a row moves its distance
 by half a step at the most, so the shared staircase meets the published
 mean to within half a step where the shape fits the tail.
+
+**THE SHARED STAIRCASE HOLDS G5.2's SIGN BANDS AT THEIR RANKS** (the
+second repair of lane G2T, plan P4-D405; `contract._sign_held`). G5.2
+lays the column out negatives first, then the zero stratum, then the
+positives, at the published counts, and G5.2a step 1a holds each band's
+values to its sign. So, row by row from the outermost inward, a row at a
+rank of the zero stratum (the rank of row `i` is `m - 1 - i` on the low
+side and `K - m + i` on the high) reads nought and no other row does; a
+row at a rank of the negatives reading nought or above stands one grid
+step below nought, and a row at a rank of the positives reading nought or
+below one grid step above it, never past the row outside it; a row so
+moved steps off a stand-in as any row does. Read otherwise the staircase
+counted points the twin never holds: 50 less a rounded `lognormal(1.9,
+0.6)` at 20,000 rows read `0`, `1` and `2` at three of its six negative
+ranks, the twin held them at `-1`, the spread below gained two points
+too few, G5.2a divided two runs of the body and G6.5a pushed them down
+until the median stood at 41 against a published 43 (lane G2T's combined
+verify).
 
 **AND THE SHARED STAIRCASE SPREADS, OR DRAWS TOGETHER, TO THE COUNT THE
 TWIN DIVIDES INTO, ITS SUMMED DISTANCE HELD** (`contract._spread_for_the_count`;
@@ -2419,34 +2451,67 @@ them (`k` with `p K <= 100 k < (p + 1) K`, counted as `ceil((p + 1) K /
 over the step, rounded half up), a null rung taking the nearest held
 rung below it; and every point each side's rows or listed values take
 past its boundary. Counted in grid steps from the boundary outward on
-each shared side -- the boundary's own point held by the ladder inside,
-the rows on the end the end's own and never moved, a side with a row or
-an end past `2**52` steps not moved -- a side GAINS a point by moving
-one row from a point that keeps a row (a run of two or more, or the
-boundary's point) to the nearest grid point no row holds, strictly
-between the boundary and the end, and LOSES one by moving the row of a
-run of one onto the nearest occupied point that way (the boundary's,
-never the end's). Rows are a sorted list, so a move changes one row's
-value and the order holds. Each move is the nearest -- the outermost on
-a tie -- OUTWARD while the side's summed distance stands at or inside
-the published `m d1` and INWARD while past it, the other way where none
-is left that way. Where a move leaves the sum more than `m / 2` steps
-from `m d1` (or further than the unspread staircase stood, if that was
-further), rows of a run of one are moved to the nearest free point the
-other way -- no point gained or lost -- the longest such move at or under
-what the sum owes first, else the shortest if it leaves the sum nearer,
-the innermost on a tie, until the sum is back inside or no such move is
-left. A point that is a stand-in the block does not hold is no point
-(step 5). The difference is shared between the shared sides in proportion
-to the most each can move -- for a gain the fewer of its spare rows and
-its free points, for a loss its runs of one row -- the low side's part
-rounded down and the other taking what the first cannot. Measured on a
-count of Pareto draws at 20,000 rows: spread outward only, the build's
-rule, left the high tail's mean distance 10.8 per cent past the
-published one (7.4 per cent at 250,000 rows); held, 0.2 per cent, its
-root-mean-square 1.1 per cent under, the spread 0.9 per cent. A clipped bell at
-one place reached 360 points against 355; drawn together inside the
-tail (and G5.2a's pinned join above), its derived end holds one cell.
+each shared side, EXACTLY -- a value's own binary fraction times ten to
+the grid's figures, rounded half to even, and a point read back as the
+binary64 nearest it (`contract._grid_index`, `_grid_value`; a scale
+built by multiplying tens is not ten to that power past `1e22`, and
+Codex's review measured 5,000 readings at 25 places near `4e-10` whose
+point `4000000000000001` read back as `...000`, ten tail readings
+crossing their boundary) -- the boundary's own point held by the ladder
+inside, a side with a row or an end past `2**52` steps not moved, and
+the rows that never move set aside: the rows on the end, and the
+outermost rows standing in another sign band than the innermost row
+(`contract._sign_frozen`; none moves on a side whose innermost row is the
+zero stratum's), whose band's edge, nought, is then the LIMIT a moved row
+stays inside in place of the end. A side GAINS a point by moving one row
+from a point that keeps a row (a run of two or more, or the boundary's
+point) to the nearest grid point no row holds that way, strictly between
+the boundary and the limit, and LOSES one by moving the row of a run of
+one onto the nearest occupied point that way (the boundary's, never the
+end's). Rows are a sorted list, so a move changes one row's value and
+the order holds. Each move is the nearest -- the outermost on a tie --
+OUTWARD while the side's summed distance stands at or inside the
+published `m d1` and INWARD while past it, the other way where none is
+left that way. Where a move leaves the sum more than `m / 2` steps from
+`m d1` (or further than the unspread staircase stood, if that was
+further), the innermost row of a run of one standing at the edge of its
+consecutive occupied points with a free point beside it the way the
+sum owes moves on through the free points that way -- never onto or past an
+occupied point, the boundary, the limit or a refused stand-in -- as far
+as the sum owes, rounded down (one step where that is under one and one
+step leaves the sum nearer), no point gained or lost, until the sum is
+back inside or no such row is left (the second repair: moved one point
+at a time, the build's repair took one move a step, 37,424 moves for 235
+points on a Pareto column at 100,000 rows). A point that is a stand-in
+the block does not hold is no point (step 5). THEN EVERY SHARED SIDE,
+whether or not the count moved it, SETTLES ITS SUM TO HALF A STEP: while
+it stands more than half a grid step from `m d1`, the innermost row of a
+point that keeps a row moves one step the way the sum owes, onto the
+occupied point beside it -- no point gained or lost, the least a square
+moves (the second repair: within `m / 2` steps is no bound on a coarse
+tail, and 20,000 negated rounded `lognormal(2, 0.6)` with one `-0`
+published a high tail of 200 rows at 0.5 from `-2`, where the shared
+staircase stood 122 rows on `-2` and 77 on `-1`, 21 per cent short, and
+the source 101 and 98). The difference is shared between the shared
+sides in proportion to the most each can move -- for a gain the fewer of
+its spare rows and its free points, for a loss its runs of one row --
+the low side's part rounded down and the other taking what the first
+cannot. THE MOVES ARE THESE AND THEIR ORDER IS THIS, AND THE PRODUCT
+FINDS EACH IN LOGARITHMIC TIME (`contract._Spread`): the occupied points
+are kept as blocks of consecutive points, so the free point past a run
+is its block's edge, and each kind of move keeps a heap into which every
+change pushes the true best move of each block or point it touches,
+stale entries dropped when they come to the top. Rescanning every run
+for each move, the repair's reading, took one ladder of `pareto(1.1)` at
+two places 321.6 s at 250,000 rows and 6,017 s at 500,000 (lane G2T's
+combined verify), against 0.05 s on 36ad3061; it takes 0.17 s at
+250,000 rows. Measured on a count of Pareto draws at 20,000 rows: spread
+outward only, the build's rule, left the high tail's mean distance 10.8
+per cent past the published one (7.4 per cent at 250,000 rows); held, 0.2
+per cent, its root-mean-square 1.1 per cent under, the spread 0.9 per
+cent. A clipped bell at one place reached 360 points against 355; drawn
+together inside the tail, its derived end holds one cell and its high
+tail's mean distance is 0.13 per cent off.
 
 **Why each step** (measured on the 16-shape battery of plan P4-D344 at
 floors 1 and 11). The two moments are what the rows beyond the boundary
