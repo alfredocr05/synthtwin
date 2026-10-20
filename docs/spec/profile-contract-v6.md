@@ -4133,15 +4133,45 @@ draw:
   screen's scores are a decision taken from the real table, so a seed
   forcing a family would publish what RULE W5 masks (the orchestrator's
   addendum of 2026-10-19, 19:04, on the library study of that day). On
-  a column of few levels (a `binary` column, or a label column whose
-  published levels lane CHa's screen can code one by one) the screen
-  reads each published level as its own code, never only the top two
-  levels and a pool: a FINER-CODED screen, which changes weights only.
-  Interactions of a fine column with a binary one (a blood pressure on
-  age by group) are not carried by families and their seeds alone: their
-  carrier is lane MPOL's within-cell products (class M-d), a disclosure
-  class whose release lane MPOL decides. The settings and their measurements:
-  4.6b.14.
+  a column of few levels (a `binary` column, or a label column of at
+  most 8 published levels) the screen reads each published level as its
+  own code, never only the top two levels and a pool: a FINER-CODED
+  screen, which changes weights only. Every other column keeps the
+  screen's coarse codes (a number below its median, up to its 90th
+  percentile and above it; a label's two commonest levels and a pool;
+  each with a code for blank cells).
+
+  **THE SCREEN RANKS TRIPLES TWICE (amended 2026-10-20, on lane `A0c`'s
+  measurement).** It counts every triple of eligible columns on the
+  sample, fits each with the model of no three-way term, and scores it
+  `(X2 - df) / sqrt(2 df)`, `df` being a quarter of the triple's cells
+  and at least 1 (the swap candidate's screen as lanes `A0b` and `A0c`
+  ran it). Its seeds are two lists: (i) the 10 best of ALL triples on
+  the finer codes, taken greedily, a pair of columns in at most two
+  seeds; and (ii) the 3 best, not already in (i), of the FEW-LEVEL
+  CLASS, the triples whose three members are each `binary` or a label
+  of at most 8 levels. Ranking once is not enough: the score's scale
+  favours triples of number columns, so on lane `A0c`'s 200,000-row
+  table about 180 of them outrank diabetes x current smoker x death
+  (180th of 19,600 on the finer codes, 187th on the coarse ones: the
+  codes do not bury it, correcting the library study's reading), while
+  inside the few-level class it ranks second, found from the table
+  alone. Both lists enter W5's keyed draw as WEIGHTS at `w_seed`, never
+  forcing: which triples the screen chooses is a decision taken from the
+  real table, inventory row 12, class (a) through the draw. A weight far
+  above `w_seed` puts the offered columns ahead of the chain's own order
+  and costs estimates elsewhere (4.6b.14).
+
+  A NUMBER'S SLOPE ON ANOTHER NUMBER THAT CHANGES WITH A YES/NO COLUMN
+  (a blood pressure on age, differing by group) is NOT carried by the
+  families, their seeds or class M-d (amended 2026-10-20: lane `A0c`
+  measured M-d leaving it as far off). It is lane MPOL's, with the two
+  candidate carriers lane `A0c` names: the number's own family holding
+  the other number at a finer band together with the yes/no column, or
+  one slope for each parent cell of at least `f` rows in the walk in
+  place of O4's one pooled slope in a band. Both publish more, so each
+  is a disclosure class whose release lane MPOL decides. The settings
+  and their measurements: 4.6b.14.
 
 A raise is read on the score's own scale, which grows with the rows:
 lane `A0a`'s search scored `(X2 - df) / n` and added `0.05` a seed, which
@@ -5087,7 +5117,7 @@ covers the rows marked MBC.
 | 8 | rule words | (b): every qualifying zero of a placed family's table | MBC |
 | 9, 9b, 10 | an order rule or formula rule carried, and "computed"; a source column taken as `D` | (a): drawn at the rule's step, "not carried" always eligible; a carried option is eligible under row 9's ONE test read once on the rule's base (facts published in either outcome) and the antecedent bound (4.6b.7), a source carrier and a formula rule on the phrase only; PRECONDITION, open until lane MR's page proves it: MR's inference conditions implied by the base, the class and the antecedent bound | MBC with MR; MR prices it |
 | 11 | time-and-event pairs raised | (b) for the detection (published roles and names); (a) for the raise | MBC, CHa |
-| 12 | the triple screen's seeds, its finer coding of few-level columns included | (a): offered as weights only, never forced; read on the self-test's sample, never published; off in December, provisionally (4.6b.14) | MBC |
+| 12 | the triple screen's seeds: its two rankings (all triples on the finer codes, its 10; the few-level class, its 3) and its finer coding of few-level columns | (a): offered as weights only, never forced, both lists through W5's keyed draw; read on the self-test's sample, never published; on in December at `w_seed` = 1/20 (amended 2026-10-20, 4.6b.14) | MBC |
 | 13 | placed cuts | off in December; if ever on, each cut set enters as a level option, (a) | MBC |
 | 14 | a derived column's level and its family `{D \| A}` | (a): each pair of levels a carried option of the rule's step, eligible on the family's own table, `A`'s published totals and the class (4.6b.7, (e) below); the same PRECONDITION as rows 9, 9b and 10 | MBC with MR |
 | 15, 15a, 16 to 21 | the patient layer: whether it is on, `r`'s census, the KEY test, the modal values by position, visit order, ordered dates, patient-fixed columns, `r`'s level, derived patient-level parents | RESERVED: lane MG's page | MG |
@@ -5623,7 +5653,16 @@ trailed a fresh sample by 10 points at 50,000 rows, under version 2.1's
 rules, and by 21.5 at 100,000; "stops drifting" is withdrawn; `K-BC-01`
 at 200,000 rows fails until lane `A0b` finds the drift's cause. The
 chain alone, without the polish, is the stage-6 gate's risk, which plan
-P4-D407 states.
+P4-D407 states. Amended 2026-10-20: with the best settings of 4.6b.14,
+lane `A0b` measured the polished chain at 200,000 rows x 50 columns at
+188 of 287 (65.5 per cent) against a fresh sample's 213 (74.2), 8.7
+points, the gap not growing from 100,000 rows (198 of 284 against 224,
+9.2 points), so `K-BC-01`'s pooled 200,000-row target (at most 10
+points under a fresh sample) is met there (not its clause for every
+family), on one table and one seed, greedily and without the draw;
+with the screen's seeds of 4.6b.3 lane `A0c` measured 202 of 287, 3.8
+points. The 21.5 points at 100,000 rows above
+is the design probe's figure, measured without the second code.
 
 **Hours** (the ratification's hours line, re-priced by the statistics
 review of this page; JUDGEMENT): 2,000,000 x 50 described, generated
@@ -5699,12 +5738,12 @@ written as a fraction and read on the scale of the score (4.6b.3).
 
 | setting | December value | status and evidence |
 |---|---|---|
-| `k_max` | 3 at every size | FIXED up to 50,000 rows: polished, `k` = 3 scored 393 and 140, `k` = 2 387 and 139, within noise of each other on both bases (`A0a`'s check, item 3); unpolished 286 and 98 against 285 and 95. `k` = 4 from some size is PROVISIONAL: `A0b`'s step 8 decides it at 200,000 rows. A larger `k` is NOT a lever for interactions: at 50,000 rows `k` = 3, 4 and 5 left the interactions built into the test table the same distance off (diabetes x current smoker 7.72 SE at each; the three-way xor 85.90, 86.38 and 86.38; blood pressure and a laboratory value on age by group 47.89 and 57.72 at each), since the search never puts the interacting columns in one family (the library study of 2026-10-19, MEASURED, greedy) |
+| `k_max` | 3 at every size | FIXED up to 50,000 rows: polished, `k` = 3 scored 393 and 140, `k` = 2 387 and 139, within noise of each other on both bases (`A0a`'s check, item 3); unpolished 286 and 98 against 285 and 95. KEPT at 3 above 50,000 rows too (amended 2026-10-20): at 200,000 rows x 50 columns lane `A0b`'s `k` = 4 scored 191 of 287 against `k` = 3's 188, inside one table's noise (lane `A0c`: a pooled difference under about 10 is not settled by one table and one seed), and recovered no interaction built into the test table (diabetes x current smoker -0.008 and the three-way xor -0.028, against -1.442 and -3.416 real). A larger `k` is NOT a lever for interactions: at 50,000 rows `k` = 3, 4 and 5 left the interactions built into the test table the same distance off (diabetes x current smoker 7.72 SE at each; the three-way xor 85.90, 86.38 and 86.38; blood pressure and a laboratory value on age by group 47.89 and 57.72 at each), since the search never puts the interacting columns in one family (the library study of 2026-10-19, MEASURED, greedy) |
 | the ladder | three levels: `L0` the deciles with `p25` and `p75`, `L1` four rungs, `L2` the median | FIXED. `L0` is the cut `A0a` measured, its `dec` ladder: the 10th, 20th, 25th, 30th, 40th, 50th, 60th, 70th, 75th, 80th and 90th percentiles. Three levels won every polished pair against four (placed cuts as a fourth level), while four win on the chain alone (303 against 286 at 20,000 rows, 103 against 98 at 50,000): this setting trades about 3 points of the chain alone for the polished result (`A0a`'s setting 2 and its check's item 2) |
-| `L0`'s cut (`l0_cut`) | `deciles` at every size | FIXED up to 50,000 rows: every fifth percentile scored 366 against 387 at 20,000 rows and 137 against 136 at 50,000 (`A0a`'s setting 10). PROVISIONAL above 50,000 rows: the design's 100,000-row probe favoured every fifth percentile, 166 against 153 of 279, not on every seed; `A0b`'s legs `X5a` and `X5c` decide |
+| `L0`'s cut (`l0_cut`) | `deciles` at every size | FIXED up to 50,000 rows: every fifth percentile scored 366 against 387 at 20,000 rows and 137 against 136 at 50,000 (`A0a`'s setting 10). Above 50,000 rows the design's 100,000-row probe favoured every fifth percentile, 166 against 153 of 279, not on every seed; FIXED there too, every fifth percentile OFF (amended 2026-10-20): at 200,000 rows x 50 columns lane `A0b`'s leg `X5c`, polished, scored every fifth percentile 168 of 287 against the deciles' 188 |
 | placed cuts | off | FIXED (`A0a`'s setting 2; inventory row 13) |
-| `w_seed`, the triple screen's seeds | `"0"`, off | PROVISIONAL. When on, `A0a`'s and `A0b`'s value, `"1/20"`: their search scored `(X2 - df) / n` and added 0.05 a seed. Polished, `A0a` measured seeds costing least squares (347 and 127 against 393 and 140). `A0b`'s early 50-column measurement (2026-10-19) shows the seedless chain losing every interaction built into the test table that a fresh sample and the design's every-pair swap candidate (`A2`) keep (diabetes x current smoker 0.06 against -1.76 real; the pure three-way -0.02 against -3.47; an age-by-group interaction in blood pressure 0.02 against 0.30) and question 9's trigger firing at 50,000 x 50 (`A2` ahead by 17.0 points on least squares and 26.5 on logistic models). `A0b`'s step 7 (chains with seeds) decides; seeds enter only as a weight raise, so turning them on changes no proof. The library study of 2026-10-19 (MEASURED, greedy, at 50,000 and 200,000 rows) offered the screen's seeds as weights: the three-way xor went from 85.90 and 173.88 SE off to 0.00, while diabetes x current smoker, which the screen ranks 187 to 190 of 19,600 triples on its coarse codes (the top two levels and a pool), stayed off (4.95 to 13.20 SE) and came back (0.00) only when its triple was offered; hence the FINER-CODED screen of 4.6b.3 for few-level columns (JUDGEMENT that it finds that triple; `A0b`'s legs measure it). Blood pressure and a laboratory value on age by group stayed off with seeds, and with their triples offered (24.75 to 183.96 SE): their carrier is lane MPOL's class M-d, whose release lane MPOL decides. Seeds are offered as weights, never forced, and `A0b`'s 200,000-row legs still decide them |
-| `w_te`, the time-and-event raise | `"0"`: no measured effect | PROVISIONAL. `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables. The root pair's orientation is schema order (t0's); `A0b`'s t0 and t1 leg measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first (`ST3`, or `A0b`'s 50-column table) |
+| `w_seed`, the triple screen's seeds | `"1/20"`, ON (amended 2026-10-20) | ON, by lanes `A0b` and `A0c` at 200,000 rows x 50 columns (one table and one seed; the chain at `k` = 3 with three levels, the deciles and the time-and-event pair first, polished by classes M-a and M-b with the second code at `P` = 4; greedy, without the draw, as above). `A0b`, the screen's 10 seeds on its coarse codes at 0.05 a seed: the three-way xor came back exactly (-3.416 against a real -3.416; -0.017 without seeds) and blood pressure's age-by-group interaction went from 0.036 to 0.206 of a real 0.296, at no pooled cost (186 of 287 with seeds, 188 without). `A0c`, the screen ranking triples twice (4.6b.3: its 10 over all triples on the finer codes and its 3 inside the few-level class, offered at the same 0.05): pooled 202 of 287 (a fresh sample 213, the design's every-pair swap candidate `A2` 215), the logistic models 30 of 38 (a fresh sample 25, `A2` 32), diabetes x current smoker -1.334 against a real -1.442 (1.0 SE, inside its yardstick; 13.3 SE off without its seed), intensive care x old age -0.489 against -0.732 (3.4 SE; 13.5 without), the xor exact. PRIVACY UNCHANGED (MEASURED in every twin of `A0c`): every published family cell 0 or at least 11 (14,740 cells at 200,000 rows, the smallest 11), 0 family cells off after the walk and the polish, the diabetes x smoking x death table's smallest cell 109; the floor judges every family table as before, and the screen adds only which columns sit together, through the draw. THE PRICE: below about 20,000 rows the smallest cell of such an interaction table reaches the floor (about 27 rows at 50,000 and 11 at 20,000, lane `A0c`'s arithmetic), so the floor coarsens or refuses the triple and the interaction is given up, never privacy; and a weight far above 1/20 reorders the chain and costs estimates elsewhere (at 1.0, 173 to 180 of 287; with the few-level seeds alone at 1.0 the offered columns were placed ahead of age, which left the death column's family). OWED: `K-BC-02` re-measured on W5's keyed draw (in the kits 0.05 acted with no draw; lane CHa's battery run); the screen's ranks on the self-test's sample of 4.6b.8 (20,000 rows below 1,000,000), since `A0c` read every row (lane CHa). The history: `A0a` measured seeds costing least squares (347 and 127 against 393 and 140, polished, at 20,000 and 50,000 rows); `A0b`'s early 50-column measurement (2026-10-19) had the seedless chain losing every interaction built into the test table that a fresh sample and `A2` keep (diabetes x current smoker 0.06 against a fresh sample's -1.76; the pure three-way -0.02 against -3.47; an age-by-group interaction in blood pressure 0.02 against 0.30) and question 9's trigger firing at 50,000 x 50 (`A2` ahead by 17.0 points on least squares and 26.5 on logistic models); the library study of 2026-10-19 (MEASURED, greedy, at 50,000 and 200,000 rows) offered the screen's seeds as weights: the three-way xor went from 85.90 and 173.88 SE off to 0.00, while diabetes x current smoker, which the screen ranks 187 to 190 of 19,600 triples on its coarse codes (the top two levels and a pool), stayed off (4.95 to 13.20 SE) and came back (0.00) only when its triple was offered. Seeds enter only as a weight raise, so turning them on changes no proof. A number's slope on another number changing with a yes/no column (blood pressure and a laboratory value on age by group) stays off with the screen's seeds and with M-d (28 to 30 and 43 to 47 SE at 200,000 rows; M-d in the polish 18.0 against 19.7 SE at 50,000 rows): lane MPOL's, with the two carriers of 4.6b.3 (the number's family holding the other number at a finer band with the yes/no column took blood pressure to 0.275 of 0.296, 6.6 SE, when its triple was offered) |
+| `w_te`, the time-and-event raise | `"1"`, ON (amended 2026-10-20; was `"0"`: no measured effect) | KEPT as lane `A0b` measured it, the time-and-event pair first: at 200,000 rows x 50 columns its chain `t1` (the pair offered first, the event its parent) scored 188 of 287 against `t0`'s 182 (no raise), polished, and every 200,000-row figure of this table was measured on `t1`. On that table the pair is NOT already the strongest option: `t0`'s root is blood pressure's two columns, scoring 0.756 `n`, the pair 0.046 `n`; a raise of `1 n` puts the pair first there, as `t1` did (JUDGEMENT on that one table; the value is PROVISIONAL until lane CHa's battery run measures it under the draw). The root pair's orientation stays schema order (on that table the follow-up time is the parent, where `t1` made the event the parent; `A0a`'s panel below found orientation alone moving only the walk). The history: `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables, so `A0a`'s panel measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first, which `A0b`'s 50-column table is |
 | `w_rule`, the inferred rule's raise | `"1/20"` | PROVISIONAL: never measured (the design's raise of `10 tau` was not measured either, and on the scale of the score it would vanish). Lane CHa's battery run measures it |
 | `tau` | two, provisionally | PROVISIONAL: ruling R5 holds it until it is measured at 50 columns, and no leg of `A0b` measures it. Every figure above was measured greedily; at 5,000 rows, the suite tier of `K-S6-01` (ii), the last steps' scores shrink to about 6 to 27, where `tau` = 2 gives "no family" a real share of each step (the statistics review's arithmetic). Lane CHa's battery run measures the chain under the draw, at `tau` = 2 and with RULE W1 as read here, at 5,000 and 20,000 rows, before the stage-6 gate; a change is a measured amendment |
 | `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the hours on the oldest Python synthtwin runs on, 3.11 from lane DEP-1 (plan P4-D407). The sample holds exactly that many rows, or every row of a smaller table, chosen by content and occurrence (4.6b.8). It is never published, so its size moves no proof |

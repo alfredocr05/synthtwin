@@ -448,14 +448,20 @@ def _settings():
     return _part("14")
 
 
-def test_the_time_and_event_raise_has_no_measured_effect():
-    """Statistics item 1: A0a's t1 placed the pair as the root; t0 and t1
-    differ only in the root pair's orientation."""
+def test_the_time_and_event_raise_is_set_where_the_pair_is_not_first():
+    """Statistics item 1: A0a's t1 placed the pair as the root; on its
+    panel t0 and t1 differ only in the root pair's orientation. Amended
+    2026-10-20: on A0b's 50-column table the pair is not the strongest
+    option, and t1 (the pair first) is kept, 188 against t0's 182."""
     settings = _settings()
-    assert "`w_te`, the time-and-event raise | `\"0\"`: no measured effect" in settings
+    assert "`w_te`, the time-and-event raise | `\"1\"`, ON (amended 2026-10-20; was `\"0\"`: no measured effect)" in settings
+    assert "scored 188 of 287 against `t0`'s 182 (no raise)" in settings
+    assert "scoring 0.756 `n`, the pair 0.046 `n`" in settings
+    assert "the value is PROVISIONAL until lane CHa's battery run measures it under the draw" in settings
     assert "differ only in the root pair's orientation" in settings
     assert "measures that orientation, not this raise" in settings
     assert "| `w_te` | 10 (on) |" not in settings
+    assert "`\"0\"`: no measured effect | PROVISIONAL." not in settings
 
 
 def test_every_raise_is_read_on_the_scores_scale():
@@ -1050,7 +1056,7 @@ def test_the_addendum_of_19_04_is_written_with_its_measurements():
     assert "ranks 187 to 190 of 19,600 triples on its coarse codes" in settings
     assert "A larger `k` is NOT a lever for interactions" in settings
     assert "diabetes x current smoker 7.72 SE at each" in settings
-    assert "`A0b`'s 200,000-row legs still decide them" in settings
+    assert "`A0b`'s 200,000-row legs still decide them" not in settings
     decision = _decision()
     assert "a larger `k` is NOT an interaction lever: `k` = 3, 4 and 5 leave the same gaps" in decision
     assert "from 86 and 174 SE off (50,000 and 200,000 rows) to 0.00" in decision
@@ -1099,3 +1105,66 @@ def test_the_second_round_is_recorded():
     assert "**Codex's sixteen items on this page, answered" in decision
     entry = _flat(_between(CHANGES, "### Between columns: the chain's method page", "\n### "))
     assert "A second review round, with one outside review, repaired it again." in entry
+
+
+# --- the orchestrator's addenda 3 and 4: the settings decided (2026-10-20) ---
+
+
+def test_the_settings_are_decided_by_the_200000_row_legs():
+    """A0b's 200,000-row legs and A0c's follow-up decide the provisional
+    settings, each change dated 2026-10-20."""
+    settings = _settings()
+    assert "| `w_seed`, the triple screen's seeds | `\"1/20\"`, ON (amended 2026-10-20) |" in settings
+    assert "`\"0\"`, off | PROVISIONAL" not in settings
+    assert "blood pressure's age-by-group interaction went from 0.036 to 0.206 of a real 0.296" in settings
+    assert "(186 of 287 with seeds, 188 without)" in settings
+    assert "pooled 202 of 287 (a fresh sample 213" in settings
+    assert "the logistic models 30 of 38 (a fresh sample 25" in settings
+    assert "diabetes x current smoker -1.334 against a real -1.442" in settings
+    assert "intensive care x old age -0.489 against -0.732" in settings
+    assert "every published family cell 0 or at least 11" in settings
+    assert "the interaction is given up, never privacy" in settings
+    assert "`K-BC-02` re-measured on W5's keyed draw" in settings
+    assert "KEPT at 3 above 50,000 rows too (amended 2026-10-20)" in settings
+    assert "`k` = 4 scored 191 of 287 against `k` = 3's 188, inside one table's noise" in settings
+    assert "`k` = 4 from some size is PROVISIONAL" not in settings
+    assert "every fifth percentile OFF (amended 2026-10-20)" in settings
+    assert "scored every fifth percentile 168 of 287 against the deciles' 188" in settings
+    assert "`A0b`'s legs `X5a` and `X5c` decide" not in settings
+    # the fresh sample's values are no longer called real
+    assert "0.06 against -1.76 real" not in settings
+    assert "0.06 against a fresh sample's -1.76" in settings
+
+
+def test_the_screen_ranks_triples_twice_and_offers_both_as_weights():
+    search = _part("3")
+    assert "**THE SCREEN RANKS TRIPLES TWICE (amended 2026-10-20" in search
+    assert "(i) the 10 best of ALL triples on the finer codes" in search
+    assert "(ii) the 3 best, not already in (i), of the FEW-LEVEL CLASS" in search
+    assert "each `binary` or a label of at most 8 levels" in search
+    assert "Both lists enter W5's keyed draw as WEIGHTS at `w_seed`, never forcing" in search
+    assert "inventory row 12, class (a) through the draw" in search
+    assert "correcting the library study's reading" in search
+    assert "their carrier is lane MPOL's within-cell products (class M-d)" not in search
+    assert "is NOT carried by the families, their seeds or class M-d" in search
+    assert "two candidate carriers lane `A0c` names" in search
+    assert "one slope for each parent cell of at least `f` rows in the walk" in search
+    inventory = _part("9")
+    assert "on in December at `w_seed` = 1/20 (amended 2026-10-20, 4.6b.14)" in inventory
+    assert "off in December, provisionally (4.6b.14)" not in inventory
+
+
+def test_the_gap_is_stated_with_the_best_settings():
+    promised = _part("13")
+    assert "188 of 287 (65.5 per cent) against a fresh sample's 213 (74.2), 8.7 points" in promised
+    assert "(198 of 284 against 224, 9.2 points)" in promised
+    assert "`K-BC-01`'s pooled 200,000-row target" in promised
+    assert "is the design probe's figure, measured without the second code" in promised
+    decision = _decision()
+    assert "Amended 2026-10-20 (the orchestrator's addenda 3 and 4 of 2026-10-19" in decision
+    assert "seeds ON at `w_seed` 1/20" in decision
+    assert "lifts the pooled count to 202 of 287" in decision
+    assert "`k_max` kept at 3" in decision
+    assert "every fifth percentile off (168 against 188)" in decision
+    entry = _flat(_between(CHANGES, "### Between columns: the chain's method page", "\n### "))
+    assert "The page's settings were then decided on 2026-10-20" in entry

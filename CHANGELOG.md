@@ -65,6 +65,19 @@ imitated by a cell's text, the record of earlier descriptions compares
 whole descriptions and lets one run at a time, and the hours no
 longer quote Python 3.10, which the new oldest version, 3.11, retires.
 
+The page's settings were then decided on 2026-10-20 from measurements
+at 200,000 rows and 50 columns. The screen of three columns at once is
+on: it ranks every triple, and separately the triples of yes/no and
+few-category columns, and offers its best ones to the keyed draw as a
+small weight, never forcing them. Measured, it brings back a yes/no
+three-way pattern exactly and the diabetes by current smoking effect on
+death inside its margin (-1.33 against -1.44), and 202 of 287 estimates
+inside their margins (a fresh sample 213), with every published count
+still 0 or at least 11. The follow-up time and its event stay first,
+three related columns stay the most, and the finer fifth-percentile cut
+stays off. A number whose slope on another number changes with a
+yes/no column is named as the next page's work.
+
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
 **A follow-up to batch 4b** (lane CF4b of the December plan; CI run
