@@ -755,7 +755,9 @@ def test_the_census_of_empty_records_fixes_a_count_without_rule_we():
     assert "**RULE WE (the records holding nothing;" in search
     assert "only where, with it placed, the cell bound `b(x0)` (4.6b.9 (a)) is at most `Z + P`" in search
     assert "so it removes none" not in search
-    assert "the census removes none" in _part("9")
+    assert "a rule step's carried option) is eligible only where" in search
+    assert "A CARRIED option is ELIGIBLE where RULE WE holds with it placed (4.6b.3)" in _rules_part()
+    assert "So every table of `Omega(D)` extends to a table of `CONS(D)`, and the census removes none" in _part("9")
     assert "| 5a | RULE WE |" in _section()
     assert "Codex's 133-row table of three columns with 33 records holding nothing published" in _part("10")
     assert "RULE WE's from the published counts" in _part("11")
@@ -871,7 +873,7 @@ def test_a_moved_target_propagates_through_joint_parent_counts():
     later = [[30, 30], [20, 20], [30, 30], [20, 20]]
     assert [sum(row) for row in later] == [60, 40, 60, 40] != joint
     method = _g16()
-    assert "the twin's count of each of the family's parent cells, as the families before it placed them" in method
+    assert "**A family's TARGET.** The published table where the twin's count of each of the family's parent cells, as the families before it placed them" in method
     assert "The published table where every member's band totals in the twin equal the published ones" not in method
     assert "10. a moved parent count" in method
 
@@ -921,7 +923,7 @@ def test_the_sample_takes_exactly_its_rows_however_many_repeat():
     assert 150 < share < 250
     sample = _part("8")
     assert "Each row's SAMPLE KEY is BLAKE2b" in sample
-    assert "It holds exactly `min(m, n)` rows, never none and never more." in sample
+    assert "It holds exactly `min(m, n)` rows: none only where the table has no tabled row, and never more." in sample
     assert "a row is sampled where `u * n < m * 2**64`" not in sample
 
 

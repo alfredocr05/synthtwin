@@ -4094,10 +4094,14 @@ column that publishes no such count (a computed one) counting 0. Let
 `x0` be the cell of the full joint table (4.6b.9 (a)) that holds, for
 each eligible column, the `L0` band holding its blank cells; where some
 eligible column holds no blank cell on a tabled row, there is no such
-cell and the rule holds. An option other than "no family" is eligible
-only where, with it placed, the cell bound `b(x0)` (4.6b.9 (a)) is at
-most `Z + P`. A placed family only lowers `b(x0)`, so the rule binds at
-the root pair. It holds on any table where a column outside the ladder
+cell and the rule holds. An option other than "no family" or "not
+carried" (a root pair, a family, or a rule step's carried option) is
+eligible only where, with it placed, the cell bound `b(x0)` (4.6b.9
+(a)) is at most `Z + P`, every eligible column's `L0` totals counting
+as placed once any such option is, since the ladder is then published.
+A placed family only lowers `b(x0)`, so the rule binds at the first
+option that publishes anything: a carried rule's, or else the root
+pair. It holds on any table where a column outside the ladder
 holds a cell on every tabled row (an identifier, the row sequence), so
 `P` is at least the tabled rows. Without it, the source's own census
 narrows the joint table beyond `Omega(D)`: on 133 rows of three columns
@@ -4602,7 +4606,8 @@ measurement left the dates' censuses out in the same way.
   lane DEP's offline bundle (plan P4-D407). Every world a solver returns
   is re-checked in whole-number arithmetic.
 
-A CARRIED option is ELIGIBLE where the partition passes the test, the
+A CARRIED option is ELIGIBLE where RULE WE holds with it placed
+(4.6b.3), the partition passes the test, the
 real `v` lies in one of its classes, and the base forces the rule's
 ANTECEDENT (the rows where every base column, and for a derived `D` the
 difference, holds a reading) to at least `f` rows: for a derived `D` its
@@ -4880,7 +4885,8 @@ rows of smallest key, `n` the tabled rows and `m` the constant
 `selftest_sample` of 4.6b.14 (in December 20,000 below 1,000,000
 tabled rows and 200,000 from there), equal keys (a chance of `2**-64`)
 taken in order of content hash and then occurrence; it is sorted by
-key. It holds exactly `min(m, n)` rows, never none and never more. The
+key. It holds exactly `min(m, n)` rows: none only where the table has
+no tabled row, and never more. The
 first build sampled a row where the first 8 bytes of its content hash
 fell below a cut, which took or left every copy of a row together: on
 500,000 rows `0,0` beside 500,000 rows `1,1` it took no row, and on
