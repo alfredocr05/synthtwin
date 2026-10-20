@@ -6091,7 +6091,7 @@ empty where `o` is the real table's own option.
   or not), some point with 0 rows on `V-` puts all of `G`'s rows into
   `g`.
 
-Clause (c) as the first repair wrote it asked this only of the groups
+Clause (c) as the first build wrote it asked this only of the groups
 some point ZERO ON `V-` makes non-empty; that admits cases `Q` and `S`
 of 4.6d.5 (c), one region each, where a count of 1 to `f - 1` rows that
 no column's own facts publish is confined (the verify of 2026-10-20,
@@ -6280,7 +6280,7 @@ publishes except `R`'s `sums` and `R`'s entries in `withheld`.
 description holding moments: its preimage is `CONS(D)`, every table
 whose every published fact, the moments included, equals `D`'s. In
 particular a region whose drawn option is `none` leaves the preimage of
-its context whole. (The first repair added "or any poorer option",
+its context whole. (The first build added "or any poorer option",
 which does not hold: a poorer option that still publishes sums keeps
 them in the context's place, and they tell tables apart; Codex's round
 of 2026-10-20, item 7: in the reference case `A = B = (25, 50, 25)`
@@ -6404,13 +6404,13 @@ refined cell `(x, alpha)` with `b(x)` above 0 whose base cell and atom
 in that region are `g`'s. `U` SPLITS a small atom `G` of a publishing
 region `R` when it meets `G` without wholly holding it and every group
 of `R` holding `G` that SOME POINT of `Sigma(R, o_R)` makes non-empty
-shares a refined cell with `U`. A group whose refined cells `U` holds
-all or none of then lies wholly in `U`, and in every table of the
-preimage `G`'s rows lie in such groups (a table's restriction to `R` is
-a point), so `U` would wholly hold `G`: `U` splits `G` only where it
-holds some refined cells of a group of `R` and not others, a group SPLIT
-by the atoms of another publishing region or by the bands of a column
-of no publishing region. `O*(U)` is `O(U)` together with the rows of
+shares a refined cell with `U`. Were every such group's refined cells
+all in `U` or all outside it, each would lie wholly in `U`, and since
+in every table of the preimage `G`'s rows lie in such groups (a table's
+restriction to `R` is a point), `U` would wholly hold `G`. So `U`
+splits `G` only where it holds some refined cells of a group of `R` and
+not others: a group SPLIT by the atoms of another publishing region or
+by the bands of a column of no publishing region. `O*(U)` is `O(U)` together with the rows of
 every small atom `U` splits: ruling R11 (the orchestrator, 2026-10-20)
 reads the rows of a small own-fact group a union MEETS as that column's
 own facts, and this page applies that reading where the union splits
@@ -6456,7 +6456,7 @@ every table, so `U`'s rows are rows of the small atoms it wholly holds
 or splits: none lies outside `O*(U)`. ∎ The step needs (c) over EVERY
 point: `U` fails to hold `G` wholly because SOME table puts a row of `G`
 outside `U`, and that table's point need not be zero on `V-_R`; the
-first repair asked (c) only of the groups a zero point fills, and cases
+first build asked (c) only of the groups a zero point fills, and cases
 `Q` and `S` below are exactly the unions it then missed.
 
 *Proof of (B).* Let `U'` be `U` less every refined cell holding a small
@@ -6824,7 +6824,7 @@ section, each with the mutant that must fail:
   `e`'s sums 223 and 2263, exactly 3 rows at code 11 in every point;
   `S`: `e`'s sum 226, a union of 1 to 9 rows in every point): refused
   by clause (c) read over every point (mutant: (c) read over the points
-  zero on `V-` only, as the first repair wrote it, which publishes
+  zero on `V-` only, as the first build wrote it, which publishes
   both);
 - **the split union across two regions** (4.6d.5 (c): a small atom of
   3 rows in one region beside another region's band of 30 rows over

@@ -116,7 +116,7 @@ def _witness(points, groups, small=(), zeros_only=False):
     one small atom of a case (each point puts all of its rows in them).
     Clause (c) asks, for every group of the atom that SOME POINT makes
     non-empty, a point zero on `V-` putting the whole atom there;
-    `zeros_only` reads it as the first repair did, over the points zero
+    `zeros_only` reads it as the first build did, over the points zero
     on `V-` only (the mutant cases `Q` and `S` pass). Returns whether the
     witness holds, and `V-`."""
     unreachable, zeros = _reach_and_zero(points, groups, small)
@@ -306,7 +306,7 @@ def test_cases_q_and_s_are_refused_by_clause_c_over_every_point():
     case `Q` (exactly 3 rows of the cell at code 11 in every point) and case
     `S` (a union of 1 to 9 rows in every point), counts no column's own
     facts publish, while `e` alone is refused at (b). Read over every
-    point, (c) refuses both (mutant: `zeros_only`, the first repair's
+    point, (c) refuses both (mutant: `zeros_only`, the first build's
     clause, and the page's sentence for it)."""
     small = tuple(("G", v) for v in (10, 11, 12))
     q_points = _one_region_points(223, 2263)

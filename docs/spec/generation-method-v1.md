@@ -18295,8 +18295,9 @@ cell (contract 4.6d.1).
   three cells of 22 rows publishing 220 each beside a twin band sum of
   661 give exact targets of `220 1/3`, which round to 220, 660 in all,
   while every exchange keeps 661 (Codex's round of 2026-10-20, item 8).
-  Every other target is rounded to the nearest whole number, half to
-  even; no conservation is claimed for them.
+  Every other target, a `cell_slopes` target among them (its parent
+  cells need not cover a band), is rounded to the nearest whole number,
+  half to even; no conservation is claimed for them.
 - **Clamp.** A target outside `[-n' 2**32, n' 2**32]` is set to the
   nearer end; no reachable sum lies beyond it, so no conserved group's
   target is ever clamped.
