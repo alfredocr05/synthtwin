@@ -7883,17 +7883,8 @@ def _column(
         n_contradictory,
         remarks,
         verdicts,
+        n_not_numeric,
     )
-    if isinstance(facts, NumericFacts) and (
-        role == ROLE_COUNT or role == ROLE_CONTINUOUS
-    ):
-        facts = dataclasses.replace(
-            facts,
-            strata_asked=_numbers_share(
-                n_folded,
-                (n_numeric, n_out_of_range, n_contradictory, n_not_numeric),
-            ),
-        )
     return ColumnBlock(
         name=name,
         position=position,
@@ -8135,6 +8126,7 @@ def _facts(
     n_contradictory: int,
     remarks: "list[str]",
     verdicts: "tuple[SentinelVerdict, ...]",
+    n_not_numeric: int = 0,
 ) -> ColumnFacts:
     """Everything the ROLE adds, checked by the rules of its section.
 
@@ -8222,6 +8214,15 @@ def _facts(
         # EVERY NUMERIC BLOCK OF EVERY ROLE HOLDS THE STAND-INS IT KEEPS
         # (plan P4-D357 A): the construction may write those.
         numeric = _holding_stand_ins(numeric, verdicts, frame.floor)
+        # THE STRATA G5.2 DIVIDES A PLAIN COLUMN'S NUMBERS INTO (plan
+        # P4-D405), which G5.3b's shared staircase spreads to.
+        numeric = dataclasses.replace(
+            numeric,
+            strata_asked=_numbers_share(
+                n_folded,
+                (n_numeric, n_out_of_range, n_contradictory, n_not_numeric),
+            ),
+        )
         if role == ROLE_CONTINUOUS:
             return numeric
         return dataclasses.replace(
@@ -14154,7 +14155,7 @@ def _spread_move(
             if rows < 2 and point != boundary:
                 continue
             target = beyond[place] if outward else within[place]
-            if not boundary < target < end or refused.get(target, False):
+            if not boundary < target < end or target in refused:
                 continue
             if not outward and place == 0 and point == boundary:
                 continue
@@ -14309,7 +14310,7 @@ def _spread_shift(
         if runs[place][1] != 1 or point == boundary:
             continue
         target = beyond[place] if outward else within[place]
-        if not boundary < target < end or refused.get(target, False):
+        if not boundary < target < end or target in refused:
             continue
         distance = target - point if outward else point - target
         if distance <= owed:
