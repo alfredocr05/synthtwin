@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import gc
 import io
 import os
 import pathlib
@@ -319,8 +320,8 @@ def test_profile_in_groups_holds_one_group_not_the_table(
 
     The reading holds one column of eight, under a quarter of what
     the whole reading holds; and the most `tracemalloc` sees held while
-    `synthtwin profile` describes it is under half of what it holds
-    describing the table read whole.
+    `synthtwin profile` describes it, the collector paused, is under
+    six tenths of what it holds describing the table read whole.
     """
     draw = random.Random(9)
     columns = 8
@@ -352,16 +353,29 @@ def test_profile_in_groups_holds_one_group_not_the_table(
         return found
 
     monkeypatch.setattr(profile, "build_document", traced)
+    # THE COLLECTOR PAUSED WHILE TRACED (batch 4d's integration,
+    # 2026-10-20): left running, it freed the columns' readings, which
+    # hold their spelling memos in cycles, at moments set by whatever ran
+    # earlier in the process, so the ratio read 0.41 to 0.59 by the
+    # tests before this one and failed in the suite's fifth shard
+    # (2,157,863 and 1,278,906 bytes). Collected first and paused, both
+    # runs hold every cycle they make: 0.52 in a fresh process and 0.56
+    # after another profile, the same on 85b54f0f before lane AQ. The
+    # bound is set over that with the least margin; a reading in groups
+    # that held the whole table again reads 1 or more.
     for budget in (1 << 40, 1):
         monkeypatch.setattr(reading, "GROUP_BYTES", budget)
+        gc.collect()
+        gc.disable()
         tracemalloc.start()
         try:
             found = _profiled(table, tmp_path / f"out{budget}", [])
         finally:
             tracemalloc.stop()
+            gc.enable()
         assert found["exit"] == b"0"
     assert len(describing) == 2
-    assert describing[1] < 0.5 * describing[0], describing
+    assert describing[1] < 0.6 * describing[0], describing
 
 
 def test_a_table_read_in_groups_holds_one_group(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
