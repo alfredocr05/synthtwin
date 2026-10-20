@@ -4,13 +4,16 @@ Every floor is declared in four files -- the package's own metadata and
 the three lock inputs -- and a floor that is declared in one place and
 tested in another is not a tested floor at all. This file fails if they
 ever drift apart, if a runtime dependency appears that no plan
-authorized, if a library outside the December set (plan P4-D409 part 1)
+authorized, if a library this landing does not adopt (plan P4-D410)
 enters any requirement file, and if a lock was compiled for another
 Python than the floor the package declares.
 """
 
 import ast
 import pathlib
+import re
+
+import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -46,8 +49,12 @@ TOOLS = {"pytest", "ruff", "mypy", "build", "hatchling", "twine"}
 # Python leaves the floor's interpreter without a pin.
 FLOOR_PYTHON = "3.11"
 
-# The libraries plan P4-D409 measured and did NOT adopt. None may appear
-# in any requirement file, as a root or in a compiled closure.
+# The libraries this landing does not adopt (plan P4-D410). Six of them
+# plan P4-D409 measured and did not adopt; pyreadstat P4-D409 part 1
+# adopts as a conditional runtime library for the native-format
+# stretch, so it is not adopted for this landing and enters only with
+# that stretch's own decision. None may appear in any requirement file
+# today, as a root or in a compiled closure.
 NOT_ADOPTED = {
     "lifelines",
     "polars",
@@ -244,11 +251,12 @@ def test_the_optional_polish_extra_is_numba_alone_and_leaves_intel_macs_out() ->
 
 
 def test_the_requirement_files_name_exactly_the_december_set() -> None:
-    """No library outside plan P4-D409's set enters any requirement file.
+    """No library this landing does not adopt enters any requirement file.
 
     The roots are counted file by file; the compiled closures are read
-    for the libraries the plan measured and did not adopt (lifelines
-    above all, which pulls matplotlib and a source-only package).
+    for the libraries this landing does not adopt (NOT_ADOPTED: lifelines
+    above all, which pulls matplotlib and a source-only package, and
+    pyreadstat, which waits for the native-format stretch's decision).
     """
     optional = {package for package, _ in OPTIONAL.values()}
     assert _roots("requirements-dev.in") == AUTHORIZED | optional | TEST_ONLY | TOOLS
@@ -256,8 +264,8 @@ def test_the_requirement_files_name_exactly_the_december_set() -> None:
     for name in LOCKS:
         pinned = set(_lock_pins(name))
         assert not pinned & NOT_ADOPTED, (
-            f"{name} pins {sorted(pinned & NOT_ADOPTED)}, which plan P4-D409 "
-            "measured and did not adopt"
+            f"{name} pins {sorted(pinned & NOT_ADOPTED)}, which this landing "
+            "does not adopt (plan P4-D410)"
         )
     assert not set(_lock_pins("requirements-install.lock")) & (TEST_ONLY | optional), (
         "a test-only or optional library reached the institutional install"
@@ -357,30 +365,63 @@ def test_python_floor_matches_the_supported_matrix() -> None:
     assert f'requires-python = ">={FLOOR_PYTHON}"' in _pyproject_text()
 
 
+def test_every_page_states_the_floor_python() -> None:
+    """A page that states a Python floor states the package's own.
+
+    Skeptic 1 of lane DEP-1 found CONTRIBUTING.md still asking for
+    Python >= 3.10 after the floor moved to 3.11 (plan P4-D410).
+    """
+    stated = {}
+    for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CLAUDE.md"):
+        text = (REPO / name).read_text(encoding="utf-8")
+        stated[name] = re.findall(r"Python >= (3\.\d+)", text) + re.findall(
+            r"Python (3\.\d+) (?:or|and) later", text
+        )
+    assert stated["CONTRIBUTING.md"], "CONTRIBUTING.md no longer states the floor"
+    for name, versions in sorted(stated.items()):
+        assert set(versions) <= {FLOOR_PYTHON}, (name, versions)
+
+
 # -- pandas' string storage, set by the reader itself (plan P4-D410) ----
 
 
-def test_the_reader_sets_pandas_string_storage_itself(tmp_path: pathlib.Path) -> None:
-    """read_table chooses Python strings whatever else is installed.
+def test_the_reader_sets_pandas_string_storage_itself(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """read_table chooses Python strings whatever else is installed, before it reads.
 
     With pyarrow merely installed -- and it is a runtime dependency now --
     pandas 3 stores `dtype=str` text in pyarrow on its own ("auto"), and
-    the checking pass read 500,000 rows 24 % slower (plan P4-D410). The
+    read_table took 19 % longer at 500,000 rows (plan P4-D410). The
     option is put back to pandas' own default first, so the line that
     sets it is what this sees, and pandas' option context restores the
-    process's setting afterwards.
+    process's setting afterwards. Every call of pandas' reader records
+    the storage in force when it is made: a setting written after the
+    checking pass (skeptic 1 of lane DEP-1 moved it to just before the
+    result is built) leaves the first read of every process under
+    "auto" and is red here.
     """
     import pandas
 
     from synthtwin import reading
 
+    seen: "list[str]" = []
+    original = pandas.read_csv
+
+    def recording(*args: object, **kwargs: object) -> object:
+        nonlocal seen
+        seen += [pandas.get_option("mode.string_storage")]
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(reading.pandas, "read_csv", recording)
     table = tmp_path / "clinic.csv"
     table.write_text("age,ward\n41,north\n52,south\n", encoding="utf-8", newline="\n")
     with pandas.option_context("mode.string_storage", "auto"):
         read = reading.read_table(str(table))
         assert pandas.get_option("mode.string_storage") == "python"
-        frame = pandas.read_csv(table, dtype=str)
+        frame = original(table, dtype=str)
         assert frame["ward"].dtype.storage == "python"
+    assert seen and set(seen) == {"python"}, seen
     assert read.columns[1] == ["north", "south"]
 
 

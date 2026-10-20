@@ -3647,6 +3647,90 @@ def test_the_kernel_decorator_in_any_other_form_goes_red(tmp_path):
         _assert_red(violations, needle)
 
 
+def test_the_compiled_kernel_is_called_and_nothing_else(tmp_path):
+    """Bypass class: the dispatcher's own surface (skeptic 1 of lane DEP-1).
+
+    numba.njit hands back a dispatcher, which carries the compiler's
+    settings and the uncompiled body: `propose.targetoptions['fastmath']
+    = True` scanned clean and compiled the kernel with fast-math on
+    numba 0.68.0. The compiled function is now called and nothing else,
+    in the kernel and in a module that imports it.
+    """
+    for label, tail in (
+        ("settings", "propose.targetoptions['fastmath'] = True\n"),
+        ("body", "raw = propose.py_func\n"),
+        ("alias", "alias = propose\nalias.targetoptions['fastmath'] = True\n"),
+        (
+            "handed",
+            "def tweak(f):\n    f.targetoptions['fastmath'] = True\n\n\ntweak(propose)\n",
+        ),
+        ("method", "propose.recompile()\n"),
+        ("deleted", "del propose\n"),
+    ):
+        code = _POLISH_KERNEL + "\n\n" + tail
+        violations = _scan_in(tmp_path / label, "polish_kernel", code)
+        _assert_red(violations, "uses the compiled kernel function 'propose'")
+    for label, code in (
+        (
+            "imported",
+            "from synthtwin.polish_kernel import propose\n\n"
+            "propose.targetoptions['fastmath'] = True\n",
+        ),
+        (
+            "through the module",
+            "from synthtwin import polish_kernel\n\n"
+            "polish_kernel.propose.targetoptions['fastmath'] = True\n",
+        ),
+        (
+            "handed",
+            "from synthtwin.polish_kernel import propose\n\n\n"
+            "def tweak(f):\n    f.targetoptions['fastmath'] = True\n\n\ntweak(propose)\n",
+        ),
+    ):
+        violations = _scan_in(
+            tmp_path / ("other " + label),
+            "summary",
+            code,
+            {"synthtwin/polish_kernel.py": _POLISH_KERNEL},
+        )
+        _assert_red(
+            violations,
+            "uses the compiled kernel function 'synthtwin.polish_kernel.propose'",
+        )
+    called = _scan_in(
+        tmp_path / "called",
+        "summary",
+        "from synthtwin.polish_kernel import propose\n\n\n"
+        "def run(weights, count):\n    return propose(weights, count)\n",
+        {"synthtwin/polish_kernel.py": _POLISH_KERNEL},
+    )
+    assert called == [], called
+
+
+def test_the_kernel_decorator_over_a_nested_or_class_def_goes_red(tmp_path):
+    """The compiled function has one name, at the top of the kernel module.
+
+    Inside a class or another function it would be reached through a
+    name this audit does not hold to calls (`K.propose.targetoptions`).
+    """
+    for label, code in (
+        (
+            "class",
+            "import numba\n\n\nclass K:\n    @staticmethod\n"
+            "    @numba.njit(fastmath=False, parallel=False, cache=False)\n"
+            "    def propose(a, b):\n        return a * b\n",
+        ),
+        (
+            "nested",
+            "import numba\n\n\ndef outer(a, b):\n"
+            "    @numba.njit(fastmath=False, parallel=False, cache=False)\n"
+            "    def inner(x, y):\n        return x * y\n\n    return inner(a, b)\n",
+        ),
+    ):
+        violations = _scan_in(tmp_path / label, "polish_kernel", code)
+        _assert_red(violations, "over something other than a def written at the top level")
+
+
 def test_numba_code_generator_and_process_pools_stay_forbidden(tmp_path):
     """llvmlite and joblib join ctypes and cffi among the forbidden modules."""
     for code, needle in (
@@ -3683,6 +3767,28 @@ def test_n_jobs_goes_red_on_any_call(tmp_path):
         """,
     )
     _assert_red(violations, "passes 'n_jobs'")
+
+
+def test_n_jobs_written_as_text_goes_red(tmp_path):
+    """Bypass class: the keyword carried as a dictionary key (skeptic 1 of lane DEP-1).
+
+    `g(**{'n_jobs': 2})` hands a library the same keyword with no
+    keyword written; so do a dictionary bound first and a key stored
+    into one. The text itself is refused, wherever it is written.
+    """
+    for label, code in (
+        ("expanded", "def g(**k):\n    return k\n\n\ndef f():\n    return g(**{'n_jobs': 2})\n"),
+        (
+            "bound",
+            "def g(**k):\n    return k\n\n\ndef f():\n    opts = {'n_jobs': 2}\n    return g(**opts)\n",
+        ),
+        (
+            "stored",
+            "def g(**k):\n    return k\n\n\ndef f():\n    opts = {}\n    opts['n_jobs'] = 2\n    return g(**opts)\n",
+        ),
+    ):
+        violations = _scan_in(tmp_path / label, "summary", code)
+        _assert_red(violations, "writes the text 'n_jobs'")
 
 
 def test_a_numpy_sort_without_the_stable_kind_goes_red(tmp_path):
@@ -3762,6 +3868,62 @@ def test_the_writers_reach_the_generation_path_too(tmp_path):
         {"synthtwin/writing.py": "from synthtwin import helper\n"},
     )
     _assert_red(violations, "imports 'pandas' into the generation path (zone G)")
+
+
+def test_a_writer_imports_no_library(tmp_path):
+    """Plan P4-D409 part 3 (a): the writers admit no library, not even its import.
+
+    A writer is a root of the generation path, so what it imports every
+    generate run loads (skeptic 1 of lane DEP-1: these imports scanned
+    clean in the writers while the same line in a zone G module was
+    refused). The standard library's zip writer stays admitted.
+    """
+    for writer, line, needle in (
+        ("writing", "import pandas\n", "imports 'pandas' into a writer of the twin (zone W)"),
+        (
+            "rendering",
+            "import scipy.optimize\n",
+            "imports 'scipy.optimize' into a writer of the twin (zone W)",
+        ),
+        (
+            "writing",
+            "import scipy.linalg\n",
+            "imports 'scipy.linalg' into a writer of the twin (zone W)",
+        ),
+        (
+            "sheetwriting",
+            "from pyarrow import csv\n",
+            "imports 'pyarrow.csv' into a writer of the twin (zone W)",
+        ),
+    ):
+        violations = _scan_in(tmp_path / str(abs(hash(writer + line))), writer, line)
+        _assert_red(violations, needle)
+    assert _scan_in(tmp_path / "zip", "writing", "import zipfile\n") == []
+
+
+def test_the_generation_path_follows_imports_inside_functions_and_relative_ones(tmp_path):
+    """The path is about what a run CAN load (plan P4-D409 part 3 (a)).
+
+    An import written inside a function and a relative import both put
+    the module they name on the generation path.
+    """
+    helper = {"synthtwin/helper.py": "import pandas\n"}
+    for label, generation in (
+        ("inside a function", "def load():\n    import synthtwin.helper\n"),
+        ("relative", "from . import helper\n"),
+    ):
+        violations = _scan_in(tmp_path / label, "generation", generation, helper)
+        _assert_red(violations, "imports 'pandas' into the generation path (zone G)")
+
+
+def test_the_random_stream_stays_out_of_zone_d(tmp_path):
+    """numpy.random is zone G alone: a description module may not draw."""
+    violations = _scan_in(
+        tmp_path,
+        "summary",
+        "import numpy.random\n\n\ndef draw(seed):\n    return numpy.random.default_rng(seed)\n",
+    )
+    _assert_red(violations, "in a module of zone D")
 
 
 def test_the_generation_path_and_the_writers_reach_no_reading_module(tmp_path):

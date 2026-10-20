@@ -100,9 +100,11 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   module is D. Every admitted library module carries the zones it may
   run in (_LIBRARY_ZONES; the standard library runs everywhere, and no
   library is admitted for W), a use outside them is a violation, a
-  module of zone G may not even IMPORT a library not admitted for G, no
-  module of zone G or W imports a zone R module, and no module outside
-  zone P imports a module inside it. The rule is what keeps library floats -- reductions whose
+  module of zone G or W may not even IMPORT a library not admitted for
+  its zone (the writers are roots of the generation path: what they
+  load, a generate run loads), no module of zone G or W imports a zone
+  R module, and no module outside zone P imports a module inside it.
+  The rule is what keeps library floats -- reductions whose
   order no build promises, solver tolerances, platform LAPACK -- away
   from every byte of the twin and of anything published.
 * THE ARGUMENT RULES (P4-D409 part 3 (d); _ARGUMENT_RULES). An admitted
@@ -118,10 +120,17 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   'node_limit', never a 'time_limit' (a budget in seconds would let a
   slow computer decide otherwise than a fast one); numba.njit is only
   the decorator call njit(fastmath=False, parallel=False, cache=False)
-  over a function of the kernel; numpy's sort and argsort, wherever a
-  later lane admits them, take kind='stable'; and the keyword n_jobs is
-  refused on every call, because it is how a library starts process
-  pools.
+  over a function written at the top level of the kernel module, and
+  the compiled function it makes is CALLED and nothing else, in the
+  kernel and in every module that imports it (numba's dispatcher
+  carries its compiler settings, `targetoptions`, and the uncompiled
+  body, `py_func`: one statement writing fast-math into the first
+  compiled the kernel with fast-math, measured on numba 0.68.0);
+  numpy's sort and argsort, wherever a later lane admits them, take
+  kind='stable'; and n_jobs is refused on every call, as a keyword and
+  as the text 'n_jobs' anywhere (a dictionary of keywords expanded
+  into a call carries it as a key), because it is how a library starts
+  process pools.
 * THE TWO WORKBOOK MODULES (plan P4-D77). Reading a spreadsheet
   workbook needs a zip reader and an XML parser, and admitting a
   workbook LIBRARY would put a third runtime dependency inside the
@@ -870,7 +879,16 @@ def _zone_message(dotted: str, prefix: str, zone: str) -> str:
     )
 
 
-def _zone_import_message(name: str, prefix: str) -> str:
+def _zone_import_message(name: str, prefix: str, zone: str = _ZONE_G) -> str:
+    if zone == _ZONE_W:
+        return (
+            "imports '" + name + "' into a writer of the twin (zone W), "
+            "while " + prefix + " is not admitted for zone W (plan P4-D409 "
+            "part 3 (a)): the twin's three writers are roots of the "
+            "generation path, so what one of them imports, every generate "
+            "run loads, and a writer admits no library. Keep the import "
+            "in a module the generation path does not reach."
+        )
     return (
         "imports '" + name + "' into the generation path (zone G), "
         "while " + prefix + " is not admitted for zone G (plan P4-D409 "
@@ -2226,11 +2244,53 @@ def _call_only_message(dotted: str) -> str:
     )
 
 
+def _compiled_reference_message(name: str) -> str:
+    return (
+        "uses the compiled kernel function '" + name + "' other than by "
+        "calling it (plan P4-D409 part 4; lane DEP-1's plan P4-D410). "
+        "What numba.njit makes is a dispatcher, not the function written "
+        "under it: it carries the compiler's settings (`targetoptions`), "
+        "the uncompiled body (`py_func`) and the means to compile again, "
+        "and writing fast-math into its settings compiled the kernel "
+        "with fast-math (measured on numba 0.68.0). Stored, handed on, "
+        "or read or written through an attribute, it escapes the one "
+        "audited form, so the compiled function is called and nothing "
+        "else. A plain-Python name that shares its spelling is renamed."
+    )
+
+
+def _compiled_function_names(tree: ast.Module) -> "set[str]":
+    """The names of the polish kernel's compiled functions, read from its text.
+
+    Every def written at the top level of the module with a decorator
+    above it. numba.njit is the decorator the kernel module exists for,
+    and the argument rule admits it over a top-level def alone, so the
+    set is read from the text, with no resolution an alias could fool,
+    and errs only towards holding another decorated function of the
+    kernel to calls as well (lane DEP-1, plan P4-D410).
+    """
+    return {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.decorator_list
+    }
+
+
 def _n_jobs_message() -> str:
     return (
         "passes 'n_jobs', which lets a library such as scikit-learn "
         "start pools of new processes through joblib (plan P4-D409 part "
         "3 (d)). synthtwin runs in one process; leave the argument out."
+    )
+
+
+def _n_jobs_text_message() -> str:
+    return (
+        "writes the text 'n_jobs', which reaches a library's n_jobs as "
+        "the key of a dictionary of keywords expanded into a call, so it "
+        "starts pools of new processes as the keyword does (plan P4-D409 "
+        "part 3 (d)). synthtwin runs in one process; leave it out."
     )
 
 
@@ -2573,8 +2633,17 @@ class _Checker(ast.NodeVisitor):
         # first-party package, which no zone rule reads.
         self.zone = zone
         # Every call written in a decorator position, the one place
-        # numba.njit may be called (_CALL_ONLY_APIS).
+        # numba.njit may be called (_CALL_ONLY_APIS), and the ones among
+        # them written over a def at the top level of the module, the one
+        # def numba.njit may compile.
         self.decorator_calls: set[int] = set()
+        self.top_level_decorator_calls: set[int] = set()
+        # The polish kernel's compiled functions (plan P4-D409 part 4;
+        # lane DEP-1, plan P4-D410), which are called and nothing else:
+        # by their dotted names wherever they are imported, and by their
+        # bare names inside the kernel module itself.
+        self.compiled_functions: set[str] = set()
+        self.compiled_names: set[str] = set()
         # A stack of scopes. Each scope maps a local name to the SET of
         # possible origins it may hold: ("module", dotted),
         # ("api", dotted), ("def", name) for functions and classes
@@ -3976,10 +4045,10 @@ class _Checker(ast.NodeVisitor):
 
         A scoped admission (zipfile, expat, numba) is refused at the
         import itself outside the modules that hold it: importing numba
-        alone loads its compiler. And a module of the generation path
-        may not even import a library that is not admitted for zone G
-        (plan P4-D409 part 3 (a)): what such a module loads is what a
-        generate run loads.
+        alone loads its compiler. And a module of the generation path,
+        or one of the twin's writers that root it, may not even import a
+        library that is not admitted for its zone (plan P4-D409 part 3
+        (a)): what such a module loads is what a generate run loads.
         """
         prefix = name if name in _ALLOWED_MODULE_ATTRS else None
         if prefix is None:
@@ -3990,11 +4059,11 @@ class _Checker(ast.NodeVisitor):
                 self._flag(node, _out_of_scope_message(name, prefix, allowed_in))
                 return
         if (
-            self.zone == _ZONE_G
+            self.zone in (_ZONE_G, _ZONE_W)
             and prefix in _LIBRARY_ZONES
-            and _ZONE_G not in _LIBRARY_ZONES[prefix]
+            and self.zone not in _LIBRARY_ZONES[prefix]
         ):
-            self._flag(node, _zone_import_message(name, prefix))
+            self._flag(node, _zone_import_message(name, prefix, self.zone))
 
     def _check_private_import(self, node: ast.AST, module: str) -> None:
         """P4-D409 part 3 (b), at the import that would break it.
@@ -4156,6 +4225,9 @@ class _Checker(ast.NodeVisitor):
                 if dotted in _CALL_ONLY_APIS:
                     self._flag(node, _call_only_message(dotted))
                     return
+                if dotted in self.compiled_functions:
+                    self._flag(node, _compiled_reference_message(dotted))
+                    return
         if isinstance(node.ctx, ast.Load):
             bound = self._lookup(node.id)
             if bound:
@@ -4224,6 +4296,17 @@ class _Checker(ast.NodeVisitor):
                 if dotted in _CALL_ONLY_APIS:
                     self._flag(node, _call_only_message(dotted))
                     return
+        if parts is not None:
+            # A compiled kernel function reached through a module, or an
+            # attribute of one: called and nothing else, so a method
+            # call on it (`recompile`) is refused here too.
+            for dotted in self._trust_resolve(parts):
+                for compiled in sorted(self.compiled_functions):
+                    if dotted == compiled and id(node) in self.call_targets:
+                        continue
+                    if dotted == compiled or dotted.startswith(compiled + "."):
+                        self._flag(node, _compiled_reference_message(compiled))
+                        return
         if parts is None:
             # Attribute on a computed value (call result, subscript,
             # literal): only the attribute-name bans apply to the READ;
@@ -4970,6 +5053,30 @@ class _Checker(ast.NodeVisitor):
         self._collect_scope_bindings(node.body)
         self._build_trust_scope(list(node.body), None)
         self._walk_scope_body(node.body)
+        self._check_compiled_names(node)
+
+    def _check_compiled_names(self, node: ast.Module) -> None:
+        """Inside the polish kernel, its compiled functions are called and nothing else.
+
+        Read from the text, not from the walk: every name written with a
+        compiled function's spelling, in any scope and on any line, is
+        the function of a call or a violation, so no alias, attribute,
+        argument, store or deletion of the dispatcher passes, whichever
+        order the lines run in (lane DEP-1, plan P4-D410).
+        """
+        if not self.compiled_names:
+            return
+        for inner in ast.walk(node):
+            if (
+                isinstance(inner, ast.Name)
+                and inner.id in self.compiled_names
+                and id(inner) not in self.call_targets
+            ):
+                self._flag(inner, _compiled_reference_message(inner.id))
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        if node.value == "n_jobs":
+            self._flag(node, _n_jobs_text_message())
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._handle_function(node)
@@ -5477,6 +5584,13 @@ def _rule_njit(checker: "_Checker", node: ast.Call) -> "str | None":
             "other than as the decorator written over the kernel: it may "
             "compile only the scanned body under it"
         )
+    if id(node) not in checker.top_level_decorator_calls:
+        return (
+            "over something other than a def written at the top level of "
+            "the module: a compiled function is reached by its one name "
+            "in the module, which this audit holds to calls, never "
+            "through a class or another function"
+        )
     if node.args:
         return (
             "with positional arguments, where exactly fastmath=False, "
@@ -5593,6 +5707,7 @@ def scan_source(
     first_party_modules: "set[str] | None" = None,
     module_name: str = "",
     zone: str = "",
+    compiled_functions: "set[str] | None" = None,
 ) -> "list[tuple[int, str]]":
     """Scan one module's source text. Returns (line, message) pairs.
 
@@ -5612,6 +5727,11 @@ def scan_source(
     module is G when it is one of _GENERATION_ROOTS and otherwise takes
     its _MODULE_ZONES entry or D; a file outside the package has no zone
     and no zone rule reads it.
+
+    ``compiled_functions`` holds the dotted names of the polish kernel's
+    compiled functions, which scan_files reads from the kernel's text
+    (_compiled_function_names): every module calls them and does nothing
+    else with them. The kernel module reads its own from its text here.
     """
     try:
         tree = ast.parse(source_text)
@@ -5628,6 +5748,12 @@ def scan_source(
     if not zone and _first_party_module_name_is(module_name):
         zone = _zone_of(module_name, set(_GENERATION_ROOTS))
     checker = _Checker(module_exports, first_party_modules, module_name, zone)
+    checker.compiled_functions = set(compiled_functions or set())
+    if module_name == _POLISH_KERNEL:
+        checker.compiled_names = _compiled_function_names(tree)
+        checker.compiled_functions |= {
+            _POLISH_KERNEL + "." + name for name in checker.compiled_names
+        }
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             checker.call_targets.add(id(node.func))
@@ -5635,6 +5761,10 @@ def scan_source(
             for decorator in node.decorator_list:
                 if isinstance(decorator, ast.Call):
                     checker.decorator_calls.add(id(decorator))
+    for statement in tree.body:
+        if isinstance(statement, ast.FunctionDef):
+            for decorator in statement.decorator_list:
+                checker.top_level_decorator_calls.add(id(decorator))
     checker.visit(tree)
     return sorted(checker.violations)
 
@@ -5697,6 +5827,15 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
         for name, tree in trees.items()
     }
     generation_path = _generation_path(imports)
+    # The polish kernel's compiled functions, read from its text before
+    # any file is judged, so every module that imports one holds it to
+    # calls (lane DEP-1, plan P4-D410).
+    compiled: "set[str]" = set()
+    if _POLISH_KERNEL in trees:
+        compiled = {
+            _POLISH_KERNEL + "." + name
+            for name in _compiled_function_names(trees[_POLISH_KERNEL])
+        }
     for path in files:
         if path not in texts:
             continue
@@ -5707,6 +5846,7 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
             first_party_modules,
             scanned_name if scanned_name is not None else "",
             _zone_of(scanned_name, generation_path) if scanned_name else "",
+            compiled,
         ):
             lines.append(str(path) + ":" + str(lineno) + ": " + message)
     return lines
