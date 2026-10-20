@@ -504,7 +504,13 @@ def _near_fence_column() -> "list[str]":
 # The seeds at which a twin of that column moves the fence to -999 or
 # past it, measured on the tree before the hand-over: validating each
 # of these twins exited 3 while the real table exited 0.
-_UNFIRED_SEEDS = (3, 4, 5, 6, 8)
+# RE-CHOSEN AT PLAN P4-D405 (2026-10-19, stage 4 lane G2T's repair): the
+# twin's tails now read G5.3b's shared staircase, so its spread stands
+# nearer the column's and fewer seeds widen the fence past `-999` -- at
+# 3, 4 and 6 the twin judges the twelve cells missing, as the column's
+# own description does. Searched over seeds 0 to 59, 28 still reach the
+# hand-over; these are the first five, and every one validates at nought.
+_UNFIRED_SEEDS = (0, 2, 5, 7, 8)
 
 
 def test_a_twin_that_would_not_fire_the_judgement_again_still_validates(
@@ -594,8 +600,8 @@ def _near_fence_cells(kind: str) -> "list[str]":
 # passed as unjudged): each listed twin exited 3 while the real table
 # exited 0, and every twin exits 0 with the hand-over in place.
 _UNFIRED_ELSEWHERE = (
-    ("number", ".xlsx", "-999", (3, 4, 5, 6, 8)),
-    ("affixed", ".csv", "-999 mg", (3, 4, 5, 6, 8)),
+    ("number", ".xlsx", "-999", _UNFIRED_SEEDS),
+    ("affixed", ".csv", "-999 mg", _UNFIRED_SEEDS),
     ("date", ".csv", "1900-01-01", (2, 3, 5, 7)),
     ("date", ".xlsx", "1900-01-01", (2, 3, 5, 7)),
 )

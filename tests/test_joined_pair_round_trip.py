@@ -233,10 +233,18 @@ def test_an_undeclared_pressure_comes_back_as_two_numbers(
 # `even-pressure-1500-seed-10` (real top 10, twin 11) is the one at the
 # row count the replaced case used, and it validates at exit 0 on both
 # files. `even-pressure-1400-seed-9` still crosses and is untouched.
+# AND ONE WAS RE-CHOSEN A FOURTH TIME AT PLAN P4-D405 (2026-10-19, stage
+# 4 lane G2T's repair): a position whose numbers repeat reads its tails
+# through G5.3b's shared staircase, its rows on their own readings, so
+# the twin's repeats fall where those readings put them and
+# `even-pressure-1500-seed-10` (twin top repeat 10) no longer crosses.
+# Searched the same way at 1,500 even-rounded rows over data seeds 3 to
+# 25: seeds 7 and 21 cross and pass every check below;
+# `even-pressure-1500-seed-21` is the one taken.
 NEAR_THE_LINE = [
     ("pressure-5000-seed-3", "plain", 5000, 3, "3"),
     ("pressure-4500-seed-8", "plain", 4500, 8, "3"),
-    ("even-pressure-1500-seed-10", "even", 1500, 10, "3"),
+    ("even-pressure-1500-seed-21", "even", 1500, 21, "3"),
     ("even-pressure-1400-seed-9", "even", 1400, 9, "3"),
 ]
 

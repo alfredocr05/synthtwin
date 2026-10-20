@@ -1103,7 +1103,7 @@ def test_the_listed_tail_is_what_keeps_an_ordinal_scale(
     assert [value for value in held if value not in scale] == []
 
     monkeypatch.setattr(
-        contract, "_listed_counts", lambda listed, boundary, rows, mean, root: ()
+        contract, "_listed_counts", lambda listed, boundary, rows, mean, root, heap=0: ()
     )
     # The counts gone, the reader falls back to its shape: the ladder is
     # rebuilt from the same published facts and nothing else moves.

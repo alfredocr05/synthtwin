@@ -601,7 +601,14 @@ NARROW_COLUMN_DIGESTS = {
     # three whose tails are drawn by a fitted shape -- and the other ten
     # hash exactly as they did, sorted and as written alike. Each of the
     # three keeps its own count of different values and its own two ends.
-    "reading": "3152113efa5a7d05a78c5634c0354a93",
+    # RE-RECORDED AT STAGE 4 LANE G2T'S REPAIR (2026-10-19, plan P4-D405):
+    # a tail read through its staircase now reads the row at the rank
+    # rounded DOWN on the high side as on the low (method G5.3b). READ
+    # CELL BY CELL against a git archive of 36ad3061: 11 of `reading`'s
+    # 240 cells move, each one lower -- `384` to `383`, `392` to `391`
+    # -- a stratum of the high tail reading its own row and not the next
+    # one out; no other column moves.
+    "reading": "258bab68aeaecf256c0dfb85169f9249",
     # RE-RECORDED at landing 2b.1 (2026-09-15). `amount` is written at
     # ONE fraction width, so method G5.2a now reads its ladder on that
     # grid and G5.3 gives each stratum the grid value of one of its own
@@ -722,8 +729,10 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # ten cells, as written. Re-recorded for plan P4-D6.4 with the sorted
     # digest above: the same thirteen cells, blank to `-999`, in place.
     # Re-recorded with the sorted digests above at the close of stage 3's
-    # review: the same moved cells, as written.
-    "reading": "9655b1fc4822cfb098c661ef14eb968d",
+    # review: the same moved cells, as written. Re-recorded with the
+    # sorted digest above at stage 4 lane G2T's repair (plan P4-D405): the
+    # same 11 cells one step lower, as written, in place.
+    "reading": "14b4a832a7da3a624ca90ad88984c161",
     "amount": "87fda8264bcfb8d3989c4614026b3974",
     # MERGED (2026-09-16): landing 2b.6's cells as written.
     # RE-RECORDED AT THE REVIEW OF 158c811 (plan P4-D130): the same 90
@@ -2024,7 +2033,13 @@ GOLDEN_TWIN_SHA256 = (
     # them in `seen_at`; it holds 122 different values before and after,
     # its hours come back 120 at 07 and 118 at 08 as the real column's do
     # (121 and 117 before), and no cell of any other column moves.
-    "e27696f931c4b190de08464bc5f42346ac87ba6f5398c091bd1e00b011baff43"
+    # RE-RECORDED AT STAGE 4 LANE G2T'S REPAIR (2026-10-19, plan P4-D405),
+    # read cell by cell against a git archive of 36ad3061: 11 of the
+    # 3,360 cells move, all in `reading`, each one step lower, the high
+    # tail's strata reading their own rows (G5.3b's rank rounded down on
+    # both sides); the description digest held, and the twin validates
+    # with nothing missed over its 543 checks before and after.
+    "9993f3b2400b8d9f77fd4765940f0d2910aa389af5059dda1b9dbb5f21bb70c4"
 )
 
 
@@ -2660,7 +2675,10 @@ GOLDEN_REPORT_SHA256 = (
     # windows open from 68 to 14 at the lower end, the group windows
     # overlapping more. "inside the range" still stands 136 times, and
     # "outside the range" nought times as it did.
-    "e22d5664003c00da31b7df8f83c457ce49aff0fee8bde954c3d3f8970c8d3b40"
+    # RE-RECORDED AT STAGE 4 LANE G2T'S REPAIR (2026-10-19, plan P4-D405):
+    # the TWIN moved, 11 cells of `reading` one step lower (above), so
+    # the figures the report measures on that column move with them.
+    "469ff87b250964a3c067920ad0287be77675d30b938f56b744959b7e0e2409d6"
 )
 
 
@@ -3483,7 +3501,11 @@ GOLDEN_QUALITY_SHA256 = (
     # Its two distinctness counts stay WITHIN-BOUND, their window's lower
     # end at 14 where it was 68. Nothing is MISSED before or after, and
     # the 214 obligations no CSV can evidence are the same 214.
-    "e756620213f5ddeb394386ee289cab2c445447e834e2c3b81f54df32c20572e4"
+    # RE-RECORDED AT STAGE 4 LANE G2T'S REPAIR (2026-10-19, plan P4-D405):
+    # the twin's `reading` moved 11 cells one step lower, so the measured
+    # figures on that column move; the census still carries 543
+    # obligations and nothing is MISSED before or after.
+    "a752f503e340d5d7064ed32dd9b8566fd95bf4d60fd006c126cd8bfa305ea28e"
 )
 
 

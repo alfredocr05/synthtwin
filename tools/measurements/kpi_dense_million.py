@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import pathlib
 import subprocess
 import sys
@@ -39,7 +40,9 @@ ROWS = 1000000
 def _run(arguments: "list[str]") -> int:
     return subprocess.run(
         [sys.executable, "-m", "synthtwin"] + arguments,
-        env={"PYTHONPATH": str(ROOT / "src"), "PYTHONHASHSEED": "0", "PATH": "/usr/bin:/bin"},
+        # THE CALLER'S OWN ENVIRONMENT, two names set: a bare one drops
+        # SYSTEMROOT and the rest Windows needs to start Python at all.
+        env=dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONHASHSEED="0"),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,

@@ -6741,10 +6741,23 @@ def _pair_key(
     )
 
 
+_PINNED_PAIR = 1 << 62
+
+
 def _merge_down(
-    lengths: "list[int]", held: "list[float]", strata: int, cap: int = 0
+    lengths: "list[int]",
+    held: "list[float]",
+    strata: int,
+    cap: int = 0,
+    pinned: "tuple[bool, bool]" = (False, False),
 ) -> "tuple[list[int], list[float]]":
     """Merge adjacent runs until there are `strata` of them.
+
+    ``pinned`` names a first and a last run a pinned stratum holds,
+    which a join takes only when no other pair is left (G5.3b's shared
+    staircase, plan P4-D405): every pair touching one ranks after every
+    other pair, its key's first part raised by `_PINNED_PAIR`. With
+    neither named this is `_merge_nearest` repeated, as below.
 
     THE SAME ANSWER AS REPEATING `_merge_nearest`, AND THAT EQUIVALENCE
     IS THE WHOLE CONTRACT OF THIS FUNCTION. `_merge_nearest` rescans
@@ -6794,10 +6807,15 @@ def _merge_down(
     stamp = [0] * total
     heap: "list[tuple[tuple[int, int, int, float], int, int]]" = []
     size = 0
+
+    def keyed(left: int, right: int) -> "tuple[int, int, int, float]":
+        key = _pair_key(run_lengths, values, left, right, cap)
+        if (pinned[0] and left == 0) or (pinned[1] and after[right] == -1):
+            return (key[0] + _PINNED_PAIR, key[1], key[2], key[3])
+        return key
+
     for place in range(total - 1):
-        size = _heap_push(
-            heap, size, (_pair_key(run_lengths, values, place, place + 1, cap), place, 0)
-        )
+        size = _heap_push(heap, size, (keyed(place, place + 1), place, 0))
     standing = total
     while standing > strata:
         entry, size = _heap_pop(heap, size)
@@ -6819,7 +6837,7 @@ def _merge_down(
             size = _heap_push(
                 heap,
                 size,
-                (_pair_key(run_lengths, values, here, onward, cap), here, stamp[here]),
+                (keyed(here, onward), here, stamp[here]),
             )
         back = before[here]
         if back != -1:
@@ -6827,7 +6845,7 @@ def _merge_down(
             size = _heap_push(
                 heap,
                 size,
-                (_pair_key(run_lengths, values, back, here, cap), back, stamp[back]),
+                (keyed(back, here), back, stamp[back]),
             )
     out_lengths: "list[int]" = []
     out_values: "list[float]" = []
@@ -7229,11 +7247,28 @@ def _shape_sizes(
     # source holds fifty of each, and the fifty published pluses split
     # across two values -- four spellings of three numbers.
     evens = lead > whole[0] or trail > whole[1]
+    # A PINNED END'S RUN IS JOINED LAST WHERE A TAIL READS THE SHARED
+    # STAIRCASE (G5.3b, plan P4-D405). Its rows share points, so the
+    # runs beside a pinned end are runs of a few rows, the smallest a
+    # join takes first, and a join keeps the pinned stratum's value: a
+    # clipped bell at one place, 20,000 rows, joined its five outermost runs of
+    # two rows, 47.4 to 47.8, into the end and wrote 11 cells on its
+    # derived end `55.1` where the source holds one at 52.2.
+    shared = isinstance(rungs, contract.ShapedLadder) and (
+        (rungs.low is not None and rungs.low.shared)
+        or (rungs.high is not None and rungs.high.shared)
+    )
+    first = shared and start == 0
+    last = shared and start + cells == numbers
     if lead + trail > 0 and strata > lead + trail:
         inner = lengths[lead : len(lengths) - trail]
         inner_values = values[lead : len(values) - trail]
         inner, inner_values = _merge_down(
-            inner, inner_values, strata - lead - trail, cap
+            inner,
+            inner_values,
+            strata - lead - trail,
+            cap,
+            (first and lead == 0, last and trail == 0),
         )
         while len(inner) < strata - lead - trail:
             inner, inner_values = _split_widest(inner, inner_values)
@@ -7251,7 +7286,7 @@ def _shape_sizes(
             + lengths[len(lengths) - trail :]
         )
         return _levelled(sized, cap) if evens else sized
-    lengths, values = _merge_down(lengths, values, strata, cap)
+    lengths, values = _merge_down(lengths, values, strata, cap, (first, last))
     while len(lengths) < strata:
         lengths, values = _split_widest(lengths, values)
     return _levelled(lengths, cap)

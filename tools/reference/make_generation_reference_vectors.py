@@ -1718,7 +1718,7 @@ def shared_staircases(column, sides, boundaries, shapes, ends, steps):
     kept = held_by_the_block(column)
     numbers = column["n_used_in_statistics"]
     if figures == -1 or 2 * column["n_distinct_values"] > numbers:
-        return steps
+        return steps, []
     moved = False
     for place, side in enumerate(sides):
         if heaped_end(column["percentiles"]["min" if place == 0 else "max"]) is not None:
@@ -1729,7 +1729,7 @@ def shared_staircases(column, sides, boundaries, shapes, ends, steps):
         if fitted_end(column, side, boundaries[place], shapes[place], low, False) != ends[place]:
             moved = True
     if moved:
-        return steps
+        return steps, []
     chosen = list(steps)
     shared = []
     for place, side in enumerate(sides):
@@ -1769,8 +1769,8 @@ def shared_staircases(column, sides, boundaries, shapes, ends, steps):
         chosen[place] = rows_read
         shared.append(place)
     if not shared:
-        return steps
-    return spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, kept)
+        return steps, []
+    return spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, kept), shared
 
 
 def past_one_width(column, rows):
@@ -1826,16 +1826,40 @@ def interior_points(column, low_percent, high_percent, unit):
     return total
 
 
-def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, kept):
-    """The shared staircases' outermost rows pushed apart for the count of different numbers.
+def strata_asked(column):
+    """The strata G5.2 divides a plain column's numbers into (plan P4-D405).
 
-    The shortfall is `n_distinct_values` (at most the cells) less the
-    interior's points and every point a tail's rows or listed values take
-    past its boundary.  A shared side gains `g` points by pushing its
-    fewest outermost rows inside the end one grid point past the row
-    before them each, the last of them still inside the end; the
-    shortfall is shared in proportion to the most each side can gain, the
-    low side's part rounded down, the other taking what the first cannot.
+    The numbers' share of the column's folded spellings (method G6.6's
+    budget split, `numbers_class_budget`) on a `count` or `continuous`
+    column; nought on any other block, whose grain divides by
+    `n_distinct_values`.
+    """
+    if column.get("role") not in ("count", "continuous"):
+        return 0
+    if "n_distinct_folded" not in column or "n_numeric" not in column:
+        return 0
+    return numbers_class_budget(column, column["n_distinct_folded"])
+
+
+def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, kept):
+    """The shared staircases spread, or drawn together, to the count G5.2 divides into.
+
+    From the method's words: the count is the larger of
+    `n_distinct_values` and the strata a plain column's spellings ask
+    (`strata_asked`), at most the cells; the difference is that count
+    less the interior's points and every point a tail's rows or listed
+    values take past its boundary.  A shared side gains a point by moving
+    one row from a point that keeps a row (a run of two or more, or the
+    boundary's own) to the nearest grid point no row holds, strictly
+    between the boundary and the end; it loses one by moving the row of a
+    run of one onto the nearest occupied point (the boundary's, never the
+    end's).  Each move is the nearest -- the outermost on a tie --
+    outward while the side's summed distance in grid steps stands at or
+    inside the published `m d1` and inward while past it, the other way
+    where none is left that way; rows on the end never move.  The
+    difference is shared in proportion to the most each side can move,
+    the low side's part rounded down, the other taking what the first
+    cannot.
     """
     unit = tail_unit(figures)
     reached = interior_points(column, sides[0]["percent"], sides[1]["percent"], unit)
@@ -1846,70 +1870,165 @@ def spread_for_count(column, sides, boundaries, ends, chosen, shared, figures, k
             if ((value < boundaries[place]) if low else (value > boundaries[place]))
         }
         reached += len(beyond)
-    short = min(column["n_distinct_values"], column["n_used_in_statistics"]) - reached
-    if short <= 0:
+    asked = max(column["n_distinct_values"], strata_asked(column))
+    change = min(asked, column["n_used_in_statistics"]) - reached
+    if change == 0:
         return chosen
+    gain = change > 0
     scale = 10 ** max(figures, 0)
-    best = {}
+    found = {}
     for place in shared:
-        rows = chosen[place]
-        low = place == 0
-        if any(not math.isfinite(row) or abs(row) * scale >= 2.0 ** 52 for row in rows):
+        side = sides[place]
+        mean = side["mean_distance"]
+        if mean is None or not math.isfinite(mean):
             continue
-        signed = [(-1 if low else 1) * int(round(row * scale)) for row in rows]
-        # the rows on the end are the end's; the pushed ones stand inside it
-        while len(signed) >= 2 and signed[-2] == signed[-1]:
-            signed.pop(len(signed) - 2)
-        options = {0: 0}
-        if len(signed) >= 3:
-            end = signed[-1]
-            had = len(set(signed))
-            for pushed in range(1, len(signed) - 1):
-                first = len(signed) - 1 - pushed
-                at = signed[first - 1]
-                for row in range(first, len(signed) - 1):
-                    at = max(signed[row], at + 1)
-                if at >= end:
-                    break
-                gain = len(set(signed[:first])) + pushed + 1 - had
-                if gain not in options:
-                    for missing in range(max(options) + 1, gain + 1):
-                        options[missing] = pushed
-        best[place] = options
-    if not best:
-        return chosen
-    most = {place: max(options) for place, options in best.items()}
-    total = sum(most.values())
+        low = place == 0
+        toward = -1 if low else 1
+        values = list(chosen[place]) + [boundaries[place], ends[place]]
+        if any(not math.isfinite(v) or abs(v) * scale >= 2.0 ** 52 for v in values):
+            continue
+        rows = [toward * int(round(row * scale)) for row in chosen[place]]
+        boundary = toward * int(round(boundaries[place] * scale))
+        end = toward * int(round(ends[place] * scale))
+        on_end = 0
+        while rows and rows[-1] == end:
+            rows.pop()
+            on_end += 1
+        held = {}
+        for row in rows:
+            held[row] = held.get(row, 0) + 1
+        if gain:
+            spare = sum(n if p == boundary else n - 1 for p, n in held.items())
+            taken = len([p for p in held if boundary < p < end])
+            room = max(0, min(spare, end - boundary - 1 - taken))
+        else:
+            room = len([p for p, n in held.items() if n == 1 and p != boundary])
+        found[place] = (held, boundary, end, on_end, room, toward, mean)
+    total = sum(entry[4] for entry in found.values())
     if total <= 0:
         return chosen
-    order = sorted(best)
+    short = abs(change)
+    order = sorted(found)
     if len(order) == 1:
-        wanted = {order[0]: min(short, most[order[0]])}
+        wanted = {order[0]: min(short, found[order[0]][4])}
     else:
-        first = min(most[order[0]], short * most[order[0]] // total)
-        second = min(most[order[1]], short - first)
-        first = min(most[order[0]], short - second)
+        first = min(found[order[0]][4], short * found[order[0]][4] // total)
+        second = min(found[order[1]][4], short - first)
+        first = min(found[order[0]][4], short - second)
         wanted = {order[0]: first, order[1]: second}
     spread = list(chosen)
     for place in order:
         if wanted[place] <= 0:
             continue
-        pushed = best[place][wanted[place]]
-        rows = list(chosen[place])
+        held, boundary, end, on_end, _room, toward, mean = found[place]
         low = place == 0
-        toward = -1 if low else 1
-        inside = len(rows)
-        while inside >= 2 and rows[inside - 2] == rows[-1]:
-            inside -= 1
-        first = inside - 1 - pushed
-        at = toward * int(round(rows[first - 1] * scale))
-        for row in range(first, inside - 1):
-            at = max(toward * int(round(rows[row] * scale)), at + 1)
-            rows[row] = row_off_the_stand_ins(
-                tail_grid((toward * at) / scale, figures), ends[place], low, figures, kept
-            )
-        spread[place] = rows
+        rows = sides[place]["rows"]
+        goal = rows * (mean / unit)
+        summed = on_end * (end - boundary) + sum(n * (p - boundary) for p, n in held.items())
+        bound = max(abs(summed - goal), rows / 2.0)
+        refused = set()
+
+        def refused_point(point):
+            value = tail_grid((toward * point) / scale, figures)
+            return row_off_the_stand_ins(value, ends[place], low, figures, kept) != value
+
+        def move_row(source, target):
+            held[source] -= 1
+            if not held[source]:
+                del held[source]
+            held[target] = held.get(target, 0) + 1
+
+        left = wanted[place]
+        while left > 0:
+            outward = summed <= goal
+            move = spread_move(held, boundary, end, gain, outward, refused)
+            if move is None:
+                outward = not outward
+                move = spread_move(held, boundary, end, gain, outward, refused)
+            if move is None:
+                break
+            source, target = move
+            if gain and refused_point(target):
+                refused.add(target)
+                continue
+            move_row(source, target)
+            summed += target - source
+            left -= 1
+            # the sum brought back past the bound by rows of a run of one
+            # moved to a free point: no point gained or lost
+            while abs(summed - goal) > bound:
+                shift = spread_shift(held, boundary, end, summed < goal, abs(summed - goal), refused)
+                if shift is None:
+                    break
+                source, target = shift
+                if refused_point(target):
+                    refused.add(target)
+                    continue
+                move_row(source, target)
+                summed += target - source
+        placed = []
+        for point in sorted(held):
+            placed += [tail_grid((toward * point) / scale, figures)] * held[point]
+        spread[place] = placed + [ends[place]] * on_end
     return spread
+
+
+def spread_shift(held, boundary, end, outward, owed, refused):
+    """A row of a run of one moved to the nearest free point that way, the longest such move at or under `owed`; else the shortest if it leaves the sum nearer; the innermost on a tie."""
+    points = sorted(held)
+    occupied = set(points)
+    under = over = None
+    for point in points:
+        if held[point] != 1 or point == boundary:
+            continue
+        target = point + 1 if outward else point - 1
+        while target in occupied:
+            target = target + 1 if outward else target - 1
+        if not boundary < target < end or target in refused:
+            continue
+        distance = abs(target - point)
+        if distance <= owed:
+            if under is None or distance > under[0]:
+                under = (distance, point, target)
+        elif over is None or distance < over[0]:
+            over = (distance, point, target)
+    if under is not None:
+        return under[1], under[2]
+    if over is not None and over[0] - owed < owed:
+        return over[1], over[2]
+    return None
+
+
+def spread_move(held, boundary, end, gain, outward, refused):
+    """One move of `spread_for_count`: (from, to) on the grid counted outward, or None."""
+    points = sorted(held)
+    occupied = set(points)
+    best = None
+    for point in reversed(points):
+        rows = held[point]
+        if gain:
+            if rows < 2 and point != boundary:
+                continue
+            target = point + 1 if outward else point - 1
+            while target in occupied:
+                target = target + 1 if outward else target - 1
+            if not boundary < target < end or target in refused:
+                continue
+        else:
+            if rows != 1 or point == boundary:
+                continue
+            if outward:
+                further = [p for p in points if p > point]
+                if not further:
+                    continue
+                target = further[0]
+            else:
+                nearer = [p for p in points if p < point]
+                target = nearer[-1] if nearer else boundary
+        distance = abs(target - point)
+        if best is None or distance < best[0]:
+            best = (distance, point, target)
+    return None if best is None else (best[1], best[2])
 
 
 def row_off_the_stand_ins(value, end, low, figures, kept=()):
@@ -2188,7 +2307,26 @@ TAIL_SHARED_ROWS = 2
 TAIL_SETTLED_LIST = 2
 
 
-def listed_counts(boundary, listed, rows, mean, root):
+# THE FLOOR A COLUMN WAS DESCRIBED AT, for G5.3e's heap road (plan P4-D405):
+# a case's column carries no setting, and every case is described at the
+# floor `CASE_SMALL_CELL_FLOOR` names below.
+TAIL_SET_VALUES = 256
+
+
+def heap_floor(column, floor=None):
+    """The floor each listed value stands on where the column is no small fixed set (G5.3e, plan P4-D405), else nought.
+
+    A tail of a column holding more than `TAIL_SET_VALUES` different
+    numbers, or fewer than two cells a number, was listed only as a HEAP:
+    every value it names on at least the floor's cells.
+    """
+    floor = CASE_SMALL_CELL_FLOOR if floor is None else floor
+    distinct = column["n_distinct_values"]
+    coarse = distinct <= TAIL_SET_VALUES and distinct * TAIL_SHARED_ROWS <= column["n_used_in_statistics"]
+    return 0 if coarse or floor < TAIL_SHARED_ROWS else floor
+
+
+def listed_counts(boundary, listed, rows, mean, root, heap=0):
     """How many rows each listed value holds (method G5.3e).
 
     ``listed`` stands OUTERMOST FIRST.  Every listed value holds at least
@@ -2219,7 +2357,13 @@ def listed_counts(boundary, listed, rows, mean, root):
     scaled_root = fractions.Fraction(root) / scale
     second_target = fractions.Fraction(rows) * scaled_root * scaled_root
     least = listed_floor(size, rows)
-    spare = rows - size * least
+    # a heap's values from the floor, but one the boundary itself holds
+    leasts = [least] * size
+    if heap > least:
+        raised = [least if value == boundary else heap for value in listed]
+        if sum(raised) <= rows:
+            leasts = raised
+    spare = rows - sum(leasts)
     if spare < 0:
         raise AssertionError(
             "a listed tail names more values than it has rows, which "
@@ -2227,7 +2371,7 @@ def listed_counts(boundary, listed, rows, mean, root):
         )
     best = None
     for extras in _extra_vectors(spare, size):
-        counts = [least + extras[place] for place in range(size)]
+        counts = [leasts[place] + extras[place] for place in range(size)]
         summed = 0
         squared = 0
         for place in range(size):
@@ -2401,6 +2545,7 @@ def tail_ladder(column):
                 side["rows"],
                 side["mean_distance"],
                 side["rms_distance"],
+                heap_floor(column),
             )
             if listed[place]
             else []
@@ -2425,7 +2570,7 @@ def tail_ladder(column):
     # READING, rows on one point sharing it, and the outermost rows spread
     # as far as the count of different numbers asks (G5.3b's shared
     # staircase, plan P4-D405).
-    steps = shared_staircases(
+    steps, shared = shared_staircases(
         column, (low, high), (low_boundary, high_boundary), shapes, ends, steps
     )
     held = [
@@ -2445,6 +2590,7 @@ def tail_ladder(column):
             "listed": listed[place],
             "counts": counts[place],
             "steps": steps[place],
+            "shared": place in shared,
         })
     rungs = []
     for percent in range(101):
@@ -2711,13 +2857,30 @@ def band_allotment(
         reader_high["rows"] if reader_high and reader_high["listed"] else 0,
     )
     lead, trail = listed_runs(lengths, listed[0], listed[1], low, numeric)
+    # A PINNED END'S RUN IS JOINED LAST where a tail reads the shared
+    # staircase (G5.3b, plan P4-D405): a pair touching the band's first run
+    # at rank 0, or its last at the column's last rank, ranks after every
+    # other pair.
+    shared = bool(
+        (reader_low and reader_low.get("shared"))
+        or (reader_high and reader_high.get("shared"))
+    )
+
+    def pinned_pair(sizes, index, first, last):
+        return 1 if (first and index == 0) or (last and index + 1 == len(sizes) - 1) else 0
+
+    first_pinned = shared and low == 0
+    last_pinned = shared and low + count == numeric
     if lead + trail > 0 and strata > lead + trail:
         inner_lengths = lengths[lead:len(lengths) - trail]
         inner_heights = heights[lead:len(heights) - trail]
         while len(inner_lengths) > strata - lead - trail:
             at = min(
                 range(len(inner_lengths) - 1),
-                key=lambda index: (overshoot(inner_lengths, index, cap),)
+                key=lambda index: (
+                    pinned_pair(inner_lengths, index, first_pinned and lead == 0, last_pinned and trail == 0),
+                    overshoot(inner_lengths, index, cap),
+                )
                 + join_key(inner_lengths, inner_heights, index),
             )
             inner_lengths[at] = inner_lengths[at] + inner_lengths[at + 1]
@@ -2748,7 +2911,10 @@ def band_allotment(
     while len(lengths) > strata:
         at = min(
             range(len(lengths) - 1),
-            key=lambda index: (overshoot(lengths, index, cap),)
+            key=lambda index: (
+                pinned_pair(lengths, index, first_pinned, last_pinned),
+                overshoot(lengths, index, cap),
+            )
             + join_key(lengths, heights, index),
         )
         lengths[at] = lengths[at] + lengths[at + 1]
@@ -3249,7 +3415,9 @@ def tail_read_at(ladder, numerator, denominator):
             )
             return listed_reading(position, high["listed"], high["counts"], False)
         if high["steps"]:
-            rank = -((-(numerator * high["numbers"])) // denominator)
+            # rounded down on both sides (plan P4-D405): a share inside a
+            # stratum's ranks reads a row inside them
+            rank = (numerator * high["numbers"]) // denominator
             row = rank - (high["numbers"] - high["rows"])
             row = 0 if row < 0 else min(row, high["rows"] - 1)
             return high["steps"][row]

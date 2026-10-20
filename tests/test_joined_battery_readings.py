@@ -173,12 +173,23 @@ FLOOR_ONE_BATTERY = (2160, 567, 5)
 # column 0's going. The battery's total outside falls and its total
 # missed rises by one, which is what the trade costs here and is
 # reported against `K-P4-06`.
+# AND THEY MOVED AGAIN AT PLAN P4-D405 (2026-10-19, stage 4 lane G2T's
+# repair), measured column by column at both floors and carried. A
+# position whose numbers repeat now reads its tails through G5.3b's
+# shared staircase, its rows on their own readings, so the values its
+# strata take beyond each boundary move and every pair agreement of that
+# position with them. At the default the battery's total outside falls
+# 579 to 524 and its missed stay three: column 0 falls 7 to 5, column 5
+# 52 to 44, column 7 101 to 92 and column 9 66 to 57, column 11 rises 63
+# to 68; the missed move from columns 7 and 11 to columns 0, 9 and 11,
+# one each -- all three still in the pinned columns, so the pin holds
+# every miss and is not re-chosen. At a floor of one nothing moved.
 PINNED_CEILINGS_AT_THE_DEFAULT = {
-    0: (120, 7, 1),
-    5: (240, 52, 0),
-    7: (240, 101, 1),
-    9: (240, 66, 0),
-    11: (240, 63, 1),
+    0: (120, 5, 1),
+    5: (240, 44, 0),
+    7: (240, 92, 0),
+    9: (240, 57, 1),
+    11: (240, 68, 1),
 }
 _PINS = {1: PINNED_CEILINGS, None: PINNED_CEILINGS_AT_THE_DEFAULT}
 
