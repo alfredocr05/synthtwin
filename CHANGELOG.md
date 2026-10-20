@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### Python 3.11 and later, four runtime libraries held to their zones (lane DEP-1, 2026-10-19)
+
+**The libraries' mechanics** (plan P4-D410, building P4-D409; the owner's
+"3.11 and later" and numba "Yes, gated" of 2026-10-19). synthtwin now
+needs Python 3.11 or later and declares four runtime dependencies --
+numpy, pyarrow, scipy and pandas -- pinned by hash in locks compiled for
+3.11; numba is the optional `polish` extra, absent on Intel Macs;
+statsmodels and scikit-learn join the development lock as test-only
+libraries. The offline scanner admits each new library call one name at
+a time with its capability audit, and holds every library to the zones
+it may run in: the modules the generator, the loader and the twin's
+writers reach by import (zone G) use no library but the one random
+stream; pyarrow's reader is fenced like pandas' and runs one thread;
+HiGHS is silenced and budgeted in a node count written in the call,
+and its result, bound to a name inside a function alone and never at
+module or class level, goes nowhere until a lane enters what it reads;
+numba is one decorator form in one module, over a top-level function
+that is called and nothing else and makes no function of its own, in a
+module that is no bare value (one statement writing into numba's
+dispatcher switched fast-math on); every call with an argument rule is
+written in place, never handed to map; the package's `__init__` is on
+the generation path; the twin's writers import no library; `n_jobs` is
+refused everywhere, as a keyword and as text. `read_table` sets pandas'
+string storage itself (left to pandas, reading 500,000 rows took 19 %
+longer with pyarrow installed), and `synthtwin doctor` names every
+library's version. CI runs 3.11 to 3.14 and the minimums job 3.11. Every
+twin, description and report is byte-identical on the old and new
+environments (29 tables, 203 files).
+
 ### The workbook twin is written as a stream (2026-10-19)
 
 **Lane XW** (plan P4-D411). A workbook twin's sheet was built as one

@@ -10,9 +10,10 @@ at all. `synthtwin validate <profile>` reads that profile and one CSV
 file, measures the file against it, and writes the quality report: which
 obligations the file met, which it missed, and which no CSV could ever
 evidence either way. One more word, `synthtwin doctor`, is no step of a
-run: it checks this computer before the first one -- Python, numpy and
-pandas, the output folder, the memory against a named table's size --
-and reads no table (plan P4-D397).
+run: it checks this computer before the first one -- Python, the four
+libraries it needs (numpy, pandas, pyarrow and scipy, each with its
+version), the output folder, the memory against a named table's size --
+and reads no table (plans P4-D397 and P4-D410).
 
 Zero-code use is the requirement (charter principle 2): each command
 works with one path and nothing else. Everything else is an option with
@@ -784,9 +785,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "description 'profile' wrote, 'validate' measures a CSV "
             "file against that description and writes the quality "
             "report, and 'doctor' checks this computer before a first "
-            "run -- Python, numpy and pandas, the output folder and the "
-            "memory -- and weighs a table's size against that memory "
-            "when you name one, without opening it"
+            "run -- Python, the libraries it needs (numpy, pandas, "
+            "pyarrow and scipy), the output folder and the memory -- and "
+            "weighs a table's size against that memory when you name "
+            "one, without opening it"
         ),
     )
     parser.add_argument(
@@ -5335,8 +5337,9 @@ def _run_validate(
 # is for the person whose environment was built by another Python than
 # the one they think. An older Python running `python -m synthtwin` from
 # a source folder never reaches this module: `__main__.py` says so before
-# importing it, since this module's own syntax needs 3.10.
-_PYTHON_FLOOR = (3, 10)
+# importing it. 3.11 since plan P4-D410 (the owner's "3.11 and later" of
+# 2026-10-19): the libraries' current releases need it.
+_PYTHON_FLOOR = (3, 11)
 
 # HOW MUCH MEMORY A TEXT TABLE TAKES TO READ, AS A MULTIPLE OF ITS FILE'S
 # SIZE. Measured, not guessed: `K-S4-02` reads a fifty-column table of
@@ -5415,10 +5418,11 @@ def _python_version() -> "tuple[int, int, int]":
 
 def _check_python(version: "tuple[int, int, int]") -> _Check:
     spoken = f"{version[0]}.{version[1]}.{version[2]}"
+    floor = f"{_PYTHON_FLOOR[0]}.{_PYTHON_FLOOR[1]}"
     if (version[0], version[1]) >= _PYTHON_FLOOR:
-        return _passed(f"Python {spoken} (3.10 or later is needed)")
+        return _passed(f"Python {spoken} ({floor} or later is needed)")
     return _failed(
-        f"Python {spoken} is too old: synthtwin needs Python 3.10 or "
+        f"Python {spoken} is too old: synthtwin needs Python {floor} or "
         f"later. Install a newer Python (see 'Before you start' in "
         f"README.md), then {_INSTALL_AGAIN}."
     )
@@ -5429,6 +5433,22 @@ def _not_loaded(package: str, needed_for: str) -> _Check:
         f"{package} could not be loaded, and synthtwin needs it to "
         f"{needed_for}. To put it in place, {_INSTALL_AGAIN}."
     )
+
+
+def _library_version(package: str) -> str:
+    """The installed version of one library, as its own metadata records it.
+
+    EVERY RUNTIME LIBRARY IS NAMED WITH ITS VERSION (plan P4-D410): the
+    twin's bytes are proved under exact pins, so the line a person copies
+    into a question says which ones this computer holds. A library that
+    loaded but carries no metadata -- a source folder on the path -- says
+    so instead of a number.
+    """
+    try:
+        return importlib.metadata.version(package)
+    except Exception:  # noqa: BLE001 -- as in _version: the allowlist
+        # (plan D6.2) permits only importlib.metadata.version.
+        return "of no recorded version"
 
 
 def _check_numpy() -> _Check:
@@ -5443,17 +5463,38 @@ def _check_numpy() -> _Check:
         import numpy.random  # noqa: F401
     except Exception:  # noqa: BLE001 -- see above
         return _not_loaded("numpy", "build a twin")
-    return _passed("numpy can be loaded")
+    return _passed(f"numpy {_library_version('numpy')} can be loaded")
 
 
 def _check_pandas() -> _Check:
-    # The same plain import, for the reader's one library. It is loaded
-    # and nothing of it is called: `doctor` reads no table.
+    # The same plain import, for the reader's checking library. It is
+    # loaded and nothing of it is called: `doctor` reads no table.
     try:
         import pandas  # noqa: F401
     except Exception:  # noqa: BLE001 -- as in _check_numpy
         return _not_loaded("pandas", "read a table")
-    return _passed("pandas can be loaded")
+    return _passed(f"pandas {_library_version('pandas')} can be loaded")
+
+
+def _check_pyarrow() -> _Check:
+    # The same plain import, of the one admitted pyarrow module (plans
+    # P4-D409 and P4-D410: zone R, and text held as exact bytes).
+    try:
+        import pyarrow.csv  # noqa: F401
+    except Exception:  # noqa: BLE001 -- as in _check_numpy
+        return _not_loaded("pyarrow", "read and hold a table")
+    return _passed(f"pyarrow {_library_version('pyarrow')} can be loaded")
+
+
+def _check_scipy() -> _Check:
+    # The same plain import, of the two admitted scipy modules (plans
+    # P4-D409 and P4-D410: the search side of zone D, and zone P).
+    try:
+        import scipy.linalg  # noqa: F401
+        import scipy.optimize  # noqa: F401
+    except Exception:  # noqa: BLE001 -- as in _check_numpy
+        return _not_loaded("scipy", "check what is published")
+    return _passed(f"scipy {_library_version('scipy')} can be loaded")
 
 
 def _total_memory() -> "int | None":
@@ -5691,6 +5732,8 @@ def _doctor_checks(table: "str | None", out_dir: "str | None") -> "list[_Check]"
         _check_python(_python_version()),
         _check_numpy(),
         _check_pandas(),
+        _check_pyarrow(),
+        _check_scipy(),
     ]
     if out_dir is not None:
         folder = out_dir

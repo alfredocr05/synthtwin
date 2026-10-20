@@ -67,7 +67,9 @@ should be read as exactly that and no more.
 
 Policy enforced (plan D6.2, a positive AST/name-binding policy;
 Phase 1 additions E1-E5 in plan phase-1-profiler.md, P1-D10; Phase 2
-additions E7-E9 in plan phase-2-generator.md, P2-D13):
+additions E7-E9 in plan phase-2-generator.md, P2-D13; the December
+libraries, their zones and their argument rules in plan
+phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
 
 * Allowed modules for src/: argparse, csv, dataclasses, json, math,
   pathlib, typing, sys (but sys.modules and sys.path may never be read
@@ -75,12 +77,72 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
   os.getcwd, os.lstat, os.isatty, os.sysconf, and read-only os.environ;
   from
   importlib.metadata only the version() function; the runtime
-  dependency pandas, reduced to read_csv alone; and, from numpy,
-  `import numpy.random` and the single name numpy.random.default_rng
-  (extension E7) -- no other numpy module and no other numpy attribute
-  is reachable, by import or by attribute step. Imports of the
-  synthtwin package's own modules are allowed because those files are
-  scanned too. Every other import is a violation.
+  dependency pandas, reduced to read_csv and the one set_option call
+  reading.read_table makes; from numpy, `import numpy.random` and the
+  single name numpy.random.default_rng (extension E7) -- no other numpy
+  module and no other numpy attribute is reachable, by import or by
+  attribute step; from pyarrow, the module pyarrow.csv and its reader
+  with three option classes; from scipy, scipy.optimize's milp with
+  Bounds and LinearConstraint, and scipy.linalg's cho_factor and
+  cho_solve; and numba.njit in the one polish-kernel module (P4-D410,
+  each audited below). Imports of the synthtwin package's own modules
+  are allowed because those files are scanned too. Every other import
+  is a violation.
+* THE ZONES (plan P4-D409 parts 2 and 3, enforced by lane DEP-1, plan
+  P4-D410). Every first-party module sits in one zone: G, generation
+  (any byte of the twin); D, description and shared report (any
+  published byte); P, private report and self-test; R, reading the
+  person's file; W, writing the twin's. _MODULE_ZONES names the R, W
+  and P modules and the polish kernel (G); the generation path is
+  COMPUTED from the tree: every other module the generator, the
+  description's loader or the twin's three writers reach by import,
+  from any line, is zone G (_GENERATION_ROOTS), and so is every
+  package's `__init__` above a reached module, which Python runs first;
+  every other first-party module is D. Every admitted library module carries the zones it may
+  run in (_LIBRARY_ZONES; the standard library runs everywhere, and no
+  library is admitted for W), a use outside them is a violation, a
+  module of zone G or W may not even IMPORT a library not admitted for
+  its zone (the writers are roots of the generation path: what they
+  load, a generate run loads), no module of zone G or W imports a zone
+  R module, and no module outside zone P imports a module inside it.
+  The rule is what keeps library floats -- reductions whose
+  order no build promises, solver tolerances, platform LAPACK -- away
+  from every byte of the twin and of anything published.
+* THE ARGUMENT RULES (P4-D409 part 3 (d); _ARGUMENT_RULES). An admitted
+  call whose behaviour depends on a setting is held to the one audited
+  form, read where the call is written: pandas.set_option sets
+  mode.string_storage to python and nothing else; pyarrow.csv.read_csv
+  takes a validated local path (it is fenced exactly as
+  pandas.read_csv is), then read_options, parse_options and
+  convert_options only, each a call of its option class written in
+  place, read_options always, with ReadOptions(use_threads=False) by
+  name; ParseOptions takes no invalid_row_handler and, as pyarrow
+  26.0.0 does, no positional argument; scipy.optimize.milp
+  takes options written as a dictionary holding 'disp': False,
+  'mip_rel_gap': 0 and a 'node_limit' written as a whole number from 1
+  to _HIGHS_NODE_LIMIT_MAX, never a 'time_limit' (a budget in seconds
+  would let a slow computer decide otherwise than a fast one), and the
+  result it returns is bound to a name and goes nowhere else -- no
+  subscription, return, argument, container or loop -- until the
+  adopting lane enters a member; numba.njit is only
+  the decorator call njit(fastmath=False, parallel=False, cache=False)
+  over a function written at the top level of the kernel module, and
+  the compiled function it makes is CALLED and nothing else, in the
+  kernel and in every module that imports it, the kernel module and
+  its package are no bare values, the compiled function makes no
+  function of its own (no lambda, def or class under it), and a
+  dispatcher's attributes (_DISPATCHER_ATTRIBUTES) are refused on
+  every object (numba's dispatcher carries its compiler settings,
+  `targetoptions`, and the uncompiled body, `py_func`: one statement
+  writing fast-math into the first compiled the kernel with fast-math,
+  measured on numba 0.68.0); every API with an argument rule is the
+  function of a call written in place and nothing else, so map(), a
+  stored name or an argument never calls it with arguments no rule
+  read; numpy's sort and argsort, wherever a later lane admits them, take
+  kind='stable'; and n_jobs is refused on every call, as a keyword and
+  as the text 'n_jobs' anywhere (a dictionary of keywords expanded
+  into a call carries it as a key), because it is how a library starts
+  process pools.
 * THE TWO WORKBOOK MODULES (plan P4-D77). Reading a spreadsheet
   workbook needs a zip reader and an XML parser, and admitting a
   workbook LIBRARY would put a third runtime dependency inside the
@@ -155,7 +217,8 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
 * Always forbidden, allowlist aside: __import__,
   importlib.import_module, exec, eval, compile, subprocess, os.system,
   os.exec*, os.spawn*, os.popen, os.fork, os.posix_spawn, ctypes, cffi,
-  multiprocessing, and the reflection primitives getattr, setattr,
+  multiprocessing, llvmlite, joblib, and the reflection primitives
+  getattr, setattr,
   delattr, hasattr, vars, globals, locals, and dir. Aliases are traced
   to their origin, so "g = getattr" followed by "g(...)" is caught.
 * Every attribute chain that starts from an imported module must
@@ -454,7 +517,7 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
 
 Complete audit of the closed allowed surface. Every enumerated name
 below was checked against its documented signature on every supported
-interpreter (CPython 3.10 through 3.14); "data" means the API never
+interpreter (CPython 3.11 through 3.14); "data" means the API never
 invokes that name's arguments. This list IS the audit record -- an
 attribute absent from it is not allowed at all:
 
@@ -483,7 +546,7 @@ attribute absent from it is not allowed at all:
   type).
 * pathlib: Path (constructor: data). The Path instance methods the
   src tree uses -- resolve, is_absolute, the / operator, and the
-  parts attribute -- are data. Across 3.10-3.14 the ONLY Path
+  parts attribute -- are data. Across 3.11-3.14 the ONLY Path
   instance method with a callable parameter is walk (on_error SLOT,
   added in 3.12); every other instance method (open, read_text,
   write_text, glob, rglob, iterdir, stat, lstat, mkdir, match,
@@ -574,6 +637,59 @@ attribute absent from it is not allowed at all:
   into a first-party Python whole number. spawn is not reachable: it
   is a method of the generator and the generator's method list holds
   one name.
+* pandas.set_option (lane DEP-1, plan P4-D410), zone R. Capability
+  audit: it stores one value in pandas' process-wide option registry
+  and runs that option's own validator; it performs no I/O, starts no
+  process and takes no callable. What an option does afterwards is the
+  danger -- `compute.use_numba` turns on a code generator, others
+  change readers' defaults -- so the argument rule fixes the one call
+  reading.read_table makes: `mode.string_storage` set to `python`,
+  both written as text. Its result (None) is a pandas value.
+* pyarrow.csv (lane DEP-1, plans P4-D409 and P4-D410), zone R:
+  read_csv, ReadOptions, ParseOptions, ConvertOptions, and NOTHING
+  else of pyarrow -- no pyarrow.fs or pyarrow.flight, no dataset, no
+  writer, no compute. Capability audit: read_csv opens its first
+  argument, a path or a text pyarrow may resolve through a file
+  system, so it IS fenced as pandas.read_csv is (the validated local
+  path, _FENCED_APIS); it reads with a pool of threads unless
+  ReadOptions(use_threads=False) is handed in, which the argument rule
+  requires; its memory_pool is refused. The three option classes hold
+  settings as data, save ParseOptions' invalid_row_handler, a callable
+  pyarrow invokes for each row it cannot parse: a callback SLOT, and
+  refused by the argument rule as well. What read_csv returns, a
+  pyarrow table, answers to no method and no attribute until the
+  adopting lane (SR-A) enters each one it reads with its own audit.
+* scipy.optimize (lane DEP-1, plans P4-D409 part 5 and P4-D410), zone D
+  on the search side, and zone P: milp, Bounds, LinearConstraint.
+  Capability audit: milp hands the arrays it is given to the HiGHS
+  solver compiled into scipy and returns a result; it performs no file
+  or network I/O, starts no process and takes no callable; it prints
+  progress to the terminal unless options silence it and it stops on
+  a clock if given time_limit, which the argument rule turns into
+  'disp': False and a node budget. Bounds and LinearConstraint hold
+  arrays as data. The result is a dictionary of arrays and answers to
+  nothing -- no attribute, no key, and it is handed to nothing --
+  until the adopting lane (MR, CHa) enters what it reads; what
+  HiGHS exhibits is re-checked in Python integers (P4-D409 part 5).
+* scipy.linalg (lane DEP-1, plan P4-D410), zone P only: cho_factor and
+  cho_solve, LAPACK's Cholesky factorization and solve on arrays they
+  are handed. No I/O, no process, no callable; platform floats, which
+  is why zone P alone may use them (the self-test's fits, lane ST).
+* numba (lane DEP-1, plan P4-D409 part 4 and P4-D410), zone G, in the
+  module synthtwin.polish_kernel ALONE (_MODULE_SCOPED_ADMISSIONS):
+  njit. Capability audit: njit compiles the decorated function to
+  machine code through LLVM, in memory, when it is first called --
+  which IS code generated at run time, and is admitted for this one
+  audited module under the CI gate that proves its twin bytes equal to
+  the plain-Python polish on every operating system and Python. The
+  source it compiles is the body under it, read by this audit under
+  every rule above; fastmath=False keeps every operation correctly
+  rounded and in written order, parallel=False starts no thread,
+  cache=False writes no file, and the argument rule requires all three
+  written out. No other numba name -- prange, vectorize, cfunc,
+  objmode, config, jit -- is reachable, and llvmlite is forbidden
+  outright. numba's settings by environment variable are lane MPn's
+  to close (P4-D409 part 4 (vi)).
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
   (the callable argument SLOT); print (file SLOT -- print invokes
@@ -605,7 +721,8 @@ Exit status: 0 clean; 1 one or more violations, each printed as
 "file:line: explanation"; 2 the command line itself was wrong.
 
 This tool uses only the Python standard library (ast, pathlib, sys,
-argparse) and never imports or runs the code it checks.
+argparse) and never imports or runs the code it checks -- nor any of
+the libraries it admits.
 """
 
 import argparse
@@ -637,9 +754,29 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # opens the person's package, `writing` puts the twin's on disk.
 # `xml.parsers.expat` belongs to `workbook`, which parses the markup
 # those members hold and opens nothing.
+#
+# `numba` belongs to the ONE audited polish kernel (plan P4-D409 part 4,
+# lane DEP-1's plan P4-D410): numba compiles that module's own source
+# in memory, under the CI gate that proves it byte-identical to the
+# plain-Python polish, and nowhere else. Lane MPn writes the module at
+# this path; until it exists, numba is a violation everywhere.
+_POLISH_KERNEL = "synthtwin.polish_kernel"
+
 _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
     "xml.parsers.expat": frozenset({"synthtwin.workbook"}),
+    "numba": frozenset({_POLISH_KERNEL}),
+}
+
+# The need each scoped admission was argued from, in the words its
+# violation message gives.
+_SCOPED_ADMISSION_NEEDS: "dict[str, str]" = {
+    "zipfile": "reading a spreadsheet package and writing one",
+    "xml.parsers.expat": "reading a spreadsheet package and writing one",
+    "numba": (
+        "compiling the one audited polish kernel, whose twin bytes CI "
+        "proves equal to the plain-Python polish (plan P4-D409 part 4)"
+    ),
 }
 
 
@@ -650,12 +787,148 @@ def _out_of_scope_message(
         "uses '" + dotted + "', which is admitted for "
         + ", ".join(sorted(allowed_in))
         + " only. That admission was argued from those modules' own "
-        "need -- reading a spreadsheet package and writing one -- and "
+        "need -- " + _SCOPED_ADMISSION_NEEDS[prefix] + " -- and "
         "is enforced there rather than package-wide, so every other "
         "module names this API exactly as it did before the admission: "
         "as a violation. Moving the work to the module that holds the "
         "admission is the fix; widening the scope is a policy decision "
         "reviewed against the threat model."
+    )
+
+
+# THE ZONES (plan P4-D409 parts 2 and 3; lane DEP-1, plan P4-D410).
+# Every product module sits in exactly one zone, and every library name
+# is admitted for the zones it may run in, so that no library float
+# decides a byte of the twin or of anything published:
+#
+#   G  generation: any byte of the twin;
+#   D  description and shared report: any published byte;
+#   P  private report, self-test and tests: nothing generated or
+#      published depends on it;
+#   R  reading: how the cells of the person's file are read;
+#   W  writing: the twin file's bytes.
+_ZONE_G = "G"
+_ZONE_D = "D"
+_ZONE_P = "P"
+_ZONE_R = "R"
+_ZONE_W = "W"
+
+# THE GENERATION PATH IS COMPUTED, NOT LISTED (P4-D409 part 3 (a)): every
+# first-party module the generator, the description's loader and the
+# twin's three writers reach by import, at any depth and from any line
+# of the file, is zone G -- so a module joins the path on the commit
+# that imports it, as `tests/test_contract_loader.py` walks the loader's
+# closure. A module reached from both the generation path and describe
+# is G. The writers themselves are zone W (the table below).
+_GENERATION_ROOTS = (
+    "synthtwin.generation",
+    "synthtwin.contract",
+    "synthtwin.rendering",
+    "synthtwin.sheetwriting",
+    "synthtwin.writing",
+)
+
+# The modules a table names for a zone, each entered with its lane's
+# plan decision; the table is read FIRST, so a reading module stays R
+# and a writer stays W wherever it is imported from, and the generation
+# path reaching a zone R or zone P module is a violation of its own
+# (P4-D409 part 3 (b)). A module the table does not name is G when the
+# generation path reaches it and D otherwise. The polish kernel is G
+# wherever it is imported from: what it computes is bytes of the twin.
+# No module is zone P yet: lane ST enters the self-test's.
+_MODULE_ZONES: "dict[str, str]" = {
+    _POLISH_KERNEL: _ZONE_G,
+    "synthtwin.reading": _ZONE_R,
+    "synthtwin.workbook": _ZONE_R,
+    "synthtwin.writing": _ZONE_W,
+    "synthtwin.sheetwriting": _ZONE_W,
+    "synthtwin.rendering": _ZONE_W,
+}
+
+# The zones each admitted LIBRARY module may run in, keyed as
+# _ALLOWED_MODULE_ATTRS is. A standard-library module absent from this
+# table runs in every zone: the zones govern libraries whose arithmetic
+# or reach the standard library's documented behaviour does not fix.
+_LIBRARY_ZONES: "dict[str, frozenset[str]]" = {
+    # The twin's one random stream (E7, E8).
+    "numpy.random": frozenset({_ZONE_G}),
+    # The checking reader and its string storage (P1-D2, P4-D410).
+    "pandas": frozenset({_ZONE_R}),
+    # The fast reader (P4-D409, lane SR-A): a validated local path, one
+    # thread.
+    "pyarrow.csv": frozenset({_ZONE_R}),
+    # HiGHS: a SEARCH whose every exhibited arrangement is re-checked in
+    # Python integers (P4-D409 part 5), so D's search side and P.
+    "scipy.optimize": frozenset({_ZONE_D, _ZONE_P}),
+    # The self-test's Cholesky fits: platform floats, private only.
+    "scipy.linalg": frozenset({_ZONE_P}),
+    # The polish kernel, behind its CI gate (P4-D409 part 4).
+    "numba": frozenset({_ZONE_G}),
+    "zipfile": frozenset({_ZONE_R, _ZONE_W}),
+    "xml.parsers.expat": frozenset({_ZONE_R}),
+}
+
+_ZONE_NAMES: "dict[str, str]" = {
+    _ZONE_G: "zone G (generation: any byte of the twin)",
+    _ZONE_D: "zone D (description and shared report: any published byte)",
+    _ZONE_P: "zone P (private report, self-test and tests)",
+    _ZONE_R: "zone R (reading the person's file)",
+    _ZONE_W: "zone W (writing the twin's file)",
+}
+
+
+def _zone_message(dotted: str, prefix: str, zone: str) -> str:
+    allowed = " and ".join(
+        _ZONE_NAMES[name] for name in sorted(_LIBRARY_ZONES[prefix])
+    )
+    return (
+        "uses '" + dotted + "' in a module of " + _ZONE_NAMES[zone] + ", "
+        "while " + prefix + " is admitted for " + allowed + " only (plan "
+        "P4-D409 part 2). A library runs only in the zones its admission "
+        "names, so that no library float decides a byte of the twin or "
+        "of anything published. Move the work to a module of an allowed "
+        "zone; admitting the library for another zone is a plan decision "
+        "with its own capability audit."
+    )
+
+
+def _zone_import_message(name: str, prefix: str, zone: str = _ZONE_G) -> str:
+    if zone == _ZONE_W:
+        return (
+            "imports '" + name + "' into a writer of the twin (zone W), "
+            "while " + prefix + " is not admitted for zone W (plan P4-D409 "
+            "part 3 (a)): the twin's three writers are roots of the "
+            "generation path, so what one of them imports, every generate "
+            "run loads, and a writer admits no library. Keep the import "
+            "in a module the generation path does not reach."
+        )
+    return (
+        "imports '" + name + "' into the generation path (zone G), "
+        "while " + prefix + " is not admitted for zone G (plan P4-D409 "
+        "part 3 (a)): every module synthtwin.generation or "
+        "synthtwin.contract reaches by import decides bytes of the twin, "
+        "and may import only what is admitted there. Keep the import in "
+        "a module the generation path does not reach."
+    )
+
+
+def _reading_module_message(module: str, zone: str) -> str:
+    return (
+        "imports the zone R module '" + module + "' from a module of "
+        + _ZONE_NAMES[zone] + " (plan P4-D409 part 3 (b)). The generation "
+        "path and the twin's writers reach no module that reads the "
+        "person's table: the generator reads the description and nothing "
+        "else (plan P2-D1)."
+    )
+
+
+def _private_module_message(module: str) -> str:
+    return (
+        "imports the zone P module '" + module + "' from a module "
+        "outside zone P (plan P4-D409 part 3 (b)). Zone P's platform "
+        "floats may decide the custodian's private words and nothing "
+        "else: a computation that chooses anything generated or "
+        "published belongs to zone D, wherever it is written."
     )
 
 
@@ -738,7 +1011,20 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     # _KNOWN_MODULE_PATHS) so that any other attribute of it lands in
     # the numpy branch of _policy_for with a message that says why.
     "numpy.random": frozenset({"default_rng"}),
-    "pandas": frozenset({"read_csv"}),
+    # Extension E1, and lane DEP-1's `set_option` (plan P4-D410): the one
+    # setting reading.read_table makes, written out in full (an argument
+    # rule below holds it to that one option and that one value).
+    "pandas": frozenset({"read_csv", "set_option"}),
+    # Lane DEP-1 (plans P4-D409 and P4-D410), each name with its audit
+    # in the module docstring. The keys are TWO-COMPONENT module paths,
+    # as numpy.random's is, so nothing else of pyarrow or scipy is
+    # reachable at all.
+    "pyarrow.csv": frozenset(
+        {"ConvertOptions", "ParseOptions", "ReadOptions", "read_csv"}
+    ),
+    "scipy.optimize": frozenset({"Bounds", "LinearConstraint", "milp"}),
+    "scipy.linalg": frozenset({"cho_factor", "cho_solve"}),
+    "numba": frozenset({"njit"}),
     "pathlib": frozenset({"Path"}),
     "sys": frozenset(
         {
@@ -791,8 +1077,20 @@ _KNOWN_MODULE_PATHS = frozenset(_ALLOWED_MODULE_ATTRS) | {
     "importlib.metadata",
     # numpy itself names a module and nothing usable: naming it here
     # keeps `numpy.anything` inside the module-path machinery, where
-    # the numpy branch of _policy_for refuses it by name (E7).
+    # the numpy branch of _policy_for refuses it by name (E7). pyarrow
+    # and scipy are named for the same reason (plan P4-D410): only the
+    # enumerated submodules carry usable names.
     "numpy",
+    "pyarrow",
+    "scipy",
+}
+
+# The submodules each library root admits, for the message that refuses
+# every other name of that root (plan P4-D410).
+_LIBRARY_ROOTS: "dict[str, tuple[str, ...]]" = {
+    "numpy": ("numpy.random",),
+    "pyarrow": ("pyarrow.csv",),
+    "scipy": ("scipy.linalg", "scipy.optimize"),
 }
 
 _REFLECTION_PRIMITIVES = {
@@ -815,6 +1113,12 @@ _FORBIDDEN_MODULES = {
     "ctypes": "run native machine code",
     "cffi": "run native machine code",
     "multiprocessing": "launch new processes",
+    # Lane DEP-1 (plans P4-D409 part 3 (c) and P4-D410): llvmlite is
+    # numba's code generator, reachable only through the one audited
+    # njit form; joblib is how a library's `n_jobs` starts process
+    # pools.
+    "llvmlite": "build and run native machine code while the program runs",
+    "joblib": "launch pools of new processes",
 }
 
 # Attribute names that are banned wherever they appear, because they
@@ -921,6 +1225,15 @@ _TEXT_PRODUCING_BUILTINS = {"format", "repr", "str"}
 _RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
     "numpy": frozenset(),
     "pandas": frozenset(),
+    # Lane DEP-1 (plan P4-D410): a pyarrow table carries writers and a
+    # conversion to pandas, a scipy result is a dictionary of arrays,
+    # and numba's decorator factory compiles what it is handed. Nothing
+    # at all is permitted on any of them until the adopting lane enters
+    # each name it reads with its own audit and mutation case (lanes
+    # SR-A, MR and CHa, ST and MPn).
+    "numba": frozenset(),
+    "pyarrow": frozenset(),
+    "scipy": frozenset(),
 }
 
 # Attributes that may be READ on a value one of those libraries
@@ -931,6 +1244,9 @@ _RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
 _RESTRICTED_INSTANCE_ATTRIBUTES: "dict[str, frozenset[str]]" = {
     "numpy": frozenset(),
     "pandas": frozenset({"columns"}),
+    "numba": frozenset(),
+    "pyarrow": frozenset(),
+    "scipy": frozenset(),
 }
 
 # THE PER-ORIGIN SURFACES (Phase 2 extension E8/E9), and why the two
@@ -994,6 +1310,9 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
     _ZIP_MEMBER_ORIGIN: "the zip member writer made by ZipFile.open",
     "numpy": "a value produced by numpy",
     "pandas": "a value produced by pandas",
+    "numba": "a value produced by numba",
+    "pyarrow": "a value produced by pyarrow",
+    "scipy": "a value produced by scipy",
 }
 
 # The origin an ELEMENT of a restricted value carries -- what a
@@ -1163,7 +1482,14 @@ def _is_first_party(kind: str, origin: str) -> bool:
 # the enforcement behind the fence P1-D2.1 describes; round 1 found the
 # claim resting on nothing but the order the current source happens to
 # be written in.
-_FENCED_APIS = frozenset({"pandas.read_csv"})
+_FENCED_APIS = frozenset({"pandas.read_csv", "pyarrow.csv.read_csv"})
+
+# APIs that may appear ONLY as the function of a call written in one
+# place (lane DEP-1, plan P4-D410): numba.njit is the decorator call
+# `@numba.njit(fastmath=False, parallel=False, cache=False)` over the
+# kernel and nothing else, so a bare `@numba.njit`, a stored reference
+# or a call that is not a decorator is refused.
+_CALL_ONLY_APIS = frozenset({"numba.njit"})
 
 _LOCAL_PATH_VALIDATOR = "synthtwin.paths.validate_local_path"
 
@@ -1213,6 +1539,12 @@ def _is_safe_data(kind: str, origin: str) -> bool:
 _DEFINITION_PRESERVING_DECORATORS = {
     "classmethod",
     "dataclasses.dataclass",
+    # Lane DEP-1 (plan P4-D410): numba's dispatcher runs the compiled form
+    # of exactly the scanned body under it -- every statement of which is
+    # read under these same rules -- and the argument rule holds the
+    # decorator to the one form with no fast-math, no threads and no
+    # cache.
+    "numba.njit",
     "property",
     "staticmethod",
 }
@@ -1322,6 +1654,10 @@ _CALLBACK_SLOTS: "dict[str, tuple[frozenset[str], dict[int, str]]]" = {
         {},
     ),
     "pathlib.Path.walk": (frozenset({"on_error"}), {1: "on_error"}),
+    # Lane DEP-1 (plan P4-D410): ParseOptions calls the handler it is
+    # given for every row it cannot parse; the argument rule refuses the
+    # keyword outright as well.
+    "pyarrow.csv.ParseOptions": (frozenset({"invalid_row_handler"}), {}),
     "print": (frozenset({"file"}), {}),
     "sorted": (frozenset({"key"}), {}),
     "sys.addaudithook": (frozenset(), {0: "hook"}),
@@ -1912,6 +2248,179 @@ def _numpy_surface_message(dotted: str) -> str:
     )
 
 
+def _library_root_message(dotted: str, root: str) -> str:
+    admitted = " and ".join(_LIBRARY_ROOTS[root])
+    return (
+        "uses '" + dotted + "'. From " + root + " only the enumerated "
+        "names of " + admitted + " are allowed (plan P4-D410), each "
+        "entered one at a time with its capability audit and its zones. "
+        "Every other name of " + root + " -- every other submodule, "
+        "reader, writer, file system, network client and reduction -- is "
+        "outside the allowlist, and adding one is a plan-level decision "
+        "rather than a code change."
+    )
+
+
+def _argument_rule_message(dotted: str, detail: str) -> str:
+    return (
+        "calls '" + dotted + "' " + detail + " (plan P4-D409 part 3 (d), "
+        "lane DEP-1's plan P4-D410). The argument rules hold each "
+        "admitted library call to the one form whose behaviour was "
+        "audited, so that no thread, process, clock or cache decides "
+        "what the program does."
+    )
+
+
+def _call_only_message(dotted: str) -> str:
+    return (
+        "names '" + dotted + "' somewhere other than as the decorator "
+        "call written over the polish kernel, "
+        "@numba.njit(fastmath=False, parallel=False, cache=False) "
+        "(plan P4-D409 part 4). Stored, handed on, called on a function "
+        "or written bare, it compiles code this audit never read, under "
+        "settings it never saw."
+    )
+
+
+def _compiled_reference_message(name: str) -> str:
+    return (
+        "uses the compiled kernel function '" + name + "' other than by "
+        "calling it (plan P4-D409 part 4; lane DEP-1's plan P4-D410). "
+        "What numba.njit makes is a dispatcher, not the function written "
+        "under it: it carries the compiler's settings (`targetoptions`), "
+        "the uncompiled body (`py_func`) and the means to compile again, "
+        "and writing fast-math into its settings compiled the kernel "
+        "with fast-math (measured on numba 0.68.0). Stored, handed on, "
+        "or read or written through an attribute, it escapes the one "
+        "audited form, so the compiled function is called and nothing "
+        "else. A plain-Python name that shares its spelling is renamed."
+    )
+
+
+# The attributes through which a numba dispatcher is compiled again, or
+# read beneath its compiled form: its compiler's settings, its compiler,
+# its uncompiled body, its cache and its compiled overloads (lane
+# DEP-1's repair 2, plan P4-D410). getattr, setattr, vars and every
+# double-underscore name are refused already, so a written attribute is
+# the one way to reach them, and these names are refused wherever they
+# are written, on whatever object: a dispatcher that reached a name this
+# audit does not hold to calls still cannot be given fast-math.
+_DISPATCHER_ATTRIBUTES = frozenset(
+    {
+        "_cache",
+        "_compiler",
+        "disable_compile",
+        "enable_caching",
+        "get_compile_result",
+        "overloads",
+        "py_func",
+        "recompile",
+        "targetoptions",
+    }
+)
+
+
+def _dispatcher_attribute_message(name: str) -> str:
+    return (
+        "names the attribute '" + name + "', which a numba dispatcher "
+        "carries: its compiler's settings, its compiler, its uncompiled "
+        "body, its cache or its compiled forms (plan P4-D409 part 4; lane "
+        "DEP-1's plan P4-D410). The name is refused on whatever object it "
+        "is written, so a compiled function that reached a name this "
+        "audit does not hold to calls still cannot be compiled again with "
+        "fast-math. A first-party attribute that shares the spelling is "
+        "renamed."
+    )
+
+
+def _kernel_closure_message(kind: str) -> str:
+    return (
+        "writes " + kind + " inside a compiled kernel function (plan "
+        "P4-D409 part 4; lane DEP-1's plan P4-D410). A function made "
+        "inside compiled code comes back to Python as a dispatcher of its "
+        "own, under a name this audit does not hold to calls: returned "
+        "from the kernel and given fast-math through its settings, it "
+        "changed a product's last bits (measured on numba 0.68.0, the "
+        "Codex review of lane DEP-1). A compiled function returns data; "
+        "a helper it needs is a compiled function of its own, written at "
+        "the top level of the module."
+    )
+
+
+def _argument_rule_reference_message(dotted: str) -> str:
+    return (
+        "names '" + dotted + "' other than as the function of a call "
+        "written in place (plan P4-D409 part 3 (d); lane DEP-1's plan "
+        "P4-D410). Its argument rule reads the arguments where the call "
+        "is written; handed to map, stored or passed on, it is called "
+        "with arguments no rule read -- map(pandas.set_option, ...) set "
+        "the string storage to pyarrow and map(milp, ...) ran the solver "
+        "with no budget, both scanning clean before (the Codex review of "
+        "lane DEP-1). Call it directly, with its arguments written out."
+    )
+
+
+# The calls whose result is the solver's own dictionary of floats (plan
+# P4-D409 part 5; lane DEP-1's repair 2, plan P4-D410).
+_SOLVER_RESULT_ORIGINS = frozenset({"scipy.optimize.milp"})
+
+
+def _solver_result_message(subscripted: bool) -> str:
+    if subscripted:
+        action = "reads a member of the solver's result by subscription"
+    else:
+        action = (
+            "hands the solver's result on (returned, passed to a call, "
+            "put in a container, iterated, compared or formatted)"
+        )
+    return (
+        action + " (plan P4-D409 part 5; lane DEP-1's plan P4-D410). "
+        "scipy.optimize.milp returns a dictionary of HiGHS' own floats, "
+        "and `found['x']` reads what `found.x` reads. What HiGHS "
+        "exhibits is re-checked in Python integers, and the result "
+        "answers to no member until the adopting lane (MR, CHa) enters "
+        "each one it reads, by attribute, with its audit: until then it "
+        "is bound to a name and goes nowhere else, so no subscription, "
+        "call, container or return carries a solver float out of the "
+        "search."
+    )
+
+
+def _compiled_function_names(tree: ast.Module) -> "set[str]":
+    """The names of the polish kernel's compiled functions, read from its text.
+
+    Every def written at the top level of the module with a decorator
+    above it. numba.njit is the decorator the kernel module exists for,
+    and the argument rule admits it over a top-level def alone, so the
+    set is read from the text, with no resolution an alias could fool,
+    and errs only towards holding another decorated function of the
+    kernel to calls as well (lane DEP-1, plan P4-D410).
+    """
+    return {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.decorator_list
+    }
+
+
+def _n_jobs_message() -> str:
+    return (
+        "passes 'n_jobs', which lets a library such as scikit-learn "
+        "start pools of new processes through joblib (plan P4-D409 part "
+        "3 (d)). synthtwin runs in one process; leave the argument out."
+    )
+
+
+def _n_jobs_text_message() -> str:
+    return (
+        "writes the text 'n_jobs', which reaches a library's n_jobs as "
+        "the key of a dictionary of keywords expanded into a call, so it "
+        "starts pools of new processes as the keyword does (plan P4-D409 "
+        "part 3 (d)). synthtwin runs in one process; leave it out."
+    )
+
+
 def _draw_form_message(detail: str) -> str:
     return (
         "calls the one permitted draw, integers, " + detail + ". The "
@@ -2125,6 +2634,8 @@ def _attr_component_message(name: str, dotted: "str | None") -> "str | None":
             "reach code this audit cannot see; they are banned in "
             "synthtwin source."
         )
+    if name in _DISPATCHER_ATTRIBUTES:
+        return _dispatcher_attribute_message(name)
     if name == "load" and dotted != "json.load":
         return (
             "reads an attribute named 'load'. Only json.load is "
@@ -2236,6 +2747,7 @@ class _Checker(ast.NodeVisitor):
         module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
         first_party_modules: "set[str] | None" = None,
         module_name: str = "",
+        zone: str = "",
     ) -> None:
         self.violations: list[tuple[int, str]] = []
         # Which module is being scanned, for the admissions that are
@@ -2244,6 +2756,33 @@ class _Checker(ast.NodeVisitor):
         # admission at all -- an unnamed module is not one of the two
         # that may name the zip API.
         self.module_name = module_name
+        # The module's zone (plan P4-D409 parts 2 and 3; lane DEP-1, plan
+        # P4-D410): G for a module the generation path reaches, else the
+        # zone _MODULE_ZONES names, else D. Empty for a file outside the
+        # first-party package, which no zone rule reads.
+        self.zone = zone
+        # Every call written in a decorator position, the one place
+        # numba.njit may be called (_CALL_ONLY_APIS), and the ones among
+        # them written over a def at the top level of the module, the one
+        # def numba.njit may compile.
+        self.decorator_calls: set[int] = set()
+        self.top_level_decorator_calls: set[int] = set()
+        # The polish kernel's compiled functions (plan P4-D409 part 4;
+        # lane DEP-1, plan P4-D410), which are called and nothing else:
+        # by their dotted names wherever they are imported, and by their
+        # bare names inside the kernel module itself.
+        self.compiled_functions: set[str] = set()
+        self.compiled_names: set[str] = set()
+        # The solver's result (plan P4-D409 part 5; lane DEP-1's repair 2,
+        # plan P4-D410) may stand only where it is bound to a plain name,
+        # thrown away, or read through an attribute the surface rule
+        # governs: the ids of those positions, and of every subscripted
+        # value, filled by scan_source. Watched only in a module whose
+        # text names milp, the one way to make such a result (getattr and
+        # star imports are refused).
+        self.watch_solver_results = False
+        self.solver_result_positions: set[int] = set()
+        self.subscript_values: set[int] = set()
         # A stack of scopes. Each scope maps a local name to the SET of
         # possible origins it may hold: ("module", dotted),
         # ("api", dotted), ("def", name) for functions and classes
@@ -3504,6 +4043,12 @@ class _Checker(ast.NodeVisitor):
                 allowed_in = _MODULE_SCOPED_ADMISSIONS[prefix]
                 if self.module_name not in allowed_in:
                     return _out_of_scope_message(dotted, prefix, allowed_in)
+            if (
+                self.zone
+                and prefix in _LIBRARY_ZONES
+                and self.zone not in _LIBRARY_ZONES[prefix]
+            ):
+                return _zone_message(dotted, prefix, self.zone)
             if rest[0] in _ALLOWED_MODULE_ATTRS[prefix]:
                 return None
             return _module_surface_message(dotted, prefix)
@@ -3515,6 +4060,12 @@ class _Checker(ast.NodeVisitor):
             # allowed, and it is reached through the numpy.random key
             # above (extension E7).
             return _numpy_surface_message(dotted)
+
+        if top in _LIBRARY_ROOTS:
+            # The same for pyarrow and scipy (plan P4-D410): the bare
+            # root carries no usable name, only its enumerated
+            # submodules do.
+            return _library_root_message(dotted, top)
 
         return None
 
@@ -3570,20 +4121,28 @@ class _Checker(ast.NodeVisitor):
             if top == _FIRST_PARTY_ROOT:
                 self._register_module_path(name)
                 self._bind(bound_name, ("module", origin))
+                if report:
+                    self._check_private_import(node, name)
                 continue
             if name in {"argparse", "csv", "dataclasses", "json", "math",
                         "pandas", "pathlib", "typing", "sys", "os",
-                        "zipfile"}:
+                        "zipfile", "numba"}:
                 self._bind(bound_name, ("module", name))
+                if report:
+                    self._check_admitted_import(node, name)
                 continue
             if name in {"os.path", "importlib.metadata", "numpy.random",
-                        "xml.parsers.expat"}:
+                        "xml.parsers.expat", "pyarrow.csv",
+                        "scipy.optimize", "scipy.linalg"}:
                 # The same two-component shape os.path has: the import
                 # statement names the submodule, and the one-step rule
                 # then counts from it. `import numpy` on its own is NOT
                 # here: it would bind a module whose only usable name
-                # sits one level down, and E7 admits the submodule.
+                # sits one level down, and E7 admits the submodule. The
+                # same holds for pyarrow and scipy (plan P4-D410).
                 self._bind(bound_name, ("module", origin))
+                if report:
+                    self._check_admitted_import(node, name)
                 continue
 
             # Not allowed. Bind anyway so later uses are reported too.
@@ -3616,12 +4175,56 @@ class _Checker(ast.NodeVisitor):
                     "reductions, readers and writers this audit has not "
                     "cleared.",
                 )
+            elif top in _LIBRARY_ROOTS:
+                self._flag(node, _library_root_message(name, top))
             else:
                 self._flag(
                     node,
                     "imports '" + name + "', which is not on the "
                     "Phase 0 allowlist. " + _ALLOWLIST_NOTE,
                 )
+
+    def _check_admitted_import(self, node: ast.AST, name: str) -> None:
+        """An admitted library import, held to its scope and its zones.
+
+        A scoped admission (zipfile, expat, numba) is refused at the
+        import itself outside the modules that hold it: importing numba
+        alone loads its compiler. And a module of the generation path,
+        or one of the twin's writers that root it, may not even import a
+        library that is not admitted for its zone (plan P4-D409 part 3
+        (a)): what such a module loads is what a generate run loads.
+        """
+        prefix = name if name in _ALLOWED_MODULE_ATTRS else None
+        if prefix is None:
+            return
+        if prefix in _MODULE_SCOPED_ADMISSIONS:
+            allowed_in = _MODULE_SCOPED_ADMISSIONS[prefix]
+            if self.module_name not in allowed_in:
+                self._flag(node, _out_of_scope_message(name, prefix, allowed_in))
+                return
+        if (
+            self.zone in (_ZONE_G, _ZONE_W)
+            and prefix in _LIBRARY_ZONES
+            and self.zone not in _LIBRARY_ZONES[prefix]
+        ):
+            self._flag(node, _zone_import_message(name, prefix, self.zone))
+
+    def _check_private_import(self, node: ast.AST, module: str) -> None:
+        """P4-D409 part 3 (b), at the import that would break it.
+
+        No module outside zone P imports a zone P module, and no module
+        of the generation path or of the twin's writers (zones G and W)
+        imports a reading module (zone R): what those modules import, a
+        generate run loads, and the generator reads the description and
+        nothing else (P2-D1).
+        """
+        if not self.zone:
+            return
+        target = _MODULE_ZONES.get(module)
+        if target == _ZONE_P and self.zone != _ZONE_P:
+            self._flag(node, _private_module_message(module))
+        elif target == _ZONE_R and self.zone in (_ZONE_G, _ZONE_W):
+            self._flag(node, _reading_module_message(module, self.zone))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self._handle_import_from(node, report=True)
@@ -3675,6 +4278,10 @@ class _Checker(ast.NodeVisitor):
                 continue
             kind = "module" if dotted in self.module_paths else "api"
             self._bind(alias.asname or alias.name, (kind, dotted))
+            if report and kind == "module":
+                # `from pyarrow import csv` imports the admitted module
+                # as surely as `import pyarrow.csv` does (plan P4-D410).
+                self._check_admitted_import(node, dotted)
 
     def _first_party_from_alias(
         self, node: ast.ImportFrom, module: str, alias: ast.alias, report: bool
@@ -3694,7 +4301,11 @@ class _Checker(ast.NodeVisitor):
         if dotted in self.first_party_modules:
             self._register_module_path(dotted)
             self._bind(bound_name, ("module", dotted))
+            if report:
+                self._check_private_import(node, dotted)
             return
+        if report:
+            self._check_private_import(node, module)
 
         exports = self.module_exports.get(module)
         if exports is not None:
@@ -3755,7 +4366,17 @@ class _Checker(ast.NodeVisitor):
                 if dotted in _FENCED_APIS:
                     self._flag(node, _fenced_reference_message(dotted))
                     return
+                if dotted in _CALL_ONLY_APIS:
+                    self._flag(node, _call_only_message(dotted))
+                    return
+                if dotted in self.compiled_functions:
+                    self._flag(node, _compiled_reference_message(dotted))
+                    return
+                if dotted in _ARGUMENT_RULES:
+                    self._flag(node, _argument_rule_reference_message(dotted))
+                    return
         if isinstance(node.ctx, ast.Load):
+            self._check_solver_result(node)
             bound = self._lookup(node.id)
             if bound:
                 seen: set[str] = set()
@@ -3767,8 +4388,17 @@ class _Checker(ast.NodeVisitor):
                         # string, or an untraced value is fine; only what
                         # is DONE with them is restricted.
                         continue
-                    if kind == "module" and not origin.startswith(
-                        _FIRST_PARTY_ROOT
+                    # A first-party module may be a bare value, save one
+                    # that holds a compiled kernel function, and the
+                    # package above it: through `[kernel][0].propose` the
+                    # dispatcher is reached by no name this audit holds
+                    # to calls (the verify of lane DEP-1's repair 1).
+                    if kind == "module" and (
+                        not origin.startswith(_FIRST_PARTY_ROOT)
+                        or any(
+                            compiled.startswith(origin + ".")
+                            for compiled in self.compiled_functions
+                        )
                     ):
                         message: str | None = _bare_module_message(origin)
                     else:
@@ -3810,6 +4440,30 @@ class _Checker(ast.NodeVisitor):
             return True
         return False
 
+    def _check_solver_result(self, node: ast.expr) -> None:
+        """The solver's result is bound to a name and goes nowhere else.
+
+        Plan P4-D409 part 5, lane DEP-1's repair 2 (plan P4-D410): what
+        scipy.optimize.milp returns is a dictionary of HiGHS' floats, so
+        `found['x']` reads what the closed attribute `found.x` reads, and
+        a result returned, passed or put in a container leaves for code
+        this audit then reads as untraced. The value may stand only in
+        the positions scan_source records -- bound to a plain name,
+        thrown away, or read through an attribute, which the surface
+        rule governs -- and asked position-blind, as every restriction
+        is, so a binding written below the use counts too.
+        """
+        if not self.watch_solver_results:
+            return
+        if id(node) in self.solver_result_positions:
+            return
+        for kind, origin in sorted(self._trust_origins(node)):
+            if kind == "instance" and origin in _SOLVER_RESULT_ORIGINS:
+                self._flag(
+                    node, _solver_result_message(id(node) in self.subscript_values)
+                )
+                return
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if self._check_restricted_attribute(node):
             return
@@ -3820,6 +4474,23 @@ class _Checker(ast.NodeVisitor):
                 if dotted in _FENCED_APIS:
                     self._flag(node, _fenced_reference_message(dotted))
                     return
+                if dotted in _CALL_ONLY_APIS:
+                    self._flag(node, _call_only_message(dotted))
+                    return
+                if dotted in _ARGUMENT_RULES:
+                    self._flag(node, _argument_rule_reference_message(dotted))
+                    return
+        if parts is not None:
+            # A compiled kernel function reached through a module, or an
+            # attribute of one: called and nothing else, so a method
+            # call on it (`recompile`) is refused here too.
+            for dotted in self._trust_resolve(parts):
+                for compiled in sorted(self.compiled_functions):
+                    if dotted == compiled and id(node) in self.call_targets:
+                        continue
+                    if dotted == compiled or dotted.startswith(compiled + "."):
+                        self._flag(node, _compiled_reference_message(compiled))
+                        return
         if parts is None:
             # Attribute on a computed value (call result, subscript,
             # literal): only the attribute-name bans apply to the READ;
@@ -3876,6 +4547,39 @@ class _Checker(ast.NodeVisitor):
             if self._trust_origins(node.args[0]) != {_LOCALPATH}:
                 self._flag(node, _fenced_argument_message(dotted))
             return
+
+    def _check_argument_rules(self, node: ast.Call) -> None:
+        """The argument rules of plan P4-D409 part 3 (d) (lane DEP-1, P4-D410).
+
+        The identities are the accumulating position-blind ones, for the
+        reason _check_fenced_call gives: a callee that might be one of
+        these APIs on any binding the scope makes is checked as that API.
+        `n_jobs` is refused on every call whatever its callee, because the
+        rule is about what a keyword can start, not about one library.
+        """
+        for keyword in node.keywords:
+            if keyword.arg == "n_jobs":
+                self._flag(node, _n_jobs_message())
+        parts = _chain_parts(node.func)
+        if parts is None:
+            return
+        for dotted in sorted(set(self._trust_resolve(parts))):
+            rule = _ARGUMENT_RULES.get(dotted)
+            if rule is None:
+                continue
+            detail = rule(self, node)
+            if detail is not None:
+                self._flag(node, _argument_rule_message(dotted, detail))
+
+    def _is_call_of(self, value: ast.AST, dotted: str) -> bool:
+        """True when ``value`` is written as a direct call of exactly ``dotted``."""
+        if not isinstance(value, ast.Call):
+            return False
+        parts = _chain_parts(value.func)
+        if parts is None:
+            return False
+        resolved = self._trust_resolve(parts)
+        return bool(resolved) and set(resolved) == {dotted}
 
     def _check_writer_handle(self, node: ast.Call) -> None:
         """A CSV writer may be built only over this run's own output
@@ -3935,6 +4639,8 @@ class _Checker(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         self._check_fenced_call(node)
         self._check_writer_handle(node)
+        self._check_argument_rules(node)
+        self._check_solver_result(node)
         # A CLOSED GRAMMAR for call targets (review item P1-R3-F7). A
         # call target is either a bare name or a pure dotted chain, and
         # nothing else. Every other shape -- a conditional expression, a
@@ -4532,6 +5238,53 @@ class _Checker(ast.NodeVisitor):
         self._collect_scope_bindings(node.body)
         self._build_trust_scope(list(node.body), None)
         self._walk_scope_body(node.body)
+        self._check_compiled_names(node)
+
+    def _check_compiled_names(self, node: ast.Module) -> None:
+        """Inside the polish kernel, its compiled functions are called and nothing else.
+
+        Read from the text, not from the walk: every name written with a
+        compiled function's spelling, in any scope and on any line, is
+        the function of a call or a violation, so no alias, attribute,
+        argument, store or deletion of the dispatcher passes, whichever
+        order the lines run in (lane DEP-1, plan P4-D410).
+        """
+        if not self.compiled_names:
+            return
+        for inner in ast.walk(node):
+            if (
+                isinstance(inner, ast.Name)
+                and inner.id in self.compiled_names
+                and id(inner) not in self.call_targets
+            ):
+                self._flag(inner, _compiled_reference_message(inner.id))
+        # A compiled function makes no function of its own: a lambda, a
+        # def or a class written anywhere under it -- its defaults, its
+        # body, at any depth -- would come back to Python as a dispatcher
+        # under a name the rule above never sees (the Codex review of
+        # lane DEP-1, plan P4-D410). Its decorators are read by the njit
+        # argument rule, which admits literals alone.
+        made: "dict[type[ast.AST], str]" = {
+            ast.Lambda: "a lambda",
+            ast.FunctionDef: "a def",
+            ast.AsyncFunctionDef: "a def",
+            ast.ClassDef: "a class",
+        }
+        for statement in node.body:
+            if not (
+                isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and statement.name in self.compiled_names
+            ):
+                continue
+            for part in (statement.args, *statement.body):
+                for inner in ast.walk(part):
+                    kind = made.get(type(inner))
+                    if kind is not None:
+                        self._flag(inner, _kernel_closure_message(kind))
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        if node.value == "n_jobs":
+            self._flag(node, _n_jobs_text_message())
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._handle_function(node)
@@ -4873,11 +5626,350 @@ class _Checker(ast.NodeVisitor):
         self._leave_scope()
 
 
+# -- the argument rules (plan P4-D409 part 3 (d); lane DEP-1, P4-D410) --
+#
+# Each admitted library call whose behaviour depends on a setting is held
+# to the one form whose behaviour was audited. A rule reads the call as
+# written: a setting this audit cannot read where the call is written --
+# a ** expansion, a dictionary built elsewhere, a value computed -- is
+# refused rather than trusted. Each rule returns the words of its
+# violation, or None when the call keeps the form.
+
+
+def _rule_set_option(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pandas.set_option: the one option reading.read_table sets, to its one value."""
+    values = [
+        argument.value if isinstance(argument, ast.Constant) else None
+        for argument in node.args
+    ]
+    if node.keywords or values != ["mode.string_storage", "python"]:
+        return (
+            "with other arguments than the two written texts "
+            "'mode.string_storage' and 'python': pandas' options reach "
+            "its compute engines, numba's among them, its readers' "
+            "defaults and its display, so set_option may set the one "
+            "option reading.read_table sets, to the one value, written out"
+        )
+    return None
+
+
+_PYARROW_READ_SETTINGS: "dict[str, str]" = {
+    "read_options": "pyarrow.csv.ReadOptions",
+    "parse_options": "pyarrow.csv.ParseOptions",
+    "convert_options": "pyarrow.csv.ConvertOptions",
+}
+
+
+def _rule_pyarrow_read_csv(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyarrow.csv.read_csv: the validated path, then its settings by name, one thread."""
+    if len(node.args) > 1 or any(
+        isinstance(argument, ast.Starred) for argument in node.args
+    ):
+        return (
+            "with more than the one positional argument, the validated "
+            "local path: every setting goes by name, so that the reader's "
+            "threads can be read where the call is written"
+        )
+    named: "dict[str, ast.expr]" = {}
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides which setting lands where"
+        if keyword.arg not in _PYARROW_READ_SETTINGS:
+            return (
+                "with '" + keyword.arg + "', which is none of read_options, "
+                "parse_options and convert_options (a memory pool and every "
+                "other setting are refused)"
+            )
+        named[keyword.arg] = keyword.value
+    if "read_options" not in named:
+        return (
+            "without read_options: pyarrow's reader starts a pool of "
+            "threads unless it is told otherwise, so "
+            "read_options=pyarrow.csv.ReadOptions(use_threads=False, ...) "
+            "is written in the call"
+        )
+    for setting, value in sorted(named.items()):
+        if not checker._is_call_of(value, _PYARROW_READ_SETTINGS[setting]):
+            return (
+                "with " + setting + " that is not a call of "
+                + _PYARROW_READ_SETTINGS[setting] + " written in place, so "
+                "this audit cannot read the settings it holds"
+            )
+    return None
+
+
+def _rule_pyarrow_read_options(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyarrow.csv.ReadOptions: use_threads=False, written by name as the literal False."""
+    if node.args:
+        return "with positional arguments, where use_threads=False is written by name"
+    threads: "ast.expr | None" = None
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides whether use_threads is set"
+        if keyword.arg == "use_threads":
+            threads = keyword.value
+    if not (isinstance(threads, ast.Constant) and threads.value is False):
+        return (
+            "without use_threads=False written as the literal False: the "
+            "reader otherwise starts a pool of threads, and one thread read "
+            "500,000 rows by 20 columns in 0.27 s (plan P4-D409)"
+        )
+    return None
+
+
+def _rule_pyarrow_parse_options(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyarrow.csv.ParseOptions: no row handler, every setting by name.
+
+    pyarrow 26.0.0 takes no positional argument here: ParseOptions(",")
+    raises TypeError, so a positional delimiter is a reader that fails
+    before it reads (the Codex review of lane DEP-1).
+    """
+    if node.args:
+        return (
+            "with positional arguments: pyarrow takes every setting of "
+            "ParseOptions by name (ParseOptions(delimiter=',')), and "
+            "ParseOptions(',') raises TypeError on pyarrow 26.0.0"
+        )
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides whether a row handler is set"
+        if keyword.arg == "invalid_row_handler":
+            return (
+                "with invalid_row_handler, a function pyarrow would call for "
+                "every row it cannot parse: a row the reader cannot parse is "
+                "a refusal the product's own survey decides"
+            )
+    return None
+
+
+_MILP_OPTIONS = frozenset({"disp", "mip_rel_gap", "node_limit", "presolve"})
+
+# The largest node budget the scanner admits (lane DEP-1's repair 2, plan
+# P4-D410): a search that needs more than ten million branch-and-bound
+# nodes is one the adopting lane argues for in its own plan decision.
+# HiGHS' own default, 2,147,483,647, is no budget at all.
+_HIGHS_NODE_LIMIT_MAX = 10_000_000
+
+
+def _rule_milp(checker: "_Checker", node: ast.Call) -> "str | None":
+    """scipy.optimize.milp: output silenced, the budget in nodes, never seconds."""
+    options: "ast.expr | None" = None
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides the solver's options"
+        if keyword.arg == "options":
+            options = keyword.value
+    if not isinstance(options, ast.Dict):
+        return (
+            "without options written as a dictionary in the call: HiGHS "
+            "prints to the terminal and is bounded by nothing unless told "
+            "otherwise, so options={'disp': False, 'node_limit': N} is "
+            "written out"
+        )
+    keys: "dict[str, ast.expr]" = {}
+    for key, value in zip(options.keys, options.values):
+        if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+            return (
+                "with an option that is not a name written as text (a ** "
+                "expansion inside options hides which ones are set)"
+            )
+        keys[key.value] = value
+    if "time_limit" in keys:
+        return (
+            "with time_limit: a budget in seconds lets a slow computer "
+            "decide otherwise than a fast one, so the budget is counted in "
+            "branch-and-bound nodes (node_limit)"
+        )
+    unknown = sorted(set(keys) - _MILP_OPTIONS)
+    if unknown:
+        return (
+            "with the option '" + unknown[0] + "', outside disp, node_limit, "
+            "presolve and mip_rel_gap"
+        )
+    silenced = keys.get("disp")
+    if not (isinstance(silenced, ast.Constant) and silenced.value is False):
+        return "without 'disp': False written as the literal False, which silences the solver"
+    if "node_limit" not in keys:
+        return (
+            "without 'node_limit': the search's budget is counted in "
+            "branch-and-bound nodes, the same on every computer"
+        )
+    budget = keys["node_limit"]
+    if not (
+        isinstance(budget, ast.Constant)
+        and type(budget.value) is int
+        and 1 <= budget.value <= _HIGHS_NODE_LIMIT_MAX
+    ):
+        return (
+            "with a 'node_limit' that is not a whole number from 1 to "
+            + format(_HIGHS_NODE_LIMIT_MAX, ",")
+            + " written in the call: scipy passes None on as no option "
+            "at all, and HiGHS ignores a value outside its range, so "
+            "either leaves HiGHS' own default of 2,147,483,647 nodes, no "
+            "budget at all; a budget computed while the program runs is "
+            "one this audit cannot read (the Codex review of lane DEP-1)"
+        )
+    gap = keys.get("mip_rel_gap")
+    if not (
+        isinstance(gap, ast.Constant)
+        and type(gap.value) in (int, float)
+        and gap.value == 0
+    ):
+        return (
+            "without 'mip_rel_gap': 0 written as the literal 0: plan "
+            "P4-D409 runs HiGHS with no optimality gap, so that what it "
+            "exhibits is the optimum it proves, not one within a tolerance"
+        )
+    return None
+
+
+_NJIT_SETTINGS = frozenset({"cache", "fastmath", "parallel"})
+
+
+def _rule_njit(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numba.njit: the decorator over the kernel, fastmath, parallel and cache all False."""
+    if id(node) not in checker.decorator_calls:
+        return (
+            "other than as the decorator written over the kernel: it may "
+            "compile only the scanned body under it"
+        )
+    if id(node) not in checker.top_level_decorator_calls:
+        return (
+            "over something other than a def written at the top level of "
+            "the module: a compiled function is reached by its one name "
+            "in the module, which this audit holds to calls, never "
+            "through a class or another function"
+        )
+    if node.args:
+        return (
+            "with positional arguments, where exactly fastmath=False, "
+            "parallel=False and cache=False are written by name"
+        )
+    seen: "dict[str, ast.expr]" = {}
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides the compiler's settings"
+        seen[keyword.arg] = keyword.value
+    if set(seen) != _NJIT_SETTINGS:
+        return (
+            "with the settings (" + ", ".join(sorted(seen)) + ") where "
+            "exactly fastmath, parallel and cache are written: fast-math "
+            "allows contractions that change the last bit, parallel starts "
+            "threads, cache writes compiled files, and every other setting "
+            "is refused"
+        )
+    for name, value in sorted(seen.items()):
+        if not (isinstance(value, ast.Constant) and value.value is False):
+            return "with " + name + " not written as the literal False"
+    return None
+
+
+def _rule_stable_sort(checker: "_Checker", node: ast.Call) -> "str | None":
+    """numpy's sort and argsort, wherever admitted: kind='stable' (P4-D409 part 3 (d))."""
+    for keyword in node.keywords:
+        if (
+            keyword.arg == "kind"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == "stable"
+        ):
+            return None
+    return (
+        "without kind='stable': numpy's default sort is not stable, so "
+        "equal values could leave in a different order from another build"
+    )
+
+
+_ARGUMENT_RULES = {
+    "numba.njit": _rule_njit,
+    "numpy.argsort": _rule_stable_sort,
+    "numpy.sort": _rule_stable_sort,
+    "pandas.set_option": _rule_set_option,
+    "pyarrow.csv.ParseOptions": _rule_pyarrow_parse_options,
+    "pyarrow.csv.ReadOptions": _rule_pyarrow_read_options,
+    "pyarrow.csv.read_csv": _rule_pyarrow_read_csv,
+    "scipy.optimize.milp": _rule_milp,
+}
+
+
+def _first_party_imports(
+    tree: ast.Module, first_party_modules: "set[str]"
+) -> "set[str]":
+    """Every first-party module one module imports, from any line of it.
+
+    Read from the syntax tree alone, as every other part of this audit
+    is: `import synthtwin.x`, `from synthtwin import x`, `from
+    synthtwin.x import name` and the relative forms, the latter taken
+    against the package root as the rest of this file takes them. An
+    import inside a function counts: the path is about what a run CAN
+    load (plan P4-D409 part 3 (a)).
+    """
+    found: "set[str]" = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                pieces = alias.name.split(".")
+                for length in range(len(pieces), 0, -1):
+                    candidate = ".".join(pieces[:length])
+                    if candidate in first_party_modules:
+                        found.add(candidate)
+                        break
+        elif isinstance(node, ast.ImportFrom):
+            if node.level and node.level > 0:
+                base = _FIRST_PARTY_ROOT
+                if node.module:
+                    base = base + "." + node.module
+            else:
+                base = node.module or ""
+            if base not in first_party_modules:
+                continue
+            for alias in node.names:
+                candidate = base + "." + alias.name
+                found.add(candidate if candidate in first_party_modules else base)
+    return found
+
+
+def _generation_path(imports: "dict[str, set[str]]") -> "set[str]":
+    """The modules _GENERATION_ROOTS reach by import, the roots among them.
+
+    Importing a module runs every package above it first, so each
+    package's `__init__` a reached module sits under is reached too, at
+    every depth, and what that `__init__` imports with it: on this tree
+    `synthtwin/__init__.py` runs before the generator does (the Codex
+    review of lane DEP-1, plan P4-D410). A package's `__init__` carries
+    the package's own dotted name, as _first_party_module_name gives it.
+    """
+    reached: "set[str]" = set()
+    waiting = [root for root in _GENERATION_ROOTS if root in imports]
+    while waiting:
+        name = waiting.pop()
+        if name in reached:
+            continue
+        reached.add(name)
+        waiting += sorted(imports.get(name, set()) - reached)
+        pieces = name.split(".")
+        for length in range(1, len(pieces)):
+            package = ".".join(pieces[:length])
+            if package in imports and package not in reached:
+                waiting += [package]
+    return reached
+
+
+def _zone_of(module_name: str, generation_path: "set[str]") -> str:
+    """A first-party module's zone: its table entry, else G on the path, else D."""
+    if module_name in _MODULE_ZONES:
+        return _MODULE_ZONES[module_name]
+    if module_name in generation_path:
+        return _ZONE_G
+    return _ZONE_D
+
+
 def scan_source(
     source_text: str,
     module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
     first_party_modules: "set[str] | None" = None,
     module_name: str = "",
+    zone: str = "",
+    compiled_functions: "set[str] | None" = None,
 ) -> "list[tuple[int, str]]":
     """Scan one module's source text. Returns (line, message) pairs.
 
@@ -4891,6 +5983,17 @@ def scan_source(
     to one module (_MODULE_SCOPED_ADMISSIONS); left out, no scoped
     admission applies and those names are violations wherever they
     appear.
+
+    ``zone`` is the module's zone (plan P4-D409 part 2), which scan_files
+    works out from the whole tree's imports. Left out, a first-party
+    module is G when it is one of _GENERATION_ROOTS and otherwise takes
+    its _MODULE_ZONES entry or D; a file outside the package has no zone
+    and no zone rule reads it.
+
+    ``compiled_functions`` holds the dotted names of the polish kernel's
+    compiled functions, which scan_files reads from the kernel's text
+    (_compiled_function_names): every module calls them and does nothing
+    else with them. The kernel module reads its own from its text here.
     """
     try:
         tree = ast.parse(source_text)
@@ -4904,12 +6007,75 @@ def scan_source(
                 "the syntax so the file can be audited.",
             )
         ]
-    checker = _Checker(module_exports, first_party_modules, module_name)
+    if not zone and _first_party_module_name_is(module_name):
+        zone = _zone_of(module_name, set(_GENERATION_ROOTS))
+    checker = _Checker(module_exports, first_party_modules, module_name, zone)
+    checker.compiled_functions = set(compiled_functions or set())
+    if module_name == _POLISH_KERNEL:
+        checker.compiled_names = _compiled_function_names(tree)
+        checker.compiled_functions |= {
+            _POLISH_KERNEL + "." + name for name in checker.compiled_names
+        }
+    checker.watch_solver_results = "milp" in source_text
+    # A binding at module or class level is an export: another module
+    # imports it, unwatched, and subscripts it there, so the solver's
+    # result is bound to a name inside a function alone (the verify of
+    # lane DEP-1's repair 2).
+    exported: "set[int]" = set()
+    holders: "list[tuple[ast.AST, bool]]" = [(tree, False)]
+    while holders:
+        holder, in_function = holders.pop()
+        for child in ast.iter_child_nodes(holder):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                holders += [(child, True)]
+            elif isinstance(child, ast.ClassDef):
+                holders += [(child, False)]
+            else:
+                if (
+                    not in_function
+                    and isinstance(child, (ast.Assign, ast.AnnAssign))
+                    and child.value is not None
+                ):
+                    exported.add(id(child.value))
+                holders += [(child, in_function)]
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             checker.call_targets.add(id(node.func))
+        # Where the solver's result may stand (_check_solver_result):
+        # bound to plain names, thrown away, or read through an attribute.
+        if isinstance(node, ast.Assign) and all(
+            isinstance(target, ast.Name) for target in node.targets
+        ):
+            if id(node.value) not in exported:
+                checker.solver_result_positions.add(id(node.value))
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.value is not None
+            and id(node.value) not in exported
+        ):
+            checker.solver_result_positions.add(id(node.value))
+        elif isinstance(node, (ast.Expr, ast.Attribute)):
+            checker.solver_result_positions.add(id(node.value))
+        elif isinstance(node, ast.Subscript):
+            checker.subscript_values.add(id(node.value))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            for decorator in node.decorator_list:
+                if isinstance(decorator, ast.Call):
+                    checker.decorator_calls.add(id(decorator))
+    for statement in tree.body:
+        if isinstance(statement, ast.FunctionDef):
+            for decorator in statement.decorator_list:
+                checker.top_level_decorator_calls.add(id(decorator))
     checker.visit(tree)
     return sorted(checker.violations)
+
+
+def _first_party_module_name_is(module_name: str) -> bool:
+    """True when a dotted name is this package or one of its modules."""
+    return module_name == _FIRST_PARTY_ROOT or module_name.startswith(
+        _FIRST_PARTY_ROOT + "."
+    )
 
 
 def _python_files(root: pathlib.Path) -> "list[pathlib.Path]":
@@ -4929,6 +6095,7 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
     """
     lines: list[str] = []
     texts: dict[pathlib.Path, str] = {}
+    trees: dict[str, ast.Module] = {}
     module_exports: dict[str, tuple[set[str], set[str], set[str]]] = {}
     first_party_modules: set[str] = set()
     for path in files:
@@ -4950,9 +6117,27 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
             # scan_source reports the parse failure for this file below.
             continue
         module_exports[module_name] = _module_bindings(tree)
+        trees[module_name] = tree
         pieces = module_name.split(".")
         for length in range(1, len(pieces) + 1):
             first_party_modules.add(".".join(pieces[:length]))
+    # THE GENERATION PATH, from the whole batch's imports (plan P4-D409
+    # part 3 (a)): computed before any file is judged, so a module's zone
+    # never depends on the order the files are read in.
+    imports = {
+        name: _first_party_imports(tree, first_party_modules)
+        for name, tree in trees.items()
+    }
+    generation_path = _generation_path(imports)
+    # The polish kernel's compiled functions, read from its text before
+    # any file is judged, so every module that imports one holds it to
+    # calls (lane DEP-1, plan P4-D410).
+    compiled: "set[str]" = set()
+    if _POLISH_KERNEL in trees:
+        compiled = {
+            _POLISH_KERNEL + "." + name
+            for name in _compiled_function_names(trees[_POLISH_KERNEL])
+        }
     for path in files:
         if path not in texts:
             continue
@@ -4962,6 +6147,8 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
             module_exports,
             first_party_modules,
             scanned_name if scanned_name is not None else "",
+            _zone_of(scanned_name, generation_path) if scanned_name else "",
+            compiled,
         ):
             lines.append(str(path) + ":" + str(lineno) + ": " + message)
     return lines

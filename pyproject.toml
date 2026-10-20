@@ -7,37 +7,68 @@ name = "synthtwin"
 version = "0.1.0.dev0"
 description = "Create a synthetic twin of your tabular data: same shape, each column behaving like the same column of yours, built from a description of your table rather than from its rows. No cross-column structure yet. Fully offline."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Alfredo Camargo Rodrigues" }]
 keywords = ["synthetic-data", "privacy", "tabular", "offline"]
 # Trove classifiers omitted: the standard license classifier's wording
 # collides with the decontamination manifest; the `license` field above
 # carries the license declaration.
-# TWO runtime dependencies, each justified in a ratified plan and each
-# reduced by the offline scanner to the exact names it may use.
+# FOUR runtime dependencies, each justified in a ratified plan, each
+# reduced by the offline scanner to the exact names it may use, and each
+# held to the ZONES it may run in (plan P4-D409 part 2: G generation, D
+# description and shared report, P private report and tests, R reading,
+# W writing; plan P4-D410 enters them). Every pin is exact in the locks
+# and every floor is the version the floor Python, 3.11, installs.
 #
-# pandas: Phase 1 (docs/plans/phase-1-profiler.md, P1-D2), reduced to a
-# single function that may only be called with a validated local path
-# (P1-D10). It reads the real table and is never reachable from the
-# generation path.
+# numpy: Phase 2 (docs/plans/phase-2-generator.md, P2-D8), zone G,
+# reduced to `numpy.random.default_rng` and, on the generator it
+# returns, the one `integers` call in the one draw form the method
+# specification fixes (P2-D13, E7 and E8). Phase 1 review round 1
+# showed its float REDUCTIONS made published statistics depend on row
+# order, so no published statistic comes from one (P1-D2, P1-D11);
+# P4-D409 admits integer-exact use in zone D, one name at a time.
+# 2.4.6 is the last numpy for Python 3.11; 3.12 and later get 2.5.
 #
-# numpy: Phase 2 (docs/plans/phase-2-generator.md, P2-D8), reduced to
-# `numpy.random.default_rng` and, on the generator it returns, the one
-# `integers` call in the one draw form the method specification fixes
-# (P2-D13, E7 and E8). It was declared here until Phase 1 review round 1
-# showed its REDUCTIONS made published statistics depend on row order --
-# so the profiler still computes its own statistics and imports numpy
-# nowhere. What returns is the random stream alone, whose one operation
-# is the draw. The floor is 1.24.0, the version pandas' own floor pulls
-# in and the one the `minimums` CI job installs, proves and tests.
+# pyarrow: P4-D409, zone R (a reader handed only a validated local path
+# and one thread) and text cells held as exact bytes. Its mere presence
+# also switches pandas 3's string storage, which `reading.read_table`
+# therefore sets explicitly (P4-D410). Nothing of pyarrow is a float
+# computation in G or D.
+#
+# scipy: P4-D409, zone D on the search side only (HiGHS through
+# `scipy.optimize.milp`, its output silenced and its budget in nodes,
+# every arrangement it exhibits re-checked in Python integers) and zone
+# P (the Cholesky pair for the self-test's fits). Never in G. 1.17.1 is
+# the last scipy for Python 3.11; 3.12 and later get 1.18.
+#
+# pandas: Phase 1 (docs/plans/phase-1-profiler.md, P1-D2), zone R,
+# reduced to `read_csv`, which may only be called with a validated local
+# path (P1-D10), and to setting its own string storage. It reads the
+# real table, is never reachable from the generation path, and leaves
+# the product if lane SR-A's pyarrow check replaces it (P4-D409, D-L3).
 #
 # Each floor is repeated in requirements-dev.in, requirements-min.in and
 # requirements-install.in, and tests/test_dependencies.py fails if any of
 # them disagree.
 dependencies = [
-    "numpy>=1.24.0",
-    "pandas>=2.1.0",
+    "numpy>=2.4.6",
+    "pyarrow>=26.0.0",
+    "scipy>=1.17.1",
+    "pandas>=3.0.6",
+]
+
+# THE OPTIONAL POLISH KERNEL (P4-D409 part 4, owner Q3 of 2026-10-19:
+# "Yes, gated"). numba compiles one audited module, the polish kernel,
+# and is used only after CI proves it byte-identical to the plain-Python
+# polish on every operating system and Python; the plain-Python polish
+# is the oracle and the fallback, so a twin is the same bytes with or
+# without it. No numba wheel exists for Intel Macs, which the marker
+# leaves out: they run the fallback. The floor is repeated in
+# requirements-dev.in.
+[project.optional-dependencies]
+polish = [
+    "numba>=0.68.0 ; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
 
 [project.urls]
@@ -95,15 +126,32 @@ select = ["E4", "E7", "E9", "F"]
 strict = true
 files = ["src"]
 
-# pandas ships no type information of its own (no py.typed marker), and
-# the separately published stub package is not a dependency of this
-# project: adding it would put a third-party package into the type
-# check that the offline audit would then have to reason about. The
-# reader module confines every pandas call to one function and converts
-# what comes back to plain text immediately, so the untyped surface
-# stops there. numpy ships its own types and is checked normally.
+# pandas, pyarrow and scipy ship no type information of their own (no
+# py.typed marker, measured on the pinned wheels), and the separately
+# published stub packages are not dependencies of this project: adding
+# them would put third-party packages into the type check that the
+# offline audit would then have to reason about. Each library is
+# confined by the offline scanner to a few enumerated names, and what
+# comes back is converted to plain values where it is used, so the
+# untyped surface stops there. numpy and numba ship their own types and
+# are checked normally. statsmodels, scikit-learn and openpyxl are
+# test-only (P4-D409 zone P) and named here so that a check of the tests
+# reads them the same way.
 [[tool.mypy.overrides]]
-module = ["pandas"]
+module = [
+    "openpyxl",
+    "openpyxl.*",
+    "pandas",
+    "pandas.*",
+    "pyarrow",
+    "pyarrow.*",
+    "scipy",
+    "scipy.*",
+    "sklearn",
+    "sklearn.*",
+    "statsmodels",
+    "statsmodels.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

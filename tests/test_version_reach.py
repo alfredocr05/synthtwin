@@ -26,21 +26,21 @@ library spellings some PYTHON of the matrix lacks.
 
 WHAT IT SETTLES AND WHAT IT DOES NOT. It settles that no spelling in
 the tables below reaches a cell that cannot run it. It is NOT a proof
-that the tree is 3.10-clean: the tables are what somebody has written
-down, and an addition nobody has written down is an addition this
-cannot see. Three quarters of the standard library changed between 3.10
-and 3.14. The honest guarantee is narrower and worth stating plainly --
+that the tree is clean at the floor (3.11 since plan P4-D410): the
+tables are what somebody has written down, and an addition nobody has
+written down is an addition this cannot see. Most of the standard
+library changed between the floor and 3.14. The honest guarantee is narrower and worth stating plainly --
 this catches a repeat of the defect it was built for, and the classes
 of defect nearest to it, and it grows a row each time a new one is
-found. Running the suite on 3.10 is the only thing that proves the
-whole of it, and that is what the `minimums` job is for.
+found. Running the suite on the floor is the only thing that proves
+the whole of it, and that is what the `minimums` job is for.
 
 AND IT READS EACH FILE AS ITS OWN SYNTAX TREE, WHICH IS THE OTHER
 LIMIT. `ast.parse` is what both readings below are built on, so what
 this guard sees is what the interpreter would RUN. A post-floor
 spelling written inside a STRING is invisible to it. The tree holds
 four such strings today, all of them `Path.walk` (3.12, against a
-floor of 3.10) in the sample modules `tests/test_offline_scan.py`
+floor of 3.11) in the sample modules `tests/test_offline_scan.py`
 hands to the offline import scanner:
 `test_path_walk_on_error_callback_goes_red`,
 `test_a_validated_path_still_obeys_the_callback_slot_rule`,
@@ -60,11 +60,14 @@ string. Thirty-three in the tree, of which the four in
 again on 2026-09-21 by running both readings below over every string
 constant of the folders, ONE-LINE STRINGS INCLUDED: an earlier count
 here said "one more" because the harness behind it skipped any string
-with no newline in it, which is most of this file's samples.)
+with no newline in it, which is most of this file's samples. Those
+counts were taken at the 3.10 floor: since plan P4-D410 raised it to
+3.11, the 3.11 rows and the 3.11 samples sit AT the floor and report
+nothing, and the samples that must report are 3.12 and 3.14 spellings.)
 
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
-spelling reaches the 3.10 cells while this file says nothing about it.
+spelling reaches the floor's cells while this file says nothing about it.
 The tree holds FORTY-SIX such calls (lane H1's padded-swap scale test
 adds two, 2026-10-16; lane TI's `python -m synthtwin`
 test adds one, 2026-10-15; counted again at the merge of
@@ -104,7 +107,7 @@ calls are held by what they are handed or by where they run:
   the MAKE, CHECK and TWIN blocks of `.github/workflows/ci.yml`, the
   Python the build job hands to the installed wheel. That file is not
   one this guard reads, so the floor is held by where the test runs:
-  in every cell of the matrix, the 3.10 cell among them, so a
+  in every cell of the matrix, the floor's cell among them, so a
   post-floor spelling added to a block fails there. On 2026-09-25 the
   three blocks used `csv`, `json`, `os`, `pathlib`, `sys` and the
   package, and nothing newer than the floor. Since 2026-09-30 it runs
@@ -235,8 +238,11 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 # THE SUPPORTED FLOOR, and the three places that have to agree on it.
 # `test_the_floor_is_the_one_every_governing_file_declares` below reads
 # each of them rather than trusting this pair of numbers.
-FLOOR = (3, 10)
-FLOOR_TEXT = "3.10"
+# Raised from 3.10 to 3.11 by plan P4-D410 (the owner's "3.11 and
+# later" of 2026-10-19); the rows below at 3.11 now sit AT the floor and
+# never report, as `shutil.which`'s row always has.
+FLOOR = (3, 11)
+FLOOR_TEXT = "3.11"
 
 # Keyword arguments that a standard library callable of this name began
 # accepting AFTER the floor. Keyed by the callable's own name and the
@@ -768,10 +774,12 @@ def test_the_reading_recognizes_the_shapes_it_claims_to() -> None:
     assert calls_above_the_floor("itertools.batched(rows, 3)\n") == [
         (1, "itertools.batched: it arrived in Python 3.12")
     ]
-    assert calls_above_the_floor("datetime.UTC\n") == [
-        (1, "datetime.UTC: it arrived in Python 3.11")
+    assert calls_above_the_floor("typing.override\n") == [
+        (1, "typing.override: it arrived in Python 3.12")
     ]
-    assert calls_above_the_floor("datetime.timezone.utc\n") == []
+    assert calls_above_the_floor("typing.cast\n") == []
+    # A name that arrived AT the floor is no report (plan P4-D410).
+    assert calls_above_the_floor("datetime.UTC\n") == []
     # A method that arrived later, and the older owners of its name.
     assert calls_above_the_floor("for root, folders, files in folder.walk():\n    pass\n") == [
         (1, "folder.walk(): pathlib.Path.walk arrived in 3.12")
@@ -779,17 +787,19 @@ def test_the_reading_recognizes_the_shapes_it_claims_to() -> None:
     assert calls_above_the_floor("for node in ast.walk(tree):\n    pass\n") == []
     assert calls_above_the_floor("for root, folders, files in os.walk(top):\n    pass\n") == []
     # Imports.
-    assert imports_above_the_floor("import tomllib\n") == [
-        (1, "tomllib: the module arrived in Python 3.11")
+    assert imports_above_the_floor("import annotationlib\n") == [
+        (1, "annotationlib: the module arrived in Python 3.14")
     ]
-    assert imports_above_the_floor("from tomllib import loads\n") == [
-        (1, "tomllib: the module arrived in Python 3.11")
+    assert imports_above_the_floor("from annotationlib import get_annotations\n") == [
+        (1, "annotationlib: the module arrived in Python 3.14")
     ]
     assert imports_above_the_floor("import json\nimport pathlib\n") == []
-    assert imports_above_the_floor("from datetime import UTC\n") == [
-        (1, "datetime.UTC: it arrived in Python 3.11")
+    assert imports_above_the_floor("from typing import override\n") == [
+        (1, "typing.override: it arrived in Python 3.12")
     ]
-    assert imports_above_the_floor("from datetime import timezone\n") == []
+    assert imports_above_the_floor("from typing import cast\n") == []
+    # A module that arrived AT the floor is no report (plan P4-D410).
+    assert imports_above_the_floor("import tomllib\n") == []
     # The tables are only read where the version is above the floor, so
     # a row at or below it never reports; `shutil.which(mode=...)` is
     # the row that proves the comparison is made.

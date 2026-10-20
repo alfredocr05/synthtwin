@@ -2,20 +2,33 @@
 # consumer of the lock refuses source archives, VCS, editable, and
 # local/path requirements even if a command line omits the option.
 --only-binary :all:
-# Runtime dependencies: pandas from Phase 1 (plan P1-D2) and numpy from
-# Phase 2 (plan P2-D8). The floors here must match the floors declared
-# in pyproject.toml; tests/test_dependencies.py fails if the two ever
-# drift apart.
-numpy>=1.24.0
-pandas>=2.1.0
+# Runtime dependencies: pandas from Phase 1 (plan P1-D2), numpy from
+# Phase 2 (plan P2-D8), pyarrow and scipy from the December library set
+# (plans P4-D409 and P4-D410). The floors here must match the floors
+# declared in pyproject.toml; tests/test_dependencies.py fails if the
+# two ever drift apart.
+numpy>=2.4.6
+pyarrow>=26.0.0
+scipy>=1.17.1
+pandas>=3.0.6
+# The OPTIONAL polish kernel's compiler (pyproject.toml's `polish`
+# extra, plan P4-D409 part 4): numba is used only after CI proves the
+# kernel byte-identical to the plain-Python polish on every operating
+# system and Python, and it has no wheel for Intel Macs, which run the
+# plain-Python polish. Its floor matches pyproject.toml's extra.
+numba>=0.68.0 ; sys_platform != 'darwin' or platform_machine != 'x86_64'
 # Development and build tooling.
-# openpyxl is TEST-ONLY (owner ruling 2026-09-15, landing 2b.10): the
-# tests read a twin workbook with an independent reader, so a defect in
-# synthtwin's own workbook reader cannot hide behind itself. src/ never
-# imports it, the offline scanner keeps it out of the product, and the
-# tests that use it skip where it is absent, so the minimum-versions job
-# stays green without a pin.
+# openpyxl, statsmodels and scikit-learn are TEST-ONLY (owner ruling
+# 2026-09-15, landing 2b.10, for openpyxl; plan P4-D409 for the other
+# two, zone P): the tests read a twin workbook with an independent
+# reader, and cross-check the analyst kit's fits with a second
+# implementation, so a defect in synthtwin's own code cannot hide behind
+# itself. src/ never imports them, the offline scanner keeps them out of
+# the product, and the tests that use them skip where they are absent,
+# so the minimum-versions job stays green without a pin.
 openpyxl>=3.1
+statsmodels>=0.15.0
+scikit-learn>=1.9.1
 pytest>=8.0
 ruff>=0.6
 mypy>=1.10

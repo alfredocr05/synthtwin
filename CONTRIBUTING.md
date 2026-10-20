@@ -87,7 +87,7 @@ These bind every phase that touches randomness or writes output files:
 
 ## Practicalities
 
-- **Environment.** Python >= 3.10. Install with `pip install -e .` and
+- **Environment.** Python >= 3.11. Install with `pip install -e .` and
   the dev tools with the `dev` dependency group. Tests run with `pytest`
   against the installed package (src layout).
 - **Checks.** CI runs lint (`ruff`), types (`mypy --strict` on `src/`),

@@ -33,9 +33,15 @@ controls the machine it runs on.
 ## The offline guarantee
 
 The boundary statement: synthtwin's own code contains no construct that
-initiates network I/O, no subprocess execution, no native-code calls, and
-no dynamic code loading; it accepts only local filesystem paths; it is
-fully functional air-gapped. Verification is source audit plus the
+initiates network I/O, no subprocess execution, no native-code calls of
+its own (no ctypes, no cffi), and no dynamic code loading or code
+generated at run time - save one audited module, the polish kernel,
+which numba may compile in memory from that module's own source once CI
+proves its twin bytes equal to the plain-Python polish on every system
+and Python (plan P4-D409 part 4; the plain-Python polish is the oracle
+and the fallback); it accepts only local filesystem paths; it is fully
+functional air-gapped. The libraries' own compiled code is answered by
+exact pins and hashes, not by the scanner. Verification is source audit plus the
 layered checks below - explicitly **not** an OS-level sandbox.
 Institutions requiring enforcement rather than assurance run synthtwin
 inside their own network-isolated environment.
@@ -61,15 +67,32 @@ The layers:
    real path is re-checked against the lexical rules.
 2. **Positive import allowlist.** Source under `src/` may use only an
    exact, enumerated list of standard-library APIs, plus a named surface
-   of exactly two third-party libraries: `pandas.read_csv`, which is
-   additionally fenced by the rule described under the reader residual
-   below, and `numpy.random.default_rng` together with the single
-   drawing method `integers` on the stream it returns, which is the
-   whole of what the generator uses and reaches no file, path or
-   network. An AST-level scanner (`tools/offline_scan`) enforces the list
-   and additionally bans dynamic import, entry-point loading, reflection
-   primitives, and writes to interpreter state. Adding an API to the
-   list is a plan-level decision with a capability audit.
+   of each runtime library (plans P1-D10, P2-D13, P4-D409 and P4-D410):
+   `pandas.read_csv`, which is additionally fenced by the rule described
+   under the reader residual below, and the one `pandas.set_option`
+   call that fixes its string storage; `numpy.random.default_rng`
+   together with the single drawing method `integers` on the stream it
+   returns, which is the whole of what the generator uses and reaches
+   no file, path or network; `pyarrow.csv.read_csv`, fenced the same
+   way and held to one thread, with its three option classes; scipy's
+   `milp` (HiGHS, silenced, its budget in nodes) with `Bounds` and
+   `LinearConstraint`, and its Cholesky pair `cho_factor` and
+   `cho_solve`; and `numba.njit` in the one polish-kernel module, only
+   as `njit(fastmath=False, parallel=False, cache=False)` over a
+   top-level function, which every module then calls and does nothing
+   else with (numba's dispatcher carries its compiler settings). Every
+   library is admitted for the ZONES it may run in (P4-D409 part 2):
+   no library float decides a byte of the twin (zone G, the modules
+   the generator, the description's loader and the twin's writers
+   reach by import; the writers themselves import no library) or of
+   anything published (zone D). An AST-level scanner
+   (`tools/offline_scan`) enforces the list, the zones and the argument
+   rules, and additionally bans dynamic import, entry-point loading,
+   reflection primitives, writes to interpreter state, `ctypes`,
+   `cffi`, `llvmlite`, `joblib` and every `n_jobs` argument. Adding an
+   API to the list is a plan-level decision with a capability audit,
+   its zones and a mutation case (the dependency protocol, P4-D409
+   part 7).
 
    **The scope of this scanner, stated exactly.** It is a best-effort
    automatic layer inside the boundary above. It is *not* a proof that
@@ -873,7 +896,12 @@ Stated here so that no reader has to discover them independently:
 - **A network-capable reader, fenced rather than unable.** The CSV
   reader synthtwin calls (`pandas.read_csv`) would open a URL or a
   remote storage location if it were handed one: the library is capable
-  of network access even though synthtwin never asks it for any. Three
+  of network access even though synthtwin never asks it for any. The
+  same holds for `pyarrow.csv.read_csv`, admitted for the fast reader
+  (plan P4-D410), which resolves a text it does not recognise as a path
+  through its file systems; it is fenced by exactly the controls below,
+  and pyarrow's file-system and network modules are not admitted at
+  all. Three
   controls hold that line, and they are what the offline claim rests on
   for this call. Two of them run at run time and they are the operative
   ones: every path reaching the reader has just passed
@@ -944,20 +972,34 @@ Stated here so that no reader has to discover them independently:
 
 ## Supply chain
 
-synthtwin has **two runtime dependencies**. pandas is justified in
-writing in `docs/plans/phase-1-profiler.md` (P1-D2) and reduced by the
-import scanner to exactly one function, `read_csv`, which may be called
-only with a path the validator produced. numpy is justified in
-`docs/plans/phase-2-generator.md` (P2-D8) and reduced to
+synthtwin has **four runtime dependencies**, on Python 3.11 and later
+(plans P4-D409 and P4-D410), each pinned exactly and by hash, and each
+reduced by the import scanner to enumerated names and held to the zones
+it may run in. pandas is justified in writing in
+`docs/plans/phase-1-profiler.md` (P1-D2) and reduced to `read_csv`,
+which may be called only with a path the validator produced, and the
+one `set_option` call that fixes its string storage. numpy is justified
+in `docs/plans/phase-2-generator.md` (P2-D8) and reduced to
 `numpy.random.default_rng` and the one `integers` call on the stream it
-returns; it is reachable only from the generator, which opens no file at
-all. The inventory by role, with the question an auditor actually cares
-about answered per row:
+returns; the generator, which opens no file at all, is the one module
+that uses it. pyarrow and scipy are justified in
+`docs/plans/phase-4-columns.md` (P4-D409): pyarrow reads (zone R) and,
+once lanes adopt it, holds text as exact bytes; scipy's HiGHS searches
+(zone D's search side, everything it exhibits re-checked in Python
+integers) and its Cholesky pair fits the private self-test (zone P).
+numba is OPTIONAL (the `polish` extra), gated by CI and absent on Intel
+Macs. The licence texts of the libraries are gathered from their wheels
+when the offline bundle is built and are never committed: the
+decontamination scanner matches lines of numpy's, scipy's and pyarrow's
+licence files, and wheels are binary files. The inventory by role, with
+the question an auditor actually cares about answered per row:
 
 | Role | Contents | Executes on a user machine? | Pinned by |
 | --- | --- | --- | --- |
-| Runtime, direct | `pandas`, `numpy` | yes | bounds in `pyproject.toml` for an ordinary `pip install` (floors installed and tested by the `minimums` CI job); by hash in `requirements-install.lock` for the supported institutional install |
-| Runtime, transitive | `python-dateutil`, `six`, `tzdata`, and (below Python 3.11) `pytz` - the closure pandas brings. numpy is in that closure too and is a declared direct dependency again as of Phase 2: it was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order, and the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end. What returns is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
+| Runtime, direct | `numpy`, `pyarrow`, `scipy`, `pandas` | yes | bounds in `pyproject.toml` for an ordinary `pip install` (floors installed and tested by the `minimums` CI job on Python 3.11); by hash in `requirements-install.lock` for the supported institutional install and the offline bundle |
+| Runtime, transitive | `python-dateutil`, `six`, and (on Windows) `tzdata` - the closure pandas brings; numpy is in pandas' and scipy's closures too. numpy was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order; the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and the zones of P4-D409 keep every library float away from published bytes. What returned at Phase 2 is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
+| Runtime, optional | `numba` with `llvmlite` (the `polish` extra), compiling the one audited polish kernel; not on Intel Macs | only where installed, and only once CI proves the kernel byte-identical (P4-D409 part 4) | by hash in `requirements-dev.lock`; the bundle's choice is lane DEP-2's |
+| Test-only | `openpyxl`, `statsmodels`, `scikit-learn` (zone P: independent readers and second implementations) | no - contributor and CI machines only; `src/` never imports them | hash-locked in `requirements-dev.lock`, consumed frozen |
 | Build frontend | `pip` / `python -m build` in CI | no | `build` is hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift); `pip` ships with the runner interpreter, its exact version recorded in CI logs every run |
 | Build backend | `hatchling` | only if you build from source yourself; never when installing a prebuilt wheel | hash-locked in `requirements-dev.lock`, which covers the complete build closure, consumed frozen (CI fails on drift) |
 | Installer toolchain | the user's own `pip` | yes - it is your tool and a trust root you already hold | your environment |
@@ -1026,15 +1068,19 @@ and runs the whole test suite against them.
    confirm that the argument comes from `validate_local_path` in that
    same function; that run-time check, not the scan, is what holds the
    reader to local files.
-2. **Two direct runtime dependencies.** Open `pyproject.toml`; confirm
-   `dependencies` names pandas and numpy and nothing else.
+2. **Four direct runtime dependencies.** Open `pyproject.toml`; confirm
+   `dependencies` names numpy, pyarrow, scipy and pandas and nothing
+   else, and that `requires-python` is 3.11.
    `python-dateutil` and the rest of the transitive row in the table
    above arrive inside pandas's own requirements, and
    `requirements-install.lock` pins the whole closure by hash. Then
-   `grep -rn numpy src/`: every hit is in the generator, and every one
+   `grep -rn numpy src/`: every use is in the generator, and every one
    of them is `numpy.random.default_rng` or the single `integers` call
-   the method specification fixes -- the profiler, which is the half
-   that reads the real table, imports numpy nowhere.
+   the method specification fixes -- `synthtwin doctor` imports
+   `numpy.random` only to report that it loads, and the profiler, which
+   is the half that reads the real table, imports numpy nowhere. Run
+   `synthtwin doctor`: it names the version of every runtime library
+   installed.
 3. **Path rules.** Run the test suite on your platform; the Windows cells
    run the complete path and link-rejection suite, including the
    assertion that resolution is never invoked on link-containing input.

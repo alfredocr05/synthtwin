@@ -18,6 +18,7 @@ Everything runs in this process: no test here starts a program.
 """
 
 import builtins
+import importlib.metadata
 import io
 import os
 import pathlib
@@ -133,7 +134,8 @@ def test_python_dash_m_on_an_old_python_says_so_in_words(
 ) -> None:
     """An older Python stops before the command's module, with words, exit 1.
 
-    The command's module needs 3.10 to be read at all, so the check sits
+    synthtwin needs 3.11 (plan P4-D410) and the command's module is
+    written for nothing older, so the check sits
     in `__main__.py` before the import (the Codex review of lane TI,
     item 8). Measured: Apple's Python 3.9.6 now prints this line and
     exits 1 where it stopped on a stack trace.
@@ -150,7 +152,7 @@ def test_python_dash_m_on_an_old_python_says_so_in_words(
     said = _python_dash_m(monkeypatch, "doctor")
     assert called == [], "the command's module is never reached"
     assert isinstance(said, str), "sys.exit with a message exits 1 and prints it"
-    assert "needs Python 3.10 or later" in said and "3.9.6" in said
+    assert "needs Python 3.11 or later" in said and "3.9.6" in said
     assert "Before you start" in said and "install.sh" in said
 
 
@@ -180,22 +182,28 @@ def test_doctor_passes_on_this_computer_with_one_line_per_check(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Five checks without a table, six with one, each one line, exit 0."""
+    """Seven checks without a table, eight with one, each one line, exit 0.
+
+    Python, then the four runtime libraries each with its version (plan
+    P4-D410), then the output folder and the memory.
+    """
     monkeypatch.chdir(tmp_path)
     code, lines = _doctor(capsys)
     assert code == 0, "\n".join(lines)
     checks = _check_lines(lines)
-    assert len(checks) == 5, lines
+    assert len(checks) == 7, lines
     # Windows has no os.sysconf, so there the memory line is a note and
     # the closing line claims only what was checked (lane TI's tripwire,
     # item 1): the same assertions hold on every system.
     memory_read = cli._total_memory() is not None
     memory_mark = "  ok   " if memory_read else "  note "
-    assert [line[:7] for line in checks] == ["  ok   "] * 4 + [memory_mark]
+    assert [line[:7] for line in checks] == ["  ok   "] * 6 + [memory_mark]
     assert re.search(r"Python \d+\.\d+\.\d+", checks[0])
-    assert "numpy" in checks[1] and "pandas" in checks[2]
-    assert "output folder" in checks[3]
-    assert "memory" in checks[4]
+    for line, library in zip(checks[1:5], ("numpy", "pandas", "pyarrow", "scipy")):
+        version = importlib.metadata.version(library)
+        assert line == f"  ok       {library} {version} can be loaded", line
+    assert "output folder" in checks[5]
+    assert "memory" in checks[6]
     closing = "Every check passed." if memory_read else "Every check that could be made passed."
     assert lines[-2] == f"{closing} Next, describe your table:"
     assert lines[-1] == "  synthtwin profile my-table.csv", "the next command ends it"
@@ -209,8 +217,8 @@ def test_doctor_passes_on_this_computer_with_one_line_per_check(
     code, lines = _doctor(capsys, str(table))
     assert code == 0, "\n".join(lines)
     checks = _check_lines(lines)
-    assert len(checks) == 6
-    assert "The table is" in checks[5]
+    assert len(checks) == 8
+    assert "The table is" in checks[7]
     taught = _taught(cli._teaching_profile(str(table)))
     assert lines[-len(taught) :] == taught
 
@@ -226,8 +234,8 @@ def test_doctor_passes_where_memory_cannot_be_read_as_on_windows(
     code, lines = _doctor(capsys)
     assert code == 0, "\n".join(lines)
     checks = _check_lines(lines)
-    assert [line[:7] for line in checks] == ["  ok   "] * 4 + ["  note "]
-    assert "could not be read" in checks[4]
+    assert [line[:7] for line in checks] == ["  ok   "] * 6 + ["  note "]
+    assert "could not be read" in checks[6]
     assert lines[-2] == "Every check that could be made passed. Next, describe your table:"
     assert lines[-1] == "  synthtwin profile my-table.csv"
 
@@ -254,22 +262,29 @@ def test_doctor_ends_with_what_the_person_typed(
     assert _words(again[0]) == ["synthtwin", "doctor", str(table), "--out-dir", str(missing)]
 
 
-def test_doctor_fails_on_a_python_older_than_3_10(
+@pytest.mark.parametrize("older", [(3, 9, 18), (3, 10, 14)])
+def test_doctor_fails_on_a_python_older_than_3_11(
+    older: "tuple[int, int, int]",
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """3.10 is refused too since the floor moved to 3.11 (plan P4-D410)."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "_python_version", lambda: (3, 9, 18))
+    monkeypatch.setattr(cli, "_python_version", lambda: older)
     code, lines = _doctor(capsys)
     assert code == 1
     first = _check_lines(lines)[0]
-    assert first.startswith("  PROBLEM ") and "3.9.18" in first
+    spoken = ".".join(str(part) for part in older)
+    assert first.startswith("  PROBLEM ") and spoken in first
+    assert "needs Python 3.11 or later" in first
     assert "Before you start" in first and "install" in first
     assert "synthtwin doctor" in lines[-1]
 
 
-@pytest.mark.parametrize("missing", ["numpy.random", "pandas"])
+@pytest.mark.parametrize(
+    "missing", ["numpy.random", "pandas", "pyarrow.csv", "scipy.optimize"]
+)
 def test_doctor_fails_when_a_package_cannot_be_loaded(
     missing: str,
     tmp_path: pathlib.Path,
@@ -308,7 +323,7 @@ def test_doctor_reports_a_package_whose_load_raises_another_exception(
     monkeypatch.setattr(builtins, "__import__", refusing)
     code, lines = _doctor(capsys)
     assert code == 1
-    assert len(_check_lines(lines)) == 5, "every check still runs"
+    assert len(_check_lines(lines)) == 7, "every check still runs"
     failed = _problems(lines)
     assert len(failed) == 1 and "pandas could not be loaded" in failed[0]
 
@@ -413,7 +428,7 @@ def test_doctor_says_what_to_do_where_it_may_not_look(
     protected folders give a terminal that was not let in. From Python
     3.14, `Path.exists` and `Path.is_dir` answer False there instead of
     raising, as `os.path.exists` and `os.path.isdir` always have; the
-    second case gives them those forms, so a run on 3.10 to 3.13 proves
+    second case gives them those forms, so a run on 3.11 to 3.13 proves
     the 3.14 answer too (lane TI's verifier, item 1).
     """
     if pathlib_asks == "as-python-3.14":
@@ -527,8 +542,8 @@ def test_doctor_says_plainly_when_memory_cannot_be_read(
     checks = _check_lines(lines)
     # A note, neither ok nor PROBLEM, and the closing line claims only
     # what was checked (lane TI's skeptic, item 5).
-    assert checks[4].startswith("  note ") and "could not be read" in checks[4]
-    assert checks[5].startswith("  note ") and "could not be weighed" in checks[5]
+    assert checks[6].startswith("  note ") and "could not be read" in checks[6]
+    assert checks[7].startswith("  note ") and "could not be weighed" in checks[7]
     assert "Every check that could be made passed." in "\n".join(lines)
     assert "Every check passed." not in "\n".join(lines)
     monkeypatch.setattr(cli.sys, "platform", "win32")

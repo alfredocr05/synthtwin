@@ -10,7 +10,7 @@
 #
 # What it does, and nothing else:
 #
-# 1. finds Python 3.10 or later (python3, then python; or the one named
+# 1. finds Python 3.11 or later (python3, then python; or the one named
 #    in the SYNTHTWIN_PYTHON variable);
 # 2. makes a fresh private environment, `.venv`, inside the synthtwin
 #    folder, so nothing else on this computer changes. An earlier one
@@ -56,7 +56,7 @@ stop() {
 }
 
 new_enough() {
-    "$@" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' \
+    "$@" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' \
         >/dev/null 2>&1
 }
 
@@ -65,8 +65,8 @@ if [ -n "${SYNTHTWIN_PYTHON:-}" ]; then
     if new_enough "$SYNTHTWIN_PYTHON"; then
         python="$SYNTHTWIN_PYTHON"
     else
-        stop "SYNTHTWIN_PYTHON names $SYNTHTWIN_PYTHON, which is not Python 3.10 \
-or later. Name a Python 3.10 or later there, or leave SYNTHTWIN_PYTHON unset, \
+        stop "SYNTHTWIN_PYTHON names $SYNTHTWIN_PYTHON, which is not Python 3.11 \
+or later. Name a Python 3.11 or later there, or leave SYNTHTWIN_PYTHON unset, \
 and run this script again."
     fi
 else
@@ -78,7 +78,7 @@ else
     done
 fi
 if [ -z "$python" ]; then
-    stop "no Python 3.10 or later was found on this computer. Install one \
+    stop "no Python 3.11 or later was found on this computer. Install one \
 (see \"Before you start\" in README.md), open a new terminal window, and run \
 this script again."
 fi

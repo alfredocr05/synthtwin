@@ -39,9 +39,17 @@ problems must still demonstrate the checking that was performed.
 ## Review priorities, in order
 
 1. **Security and the offline guarantee.** Any path to network I/O,
-   subprocess execution, native calls, or dynamic code loading in
-   product code; any weakening of the path-locality rules, the import
-   allowlist, the supply-chain pins, or the CI gate set.
+   subprocess execution, native calls of the product's own (ctypes,
+   cffi), dynamic code loading or code generated at run time in product
+   code -- the one exception being the audited polish kernel numba
+   compiles under its CI gate (plan P4-D409 part 4); any weakening of
+   the path-locality rules, the import allowlist and its zones, the
+   argument rules, the supply-chain pins, or the CI gate set. An
+   allowlist entry entered with its capability audit, its zones, a
+   mutation case red without it, and the plan decision that admits it
+   (the dependency protocol, plan P4-D409 part 7) is NOT a weakening:
+   review the audit, the zones and the mutation case instead. An entry
+   without them is.
 2. **Silent statistical wrongness.** Output that looks plausible but is
    statistically wrong is the worst product failure: nothing crashes,
    no message appears, and the user trusts a twin that lies. Hunt for
@@ -51,7 +59,11 @@ problems must still demonstrate the checking that was performed.
    free text - silently corrupts the twin while every test stays green.
 4. **Determinism.** Hidden randomness, unordered iteration on
    randomness-consuming paths, extra draws, platform-dependent bytes,
-   or any output not fixed by the declared inputs (plan D12).
+   or any output not fixed by the declared inputs (plan D12). Above all
+   a library float deciding a byte it may not: in zone G (the twin) or
+   zone D (anything published) a float reduction, a transcendental,
+   BLAS or LAPACK, a solver's tolerance or a threaded kernel, which the
+   byte-identity zones of plan P4-D409 part 2 keep in zone P alone.
 5. **Profile/generator boundary violations.** Any code path, test
    helper, or convenience by which generation code could read the real
    table instead of the profile.

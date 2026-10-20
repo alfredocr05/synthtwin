@@ -2470,6 +2470,15 @@ def read_table(
             "synthtwin internal check: refusals must be 'quote' or "
             "'positions'."
         )
+    # PANDAS' STRING STORAGE IS CHOSEN HERE, NOT BY WHAT ELSE IS INSTALLED
+    # (plan P4-D410). Left to itself, pandas 3 stores `dtype=str` text in
+    # pyarrow whenever pyarrow is installed, and pyarrow is now a runtime
+    # dependency: the checking pass then reads slower and peaks higher
+    # (P4-D410 measures both). The pass compares text, which either
+    # storage holds exactly, so it keeps Python's own strings, the storage
+    # it had before pyarrow arrived. The setting is pandas' process-wide
+    # option, and this reader is the one place the package uses pandas.
+    pandas.set_option("mode.string_storage", "python")
     validated = validate_local_path(raw_path, purpose="input")
     table_path = pathlib.Path(validated)
     shown = f"{table_path}"
