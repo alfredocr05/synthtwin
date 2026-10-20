@@ -5040,10 +5040,11 @@ def _counted_in_subjects(
     ``enough`` says, per subject column, whether it holds `floor`
     different values (None: every one does). Under one of fewer every
     value is held by fewer subjects than the floor, so only a column
-    attached to it, or of dates or times of day, is counted there: the
-    ward code of seven values a question was put to blanks no column of
-    measurements or labels, and the names, birth dates and visit dates of
-    seven patients are held.
+    attached to it is counted there: the filler code of seven values a
+    question was put to blanks no column of measurements, labels or dates
+    beside it, and the names and birth dates of seven patients are held.
+    Their visit dates, attached to nobody's one value, are counted in
+    rows there (plan P4-D406's stated limit, lane PS).
 
     Such a column is then described as a held record number
     (`taxonomy.as_held_in_people`), as lane HX describes a column whose
@@ -5063,7 +5064,7 @@ def _counted_in_subjects(
     for place, subject in enumerate(subject_cells):
         people = enough is None or enough[place]
         attached = _attached(cells, subject)
-        if not people and not attached and not dated:
+        if not people and not attached:
             continue
         counted = _holding(keyed, subject, floor)
         for key in counted:

@@ -300,7 +300,7 @@ def count(names: "list[str]", columns: "list[list[str]]",
             people = columns[names.index(subject)]
             holders, rows, attached = held_by(values, people)
             enough = counts_people(people)
-            if not enough and not attached and not dated:
+            if not enough and not attached:
                 continue
             for value, who in holders.items():
                 if len(who) < FLOOR:
@@ -556,4 +556,19 @@ def census_twin_table() -> str:
     for person, size in enumerate(sizes):
         for _row in range(size):
             lines += [f"REC{30000000 + 3 * person:08d},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def filler_table(rows: int) -> str:
+    """A date column beside a filler code of seven values (`row0` to `row6`), nobody's key.
+
+    The filler repeats, so the person question is put to it; a column of
+    fewer than eleven values counts only the columns attached to it, and
+    the dates are not.
+    """
+    draw = random.Random(47)
+    lines = ["seen,other"]
+    for place in range(rows):
+        year, month, day = draw.randint(2015, 2022), draw.randint(1, 12), draw.randint(1, 28)
+        lines += [f"{year}-{month:02d}-{day:02d},row{place % 7}"]
     return "\n".join(lines) + "\n"

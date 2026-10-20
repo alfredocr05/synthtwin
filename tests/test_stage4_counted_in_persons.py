@@ -506,3 +506,13 @@ def test_a_pool_that_spreads_back_into_its_real_groups_takes_one_more(
     assert sum(census.values()) == 120
     assert sum(size * people for size, people in census.items()) == len(cells)
     assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_filler_code_put_the_person_question_blanks_no_date(tmp_path: pathlib.Path) -> None:
+    """Ruling of 2026-10-19 15:42, item 3: seven filler values count only what is attached to them."""
+    table, _screen = _profiled(tmp_path, "filler", persons_counted.filler_table(800))
+    block = _block(_described(tmp_path, "filler"), "seen")
+    assert block["role"] == taxonomy.ROLE_DATETIME, block["role"]
+    counted = persons_counted.count_files(table, tmp_path)
+    assert counted["subjects"] == ["other"], counted
+    assert counted["few"] == 0, counted
