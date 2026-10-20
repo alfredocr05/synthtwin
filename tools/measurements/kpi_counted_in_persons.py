@@ -90,7 +90,10 @@ def count_off() -> "typing.Iterator[None]":
 # layout at 2,000 and 20,000 rows; and the catalogue's patients table,
 # unanswered, whose `gender_code` and `ancestry` are held beside its ZIP
 # codes, themselves held until their question is answered (round 2,
-# item 1's price): the twin misses those columns' layouts.
+# item 1's price): the twin misses those columns' layouts. Each name
+# exempts its WHOLE table from `twins_failing_validation`, not the named
+# columns alone (lane HX2's combined verify, item 4): a later miss of any
+# other column of these tables is counted apart too, and P4-D406 says so.
 GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-caps-20000")
 
 # THE COVERAGE EACH BATTERY MUST REACH (Codex's review of lane HX2, item
@@ -99,9 +102,11 @@ GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-ca
 # against its battery's coverage unless it is named below with its reason,
 # and fewer tables than these is `coverage_short` -- never a green run on
 # lost coverage. The catalogue must be on the path.
-EXPECTED_TABLES = {"shapes": 0, "people": 0, "zoo": 0}
-# The tables a battery may lose, each named with why: none.
-PERMITTED_NOT_COUNTED: "dict[str, str]" = {}
+EXPECTED_TABLES = {"shapes": 72, "people": 16, "zoo": 19}
+# The tables a battery may lose, each named with why.
+PERMITTED_NOT_COUNTED: "dict[str, str]" = {
+    "p-500-99": "99 declared people, under the population floor: refused by design",
+}
 
 
 def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "dict[str, object]":
