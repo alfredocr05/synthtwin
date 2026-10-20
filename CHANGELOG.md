@@ -6,6 +6,20 @@ exists).
 
 ## [Unreleased]
 
+### The workbook twin is written as a stream (2026-10-19)
+
+**Lane XW** (plan P4-D411). A workbook twin's sheet was built as one
+text grown a row at a time, a copy of the whole sheet per row: the
+library study saw it killed at 1.9 GB writing 20,000 rows of fifty
+columns. The sheet is now made a row at a time and written straight
+into the file, each part told its size first, so every twin is the
+same file, byte for byte, as before (31 workbooks compared, `K-S4-22`)
+and writing it holds about one row: a 154 MB sheet of 100,000 rows is
+written with about 0.3 MB held. 20,000 and 100,000 rows of fifty
+columns write in 14.0 and 70.7 s at a peak of 146 and 341 MB (measured
+on a loaded machine; recorded). The offline scan admits the zip member
+writer's `write` and `close`, in `writing` only.
+
 ### Batch 4c's records: more stated limits given owners, three KPI drops owned (2026-10-19)
 
 **Records of batch 4c** (push critic 8 and the push critic of lane
