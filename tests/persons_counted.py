@@ -348,6 +348,10 @@ def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
     for count in rows.values():
         real[count] = real.get(count, 0) + 1
     shown = {int(key): int(value) for key, value in census.items()}
+    # ...save the one census the column's printed totals force: every
+    # value on one row, or all but one on one row and that one on two.
+    if sum(rows.values()) - len(rows) <= 1 or len(rows) <= 1:
+        return 0
     found = sum(1 for key, value in shown.items()
                 if 1 <= value < FLOOR and real.get(key, 0) == value)
     pool = sum(value for key, value in real.items() if shown.get(key) != value)

@@ -4432,46 +4432,37 @@ def build_document(
         # numbers names no layout fewer than the floor's number of
         # subjects wear, before its census of repetition is drawn from
         # its layouts.
-        counted_here = bool(subject_cells) and name not in subject_names
+        # COUNTED IN EVERY SUBJECT COLUMN BUT ITSELF: a subject column's
+        # own values are counted in the others too (Codex's review of lane
+        # HX2, item 4: a candidate of the person question that is not held
+        # by its own question publishes no value one to ten people of
+        # another subject column hold).
+        counting: "list[list[str]]" = []
+        counting_enough: "list[bool]" = []
+        for place, subject_name in enumerate(subject_names):
+            if subject_name != name:
+                counting += [subject_cells[place]]
+                counting_enough += [subject_enough[place]]
         # ...and a subject column's own layouts are counted in every
         # OTHER subject column (lane HX2's skeptic, round 2, item 3): a
         # plan number declared beside the patient names no layout three
-        # patients' plans wear -- and in ITSELF (Codex's review of lane
-        # HX2, item 1): a layout one patient's key wears prints that
-        # patient's rows, which the census beside it then told apart.
-        if subject_cells:
+        # patients' plans wear. A person column's layouts are not counted
+        # in its own people (plan P4-D406's stated limit (c), lane MG): a
+        # placeholder key such as `UNKNOWN`, one subject on a few rows,
+        # would pool every layout of the column.
+        if counting:
             described = _layouts_in_subjects(
                 described,
                 cells,
-                subject_cells,
-                subject_enough,
+                counting,
+                counting_enough,
                 settings.small_cell_floor,
             )
-        real_census: "dict[str, object] | None" = None
-        if "n_distinct_by_occurrences" in described.details:
-            found_census = described.details["n_distinct_by_occurrences"]
-            if isinstance(found_census, dict):
-                real_census = found_census
+        real_census = _census_of(described)
         if name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
-        if name in subject_names:
-            # The person column's census of rows a person, counted in
-            # people; a candidate whose question is open keeps the even
-            # census `as_unanswered_identity` gave it where that prints
-            # no real group of fewer people (Codex's review, item 6).
-            candidate = name in withheld_names and real_census is not None
-            described = taxonomy.with_census_in_people(
-                described,
-                settings.small_cell_floor,
-                real_census if candidate else None,
-                # Read only where a group of fewer people is to be pooled.
-                None
-                if candidate
-                or not _a_small_group(real_census, settings.small_cell_floor)
-                else _census_parts(described, cells),
-            )
         elif (
-            counted_here
+            counting
             and name not in described_identifiers
             and (
                 # DATES DECLARED AS COUNTS AND NOT READ AS DATES are never
@@ -4482,35 +4473,53 @@ def build_document(
                 # dates, so it is held whole.
                 _counted_dates_declined(settings, name, described)
                 or _counted_in_subjects(
-                described,
-                cells,
-                subject_cells,
-                settings.small_cell_floor,
-                subject_enough,
-                _CellReading(
-                    taxonomy.counted_member(
-                        taxonomy.counted_for_the_column(settings, name)
-                    )
-                    if described.role == taxonomy.ROLE_DATETIME
-                    else "",
-                    name in declared_commas,
-                ),
+                    described,
+                    cells,
+                    counting,
+                    settings.small_cell_floor,
+                    counting_enough,
+                    _CellReading(
+                        taxonomy.counted_member(
+                            taxonomy.counted_for_the_column(settings, name)
+                        )
+                        if described.role == taxonomy.ROLE_DATETIME
+                        else "",
+                        name in declared_commas,
+                    ),
                 )
             )
         ):
             described_identifiers += [name]
             held_in_people += [name]
-            described = taxonomy.as_held_in_people(
-                _layouts_in_subjects(
-                    described_from(cells, None, True),
-                    cells,
-                    subject_cells,
-                    subject_enough,
-                    settings.small_cell_floor,
-                )
+            fresh = _layouts_in_subjects(
+                described_from(cells, None, True),
+                cells,
+                counting,
+                counting_enough,
+                settings.small_cell_floor,
             )
+            real_census = _census_of(fresh)
+            described = taxonomy.as_held_in_people(fresh)
             if counted_in_subjects is not None:
                 counted_in_subjects += [name]
+        if (
+            name in subject_names
+            and name not in withheld_names
+            and name not in held_in_people
+        ):
+            # The person column's census of rows a person, counted in
+            # people (Codex's review of lane HX2, items 1 and 6). A
+            # candidate whose question is open, or a subject the count
+            # held, keeps the census its printed counts imply, which
+            # `as_unanswered_identity` gave it (lane HX's, P4-D401).
+            described = taxonomy.with_census_in_people(
+                described,
+                settings.small_cell_floor,
+                # Read only where a group of fewer people is to be pooled.
+                _census_parts(described, cells)
+                if _a_small_group(real_census, settings.small_cell_floor)
+                else None,
+            )
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
@@ -5587,6 +5596,15 @@ def _counted_dates_declined(
         if column == name:
             return described.role != taxonomy.ROLE_DATETIME
     return False
+
+
+def _census_of(described: taxonomy.ColumnProfile) -> "dict[str, object] | None":
+    """A described column's census of repetition, or None where it has none."""
+    if "n_distinct_by_occurrences" in described.details:
+        found = described.details["n_distinct_by_occurrences"]
+        if isinstance(found, dict):
+            return found
+    return None
 
 
 def _a_small_group(census: object, floor: int) -> bool:
