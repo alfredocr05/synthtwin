@@ -6,6 +6,78 @@ exists).
 
 ## [Unreleased]
 
+### Between columns: the chain's method page, written before its code (2026-10-19)
+
+**Nothing is built by this entry, and no twin carries any structure
+between columns yet.** It writes, before any code, how the first layer
+of the between-columns work is to carry links between columns (lane MBC
+of the December plan; plan P4-D407, which supersedes the held page of
+P4-D394). The profile contract's section 4.6b specifies what is to be
+published: each column cut at nested levels of rungs it already
+publishes, and a chain of small family tables, each column with up to
+three related columns, every printed cell 0 or at least the floor, zeros
+included, never a hidden cell. Which families are placed is drawn with a
+private key kept once per installation, keyed by the table's name, so
+that the choices tell a reader nothing the numbers do not; the section
+proves that no group of 1 to 10 rows can be worked out from the
+published tables, levels and words, for a table with one row per
+patient, and states what it does not promise (several descriptions of
+one table, a reader who guesses, the averages and correlations of the
+next page, several rows per patient). The generation method's G16
+specifies the arrangement: each column's cells made as today, only their
+rows chosen, family by family, so every family table comes back cell for
+cell. The validation method's V12 checks each family cell for cell. The
+shared report the twin carries prints one structural word a pair; the
+private report of the person who runs synthtwin prints both grades and
+says which twin to use for which analyses.
+
+The page's first review round repaired it before any code. A rule
+between two columns, such as admission before discharge, is now carried
+only by a drawn step that may always leave it out, and is tested once on
+the facts published whether or not it is carried, in a form a solver can
+compute and the page proves. A length of stay the profiler derives is
+published only inside its table with the admission column, so it can no
+longer fix how many rows hold an admission and no discharge (the review
+found 7 of 1,000 fixed). Describing the same table again after an
+answer changed what would be published is refused unless the person
+says the first description was never shared. A validation report prints
+nothing measured for a pair outside a family and no cell of a table
+holding a small one, since a distance at four decimals gave a small cell
+back. The settings and the targets are restated against what was
+actually measured, the stage-6 gate's measured risk is told, and
+`tests/test_chain_method_page.py` holds every repaired item.
+
+A second review round, with one outside review, repaired it again. A
+column a rule computes now publishes its name, place and role only,
+since its counts of written forms gave back how many rows held a
+discharge and no admission (2, 5 and 9 of 1,000). The file's own count
+of empty records is read beside the tables, so it can no longer fix a
+count the tables leave free (one case fixed 6 rows). Each step checks
+its safety rule across the whole chain, a rule carried by a recorded
+difference is promised only where the twin keeps it, and leaving the
+chain out no longer drops a rule already carried. A validation report
+prints no measured number between columns, judges each table against
+the one published, and gives a verdict only where the file's own
+description would allow it, because "differs, with no number" told a
+small difference. The self-test sample takes exactly the rows it names
+even when many rows repeat, the content fingerprint can no longer be
+imitated by a cell's text, the record of earlier descriptions compares
+whole descriptions and lets one run at a time, and the hours no
+longer quote Python 3.10, which the new oldest version, 3.11, retires.
+
+The page's settings were then decided on 2026-10-20 from measurements
+at 200,000 rows and 50 columns. The screen of three columns at once is
+on: it ranks every triple, and separately the triples of yes/no and
+few-category columns, and offers its best ones to the keyed draw as a
+small weight, never forcing them. Measured, it brings back a yes/no
+three-way pattern exactly and the diabetes by current smoking effect on
+death inside its margin (-1.33 against -1.44), and 202 of 287 estimates
+inside their margins (a fresh sample 213), with every published count
+still 0 or at least 11. The follow-up time and its event stay first,
+three related columns stay the most, and the finer fifth-percentile cut
+stays off. A number whose slope on another number changes with a
+yes/no column is named as the next page's work.
+
 ### The method for twins whose columns meet their band counts exactly, written before its code (2026-10-18)
 
 **Lane BTp of the December plan** (plan P4-D404). Nothing synthtwin
