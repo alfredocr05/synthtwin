@@ -97,6 +97,7 @@ import importlib.metadata
 import os
 import pathlib
 import sys
+import typing
 
 from synthtwin import asking, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
@@ -4871,10 +4872,10 @@ def _run_generate(
     # because that is what a spreadsheet file IS; the source encoding
     # describes a delimited file's bytes and there are none here.
     twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
-    twin_members: "list[tuple[str, str]] | None" = None
+    twin_members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None
     twin_text = ""
     if packaged:
-        twin_members = sheetwriting.workbook_members(loaded, twin)
+        twin_members = sheetwriting.workbook_stream(loaded, twin)
     else:
         written = rendering.twin_csv(twin)
         try:
