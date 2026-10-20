@@ -34,9 +34,9 @@ to it. For every other column and each subject column:
   the column's present rows as a whole are in scope, where the block
   publishes statistics over them (any role but a record number's), when
   eleven rows or more and one to ten subjects hold them;
-- a declared person column's census of rows a person publishes no entry
-  of one to ten people that is not the even spread of a pool of eleven
-  people or more.
+- a declared person column's census of rows a person prints no real
+  group of one to ten people, and the people it does not print as they
+  are number none or eleven and more (`census_few`).
 
 `few` is the number of values, forms and groups in scope and published,
 under any subject column (the KPI's target, 0); `literal` the number of
@@ -228,12 +228,16 @@ def _forms_of(block: "dict[str, object]", values: "list[str]") -> "list[str]":
 
 
 def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
-    """Entries of a person column's census that name one to ten people.
+    """Groups of one to ten people a person column's census prints.
 
     The real census counts how many people have each number of rows. A
-    published entry under eleven stands only as the even spread of a pool:
-    at most two such entries, a row apart, and the people outside the real
-    entries published exactly at eleven or more number at least eleven.
+    published entry of one to ten people is such a group where the real
+    census holds exactly that many people at that number of rows; and the
+    people whose real entry is not published as it is form one more group
+    (the pool), which may not number one to ten either. A census that is
+    every person spread over every row as evenly as whole rows go is what
+    the column's own totals (its rows and its different values) imply,
+    and prints no group.
     """
     census = block.get("n_distinct_by_occurrences")
     if not isinstance(census, dict) or not census:
@@ -246,15 +250,18 @@ def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
     for count in rows.values():
         real[count] = real.get(count, 0) + 1
     shown = {int(key): int(value) for key, value in census.items()}
-    small = sorted(key for key, value in shown.items() if 1 <= value < FLOOR)
-    if not small:
+    people, total = len(rows), sum(rows.values())
+    even = {total // people: people - total % people}
+    if total % people:
+        even[total // people + 1] = total % people
+    if shown == {key: value for key, value in even.items() if value}:
         return 0
-    exact = sum(value for key, value in shown.items()
-                if value >= FLOOR and real.get(key, 0) == value)
-    pool = len(rows) - exact
-    if len(small) <= 2 and small[-1] - small[0] <= 1 and pool >= FLOOR:
-        return 0
-    return len(small)
+    found = sum(1 for key, value in shown.items()
+                if 1 <= value < FLOOR and real.get(key, 0) == value)
+    pool = sum(value for key, value in real.items() if shown.get(key) != value)
+    if 1 <= pool < FLOOR:
+        found += 1
+    return found
 
 
 def count(names: "list[str]", columns: "list[list[str]]",
@@ -533,4 +540,19 @@ def forms_table(rows: int) -> str:
         else:
             site = ("North", "South")[draw.randrange(2)]
         lines += [f"REC{40000000 + 3 * person:08d},{site},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def census_twin_table() -> str:
+    """Declared patients on one to five rows; three on five rows beside twenty-two on four.
+
+    Pooled with the four-row entry, the three spread back into exactly
+    the census they came from: twenty-two on four rows and three on five.
+    """
+    draw = random.Random(43)
+    sizes = [1] * 30 + [2] * 40 + [3] * 25 + [4] * 22 + [5] * 3
+    lines = ["patient,value"]
+    for person, size in enumerate(sizes):
+        for _row in range(size):
+            lines += [f"REC{30000000 + 3 * person:08d},{draw.uniform(3, 150):.1f}"]
     return "\n".join(lines) + "\n"

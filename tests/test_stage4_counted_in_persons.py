@@ -490,3 +490,19 @@ def test_a_written_form_fewer_than_eleven_people_wear_is_not_published(
     assert _held(block), block
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
     assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_pool_that_spreads_back_into_its_real_groups_takes_one_more(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Three patients on five rows, pooled with twenty-two on four, would print the real three."""
+    table, _screen = _profiled(tmp_path, "people", persons_counted.census_twin_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "people"), "patient")
+    census = {int(key): value for key, value in block["n_distinct_by_occurrences"].items()}
+    cells = [line.split(",")[0] for line in table.read_text(encoding="utf-8").splitlines()[1:]]
+    assert persons_counted.census_few(block, cells) == 0, census
+    assert census.get(5) != 3, census
+    assert sum(census.values()) == 120
+    assert sum(size * people for size, people in census.items()) == len(cells)
+    assert _twin_validates(table, tmp_path) == 0

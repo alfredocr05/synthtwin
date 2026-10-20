@@ -25847,7 +25847,11 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
     two a row apart) and added to the census. Where the pool holds one
     to ``floor`` - 1 people, the smallest entries kept join it until it
     holds ``floor`` or more, so no group of fewer people stands apart by
-    subtraction. A census with no entry of fewer people is unchanged.
+    subtraction; and while its spread would print a real group of fewer
+    people (`_spread_is_real`), the next joins it too. A pool that takes
+    every entry spreads all the column's people over all its rows: the
+    census its published counts imply. A census with no entry of fewer
+    people is unchanged.
 
     Guarantees: accepts a described column and the floor; returns it
     with that one field changed, or unchanged where its role publishes no
@@ -25877,7 +25881,9 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
             rows = rows + size * entry
     if people == 0:
         return column
-    while 0 < people < floor and kept:
+    while kept and (
+        people < floor or _spread_is_real(census, kept, people, rows, floor)
+    ):
         smallest = 0
         for size in sorted(kept):
             if smallest == 0 or kept[size] < kept[smallest]:
@@ -25885,12 +25891,8 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
         people = people + kept[smallest]
         rows = rows + smallest * kept[smallest]
         del kept[smallest]
-    share = rows // people
-    over = rows % people
-    if people > over:
-        kept[share] = (kept[share] if share in kept else 0) + people - over
-    if over:
-        kept[share + 1] = (kept[share + 1] if share + 1 in kept else 0) + over
+    for size, entry in _even_spread(people, rows):
+        kept[size] = (kept[size] if size in kept else 0) + entry
     widest = 0
     for size in kept:
         widest = max(widest, size)
@@ -25903,6 +25905,44 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
         details[key] = column.details[key]
     details["n_distinct_by_occurrences"] = spread
     return dataclasses.replace(column, details=details)
+
+
+def _even_spread(people: int, rows: int) -> "list[tuple[int, int]]":
+    """``people`` spread over ``rows`` as evenly as whole rows go: (rows a person, people)."""
+    share = rows // people
+    over = rows % people
+    found: "list[tuple[int, int]]" = []
+    if people > over:
+        found += [(share, people - over)]
+    if over:
+        found += [(share + 1, over)]
+    return found
+
+
+def _spread_is_real(
+    census: "dict[str, object]",
+    kept: "dict[int, int]",
+    people: int,
+    rows: int,
+    floor: int,
+) -> bool:
+    """Whether the pool's even spread prints a real group of fewer than ``floor`` people.
+
+    PLAN P4-D406. A pool whose people really hold one row count or two
+    a row apart spreads back into exactly the census it came from, so an
+    entry of one to ``floor`` - 1 people it prints is that many real
+    people (three patients on eight rows each beside twenty-two on
+    seven, the catalogue's operating table): the pool then takes the next
+    entry in (`with_census_in_people`).
+    """
+    real: "dict[int, int]" = {}
+    for key in census:
+        real[int(f"{key}")] = int(f"{census[key]}")
+    for size, entry in _even_spread(people, rows):
+        whole = entry + (kept[size] if size in kept else 0)
+        if whole < floor and size in real and real[size] == whole:
+            return True
+    return False
 
 
 def _even_census(
