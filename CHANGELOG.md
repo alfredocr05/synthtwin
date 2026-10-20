@@ -20,13 +20,14 @@ it may run in: the modules the generator, the loader and the twin's
 writers reach by import (zone G) use no library but the one random
 stream; pyarrow's reader is fenced like pandas' and runs one thread;
 HiGHS is silenced and budgeted in a node count written in the call,
-and its result goes nowhere until a lane enters what it reads; numba is
-one decorator form in one module, over a top-level function that is
-called and nothing else and makes no function of its own, in a module
-that is no bare value (one statement writing into numba's dispatcher
-switched fast-math on); every call with an argument rule is written in
-place, never handed to map; the package's `__init__` is on the
-generation path; the twin's writers import no library; `n_jobs` is
+and its result, bound to a name inside a function alone and never at
+module or class level, goes nowhere until a lane enters what it reads;
+numba is one decorator form in one module, over a top-level function
+that is called and nothing else and makes no function of its own, in a
+module that is no bare value (one statement writing into numba's
+dispatcher switched fast-math on); every call with an argument rule is
+written in place, never handed to map; the package's `__init__` is on
+the generation path; the twin's writers import no library; `n_jobs` is
 refused everywhere, as a keyword and as text. `read_table` sets pandas'
 string storage itself (left to pandas, reading 500,000 rows took 19 %
 longer with pyarrow installed), and `synthtwin doctor` names every

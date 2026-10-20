@@ -5987,6 +5987,27 @@ def scan_source(
             _POLISH_KERNEL + "." + name for name in checker.compiled_names
         }
     checker.watch_solver_results = "milp" in source_text
+    # A binding at module or class level is an export: another module
+    # imports it, unwatched, and subscripts it there, so the solver's
+    # result is bound to a name inside a function alone (the verify of
+    # lane DEP-1's repair 2).
+    exported: "set[int]" = set()
+    holders: "list[tuple[ast.AST, bool]]" = [(tree, False)]
+    while holders:
+        holder, in_function = holders.pop()
+        for child in ast.iter_child_nodes(holder):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                holders += [(child, True)]
+            elif isinstance(child, ast.ClassDef):
+                holders += [(child, False)]
+            else:
+                if (
+                    not in_function
+                    and isinstance(child, (ast.Assign, ast.AnnAssign))
+                    and child.value is not None
+                ):
+                    exported.add(id(child.value))
+                holders += [(child, in_function)]
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             checker.call_targets.add(id(node.func))
@@ -5995,11 +6016,13 @@ def scan_source(
         if isinstance(node, ast.Assign) and all(
             isinstance(target, ast.Name) for target in node.targets
         ):
-            checker.solver_result_positions.add(id(node.value))
+            if id(node.value) not in exported:
+                checker.solver_result_positions.add(id(node.value))
         elif (
             isinstance(node, ast.AnnAssign)
             and isinstance(node.target, ast.Name)
             and node.value is not None
+            and id(node.value) not in exported
         ):
             checker.solver_result_positions.add(id(node.value))
         elif isinstance(node, (ast.Expr, ast.Attribute)):

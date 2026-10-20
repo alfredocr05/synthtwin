@@ -3635,6 +3635,14 @@ def test_a_highs_result_goes_nowhere_by_key_or_by_hand(tmp_path):
         "'mip_rel_gap': 0})['x']\n"
     )
     _assert_red(_scan_in(tmp_path / "imported", "summary", imported), keyed)
+    options = "options={'disp': False, 'node_limit': 10, 'mip_rel_gap': 0})"
+    for label, exported in (
+        ("module", "import scipy.optimize\n\nFOUND = scipy.optimize.milp([1.0], " + options + "\n"),
+        ("annotated", "import scipy.optimize\n\nFOUND: dict = scipy.optimize.milp([1.0], " + options + "\n"),
+        ("class", "import scipy.optimize\n\n\nclass Box:\n    found = scipy.optimize.milp([1.0], " + options + "\n"),
+        ("inner class", "import scipy.optimize\n\n\ndef make():\n    class Box:\n        found = scipy.optimize.milp([1.0], " + options + "\n    return 1\n"),
+    ):
+        _assert_red(_scan_in(tmp_path / ("exported-" + label.replace(" ", "-")), "summary", exported), handed)
 
 
 def test_highs_never_runs_on_the_generation_path(tmp_path):
