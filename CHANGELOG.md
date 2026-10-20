@@ -6,6 +6,37 @@ exists).
 
 ## [Unreleased]
 
+### The dependency page: the December libraries on Python 3.11 and later, and what no library float may decide (2026-10-19)
+
+**Lane MDEP of the December plan; nothing a command prints, writes or
+exits changes, and no dependency, lock or scanner table moves yet.**
+Plan P4-D409 writes, before any library enters the product, the rules
+it enters under, after the owner's direction of 2026-10-19 (any offline
+Python library, used where it measures better; no AI service; a fully
+offline, pinned, hash-checked bundle) and the owner's choices that
+evening: Python 3.11 and later, numba only behind a gate. The runtime
+set is numpy, pyarrow, scipy and pandas (pandas while lane SR-A
+decides), with numba gated and pyreadstat only for the light
+native-format stretch; statsmodels, scikit-learn, scipy and openpyxl
+are for tests; polars, duckdb, python-calamine, xlsxwriter, lifelines,
+networkx and statsmodels in the product are not adopted, each for a
+measured reason. Five zones say where a library may run: generation
+keeps integers and elementwise + - * / and sqrt in a fixed order, so
+the twin stays the same bytes on every computer; the description and
+the shared report use only integer-exact counting or `math.fsum`,
+because a library's float sum made published statistics depend on row
+order (P1's finding, now reversed only for integer-exact numpy);
+library floats run only in the custodian's private report and the
+tests; reading cross-checks every library cell for cell; writing stays
+the standard library's. The offline scanner is to enforce the zones
+module by module (lane DEP-1); CLAUDE.md's principle 3 is restated for
+one numba kernel whose twin bytes CI must prove identical to the
+plain-Python polish on every system and Python; and a solver's "no
+such arrangement" never publishes alone: only an exact closed form or
+the exact oracle confirming it for that table does, otherwise the
+count is refused. The delegated choices D-L1 to D-L5 are recorded, and
+lanes DEP-1 and DEP-2 build the mechanics and the bundle.
+
 ### Batch 4c's records: more stated limits given owners, three KPI drops owned (2026-10-19)
 
 **Records of batch 4c** (push critic 8 and the push critic of lane
