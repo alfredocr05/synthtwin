@@ -255,9 +255,12 @@ def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
     census = block.get("n_distinct_by_occurrences")
     if not isinstance(census, dict) or not census:
         return 0
+    # A spelling the block counts as missing (`NA`) is nobody.
+    absent = block.get("missing_by_source")
+    nobody = {parsing.folded(f"{key}") for key in absent} if isinstance(absent, dict) else set()
     rows: "dict[str, int]" = {}
     for cell in cells:
-        if parsing.folded(cell):
+        if parsing.folded(cell) and parsing.folded(cell) not in nobody:
             rows[cell] = rows.get(cell, 0) + 1
     real: "dict[int, int]" = {}
     for count in rows.values():
