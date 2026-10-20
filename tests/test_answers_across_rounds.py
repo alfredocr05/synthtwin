@@ -34,6 +34,7 @@ import io
 import json
 import pathlib
 import random
+import re
 from typing import Callable
 
 import pytest
@@ -113,9 +114,13 @@ def offered(entry: "dict[str, object]") -> "tuple[str, ...]":
 # plan P4-D408 as well (the lane's reproduction runs it there).
 ANSWERED_BEFORE = "answered_before"
 # The families of question an answer belongs to, as plan P4-D408 groups
-# them: `keep` belongs to the question that offered it.
+# them: `keep` belongs to the question that offered it. How a column's
+# numbers are written is a family of its own beside what the column
+# holds (the third round; Codex's review of lane AQ, item 1), so the
+# legal pair `measurement` and `decimal_comma` stands as two answers.
 _FAMILIES = (
-    ("kind", (asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER, asking.ANSWER_MEASUREMENT, asking.ANSWER_JOINED, asking.ANSWER_DECIMAL_COMMA)),
+    ("kind", (asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER, asking.ANSWER_MEASUREMENT, asking.ANSWER_JOINED)),
+    ("grammar", (asking.ANSWER_DECIMAL_COMMA,)),
     ("clock", (asking.ANSWER_TWELVE_HOUR,)),
     ("date-codes", (asking.ANSWER_NO_DATE, asking.ANSWER_REAL_VALUE)),
     ("century", (asking.ANSWER_CENTURY_POSIX,) + tuple(asking.CENTURY_ANSWERS)),
@@ -191,22 +196,63 @@ def hand_back(table: Table, document: "dict[str, object]") -> pathlib.Path:
     return fixtures.write(table.folder, f"{table.stem}-questions.json", json.dumps(document, indent=1))
 
 
-def outputs(table: Table, generated: bool = True) -> "dict[str, bytes]":
-    """The description, the summary, the questions file and the twin at seed 0, as bytes.
+def written(table: Table) -> "tuple[dict[str, bytes], int]":
+    """The description, the summary, the questions file and the twin at seed 0, as bytes, and generation's exit.
 
-    `generated=False` lets a table the generator refuses be compared all
-    the same, by its exit code in place of the twin.
+    The twin is the file generation wrote, and only that: where none was
+    written it is left out of the mapping, so no exit code ever stands in
+    for a twin (Codex's review of lane AQ, item 5: two refusals compared
+    as `exit 2` against `exit 2` counted as one twin written alike).
     """
     found = {
         "description": table.path("profile.json").read_bytes(),
         "summary": table.path("profile.txt").read_bytes(),
         "questions": table.path("questions.json").read_bytes(),
     }
-    code = run(["generate", f"{table.path('profile.json')}", "--replace", "--seed", "0"])
-    assert code == 0 or not generated, code
     twin = table.folder / f"{table.stem}-twin{table.source.suffix}"
-    found["twin"] = twin.read_bytes() if code == 0 and twin.is_file() else f"exit {code}".encode()
+    if twin.exists():
+        twin.unlink()
+    code = run(["generate", f"{table.path('profile.json')}", "--replace", "--seed", "0"])
+    if twin.is_file():
+        found["twin"] = twin.read_bytes()
+    return found, code
+
+
+def outputs(table: Table) -> "dict[str, bytes]":
+    """`written`'s four files, the twin required: generation exits 0 and writes it."""
+    found, code = written(table)
+    assert code == 0 and "twin" in found, code
     return found
+
+
+@dataclasses.dataclass
+class Judged:
+    """One table's two routes set side by side (K-S3-66)."""
+
+    differing: int
+    refused_on_both: bool
+    failed: bool
+
+
+def judged(several: "tuple[dict[str, bytes], int]", once: "tuple[dict[str, bytes], int]") -> Judged:
+    """The files the rounds and the one round wrote, compared; a refusal is never a twin.
+
+    A route whose generation exits 0 and writes no twin failed. Where
+    both routes refuse, the refusal is counted apart, the other three
+    files are compared, and refusals of different codes differ. Where one
+    route alone writes a twin, the twin differs. Only two twins written
+    are compared byte for byte.
+    """
+    (first, first_code), (second, second_code) = several, once
+    if (first_code == 0 and "twin" not in first) or (second_code == 0 and "twin" not in second):
+        return Judged(0, False, True)
+    names = ("description", "summary", "questions")
+    differing = sum(1 for name in names if first[name] != second[name])
+    if "twin" in first and "twin" in second:
+        return Judged(differing + (first["twin"] != second["twin"]), False, False)
+    if "twin" not in first and "twin" not in second:
+        return Judged(differing + (first_code != second_code), True, False)
+    return Judged(differing + 1, False, False)
 
 
 def clear(table: Table) -> None:
@@ -282,12 +328,24 @@ def in_rounds(table: Table, answerer: Answerer, typed: "list[list[str]] | None" 
 def in_one_round(table: Table, answers: "dict[tuple[str, str], str]") -> "int | None":
     """Every answer at once: in the first file where it is asked, typed where not.
 
-    None where an answer is neither asked in the first file nor typeable.
+    A column one of whose answers must be typed has each of its answers
+    typed where it can be: an answer in the file to a question deciding
+    several families -- the point between thousands decides what the
+    column holds and how its numbers are written -- replaces a typed
+    declaration of either, as the file is the newer statement (plan
+    P4-D408, third round). None where an answer is neither asked in the
+    first file nor typeable.
     """
     assert profile(table) == 0
     document = questions(table)
     wanted = [(name, answer) for (name, _kind), answer in answers.items()]
-    given = give(document, wanted)
+    probe = json.loads(json.dumps(document))
+    placed = {(name, answer) for name, answer, _kind in give(probe, wanted)}
+    typed_columns = {name for name, answer in wanted if (name, answer) not in placed}
+    in_file = [
+        (name, answer) for name, answer in wanted if name not in typed_columns or typed_form(name, answer) is None
+    ]
+    given = give(document, in_file)
     written = {(name, answer) for name, answer, _kind in given}
     flags: "list[str]" = []
     for name, answer in wanted:
@@ -302,16 +360,16 @@ def in_one_round(table: Table, answers: "dict[tuple[str, str], str]") -> "int | 
 
 
 def compare(
-    table: Table, answerer: Answerer, typed: "list[list[str]] | None" = None, generated: bool = True
+    table: Table, answerer: Answerer, typed: "list[list[str]] | None" = None
 ) -> "tuple[Rounds, dict[str, bool]]":
     """Answer in rounds, then the same answers in one round; which files differ."""
     rounds = in_rounds(table, answerer, typed)
     assert rounds.exits and all(code == 0 for code in rounds.exits), rounds.exits
-    several = outputs(table, generated)
+    several = outputs(table)
     clear(table)
     code = in_one_round(table, rounds.standing)
     assert code == 0, code
-    once = outputs(table, generated)
+    once = outputs(table)
     return rounds, {name: several[name] != once[name] for name in several}
 
 
@@ -484,11 +542,24 @@ def test_codes_in_dates_read_either_way_answered_after_the_order(tmp_path: pathl
 
 
 def test_a_later_round_changes_an_earlier_answer(tmp_path: pathlib.Path) -> None:
-    """Changed in the kept section, and typed: the later answer wins, as if given once."""
+    """Changed in the kept section, and typed: the later answer wins, as if given once.
+
+    `--measurement amount` typed over a kept `decimal_comma` says what
+    the column holds and nothing about how its numbers are written, so
+    both stand (the third round; Codex's review of lane AQ, item 1);
+    `--code clock` typed over a kept `twelve-hour` replaces it, since a
+    12-hour clock reaches nothing on a column of codes.
+    """
     table = mixed_table(tmp_path)
     assert profile(table) == 0
     first = questions(table)
-    give(first, [("reg", asking.ANSWER_CODE), ("amount", asking.ANSWER_DECIMAL_COMMA), ("pid", asking.ANSWER_IDENTIFIER)])
+    give(
+        first,
+        [
+            ("reg", asking.ANSWER_CODE), ("amount", asking.ANSWER_DECIMAL_COMMA), ("pid", asking.ANSWER_IDENTIFIER),
+            ("clock", asking.ANSWER_TWELVE_HOUR),
+        ],
+    )
     hand_back(table, first)
     assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
     second = questions(table)
@@ -496,16 +567,23 @@ def test_a_later_round_changes_an_earlier_answer(tmp_path: pathlib.Path) -> None
         if entry["column"] == "reg":
             entry["your_answer"] = asking.ANSWER_MEASUREMENT
     hand_back(table, second)
-    assert profile(table, "--answers", f"{table.path('questions.json')}", "--measurement", "amount") == 0
+    assert profile(table, "--answers", f"{table.path('questions.json')}", "--measurement", "amount", "--code", "clock") == 0
     held = kept(table)
     assert ("reg", asking.ANSWER_MEASUREMENT) in held and ("reg", asking.ANSWER_CODE) not in held
     assert ("amount", asking.ANSWER_MEASUREMENT) in held
-    assert ("amount", asking.ANSWER_DECIMAL_COMMA) not in held
+    assert ("amount", asking.ANSWER_DECIMAL_COMMA) in held
+    assert ("clock", asking.ANSWER_CODE) in held and ("clock", asking.ANSWER_TWELVE_HOUR) not in held
     several = outputs(table)
     clear(table)
     code = in_one_round(
         table,
-        {("reg", "kind"): asking.ANSWER_MEASUREMENT, ("amount", "kind"): asking.ANSWER_MEASUREMENT, ("pid", "kind"): asking.ANSWER_IDENTIFIER},
+        {
+            ("reg", "kind"): asking.ANSWER_MEASUREMENT,
+            ("amount", "kind"): asking.ANSWER_MEASUREMENT,
+            ("amount", "grammar"): asking.ANSWER_DECIMAL_COMMA,
+            ("pid", "kind"): asking.ANSWER_IDENTIFIER,
+            ("clock", "kind"): asking.ANSWER_CODE,
+        },
     )
     assert code == 0
     assert outputs(table) == several
@@ -515,8 +593,10 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path)
     """Answered again where the next file asks again: the later answer wins, as if given once.
 
     `keep` for the person column, then `identifier`; a point between
-    thousands for `amount`, then `measurement`, where the file the first
-    answering run wrote puts each question again.
+    thousands for `amount`, then `code`, where the file the first
+    answering run wrote puts each question again. (`measurement` there
+    says what the column holds, and the comma stands beside it: the third
+    round.)
     """
     table = mixed_table(tmp_path)
     assert profile(table) == 0
@@ -527,17 +607,17 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path)
     assert ("pid", asking.ANSWER_KEEP) in kept(table)
     assert ("amount", asking.ANSWER_DECIMAL_COMMA) in kept(table)
     second = questions(table)
-    assert give(second, [("pid", asking.ANSWER_IDENTIFIER), ("amount", asking.ANSWER_MEASUREMENT)]) == [
-        ("pid", asking.ANSWER_IDENTIFIER, "kind"), ("amount", asking.ANSWER_MEASUREMENT, "kind"),
+    assert give(second, [("pid", asking.ANSWER_IDENTIFIER), ("amount", asking.ANSWER_CODE)]) == [
+        ("pid", asking.ANSWER_IDENTIFIER, "kind"), ("amount", asking.ANSWER_CODE, "kind"),
     ]
     hand_back(table, second)
     assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
     held = kept(table)
     assert ("pid", asking.ANSWER_IDENTIFIER) in held and ("pid", asking.ANSWER_KEEP) not in held
-    assert ("amount", asking.ANSWER_MEASUREMENT) in held and ("amount", asking.ANSWER_DECIMAL_COMMA) not in held
+    assert ("amount", asking.ANSWER_CODE) in held and ("amount", asking.ANSWER_DECIMAL_COMMA) not in held
     several = outputs(table)
     clear(table)
-    assert in_one_round(table, {("pid", "kind"): asking.ANSWER_IDENTIFIER, ("amount", "kind"): asking.ANSWER_MEASUREMENT}) == 0
+    assert in_one_round(table, {("pid", "kind"): asking.ANSWER_IDENTIFIER, ("amount", "kind"): asking.ANSWER_CODE}) == 0
     assert outputs(table) == several
 
 
@@ -829,7 +909,10 @@ _TYPED_CASES: "list[tuple[str, Callable[[pathlib.Path], Table], list[str], list[
     ("--code", mixed_table, ["--measurement", "reg"], [], ["--code", "reg"], ("reg", asking.ANSWER_CODE), ("reg", asking.ANSWER_MEASUREMENT)),
     ("--identifier", mixed_table, [], [("amount", asking.ANSWER_DECIMAL_COMMA)], ["--identifier", "amount"], ("amount", asking.ANSWER_IDENTIFIER), ("amount", asking.ANSWER_DECIMAL_COMMA)),
     ("--measurement", mixed_table, ["--code", "reg"], [], ["--measurement", "reg"], ("reg", asking.ANSWER_MEASUREMENT), ("reg", asking.ANSWER_CODE)),
-    ("--decimal-comma", mixed_table, ["--measurement", "amount"], [], ["--decimal-comma", "amount"], ("amount", asking.ANSWER_DECIMAL_COMMA), ("amount", asking.ANSWER_MEASUREMENT)),
+    # A comma beside a kept `measurement` is the legal pair, kept beside it
+    # (the third round); a comma replaces a kept `code`, which it cannot
+    # stand beside.
+    ("--decimal-comma", mixed_table, ["--code", "amount"], [], ["--decimal-comma", "amount"], ("amount", asking.ANSWER_DECIMAL_COMMA), ("amount", asking.ANSWER_CODE)),
     ("--twelve-hour", mixed_table, ["--code", "clock"], [], ["--twelve-hour", "clock"], ("clock", asking.ANSWER_TWELVE_HOUR), ("clock", asking.ANSWER_CODE)),
     ("--date-column", mixed_table, [], [("mostly", asking.ANSWER_KEEP)], ["--date-column", "mostly"], ("mostly", asking.ANSWER_DATES), ("mostly", asking.ANSWER_KEEP)),
     ("--date-count", counts_table, ["--measurement", "n"], [], ["--date-count", "n", date_counts.EXCEL_1900], ("n", date_counts.EXCEL_1900), ("n", asking.ANSWER_MEASUREMENT)),
@@ -987,10 +1070,14 @@ def test_a_fresh_keep_to_another_question_leaves_a_kept_code(tmp_path: pathlib.P
 
 
 def test_mutant_keep_making_two_questions_one_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    def same_question(earlier: "tuple[str, ...]", later: "tuple[str, ...]") -> bool:
-        return any(word in later for word in earlier)
+    """`keep` offered counted as deciding what the column holds: the question of dates replaces the kept code."""
+    real = asking._decided_by
 
-    monkeypatch.setattr(asking, "_same_question", same_question)
+    def decided_by(answer: str, offered: "tuple[str, ...]") -> "tuple[str, ...]":
+        found = real(answer, offered)
+        return found + ("kind",) if asking.ANSWER_KEEP in offered else found
+
+    monkeypatch.setattr(asking, "_decided_by", decided_by)
     with pytest.raises(AssertionError):
         test_a_fresh_keep_to_another_question_leaves_a_kept_code(tmp_path)
 
@@ -1028,7 +1115,7 @@ def test_codes_in_dates_answered_against_the_table_order(tmp_path: pathlib.Path)
 
 @pytest.mark.parametrize("route", ["edited", "typed"])
 def test_mutant_the_kept_reading_not_checked_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, route: str) -> None:
-    monkeypatch.setattr(cli, "_kept_reading_changed", lambda written, first_row, delimiter, kept: [])
+    monkeypatch.setattr(cli, "_kept_reading_changed", lambda written, first_row, delimiter, kept, automatic=False: [])
     with pytest.raises(AssertionError):
         test_the_kept_reading_changed_beside_kept_columns_is_refused(tmp_path, route)
 
@@ -1069,7 +1156,7 @@ def test_mutant_the_writer_dropping_earlier_answers_is_seen(tmp_path: pathlib.Pa
 
 def test_mutant_the_later_answer_losing_to_the_earlier_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No later answer replaces a kept one: the typed measurement does not win."""
-    monkeypatch.setattr(asking, "_answered_again", lambda name, offered, later: False)
+    monkeypatch.setattr(asking, "_answered_again", lambda name, answer, family, later: False)
     with pytest.raises(AssertionError):
         test_a_later_round_changes_an_earlier_answer(tmp_path / "typed")
     with pytest.raises(AssertionError):
@@ -1096,7 +1183,360 @@ def test_mutant_the_refusal_not_made_is_seen(tmp_path: pathlib.Path, monkeypatch
         test_an_earlier_answer_this_table_cannot_hold_is_refused(tmp_path, capsys)
 
 
+# -- the third round: Codex's review of lane AQ (codex-w3/verdict-AQ.md) ------
+
+
+def dose_table(folder: pathlib.Path) -> Table:
+    """Codex's item 1: 200 cells `1.200` to `1.399`, a point between thousands."""
+    folder.mkdir(parents=True, exist_ok=True)
+    lines = ["dose"] + [f"1.{place:03d}" for place in range(200, 400)]
+    return Table(fixtures.write(folder, "dose.csv", "\n".join(lines) + "\n"), "dose")
+
+
+def described_column(table: Table, name: str) -> "dict[str, object]":
+    described = json.loads(table.path("profile.json").read_text(encoding="utf-8"))
+    found = [one for one in described["columns"] if one["name"] == name]
+    assert len(found) == 1, name
+    column = found[0]
+    assert isinstance(column, dict)
+    return column
+
+
+_PAIR = (("dose", asking.ANSWER_MEASUREMENT), ("dose", asking.ANSWER_DECIMAL_COMMA))
+
+
+def test_a_measurement_and_its_comma_are_both_kept(tmp_path: pathlib.Path) -> None:
+    """`--measurement dose --decimal-comma dose`, at once or a round apart either way: both kept, the mean 1299.5.
+
+    Codex's review of lane AQ, item 1 (high), on 8901146b: the section
+    kept `measurement` alone in the one slot it gave a column, and the
+    file handed back unchanged read the 200 cells with the point as the
+    decimal point, mean 1.2995. Each route ends where the two typed at
+    once end, byte for byte, and a third round handed back unchanged
+    keeps it there.
+    """
+    for route, first, then in (
+        ("handed-back", ["--measurement", "dose", "--decimal-comma", "dose"], []),
+        ("comma-later", ["--measurement", "dose"], ["--decimal-comma", "dose"]),
+        ("measurement-later", ["--decimal-comma", "dose"], ["--measurement", "dose"]),
+    ):
+        table = dose_table(tmp_path / route)
+        assert profile(table, *first) == 0
+        hand_back(table, questions(table))
+        assert profile(table, "--answers", f"{table.path('questions.json')}", *then) == 0
+        held = kept(table)
+        assert all(pair in held for pair in _PAIR), (route, sorted(held))
+        assert described_column(table, "dose")["mean"] == 1299.5, route
+        hand_back(table, questions(table))
+        assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+        assert described_column(table, "dose")["mean"] == 1299.5, route
+        several = outputs(table)
+        clear(table)
+        assert profile(table, "--measurement", "dose", "--decimal-comma", "dose") == 0
+        assert described_column(table, "dose")["mean"] == 1299.5
+        assert outputs(table) == several, route
+
+
+def test_mutant_the_comma_in_the_slot_of_what_the_column_holds_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The section keeping one answer a column, as 8901146b did: the comma is lost and the mean is 1.2995."""
+    real = asking.answered_before
+
+    def answered_before(given: asking.Given) -> "list[dict[str, object]]":
+        alone = tuple(name for name in given.decimal_commas if name not in given.measurements)
+        return real(dataclasses.replace(given, decimal_commas=alone))
+
+    monkeypatch.setattr(asking, "answered_before", answered_before)
+    with pytest.raises(AssertionError):
+        test_a_measurement_and_its_comma_are_both_kept(tmp_path)
+
+
+def visits_table(folder: pathlib.Path) -> Table:
+    """Codex's item 2: 600 visit dates written as Excel day counts, `random.Random(5).randrange(40000, 45000)`."""
+    draw = random.Random(5)
+    folder.mkdir(parents=True, exist_ok=True)
+    lines = ["visit"] + [f"{draw.randrange(40000, 45000)}" for _ in range(ROWS)]
+    return Table(fixtures.write(folder, "visits.csv", "\n".join(lines) + "\n"), "visits")
+
+
+def day_counts_printed(files: "dict[str, bytes]") -> int:
+    """How many different day counts 40000 to 44999 the description or the summary publish as a number.
+
+    A column of visit dates attached to persons is described as dates;
+    read as a number column instead, its mean, percentiles and tails are
+    day counts -- dates of persons published as plain numbers, outside
+    the rule that counts dates in subjects (98 in the description and 4
+    in the summary on bbdf0f88, `wave6/AQ/r3-repro-bbdf0f88.log`). The
+    twin is not counted: it writes its generated dates as the source
+    spelled them, day counts, whichever reading stands.
+    """
+    found: "dict[bytes, bool]" = {}
+    for name in ("description", "summary"):
+        for one in re.findall(rb"(?<![0-9])4[0-4][0-9]{3}(?![0-9])", files[name]):
+            found[one] = True
+    return len(found)
+
+
+def test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path: pathlib.Path) -> None:
+    """`--decimal-comma visit` beside a kept `excel-1900`, typed over it or handed back: the dates stand.
+
+    Codex's review of lane AQ, item 2 (high), on 8901146b: typed over the
+    kept date count, the comma took the whole family of what a column
+    holds with it and deleted the dates, so the 600 visit dates were
+    described as a count column -- their day counts published as plain
+    numbers; and the two typed at once, handed back unchanged, had the
+    kept comma delete the dates where the answers are merged
+    (`cli._run_profile`) and the run refused. The privacy face: the date
+    reading is kept and no day count is published, in the description or
+    the summary.
+    """
+    for route in ("typed-over", "handed-back"):
+        table = visits_table(tmp_path / route)
+        if route == "typed-over":
+            assert profile(table, "--date-count", "visit", date_counts.EXCEL_1900) == 0
+            hand_back(table, questions(table))
+            assert profile(table, "--answers", f"{table.path('questions.json')}", "--decimal-comma", "visit") == 0
+        else:
+            assert profile(table, "--date-count", "visit", date_counts.EXCEL_1900, "--decimal-comma", "visit") == 0
+            hand_back(table, questions(table))
+            assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+        held = kept(table)
+        assert ("visit", date_counts.EXCEL_1900) in held and ("visit", asking.ANSWER_DECIMAL_COMMA) in held, (route, sorted(held))
+        assert described_column(table, "visit")["role"] == "datetime", route
+        several = outputs(table)
+        assert day_counts_printed(several) == 0, route
+        clear(table)
+        assert profile(table, "--date-count", "visit", date_counts.EXCEL_1900, "--decimal-comma", "visit") == 0
+        assert outputs(table) == several, route
+
+
+def test_mutant_a_typed_comma_deciding_the_date_count_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A typed comma deciding what the column holds and its date count, as on 8901146b: the dates are lost."""
+    real = asking._decided_by
+
+    def decided_by(answer: str, offered: "tuple[str, ...]") -> "tuple[str, ...]":
+        found = real(answer, offered)
+        return found + ("kind", "counted") if answer == asking.ANSWER_DECIMAL_COMMA else found
+
+    monkeypatch.setattr(asking, "_decided_by", decided_by)
+    with pytest.raises(AssertionError):
+        test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path)
+
+
+def events_table(folder: pathlib.Path) -> Table:
+    """Codex's item 3: two-figure years, `01/02/40` on 30 rows beside 570 others."""
+    draw = random.Random(3)
+    folder.mkdir(parents=True, exist_ok=True)
+    lines = ["event_date"] + ["01/02/40"] * 30 + [
+        f"{draw.randrange(1, 13):02d}/{draw.randrange(1, 29):02d}/{draw.randrange(30, 70):02d}" for _ in range(ROWS - 30)
+    ]
+    return Table(fixtures.write(folder, "events.csv", "\n".join(lines) + "\n"), "events")
+
+
+def heavy_dates(table: Table) -> "list[object]":
+    """The dates `event_date` publishes as heavy, each with its count."""
+    found = described_column(table, "event_date")["heavy_dates"]
+    assert isinstance(found, list)
+    return found
+
+
+def numbers_table(folder: pathlib.Path) -> Table:
+    """300 records of two numbers and no names: read alone, the first row is a record."""
+    draw = random.Random(4)
+    folder.mkdir(parents=True, exist_ok=True)
+    lines = [f"{draw.randrange(100, 999)},{draw.randrange(10, 99)}" for _ in range(300)]
+    return Table(fixtures.write(folder, "plain.csv", "\n".join(lines) + "\n"), "plain")
+
+
+def test_a_typed_default_replaces_a_kept_answer(tmp_path: pathlib.Path) -> None:
+    """`--century event_date=1969` and `--first-row auto` typed over kept answers: each replaces its answer.
+
+    Codex's review of lane AQ, item 3 (high), on 8901146b: the parser
+    dropped the standing window before the typed answers were set
+    against the kept ones, so a kept 1930 window survived and `01/02/40`
+    read 1940 where the person asked for 2040; a kept `names` survived
+    `--first-row auto` alike. The standing window typed is now kept as
+    the answer naming it (`1969-2068`); a window nobody typed is not
+    stored. `auto` typed is kept as nothing, and the names it reads are
+    set against the file's list: the same names are acted on, others
+    refused with nothing written.
+    """
+    events = events_table(tmp_path / "century")
+    assert profile(events, "--century", "event_date=1930") == 0
+    assert ("event_date", asking.ANSWER_CENTURY_1930) in kept(events)
+    assert {"count": 30, "date": "1940-01-02"} in heavy_dates(events)
+    hand_back(events, questions(events))
+    assert profile(events, "--answers", f"{events.path('questions.json')}", "--century", "event_date=1969") == 0
+    held = kept(events)
+    assert ("event_date", asking.ANSWER_CENTURY_POSIX) in held and ("event_date", asking.ANSWER_CENTURY_1930) not in held
+    assert json.loads(events.path("profile.json").read_text(encoding="utf-8"))["settings"]["century_windows"] == []
+    assert {"count": 30, "date": "2040-01-02"} in heavy_dates(events)
+    several = outputs(events)
+    hand_back(events, questions(events))
+    assert profile(events, "--answers", f"{events.path('questions.json')}") == 0
+    assert outputs(events) == several
+    clear(events)
+    assert profile(events, "--century", "event_date=1969") == 0
+    assert outputs(events) == several
+    clear(events)
+    assert profile(events) == 0
+    assert asking.ANSWERED_BEFORE not in questions(events), "a window nobody typed is not stored"
+
+    plain = numbers_table(tmp_path / "first-row")
+    assert profile(plain, "--first-row", "names") == 0
+    assert (asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_NAMES) in kept(plain)
+    hand_back(plain, questions(plain))
+    assert profile(plain, "--answers", f"{plain.path('questions.json')}", "--first-row", "auto") == 0
+    described = json.loads(plain.path("profile.json").read_text(encoding="utf-8"))
+    assert [one["name"] for one in described["columns"]] == ["column_1", "column_2"] and described["n_rows"] == 300
+    assert not [pair for pair in kept(plain) if pair[0] == asking.FIRST_ROW_SUBJECT]
+    several = outputs(plain)
+    clear(plain)
+    assert profile(plain, "--first-row", "auto") == 0
+    assert outputs(plain) == several
+
+    named = mixed_table(tmp_path / "same-names")
+    assert profile(named, "--first-row", "names", "--code", "reg") == 0
+    hand_back(named, questions(named))
+    assert profile(named, "--answers", f"{named.path('questions.json')}", "--first-row", "auto") == 0
+    assert ("reg", asking.ANSWER_CODE) in kept(named)
+    assert not [pair for pair in kept(named) if pair[0] == asking.FIRST_ROW_SUBJECT]
+    several = outputs(named)
+    clear(named)
+    assert profile(named, "--first-row", "auto", "--code", "reg") == 0
+    assert outputs(named) == several
+
+    moved = numbers_table(tmp_path / "other-names")
+    assert profile(moved, "--first-row", "names") == 0
+    first = [one["name"] for one in json.loads(moved.path("profile.json").read_text(encoding="utf-8"))["columns"]]
+    assert profile(moved, "--first-row", "names", "--code", first[0]) == 0
+    words = refused_with_nothing_written(moved, questions(moved), "--first-row", "auto")
+    assert f"'{first[0]}'" in words
+
+
+def keys_table(folder: pathlib.Path, name: str) -> Table:
+    """Codex's item 4: a column of record numbers named exactly like a file question's subject."""
+    draw = random.Random(6)
+    folder.mkdir(parents=True, exist_ok=True)
+    lines = [f"{name},value"] + [f"K{100000 + place},{draw.randrange(50, 150)}" for place in range(ROWS)]
+    return Table(fixtures.write(folder, "keys.csv", "\n".join(lines) + "\n"), "keys")
+
+
+def test_a_column_named_like_a_file_question_is_not_a_reading(tmp_path: pathlib.Path) -> None:
+    """A column named `which row your column names are in` or `the character between your columns`, kept `identifier`: acted on.
+
+    Codex's review of lane AQ, item 4 (medium), on 8901146b: the kept
+    entry was read as an answer about how the file is read by its
+    subject text alone, with no reading it could name, and the unchanged
+    hand-back was refused. A file question is now told by its family as
+    well: what the entry offers.
+    """
+    for subject in (asking.FIRST_ROW_SUBJECT, asking.DELIMITER_SUBJECT):
+        table = keys_table(tmp_path / subject.split()[1], subject)
+        assert profile(table, "--identifier", subject) == 0
+        assert (subject, asking.ANSWER_IDENTIFIER) in kept(table)
+        assert asking.kept_reading(questions(table)) == ()
+        once = outputs(table)
+        hand_back(table, questions(table))
+        assert profile(table, "--answers", f"{table.path('questions.json')}") == 0, subject
+        assert outputs(table) == once, subject
+
+
+def test_judged_never_reads_a_refusal_as_a_twin() -> None:
+    """K-S3-66's comparison of one table's two routes (Codex's review of lane AQ, item 5)."""
+    files = {"description": b"d", "summary": b"s", "questions": b"q"}
+    assert judged((dict(files), 2), (dict(files), 2)) == Judged(0, True, False)
+    assert judged((dict(files), 2), (dict(files), 3)) == Judged(1, True, False)
+    assert judged((dict(files, twin=b"t"), 0), (dict(files), 2)) == Judged(1, False, False)
+    assert judged((dict(files), 0), (dict(files, twin=b"t"), 0)) == Judged(0, False, True)
+    assert judged((dict(files, twin=b"t"), 0), (dict(files, twin=b"t"), 0)) == Judged(0, False, False)
+    assert judged((dict(files, twin=b"t"), 0), (dict(files, twin=b"u"), 0)) == Judged(1, False, False)
+
+
+def test_k_s3_66_counts_a_refusal_on_both_routes_apart(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generation refused on both routes of a zoo table: counted apart, never as two twins written alike.
+
+    Codex's review of lane AQ, item 5 (medium): both routes compared by
+    their exit codes, `exit 2` against `exit 2`, counted no difference
+    and no failure, so a regression stopping every twin from being
+    written left K-S3-66 green.
+    """
+    real = run
+
+    def refusing(arguments: "list[str]") -> int:
+        return 2 if arguments[0] == "generate" else real(arguments)
+
+    monkeypatch.setitem(globals(), "run", refusing)
+    found = {name: 0 for name in _MEASURED}
+    table, answerer = zoo_table(tmp_path, "us_vitals")
+    measure_table(table, answerer, found)
+    assert found["twins_refused_on_both_routes"] == 1
+    assert found["answers"] == 2 and found["byte_differences"] == 0 and found["failed_runs"] == 0
+
+
+def test_mutant_judged_reading_refusals_as_twins_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The comparison of 8901146b: an exit code stands in for the twin, and two refusals compare alike."""
+
+    def as_before(several: "tuple[dict[str, bytes], int]", once: "tuple[dict[str, bytes], int]") -> Judged:
+        first = dict(several[0], twin=several[0]["twin"] if "twin" in several[0] else f"exit {several[1]}".encode())
+        second = dict(once[0], twin=once[0]["twin"] if "twin" in once[0] else f"exit {once[1]}".encode())
+        return Judged(sum(1 for name in first if first[name] != second[name]), False, False)
+
+    monkeypatch.setitem(globals(), "judged", as_before)
+    with pytest.raises(AssertionError):
+        test_judged_never_reads_a_refusal_as_a_twin()
+    with pytest.raises(AssertionError):
+        test_k_s3_66_counts_a_refusal_on_both_routes_apart(tmp_path, monkeypatch)
+
+
 # -- K-S3-66: over the zoo and the cases above ------------------------------
+
+
+_MEASURED = (
+    "tables",
+    "tables_answered_over_rounds",
+    "answers",
+    "answers_lost",
+    "byte_differences",
+    "not_in_one_round",
+    "failed_runs",
+    "twins_refused_on_both_routes",
+    "cases",
+)
+
+
+def measure_table(table: Table, answerer: Answerer, found: "dict[str, int]") -> None:
+    """One zoo table answered in rounds and in one round, counted into `found` (K-S3-66).
+
+    A twin is compared only where both routes wrote one; a table whose
+    generation refuses on both routes is counted under
+    `twins_refused_on_both_routes` and its other three files compared, so
+    a regression keeping both twins from being written cannot read as
+    identical bytes (Codex's review of lane AQ, item 5).
+    """
+    found["tables"] += 1
+    rounds = in_rounds(table, answerer)
+    if not rounds.exits or any(code != 0 for code in rounds.exits):
+        found["failed_runs"] += 1
+        return
+    if len(rounds.given) >= 2:
+        found["tables_answered_over_rounds"] += 1
+    several = written(table)
+    clear(table)
+    code = in_one_round(table, rounds.standing)
+    if code is None:
+        found["not_in_one_round"] += 1
+        return
+    if code != 0:
+        found["failed_runs"] += 1
+        return
+    verdict = judged(several, written(table))
+    if verdict.failed:
+        found["failed_runs"] += 1
+        return
+    found["answers"] += len(rounds.standing)
+    found["answers_lost"] += len(rounds.lost)
+    found["byte_differences"] += verdict.differing
+    found["twins_refused_on_both_routes"] += 1 if verdict.refused_on_both else 0
 
 
 def measure(folder: pathlib.Path) -> "dict[str, int]":
@@ -1106,20 +1546,14 @@ def measure(folder: pathlib.Path) -> "dict[str, int]":
     answered by the zoo's own general answerer until a round answers
     nothing new, and over this file's answered cases: the nine-question
     table cut three ways over three rounds, its later answers changing
-    earlier ones, its declarations typed in round one, and the refusal's
-    two runs. A table whose answers cannot be given in one round, or
-    whose answering run fails, is counted apart and never as a pass.
+    earlier ones, its declarations typed in round one, the refusal's two
+    runs, and the third round's four (a measurement beside its comma, a
+    comma beside counted dates, a typed default and a column named like a
+    file question). A table whose answers cannot be given in one round,
+    or whose answering run fails, is counted apart and never as a pass;
+    so is a table whose twin both routes refuse to write.
     """
-    found = {
-        "tables": 0,
-        "tables_answered_over_rounds": 0,
-        "answers": 0,
-        "answers_lost": 0,
-        "byte_differences": 0,
-        "not_in_one_round": 0,
-        "failed_runs": 0,
-        "cases": 0,
-    }
+    found = {name: 0 for name in _MEASURED}
 
     def counted(rounds: Rounds, differs: "dict[str, bool]") -> None:
         found["answers"] += len(rounds.standing)
@@ -1127,25 +1561,8 @@ def measure(folder: pathlib.Path) -> "dict[str, int]":
         found["byte_differences"] += sum(1 for one in differs.values() if one)
 
     for kind in zoo.TABLES:
-        found["tables"] += 1
         table, answerer = zoo_table(folder / kind.name, kind.name)
-        rounds = in_rounds(table, answerer)
-        if not rounds.exits or any(code != 0 for code in rounds.exits):
-            found["failed_runs"] += 1
-            continue
-        if len(rounds.given) >= 2:
-            found["tables_answered_over_rounds"] += 1
-        several = outputs(table, generated=False)
-        clear(table)
-        code = in_one_round(table, rounds.standing)
-        if code is None:
-            found["not_in_one_round"] += 1
-            continue
-        if code != 0:
-            found["failed_runs"] += 1
-            continue
-        once = outputs(table, generated=False)
-        counted(rounds, {name: several[name] != once[name] for name in several})
+        measure_table(table, answerer, found)
     for cut in ((3, 6), (1, 8), (5, 7)):
         found["cases"] += 1
         table = mixed_table(folder / f"mixed-{cut[0]}-{cut[1]}")
@@ -1162,6 +1579,10 @@ def measure(folder: pathlib.Path) -> "dict[str, int]":
         test_a_later_round_changes_an_earlier_answer,
         test_a_later_answer_to_the_question_asked_again_wins,
         test_the_refusals_two_runs_keep_the_first_runs_answer,
+        test_a_measurement_and_its_comma_are_both_kept,
+        test_a_comma_beside_counted_dates_keeps_the_dates,
+        test_a_typed_default_replaces_a_kept_answer,
+        test_a_column_named_like_a_file_question_is_not_a_reading,
     ):
         found["cases"] += 1
         try:

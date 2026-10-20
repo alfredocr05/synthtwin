@@ -736,6 +736,8 @@ class _Options:
     centuries: "list[str]" = dataclasses.field(default_factory=list)
     # -- 3b.R2c (P4-D383): the columns named with `--date-column` (Q6).
     date_columns: "list[str]" = dataclasses.field(default_factory=list)
+    # Whether `--first-row` was typed, `auto` included (plan P4-D408).
+    first_row_typed: bool = False
 
 
 def _parse_arguments(argv: "list[str] | None") -> _Options:
@@ -1173,7 +1175,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     )
     parser.add_argument(
         "--first-row",
-        default=_FIRST_ROW_AUTOMATIC,
+        # None where it was not typed, so `--first-row auto` typed is told
+        # from the default (Codex's review of lane AQ, item 3): typed, it
+        # replaces a kept answer about the first row.
+        default=None,
         choices=[
             _FIRST_ROW_AUTOMATIC,
             _FIRST_ROW_NAMES,
@@ -1266,7 +1271,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         answers=args.answers,
         kept_values=list(kept),
         missing_values=list(declared_missing),
-        first_row=f"{args.first_row}",
+        first_row=(
+            _FIRST_ROW_AUTOMATIC if args.first_row is None else f"{args.first_row}"
+        ),
+        first_row_typed=args.first_row is not None,
         day_first=bool(args.day_first),
         metadata_rows=(
             "" if args.metadata_rows is None else f"{args.metadata_rows}"
@@ -1732,6 +1740,7 @@ def _kept_reading_changed(
     first_row: str,
     declared_delimiter: str,
     kept: "tuple[tuple[str, str], ...]",
+    automatic: bool = False,
 ) -> "list[str]":
     """The kept answers about how the file is read that this run would not follow.
 
@@ -1751,8 +1760,15 @@ def _kept_reading_changed(
     labels and `keep` on the subject column, and published 200 of 200
     real subject codes with their counts.
 
+    `automatic` (Codex's review of lane AQ, item 3): `--first-row auto`
+    was typed over the kept answer about the first row, and the file
+    lists the names its answers use. That reading is the one a run given
+    no answer takes, which the read itself settles, so it is not set
+    against the kept answer here: the names it reads are set against the
+    file's list after the read (`_answered_under_other_names`).
+
     Guarantees: each subject once, in the order `kept` names them. A
-    fixed function of the four. Raises nothing. No I/O.
+    fixed function of the five. Raises nothing. No I/O.
     """
     changed: "list[str]" = []
     for subject, before in kept:
@@ -1761,6 +1777,8 @@ def _kept_reading_changed(
         now = ""
         if subject == asking.FIRST_ROW_SUBJECT:
             now = written.first_row
+            if not now and automatic:
+                continue
             if not now and first_row == _FIRST_ROW_NAMES:
                 now = asking.ANSWER_FIRST_ROW_NAMES
             elif not now and first_row == _FIRST_ROW_DATA:
@@ -1814,14 +1832,20 @@ def _typed_answers(
     day_first: bool,
     delimiter: str,
     first_row: str,
+    centuries_reset: "list[str] | None" = None,
+    first_row_typed: bool = False,
 ) -> "tuple[tuple[str, str], ...]":
     """This command line's declarations as `(column, answer)` (plan P4-D408).
 
     What `asking.answers_in` sets against the answers an earlier run
     kept: a declaration typed now is later than any of them, so it
     replaces one about the same column. A question about the whole file
-    is named by its subject. A fixed function of the arguments. Raises
-    nothing. No I/O.
+    is named by its subject. A default typed all the same is a statement
+    too (Codex's review of lane AQ, item 3): `--century NAME=1969`, in
+    `centuries_reset`, is the answer naming the standing window, and
+    `--first-row auto` typed is `asking.TYPED_FIRST_ROW_AUTOMATIC`; each
+    replaces a kept answer of its family. A fixed function of the
+    arguments. Raises nothing. No I/O.
     """
     said: "list[tuple[str, str]]" = []
     for answer, names in (
@@ -1840,6 +1864,8 @@ def _typed_answers(
         word = asking.century_answer(centuries[name])
         if word:
             said += [(name, word)]
+    for name in sorted(centuries_reset or []):
+        said += [(name, asking.ANSWER_CENTURY_POSIX)]
     if day_first:
         said += [(asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST)]
     word = asking.delimiter_answer(delimiter)
@@ -1849,6 +1875,8 @@ def _typed_answers(
         said += [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_NAMES)]
     elif first_row == _FIRST_ROW_DATA:
         said += [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_DATA)]
+    elif first_row_typed:
+        said += [(asking.FIRST_ROW_SUBJECT, asking.TYPED_FIRST_ROW_AUTOMATIC)]
     return tuple(said)
 
 
@@ -1954,8 +1982,9 @@ def _answered_under_other_names(path: str) -> str:
         f"The questions file at {path} answers columns by the names listed "
         f"under '{asking.ANSWERED_BEFORE_COLUMNS}', and this run reads your "
         f"table under other names: an answer about how the file is read "
-        f"was taken out of the file, or the file was written for another "
-        f"table. synthtwin will not act on an answer made by name when "
+        f"was taken out of the file or replaced by '--first-row auto', or "
+        f"the file was written for another table. synthtwin will not act "
+        f"on an answer made by name when "
         f"that name may now stand for another column. Put back the answer "
         f"about how the file is read, or clear every answer that names a "
         f"column, '{asking.ANSWERED_BEFORE}' included, and run the command "
@@ -3151,6 +3180,7 @@ def _run_profile(
     forced_twelve_hours: "list[str] | None" = None,
     centuries_given: "list[str] | None" = None,
     date_columns_given: "list[str] | None" = None,
+    first_row_typed: bool = False,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -3225,6 +3255,15 @@ def _run_profile(
     # is not that, and the window that stands where nothing was said
     # (1969) taken as no declaration at all.
     centuries: "dict[str, int]" = {}
+    # ...AND THE STANDING WINDOW TYPED all the same (plan P4-D408, third
+    # round; Codex's review of lane AQ, item 3): it declares nothing, but
+    # it is a statement about the column -- it replaces a window an earlier
+    # run kept, and it is kept as the answer that names the standing
+    # window, as an answered question Q5 is. Dropped here before, a kept
+    # `--century event_date=1930` survived `--century event_date=1969`, and
+    # `01/02/40` read 1940 where the person had asked for 2040. A window
+    # nobody typed is still not stored.
+    centuries_reset: "list[str]" = []
     for typed_century in centuries_given or []:
         found_century = _century_given(typed_century)
         if found_century is None:
@@ -3232,8 +3271,14 @@ def _run_profile(
             return 2
         if found_century[1] in parsing.CENTURY_WINDOW_YEARS:
             centuries[found_century[0]] = found_century[1]
-        elif found_century[0] in centuries:
-            del centuries[found_century[0]]
+            centuries_reset = [
+                one for one in centuries_reset if one != found_century[0]
+            ]
+        else:
+            if found_century[0] in centuries:
+                del centuries[found_century[0]]
+            if found_century[0] not in centuries_reset:
+                centuries_reset += [found_century[0]]
 
     # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan P4-D81).
     # Refused here, before the table is opened, like every other
@@ -3329,7 +3374,7 @@ def _run_profile(
                         typed_codes, typed_identifiers, typed_measurements,
                         typed_commas, twelve_hours, typed_counted, centuries,
                         date_columns, day_first, declared_delimiter,
-                        first_row,
+                        first_row, centuries_reset, first_row_typed,
                     ),
                 ),
                 _shown(answers_path),
@@ -3380,8 +3425,18 @@ def _run_profile(
         # ...AND A READING OTHER THAN THE ONE THE FILE WAS WRITTEN UNDER
         # (plan P4-D408): a kept answer about how the file is read,
         # edited in the file or replaced by a typed option.
+        # `--first-row auto` typed over a kept answer about the first row
+        # (Codex's review of lane AQ, item 3) reads the table as a run
+        # given no answer reads it; where the file lists the names its
+        # answers use, whether that moved a name is told after the read,
+        # by those names (`_answered_under_other_names`).
         kept_changed = _kept_reading_changed(
-            written, first_row, declared_delimiter, kept_reading
+            written, first_row, declared_delimiter, kept_reading,
+            automatic=(
+                first_row_typed
+                and first_row == _FIRST_ROW_AUTOMATIC
+                and answered_under is not None
+            ),
         )
         named_columns: "list[str]" = []
         for one in (
@@ -3463,12 +3518,20 @@ def _run_profile(
             first_row = _FIRST_ROW_NAMES
         elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
             first_row = _FIRST_ROW_DATA
-        spoken_for = (
+        # A COMMA KEPT ON ITS OWN SAYS ONLY HOW THE NUMBERS ARE WRITTEN
+        # (plan P4-D408, third round), so a typed declaration of what the
+        # column holds stands beside it; an answer to the question of a
+        # point between thousands decides both, and replaces it as before.
+        held_by_answer = (
             list(written.codes)
             + list(written.identifiers)
             + list(written.measurements)
-            + list(written.decimal_commas)
         )
+        spoken_for = held_by_answer + [
+            one
+            for one in written.decimal_commas
+            if one not in written.decimal_commas_alone
+        ]
         forced_codes = sorted(
             [one for one in forced_codes if one not in spoken_for]
             + list(written.codes)
@@ -3552,7 +3615,12 @@ def _run_profile(
         # one of those three is no longer read as counted dates.
         for counted_name, counted_member in written.date_counts:
             counted[counted_name] = counted_member
-        for counted_name in spoken_for:
+        # ...and a comma before the decimals is no such answer: it says
+        # how numbers are written and stands beside counted dates (plan
+        # P4-D408, third round; Codex's review of lane AQ, item 2). Typed
+        # with `--date-count visit excel-1900` and handed back unchanged,
+        # the kept comma deleted the dates here and the run refused.
+        for counted_name in held_by_answer:
             if counted_name in counted:
                 del counted[counted_name]
         forced_codes = [one for one in forced_codes if one not in counted]
@@ -3579,6 +3647,15 @@ def _run_profile(
             or bool(written.century_windows)
             or bool(written.date_columns)
         )
+    # THE STANDING WINDOW TYPED IS KEPT AS AN ANSWER NAMING IT (plan
+    # P4-D408, third round): it declares nothing, and question Q5 is not
+    # put again for its column, as for the answer `1969-2068`. A window
+    # the questions file answered for the column is the newer statement.
+    for one_century in centuries_reset:
+        if one_century in centuries or one_century in answered_centuries:
+            continue
+        centuries_kept += [one_century]
+        answered_centuries += [one_century]
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
     # values that reach the whole table, so a pair that is one number
@@ -6344,6 +6421,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.twelve_hours,
             options.centuries,
             options.date_columns,
+            options.first_row_typed,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

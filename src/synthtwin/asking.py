@@ -5447,6 +5447,13 @@ class Answers:
     # refuses where one would be dropped. The column is a file
     # question's subject where the answer is about the whole file.
     carried: "tuple[tuple[str, str, str], ...]" = ()
+    # ...AND THE COLUMNS OF `decimal_commas` WHOSE ANSWER SAYS ONLY HOW
+    # THEIR NUMBERS ARE WRITTEN (plan P4-D408, third round): the kept
+    # entry of that family, whose question offers nothing about what the
+    # column holds. A typed `--measurement`, `--code` or `--identifier`
+    # for such a column is not replaced by it, as it is by an answer to
+    # the question of a point between thousands, which decides both.
+    decimal_commas_alone: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -5644,12 +5651,13 @@ def answers_in(document: object, shown: str) -> Answers:
     EVERY ANSWER OF AN EARLIER ROUND STANDS UNTIL A LATER ONE REPLACES IT
     (plan P4-D408). The `answered_before` section holds what earlier runs
     were told; each of its answers is read like any other, unless this
-    file answers the same question about the same column again: the
-    later answer wins. Two questions are the same question where they
-    offer a common answer other than `keep` (`_same_question`). A
-    declaration typed on this command line is later too, and
-    `typed_over_kept` takes the answers it replaces out of the file
-    before this reads it.
+    file answers the same column again in a way that replaces it: the
+    later answer wins where its question decides the kept answer's
+    family, or where the column cannot hold the two at once
+    (`_answered_again`, narrowed in plan P4-D408's third round from any
+    two questions offering a common answer). A declaration typed on this
+    command line is later too, and `typed_over_kept` takes the answers it
+    replaces out of the file before this reads it.
     """
     codes: list[str] = []
     identifiers: list[str] = []
@@ -5674,18 +5682,22 @@ def answers_in(document: object, shown: str) -> Answers:
     identities_kept: "list[str]" = []
     identities_kept_answered: "list[str]" = []
     carried: "list[tuple[str, str, str]]" = []
+    decimal_commas_alone: "list[str]" = []
     # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
     # against every later one before any is acted on (plan P4-D408).
     entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
-    later: "list[tuple[str, tuple[str, ...]]]" = []
+    later: "list[tuple[str, str, tuple[str, ...]]]" = []
     for entry, place, from_before in _entries_of(document, shown):
         read = _entry_answer(entry, place, from_before)
         entries += [(entry, place, from_before, read)]
         if read is not None and not from_before:
-            later += [(read[0], read[2])]
+            later += [(read[0], read[1], _decided_by(read[1], read[2]))]
     for entry, place, from_before, read in entries:
         if read is not None and from_before:
-            if _answered_again(read[0], read[2], later):
+            kept_as = read[1] if read[1] in read[2] else ""
+            if _answered_again(
+                read[0], kept_as, _kept_family(kept_as, read[2]), later
+            ):
                 continue
         if read is None:
             # A BLANK ANSWER KEEPS THE READING THE FILE NAMED (review item
@@ -5723,6 +5735,12 @@ def answers_in(document: object, shown: str) -> Answers:
             measurements += [name]
         elif written == ANSWER_DECIMAL_COMMA:
             decimal_commas += [name]
+            # ...and where the question it answers does not decide what
+            # the column holds -- the kept entry of how its numbers are
+            # written -- a typed `--measurement` stands beside it (plan
+            # P4-D408, third round).
+            if _FAMILY_KIND not in _decided_by(written, offered):
+                decimal_commas_alone += [name]
         elif written == ANSWER_METADATA_ROWS:
             # The one answer that names no column (plan P4-D81).
             metadata_rows = METADATA_ROWS_DECLARED
@@ -5825,6 +5843,7 @@ def answers_in(document: object, shown: str) -> Answers:
         identities_kept=tuple(identities_kept),
         identities_kept_answered=tuple(identities_kept_answered),
         carried=tuple(carried),
+        decimal_commas_alone=tuple(decimal_commas_alone),
     )
 
 
@@ -5871,10 +5890,20 @@ ANSWERED_BEFORE_PUBLISHES = (
 )
 
 # THE FAMILIES OF QUESTIONS AN ANSWER BELONGS TO, each with the answers
-# a kept entry of it offers: the answers of the question it stands for,
-# and those another question about the same column offers in its place,
-# so that a later answer to either is seen to replace it.
+# a kept entry of it offers. A family is ONE THING a declaration says
+# about a column -- what the column holds, how its numbers are written,
+# which system counts its dates, its clock, its century, ... -- so two
+# answers of different families stand side by side, unless the product
+# refuses or ignores the pair (`_CANNOT_STAND_TOGETHER`). Plan P4-D408,
+# third round.
 _FAMILY_KIND = "kind"
+# HOW THE NUMBERS ARE WRITTEN is a family of its own (plan P4-D408, third
+# round; Codex's review of lane AQ, item 1). `--measurement dose
+# --decimal-comma dose` is the pair plan P4-D26 made the comma
+# declaration for; kept in one slot with what the column holds, it lost
+# the comma: 200 cells `1.200` to `1.399` had a mean of 1299.5 typed and
+# 1.2995 once the file was handed back unchanged.
+_FAMILY_GRAMMAR = "grammar"
 _FAMILY_CLOCK = "clock"
 _FAMILY_COUNTED = "counted"
 _FAMILY_DATE_CODES = "date-codes"
@@ -5887,8 +5916,9 @@ _FAMILY_DAY_ORDER = "day-order"
 _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_KIND: (
         ANSWER_KEEP, ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT,
-        ANSWER_DECIMAL_COMMA,
     ),
+    # `keep` here takes the comma back: the point is the decimal point.
+    _FAMILY_GRAMMAR: (ANSWER_KEEP, ANSWER_DECIMAL_COMMA),
     _FAMILY_CLOCK: (ANSWER_KEEP, ANSWER_TWELVE_HOUR, ANSWER_CODE),
     _FAMILY_COUNTED: (
         (ANSWER_MEASUREMENT,) + date_counts.MEMBERS
@@ -5936,6 +5966,41 @@ _KEPT_MEANS: "dict[str, str]" = {
     ANSWER_MONTH_FIRST: "the month comes first in the dates",
     ANSWER_DAY_FIRST: "the day comes first in the dates",
 }
+# ...and `keep` where it takes a declaration of how numbers are written
+# back, which is not the reading a column keeps.
+_KEPT_GRAMMAR_KEEP_MEANS = (
+    "nothing declared: the point is read as the decimal point"
+)
+# `--first-row auto` typed (Codex's review of lane AQ, item 3): not an
+# answer any question offers, and nothing the file keeps, but a typed
+# statement about the first row all the same, so it replaces a kept one.
+TYPED_FIRST_ROW_AUTOMATIC = "auto"
+
+# THE PAIRS ONE COLUMN CANNOT HOLD TOGETHER, by answer (plan P4-D408,
+# third round): a later answer of one replaces a kept answer of the other
+# although they are of different families, because the product refuses
+# the two typed at once or acts on one alone. A column whose dates are
+# counted is not also codes, record numbers, measurements or a 12-hour
+# clock (rule S8d, `errors.column_declared_twice`); a comma before the
+# decimals is ignored beside codes or record numbers
+# (`errors.comma_declaration_would_be_ignored`); and a 12-hour clock
+# reaches nothing on a column of codes, the alternative its own question
+# offers. Every other pair of families stands side by side: a comma
+# beside a measurement, and a comma beside a counted date (Codex's review
+# of lane AQ, item 2: `--decimal-comma visit` handed back over a kept
+# `excel-1900` deleted the dates and published the 600 day counts as a
+# number column).
+_CANNOT_STAND_TOGETHER: "tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]" = (
+    (
+        date_counts.MEMBERS,
+        (
+            ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT, ANSWER_JOINED,
+            ANSWER_TWELVE_HOUR,
+        ),
+    ),
+    ((ANSWER_DECIMAL_COMMA,), (ANSWER_CODE, ANSWER_IDENTIFIER)),
+    ((ANSWER_TWELVE_HOUR,), (ANSWER_CODE,)),
+)
 
 
 def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
@@ -5953,10 +6018,12 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
         return ""
     if answer == ANSWER_JOINED:
         return _FAMILY_KIND
+    if answer == TYPED_FIRST_ROW_AUTOMATIC:
+        return _FAMILY_FIRST_ROW
     for family in (
-        _FAMILY_KIND, _FAMILY_CLOCK, _FAMILY_COUNTED, _FAMILY_DATE_CODES,
-        _FAMILY_CENTURY, _FAMILY_DATES, _FAMILY_FIRST_ROW, _FAMILY_METADATA,
-        _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
+        _FAMILY_KIND, _FAMILY_GRAMMAR, _FAMILY_CLOCK, _FAMILY_COUNTED,
+        _FAMILY_DATE_CODES, _FAMILY_CENTURY, _FAMILY_DATES, _FAMILY_FIRST_ROW,
+        _FAMILY_METADATA, _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
     ):
         if answer in _FAMILY_WORDS[family]:
             return family
@@ -5970,29 +6037,101 @@ def _family_words(family: str) -> "tuple[str, ...]":
     return ()
 
 
-def _same_question(
-    earlier: "tuple[str, ...]", later: "tuple[str, ...]"
-) -> bool:
-    """Whether two questions about one column are the same question.
+def _decided_by(answer: str, offered: "tuple[str, ...]") -> "tuple[str, ...]":
+    """The families a later answer decides about its column (plan P4-D408, third round).
 
-    Plan P4-D408: they are where they offer a common answer other than
-    `keep`, which every kind of question offers. A fixed function of the
+    An answer in the file decides every family its question offers an
+    answer of other than `keep` -- the question of a point between
+    thousands decides what the column holds and how its numbers are
+    written, so its `measurement` takes a kept comma back -- and its own
+    answer's family. A typed declaration is passed with nothing offered
+    and decides its own family alone: `--measurement` says what the
+    column holds and nothing about the comma. `keep` decides nothing by
+    being offered, since every question offers it. A fixed function of
+    the two. Raises nothing. No I/O.
+    """
+    found: "list[str]" = []
+    own = _family_of(answer, offered)
+    if own:
+        found += [own]
+    for word in offered:
+        if word == ANSWER_KEEP:
+            continue
+        family = _family_of(word, offered)
+        if family and family not in found:
+            found += [family]
+    return tuple(found)
+
+
+def _offered_words(entry: "dict[object, object]") -> "tuple[str, ...]":
+    """The answers an entry lists, read by index (plan D6.2); none where it lists none."""
+    offered: "list[str]" = []
+    choices = entry["answers_you_can_give"] if "answers_you_can_give" in entry else []
+    if isinstance(choices, list):
+        for choice in choices:
+            if isinstance(choice, dict) and "answer" in choice:
+                offered += [f"{choice['answer']}"]
+    return tuple(offered)
+
+
+def _kept_word(entry: "dict[object, object]") -> str:
+    """A kept entry's answer as `_entry_answer` reads it: blank keeps `read_as_now`."""
+    written = ""
+    if "your_answer" in entry and isinstance(entry["your_answer"], str):
+        written = parsing.trimmed(entry["your_answer"])
+    if not written and "read_as_now" in entry and isinstance(entry["read_as_now"], str):
+        written = parsing.trimmed(entry["read_as_now"])
+    return written
+
+
+def _kept_family(answer: str, offered: "tuple[str, ...]") -> str:
+    """The family a kept entry belongs to: its answer's, else its first offered answer's.
+
+    Plan P4-D408, third round. A kept `keep` that takes a comma back
+    belongs to the comma's family, and an entry whose answer is no
+    offered word to the family its offered answers name, so a later
+    answer of that family still replaces it. A fixed function of the
     two. Raises nothing. No I/O.
     """
-    for word in earlier:
-        if word != ANSWER_KEEP and word in later:
+    own = _family_of(answer, offered) if answer else ""
+    if own:
+        return own
+    for word in offered:
+        if word != ANSWER_KEEP:
+            family = _family_of(word, offered)
+            if family:
+                return family
+    return ""
+
+
+def _cannot_stand_together(one: str, other: str) -> bool:
+    """Whether one column cannot hold the two answers at once (`_CANNOT_STAND_TOGETHER`)."""
+    for first, second in _CANNOT_STAND_TOGETHER:
+        if (one in first and other in second) or (one in second and other in first):
             return True
     return False
 
 
 def _answered_again(
     name: str,
-    offered: "tuple[str, ...]",
-    later: "list[tuple[str, tuple[str, ...]]]",
+    answer: str,
+    family: str,
+    later: "list[tuple[str, str, tuple[str, ...]]]",
 ) -> bool:
-    """Whether a later answer replaces the kept answer about `name` (plan P4-D408)."""
-    for later_name, later_offered in later:
-        if later_name == name and _same_question(offered, later_offered):
+    """Whether a later answer replaces the kept `answer` of `family` about `name`.
+
+    Plan P4-D408, third round. `later` holds `(column, answer, families
+    it decides)` for each later answer; one about the same column
+    replaces the kept answer where it decides the kept answer's family,
+    or where the column cannot hold the two at once. A fixed function of
+    the four. Raises nothing. No I/O.
+    """
+    for later_name, later_answer, decided in later:
+        if later_name != name:
+            continue
+        if family and family in decided:
+            return True
+        if _cannot_stand_together(answer, later_answer):
             return True
     return False
 
@@ -6004,14 +6143,17 @@ def typed_over_kept(
 
     Plan P4-D408. `typed` is this command line's declarations as
     `(column, answer)`, a question about the whole file named by its
-    subject; each is later than any answer an earlier run kept, so a kept
-    answer to the same question about the same column (`_same_question`)
-    is left out of the `answered_before` section `answers_in` reads. The
-    file itself is not changed: a new mapping is returned where anything
-    is left out, and the same object otherwise. An entry not shaped like
-    one this module writes is kept, for `answers_in` to refuse. Read by
-    index and never by `.get`, as `_entry_answer` reads (plan D6.2).
-    Raises nothing. No I/O.
+    subject, and `--first-row auto` typed as `TYPED_FIRST_ROW_AUTOMATIC`;
+    each is later than any answer an earlier run kept, so a kept answer
+    it replaces about the same column (`_answered_again`: the same family,
+    or a pair the column cannot hold) is left out of the `answered_before`
+    section `answers_in` reads. A typed declaration decides its own family
+    alone, so `--decimal-comma` leaves a kept `measurement` or a kept date
+    count standing. The file itself is not changed: a new mapping is
+    returned where anything is left out, and the same object otherwise.
+    An entry not shaped like one this module writes is kept, for
+    `answers_in` to refuse. Read by index and never by `.get`, as
+    `_entry_answer` reads (plan D6.2). Raises nothing. No I/O.
     """
     if not typed or not isinstance(document, dict):
         return document
@@ -6020,25 +6162,21 @@ def typed_over_kept(
     before = document[ANSWERED_BEFORE]
     if not isinstance(before, list):
         return document
-    later: "list[tuple[str, tuple[str, ...]]]" = []
+    later: "list[tuple[str, str, tuple[str, ...]]]" = []
     for name, answer in typed:
-        later += [(name, _family_words(_family_of(answer, ())))]
+        later += [(name, answer, _decided_by(answer, ()))]
     kept: "list[object]" = []
     for entry in before:
-        offered: "list[str]" = []
+        offered: "tuple[str, ...]" = ()
         name = ""
+        answer = ""
         if isinstance(entry, dict) and "column" in entry:
             name = f"{entry['column']}"
-            choices = (
-                entry["answers_you_can_give"]
-                if "answers_you_can_give" in entry
-                else []
-            )
-            if isinstance(choices, list):
-                for choice in choices:
-                    if isinstance(choice, dict) and "answer" in choice:
-                        offered += [f"{choice['answer']}"]
-        if name and _answered_again(name, tuple(offered), later):
+            offered = _offered_words(entry)
+            given = _kept_word(entry)
+            answer = given if given in offered else ""
+        family = _kept_family(answer, offered)
+        if name and _answered_again(name, answer, family, later):
             continue
         kept += [entry]
     if len(kept) == len(before):
@@ -6081,6 +6219,16 @@ def kept_reading(document: object) -> "tuple[tuple[str, str], ...]":
         family = (
             _FAMILY_FIRST_ROW if subject == FIRST_ROW_SUBJECT else _FAMILY_DELIMITER
         )
+        # ...AND BY ITS FAMILY AS WELL AS ITS SUBJECT (Codex's review of
+        # lane AQ, item 4): a column may be named exactly like a file
+        # question's subject, and its kept `identifier` read as an answer
+        # about the first row refused every unchanged hand-back. An entry
+        # is about how the file is read only where what it offers is that
+        # question's answers; one whose answers were edited away is still
+        # counted, as the caller counts an entry it cannot read.
+        offered = _offered_words(entry)
+        if offered and not all(word in _FAMILY_WORDS[family] for word in offered):
+            continue
         word = ""
         if "read_as_now" in entry and isinstance(entry["read_as_now"], str):
             word = parsing.trimmed(entry["read_as_now"])
@@ -6189,6 +6337,8 @@ def _kept_entry(
     offered: "list[dict[str, str]]" = []
     for word in _family_words(family):
         means = _KEPT_MEANS[word] if word in _KEPT_MEANS else ""
+        if family == _FAMILY_GRAMMAR and word == ANSWER_KEEP:
+            means = _KEPT_GRAMMAR_KEEP_MEANS
         if not means and family == _FAMILY_COUNTED:
             means = f"dates, kept as {date_counts.TABLE[word].means}"
         if not means and family == _FAMILY_CENTURY:
@@ -6218,7 +6368,10 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     the file is read; then each column in the table's own order (a name
     the table does not hold after them, in the order of its text), and
     for each its answers in a fixed order of families. A column declared
-    by any answer of the first family keeps no `keep` beside it.
+    by any answer of the first family keeps no `keep` beside it. How a
+    column's numbers are written is kept in an entry of its own beside
+    what the column holds (plan P4-D408, third round), so `measurement`
+    and `decimal_comma` for one column are both kept.
 
     Guarantees: a fixed function of `given`, so the same answers given in
     one round or in several write the same entries. Carries no value of
@@ -6239,11 +6392,11 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
         (ANSWER_CODE, given.codes),
         (ANSWER_IDENTIFIER, given.identifiers),
         (ANSWER_MEASUREMENT, given.measurements),
-        (ANSWER_DECIMAL_COMMA, given.decimal_commas),
     ):
         for name in names:
             if name not in kinds:
                 kinds[name] = answer
+    commas = {name: True for name in given.decimal_commas}
     kept_identity = {name: True for name in given.identities_kept}
     clocks = {name: True for name in given.twelve_hours}
     counted = {name: member for name, member in given.date_counts}
@@ -6273,7 +6426,9 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             named[name] = True
             order += [name]
     others: "dict[str, bool]" = {}
-    for table in (kinds, kept_identity, clocks, counted, coded, centuries, dated):
+    for table in (
+        kinds, commas, kept_identity, clocks, counted, coded, centuries, dated,
+    ):
         for name in table:
             if name not in named:
                 others[name] = True
@@ -6283,6 +6438,10 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             found += [_kept_entry(name, kinds[name], _FAMILY_KIND, "")]
         elif name in kept_identity:
             found += [_kept_entry(name, ANSWER_KEEP, _FAMILY_KIND, "")]
+        if name in commas:
+            found += [
+                _kept_entry(name, ANSWER_DECIMAL_COMMA, _FAMILY_GRAMMAR, "")
+            ]
         if name in clocks:
             found += [
                 _kept_entry(name, ANSWER_TWELVE_HOUR, _FAMILY_CLOCK, "")
