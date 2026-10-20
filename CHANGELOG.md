@@ -24,9 +24,14 @@ the file, a new answer written beside it, or a declaration typed. The
 same answers given in one round or in several write the same
 description, summary, questions file and twin, byte for byte (`K-S3-66`,
 new: 0 answers lost and 0 differing files over the health data zoo's 25
-tables and eight answered cases, where lane HX's head read 14 and 20). A
+tables and eight answered cases, where lane HX's head read 14 and 21). A
 run that would drop a kept answer refuses in plain words and writes
-nothing. Where answers are given once, only the questions file changes.
+nothing, and so does one that would read the table another way than the
+run that wrote the file -- a kept answer about the first row or the
+delimiter changed, typed over or deleted -- while the file names columns:
+before the repair, that put a kept `identifier` on another column and
+published 200 of 200 real subject codes. Where answers are given once,
+only the questions file changes.
 
 ### No real identifier is published while its question is open (2026-10-16)
 
