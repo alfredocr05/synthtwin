@@ -60,7 +60,10 @@ string. Thirty-three in the tree, of which the four in
 again on 2026-09-21 by running both readings below over every string
 constant of the folders, ONE-LINE STRINGS INCLUDED: an earlier count
 here said "one more" because the harness behind it skipped any string
-with no newline in it, which is most of this file's samples.)
+with no newline in it, which is most of this file's samples. Those
+counts were taken at the 3.10 floor: since plan P4-D410 raised it to
+3.11, the 3.11 rows and the 3.11 samples sit AT the floor and report
+nothing, and the samples that must report are 3.12 and 3.14 spellings.)
 
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that

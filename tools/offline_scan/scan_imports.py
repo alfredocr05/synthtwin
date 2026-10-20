@@ -67,7 +67,9 @@ should be read as exactly that and no more.
 
 Policy enforced (plan D6.2, a positive AST/name-binding policy;
 Phase 1 additions E1-E5 in plan phase-1-profiler.md, P1-D10; Phase 2
-additions E7-E9 in plan phase-2-generator.md, P2-D13):
+additions E7-E9 in plan phase-2-generator.md, P2-D13; the December
+libraries, their zones and their argument rules in plan
+phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
 
 * Allowed modules for src/: argparse, csv, dataclasses, json, math,
   pathlib, typing, sys (but sys.modules and sys.path may never be read
@@ -75,12 +77,50 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
   os.getcwd, os.lstat, os.isatty, os.sysconf, and read-only os.environ;
   from
   importlib.metadata only the version() function; the runtime
-  dependency pandas, reduced to read_csv alone; and, from numpy,
-  `import numpy.random` and the single name numpy.random.default_rng
-  (extension E7) -- no other numpy module and no other numpy attribute
-  is reachable, by import or by attribute step. Imports of the
-  synthtwin package's own modules are allowed because those files are
-  scanned too. Every other import is a violation.
+  dependency pandas, reduced to read_csv and the one set_option call
+  reading.read_table makes; from numpy, `import numpy.random` and the
+  single name numpy.random.default_rng (extension E7) -- no other numpy
+  module and no other numpy attribute is reachable, by import or by
+  attribute step; from pyarrow, the module pyarrow.csv and its reader
+  with three option classes; from scipy, scipy.optimize's milp with
+  Bounds and LinearConstraint, and scipy.linalg's cho_factor and
+  cho_solve; and numba.njit in the one polish-kernel module (P4-D410,
+  each audited below). Imports of the synthtwin package's own modules
+  are allowed because those files are scanned too. Every other import
+  is a violation.
+* THE ZONES (plan P4-D409 parts 2 and 3, enforced by lane DEP-1, plan
+  P4-D410). Every first-party module sits in one zone: G, generation
+  (any byte of the twin); D, description and shared report (any
+  published byte); P, private report and self-test; R, reading the
+  person's file; W, writing the twin's. The generation path is
+  COMPUTED from the tree: every module synthtwin.generation or
+  synthtwin.contract reaches by import, from any line, is zone G
+  (_GENERATION_ROOTS); _MODULE_ZONES names the R, W and P modules and
+  the polish kernel (G); every other first-party module is D. Every
+  admitted library module carries the zones it may run in
+  (_LIBRARY_ZONES; the standard library runs everywhere), a use outside
+  them is a violation, a module of zone G may not even IMPORT a library
+  not admitted for G, and no module outside zone P imports a module
+  inside it. The rule is what keeps library floats -- reductions whose
+  order no build promises, solver tolerances, platform LAPACK -- away
+  from every byte of the twin and of anything published.
+* THE ARGUMENT RULES (P4-D409 part 3 (d); _ARGUMENT_RULES). An admitted
+  call whose behaviour depends on a setting is held to the one audited
+  form, read where the call is written: pandas.set_option sets
+  mode.string_storage to python and nothing else; pyarrow.csv.read_csv
+  takes a validated local path (it is fenced exactly as
+  pandas.read_csv is), then read_options, parse_options and
+  convert_options only, each a call of its option class written in
+  place, read_options always, with ReadOptions(use_threads=False) by
+  name; ParseOptions takes no invalid_row_handler; scipy.optimize.milp
+  takes options written as a dictionary holding 'disp': False and a
+  'node_limit', never a 'time_limit' (a budget in seconds would let a
+  slow computer decide otherwise than a fast one); numba.njit is only
+  the decorator call njit(fastmath=False, parallel=False, cache=False)
+  over a function of the kernel; numpy's sort and argsort, wherever a
+  later lane admits them, take kind='stable'; and the keyword n_jobs is
+  refused on every call, because it is how a library starts process
+  pools.
 * THE TWO WORKBOOK MODULES (plan P4-D77). Reading a spreadsheet
   workbook needs a zip reader and an XML parser, and admitting a
   workbook LIBRARY would put a third runtime dependency inside the
@@ -155,7 +195,8 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
 * Always forbidden, allowlist aside: __import__,
   importlib.import_module, exec, eval, compile, subprocess, os.system,
   os.exec*, os.spawn*, os.popen, os.fork, os.posix_spawn, ctypes, cffi,
-  multiprocessing, and the reflection primitives getattr, setattr,
+  multiprocessing, llvmlite, joblib, and the reflection primitives
+  getattr, setattr,
   delattr, hasattr, vars, globals, locals, and dir. Aliases are traced
   to their origin, so "g = getattr" followed by "g(...)" is caught.
 * Every attribute chain that starts from an imported module must
@@ -454,7 +495,7 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
 
 Complete audit of the closed allowed surface. Every enumerated name
 below was checked against its documented signature on every supported
-interpreter (CPython 3.10 through 3.14); "data" means the API never
+interpreter (CPython 3.11 through 3.14); "data" means the API never
 invokes that name's arguments. This list IS the audit record -- an
 attribute absent from it is not allowed at all:
 
@@ -483,7 +524,7 @@ attribute absent from it is not allowed at all:
   type).
 * pathlib: Path (constructor: data). The Path instance methods the
   src tree uses -- resolve, is_absolute, the / operator, and the
-  parts attribute -- are data. Across 3.10-3.14 the ONLY Path
+  parts attribute -- are data. Across 3.11-3.14 the ONLY Path
   instance method with a callable parameter is walk (on_error SLOT,
   added in 3.12); every other instance method (open, read_text,
   write_text, glob, rglob, iterdir, stat, lstat, mkdir, match,
@@ -574,6 +615,58 @@ attribute absent from it is not allowed at all:
   into a first-party Python whole number. spawn is not reachable: it
   is a method of the generator and the generator's method list holds
   one name.
+* pandas.set_option (lane DEP-1, plan P4-D410), zone R. Capability
+  audit: it stores one value in pandas' process-wide option registry
+  and runs that option's own validator; it performs no I/O, starts no
+  process and takes no callable. What an option does afterwards is the
+  danger -- `compute.use_numba` turns on a code generator, others
+  change readers' defaults -- so the argument rule fixes the one call
+  reading.read_table makes: `mode.string_storage` set to `python`,
+  both written as text. Its result (None) is a pandas value.
+* pyarrow.csv (lane DEP-1, plans P4-D409 and P4-D410), zone R:
+  read_csv, ReadOptions, ParseOptions, ConvertOptions, and NOTHING
+  else of pyarrow -- no pyarrow.fs or pyarrow.flight, no dataset, no
+  writer, no compute. Capability audit: read_csv opens its first
+  argument, a path or a text pyarrow may resolve through a file
+  system, so it IS fenced as pandas.read_csv is (the validated local
+  path, _FENCED_APIS); it reads with a pool of threads unless
+  ReadOptions(use_threads=False) is handed in, which the argument rule
+  requires; its memory_pool is refused. The three option classes hold
+  settings as data, save ParseOptions' invalid_row_handler, a callable
+  pyarrow invokes for each row it cannot parse: a callback SLOT, and
+  refused by the argument rule as well. What read_csv returns, a
+  pyarrow table, answers to no method and no attribute until the
+  adopting lane (SR-A) enters each one it reads with its own audit.
+* scipy.optimize (lane DEP-1, plans P4-D409 part 5 and P4-D410), zone D
+  on the search side, and zone P: milp, Bounds, LinearConstraint.
+  Capability audit: milp hands the arrays it is given to the HiGHS
+  solver compiled into scipy and returns a result; it performs no file
+  or network I/O, starts no process and takes no callable; it prints
+  progress to the terminal unless options silence it and it stops on
+  a clock if given time_limit, which the argument rule turns into
+  'disp': False and a node budget. Bounds and LinearConstraint hold
+  arrays as data. The result is a dictionary of arrays and answers to
+  nothing until the adopting lane (MR, CHa) enters what it reads; what
+  HiGHS exhibits is re-checked in Python integers (P4-D409 part 5).
+* scipy.linalg (lane DEP-1, plan P4-D410), zone P only: cho_factor and
+  cho_solve, LAPACK's Cholesky factorization and solve on arrays they
+  are handed. No I/O, no process, no callable; platform floats, which
+  is why zone P alone may use them (the self-test's fits, lane ST).
+* numba (lane DEP-1, plan P4-D409 part 4 and P4-D410), zone G, in the
+  module synthtwin.polish_kernel ALONE (_MODULE_SCOPED_ADMISSIONS):
+  njit. Capability audit: njit compiles the decorated function to
+  machine code through LLVM, in memory, when it is first called --
+  which IS code generated at run time, and is admitted for this one
+  audited module under the CI gate that proves its twin bytes equal to
+  the plain-Python polish on every operating system and Python. The
+  source it compiles is the body under it, read by this audit under
+  every rule above; fastmath=False keeps every operation correctly
+  rounded and in written order, parallel=False starts no thread,
+  cache=False writes no file, and the argument rule requires all three
+  written out. No other numba name -- prange, vectorize, cfunc,
+  objmode, config, jit -- is reachable, and llvmlite is forbidden
+  outright. numba's settings by environment variable are lane MPn's
+  to close (P4-D409 part 4 (vi)).
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
   (the callable argument SLOT); print (file SLOT -- print invokes
@@ -605,7 +698,8 @@ Exit status: 0 clean; 1 one or more violations, each printed as
 "file:line: explanation"; 2 the command line itself was wrong.
 
 This tool uses only the Python standard library (ast, pathlib, sys,
-argparse) and never imports or runs the code it checks.
+argparse) and never imports or runs the code it checks -- nor any of
+the libraries it admits.
 """
 
 import argparse

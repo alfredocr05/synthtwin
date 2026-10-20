@@ -627,14 +627,22 @@ whole command run at it. The boundary this architecture keeps is that
 GENERATION reads a description and nothing else -- not that only one
 command opens a file.
 
-**Dependencies are governed [built].** synthtwin has exactly two direct
-runtime dependencies. pandas is justified in writing in
+**Dependencies are governed [built].** synthtwin has four direct
+runtime dependencies, on Python 3.11 and later: numpy, pyarrow, scipy
+and pandas. pandas is justified in writing in
 `docs/plans/phase-1-profiler.md` and reduced by the import scanner to
-exactly one function of it, `read_csv`; numpy is justified in
-`docs/plans/phase-2-generator.md` and reduced to
+`read_csv` and the one setting that fixes how it stores text; numpy is
+justified in `docs/plans/phase-2-generator.md` and reduced to
 `numpy.random.default_rng` plus the single drawing call on the random
-stream it returns -- membership in an allowed library grants nothing on
-its own. numpy is used only by the generator's one random stream: the
+stream it returns; pyarrow (a fast reader, and text held as exact
+bytes) and scipy (a solver that searches, and the private self-test's
+fits) are justified in `docs/plans/phase-4-columns.md` (P4-D409) and
+reduced to a few enumerated names each -- membership in an allowed
+library grants nothing on its own. Each library is also held to the
+ZONES it may run in, so that no library's floating-point arithmetic
+decides a byte of the twin or of anything published, and numba, which
+may compile one audited piece of the generator once CI proves it gives
+the same bytes, is optional. numpy is used only by the generator's one random stream: the
 profiler, which is the half that reads your table, imports it nowhere.
 (It was declared directly in Phase 1 too, until review round 1 showed
 that its reductions made published statistics depend on the order of the
@@ -718,18 +726,23 @@ same synthtwin version, and the same locked dependency set produce
 byte-identical output **on the same platform**. Cross-platform equality
 is verified empirically by golden-hash tests on every cell of the CI
 matrix and is reported as a tested result - it is never promised beyond
-the tested matrix. One documented consequence of the single-stream design:
+the tested matrix. What keeps it true as libraries arrive is a rule the
+offline scanner enforces (plan P4-D409): the code that builds the twin
+uses whole numbers, the four arithmetic operations and square roots in
+a fixed order and the one seeded random stream, never a library's sums
+or solvers, whose last digit may differ from one computer to the next. One documented consequence of the single-stream design:
 changing the schema shifts the random streams that follow it at the same
 seed, so byte-stability is promised only across identical inputs.
 
 ## Before you start
 
-synthtwin runs on Python 3.10 or later, on a Mac, on Windows or on
+synthtwin runs on Python 3.11 or later, on a Mac, on Windows or on
 Linux. You need nothing else installed first: the install script below
-fetches everything else. To see which Python a computer has:
+fetches everything else. To see which Python a computer has (Ubuntu
+22.04's own Python is 3.10, which is too old):
 
 **On a Mac.** Open Terminal (Applications, then Utilities) and type
-`python3 --version`. If it prints `Python 3.10` or a later number, you
+`python3 --version`. If it prints `Python 3.11` or a later number, you
 are ready. If it prints an older number, or a window offers to install
 "command line developer tools", go to python.org, choose Downloads, and
 download the newest Python 3 installer for macOS. Open the file you
@@ -737,7 +750,7 @@ downloaded and follow its steps. Then close Terminal, open it again and
 type `python3 --version` once more.
 
 **On Windows.** Open Command Prompt (type `cmd` in the Start menu) and
-type `python --version`. If it prints `Python 3.10` or a later number,
+type `python --version`. If it prints `Python 3.11` or a later number,
 you are ready. If it prints an older number, says the command is not
 recognized, or opens the Microsoft Store, go to python.org, choose
 Downloads, and download the newest Python 3 installer for Windows. Run
@@ -772,11 +785,12 @@ On Windows, in Command Prompt:
 scripts\install.bat
 ```
 
-The script finds Python 3.10 or later, makes a fresh private environment
+The script finds Python 3.11 or later, makes a fresh private environment
 named `.venv` inside the synthtwin folder so nothing else on the computer
 changes (an earlier one there is replaced, so every file in it is
 checked again, and a package you installed into it yourself must be
-installed again afterwards), installs numpy and pandas from `requirements-install.lock` with
+installed again afterwards), installs the four libraries synthtwin
+needs -- numpy, pandas, pyarrow and scipy -- from `requirements-install.lock` with
 the hash of every file checked (`--require-hashes`), installs synthtwin
 from the folder, and ends by running `synthtwin doctor` (below). It
 needs the internet once, for those locked files and for the packaging
@@ -807,9 +821,10 @@ double quotes instead: where it printed
 
 ### Checking the computer: `synthtwin doctor`
 
-`synthtwin doctor` prints one line per check: that Python is 3.10 or
-later, that numpy and pandas can be loaded, that the output folder takes
-a file, and this computer's total memory. Named a table, as in
+`synthtwin doctor` prints one line per check: that Python is 3.11 or
+later, that numpy, pandas, pyarrow and scipy can be loaded, each with
+the version installed, that the output folder takes a file, and this
+computer's total memory. Named a table, as in
 `synthtwin doctor my-table.csv`, it also weighs the file against that
 memory: a table of plain text takes roughly ten times its size to read,
 a guess from the size alone, and a workbook up to about 632 MB whatever
@@ -824,6 +839,14 @@ PROBLEM says what to do next. The output folder is the one
 check writes a small test file there and removes it at once.
 
 ### With no internet at all, every file checked by hash
+
+**The offline bundle [planned].** synthtwin is to ship, for each
+platform, one file holding every library it needs for Python 3.11 to
+3.14, each pinned to an exact version and checked by its hash, with the
+install script inside it: unzip it and run the script, on a computer
+with no network at all (plan P4-D409; the bundle is built and tested by
+CI, network denied, before a release carries it). Until a release
+carries one, the same locked files are collected by hand as follows.
 
 On a machine that must install everything by hash, and that may have no
 network at all, the procedure has two parts. The first needs a machine

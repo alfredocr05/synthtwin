@@ -10,7 +10,7 @@ rem
 rem It is a .bat file and not a PowerShell script because many managed
 rem Windows computers refuse to run PowerShell scripts.
 rem
-rem What it does, and nothing else: finds Python 3.10 or later (python,
+rem What it does, and nothing else: finds Python 3.11 or later (python,
 rem then the py launcher); makes a fresh private environment, .venv, inside
 rem the synthtwin folder, clearing an earlier one there first (venv
 rem --clear), every time, since pip skips a package whose version is
@@ -38,14 +38,14 @@ set "LOCK=%HERE%\requirements-install.lock"
 set "WHEELS=%~1"
 set "PY="
 
-python -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>&1
+python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
 if not errorlevel 1 set "PY=python"
 if defined PY goto :found_python
-py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>&1
+py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
 if not errorlevel 1 set "PY=py -3"
 if defined PY goto :found_python
 echo.
-echo The installation stopped: no Python 3.10 or later was found on this
+echo The installation stopped: no Python 3.11 or later was found on this
 echo computer. Install one (see "Before you start" in README.md), open a new
 echo Command Prompt window, and run this script again.
 exit /b 1

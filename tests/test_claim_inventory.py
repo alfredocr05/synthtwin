@@ -694,9 +694,11 @@ RETIRED_CAPABILITY_CLAIMS = (
 )
 
 # The claim forms that undercount what synthtwin depends on. numpy
-# returned as a declared direct dependency in this phase, with its own
-# enumerated scanner surface; a reader auditing the supply chain from
-# any of these sentences would look for one library and find two.
+# returned as a declared direct dependency in Phase 2, with its own
+# enumerated scanner surface, and pyarrow and scipy joined them with the
+# December library set (plans P4-D409 and P4-D410); a reader auditing the
+# supply chain from any of these sentences would look for one or two
+# libraries and find four.
 RETIRED_DEPENDENCY_CLAIMS = (
     "one runtime dependency",
     "one direct runtime dependency",
@@ -705,6 +707,9 @@ RETIRED_DEPENDENCY_CLAIMS = (
     "numpy is not a dependency",
     "one function of one third-party library",
     "exactly one function of one third-party",
+    "two runtime dependencies",
+    "two direct runtime dependencies",
+    "exactly two third-party libraries",
 )
 
 # The four marks of the truthful statement of this phase. As with
@@ -833,17 +838,18 @@ PHASE_STATEMENTS = (
 # accepted forms differ because the front page counts DIRECT
 # dependencies in the sentence a contributor reads and the security
 # document counts runtime dependencies in the sentence an auditor
-# reads; both are the same two libraries, and both must name them.
+# reads; both are the same four libraries (plan P4-D410), and both must
+# name them.
 DEPENDENCY_BEARING = (
     "README.md",
     "SECURITY.md",
     "pyproject.toml",
 )
 DEPENDENCY_COUNT_FORMS = (
-    "two runtime dependencies",
-    "two direct runtime dependencies",
+    "four runtime dependencies",
+    "four direct runtime dependencies",
 )
-DEPENDENCY_NAMES = ("pandas", "numpy")
+DEPENDENCY_NAMES = ("pandas", "numpy", "pyarrow", "scipy")
 
 # The front page tags every capability built or planned, and promises
 # in its own opening paragraph that it does. These are the tags that
@@ -1400,11 +1406,13 @@ def test_no_public_surface_undercounts_the_dependencies() -> None:
     assert not offenders, (
         "These surfaces undercount what synthtwin depends on:\n  "
         + "\n  ".join(offenders)
-        + "\n\nThere are two declared direct runtime dependencies: "
-        "pandas, reduced by the scanner to `read_csv` and fenced by the "
-        "run-time path check, and numpy, reduced to "
-        "`numpy.random.default_rng` and the one drawing call on the "
-        "stream it returns. Count both, and say what each is reduced to."
+        + "\n\nThere are four declared direct runtime dependencies: "
+        "pandas, reduced by the scanner to `read_csv` (fenced by the "
+        "run-time path check) and its string-storage setting; numpy, "
+        "reduced to `numpy.random.default_rng` and the one drawing call "
+        "on the stream it returns; pyarrow and scipy, each reduced to a "
+        "few enumerated names and held to its zones (plans P4-D409 and "
+        "P4-D410). Count all four, and say what each is reduced to."
     )
 
 
@@ -1463,6 +1471,16 @@ def test_the_second_family_of_bans_would_notice_the_old_wording() -> None:
         "the front page's dependency count": (
             "synthtwin has exactly one direct runtime dependency, "
             "pandas, and numpy is not a dependency of synthtwin."
+        ),
+        "the front page's two-library count": (
+            "synthtwin has exactly two direct runtime dependencies."
+        ),
+        "the security document's two-library count": (
+            "synthtwin has two runtime dependencies. pandas is justified "
+            "in writing."
+        ),
+        "the security document's two-library allowlist": (
+            "plus a named surface of exactly two third-party libraries"
         ),
         "the security document's allowlist count": (
             "an exact, enumerated list of standard-library APIs, plus "

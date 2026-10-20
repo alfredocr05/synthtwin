@@ -67,9 +67,16 @@ from, not a promise that no twin row can equal a real one.
    require reading source, and every message written for a human.
 3. **Secure by architecture, fully offline.** The product code contains
    no construct that initiates network I/O, no subprocess execution, no
-   native-code calls, no dynamic code loading; it accepts only local
-   filesystem paths and is fully functional air-gapped. This is enforced
-   by the layered checks in the Phase 0 plan (D6), not merely promised.
+   native-code call of its own (no ctypes, no cffi), and no dynamic code
+   loading or code generated at run time - except the one audited
+   module, the polish kernel, which numba compiles in memory from that
+   module's own source under the CI gate of plan P4-D409 part 4. The
+   libraries' own compiled code enters only under the dependency
+   protocol below, pinned by exact version and hash in the offline
+   bundle. The product accepts only local filesystem paths and is fully
+   functional air-gapped. This is enforced by the layered checks in the
+   Phase 0 plan (D6) and the offline scanner's zones and argument rules
+   (P4-D409, P4-D410), not merely promised.
 4. **Decontaminated.** No trace of the private prototype study's
    vocabulary, enforced by the hashed decontamination manifest in
    `tools/decontamination` and the process in the Phase 0 plan. Do not
@@ -255,8 +262,8 @@ though it existed:
   inherit the planner's own defects and synthtwin's own random number
   generator is out of its reach. It does NOT follow that no random
   source is in the process, and this brief said otherwise for a while
-  and was wrong: the validator reads a file, so it loads pandas, so it
-  loads `numpy.random`. What is enforced is that no synthtwin module on
+  and was wrong: the validator reads a file, so it loads the reader's
+  libraries, and pandas alone loads `numpy.random`. What is enforced is that no synthtwin module on
   the validate path imports a random source and that a validate run
   draws from none (plan amendment A-P3-4). No debugging convenience,
   test helper, or one-time exception crosses any of those lines, ever.
@@ -264,7 +271,34 @@ though it existed:
   explicitly through every consumer. No module-level randomness; sorted
   iteration wherever randomness is consumed; output column order a
   fixed function of the schema. Same profile, seed, version, and locked
-  environment produce the same bytes on the same platform (plan D12).
+  environment produce the same bytes on the same platform (plan D12) -
+  and, by the reference vectors CI checks on every system and Python,
+  on every platform. THE ZONES (plan P4-D409 part 2, enforced by the
+  offline scanner, P4-D410): every product module is in one zone. In
+  zone G, generation, nothing but Python integers, numpy integer
+  arrays, elementwise + - * / and sqrt in a fixed order and the one
+  seeded `integers` stream decide a byte of the twin - no float
+  reduction, transcendental, BLAS or LAPACK, scipy, threaded kernel or
+  numba setting beyond the audited kernel's. In zone D, description and
+  shared report, a published byte comes only from integer-exact
+  arithmetic, `math.fsum` or an order written out, and a solver only
+  searches: whatever it exhibits is re-checked in Python integers.
+  Platform floats (library fits, solver tolerances) live in zone P, the
+  private report, the self-test and the tests, and decide nothing
+  generated or published. Zone R reads the person's file with a library
+  only beside the standard-library reading it is compared with, and
+  zone W writes with the standard library.
+- **The dependency protocol.** A library enters only by a plan decision
+  that measures it better than what it replaces (the owner, 2026-10-19:
+  any offline Python library is allowed and must be used where it is
+  better; no AI service), names the zones it may run in, pins it
+  exactly and by hash in the three locks and the offline bundle, and
+  enters each name the product uses in the offline scanner one at a
+  time, with its capability audit and a mutation case red without it
+  (plan P4-D409 part 7). Its floor is repeated in every requirement
+  file, and `tests/test_dependencies.py` fails on any drift and on any
+  library outside the set the plan adopted. Test-only libraries stay in
+  the development lock; `src` never imports them.
 - **Built-in validation.** The tool measures its own output and reports
   the result plainly. A check that cannot fail is a defect; a passing
   report must mean what it says.
@@ -302,7 +336,7 @@ running.
   guarantee. *Complete*; see `docs/plans/phase-0-public-skeleton.md`.
 - **Phase 1 - the profiler:** read a local table, emit the profile;
   first runtime dependencies enter under the reviewed dependency
-  protocol. *Complete*; see `docs/plans/phase-1-profiler.md`.
+  protocol (written down under "Rules of the road" since plan P4-D410). *Complete*; see `docs/plans/phase-1-profiler.md`.
 - **Phase 2 - the generator:** build the twin from the profile alone;
   the public method specification and frozen reference vectors were a
   blocking deliverable here. *Complete - closed by owner decision
