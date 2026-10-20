@@ -18160,6 +18160,203 @@ Codex's two rows one hash), the self-test's sample of exactly
 row), and the ledger's whole-description digest and lock (mutants: a
 digest of `statistical` alone; two runs without the lock).
 
+## G17. Between columns: the polish (stage 6, plan P4-D413; specified, NOT BUILT)
+
+**No generator in this repository runs anything in this section.** It is
+the page G16.3 reserves for lane MPOL: how the arranged rows of the fine
+columns are exchanged, inside their `L0` bands, towards the numbers
+`docs/spec/profile-contract-v6.md` section 4.6d publishes (O5 and O6),
+written before any code so that lanes CHb and MPp build it, lane MPn may
+compile its kernel and lane CHo freezes its oracle. It extends G16 and
+edits none of its clauses: G16.3's own words (exchanges inside one `L0`
+band, which move no family table and no fact of one column, drawing
+their words after G16.2's) are its frame. Until the landing that ships
+stage 6, `moments` is `null` on every description and nothing here
+runs.
+
+### G17.0 When it runs, and which columns it moves
+
+After G16.2 (every family dealt and step 5's computed columns written)
+and before G16.4, and only where `moments` lists a region whose option
+publishes. The POLISHED columns are the columns of `moments.codes`
+holding a published class, in schema order; by invariant S38 none is
+derived, computed, named by a `rules` entry, or repeated while `grain`
+is not `null`, so no exchange can break a carried rule or a patient's
+repeated sequence. A target whose cell lies in a family the twin met
+against a moved table (G16.6) is dropped, and the twin's DEVIATIONS name
+it. Elsewhere nothing here runs and no word is drawn.
+
+### G17.1 The proposals and the exchange
+
+- **Passes.** `P` passes: 4 where the arranged rows `n'` number below
+  1,000,000, and 2 from 1,000,000 (the polish lanes `A0a`, `A0b` and
+  `A0c` measured), a function of `n'`. In each pass each polished column
+  `c`, in schema order, receives `n'` proposals, one word each.
+- **Decoding a word `w`.** `x = ((w >> 32) * n') >> 32`, a row; `B` the
+  rows of `x`'s `L0` band of `c`, listed in row order at the start of
+  the pass; `y = B[((w & 0xFFFFFFFF) * len(B)) >> 32]`.
+- **Weighed only when** `y` is not `x`; `x` and `y` hold the same bit of
+  the reading map (G16.1) of `c` and of each column `c` has a published
+  `correlation` with, so no row starts or stops holding a reading of a
+  pair, and each pair's sums over a single column stay as dealt; and,
+  while `grain` is not `null`, `c` is patient-fixed and `x`'s and `y`'s
+  patients hold the same number of rows (below).
+- **The exchange.** `c`'s cell index, value code, second code and
+  reading-map bit move between `x` and `y`. Both rows keep their band of
+  `c` at every level, so no family table, no `L0` total and no fact of
+  one column moves (G16.3).
+- **Patients.** While `grain` is not `null`, a patient-fixed column is
+  exchanged between the two PATIENTS holding `x` and `y`, all their rows
+  at once, only where both hold the same `L0` band of it and the same
+  number of rows, so every patient keeps one value on all its rows; its
+  targets count one term a patient. Lane MG's page and lane GR's
+  generator fix the patients' rows; repeated columns are never polished.
+- **Acceptance.** The proposal is made where the change `dJ` of G17.3 is
+  below nought (greedy: the design measured greedy acceptance 6.6 times
+  better than a threshold schedule at four proposals a cell). Every word
+  is drawn whether or not its proposal is weighed.
+
+### G17.2 Targets in the twin's own units, and their weights
+
+The twin's codes are G4's cells, made from each column's own facts, so
+its band sums differ from the real ones; every target is therefore the
+published number moved into the twin's units, computed ONCE before the
+polish in exact fractions from the description and the twin's state
+after G16.2, and rounded to a whole number, half to even. A cell of a
+`mean` holds only rows whose band of `c` holds no spread cell
+(contract 4.6d.1).
+- **`mean`**, cell `pi` of home family `F`, published sum `S_pi` of
+  `N_pi` rows: `T = S_pi + sum over the L0 bands beta inside pi's band of
+  N'(pi, beta) (S'_beta - S_beta) / N_beta`, with `S_beta` and `N_beta`
+  the published band sum and band count, `S'_beta` the twin's own band
+  sum, and `N'(pi, beta)` the twin's rows of `pi` in `beta` after the
+  walk (both kept by every exchange). The targets of one band then sum
+  to the twin's own band sum, which every exchange keeps.
+- **`spread`**: the same with squares and the published band square sums.
+- **`product`**, cell `tau` of the family's other members:
+  `T = S_cd - S_c S_d / N_tau + T_c T_d / N_tau`, `S_c` and `S_d` the
+  published sums of `c` and `d` over `tau`'s rows (sums of their `mean`
+  cells), `T_c` and `T_d` the sums of their `mean` targets there.
+- **`correlation`**, the pair's `n` rows: for `i = j = 1`, `T = S'_10
+  S'_01 / n + q`, where `q` is the binary64 `math.sqrt` of the binary64
+  nearest the exact fraction `cov**2 V'_a V'_b / (V_a V_b)`, given the
+  sign of `cov`, `cov = S_11 - S_10 S_01 / n` and `V_a = S_20 - S_10**2 /
+  n` from the published sums, primed values the twin's own (the
+  correlation kept, as the design's targets did); for the other three
+  mixed sums `T = S_ij - S_i0 S_0j / n + S'_i0 S'_0j / n` (the
+  covariance kept; JUDGEMENT: on the code scale the twin's own spreads
+  are the real ones' up to G4's rung windows). Sums over one column are
+  not targets: the weighing rule keeps them.
+- **`cell_slopes`**: the sums of contract 4.6d.5 (g) are `mean`,
+  `spread` and `product` targets on the cells of the family's parents.
+- **Clamp.** A target outside `[-n' 2**32, n' 2**32]` is set to the
+  nearer end; no reachable sum lies beyond it.
+- **Weights.** `w = 1 / (m v)`, `m` the rows the target sums over and `v`
+  the twin's own variance of the summed term over them after the walk,
+  both exact, converted once to the nearest binary64; a target with `v`
+  = 0 has weight 0 and is not weighed. (The design's
+  `max(1 - r^2, 0.05)` floor is replaced by this one rule for every
+  class; lane MPp measures both.)
+
+### G17.3 The kernel's operation set (lane MPn may compile it under its gate)
+
+For a proposal on column `c`, the TARGETS of `c` are listed once before
+the polish in a fixed order: each home family in chain order, its cells
+in table order, `mean` then `spread`; then each `product` partner in
+schema order, its cells in table order; then each `correlation` partner
+in schema order, the code pairs (linear, linear), (linear, second),
+(second, linear), (second, second) that are published, and in each the
+sums `(1, 1)`, `(2, 1)`, `(1, 2)`, `(2, 2)`. Each target `k` holds a
+whole number `S_k` (the twin's current sum), its whole-number target
+`T_k` and its binary64 weight `w_k`.
+1. For each target `k` the proposal touches, its change `delta_k` is a
+   whole number: for a cell sum, `+/-(h(c_y) - h(c_x))` on the two cells
+   (`h` the code or its square; nought where `x` and `y` share the cell);
+   for a product in cells `tau_x` and `tau_y`, `(c_y - c_x) d_x` and
+   `(c_x - c_y) d_y`; for a correlation sum `(i, j)`, `(a_y^i - a_x^i)
+   (b_x^j - b_y^j)`, `a` and `b` the centred codes.
+2. `e_k = S_k - T_k`, a whole number.
+3. `term_k = w_k * (float(delta_k) * (2.0 * float(e_k) + float(delta_k)))`,
+   each `float` of a whole number rounded to the nearest binary64, each
+   product and sum rounded once, in that order, no fused multiply-add.
+4. `dJ` is the sum of the `term_k` from left to right in the listed
+   order, starting from `0.0`; the proposal is accepted where `dJ < 0.0`,
+   and then each `S_k` becomes `S_k + delta_k`.
+The integer steps are `int64` additions, subtractions and
+multiplications of codes and sums; the floating steps are binary64
+conversion, `*` and `+` in the order written; there is no division, no
+square root and no library call. **Bounds, checked in Python integers
+before each call (plan P4-D409, part 4 (vii)):** `n'` below `2**30`;
+every code from 0 to 255 and every centred code from -255 to 255, so
+every term `a^i b^j` is below `2**32` and every `delta` below `2**33`;
+every `S_k` and `T_k` inside `[-n' 2**32, n' 2**32]`, so every sum and
+`e_k` stays below `2**63` in magnitude; every index (a row, a place in
+`B`) below `n'`, proven by the decode's shifts. A failed bound takes the
+plain-Python polish, which computes the same bytes with Python's
+integers and floats. The plain-Python polish is the oracle (lane CHo,
+`tools/reference`) and the fallback; a twin is the same bytes with or
+without the compiled kernel (lane MPn's vector job compares a whole
+multi-pass schedule).
+
+### G17.4 The walk with per-cell slopes (the per-cell slope carrier)
+
+Where a family `F` carries `cell_slopes` (contract 4.6d.5 (g)), G16.2
+step 2 reads its one slope parent `x` cell by cell: in a cell `pi` of
+`F`'s parents whose sums are published, `beta_pi = (N S_xy - S_x S_y) /
+(N S_xx - S_x**2)` and `sigma_pi` the square root of the residual mean
+square `(S_yy - S_y**2 / N - beta_pi (S_xy - S_x S_y / N)) / N`, each
+computed in exact fractions, converted once to binary64 (the root by
+`math.sqrt` of that binary64); a denominator of nought gives `beta_pi`
+0. `L = beta_pi (s_x - m_x) + sigma_pi z` there, `m_x` as G16.2 step 2
+defines it; cells whose sums are not published take 4.6b.6's pooled
+`beta` and `sigma` as G16.2 writes. A family carrying `cell_slopes` has
+one slope parent (contract 4.6d.1's offer).
+
+### G17.5 Draws and their count
+
+After G16.8's words: for each pass, for each polished column in schema
+order, for each block of 65,536 proposals in order (the last shorter),
+one `integers` call (G3.3) of one word a proposal. The polish draws `P e'
+n'` words, `e'` the polished columns, a function of published facts
+(`n'` and `regions`). Each call is a stage in G3.3's sense, added to
+G4's list of stages by the landing that ships it. Nothing is drawn
+after.
+
+### G17.6 Memory
+
+At 2,000,000 arranged rows and 30 polished columns (JUDGEMENT): one
+column's band lists as 3-byte row numbers, 6 MB, rebuilt each pass;
+second codes, one byte a row, 2 MB a skewed column; the targets, their
+sums and weights, a few hundred thousand entries; each row's cell in a
+home family read from the band codes G16.1 holds, never stored. The
+polish adds under 100 MB to G16.11's peak. Lane MPp measures it under
+the 2.5 GB watchdog at 200,000 rows first.
+
+### G17.7 Every degenerate branch, defined
+
+No region publishing: G17 does not run and draws nothing. `B` of one
+row: `y = x`, not weighed. A target of weight 0: never weighed. Every
+target of a column dropped by G16.6: the column is still proposed (its
+words are counted) and nothing is weighed. `n'` from `2**30`: the
+plain-Python polish. A cell sum whose cell holds no row in the twin: no
+target.
+
+### G17.8 The oracle's cases (lane CHo)
+
+`tools/reference/make_generation_reference_vectors.py` computes, each
+beside a mutant that must move it: (1) the decode of three fixed words
+(mutant: `x` and `y` drawn from separate words); (2) a 40-row polish of
+two fine columns with means in one family and their correlation, every
+accepted exchange and the final sums (mutants: targets in the
+description's units; a proposal weighed across two reading-map bits);
+(3) the bound check at `n'` = `2**30` taking the plain-Python path with
+the same bytes; (4) the walk with per-cell slopes on two parent cells
+(mutant: the pooled slope); (5) a patient-fixed column exchanged
+between two whole patients of equal row counts (mutant: a row exchange,
+which leaves a patient two values); (6) a column a carried rule names,
+never polished (mutant: polished, which breaks `B = A + D`); (7) a
+description with no publishing region, drawing no word.
+
 ---
 
 ## Conformance checklist

@@ -3769,3 +3769,51 @@ page's prototype counted a six-by-six table in 26 milliseconds at
 2,000,000 rows by bit masks. The implied tables are products of
 published tables, independent of the rows. Lane CHv measures the whole
 check at 200,000 and 2,000,000 rows under `K-S6-15`.
+
+## V13. Between columns: the moments read on the file (stage 6, plan P4-D413; specified, NOT BUILT)
+
+**No validator in this repository runs anything in this section.** It
+adds the moments' lines that V12's opening paragraph leaves to lane
+MPOL, against the numbers `docs/spec/profile-contract-v6.md` section
+4.6d publishes and the polish `docs/spec/generation-method-v1.md` G17
+makes. It extends V12 and edits none of its clauses; V12.1's rule holds
+here too: the validator re-uses the published codes, regions and cells,
+and never chooses, draws or reads the installation's key.
+
+**V13.1 The measurement.** On the file, re-described as V2 says, each
+column of `moments.codes` is coded by its PUBLISHED rungs (contract
+4.6d.1), each published sum of `regions` is recounted over the file's
+rows of its published cell, in whole numbers, and each correlation's
+nine sums over the file's rows holding both readings.
+
+**V13.2 The lines, every one REPORT-ONLY, never a verdict.**
+
+| object | line | kind |
+|---|---|---|
+| a published sum | the published value and the file's, and their distance in standard errors, `sqrt(m v)` with `m` and `v` as generation method G17.2 defines them but read on the file; marked inside (within one) or outside | REPORT-ONLY |
+| a published correlation | the published `r` on its code and the file's, both from their nine sums, to four decimals, inside or outside one standard error `max(1 - r**2, 0.05) / sqrt(n)` | REPORT-ONLY |
+| `withheld`, a pair's `pinned` | printed as the description publishes them; the loader has checked them (contract S37) | named, never a check |
+| the description itself | invariants S34 to S38 | the loader refuses, naming the region, column or pair |
+
+**V13.3 What a report may print** follows V12.3 and V5.3 unchanged. A
+moment line prints a number measured on the file only where `synthtwin
+profile` run on that file would publish it: the region's published
+option is ELIGIBLE on the file's own description (V2.1 builds it), its
+witness holding with the file's own sums (contract 4.6d.4) and its
+correlations passing test (i). Elsewhere V5.3's fixed sentence stands in
+the line's place and the census counts it withheld. Whether a line is
+withheld is then a function of the description, of the file's own
+description and of lines already printed, never of a number the line
+withholds. The file may be the real table: its sums are then the
+published ones, and printing them prints nothing new.
+
+**V13.4 Not vacuous.** The suite holds: a twin whose polish was skipped,
+whose lines print outside; a file whose own sums fail the witness, whose
+lines print V5.3's sentence; two duplicate fine columns, whose
+correlation line is withheld; and a file meeting every published sum,
+whose lines print inside.
+
+**V13.5 What it costs.** Each sum is read from the codes in one pass over
+the file's rows, one byte a row and column; the witness on the file's
+own description is the profile's (contract 4.6d.4) and is priced with
+it. Lane CHv measures the whole check under `K-S6-15`.
