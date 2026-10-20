@@ -4674,8 +4674,8 @@ reading of the rule leaves them: for numbers `numeric_styles`,
 `percentiles`, `percentiles_between` and `value_histogram`; for dates and
 clocks `n_unparsed`, `datetime_separators`, `utc_offsets`, `zulu_case`,
 `quarter_marker_case`, `month_name_styles`, `date_field_widths`,
-`resolution_mix`, `heavy_dates` and the calendar censuses; on a label
-role the counts of `shape_forms` and `layout_forms`; and `integer_valued`,
+`resolution_mix`, `heavy_dates` and the calendar censuses; the counts
+of `shape_forms` and `layout_forms` wherever its role lists them; and `integer_valued`,
 a format and a resolution, each read from its cells. Its `L0` totals,
 any ladder and any family are withheld too. Why the census goes: `B`'s
 `numeric_styles` `{"integer": 980}` less `D`'s present rows (978, 975
