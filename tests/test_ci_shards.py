@@ -361,12 +361,13 @@ def test_the_workflow_asks_the_tool_for_the_count_it_declares() -> None:
 def test_the_matrix_cells_are_the_platforms_and_pythons_they_were() -> None:
     """Sharding adds a dimension; it removes no platform and no Python.
 
-    The suite must pass on 3.10 through 3.14 on Ubuntu, Windows and
-    macOS, and a split that quietly stopped running a cell would be a
-    cheaper CI that proves less.
+    The suite must pass on 3.11 through 3.14 on Ubuntu, Windows and
+    macOS (3.10 left the matrix with the floor, plan P4-D410), and a
+    split that quietly stopped running a cell would be a cheaper CI that
+    proves less.
     """
     text = WORKFLOW.read_text(encoding="utf-8")
-    for wanted in ('"3.10"', '"3.11"', '"3.12"', '"3.13"', '"3.14"'):
+    for wanted in ('"3.11"', '"3.12"', '"3.13"', '"3.14"'):
         assert wanted in text, f"the test matrix no longer names Python {wanted}"
     for platform in ("ubuntu-latest", "windows-latest", "macos-latest"):
         assert platform in text, f"the test matrix no longer names {platform}"

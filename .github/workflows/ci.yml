@@ -10,10 +10,11 @@
 # 2026-08-07; changing any of them follows the dependency-update review
 # path.
 #
-# Phase 1 note: the runtime dependency set is pandas and numpy (plan
-# P1-D2). The hash-checked wheelhouse below covers them together with
-# the dev/CI and build tooling closure, all pinned in the committed
-# lock file. Two further requirement files exist and are validated by
+# Runtime dependency set: numpy, pyarrow, scipy and pandas (plans P1-D2,
+# P2-D8, P4-D409 and P4-D410), on Python 3.11 and later. The hash-checked
+# wheelhouse below covers them together with the test-only libraries and
+# the dev/CI and build tooling closure, all pinned in the committed lock
+# file. Two further requirement files exist and are validated by
 # the same structural checker: requirements-install.lock, the
 # hash-pinned runtime closure a user installs, and requirements-min.in,
 # which the `minimums` job uses to test the declared floors.
@@ -137,15 +138,21 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
-      # THE PLATFORMS AND PYTHONS ARE UNCHANGED (landing D). The only new
-      # dimension is `shard`: each cell of the old matrix now runs as
-      # SHARD_COUNT jobs over disjoint file lists, so 3.10 through 3.14
-      # on Ubuntu and Windows, and 3.14 on macOS, are all still proved.
-      # The macOS cell is written out once per shard because a matrix
-      # `include` adds one combination at a time.
+      # THE PLATFORMS ARE UNCHANGED (landing D); THE FLOOR IS 3.11 (plan
+      # P4-D410, the owner's "3.11 and later" of 2026-10-19: pandas 3,
+      # pyarrow 26 and scikit-learn 1.9 need it, and 3.10's last numpy,
+      # scipy and pyarrow are frozen). The only other dimension is
+      # `shard`: each cell runs as SHARD_COUNT jobs over disjoint file
+      # lists, so 3.11 through 3.14 on Ubuntu and Windows, and 3.14 on
+      # macOS, are all proved, 45 jobs where 3.10 made 55. Every cell
+      # installs the development lock, so every cell checks the twin's
+      # bytes against the committed reference vectors under that cell's
+      # numpy (2.4.6 on 3.11, 2.5 on 3.12 and later). The macOS cell is
+      # written out once per shard because a matrix `include` adds one
+      # combination at a time.
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         shard: [1, 2, 3, 4, 5]
         include:
           - os: macos-latest
@@ -1483,10 +1490,19 @@ jobs:
     needs: build
     # Plan D5: an untested floor is a guess. This job installs EXACTLY
     # the versions pyproject.toml declares as lower bounds, on the
-    # oldest supported interpreter, and runs the whole suite against
-    # them. requirements-min.in holds those pins and
+    # oldest supported interpreter (3.11, plan P4-D410), and runs the
+    # whole suite against them. requirements-min.in holds those pins and
     # tests/test_dependencies.py fails if they ever disagree with the
     # declared floors.
+    #
+    # IT REPRODUCES THE REFERENCE VECTORS AT THE FLOORS. The suite holds
+    # the committed reference vectors and goldens
+    # (tests/test_generation_reference.py, tests/test_numeric_reference.py,
+    # tests/test_twin_golden.py), so the shard that takes them proves the
+    # twin's bytes under the floor numpy, 2.4.6: the one place where a
+    # change of numpy's random stream between versions would show (plan
+    # P4-D409 part 2). The test-only libraries are not installed here;
+    # the tests that use them skip and say so.
     #
     # SHARDED TOO (landing D), and this is the cell that needed it most:
     # the floors job runs the whole suite on the oldest interpreter in
@@ -1501,7 +1517,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - name: Validate the requirement files before pip runs (text only)
         run: |
           python tools/supply_chain/validate_lock.py
