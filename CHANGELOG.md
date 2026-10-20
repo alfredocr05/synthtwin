@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### Python 3.11 and later, four runtime libraries held to their zones (lane DEP-1, 2026-10-19)
+
+**The libraries' mechanics** (plan P4-D410, building P4-D409; the owner's
+"3.11 and later" and numba "Yes, gated" of 2026-10-19). synthtwin now
+needs Python 3.11 or later and declares four runtime dependencies --
+numpy, pyarrow, scipy and pandas -- pinned by hash in locks compiled for
+3.11; numba is the optional `polish` extra, absent on Intel Macs;
+statsmodels and scikit-learn join the development lock as test-only
+libraries. The offline scanner admits each new library call one name at
+a time with its capability audit, and holds every library to the zones
+it may run in: the modules the generator, the loader and the twin's
+writers reach by import (zone G) use no library but the one random
+stream; pyarrow's reader is fenced like pandas' and runs one thread;
+HiGHS is silenced and budgeted in nodes; numba is one decorator form in
+one module; `n_jobs` is refused everywhere. `read_table` sets pandas'
+string storage itself (left to pandas, reading 500,000 rows took 19 %
+longer with pyarrow installed), and `synthtwin doctor` names every
+library's version. CI runs 3.11 to 3.14 and the minimums job 3.11. Every
+twin, description and report is byte-identical on the old and new
+environments (29 tables, 203 files).
+
 ### Batch 4c's records: more stated limits given owners, three KPI drops owned (2026-10-19)
 
 **Records of batch 4c** (push critic 8 and the push critic of lane
