@@ -2662,8 +2662,7 @@ def _lowered_floor_warning(given: int) -> str:
 
 
 def _population_of(
-    column_names: "list[str]",
-    columns: "list[list[str]]",
+    table: object,
     settings: object,
     declared: "list[str]",
     codes: "list[str] | None" = None,
@@ -2672,6 +2671,10 @@ def _population_of(
     stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
     """The person columns, the population and the word it is counted in.
+
+    The census is `profile.population_census_of`'s: a table read in
+    groups of columns (lane SR, plan P4-D400) is counted one column at a
+    time, never every declared column at once.
 
     Returns (person columns, how many, the unit word, the readings the
     census took). The readings are handed to `profile.build_document`
@@ -2700,31 +2703,31 @@ def _population_of(
     with nothing declared at all -- and the description that came out of
     the same run recorded twenty present cells.
 
-    Guarantees: accepts the table's column names, its columns as text
-    in the same order, the settings in force and the columns declared
-    with `--identifier`, `--code`, `--measurement` and
+    Guarantees: accepts the table, the settings in force and the
+    columns declared with `--identifier`, `--code`, `--measurement` and
     `--decimal-comma`, and how a workbook stores each column
     (`profile.stored_as_of`, plan P4-D382), which the description is
     handed too; returns the four. A fixed function of them.
-    Raises TypeError where the settings are not settings, which is an
-    internal invariant. Opens no file and prints nothing.
+    Raises TypeError where the settings are not settings or the table
+    not a table, which are internal invariants, and what
+    `reading.column_values` raises. Opens
+    no file for a table read whole, reads a table read in groups again
+    one column at a time, and prints nothing.
     """
-    from synthtwin import taxonomy
+    from synthtwin import profile, reading, taxonomy
 
     if not isinstance(settings, taxonomy.Settings):
         raise TypeError("internal check: the settings are not settings")
-    declarations = taxonomy.Declarations(
-        identifiers=tuple(declared),
-        codes=tuple(codes if codes is not None else []),
-        measurements=tuple(
-            measurements if measurements is not None else []
-        ),
-        decimal_commas=tuple(
-            decimal_commas if decimal_commas is not None else []
-        ),
-    )
-    people, counted, readings = taxonomy.population_census(
-        column_names, columns, declared, settings, declarations, stored_as
+    if not isinstance(table, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    people, counted, readings = profile.population_census_of(
+        table,
+        settings,
+        declared,
+        codes if codes is not None else [],
+        measurements if measurements is not None else [],
+        decimal_commas if decimal_commas is not None else [],
+        stored_as,
     )
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
@@ -3327,6 +3330,10 @@ def _run_profile(
         # not this reading: a refusal of clocks beside such a code names
         # `--missing-value`, which reaches both.
         missing_under=settings,
+        # ONE GROUP OF COLUMNS AT A TIME where the table is large (lane
+        # SR, plan P4-D400): its text is never held whole, and every
+        # step below asks its columns of `reading.column_values`.
+        in_groups=True,
     )
 
     # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
@@ -3580,7 +3587,7 @@ def _run_profile(
     ):
         column_at = column_place[name]
         seen, left = asking.date_codes_answered(
-            read.columns[column_at],
+            reading.column_values(read, column_at),
             settings,
             answered_code_shapes[name] if name in answered_code_shapes else "",
             missing,
@@ -3663,8 +3670,7 @@ def _run_profile(
     # the census reads is read once.
     storage = profile.stored_as_of(read, settings)
     person_columns, population, unit, census_readings = _population_of(
-        read.column_names,
-        read.columns,
+        read,
         settings,
         forced_identifiers,
         forced_codes,
@@ -3684,7 +3690,10 @@ def _run_profile(
         population, unit, parsing.POPULATION_NOTICE_LINE
     )
 
-    census_box = [census_readings]
+    # A reading of a table read in groups is not handed over (lane SR,
+    # plan P4-D400): the description is handed its columns again, read
+    # again, and the reading would only be held beside them.
+    census_box = [census_readings if read.source is None else ()]
     census_readings = ()
     document = profile.build_document(
         read,
@@ -3769,7 +3778,7 @@ def _run_profile(
                     break
                 column_at = column_at + 1
             if _style_held_back(described_column) and _clocks_on_the_declared_face(
-                read.columns[column_at]
+                reading.column_values(read, column_at)
             ):
                 _warn(errors.the_twelve_hour_style_was_held_back(name))
                 continue
@@ -3839,13 +3848,6 @@ def _run_profile(
         # counts has answered question Q3.
         + sorted(counted)
     )
-    asked_about, split_columns = asking.questions_and_splits_for(
-        document,
-        read.columns,
-        settings,
-        already_answered,
-        tuple(forced_decimal_commas),
-    )
     # ...AND THE COLUMNS OF DATES OR TIMES THAT WRITE A FEW REPEATED
     # CODES (plan P4-D381), which are asked that and nothing else: the
     # joined question `00/00/0000` raises would offer a blood pressure
@@ -3859,28 +3861,10 @@ def _run_profile(
     # lane R1, item 7): the screen and the questions file below reuse
     # this pass unless the interview rebuilt the description or moved
     # the settings or the declarations.
-    codes_seen = asking.date_codes_seen(
-        document,
-        read.columns,
-        settings,
-        already_answered,
-        split_columns,
-        tuple(forced_decimal_commas),
-        storage,
-    )
-    seen_of = (
-        document,
-        settings,
-        list(already_answered),
-        list(forced_decimal_commas),
-    )
-    coded_about = list(codes_seen.questions)
     # A column whose codes were answered `real-value` is asked no
     # question of what kind its values are either: the answer kept its
     # codes, and the joined question is no more the column's for that.
     # Its checklist line as a measurement stands (`checklist_for`).
-    coded_or_answered = coded_about + list(codes_seen.answered)
-    asked_about = asking.without_columns_of(asked_about, coded_or_answered)
     # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
     # Asked only where the population is STILL COUNTED IN ROWS -- where
     # `settings.person_columns` is empty, which is exactly where nobody
@@ -3892,28 +3876,39 @@ def _run_profile(
     # of stage 3 (floor item 4) a declared identifier DIFFERENT ON
     # EVERY ROW silenced it while leaving the count in rows, which is
     # the same silence by a shorter route.
-    asked_about = asked_about + asking.person_questions(
-        document,
-        read.columns,
-        settings,
-        already_answered,
-        asked_about + coded_or_answered,
-        split_columns,
-    )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
     # (owner ruling 2026-09-10, amendment A-P4-58). The questions
     # above are the columns whose VALUES raised a question; these
     # are the ones no rule can reach, because a register of concept
     # identifiers and a column of ages are written identically. A
     # person reads one list and names the codes.
-    listed_about = asking.checklist_for(
+    # ALL OF THEM IN ONE WALK OF THE TABLE (lane SR, plan P4-D400): a
+    # table read in groups of columns is asked them a group at a time.
+    first_questions = profile.questions_of(
+        read,
         document,
-        read.columns,
         settings,
         already_answered,
-        asked_about + coded_about,
-        codes_seen.answered,
+        tuple(forced_decimal_commas),
+        storage,
+        None,
+        None,
+        asking.DateColumnsSeen(),
+        False,
+        (),
+        False,
     )
+    asked_about = first_questions.asked
+    split_columns = first_questions.split
+    codes_seen = first_questions.codes_seen
+    seen_of = (
+        document,
+        settings,
+        list(already_answered),
+        list(forced_decimal_commas),
+    )
+    coded_about = list(codes_seen.questions)
+    listed_about = first_questions.listed
     answered = False
     assumptions_said = False
     if asked_about:
@@ -4026,8 +4021,7 @@ def _run_profile(
                 # first description's.
                 person_columns, population, unit, census_readings = (
                     _population_of(
-                        read.column_names,
-                        read.columns,
+                        read,
                         settings,
                         forced_identifiers,
                         forced_codes,
@@ -4051,7 +4045,7 @@ def _run_profile(
                 population_notes = profile.notes_for_a_small_population(
                     population, unit, parsing.POPULATION_NOTICE_LINE
                 )
-                census_box = [census_readings]
+                census_box = [census_readings if read.source is None else ()]
                 census_readings = ()
                 document = profile.build_document(
                     read,
@@ -4103,21 +4097,30 @@ def _run_profile(
     # the questions file, and a run whose only finding is one of them
     # would otherwise show nothing.
     settled = forced_identifiers + forced_codes + forced_measurements
-    if not (
+    codes_moved = not (
         document is seen_of[0]
         and settings == seen_of[1]
         and settled == seen_of[2]
         and list(forced_decimal_commas) == seen_of[3]
-    ):
-        codes_seen = asking.date_codes_seen(
-            document,
-            read.columns,
-            settings,
-            settled,
-            split_columns,
-            tuple(forced_decimal_commas),
-            storage,
-        )
+    )
+    # THE DATE QUESTIONS BELOW ARE WORKED OUT IN ONE WALK OF THE TABLE
+    # (lane SR, plan P4-D400) -- the codes question again where the
+    # interview moved what it reads, question Q6, and the day-or-month
+    # question -- and said in the order they always were.
+    day_or_month: "tuple[asking.DayOrMonth, ...]" = ()
+    codes_seen, dates_seen, day_or_month = profile.dated_questions_of(
+        read,
+        document,
+        settings,
+        split_columns,
+        None if codes_moved else codes_seen,
+        settled,
+        settled + date_columns + dates_kept,
+        not answered_month_first,
+        tuple(forced_decimal_commas),
+        storage,
+    )
+    if codes_moved:
         seen_of = (
             document,
             settings,
@@ -4133,15 +4136,6 @@ def _run_profile(
     # what it reads. Worked out before Q5 and Q1 are, since the reading
     # each answer `dates` proposes joins theirs (the Codex review of
     # landing R2c, item 7).
-    dates_seen = asking.date_columns_seen(
-        document,
-        read.columns,
-        settings,
-        settled + date_columns + dates_kept,
-        split_columns,
-        tuple(forced_decimal_commas),
-        storage,
-    )
     dates_asked = list(dates_seen.questions)
     dates_of = (
         document,
@@ -4169,12 +4163,6 @@ def _run_profile(
     # is asked the order too, in the same file (review of lane R1, item
     # 4): answered `missing` alone, it would be read month first and
     # asked the order only by the file the answering run writes.
-    day_or_month: "tuple[asking.DayOrMonth, ...]" = ()
-    if not answered_month_first:
-        day_or_month = asking.day_or_month_columns(
-            document, read.columns, settings, split_columns,
-            also=codes_seen.day_or_month + dates_seen.day_or_month,
-        )
     day_or_month_of = (document, settings)
     if day_or_month:
         _say(f"\n{_day_or_month_notice(day_or_month)}\n")
@@ -4502,86 +4490,66 @@ def _run_profile(
     # an answered column is gone and every reading left is the one in
     # force.
     settled = forced_identifiers + forced_codes + forced_measurements
-    asked_about, split_columns = asking.questions_and_splits_for(
-        document, read.columns, settings, settled, tuple(forced_decimal_commas)
-    )
     # ...AND THE COLUMNS OF DATES OR TIMES BESIDE A FEW CODES, recomputed
     # from the FINAL settings (plan P4-D381): a column whose codes were
     # answered `missing` reads as dates now and is asked nothing, and one
     # answered `real-value` has its codes declared kept.
-    if not (
-        document is seen_of[0]
-        and settings == seen_of[1]
-        and settled == seen_of[2]
-        and list(forced_decimal_commas) == seen_of[3]
-    ):
-        codes_seen = asking.date_codes_seen(
-            document,
-            read.columns,
-            settings,
-            settled,
-            split_columns,
-            tuple(forced_decimal_commas),
-            storage,
-        )
-    coded_about = list(codes_seen.questions)
-    coded_or_answered = coded_about + list(codes_seen.answered)
-    asked_about = asking.without_columns_of(asked_about, coded_or_answered)
     # -- 3b.R2c (P4-D383): QUESTION Q6 from the FINAL settings, worked out
     # again only where the interview moved what it reads, and before Q1
     # and Q5, whose collections take the reading each answer `dates`
     # proposes (the Codex review of landing R2c, item 7).
-    dates_moved = not (
-        document is dates_of[0]
-        and settings == dates_of[1]
-        and settled + date_columns + dates_kept == dates_of[2]
-        and list(forced_decimal_commas) == dates_of[3]
-    )
-    if dates_moved:
-        dates_seen = asking.date_columns_seen(
-            document,
-            read.columns,
-            settings,
-            settled + date_columns + dates_kept,
-            split_columns,
-            tuple(forced_decimal_commas),
-            storage,
-        )
-        dates_asked = list(dates_seen.questions)
-    if dates_moved or not (
-        document is day_or_month_of[0] and settings == day_or_month_of[1]
-    ):
-        day_or_month = (
-            ()
-            if answered_month_first
-            else asking.day_or_month_columns(
-                document, read.columns, settings, split_columns,
-                also=codes_seen.day_or_month + dates_seen.day_or_month,
-            )
-        )
     # ...AND THE PERSON QUESTION, recomputed from the FINAL
     # declarations like every other (plan P4-D340). A column answered
     # `identifier` at the terminal is declared now, so the file that
     # replaces this one no longer asks about it -- and the settings
     # carried here are the rebuilt ones, whose `person_columns` says
     # whether that answer settled who the rows are about.
-    asked_about = asked_about + asking.person_questions(
-        document,
-        read.columns,
-        settings,
-        settled,
-        asked_about + coded_or_answered,
-        split_columns,
-    )
     # -- 3b.R2c (P4-D383): QUESTION Q6, BESIDE every other question its
     # column raises: an accession number written `2024-252` is asked
     # whether it is dates and, as before, whether it is a code or a
     # record number, since only the person knows which.
-    asked_about = asked_about + dates_asked
-    listed_about = asking.checklist_for(
-        document, read.columns, settings, settled,
-        asked_about + coded_about, codes_seen.answered,
+    # ALL OF THEM IN ONE WALK OF THE TABLE (lane SR, plan P4-D400), each
+    # date question worked out again only where the interview moved what
+    # it reads.
+    codes_moved = not (
+        document is seen_of[0]
+        and settings == seen_of[1]
+        and settled == seen_of[2]
+        and list(forced_decimal_commas) == seen_of[3]
     )
+    dates_moved = not (
+        document is dates_of[0]
+        and settings == dates_of[1]
+        and settled + date_columns + dates_kept == dates_of[2]
+        and list(forced_decimal_commas) == dates_of[3]
+    )
+    month_moved = dates_moved or not (
+        document is day_or_month_of[0] and settings == day_or_month_of[1]
+    )
+    if month_moved and answered_month_first:
+        day_or_month = ()
+    last_questions = profile.questions_of(
+        read,
+        document,
+        settings,
+        settled,
+        tuple(forced_decimal_commas),
+        storage,
+        None if codes_moved else codes_seen,
+        settled + date_columns + dates_kept if dates_moved else None,
+        dates_seen,
+        month_moved and not answered_month_first,
+        day_or_month,
+        True,
+    )
+    codes_seen = last_questions.codes_seen
+    dates_seen = last_questions.dates_seen
+    if dates_moved:
+        dates_asked = list(dates_seen.questions)
+    day_or_month = last_questions.day_or_month
+    coded_about = list(codes_seen.questions)
+    asked_about = last_questions.asked
+    listed_about = last_questions.listed
     asked_about = asked_about + coded_about
     # ...AND QUESTION Q5, of every column of dates whose years are two
     # figures and whose century nobody gave (landing R2a), and of every

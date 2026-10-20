@@ -4565,6 +4565,95 @@ def detected_initial_space(
 # -- the survey --------------------------------------------------------
 
 
+@dataclasses.dataclass
+class Streamed:
+    """A table's text handed to the walks a line at a time (lane SR, plan P4-D400).
+
+    The reader does not hold a large file's text whole: it reads the
+    file's lines as they are decoded and hands them here. ``head`` is the
+    text's first characters -- the whole text where it is shorter than a
+    MiB and some, and otherwise at least the MiB detection reads past the
+    separator line -- ``size`` is how many characters the text holds and
+    ``last`` its last one, both after an end-of-file mark is taken off;
+    ``end_mark`` says one was; ``doubled`` says whether two quotes stand
+    side by side anywhere in the text. ``walks`` hands over, for EACH
+    walk a survey makes, the text's lines afresh, as `physical_lines`
+    cuts them, from its first character on: every walk takes its own
+    (`next`), so a walk that `settle` or `survey` makes again -- a guess
+    the first walk shows wrong, a reading one walk refuses and another
+    may stand -- reads the file again, line by line, and nothing holds
+    the text whole (skeptic 1 of lane SR, item 4). Every question a walk
+    asks of the whole text is one of these, so a walk of the lines reads
+    exactly what a walk of the text reads.
+    """
+
+    head: str
+    size: int
+    last: str
+    end_mark: bool
+    doubled: bool
+    walks: "typing.Iterator[typing.Iterator[str]]"
+
+
+def _let_go(refusal: errors.ProfileError) -> errors.ProfileError:
+    """``refusal`` built afresh, without the frames of the walk that raised it (Codex's review of lane SR, item 3).
+
+    A refusal a walk raised keeps that walk's frames, and so every cell
+    the walk held, alive as long as it is kept; one kept to be raised
+    again if the next walk refuses too would hold two walks' cells at
+    once. The refusal kept is built again from its words and its kind
+    -- a shape refusal keeps its word and its column -- and raised in
+    the first one's place, the first let go with its walk.
+    """
+    if isinstance(refusal, errors.ShapeRefusal):
+        return errors.shape_refusal(f"{refusal}", refusal.kind, refusal.position)
+    return errors.ProfileError(f"{refusal}")
+
+
+# WHAT A TEXT COSTS TO HOLD (skeptic 1 of lane SR, item 3; Codex's review
+# of lane SR, item 4). Python holds a text one, two or four bytes a
+# character by its widest character, behind a header: 49, 73, 74 and 76
+# bytes on Python 3.10 for a text all ASCII, all Latin-1, all in the
+# Basic Multilingual Plane and wider (41, 57, 58 and 60 on 3.13), its
+# allocation rounded up to 16 bytes. A cell of one emoji in a text of a
+# hundred characters costs 476 bytes, not the 101 its characters say.
+_STORED_HEADERS = (49, 73, 74, 76)
+
+
+def _stored_bytes(value: str) -> int:
+    """The bytes Python 3.10 holds a text of ``value``'s characters in, rounded up as it allocates them."""
+    widest = ord(max(value))
+    if widest < 0x80:
+        size = _STORED_HEADERS[0] + len(value)
+    elif widest < 0x100:
+        size = _STORED_HEADERS[1] + len(value)
+    elif widest < 0x10000:
+        size = _STORED_HEADERS[2] + 2 * len(value)
+    else:
+        size = _STORED_HEADERS[3] + 4 * len(value)
+    return (size + 15) // 16 * 16
+
+
+def _lines_from(lines: "typing.Iterator[str]", at: int) -> "typing.Iterator[str]":
+    """The lines of the text from character ``at``, as `lines_in_turn` cuts ``text[at:]``.
+
+    Cutting a text's first characters off cuts only its first lines: the
+    lines the cut passes are left out, and the line it falls inside is
+    handed over from the cut on, which is the line `physical_lines` reads
+    there.
+    """
+    left = at
+    for line in lines:
+        if left >= len(line):
+            left = left - len(line)
+            continue
+        if left:
+            yield line[left:]
+            left = 0
+            continue
+        yield line
+
+
 @dataclasses.dataclass(frozen=True)
 class Survey:
     """A table's records and its written form, from one walk of its text.
@@ -4612,6 +4701,17 @@ class Survey:
     every_blank_place: "tuple[BlankPlace, ...]" = ()
     ending_census: "tuple[EndingRun, ...]" = ()
     blank_census: "BlankSpread | None" = None
+    # WHICH COLUMNS THIS WALK HELD (lane SR, plan P4-D400): every column
+    # where ``keep`` was not given; otherwise the columns ``keep`` named,
+    # and each other column's cells, form, quoting and order are not this
+    # walk's to say -- the reader takes them from the walk that held it.
+    kept: "tuple[bool, ...]" = ()
+    # The first record's cells, every column, as the columns hold them.
+    first_cells: "tuple[str, ...]" = ()
+    # A walk that held no column (``keep`` naming none): what each
+    # column's texts would cost to hold, in bytes (`_stored_bytes`), one
+    # each a row however often a text repeats. Empty for any other walk.
+    cell_bytes: "tuple[int, ...]" = ()
 
 
 @dataclasses.dataclass
@@ -5282,6 +5382,8 @@ def survey(
     declared_delimiter: str = "",
     small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
     quoted_closing: "bool | None" = None,
+    keep: "tuple[bool, ...] | None" = None,
+    streamed: "Streamed | None" = None,
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -5314,32 +5416,60 @@ def survey(
     itself, so the spacing and the escaping it tries are all tried
     reading `""` as a value before any is tried reading it as a closing
     (Codex's review of landing R6, item 2).
+
+    ONE GROUP OF COLUMNS, AND THE TEXT A LINE AT A TIME (lane SR, plan
+    P4-D400). ``keep``, where given, names the columns whose cells this
+    walk holds, one truth value a column: every record is still read
+    whole, so every count, every refusal and every fact about a row is
+    the same, and only the named columns' cells, forms, quoting and order
+    are held and settled -- the others' are left for the walk that holds
+    them. ``streamed``, where given, is the text as the reader hands it
+    over (`Streamed`) in place of ``text``, each walk taking the lines
+    afresh. A walk that holds no column (``keep`` naming none) measures
+    what each column's cells would cost to hold (``cell_bytes``).
     """
     if quoted_closing is None:
+        # The second walk is made once the first one's refusal has let go
+        # of that walk's frames, never inside its handler, so two walks'
+        # cells are never held at once (Codex's review of lane SR, item 3).
         try:
             return survey(
                 text, encoding, byte_order_mark, first_row_is_data, shown,
                 initial_space, escape, trailing_guess, metadata_rows,
                 decimal_comma_columns, metadata_rows_confirmed,
-                declared_delimiter, small_cell_floor, False,
+                declared_delimiter, small_cell_floor, False, keep, streamed,
             )
         except errors.ProfileError as refusal:
-            if not _holds(_text(text), _QUOTE + _QUOTE):
-                raise
-            try:
-                return survey(
-                    text, encoding, byte_order_mark, first_row_is_data, shown,
-                    initial_space, escape, trailing_guess, metadata_rows,
-                    decimal_comma_columns, metadata_rows_confirmed,
-                    declared_delimiter, small_cell_floor, True,
-                )
-            except errors.ProfileError:
-                raise refusal from None
-    body = _text(text)
-    end_mark = _ends(body, _END_OF_FILE)
-    if end_mark:
-        body = body[: len(body) - 1]
-    size = len(body)
+            refused = _let_go(refusal)
+        doubled = (
+            streamed.doubled
+            if streamed is not None
+            else _holds(_text(text), _QUOTE + _QUOTE)
+        )
+        if not doubled:
+            raise refused
+        try:
+            return survey(
+                text, encoding, byte_order_mark, first_row_is_data, shown,
+                initial_space, escape, trailing_guess, metadata_rows,
+                decimal_comma_columns, metadata_rows_confirmed,
+                declared_delimiter, small_cell_floor, True, keep, streamed,
+            )
+        except errors.ProfileError:
+            # Raised below, outside this handler, so the refusal of the
+            # walk made again is not kept beside it as its context.
+            pass
+        raise refused
+    if streamed is None:
+        body = _text(text)
+        end_mark = _ends(body, _END_OF_FILE)
+        if end_mark:
+            body = body[: len(body) - 1]
+        size = len(body)
+    else:
+        body = _text(streamed.head)
+        end_mark = streamed.end_mark
+        size = streamed.size
     hinted, at = _separator_hint(body)
     # A DECLARED DELIMITER IS READ, AND NOT GUESSED (review item CODEX-4,
     # plan P4-D110). A separator line in the file names its delimiter
@@ -5376,7 +5506,10 @@ def survey(
     # table the walk fills: on the made-up health table of 100,000 rows,
     # 82 of the 169 megabytes the walk rose by.
     cursor = _Cursor(
-        [], 0, delimiter, escaping, spaced, lines_in_turn(body[at:])
+        [], 0, delimiter, escaping, spaced,
+        lines_in_turn(body[at:])
+        if streamed is None
+        else _lines_from(next(streamed.walks), at),
     )
     stream = _Stream(cursor, [], 0)
     walk = _Walk([], "", 0)
@@ -5489,6 +5622,23 @@ def survey(
     width = len(header)
     columns: list[list[str]] = [[] for _place in range(width)]
     flags: list[bytearray] = [bytearray() for _place in range(width)]
+    # WHICH COLUMNS THIS WALK HOLDS, and what it keeps of every row beside
+    # them (lane SR, plan P4-D400): the first record's cells, and the last
+    # column's quoting and whether every one of its cells is empty, which
+    # `_refuse_a_quoted_empty_against_closing` asks whatever is held.
+    holding: "list[bool]" = [
+        keep is None or (place < len(keep) and keep[place])
+        for place in range(width)
+    ]
+    first_cells: "list[str]" = []
+    last_flags = bytearray()
+    last_column_empty = True
+    # WHAT EACH COLUMN'S CELLS WOULD COST TO HOLD, measured by a walk that
+    # holds none of them (skeptic 1 of lane SR, item 3; Codex's review,
+    # item 4): the reader sizes its groups and walks from these, each
+    # column by its own cells, not by the table's average cell.
+    measuring = keep is not None and True not in keep
+    stored: "list[int]" = [0 for _place in range(width)]
     # ONE TEXT PER SPELLING IN EACH COLUMN (lane S4d, plan P4-D390): the
     # rows of a column that write one spelling hold the same text, not a
     # copy of it per row, up to `parsing.SPELLING_MEMO_TEXTS` where the
@@ -5603,6 +5753,11 @@ def survey(
             shared = [0 for _place in range(width)]
             noted = [{} for _place in range(width)]
             older = [{} for _place in range(width)]
+            holding = [
+                keep is None or (place < len(keep) and keep[place])
+                for place in range(width)
+            ]
+            stored = [0 for _place in range(width)]
         closing = (
             rows_trailing
             and len(fields) == width + 1
@@ -5730,6 +5885,26 @@ def survey(
             full_ending_empty = full_ending_empty + 1
         every_empty = True
         for place in range(width):
+            if place < count and not holding[place]:
+                # NOT THIS WALK'S COLUMN (lane SR, plan P4-D400): its cell
+                # is read for the row's facts and not held.
+                value = fields[place]
+                if n_rows == 0:
+                    first_cells += [value]
+                if place == width - 1:
+                    last_flags += _BYTE_ONE if found.quoted[place] else _BYTE_ZERO
+                    last_column_empty = last_column_empty and value == ""
+                if value and not _only_spaces_and_tabs(value):
+                    every_empty = False
+                if measuring and value:
+                    stored[place] = stored[place] + _stored_bytes(value)
+                continue
+            if place >= count and not holding[place]:
+                if n_rows == 0:
+                    first_cells += [""]
+                if place == width - 1:
+                    last_flags += _BYTE_ZERO
+                continue
             if place < count:
                 value = fields[place]
                 spelled_here = spelled[place]
@@ -5753,6 +5928,11 @@ def survey(
                     noted[place] = {}
                 columns[place] += [value]
                 flags[place] += _BYTE_ONE if found.quoted[place] else _BYTE_ZERO
+                if n_rows == 0:
+                    first_cells += [value]
+                if place == width - 1:
+                    last_flags += _BYTE_ONE if found.quoted[place] else _BYTE_ZERO
+                    last_column_empty = last_column_empty and value == ""
                 # A CELL OF NOTHING BUT SPACES HOLDS NOTHING (plan
                 # P4-D84, review item CODEX-7). This asked only whether
                 # the cell held any character at all, while the
@@ -5770,6 +5950,10 @@ def survey(
             else:
                 columns[place] += [""]
                 flags[place] += _BYTE_ZERO
+                if n_rows == 0:
+                    first_cells += [""]
+                if place == width - 1:
+                    last_flags += _BYTE_ZERO
         if fields[count - 1] == "":
             ends_empty = ends_empty + 1
         if every_empty and width >= 2:
@@ -5807,6 +5991,15 @@ def survey(
         )
     if ragged:
         if trailing_broken and trailing_guess:
+            # This walk's cells are let go before the next walk is made
+            # (Codex's review of lane SR, item 3).
+            columns = []
+            flags = []
+            spelled = []
+            spelled_here = {}
+            noted = []
+            older = []
+            opening = None
             return survey(
                 text,
                 encoding,
@@ -5827,6 +6020,8 @@ def survey(
                 small_cell_floor,
                 # ...and so does the reading of a closing `""` (lane R6).
                 bool(quoted_closing),
+                keep,
+                streamed,
             )
         raise errors.ProfileError(
             errors.ragged_rows(
@@ -5840,11 +6035,22 @@ def survey(
                     errors.blank_line_in_one_column(shown, standing.after + 1)
                 )
 
-    sequences = [_sequence_of(columns[place]) for place in range(width)]
+    # A COLUMN THIS WALK DID NOT HOLD is settled by the walk that holds it
+    # (lane SR, plan P4-D400): here it is a plain column, read as no
+    # sequence, and passed over by the order below.
+    sequences = [
+        _sequence_of(columns[place]) if holding[place] else -1
+        for place in range(width)
+    ]
     column_forms: list[ColumnForm] = []
     holds: list[tuple[frozenset[str], ...]] = []
     classified: list[bool] = []
     for place in range(width):
+        if not holding[place]:
+            column_forms += [plain_column()]
+            holds += [()]
+            classified += [False]
+            continue
         rules, held, walked = _quoting_census(
             columns[place], flags[place], delimiter, escaping, spaced, width == 1
         )
@@ -5864,7 +6070,8 @@ def survey(
     )
     if header_record is not None and not header_trailing and not rows_trailing:
         _refuse_a_quoted_empty_against_closing(
-            header, header_flags, header_rule, columns, flags, n_rows, delimiter, shown
+            header, header_flags, header_rule, width, last_column_empty, last_flags,
+            n_rows, delimiter, shown,
         )
     metadata_cells: list[str] = []
     for row in header_rows:
@@ -5924,7 +6131,10 @@ def survey(
             ]
     order = row_order_of(
         _without_rows(columns, empty_rows),
-        sequences,
+        [
+            sequences[place] if holding[place] else 0
+            for place in range(len(sequences))
+        ],
         n_rows - len(empty_rows),
         declared_commas if declared_commas else None,
     )
@@ -6015,7 +6225,11 @@ def survey(
         separator_line=bool(hinted),
         byte_order_mark=byte_order_mark,
         line_endings=runs_published,
-        final_line_ending=_ended(body, size),
+        final_line_ending=(
+            _ended(body, size)
+            if streamed is None
+            else size > 0 and (streamed.last == _LF or streamed.last == _CR)
+        ),
         end_of_file_mark=end_mark,
         preamble=lines_before,
         preamble_withheld=preamble_lines_holding_text(lines_before) > 0,
@@ -6056,6 +6270,9 @@ def survey(
         every_blank_place=tuple(blanks),
         ending_census=census,
         blank_census=blank_census,
+        kept=tuple(holding),
+        first_cells=tuple(first_cells),
+        cell_bytes=tuple(stored) if measuring else (),
     )
 
 
@@ -6063,9 +6280,16 @@ def _without_rows(columns: "list[list[str]]", rows: "list[int]") -> "list[list[s
     """The columns with the records at ``rows`` (ascending) taken out."""
     if not rows:
         return columns
-    skip = [False for _row in range(len(columns[0]) if columns else 0)]
+    # As long as the longest column: a column a walk did not hold is
+    # empty (lane SR, plan P4-D400), and stays so.
+    size = 0
+    for column in columns:
+        if len(column) > size:
+            size = len(column)
+    skip = [False for _row in range(size)]
     for row in rows:
-        skip[row] = True
+        if row < size:
+            skip[row] = True
     return [
         [column[row] for row in range(len(column)) if not skip[row]]
         for column in columns
@@ -6187,8 +6411,9 @@ def _refuse_a_quoted_empty_against_closing(
     header: "list[str]",
     header_flags: "list[bool]",
     header_rule: str,
-    columns: "list[list[str]]",
-    flags: "list[bytearray]",
+    width: int,
+    last_empty: bool,
+    marks: "bytearray",
     n_rows: int,
     delimiter: str,
     shown: str,
@@ -6209,16 +6434,16 @@ def _refuse_a_quoted_empty_against_closing(
     the header `a;b;` over rows `1;2;""` reads as three columns both
     ways; a header written quoted throughout keeps its `""` too.
     """
-    width = len(columns)
     if width < 2 or len(header) != width or not n_rows:
         return
     last = width - 1
     if header[last] != "" or header_rule == QUOTE_ALWAYS:
         return
-    for cell in columns[last]:
-        if cell != "":
-            return
-    marks = flags[last]
+    # Asked of the last column's facts the walk keeps whatever columns it
+    # holds (lane SR, plan P4-D400): whether every cell is empty, and
+    # each cell's quoting.
+    if not last_empty:
+        return
     quoted_rows: list[tuple[int, int]] = []
     quoted = 0
     for row in range(len(marks)):
@@ -6291,6 +6516,8 @@ def settle(
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
     small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    keep: "tuple[bool, ...] | None" = None,
+    streamed: "Streamed | None" = None,
 ) -> Survey:
     """The survey of a table, with every guess about its writing checked.
 
@@ -6312,24 +6539,42 @@ def settle(
     over 120 records `1,x\\,""`, which 6a248e7 read with backslash
     escapes as `x,""`, was read as `x\\` closed `""`, with nothing
     malformed and no question, and the twin wrote the changed values.
+
+    ``keep`` is `survey`'s, handed to every walk, and so is ``streamed``
+    (lane SR, plan P4-D400): each walk then reads the file's lines afresh,
+    and no walk is made while another walk's cells are still held where
+    the first is not needed after it -- a refusal lets go of its walk's
+    frames before the next walk (`_let_go`), and a guess shown wrong lets
+    go of the walk that showed it. Where the one walk kept may still
+    stand, the walk that may replace it is first made holding no column,
+    and made again holding them only where it stands (skeptic 1 of lane
+    SR, item 4; Codex's review, item 3).
     """
     try:
         return _settled(
             text, encoding, byte_order_mark, first_row_is_data, shown,
             metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
-            declared_delimiter, small_cell_floor, False,
+            declared_delimiter, small_cell_floor, False, keep, streamed,
         )
     except errors.ProfileError as refusal:
-        if not _holds(_text(text), _QUOTE + _QUOTE):
-            raise
-        try:
-            return _settled(
-                text, encoding, byte_order_mark, first_row_is_data, shown,
-                metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
-                declared_delimiter, small_cell_floor, True,
-            )
-        except errors.ProfileError:
-            raise refusal from None
+        refused = _let_go(refusal)
+    doubled = (
+        streamed.doubled
+        if streamed is not None
+        else _holds(_text(text), _QUOTE + _QUOTE)
+    )
+    if not doubled:
+        raise refused
+    try:
+        return _settled(
+            text, encoding, byte_order_mark, first_row_is_data, shown,
+            metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+            declared_delimiter, small_cell_floor, True, keep, streamed,
+        )
+    except errors.ProfileError:
+        # Raised below, outside this handler (`survey` says why).
+        pass
+    raise refused
 
 
 def _settled(
@@ -6344,8 +6589,11 @@ def _settled(
     declared_delimiter: str,
     small_cell_floor: int,
     quoted_closing: bool,
+    keep: "tuple[bool, ...] | None" = None,
+    streamed: "Streamed | None" = None,
 ) -> Survey:
     """`settle`'s walks, each reading a `""` closing as ``quoted_closing`` says."""
+    refused: "errors.ProfileError | None" = None
     try:
         found = survey(
             text, encoding, byte_order_mark, first_row_is_data, shown,
@@ -6355,8 +6603,12 @@ def _settled(
             declared_delimiter=declared_delimiter,
             small_cell_floor=small_cell_floor,
             quoted_closing=quoted_closing,
+            keep=keep,
+            streamed=streamed,
         )
     except errors.ProfileError as refusal:
+        refused = _let_go(refusal)
+    if refused is not None:
         # THE SUPPORTED ESCAPINGS ARE TRIED BEFORE A STRUCTURAL REFUSAL
         # IS PROPAGATED (review item CODEX-6). The doubled-quote reading
         # of a backslash-escaped file splits one field into several --
@@ -6366,8 +6618,9 @@ def _settled(
         # file was readable all along, and removing the embedded comma
         # made the very same escaping work, which is what said the
         # refusal was about the reading and not about the file.
+        backslashed: "Survey | None" = None
         try:
-            other = survey(
+            backslashed = survey(
                 text, encoding, byte_order_mark, first_row_is_data, shown,
                 None, ESCAPE_BACKSLASH, metadata_rows=metadata_rows,
                 decimal_comma_columns=decimal_comma_columns,
@@ -6375,13 +6628,19 @@ def _settled(
                 declared_delimiter=declared_delimiter,
                 small_cell_floor=small_cell_floor,
                 quoted_closing=quoted_closing,
+                keep=keep,
+                streamed=streamed,
             )
         except errors.ProfileError:
-            raise refusal from None
-        if other.malformed == 0:
-            return other
-        raise refusal from None
+            # Raised below, outside this handler (`survey` says why).
+            pass
+        if backslashed is not None and backslashed.malformed == 0:
+            return backslashed
+        backslashed = None
+        raise refused
     if found.initial_space_broken:
+        # The walk that showed the guess wrong is not needed after it.
+        del found
         found = survey(
             text, encoding, byte_order_mark, first_row_is_data, shown, False,
             metadata_rows=metadata_rows,
@@ -6390,8 +6649,16 @@ def _settled(
             declared_delimiter=declared_delimiter,
             small_cell_floor=small_cell_floor,
             quoted_closing=quoted_closing,
+            keep=keep,
+            streamed=streamed,
         )
     if found.malformed and found.form.escape == ESCAPE_DOUBLED:
+        spaced = found.form.initial_space
+        # Read line by line, the backslash reading is first made holding
+        # no column, beside the walk it may replace, and made again
+        # holding the columns only where it stands: two walks' cells are
+        # never held at once.
+        tried = keep if streamed is None else ()
         try:
             other = survey(
                 text,
@@ -6399,7 +6666,7 @@ def _settled(
                 byte_order_mark,
                 first_row_is_data,
                 shown,
-                found.form.initial_space,
+                spaced,
                 ESCAPE_BACKSLASH,
                 metadata_rows=metadata_rows,
                 decimal_comma_columns=decimal_comma_columns,
@@ -6407,11 +6674,33 @@ def _settled(
                 declared_delimiter=declared_delimiter,
                 small_cell_floor=small_cell_floor,
                 quoted_closing=quoted_closing,
+                keep=tried,
+                streamed=streamed,
             )
         except errors.ProfileError:
             return found
-        if other.malformed == 0:
+        if other.malformed != 0:
+            return found
+        if streamed is None:
             return other
+        del found, other
+        return survey(
+            text,
+            encoding,
+            byte_order_mark,
+            first_row_is_data,
+            shown,
+            spaced,
+            ESCAPE_BACKSLASH,
+            metadata_rows=metadata_rows,
+            decimal_comma_columns=decimal_comma_columns,
+            metadata_rows_confirmed=metadata_rows_confirmed,
+            declared_delimiter=declared_delimiter,
+            small_cell_floor=small_cell_floor,
+            quoted_closing=quoted_closing,
+            keep=keep,
+            streamed=streamed,
+        )
     return found
 
 

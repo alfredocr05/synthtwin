@@ -5049,7 +5049,56 @@ def date_codes_seen(
     blocks = document["columns"]
     if not isinstance(blocks, list):
         return DateCodesSeen()
-    found: "list[Question]" = []
+    pending = date_codes_pending(
+        document, table_columns, settings, already, split, decimal_commas,
+        stored_as,
+    )
+    # Where else each column's codes stand, for every question at once.
+    elsewhere_of = codes_elsewhere(
+        document,
+        table_columns,
+        [(place, codes) for _name, _role, place, codes in pending.pending],
+        settings,
+        decimal_commas,
+    )
+    return date_codes_found(pending, elsewhere_of, settings)
+
+
+@dataclasses.dataclass(frozen=True)
+class DateCodesPending:
+    """`date_codes_seen`'s first walk: what every column shows on its own, before the other columns are counted.
+
+    ``pending`` holds each column asked about -- its name, its role, its
+    0-based place and the codes seen in it -- for `codes_elsewhere` to
+    count in the other columns; ``answered``, ``day_or_month`` and
+    ``century`` are `DateCodesSeen`'s own. Split out so a table read one
+    group of columns at a time is walked a group at a time, what each
+    group shows put together in column order (lane SR, plan P4-D400).
+    """
+
+    pending: "tuple[tuple[str, str, int, DateCodes], ...]" = ()
+    answered: "tuple[Question, ...]" = ()
+    day_or_month: "tuple[DayOrMonth, ...]" = ()
+    century: "tuple[str, ...]" = ()
+
+
+def date_codes_pending(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
+) -> DateCodesPending:
+    """`date_codes_seen`'s walk of each column on its own (`DateCodesPending`).
+
+    Guarantees: a fixed function of the arguments, in the order of the
+    document's columns; opens nothing; prints nothing.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return DateCodesPending()
     answered: "list[Question]" = []
     order: "list[DayOrMonth]" = []
     centuries: "list[str]" = []
@@ -5127,15 +5176,22 @@ def date_codes_seen(
         # (the Codex review of landing R2a, item 5), for the same reason.
         if reads_two_figure_years(codes.reading):
             centuries += [name]
-    # Where else each column's codes stand, for every question at once.
-    elsewhere_of = codes_elsewhere(
-        document,
-        table_columns,
-        [(place, codes) for _name, _role, place, codes in pending],
-        settings,
-        decimal_commas,
+    return DateCodesPending(
+        tuple(pending), tuple(answered), tuple(order), tuple(centuries)
     )
-    for name, role, place, codes in pending:
+
+
+def date_codes_found(
+    pending: DateCodesPending,
+    elsewhere_of: "dict[int, tuple[Elsewhere, ...]]",
+    settings: taxonomy.Settings,
+) -> DateCodesSeen:
+    """`date_codes_seen`'s questions, from its walk and `codes_elsewhere`'s count.
+
+    Guarantees: a fixed function of the arguments; opens nothing.
+    """
+    found: "list[Question]" = []
+    for name, role, place, codes in pending.pending:
         elsewhere = elsewhere_of[place] if place in elsewhere_of else ()
         found += [
             Question(
@@ -5150,7 +5206,7 @@ def date_codes_seen(
             )
         ]
     return DateCodesSeen(
-        tuple(found), tuple(answered), tuple(order), tuple(centuries)
+        tuple(found), pending.answered, pending.day_or_month, pending.century
     )
 
 

@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### `synthtwin profile` describes a big table one group of columns at a time (2026-10-18; repair 1, 2026-10-19)
+
+**A table of 2,000,000 rows by 50 columns is described a group of
+columns at a time** (plan P4-D400, lane SR of the December plan; the
+owner's big table, TRACKED T5). `synthtwin profile` no longer holds the
+file's text whole: it reads the file a line at a time as it is decoded,
+and a file it must walk more than once is read again, line by line, for
+each walk. A table whose cells would cost more than 256 MiB held at
+once is read one group of columns at a time -- groups and walks cut by
+what each column's own cells cost, each text at its own width -- walked,
+checked by the standard reader and by pandas, described, counted one
+column at a time and asked its questions a walk at a time, and the
+file is read again for each group a later step needs. Nothing is
+written to disk, and a file that changes between two readings, or
+whose records move, is refused in plain words. Every description,
+summary, questions file and refusal is the same bytes as before.
+`reading.column_values` is the one way to ask a table for a column, and
+`reading.hold_columns` holds any set of columns in one reading, for every
+lane to come. Describe's peak at 2,000,000 x 50 is not yet shown under the 2.5 GB watchdog on the mixed health table: projected 2,204.5 MB before this repair, but 2,572 MB taken linearly from the largest doubling measured, and its re-measure at 1,000,000 rows is scheduled for a night window. Each size of both tables is now the largest of three hash seeds. A file that stops decoding between two readings is refused as changed, and a declared identifier is read once by the census. CPU is about a third more than before, inside the owner's twelve hours. KPIs `K-S4-09` (OPEN: the peak of each
+step at 2,000,000 x 50; describe's part measured and not yet met) and
+`K-S4-11` (recorded).
+
 ### No real identifier is published while its question is open (2026-10-16)
 
 **A column synthtwin asked whether it holds record numbers, and nobody

@@ -4094,8 +4094,15 @@ def population_census(
     settings: Settings,
     declarations: "Declarations | None" = None,
     stored_as: "tuple[str, ...]" = (),
+    holding: "list[bool] | None" = None,
 ) -> "tuple[tuple[str, ...], int, tuple[HeldReading, ...]]":
     """The person columns, how many people, and the reading the census kept.
+
+    ``holding``, where given, is which rows hold a value in some column,
+    worked out column by column with `rows_holding_a_value_in` by a
+    caller that holds the table one group of columns at a time (lane SR,
+    plan P4-D400); ``columns`` then need hold only the columns declared
+    with `--identifier`, the others empty.
 
     `repeating_identifiers` then `people_in`, over one kept reading: the
     first column the census reads is read once however many of its
@@ -4120,7 +4127,8 @@ def population_census(
         column_names, columns, declared, settings, declarations, (), stored_as
     )
     counted, held = _people_held(
-        column_names, columns, people, settings, declarations, held, stored_as
+        column_names, columns, people, settings, declarations, held,
+        stored_as, holding,
     )
     return people, counted, held
 
@@ -4133,6 +4141,7 @@ def _people_held(
     declarations: "Declarations | None",
     held: "tuple[HeldReading, ...]",
     stored_as: "tuple[str, ...]" = (),
+    holding_given: "list[bool] | None" = None,
 ) -> "tuple[int, tuple[HeldReading, ...]]":
     """`people_in`, and the readings the census holds after it.
 
@@ -4141,13 +4150,17 @@ def _people_held(
     columns read here (`_census_reading`). ``stored_as`` is
     `population_census`'s.
     """
-    rows = 0
-    for column in columns:
-        if len(column) > rows:
-            rows = len(column)
-    holding, held = _rows_holding_a_value(
-        columns, rows, settings, column_names, declarations, held, stored_as
-    )
+    if holding_given is not None:
+        holding = holding_given
+        rows = len(holding)
+    else:
+        rows = 0
+        for column in columns:
+            if len(column) > rows:
+                rows = len(column)
+        holding, held = _rows_holding_a_value(
+            columns, rows, settings, column_names, declarations, held, stored_as
+        )
     if not person_columns:
         count = 0
         for place in range(rows):
@@ -4280,6 +4293,194 @@ def _rows_holding_a_value(
                 outstanding = outstanding - 1
             place = place + 1
     return holding, held
+
+
+def repeats_in(
+    cells: "list[str]",
+    name: str,
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: str = "",
+) -> bool:
+    """Whether one declared column repeats a folded present value: `repeating_identifiers`, one column at a time.
+
+    For a caller that holds a table one group of columns at a time (lane
+    SR, plan P4-D400; Codex's review of lane SR, item 2): each declared
+    column is asked on its own and let go, so the census never holds
+    every declared column at once. The column is read as
+    `_repeating_identifiers_held` reads it, and the answer is the one it
+    gives that column.
+
+    Guarantees: a fixed function of the arguments. Raises what
+    `_present_spellings` raises. No I/O of any kind.
+    """
+    standing, _held = _present_spellings(
+        cells, settings, name, declarations, (), stored_as
+    )
+    return _repeats_among(cells, standing)
+
+
+def _repeats_among(cells: "list[str]", standing: "dict[str, int]") -> bool:
+    """Whether a folded present value is met twice in ``cells``, the present spellings ``standing``."""
+    seen: "dict[str, int]" = {}
+    for value in cells:
+        if value not in standing:
+            continue
+        key = parsing.folded(value)
+        if key in seen:
+            return True
+        seen[key] = 1
+    return False
+
+
+@dataclasses.dataclass
+class PeopleJoined:
+    """The rows `people_in` has joined so far, one person column at a time (`people_joined_if_repeating`).
+
+    ``home[row]`` is the row this one has been merged onto, always the
+    earlier of the two; ``named[row]`` says some person column named it.
+    """
+
+    home: "list[int]"
+    named: "list[bool]"
+
+
+def people_joined(rows: int) -> PeopleJoined:
+    """No row joined to another yet, and none named: where `people_joined_if_repeating` starts.
+
+    Guarantees: ``rows`` rows, each its own. Raises nothing. No I/O.
+    """
+    home: "list[int]" = []
+    named: "list[bool]" = []
+    for place in range(rows):
+        home += [place]
+        named += [False]
+    return PeopleJoined(home, named)
+
+
+def people_joined_if_repeating(
+    joined: "PeopleJoined | None",
+    rows: int,
+    cells: "list[str]",
+    name: str,
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: str = "",
+) -> "tuple[bool, PeopleJoined | None]":
+    """Whether one declared column repeats (`repeats_in`), and if it does, its rows joined as `people_in` joins them.
+
+    For a caller that holds a table one group of columns at a time (lane
+    SR, plan P4-D400; Codex's review of lane SR, item 2): each declared
+    column is asked on its own, in the order `people_in` reads them, and
+    let go. The column is read ONCE for both answers (the tripwire
+    skeptic of lane SR, item 1: asking `repeats_in` and then joining read
+    it twice, on the costliest column a table has). Where it repeats,
+    its rows are joined into ``joined`` -- made for ``rows`` rows where
+    it is None -- exactly as `_people_held` joins them for that column;
+    the union-find's answer does not depend on the order the columns are
+    joined in. Guarantees: a fixed function of the arguments; ``joined``
+    is returned unchanged where the column does not repeat. Raises what
+    `_present_spellings` raises. No I/O.
+    """
+    standing, _held = _present_spellings(
+        cells, settings, name, declarations, (), stored_as
+    )
+    if not _repeats_among(cells, standing):
+        return False, joined
+    if joined is None:
+        joined = people_joined(rows)
+    home = joined.home
+    named = joined.named
+
+    def first_of(place: int) -> int:
+        while home[place] != place:
+            home[place] = home[home[place]]
+            place = home[place]
+        return place
+
+    earliest: "dict[str, int]" = {}
+    place = 0
+    for value in cells:
+        if value not in standing:
+            place = place + 1
+            continue
+        named[place] = True
+        key = parsing.folded(value)
+        if key not in earliest:
+            earliest[key] = place
+            place = place + 1
+            continue
+        one, two = first_of(earliest[key]), first_of(place)
+        if one != two:
+            if one < two:
+                home[two] = one
+            else:
+                home[one] = two
+        place = place + 1
+    return True, joined
+
+
+def people_counted(joined: PeopleJoined, holding: "list[bool]") -> int:
+    """`people_in`'s count over the rows ``joined`` holds and the rows holding a value.
+
+    Guarantees: the count `_people_held` returns where some person
+    column was read. Raises nothing. No I/O of any kind.
+    """
+    home = joined.home
+    people = 0
+    unknown = 0
+    for place in range(len(home)):
+        if not joined.named[place]:
+            if holding[place]:
+                unknown = 1
+            continue
+        root = place
+        while home[root] != root:
+            root = home[root]
+        if root == place:
+            people = people + 1
+    return people + unknown
+
+
+def rows_holding_a_value_in(
+    column: "list[str]",
+    name: str,
+    holding: "list[bool]",
+    outstanding: int,
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: str = "",
+) -> int:
+    """`_rows_holding_a_value` for one column: marks its rows that hold a present value.
+
+    For a caller that holds a table one group of columns at a time (lane
+    SR, plan P4-D400) and hands the census the answer
+    (`population_census`'s ``holding``): asked of each column in turn
+    while ``outstanding`` rows hold nothing yet, it marks the same rows
+    the whole walk marks. ``holding`` is changed in place; the rows still
+    holding nothing are returned. The column's reading is not kept: the
+    description reads it again, which is the same reading.
+
+    Guarantees: a fixed function of the arguments. Raises nothing. No
+    I/O of any kind.
+    """
+    if not outstanding:
+        return outstanding
+    standing, _held = _present_spellings(
+        column, settings, name, declarations, (), stored_as
+    )
+    if not standing:
+        return outstanding
+    rows = len(holding)
+    place = 0
+    for value in column:
+        if place >= rows:
+            break
+        if not holding[place] and value in standing:
+            holding[place] = True
+            outstanding = outstanding - 1
+        place = place + 1
+    return outstanding
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":
@@ -6743,7 +6944,14 @@ class _Cells:
     # `folded_counts` holds every label in the order the cells wrote
     # them, so every reader asks `_label_spellings` and walks
     # `folded_counts`, never this map alone.
-    spellings_by_folded: dict[str, dict[str, int]]
+    #
+    # A LABEL WRITTEN ONE WAY ONLY, OTHERWISE THAN ITSELF, IS HELD AS THAT
+    # SPELLING, not as a map of one entry (lane SR, plan P4-D400): a
+    # column of record numbers that never repeat, written `V000123` and
+    # folded to `v000123`, held a map of one entry a row, about 184
+    # bytes, two of the kilobyte a row its description held at its peak.
+    # `_label_spellings` answers it with `{spelling: folded_counts[label]}`.
+    spellings_by_folded: "dict[str, dict[str, int] | str]"
     all_digits: int
     code_alphabet: int
     # EACH DIFFERENT TEXT IS SPLIT ONCE (plan P4-D380), by the grammar it
@@ -6779,7 +6987,7 @@ class _Cells:
 
 def _label_spellings(
     counts: "dict[str, int]",
-    mixed: "dict[str, dict[str, int]]",
+    mixed: "dict[str, dict[str, int] | str]",
     label: str,
 ) -> "dict[str, int]":
     """One folded label's exact spellings, with how many rows wrote each.
@@ -6796,7 +7004,10 @@ def _label_spellings(
     is not counted at all. No I/O of any kind.
     """
     if label in mixed:
-        return mixed[label]
+        held = mixed[label]
+        if isinstance(held, str):
+            return {held: counts[label]}
+        return held
     return {label: counts[label]}
 
 
@@ -6880,7 +7091,7 @@ def _tally(
     # Only the labels some cell wrote otherwise than the label itself
     # (`_label_spellings`, lane S4d): a plain label's map is read off
     # `folded_counts` when it is asked for.
-    mixed_spellings: dict[str, dict[str, int]] = {}
+    mixed_spellings: "dict[str, dict[str, int] | str]" = {}
     for cell in classified:
         present += [cell.text]
         if cell.kind == parsing.NUMBER:
@@ -6943,17 +7154,26 @@ def _tally(
             before = folded_counts[label]
         folded_counts[label] = before + 1
         if label in mixed_spellings:
-            spellings = mixed_spellings[label]
-            if cell.text in spellings:
-                spellings[cell.text] = spellings[cell.text] + 1
+            held = mixed_spellings[label]
+            if isinstance(held, str):
+                if cell.text != held:
+                    # A SECOND SPELLING (lane SR, plan P4-D400): the map
+                    # begins here, the one spelling every earlier cell
+                    # wrote first in it, as the map held it before.
+                    mixed_spellings[label] = {held: before, cell.text: 1}
+            elif cell.text in held:
+                held[cell.text] = held[cell.text] + 1
             else:
-                spellings[cell.text] = 1
+                held[cell.text] = 1
         elif cell.text != label:
             # THE LABEL TURNS MIXED HERE, keeping its earlier cells, which
-            # all wrote the label itself, first in the map as before.
-            spellings = {label: before} if before else {}
-            spellings[cell.text] = 1
-            mixed_spellings[label] = spellings
+            # all wrote the label itself, first in the map as before. A
+            # label its first cell wrote otherwise is held as that one
+            # spelling until a cell writes it another way.
+            if before:
+                mixed_spellings[label] = {label: before, cell.text: 1}
+            else:
+                mixed_spellings[label] = cell.text
     return _Cells(
         decimal_comma=decimal_comma,
         classified=classified,
@@ -7502,6 +7722,14 @@ def _split_once(cells: _Cells, text: str) -> "tuple[str, str, str] | None":
     The answer is `affixed_split`'s exactly: it is remembered on the
     reading (`_Cells.affixes`) by grammar and text, and both are all the
     split reads. Plan P4-D380.
+
+    AT MOST `parsing.SPELLING_MEMO_TEXTS` TEXTS ARE REMEMBERED A GRAMMAR
+    (lane SR, plan P4-D400), as the layout readings' memo holds at most
+    its own: a column whose values never repeat held a split, its core
+    and their place in the memo a row -- about 160 bytes a row of the
+    1,061 a column of 40,000 different `V#########` record numbers held
+    at its peak -- and a text past the bound is split again, the same
+    split.
     """
     grammar = cells.decimal_comma
     if grammar not in cells.affixes:
@@ -7510,7 +7738,8 @@ def _split_once(cells: _Cells, text: str) -> "tuple[str, str, str] | None":
     if text in known:
         return known[text]
     split = affixed_split(text, grammar)
-    known[text] = split
+    if len(known) < parsing.SPELLING_MEMO_TEXTS:
+        known[text] = split
     return split
 
 
@@ -9869,7 +10098,7 @@ def pooled_window(labels: "list[str]") -> float:
 
 def _pooled_numbers(
     counts: dict[str, int],
-    spellings_by_folded: dict[str, dict[str, int]],
+    spellings_by_folded: "dict[str, dict[str, int] | str]",
     settings: Settings,
 ) -> "dict[str, object]":
     """The scale of the numbers the floor held back (plan P4-D302).
@@ -10042,7 +10271,7 @@ def _pooled_numbers(
 
 def _levels(
     counts: dict[str, int],
-    spellings_by_folded: dict[str, dict[str, int]],
+    spellings_by_folded: "dict[str, dict[str, int] | str]",
     settings: Settings,
 ) -> _Levels:
     """Published levels, plus everything that did not reach the profile.

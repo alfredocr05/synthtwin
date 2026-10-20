@@ -252,6 +252,32 @@ The whole file is read with `Path.read_bytes`, the one accepted way to
 obtain bytes from a path (the offline policy accepts no method call on an
 open file object), and the mark is also tested on the bytes themselves.
 
+A LARGE TABLE, ONE GROUP OF COLUMNS AT A TIME
+==============================================
+
+`synthtwin profile` reads with ``in_groups`` (lane SR of the December
+plan, plan P4-D400), and then the file's bytes and its text are never
+held whole: the file is opened from its validated path and its lines are
+taken as the decoder hands them over -- a loop over the open file, no
+method called on it -- which cuts them exactly as `dialect.physical_lines`
+cuts a decoded text. The encoding is chosen as `dialect.decoded` chooses
+it, each encoding tried by reading the file through under it. A table too
+large for one group of columns (`GROUP_BYTES`) is then walked a walk of
+groups at a time (`WALK_BYTES`), groups and walks cut by what each
+column's own cells cost to hold -- the survey holds the walk's cells,
+the standard reader and pandas check them, and what either check would
+refuse is weighed once every walk is read, so the refusal is the one
+reading every column makes -- and handed over holding one group; every
+column after is asked of `column_values`, which reads the file again for
+the next group. Nothing is written to disk. Every reading is held to the
+first -- the file's size, the moment it last changed, how many lines and
+a digest of them -- and a file that changed in between is refused
+(`errors.file_changed_while_read`). A file the survey walks more than
+once (a retried guess about its spacing, its escaping or its closing, or
+a refusal another reading might lift) is read again, line by line, for
+each walk: its text is never held whole, only its first MiB and some
+(lane SR's repair 1, skeptic 1's item 4).
+
 IMPORTS
 =======
 
@@ -277,6 +303,7 @@ import csv
 import zipfile
 import dataclasses
 import pathlib
+import typing
 
 import pandas
 
@@ -462,6 +489,12 @@ class Table:
     # text, and the description then publishes no workbook block.
     book: "workbook.Reading | None" = None
     sheet: "workbook.Sheet | None" = None
+    # WHERE A TABLE READ IN GROUPS OF COLUMNS IS HELD (lane SR, plan
+    # P4-D400). Where it is given, ``columns`` is empty and every column
+    # is asked of `column_values`, which holds one group at a time and
+    # reads the file again for another; where it is None, ``columns``
+    # holds every column and `column_values` hands one over.
+    source: "ColumnSource | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1103,47 +1136,81 @@ def _record_evidence(
     landing). The four rules before it ask nothing of the floor and
     take none.
     """
-    for index in range(len(header)):
-        if _numeric_fit(header[index], columns[index]):
-            return (
-                f"in column {index + 1} the value in that row is a number "
-                f"lying among the numbers written below it, which is what "
-                f"a record in that column looks like"
-            )
-    for index in range(len(header)):
-        if _date_fit(header[index], columns[index]):
-            return (
-                f"in column {index + 1} the value in that row is a date, "
-                f"written the same way as every date below it, which is "
-                f"what a record in that column looks like"
-            )
-    for index in range(len(header)):
-        if _repeats_a_value_below(header[index], columns[index]):
-            return (
-                f"in column {index + 1} the value in that row appears "
-                f"again further down the same column, more than once, so "
-                f"it is one of the values that column is made of"
-            )
-    for index in range(len(header)):
-        if _shares_the_shape_below(header[index], columns[index]):
-            return (
-                f"in column {index + 1} the value in that row is written "
-                f"to the same pattern of letters, figures and marks as "
-                f"values written below it in that column, which is what "
-                f"a record in that column looks like"
-            )
-    for index in range(len(header)):
-        if _measurement_among_numbers(header[index], columns[index], floor):
-            return (
-                f"in column {index + 1} the value in that row is not a "
-                f"number but is written the way a measurement is written, "
-                f"standing over a column whose values below it are "
-                f"numbers, apart from readings written the same way, "
-                f"cells holding no value, and fewer cells than the "
-                f"smallest group that read as neither, which is what a "
-                f"reading in that column looks like"
-            )
+    for rule in range(1, _RECORD_RULES + 1):
+        for index in range(len(header)):
+            if _record_rule_fits(rule, header[index], columns[index], floor):
+                return _record_words(rule, index)
     return None
+
+
+# The five rules `_record_evidence` tries, in its order.
+_RECORD_RULES = 5
+
+
+def _record_rule_fits(rule: int, name: str, values: "list[str]", floor: int) -> bool:
+    """Whether `_record_evidence`'s rule ``rule`` (1 to 5) reads one column's first row as a record."""
+    if rule == 1:
+        return _numeric_fit(name, values)
+    if rule == 2:
+        return _date_fit(name, values)
+    if rule == 3:
+        return _repeats_a_value_below(name, values)
+    if rule == 4:
+        return _shares_the_shape_below(name, values)
+    return _measurement_among_numbers(name, values, floor)
+
+
+def _first_record_rule(name: str, values: "list[str]", floor: int) -> int:
+    """The first of `_record_evidence`'s rules that reads one column's first row as a record, or 0.
+
+    `_record_evidence` asks each rule of every column before the next
+    rule, so the column it names is the leftmost of those whose first
+    rule is the lowest any column answers; a reader that holds a group
+    of columns at a time (lane SR, plan P4-D400) keeps this for each
+    column and finds that one at the end (`_record_words`).
+    """
+    for rule in range(1, _RECORD_RULES + 1):
+        if _record_rule_fits(rule, name, values, floor):
+            return rule
+    return 0
+
+
+def _record_words(rule: int, index: int) -> str:
+    """The words `_record_evidence` gives for rule ``rule`` met in the column at ``index``."""
+    if rule == 1:
+        return (
+            f"in column {index + 1} the value in that row is a number "
+            f"lying among the numbers written below it, which is what "
+            f"a record in that column looks like"
+        )
+    if rule == 2:
+        return (
+            f"in column {index + 1} the value in that row is a date, "
+            f"written the same way as every date below it, which is "
+            f"what a record in that column looks like"
+        )
+    if rule == 3:
+        return (
+            f"in column {index + 1} the value in that row appears "
+            f"again further down the same column, more than once, so "
+            f"it is one of the values that column is made of"
+        )
+    if rule == 4:
+        return (
+            f"in column {index + 1} the value in that row is written "
+            f"to the same pattern of letters, figures and marks as "
+            f"values written below it in that column, which is what "
+            f"a record in that column looks like"
+        )
+    return (
+        f"in column {index + 1} the value in that row is not a "
+        f"number but is written the way a measurement is written, "
+        f"standing over a column whose values below it are "
+        f"numbers, apart from readings written the same way, "
+        f"cells holding no value, and fewer cells than the "
+        f"smallest group that read as neither, which is what a "
+        f"reading in that column looks like"
+    )
 
 
 def _generated_column_names(width: int) -> list[str]:
@@ -1159,12 +1226,13 @@ def _as_text(value: object) -> str:
 
 
 def _agrees_with_the_standard_reader(
-    text: str,
+    lines: "typing.Iterator[str]",
     surveyed: dialect.Survey,
     headed: bool,
     shown: str,
     refusals: str,
-) -> None:
+    kept: "tuple[bool, ...] | None" = None,
+) -> "tuple[int, int, int] | None":
     """Hold the survey's reading to the standard library reader's, value by value.
 
     The survey walks the text by the standard reader's own states so that
@@ -1176,14 +1244,86 @@ def _agrees_with_the_standard_reader(
     separator hint, the preamble, blank lines -- are passed over where
     the form says they stand. A difference is a refusal: it would mean
     the survey read something the standard reader did not.
+
+    ``lines`` are the text's lines without an end-of-file mark
+    (`_body_lines`, or the file's own lines read a line at a time, lane
+    SR, plan P4-D400). ``kept``, where given, names the columns the
+    survey held (`dialect.survey`'s ``keep``): only their values are
+    compared, nothing is refused, and the first difference is RETURNED
+    as (stage, row, place) for the reader to weigh against the other
+    groups' -- the header 0, a metadata row 1, a record 2 (place -1 for
+    the record itself), the count of records 3 -- so the refusal made is
+    the one this check makes reading every column at once.
+    """
+    width = len(surveyed.form.columns)
+    expected_header: list[str] = []
+    if headed:
+        expected_header = list(surveyed.header)
+        if surveyed.form.header_trailing_delimiter:
+            expected_header += [""]
+    header_pending = headed
+    row = 0
+    found: "tuple[int, int, int] | None" = None
+    for kind, cells in _standard_records(lines, surveyed, headed):
+        if kind == _RECORD_HEADER:
+            header_pending = False
+            if cells != expected_header:
+                found = (0, 0, 0)
+                break
+            continue
+        if kind >= _RECORD_METADATA:
+            expected = list(surveyed.form.header_rows[kind - _RECORD_METADATA])
+            if cells != expected:
+                found = (1, kind - _RECORD_METADATA, 0)
+                break
+            continue
+        if len(cells) != width or row >= surveyed.n_rows:
+            found = (2, row, -1)
+            break
+        for place in range(width):
+            if kept is not None and (place >= len(kept) or not kept[place]):
+                continue
+            if cells[place] != surveyed.columns[place][row]:
+                found = (2, row, place)
+                break
+        if found is not None:
+            break
+        row = row + 1
+    if found is None and (row != surveyed.n_rows or header_pending):
+        found = (3, row, 0)
+    if found is not None and kept is None:
+        _refuse_the_disagreement(found, surveyed, shown, refusals)
+    return found
+
+
+# What `_standard_records` hands over with each record: the header, a
+# data record, or a metadata row, numbered from `_RECORD_METADATA`.
+_RECORD_HEADER = 0
+_RECORD_DATA = 1
+_RECORD_METADATA = 2
+
+
+def _standard_records(
+    lines: "typing.Iterator[str]", surveyed: dialect.Survey, headed: bool
+) -> "typing.Iterator[tuple[int, list[str]]]":
+    """The standard reader's records of a table, as the survey's form places them.
+
+    The standard reader is configured by the form the survey found and
+    run over ``lines``; the lines the survey placed outside the table --
+    the separator hint, the preamble, blank lines -- are passed over
+    where the form says they stand, a data record's closing delimiter is
+    taken off and a short record is filled out with empty values, as the
+    survey reads them. Each record is handed over with what it is: the
+    header (`_RECORD_HEADER`), a metadata row (`_RECORD_METADATA` and on,
+    in order) or a data record (`_RECORD_DATA`). Both the check of the
+    survey's reading and the reading of a group of columns again
+    (`column_values`) take their records from here (lane SR, plan
+    P4-D400), so a record read again is the record the check held.
     """
     form = surveyed.form
-    body = _as_text(text)
-    if form.end_of_file_mark:
-        body = body[: len(body) - 1]
     backslash = form.escape == dialect.ESCAPE_BACKSLASH
     rows = csv.reader(
-        dialect.lines_in_turn(body),
+        lines,
         delimiter=form.delimiter,
         doublequote=not backslash,
         escapechar="\\" if backslash else None,
@@ -1191,14 +1331,9 @@ def _agrees_with_the_standard_reader(
     )
     lead = 1 if form.separator_line else 0
     lead = lead + dialect.preamble_lines_written(form.preamble)
-    expected_header: list[str] = []
-    if headed:
-        expected_header = list(surveyed.header)
-        if form.header_trailing_delimiter:
-            expected_header += [""]
     header_pending = headed
     metadata_pending = len(form.header_rows)
-    width = len(surveyed.columns)
+    width = len(form.columns)
     # Every place, counted or not: past its cap the form publishes the
     # blank lines counted, and the file still holds each where it stands.
     places = [place for place in surveyed.every_blank_place if place.text]
@@ -1206,7 +1341,7 @@ def _agrees_with_the_standard_reader(
     place_left = places[0].lines if places else 0
     row = 0
     for record in rows:
-        cells = [f"{cell}" for cell in record]
+        cells = list(record)
         if not cells:
             continue
         if lead:
@@ -1214,18 +1349,11 @@ def _agrees_with_the_standard_reader(
             continue
         if header_pending:
             header_pending = False
-            if cells != expected_header:
-                _disagree_about_a_name(shown, surveyed, refusals)
+            yield _RECORD_HEADER, cells
             continue
         if metadata_pending:
-            expected = list(form.header_rows[len(form.header_rows) - metadata_pending])
+            yield _RECORD_METADATA + len(form.header_rows) - metadata_pending, cells
             metadata_pending = metadata_pending - 1
-            if cells != expected:
-                raise errors.ProfileError(
-                    errors.readers_disagree(
-                        shown, "a row of column descriptions", "a different row"
-                    )
-                )
             continue
         # WHAT THE STANDARD READER YIELDS FOR A LINE OF SPACES (review
         # item CODEX-15). The survey publishes that line's OWN spelling,
@@ -1265,26 +1393,52 @@ def _agrees_with_the_standard_reader(
             cells = cells[:width]
         if form.short_rows and len(cells) < width:
             cells += ["" for _place in range(width - len(cells))]
-        if len(cells) != width or row >= surveyed.n_rows:
-            raise errors.ProfileError(
-                errors.readers_disagree(
-                    shown,
-                    f"{surveyed.n_rows} rows of {width} values",
-                    "a row the standard reader read differently",
-                )
-            )
-        for place in range(width):
-            if cells[place] != surveyed.columns[place][row]:
-                _disagree_about_a_value(shown, surveyed, row, place, refusals)
+        yield _RECORD_DATA, cells
         row = row + 1
-    if row != surveyed.n_rows or header_pending:
+
+
+def _refuse_the_disagreement(
+    found: "tuple[int, int, int]",
+    surveyed: dialect.Survey,
+    shown: str,
+    refusals: str,
+) -> None:
+    """Refuse the difference `_agrees_with_the_standard_reader` found, in its words."""
+    stage, row, place = found
+    width = len(surveyed.form.columns)
+    if stage == 0:
+        _disagree_about_a_name(shown, surveyed, refusals)
+    if stage == 1:
+        raise errors.ProfileError(
+            errors.readers_disagree(
+                shown, "a row of column descriptions", "a different row"
+            )
+        )
+    if stage == 2 and place < 0:
         raise errors.ProfileError(
             errors.readers_disagree(
                 shown,
                 f"{surveyed.n_rows} rows of {width} values",
-                f"{row} rows",
+                "a row the standard reader read differently",
             )
         )
+    if stage == 2:
+        _disagree_about_a_value(shown, surveyed, row, place, refusals)
+    raise errors.ProfileError(
+        errors.readers_disagree(
+            shown,
+            f"{surveyed.n_rows} rows of {width} values",
+            f"{row} rows",
+        )
+    )
+
+
+def _body_lines(text: str, form: dialect.Dialect) -> "typing.Iterator[str]":
+    """A whole text's lines, without the end-of-file mark the survey took off."""
+    body = _as_text(text)
+    if form.end_of_file_mark:
+        body = body[: len(body) - 1]
+    return dialect.lines_in_turn(body)
 
 
 def _disagree_about_a_name(
@@ -1370,7 +1524,8 @@ def _read_authoritatively(
                 declared_delimiter, small_cell_floor,
             )
             _agrees_with_the_standard_reader(
-                text, surveyed, headed, shown, refusals
+                _body_lines(text, surveyed.form), surveyed, headed, shown,
+                refusals,
             )
         except csv.Error as error:
             detail = f"{error}"
@@ -1653,30 +1808,38 @@ def _names_evidence(
     for position, name in enumerate(header):
         if position >= len(columns):
             break
-        # No method call on an untraced value: every element is forced to
-        # text by an f-string first, and a blank cell is compared, not
-        # trimmed. A whitespace-only cell therefore reads as "not a
-        # number", so a column holding one yields no evidence and the
-        # header is taken by convention -- the conservative side, and it
-        # costs a sentence rather than a record.
-        present = [
-            f"{value}" for value in columns[position] if f"{value}" != ""
-        ]
-        if len(present) < 2:
-            continue
-        if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
-            continue
-        if _holds_a_figure_as_a_value(f"{name}"):
-            continue
-        every_value_is_a_number = True
-        for value in present:
-            if parsing.classify_number(f"{value}") == parsing.NOT_A_NUMBER:
-                every_value_is_a_number = False
-        if every_value_is_a_number:
+        if _names_shown(name, columns[position]):
             return taxonomy.note(
                 taxonomy.HEADER_NAMES_SHOWN_BY_COLUMN, (position + 1,)
             )
     return None
+
+
+def _names_shown(name: str, values: "list[str]") -> bool:
+    """Whether one column shows its first row is a NAME, as `_names_evidence` asks each in turn."""
+    # No method call on an untraced value: every element is forced to
+    # text by an f-string first, and a blank cell is compared, not
+    # trimmed. A whitespace-only cell therefore reads as "not a
+    # number", so a column holding one yields no evidence and the
+    # header is taken by convention -- the conservative side, and it
+    # costs a sentence rather than a record.
+    #
+    # The name is asked first and the values stop at the first that is
+    # not a number (lane SR, plan P4-D400): the answer is the one asking
+    # every value gives, at most one value past it.
+    if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
+        return False
+    if _holds_a_figure_as_a_value(f"{name}"):
+        return False
+    present = 0
+    for value in values:
+        cell = f"{value}"
+        if cell == "":
+            continue
+        if parsing.classify_number(cell) == parsing.NOT_A_NUMBER:
+            return False
+        present = present + 1
+    return present >= 2
 
 
 def _holds_a_figure_as_a_value(text: str) -> bool:
@@ -2151,8 +2314,16 @@ def read_table(
     published_header: int = 0,
     small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
     missing_under: "taxonomy.Settings | None" = None,
+    in_groups: bool = False,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
+
+    ``in_groups`` (lane SR, plan P4-D400; `synthtwin profile` passes it)
+    reads delimited text a line at a time, never holding its bytes or its
+    text whole, and a table too large for one group of columns
+    (`GROUP_BYTES`) one group at a time: the Table then holds one group
+    and every column is asked of `column_values`. The reading, every
+    refusal and every value are the ones read without it.
 
     ``missing_under`` is the settings the run reads missing values under,
     and a workbook alone wants them (the repair of review item 3 of
@@ -2257,8 +2428,10 @@ def read_table(
       difference between 7.4x and 13.0x is exactly what holding a
       second, independent reading costs. A table too large is refused
       with `errors.out_of_memory` from either pass, and every later
-      allocation failure becomes one refusal at the command boundary;
-      reading in pieces is future work, stated in the README.
+      allocation failure becomes one refusal at the command boundary.
+      Read ``in_groups`` (plan P4-D400), the bytes and the text are
+      never held whole and a large table holds one group of columns at a
+      time (the module docstring's last section).
     - Determinism: the same file bytes always produce the same Table.
       Nothing here consults a clock, an environment variable, or a
       random source; the encoding is chosen by two documented attempts,
@@ -2313,8 +2486,39 @@ def read_table(
     # THE FILE IS READ ONCE. The kind is decided from the same bytes the
     # delimited reading then uses, so a table is not opened twice to ask
     # what it is, and the bytes reach `Path.read_bytes` -- the one
-    # accepted way to read a file in this package -- rather than a
-    # handle this audit cannot trace.
+    # accepted way to read a whole file in this package -- rather than a
+    # handle this audit cannot trace. Read in groups (lane SR, plan
+    # P4-D400), the kind is decided from the file's first bytes alone,
+    # read as its lines are.
+    if in_groups:
+        try:
+            opening = _opening_of(table_path)
+        except PermissionError as error:
+            raise errors.ProfileError(
+                errors.file_unreadable(shown, f"{error}")
+            ) from error
+        except OSError as error:
+            raise errors.ProfileError(
+                errors.file_unreadable(shown, f"{error}")
+            ) from error
+        grouped_kind = workbook.kind_of(opening)
+        workbook.refuse_by_kind(grouped_kind, shown)
+        if grouped_kind != workbook.KIND_PACKAGE:
+            try:
+                return _read_in_groups(
+                    raw_path, table_path, shown, first_row, refusals,
+                    encoding, metadata_rows, decimal_comma_columns,
+                    metadata_rows_confirmed, declared_delimiter,
+                    small_cell_floor,
+                )
+            except PermissionError as error:
+                raise errors.ProfileError(
+                    errors.file_unreadable(shown, f"{error}")
+                ) from error
+            except OSError as error:
+                raise errors.ProfileError(
+                    errors.file_unreadable(shown, f"{error}")
+                ) from error
     try:
         data = table_path.read_bytes()
     except MemoryError as error:
@@ -2420,6 +2624,1079 @@ def read_table(
     )
 
 
+# -- a large table, read in groups of columns (lane SR, plan P4-D400) --
+#
+# THE OWNER'S BIG TABLE MUST FIT THE MACHINE (the owner, 2026-10-16:
+# 2,000,000 rows by 50 columns within twelve hours, under the 2.5 GB a
+# process may hold). Holding a table as text costs a Python object a cell
+# -- about 4.4 KB a row on the made-up health table of fifty columns,
+# about 8.7 GB at two million rows -- so `synthtwin profile` reads such a
+# table ONE GROUP OF COLUMNS AT A TIME: the file is read once to learn its
+# encoding and its shape, once for each group to walk, check and hold
+# that group's columns, and once more for each group a later step asks
+# for again (`column_values`). No real value is ever written anywhere:
+# the file itself is read again, its lines decoded as they are read, and
+# its text is never held whole. Every reading of it is compared with the
+# first -- its size, the moment it was last changed, how many lines and a
+# digest of them -- and a file that changed in between is refused, so two
+# versions of it are never mixed.
+
+# How many bytes the cells of one group may take, at most, by what each
+# column's cells cost to hold (`dialect.Survey.cell_bytes`, beside
+# `_CELL_BYTES` a cell): the cells `column_values` holds at once while a
+# column is described. Tests lower it to read small tables in groups.
+# At 2,000,000 rows it holds one column of the made-up health table: the
+# description of one column of different record numbers holds several
+# hundred bytes a row at its peak, so the group beside it is kept to the
+# column itself (`kpi_describe_groups`). A column whose own cells cost
+# more is a group of its own (P4-D400 states that limit).
+GROUP_BYTES = 256 * 1024 * 1024
+
+# How many bytes the cells one walk holds may take, at most: a walk of
+# the reading (the survey, the standard reader's check and pandas'), or
+# of the questions (`column_walks`), holds its groups' cells and no
+# column's description, so it holds more than one group and the file is
+# read fewer times. Walks are made of whole groups, each walk as many
+# as fit (skeptic 1 of lane SR, item 3: a walk of six groups, whatever
+# their width, held four columns of notes at once).
+WALK_BYTES = 768 * 1024 * 1024
+
+# What one cell costs beside its text, held as a column: its place in
+# the column's list (8 bytes) and its quoting flag in the survey (1).
+# Its text costs what `dialect.Survey.cell_bytes` measures, its own
+# characters at their own width (Codex's review of lane SR, item 4).
+_CELL_BYTES = 9
+
+# The most one character of a file's text can cost held as cells: a
+# cell of one character beyond the Basic Multilingual Plane and its
+# delimiter, two characters, held in 80 bytes of text and 9 beside it.
+# A file of fewer characters than GROUP_BYTES over this fits one group
+# however it is written, and is read whole, a line at a time.
+_BYTES_A_CHARACTER_AT_MOST = 45
+
+# The text's first characters the survey's detection reads: a MiB past a
+# separator line of at most seven characters, and some.
+_HEAD_CHARACTERS = 1_048_576 + 64
+
+# The opening bytes `workbook.kind_of` reads.
+_OPENING_CHARACTERS = 8
+
+# The digest of a reading of the file's lines: each line's hash folded in
+# turn, modulo a prime. It is compared within one run only, so the hash
+# need not be the same from one run to the next.
+_DIGEST_STEP = 1_000_003
+_DIGEST_MODULUS = (1 << 61) - 1
+
+# The characters that make a Latin-1 reading a Windows-1252 one where
+# that reading stands (`dialect.decoded`): bytes 0x80 to 0x9F.
+_WINDOWS_ONLY = (
+    "\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f"
+    "\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f"
+)
+
+
+@dataclasses.dataclass
+class _Pass:
+    """What one reading of the file's lines saw: how many, their digest, and whether it reached the end."""
+
+    digest: int = 0
+    lines: int = 0
+    done: bool = False
+
+
+@dataclasses.dataclass(frozen=True)
+class _Facts:
+    """What the first reading of a file found, which every later reading must find again.
+
+    ``codec`` reads the file's bytes as the encoding ``encoding`` names,
+    from its first byte, so a byte-order mark comes through as its one
+    character, which ``marked`` says to take off the first line.
+    ``characters`` counts the text without that mark, ``size`` and
+    ``last`` without an end-of-file mark too, which ``end_mark`` says the
+    text ends with; ``head`` is the text's first characters
+    (`dialect.Streamed`). ``zero``, ``breaks``, ``high`` and ``doubled``
+    say whether the text holds a zero character, a line break, (read as
+    Latin-1) a byte between 0x80 and 0x9F, and two quotes side by side. ``lines`` and ``digest`` are the
+    reading's (`_Pass`), and ``file_bytes`` and ``changed_at`` the file's
+    size and the moment it last changed.
+    """
+
+    codec: str
+    encoding: str
+    marked: bool
+    characters: int
+    size: int
+    last: str
+    end_mark: bool
+    head: str
+    zero: bool
+    breaks: bool
+    high: bool
+    doubled: bool
+    lines: int
+    digest: int
+    file_bytes: int
+    changed_at: int
+
+
+@dataclasses.dataclass
+class ColumnSource:
+    """Where `column_values` finds a table read in groups of columns.
+
+    ``path`` is the validated path of the file, ``shown`` the path as the
+    person wrote it, ``facts`` what its first reading found and
+    ``survey`` the reading of every column, gathered from each group's
+    walk; ``headed`` says the first record is the column names;
+    ``groups`` are the groups and ``walks`` the runs of groups a walk
+    holds, each from its first column to the one past its last; and
+    ``held`` holds the columns at ``held_places``, in that order -- the
+    only cells of the table held at all.
+    """
+
+    path: str
+    shown: str
+    facts: _Facts
+    survey: dialect.Survey
+    headed: bool
+    groups: "tuple[tuple[int, int], ...]"
+    held_places: "tuple[int, ...]"
+    held: "list[list[str]]"
+    walks: "tuple[tuple[int, int], ...]" = ()
+
+
+def column_values(table: Table, place: int) -> "list[str]":
+    """One column's values, in row order: THE way to ask a table for a column.
+
+    THE GENERIC COLUMN ACCESS (lane SR, plan P4-D400). Where the table
+    was read whole it hands over its column. Where it was read in groups
+    (`Table.source`), the column is handed over from the columns held --
+    or, letting those go first, the group holding it is read from the
+    file again, with the standard reader as the survey's form configures
+    it, whose every value the reading held equal to the survey's. Any
+    column can be asked for any number of times, in any order. What is
+    held is one group's columns (`column_groups`), or the places
+    `hold_columns` asked for: a caller that keeps a column it was handed
+    while asking for another keeps that column alive beside it.
+
+    WHAT IT COSTS (skeptic 1 of lane SR, item 7). A column held is handed
+    over at no cost. A column outside them costs ONE READING OF THE WHOLE
+    FILE -- every record parsed by the standard reader, every cell of the
+    group kept -- however few columns the group holds: at 2,000,000 rows
+    by 50 columns of lane B0's made-up health table, a reading of about
+    the time `csv` takes over the file (under 200 seconds, lane B0's cost
+    table, section 1). Asking in column order reads each group once.
+    Measured (P4-D400; machine-free, both of lane B0's tables of 50
+    columns at budgets scaled as at 2,000,000 rows, 45 and 50 groups, 11
+    and 10 walks): `synthtwin profile` reads the file 103 times -- 3 to
+    choose its encoding, one walk of the survey a walk of groups and one
+    more to plan them (12 and 11), one standard reader's check a walk (11
+    and 10), and 77 and 79 readings by this access and `hold_columns` for
+    the description, the census and the questions -- and pandas reads it
+    once a walk. A caller that pairs
+    columns far apart holds both at once with `hold_columns`, one reading
+    for the pair, rather than switching between their groups.
+
+    Guarantees: returns the column's values exactly as `read_table`
+    read them. Raises ProfileError where the file changed since it was
+    first read, or can no longer be read as it was
+    (`errors.file_changed_while_read`); IndexError for a place past the
+    last column. Reads the file only for a table read in groups.
+    """
+    source = table.source
+    if source is None:
+        return table.columns[place]
+    for at in range(len(source.held_places)):
+        if source.held_places[at] == place:
+            return source.held[at]
+    for start, end in source.groups:
+        if start <= place < end:
+            _hold(source, tuple(range(start, end)))
+            return source.held[place - start]
+    raise IndexError(f"column {place} of a table of {len(source.survey.form.columns)}")
+
+
+def column_groups(table: Table) -> "tuple[tuple[int, int], ...]":
+    """The groups `column_values` holds at a time, each from its first column to the one past its last.
+
+    A table read whole is one group. A step that walks every column
+    walks them group by group, in order, so each group is read once.
+    """
+    if table.source is None:
+        return ((0, len(table.column_names)),)
+    return table.source.groups
+
+
+def column_walks(table: Table) -> "tuple[tuple[int, int], ...]":
+    """Runs of groups whose cells fit one walk (`WALK_BYTES`), for a step that holds no column's description (`hold_columns`).
+
+    A table read whole is one run. A step whose own work beside the cells
+    is small -- the questions, which split each column's cells -- holds a
+    run at a time and reads the file once a run rather than once a group.
+    """
+    if table.source is None or not table.source.walks:
+        return column_groups(table)
+    return table.source.walks
+
+
+def hold_columns(table: Table, places: "tuple[int, ...]") -> None:
+    """Hold the columns at ``places``, any columns in any order, read from the file at once, for `column_values` to hand over.
+
+    Nothing is read where every one of them is held already, or where the
+    table was read whole; otherwise what is held is let go first, and one
+    reading of the file holds them all (skeptic 1 of lane SR, item 7: a
+    step that pairs columns far apart holds the pair in one reading).
+    What is held is what the caller asks for: the caller sizes it
+    (`column_groups`, `column_walks`). Guarantees: `column_values`'s for
+    each of them. Raises IndexError, before anything is read, for a
+    place that is not one of the table's columns -- the caller's slip,
+    never told to the person as a changed file (the tripwire skeptic of
+    lane SR, item 3) -- and otherwise what `column_values` raises.
+    """
+    width = len(table.column_names)
+    for place in places:
+        if not 0 <= place < width:
+            raise IndexError(f"column {place} of a table of {width}")
+    source = table.source
+    if source is None:
+        return
+    wanted = tuple(sorted(set(places)))
+    held = True
+    for place in wanted:
+        if place not in source.held_places:
+            held = False
+    if held:
+        return
+    _hold(source, wanted)
+
+
+def _hold(source: ColumnSource, places: "tuple[int, ...]") -> None:
+    """Let go of the columns held, then hold the columns at ``places``, read from the file again.
+
+    What was held is let go BEFORE the next columns are read, so two
+    groups are never held at once (skeptic 1 of lane SR, item 5).
+    """
+    source.held = []
+    source.held_places = ()
+    source.held = _read_group(source, places)
+    source.held_places = places
+
+
+def _read_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[str]]":
+    """The columns at ``places`` of a table read in groups, read from its file again.
+
+    The records are the standard reader's, as `_standard_records` places
+    them -- the records the reading's check held equal to the survey's
+    value by value -- and the file is the one first read, which is
+    checked once it has been read (`_unchanged`). A text met again in a
+    column is held once, by the survey's own rule (lane S4d, plan
+    P4-D390; `parsing.memo_takes`, `parsing.memo_notes`): up to
+    `parsing.SPELLING_MEMO_TEXTS` texts a column, and past them a text
+    met again from its second sighting, so a text repeated late in a
+    column is shared as the survey shares it (Codex's review of lane SR,
+    item 1). A record that is no longer where the first reading found it
+    -- shorter, or no longer read as the same records at all -- is the
+    file changed, and refused so (Codex's review of lane SR, item 5).
+    """
+    table_path = pathlib.Path(source.path)
+    run = _Pass()
+    width = len(places)
+    held: "list[list[str]]" = [[] for _place in range(width)]
+    spelled: "list[dict[str, str]]" = [{} for _place in range(width)]
+    shared: "list[int]" = [0 for _place in range(width)]
+    noted: "list[dict[str, str]]" = [{} for _place in range(width)]
+    older: "list[dict[str, str]]" = [{} for _place in range(width)]
+    previous_limit = csv.field_size_limit()
+    try:
+        csv.field_size_limit(FIELD_SIZE_LIMIT)
+        try:
+            for kind, cells in _standard_records(
+                _text_lines(table_path, source.facts, run),
+                source.survey,
+                source.headed,
+            ):
+                if kind != _RECORD_DATA:
+                    continue
+                for at in range(width):
+                    value = cells[places[at]]
+                    if value in spelled[at]:
+                        value = spelled[at][value]
+                        shared[at] = shared[at] + 1
+                    elif value in noted[at] or value in older[at]:
+                        # Met again past the bound: taken now, its first text.
+                        if value in noted[at]:
+                            value = noted[at][value]
+                        else:
+                            value = older[at][value]
+                        spelled[at][value] = value
+                        shared[at] = shared[at] + 1
+                    elif parsing.memo_takes(len(spelled[at]), shared[at]):
+                        spelled[at][value] = value
+                    elif parsing.memo_notes(len(noted[at])):
+                        noted[at][value] = value
+                    else:
+                        older[at] = noted[at]
+                        noted[at] = {}
+                    held[at] += [value]
+        except (OSError, UnicodeDecodeError, IndexError, csv.Error) as error:
+            raise errors.ProfileError(
+                errors.file_changed_while_read(source.shown)
+            ) from error
+    finally:
+        csv.field_size_limit(previous_limit)
+    _unchanged(table_path, source.facts, run, source.shown)
+    return held
+
+
+def _stat_of(table_path: pathlib.Path) -> "tuple[int, int]":
+    """The file's size in bytes and the moment it last changed, in nanoseconds."""
+    file_path = pathlib.Path(table_path)
+    seen = file_path.stat()
+    return int(seen.st_size), int(seen.st_mtime_ns)
+
+
+def _opened_lines(
+    table_path: pathlib.Path, codec: str, run: _Pass
+) -> "typing.Iterator[str]":
+    """The file's lines as ``codec`` decodes them, one at a time, never the whole text.
+
+    Read as a file opened with ``newline=""`` hands them over -- a line
+    ends after a line feed, after a carriage return with no line feed
+    behind it, or after the pair -- which is exactly how
+    `dialect.physical_lines` cuts a decoded text, and decoded strictly,
+    so a byte the codec does not read raises as decoding the whole file
+    raises. ``run`` is given the count and the digest once the last line
+    is read. The path is validated again here, immediately before it is
+    opened.
+    """
+    validated = validate_local_path(f"{table_path}", purpose="input")
+    file_path = pathlib.Path(validated)
+    digest = 0
+    count = 0
+    with file_path.open("r", encoding=codec, errors="strict", newline="") as handle:
+        for line in handle:
+            digest = (digest * _DIGEST_STEP + hash(line)) % _DIGEST_MODULUS
+            count = count + 1
+            yield line
+    run.digest = digest
+    run.lines = count
+    run.done = True
+
+
+def _opening_of(table_path: pathlib.Path) -> bytes:
+    """The file's first bytes, read as Latin-1, whose characters are its bytes one for one."""
+    run = _Pass()
+    found = ""
+    for line in _opened_lines(table_path, "latin-1", run):
+        found = found + line
+        if len(found) >= _OPENING_CHARACTERS:
+            break
+    return bytes([ord(character) for character in found[:_OPENING_CHARACTERS]])
+
+
+def _facts_under(
+    table_path: pathlib.Path, shown: str, codec: str, encoding: str, marked: bool
+) -> "_Facts | None":
+    """The file read once under ``codec``: its `_Facts`, or None where the codec cannot read it."""
+    run = _Pass()
+    file_bytes, changed_at = _stat_of(table_path)
+    text_head = ""
+    characters = 0
+    tail = ""
+    zero = False
+    high = False
+    doubled = False
+    first = True
+    try:
+        for line in _opened_lines(table_path, codec, run):
+            if first:
+                first = False
+                if marked:
+                    line = line[1:]
+            if len(text_head) < _HEAD_CHARACTERS:
+                text_head = text_head + line
+            characters = characters + len(line)
+            if len(line) >= 2:
+                tail = line[len(line) - 2 :]
+            elif line:
+                tail = tail[len(tail) - 1 :] + line
+            if not zero and "\x00" in line:
+                zero = True
+            if not doubled and '""' in line:
+                doubled = True
+            if encoding == dialect.ENCODING_LATIN1 and not high:
+                for character in _WINDOWS_ONLY:
+                    if character in line:
+                        high = True
+                        break
+    except UnicodeDecodeError:
+        return None
+    # No check of the file's size and moment of change here: every later
+    # reading holds the file to the size and moment taken BEFORE this one
+    # (`_unchanged`), so a file changed while this reading read it is
+    # refused by the first reading after it (skeptic 1 of lane SR, item
+    # 5: the check this replaced was never the one that refused).
+    end_mark = tail[len(tail) - 1 :] == "\x1a"
+    size = characters - 1 if end_mark else characters
+    last = tail[len(tail) - 2 : len(tail) - 1] if end_mark else tail[len(tail) - 1 :]
+    if len(text_head) > size:
+        text_head = text_head[:size]
+    return _Facts(
+        codec=codec,
+        encoding=encoding,
+        marked=marked,
+        characters=characters,
+        size=size,
+        last=last,
+        end_mark=end_mark,
+        head=text_head,
+        zero=zero,
+        breaks=run.lines >= 2 or tail[len(tail) - 1 :] in ("\r", "\n"),
+        high=high,
+        doubled=doubled,
+        lines=run.lines,
+        digest=run.digest,
+        file_bytes=file_bytes,
+        changed_at=changed_at,
+    )
+
+
+def _file_facts(table_path: pathlib.Path, shown: str, encoding: str) -> _Facts:
+    """The file's encoding, chosen as `dialect.decoded` and `dialect.decoded_as` choose it, and its `_Facts`.
+
+    Each encoding those two try is tried here in their order, by reading
+    the file a line at a time under it rather than decoding its whole
+    bytes, so the one chosen is theirs: a description's published
+    Latin-1 or Windows-1252 where the file reads in it (``encoding``,
+    the validator's); a UTF-32 mark refused; UTF-16 behind its mark,
+    where the text holds a line break and no zero character; UTF-8,
+    behind its mark or not; Windows-1252 where a byte between 0x80 and
+    0x9F stands and it reads them all; and Latin-1, which reads any
+    bytes.
+    """
+    if encoding in dialect.FALLBACK_ENCODINGS:
+        found = _facts_under(
+            table_path, shown, dialect.WRITING_CODECS[encoding], encoding, False
+        )
+        if found is not None:
+            return found
+    opening = _opening_of(table_path)
+    if opening[:4] == b"\x00\x00\xfe\xff" or opening[:4] == b"\xff\xfe\x00\x00":
+        raise errors.ProfileError(errors.looks_like_utf16(shown))
+    if opening[:2] == b"\xff\xfe" or opening[:2] == b"\xfe\xff":
+        wide = (
+            dialect.ENCODING_UTF16_LE
+            if opening[:2] == b"\xff\xfe"
+            else dialect.ENCODING_UTF16_BE
+        )
+        found = _facts_under(table_path, shown, wide, wide, True)
+        if (
+            found is not None
+            and found.characters
+            and not found.zero
+            and found.breaks
+        ):
+            return found
+    found = _facts_under(
+        table_path,
+        shown,
+        "utf-8",
+        dialect.ENCODING_UTF8,
+        opening[:3] == b"\xef\xbb\xbf",
+    )
+    if found is not None:
+        return found
+    latin = _facts_under(
+        table_path, shown, "latin-1", dialect.ENCODING_LATIN1, False
+    )
+    if latin is None:
+        raise errors.ProfileError(errors.looks_like_utf16(shown))
+    if latin.high:
+        found = _facts_under(
+            table_path, shown, "cp1252", dialect.ENCODING_CP1252, False
+        )
+        if found is not None:
+            return found
+    return latin
+
+
+def _text_lines(
+    table_path: pathlib.Path, facts: _Facts, run: _Pass
+) -> "typing.Iterator[str]":
+    """The text's lines as the survey reads them: past the byte-order mark, before the end-of-file mark.
+
+    `dialect.physical_lines` of the decoded text the whole-file reading
+    walks: the mark's character is taken off the first line, and the
+    end-of-file mark off the last, a line it leaves empty not handed
+    over at all.
+    """
+    first = True
+    started = False
+    pending = ""
+    for line in _opened_lines(table_path, facts.codec, run):
+        if first:
+            first = False
+            if facts.marked:
+                line = line[1:]
+            if not line:
+                continue
+        if started:
+            yield pending
+        pending = line
+        started = True
+    if started:
+        if facts.end_mark:
+            pending = pending[: len(pending) - 1]
+        if pending:
+            yield pending
+
+
+def _walks(
+    table_path: pathlib.Path, facts: _Facts, runs: "list[_Pass]"
+) -> "typing.Iterator[typing.Iterator[str]]":
+    """The text's lines afresh for each walk the survey makes, each reading noted in ``runs``.
+
+    A walk takes its lines with `next`, and the file is opened only when
+    the walk reads its first line, so a walk never made never opens it.
+    """
+    while True:
+        run = _Pass()
+        runs += [run]
+        yield _text_lines(table_path, facts, run)
+
+
+def _streamed(
+    table_path: pathlib.Path, facts: _Facts, runs: "list[_Pass]"
+) -> dialect.Streamed:
+    """The text as the survey walks it a line at a time, afresh for each walk (`dialect.Streamed`)."""
+    return dialect.Streamed(
+        head=facts.head,
+        size=facts.size,
+        last=facts.last,
+        end_mark=facts.end_mark,
+        doubled=facts.doubled,
+        walks=_walks(table_path, facts, runs),
+    )
+
+
+def _walked_unchanged(
+    table_path: pathlib.Path, facts: _Facts, runs: "list[_Pass]", shown: str
+) -> None:
+    """Refuse walks that were not of the file first read: every walk read to the end read it exactly, and one did.
+
+    A walk a refusal stopped part way read too little to be compared; the
+    survey kept is one read to its end.
+    """
+    finished = 0
+    for run in runs:
+        if run.done:
+            finished = finished + 1
+            _unchanged(table_path, facts, run, shown)
+    if not finished:
+        raise errors.ProfileError(errors.file_changed_while_read(shown))
+
+
+def _unchanged(
+    table_path: pathlib.Path, facts: _Facts, run: _Pass, shown: str
+) -> None:
+    """Refuse a reading that was not a reading of the file first read, to its end."""
+    if (
+        not run.done
+        or run.lines != facts.lines
+        or run.digest != facts.digest
+        or _stat_of(table_path) != (facts.file_bytes, facts.changed_at)
+    ):
+        raise errors.ProfileError(errors.file_changed_while_read(shown))
+
+
+def _still_the_same(table_path: pathlib.Path, facts: _Facts, shown: str) -> None:
+    """Refuse a file whose size or moment of change moved since it was first read.
+
+    Asked once pandas, which opens the file itself, has read it: a value
+    pandas read from another version differs from the survey's and is
+    refused as the readers' difference, and a file changed otherwise is
+    refused here.
+    """
+    if _stat_of(table_path) != (facts.file_bytes, facts.changed_at):
+        raise errors.ProfileError(errors.file_changed_while_read(shown))
+
+
+def _walk_a_group(
+    table_path: pathlib.Path,
+    shown: str,
+    first_row: str,
+    refusals: str,
+    facts: _Facts,
+    keep: "tuple[bool, ...] | None",
+    metadata_rows: int,
+    decimal_comma_columns: "tuple[str, ...]",
+    metadata_rows_confirmed: bool,
+    declared_delimiter: str,
+    small_cell_floor: int,
+) -> "tuple[_Reading, tuple[int, int, int] | None]":
+    """`_read_authoritatively` for the group of columns ``keep`` names, the text read a line at a time.
+
+    The survey walks the file's lines as they are read (`_streamed`) and
+    holds the group's columns; the standard reader then reads the lines
+    again and is held to them. A file the survey walks more than once --
+    a guess its first walk shows wrong, a reading one walk refuses and
+    another may stand -- is read again, line by line, for each walk, and
+    never decoded whole (skeptic 1 of lane SR, item 4). With ``keep``
+    None every column is held and every difference refused as
+    `_read_authoritatively` refuses it; otherwise the check's first
+    difference in the group is returned for the reader to weigh
+    (`_agrees_with_the_standard_reader`).
+    """
+    headed = first_row != FIRST_ROW_DATA
+    found: "tuple[int, int, int] | None" = None
+    previous_limit = csv.field_size_limit()
+    try:
+        csv.field_size_limit(FIELD_SIZE_LIMIT)
+        try:
+            runs: "list[_Pass]" = []
+            surveyed = dialect.settle(
+                "", facts.encoding, facts.marked, not headed, shown,
+                metadata_rows, decimal_comma_columns,
+                metadata_rows_confirmed, declared_delimiter,
+                small_cell_floor, keep=keep,
+                streamed=_streamed(table_path, facts, runs),
+            )
+            _walked_unchanged(table_path, facts, runs, shown)
+            if keep is None or True in keep:
+                checked = _Pass()
+                found = _agrees_with_the_standard_reader(
+                    _text_lines(table_path, facts, checked),
+                    surveyed, headed, shown, refusals, keep,
+                )
+                if found is None:
+                    _unchanged(table_path, facts, checked, shown)
+        except csv.Error as error:
+            detail = f"{error}"
+            if "field larger than field limit" in detail:
+                raise errors.ProfileError(
+                    errors.field_too_long(shown, FIELD_SIZE_LIMIT)
+                ) from error
+            if refusals == REFUSALS_NAME_POSITIONS:
+                raise errors.ProfileError(
+                    errors.checked_file_unreadable_as_csv(shown)
+                ) from error
+            raise errors.ProfileError(
+                errors.unreadable_as_csv(shown, detail)
+            ) from error
+        except MemoryError as error:
+            raise errors.ProfileError(
+                errors.out_of_memory(shown, _file_size(table_path))
+            ) from error
+        except UnicodeDecodeError as error:
+            # The facts pass decoded every line under this codec, so a
+            # line that no longer decodes is the file changed (the
+            # combined verify of lane SR, item 1).
+            raise errors.ProfileError(
+                errors.file_changed_while_read(shown)
+            ) from error
+    finally:
+        csv.field_size_limit(previous_limit)
+    if headed:
+        names = list(dialect.named_columns(surveyed.header))
+        source = HEADER_FROM_FILE
+        evidence = _SAID_NAMES
+    else:
+        names = _generated_column_names(len(surveyed.columns))
+        source = HEADER_GENERATED
+        evidence = _SAID_DATA
+    return (
+        _Reading(
+            column_names=names,
+            columns=surveyed.columns,
+            n_rows=surveyed.n_rows,
+            encoding=facts.encoding,
+            used_fallback_encoding=facts.encoding in dialect.FALLBACK_ENCODINGS,
+            header_source=source,
+            header_evidence=evidence,
+            survey=surveyed,
+        ),
+        found,
+    )
+
+
+@dataclasses.dataclass
+class _Swept:
+    """What a walk over the file's groups found: the reading, the groups, the columns held, and each column's evidence about the first row."""
+
+    reading: _Reading
+    groups: "tuple[tuple[int, int], ...]"
+    held_places: "tuple[int, ...]"
+    held: "list[list[str]]"
+    record_rules: "list[int]"
+    names_shown: "list[bool]"
+    walks: "tuple[tuple[int, int], ...]" = ()
+
+
+def runs_under(costs: "list[int]", budget: int) -> "tuple[tuple[int, int], ...]":
+    """Cut places in order into runs, each from its first place to the one past its last, whose costs add up to at most ``budget``.
+
+    Greedy, in order: a run takes the next place while its costs stay
+    within the budget, and a place that alone costs more is a run of its
+    own (skeptic 1 of lane SR, item 3). Guarantees: the runs cover every
+    place once, in order. Raises nothing. No I/O.
+    """
+    runs: "list[tuple[int, int]]" = []
+    start = 0
+    total = 0
+    for place in range(len(costs)):
+        if place > start and total + costs[place] > budget:
+            runs += [(start, place)]
+            start = place
+            total = 0
+        total = total + costs[place]
+    if start < len(costs):
+        runs += [(start, len(costs))]
+    return tuple(runs)
+
+
+def _walk_the_groups(
+    raw_path: str,
+    table_path: pathlib.Path,
+    shown: str,
+    first_row: str,
+    refusals: str,
+    facts: _Facts,
+    metadata_rows: int,
+    decimal_comma_columns: "tuple[str, ...]",
+    metadata_rows_confirmed: bool,
+    declared_delimiter: str,
+    small_cell_floor: int,
+) -> "_Swept | None":
+    """Walk and check a large table one walk of groups at a time, or None where it fits one group.
+
+    A file that may not fit in one group (`GROUP_BYTES`, at most
+    `_BYTES_A_CHARACTER_AT_MOST` a character of its text) is first
+    walked holding no column, which settles its shape and measures what
+    each column's cells cost to hold (`dialect.Survey.cell_bytes`, and
+    `_CELL_BYTES` beside each cell). The groups are then as many columns,
+    in order, as `GROUP_BYTES` holds by each column's own cost, and the
+    walks as many groups as `WALK_BYTES` holds (`runs_under`); each walk
+    is checked by the standard reader and by pandas, the last walk
+    first, so the first walk's first group is the one held at the end.
+    What each check would refuse is weighed once every group is read, so
+    the refusal is the one reading every column at once makes: the
+    standard reader's first difference, a file of no records, then
+    pandas' first.
+    """
+    headed = first_row != FIRST_ROW_DATA
+    if facts.characters * _BYTES_A_CHARACTER_AT_MOST <= GROUP_BYTES:
+        return None
+    plan, _nothing = _walk_a_group(
+        table_path, shown, first_row, refusals, facts, (),
+        metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+        declared_delimiter, small_cell_floor,
+    )
+    width = len(plan.column_names)
+    rows = plan.n_rows
+    if not rows or not width:
+        return None
+    surveyed_plan = plan.survey
+    if surveyed_plan is None or len(surveyed_plan.cell_bytes) != width:
+        raise ValueError("synthtwin internal check: a plan walk that measured no column")
+    costs = [
+        surveyed_plan.cell_bytes[place] + rows * _CELL_BYTES
+        for place in range(width)
+    ]
+    del plan, surveyed_plan
+    groups = runs_under(costs, GROUP_BYTES)
+    if len(groups) == 1:
+        return None
+    group_costs = [
+        sum(costs[place] for place in range(start, end)) for start, end in groups
+    ]
+    walks = tuple(
+        (groups[first][0], groups[last - 1][1])
+        for first, last in runs_under(group_costs, WALK_BYTES)
+    )
+    forms: "list[dialect.ColumnForm]" = [dialect.plain_column() for _place in range(width)]
+    holds: "list[tuple[frozenset[str], ...]]" = [() for _place in range(width)]
+    classified: "list[bool]" = [False for _place in range(width)]
+    best_order: "dialect.RowOrder | None" = None
+    record_rules: "list[int]" = [0 for _place in range(width)]
+    names_shown: "list[bool]" = [False for _place in range(width)]
+    asked_of_the_first_row = headed and first_row == FIRST_ROW_AUTOMATIC
+    differences: "list[tuple[int, int, int]]" = []
+    refused: "list[tuple[tuple[int, int], errors.ProfileError]]" = []
+    held: "list[list[str]]" = []
+    held_places: "tuple[int, ...]" = ()
+    last: "_Reading | None" = None
+    for start, end in reversed(walks):
+        keep = tuple(start <= place < end for place in range(width))
+        # The group held before is let go before the next is read.
+        held = []
+        last = None
+        reading, found = _walk_a_group(
+            table_path, shown, first_row, refusals, facts, keep,
+            metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+            declared_delimiter, small_cell_floor,
+        )
+        surveyed = reading.survey
+        if surveyed is None:
+            raise ValueError("synthtwin internal check: a reading without its survey")
+        if found is not None:
+            differences += [found]
+        if not differences and reading.n_rows:
+            refusal = _check_against_pandas(
+                raw_path, reading, shown, refusals, keep, surveyed.first_cells
+            )
+            _still_the_same(table_path, facts, shown)
+            if refusal is not None:
+                refused += [refusal]
+        for place in range(start, end):
+            forms[place] = surveyed.form.columns[place]
+            holds[place] = surveyed.quoting_holds[place]
+            classified[place] = surveyed.classified[place]
+            if asked_of_the_first_row:
+                record_rules[place] = _first_record_rule(
+                    reading.column_names[place],
+                    reading.columns[place],
+                    small_cell_floor,
+                )
+                names_shown[place] = _names_shown(
+                    reading.column_names[place], reading.columns[place]
+                )
+        found_order = surveyed.form.row_order
+        if found_order.column and (
+            best_order is None or found_order.column < best_order.column
+        ):
+            best_order = found_order
+        # The walk's first group is held, the first walk's at the end:
+        # the description starts there.
+        held_places = ()
+        for group_start, group_end in groups:
+            if group_start == start:
+                held_places = tuple(range(group_start, group_end))
+        held = [reading.columns[place] for place in held_places]
+        last = reading
+        # Only `last` and `held` keep this walk once its loop is done, so
+        # the next walk is read after both are let go, never beside it.
+        del reading, surveyed
+    if last is None or last.survey is None:
+        raise ValueError("synthtwin internal check: a walk of no group")
+    if differences:
+        first = differences[0]
+        for one in differences:
+            if one < first:
+                first = one
+        _refuse_the_disagreement(first, last.survey, shown, refusals)
+    if not last.n_rows:
+        raise errors.shape_refusal(
+            errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
+        )
+    if refused:
+        earliest = refused[0]
+        for weighed in refused:
+            if weighed[0] < earliest[0]:
+                earliest = weighed
+        raise earliest[1]
+    order = last.survey.form.row_order if best_order is None else best_order
+    gathered = dataclasses.replace(
+        last.survey,
+        form=dataclasses.replace(
+            last.survey.form, columns=tuple(forms), row_order=order
+        ),
+        columns=[],
+        quoting_holds=tuple(holds),
+        classified=tuple(classified),
+        kept=tuple(True for _place in range(width)),
+    )
+    return _Swept(
+        reading=dataclasses.replace(last, columns=[], survey=gathered),
+        groups=groups,
+        held_places=held_places,
+        held=held,
+        record_rules=record_rules,
+        names_shown=names_shown,
+        walks=walks,
+    )
+
+
+def _first_row_settled_from(
+    found: _Reading,
+    first_row: str,
+    record_rules: "list[int]",
+    names_shown: "list[bool]",
+) -> "tuple[str, bool, str]":
+    """`_settle_the_first_row`, answered from each column's evidence kept as its group was read."""
+    header = found.column_names
+    if first_row != FIRST_ROW_AUTOMATIC:
+        return found.header_evidence, False, ""
+    numbers = [
+        name for name in header if not parsing.looks_like_a_column_name(name)
+    ]
+    if len(numbers) == len(header):
+        return _NOT_TOLD, False, EVERY_VALUE_A_NUMBER
+    best = 0
+    at = -1
+    for index in range(len(header)):
+        rule = record_rules[index]
+        if rule and (not best or rule < best):
+            best = rule
+            at = index
+    if best:
+        return _NOT_TOLD, False, _record_words(best, at)
+    for index in range(len(header)):
+        if names_shown[index]:
+            return (
+                taxonomy.note(
+                    taxonomy.HEADER_NAMES_SHOWN_BY_COLUMN, (index + 1,)
+                ),
+                False,
+                "",
+            )
+    if _stood_under_furniture(found):
+        return _NOT_TOLD, False, UNDER_FURNITURE
+    return _TAKEN_BY_CONVENTION, True, ""
+
+
+def _read_in_groups(
+    raw_path: str,
+    table_path: pathlib.Path,
+    shown: str,
+    first_row: str,
+    refusals: str,
+    encoding: str,
+    metadata_rows: int,
+    decimal_comma_columns: "tuple[str, ...]",
+    metadata_rows_confirmed: bool,
+    declared_delimiter: str,
+    small_cell_floor: int,
+) -> Table:
+    """`read_table` of delimited text, never holding the file's text whole, and a large table one group of columns at a time.
+
+    A table that fits one group is read as before, its text a line at a
+    time: walked, checked by the standard reader and by pandas, its first
+    row settled, and every column held. A larger one is walked a group at
+    a time (`_walk_the_groups`) and handed over holding its first group, the rest
+    asked of `column_values`. The reading, the refusals and every value
+    are the ones `read_table` makes holding the whole file.
+    """
+    facts = _file_facts(table_path, shown, encoding)
+    if facts.encoding in dialect.FALLBACK_ENCODINGS and _starts_with_a_byte_order_mark(
+        facts.head
+    ):
+        raise errors.ProfileError(errors.looks_like_utf16(shown))
+    if facts.zero:
+        raise errors.ProfileError(errors.looks_like_utf16(shown))
+    swept = _walk_the_groups(
+        raw_path, table_path, shown, first_row, refusals, facts,
+        metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+        declared_delimiter, small_cell_floor,
+    )
+    if swept is None:
+        found, _nothing = _walk_a_group(
+            table_path, shown, first_row, refusals, facts, None,
+            metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
+            declared_delimiter, small_cell_floor,
+        )
+        if not found.n_rows:
+            raise errors.shape_refusal(
+                errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
+            )
+        _check_against_pandas(raw_path, found, shown, refusals)
+        _still_the_same(table_path, facts, shown)
+        seen = ""
+        if found.header_source == HEADER_FROM_FILE:
+            spoken, by_convention, seen = _settle_the_first_row(
+                found, shown, first_row, small_cell_floor
+            )
+            if seen:
+                # Walked again as a file with no names in it, as
+                # `read_table` walks it (plan P4-D232).
+                found, _nothing = _walk_a_group(
+                    table_path, shown, FIRST_ROW_DATA, refusals,
+                    facts, None, metadata_rows, decimal_comma_columns,
+                    metadata_rows_confirmed, declared_delimiter,
+                    small_cell_floor,
+                )
+                if not found.n_rows:
+                    raise errors.shape_refusal(
+                        errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
+                    )
+                _check_against_pandas(raw_path, found, shown, refusals)
+                _still_the_same(table_path, facts, shown)
+                spoken = _NOT_TOLD
+                by_convention = False
+            found = dataclasses.replace(
+                found,
+                header_evidence=spoken,
+                header_by_convention=by_convention,
+                first_row_seen=seen,
+            )
+        return Table(
+            column_names=found.column_names,
+            columns=found.columns,
+            n_rows=found.n_rows,
+            encoding=found.encoding,
+            used_fallback_encoding=found.used_fallback_encoding,
+            header_source=found.header_source,
+            header_evidence=found.header_evidence,
+            header_by_convention=found.header_by_convention,
+            first_row_seen=found.first_row_seen,
+            survey=found.survey,
+        )
+    reading = swept.reading
+    if reading.header_source == HEADER_FROM_FILE:
+        spoken, by_convention, seen = _first_row_settled_from(
+            reading, first_row, swept.record_rules, swept.names_shown
+        )
+        if seen:
+            swept.held = []
+            again = _walk_the_groups(
+                raw_path, table_path, shown, FIRST_ROW_DATA, refusals,
+                facts, metadata_rows, decimal_comma_columns,
+                metadata_rows_confirmed, declared_delimiter, small_cell_floor,
+            )
+            if again is None:
+                raise ValueError(
+                    "synthtwin internal check: a table read in groups fits one"
+                )
+            swept = again
+            reading = swept.reading
+            spoken = _NOT_TOLD
+            by_convention = False
+        reading = dataclasses.replace(
+            reading,
+            header_evidence=spoken,
+            header_by_convention=by_convention,
+            first_row_seen=seen,
+        )
+    surveyed = reading.survey
+    if surveyed is None:
+        raise ValueError("synthtwin internal check: a reading without its survey")
+    held = swept.held
+    swept.held = []
+    return Table(
+        column_names=reading.column_names,
+        columns=[],
+        n_rows=reading.n_rows,
+        encoding=reading.encoding,
+        used_fallback_encoding=reading.used_fallback_encoding,
+        header_source=reading.header_source,
+        header_evidence=reading.header_evidence,
+        header_by_convention=reading.header_by_convention,
+        first_row_seen=reading.first_row_seen,
+        survey=surveyed,
+        source=ColumnSource(
+            path=f"{table_path}",
+            shown=shown,
+            # The text's head walked the survey; a group read again is
+            # read by the standard reader, which needs none of it.
+            facts=dataclasses.replace(facts, head=""),
+            survey=surveyed,
+            headed=reading.header_source == HEADER_FROM_FILE,
+            groups=swept.groups,
+            held_places=swept.held_places,
+            held=held,
+            walks=swept.walks,
+        ),
+    )
+
+
 def _pandas_may_rename(cell: str, cells: "list[str]") -> bool:
     """Whether pandas may name a column other than its header cell.
 
@@ -2450,7 +3727,9 @@ def _check_against_pandas(
     found: _Reading,
     shown: str,
     refusals: str = REFUSALS_MAY_QUOTE,
-) -> None:
+    kept: "tuple[bool, ...] | None" = None,
+    first_cells: "tuple[str, ...] | None" = None,
+) -> "tuple[tuple[int, int], errors.ProfileError] | None":
     """Read the file again with pandas and compare EVERYTHING.
 
     The names are read back from the file rather than handed to the
@@ -2500,6 +3779,16 @@ def _check_against_pandas(
     ending in a delimiter their header does not), where 110cb46,
     failing before it handed anything over, showed nothing; the refusal
     is the same, word for word.
+
+    ONE GROUP OF COLUMNS AT A TIME (lane SR, plan P4-D400). ``kept``,
+    where given, names the columns ``found`` holds: only theirs are
+    compared, nothing is refused, and what this check would refuse is
+    RETURNED with where it stands -- (0, 0) for a file pandas cannot
+    read, (1, 0) for its shape, (2, column) for a name and (3, column)
+    for a column's rows -- so the reader refuses the one this check
+    finds first reading every column at once. ``first_cells`` is the
+    first record's cells of every column (`dialect.Survey.first_cells`),
+    which a headerless file with lines above it compares as names.
     """
     validated = validate_local_path(raw_path, purpose="input")
     file_path = pathlib.Path(validated)
@@ -2530,6 +3819,8 @@ def _check_against_pandas(
     named_cells: list[str] = []
     if headed:
         named_cells = list(surveyed.header)
+    elif first_as_names and first_cells is not None:
+        named_cells = list(first_cells)
     elif first_as_names:
         named_cells = [found.columns[place][0] for place in range(width)]
     # The columns pandas is to read: the header's trailing delimiter is a
@@ -2585,7 +3876,10 @@ def _check_against_pandas(
             ) from error
         except Exception as error:
             if whole:
-                raise _unreadable_in_the_check(shown, refusals, error) from error
+                refused = _unreadable_in_the_check(shown, refusals, error)
+                if kept is not None:
+                    return (0, 0), refused
+                raise refused from error
             # Pandas could not begin, and the whole frame meets the same
             # failure and refuses in its words.
             continue
@@ -2602,7 +3896,10 @@ def _check_against_pandas(
                 ) from error
             except Exception as error:
                 if whole:
-                    raise _unreadable_in_the_check(shown, refusals, error) from error
+                    refused = _unreadable_in_the_check(shown, refusals, error)
+                    if kept is not None:
+                        return (0, 0), refused
+                    raise refused from error
                 # Pandas closed the file before raising; the whole frame
                 # says what failed.
                 agrees = False
@@ -2636,6 +3933,8 @@ def _check_against_pandas(
                 # and nothing else, and the pieces start one place on.
                 start = found_rows + (1 if first_as_names else 0)
                 for index in range(width):
+                    if kept is not None and not kept[index]:
+                        continue
                     # One column of this piece is turned into text at a
                     # time and dropped again.
                     theirs = [f"{cell}" for cell in list(piece[keys[index]])]
@@ -2644,7 +3943,7 @@ def _check_against_pandas(
                         break
             found_rows = found_rows + len(piece)
         if not whole and agrees and keys is not None and found_rows == expected_rows:
-            return
+            return None
     # THE WHOLE FRAME, checked as it always was, for a file the pieces
     # could not agree on: whatever it refuses is refused in its words,
     # and a file it accepts is accepted.
@@ -2655,29 +3954,43 @@ def _check_against_pandas(
         # column of its own holding nothing.
         keys = keys[:width]
     if found_rows != expected_rows or len(keys) != width:
-        raise errors.ProfileError(
-            errors.readers_disagree(
-                shown,
-                f"{found.n_rows} rows of {width} values",
-                f"{found_rows - offset} rows of {len(keys)} values",
-            )
+        return _pandas_refusal(
+            (1, 0),
+            errors.ProfileError(
+                errors.readers_disagree(
+                    shown,
+                    f"{found.n_rows} rows of {width} values",
+                    f"{found_rows - offset} rows of {len(keys)} values",
+                )
+            ),
+            kept,
         )
     for index in range(len(named_cells)):
         second = f"{keys[index]}"
         expected = named_cells[index]
         if second != expected and not _pandas_may_rename(expected, named_cells):
             if refusals == REFUSALS_NAME_POSITIONS:
-                raise errors.ProfileError(
-                    errors.checked_file_readers_disagree_about_a_name(
-                        shown, index + 1
+                return _pandas_refusal(
+                    (2, index),
+                    errors.ProfileError(
+                        errors.checked_file_readers_disagree_about_a_name(
+                            shown, index + 1
+                        )
+                    ),
+                    kept,
+                )
+            return _pandas_refusal(
+                (2, index),
+                errors.ProfileError(
+                    errors.readers_disagree_about_a_name(
+                        shown, index + 1, found.column_names[index], second
                     )
-                )
-            raise errors.ProfileError(
-                errors.readers_disagree_about_a_name(
-                    shown, index + 1, found.column_names[index], second
-                )
+                ),
+                kept,
             )
     for index in range(len(keys)):
+        if kept is not None and not kept[index]:
+            continue
         mine = found.columns[index]
         # One column of the second reading is turned into text at a
         # time and dropped again: the whole second frame is already in
@@ -2691,15 +4004,23 @@ def _check_against_pandas(
             for place in range(offset):
                 if theirs[place] != above[place]:
                     if refusals == REFUSALS_NAME_POSITIONS:
-                        raise errors.ProfileError(
-                            errors.checked_file_readers_disagree_about_a_name(
-                                shown, index + 1
+                        return _pandas_refusal(
+                            (3, index),
+                            errors.ProfileError(
+                                errors.checked_file_readers_disagree_about_a_name(
+                                    shown, index + 1
+                                )
+                            ),
+                            kept,
+                        )
+                    return _pandas_refusal(
+                        (3, index),
+                        errors.ProfileError(
+                            errors.readers_disagree_about_a_name(
+                                shown, index + 1, above[place], theirs[place]
                             )
-                        )
-                    raise errors.ProfileError(
-                        errors.readers_disagree_about_a_name(
-                            shown, index + 1, above[place], theirs[place]
-                        )
+                        ),
+                        kept,
                     )
         last = len(theirs) - 1
         if (
@@ -2716,16 +4037,36 @@ def _check_against_pandas(
                     # The column's NAME is a string out of this file,
                     # and this file may not be the person's own table,
                     # so the column is named by its position instead.
-                    raise errors.ProfileError(
-                        errors.checked_file_readers_disagree_about_a_value(
-                            shown, position + 1, index + 1
+                    return _pandas_refusal(
+                        (3, index),
+                        errors.ProfileError(
+                            errors.checked_file_readers_disagree_about_a_value(
+                                shown, position + 1, index + 1
+                            )
+                        ),
+                        kept,
+                    )
+                return _pandas_refusal(
+                    (3, index),
+                    errors.ProfileError(
+                        errors.readers_disagree_about_a_value(
+                            shown, position + 1, found.column_names[index]
                         )
-                    )
-                raise errors.ProfileError(
-                    errors.readers_disagree_about_a_value(
-                        shown, position + 1, found.column_names[index]
-                    )
+                    ),
+                    kept,
                 )
+    return None
+
+
+def _pandas_refusal(
+    where: "tuple[int, int]",
+    refused: errors.ProfileError,
+    kept: "tuple[bool, ...] | None",
+) -> "tuple[tuple[int, int], errors.ProfileError]":
+    """What `_check_against_pandas` refuses: raised reading every column, returned reading a group."""
+    if kept is None:
+        raise refused
+    return where, refused
 
 
 def _pandas_rows_a_piece(width: int) -> int:

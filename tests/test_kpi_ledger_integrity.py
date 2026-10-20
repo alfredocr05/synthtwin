@@ -815,16 +815,17 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 700,000 from 649,000, AT THE INTEGRATION OF BATCH 4D (2026-10-20),
+    # 707,000 from 649,000, AT THE INTEGRATION OF BATCH 4D (2026-10-20),
     # the orchestrator's recorded call D15 (the owner may veto), the least
     # round figure the merged ledger fits under: lane E0b's `K-BC-01` to
-    # `K-BC-13` (its branch raised its own cap to 656,000, below) and lane
-    # HX's `K-S3-64` (626,000 on its branch, below), with their note
+    # `K-BC-13` (its branch raised its own cap to 656,000, below), lane
+    # HX's `K-S3-64` (626,000 on its branch, below) and lane SR's `K-S4-09`
+    # and `K-S4-11` (630,000 on its branch, below), with their note
     # clauses, beside batch 4c's entries, every entry kept by id and the
-    # note merged clause by clause, 698,409 bytes as merged; then
-    # `K-HZ-02`'s moved bound and its status note, 699,304 bytes. Later
-    # merges of the batch set it again, once, for the batch's merged size.
-    # A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # note merged clause by clause; then `K-HZ-02`'s moved bound and its
+    # status note; 706,903 bytes as merged. Later merges of the batch set
+    # it again, once, for the batch's merged size. A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
     #
     # 649,000 from 638,000 (lane E0a), 626,000 (lane H1) and 627,000
     # (lane H2), AT THE INTEGRATION OF BATCH 4C (2026-10-19), set once for
@@ -879,6 +880,19 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # publishes, with its note clause, 624,807 bytes. The integrator sets
     # the cap for the batch as a whole. A MEASUREMENT IS NEVER TRIMMED TO
     # FIT.
+    #
+    # 630,000 from 629,000, LANE SR'S REPAIR 1 (2026-10-19, plan P4-D400):
+    # `K-S4-09`'s rule states skeptic 1's bound of 17.7 traced bytes a cell
+    # and the sizes the repaired driver measures, and its evidence says its
+    # describe part is RED and why, 629,251 bytes. The integrator sets the
+    # cap for the batch as a whole. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 629,000 from 622,000, LANE SR OF THE DECEMBER PLAN (2026-10-18, plan
+    # P4-D400), the least round figure the lane's ledger fits under:
+    # `K-S4-09` (describe's part of the big table's peak, OPEN) and
+    # `K-S4-11` (recorded), with their note clause, 628,575 bytes. The
+    # integrator sets the cap for the batch as a whole. A MEASUREMENT IS
+    # NEVER TRIMMED TO FIT.
     #
     # 622,000 from 619,000, AT BATCH 4B'S RECORDS (2026-10-16), the least
     # round figure the ledger fits under: `K-S4-15` (entered as `K-S4-13`
@@ -1178,7 +1192,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 700_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 707_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
