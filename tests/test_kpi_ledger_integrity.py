@@ -815,6 +815,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 631,000 from 630,000, LANE AQ'S THIRD ROUND (2026-10-20, plan P4-D408,
+    # Codex's review of the lane): `K-S3-66` with the clause that a twin is
+    # compared only where both routes wrote one, its new count of twins
+    # refused on both routes and its twelve cases, 630,391 bytes; the least
+    # round figure the lane's ledger fits under.
+    #
     # 630,000 from 626,000, LANE AQ OF THE DECEMBER PLAN (2026-10-19, plan
     # P4-D408), the least round figure the lane's ledger fits under:
     # `K-S3-66`, answers lost between rounds of the questions file and what
@@ -1115,7 +1121,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 630_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 631_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

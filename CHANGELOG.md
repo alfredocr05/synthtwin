@@ -24,14 +24,24 @@ the file, a new answer written beside it, or a declaration typed. The
 same answers given in one round or in several write the same
 description, summary, questions file and twin, byte for byte (`K-S3-66`,
 new: 0 answers lost and 0 differing files over the health data zoo's 25
-tables and eight answered cases, where lane HX's head read 14 and 21). A
+tables and twelve answered cases, every twin written on both routes,
+where lane HX's head read 14 and 21). A
 run that would drop a kept answer refuses in plain words and writes
 nothing, and so does one that would read the table another way than the
 run that wrote the file -- a kept answer about the first row or the
 delimiter changed, typed over or deleted -- while the file names columns:
 before the repair, that put a kept `identifier` on another column and
-published 200 of 200 real subject codes. Where answers are given once,
-only the questions file changes.
+published 200 of 200 real subject codes. A later answer replaces a kept
+one only where the two really conflict (Codex's review of the lane): a
+comma before the decimals is kept beside a measurement -- 200 cells
+written `1.200` to `1.399` keep their mean of 1299.5, where the file
+handed back read 1.2995 -- and beside dates written as day counts, which
+a typed comma had turned into a number column publishing 98 day counts;
+`--century NAME=1969` and `--first-row auto` typed replace a kept answer,
+the first kept as the standing window; and a column named like a
+question about the file is no longer read as one. Where answers are
+given once, only the questions file changes, and the comma no longer
+removes a date count typed beside it.
 
 ### No real identifier is published while its question is open (2026-10-16)
 
