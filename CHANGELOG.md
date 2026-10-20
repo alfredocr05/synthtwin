@@ -6,6 +6,43 @@ exists).
 
 ## [Unreleased]
 
+### The questions file keeps every answer across rounds (2026-10-19)
+
+**An answer given in one run of the questions file is kept by every later
+run** (plan P4-D408, lane AQ of the December plan). A person who answered
+the file in two rounds lost the first round's answers -- the file the
+first `--answers` run wrote held only the questions still open -- so a
+person column, a 12-hour clock, a column of dates, the order of day and
+month or the row of the column names answered in round one was
+unanswered after round two, and the two runs the refusal of a reading
+answer beside column answers asks for put the second run's answer on
+another column. Now the file every run writes keeps, under
+`answered_before`, every answer that run acted on -- from the file, from
+an earlier round or typed on the command line -- and a kept answer
+stands until a later one replaces it: an answer to the same question in
+the file, a new answer written beside it, or a declaration typed. The
+same answers given in one round or in several write the same
+description, summary, questions file and twin, byte for byte (`K-S3-66`,
+new: 0 answers lost and 0 differing files over the health data zoo's 25
+tables and twelve answered cases, every twin written on both routes,
+where lane HX's head read 14 and 21). A
+run that would drop a kept answer refuses in plain words and writes
+nothing, and so does one that would read the table another way than the
+run that wrote the file -- a kept answer about the first row or the
+delimiter changed, typed over or deleted -- while the file names columns:
+before the repair, that put a kept `identifier` on another column and
+published 200 of 200 real subject codes. A later answer replaces a kept
+one only where the two really conflict (Codex's review of the lane): a
+comma before the decimals is kept beside a measurement -- 200 cells
+written `1.200` to `1.399` keep their mean of 1299.5, where the file
+handed back read 1.2995 -- and beside dates written as day counts, which
+a typed comma had turned into a number column publishing 98 day counts;
+`--century NAME=1969` and `--first-row auto` typed replace a kept answer,
+the first kept as the standing window; and a column named like a
+question about the file is no longer read as one. Where answers are
+given once, only the questions file changes, and the comma no longer
+removes a date count typed beside it.
+
 ### Batch 4d's records: stated limits given owners, the zoo answering under the identifier hold (2026-10-20)
 
 **Records of batch 4d** (the orchestrator's namings of 2026-10-19 and
@@ -25,11 +62,13 @@ knows the column as something else, since a blank holds such a column
 under lane HX's rule; the zoo's SNOMED ids still wait a round for their
 `code` answer, so `K-HZ-02`'s analyst bound moves from 100 to 101, the
 integrator's call for the orchestrator to keep or reverse (plan
-P4-D401). `K-S3-41` and `K-S3-62` are restamped on the merged head,
-each value as before; `K-P0-09` names the four runtime libraries. STATE
-says stage 8, the screen, was dropped on 2026-10-15, names CI's Python
-3.11 to 3.14, and counts 13,018 cases and 241 KPIs, 35 of them
-headlines (two more for the analyst battery's `K-BC-01` and `K-BC-02`,
+P4-D401); re-measured at lane AQ's merge it stays 101, since the zoo
+answers one round and the `code` question comes in the next file.
+`K-S3-41` and `K-S3-62` are restamped on the merged head, each value
+as before; `K-P0-09` names the four runtime libraries. STATE says
+stage 8, the screen, was dropped on 2026-10-15, names CI's Python 3.11
+to 3.14, and counts 13,086 cases and 242 KPIs with lane AQ's, 35 of
+them headlines (two more for the analyst battery's `K-BC-01` and `K-BC-02`,
 the orchestrator's call D15).
 
 ### Python 3.11 and later, four runtime libraries held to their zones (lane DEP-1, 2026-10-19)

@@ -815,6 +815,15 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
+    # set once, the least round figure the merged ledger fits under: lane
+    # AQ's `K-S3-66` kept by id (its branch raised its own cap to 631,000,
+    # below) with its note clause, the count of entries off the base 124,
+    # then `K-HZ-02`'s status note naming why its bound stays 101 after
+    # the merge, 715,960 bytes. Every cap raise is the orchestrator's
+    # recorded call D15 (the owner may veto). A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
+    #
     # 711,000 from 649,000, AT THE INTEGRATION OF BATCH 4D (2026-10-20),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger fits under:
@@ -877,6 +886,19 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # `K-S4-19`, the packing walk reading the counts of one margin
     # together (plan P4-D403), with their note clause, 626,773 bytes on
     # the lane's branch. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 631,000 from 630,000, LANE AQ'S THIRD ROUND (2026-10-20, plan P4-D408,
+    # Codex's review of the lane): `K-S3-66` with the clause that a twin is
+    # compared only where both routes wrote one, its new count of twins
+    # refused on both routes and its twelve cases, 630,391 bytes; the least
+    # round figure the lane's ledger fits under.
+    #
+    # 630,000 from 626,000, LANE AQ OF THE DECEMBER PLAN (2026-10-19, plan
+    # P4-D408), the least round figure the lane's ledger fits under:
+    # `K-S3-66`, answers lost between rounds of the questions file and what
+    # several rounds write against one, with its note clause, 629,268
+    # bytes. The integrator sets the cap for the batch as a whole. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 626,000 from 625,000, LANE HX'S REPAIR ROUND (2026-10-16, plan
     # P4-D401), the least round figure the lane's ledger fits under:
@@ -1202,7 +1224,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 711_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 716_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
