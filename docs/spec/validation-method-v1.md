@@ -3799,7 +3799,9 @@ nine sums over the file's rows holding both readings.
 shared lines may not, each test decided in exact fractions: each sum
 measured on the file, and its distance in standard errors `sqrt(m v)`,
 `m` and `v` as generation method G17.2 defines them but read on the
-file, marked inside exactly when `(S_file - S_pub)**2 <= m v`; and each
+file (`v` the file's own variance of the summed term, never read as 1 as
+a weight's may be), marked inside exactly when `(S_file - S_pub)**2 <= m
+v`; and each
 correlation's measured `r` beside the published one, marked inside
 exactly when `|X - Y| <= T`, `X` and `Y` the file's and the published
 `r` and `T = max(1 - Y**2, 1/20) / sqrt(n)`. `X**2`, `Y**2`, `X Y`'s
@@ -3809,6 +3811,23 @@ where the left side is at most 0 and `X Y` at least 0, false where the
 left side is above 0 and `X Y` below 0, and otherwise read by comparing
 the two sides' squares with the signs they carry (skeptic 1 of
 2026-10-20, item 10: the first build left these tests unstated).
+
+**Undefined measures** (Codex's round of 2026-10-20, item 5). A file
+may keep both columns' readings and every `L0` total and still hold no
+row with both readings (its reading masks disjoint: two FINE columns of
+200 readings among 400 rows, published with 100 rows holding both), or
+hold one code only on one side of the pairs: its count `n` or one of its
+`n S_20 - S_10**2` and `n S_02 - S_01**2` is then 0, and its `r` is
+UNDEFINED. The private report then prints the word `undefined` for the
+file's `r`, marks the pair outside, and computes no `T` (whose `n` is
+the file's count); the published `r` is always defined, since test (i)
+of contract 4.6d.3 needs both published variances above 0. A sum's
+distance is likewise UNDEFINED where `m v` is 0: the line prints
+`undefined` where `S_file` differs from `S_pub` and 0 where they are
+equal, and the inside test `(S_file - S_pub)**2 <= m v` still decides it
+exactly (inside only where they are equal). The shared lines are
+unchanged: they print HELD or MISSED on each published sum and the
+published `r`, which never needs the file's.
 
 **V13.3 What a report may print** follows V12.3 and V5.3 unchanged: no
 measured sum, product, correlation or distance stands on any line of
@@ -3844,9 +3863,12 @@ the published sums, whose lines print V5.3's sentence; the 22-row cell
 above beside a published sum the file misses, whose line prints the
 same words whatever the file's own sum; two duplicate fine columns,
 whose correlation test (i) refuses, so the description publishes none
-and no line stands; a file meeting every published sum, whose lines print HELD; and
+and no line stands; a file meeting every published sum, whose lines print HELD;
 the private report's inside and outside at the exact boundary
-`(S_file - S_pub)**2 = m v`.
+`(S_file - S_pub)**2 = m v`; a file whose two columns share no row
+holding both readings, whose `r` prints `undefined` and outside, with
+no division; and a sum of a constant cell (`m v` = 0) missed by 1,
+whose distance prints `undefined` and outside.
 
 **V13.5 What it costs.** Each sum is read from the codes in one pass over
 the file's rows, one byte a row and column; the witness on the file's

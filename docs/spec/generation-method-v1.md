@@ -18239,45 +18239,88 @@ The twin's codes are G4's cells, made from each column's own facts, so
 its band sums differ from the real ones; every target is therefore the
 published number moved into the twin's units, computed ONCE before the
 polish in exact fractions from the description and the twin's state
-after G16.2, and rounded to a whole number, half to even. A cell of a
-`mean` holds only rows whose band of `c` holds no spread cell
-(contract 4.6d.1).
+after G16.2, and made a whole number as **Whole targets** below states.
+A cell of a `mean` holds only rows whose band of `c` holds no spread
+cell (contract 4.6d.1).
 - **`mean`**, cell `pi` of home family `F`, published sum `S_pi` of
   `N_pi` rows: `T = S_pi + sum over the L0 bands beta inside pi's band of
   N'(pi, beta) (S'_beta - S_beta) / N_beta`, with `S_beta` and `N_beta`
   the published band sum and band count, `S'_beta` the twin's own band
   sum, and `N'(pi, beta)` the twin's rows of `pi` in `beta` after the
-  walk (both kept by every exchange). The targets of one band then sum
-  to the twin's own band sum, which every exchange keeps.
-- **`spread`**: the same with squares and the published band square sums.
+  walk (both kept by every exchange). In exact fractions the targets of
+  one CONSERVED GROUP, the cells of `F` whose band of `c` at `F`'s level
+  is one band `b`, then sum to the twin's own sum over `b`'s rows, which
+  every exchange keeps (`N'(pi, beta)` summed over the group is the
+  twin's `L0` total of `beta`, which equals `N_beta`).
+- **`spread`**: the same with squares and the published band square
+  sums, in the same conserved groups.
 - **`product`**, cell `tau` of the family's other members:
   `T = S_cd - S_c S_d / N_tau + T_c T_d / N_tau`, `S_c` and `S_d` the
   published sums of `c` and `d` over `tau`'s rows (sums of their `mean`
   cells), `T_c` and `T_d` the sums of their `mean` targets there.
-- **`correlation`**, the pair's `n` rows: for `i = j = 1`, `T = S'_10
-  S'_01 / n + q`, where `q` is the binary64 `math.sqrt` of the binary64
-  nearest the exact fraction `cov**2 V'_a V'_b / (V_a V_b)`, given the
-  sign of `cov`, `cov = S_11 - S_10 S_01 / n` and `V_a = S_20 - S_10**2 /
-  n` from the published sums, primed values the twin's own (the
+- **`correlation`**: `n` and the published sums `S_ij` count and sum
+  over the REAL table's rows holding both readings; `n'` and the twin's
+  sums `S'_ij` over the TWIN's rows holding both. The polish keeps which
+  rows hold both readings, and the twin's overlap need not be the real
+  one's, so `n'` may differ from `n`, and each count and sum is read on
+  its own table (Codex's round of 2026-10-20, item 1). From the published
+  sums `cov = S_11 - S_10 S_01 / n`, `V_a = S_20 - S_10**2 / n` and
+  `V_b = S_02 - S_01**2 / n`; from the twin's `V'_a = S'_20 - S'_10**2 /
+  n'` and `V'_b = S'_02 - S'_01**2 / n'` (each a count times a
+  variance). For `i = j = 1`, `T = S'_10 S'_01 / n' + q`, where `q` is
+  the binary64 `math.sqrt` of the binary64 nearest the exact fraction
+  `cov**2 V'_a V'_b / (V_a V_b)`, given the sign of `cov` (the
   correlation kept, as the design's targets did); for the other three
-  mixed sums `T = S_ij - S_i0 S_0j / n + S'_i0 S'_0j / n` (the
-  covariance kept; JUDGEMENT: on the code scale the twin's own spreads
-  are the real ones' up to G4's rung windows). Sums over one column are
-  not targets: the weighing rule keeps them.
+  mixed sums `T = S'_i0 S'_0j / n' + (n' / n) (S_ij - S_i0 S_0j / n)`
+  (the covariance per row kept; JUDGEMENT: on the code scale the twin's
+  own spreads are the real ones' up to G4's rung windows). With the
+  published `n` in the twin's terms, a published table holding the
+  centred code pairs `(0, 0)`, `(0, 2)`, `(2, 0)` and `(2, 2)` 25 times
+  each (`n` = 100, `r` = 0) beside a twin holding each 50 times (`n'` =
+  200, `r` = 0) would aim the sums `(1, 1)`, `(2, 1)`, `(1, 2)` and `(2,
+  2)` at 400, 800, 800 and 1600 instead of 200, 400, 400 and 800, which
+  aligning every 2 with another 2 meets, at `r` = 1. Where `n'`, `V'_a`
+  or `V'_b` is 0 the pair has no target. Sums over one column are not
+  targets: the weighing rule keeps them.
 - **`cell_slopes`**: the sums of contract 4.6d.5 (g) are `mean`,
   `spread` and `product` targets on the cells of the family's parents.
+- **Whole targets.** In each conserved group of `mean` targets (and of
+  `spread` targets) take each exact target's floor; the twin's own sum
+  over `b`'s rows less the floors' total is a whole number `k` from 0 to
+  the group's size less 1 (it is the sum of the fractional parts); add 1
+  to the `k` targets with the largest fractional parts, ties to the cell
+  first in its table's order. The group's whole targets then sum to the
+  twin's own sum exactly, as every exchange keeps it, and each lies
+  within 1 of its exact value. Rounding each target alone breaks that:
+  three cells of 22 rows publishing 220 each beside a twin band sum of
+  661 give exact targets of `220 1/3`, which round to 220, 660 in all,
+  while every exchange keeps 661 (Codex's round of 2026-10-20, item 8).
+  Every other target is rounded to the nearest whole number, half to
+  even; no conservation is claimed for them.
 - **Clamp.** A target outside `[-n' 2**32, n' 2**32]` is set to the
-  nearer end; no reachable sum lies beyond it.
+  nearer end; no reachable sum lies beyond it, so no conserved group's
+  target is ever clamped.
 - **Weights, PROVISIONAL.** For the (1, 1) sum of a `correlation`, the
   kit's rule (lane `A0a`'s `polish.py`, for the class that carried most
   of the measured gain): `w = 1 / max(n v_a v_b max(1 - r**2, 1/20)**2,
   1)`, with `v_a = S_20 / n - (S_10 / n)**2`, `v_b` likewise and `r` the
   published correlation, every one an exact fraction from the nine
-  published sums, converted once to the nearest binary64. Every other
-  target: `w = 1 / (m v)`, `m` the rows the target sums over and `v` the
-  twin's own variance of the summed term over them after the walk, both
-  exact, converted once; a target with `v` = 0 has weight 0 and is not
-  weighed. The first build put every class on `1 / (m v)`, which weighs
+  published sums, converted once to the nearest binary64 (`n` the
+  published count). Every other target: `w = 1 / (m v)`, `m` the rows
+  the target sums over and `v` the twin's own variance of the summed term
+  over them after the walk, both exact, converted once. **Where `v` is
+  0** the target is weighed with `v` read as 1, unless no exchange can
+  change its sum: its weight is 0, and it is never weighed, only where
+  every `L0` band of `c` holding one of its rows holds ONE moved factor
+  among its rows with those rows' reading-map bits (the MOVED FACTOR of a
+  row is `h(c)` for a cell sum, `c`'s code for a product and `a^i` for a
+  correlation's sum `(i, j)`, `a` the moved column's centred code). A
+  cell's own variance does not show that its sum cannot move: two `mean`
+  cells of 22 rows in one `L0` band, each publishing 2442, which the
+  walk left holding only code 110 and only code 112 (sums 2420 and 2464,
+  both variances 0), meet both targets after 11 exchanges, while weights
+  of 0 would leave every exchange at `dJ` = 0 (Codex's round of
+  2026-10-20, item 2). The first build put every class on `1 / (m v)`, which weighs
   a correlation's (1, 1) sum about 2.2 times less than the kit at `r` =
   0.5, 8.2 times at 0.75 and 50 times at 0.9 (the statistics review of
   2026-10-20, item 5, with `var(ab)` near `v_a v_b (1 + r**2)`). The kit
@@ -18386,7 +18429,13 @@ the same bytes; (4) the walk with per-cell slopes on two parent cells
 between two whole patients of equal row counts (mutant: a row exchange,
 which leaves a patient two values); (6) a column a carried rule names,
 never polished (mutant: polished, which breaks `B = A + D`); (7) a
-description with no publishing region, drawing no word.
+description with no publishing region, drawing no word; (8) a pair
+whose twin overlap `n'` differs from the published `n`, G17.2's example
+(mutant: the published `n` in the twin's terms, which aims at 400, 800,
+800 and 1600); (9) the two constant cells of G17.2's weights (mutant:
+weight 0 where `v` is 0, which leaves both sums 22 off); (10) a
+conserved group whose exact targets carry fractions (mutant: each
+target rounded alone, whose total misses the twin's sum by 1).
 
 ---
 
