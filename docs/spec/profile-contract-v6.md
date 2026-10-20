@@ -5789,9 +5789,14 @@ publishes is open only where an exact integer test, the joint-space
 witness, holds on facts the description publishes. The proofs (4.6d.5)
 show that, for a table with one row per patient, no count of rows in a
 union of cells of the full joint table refined by the codes, beyond each
-column's own facts, is fixed or bounded inside 1 to `f - 1` by the whole
-description, under one premise and with the remainders 4.6d.5 (h)
-names, CHECKED, NOT PROVEN, by `K-S6-08`.
+column's own facts as ruling R9 reads them, is fixed or bounded inside
+1 to `f - 1` by the whole description, under two premises ((R) and (S)
+of 4.6d.5) and but for two exceptions Theorem 2 names, one of them a
+MEASURED case across two regions that waits for the orchestrator's
+choice (4.6d.10, stated limit 2); the remainders 4.6d.5 (h) names are
+CHECKED, NOT PROVEN, by `K-S6-08`. **As December decides the witness,
+it publishes almost nothing** (4.6d.10, stated limit 3, MEASURED): the
+layer's yield rests on lane CHo's oracle class.
 
 #### 4.6d.1 Which columns take part, and what is offered
 
@@ -5811,13 +5816,26 @@ quantile skew `(p90 + p10 - 2 p50) / (p90 - p10)`, computed in exact
 fractions on its published rungs, is at least `skew_cut` in magnitude (a
 column whose `p10` and `p90` are equal is not skewed); the moment skew is not
 published, so it is never read (inventory row 23, class (b)). A skewed
-column also has a SECOND CODE: let `r_0 < r_1 < ... < r_m` be the
-DISTINCT values among its published rungs from `lo` to `hi` (tied rungs,
-a heap, taken once); a reading `x` with `r_j <= x < r_(j+1)` takes
-`floor(256 (j + (x - r_j) / (r_(j+1) - r_j)) / m)`, a reading below
-`r_0` takes 0 and one at or above `r_m` takes 255, in exact fractions on
-the reading's own value. Both codes are functions of the reading and of
-published rungs. A reading at a heap value takes one code.
+column also has a SECOND CODE, on the rungs' PROBABILITY scale (the
+rank-like code lane `A0a` measured, its kit's `rank_code_fn`): let `r_0
+< r_1 < ... < r_m` be the DISTINCT values among its published rungs from
+`lo` to `hi`, each carrying the probabilities of the rungs tied at it,
+from `P-_j` to `P+_j` (`p01` is 1/100, `p25` is 1/4, and so on; an
+untied rung has `P-_j = P+_j`). A reading's POSITION `pos` is `(P-_j +
+P+_j) / 2` at `r_j` (a heap sits at the middle of its rungs), `P+_j +
+(x - r_j) / (r_(j+1) - r_j) (P-_(j+1) - P+_j)` strictly between `r_j`
+and `r_(j+1)`, that of `r_0` below `r_0` and that of `r_m` above `r_m`;
+its second code is `min(255, max(0, floor(256 (pos - P_lo) / (P_hi -
+P_lo))))`, `P_lo` and `P_hi` the probabilities of the rungs `lo` and `hi`
+name, all in exact fractions on the reading's own value. So, with `lo`
+and `hi` at `p01` and `p99`, `p05` takes code 10, `p10` 23, `p20` 49,
+`p50` 128 and `p95` 245 (the kit's `1 + round(254 t)` gives 11, 24, 50,
+128 and 245; this page keeps 4.6b.6's `floor(256 t)`, at most one code
+apart). The first build gave each interval between distinct rungs an
+equal share of the 256 codes (`p05` 18 and `p95` 237 on the fifteen
+rungs `p01` to `p99`), doubling the tails' resolution, a code no lane
+measured (the statistics review of 2026-10-20, item 4). Both codes are
+functions of the reading and of published rungs.
 
 **Its ATOMS.** The reading line of a region column is cut at every
 boundary a published fact of that column draws: the edges of its `L0`
@@ -5829,7 +5847,13 @@ one `L0` band, holds one linear code (and one second code), lies on one
 side of every rung, and is either one own-fact group or none. Its
 POSSIBLE readings are those its published facts allow (`integer_valued`,
 the published places after the point); an atom holding no possible
-reading is not an atom. An own-fact group whose count the column's own
+reading is not an atom. Each kind of SPREAD cell the column holds in an
+`L0` band (its absent cells, `other` and `labels`, 4.6b.2) is ONE atom
+more of that band, holding no reading and no code, so that every row of
+a base cell has an atom vector and a count of the rows holding a
+reading of two columns is a sum of the joint space's counts (the first
+build gave these rows no atom: skeptic 1 of 2026-10-20, item 11). An
+own-fact group whose count the column's own
 facts fix or bound inside 1 to `f - 1` is a SMALL ATOM.
 
 **The classes, and where each is offered** (all of it class (b):
@@ -5925,15 +5949,18 @@ of 4.6b.9 (a), written as a tree.
 joining until nothing changes: each region column with an offered class
 is a column of a region; each column of a region brings EVERY node
 holding it; each offered `correlation` brings the path of the tree
-between its two columns' nodes; each family of a region whose published
-slopes (4.6b.6) read a column of it brings its slope columns that are
-FINE, as columns of the region; and two regions sharing a node or a
-column are one. Each column's nodes form a connected subtree (4.6b.5),
+between its two columns' nodes; each family of a region that publishes
+slopes (4.6b.6) brings every column its slopes read, each FINE, as a
+column of the region (a slope column that cannot be a region column,
+4.6d.1, leaves the region outside premise (S) of 4.6d.5); and two
+regions sharing a node or a column are one. Each column's nodes form a connected subtree (4.6b.5),
 and a correlation's path joins two of them, so a region is a connected
 subtree of the tree holding every node of each of its columns. Regions
 are listed in the order of their first column in schema order. All of it
 is read from the placed chain, `rules`, `grain` and the offers, so it is
-class (b).
+class (b). A PUBLISHING region is one whose drawn option (below) is not
+`none`; a region that drew `none` publishes nothing of this section,
+and the proofs read its nodes and columns as those of no region.
 
 **The options of a region**, each the classes it publishes for every
 column and pair the region offers them for, on one of two code choices:
@@ -5964,7 +5991,9 @@ share, the richest option the witness admits.
 context: a refusal published where a context check found its preimage
 rich, and forced in every world of a context that failed. Its check was
 never written for real cell sizes, and its third attack's hardest case
-always refused in 21 of 33 contexts. A drawn `none` that is always
+always refused in 21 of 33 contexts (`B6`, `refusal_v22.py`, which
+checked that rule and is no evidence for this one). A drawn `none` that
+is always
 eligible needs no check: 4.6d.5 (a) proves that a refusal so drawn
 tells a reader nothing the rest of the description does not, at every
 size. `M5`'s withholding (inventory row 26) is test (i), read on the
@@ -6042,13 +6071,16 @@ either zero inside 4 to 7. This page therefore states its guarantee as
 4.6b.13 states the chain's, "no count beyond each column's own facts",
 made exact by Theorem 2 (4.6d.5 (c)): for every union, the count of its
 rows that are NOT in a small own-fact group it wholly holds is 0-able or
-reaches `f`. Read literally, ruling R1 counts the union itself; the
-stricter clause that would meet the literal reading inside one region,
-"(d) where a column of the region has a small atom, `V-` is empty", is
-written here for the orchestrator to adopt or decline (a point of
-4.6d.10), with two facts beside it: it cannot reach a union across two
-regions or the base product's own unions, and its price, the regions it
-would refuse, is unmeasured (lanes MPp and CHa count it on the battery).
+reaches `f`. Ruling R9 (the orchestrator, 2026-10-20) confirms this
+reading: the union of the 30-row cell is not a refusal rule. The
+stricter clause "(d) where a column of the region has a small atom,
+`V-` is empty", which would refuse it inside one region and cannot reach
+a union across two regions or the base product's own, stays a NAMED
+OPTION of 4.6d.10, its price (the regions it would refuse) counted by
+lanes MPp and CHa on lane `E0b`'s battery; a later review may adopt it
+with that price. A small atom a union meets across two REGIONS is
+Theorem 2's exception (ii), MEASURED and open (4.6d.10, stated limit
+2).
 
 **Who decides each clause: the exact route, and HiGHS only proposes**
 (plan P4-D409, part 5; the scanner's rule of plan P4-D410). A claim that
@@ -6080,7 +6112,9 @@ enters a member with its audit; lane MPp enters `x` with that audit).
 
 **The closed form (class `CF1`; proven).** Its conditions, each read on
 published facts: the region has one column `c`, offered `mean` alone, on
-one code, in exactly one node `F`; every cell of `F` holds `c` in one
+one code, in exactly one chain family `F` (its `L0` totals node aside;
+the first build wrote "one node", which no column meets: the statistics
+review of 2026-10-20, item 8); every cell of `F` holds `c` in one
 `L0` band and at least `2 f` rows; the bands holding a published cell
 mean are INTERIOR (no rung inside them but their edges) and hold no
 own-fact group; in each such band the codes with a possible reading form
@@ -6105,9 +6139,11 @@ time), which is the first claim; aligning `f` of them onto `lambda`
 needs `lambda` to hold `f` rows in some table of the region, which
 Lemma 1 of 4.6b.9 gives exactly when `b(lambda) >= f`. The second claim
 is the same argument with every code in `u_lo` to `u_hi`. ∎ Everything
-else (spreads, products, correlations, two nodes, own-fact groups, the
-outer bands, slopes) is the oracle's class or refused, and lanes MPp and
-CHa measure that price before the gate.
+else (spreads, products, correlations, two families, own-fact groups,
+the outer bands, slopes) is the oracle's class or refused, and lanes MPp
+and CHa measure that price before the gate: on lane `A0b`'s 200,000-row
+chain no number column meets these conditions (4.6d.10, stated limit
+3).
 #### 4.6d.5 Why no small count can be worked out: the proofs (items 1 to 7 of the design's list for this page)
 
 Each argument states what it proves and for which reader, and names its
@@ -6116,7 +6152,12 @@ remainder, CHECKED, NOT PROVEN, which `K-S6-08`'s enumeration at `f` =
 substitute. The scope is 4.6b.9 (h)'s: a table with one row per patient
 (the patient layer is (f)), a reader who knows the procedure but not the
 key, one description per table and name on an installation, and R1 read
-as R3 reads it.
+as R3 reads it. Lemma 6 and Theorem 2 read only PUBLISHING regions
+(4.6d.3): a region that drew `none` publishes nothing of this section,
+so its nodes and columns are read as those of no region, and its
+columns' own small groups stand under RULE W1 of 4.6b.9 (c), or under
+(d) (ii) below where a slope reads them (skeptic 1 of 2026-10-20, item
+6).
 
 **The premise (R), realization.** Every point a proof below uses is
 MET BY READINGS: each column of its region takes, in each row, a reading inside
@@ -6127,11 +6168,31 @@ do not carry is the column's `mean`, `std` and `skew` and its written
 forms, which a choice of readings inside each atom must keep. (R) is
 CHECKED, NOT PROVEN: `K-S6-08`'s fixtures list real tables with their
 readings, so a point no readings realize is absent from their preimage
-and the enumeration finds any count it would have freed. JUDGEMENT: an
-8-bit code leaves each atom an interval of readings, so the published
-`mean`, `std` and `skew`, written to their published places, can be met
-inside the atoms except on columns of very few different readings,
-which FINE excludes.
+and the enumeration finds any count it would have freed. JUDGEMENT,
+corrected (skeptic 1 of 2026-10-20, item 8): an atom is not always an
+interval of several readings. Where a column holds fewer than 256
+different readings between `lo` and `hi`, each reading takes its own
+code (an age from 20 to 88 at `p01` and `p99` takes `floor(64 (x - 20) /
+17)`, 69 readings on 69 codes), each atom inside the clip holds one
+reading, and the published `mean` and `std` are then exact linear and
+quadratic equations on the atoms' counts, on the headline clinical
+columns among others. What lets a point be met by readings there is the
+slack of the clipped tails (every reading below `lo` shares code 0 and
+every one above `hi` code 255) and the rounding of the published `mean`
+and `std` to their published places; `K-S6-08` checks it on such a
+column (4.6d.7).
+
+**The premise (S), slopes.** Every slope the description publishes
+(4.6b.6) stands in a family of a PUBLISHING region, and every column it
+reads is a column of that region. Lemma 6 deals the readings of every
+column of no publishing region inside its `L0` bands in any order, and
+Theorem 2 rests on Lemma 6; both keep every published number only where
+no slope reads those readings, since 4.6b.9 (b)'s corollary holds
+without slopes and moments. Where (S) fails (every class off, December's
+default until the GATE; a region that drew `none`; a family no offer
+reaches; a slope reading a column a carried rule names, which no region
+holds), that slope is (d) (ii)'s remainder, and Lemma 6 and Theorem 2
+claim nothing beside it (skeptic 1 of 2026-10-20, item 3).
 
 **(a) Lemma 5 (item 3): the drawn step tells the procedure's reader
 nothing the numbers do not, and a refusal is uninformative.**
@@ -6196,124 +6257,193 @@ richer option was not eligible; nothing becomes derivable.
 **(b) Lemma 6 (item 2): every point the witness uses extends to a whole
 table of the preimage, and points of different regions combine.**
 
-*Lemma 6.* For each region `R` choose a point `P_R` of `Sigma(R, o_R)`,
-`o_R` its drawn option, each met by readings under (R). Then some table of
-`CONS(D)` agrees with every `P_R` on its region. Moreover, for a full
-joint cell `x` (4.6b.9 (a)) with `b(x) >= f` and an atom vector `alpha`
-of the region columns such that each region's group `(lambda_R(x),
-alpha_R)` holds at least `f` rows in `P_R`, the table can be chosen with
-at least `f` rows holding `x` and `alpha` together.
+*Lemma 6.* Under (S), for each publishing region `R` choose a point
+`P_R` of `Sigma(R, o_R)`, `o_R` its drawn option, each met by readings
+under (R). Then some table of `CONS(D)` agrees with every `P_R` on its
+region. Moreover, for a full joint cell `x` (4.6b.9 (a)) with `b(x) >=
+f` and an atom vector `alpha` of the publishing regions' columns such
+that each region's group `(lambda_R(x), alpha_R)` holds at least `f`
+rows in `P_R`, the table can be chosen with at least `f` rows holding
+`x` and `alpha` together.
 
 *Proof.* Build the table node by node from THE TABLE outward (4.6d.3),
 each node after the node it is joined to. Regions are connected subtrees,
 so each is entered through one joint, whose separator's cells hold, in
 what is built so far, the published margin, and in `P_R` the same
-margin (point condition (2)). (i) At a node of no region, deal its child
-as Lemma 1 of 4.6b.9 (a) does: a two-way table in each separator cell
-with both margins published, which always has a whole-number filling.
-(ii) Entering a region `R`: inside each separator cell, match the rows
-built so far one for one with `P_R`'s rows of that cell (the counts are
-equal), and give each row its base cell and atom vector from `P_R`; the
-region's nodes are then all met, since `P_R` meets their tables, and
-every separator by which a later node leaves `R` holds its published
-margin. (iii) An `L0` totals node of a column of no region: Lemma 1's
-step. (iv) Readings: each column of a region takes the readings (R)
-realizes; every other column takes its real multiset of readings, dealt
-inside each of its `L0` bands in any order, since no number of this
-section or of 4.6b reads them (4.6b.9 (b)'s corollary). Every node's
-table, every `L0` total, every published number of every region and
-slope, and every column's own facts then hold: the table is in
-`CONS(D)`. For the second sentence keep a set of at least `f` TARGET rows
-agreeing with `x` and `alpha` on everything built: at (i) the north-west
-corner rule with the target's cell first keeps `min(t, F(pi*, delta*))`
-target rows, at least `f` since the published cell is at least `b(x)`;
-at (ii) every row of `P_R` in the group `(lambda_R(x), alpha_R)` lies in
-the one separator cell `x` names, and the matching sends `f` target rows
-onto `f` of them; at (iii) `min(t, total)` with the `L0` total at least
-`b(x)`. ∎
+margin (point condition (2)). (i) At a node of no publishing region,
+deal its child as Lemma 1 of 4.6b.9 (a) does: a two-way table in each
+separator cell with both margins published, which always has a
+whole-number filling. (ii) Entering a publishing region `R`: inside each
+separator cell, match the rows built so far one for one with `P_R`'s
+rows of that cell (the counts are equal), and give each row its base
+cell and atom vector from `P_R`; the region's nodes are then all met,
+since `P_R` meets their tables, and every separator by which a later
+node leaves `R` holds its published margin. (iii) An `L0` totals node of
+a column of no publishing region: Lemma 1's step. (iv) Readings: each
+column of a publishing region takes the readings (R) realizes; every
+other column takes its real multiset of readings, dealt inside each of
+its `L0` bands in any order, since no number of this section reads them
+and, by (S), no published slope does (4.6b.9 (b)'s corollary, which
+holds without slopes). Every node's table, every `L0` total, every
+published number of every region and slope, and every column's own
+facts then hold: the table is in `CONS(D)`. For the second sentence keep
+a set of at least `f` TARGET rows agreeing with `x` and `alpha` on
+everything built: at (i) the north-west corner rule with the target's
+cell first keeps `min(t, F(pi*, delta*))` target rows, at least `f`
+since the published cell is at least `b(x)`; at (ii) every row of `P_R`
+in the group `(lambda_R(x), alpha_R)` lies in the one separator cell `x`
+names, and the matching sends `f` target rows onto `f` of them; at (iii)
+`min(t, total)` with the `L0` total at least `b(x)`. ∎
 
-*Remainder:* (R) only. Lemma 6 needs no condition on how regions sit in
-the tree, because 4.6d.3 builds regions as connected subtrees holding
-every node of each of their columns.
+*Remainder:* (R) and (S); where (S) fails, (d) (ii) (the first build
+wrote "(R) only", which overlooked a slope standing outside every
+region: skeptic 1 of 2026-10-20, item 3). Lemma 6 needs no condition on
+how regions sit in the tree, because 4.6d.3 builds regions as connected
+subtrees holding every node of each of their columns.
 
 **(c) Theorem 2 (item 1): no small count beyond each column's own
 facts, over the joint space and every union across it.**
 
 *Setting.* A REFINED CELL is a pair `(x, alpha)`: a full joint cell `x`
-of 4.6b.9 (a) and one atom of every region column. A UNION is any set of
-refined cells; a union of `(lambda, alpha)` groups of one region, of
-cells of the full joint table, of `(cell, code)` groups across a
-region's families, or of the code pairs a `correlation` or a `product`
-couples, is one. For a union `U`, `O(U)` is the rows of every small
-own-fact group (a small atom, or a group of 4.6b.3 of a column of no
-region) that lies wholly inside `U` in every table of the preimage: a
-count the description publishes about one column.
+of 4.6b.9 (a) and one atom of every column of a publishing region. A
+UNION is any set of refined cells; a union of `(lambda, alpha)` groups
+of one region, of cells of the full joint table, of `(cell, code)`
+groups across a region's families, or of the code pairs a `correlation`
+or a `product` couples, is one. A union MEETS a small own-fact group (a
+small atom, or a group of 4.6b.3 of a column of no publishing region)
+when some table of the preimage puts a row of the group in it, and
+WHOLLY HOLDS the group when every table puts every row of it there.
+For a union `U`, `O(U)` is the rows of every small own-fact group `U`
+wholly holds: a count the description publishes about one column. A
+group `g` of a region SHARES a refined cell with `U` when `U` holds a
+refined cell `(x, alpha)` with `b(x)` above 0 whose base cell and atom
+in that region are `g`'s.
 
-*Theorem 2.* Let every region's drawn option satisfy `WIT` (as 4.6d.3's
-eligibility requires). For every union `U`, the count of `U`'s rows
-outside `O(U)` has 0 in its range over the preimage or reaches `f` in
-some table of it, unless the zero of `U` needs two small own-fact
-groups moved at once: two small atoms of one region that `U` meets
-without wholly holding, or a small own-fact group of a column of no
-region whose band the regions' zero points confine to `U` while another
-table places some of its rows outside `U`. Under (R) and the model of
-4.6b.9 (b).
+*Theorem 2.* Under (R), (S) and the model of 4.6b.9 (b), let every
+publishing region's drawn option satisfy `WIT` (as 4.6d.3's eligibility
+requires). For every union `U`, but for the two EXCEPTIONS below:
+**(A)** some table of the preimage puts at least `f` rows in `U`, or
+some table puts none of `U`'s rows outside `O(U)`; and so **(B)** where
+every small own-fact group `U` wholly holds is a small atom, the count
+of `U`'s rows outside `O(U)` has 0 in its range over the preimage or
+reaches `f` in some table of it, which is ruling R9's wording. The
+EXCEPTIONS are the unions whose zero needs a small atom's rows moved
+where no point is shown to take them: (i) two small atoms of one
+publishing region that `U` meets without wholly holding; (ii) ACROSS
+REGIONS, a small atom `G` of a publishing region `R` that `U` meets
+without wholly holding, where every group of `R` holding `G` that some
+point zero on `V-_R` makes non-empty shares a refined cell with `U`.
 
-*Proof.* Call `(x, alpha)` REACHABLE when `b(x) >= f` and, for every
-region `R`, the group `g_R = (lambda_R(x), alpha_R)` holds no small atom
-and is not in `V-_R`. (1) If `U` holds a reachable cell, take for each
-region a point reaching `f` on `g_R` ((a) of 4.6d.4); Lemma 6 builds a
-table of `CONS(D)` with at least `f` rows on that cell, outside `O(U)`
-since the cell holds no small atom, and by Lemma 5 the table is in the
-preimage. (2) Otherwise every cell of `U` has `b(x) = 0`, or a region
-group in `V-_R`, or a region group holding a small atom. A cell with
-`b(x) = 0` is empty in every table of `CONS(D)` (Lemma 1 of 4.6b.9). In
-each region take the zero point of (b); where `U` meets, without wholly
-holding, the groups of one small atom `G` of that region, take instead
-(c)'s point putting all of `G` into a group `U` does not hold, which is
-also zero on `V-_R`. Lemma 6 joins these points into one table of the
-preimage. In it, a small own-fact group of a column of no region either
-lies wholly in `U` in every table (it is part of `O(U)`), or has rows of
-its band outside `U` in this table, onto which Lemma 3 of 4.6b.9 (c)'s
-exchange moves it (the exchange changes no number of this section, which
-reads no reading of that column), or is the theorem's exception. Every
-cell of `U` is then empty but the rows of `O(U)`. ∎
+*Proof of (A).* Call `(x, alpha)` REACHABLE when `b(x) >= f` and, for
+every publishing region `R`, the group `g_R = (lambda_R(x), alpha_R)`
+holds no small atom and is not in `V-_R`. (1) If `U` holds a reachable
+cell, take for each publishing region a point reaching `f` on `g_R`
+((a) of 4.6d.4); Lemma 6 builds a table of `CONS(D)` with at least `f`
+rows on that cell, and by Lemma 5 the table is in the preimage. (2)
+Otherwise every cell of `U` has `b(x) = 0`, or a region group in
+`V-_R`, or a region group holding a small atom, whose rows are then all
+rows of that atom. A cell with `b(x) = 0` is empty in every table of
+`CONS(D)` (Lemma 1 of 4.6b.9). In each publishing region `R` take the
+zero point of (b); where `U` meets without wholly holding a small atom
+`G` of `R` (one at most, outside exception (i)), take instead (c)'s
+point putting all of `G` into a group of `R` that some point zero on
+`V-_R` makes non-empty and that shares no refined cell with `U` (one
+exists outside exception (ii)); it is zero on `V-_R` too. Lemma 6 joins
+these points into one table of the preimage. In it every cell of `U`
+holding a `V-` group is empty, a small atom `U` meets without wholly
+holding lies outside `U`, and one it never meets lies outside `U` in
+every table, so `U`'s rows are the rows of the small atoms it wholly
+holds: none lies outside `O(U)`. ∎
+
+*Proof of (B).* Let `U'` be `U` less every refined cell holding a small
+atom `U` wholly holds. Where every group `U` wholly holds is a small
+atom, `U'` holds exactly `U`'s rows outside `O(U)`, wholly holds no
+small own-fact group (one it held would be wholly held by `U`, hence a
+small atom whose cells `U'` lacks), so `O(U')` is empty, and `U'` is in
+an exception only where `U` is (it meets fewer atoms, and shares fewer
+cells). (A) for `U'` says some table puts at least `f` of those rows in
+`U'`, or some table puts none. ∎
+
+*Where (B) does not reach.* Where `U` wholly holds a small own-fact
+group of a column of no publishing region, R9's wording read literally
+asks more than any layer gives: a column's `L0` band of 15 rows holding
+its `n_zero` 6, `U` that band, holds 9 rows outside the group in every
+table, a count of that column's own facts (its band total less its
+`n_zero`) which the base product publishes today and plan P4-D363
+accepts within one column; there (A) is what this page claims (MY
+ARITHMETIC; a `K-S6-08` fixture reported as accepted, 4.6d.7). A count
+that splits a column of no publishing region below its bands (below) is
+no union of refined cells and outside the theorem.
+
+*Exception (ii), MEASURED (skeptic 1 of 2026-10-20, item 1,
+`cross_region.py`).* Region `R1` is a column `c`, whose `n_zero` group
+`G` of 3 rows is a small atom; region `R2` is a column `e` sharing no
+node with `R1`, with one band of 30 rows over the possible codes 10 to
+20 and published code sum 320 (an interior band, `CF1`'s class). `R2`
+has 530 points; codes 10 and 11 can hold `f` rows, `V-` is codes 12 to
+20, the zero point exists and the witness holds, so `R2` publishes.
+Code 20 holds at most 2 rows in every point, so `U`, the refined cells
+holding `G` whose atom of `e` is not code 20, holds 1 to 3 rows in every
+table of the preimage, and `O(U)` is empty; without the moment it could
+hold 0. Inside one region clause (c) refuses this (`G`'s 3 rows cannot
+all sit at code 20); across regions no clause does. With `c` a column of
+NO region the same count, `c`'s zeros whose `e` is not at code 20, lies
+in 1 to 3, a count outside the theorem's scope. Two ways close both,
+neither adopted here (4.6d.10, stated limit 2): (a) the orchestrator
+reads `O(U)` as the rows of every small own-fact group `U` MEETS, of any
+column (R9's base-product precedent: `n_zero` 3 and 1 already bound
+"`c` is 0 and `e` is not" inside 2 to 3); (A) then holds with no clause
+(c) and no exception, by steps (1) and (2) with every region's zero
+point, since every row step (2) leaves in `U` belongs to a small atom
+`U` meets, and the form beside a column of no region is covered too; or
+(b) a witness clause across regions, for instance "every `V-` group some
+point makes non-empty can hold `f - 1` rows in some point", which needs
+its own proof of the step across regions and a measured price (lanes
+MPp and CHa).
 
 *What it covers.* Item 1's joint space exactly: every band row the
 columns' own facts couple, across every family of the column (a region
 holds every node of each of its columns), with the cross-sums of
 `correlation` coupling two columns' atoms, the products of `product`,
 and spreads; every union of `(cell, code)` groups, and every union of
-cells of the full joint table beside them: the table theorem's unions
-are the refined cells' unions over every atom, so Theorem 1 of 4.6b.9
-holds for a description holding moments, read beyond each column's own
-facts as this theorem states it. In the table layer alone
-(`moments` null) `O(U)` is case (ii) of 4.6b.9 (c), so Theorem 2 is that
-section's statement.
+cells of the full joint table beside them, so Theorem 1 of 4.6b.9 holds
+for a description holding moments in the form (A). With no publishing
+region (`moments` null) a refined cell is a cell of the full joint
+table, no small atom exists, and (A) is Theorem 1 itself: a union
+holding a cell with `b(x) >= f` reaches `f`, and any other is empty in
+every table.
 
 *Remainders, CHECKED, NOT PROVEN* (each a `K-S6-08` fixture, 4.6d.7):
-(R); the theorem's exception, a union whose zero needs two small
-own-fact groups moved at once (the points of (c) and Lemma 3's exchange
-move one at a time); the model of 4.6b.9 (b); and the reading of "own
-facts" stated in 4.6d.4, which goes to the orchestrator (4.6d.10).
+(R); (S), and where it fails (d) (ii); exception (i) (the points of (c)
+move one small atom at a time); the model of 4.6b.9 (b). Exception (ii)
+is not a remainder but a MEASURED case outside the guarantee as R9
+words it, open until the orchestrator chooses (a) or (b).
 
 **(d) Slopes beside moments (item 4).** 4.6b.6's pooled slope is one
-more number read on the codes. (i) Where its family lies in a region,
-the slope is condition (5) of every point of that region, so Theorem 2
-holds with it published: it adds no small count beyond what the witness
-covers (PROVEN under (R)). Where the region publishes, beside it, the
-per-cell sums of the slope carrier ((g) below), the slope is a function
-of those sums and adds no condition at all. (ii) A slope standing in a
-family of no region whose drawn option publishes (every class off, or
-`none` drawn) is outside Theorem 2: it stands under 4.6b.6's coefficient
-rule alone (at least 100 rows; FINE bands with ten readings whose counts
-the column's own facts leave free), which closes the case the rule was
-written for and is CHECKED, NOT PROVEN (4.6b.9 (h)). Closing it would
-make the slope an option of 4.6d.3's step, eligible under the witness,
-a stricter rule than 4.6b.6's; under Codex's condition on lane MDEP's
-decision (a stricter restriction needs a decision and a measured
-statistical cost) this page does not adopt it and names it for the
-orchestrator, its price to be counted by lanes MPp and CHa.
+more number read on the codes. (i) Under (S) its family lies in a
+publishing region and it reads only that region's columns, so it is
+condition (5) of every point of that region, and Theorem 2 holds with it
+published: it adds no small count beyond what the witness covers
+(PROVEN under (R)). Condition (5) stays in `Sigma` where the region also
+publishes the per-cell slope carrier's sums ((g) below): the pooled
+slope is a function of those sums only where every parent cell of the
+family publishes them, and a cell holding fewer than `f` rows with both
+readings publishes none but enters the pooled fit (skeptic 1 of
+2026-10-20, item 7). (ii) A slope where (S) fails: in a family of no
+publishing region (every class off, December's default until the GATE;
+`none` drawn; a family no offer reaches), or reading a column a carried
+rule names. Lemma 6 and Theorem 2 do not reach it, since their dealing
+of the other columns' readings in any order would move it; it stands
+under 4.6b.6's coefficient rule alone (at least 100 rows; FINE bands
+with ten readings whose counts the column's own facts leave free),
+which closes the case the rule was written for and is CHECKED, NOT
+PROVEN (4.6b.9 (h)); `K-S6-08` holds a slope in a family of no region
+beside a published region (4.6d.7). Closing it would make the slope an
+option of 4.6d.3's step, eligible under the witness, a stricter rule
+than 4.6b.6's; under Codex's condition on lane MDEP's decision (a
+stricter restriction needs a decision and a measured statistical cost)
+this page does not adopt it, as the orchestrator ruled on 2026-10-20,
+its price to be counted by lanes MPp and CHa.
 
 **(e) Derived and computed columns (item 5).** No number of this
 section reads a derived or a computed column's readings, or any reading
@@ -6343,7 +6473,7 @@ correlations come back only as the chain implies.
 - *A patient-fixed column's moments* are read on the patient table, one
   term a patient, on the patient chain's families counted in patients
   (lane MG's page: 4.6b run on a table of one row per patient). Theorem
-  M then holds in patient units word for word. A row-level union crossed
+  2 then holds in patient units word for word. A row-level union crossed
   with a patient union refined by atoms combines as lane MG's argument
   (v) combines a patient union with a type union: PWIT's worlds regroup
   rows between patients of one patient cell and leave every patient's
@@ -6364,10 +6494,18 @@ correlations come back only as the chain implies.
 **(g) The two carriers of a number's slope that changes with a yes/no
 column (input of lane `A0c`; 4.6b.3's amended paragraph).** The owner
 asked for this fidelity where privacy holds (question 9, 2026-10-19).
-Lane `A0c` measured at 200,000 rows x 50 columns that families, their
-seeds and class `M-d` leave blood pressure and a laboratory value 28 to
-30 and 43 to 47 standard errors off in their age-by-group slopes, and that
-two carriers help.
+At 200,000 rows x 50 columns, each figure with its run (a real 0.296
+for blood pressure's age-by-group slope, standard error 0.0032, and
+0.133 for a laboratory value's, 0.0003; the statistics review of
+2026-10-20 read every run): the polished chain without seeds left blood
+pressure 82.3 standard errors off (0.036) and the laboratory value 43.3
+(0.120); the screen's seeds at 1/20 brought blood pressure to 28.5 to
+29.4 (0.203 to 0.206) and left the laboratory value at 43.3 to 46.6;
+class `M-d` was measured at 50,000 rows on the seeded chain (blood
+pressure 42.6 against 42.3 without it, the laboratory value 18.0
+against 19.7) and at 200,000 rows only on the chain without seeds
+(blood pressure 0.030, about 83; the laboratory value 0.122). Two
+carriers are written here, both gated.
 - **The finer-band carrier.** *What it publishes:* nothing outside 4.6b:
   the number's own family `{y | a, s}` holding the other number `a` at a
   finer level beside the yes/no column `s`, reached inside the chain's
@@ -6381,18 +6519,28 @@ two carriers help.
   slope, if 4.6b.6 publishes one, is (d). *What it costs:* finer family
   cells, each 0 or at least `f`, and the floor's and W1's refusals at
   the finer level, which give the interaction up below some size, never
-  privacy. *Measured:* only with the true triple offered by an oracle
-  (blood pressure 0.275 against a real 0.296, 6.6 SE; the laboratory
-  value stayed 93 SE off because its age entered at the median split);
-  the finer screen's ranking that puts age x group x blood pressure in its
-  top ten without an oracle is lane `A0c`'s queued run, unmeasured:
-  lanes MPp and CHa measure it. A REFINEMENT node (a published table of
-  `a` at a finer level inside each cell of its chain level and `s`, so
-  that a later family may hold `a` finer than its anchor does) is not
-  written here: it changes 4.6b.5's rule that a family holds a parent no
-  finer than its anchor, and invariant S24, so it needs its own decision
-  amending 4.6b; its argument would be Theorem 1 unchanged (one more node
-  of the tree, its separator `a`'s band and `s`).
+  privacy. *Measured* (lane `A0c`, as the statistics review of
+  2026-10-20 read its runs): (1) with the five built-in triples forced
+  by an oracle at a weight of 1.0, blood pressure came to 0.275 (6.6 SE,
+  93 per cent of the real slope), while the laboratory value went from
+  43.3 to 46.6 SE in the seeded runs at 1/20 to 93.2, its age entering at
+  the median split; (2) at the carrier's own weight of 1/20, the finer
+  screen offered the laboratory value's own triple (age, group,
+  laboratory value), ranked first, with no oracle, and the value stayed
+  43.3 SE off, as with no seeds; at 1.0 the same triple gave 146.5: as
+  specified, the carrier has been measured once, and there it delivered
+  nothing; (3) the finer screen's ranking that offers age x group x
+  blood pressure (rank 10 of its `fseq` set) is MEASURED; the chain run
+  offering it at 1/20 is not (lane `A0c`'s queue): lanes MPp and CHa
+  measure it. *The refinement node* (a published table of `a` at a finer
+  level inside each cell of its chain level and `s`, so that a later
+  family may hold `a` finer than its anchor does): the orchestrator's
+  ruling of 2026-10-20 (point 4) lets plan P4-D413 amend 4.6b.5 and S24
+  for it, with its reason and its proof. It is DEFERRED, not written: in
+  (2) the carrier delivered nothing at its own weight, so the amendment
+  waits for the queued run's gain; its argument would be Theorem 1
+  unchanged (one more node of the tree, its separator `a`'s band and
+  `s`).
 - **The per-cell slope carrier.** *What it publishes:* in a family `F`
   with an ordered FINE child `y` and one ordered FINE slope parent `x`
   (both region columns), for each cell of `F`'s PARENTS holding at least
@@ -6403,14 +6551,15 @@ two carriers help.
   the walk uses 4.6b.6's pooled slope there. *Its safe check:* these
   sums are the option `cell_slopes` of 4.6d.3's step for the region
   holding `F`, eligible exactly where `WIT` holds with them published.
-  *Its argument:* Theorem 2 (PROVEN under (R)); once they stand, the
-  pooled slope of `x` in `F` is a function of them and adds no
-  condition ((d)). *Its remainder:* Theorem 2's; and the exact route's
-  class, since the product sums put the pair of atoms of `x` and `y` in
-  the joint space, which the closed form `CF1` does not cover: the
-  oracle's class or refused, at a price lanes MPp and CHa measure.
-  *Generation:* the walk reads each cell's own slope (generation method
-  G17.4). *Measured:* not yet (lane `A0c`'s JUDGEMENT).
+  *Its argument:* Theorem 2 (PROVEN under (R) and (S)); the pooled slope
+  of `x` in `F` stays condition (5) of the joint space unless every
+  parent cell publishes its sums ((d) (i)). *Its remainder:* Theorem 2's;
+  and the exact route's class, since the product sums put the pair of
+  atoms of `x` and `y` in the joint space, which the closed form `CF1`
+  does not cover: the oracle's class or refused, at a price lanes MPp and
+  CHa measure. *Generation:* the walk reads each cell's own slope
+  (generation method G17.4). *Measured:* not yet (lane `A0c`'s section 4
+  names it JUDGEMENT; of the two carriers only the first was measured).
 Both stay off until the GATE row of the design (below) opens them: the
 finer-band carrier with the chain, once a lane measures its offer; the
 per-cell slope carrier when `K-S6-08` passes on its fixtures at `f` =
@@ -6418,26 +6567,36 @@ per-cell slope carrier when `K-S6-08` passes on its fixtures at `f` =
 
 **(h) The honest label (item 7), and the gate.**
 - **Proven**, in the scope above: Lemma 5 (the step and its refusals),
-  Lemma 6 (extension, given (R)), Theorem 2 (given (R), beyond each
-  column's own facts as 4.6d.4 reads them, but for its exception), the closed form `CF1`, the derived and computed columns
-  (e), the finer-band carrier's tables.
-- **Checked, not proven** (`K-S6-08` at `f` = 11): (R); the
-  exception of Theorem 2 (two small own-fact groups moved at once);
-  slopes standing outside a published region (d) (ii);
-  the patient-layer combination where lane MG's (v) is not proven; the
-  exact route's own correctness (lane CHo's oracle and its tests); the
-  model of keyed BLAKE2b. The design's evidence for its witness, `B5`'s
-  enumeration (199,023 configurations before its 280 s time cap, not
-  every configuration) and `B6`'s one hardest case, is CHECKED, NOT
-  PROVEN, and the design's label for the classes `M-a`, `M-b` and `M-d`,
-  "rules plus enumeration", stands until (R) is proven.
+  Lemma 6 (extension, given (R) and (S)), Theorem 2 ((A) and (B), given
+  (R) and (S), but for its two exceptions), the closed form `CF1`, the
+  derived and computed columns (e), the finer-band carrier's tables.
+- **Checked, not proven** (`K-S6-08` at `f` = 11): (R); exception (i)
+  of Theorem 2 (two small atoms of one region); slopes where (S) fails
+  ((d) (ii)); the patient-layer combination where lane MG's (v) is not
+  proven; the exact route's own correctness (lane CHo's oracle and its
+  tests); the model of keyed BLAKE2b. `B5`'s enumeration (199,023
+  configurations before its 280 s time cap, not every configuration)
+  checked the design's witness, CHECKED, NOT PROVEN evidence for it;
+  `B6` (`refusal_v22.py`: 0 of 33 classes refused and 0 of 33 published
+  ones leaking) checked the refusal-by-context rule this page replaces
+  (4.6d.3), so it is no evidence for the drawn refusal, whose only check
+  is `K-S6-08`'s fixtures (the statistics review of 2026-10-20, item 7).
+  The design's label for the classes `M-a`, `M-b` and `M-d`, "rules plus
+  enumeration", stands until (R) is proven.
+- **Measured and open:** Theorem 2's exception (ii), a count of 1 to 3
+  rows across two regions that R9's wording covers and no clause of the
+  witness refuses, with its form beside a column of no region (c). Its
+  fixture is reported, never passed, until the orchestrator chooses (a)
+  or (b) of (c).
 - **The GATE.** Each class (`correlation`, then `mean` and `product`,
   `spread`, `cell_slopes`) is offered by default only once `K-S6-08`
   finds 0 counts fixed or bounded inside 1 to `f - 1` beyond each
   column's own facts over the whole description, on every fixture of
-  4.6d.7 and of 4.6b.10, at `f` = 11, and the Codex round on this page
-  accepts the argument; until then `procedure.classes` is empty and
-  `moments` is `null`.
+  4.6d.7 and of 4.6b.10, at `f` = 11, the orchestrator has chosen how
+  exception (ii) closes, and the Codex round on this page accepts the
+  argument; until then `procedure.classes` is empty and `moments` is
+  `null`.
+
 #### 4.6d.6 The arithmetic: every published number exact, no library float deciding a byte
 
 Lane MDEP's decision (plan P4-D409, part 2) puts every computation of
@@ -6472,21 +6631,37 @@ choices.
 `K-S6-08` counts the preimage as 4.6b.10 states (the procedure run with
 every draw, every eligible option at every step, the moment step's
 included), at `f` = 11, never at a scaled-down floor, and a count leaks
-where, beyond each column's own facts read as 4.6d.4 states, it lies
-inside 1 to `f - 1` over the whole preimage. Its fixtures for this
+where, beyond each column's own facts read as Theorem 2 states them, it
+lies inside 1 to `f - 1` over the whole preimage. Its fixtures for this
 section, each with the mutant that must fail:
 - **the reference case of 4.6d.4** (two cells of 100 rows over codes 0
   to 2, code sums 100, atom counts `(50, 100, 50)`): published, 0
   leaking unions (mutant: the query refusing where some point puts 1 to
   10 rows on a group, which refuses it);
 - **the small-atom union** of 4.6d.4 (30 rows, `n_zero` 3, codes 1 to 4,
-  sums 84 and 286): reported as accepted under the reading of "own
-  facts" and, where the orchestrator adopts clause (d), refused;
-- **the one-cell refusal:** a cell of 11 rows over two codes whose mean
-  a deterministic refusal would withhold exactly when the upper code
-  holds 1 to 10 rows: under the drawn `none`, 0 leaks (mutant: the
-  refusal decided on the real sums, which bounds the upper count inside
-  1 to 10);
+  sums 84 and 286): reported as accepted under ruling R9 and, where a
+  later review adopts clause (d), refused;
+- **the one-cell refusal:** a cell of 22 rows (the size rule `2 f` of
+  `mean`) over codes 0 to `k`, whose witness fails exactly when its code
+  sum lies in 1 to 10 or in `22 k - 10` to `22 k - 1`, so that a
+  refusal decided on the real sums would tell that 1 to 10 of its rows
+  lie off one end code: under the drawn `none`, 0 leaks (mutant: the
+  refusal decided on the real sums, which bounds that count inside 1 to
+  10);
+- **clause (c)'s case:** a small atom of 3 rows (`n_zero` 3) over two
+  cells of 22 rows on codes 0 to 2 with code sums 30 and 40: the second
+  cell holds 0 to 2 of the zeros, its code 1 lies in `V-`, the one point
+  zero on `V-` puts 1 zero in the first cell and 2 in the second, and the
+  first cell's zeros lie in 1 to 3 in every point; refused by (c)
+  (mutant: (c) dropped, which publishes it);
+- **Theorem 2's exception (ii)**, MEASURED (4.6d.5 (c): a small atom of
+  3 rows in one region beside another region's band of 30 rows over
+  codes 10 to 20 with sum 320, whose code 20 holds at most 2 rows: 1 to
+  3 rows in every table), and its form beside a column of no region:
+  reported, never passed, until the orchestrator chooses (a) or (b);
+- **R9's wording within one column:** a band of 15 rows holding `n_zero`
+  6 (9 rows outside the group in every table, a count of one column's
+  own facts): reported as accepted under (A);
 - the design's witness cases: the red team's parts A and B; the 12-row
   cell over ten codes with sum 11 and the 15-row cell over three codes
   with sum 11; the ten-code band with a 40-row cell at its two ends
@@ -6498,6 +6673,8 @@ section, each with the mutant that must fail:
 - a correlation between two columns of different families, its region
   the path between them, on three columns of at most four bands;
 - a published slope beside cell means in one family (condition (5));
+- **premise (S):** a slope in a family of no region beside a published
+  region, reported under (d) (ii);
 - the per-cell slope carrier: a parent cell of 11 rows holding two
   readings of the slope parent, refused, beside one of 22, published;
 - a derived difference and its order rule beside a FINE column's
@@ -6508,12 +6685,13 @@ section, each with the mutant that must fail:
   mean at the patient level beside lane MG's fixtures;
 - premise (R): a fixture whose published `mean` and `std` no readings
   inside some witness point's atoms can meet, read over real tables with
-  their readings (mutant: a witness ignoring (R));
+  their readings (mutant: a witness ignoring (R)); and an integer column
+  of 69 readings from 20 to 88 at `p01` and `p99`, each on its own code,
+  its `mean` and `std` published;
 - `CF1` against the oracle on every cell of up to 40 rows over runs of
   up to six codes (equal verdicts on every group);
-- the exception of Theorem 2: two small atoms of one region, and a small
-  group of a column of no region beside a region's `V-` (reported, never
-  passed, until an argument closes them).
+- exception (i) of Theorem 2: two small atoms of one region (reported,
+  never passed, until an argument closes it).
 
 #### 4.6d.8 The invariants a loader checks
 
@@ -6526,16 +6704,18 @@ not named by a `rules` entry, not repeated while `grain` is not `null`),
 once, in schema order; `lo`, `hi` and `p50` are the rung keys 4.6b.6's
 clip rule names from the column's published counts; `second` is `null`
 exactly where the column's quantile skew, from its published rungs, is
-below `procedure.skew_cut` in magnitude, and otherwise lists the keys
-of its distinct published rungs from `lo` to `hi`.
+below `procedure.skew_cut` in magnitude or its `p10` equals its `p90`,
+and otherwise lists the keys of its distinct published rungs from `lo`
+to `hi`.
 
 **Invariant S35 (regions).** The regions the loader builds from `chain`,
 `rules`, `grain` and the offers of 4.6d.1 (4.6d.3) are exactly those of
-`regions`, in order; each entry's `option` is one of 4.6d.3's options
-offered there; and its `sums` hold every number of that option once,
-each cell named as a `chain` table names its row, every cell meeting its
-size rule on the published tables (`2 f` rows for `mean`, `spread` and
-`product`; `f` rows with a reading of both for `cell_slopes`).
+`regions`, in order, each holding every column its families' slopes
+read; each entry's `option` is one of 4.6d.3's options offered there;
+and its `sums` hold every number of that option once, each cell named as
+a `chain` table names its row, every cell meeting its size rule on the
+published tables (`2 f` rows for `mean`, `spread` and `product`; `f`
+rows with a reading of both for `cell_slopes`).
 
 **Invariant S36 (sums).** Every sum is a whole number inside the range
 its count and codes allow (a code sum from 0 to 255 times its count; a
@@ -6562,34 +6742,89 @@ repeated one.
 | field | disposition | why |
 |---|---|---|
 | `moments.procedure`, `moments.codes`, `regions[].columns`, `regions[].families`, `regions[].option`, `withheld`, a pair's `pinned` | LOADER-ONLY | they choose and name what is measured; checked on input (S34 to S38), owed by no twin |
-| `regions[].sums` | REPORT-ONLY | the twin's achieved sum printed beside the published one in standard errors (validation method `V13`); the polish is greedy, so no sum is promised exactly, and each line is printed only where `V13`'s rule lets it stand |
+| `regions[].sums` | REPORT-ONLY | HELD or MISSED against the published sum on the shared report, its distance in standard errors in the private report only (validation method `V13`); the polish is greedy, so no sum is promised exactly, and each line is printed only where `V13`'s rule lets it stand |
 
 #### 4.6d.10 What this section promises, its stated limits, its settings, and what it owes
 
 **Promised, when in force** (the floor read as `f`): for a table with
 one row per patient, for a reader without the key, given one
-description per table and name on an installation, no count of rows in
-any union of the full joint table's cells refined by the region
-columns' atoms, beyond each column's own facts as 4.6d.4 reads them, is
-fixed or bounded inside 1 to `f - 1` by the whole description, its
-moments included (Theorem 2), under premise (R), but for Theorem 2's
-exception; a refusal tells nothing beyond the rest of the description
-(Lemma 5). "Beyond each column's own facts" is a reading (below).
+description per table and name on an installation, under premises (R)
+and (S): for every union of the full joint table's cells refined by the
+atoms of the publishing regions' columns, some table of the preimage
+puts at least `f` rows in it or none outside the small own-fact groups
+it wholly holds, and, where those groups are small atoms, the count
+outside them is never fixed or bounded inside 1 to `f - 1` by the whole
+description, its moments included (Theorem 2 (A) and (B), ruling R9's
+wording), but for Theorem 2's two exceptions; a refusal tells nothing
+beyond the rest of the description (Lemma 5). Where (S) fails a slope
+stands under 4.6b.6's rule alone ((d) (ii)), and a count that splits a
+column of no publishing region below its bands is outside the promise
+(4.6d.5 (c)).
 
 **Stated limits.**
 1. **R3's residual at the moment step:** a drawn `none` or a poorer
    option lets a reader believe, with odds up to `m` times `2**30`, that
    the richer option was not eligible (4.6b.13, stated limit 1).
-2. **The reading of "own facts":** a union holding a whole small
-   own-fact group and a count that is 0-able on its own can lie inside 1
-   to `f - 1` (4.6d.4's 30-row cell); the base product's own facts
-   already give such unions across two columns. RULING NEEDED.
-3. **The witness's price is unmeasured.** Every polished figure below
-   was measured greedily without the witness: where the exact route's
-   class leaves a region out, or the witness fails, its moments are not
-   published. The closed form covers one column's means in one family
-   with no slope; a region holding a published slope, a correlation, a
-   spread or a product is the oracle's class or refused.
+2. **"Own facts" as ruling R9 reads them, and the case it does not
+   reach.** Ruling R9 (the orchestrator, 2026-10-20) confirms that a
+   union holding a whole small own-fact group beside a count that can be
+   0 may lie inside 1 to `f - 1` (4.6d.4's 30-row cell, 3 to 6 rows; the
+   base product's own facts give such unions across two columns); clause
+   (d) stays a named option, its price counted by lanes MPp and CHa.
+   ACROSS TWO REGIONS the guarantee R9 words does not hold (Theorem 2's
+   exception (ii), MEASURED: a small atom of 3 rows less the rows of
+   another region's code that holds at most 2, 1 to 3 rows in every
+   table), nor beside a column of no region; the orchestrator chooses
+   (a), R9 read over every small own-fact group a union meets, or (b), a
+   witness clause across regions with its measured price, and the GATE
+   waits for that choice. R9's sentence read literally also counts a
+   band of one column less its own small group (15 rows, `n_zero` 6: 9
+   rows), which the base product publishes today; this page claims (A)
+   there.
+3. **The witness, as December decides it, publishes almost nothing
+   (MEASURED; the main fidelity risk before the stage-6 gate).** (a) A
+   column of a region brings every node holding it (4.6d.3), so on lane
+   `A0c`'s 200,000-row chain (`FC_k3_fs10_b005`) the means offered alone
+   join every FINE number column into ONE region: 20 columns and 38 of
+   the 50 families, 31 columns and 47 families with the count columns
+   (skeptic 1 of 2026-10-20, `regions_count.py`); a correlation of every
+   pair, as lane `A0a`'s `M-a` offered, only adds paths. (b) `CF1`, the
+   one class the exact route decides in December, needs a region of one
+   column in one chain family, read by no slope, on interior bands with
+   no own-fact group: on lane `A0b`'s 200,000-row chain 23 of 33 number
+   columns sit in more than one family (the statistics review of
+   2026-10-20, reading `vis2` and `vis3` as numbers), every one of the
+   31 number columns skeptic 1's probe lists sits in a family whose child
+   and a parent are both number columns, where 4.6b.6 may publish a slope
+   (MY COUNT on the chain's `structure`), the outer `L0`
+   bands always hold the rungs `p01`, `p05`, `p95` and `p99`, and the
+   mode's band holds an own-fact group. So with `witness` `"cf1"` no
+   option but `none` is eligible on that chain, and `correlation` is
+   never eligible anywhere. (c) Every polished figure below was measured
+   greedily WITHOUT the witness; under it, December's yield lies between
+   the chain alone (127 of 287) and the polished chain (188), not at 188
+   or 202. (d) The levers, none adopted here: a region rule leaving out
+   the nodes that read a column only at band level (JUDGEMENT: sound by
+   Lemma 6's own steps where the region stays a connected subtree holding
+   each column's `L0` totals node and every node whose numbers read its
+   codes) splits nothing while `mean` is offered in every family holding
+   a column (the kit's `M-b`); regions sharing a node without merging
+   need a gluing lemma this page cannot write, since a node holding both
+   regions' columns deals its child against three two-way margins at
+   once, which can have no filling (two rows whose margins on the first
+   and second coordinates and on the first and third are each the 2 x 2
+   identity, and on the second and third its reverse diagonal, fill no
+   2 x 2 x 2 table: `tests/test_moment_method_page.py` computes it); and
+   `mean`
+   restricted to interior bands, or offered in one family a column,
+   leaves `CF1` excluding every column a slope reads, which is every
+   number column of that chain. The yield therefore rests on lane CHo's
+   oracle class (or a closed form taking slopes and several `L0` bands a
+   cell) deciding regions of many columns at 200,000 rows and more;
+   lanes MPp and CHa measure the pooled count with the witness on (lane
+   `A0b`'s 200,000-row table and lane `E0b`'s battery) before the gate,
+   and where the oracle cannot decide them at December's sizes the
+   orchestrator brings the loss (127 against 188 of 287) to the owner.
 4. **Several rows per patient:** no moment of a repeated column, and no
    correlation between a patient-fixed and a repeated column, in
    December ((f)).
@@ -6597,39 +6832,59 @@ exception; a refusal tells nothing beyond the rest of the description
    moment ((e)).
 
 **Statistics, as measured before this page** (plan P4-D407; plan P4-D413
-names each figure's conditions): the chain polished by classes `M-a`
-and `M-b` means with the second code at four proposals a fine cell held
-188 of 287 supported estimates at 200,000 rows x 50 columns (lane
-`A0b`, a fresh sample 213), and 202 with the screen's seeds (lane
-`A0c`); both greedily, without the draw and without this section's
-witness. A number's slope that changes with a yes/no column stays 28 to
-47 standard errors off there; the carriers of (g) are unmeasured but
-for an oracle's offer.
+names each figure's conditions; every figure greedy, without the draw
+and WITHOUT this section's witness): at 200,000 rows x 50 columns the
+chain alone held 127 of 287 supported estimates (lane `A0b`); polished
+by classes `M-a` and `M-b` means with the second code at four proposals
+a fine cell, 188 (a fresh sample 213), and 202 with the screen's seeds
+(lane `A0c`). Lane `A0a`'s class ablation on its `l4_t1` base gave `M-a`,
+this page's `correlation`, 68 of the polish's 85 estimates at 20,000
+rows (303 alone, 371 with `M-a`, 387 with `M-b` means, 388 with the
+second code, of 507 over three seeds) and 28 of 35 at 50,000 (103, 131,
+136 and 138 of 178). Under `"cf1"` the `correlation` class publishes
+nothing (limit 3), so December's yield lies between 127 and 188 until
+lane CHo's class decides those regions. A number's slope that changes
+with a yes/no column: blood pressure 82.3 standard errors off on the
+188 run and 28.5 to 29.4 with the seeds, the laboratory value 43.3 to
+46.6 (4.6d.5 (g), each figure with its run); the carriers of (g) are
+unmeasured at their own weight but for (g)'s one run.
 
 **The settings** (recorded in `moments.procedure`; each PROVISIONAL one
 amended by a dated sentence in plan P4-D413 on the measurement named):
-- `classes`: `mean` and `correlation`, on the linear code and, for a
-  skewed column, the second code (lane `A0a`'s settings 5 to 8, kept by
-  lanes `A0b` and `A0c`); `spread`, `product` and `cell_slopes` off;
-  every class behind the GATE of 4.6d.5 (h), so the list is empty until
-  `K-S6-08` passes;
+- `classes`: `mean`, on the linear code and, for a skewed column, the
+  second code, while `witness` is `"cf1"`; `correlation` (lane `A0a`'s
+  `M-a`, kept by lanes `A0b` and `A0c`) joins the list with the first
+  exact class that decides a region holding one, since `CF1` decides
+  none and offering it would be a no-op; `spread`, `product` and
+  `cell_slopes` off; every class behind the GATE of 4.6d.5 (h), so the
+  list is empty until `K-S6-08` passes;
 - `skew_cut`: `"1/5"`, PROVISIONAL (MY ARITHMETIC: on a log-normal or
   gamma curve the quantile skew `(p90 + p10 - 2 p50) / (p90 - p10)` is
   about 0.20 where the moment skew is about 1, the threshold the kits
   used on the moment skew; lane MPp measures which columns each selects
   on the battery);
-- `second_code`: `true`;
+- `second_code`: `true`, on the rungs' probability scale (4.6d.1, the
+  kit's code);
 - `witness`: `"cf1"` until lane CHo's decision names the oracle's class.
+Beside them, the polish's own, never published (generation method G17):
+its passes `P`, 4 at every size, PROVISIONAL (lane `A0b`: `P` = 2 scored
+172 of 287 against 188 at 200,000 rows; lane MPp measures 2, 4 and 8 at
+1,000,000 rows); and its `weights`, PROVISIONAL (the kit's rule for a
+correlation's (1, 1) sum, `1 / (m v)` elsewhere; lane MPp measures them
+against the kit's rule for every target).
 
 **Owed elsewhere.** Lane CHa: the offers, regions, codes, sums and the
-draw, and the price of the witness in refusals on lane `E0b`'s battery.
-Lane CHo: the exact oracle, its class and node budgets with measured
-time, the reference cases, `CF1` against it. Lanes CHb and MPp: the
-polish (generation method G17) and lane MPp's entry of `milp`'s member
-`x` with its audit. Lane MPn: the compiled kernel under its gate. Lane
-CHv: validation method `V13`. Lane MG: the patient-unit witness for
-codes (January). Lane ST: the private report's lines for `withheld`.
-The orchestrator: the points of the plan decision (P4-D413).
+draw, and the witness's yield in refusals on lane `E0b`'s battery and
+lane `A0b`'s table. Lane CHo: the exact oracle, its class and node
+budgets with measured time, for regions of many columns holding slopes,
+on which the layer's yield rests (stated limit 3); the reference cases;
+`CF1` against it. Lanes CHb and MPp: the polish (generation method G17)
+and lane MPp's entry of `milp`'s member `x` with its audit; lane MPp the
+measurements named in the settings. Lane MPn: the compiled kernel under
+its gate. Lane CHv: validation method `V13`. Lane MG: the patient-unit
+witness for codes (January). Lane ST: the private report's lines for
+`withheld` and `V13`'s distances. The orchestrator: the points of the
+plan decision (P4-D413), first among them the choice for exception (ii).
 
 ---
 

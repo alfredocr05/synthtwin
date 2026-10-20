@@ -6,23 +6,32 @@ validation method's V13 bind lanes CHa, CHb, MPp, MPn, CHv and CHo,
 which have not started, and nothing in the product reads them yet. The
 disposition seal turns red on any edit of a sealed passage and is
 re-sealed by whoever makes the edit, so it cannot tell a correction from
-its undoing. This file can.
+its undoing. This file can: each proof's stated objects, each safety
+rule and each measured case is pinned or computed here, and each check
+is red on the mutant its docstring names (skeptic 1 of 2026-10-20 found
+nine of ten mutants of the first build's file surviving).
 
 WHAT IS COMPUTED HERE, NOT READ. The page's own cases are enumerated in
 whole numbers: Codex's reference case for the witness's quantifiers and
 the query that would have refused it; the cell where a small own-fact
-group beside an unreachable group gives a union of 3 to 6 rows; the one
-cell where a refusal decided on the real sums bounds a count and the
-drawn refusal does not; and the closed form `CF1` against enumeration.
-The rest pins wording the page's argument rests on.
+group beside an unreachable group gives a union of 3 to 6 rows; the two
+cells where clause (c) refuses a small atom neither can hold whole; the
+22-row cell where a refusal decided on the real sums bounds a count and
+the drawn refusal does not; the closed form `CF1` against enumeration,
+its clause (b) included; Theorem 2's case across two regions; the three
+two-way margins with no filling; the correlation test; the second code
+on the rungs' probability scale; an integer column's codes; the
+kernel's and the decode's bounds.
 
 WHAT IS NOT HERE. No moment code exists to run, so nothing here says a
 twin meets a moment. `K-S6-08`'s enumeration and the oracle's cases
 (G17.8) are where lanes CHa and CHo run the method.
 """
 import itertools
+import math
 import pathlib
 import re
+from fractions import Fraction
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 CONTRACT = REPOSITORY / "docs" / "spec" / "profile-contract-v6.md"
@@ -58,6 +67,12 @@ def _section():
     return _flat(_section_raw())
 
 
+def _part(start, end):
+    section = _section()
+    at = section.index(start)
+    return section[at : section.index(end, at + len(start))]
+
+
 def _g17():
     return _flat(_between(METHOD, "## G17. Between columns: the polish", "## Conformance checklist"))
 
@@ -73,14 +88,21 @@ def _decision():
 # --- the witness's predicate, computed on explicit point sets ------------
 
 
+def _reach_and_zero(points, groups, small=()):
+    """Clauses (a) and (b) of contract 4.6d.4: `V-` and the points zero on it."""
+    free = [g for g in groups if g not in small]
+    unreachable = [g for g in free if max(p[g] for p in points) < FLOOR]
+    zeros = [p for p in points if all(p[g] == 0 for g in unreachable)]
+    return unreachable, zeros
+
+
 def _witness(points, groups, small=()):
     """Clauses (a) to (c) of contract 4.6d.4 over an explicit point list.
 
     `points` maps each group to its rows; `small` lists the groups of the
-    one small atom of a case (each point puts all of its rows in them)."""
-    free = [g for g in groups if g not in small]
-    unreachable = [g for g in free if max(p[g] for p in points) < FLOOR]
-    zeros = [p for p in points if all(p[g] == 0 for g in unreachable)]
+    one small atom of a case (each point puts all of its rows in them).
+    Returns whether the witness holds, and `V-`."""
+    unreachable, zeros = _reach_and_zero(points, groups, small)
     if not zeros:
         return False, unreachable
     for g in small:
@@ -89,6 +111,18 @@ def _witness(points, groups, small=()):
             if not any(p[g] == total for p in zeros):
                 return False, unreachable
     return True, unreachable
+
+
+def _cell_points(rows, codes, total):
+    """Every way to put `rows` rows on `codes` with code sum `total`."""
+    found = []
+    for counts in itertools.product(range(rows + 1), repeat=len(codes) - 1):
+        if sum(counts) > rows:
+            continue
+        full = list(counts) + [rows - sum(counts)]
+        if sum(c * n for c, n in zip(codes, full)) == total:
+            found += [dict(zip(codes, full))]
+    return found
 
 
 def _codex_points():
@@ -154,7 +188,8 @@ def test_a_small_atom_beside_an_unreachable_group_bounds_their_union():
     """4.6d.4's example: (a) to (c) hold, code 1 lies in V- and the first
     point zeroes it, and the union of the zero group with code 1 holds 3
     to 6 rows in every point; the rows outside the small group, code 1
-    alone, stay 0-able, which is Theorem 2's reading of "own facts"."""
+    alone, stay 0-able, which is Theorem 2's reading of "own facts" that
+    ruling R9 confirmed (mutant: the page still asking for a ruling)."""
     points = _small_atom_points()
     assert [tuple(p[v] for v in (1, 2, 3, 4)) for p in points] == [
         (0, 11, 2, 14),
@@ -170,70 +205,406 @@ def test_a_small_atom_beside_an_unreachable_group_bounds_their_union():
     assert min(outside_the_own_group) == 0
     section = _section()
     assert "the union of the zero group with code 1 holds 3 to 6 rows in every point" in section
+    assert "Ruling R9 (the orchestrator, 2026-10-20) confirms this reading" in section
     assert '"(d) where a column of the region has a small atom, `V-` is empty"' in section
-    assert "RULING NEEDED" in section
+    assert "stays a NAMED OPTION of 4.6d.10" in section
+    assert "RULING NEEDED" not in section
+
+
+def _two_cell_small_atom_points():
+    """Clause (c)'s case: `n_zero` 3 over two cells of 22 rows on codes 0 to 2, code sums 30 and 40."""
+    found = []
+    for first in _cell_points(22, (0, 1, 2), 30):
+        for second in _cell_points(22, (0, 1, 2), 40):
+            if first[0] + second[0] == 3:
+                point = {("A", v): first[v] for v in (0, 1, 2)}
+                point.update({("B", v): second[v] for v in (0, 1, 2)})
+                found += [point]
+    return found
+
+
+def test_clause_c_refuses_a_small_atom_neither_cell_can_hold_whole():
+    """Skeptic 1 of 2026-10-20, item 5 (mutant M1, clause (c) dropped from
+    the witness): the second cell holds 0 to 2 of the 3 zeros, its code 1
+    lies in V-, the one point zero on V- splits the zeros 1 and 2, and
+    the first cell's zeros lie in 1 to 3 in every point. (a) and (b) hold;
+    (c) alone refuses it, and the page and its fixture say so."""
+    points = _two_cell_small_atom_points()
+    assert sorted((p[("A", 0)], p[("B", 0)]) for p in points) == [(1, 2), (2, 1), (3, 0)]
+    groups = sorted(points[0])
+    small = (("A", 0), ("B", 0))
+    unreachable, zeros = _reach_and_zero(points, groups, small)
+    assert unreachable == [("B", 1)]
+    assert [(p[("A", 0)], p[("B", 0)]) for p in zeros] == [(1, 2)]
+    holds, _ = _witness(points, groups, small=small)
+    assert not holds
+    first_cell_zeros = [p[("A", 0)] for p in points]
+    assert (min(first_cell_zeros), max(first_cell_zeros)) == (1, 3)
+    section = _section()
+    assert "**(c) small atoms.** For every small atom `G` and every group `g` holding `G`" in section
+    assert "**clause (c)'s case:** a small atom of 3 rows (`n_zero` 3) over two cells of 22 rows" in section
 
 
 def test_a_refusal_decided_on_the_real_sums_bounds_a_count_and_a_drawn_one_does_not():
-    """4.6d.3 and Lemma 5: one cell of 11 rows over codes 0 and 1. The
-    witness fails exactly when code 1 holds 1 to 10 rows, so a refusal
-    decided on the real sums tells the reader that count; under the draw
-    `none` stands on every table, and its preimage is all twelve."""
-    refused = []
-    for upper in range(12):
-        points = [{0: 11 - upper, 1: upper}]
-        holds, _ = _witness(points, [0, 1])
-        if not holds:
-            refused += [upper]
-    assert refused == list(range(1, 11))
-    assert (min(refused), max(refused)) == (1, FLOOR - 1)
-    drawn_none = list(range(12))
-    assert (min(drawn_none), max(drawn_none)) == (0, FLOOR)
+    """4.6d.3, Lemma 5 and 4.6d.7 (skeptic 1 of 2026-10-20, item 9: the
+    first build's fixture used 11 rows, which the mean's `2 f` rule never
+    offers). On a cell of 22 rows over codes 0 to k the witness fails
+    exactly when the code sum lies in 1 to 10 or in 22 k - 10 to 22 k - 1,
+    so a refusal decided on the real sums tells that 1 to 10 rows lie off
+    one end code; under the draw `none` stands on every sum."""
+    for top in (1, 2, 3):
+        codes = tuple(range(top + 1))
+        refused = []
+        for total in range(22 * top + 1):
+            points = _cell_points(22, codes, total)
+            if not _witness(points, list(codes))[0]:
+                refused += [total]
+                off_low = [22 - p[0] for p in points]
+                off_high = [22 - p[top] for p in points]
+                assert (1 <= min(off_low) and max(off_low) <= FLOOR - 1) or (
+                    1 <= min(off_high) and max(off_high) <= FLOOR - 1
+                ), (top, total)
+        assert refused == list(range(1, 11)) + list(range(22 * top - 10, 22 * top)), top
     section = _section()
     assert "`none` is always eligible." in section
     assert "the preimage of a drawn refusal is the whole of its context's" in section
+    assert "**the one-cell refusal:** a cell of 22 rows (the size rule `2 f` of `mean`) over codes 0 to `k`" in section
+    assert "a cell of 11 rows over two codes" not in section
 
 
 def _cf1_reach(rows, total, low, high, code):
     return (rows - FLOOR) * low + FLOOR * code <= total <= (rows - FLOOR) * high + FLOOR * code
 
 
+def _cf1_holds(rows, total, low, high):
+    run = [c for c in range(low, high + 1) if _cf1_reach(rows, total, low, high, c)]
+    return bool(run) and rows * run[0] <= total <= rows * run[-1]
+
+
 def test_the_closed_form_agrees_with_enumeration():
     """CF1: in a cell of N rows over an unbroken run of codes with sum S,
     code v can hold f rows exactly when (N - f) lo + f v <= S <= (N - f)
-    hi + f v, and the codes that can form an unbroken run."""
+    hi + f v, the codes that can form an unbroken run, and (b) holds
+    exactly when N u_lo <= S <= N u_hi (mutant M4, (b) dropped: it would
+    publish the 22-row cell at sums 1 to 10)."""
     for rows in (22, 23, 25):
         for low, high in ((0, 2), (3, 6)):
             codes = list(range(low, high + 1))
             best = {}
+            by_total = {}
             for counts in itertools.product(range(rows + 1), repeat=len(codes) - 1):
                 if sum(counts) > rows:
                     continue
                 full = list(counts) + [rows - sum(counts)]
                 total = sum(c * n for c, n in zip(codes, full))
+                bucket = by_total.setdefault(total, [])
+                bucket += [dict(zip(codes, full))]
                 for c, n in zip(codes, full):
                     best[(total, c)] = max(best.get((total, c), 0), n)
-            totals = {t for t, _ in best}
-            for total in totals:
+            for total, points in by_total.items():
                 reach = [c for c in codes if best[(total, c)] >= FLOOR]
                 assert reach == [c for c in codes if _cf1_reach(rows, total, low, high, c)]
                 if reach:
                     assert reach == list(range(reach[0], reach[-1] + 1))
+                assert _cf1_holds(rows, total, low, high) == _witness(points, codes)[0], (rows, low, total)
+    without_b = [s for s in range(1, 11) if any(_cf1_reach(22, s, 0, 2, c) for c in range(3))]
+    assert without_b == list(range(1, 11))
+    assert not any(_cf1_holds(22, s, 0, 2) for s in range(1, 11))
+    section = _section()
+    assert "and (b) holds exactly when every cell has a run and `N u_lo <= S <= N u_hi`" in section
+    assert "in exactly one chain family `F` (its `L0` totals node aside" in section
 
 
-def test_the_kernel_bounds_hold_in_whole_numbers():
-    """G17.3's bounds: every term below 2**32, every change below 2**33,
-    every sum inside n' 2**32 for n' below 2**30, so int64 never wraps."""
+def test_the_correlation_test_is_r_squared_below_the_square_of_nineteen_twentieths():
+    """Rule M5's first test, now on published sums (mutant M2, 361 read as
+    400): `400 cov**2 < 361 var_a var_b` is r^2 < (95/100)^2, it refuses a
+    pair at exactly r = 0.95 and a column paired with itself, and the
+    page writes it in 4.6d.6 and S36 with the constants of 4.6d.3."""
+    section = _section()
+    found = re.findall(r"`(\d+) cov\*\*2 < (\d+) var_a var_b`", section)
+    assert found == [("400", "361"), ("400", "361")]
+    assert "`r^2 < (95/100)^2`" in section
+    left, right = (int(x) for x in found[0])
+    assert Fraction(right, left) == Fraction(95, 100) ** 2
+    for cov, var_a, var_b in ((19, 20, 20), (380, 400, 400), (5, 5, 5), (3, 4, 3), (0, 4, 4), (2, 0, 4)):
+        page = left * cov**2 < right * var_a * var_b
+        exact = var_a * var_b > 0 and Fraction(cov**2, var_a * var_b) < Fraction(95, 100) ** 2
+        assert page == exact, (cov, var_a, var_b)
+    assert not (left * 380**2 < right * 400 * 400)
+    readings = [1, 2, 4, 7, 11]
+    n = len(readings)
+    sum_a = sum(readings)
+    sum_aa = sum(r * r for r in readings)
+    cov = n * sum_aa - sum_a * sum_a
+    var = n * sum_aa - sum_a**2
+    assert not (left * cov**2 < right * var * var)
+
+
+def test_the_draw_takes_the_eligible_options_and_defaults_to_the_last():
+    """4.6d.3's draw (mutants M3, the FIRST eligible option by default, and
+    M8, a uniform choice over the OFFERED options): Lemma 5 needs every
+    published option to be eligible and every eligible one to have a
+    chance; the default is the richest the witness admits."""
+    section = _section()
+    assert (
+        "it takes a uniform choice among the eligible options; otherwise the LAST eligible option of the order above"
+        in section
+    )
+    assert "the description's choice is, but for that share, the richest option the witness admits" in section
+    offered = ["none", "mean S", "mean L", "mean and correlation S"]
+    eligible = ["none", "mean L"]
+
+    def draw(uniform_word, share_hit):
+        pool = [o for o in offered if o in eligible]
+        return pool[uniform_word % len(pool)] if share_hit else pool[-1]
+
+    drawn = {draw(word, hit) for word in range(8) for hit in (True, False)}
+    assert drawn == {"none", "mean L"}
+    assert draw(0, False) == "mean L"
+
+
+def test_the_size_rules_and_the_patient_refusal_are_pinned():
+    """S35's size rules (mutant M6, `2 f` read as `f`) and S38 (mutant M7,
+    a patient-fixed column's correlation with a repeated one allowed)."""
+    section = _section()
+    assert (
+        "(`2 f` rows for `mean`, `spread` and `product`; `f` rows with a reading of both for `cell_slopes`)"
+        in section
+    )
+    assert "holds 0 or at least `2 f` rows" in section
+    assert "| 22 | FINE, the code's clip, the cells' size rule (`2 f`, or `f` for `cell_slopes`) |" in section
+    assert "no `correlation` pairs a patient-fixed column with a repeated one." in section
+    assert "is REFUSED: it is not offered while the layer is on" in section
+
+
+def test_theorem_two_states_its_premises_and_its_two_exceptions():
+    """Skeptic 1 of 2026-10-20, items 1, 3 and 6 (mutant M5, the exception
+    removed): Theorem 2 holds under (R) and (S) for publishing regions, in
+    the forms (A) and (B), but for two exceptions, the second across two
+    regions; a slope outside every publishing region is (d) (ii)'s."""
+    theorem = _part("*Theorem 2.*", "*Proof of (A).*")
+    assert "Under (R), (S) and the model of 4.6b.9 (b)" in theorem
+    assert "let every publishing region's drawn option satisfy `WIT`" in theorem
+    assert "**(A)** some table of the preimage puts at least `f` rows in `U`" in theorem
+    assert "which is ruling R9's wording" in theorem
+    assert "(i) two small atoms of one publishing region that `U` meets without wholly holding" in theorem
+    assert "(ii) ACROSS REGIONS, a small atom `G` of a publishing region `R`" in theorem
+    section = _section()
+    assert "**The premise (S), slopes.** Every slope the description publishes" in section
+    assert "*Remainder:* (R) and (S); where (S) fails, (d) (ii)" in section
+    assert "*Remainder:* (R) only" not in section
+    assert "A PUBLISHING region is one whose drawn option (below) is not `none`" in section
+    assert "Lemma 6 and Theorem 2 read only PUBLISHING regions" in section
+    assert "Condition (5) stays in `Sigma` where the region also publishes the per-cell slope carrier's sums" in section
+    assert "adds no condition at all" not in section
+    assert "brings every column its slopes read, each FINE, as a column of the region" in section
+    assert "a column's `L0` band of 15 rows holding its `n_zero` 6, `U` that band, holds 9 rows" in section
+    band, n_zero = 15, 6
+    assert 1 <= band - n_zero <= FLOOR - 1 and band >= FLOOR
+
+
+def _band_points(rows, low, high, total):
+    """Every way to put `rows` rows on the codes `low` to `high` with code sum `total`."""
+    codes = list(range(low, high + 1))
+
+    def place(at, left, excess):
+        if at == len(codes):
+            return [{}] if left == 0 and excess == 0 else []
+        found = []
+        for n in range(left + 1):
+            extra = n * (codes[at] - low)
+            if extra > excess:
+                break
+            for rest in place(at + 1, left - n, excess - extra):
+                found += [{codes[at]: n, **rest}]
+        return found
+
+    return place(0, rows, total - rows * low)
+
+
+def test_the_case_across_two_regions_is_measured_and_named():
+    """Skeptic 1 of 2026-10-20, item 1 (the BLOCKER): a small atom of 3 rows
+    in one region beside another region's band of 30 rows over codes 10
+    to 20 with sum 320. That region publishes (codes 10 and 11 reach f,
+    V- is 12 to 20 and zero-able), code 20 holds at most 2 rows, so the
+    atom's rows whose code is not 20 number 1 to 3 in every table; one
+    region's clause (c) would refuse it. The page names it as Theorem 2's
+    exception (ii), open, and keeps the GATE closed until it is chosen."""
+    points = _band_points(30, 10, 20, 320)
+    assert len(points) == 530
+    reach = [v for v in range(10, 21) if max(p.get(v, 0) for p in points) >= FLOOR]
+    unreachable = [v for v in range(10, 21) if v not in reach]
+    assert reach == [10, 11] and unreachable == list(range(12, 21))
+    zero_points = [p for p in points if all(p.get(v, 0) == 0 for v in unreachable)]
+    assert [(p.get(10, 0), p.get(11, 0)) for p in zero_points] == [(10, 20)]
+    rows_at_twenty = sorted({p.get(20, 0) for p in points})
+    assert rows_at_twenty == [0, 1, 2]
+    atom = 3
+    outside = [atom - shared for at_twenty in rows_at_twenty for shared in range(min(atom, at_twenty) + 1)]
+    assert (min(outside), max(outside)) == (1, 3)
+    assert max(rows_at_twenty) < atom
+    section = _section()
+    assert "*Exception (ii), MEASURED (skeptic 1 of 2026-10-20, item 1," in section
+    assert "`R2` has 530 points; codes 10 and 11 can hold `f` rows, `V-` is codes 12 to 20" in section
+    assert "- **Measured and open:** Theorem 2's exception (ii), a count of 1 to 3 rows across two regions" in section
+    assert "the orchestrator has chosen how exception (ii) closes" in section
+    assert "- **Theorem 2's exception (ii)**, MEASURED" in section
+    promise = _part("**Promised, when in force**", "**Stated limits.**")
+    assert "but for Theorem 2's two exceptions" in promise
+    assert "ACROSS TWO REGIONS the guarantee R9 words does not hold" in section
+
+
+def test_three_two_way_margins_can_have_no_filling():
+    """Why regions sharing a node are joined (skeptic 1's item 4, the lever
+    this page declines, with its measurement): dealing a child against
+    two regions' points and the rows' own pairing fixes three two-way
+    margins, and two rows can meet the identity on two of them and the
+    reverse diagonal on the third in no 2 x 2 x 2 table."""
+    cells = list(itertools.product((0, 1), repeat=3))
+    identity = {(0, 0): 1, (0, 1): 0, (1, 0): 0, (1, 1): 1}
+    reverse = {(0, 0): 0, (0, 1): 1, (1, 0): 1, (1, 1): 0}
+
+    def margin(table, keep):
+        out = {key: 0 for key in identity}
+        for cell, n in table.items():
+            key = (cell[keep[0]], cell[keep[1]])
+            out[key] = out[key] + n
+        return out
+
+    fillings = 0
+    tables = 0
+    for counts in itertools.product(range(3), repeat=8):
+        if sum(counts) != 2:
+            continue
+        tables += 1
+        table = dict(zip(cells, counts))
+        if margin(table, (0, 1)) == identity and margin(table, (0, 2)) == identity:
+            if margin(table, (1, 2)) == reverse:
+                fillings += 1
+    assert tables == 36 and fillings == 0
+    section = _section()
+    assert "fill no 2 x 2 x 2 table: `tests/test_moment_method_page.py` computes it" in section
+
+
+def _second_code(rungs, low, high, reading):
+    """4.6d.1's second code: the rungs' probability scale, `floor(256 t)`."""
+    values = sorted({v for v, _ in rungs})
+    spans = {v: (min(p for w, p in rungs if w == v), max(p for w, p in rungs if w == v)) for v in values}
+    position = sum(spans[values[-1]]) / 2
+    if reading <= values[0]:
+        position = sum(spans[values[0]]) / 2
+    for here, there in zip(values, values[1:]):
+        if reading == here:
+            position = sum(spans[here]) / 2
+        elif here < reading < there:
+            position = spans[here][1] + (reading - here) / (there - here) * (spans[there][0] - spans[here][1])
+    return min(255, max(0, math.floor(256 * (position - low) / (high - low))))
+
+
+def test_the_second_code_is_read_on_the_rungs_probability_scale():
+    """The statistics review of 2026-10-20, item 4: the measured kit coded a
+    skewed column by its position on the rungs' probabilities; the first
+    build's equal share of the codes for each interval between rungs gave
+    `p05` code 18 and `p95` 237 (its mutant), the page's code 10 and 245,
+    the kit's own `1 + round(254 t)` at most one code away."""
+    percents = (1, 5, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 95, 99)
+    probabilities = [Fraction(p, 100) for p in percents]
+    values = [Fraction(v) for v in (1, 2, 3, 5, 6, 7, 9, 12, 15, 19, 22, 26, 38, 55, 120)]
+    rungs = list(zip(values, probabilities))
+    low, high = probabilities[0], probabilities[-1]
+    page = {int(p * 100): _second_code(rungs, low, high, v) for v, p in rungs}
+    assert [page[k] for k in (5, 10, 20, 50, 95)] == [10, 23, 49, 128, 245]
+    kit = {k: 1 + round(254 * float((Fraction(k, 100) - low) / (high - low))) for k in (5, 10, 20, 50, 95)}
+    assert [kit[k] for k in (5, 10, 20, 50, 95)] == [11, 24, 50, 128, 245]
+    assert all(abs(page[k] - kit[k]) <= 1 for k in kit)
+    equal_share = {k: math.floor(Fraction(256 * j, 14)) for j, k in enumerate(percents)}
+    assert (equal_share[5], equal_share[95]) == (18, 237)
+    heap = [(Fraction(0), Fraction(1, 100)), (Fraction(0), Fraction(5, 100))] + rungs[2:]
+    assert _second_code(heap, low, high, Fraction(0)) == math.floor(256 * Fraction(2, 100) / Fraction(98, 100))
+    section = _section()
+    assert (
+        "So, with `lo` and `hi` at `p01` and `p99`, `p05` takes code 10, `p10` 23, `p20` 49, `p50` 128 and `p95` 245"
+        in section
+    )
+    assert "on the rungs' PROBABILITY scale" in section
+    assert "`floor(256 (j + (x - r_j) / (r_(j+1) - r_j)) / m)`" not in section
+
+
+def test_an_integer_column_gives_each_reading_its_own_code():
+    """Skeptic 1 of 2026-10-20, item 8: an age from 20 to 88 at p01 and p99
+    takes 69 codes for 69 readings, so the published mean and std are
+    exact equations on its atoms' counts; premise (R)'s judgement says so
+    and `K-S6-08` holds the column as a fixture."""
+    codes = [min(255, max(0, math.floor(Fraction(256 * (x - 20), 88 - 20)))) for x in range(20, 89)]
+    assert len(codes) == 69 and len(set(codes)) == 69
+    assert codes == [math.floor(Fraction(64 * (x - 20), 17)) if x < 88 else 255 for x in range(20, 89)]
+    section = _section()
+    assert "takes `floor(64 (x - 20) / 17)`, 69 readings on 69 codes" in section
+    assert "an integer column of 69 readings from 20 to 88 at `p01` and `p99`" in section
+    assert "an 8-bit code leaves each atom an interval of readings" not in section
+
+
+def test_the_kernel_and_decode_bounds_hold_in_whole_numbers():
+    """G17.1 and G17.3's bounds: every term below 2**32, every change below
+    2**33, every sum inside n' 2**32 for n' below 2**30, and the decode's
+    halves cast to int64 before any product, each product below 2**62
+    (skeptic 1 of 2026-10-20, item 10: numba promotes uint64 times int64
+    to binary64)."""
     assert 255 ** 4 < 2 ** 32
     assert 2 * 255 ** 4 < 2 ** 33
     largest_rows = 2 ** 30 - 1
     assert largest_rows * 2 ** 32 + 2 ** 33 < 2 ** 63
     assert 2 * largest_rows * 2 ** 32 < 2 ** 63
-    assert (2 ** 32 - 1) * (2 ** 30 - 1) < 2 ** 63
+    assert (2 ** 32 - 1) * (2 ** 30 - 1) < 2 ** 62
     method = _g17()
     assert "no fused multiply-add" in method
     assert "there is no division, no square root and no library call" in method
     assert "`n'` below `2**30`" in method
+    assert "are taken in `uint64` and cast to `int64` (each below `2**32`) before any product with `n'` or `len(B)`" in method
+    assert "the decode multiplies `int64` by `int64` only" in method
+
+
+def test_the_passes_and_the_weights_follow_the_measurements():
+    """The statistics review of 2026-10-20, items 2 and 5: P = 2 scored 172
+    against P = 4's 188 of 287 at 200,000 rows, so P is 4 at every size;
+    a correlation's (1, 1) sum keeps the kit's weight, which `1 / (m v)`
+    would cut about 2.2, 8.2 and 50 times at r = 0.5, 0.75 and 0.9."""
+    method = _g17()
+    assert "`P` passes: 4 at every size, PROVISIONAL" in method
+    assert "`P` = 2 at 172 of 287 supported estimates against `P` = 4's 188" in method
+    assert "and 2 from 1,000,000" not in method
+    assert "`w = 1 / max(n v_a v_b max(1 - r**2, 1/20)**2, 1)`" in method
+    ratios = []
+    for r in (Fraction(1, 2), Fraction(3, 4), Fraction(9, 10)):
+        ratios += [round(float((1 + r * r) / max(1 - r * r, Fraction(1, 20)) ** 2), 1)]
+    assert ratios == [2.2, 8.2, 50.1]
+    assert "about 2.2 times less than the kit at `r` = 0.5, 8.2 times at 0.75 and 50 times at 0.9" in method
+    assert round(2 * 30 * 2_000_000 * 22.4e-6 / 60) == 45
+    section = _section()
+    assert "its passes `P`, 4 at every size, PROVISIONAL" in section
+
+
+def test_the_validator_prints_held_or_missed_and_no_measured_number():
+    """Skeptic 1 of 2026-10-20, item 2: V13.3 withheld a line on the file's
+    own sums, so on a 22-row cell the withheld line stood exactly for a
+    file sum in 1 to 10 or 22 k - 10 to 22 k - 1. The gate now reads the
+    published sums and the file's own tables and facts only, so whether a
+    line stands is the same for every file sum (mutant: the old rule)."""
+    top = 2
+    codes = list(range(top + 1))
+    old_withheld = [s for s in range(22 * top + 1) if not _witness(_cell_points(22, codes, s), codes)[0]]
+    assert old_withheld == list(range(1, 11)) + list(range(22 * top - 10, 22 * top))
+    for published in (0, 5, 22, 40):
+        stands = _witness(_cell_points(22, codes, published), codes)[0]
+        new_withheld = [s for s in range(22 * top + 1) if not stands]
+        assert new_withheld in ([], list(range(22 * top + 1)))
+    lines = _v13()
+    assert "The lines, every one REPORT-ONLY, never a verdict." in lines
+    assert "no measured sum, product, correlation or distance stands on any line of this section" in lines
+    assert "with the published sums, never with the file's own" in lines
+    assert "its witness holding with the file's own sums" not in lines
+    assert "`X**2 + Y**2 - T**2 <= 2 X Y`" in lines
+    assert "exactly when `(S_file - S_pub)**2 <= m v`" in lines
 
 
 def test_the_member_of_the_solvers_result_is_named():
@@ -257,17 +628,52 @@ def test_each_item_of_the_design_list_is_answered():
     ):
         assert heading in section, heading
     assert "*Remainders, CHECKED, NOT PROVEN*" in section
-    assert "is REFUSED: it is not offered while the layer is on" in section
     assert "No number of this section reads a derived or a computed column's readings" in section
     assert "199,023 configurations before its 280 s time cap" in section
+    assert "Theorem M" not in section
+    assert "checked the refusal-by-context rule this page replaces" in section
 
 
-def test_the_two_carriers_are_written_with_their_checks():
+def test_the_two_carriers_are_written_with_their_checks_and_their_runs():
+    """The statistics review of 2026-10-20, items 3 and 6: each figure with
+    its run; the finer-band carrier at its own weight delivered nothing in
+    its one measurement; the screen's ranking is measured, the chain run
+    offering it is not; the refinement node is deferred with its reason."""
     section = _section()
     assert "**The finer-band carrier.** *What it publishes:* nothing outside 4.6b" in section
     assert "**The per-cell slope carrier.** *What it publishes:*" in section
     assert "*Its safe check:*" in section and "*Its remainder:*" in section
-    assert "blood pressure 0.275 against a real 0.296, 6.6 SE" in section
+    assert "blood pressure came to 0.275 (6.6 SE, 93 per cent of the real slope)" in section
+    assert "at 1.0 the same triple gave 146.5" in section
+    assert "the polished chain without seeds left blood pressure 82.3 standard errors off (0.036)" in section
+    assert "(rank 10 of its `fseq` set) is MEASURED" in section
+    assert "It is DEFERRED, not written" in section
+    assert "28 to 47 standard errors off there" not in section
+
+
+def test_the_witness_yield_is_stated_as_measured():
+    """Skeptic 1 of 2026-10-20, item 4, and the statistics review's item 1:
+    under `cf1` the moment layer publishes almost nothing, December's
+    yield lies between the chain alone and the polished chain, and the
+    page says so with the counts."""
+    section = _section()
+    assert "join every FINE number column into ONE region: 20 columns and 38 of the 50 families" in section
+    assert 'with `witness` `"cf1"` no option but `none` is eligible on that chain' in section
+    assert "between the chain alone (127 of 287) and the polished chain (188)" in section
+    assert "68 of the polish's 85 estimates at 20,000 rows" in section
+    assert "since `CF1` decides none and offering it would be a no-op" in section
+    assert ((371 - 303), (388 - 303), (131 - 103), (138 - 103)) == (68, 85, 28, 35)
+    assert "The witness's price is unmeasured." not in section
+
+
+def test_the_small_definitions_the_review_asked_for_are_written():
+    """Skeptic 1 of 2026-10-20, items 11 and 13: every spread cell kind is
+    an atom, and S34 reads a column whose p10 equals its p90 as not
+    skewed."""
+    section = _section()
+    assert "Each kind of SPREAD cell the column holds in an `L0` band" in section
+    assert "is ONE atom more of that band, holding no reading and no code" in section
+    assert "below `procedure.skew_cut` in magnitude or its `p10` equals its `p90`" in section
 
 
 def test_the_section_cites_no_identifier_in_plain_text():
@@ -279,14 +685,11 @@ def test_the_section_cites_no_identifier_in_plain_text():
         assert found is None, name
 
 
-def test_the_validator_prints_moments_as_reports_only():
-    lines = _v13()
-    assert "The lines, every one REPORT-ONLY, never a verdict." in lines
-    assert "only where `synthtwin profile` run on that file would publish it" in lines
-
-
-def test_the_plan_decision_records_the_page():
+def test_the_plan_decision_records_the_page_and_its_repair():
     decision = _decision()
     assert "lane MPOL" in decision
-    assert "RULING NEEDED" in decision
+    assert "RULING NEEDED" not in decision
+    assert "ruling R9" in decision
     assert "`K-S6-08`" in decision
+    assert "**Repair round 1 (2026-10-20).**" in decision
+    assert "THE MAIN FIDELITY RISK" in decision

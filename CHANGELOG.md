@@ -29,6 +29,18 @@ twin's sums towards the published ones, with the arithmetic a compiled
 kernel must keep; the validation method's V13 prints the moments as
 reports, never as verdicts. Two ways to carry a number's slope that
 differs by a yes/no column are written and kept off until measured.
+After its first review the page states plainly what it does not yet
+cover: a small group of rows in one column beside a code another
+column's averages confine to fewer rows can give a count of 1 to 3
+rows that no rule refuses, so that case waits for the orchestrator's
+choice and every class stays off until it is closed; and, as written,
+the exact test December can run publishes almost no averages on the
+measured 50-column table, so the gain measured without it (188 of 287
+estimates against 127 for the chain alone) is the main risk to
+fidelity, resting on the exact solver lane CHo writes. The validation
+report prints only whether each published sum is met, never a measured
+number, and the polish keeps four passes at every size and the code
+and weights its measurements used.
 
 ### Between columns: the chain's method page, written before its code (2026-10-19)
 

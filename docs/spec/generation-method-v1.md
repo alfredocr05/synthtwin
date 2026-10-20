@@ -18188,13 +18188,30 @@ it. Elsewhere nothing here runs and no word is drawn.
 
 ### G17.1 The proposals and the exchange
 
-- **Passes.** `P` passes: 4 where the arranged rows `n'` number below
-  1,000,000, and 2 from 1,000,000 (the polish lanes `A0a`, `A0b` and
-  `A0c` measured), a function of `n'`. In each pass each polished column
-  `c`, in schema order, receives `n'` proposals, one word each.
+- **Passes.** `P` passes: 4 at every size, PROVISIONAL. Lane `A0b`
+  measured at 200,000 rows x 50 columns `P` = 2 at 172 of 287 supported
+  estimates against `P` = 4's 188, blood pressure's age-by-group gap
+  widening from 28.9 to 31.6 yardstick units; lane `A0a`'s "`P` = 2
+  loses 0 to 2 points" was measured at 20,000 and 50,000 rows only, the
+  loss grows with the rows, and no run exists at 1,000,000. The first
+  build's "2 from 1,000,000 rows" contradicted that measurement (the
+  statistics review of 2026-10-20, item 2) and would save about 45
+  minutes at 2,000,000 rows x 30 polished columns (two passes of `e' n'`
+  proposals at the kit's 22.4 microseconds each), small beside a 12 to
+  18 hour budget. Lane MPp measures `P` = 2, 4 and 8 at 1,000,000 rows
+  in a night window; the gain of 16 from 2 to 4 at 200,000 rows says 4
+  may not have converged. In each pass each polished column `c`, in
+  schema order, receives `n'` proposals, one word each.
 - **Decoding a word `w`.** `x = ((w >> 32) * n') >> 32`, a row; `B` the
   rows of `x`'s `L0` band of `c`, listed in row order at the start of
-  the pass; `y = B[((w & 0xFFFFFFFF) * len(B)) >> 32]`.
+  the pass; `y = B[((w & 0xFFFFFFFF) * len(B)) >> 32]`. The words are
+  `uint64` (G3.3): `w >> 32` and `w & 0xFFFFFFFF` are taken in `uint64`
+  and cast to `int64` (each below `2**32`) before any product with `n'`
+  or `len(B)`, so each product is below `2**62` and each second shift is
+  an `int64` shift of a number at least 0. No product of a `uint64` and
+  an `int64` is written, since numba promotes it to binary64, on which
+  `>>` does not compile (skeptic 1 of 2026-10-20, item 10); the decode
+  may equally stay in Python integers.
 - **Weighed only when** `y` is not `x`; `x` and `y` hold the same bit of
   the reading map (G16.1) of `c` and of each column `c` has a published
   `correlation` with, so no row starts or stops holding a reading of a
@@ -18251,12 +18268,23 @@ after G16.2, and rounded to a whole number, half to even. A cell of a
   `spread` and `product` targets on the cells of the family's parents.
 - **Clamp.** A target outside `[-n' 2**32, n' 2**32]` is set to the
   nearer end; no reachable sum lies beyond it.
-- **Weights.** `w = 1 / (m v)`, `m` the rows the target sums over and `v`
-  the twin's own variance of the summed term over them after the walk,
-  both exact, converted once to the nearest binary64; a target with `v`
-  = 0 has weight 0 and is not weighed. (The design's
-  `max(1 - r^2, 0.05)` floor is replaced by this one rule for every
-  class; lane MPp measures both.)
+- **Weights, PROVISIONAL.** For the (1, 1) sum of a `correlation`, the
+  kit's rule (lane `A0a`'s `polish.py`, for the class that carried most
+  of the measured gain): `w = 1 / max(n v_a v_b max(1 - r**2, 1/20)**2,
+  1)`, with `v_a = S_20 / n - (S_10 / n)**2`, `v_b` likewise and `r` the
+  published correlation, every one an exact fraction from the nine
+  published sums, converted once to the nearest binary64. Every other
+  target: `w = 1 / (m v)`, `m` the rows the target sums over and `v` the
+  twin's own variance of the summed term over them after the walk, both
+  exact, converted once; a target with `v` = 0 has weight 0 and is not
+  weighed. The first build put every class on `1 / (m v)`, which weighs
+  a correlation's (1, 1) sum about 2.2 times less than the kit at `r` =
+  0.5, 8.2 times at 0.75 and 50 times at 0.9 (the statistics review of
+  2026-10-20, item 5, with `var(ab)` near `v_a v_b (1 + r**2)`). The kit
+  used its rule for all four mixed sums, with the real table's variances
+  of the squares, which the description does not publish, and `m var`
+  with the real cell's variance, floored at 1, for cell means; lane MPp
+  measures this page's rule against the kit's before the gate.
 
 ### G17.3 The kernel's operation set (lane MPn may compile it under its gate)
 
@@ -18287,7 +18315,9 @@ multiplications of codes and sums; the floating steps are binary64
 conversion, `*` and `+` in the order written; there is no division, no
 square root and no library call. **Bounds, checked in Python integers
 before each call (plan P4-D409, part 4 (vii)):** `n'` below `2**30`;
-every code from 0 to 255 and every centred code from -255 to 255, so
+the decode's words cast as G17.1 states, so the decode multiplies
+`int64` by `int64` only; every code from 0 to 255 and every centred code
+from -255 to 255, so
 every term `a^i b^j` is below `2**32` and every `delta` below `2**33`;
 every `S_k` and `T_k` inside `[-n' 2**32, n' 2**32]`, so every sum and
 `e_k` stays below `2**63` in magnitude; every index (a row, a place in
@@ -18345,7 +18375,8 @@ target.
 
 `tools/reference/make_generation_reference_vectors.py` computes, each
 beside a mutant that must move it: (1) the decode of three fixed words
-(mutant: `x` and `y` drawn from separate words); (2) a 40-row polish of
+(mutants: `x` and `y` drawn from separate words; a word kept `uint64`
+through the product); (2) a 40-row polish of
 two fine columns with means in one family and their correlation, every
 accepted exchange and the final sums (mutants: targets in the
 description's units; a proposal weighed across two reading-map bits);

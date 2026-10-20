@@ -3790,28 +3790,63 @@ nine sums over the file's rows holding both readings.
 
 | object | line | kind |
 |---|---|---|
-| a published sum | the published value and the file's, and their distance in standard errors, `sqrt(m v)` with `m` and `v` as generation method G17.2 defines them but read on the file; marked inside (within one) or outside | REPORT-ONLY |
-| a published correlation | the published `r` on its code and the file's, both from their nine sums, to four decimals, inside or outside one standard error `max(1 - r**2, 0.05) / sqrt(n)` | REPORT-ONLY |
+| a published sum | HELD where the file's sum equals the published one, else MISSED, beside the published value; no measured sum and no distance (V13.3) | REPORT-ONLY: HELD or MISSED, never deciding the report's verdict |
+| a published correlation | its nine sums, each HELD or MISSED as a published sum's line is, beside the published `r` computed from them to four decimals; no measured `r` | REPORT-ONLY |
 | `withheld`, a pair's `pinned` | printed as the description publishes them; the loader has checked them (contract S37) | named, never a check |
 | the description itself | invariants S34 to S38 | the loader refuses, naming the region, column or pair |
 
-**V13.3 What a report may print** follows V12.3 and V5.3 unchanged. A
-moment line prints a number measured on the file only where `synthtwin
-profile` run on that file would publish it: the region's published
-option is ELIGIBLE on the file's own description (V2.1 builds it), its
-witness holding with the file's own sums (contract 4.6d.4) and its
-correlations passing test (i). Elsewhere V5.3's fixed sentence stands in
-the line's place and the census counts it withheld. Whether a line is
-withheld is then a function of the description, of the file's own
-description and of lines already printed, never of a number the line
-withholds. The file may be the real table: its sums are then the
-published ones, and printing them prints nothing new.
+**The private report** (ruling R7 (2); contract 4.6b.8) carries what the
+shared lines may not, each test decided in exact fractions: each sum
+measured on the file, and its distance in standard errors `sqrt(m v)`,
+`m` and `v` as generation method G17.2 defines them but read on the
+file, marked inside exactly when `(S_file - S_pub)**2 <= m v`; and each
+correlation's measured `r` beside the published one, marked inside
+exactly when `|X - Y| <= T`, `X` and `Y` the file's and the published
+`r` and `T = max(1 - Y**2, 1/20) / sqrt(n)`. `X**2`, `Y**2`, `X Y`'s
+square and every sign are exact fractions of the nine sums, and `T**2`
+is exact, so the test is decided as `X**2 + Y**2 - T**2 <= 2 X Y`: true
+where the left side is at most 0 and `X Y` at least 0, false where the
+left side is above 0 and `X Y` below 0, and otherwise read by comparing
+the two sides' squares with the signs they carry (skeptic 1 of
+2026-10-20, item 10: the first build left these tests unstated).
+
+**V13.3 What a report may print** follows V12.3 and V5.3 unchanged: no
+measured sum, product, correlation or distance stands on any line of
+this section, and each line prints its verdict, HELD or MISSED against
+the PUBLISHED sum, beside what the description publishes, so its
+printed form is the same whatever the size of what it withholds. A
+verdict stands only where V12.3 lets a family's stand: every `L0` total
+line of the region's columns reads HELD, so the file's bands are the
+published ones, and the region's PUBLISHED option is ELIGIBLE on the
+file's own description (V2.1 builds it) with the PUBLISHED numbers:
+test (i) of contract 4.6d.3 on the published sums, and the witness of
+contract 4.6d.4 on the file's own tables and own facts with the
+published sums, never with the file's own. Where a total line reads
+MISSED the line says V12.3's fixed words; where the option is not
+eligible, V5.3's fixed sentence stands in the verdict's place and the
+census counts the line withheld. Whether a line is withheld is then a
+function of the description, of lines already printed and of the
+file's own tables and own facts, never of a sum the line withholds, and
+a MISSED excludes one value of the sum from what the file's other facts
+allow, as V12.3's MISSED excludes one table. The first build withheld a
+line where the option was not eligible with the FILE's own sums: on a
+cell of 22 rows over codes 0 to `k`, that happened exactly when the
+file's code sum lay in 1 to 10 or in `22 k - 10` to `22 k - 1`, so a
+withheld line told that 1 to 10 of the cell's rows lay off one end code,
+the two-sided form V12.3 counts as a leak, and it printed measured sums
+and distances besides (skeptic 1 of 2026-10-20, item 2). The file may
+be the real table: its sums are then the published ones, and every line
+reads HELD.
 
 **V13.4 Not vacuous.** The suite holds: a twin whose polish was skipped,
-whose lines print outside; a file whose own sums fail the witness, whose
-lines print V5.3's sentence; two duplicate fine columns, whose
-correlation line is withheld; and a file meeting every published sum,
-whose lines print inside.
+whose lines print MISSED; a file whose own tables fail the witness with
+the published sums, whose lines print V5.3's sentence; the 22-row cell
+above beside a published sum the file misses, whose line prints the
+same words whatever the file's own sum; two duplicate fine columns,
+whose correlation test (i) refuses, so the description publishes none
+and no line stands; a file meeting every published sum, whose lines print HELD; and
+the private report's inside and outside at the exact boundary
+`(S_file - S_pub)**2 = m v`.
 
 **V13.5 What it costs.** Each sum is read from the codes in one pass over
 the file's rows, one byte a row and column; the witness on the file's
