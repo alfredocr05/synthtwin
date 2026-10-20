@@ -4272,11 +4272,15 @@ def build_document(
         for place, column_name in enumerate(table.column_names):
             if column_name == subject:
                 held_cells = table.columns[place]
-        if _repeats(held_cells):
-            # Each cell read as the subject it names, its spellings
-            # merged (`subject_keys`): `REC-7`, `rec7` and `REC0007` are
-            # one person, never three.
-            keyed_subjects = subject_keys(held_cells)
+        # Each cell read as the subject it names, its spellings merged
+        # and every spelling of nobody one unknown person (`subject_keys`):
+        # `REC-7`, `rec7` and `REC0007` are one person, never three, and
+        # whether the column REPEATS is asked of those subjects, not of
+        # the spellings (Codex's review of lane HX2, items 2 and 3).
+        keyed_subjects = subject_keys(
+            held_cells, settings.declared_missing_values
+        )
+        if _repeats(keyed_subjects):
             subject_cells += [keyed_subjects]
             subject_names += [subject]
             subject_enough += [
@@ -4335,6 +4339,8 @@ def build_document(
     columns: list[dict[str, object]] = []
     absent_spellings: "list[tuple[str, ...]]" = []
     notes: list[dict[str, str]] = []
+    # The columns the count in people held (plan P4-D406).
+    held_in_people: "list[str]" = []
     # THE NOTES ABOUT THE WHOLE TABLE COME FIRST (plan P4-D341), each
     # naming no column. They are PASSED IN and never decided here: this
     # function describes a table of any size and refuses none, so
@@ -4389,17 +4395,21 @@ def build_document(
         def described_from(
             column_cells: "list[str]",
             reading: "taxonomy.HeldReading | None",
+            held: bool = False,
         ) -> taxonomy.ColumnProfile:
+            # A column the count in people holds is read under no other
+            # declaration than the record number it is described as, as
+            # the description then records it (`_without_held`).
             return taxonomy.profile_column(
                 name,
                 position,
                 column_cells,
                 table.n_rows,
-                settings,
+                _without_held(settings, [name]) if held else settings,
                 name in described_identifiers,
-                name in declared_codes,
-                name in declared_measurements,
-                name in declared_commas,
+                name in declared_codes and not held,
+                name in declared_measurements and not held,
+                name in declared_commas and not held,
                 name in read_as_pairs,
                 kept_days[name] if name in kept_days else (),
                 judged_here[name] if name in judged_here else (),
@@ -4426,46 +4436,73 @@ def build_document(
         # ...and a subject column's own layouts are counted in every
         # OTHER subject column (lane HX2's skeptic, round 2, item 3): a
         # plan number declared beside the patient names no layout three
-        # patients' plans wear.
-        others: "list[list[str]]" = []
-        others_enough: "list[bool]" = []
-        for place, subject_name in enumerate(subject_names):
-            if subject_name != name:
-                others += [subject_cells[place]]
-                others_enough += [subject_enough[place]]
-        if others:
+        # patients' plans wear -- and in ITSELF (Codex's review of lane
+        # HX2, item 1): a layout one patient's key wears prints that
+        # patient's rows, which the census beside it then told apart.
+        if subject_cells:
             described = _layouts_in_subjects(
                 described,
                 cells,
-                others,
-                others_enough,
+                subject_cells,
+                subject_enough,
                 settings.small_cell_floor,
             )
+        real_census: "dict[str, object] | None" = None
+        if "n_distinct_by_occurrences" in described.details:
+            found_census = described.details["n_distinct_by_occurrences"]
+            if isinstance(found_census, dict):
+                real_census = found_census
         if name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
         if name in subject_names:
             # The person column's census of rows a person, counted in
             # people; a candidate whose question is open keeps the even
-            # census `as_unanswered_identity` gave it.
-            if name not in withheld_names:
-                described = taxonomy.with_census_in_people(
-                    described, settings.small_cell_floor
-                )
+            # census `as_unanswered_identity` gave it where that prints
+            # no real group of fewer people (Codex's review, item 6).
+            candidate = name in withheld_names and real_census is not None
+            described = taxonomy.with_census_in_people(
+                described,
+                settings.small_cell_floor,
+                real_census if candidate else None,
+                # Read only where a group of fewer people is to be pooled.
+                None
+                if candidate
+                or not _a_small_group(real_census, settings.small_cell_floor)
+                else _census_parts(described, cells),
+            )
         elif (
             counted_here
             and name not in described_identifiers
-            and _counted_in_subjects(
+            and (
+                # DATES DECLARED AS COUNTS AND NOT READ AS DATES are never
+                # published as plain numbers beside the people they are
+                # about (the orchestrator's LANE HX2 ADDENDUM 2, from lane
+                # AQ's close verify): `42.345` for an Excel day leaves the
+                # column read as a count, whose mean and points are those
+                # dates, so it is held whole.
+                _counted_dates_declined(settings, name, described)
+                or _counted_in_subjects(
                 described,
                 cells,
                 subject_cells,
                 settings.small_cell_floor,
                 subject_enough,
+                _CellReading(
+                    taxonomy.counted_member(
+                        taxonomy.counted_for_the_column(settings, name)
+                    )
+                    if described.role == taxonomy.ROLE_DATETIME
+                    else "",
+                    name in declared_commas,
+                ),
+                )
             )
         ):
             described_identifiers += [name]
+            held_in_people += [name]
             described = taxonomy.as_held_in_people(
                 _layouts_in_subjects(
-                    described_from(cells, None),
+                    described_from(cells, None, True),
                     cells,
                     subject_cells,
                     subject_enough,
@@ -4482,11 +4519,11 @@ def build_document(
         "profile_version": PROFILE_VERSION,
         "created_with": _version(),
         "settings": _settings_block(
-            settings,
+            _without_held(settings, held_in_people),
             described_identifiers,
-            declared_codes,
-            declared_measurements,
-            declared_commas,
+            [one for one in declared_codes if one not in held_in_people],
+            [one for one in declared_measurements if one not in held_in_people],
+            [one for one in declared_commas if one not in held_in_people],
         
             forced_metadata_rows,
             forced_delimiter,
@@ -4671,7 +4708,10 @@ class SubjectCount:
 
 
 def subjects_holding(
-    values: "list[str]", subjects: "list[str]", floor: int
+    values: "list[str]",
+    subjects: "list[str]",
+    floor: int,
+    absent: "tuple[str, ...]" = (),
 ) -> "dict[str, SubjectCount]":
     """Each value's rows and its different subjects, capped at the floor.
 
@@ -4680,9 +4720,10 @@ def subjects_holding(
     present cell, as written, is a value. Lanes MG and GR reuse it for a
     family read in patients, and it reads lane SR's `reading.
     column_values` unchanged. A subject cell is read as the subject it
-    names, its spellings merged (`subject_keys`), and blank cells are one
-    subject between them: both readings can only make a value look held
-    by FEWER people.
+    names, its spellings merged (`subject_keys`), and blank cells and
+    every spelling of nobody are one subject between them (``absent``
+    names the run's declared spellings of nothing): both readings can
+    only make a value look held by FEWER people.
 
     Guarantees: accepts two lists of text of one length and the floor;
     returns, for every value some present cell holds, its rows and at
@@ -4693,10 +4734,12 @@ def subjects_holding(
     keyed: "list[tuple[str, ...]]" = []
     for cell in values:
         keyed += [(cell,) if parsing.folded(cell) else ()]
-    return _holding(keyed, subject_keys(subjects), floor)
+    return _holding(keyed, subject_keys(subjects, absent), floor)
 
 
-def subject_keys(subjects: "list[str]") -> "list[str]":
+def subject_keys(
+    subjects: "list[str]", absent: "tuple[str, ...]" = ()
+) -> "list[str]":
     """Each subject cell as the subject it names, its spellings merged.
 
     PLAN P4-D406 (lane HX2's skeptic, round 2, item 6). One patient's key
@@ -4710,8 +4753,13 @@ def subject_keys(subjects: "list[str]") -> "list[str]":
     (a run of zeros alone stays one zero): `REC-0007`, `rec7` and
     `Rec 7` are all `rec7`. The reading can only MERGE spellings, never
     split one, so a value can only look held by fewer people than it is
-    -- the side the floor errs on. Blank cells are one subject between
-    them, as before.
+    -- the side the floor errs on. Blank cells, and every cell the
+    package's own vocabulary of nothing reads as absent (`NA`, `null`,
+    `#DIV/0!`, `NaT`: `parsing.is_missing_text`) or that ``absent``
+    names folded, are ONE unknown subject between them, as the
+    population count reads them (`taxonomy.people_in`; Codex's review of
+    lane HX2, item 3): eleven spellings of one unnamed patient are one
+    person, never eleven.
 
     Guarantees: accepts a list of text; returns a list of one key a
     cell, in row order. Memory: one entry a different spelling, and a
@@ -4721,9 +4769,16 @@ def subject_keys(subjects: "list[str]") -> "list[str]":
     """
     merged: "dict[str, str]" = {}
     keys: "list[str]" = []
+    nobody: "dict[str, bool]" = {}
+    for spelling in absent:
+        nobody[parsing.folded(spelling)] = True
     for cell in subjects:
         if cell in merged:
             keys += [merged[cell]]
+            continue
+        if parsing.is_missing_text(cell) or parsing.folded(cell) in nobody:
+            merged[cell] = ""
+            keys += [""]
             continue
         key = _subject_key(cell)
         if key == cell:
@@ -4763,6 +4818,12 @@ def _holding(
     """`subjects_holding` over the keys each row's cell is counted as."""
     rows: "dict[str, int]" = {}
     held: "dict[str, list[str]]" = {}
+    # ...and, past a small floor, a set beside each list, so a raised
+    # floor never asks a long list whether it holds a subject (Codex's
+    # review of lane HX2, item 10). At the default floor of eleven the
+    # list alone is asked, and costs no more memory than it did.
+    sets: "dict[str, set[str]]" = {}
+    small = floor <= _LIST_ASKED_UP_TO
     for place, keys in enumerate(keyed):
         if not keys:
             continue
@@ -4771,15 +4832,30 @@ def _holding(
             if key in rows:
                 rows[key] = rows[key] + 1
                 holders = held[key]
-                if len(holders) < floor and subject not in holders:
+                if len(holders) >= floor:
+                    continue
+                if small:
+                    if subject not in holders:
+                        holders += [subject]
+                elif subject not in sets[key]:
                     holders += [subject]
+                    sets[key].add(subject)
+                    if len(holders) >= floor:
+                        del sets[key]
             else:
                 rows[key] = 1
                 held[key] = [subject]
+                if not small:
+                    sets[key] = {subject}
     counted: "dict[str, SubjectCount]" = {}
     for key in rows:
         counted[key] = SubjectCount(rows[key], tuple(held[key]))
     return counted
+
+
+# The floor up to which `_holding` asks each value's list of subjects
+# whether it holds one: a list of sixteen is asked as fast as a set.
+_LIST_ASKED_UP_TO = 16
 
 
 def _repeats(cells: "list[str]") -> bool:
@@ -4871,6 +4947,34 @@ class _Published:
     numbers: "frozenset[float]"
     prefixes: "tuple[str, ...]"
     date_format: str
+    # A column of clock times: the form its block reads them in, and each
+    # published time as a count of its unit (`parsing.clock_ordinal`), so
+    # a cell `8:30` is counted under the `08:30` the block prints (Codex's
+    # review of lane HX2, item 5).
+    clock_form: str = ""
+    clocks: "frozenset[int]" = frozenset()
+
+
+@dataclasses.dataclass(frozen=True)
+class _CellReading:
+    """How the run reads one column's cells, beyond its block (plan P4-D406).
+
+    ``member`` is the system a column of counted dates is declared in
+    (`--date-count`, read as dates), "" for any other; ``comma`` whether
+    the column was declared to write a decimal comma. Its block alone does
+    not say either, and a cell `19000` or `10,07` is the date or the
+    number the block publishes only read so (Codex's review of lane HX2,
+    item 5).
+    """
+
+    member: str = ""
+    comma: bool = False
+
+
+# The figures a cell's longest run may hold and still be read as a
+# number: past this a run is no value a block can publish, and reading
+# it would overflow a float (Codex's review of lane HX2, item 8).
+_FIGURES_READ_AT_MOST = 300
 
 
 def _under(key: str, names: "tuple[str, ...]") -> bool:
@@ -4925,6 +5029,8 @@ def _a_rung(key: str) -> bool:
 
 def _plainly(key: str, plain: _Published) -> bool:
     """Whether a counted key is published off the rungs too."""
+    if key[:1] == "c":
+        return int(key[1:]) in plain.clocks
     if key[:1] == "w":
         return key[1:] in plain.words
     if key[:1] == "p":
@@ -4964,6 +5070,16 @@ def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
     words: "dict[str, bool]" = {}
     numbers: "dict[float, bool]" = {}
     prefixes: "dict[str, bool]" = {}
+    clocks: "dict[int, bool]" = {}
+    clock_form = ""
+    if (
+        "role" in block
+        and block["role"] == taxonomy.ROLE_CLOCK
+        and "clock_form" in block
+        and isinstance(block["clock_form"], str)
+        and block["clock_form"] in parsing.CLOCK_FORMS
+    ):
+        clock_form = block["clock_form"]
     waiting: "list[tuple[str, object]]" = []
     for key in block:
         if key != "name":
@@ -4997,6 +5113,10 @@ def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
         if not isinstance(leaf, str):
             continue
         words[parsing.folded(leaf)] = True
+        if clock_form:
+            ordinal = parsing.clock_ordinal(leaf, clock_form)
+            if ordinal is not None:
+                clocks[ordinal] = True
         if "prefix" in key and leaf:
             prefixes[parsing.folded(leaf)] = True
         number = _number_of(leaf)
@@ -5027,6 +5147,8 @@ def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
         shown
         if isinstance(shown, str) and role == taxonomy.ROLE_DATETIME and days
         else "",
+        clock_form,
+        frozenset(clocks),
     )
 
 
@@ -5055,21 +5177,34 @@ def _longest_figures(text: str) -> str:
 
 
 def _keys_of(
-    cell: str, published: _Published, memo: "dict[str, tuple[str, ...]]"
+    cell: str,
+    published: _Published,
+    memo: "dict[str, tuple[str, ...]]",
+    reading: "_CellReading | None" = None,
 ) -> "tuple[str, ...]":
-    """What a cell is counted as: each published value it reads as."""
+    """What a cell is counted as: each published value it reads as.
+
+    As the run reads the column (``reading``): a declared decimal comma
+    read as the point, a declared count of days read as the date it
+    counts, and a clock time as its count of minutes or seconds, so
+    `10,07`, `19000` and `8:30` are counted under the `10.07`,
+    `2022-01-08` and `08:30` the block prints.
+    """
     if cell in memo:
         return memo[cell]
+    how = _CellReading() if reading is None else reading
     found: "list[str]" = []
     folded = parsing.folded(cell)
     if folded:
         if folded in published.words:
             found += [f"w{folded}"]
         if published.numbers:
-            number = _number_of(cell)
+            number = _number_of(
+                parsing.written_with_a_decimal_comma(cell) if how.comma else cell
+            )
             if number is None:
                 figures = _longest_figures(folded)
-                if figures:
+                if figures and len(figures) <= _FIGURES_READ_AT_MOST:
                     number = float(int(figures))
             if number is not None and number in published.numbers:
                 found += [f"n{number!r}"]
@@ -5079,6 +5214,14 @@ def _keys_of(
                 day = parsing.folded(read[0])
                 if day in published.words and day != folded:
                     found += [f"w{day}"]
+        if how.member:
+            for day in _counted_days(cell, how):
+                if day in published.words and f"w{day}" not in found:
+                    found += [f"w{day}"]
+        if published.clock_form:
+            ordinal = parsing.clock_ordinal(cell, published.clock_form)
+            if ordinal is not None and ordinal in published.clocks:
+                found += [f"c{ordinal}"]
         for prefix in published.prefixes:
             if folded[: len(prefix)] == prefix:
                 found += [f"p{prefix}"]
@@ -5086,6 +5229,26 @@ def _keys_of(
     if len(memo) < 65536:
         memo[cell] = frozen
     return frozen
+
+
+def _counted_days(cell: str, reading: _CellReading) -> "list[str]":
+    """The date a counted cell names, as a reading writes it: day, minute, second."""
+    mark = date_counts.COMMA if reading.comma else date_counts.POINT
+    written = date_counts.counted(reading.member, cell, mark)
+    if written is None:
+        return []
+    numerator, denominator = date_counts.exact_value(written)
+    moment = date_counts.moment_of(
+        reading.member, numerator, denominator, date_counts.SECOND
+    )
+    if moment is None:
+        return []
+    found: "list[str]" = []
+    for unit in (date_counts.DAY, date_counts.MINUTE, date_counts.SECOND):
+        found += [
+            parsing.folded(date_counts.iso_text(moment, date_counts.SECOND, unit))
+        ]
+    return found
 
 
 # THE KEYS A CELL IS COUNTED UNDER beside the values it reads as
@@ -5118,6 +5281,7 @@ def _cell_keys(
     absent: "frozenset[str]",
     memo: "dict[str, tuple[str, ...]]",
     interned: "dict[tuple[str, ...], tuple[str, ...]]",
+    reading: "_CellReading | None" = None,
 ) -> "tuple[str, ...]":
     """Every key one cell is counted under, nothing for an absent cell.
 
@@ -5130,7 +5294,7 @@ def _cell_keys(
         return memo[cell]
     found: "list[str]" = []
     if parsing.folded(cell) and cell not in absent:
-        values = _keys_of(cell, published, {})
+        values = _keys_of(cell, published, {}, reading)
         found += list(values)
         found += [_KEY_PRESENT]
         if not values:
@@ -5155,6 +5319,7 @@ def _counted_in_subjects(
     subject_cells: "list[list[str]]",
     floor: int,
     enough: "list[bool] | None" = None,
+    reading: "_CellReading | None" = None,
 ) -> bool:
     """Whether a column publishes a value fewer than `floor` subjects hold.
 
@@ -5196,7 +5361,9 @@ def _counted_in_subjects(
     interned: "dict[tuple[str, ...], tuple[str, ...]]" = {}
     keyed: "list[tuple[str, ...]]" = []
     for cell in cells:
-        keyed += [_cell_keys(cell, published, forms, absent, memo, interned)]
+        keyed += [
+            _cell_keys(cell, published, forms, absent, memo, interned, reading)
+        ]
     for place, subject in enumerate(subject_cells):
         people = enough is None or enough[place]
         attached = _attached(cells, subject)
@@ -5235,8 +5402,22 @@ def _layouts_in_subjects(
     one of fewer than `floor` values counts only a column attached to
     it), and a layout too few subjects wear goes to the `(withheld)`
     pool before the whole-census rule (`taxonomy.layouts_counted_in_
-    people`). A column of any other role, or whose layouts every subject
-    column reaches, is returned as it was.
+    people`). A column of any other role, or whose layouts and pool every
+    subject column reaches, is returned as it was.
+
+    THE POOL IS COUNTED IN SUBJECTS TOO (lane HX2's skeptic, round 2,
+    item 4), and so is a census that names nothing BUT its pool (Codex's
+    review of lane HX2, item 7): the cells no named layout takes --
+    printed as `(withheld)` or left to subtraction from the present rows
+    -- are a count of their subjects' rows. While one to `floor` - 1
+    subjects hold them under any subject column, the named layout the
+    fewest subjects wear joins them (the earliest in sorted order on a
+    tie); with none left, no layout is named and no pool printed.
+
+    SCALE (Codex's review of lane HX2, item 9). Each layout's fewest
+    subjects is counted once and the layouts are pooled in that order,
+    each joining the pool's subjects (kept up to the floor) in one step:
+    a census of many layouts costs a sort, not a pass a layout.
     """
     if described.role != taxonomy.ROLE_IDENTIFIER:
         return described
@@ -5245,14 +5426,12 @@ def _layouts_in_subjects(
         if "layout_forms" in described.details
         else None
     )
-    if not isinstance(forms, dict):
+    if not isinstance(forms, dict) or not forms:
         return described
     named: "dict[str, bool]" = {}
     for layout in forms:
         if layout != taxonomy.SUPPRESSED_LABEL:
             named[f"{layout}"] = True
-    if not named:
-        return described
     absent = frozenset(described.absent_spellings)
     present: "list[str]" = []
     for cell in cells:
@@ -5288,45 +5467,55 @@ def _layouts_in_subjects(
         ):
             continue
         countings += [_holding(keyed, subject, floor)]
+    keyed = []
     held: "dict[str, bool]" = {}
+    fewest: "dict[str, int]" = {}
+    for layout in named:
+        least = floor
+        for counted in countings:
+            if layout in counted:
+                least = min(least, len(counted[layout].holders))
+        fewest[layout] = least
+        if least < floor:
+            held[layout] = True
+    # The pool's subjects under each subject column, kept up to the floor.
+    pools: "list[dict[str, bool]]" = []
     for counted in countings:
+        people: "dict[str, bool]" = {}
         for layout in counted:
-            if layout in named and len(counted[layout].holders) < floor:
-                held[layout] = True
-    # THE POOL IS COUNTED IN SUBJECTS TOO (lane HX2's skeptic, round 2,
-    # item 4): the cells no named layout takes -- printed as `(withheld)`
-    # or left to subtraction from the present rows -- are a count of
-    # their subjects' rows. While one to `floor` - 1 subjects hold them
-    # under any subject column, the named layout the fewest subjects
-    # wear joins them; with none left, no layout is named.
-    while _pool_short(countings, held, floor):
-        fewest = ""
-        wearing = 0
-        for layout in sorted(named):
-            if layout in held:
-                continue
-            least = floor
-            for counted in countings:
-                if layout in counted:
-                    least = min(least, len(counted[layout].holders))
-            if not fewest or least < wearing:
-                fewest = layout
-                wearing = least
-        if not fewest:
-            break
-        held[fewest] = True
-    if not held:
+            if layout == taxonomy.SUPPRESSED_LABEL or layout in held:
+                _joined_up_to(people, counted[layout].holders, floor)
+        pools += [people]
+    waiting: "list[tuple[int, str]]" = []
+    for layout in named:
+        if layout not in held:
+            waiting += [(fewest[layout], layout)]
+    waiting = sorted(waiting)
+    cursor = 0
+    while _short(pools, floor) and cursor < len(waiting):
+        layout = waiting[cursor][1]
+        cursor = cursor + 1
+        held[layout] = True
+        for place, counted in enumerate(countings):
+            if layout in counted:
+                _joined_up_to(pools[place], counted[layout].holders, floor)
+    if not held and not _short(pools, floor):
         return described
-    pooled = taxonomy.layouts_counted_in_people(
-        described,
-        tuple(sorted(held)),
-        floor,
-        convention == parsing.LAYOUT_PLAIN,
+    pooled = (
+        taxonomy.layouts_counted_in_people(
+            described,
+            tuple(sorted(held)),
+            floor,
+            convention == parsing.LAYOUT_PLAIN,
+        )
+        if held
+        else described
     )
-    if not _pool_short(countings, held, floor):
+    if not _short(pools, floor):
         return pooled
     # EVERY LAYOUT POOLED AND THE POOL STILL FEWER THAN `floor` SUBJECTS'
-    # (a dose written for two patients only): no layout census at all.
+    # (a dose written for two patients only), or a census of nothing but
+    # a pool that few hold: no layout census at all.
     details: "dict[str, object]" = {}
     for field in sorted(pooled.details):
         details[field] = pooled.details[field]
@@ -5336,31 +5525,145 @@ def _layouts_in_subjects(
     return dataclasses.replace(pooled, details=details)
 
 
-def _pool_short(
-    countings: "list[dict[str, SubjectCount]]",
-    held: "dict[str, bool]",
-    floor: int,
-) -> bool:
-    """Whether the layouts' remainder is held by one to `floor` - 1 subjects.
+def _joined_up_to(
+    people: "dict[str, bool]", holders: "tuple[str, ...]", floor: int
+) -> None:
+    """Join ``holders`` into ``people`` until it holds ``floor`` of them.
 
-    The remainder is every cell no named layout takes (`taxonomy.
-    SUPPRESSED_LABEL`) and every cell of a layout ``held`` pools. Its
-    subjects are the union of each part's, each kept up to the floor: a
-    union of sets capped at the floor reaches the floor exactly when the
-    whole sets' union does, so no second pass is needed.
+    A union of sets each kept up to the floor reaches the floor exactly
+    when the whole sets' union does, so no second pass is needed.
     """
-    for counted in countings:
-        people: "dict[str, bool]" = {}
-        for layout in counted:
-            if layout != taxonomy.SUPPRESSED_LABEL and layout not in held:
-                continue
-            for subject in counted[layout].holders:
-                people[subject] = True
-            if len(people) >= floor:
-                break
+    for subject in holders:
+        if len(people) >= floor:
+            return
+        people[subject] = True
+
+
+def _short(pools: "list[dict[str, bool]]", floor: int) -> bool:
+    """Whether any subject column's pool is held by one to `floor` - 1 subjects."""
+    for people in pools:
         if 0 < len(people) < floor:
             return True
     return False
+
+
+def _without_held(
+    settings: taxonomy.Settings, held: "list[str]"
+) -> taxonomy.Settings:
+    """The settings a description records, each column the count in people held taken out of the readings it was declared under.
+
+    PLAN P4-D406. A column held as a record number counted in people is
+    described as one, and the contract reads a column one way only (S8a,
+    S8d): one also named as writing a decimal comma, counted dates, dates
+    of another reading, two-figure years or a 12-hour clock would be
+    refused by the generator. The declaration stays on the screen and in
+    the questions; the description records the column as held. With
+    nothing held the settings are returned as they are.
+    """
+    if not held:
+        return settings
+    return dataclasses.replace(
+        settings,
+        forced_date_counts=tuple(
+            pair for pair in settings.forced_date_counts if pair[0] not in held
+        ),
+        forced_twelve_hour_clocks=tuple(
+            one for one in settings.forced_twelve_hour_clocks if one not in held
+        ),
+        forced_date_columns=tuple(
+            one for one in settings.forced_date_columns if one not in held
+        ),
+        century_windows=tuple(
+            pair for pair in settings.century_windows if pair[0] not in held
+        ),
+    )
+
+
+def _counted_dates_declined(
+    settings: taxonomy.Settings, name: str, described: taxonomy.ColumnProfile
+) -> bool:
+    """Whether a column declared as counted dates was read as anything but dates."""
+    for column, _member in settings.forced_date_counts:
+        if column == name:
+            return described.role != taxonomy.ROLE_DATETIME
+    return False
+
+
+def _a_small_group(census: object, floor: int) -> bool:
+    """Whether a census of repetition holds an entry of one to `floor` - 1."""
+    if not isinstance(census, dict):
+        return False
+    for key in census:
+        entry = census[key]
+        if isinstance(entry, int) and 0 < entry < floor:
+            return True
+    return False
+
+
+def _census_parts(
+    described: taxonomy.ColumnProfile, cells: "list[str]"
+) -> "list[dict[int, int]] | None":
+    """The real census of rows a value in each part of a record number's layouts.
+
+    PLAN P4-D406 (Codex's review of lane HX2, item 1). The parts are the
+    named layouts with rows (`taxonomy.census_part_names`) and one more
+    for every present cell none of them takes; each value (a present
+    cell as written, as `taxonomy._n_distinct_by_occurrences` counts it)
+    is in the part its layout falls into. `taxonomy.with_census_in_people`
+    deals its pooled people into these parts, the groups it keeps where
+    they really are. None where the block names no layout census, where
+    the pool and cells left to subtraction both hold rows, or where the
+    parts' rows are not the census's own.
+    """
+    forms = (
+        described.details["layout_forms"]
+        if "layout_forms" in described.details
+        else None
+    )
+    if described.role != taxonomy.ROLE_IDENTIFIER or not isinstance(forms, dict):
+        return None
+    names = taxonomy.census_part_names(forms)
+    if len(names) < 1:
+        # One part: any census that closes is dealt into it.
+        return None
+    pool = forms[taxonomy.SUPPRESSED_LABEL] if taxonomy.SUPPRESSED_LABEL in forms else 0
+    named_rows = 0
+    for layout in names:
+        named_rows = named_rows + int(f"{forms[layout]}")
+    left = described.n_present - named_rows - (pool if isinstance(pool, int) else 0)
+    if isinstance(pool, int) and pool > 0 and left > 0:
+        return None
+    absent = frozenset(described.absent_spellings)
+    present: "list[str]" = []
+    for cell in cells:
+        if parsing.folded(cell) and cell not in absent:
+            present += [cell]
+    convention = parsing.layout_convention(present)
+    place_of: "dict[str, int]" = {}
+    for place, layout in enumerate(names):
+        place_of[layout] = place
+    occurrences: "dict[str, int]" = {}
+    for cell in present:
+        occurrences[cell] = (occurrences[cell] if cell in occurrences else 0) + 1
+    present = []
+    parts: "list[dict[int, int]]" = []
+    rows: "list[int]" = []
+    for _place in range(len(names) + 1):
+        parts += [{}]
+        rows += [0]
+    for value in occurrences:
+        layout = parsing.layout_form(value, convention)
+        while layout and layout not in place_of and parsing.layout_fill(layout) >= 2:
+            layout = parsing.layout_shallower(layout)
+        place = place_of[layout] if layout in place_of else len(names)
+        part = parts[place]
+        size = occurrences[value]
+        part[size] = (part[size] if size in part else 0) + 1
+        rows[place] = rows[place] + size
+    for place, layout in enumerate(names):
+        if rows[place] != int(f"{forms[layout]}"):
+            return None
+    return parts
 
 
 def _without_table_suffix(name: str) -> str:

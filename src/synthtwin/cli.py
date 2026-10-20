@@ -4279,9 +4279,36 @@ def _run_profile(
             )
             + identities_kept,
         )
+    # THE CANDIDATES OF THE OPEN PERSON QUESTION ARE SUBJECTS whether or
+    # not their own description is held (Codex's review of lane HX2,
+    # item 4): a key read as free text publishes no value of its own, so
+    # it is held by nothing above, yet every other value is still counted
+    # in it.
+    candidates: "list[str]" = []
+    if not answered:
+        declared_here = (
+            forced_identifiers
+            + forced_codes
+            + forced_measurements
+            + list(forced_decimal_commas)
+            + list(twelve_hours)
+            + list(date_columns)
+            + sorted(counted)
+            + list(identities_kept)
+        )
+        for question in asked_about:
+            if (
+                question.reason == asking.BECAUSE_REPEATS_AND_MANY
+                and asking.offers_identifier(question)
+                and question.name not in declared_here
+                and question.name not in withheld
+                and question.name not in candidates
+            ):
+                candidates += [question.name]
     published = document
-    if withheld:
-        _warn(_withheld_notice(withheld))
+    if withheld or candidates:
+        if withheld:
+            _warn(_withheld_notice(withheld))
         # ...and every column held so -- the candidates of the open
         # person question, and a key held by another identity question,
         # such as a patient number of figures padded with zeros that the
@@ -4302,7 +4329,7 @@ def _run_profile(
             table_notes=population_notes,
             stored_as=storage,
             unanswered=list(withheld),
-            subjects=list(person_columns) + list(withheld),
+            subjects=list(person_columns) + list(withheld) + candidates,
             counted_in_subjects=counted_in_people,
         )
     if counted_in_people:
