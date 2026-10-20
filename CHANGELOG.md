@@ -14,9 +14,12 @@ counted rows, so a value one patient holds on fourteen rows passed it:
 beside a declared person column, health plan and account numbers were
 published (139 and 137 of 150 at 20,000 rows), and beside a patient key
 whose person question was open, names, street addresses and birth
-dates. Now, where a person column is declared or answered, or the person
-question is open, each value another column would publish is counted in
-different people under every such column; a column that would publish
+dates. Now, where a person column is declared or answered, or a question
+offering `identifier` is open on a column that repeats (the person
+question's candidates, or a patient number padded with zeros that the
+codes-or-measurements question is put to), each value another column
+would publish is counted in different people under every such column,
+one person's key written `REC-0007`, `rec7` or `Rec 7` counted once; a column that would publish
 one held by fewer than 11 of them is described as record numbers
 (contract NF126), its twin writes made-up values in its layouts, and the
 screen names it. A column with one value a person (a birth date, a name)
@@ -25,16 +28,19 @@ any other counts the values eleven rows or more hold, and keeps its
 points along the range as on a table of one row a person. Written forms,
 the remainder the floor merges and a column's present rows are counted
 in people too, and a record number's layouts worn by fewer than eleven
-people are pooled. A person column's census of rows a person keeps each
-entry of eleven people or more and spreads the rest evenly, never back
-into a real group of fewer. A table with no such column, or whose person
+people are pooled, a person column's own under every other person column,
+until the pool itself is held by eleven people or more. A person
+column's census of rows a person keeps each entry of eleven people or
+more and spreads the rest evenly, never back into a real group of fewer;
+written in two layouts or more, it publishes the census its published
+counts imply, layout by layout, which its twin can meet. A table with no such column, or whose person
 column is different on every row, is described exactly as before; a key
 of fewer than eleven values put the person question counts only the
 columns attached to it that tell its values apart, so the names and
 birth dates of ten patients are held and a filler code blanks nothing.
-KPI `K-S3-65` (new): 0 published values in the rule's scope over 75 long
-tables with the healthcare catalogue; `K-S3-64` now holds the seven
-counted shapes at 0. Held date columns' twins write figures in the
+KPI `K-S3-65` (new): 0 published values in the rule's scope over the long
+tables of K-S3-64, the gate and the healthcare catalogue; `K-S3-64` now
+holds the nine counted shapes at 0. Held date columns' twins write figures in the
 dates' layout that do not read as dates (lane PS pools them). Measured
 costs and the limits left to lanes MG, PS, CODES-1 part C and CODES-2
 are in P4-D406.
