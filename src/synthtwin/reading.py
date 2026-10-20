@@ -2847,8 +2847,15 @@ def hold_columns(table: Table, places: "tuple[int, ...]") -> None:
     step that pairs columns far apart holds the pair in one reading).
     What is held is what the caller asks for: the caller sizes it
     (`column_groups`, `column_walks`). Guarantees: `column_values`'s for
-    each of them. Raises what it raises.
+    each of them. Raises IndexError, before anything is read, for a
+    place that is not one of the table's columns -- the caller's slip,
+    never told to the person as a changed file (the tripwire skeptic of
+    lane SR, item 3) -- and otherwise what `column_values` raises.
     """
+    width = len(table.column_names)
+    for place in places:
+        if not 0 <= place < width:
+            raise IndexError(f"column {place} of a table of {width}")
     source = table.source
     if source is None:
         return
@@ -3278,6 +3285,13 @@ def _walk_a_group(
         except MemoryError as error:
             raise errors.ProfileError(
                 errors.out_of_memory(shown, _file_size(table_path))
+            ) from error
+        except UnicodeDecodeError as error:
+            # The facts pass decoded every line under this codec, so a
+            # line that no longer decodes is the file changed (the
+            # combined verify of lane SR, item 1).
+            raise errors.ProfileError(
+                errors.file_changed_while_read(shown)
             ) from error
     finally:
         csv.field_size_limit(previous_limit)

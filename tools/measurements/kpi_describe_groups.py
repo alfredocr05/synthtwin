@@ -58,12 +58,16 @@ and not on the curvature the 100,000 point lends it; and each Gaussian
 size is the LARGEST peak of three hash seeds (`HASH_SEEDS`), because the
 allocator keeps what pandas' C reader freed on some seeds and not on
 others (183 against 531 MB on one file at 250,000 rows), which made a
-series that fell from 250,000 to 500,000 rows. CODEX'S REVIEW (item 6):
+series that fell from 250,000 to 500,000 rows. THE TRIPWIRE SKEPTIC OF
+LANE SR (item 2): the mixed table, the one K-S4-09 judges, is held to
+the same rule -- three seeds, never PYTHONHASHSEED=0, which no person
+runs -- so its projection is not low by the same allocator effect; its
+leg takes about three times as long. CODEX'S REVIEW (item 6):
 where resident memory cannot be read (no `resource`, as on Windows), the
 memory keys are left out and the evidence says so; CPU seconds and the
 traced bytes are kept.
 
-About three hours on the reference machine: run it in a NIGHT window,
+About six hours on the reference machine: run it in a NIGHT window,
 one heavy process at a time, the watchdog running.
 """
 
@@ -92,7 +96,7 @@ COLUMNS = 50
 BIG_ROWS = 2_000_000
 TRACED_ROWS = 200_000
 SIZES = {"mixed": (100_000, 250_000, 500_000, 1_000_000), "gaussian": (100_000, 250_000, 500_000)}
-HASH_SEEDS = {"mixed": ("0",), "gaussian": ("1", "2", "3")}
+HASH_SEEDS = {"mixed": ("1", "2", "3"), "gaussian": ("1", "2", "3")}
 # `reading.GROUP_BYTES` as shipped; read here from the module, below.
 MEBIBYTE = 1024 * 1024
 

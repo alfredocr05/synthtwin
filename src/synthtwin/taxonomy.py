@@ -4304,6 +4304,11 @@ def repeats_in(
     standing, _held = _present_spellings(
         cells, settings, name, declarations, (), stored_as
     )
+    return _repeats_among(cells, standing)
+
+
+def _repeats_among(cells: "list[str]", standing: "dict[str, int]") -> bool:
+    """Whether a folded present value is met twice in ``cells``, the present spellings ``standing``."""
     seen: "dict[str, int]" = {}
     for value in cells:
         if value not in standing:
@@ -4317,7 +4322,7 @@ def repeats_in(
 
 @dataclasses.dataclass
 class PeopleJoined:
-    """The rows `people_in` has joined so far, one person column at a time (`people_joined_by`).
+    """The rows `people_in` has joined so far, one person column at a time (`people_joined_if_repeating`).
 
     ``home[row]`` is the row this one has been merged onto, always the
     earlier of the two; ``named[row]`` says some person column named it.
@@ -4328,7 +4333,7 @@ class PeopleJoined:
 
 
 def people_joined(rows: int) -> PeopleJoined:
-    """No row joined to another yet, and none named: where `people_joined_by` starts.
+    """No row joined to another yet, and none named: where `people_joined_if_repeating` starts.
 
     Guarantees: ``rows`` rows, each its own. Raises nothing. No I/O.
     """
@@ -4340,23 +4345,37 @@ def people_joined(rows: int) -> PeopleJoined:
     return PeopleJoined(home, named)
 
 
-def people_joined_by(
-    joined: PeopleJoined,
+def people_joined_if_repeating(
+    joined: "PeopleJoined | None",
+    rows: int,
     cells: "list[str]",
     name: str,
     settings: Settings,
     declarations: "Declarations | None" = None,
     stored_as: str = "",
-) -> None:
-    """Join the rows one person column says are one person: `people_in`'s walk of one column.
+) -> "tuple[bool, PeopleJoined | None]":
+    """Whether one declared column repeats (`repeats_in`), and if it does, its rows joined as `people_in` joins them.
 
     For a caller that holds a table one group of columns at a time (lane
-    SR, plan P4-D400; Codex's review of lane SR, item 2): each person
+    SR, plan P4-D400; Codex's review of lane SR, item 2): each declared
     column is asked on its own, in the order `people_in` reads them, and
-    let go. ``joined`` is changed in place exactly as `_people_held`
-    changes its rows for that column. Guarantees: a fixed function of
-    the arguments. Raises what `_present_spellings` raises. No I/O.
+    let go. The column is read ONCE for both answers (the tripwire
+    skeptic of lane SR, item 1: asking `repeats_in` and then joining read
+    it twice, on the costliest column a table has). Where it repeats,
+    its rows are joined into ``joined`` -- made for ``rows`` rows where
+    it is None -- exactly as `_people_held` joins them for that column;
+    the union-find's answer does not depend on the order the columns are
+    joined in. Guarantees: a fixed function of the arguments; ``joined``
+    is returned unchanged where the column does not repeat. Raises what
+    `_present_spellings` raises. No I/O.
     """
+    standing, _held = _present_spellings(
+        cells, settings, name, declarations, (), stored_as
+    )
+    if not _repeats_among(cells, standing):
+        return False, joined
+    if joined is None:
+        joined = people_joined(rows)
     home = joined.home
     named = joined.named
 
@@ -4366,9 +4385,6 @@ def people_joined_by(
             place = home[place]
         return place
 
-    standing, _held = _present_spellings(
-        cells, settings, name, declarations, (), stored_as
-    )
     earliest: "dict[str, int]" = {}
     place = 0
     for value in cells:
@@ -4388,6 +4404,7 @@ def people_joined_by(
             else:
                 home[one] = two
         place = place + 1
+    return True, joined
 
 
 def people_counted(joined: PeopleJoined, holding: "list[bool]") -> int:

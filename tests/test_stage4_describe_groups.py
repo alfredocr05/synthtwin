@@ -1022,9 +1022,10 @@ def test_the_driver_records_no_peak_it_could_not_read(resident: bool, monkeypatc
     Windows), no peak and no projection of one is recorded, and the
     evidence says so, while the CPU seconds and the traced bytes are
     kept; where it can, the mixed table is projected from its three
-    largest sizes (1,000,000 rows the largest) and each Gaussian size is
-    the largest peak of its hash seeds. Red on the mutant that records
-    the -1 as a peak.
+    largest sizes (1,000,000 rows the largest) and each size of either
+    table is the largest peak of its three hash seeds. Red on the mutant
+    that records the -1 as a peak, and on the one measuring the mixed
+    table at one seed.
     """
     driver = _the_driver(monkeypatch)
     runs: "list[tuple[str, str]]" = []
@@ -1050,8 +1051,12 @@ def test_the_driver_records_no_peak_it_could_not_read(resident: bool, monkeypatc
     assert "resident_memory" not in memory
     assert len(memory["mixed_describe_peak_mb"]) == 4 and memory["sizes"]["mixed"][-1] == 1_000_000
     assert memory["gaussian_describe_peak_mb"] == [140.0, 155.0, 180.0]
-    assert memory["mixed_describe_peak_mb_2m_projected"] == 280.0
+    # Each size of either table is the largest peak of its three hash
+    # seeds (the tripwire skeptic of lane SR, item 2: the mixed table too).
+    assert memory["mixed_describe_peak_mb"] == [140.0, 155.0, 180.0, 230.0]
+    assert memory["mixed_describe_peak_mb_2m_projected"] == 288.0
     assert sorted({seed for table, seed in runs if table.endswith("gaussian.csv")}) == ["1", "2", "3"]
+    assert sorted({seed for table, seed in runs if table.endswith("mixed.csv")}) == ["1", "2", "3"]
 
 
 def test_a_file_changed_only_while_the_survey_walks_it_is_refused(
@@ -1091,3 +1096,152 @@ def test_a_file_changed_only_while_the_survey_walks_it_is_refused(
     with pytest.raises(errors.ProfileError) as refused:
         reading.read_table(str(table), in_groups=True)
     assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+
+
+# -- the second repair: the combined verify and the tripwire skeptic -------
+
+
+def test_a_file_that_stops_decoding_between_two_walks_is_refused_as_changed(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The combined verify of lane SR, item 1: bytes no longer UTF-8 after the first walk, the size and moment kept.
+
+    The facts pass decoded every line under the file's codec, so a line a
+    later walk cannot decode is the file changed: refused with the
+    changed-file words, never a traceback. Red on the mutant that drops
+    `_walk_a_group`'s UnicodeDecodeError clause.
+    """
+    table = tmp_path / "t.csv"
+    text = "id,ward,x\n" + "".join(f"{k},{'west' if k % 2 else 'east'},{k % 5}\n" for k in range(300))
+    table.write_text(text, encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1)
+    walked = reading._walk_a_group
+    calls = [0]
+
+    def then_undecodable(*arguments: object) -> object:
+        found = walked(*arguments)  # type: ignore[arg-type]
+        calls[0] = calls[0] + 1
+        if calls[0] == 1:
+            seen = table.stat()
+            data = table.read_bytes()
+            at = data.index(b"west")
+            table.write_bytes(data[:at] + b"\xff\xfeat" + data[at + 4:])
+            os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns))
+        return found
+
+    monkeypatch.setattr(reading, "_walk_a_group", then_undecodable)
+    with pytest.raises(errors.ProfileError) as refused:
+        reading.read_table(str(table), in_groups=True)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+    assert calls[0] >= 1
+
+
+def test_two_lines_swapped_with_the_size_and_moment_kept_are_refused(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The combined verify of lane SR, item 2: the line digest is ordered, so a same-size, same-moment rearrangement is a changed file.
+
+    Red on the mutant whose digest is a plain sum of the lines' hashes,
+    blind to their order, under which the swapped rows are read as the
+    same file and two versions mix across groups.
+    """
+    table = tmp_path / "t.csv"
+    text = "a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(60))
+    table.write_text(text, encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=True)
+    assert reading.column_values(read, 0)[5] == "5"
+    seen = table.stat()
+    lines = text.split("\n")
+    lines[6], lines[10] = lines[10], lines[6]
+    table.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    assert table.stat().st_size == seen.st_size
+    os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns))
+    with pytest.raises(errors.ProfileError) as refused:
+        reading.column_values(read, 2)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+
+
+@pytest.mark.parametrize("in_groups", [True, False])
+def test_holding_a_place_that_is_no_column_is_the_callers_slip_not_a_changed_file(
+    in_groups: bool, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tripwire skeptic of lane SR, item 3: `reading.hold_columns` refuses a place past the last column with IndexError, before reading.
+
+    Red on the mutant that drops the check: read in groups, the place
+    reached `_read_group` and was told to the person as a changed file;
+    read whole, it was ignored.
+    """
+    table = tmp_path / "t.csv"
+    table.write_text("a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(40)), encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=in_groups)
+    assert (read.source is not None) == in_groups
+    for places in ((1, 7), (3,), (-1, 0)):
+        with pytest.raises(IndexError):
+            reading.hold_columns(read, places)
+    reading.hold_columns(read, (0, 2))
+    assert reading.column_values(read, 2)[3] == "x3"
+    assert reading.column_values(read, 0)[3] == "3"
+
+
+def test_the_census_reads_each_declared_column_once(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tripwire skeptic of lane SR, item 1: a declared identifier is read once to ask whether it repeats and to join its rows.
+
+    Counted on a table of two repeating declared identifiers read one
+    column a group: outside the pass that works out the rows holding a
+    value, `taxonomy._read_the_column` runs once a declared column and
+    the file is read again at most once a declared column; the census
+    counts as the whole census counts. Red on the mutant that asks
+    `taxonomy.repeats_in` first and joins the repeating columns after.
+    """
+    table = tmp_path / "t.csv"
+    table.write_text(
+        "mrn,acct,ward,x\n"
+        + "".join(f"{'' if row % 9 == 0 else f'M{row // 3:05d}'},A{row // 2:05d},w{row % 4},{row % 11}\n" for row in range(900)),
+        encoding="utf-8",
+        newline="\n",
+    )
+    settings = taxonomy.Settings()
+    declared = ["mrn", "acct"]
+    expected = profile.population_census_of(reading.read_table(str(table)), settings, declared, [], [], [], ())
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    grouped = reading.read_table(str(table), in_groups=True)
+    counts = {"column": 0, "file": 0, "holding": 0}
+    inside = [False]
+    read_the_column = taxonomy._read_the_column
+    holding = taxonomy.rows_holding_a_value_in
+    read_group = reading._read_group
+
+    def column(*arguments: object, **named: object) -> object:
+        if not inside[0]:
+            counts["column"] = counts["column"] + 1
+        return read_the_column(*arguments, **named)  # type: ignore[arg-type]
+
+    def file_read(*arguments: object) -> object:
+        counts["file"] = counts["file"] + 1
+        return read_group(*arguments)  # type: ignore[arg-type]
+
+    def rows_holding(*arguments: object, **named: object) -> object:
+        counts["holding"] = counts["holding"] + 1
+        inside[0] = True
+        try:
+            return holding(*arguments, **named)  # type: ignore[arg-type]
+        finally:
+            inside[0] = False
+
+    monkeypatch.setattr(taxonomy, "_read_the_column", column)
+    monkeypatch.setattr(taxonomy, "rows_holding_a_value_in", rows_holding)
+    monkeypatch.setattr(reading, "_read_group", file_read)
+    reading.column_values(grouped, 3)
+    counts.update(column=0, file=0, holding=0)
+    found = profile.population_census_of(grouped, settings, declared, [], [], [], ())
+    assert found[:2] == expected[:2] and found[0] == ("acct", "mrn")
+    # Once a declared column outside the rows-holding pass, and the file
+    # read again at most once a column that pass asked and once a
+    # declared column.
+    assert counts["column"] == len(declared), counts
+    assert counts["file"] <= counts["holding"] + len(declared), counts

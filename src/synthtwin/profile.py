@@ -4506,11 +4506,12 @@ def population_census_of(
     (Codex's review of lane SR, item 2: every declared identifier was
     held at once, about 3 GB for fifty of them at a million rows): the
     rows holding a value worked out a column at a time, in column order,
-    until every row holds one (`taxonomy.rows_holding_a_value_in`); each
-    declared column asked whether it repeats (`taxonomy.repeats_in`), in
-    `taxonomy.repeating_identifiers`' order; and the rows each repeating
-    one names joined (`taxonomy.people_joined_by`). Its answers are the
-    census's; it keeps no reading, which the description reads again.
+    until every row holds one (`taxonomy.rows_holding_a_value_in`); then
+    each declared column, in `taxonomy.repeating_identifiers`' order,
+    read ONCE to ask whether it repeats and, where it does, to join the
+    rows it names (`taxonomy.people_joined_if_repeating`; the tripwire
+    skeptic of lane SR, item 1). Its answers are the census's; it keeps
+    no reading, which the description reads again.
     """
     declarations = taxonomy.Declarations(
         identifiers=tuple(declared),
@@ -4540,39 +4541,30 @@ def population_census_of(
                 stored_as[place] if place < len(stored_as) else "",
             )
     people: "list[str]" = []
-    places: "list[int]" = []
+    joined: "taxonomy.PeopleJoined | None" = None
     for name in sorted(declared):
         if people and people[len(people) - 1] == name:
             continue
         place = _first_place_named(names, name)
         if place < 0:
             continue
-        if taxonomy.repeats_in(
+        repeats, joined = taxonomy.people_joined_if_repeating(
+            joined,
+            table.n_rows,
             reading.column_values(table, place),
             name,
             settings,
             declarations,
             stored_as[place] if place < len(stored_as) else "",
-        ):
+        )
+        if repeats:
             people += [name]
-            places += [place]
-    if not people:
+    if joined is None:
         counted = 0
         for row in range(table.n_rows):
             if holding[row]:
                 counted = counted + 1
         return (), counted, ()
-    joined = taxonomy.people_joined(table.n_rows)
-    for at in range(len(people)):
-        place = places[at]
-        taxonomy.people_joined_by(
-            joined,
-            reading.column_values(table, place),
-            people[at],
-            settings,
-            declarations,
-            stored_as[place] if place < len(stored_as) else "",
-        )
     return tuple(people), taxonomy.people_counted(joined, holding), ()
 
 
