@@ -29,10 +29,13 @@ seeded wide table, each described by the real producer and generated
 by the real generator.
 """
 
+import io
 import pathlib
 import random
+import struct
 import typing
 import zipfile
+import zlib
 
 import fixtures
 import health_zoo
@@ -440,6 +443,86 @@ def both_files(
     old = as_built_file(folder / "as-built.xlsx", as_built_members(described, twin))
     new = streamed_file(folder / "streamed.xlsx", described, twin)
     return old, new
+
+
+# -- what "the same file" means on each zlib ------------------------------
+
+# ZLIB-NG WRITES ANOTHER STREAM FOR THE SAME TEXT CUT ELSEWHERE (skeptic 1
+# of lane XW, item 3). madler's zlib (1.2.12 on every Python here)
+# writes the same deflate stream however its input is cut, measured;
+# zlib-ng's medium strategy, the default level, need
+# not, and CPython 3.14 on Windows (a CI cell) links zlib-ng, which no
+# Python here does. So on zlib-ng the file is compared member by member
+# and every field but the compressed bytes and their count must agree;
+# everywhere else the files must also be the same bytes.
+ZLIB_NG = (
+    getattr(zlib, "ZLIBNG_VERSION", None) is not None
+    or "zlib-ng" in zlib.ZLIB_VERSION.lower()
+    or "zlib-ng" in zlib.ZLIB_RUNTIME_VERSION.lower()
+)
+
+# The fields of a member that do not depend on how deflate cut its
+# stream, read off zipfile's own record of the central directory.
+_MEMBER_FIELDS = (
+    "filename",
+    "date_time",
+    "compress_type",
+    "comment",
+    "extra",
+    "create_system",
+    "create_version",
+    "extract_version",
+    "flag_bits",
+    "volume",
+    "internal_attr",
+    "external_attr",
+    "CRC",
+    "file_size",
+)
+
+
+def _local_header(data: bytes, offset: int) -> "tuple[object, ...]":
+    """A member's LOCAL header: every field but the compressed size, and its extra."""
+    if data[offset : offset + 4] != b"PK\x03\x04":
+        return ("no local header at", offset)
+    fields = struct.unpack("<HHHHHIIIHH", data[offset + 4 : offset + 30])
+    start = offset + 30 + fields[8]
+    extra = data[start : start + fields[9]]
+    # (version, flags, method, time, date, crc, -, size, name length, -)
+    return fields[:6] + fields[7:9] + (extra,)
+
+
+def member_differences(old: bytes, new: bytes) -> "list[str]":
+    """What two packages differ in, member by member, on any zlib.
+
+    The names in order, the archive comment, every field of
+    `_MEMBER_FIELDS` (the central directory's extra among them), every
+    local header field but the compressed size, and each member's text.
+    """
+    out: "list[str]" = []
+    with zipfile.ZipFile(io.BytesIO(old)) as first, zipfile.ZipFile(io.BytesIO(new)) as second:
+        if first.comment != second.comment:
+            out += ["the archive comment"]
+        names = [entry.filename for entry in first.infolist()]
+        if names != [entry.filename for entry in second.infolist()]:
+            return out + ["the members or their order"]
+        for one, other in zip(first.infolist(), second.infolist()):
+            for field in _MEMBER_FIELDS:
+                if getattr(one, field) != getattr(other, field):
+                    out += [f"{one.filename}: {field}"]
+            if _local_header(old, one.header_offset) != _local_header(new, other.header_offset):
+                out += [f"{one.filename}: the local header"]
+            if first.read(one) != second.read(other):
+                out += [f"{one.filename}: the text"]
+    return out
+
+
+def package_differences(old: bytes, new: bytes) -> "list[str]":
+    """What two packages differ in: the bytes themselves too, except on zlib-ng."""
+    out: "list[str]" = []
+    if old != new and not ZLIB_NG:
+        out += ["the bytes"]
+    return out + member_differences(old, new)
 
 
 # -- the cases ------------------------------------------------------------

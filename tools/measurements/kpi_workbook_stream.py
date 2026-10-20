@@ -9,16 +9,20 @@ time and streams it into the zip member. Two measures:
 * EXACT: every workbook golden of method G2.2, the workbook battery, lane
   E0a's zoo workbook and a seeded wide table, at the gate test's sizes and
   larger (`tests/workbook_stream_cases.py`), each written by the frozen
-  b075342a writer and by today's: the count of workbooks whose bytes
-  differ, and how many were compared.
+  b075342a writer and by today's: the count of workbooks that differ, and
+  how many were compared. On madler's zlib a workbook differs where any
+  byte does; on zlib-ng, whose deflate stream may move with where its
+  input was cut, where any member's text or header field does
+  (`cases.package_differences`), and the zlib the run linked is recorded.
 * RECORDED: the seconds and the peak resident memory of a fresh process
   that writes a twin of 20,000 and of 100,000 rows of fifty columns (a
   real twin of the seeded wide table, its rows repeated), through
   `sheetwriting.workbook_stream` and `writing.write_workbook_file`: the
   seconds making the package's parts (the cells' classes and formats,
   and the sheet's first pass), the seconds writing it (the second pass
-  and the zip), and the resident memory before the write and at its
-  peak. The machine's as much as the code's: recorded, never judged.
+  and the zip), and the peak resident memory before the parts are made
+  (the twin alone), once they are made, and at the end of the write.
+  The machine's as much as the code's: recorded, never judged.
 
 About four minutes.
 
@@ -39,6 +43,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -77,6 +82,7 @@ def one_size(n_rows: int) -> dict:
         began = time.perf_counter()
         parts = sheetwriting.workbook_stream(described, twin)
         prepared = time.perf_counter()
+        after_parts = _peak_mb()
         sheet = [size for name, size, _pieces in parts if name.startswith("xl/worksheets/")]
         writing.write_workbook_file(base / "twin.xlsx", parts)
         ended = time.perf_counter()
@@ -88,7 +94,8 @@ def one_size(n_rows: int) -> dict:
             "seconds_parts": round(prepared - began, 2),
             "seconds_write": round(ended - prepared, 2),
             "seconds": round(ended - began, 2),
-            "rss_mb_before_write": before,
+            "rss_mb_before_parts": before,
+            "peak_rss_mb_after_parts": after_parts,
             "peak_rss_mb": _peak_mb(),
         }
 
@@ -120,7 +127,7 @@ def sheet_only(n_rows: int) -> dict:
             "file_bytes": target.stat().st_size,
             "seconds_first_pass": round(counted - began, 2),
             "seconds_write": round(ended - counted, 2),
-            "rss_mb_before_write": before,
+            "rss_mb_before_sheet": before,
             "peak_rss_mb": _peak_mb(),
         }
 
@@ -135,7 +142,7 @@ def compared() -> "tuple[int, list[str]]":
             described, twin = cases.golden(name, base / name)
             old, new = cases.both_files(base / name / "out", described, twin)
             count += 1
-            differing += [name] if old != new else []
+            differing += [name] if cases.package_differences(old, new) else []
         every = dict(cases.BATTERY)
         every.update(LARGER)
         for name, (make, sheet) in every.items():
@@ -143,8 +150,9 @@ def compared() -> "tuple[int, list[str]]":
             twin = generation.generate(described, 0)
             old, new = cases.both_files(base / name / "out", described, twin)
             count += 1
-            differing += [name] if old != new else []
-            print(name, twin.n_rows, len(twin.names), "same" if old == new else "DIFFER", flush=True)
+            moved = cases.package_differences(old, new)
+            differing += [name] if moved else []
+            print(name, twin.n_rows, len(twin.names), "DIFFER " + ", ".join(moved) if moved else "same", flush=True)
     return count, differing
 
 
@@ -157,7 +165,11 @@ def main() -> None:
         return
     kpi_rules.guard_this_tree()
     count, differing = compared()
-    value: "dict[str, object]" = {"workbooks_compared": count, "workbooks_differing": len(differing)}
+    value: "dict[str, object]" = {
+        "workbooks_compared": count,
+        "workbooks_differing": len(differing),
+        "zlib_runtime": zlib.ZLIB_RUNTIME_VERSION + (" (zlib-ng)" if cases.ZLIB_NG else ""),
+    }
     for n_rows in SIZES:
         ran = subprocess.run(  # noqa: S603 -- this driver, this interpreter
             [sys.executable, str(pathlib.Path(__file__).resolve()), "--size", str(n_rows)],
@@ -166,7 +178,15 @@ def main() -> None:
         line = [one for one in ran.stdout.splitlines() if one.startswith("SIZE ")][-1]
         measured = json.loads(line[5:])
         print(measured, flush=True)
-        for key in ("seconds_parts", "seconds_write", "seconds", "rss_mb_before_write", "peak_rss_mb", "sheet_bytes"):
+        for key in (
+            "seconds_parts",
+            "seconds_write",
+            "seconds",
+            "rss_mb_before_parts",
+            "peak_rss_mb_after_parts",
+            "peak_rss_mb",
+            "sheet_bytes",
+        ):
             value[f"{key}_{n_rows}_rows"] = measured[key]
     kpi_rules.emit("K-S4-22", value, ", ".join(differing))
 
