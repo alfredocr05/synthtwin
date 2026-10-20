@@ -6,6 +6,36 @@ exists).
 
 ## [Unreleased]
 
+### The method for twins whose columns meet their band counts exactly, written before its code (2026-10-18)
+
+**Lane BTp of the December plan** (plan P4-D404). Nothing synthtwin
+does changes yet: this entry records a method written before its code.
+When the relationships between columns land, a column that takes part
+in them will make its cells so that each of its published bands, the
+stretches between the rungs its description publishes, holds exactly
+the count the real column held. Every other published fact of the
+column is still met, or, where this method cannot meet both, the band
+count is kept and the other fact is named in the twin's report.
+Measured on today's twins of invented tables, every number, date and
+clock column missed its band counts, by 2 to 375 rows at 20,000 rows,
+and a count of few values with one rare high value by 29,676 rows of
+100,000, with 30,000 rows on a value the real column held 12,465
+times; the method stops that count's values from being lifted one step
+up. The same method takes the records holding nothing, rows empty in
+every column, from each column's empty cells before any other cell is
+placed, by their spelling in a text file and by their kind of cell in a
+workbook, so no step after the placement moves a cell and a workbook's
+formatted blank records come back blank, each cell keeping its kind
+of cell wherever the arrangement puts it. A column's draws are the
+ones it has today, so no other column of the twin moves because one
+takes part. A column whose cells inside one band were all written with
+more decimal places than its description names, each such number of
+places too rare to be counted on its own, can fail one of the checks
+the method makes before it places a cell; where it does, the column is
+made as today and named in the twin's report. A twin made from a
+description without relationships between columns stays the same
+bytes.
+
 ### The dependency page: the December libraries on Python 3.11 and later, and what no library float may decide (2026-10-19)
 
 **Lane MDEP of the December plan; nothing a command prints, writes or
