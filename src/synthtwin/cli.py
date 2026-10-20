@@ -1670,7 +1670,10 @@ _DELIMITER_SPELLINGS = {
 
 
 def _answers_that_change_the_reading(
-    written: asking.Answers, first_row: str, declared_delimiter: str
+    written: asking.Answers,
+    first_row: str,
+    declared_delimiter: str,
+    kept: "tuple[tuple[str, str], ...]" = (),
 ) -> "list[str]":
     """Which answers of a questions file change HOW THE FILE IS READ.
 
@@ -1706,26 +1709,97 @@ def _answers_that_change_the_reading(
     this module's own question headings.
     """
     changed: "list[str]" = []
-    # AN ANSWER AN EARLIER RUN KEPT MOVES NO NAME (plan P4-D408): the run
-    # that wrote the file read the table that way already, so the names
-    # in the file are the names under it. Measured before: the two runs
-    # the refusal below asks for ended with the second refused again, or
-    # with the first run's answer lost.
-    carried_first_row = asking.FIRST_ROW_SUBJECT in written.reading_carried
-    carried_delimiter = asking.DELIMITER_SUBJECT in written.reading_carried
-    if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
-        if first_row != _FIRST_ROW_NAMES and not carried_first_row:
-            changed += [asking.FIRST_ROW_SUBJECT]
-    elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
-        if first_row == _FIRST_ROW_NAMES and not carried_first_row:
-            changed += [asking.FIRST_ROW_SUBJECT]
-    if (
-        written.delimiter
-        and written.delimiter != declared_delimiter
-        and not carried_delimiter
-    ):
-        changed += [asking.DELIMITER_SUBJECT]
+    # A QUESTION AN EARLIER RUN KEPT AN ANSWER TO IS NOT JUDGED HERE (plan
+    # P4-D408): the run that wrote the file read the table by that
+    # answer, so `_kept_reading_changed` sets the reading this run takes
+    # against it instead of against what was typed.
+    subjects = {subject: True for subject, _word in kept}
+    if asking.FIRST_ROW_SUBJECT not in subjects:
+        if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
+            if first_row != _FIRST_ROW_NAMES:
+                changed += [asking.FIRST_ROW_SUBJECT]
+        elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
+            if first_row == _FIRST_ROW_NAMES:
+                changed += [asking.FIRST_ROW_SUBJECT]
+    if asking.DELIMITER_SUBJECT not in subjects:
+        if written.delimiter and written.delimiter != declared_delimiter:
+            changed += [asking.DELIMITER_SUBJECT]
     return changed
+
+
+def _kept_reading_changed(
+    written: asking.Answers,
+    first_row: str,
+    declared_delimiter: str,
+    kept: "tuple[tuple[str, str], ...]",
+) -> "list[str]":
+    """The kept answers about how the file is read that this run would not follow.
+
+    Plan P4-D408. `kept` is `asking.kept_reading` of
+    the questions file as it was handed back: how the run that WROTE the
+    file read the table, so the column names in the file are the names
+    under that reading. This run's reading is the file's answer where it
+    gives one -- the kept entry, edited or not, or the same question
+    answered again -- and otherwise the typed option, which replaces the
+    kept entry (`asking.typed_over_kept`). A subject is named where the
+    two differ, or where the kept entry no longer says which reading it
+    was. Measured before this check: a table whose header `column_2,
+    column_1` reads as a record, answered `names` in round one and
+    `identifier` / `keep` for its two columns in round two, then handed
+    back in round three with the kept `names` edited to `first-record`
+    -- or with `--first-row data` typed -- put `identifier` on the visit
+    labels and `keep` on the subject column, and published 200 of 200
+    real subject codes with their counts.
+
+    Guarantees: each subject once, in the order `kept` names them. A
+    fixed function of the four. Raises nothing. No I/O.
+    """
+    changed: "list[str]" = []
+    for subject, before in kept:
+        if subject in changed:
+            continue
+        now = ""
+        if subject == asking.FIRST_ROW_SUBJECT:
+            now = written.first_row
+            if not now and first_row == _FIRST_ROW_NAMES:
+                now = asking.ANSWER_FIRST_ROW_NAMES
+            elif not now and first_row == _FIRST_ROW_DATA:
+                now = asking.ANSWER_FIRST_ROW_DATA
+        else:
+            now = asking.delimiter_answer(
+                written.delimiter if written.delimiter else declared_delimiter
+            )
+        if not before or now != before:
+            changed += [subject]
+    return changed
+
+
+def _kept_reading_not_kept(
+    path: str, changed: "list[str]", named: "list[str]"
+) -> str:
+    """The refusal of a run that would read the table another way than the file's writer (plan P4-D408)."""
+    moved = ""
+    for one in changed:
+        moved = f"{moved}; {one}" if moved else one
+    columns = ""
+    for one in named:
+        columns = f"{columns}, '{one}'" if columns else f"'{one}'"
+    return (
+        f"The questions file at {path} was written by a run that read "
+        f"your table by an answer it keeps under '{asking.ANSWERED_BEFORE}' "
+        f"-- {moved} -- and this run would read it another way, by an "
+        f"answer changed in the file or typed on the command line, while "
+        f"the file also names {columns}. synthtwin will not act on both "
+        f"at once: the column names in that file are the names under the "
+        f"earlier reading, and reading the table another way changes which "
+        f"column each name stands for, so an answer made by name would "
+        f"reach a column you were not looking at. Either keep the earlier "
+        f"answer about how the file is read, or do it in two runs: clear "
+        f"every answer that names a column, '{asking.ANSWERED_BEFORE}' "
+        f"included, run the command again with the new reading, then "
+        f"answer the columns in the questions file that run writes. "
+        f"Nothing was written."
+    )
 
 
 def _typed_answers(
@@ -1894,6 +1968,21 @@ def _earlier_answers_dropped(
         if name not in dropped:
             dropped += [name]
     return dropped
+
+
+def _answered_under_other_names(path: str) -> str:
+    """The refusal of answers made by name under names this run does not read (plan P4-D408)."""
+    return (
+        f"The questions file at {path} answers columns by the names listed "
+        f"under '{asking.ANSWERED_BEFORE_COLUMNS}', and this run reads your "
+        f"table under other names: an answer about how the file is read "
+        f"was taken out of the file, or the file was written for another "
+        f"table. synthtwin will not act on an answer made by name when "
+        f"that name may now stand for another column. Put back the answer "
+        f"about how the file is read, or clear every answer that names a "
+        f"column, '{asking.ANSWERED_BEFORE}' included, and run the command "
+        f"again. Nothing was written."
+    )
 
 
 def _earlier_answers_not_kept(path: str, dropped: "list[str]") -> str:
@@ -3237,16 +3326,27 @@ def _run_profile(
     # (plan P4-D408).
     carried_answers: "tuple[tuple[str, str, str], ...]" = ()
     identities_kept_answered: "tuple[str, ...]" = ()
+    # ...and the column names the file's answers use, with the columns
+    # those answers name, set against the names this run reads (plan
+    # P4-D408).
+    answered_under: "tuple[str, ...] | None" = None
+    names_by_answer: "list[str]" = []
     metadata_answer = ""
     centuries_kept: "list[str]" = []
     if answers_path is not None:
         try:
+            handed_back = contract.load_answers(answers_path)
+            # HOW THE RUN THAT WROTE THE FILE READ THE TABLE, before
+            # anything typed now takes a kept answer out (plan P4-D408).
+            kept_reading = asking.kept_reading(handed_back)
+            # ...and the column names its answers use (plan P4-D408).
+            answered_under = asking.columns_answered_under(handed_back)
             written = asking.answers_in(
                 # LESS THE KEPT ANSWERS THIS COMMAND LINE REPLACES: a
                 # declaration typed now is later than any answer an
                 # earlier run kept (plan P4-D408).
                 asking.typed_over_kept(
-                    contract.load_answers(answers_path),
+                    handed_back,
                     _typed_answers(
                         typed_codes, typed_identifiers, typed_measurements,
                         typed_commas, twelve_hours, typed_counted, centuries,
@@ -3297,7 +3397,13 @@ def _run_profile(
         # file's own question first. Two runs, each with one reading in
         # it, and no name means two columns.
         reading_changed = _answers_that_change_the_reading(
-            written, first_row, declared_delimiter
+            written, first_row, declared_delimiter, kept_reading
+        )
+        # ...AND A READING OTHER THAN THE ONE THE FILE WAS WRITTEN UNDER
+        # (plan P4-D408): a kept answer about how the file is read,
+        # edited in the file or replaced by a typed option.
+        kept_changed = _kept_reading_changed(
+            written, first_row, declared_delimiter, kept_reading
         )
         named_columns: "list[str]" = []
         for one in (
@@ -3332,6 +3438,17 @@ def _run_profile(
             # file would otherwise stand twice in one sentence.
             if one not in named_columns:
                 named_columns += [one]
+        if kept_changed and named_columns:
+            _warn(
+                _kept_reading_not_kept(
+                    _shown(answers_path), kept_changed,
+                    [_shown(one) for one in sorted(named_columns)],
+                )
+            )
+            return 2
+        reading_changed += [
+            one for one in kept_changed if one not in reading_changed
+        ]
         if reading_changed and named_columns:
             _warn(
                 errors.answers_change_the_reading_and_name_columns(
@@ -3426,6 +3543,8 @@ def _run_profile(
         if not reading_changed:
             identities_kept = written.identities_kept
             identities_kept_answered = written.identities_kept_answered
+            names_by_answer += named_columns
+            names_by_answer += list(identities_kept_answered)
         carried_answers = written.carried
         if written.metadata_rows_answered:
             metadata_answer = (
@@ -3779,6 +3898,19 @@ def _run_profile(
     # words before anything is written -- an `identifier` answer lost
     # between rounds is a person column read as numbers, and a held
     # column's answer lost is the hold put back on it without a word.
+    # ...AND NO ANSWER MADE BY NAME UNDER OTHER NAMES (plan P4-D408): the
+    # file lists the names its answers use, and a run reading the table
+    # under other names -- a kept answer about how the file is read
+    # deleted, or another table -- would put each answer on a column the
+    # person was not looking at. Measured: the kept `names` deleted, 200
+    # of 200 real subject codes published.
+    if (
+        answered_under is not None
+        and names_by_answer
+        and tuple(read.column_names) != answered_under
+    ):
+        _warn(_answered_under_other_names(_shown(f"{answers_path}")))
+        return 2
     if carried_answers:
         not_kept = _earlier_answers_dropped(
             carried_answers,
@@ -4967,6 +5099,8 @@ def _run_profile(
                             answered_month_first,
                         )
                     ),
+                    # ...with the names those answers use (P4-D408).
+                    answered_columns=list(read.column_names),
                 )
             ),
             sources=guarded_questions,

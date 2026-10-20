@@ -5250,6 +5250,7 @@ def questions_document(
     about_file: "list[Question] | None" = None,
     about_table: "list[str] | None" = None,
     answered: "list[dict[str, object]] | None" = None,
+    answered_columns: "list[str] | None" = None,
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data.
 
@@ -5331,6 +5332,12 @@ def questions_document(
     # answer was carried into is written as before, byte for byte.
     if answered:
         written[ANSWERED_BEFORE_SAYS] = ANSWERED_BEFORE_MEANS
+        # ...WITH THE COLUMN NAMES THE ANSWERS USE (plan P4-D408), the
+        # names the run writing the file read the table with, in the
+        # table's order: a later run reading other names refuses to act
+        # on an answer made by name (`columns_answered_under`).
+        if answered_columns is not None:
+            written[ANSWERED_BEFORE_COLUMNS] = list(answered_columns)
         written[ANSWERED_BEFORE] = answered
     return written
 
@@ -5440,11 +5447,6 @@ class Answers:
     # refuses where one would be dropped. The column is a file
     # question's subject where the answer is about the whole file.
     carried: "tuple[tuple[str, str, str], ...]" = ()
-    # ...and the questions about HOW THE FILE IS READ whose standing
-    # answer is a carried one. The run that wrote the file had read the
-    # table that way already, so the names in the file are the names
-    # under that reading, and the answer moves no name.
-    reading_carried: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -5672,7 +5674,6 @@ def answers_in(document: object, shown: str) -> Answers:
     identities_kept: "list[str]" = []
     identities_kept_answered: "list[str]" = []
     carried: "list[tuple[str, str, str]]" = []
-    reading_carried: "list[str]" = []
     # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
     # against every later one before any is acted on (plan P4-D408).
     entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
@@ -5704,8 +5705,6 @@ def answers_in(document: object, shown: str) -> Answers:
         if from_before and written in offered:
             family = _family_of(written, offered)
             carried += [(name, written, family)]
-            if family == _FAMILY_FIRST_ROW or family == _FAMILY_DELIMITER:
-                reading_carried += [_FAMILY_SUBJECTS[family]]
         # UNCONDITIONALLY (review item L17b-R1-5). `_entry_answer`
         # refuses an entry that offers nothing, so `offered` is a
         # non-empty tuple by the time it arrives here and this check
@@ -5826,7 +5825,6 @@ def answers_in(document: object, shown: str) -> Answers:
         identities_kept=tuple(identities_kept),
         identities_kept_answered=tuple(identities_kept_answered),
         carried=tuple(carried),
-        reading_carried=tuple(reading_carried),
     )
 
 
@@ -5850,12 +5848,15 @@ def answers_in(document: object, shown: str) -> Answers:
 # written as before, byte for byte.
 ANSWERED_BEFORE = "answered_before"
 ANSWERED_BEFORE_SAYS = "what_answered_before_is"
+ANSWERED_BEFORE_COLUMNS = "column_names_these_answers_use"
 ANSWERED_BEFORE_MEANS = (
     "Every answer this run was given -- in a questions file or on the "
     "command line -- kept so that the next run is given it too. Leave "
     "these as they are to keep them. To change one, write another of the "
     "answers it offers beside 'your_answer'; answering the same question "
-    "again above, or on the command line, changes it as well."
+    "again above, or on the command line, changes it as well. The column "
+    "names they use are listed under 'column_names_these_answers_use': a "
+    "run that reads your table under other names does not act on them."
 )
 # What each kept answer says it saw. A kept answer names no shape, since
 # it may have been typed rather than asked; the shape a question about
@@ -6047,6 +6048,77 @@ def typed_over_kept(
         narrowed[key] = document[key]
     narrowed[ANSWERED_BEFORE] = kept
     return narrowed
+
+
+def kept_reading(document: object) -> "tuple[tuple[str, str], ...]":
+    """How the run that wrote a questions file read the table (plan P4-D408).
+
+    `(subject, answer)` for each kept answer about HOW THE FILE IS READ
+    -- the row holding the column names and the character between the
+    columns -- in the `answered_before` section of `document` as that run
+    wrote it: its `read_as_now`, which is the answer the run acted on
+    whatever the person has since written beside `your_answer`. Read
+    from the file before `typed_over_kept` takes anything out of it, so
+    an answer typed now is set against the reading that named the file's
+    columns. The answer is empty where the entry no longer says which
+    reading it was (`read_as_now` edited away): the run cannot tell, and
+    the caller counts that as a change. Read by index and never by
+    `.get` (plan D6.2). A fixed function of `document`. Raises nothing.
+    No I/O.
+    """
+    found: "list[tuple[str, str]]" = []
+    if not isinstance(document, dict) or ANSWERED_BEFORE not in document:
+        return ()
+    before = document[ANSWERED_BEFORE]
+    if not isinstance(before, list):
+        return ()
+    for entry in before:
+        if not isinstance(entry, dict) or "column" not in entry:
+            continue
+        subject = entry["column"]
+        if subject != FIRST_ROW_SUBJECT and subject != DELIMITER_SUBJECT:
+            continue
+        family = (
+            _FAMILY_FIRST_ROW if subject == FIRST_ROW_SUBJECT else _FAMILY_DELIMITER
+        )
+        word = ""
+        if "read_as_now" in entry and isinstance(entry["read_as_now"], str):
+            word = parsing.trimmed(entry["read_as_now"])
+        if word not in _FAMILY_WORDS[family]:
+            word = ""
+        found += [(subject, word)]
+    return tuple(found)
+
+
+def columns_answered_under(document: object) -> "tuple[str, ...] | None":
+    """The column names a questions file's answers use (plan P4-D408).
+
+    The `column_names_these_answers_use` list the run writing the file
+    wrote beside its `answered_before` section: the names it read the
+    table with. None where the file has no such list (one written before
+    plan P4-D408, or by a run given no answer), so nothing is checked
+    there; an empty tuple where the list is not one of names, which no
+    reading matches. Read by index and never by `.get` (plan D6.2). A
+    fixed function of `document`. Raises nothing. No I/O.
+
+    WHY (measured in lane AQ's repair): the kept answer about which row
+    holds the names, deleted from the file, left the run reading the
+    table the way a run given no answer reads it, and the kept
+    `identifier` and `keep` answers -- made under the other reading --
+    reached the other columns: 200 of 200 real subject codes published.
+    A deleted answer leaves nothing to read, but the names it moved do.
+    """
+    if not isinstance(document, dict) or ANSWERED_BEFORE_COLUMNS not in document:
+        return None
+    listed = document[ANSWERED_BEFORE_COLUMNS]
+    if not isinstance(listed, list):
+        return ()
+    names: "list[str]" = []
+    for one in listed:
+        if not isinstance(one, str):
+            return ()
+        names += [one]
+    return tuple(names)
 
 
 @dataclasses.dataclass(frozen=True)
