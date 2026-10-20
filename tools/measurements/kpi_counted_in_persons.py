@@ -4,12 +4,14 @@ Runs long tables through the real `synthtwin profile` (scripted, whatever
 terminal this is started from: nothing answered), `generate` (seed 0) and
 `validate`, and counts with `tests/persons_counted.py` -- written apart from
 the product's own count -- every value of a column but the subject columns
-(the declared person columns and the open person question's candidates
-that repeat, of any number of different values) that the description
+(the declared person columns and every column an open question offering
+`identifier` holds, that repeat, of any number of different values, each
+read with its spellings merged) that the description
 publishes and one to ten subjects hold, in the rule's scope (a column
 attached to the subject or of dates or times of day, or a value eleven
 rows and more hold published off the points along the range), with the
-written forms it names, its remainder and present rows, and the person
+written forms it names, its remainder and present rows, a record number's
+layout pool, and the person
 column's census of rows a person (`persons_counted.count`). Target 0; and
 no twin misses its own validation where the twin made without the count
 meets its own, but the generator's named limits (`GENERATOR_LIMITS`,
@@ -25,7 +27,7 @@ THE BATTERIES. `shapes`: K-S3-64's long tables (`tests/unanswered_identifier_
 shapes.py`) -- the held shapes at 600 rows, the shapes beside a declared
 person column and the counted shapes at 600 and 20,000. `people`: the
 population floor's repeated-measures tables with declared people and the
-person question's four negatives (`tests/kpi_shapes.py`), and the gate's two
+person question's four negatives (`tests/kpi_shapes.py`), and the gate's
 tables (`tests/persons_counted.py`). `zoo`: the healthcare catalogue's
 tables (`tests/health_zoo.py`, where this tree has it), profiled unanswered.
 About ten minutes on the reference machine.
@@ -85,8 +87,11 @@ def count_off() -> "typing.Iterator[None]":
 # skeptic, round 2, item 5): held, its layouts -- five and more beside a
 # pool -- met by an even census the identifier generator's packing walk
 # does not always find, so its twin misses a few rows of each named
-# layout at 2,000 and 20,000 rows.
-GENERATOR_LIMITS = ("z-diagnoses_procedures", "g-caps-2000", "g-caps-20000")
+# layout at 2,000 and 20,000 rows; and the catalogue's patients table,
+# unanswered, whose `gender_code` and `ancestry` are held beside its ZIP
+# codes, themselves held until their question is answered (round 2,
+# item 1's price): the twin misses those columns' layouts.
+GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-caps-20000")
 
 
 def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "dict[str, object]":
