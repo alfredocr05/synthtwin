@@ -35,9 +35,10 @@ which is the code before the lane:
    raise every kind of question it asks.
 3. The file's text is never read whole for a plain file, and the reader
    holds one group: the most `tracemalloc` sees `synthtwin profile`
-   hold, reading a wide table one column a group, is under half what it
-   holds reading it whole; and each walk is read only once the walk
-   before it is let go.
+   hold, reading a wide table one column a group, is under 0.6 of what
+   it holds reading it whole (0.52 to 0.56 measured with the collector
+   paused); and each walk is read only once the walk before it is let
+   go.
 4. A file that changes between two readings is refused, however small
    the change, and no reading of it is mixed with another.
 5. `reading.column_values` gives back any column, in any order, any
@@ -362,7 +363,8 @@ def test_profile_in_groups_holds_one_group_not_the_table(
     # runs hold every cycle they make: 0.52 in a fresh process and 0.56
     # after another profile, the same on 85b54f0f before lane AQ. The
     # bound is set over that with the least margin; a reading in groups
-    # that held the whole table again reads 1 or more.
+    # that held the whole table again (the mutant of commit d45ba80c)
+    # read 0.93, over the bound.
     for budget in (1 << 40, 1):
         monkeypatch.setattr(reading, "GROUP_BYTES", budget)
         gc.collect()
