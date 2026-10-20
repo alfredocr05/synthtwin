@@ -125,6 +125,13 @@ calls are held by what they are handed or by where they run:
   read when they were the product. `READ_THE_COLUMN`,
   `taxonomy._read_the_column` as 668f276 shipped it, stood beside them
   until plan P4-D390 deleted the level pass it was the oracle of.
+- `tests/workbook_stream_cases.py` runs `exec(compile(source, ...))`
+  on its own two string constants, `SHEET_PART` and `MEMBERS`:
+  `sheetwriting._sheet_part` and `sheetwriting._members` as b075342a
+  shipped them, frozen as the oracle of plan P4-D411 (the workbook twin
+  written as a stream). The floor holds because they are b075342a's own
+  source, which this guard already read at the floor when it was the
+  product (skeptic 1 of lane XW, item 1).
 - `tests/test_stage4_linear_work.py` runs `exec(compile(tree, ...))`
   once, in `_mutated` (plan P4-D385), where `tree` is the syntax tree of
   a shipped function -- `generation._label_content`, read by
@@ -337,6 +344,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage4_linear_work.py", "exec"): 1,
     ("tests/stage4_as_built.py", "compile"): 1,
     ("tests/stage4_as_built.py", "exec"): 1,
+    ("tests/workbook_stream_cases.py", "compile"): 2,
+    ("tests/workbook_stream_cases.py", "exec"): 2,
     ("tests/test_stage4_allocator_walk.py", "compile"): 1,
     ("tests/test_stage4_allocator_walk.py", "exec"): 1,
     ("tests/test_stage4_padded_swap_scale.py", "compile"): 1,

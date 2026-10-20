@@ -392,6 +392,25 @@ def test_the_zip_member_writer_does_not_reach_another_module(tmp_path):
     _assert_red(violations, "admitted for synthtwin.reading, synthtwin.writing only")
 
 
+def test_the_zip_member_writer_does_not_reach_the_reader(tmp_path):
+    """Bypass class: the same member writer named from `reading`.
+
+    zipfile's own admission holds `reading` and `writing`; the member
+    writer is `writing`'s alone (skeptic 1 of lane XW, item 4; plan
+    P4-D411), so written in `reading` it is refused.
+    """
+    modules = _member_writer_module(
+        """
+        for piece in pieces:
+            member.write(bytes(piece, "utf-8"))
+        member.close()
+        """
+    )
+    modules["synthtwin/reading.py"] = modules.pop("synthtwin/writing.py")
+    violations = _scan_package(tmp_path, modules)
+    _assert_red(violations, "calls the method 'write' on a value this audit cannot trace")
+
+
 def test_a_neighbouring_expat_attribute_goes_red(tmp_path):
     """Bypass class: an expat name the workbook admission did not admit."""
     violations = _scan_code(

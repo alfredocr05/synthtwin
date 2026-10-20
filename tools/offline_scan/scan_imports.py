@@ -1018,10 +1018,14 @@ _RESTRICTED_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
 
 # What a method of an ORDINARY api-instance hands back, where the
 # returned object needs a surface of its own (plan P4-D411): the zip
-# member writer, which `ZipFile.open` returns. Every other method
-# result of an ordinary api-instance stays untraced, as before.
-_INSTANCE_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
-    (_ZIP_ORIGIN, "open"): _ZIP_MEMBER_ORIGIN,
+# member writer, which `ZipFile.open` returns, and the modules where it
+# is traced. The member writer is `writing`'s alone, the one module that
+# writes: zipfile's own admission also holds `reading`, and there the
+# result stays untraced, so a member written in `reading` is refused
+# (skeptic 1 of lane XW, item 4). Every other method result of an
+# ordinary api-instance stays untraced, as before.
+_INSTANCE_METHOD_RESULTS: "dict[tuple[str, str], tuple[str, frozenset[str]]]" = {
+    (_ZIP_ORIGIN, "open"): (_ZIP_MEMBER_ORIGIN, frozenset({"synthtwin.writing"})),
 }
 
 # The one restricted surface whose values may still be handed to
@@ -2863,7 +2867,8 @@ class _Checker(ast.NodeVisitor):
                 continue
             opened = _INSTANCE_METHOD_RESULTS.get((origin, func.attr))
             if opened is not None:
-                out.add(("instance", opened))
+                if self.module_name in opened[1]:
+                    out.add(("instance", opened[0]))
                 continue
             key = _surface_key(origin)
             if key is None:
