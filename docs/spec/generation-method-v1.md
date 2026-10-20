@@ -2102,17 +2102,23 @@ a tail outside it where `K P / 100` is whole: measured on a 2,000-row
 column of ages, the twin then wrote its top value 19 times against the
 20 rows published, and its listed tail missed.)
 
-**A TAIL READ THROUGH ITS STAIRCASE** (the grid staircase below, pushed
-or shared) reads the row at the rank `t = floor(N K / D)` ROUNDED DOWN ON
-BOTH SIDES, counted from the boundary outward: row `m_lo - 1 - t` on the
-low side and row `t - (K - m_hi)` on the high (stage 4 lane G2T's repair,
-plan P4-D405). A share inside a stratum's own ranks then reads a row
-inside them. The high side rounded up until that repair, so a one-rank
-stratum at rank `s` read row `s + 1` at any word above nought: the end
-was held twice, the innermost row never, and a count of Pareto draws
-(`int(pareto(1.5) * 10)`, 20,000 rows) came back with its spread 11.0
-per cent above the published one and its high tail's mean distance 23.9
-per cent past it.
+**A TAIL READ THROUGH ITS STAIRCASE** (the grid staircase below) reads
+the row at the rank `t = floor(N K / D)` counted from the boundary
+outward, row `m_lo - 1 - t` on the low side; on the high side row `t -
+(K - m_hi)`, with `t` ROUNDED DOWN where the side reads the SHARED
+staircase and rounded up, `ceil(N K / D)`, where it reads the pushed one
+(stage 4 lane G2T's repair, plan P4-D405). Rounded down, a share inside a
+stratum's own ranks reads a row inside them. Rounded up, a one-rank
+stratum at rank `s` reads row `s + 1` at any word above nought, so the
+end is held twice and the innermost row never: a count of Pareto draws
+(`int(pareto(1.5) * 10)`, 20,000 rows) reading the shared staircase came
+back with its spread 11.0 per cent above the published one and its high
+tail's mean distance 23.9 per cent past it. On the pushed staircase,
+whose rows stand a grid step apart, the same reading moves such a
+stratum one step; rounding it down too moved 11 cells of the
+demonstration's `reading` one step, eight frozen tail cases and 22 cases
+of G6.6.8's width walk built on that reading, so it is lane G2T2's (the
+tail follow-up), stated as a limit in plan P4-D405.
 
 `N = 0` reads the low end exactly and `N = D` the high end, which is
 what the two pinned strata hold. Otherwise the rank stands at the MIDDLE

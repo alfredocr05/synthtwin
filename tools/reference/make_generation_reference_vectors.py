@@ -3415,9 +3415,12 @@ def tail_read_at(ladder, numerator, denominator):
             )
             return listed_reading(position, high["listed"], high["counts"], False)
         if high["steps"]:
-            # rounded down on both sides (plan P4-D405): a share inside a
-            # stratum's ranks reads a row inside them
-            rank = (numerator * high["numbers"]) // denominator
+            # rounded down where the side reads the shared staircase, as on
+            # the low side (plan P4-D405); the pushed staircase rounds up
+            if high.get("shared"):
+                rank = (numerator * high["numbers"]) // denominator
+            else:
+                rank = -((-(numerator * high["numbers"])) // denominator)
             row = rank - (high["numbers"] - high["rows"])
             row = 0 if row < 0 else min(row, high["rows"] - 1)
             return high["steps"][row]

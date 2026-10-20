@@ -179,7 +179,7 @@ FLOOR_ONE_BATTERY = (2160, 567, 5)
 # shared staircase, its rows on their own readings, so the values its
 # strata take beyond each boundary move and every pair agreement of that
 # position with them. At the default the battery's total outside falls
-# 579 to 524 and its missed stay three: column 0 falls 7 to 5, column 5
+# 579 to 526 and its missed stay three: column 0 falls 7 to 5, column 5
 # 52 to 44, column 7 101 to 92 and column 9 66 to 57, column 11 rises 63
 # to 68; the missed move from columns 7 and 11 to columns 0, 9 and 11,
 # one each -- all three still in the pinned columns, so the pin holds

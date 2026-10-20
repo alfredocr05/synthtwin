@@ -14687,13 +14687,19 @@ def tail_read(
         if high.listed:
             return _listed_at(high, numerator, denominator)
         if high.steps:
-            # THE RANK THE SHARE STANDS AT, ROUNDED DOWN ON BOTH SIDES
-            # (plan P4-D405): a share inside a stratum's ranks reads a row
-            # inside them. Rounded up, a one-rank stratum at rank `s`
-            # read row `s + 1` at any word above nought: the end was held
-            # twice, the innermost row never, and a count of Pareto draws
-            # came back with its spread 11 per cent above the published.
-            rank = (numerator * high.numbers) // denominator
+            # THE RANK THE SHARE STANDS AT, ROUNDED DOWN WHERE THE SIDE
+            # READS THE SHARED STAIRCASE, as on the low side (plan
+            # P4-D405): a share inside a stratum's ranks reads a row inside
+            # them. Rounded up, a one-rank stratum at rank `s` read row
+            # `s + 1` at any word above nought: the end was held twice, the
+            # innermost row never, and a count of Pareto draws came back
+            # with its spread 11 per cent above the published. The pushed
+            # staircase keeps rounding up, one point a row a grid step from
+            # the next, until lane G2T2 (G6.6.8's width walk is built on it).
+            if high.shared:
+                rank = (numerator * high.numbers) // denominator
+            else:
+                rank = -((-(numerator * high.numbers)) // denominator)
             row = rank - (high.numbers - high.rows)
             if row < 0:
                 row = 0

@@ -501,22 +501,28 @@ def test_a_pinned_end_s_run_is_joined_last(
     assert on_end > 5, ("the mutant piles rows on the end", on_end)
 
 
-def test_a_stratum_inside_a_tail_reads_a_row_inside_its_ranks() -> None:
-    """`contract.tail_read` rounds the rank down on the high side as on the low (item 3).
+def test_a_stratum_inside_a_shared_tail_reads_a_row_inside_its_ranks() -> None:
+    """`contract.tail_read` rounds the rank down on a shared high side as on the low (item 3).
 
     Rounded up, a one-rank stratum at rank `s` read row `s + 1` at any
     word above nought, so the end was held twice and the innermost row
-    never.
+    never: a count of Pareto draws came back with its spread 11.0 per
+    cent above the published one. The pushed staircase keeps rounding up
+    (lane G2T2's, plan P4-D405): G6.6.8's width walk and 22 of its cases
+    are built on that reading.
     """
-    high = dataclasses.replace(million._HIGH, steps=(101.0, 102.0, 103.0, 130.0))
-    low = dataclasses.replace(million._HIGH, low=True, percent=1, boundary=10.0, end=0.0, steps=(9.0, 8.0, 7.0, 0.0))
+    high = dataclasses.replace(million._HIGH, steps=(101.0, 102.0, 103.0, 130.0), shared=True)
+    low = dataclasses.replace(
+        million._HIGH, low=True, percent=1, boundary=10.0, end=0.0, steps=(9.0, 8.0, 7.0, 0.0), shared=True
+    )
     ladder = contract._shaped(tuple([0.0] * 101), low, high)
     for rank, row in ((36, 0), (37, 1), (38, 2)):
         assert contract.tail_read(ladder, 2 * rank, 80) == high.steps[row], rank
         assert contract.tail_read(ladder, 2 * rank + 1, 80) == high.steps[row], rank
-    for rank, row in ((0, 3), (1, 2), (2, 1), (3, 0)):
-        if rank:
-            assert contract.tail_read(ladder, 2 * rank + 1, 80) == low.steps[row], rank
+    for rank, row in ((1, 2), (2, 1), (3, 0)):
+        assert contract.tail_read(ladder, 2 * rank + 1, 80) == low.steps[row], rank
+    pushed = contract._shaped(tuple([0.0] * 101), low, dataclasses.replace(high, shared=False))
+    assert contract.tail_read(pushed, 2 * 36 + 1, 80) == high.steps[1], "the pushed staircase still rounds up"
 
 
 def test_a_heavy_tailed_count_keeps_its_tail_s_mean_distance(tmp_path: pathlib.Path) -> None:
