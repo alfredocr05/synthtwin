@@ -20,7 +20,10 @@ it may run in: the modules the generator, the loader and the twin's
 writers reach by import (zone G) use no library but the one random
 stream; pyarrow's reader is fenced like pandas' and runs one thread;
 HiGHS is silenced and budgeted in nodes; numba is one decorator form in
-one module; `n_jobs` is refused everywhere. `read_table` sets pandas'
+one module, over a top-level function that is called and nothing else
+(one statement writing into numba's dispatcher switched fast-math on);
+the twin's writers import no library; `n_jobs` is refused everywhere,
+as a keyword and as text. `read_table` sets pandas'
 string storage itself (left to pandas, reading 500,000 rows took 19 %
 longer with pyarrow installed), and `synthtwin doctor` names every
 library's version. CI runs 3.11 to 3.14 and the minimums job 3.11. Every

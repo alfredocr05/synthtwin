@@ -78,10 +78,13 @@ The layers:
    `milp` (HiGHS, silenced, its budget in nodes) with `Bounds` and
    `LinearConstraint`, and its Cholesky pair `cho_factor` and
    `cho_solve`; and `numba.njit` in the one polish-kernel module, only
-   as `njit(fastmath=False, parallel=False, cache=False)`. Every
+   as `njit(fastmath=False, parallel=False, cache=False)` over a
+   top-level function, which every module then calls and does nothing
+   else with (numba's dispatcher carries its compiler settings). Every
    library is admitted for the ZONES it may run in (P4-D409 part 2):
    no library float decides a byte of the twin (zone G, the modules
-   the generator and the description's loader reach by import) or of
+   the generator, the description's loader and the twin's writers
+   reach by import; the writers themselves import no library) or of
    anything published (zone D). An AST-level scanner
    (`tools/offline_scan`) enforces the list, the zones and the argument
    rules, and additionally bans dynamic import, entry-point loading,
