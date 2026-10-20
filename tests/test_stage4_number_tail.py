@@ -29,7 +29,7 @@ is invented: no real data.
 THE REPAIR (skeptic 1 of 2026-10-19, plan P4-D405), each case red on its
 mutant: the spread aims at the strata G5.2 divides into
 (`NumericFacts.strata_asked`) and holds each side's summed distance
-(`contract._spread_side`); G5.2a joins a pinned end's run last on a
+(`contract._spread_side`); G5.2a never joins a pinned end's run on a
 shared ladder (`generation._merge_down`'s `pinned`); a stratum inside a
 tail reads the rank rounded down on both sides (`contract.tail_read`); a
 heap-listed tail counts each value from the floor (`contract._heap_floor`);
@@ -456,8 +456,8 @@ def test_a_column_written_two_ways_spreads_to_the_strata_it_divides_into(
     result = _trip(tmp_path / "shipped", "labs", data, seed=4)
     column = result["document"]["columns"][0]
     assert (column["n_distinct"], column["n_distinct_values"]) == (33, 31)
-    facts = contract.load_profile(str(result["described"])).columns[0].facts
-    assert isinstance(facts, contract.NumericFacts) and facts.strata_asked == 33
+    counts = (column["n_numeric"], column["n_out_of_range"], column["n_contradictory"], column["n_not_numeric"])
+    assert contract._numbers_share(column["n_distinct_folded"], counts) == 33, "the strata the twin divides into"
     assert result["exits"] == {"real": 0, "twin": 0}, result["twin_missed"]
     monkeypatch.setattr(contract, "_numbers_share", lambda _folded, _counts: 0)
     mutant = _trip(tmp_path / "mutant", "labs", data, seed=4)
@@ -472,7 +472,9 @@ def test_a_pinned_end_s_run_is_joined_last(
     The ladder reaches a few more points than the 355 published, and
     G5.2a's join took the outermost runs of two rows into the pinned end
     -- 11 cells on `55.1` where the source holds one at `52.2`, the
-    tail 18 per cent out. Mutant: the pinned runs joined like any other.
+    tail 18 per cent out. The join that would take the pinned run now
+    takes the pair beside it, inward. Mutant: the pinned runs joined like
+    any other.
     """
     described = kpi_shapes.describe(tmp_path / "clipped", "clipped", _table({"reading": _clipped_bell(20000)}))
     facts = described.loaded.columns[0].facts

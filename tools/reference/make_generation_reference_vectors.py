@@ -2857,17 +2857,21 @@ def band_allotment(
         reader_high["rows"] if reader_high and reader_high["listed"] else 0,
     )
     lead, trail = listed_runs(lengths, listed[0], listed[1], low, numeric)
-    # A PINNED END'S RUN IS JOINED LAST where a tail reads the shared
-    # staircase (G5.3b, plan P4-D405): a pair touching the band's first run
-    # at rank 0, or its last at the column's last rank, ranks after every
-    # other pair.
+    # A PINNED END'S RUN IS NEVER JOINED where a tail reads the shared
+    # staircase (G5.3b, plan P4-D405): the join that would take the band's
+    # first run at rank 0, or its last at the column's last rank, takes the
+    # pair beside it inward instead, unless that pair touches the other.
     shared = bool(
         (reader_low and reader_low.get("shared"))
         or (reader_high and reader_high.get("shared"))
     )
 
     def pinned_pair(sizes, index, first, last):
-        return 1 if (first and index == 0) or (last and index + 1 == len(sizes) - 1) else 0
+        if last and index + 1 == len(sizes) - 1 and index >= 1 and not (first and index - 1 == 0):
+            return index - 1
+        if first and index == 0 and index + 2 <= len(sizes) - 1 and not (last and index + 2 == len(sizes) - 1):
+            return index + 1
+        return index
 
     first_pinned = shared and low == 0
     last_pinned = shared and low + count == numeric
@@ -2877,12 +2881,10 @@ def band_allotment(
         while len(inner_lengths) > strata - lead - trail:
             at = min(
                 range(len(inner_lengths) - 1),
-                key=lambda index: (
-                    pinned_pair(inner_lengths, index, first_pinned and lead == 0, last_pinned and trail == 0),
-                    overshoot(inner_lengths, index, cap),
-                )
+                key=lambda index: (overshoot(inner_lengths, index, cap),)
                 + join_key(inner_lengths, inner_heights, index),
             )
+            at = pinned_pair(inner_lengths, at, first_pinned and lead == 0, last_pinned and trail == 0)
             inner_lengths[at] = inner_lengths[at] + inner_lengths[at + 1]
             del inner_lengths[at + 1]
             del inner_heights[at + 1]
@@ -2911,12 +2913,10 @@ def band_allotment(
     while len(lengths) > strata:
         at = min(
             range(len(lengths) - 1),
-            key=lambda index: (
-                pinned_pair(lengths, index, first_pinned, last_pinned),
-                overshoot(lengths, index, cap),
-            )
+            key=lambda index: (overshoot(lengths, index, cap),)
             + join_key(lengths, heights, index),
         )
+        at = pinned_pair(lengths, at, first_pinned, last_pinned)
         lengths[at] = lengths[at] + lengths[at + 1]
         del lengths[at + 1]
         del heights[at + 1]

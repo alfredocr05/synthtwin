@@ -3290,7 +3290,7 @@ def _kept_stand_ins(
 def _holding_stand_ins(
     block: "NumericFacts",
     verdicts: "tuple[SentinelVerdict, ...]",
-    floor: int = 0,
+    floor: int,
 ) -> "NumericFacts":
     """One numeric block, holding the stand-ins it keeps (`_kept_stand_ins`).
 
@@ -13420,7 +13420,7 @@ class TailReader:
     kept: "tuple[float, ...]" = ()
     dense_grid: int = -1
     # WHETHER THIS SIDE READS G5.3b'S SHARED STAIRCASE (plan P4-D405):
-    # G5.2a then joins a pinned end's run last (`generation._shape_sizes`).
+    # G5.2a then never joins a pinned end's run (`generation._shape_sizes`).
     shared: bool = False
 
 

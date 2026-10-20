@@ -1538,20 +1538,25 @@ the other two get wrong:**
   size, so a column of thousands and a column of thousandths are judged
   the same way.
 
-**A PINNED END'S RUN IS JOINED LAST WHERE A TAIL READS THE SHARED
+**A PINNED END'S RUN IS NEVER JOINED WHERE A TAIL READS THE SHARED
 STAIRCASE** (G5.3b; stage 4 lane G2T's repair, plan P4-D405). Where
-either tail of the ladder reads the shared staircase, a pair touching
-the band's first run at rank 0 or its last run at rank `K - 1` -- the
-runs the two pinned strata hold -- ranks after every other pair, ahead
-of `Over` (`generation._merge_down`'s `pinned`). The shared staircase's
-rows share points, so the runs beside a pinned end are runs of a few
-rows, the smallest a join takes first, and a join keeps the left run's
-value, which on the high side is the pinned stratum's: a clipped bell at
-one place, 20,000 rows, joined its five outermost runs of two rows, `47.4`
-to `47.8`, into its end and wrote 11 cells on the derived end `55.1`
-where the source holds one cell at `52.2`, its high tail's mean distance
-18 per cent past the published one. With the rule one cell stands there
-and the tail is 3.5 per cent off. A ladder whose tails read the pushed
+either tail of the ladder reads the shared staircase, the join the key
+above chooses that would take the band's first run at rank 0 or its last
+run at rank `K - 1` -- the runs the two pinned strata hold -- takes the
+pair beside it instead, inward: the run before the last joined to the one
+before it, the run after the first to the one after it, unless that pair
+touches the other pinned run (`generation._merge_down`'s `pinned`). The
+shared staircase's rows share points, so the runs beside a pinned end
+are runs of a few rows, the smallest a join takes first, and a join
+keeps the left run's value, which on the high side is the pinned
+stratum's: a clipped bell at one place, 20,000 rows, joined its five
+outermost runs of two rows, `47.4` to `47.8`, into its end and wrote 11
+cells on the derived end `55.1` where the source holds one cell at
+`52.2`, its high tail's mean distance 18 per cent past the published
+one. With the rule one cell stands there and the tail is 3.5 per cent
+off. (Ranking such pairs after every other pair instead, the first
+writing of this rule, moved every join of a column of 10,268 runs
+joined to 3,433 by one place.) A ladder whose tails read the pushed
 staircase joins as before, so no twin of such a column moves.
 
 While `R < M`, divide the longest run in two — leftmost on a tie — into

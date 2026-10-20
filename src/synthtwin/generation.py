@@ -6741,9 +6741,6 @@ def _pair_key(
     )
 
 
-_PINNED_PAIR = 1 << 62
-
-
 def _merge_down(
     lengths: "list[int]",
     held: "list[float]",
@@ -6753,11 +6750,13 @@ def _merge_down(
 ) -> "tuple[list[int], list[float]]":
     """Merge adjacent runs until there are `strata` of them.
 
-    ``pinned`` names a first and a last run a pinned stratum holds,
-    which a join takes only when no other pair is left (G5.3b's shared
-    staircase, plan P4-D405): every pair touching one ranks after every
-    other pair, its key's first part raised by `_PINNED_PAIR`. With
-    neither named this is `_merge_nearest` repeated, as below.
+    ``pinned`` names a first and a last run a pinned stratum holds
+    (G5.3b's shared staircase, plan P4-D405): the join the key chooses
+    that would take one of them takes the pair beside it instead, inward
+    -- the run before the last joined to the one before it, or the run
+    after the first to the one after it -- unless that pair touches the
+    other pinned run. With neither named this is `_merge_nearest`
+    repeated, as below.
 
     THE SAME ANSWER AS REPEATING `_merge_nearest`, AND THAT EQUIVALENCE
     IS THE WHOLE CONTRACT OF THIS FUNCTION. `_merge_nearest` rescans
@@ -6809,10 +6808,7 @@ def _merge_down(
     size = 0
 
     def keyed(left: int, right: int) -> "tuple[int, int, int, float]":
-        key = _pair_key(run_lengths, values, left, right, cap)
-        if (pinned[0] and left == 0) or (pinned[1] and after[right] == -1):
-            return (key[0] + _PINNED_PAIR, key[1], key[2], key[3])
-        return key
+        return _pair_key(run_lengths, values, left, right, cap)
 
     for place in range(total - 1):
         size = _heap_push(heap, size, (keyed(place, place + 1), place, 0))
@@ -6825,6 +6821,19 @@ def _merge_down(
         joined = after[here]
         if joined == -1 or not alive[joined]:
             continue
+        # A JOIN THAT WOULD TAKE A PINNED END'S RUN TAKES THE PAIR BESIDE
+        # IT INSTEAD, inward (`pinned`, G5.2a): the pinned run keeps its
+        # own rows, and every other join is the one it was.
+        if pinned[1] and after[joined] == -1:
+            back = before[here]
+            if back != -1 and not (pinned[0] and back == 0):
+                joined = here
+                here = back
+        elif pinned[0] and here == 0:
+            onward = after[joined]
+            if onward != -1 and not (pinned[1] and after[onward] == -1):
+                here = joined
+                joined = onward
         run_lengths[here] = run_lengths[here] + run_lengths[joined]
         alive[joined] = False
         after[here] = after[joined]
@@ -7247,7 +7256,7 @@ def _shape_sizes(
     # source holds fifty of each, and the fifty published pluses split
     # across two values -- four spellings of three numbers.
     evens = lead > whole[0] or trail > whole[1]
-    # A PINNED END'S RUN IS JOINED LAST WHERE A TAIL READS THE SHARED
+    # A PINNED END'S RUN IS NEVER JOINED WHERE A TAIL READS THE SHARED
     # STAIRCASE (G5.3b, plan P4-D405). Its rows share points, so the
     # runs beside a pinned end are runs of a few rows, the smallest a
     # join takes first, and a join keeps the pinned stratum's value: a

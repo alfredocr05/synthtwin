@@ -547,7 +547,14 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # to ask it again for every answer the twentieth vectors file carries. What
 # it loads is a committed file under tools/, which this guard reads
 # directly, so the floor holds for it as it does for the other thirty-five.
-FILES_LOADED_AS_MODULES = 36
+#
+# 37 AT STAGE 4 LANE G2T'S REPAIR (plan P4-D405), not 36:
+# `tests/test_stage4_number_tail.py` loads the million-row driver
+# `tools/measurements/kpi_dense_million.py` the same way, to ask what
+# environment it hands its child. What it loads is a committed file under
+# tools/, which this guard reads directly, so the floor holds for it as it
+# does for the other thirty-six.
+FILES_LOADED_AS_MODULES = 37
 
 
 def _files() -> "list[pathlib.Path]":
