@@ -554,10 +554,13 @@ def test_a_person_column_in_two_layouts_publishes_a_census_its_twin_meets(
                                "--identifier", "patient")
     block = _block(_described(tmp_path, "systems"), "patient")
     assert len([form for form in block["layout_forms"] if form != "(withheld)"]) == 2, block
-    implied = taxonomy._even_census(block["n_present"], block["n_distinct_by_occurrences"],
-                                    block["layout_forms"])
-    assert block["n_distinct_by_occurrences"] == implied
+    # The census closes on the column's own counts and prints no real
+    # group, judged by the counter alone (Codex's review of lane HX2, item
+    # 11: no expected value drawn from the product's own helper).
     cells = [row[0] for row in _x_rows(table)]
+    census = {int(key): value for key, value in block["n_distinct_by_occurrences"].items()}
+    assert sum(census.values()) == len(set(cells))
+    assert sum(size * people for size, people in census.items()) == len(cells)
     assert persons_counted.census_few(block, cells) == 0
     assert _twin_validates(table, tmp_path) == 0
 
@@ -623,9 +626,15 @@ def test_the_subject_key_merges_spellings_and_never_splits_one() -> None:
     assert keys[4] == "rec20000008"
     assert keys[5] == keys[6] == ""
     assert keys[7] == "0"
-    assert keys[8] == "a12"
+    assert keys[8] == "a12" == persons_counted.subject_of("A-01-02")
     for cell in ("REC-0007", "rec7", "Rec 7", "REC_7"):
         assert profile.subject_keys([cell]) == [persons_counted.subject_of(cell)] == ["rec7"]
+    # Every spelling of nobody is ONE unknown subject (Codex's review, item 3).
+    nobody = profile.subject_keys(list(persons_counted.NOBODY_FORMS) + ["  ", "unknown"])
+    assert nobody[:-1] == [""] * (len(persons_counted.NOBODY_FORMS) + 1)
+    assert nobody[-1] == "unknown"
+    assert [persons_counted.subject_of(one) for one in persons_counted.NOBODY_FORMS] == [""] * 11
+    assert profile.subject_keys(["N/A", "missing"], ("missing",)) == ["", ""]
     held = profile.subjects_holding(["x"] * 6, ["P1", "p1", "P-1", "P01", "p 1", "P2"], 11)
     assert held["x"].holders == ("p1", "p2")
 
@@ -677,11 +686,287 @@ def test_a_key_tuple_is_kept_once_and_a_day_is_read_only_where_one_is_published(
 
 
 def test_a_spread_is_kept_only_where_the_layouts_can_hold_it() -> None:
-    """Item 2: 13 and 14 rows a person cannot fill 268 rows from twenty; 2 and 3 can fill 405 and 395."""
+    """Item 2: 13 and 14 rows a person cannot fill 268 rows from twenty; 2 and 3 can fill 405 and 395.
+
+    The parts are the rows the POOLED people hold in each part, the groups
+    kept standing where they are (Codex's review of lane HX2, item 1).
+    """
     assert not taxonomy._spread_meets_layouts({13: 2, 14: 141}, [268, 1732])
     assert taxonomy._spread_meets_layouts({2: 316, 3: 56}, [405, 395])
     assert taxonomy._spread_meets_layouts({13: 2, 14: 141}, [2000])
     assert not taxonomy._spread_meets_layouts({4: 10}, [21, 19])
     assert taxonomy._spread_meets_layouts({4: 10}, [20, 20])
-    # A wider census (groups of eleven and more kept beside the spread) is not judged.
-    assert taxonomy._spread_meets_layouts({1: 302, 2: 67, 18: 16, 19: 4}, [422, 378])
+    # Fourteen rows from groups of three: no deal (Codex's item 1).
+    assert not taxonomy._spread_meets_layouts({3: 12}, [14, 22])
+    assert taxonomy._spread_meets_layouts({3: 12}, [15, 21])
+    # Each PART must be possible, not the totals alone (the combined
+    # verify's item 3): 15 rows from 13 and 14 cannot be, though
+    # 144 <= 150 <= 153.
+    assert not taxonomy._spread_meets_layouts({13: 100, 14: 50}, [15, 1985])
+    # A census of sizes further apart is not judged: it is unmet, and the
+    # caller publishes a census it can prove instead.
+    assert not taxonomy._spread_meets_layouts({1: 302, 2: 67, 18: 16, 19: 4}, [422, 378])
+    assert not taxonomy._spread_meets_layouts({4: 10}, [])
+
+
+# -- lane HX2's third repair: Codex's review and the combined verify --------
+
+
+def _census(block: "dict[str, object]") -> "dict[int, int]":
+    census = block["n_distinct_by_occurrences"]
+    assert isinstance(census, dict)
+    return {int(key): int(value) for key, value in census.items()}
+
+
+def _closes(block: "dict[str, object]", cells: "list[str]") -> None:
+    census = _census(block)
+    present = [cell for cell in cells if cell]
+    assert sum(census.values()) == len(set(present)), census
+    assert sum(size * people for size, people in census.items()) == len(present), census
+
+
+def test_a_pooled_census_is_published_only_where_the_twin_can_deal_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's item 1: groups of three cannot fill the 14 rows of one patient's `P#####`.
+
+    The layout one patient wears is counted in the person column itself and
+    pooled, so no layout is named; the census closes, prints no real group,
+    and the twin meets it.
+    """
+    table, _screen = _profiled(tmp_path, "deal", persons_counted.layouts_census_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "deal"), "patient")
+    cells = [row[0] for row in _x_rows(table)]
+    _closes(block, cells)
+    assert persons_counted.census_few(block, cells) == 0, block["n_distinct_by_occurrences"]
+    assert "@%%%%%" not in block["layout_forms"], block["layout_forms"]
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_layout_three_patients_keys_wear_is_not_named(tmp_path: pathlib.Path) -> None:
+    """Codex's item 1: the person column's own layouts are counted in its own people."""
+    table, _screen = _profiled(tmp_path, "own", persons_counted.own_layout_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "own"), "patient")
+    named = [form for form in block["layout_forms"] if form != "(withheld)"]
+    assert named == [], block["layout_forms"]
+    assert block["layout_forms"].get("(withheld)", 0) != 30, block["layout_forms"]
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_key_written_in_twelve_cases_is_one_person(tmp_path: pathlib.Path) -> None:
+    """Codex's item 2: every raw key differs, yet `special` is held by five people on 60 rows."""
+    table, _screen = _profiled(tmp_path, "cases", persons_counted.case_variants_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "cases"), "flag")
+    assert "special" not in json.dumps(block), block
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_every_spelling_of_nobody_is_one_unknown_person(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3: 22 visits of one unnamed patient in eleven spellings publish no `unk`."""
+    table, _screen = _profiled(tmp_path, "nobody", persons_counted.nobody_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "nobody"), "label")
+    assert "unk" not in json.dumps(block), block
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_candidate_whose_own_values_are_not_held_is_still_a_subject(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's item 4: a key read as free text publishes nothing itself, and the birth dates beside it are counted."""
+    text, births = persons_counted.free_text_key_table()
+    table, _screen = _profiled(tmp_path, "free", text)
+    described = _described(tmp_path, "free")
+    block = _block(described, "dob")
+    published = json.dumps(block)
+    assert not [birth for birth in births if birth in published], block
+    counted = persons_counted.count_files(table, tmp_path)
+    assert "patient" in counted["subjects"] and counted["few"] == 0, counted
+    assert _twin_validates(table, tmp_path) == 0
+
+
+@pytest.mark.parametrize("case", ("clock", "days", "comma"))
+def test_a_cell_is_counted_as_the_value_its_column_reads_it_as(
+    tmp_path: pathlib.Path, case: str
+) -> None:
+    """Codex's item 5: `8:30` is the `08:30` printed, `19000` a date, `10,07` the number 10.07."""
+    if case == "clock":
+        table, _screen = _profiled(tmp_path, "read", persons_counted.clock_table(),
+                                   "--identifier", "patient")
+        block = _block(_described(tmp_path, "read"), "clock")
+        assert "08:30" not in json.dumps(block) and "8:30" not in json.dumps(block), block
+    elif case == "days":
+        table, _screen = _profiled(tmp_path, "read", persons_counted.day_count_table("plain"),
+                                   "--identifier", "patient", "--date-count", "day",
+                                   "days-since-1970")
+        block = _block(_described(tmp_path, "read"), "day")
+        assert "2022-" not in json.dumps(block) and "2023-" not in json.dumps(block), block
+    else:
+        table, _screen = _profiled(tmp_path, "read", persons_counted.comma_table(),
+                                   "--identifier", "patient", "--decimal-comma", "m")
+        block = _block(_described(tmp_path, "read"), "m")
+        assert "percentiles" not in block, block
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER, block["role"]
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_the_oracle_reads_a_clock_whatever_the_hour_width() -> None:
+    """Codex's item 5: the counter written apart reads `8:30` as the published `08:30` too."""
+    block = {"name": "clock", "role": "time_of_day", "clock_heaps": [{"value": "08:30", "count": 36}]}
+    assert persons_counted.is_published("8:30", block, persons_counted.leaves(block))
+    assert not persons_counted.is_published("8:31", block, persons_counted.leaves(block))
+    days = {"name": "d", "role": "datetime", "date_percentiles": {"p05": "2022-01-08"}}
+    assert persons_counted.is_published("19000", days, persons_counted.leaves(days),
+                                        ("days-since-1970", False))
+    numbers = {"name": "m", "role": "continuous", "percentiles": {"p05": 10.07}}
+    assert persons_counted.is_published("10,07", numbers, persons_counted.leaves(numbers),
+                                        ("", True))
+
+
+def test_a_census_spread_back_into_its_real_small_group_is_not_printed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's item 6: a hundred patients on nine rows and one on ten; the even spread is exactly that."""
+    table, _screen = _profiled(tmp_path, "nine", persons_counted.nine_and_ten_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "nine"), "patient")
+    cells = [row[0] for row in _x_rows(table)]
+    census = _census(block)
+    assert census != {9: 100, 10: 1}, census
+    assert all(people >= 11 for people in census.values()), census
+    _closes(block, cells)
+    assert persons_counted.census_few(block, cells) == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_the_census_oracle_exempts_no_census_drawn_from_counts() -> None:
+    """Codex's item 11: an even spread that reproduces a real group of one prints it."""
+    cells = [f"P{person}" for person in range(101) for _row in range(10 if person == 0 else 9)]
+    block = {"n_distinct_by_occurrences": {"09": 100, "10": 1}, "n_present": len(cells),
+             "layout_forms": {"@%": 101, "@%%": 810}}
+    assert persons_counted.census_few(block, cells) == 1
+    block["n_distinct_by_occurrences"] = {"08": 11, "09": 78, "10": 12}
+    assert persons_counted.census_few(block, cells) == 0
+
+
+def test_a_layout_census_of_nothing_but_a_pool_two_people_hold_is_not_printed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's item 7: `A12345` and `BB23456` on two patients' rows printed `(withheld)` 20."""
+    table, _screen = _profiled(tmp_path, "pool", persons_counted.pool_only_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "pool"), "x")
+    assert block["layout_forms"] == {}, block["layout_forms"]
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_run_of_four_hundred_figures_is_no_number(tmp_path: pathlib.Path) -> None:
+    """Codex's item 8: ordinary profiling accepts it, and so does the count in people."""
+    code, _screen = _profile(_written(tmp_path, "long", persons_counted.long_figures_table()),
+                             tmp_path, "--identifier", "patient")
+    assert code == 0
+    published = profile._published_in({"name": "n", "percentiles": {"p50": 9.0}}, True)
+    assert profile._keys_of("item " + "9" * 400 + " value 7", published, {}) == ()
+    assert persons_counted._figures("item " + "9" * 400) is None
+
+
+def _written(tmp_path: pathlib.Path, stem: str, text: str) -> pathlib.Path:
+    table = tmp_path / f"{stem}.csv"
+    table.write_text(text, encoding="utf-8", newline="\n")
+    return table
+
+
+class _NeverAsked(tuple):  # type: ignore[type-arg]
+    """A tuple a membership question must never be put to."""
+
+    def __contains__(self, _item: object) -> bool:
+        raise AssertionError("asked a tuple of held layouts, once a layout")
+
+
+def _record_numbers(forms: "dict[str, int]") -> taxonomy.ColumnProfile:
+    return taxonomy.ColumnProfile(
+        name="x", position=1, role=taxonomy.ROLE_IDENTIFIER, statistical_type="code",
+        quality_state="ok", structural_role="identifier",
+        detection_evidence=taxonomy.note(taxonomy.EVIDENCE_HELD_IN_PEOPLE),
+        n_present=sum(forms.values()), n_missing=0, missing_by_source={},
+        missing_by_class={}, n_missing_blank=0, n_missing_withheld=0,
+        details={"layout_forms": dict(forms), "n_code_alphabet": 0, "n_all_digits": 0},
+        publication_notes=[], remarks=[],
+    )
+
+
+def test_held_layouts_are_asked_of_a_set() -> None:
+    """Codex's item 9: pooling many layouts asks a set, never a tuple once a layout."""
+    forms = {f"@{index:05d}": 11 for index in range(40)}
+    pooled = taxonomy.layouts_counted_in_people(
+        _record_numbers(forms), _NeverAsked(sorted(forms)[:20]), 11, False)
+    census = pooled.details["layout_forms"]
+    assert isinstance(census, dict)
+    assert census.get("(withheld)") == 220 and len(census) == 21, census
+
+
+def test_a_raised_floor_asks_a_set_of_subjects() -> None:
+    """Codex's item 10: at a floor of 20,001 the count keeps a set beside each list."""
+    import time
+
+    subjects = [f"s{index}" for index in range(40000)]
+    began = time.perf_counter()
+    held = profile.subjects_holding(["x"] * 40000, subjects, 20001)
+    assert len(held["x"].holders) == 20001
+    assert time.perf_counter() - began < 2.0
+    # At the default floor the list alone is kept, as before.
+    assert profile.subjects_holding(["x"] * 30, subjects[:15] * 2, 11)["x"].holders == tuple(
+        subjects[:11])
+
+
+def test_the_counter_counts_a_published_prefix_in_people() -> None:
+    """Codex's item 12: a block publishing the prefix `ZX` three of 120 people wear."""
+    names = ["patient", "x"]
+    patients = [f"REC{person:04d}" for person in range(120) for _row in range(12)]
+    xs = [(f"ZX{10000 + person}" if person < 3 else f"AB{10000 + person}")
+          for person in range(120) for _row in range(12)]
+    described = {"settings": {"person_columns": ["patient"]},
+                 "columns": [{"name": "patient", "role": "identifier"},
+                             {"name": "x", "role": "identifier",
+                              "layout_prefixes": {"(column)": "ZX"}}]}
+    found = persons_counted.count(names, [patients, xs], described, ["patient"])
+    assert found["few"] >= 1 and "x:prefix zx" in found["named"], found
+
+
+@pytest.mark.parametrize("rows", (2000, 20000))
+def test_a_layouts_pool_is_counted_under_every_candidate(
+    tmp_path: pathlib.Path, rows: int
+) -> None:
+    """The combined verify's item 2: `ZZ-####` three households wear, beside `patient` and `acct`."""
+    table, _screen = _profiled(tmp_path, "cards", persons_counted.two_card_table(rows))
+    block = _block(_described(tmp_path, "cards"), "card")
+    named = [form for form in block["layout_forms"] if form != "(withheld)"]
+    assert named == [], block["layout_forms"]
+    lines = [line.split(",") for line in table.read_text(encoding="utf-8").splitlines()[1:]]
+    zz = [line for line in lines if line[2].startswith("ZZ")]
+    assert block["layout_forms"].get("(withheld)", 0) != len(zz)
+    counted = persons_counted.count_files(table, tmp_path)
+    assert "acct" in counted["subjects"] and counted["few"] == 0, counted
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_dates_declared_as_counts_and_not_read_are_held(tmp_path: pathlib.Path) -> None:
+    """The orchestrator's addendum 2: Excel days written `42.345` publish no mean, point or tail."""
+    table, screen = _profiled(tmp_path, "pointed", persons_counted.day_count_table("pointed"),
+                              "--identifier", "patient", "--date-count", "day", "excel-1900")
+    described = _described(tmp_path, "pointed")
+    block = _block(described, "day")
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER, block
+    for field in ("mean", "percentiles", "low_tail", "high_tail"):
+        assert field not in block, field
+    assert "42." not in json.dumps(block)
+    assert _NOTICE in screen
+    assert described["settings"]["forced_date_counts"] == []
+    assert _twin_validates(table, tmp_path) == 0

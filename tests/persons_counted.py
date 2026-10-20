@@ -49,12 +49,13 @@ a person too).
 from __future__ import annotations
 
 import csv
+import datetime
 import json
 import pathlib
 import random
 import re
 
-from synthtwin import parsing, taxonomy
+from synthtwin import parsing
 
 FLOOR = 11
 
@@ -108,20 +109,64 @@ def leaves(block: "dict[str, object]", rungs: bool = True) -> "tuple[set[str], s
 
 
 def _figures(text: str) -> "float | None":
-    runs = "".join(c if c.isdigit() else " " for c in text).split()
-    if not runs:
+    runs = "".join(c if c in "0123456789" else " " for c in text).split()
+    if not runs or len(max(runs, key=len)) > 300:
         return None
     return float(int(max(runs, key=len)))
 
 
+# THE COLUMN'S OWN READING, written apart from `profile._keys_of` (Codex's
+# review of lane HX2, item 5): a clock time as its minutes and seconds of the
+# day, whatever the hour's width; a declared decimal comma; a declared count
+# of days as the date it counts.
+_CLOCK = re.compile(r"^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\s*$", re.IGNORECASE)
+_EPOCHS = {"days-since-1970": datetime.date(1970, 1, 1),
+           "days-since-1960": datetime.date(1960, 1, 1),
+           "excel-1904": datetime.date(1904, 1, 1)}
+
+
+def _clock(text: str) -> "tuple[int, int] | None":
+    found = _CLOCK.match(text)
+    if not found:
+        return None
+    hour, minute = int(found.group(1)), int(found.group(2))
+    second = int(found.group(3)) if found.group(3) else -1
+    marker = (found.group(4) or "").lower().replace(".", "")
+    if marker:
+        hour = hour % 12 + (12 if marker == "pm" else 0)
+    return hour * 60 + minute, second
+
+
+def _counted_day(text: str, member: str) -> "str | None":
+    """The date a count of days names, for the systems the gate declares."""
+    try:
+        whole = int(float(text.strip()))
+    except ValueError:
+        return None
+    if member == "excel-1900":
+        if whole < 1 or whole == 60:
+            return None
+        start = datetime.date(1899, 12, 30) if whole > 60 else datetime.date(1899, 12, 31)
+        return (start + datetime.timedelta(days=whole)).isoformat()
+    if member in _EPOCHS:
+        return (_EPOCHS[member] + datetime.timedelta(days=whole)).isoformat()
+    return None
+
+
 def is_published(value: str, block: "dict[str, object]",
-                 seen: "tuple[set[str], set[float]]") -> bool:
-    """Whether a column block carries one value of the column, by any reading."""
+                 seen: "tuple[set[str], set[float]]",
+                 how: "tuple[str, bool]" = ("", False)) -> bool:
+    """Whether a column block carries one value of the column, by any reading.
+
+    ``how``: the system a declared count of dates is read in ("" for none)
+    and whether the column was declared to write a decimal comma.
+    """
     texts, numbers = seen
+    member, comma = how
     folded = parsing.folded(value)
     if folded in texts:
         return True
-    number = _number(value)
+    number = _number(value.replace(".", "").replace(",", ".") if comma else value)
     if number is None:
         number = _figures(value)
     if number is not None and number in numbers:
@@ -131,17 +176,36 @@ def is_published(value: str, block: "dict[str, object]",
         read = parsing.parse_datetime(value, shown)
         if read is not None and parsing.folded(read[0]) in texts:
             return True
+    if member and block.get("role") == "datetime":
+        day = _counted_day(value, member)
+        if day is not None and day in texts:
+            return True
+    if block.get("role") == "time_of_day":
+        mine = _clock(value)
+        if mine is not None and any(_clock(text) == mine for text in texts):
+            return True
     return False
 
 
+# The package's spellings of nothing, written out here apart from `parsing`.
+_NOBODY = {"", "-", "--", ".", "?", "n/a", "na", "nan", "none", "null",
+           "#div/0!", "#n/a", "#name?", "#null!", "#num!", "#ref!", "#value!"}
+
+
 def subject_of(cell: str) -> str:
-    """The subject a person cell names: folded, letters and figures only, no zero opening a run.
+    """The subject a person cell names: folded; no zero opening a run of figures; letters and figures only.
 
     `REC-0007`, `rec7` and `Rec 7` are one patient (lane HX2's skeptic, round
-    2, item 6); written apart from `profile.subject_keys`, with patterns.
+    2, item 6), and `A-01-02` is `a12`: the zeros opening each run AS WRITTEN
+    go first (Codex's review of lane HX2, item 12). Every spelling of nobody
+    -- blank, `NA`, `#DIV/0!`, `NaT` -- is one unknown subject, "" (item 3).
+    Written apart from `profile.subject_keys`, with patterns.
     """
-    text = re.sub(r"[\x00-\x2f\x3a-\x60\x7b-\x7f]+", "", parsing.folded(cell))
-    return re.sub(r"(?<![0-9])0+(?=[0-9])", "", text)
+    folded = parsing.folded(cell)
+    if folded in _NOBODY or cell == "NaT":
+        return ""
+    text = re.sub(r"(?<![0-9])0+(?=[0-9])", "", folded)
+    return re.sub(r"[\x00-\x2f\x3a-\x60\x7b-\x7f]+", "", text)
 
 
 def held_by(values: "list[str]", subjects: "list[str]") -> "tuple[dict[str, set[str]], dict[str, int], bool]":
@@ -263,10 +327,12 @@ def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
     published entry of one to ten people is such a group where the real
     census holds exactly that many people at that number of rows; and the
     people whose real entry is not published as it is form one more group
-    (the pool), which may not number one to ten either. A census that is
-    every person spread over every row as evenly as whole rows go is what
-    the column's own totals (its rows and its different values) imply,
-    and prints no group.
+    (the pool), which may not number one to ten either.
+
+    NO CENSUS IS EXEMPT for being drawn from counts alone (Codex's review
+    of lane HX2, item 11): an even spread, or the census the block's
+    layouts imply, that reproduces a real group of one to ten people
+    prints it.
     """
     census = block.get("n_distinct_by_occurrences")
     if not isinstance(census, dict) or not census:
@@ -282,25 +348,26 @@ def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
     for count in rows.values():
         real[count] = real.get(count, 0) + 1
     shown = {int(key): int(value) for key, value in census.items()}
-    people, total = len(rows), sum(rows.values())
-    # ...nor does the census lane HX's rule draws from the block's own
-    # published counts, each layout's rows over its share of the people
-    # (`taxonomy._even_census`): a column in two layouts or more publishes it.
-    forms = block.get("layout_forms")
-    if isinstance(forms, dict):
-        implied = taxonomy._even_census(int(f"{block['n_present']}"), census, forms)
-        if shown == {int(key): int(value) for key, value in implied.items()}:
-            return 0
-    even = {total // people: people - total % people}
-    if total % people:
-        even[total // people + 1] = total % people
-    if shown == {key: value for key, value in even.items() if value}:
-        return 0
     found = sum(1 for key, value in shown.items()
                 if 1 <= value < FLOOR and real.get(key, 0) == value)
     pool = sum(value for key, value in real.items() if shown.get(key) != value)
     if 1 <= pool < FLOOR:
         found += 1
+    return found
+
+
+def _prefixes(block: "dict[str, object]") -> "set[str]":
+    """Every text a block publishes under a key naming a prefix, folded."""
+    found: "set[str]" = set()
+    stack: "list[tuple[str, object]]" = [(key, block[key]) for key in block if key != "name"]
+    while stack:
+        key, leaf = stack.pop()
+        if isinstance(leaf, dict):
+            stack += [(f"{key}.{inner}", value) for inner, value in leaf.items()]
+        elif isinstance(leaf, list):
+            stack += [(key, item) for item in leaf]
+        elif isinstance(leaf, str) and leaf and "prefix" in key:
+            found.add(parsing.folded(leaf))
     return found
 
 
@@ -310,6 +377,9 @@ def count(names: "list[str]", columns: "list[list[str]]",
     blocks = {block["name"]: block for block in described["columns"]}
     settings = described["settings"]
     declared = list(settings["person_columns"]) if isinstance(settings, dict) else []
+    members = {pair[0]: pair[1] for pair in settings.get("forced_date_counts", [])} \
+        if isinstance(settings, dict) else {}
+    commas = set(settings.get("forced_decimal_commas", [])) if isinstance(settings, dict) else set()
     few = 0
     literal = 0
     named: "list[str]" = []
@@ -328,6 +398,8 @@ def count(names: "list[str]", columns: "list[list[str]]",
         if not others:
             continue
         block = blocks[name]
+        how = (members.get(name, ""), name in commas)
+        prefixes = _prefixes(block)
         dated = block.get("role") in ("datetime", "time_of_day")
         statistics = block.get("role") != "identifier"
         seen = leaves(block)
@@ -336,7 +408,7 @@ def count(names: "list[str]", columns: "list[list[str]]",
         for value in values:
             spelled.setdefault(parsing.folded(value), value)
         forms = _forms_of(block, values)
-        remainder = [value if parsing.folded(value) and not is_published(value, block, seen)
+        remainder = [value if parsing.folded(value) and not is_published(value, block, seen, how)
                      else "" for value in values]
         in_scope: "set[str]" = set()
         any_few: "set[str]" = set()
@@ -352,8 +424,17 @@ def count(names: "list[str]", columns: "list[list[str]]",
                     any_few.add(value)
                     if (not enough or attached or dated
                             or (rows[value] >= FLOOR
-                                and is_published(spelled[value], block, plain))):
+                                and is_published(spelled[value], block, plain, how))):
                         in_scope.add(value)
+            # THE PREFIXES a block publishes are fragments of its values
+            # (Codex's review of lane HX2, item 12): each held by eleven
+            # people or none.
+            for prefix in prefixes:
+                wearing = ["x" if parsing.folded(value).startswith(prefix) else ""
+                           for value in values]
+                prefix_holders, _rows, _attached = held_by(wearing, people)
+                if "x" in prefix_holders and len(prefix_holders["x"]) < FLOOR:
+                    groups.add(f"prefix {prefix}")
             form_holders, _rows, _attached = held_by(forms, people)
             for form, who in form_holders.items():
                 if len(who) < FLOOR and (enough or attached or statistics):
@@ -376,7 +457,7 @@ def count(names: "list[str]", columns: "list[list[str]]",
                         and group_rows["x"] >= FLOOR:
                     groups.add(label)
         for value in sorted(any_few):
-            if not is_published(spelled[value], block, seen):
+            if not is_published(spelled[value], block, seen, how):
                 continue
             literal += 1
             if value in in_scope:
@@ -691,3 +772,179 @@ def capitals_table(rows: int) -> str:
         name = names[place] if draw.random() < 0.85 else names[place].upper()
         return f"REC{20000000 + 7 * place:08d}", name
     return _long_rows(rows, 94, cell)
+
+
+# -- lane HX2's third repair: Codex's review and the combined verify --------
+
+
+def _lines(head: str, rows: "list[list[str]]") -> str:
+    def cell(text: str) -> str:
+        return f'"{text}"' if "," in text else text
+    return "\n".join([head] + [",".join(cell(one) for one in row) for row in rows]) + "\n"
+
+
+def layouts_census_table() -> str:
+    """Item 1: one patient `P00001` on 14 rows, eleven `REC` on two, 88 on ten.
+
+    Pooled, the census reads 12 people on three rows beside 88 on ten,
+    and no three-row group fills the 14 rows of `P#####`.
+    """
+    draw = random.Random(51)
+    rows = [["P00001", f"{draw.uniform(3, 150):.1f}"] for _row in range(14)]
+    for person in range(99):
+        for _row in range(2 if person < 11 else 10):
+            rows += [[f"REC{20000000 + 7 * person:08d}", f"{draw.uniform(3, 150):.1f}"]]
+    draw.shuffle(rows)
+    return _lines("patient,lab", rows)
+
+
+def own_layout_table() -> str:
+    """Item 1: 150 patients on ten rows each, three of them keyed `P#####`."""
+    draw = random.Random(53)
+    rows = []
+    for person in range(150):
+        key = f"P{10000 + person:05d}" if person < 3 else f"REC{20000000 + 7 * person:08d}"
+        rows += [[key, f"{draw.uniform(3, 150):.1f}"] for _row in range(10)]
+    draw.shuffle(rows)
+    return _lines("patient,lab", rows)
+
+
+def case_variants_table() -> str:
+    """Item 2: 120 patients, each key written in twelve cases; `special` five patients hold."""
+    draw = random.Random(55)
+    rows = []
+    for person in range(120):
+        base = f"patkey{person:04d}"
+        for visit in range(12):
+            key = "".join(c.upper() if (visit >> i) & 1 else c for i, c in enumerate(base))
+            rows += [[key, "special" if person < 5 else "common", f"{draw.uniform(3, 150):.1f}"]]
+    return _lines("patient,flag,lab", rows)
+
+
+NOBODY_FORMS = ("", "NA", "nan", "none", "null", "#DIV/0!", "#NAME?", "#NUM!", "#REF!",
+                "#VALUE!", "NaT")
+
+
+def nobody_table() -> str:
+    """Item 3: 100 patients twice, and 22 visits of one unnamed patient in eleven spellings of nobody."""
+    draw = random.Random(57)
+    rows = []
+    for person in range(100):
+        rows += [[f"REC{20000000 + 7 * person:08d}", "seen", f"{draw.uniform(3, 150):.1f}"]
+                 for _row in range(2)]
+    for form in NOBODY_FORMS:
+        rows += [[form, "unk", f"{draw.uniform(3, 150):.1f}"] for _row in range(2)]
+    draw.shuffle(rows)
+    return _lines("patient,label,lab", rows)
+
+
+def free_text_key_table() -> "tuple[str, list[str]]":
+    """Item 4: 150 patients keyed `participant AB registry`, five visits, a birth date each."""
+    draw = random.Random(59)
+    letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    births = [f"{draw.randint(1930, 2005)}-{draw.randint(1, 12):02d}-{draw.randint(1, 28):02d}"
+              for _person in range(150)]
+    rows = []
+    for person in range(150):
+        key = f"participant {letters[person // 24 % 24]}{letters[person % 24]} registry"
+        rows += [[key, births[person], f"{draw.uniform(3, 150):.1f}"] for _visit in range(5)]
+    draw.shuffle(rows)
+    return _lines("patient,dob,lab", rows), births
+
+
+def clock_table() -> str:
+    """Item 5: three of 120 patients at `8:30`, written without the hour's zero, on twelve rows each."""
+    draw = random.Random(61)
+    rows = []
+    for person in range(120):
+        for _visit in range(12):
+            if person < 3:
+                clock = "8:30"
+            elif draw.random() < 0.1:
+                clock = "7:31"
+            else:
+                clock = ("07:00", "09:00", "10:00", "11:00")[draw.randrange(4)]
+            rows += [[f"REC{20000000 + 7 * person:08d}", clock, f"{draw.uniform(3, 150):.1f}"]]
+    draw.shuffle(rows)
+    return _lines("patient,clock,lab", rows)
+
+
+def day_count_table(written: str) -> str:
+    """Item 5 and the orchestrator's addendum 2: 600 day counts beside 150 patients.
+
+    ``written`` `plain`: 19000 to 19599, days since 1970, one a row;
+    `pointed`: Excel days 42000 to 42599 written with a point between the
+    thousands (`42.345`), which no reading takes as a count.
+    """
+    draw = random.Random(63)
+    rows = []
+    for row in range(600):
+        if written == "plain":
+            day = f"{19000 + row}"
+        else:
+            number = 42000 + row
+            day = f"{number // 1000}.{number % 1000:03d}"
+        rows += [[f"REC{20000000 + 7 * (row % 150):08d}", day, f"{draw.uniform(3, 150):.1f}"]]
+    return _lines("patient,day,lab", rows)
+
+
+def comma_table() -> str:
+    """Item 5: `10,00` to `11,49`, one a patient over four visits, declared as a decimal comma."""
+    draw = random.Random(65)
+    rows = []
+    for person in range(150):
+        value = f"{10 + person / 100:.2f}".replace(".", ",")
+        rows += [[f"REC{20000000 + 7 * person:08d}", value, f"{draw.uniform(3, 150):.1f}"]
+                 for _visit in range(4)]
+    draw.shuffle(rows)
+    return _lines("patient,m,lab", rows)
+
+
+def nine_and_ten_table() -> str:
+    """Item 6: 100 patients on nine rows and one on ten: spread evenly, exactly the real census."""
+    draw = random.Random(67)
+    rows = []
+    for person in range(101):
+        rows += [[f"REC{20000000 + 7 * person:08d}", f"{draw.uniform(3, 150):.1f}"]
+                 for _row in range(10 if person == 0 else 9)]
+    draw.shuffle(rows)
+    return _lines("patient,lab", rows)
+
+
+def pool_only_table() -> str:
+    """Item 7: two of 100 patients hold `x` (`A12345`, `BB23456`) on their ten rows; blank elsewhere."""
+    draw = random.Random(69)
+    rows = []
+    for person in range(100):
+        x = "A12345" if person == 0 else ("BB23456" if person == 1 else "")
+        rows += [[f"REC{20000000 + 7 * person:08d}", x, f"{draw.uniform(3, 150):.1f}"]
+                 for _row in range(10)]
+    draw.shuffle(rows)
+    return _lines("patient,x,lab", rows)
+
+
+def long_figures_table() -> str:
+    """Item 8: a note holding 400 nines, beside 100 patients on two rows each."""
+    draw = random.Random(71)
+    rows = []
+    for person in range(100):
+        rows += [[f"REC{20000000 + 7 * person:08d}", "item " + "9" * 400 + f" value {person}",
+                  f"{draw.uniform(3, 150):.1f}"] for _row in range(2)]
+    return _lines("patient,note,lab", rows)
+
+
+def two_card_table(rows: int) -> str:
+    """The combined verify's item 2: `card` `ZZ-####` for the 12 patients of three households.
+
+    The person question is open on `patient` and on `acct`, a household of
+    four; every other patient's card is `CARD########`.
+    """
+    draw = random.Random(7)
+    weights = [1.0 + (person % 9) * 3 for person in range(150)]
+    lines = []
+    for _row in range(rows):
+        person = draw.choices(range(150), weights)[0]
+        card = f"ZZ-{person:04d}" if person // 4 < 3 else f"CARD{10000000 + 7 * person:08d}"
+        lines += [[f"REC{20000000 + 7 * person:08d}", f"H{5000 + person // 4:04d}", card,
+                   f"{draw.uniform(3, 150):.1f}"]]
+    return _lines("patient,acct,card,lab", lines)

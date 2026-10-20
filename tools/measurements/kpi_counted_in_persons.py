@@ -68,7 +68,7 @@ def count_off() -> "typing.Iterator[None]":
              taxonomy.with_census_in_people)
     profile._counted_in_subjects = lambda *_a, **_k: False  # type: ignore[assignment]
     profile._layouts_in_subjects = lambda described, *_a, **_k: described  # type: ignore[assignment]
-    taxonomy.with_census_in_people = lambda column, _floor: column  # type: ignore[assignment]
+    taxonomy.with_census_in_people = lambda column, *_a, **_k: column  # type: ignore[assignment]
     try:
         yield
     finally:
@@ -92,6 +92,16 @@ def count_off() -> "typing.Iterator[None]":
 # codes, themselves held until their question is answered (round 2,
 # item 1's price): the twin misses those columns' layouts.
 GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-caps-20000")
+
+# THE COVERAGE EACH BATTERY MUST REACH (Codex's review of lane HX2, item
+# 13): the tables with a subject column the run counted, battery by battery.
+# A table the counter could not read, or the profile refused, is counted
+# against its battery's coverage unless it is named below with its reason,
+# and fewer tables than these is `coverage_short` -- never a green run on
+# lost coverage. The catalogue must be on the path.
+EXPECTED_TABLES = {"shapes": 0, "people": 0, "zoo": 0}
+# The tables a battery may lose, each named with why: none.
+PERMITTED_NOT_COUNTED: "dict[str, str]" = {}
 
 
 def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "dict[str, object]":
@@ -200,7 +210,9 @@ def _zoo(scratch: pathlib.Path) -> "list[tuple[str, pathlib.Path, list[str]]]":
     return found
 
 
-value: "dict[str, object]" = {"few": 0, "twins_failing_validation": 0, "tables": 0}
+value: "dict[str, object]" = {"few": 0, "twins_failing_validation": 0, "tables": 0,
+                              "not_counted": 0, "skipped": 0, "coverage_short": 0}
+counted: "dict[str, int]" = {"shapes": 0, "people": 0, "zoo": 0}
 lines: "list[str]" = []
 with tempfile.TemporaryDirectory() as scratch_name:
     scratch = pathlib.Path(scratch_name)
@@ -211,19 +223,22 @@ with tempfile.TemporaryDirectory() as scratch_name:
         folder.mkdir()
         try:
             found = _one(path, folder, declared)
-        except (UnicodeDecodeError, ValueError, IndexError, KeyError) as failure:
-            # The counter reads a table back as UTF-8 and commas; a zoo
-            # table written otherwise (a file-level kind) is named, never
-            # counted as clean.
+        except Exception as failure:  # noqa: BLE001 -- every failure is named and judged
+            # A table the counter cannot read is named, and fails the KPI
+            # unless PERMITTED_NOT_COUNTED names it with its reason.
             lines += [f"{battery:7s} {path.parent.name}: not counted ({type(failure).__name__})"]
-            value["not_counted"] = int(value.get("not_counted", 0)) + 1
+            if path.parent.name not in PERMITTED_NOT_COUNTED:
+                value["not_counted"] = int(value["not_counted"]) + 1
             continue
         if found.get("skipped"):
             lines += [f"{battery:7s} {path.parent.name}: profile refused it"]
+            if path.parent.name not in PERMITTED_NOT_COUNTED:
+                value["skipped"] = int(value["skipped"]) + 1
             continue
         if not found["subjects"]:
             continue
         value["tables"] = int(value["tables"]) + 1
+        counted[battery] = counted[battery] + 1
         value["few"] = int(value["few"]) + int(found["few"])
         if (found["validated"] != 0 and found["validated_without"] == 0
                 and path.parent.name in GENERATOR_LIMITS):
@@ -242,6 +257,12 @@ with tempfile.TemporaryDirectory() as scratch_name:
                   f"{found['withheld']}, validate {found['validated']} "
                   f"(without the count {found['validated_without']})"]
     value["zoo_on_this_tree"] = zoo_measured
+for battery in sorted(counted):
+    value[f"tables_{battery}"] = counted[battery]
+    if counted[battery] < EXPECTED_TABLES[battery]:
+        value["coverage_short"] = int(value["coverage_short"]) + 1
+        lines += [f"{battery:7s} COVERAGE SHORT: {counted[battery]} tables, "
+                  f"{EXPECTED_TABLES[battery]} expected"]
 for line in lines:
     print(line)
 kpi_rules.emit("K-S3-65", value, f"{value['tables']} tables with a subject column")

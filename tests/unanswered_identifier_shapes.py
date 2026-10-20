@@ -207,8 +207,17 @@ BESIDE = ("email_beside", "beneficiary_beside", "phone_beside")
 # measurements question is put to and not the person question -- a full
 # birth date beside it, and a name beside it written without its zeros on
 # about half the rows.
+#
+# ...and VISIT DATES beside that key with nothing attached to it (`visit_
+# keyzero`, lane HX2's combined verify, item 1): five visit dates a patient,
+# on lab rows only, so no column names the key's people and only the literal
+# rule -- every held key that repeats is a subject -- counts the dates in
+# them.
 COUNTED = ("plan2_beside", "record2_beside", "name_open", "address_open",
-           "dob_open", "name_ten", "dob_ten", "dob_keyzero", "name_keyzero")
+           "dob_open", "name_ten", "dob_ten", "dob_keyzero", "name_keyzero",
+           "visit_keyzero")
+# The visit dates each patient of a `visit_` table holds.
+VISITS_A_PATIENT = 5
 # The patients of a `_ten` table.
 PATIENTS_TEN = 10
 # The STATED shapes: a name, a street address and a full birth date on a
@@ -263,7 +272,13 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
     if kind.endswith("_ten"):
         patients = PATIENTS_TEN
     people: "list[str]" = []
+    visits: "list[list[str]]" = []
     for place in range(patients):
+        if _base(kind) == "visit":
+            visits += [[f"{draw.randint(2023, 2024)}-{draw.randint(1, 12):02d}-"
+                        f"{draw.randint(1, 28):02d}" for _visit in range(VISITS_A_PATIENT)]]
+            people += [f"{place}"]
+            continue
         one = _patient(kind, place, draw)
         while one in people:
             one = _patient(kind, place, draw)
@@ -274,6 +289,8 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
     for row in range(rows):
         place = draw.choices(range(patients), weights)[0]
         who = people[place]
+        if visits:
+            who = visits[place][draw.randrange(VISITS_A_PATIENT)]
         if kind == "mixed" and row == 0:
             who = SHORT_AMONG_LONG
         if kind == "email_one_bad" and row == 0:
