@@ -581,7 +581,15 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # ask the sweep's `sweep_tally` which twins count. What it loads is a
 # committed file under tools/, which this guard reads directly, so the
 # floor holds for it as it does for the other thirty-seven.
-FILES_LOADED_AS_MODULES = 38
+#
+# 39 AT LANE XW'S REPAIR 2 (plan P4-D411), not 38:
+# `tests/test_workbook_stream_writer.py` loads K-S4-22's driver,
+# `tools/measurements/kpi_workbook_stream.py`, the same way, with the
+# resource module blocked, to show it measures where Windows has none
+# (Codex's review of lane XW, item 3). What it loads is a committed file
+# under tools/, which this guard reads directly, so the floor holds for it
+# as it does for the other thirty-eight.
+FILES_LOADED_AS_MODULES = 39
 
 
 def _files() -> "list[pathlib.Path]":

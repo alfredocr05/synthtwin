@@ -21,7 +21,8 @@ time and streams it into the zip member. Two measures:
   seconds making the package's parts (the cells' classes and formats,
   and the sheet's first pass), the seconds writing it (the second pass
   and the zip), and the peak resident memory before the parts are made
-  (the twin alone), once they are made, and at the end of the write.
+  (the twin alone), once they are made, and at the end of the write;
+  on Windows, which has no `resource`, the memory is recorded as null.
   The machine's as much as the code's: recorded, never judged.
 
 About four minutes.
@@ -38,7 +39,6 @@ The 1,048,576-row size is the night window's
 
 import json
 import pathlib
-import resource
 import subprocess
 import sys
 import tempfile
@@ -53,6 +53,15 @@ import workbook_stream_cases as cases  # noqa: E402
 import workbooks  # noqa: E402
 from synthtwin import generation, sheetwriting, writing  # noqa: E402
 
+# Peak resident memory is read through `resource`, which Windows has not
+# (Codex's review of lane XW, item 3): there every memory value is
+# recorded as null and the comparisons and seconds are measured as
+# everywhere else.
+try:
+    import resource
+except ImportError:  # Windows
+    resource = None  # type: ignore[assignment]
+
 SIZES = (20_000, 100_000)
 
 # The larger cases beside the gate test's battery: the study books at
@@ -66,8 +75,11 @@ LARGER: "dict[str, tuple[object, str]]" = {
 }
 
 
-def _peak_mb() -> float:
-    """This process's peak resident memory in MB (macOS counts bytes, Linux KB)."""
+def _peak_mb() -> "float | None":
+    """This process's peak resident memory in MB (macOS counts bytes, Linux KB);
+    None where `resource` is not (Windows)."""
+    if resource is None:
+        return None
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return round(peak / (1048576 if sys.platform == "darwin" else 1024), 1)
 

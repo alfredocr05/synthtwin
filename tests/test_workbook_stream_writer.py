@@ -21,20 +21,23 @@ WHAT IS PINNED.
   frozen b075342a writer (`tests/workbook_stream_cases.py`) and by today's,
   are the same bytes (K-S4-22) on madler's zlib; on zlib-ng (CPython 3.14
   on Windows), whose deflate stream may move with where its input was
-  cut, the same package member by member -- every header field, every
-  text -- with only the compressed bytes free (skeptic 1, item 3). The
+  cut, the same package member by member -- every header field but the
+  compressed size and the offsets the zip64 field carries, every text --
+  with only those free (skeptic 1, item 3; skeptic 2 and Codex). The
   member-by-member check is red on a moved date, attribute, method, text
   or order, and a package deflated at another level stands in for
   zlib-ng's other stream.
-* zip64 exactly where `writestr` used it: with zipfile's four-gigabyte
-  line lowered, a sheet past it gets the zip64 header from both writers,
+* zip64 exactly where `writestr` used it: with zipfile's line (its
+  ZIP64_LIMIT, 2**31 - 1 bytes, over 1.05) lowered, a sheet past it gets the zip64 header from both writers,
   the same bytes again, and a writer that does not tell the member its
   size goes red.
 * The memory: a sheet of 100,000 rows of fifty columns is written with
-  `tracemalloc`, over the last fifth of each pass, seeing at most a
-  hundredth of the sheet's bytes held at once above what was held when
-  it started; the writer of b075342a held the whole sheet's text, and
-  its copies, before the zip writer saw a byte.
+  `tracemalloc`, each pass traced from before its first piece, seeing
+  at most a hundredth of the sheet's bytes held at once above what was
+  held when it started; the writer of b075342a held the whole sheet's
+  text, and its copies, before the zip writer saw a byte. A pass that
+  lists its pieces on the call or on its first piece, or joins them,
+  breaks the bound (Codex's item 1).
 * The real route: `workbook_stream` makes the sheet once and hands the
   second pass on as an iterator nothing has drawn, and
   `write_workbook_file` draws all of it (skeptic 1, item 2).
@@ -44,9 +47,12 @@ WHAT IS PINNED.
   `list(second)` or `("".join(second),)`.
 """
 
+import importlib.util
 import io
 import pathlib
+import random
 import struct
+import sys
 import tracemalloc
 import typing
 import zipfile
@@ -295,59 +301,109 @@ def test_mutants_of_a_member_go_red_member_by_member(tmp_path: pathlib.Path, mut
     assert cases.member_differences(old, mutated) != [], mutant
 
 
+def _raw_extras(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The comparator's mutant: the zip64 field compared as raw bytes again."""
+    monkeypatch.setattr(cases, "_stream_free_extra", lambda extra: (extra, False))
+
+
+def test_a_zip64_package_deflated_another_way_is_the_same_member_by_member(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 2 of lane XW, finding 1, and Codex's item 2: past the zip64
+    line the zip64 field carries the compressed size (local and central)
+    and the offset (central), which move with the deflate stream.
+
+    zipfile's line lowered to 64 KiB, the wide battery twin's package and
+    the same package deflated at level 1 (zlib-ng's other stream, as
+    above) are the same member by member; compared raw, the zip64 field
+    is red.
+    """
+    described, twin = _described(tmp_path, "wide")
+    monkeypatch.setattr(zipfile, "ZIP64_LIMIT", 1 << 16)
+    new = cases.streamed_file(tmp_path / "new.xlsx", described, twin)
+    again = _rewritten(new, 6)
+    other = _rewritten(new, 1)
+    assert _local_extra(other, SHEET)[:2] == b"\x01\x00"
+    assert cases.package_differences(new, again) == []
+    assert other != again
+    assert cases.member_differences(again, other) == []
+    _raw_extras(monkeypatch)
+    raw = cases.member_differences(again, other)
+    assert f"{SHEET}: extra" in raw and f"{SHEET}: the local header" in raw, raw
+
+
+def _offsets_package(level: int) -> bytes:
+    """Twelve members of 100,000 characters of repeated words, deflated at ``level``."""
+    draw = random.Random(20261020)
+    words = [f"word{index}" for index in range(300)]
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as bundle:
+        for index in range(12):
+            text = " ".join(draw.choice(words) for _ in range(16_000))[:100_000]
+            entry = zipfile.ZipInfo(f"part{index:02d}.xml", (1980, 1, 1, 0, 0, 0))
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            bundle.writestr(entry, text, compresslevel=level)
+    return out.getvalue()
+
+
+def test_an_offset_past_the_zip64_line_in_one_stream_only_is_the_same_package(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Codex's item 2: the offset moves with the deflate stream, so one
+    stream can put a member's header past the zip64 line where the other
+    does not. The central record then carries a zip64 field with the
+    offset alone, and zipfile raises its two version numbers to 45; the
+    member is the same. Compared raw, red."""
+    tight, loose = _offsets_package(9), _offsets_package(1)
+    with zipfile.ZipFile(io.BytesIO(tight)) as one, zipfile.ZipFile(io.BytesIO(loose)) as two:
+        near, far = one.infolist()[-1].header_offset, two.infolist()[-1].header_offset
+        largest = max(entry.file_size for entry in one.infolist())
+    line = (near + far) // 2
+    assert near < line < far and largest * 1.05 < line, (near, far, largest)
+    monkeypatch.setattr(zipfile, "ZIP64_LIMIT", line)
+    tight, loose = _offsets_package(9), _offsets_package(1)
+    with zipfile.ZipFile(io.BytesIO(tight)) as one, zipfile.ZipFile(io.BytesIO(loose)) as two:
+        assert one.infolist()[-1].extra == b"" and two.infolist()[-1].extra[:2] == b"\x01\x00"
+        assert (one.infolist()[-1].create_version, two.infolist()[-1].create_version) == (20, 45)
+    assert cases.member_differences(tight, loose) == []
+    _raw_extras(monkeypatch)
+    raw = cases.member_differences(tight, loose)
+    assert "part11.xml: extra" in raw, raw
+
+
 # -- the memory -----------------------------------------------------------
 
 
-def _windowed(
-    pieces: "typing.Iterable[str]", start_at: int, readings: "list[int]"
-) -> "typing.Iterator[str]":
-    """``pieces`` as they are, `tracemalloc` started at piece ``start_at``.
-
-    ``readings`` gains what was traced as held when it started (nought
-    unless something else is tracing).
-    """
-    if start_at == 0:
-        tracemalloc.start()
-        readings += [tracemalloc.get_traced_memory()[0]]
-    count = 0
-    for piece in pieces:
-        count += 1
-        if count == start_at:
-            tracemalloc.start()
-            readings += [tracemalloc.get_traced_memory()[0]]
-        yield piece
-
-
-def _traced_write(folder: pathlib.Path, n_rows: int, window_from: int) -> "tuple[int, int]":
-    """(the most traced as held above a window's start, the sheet's bytes).
+def _traced_write(folder: pathlib.Path, n_rows: int) -> "tuple[int, int]":
+    """(the most traced as held above a pass's start, the sheet's bytes).
 
     The sheet is written as `workbook_stream` writes the table's sheet:
     one pass counting its bytes and giving every text its place, then
     the pieces of a second pass handed to `writing.write_workbook_file`.
-    Each pass is traced from its piece ``window_from`` to its end: a
-    writer whose memory grows with the sheet grows inside the window by
-    the window's share of the sheet, and tracing every row would only
-    take four times as long (168 s at this size, measured).
+    Each pass is traced whole, `tracemalloc` started BEFORE its
+    `_sheet_pieces` is called (Codex's review of lane XW, item 1): a
+    pass that lists or joins its pieces on the call, or on its first
+    piece, is traced doing it. Repair 1 traced the last fifth of each
+    pass alone, and a `_sheet_pieces` that listed every piece before
+    yielding the first held the whole sheet before the window opened,
+    green.
     """
     arguments = cases.sheet_arguments(n_rows)
     items = arguments[14]
     held = 0
-    readings: "list[int]" = []
     try:
-        size = sheetwriting._bytes_of(
-            _windowed(sheetwriting._sheet_pieces(*arguments), window_from, readings)
-        )
-        assert len(readings) == 1, "the first pass was never traced"
-        held = max(held, tracemalloc.get_traced_memory()[1] - readings[-1])
+        tracemalloc.start()
+        began = tracemalloc.get_traced_memory()[0]
+        size = sheetwriting._bytes_of(sheetwriting._sheet_pieces(*arguments))
+        held = max(held, tracemalloc.get_traced_memory()[1] - began)
     finally:
         tracemalloc.stop()
     try:
-        second = sheetwriting._places_already_taken(
-            _windowed(sheetwriting._sheet_pieces(*arguments), window_from, readings), items
-        )
+        tracemalloc.start()
+        began = tracemalloc.get_traced_memory()[0]
+        second = sheetwriting._places_already_taken(sheetwriting._sheet_pieces(*arguments), items)
         writing.write_workbook_file(folder / f"sheet-{n_rows}.zip", [(SHEET, size, second)])
-        assert len(readings) == 2, "the second pass was never traced"
-        held = max(held, tracemalloc.get_traced_memory()[1] - readings[-1])
+        held = max(held, tracemalloc.get_traced_memory()[1] - began)
     finally:
         tracemalloc.stop()
     with zipfile.ZipFile(folder / f"sheet-{n_rows}.zip") as bundle:
@@ -355,26 +411,56 @@ def _traced_write(folder: pathlib.Path, n_rows: int, window_from: int) -> "tuple
     return held, size
 
 
+def _far_below(held: int, size: int) -> bool:
+    """The memory case's bound: at most a hundredth of the sheet held at once."""
+    return held < size // 100
+
+
 def test_a_100000_by_50_sheet_is_written_far_below_its_own_size(tmp_path: pathlib.Path) -> None:
-    """At most a hundredth of the sheet held at once (measured: about 0.3 MB of 154 MB).
+    """At most a hundredth of the sheet held at once (measured: 343,810 bytes of
+    177,369,480, the zip writer's own buffers; 343,672 at 10,000 rows).
 
-    Traced over the last 20,000 rows of each pass. b075342a's writer held
-    the whole sheet's text before the zip writer saw a byte -- at least
-    the sheet's own size, and a copy of it for every row, which the
-    library study measured past 1.9 GB at this size.
+    Each pass traced from before its first piece to its end. b075342a's
+    writer held the whole sheet's text before the zip writer saw a byte
+    -- at least the sheet's own size, and a copy of it for every row,
+    which the library study measured past 1.9 GB at this size.
     """
-    held, size = _traced_write(tmp_path, 100_000, 80_000)
+    held, size = _traced_write(tmp_path, 100_000)
     assert size > 100_000_000, size
-    assert held < size // 100, (held, size)
+    assert _far_below(held, size), (held, size)
 
 
-def test_mutant_the_sheet_handed_over_whole_goes_red(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+def _listed_on_the_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`_sheet_pieces` made a function that lists every piece when called."""
+    shipped = sheetwriting._sheet_pieces
+
+    def listed(*arguments: object) -> "typing.Iterator[str]":
+        return iter(list(shipped(*arguments)))  # type: ignore[arg-type]
+
+    monkeypatch.setattr(sheetwriting, "_sheet_pieces", listed)
+
+
+@pytest.mark.parametrize(
+    "mutant",
+    [
+        # Codex's item 1 exactly: a lazy pass that lists every piece on
+        # its first advance, then yields them one by one.
+        ("listed on the first piece", lambda monkeypatch: _pieces_mutated(monkeypatch, lambda pieces: pieces)),
+        ("listed on the call", _listed_on_the_call),
+        ("handed over whole", lambda monkeypatch: _pieces_mutated(monkeypatch, lambda pieces: ["".join(pieces)])),
+    ],
+    ids=["listed_first_piece", "listed_on_call", "joined"],
+)
+def test_mutants_holding_the_sheet_break_the_memory_bound(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutant: "tuple[str, typing.Callable[[pytest.MonkeyPatch], None]]",
 ) -> None:
-    """A writer that joins the sheet before handing it on holds at least its size."""
-    _pieces_mutated(monkeypatch, lambda pieces: ["".join(pieces)])
-    held, size = _traced_write(tmp_path, 5_000, 0)
-    assert held >= size, (held, size)
+    """A pass that holds the whole sheet, however it holds it, breaks the bound."""
+    mutant[1](monkeypatch)
+    held, size = _traced_write(tmp_path, 5_000)
+    assert not _far_below(held, size), (mutant[0], held, size)
+    assert held >= size // 2, (mutant[0], held, size)
 
 
 # -- the real route hands the second pass on unmade -----------------------
@@ -444,6 +530,31 @@ def test_mutants_of_the_route_holding_the_second_pass_go_red(
 
     monkeypatch.setattr(sheetwriting, "_places_already_taken", held)
     assert _route_faults(tmp_path, monkeypatch) != [], mutant[0]
+
+
+# -- K-S4-22's driver runs where `resource` is not ------------------------
+
+
+def test_the_kpi_driver_runs_where_resource_is_not(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's review of lane XW, item 3: Windows has no `resource`.
+
+    The driver imported with `resource` unimportable (as on Windows)
+    loads, and one size is measured with its seconds and bytes and its
+    memory recorded as null. An unconditional `import resource` is red.
+    """
+    monkeypatch.setitem(sys.modules, "resource", None)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    path = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_workbook_stream.py"
+    spec = importlib.util.spec_from_file_location("kpi_workbook_stream_without_resource", path)
+    assert spec is not None and spec.loader is not None
+    driver = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(driver)
+    assert driver.resource is None
+    measured = driver.one_size(300)
+    assert measured["sheet_bytes"] > 0 and measured["file_bytes"] > 0, measured
+    assert measured["seconds"] >= measured["seconds_write"] >= 0, measured
+    for key in ("rss_mb_before_parts", "peak_rss_mb_after_parts", "peak_rss_mb"):
+        assert measured[key] is None, (key, measured)
 
 
 # -- the guards -------------------------------------------------------------

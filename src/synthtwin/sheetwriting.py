@@ -1712,7 +1712,8 @@ def _package(
     which is written before the sheet, and counts the sheet's bytes,
     which the zip writer is told before the first piece so that it
     chooses the member's header exactly as it chose it for the whole
-    text (zip64 only past 1/1.05 of four gigabytes); the second pass is
+    text (zip64 only past zipfile's ZIP64_LIMIT, 2**31 - 1 bytes, over
+    1.05: about 2.045 billion bytes); the second pass is
     the pieces themselves, made as the zip writer takes them.
     """
     form = profile.source.workbook

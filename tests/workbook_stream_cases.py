@@ -453,8 +453,9 @@ def both_files(
 # zlib-ng's medium strategy, the default level, need
 # not, and CPython 3.14 on Windows (a CI cell) links zlib-ng, which no
 # Python here does. So on zlib-ng the file is compared member by member
-# and every field but the compressed bytes and their count must agree;
-# everywhere else the files must also be the same bytes.
+# and every header field but the compressed size and the offsets the
+# zip64 field carries must agree, with every text; everywhere else the
+# files must also be the same bytes.
 ZLIB_NG = (
     getattr(zlib, "ZLIBNG_VERSION", None) is not None
     or "zlib-ng" in zlib.ZLIB_VERSION.lower()
@@ -468,10 +469,7 @@ _MEMBER_FIELDS = (
     "date_time",
     "compress_type",
     "comment",
-    "extra",
     "create_system",
-    "create_version",
-    "extract_version",
     "flag_bits",
     "volume",
     "internal_attr",
@@ -481,23 +479,79 @@ _MEMBER_FIELDS = (
 )
 
 
+# zipfile's version number for a record that carries a zip64 field.
+_ZIP64_VERSION = 45
+
+
+def _stream_free_extra(extra: bytes) -> "tuple[bytes, bool]":
+    """``extra`` with what the deflate stream moves taken out of its zip64 field.
+
+    The zip64 field (header id 1) carries, in this order, the member's
+    uncompressed size and compressed size when zipfile chose zip64 for the
+    sizes, then its header's offset when that lies past zipfile's line.
+    The compressed size and the offset move with the deflate stream (on
+    zlib-ng, skeptic 2 of lane XW and Codex's item 2), the uncompressed
+    size does not. So the field is kept as its id and the uncompressed
+    size, and a field that carries the offset alone is dropped. Every
+    other field is kept as it is. The second value is True when a zip64
+    field carried the offset alone.
+    """
+    out = b""
+    offset_alone = False
+    at = 0
+    while at + 4 <= len(extra):
+        kind, length = struct.unpack("<HH", extra[at : at + 4])
+        body = extra[at + 4 : at + 4 + length]
+        if kind != 1:
+            out += extra[at : at + 4] + body
+        elif length >= 16:
+            out += b"\x01\x00zip64 size" + body[:8]
+        else:
+            offset_alone = True
+        at += 4 + length
+    return out + extra[at:], offset_alone
+
+
+def _central_record(one: zipfile.ZipInfo, other: zipfile.ZipInfo) -> "list[str]":
+    """The central directory's extra and version numbers of a member, compared.
+
+    Read through `_stream_free_extra`. A zip64 field that carries only
+    the offset raises the two version numbers to zipfile's zip64 version
+    and no further, so where either side has one the numbers are compared
+    as raised to it on both sides.
+    """
+    out: "list[str]" = []
+    one_extra, one_alone = _stream_free_extra(one.extra)
+    other_extra, other_alone = _stream_free_extra(other.extra)
+    if one_extra != other_extra:
+        out += [f"{one.filename}: extra"]
+    floor = _ZIP64_VERSION if one_alone or other_alone else 0
+    for field in ("create_version", "extract_version"):
+        if max(getattr(one, field), floor) != max(getattr(other, field), floor):
+            out += [f"{one.filename}: {field}"]
+    return out
+
+
 def _local_header(data: bytes, offset: int) -> "tuple[object, ...]":
-    """A member's LOCAL header: every field but the compressed size, and its extra."""
+    """A member's LOCAL header: every field but the compressed size, and its
+    extra with the compressed size taken out of its zip64 field."""
     if data[offset : offset + 4] != b"PK\x03\x04":
         return ("no local header at", offset)
     fields = struct.unpack("<HHHHHIIIHH", data[offset + 4 : offset + 30])
     start = offset + 30 + fields[8]
     extra = data[start : start + fields[9]]
     # (version, flags, method, time, date, crc, -, size, name length, -)
-    return fields[:6] + fields[7:9] + (extra,)
+    return fields[:6] + fields[7:9] + (_stream_free_extra(extra)[0],)
 
 
 def member_differences(old: bytes, new: bytes) -> "list[str]":
     """What two packages differ in, member by member, on any zlib.
 
     The names in order, the archive comment, every field of
-    `_MEMBER_FIELDS` (the central directory's extra among them), every
-    local header field but the compressed size, and each member's text.
+    `_MEMBER_FIELDS`, the central directory's extra and version numbers
+    (`_central_record`), every local header field but the compressed
+    size, and each member's text: every header field but the compressed
+    size and the offsets the zip64 field carries.
     """
     out: "list[str]" = []
     with zipfile.ZipFile(io.BytesIO(old)) as first, zipfile.ZipFile(io.BytesIO(new)) as second:
@@ -510,6 +564,7 @@ def member_differences(old: bytes, new: bytes) -> "list[str]":
             for field in _MEMBER_FIELDS:
                 if getattr(one, field) != getattr(other, field):
                     out += [f"{one.filename}: {field}"]
+            out += _central_record(one, other)
             if _local_header(old, one.header_offset) != _local_header(new, other.header_offset):
                 out += [f"{one.filename}: the local header"]
             if first.read(one) != second.read(other):

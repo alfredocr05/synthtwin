@@ -2145,13 +2145,15 @@ def write_workbook_file(
     the member as it comes, so the table's sheet is never held whole.
     The member is told its size before its first piece, which is what
     `writestr` told it of a whole text: the zip writer then chooses the
-    same header (zip64 only for a member past 1/1.05 of four gigabytes).
+    same header (zip64 only for a member past zipfile's ZIP64_LIMIT,
+    2**31 - 1 bytes, over 1.05: about 2.045 billion bytes).
     madler's zlib (1.2.12, measured on every Python here) writes the
     same deflate stream however its input is cut, so there the file is the
     bytes `writestr` wrote for the same parts. On zlib-ng (CPython 3.14
     on Windows, and systems shipping zlib-ng-compat) the compressed
     bytes may differ from `writestr`'s while every member's text and
-    header fields are the same.
+    every header field but the compressed size and the offsets the zip64
+    field carries are the same.
 
     Guarantees:
 
