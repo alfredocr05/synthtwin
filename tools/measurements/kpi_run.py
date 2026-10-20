@@ -76,7 +76,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 import kpi_rules  # noqa: E402
 
-GROUP_ORDER = ("P0", "P1", "P2", "P3", "P4", "S1", "S2", "2B", "S3", "S4", "S5", "S6", "S7", "S8", "HZ")
+GROUP_ORDER = ("P0", "P1", "P2", "P3", "P4", "S1", "S2", "2B", "S3", "S4", "S5", "S6", "S7", "S8", "HZ", "BC")
 GROUP_TITLES = {
     "P0": "Phase 0 - skeleton and security",
     "P1": "Phase 1 - the profiler",
@@ -90,6 +90,7 @@ GROUP_TITLES = {
     "S4": "Stage 4 - the largest tables, end to end",
     "S6": "Stage 6 - relationships between columns (baseline)",
     "HZ": "The health data zoo - every kind of healthcare data, end to end",
+    "BC": "The broad program - relations between columns, the analyst battery (baseline)",
 }
 
 

@@ -81,8 +81,23 @@ MACHINE_KINDS = ("seconds_below", "peak_memory_below")
 # stages still to come, whose stage checks may be measured early as baselines.
 # HZ is the health data zoo (lane E0a, plan P4-D399): the catalogue of
 # every kind of healthcare data, re-run at every merge (TRACKED T3).
-ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B|HZ)-(\d\d)([a-z])?$")
+# BC is the broad between-columns program (plan P4-D398): stages 6 and
+# 7/7b made one program by the owner's direction of 2026-10-16, measured
+# by the analyst battery from its baseline on.
+ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B|HZ|BC)-(\d\d)([a-z])?$")
 HEADLINES_AT_LEAST = 20
+# 35 from 33, THE ORCHESTRATOR'S RECORDED CALL D15 OF THE DECEMBER PLAN
+# FOR LANE E0b (2026-10-16, plan P4-D398, settled at the integration of
+# batch 4d on 2026-10-20; the owner may veto it): the broad
+# between-columns program is the owner's new direction of 2026-10-16,
+# and its battery brings two headlines -- `K-BC-01`, replication parity
+# family by family, and `K-BC-02`, every seeded truth recovered or named
+# -- while K-S7-01's three-way clause folds into K-BC-02, stage 7b being
+# folded into the program. The lane raised its own branch from 31 to 33;
+# on the integration branch, which stood at 33 after `K-S8-01` and
+# `K-HZ-01`, the same two headlines make 35. A deliberate raise by two,
+# never a demotion made to fit.
+#
 # 33 from 32, THE ORCHESTRATOR'S RECORDED CALL D15 OF THE DECEMBER PLAN
 # (2026-10-16, plan P4-D399; the owner may veto it): the health data
 # zoo's `K-HZ-01` -- the kinds of healthcare data that pass end to end
@@ -103,7 +118,7 @@ HEADLINES_AT_LEAST = 20
 # stage adds one headline of its own -- `K-S3-38`, time of day comes
 # back -- while `K-S3-31` widens in place to "the calendar comes back".
 # A deliberate raise, never a demotion made to fit.
-HEADLINES_AT_MOST = 33
+HEADLINES_AT_MOST = 35
 
 # Verdict words, printed by the runner and stored in its report.
 PASS = "PASS"

@@ -815,6 +815,15 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 695,000 from 649,000, AT THE INTEGRATION OF BATCH 4D (2026-10-20),
+    # the orchestrator's recorded call D15 (the owner may veto), the least
+    # round figure the merged ledger fits under: lane E0b's `K-BC-01` to
+    # `K-BC-13` with their note clauses (its branch raised its own cap to
+    # 656,000, below) beside batch 4c's entries, every entry kept by id and
+    # the note merged clause by clause, 694,463 bytes as merged. Later
+    # merges of the batch set it again, once, for the batch's merged size.
+    # A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 649,000 from 638,000 (lane E0a), 626,000 (lane H1) and 627,000
     # (lane H2), AT THE INTEGRATION OF BATCH 4C (2026-10-19), set once for
     # the batch, the least round figure the ledger fits under: every entry
@@ -890,6 +899,22 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # `K-S8-04`, with their note clause, 614,873 bytes. The integrator sets
     # the cap for the batch as a whole. A MEASUREMENT IS
     # NEVER TRIMMED TO FIT.
+    #
+    # 656,000 from 655,000, ON LANE E0b'S BRANCH AFTER ITS REVIEW (plan
+    # P4-D398, 2026-10-19), for the integrator to settle the same way: the
+    # review's rules (controls by family, margins left out, McNemar's z, the
+    # replicate's own counts beside the twin's), five more pinned nodes on
+    # `K-BC-13` and the note's second clause, 655,649 bytes.
+    #
+    # 655,000 from 610,000, ON LANE E0b'S BRANCH (the analyst battery, plan
+    # P4-D398, 2026-10-16), the least round figure that fits, for the
+    # integrator to settle with the integration branch's cap: the lane adds
+    # `K-BC-01` to `K-BC-13` -- thirteen entries, each rule stated against
+    # the fresh replicate and the shuffled twin of the same run, fourteen
+    # pinned nodes on `K-BC-13` -- and its note clause, from 609,724 to
+    # 653,661 bytes. The battery's shared description is written once,
+    # in P4-D398, and pointed to rather than restated thirteen times. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 610,000 from 605,000, AT THE INTEGRATION OF BATCH 4A'S FIRST MERGE
     # (lanes S4b-num and S4c, 2026-10-15), the least round figure the merged
@@ -1138,7 +1163,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 649_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 695_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

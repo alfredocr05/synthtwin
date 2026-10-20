@@ -6,6 +6,62 @@ exists).
 
 ## [Unreleased]
 
+### The analyst battery: what an analysis of the twin gives back, measured (2026-10-16)
+
+**Lane E0b** (plan P4-D398). A battery in the tests asks of a twin what
+researchers ask of a real table -- subgroup rates, correlations, linear,
+logistic, Poisson and Cox regression, a random-intercept mixed model, a
+model trained on a twin and tested on real rows, a discriminator of real
+rows from twin rows -- on six seeded tables with known truths (a patient
+cohort, several rows per subject, a registry with dates, claims, a null
+table, curves that turn), each built at run time from its seed and read
+with `pandas.read_csv` as an analyst's script reads it. Each answer is
+scored against how far a second half of the real table stands from the
+first, beside a fresh replicate and a shuffled twin in every run; a run
+whose controls do not behave as controls is void. Thirteen KPIs, K-BC-01
+to K-BC-13, all OPEN, two of them on the owner's board (its cap moves
+from 31 to 33, the orchestrator's call, which the owner may veto).
+Today's twin, which carries no relation between columns, stands where
+the shuffle stands: at 20,000 rows, three table seeds and five twin
+seeds, 40 % of 2,897 supported estimates inside against the replicate's
+78 % and the shuffle's 41 % (K-BC-01); 6 of 96 seeded truths recovered,
+each a truth of no effect, against the replicate's 84 (K-BC-02); 18 % of
+1,272 real-significant estimates kept against 92 % (K-BC-03); the ICC
+0.72 off (K-BC-06); and 15 analyses that run on the real table stop on
+the twin -- a wide table by subject and visit, a subject table merged
+back, and survival on an end date before its entry date (K-BC-10). The
+twin's report has no line per analysis family yet (K-BC-11). The suite
+runs the battery's fast part in about 30 s; the rest runs through
+`tools/measurements/kpi_run.py --slow`
+(`tools/measurements/kpi_analyst_battery.py`); at 200,000 rows each of
+the six tables took 4 to 21 minutes and at most 1,062 MB in a process of
+its own (K-BC-13). Nothing in the product changes.
+
+After two reviews (2026-10-18) every control of every KPI is tested by
+name, a family whose shuffle meets its target voids K-BC-01, and every
+target is one a perfect twin meets: a seeded truth is charged only where
+the replicate gets it back, judged by McNemar's paired comparison; the
+automatic panel holds each number to the real table's range, so a fresh
+sample no longer stops it; the null table tests a label against a
+many-valued number by ranks; and twin-seed stability (K-BC-12) counts
+only estimates that are also inside, where the shuffle fails. Restamped
+at 20,000 rows, today's twin still stands where the shuffle stands: 40 %
+of 2,930 supported estimates inside against the replicate's 78 %.
+
+A second review (2026-10-19) hardened the kit and the scoring: least
+squares and the mixed model keep their digits for an outcome far from
+zero, Cox's model is the same fit for a term moved by a constant and
+holds no rows for a tied day, a steep slope that settles is a fit
+rather than a separation, and a curve at exactly one half has its
+median; a mixed model over a few repeated subjects stops rather than
+report an arbitrary ICC; an estimate thin in either half of a split is
+not scored; a rule the real table keeps on every row (the dose formula,
+an event date present exactly where the status is not censored) is
+scored; a model or a discriminator that cannot be fitted on the twin
+counts against it; and automatic models carry pair products. Restamped
+at 20,000 rows: 40 % of 2,913 supported estimates inside against the
+replicate's 77 %.
+
 ### Between columns: the chain's method page, written before its code (2026-10-19)
 
 **Nothing is built by this entry, and no twin carries any structure
