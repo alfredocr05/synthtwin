@@ -22,6 +22,16 @@ before and after it (and not stalling without one after it), and the
 position list rebuilt from its tie world. The rest pins wording, where
 the finding was a missing or wrong sentence.
 
+THE SECOND ROUND. The page's verify and one Codex review of 2026-10-20
+found a guard that guarded nothing on the product's block (the exact mean
+and the tails fix a column's code total whatever min and max say), the
+moments candidate of the orchestrator's addendum unnamed, fourteen of the
+first round's guards held by no check, and sixteen defects of
+definition, scale and arithmetic. The checks after the marked line hold
+each, computing what can be computed (the code total from the mean and
+the tails, the one-cell pigeonhole, Codex's 248-patient count, the
+deficit search against the full one, the census draw's chance of "off").
+
 WHAT IS NOT HERE. No patient-layer code exists to run, so nothing here
 says a twin meets a census or a trend. `K-S6-08`'s enumeration and the
 oracle's cases (G16.17) are where lanes CHa, GR and CHo run the method.
@@ -159,11 +169,11 @@ def test_the_trend_stands_only_where_no_published_fact_fixes_its_cells_code_tota
     reading sits on the grid inside [p01, p99] and the cells hold every row;
     Q beside it gives S. Mutant: item (b) 6 dropped, or S33 not checking it."""
     part = _part("1")
-    assert "6. **The unpinned total (the exact mean's guard).**" in part
-    assert "the published `min` is below `p01` or the published `max` above `p99`" in part
+    assert "6. **The unpinned total (the exact mean's guard; rewritten by the page's verify" in part
+    assert "the published `min` is below `p01` or the published `max` above `p99`" not in part
     assert "`Q_P` is ELIGIBLE when SWING passes, item 6 holds" in part
     assert "873 descriptions SWING passed leak because `Q` stands beside the total" in part
-    assert "4.6c.1 (b) 6); the loader recomputes SWING" in _part("10")
+    assert "(4.6c.1 (b) 6; no rule reads `min` or `max`); the loader recomputes SWING" in _part("10")
     assert "``MEAN" not in part
     assert "passes NO description of the fifteen fixtures" in part
     limits = _part("11")
@@ -243,7 +253,7 @@ def test_the_census_takes_the_tight_cap_and_refuses_the_cap_lemmas_band():
     2, admit no floored split, as the page says."""
     census = _part("4")
     assert "`t = ceil(q / m)`" in census
-    assert "then on every three values of `0 .. t`" in census
+    assert "every `d_i <= min(t, D / f)`" in census
     assert not _floored_split_exists(20, 30, 2)
     assert _floored_split_exists(22, 33, 2)
 
@@ -432,10 +442,12 @@ def test_run_3_is_cited_as_measured_with_its_variants():
     limits = _part("11")
     assert "clauses (1) to (4) held on all 10 route-runs at 100,000 rows (6 of 6 on `ST2`)" in limits
     assert "broke clause (5) on 21 of 23 runs, so G16.15 takes none" in limits
-    assert "So the limit is CLOSED in method for December" in limits
-    assert "the trend fell to 0.013 to 0.503 of the real on 5 of 8 runs" in _part("2")
+    assert "So the limit is CLOSED in method for December" not in limits
+    assert "OPEN until lane CHa measures the floored split on long tables" in limits
+    assert "trend missed clause (1) on 4 of 8 runs at 100,000 rows (0.013 to 0.378 of the real)" in _part("2")
     assert "a split exists at the first option offered, the child at the median, on all 24 route-runs" in _part("2")
     assert "READY's 5 of 6 met" in _decision()
+    assert "5 of 8 runs" not in _flat(_section()) and "5 of 8 runs" not in _decision()
 
 
 def test_the_rigid_rule_was_rerun_on_the_fifteen_fixtures():
@@ -457,3 +469,350 @@ def test_the_dates_rule_is_priced_on_the_zoo_with_a_trigger():
     dates = _part("7")
     assert "8 of the 165" in dates and "351 of 5,344" in dates
     assert "*The trigger:*" in dates
+
+
+# --- the second review round (2026-10-20: the page's verify and one Codex review) ---
+
+VALIDATION = REPOSITORY / "docs" / "spec" / "validation-method-v1.md"
+TAU = 2.0
+
+
+def _v12():
+    return _flat(_between(VALIDATION, "**V12.7 The patient layer's lines", "\n## "))
+
+
+def _type7(sorted_values, percent):
+    """The type-7 rung of a sorted list at a whole percent."""
+    h = (len(sorted_values) - 1) * percent / 100
+    low = int(h)
+    high = min(low + 1, len(sorted_values) - 1)
+    return sorted_values[low] + (h - low) * (sorted_values[high] - sorted_values[low])
+
+
+def test_the_mean_and_the_tails_fix_the_code_total_so_the_min_alternative_is_gone():
+    """Verify item 1 (BLOCKER), computed: with readings kept to one decimal
+    (whole tenths here), the exact mean and the two tails' rows and mean
+    distances give back the code total over every row, whatever min and max
+    say. Mutant: the first build's 'the published `min` is below `p01`'
+    alternative, or S33 reading min."""
+    tenths = [((k * 7919) % 61) + 20 for k in range(2000)] + [3, 5, 140, 151, 160]
+    tenths.sort()
+    low_rung = round(_type7(tenths, 1))
+    high_rung = round(_type7(tenths, 99))
+    span = high_rung - low_rung
+    codes = [min(span, max(0, t - low_rung)) for t in tenths]
+    below = [t for t in tenths if t < low_rung]
+    above = [t for t in tenths if t > high_rung]
+    total = sum(tenths)
+    low_sum = len(below) * low_rung - sum(low_rung - t for t in below)
+    high_sum = len(above) * high_rung + sum(t - high_rung for t in above)
+    middle = total - low_sum - high_sum
+    middle_rows = len(tenths) - len(below) - len(above)
+    assert (middle - middle_rows * low_rung) + span * len(above) == sum(codes)
+    part = _part("1")
+    assert "So the code total over EVERY row of `x` is FIXED wherever the exact mean is published" in part
+    assert "`O_free = n - sum |P| r - n_one`" in part
+    assert "406,482 with both ends `null`" in part and "397,200 with `min` published at 3.0" in part
+    s33 = _part("10")
+    assert "`O_free = n - sum |P| r - n_one`, read on the census" in s33
+    assert "the column's published `min` is below its `p01`" not in s33
+
+
+def test_the_grid_is_read_on_the_tail_boundary_rungs_and_never_on_min_or_max():
+    """Verify item 1 (b) and Codex item 2: p01 and p99 are withheld on small
+    columns, extrema are null, a zero span made u zero. Mutant: the first
+    build's '`L` its `p01` rung'."""
+    setting = _setting()
+    assert "`L` is the rung at `tails.low.percent` and `H` the rung at `tails.high.percent`" in setting
+    assert "`L` its `p01` rung" not in setting
+    assert "where `H = L` (a zero central span) `u` and `K` are 0 and the column has no grid either" in setting
+    assert "No rule of this section reads `min` or `max`" in setting
+    assert "has a grid of two or more codes (`tails` standing on both sides and `K >= 1`" in _part("1")
+
+
+def test_the_own_mean_guard_is_removed_and_its_grid_model_line_is_checked():
+    """Verify item 1 (c). Mutant: the parenthetical guard restored, or the
+    grid-model line left among the proven."""
+    assert "that guard is REMOVED (the page's verify, item 1 (c))" in _part("2")
+    limits = _part("11")
+    assert "the own-mean certificate's grid-model line moved here by the page's verify" in limits
+    assert "where 4.6c.1 (b) 6 leaves the code total of the cells' patients unfixed: every union" not in limits
+
+
+def test_the_trend_without_dropout_is_restated_and_the_verify_tables_are_cases():
+    """Verify item 1 (d): ST2 without dropout publishes no Q under the
+    corrected guard; the verify's two tables are K-S6-08 cases."""
+    part = _part("1")
+    assert "publishes NO `Q_P`, and its arm-by-visit trend falls to BASE's 0.003 and 0.006" in part
+    assert "clauses (1) to (4) hold on 12 of the 14 route-runs at 20,000 rows" in part
+    cases = _part("10")
+    assert "`make_tail_table.py`" in cases and "`make_heaped_min.py`" in cases
+
+
+def test_the_moments_candidate_is_named_unmeasured_with_its_owner():
+    """Verify item 2: the orchestrator's ADDENDUM 2 (12:51), candidate (c).
+    Mutant: the paragraph removed."""
+    limits = _part("11")
+    assert "*The third candidate, NOT MEASURED (the orchestrator's ADDENDUM 2 of 2026-10-20, 12:51" in limits
+    assert "Papadimitropoulou 2020" in limits and "Matthews 1990" in limits
+    assert "*Why A0 stands meanwhile:*" in limits
+    assert "candidate (c), moments: NOT MEASURED in this lane" in _decision()
+
+
+def test_a_computed_dates_difference_has_levels_and_a_certificate():
+    """Verify item 3. Mutant: S31 admitting only a repeated or dealt date."""
+    dates = _part("7")
+    assert "its CERTIFICATE is PWIT where every parent cell is one grain cell holding one value of `r`" in dates
+    assert "it takes NO class witness" in dates
+    assert "dealt date child, or a carried rule's difference at 4.6b.7's levels" in _part("10")
+    assert "a computed date `B = A + D` whose grain cell holds a band of `r`" in _part("10")
+
+
+def _both_rows_range(patients, band_rows):
+    """Patients holding both rows in a band, over every world of two-row
+    patients with `band_rows` rows in the band."""
+    held = []
+    for both in range(patients + 1):
+        one = band_rows - 2 * both
+        if one >= 0 and patients - both - one >= 0:
+            held += [both]
+    return min(held), max(held)
+
+
+def _pwit(patients, supplies):
+    return all(s <= patients * (s // FLOOR) for s in supplies)
+
+
+def test_a_column_that_is_no_row_familys_child_takes_the_one_cell_certificate():
+    """Verify item 4, computed: 20 patients of two rows, a band of 21 of 40
+    rows, fix 'both rows in the band' inside 1 to 10; PWIT refuses it, and
+    passes 22 patients with a band of 23 of 44. Mutants: PWIT with ceil;
+    the one-cell paragraph removed; step 2's all-modal world back."""
+    assert _both_rows_range(20, 21) == (1, 10)
+    assert not _pwit(20, [21, 19])
+    assert _pwit(22, [23, 21])
+    assert all(s <= 20 * -(-s // FLOOR) for s in (21, 19))
+    rows = _part("8")
+    assert "*The one-cell family (the page's verify, item 4).*" in rows
+    assert "s_x <= |P| * floor(s_x / f) for every band x." in rows
+    assert "a position-like column takes 4.6c.6 (d)'s tie-world values" in rows
+    assert "takes 4.6c.6's all-modal values" not in rows
+    assert "that is the child of no row family, read as the one-cell family of (a)" in rows
+
+
+def test_every_family_holding_r_holds_its_other_members_in_g():
+    """Verify item 5 and Codex item 6, computed from Codex's published
+    numbers: the B0 cells of the lower r group hold rows twice their
+    patients, so every r = 1 patient is B1, and 'r = 2, A1, B1' is 34 - 28
+    = 6 in every table. Mutant: the rule removed, or the tie left
+    undefined."""
+    lower_b0 = {"B0C0": (30, 60), "B0C1": (33, 66)}
+    assert all(rows == 2 * patients for patients, rows in lower_b0.values())
+    r1_a1, lower_a1_b1 = 0 + 28, 28 + 6
+    assert lower_a1_b1 - r1_a1 == 6
+    rows = _part("8")
+    assert "*Every family holding `r` holds its other members in `G`" in rows
+    assert "Each such cell IS a union of grain cells crossed with values of `r`" in rows
+    assert "inside each grain cell `C`, give its patients the values of `r` that `R*_C` names" in rows
+    assert "every family of the patient chain that holds `r` holds its other members among `G`'s".lower() in _part("10").lower()
+
+
+def test_the_numbers_the_verify_corrected():
+    """Verify item 6, sub-items 1 to 10."""
+    section = _flat(_section())
+    assert "within 0.032)" in _part("2") and "within 0.031)" not in section
+    assert "81 to 202 on `F3`" in _part("11") and "81 to 87" not in section
+    assert "on ALL FIFTEEN fixtures with `k = 0`, 0 leaking descriptions over 163,755 SWING passes" in _part("1")
+    assert "the other fourteen fixtures at this level are lane CHa's" not in section
+    assert "the oracle's ten cases after the first repair" in _decision()
+    fixed = _part("5")
+    assert "has TWO clauses, and passes where either holds" in fixed
+    assert "the health data zoo's 14 tables the gate turns on" in fixed
+    limits = _part("11")
+    assert "one table described by two installations" in limits and "RELATED tables described twice" in limits
+    assert "different tables given the same name" in limits
+    assert "lane MDEP's zones of plan P4-D409" in _part("2") and "lane MDEP's zones of plan P4-D409" in _part("8")
+    assert "PWIT judging" in _entry() and "PWIT judging" in _flat(STATE.read_text(encoding="utf-8"))
+    assert "counts of patients by their exact readings" in _entry()
+
+
+def test_the_verifys_green_mutants_are_pinned():
+    """Verify item 7: fourteen mutants of the first repair's guards stayed
+    green; each phrase below is red on its own."""
+    assert "classed `repeated` is the child of a row family only under the FLOORED SPLIT" in _part("5")
+    assert "takes its child at the median, the two-band level of its ladder," in _part("2")
+    assert "s_x <= |P| * floor(s_x / f)   for every band x." in _section()
+    assert "2. every `R*_C(rho)` is 0 or at least `f` (FLOORED);" in _part("8")
+    assert "`T = max(f - 1, floor(N2 / 100))` where" in _part("5")
+    assert "every value band of a published level holds at least `max(2 f, f + 4)` patients" in _part("2")
+    assert "2. for the first date only, every DIFFERENCE between the source's" in _part("2")
+    assert "else TWO exchanges on different patients whose half-steps sum to it, else" in _g16()
+    cases = _part("10")
+    assert "extra rows are at least `settings.small_cell_floor` (it is also" in cases
+    assert "readings of 4.6c.6 (d)'s tie world at most 20." in cases
+    assert "`(2 Q_P + h) u / (2 |P| Sxx(r))`, with `h` one half" in _part("1")
+    assert "holds a reading on every row (its published `n_missing` over tabled rows is 0)" in _part("1")
+    assert "every other column's `n_distinct_by_occurrences` is `null` unless its" in _part("3")
+    assert "and the census of `r`'s top band is empty or lies wholly in one of the column's bands at that level" in _part("5")
+    v12 = _v12()
+    assert "12. one patient-fixed value changed on every row of 11 patients" in v12
+    assert "13. one patient of the census's top band given, on every row" in v12
+
+
+def _deficit_search(m, q):
+    """4.6c.4 (b)'s bounded deficit search, steps (i) to (iii)."""
+    t = -(-q // m)
+    deficit = m * t - q
+    if deficit == 0:
+        return m >= FLOOR
+    for d in range(1, min(t, deficit // FLOOR) + 1):
+        if deficit % d == 0 and FLOOR <= deficit // d <= m - FLOOR:
+            return True
+        low = max(2 * FLOOR, -(-(deficit + FLOOR) // (d + 1)))
+        if d + 1 <= t and low <= min(m - FLOOR, (deficit - FLOOR) // d):
+            return True
+    return False
+
+
+def test_the_censuss_search_is_bounded_and_finds_what_the_full_search_finds():
+    """Codex item 7: the three-value search tried 166,616,670,000 triples on
+    99 patients of 10,000 rows and one of 9,999. Computed: the deficit
+    search refuses that census at its first step and agrees with the full
+    search on small top bands. Mutant: the first build's 'every three
+    values of 0 .. t' as the producer's search."""
+    m, q = 100, 99 * 9999 + 9998
+    assert m * (-(-q // m)) - q == 1 and not _deficit_search(m, q)
+    for mm in range(11, 31):
+        for qq in range(0, 2 * mm + 1):
+            if _deficit_search(mm, qq):
+                assert _floored_split_exists(mm, qq, -(-qq // mm))
+    census = _part("4")
+    assert "The producer decides item 2 by the bounded DEFICIT SEARCH" in census
+    assert "126,500 bands" in census
+    setting = _setting()
+    for words in ("`TRIES_MAX = 1,000,000`", "`PATTERNS_MAX = 4,096`", "`NODES_MAX = 10,000`"):
+        assert words in setting
+    assert "*The floored split's patterns, in order* (the setting's bound)." in _part("8")
+    assert "searches by exact integer search over every allowed pattern of every class" not in _part("2")
+
+
+def test_where_no_family_holds_r_the_grain_family_is_the_census():
+    """Codex item 1: 100 patients of two rows leave r one band, so no family
+    holds it. Mutant: the paragraph removed."""
+    rows = _part("8")
+    assert "*Where no family holds `r` (the codex review of 2026-10-20, item 1).*" in rows
+    assert "`G` is `r`'s census itself" in rows
+    assert "*`statistical` is never `null` while the layer is ON:*" in rows
+    assert "`null` where no placed family holds `r`" in _part("9")
+
+
+def test_a_patient_fixed_row_census_is_read_on_the_patient_table():
+    """Codex item 3, computed: 99/101 in the file against 100/100 as defined.
+    Mutant: 'how many rows hold each value' as the census."""
+    first = ["A"] * 50 + ["B"] * 50
+    second = ["B"] + ["A"] * 49 + ["B"] * 50
+    file_rows = {v: first.count(v) + second.count(v) for v in "AB"}
+    weighted = {v: 2 * first.count(v) for v in "AB"}
+    assert file_rows == {"A": 99, "B": 101} and weighted == {"A": 100, "B": 100}
+    assert "Its ROW CENSUS is every count of it taken over rows instead, READ ON THE PATIENT TABLE" in _part("5")
+    assert "read on the file's PATIENT TABLE" in _v12()
+
+
+def test_the_first_date_close_exchanges_across_bands():
+    """Codex item 4, computed: exchanges inside one band never change a
+    patient's band counts; one across bands mends a pair. Mutant: 'the
+    same cell and band'."""
+    patients = [["U", "U"]] * 20 + [["L", "L"]] * 20 + [["L", "U"]] * 60
+    wrong = sum(1 for p in patients if "L" not in p)
+    donors = sum(1 for p in patients if p.count("L") == 2)
+    assert wrong == 20 and min(wrong, donors) == 20
+    method = _g16()
+    assert "the exchange is ACROSS bands" in method
+    assert "exchanging the date with a row of the same cell and band" not in method
+
+
+def test_the_census_line_is_judged_first():
+    """Codex item 5. Mutant: the first build's sentence making the census
+    line 'not judged' when its census differs."""
+    v12 = _v12()
+    assert "THE CENSUS LINE IS JUDGED FIRST, and always" in v12
+    assert "a census, family or trend line of a file whose `L0` totals or census differ" not in v12
+
+
+def test_a_null_position_entry_writes_the_stand_in():
+    """Codex item 8. Mutant: the paragraph removed."""
+    assert "the twin writes the column's STAND-IN" in _part("6")
+    assert "a list `[null, null]` writes stand-ins on every row" in _g16()
+    assert "a `null` entry is not judged" in _v12()
+
+
+def test_the_derived_close_runs_without_a_row_family():
+    """Codex item 9. Mutant: 'No row family: steps 4 and 6 do nothing.'"""
+    assert "WHETHER OR NOT its source is the child of a placed row family" in _g16()
+    cases = _g16_cases()
+    assert "No row family: step 4 does nothing, and step 6 still runs" in cases
+    assert "No row family: steps 4 and 6 do nothing." not in cases
+
+
+def test_a_first_date_pattern_admits_absent_later_dates():
+    """Codex item 10. Mutant: the residual's missing supply removed."""
+    part = _part("2")
+    assert "or in `D`'s `missing` band, and no row in a value band below `b`" in part
+    assert "`s'_missing = s_missing` for `D`'s `missing` band" in part
+
+
+def test_the_extension_carries_u_and_the_rescale_inverts_the_response():
+    """Codex items 11 and 12, computed: with a response half the weight,
+    gamma_0 times beta reaches a quarter and gamma_0 over beta the target.
+    Mutants: the extension without u; 'gamma = gamma_0 beta'."""
+    beta = 0.5
+    assert beta * beta == 0.25 and beta / beta == 1.0
+    method = _g16()
+    assert "the pooled slope `u sum (2 Q + h) / sum 2 |P'| Sxx(r')`" in method
+    assert "then `gamma = gamma_0 / beta` where `beta > 0.05`" in method
+
+
+def test_the_excess_split_has_a_total_tie_order():
+    """Codex item 13, computed: (5, 6) and (6, 5) both least. Mutant: the
+    lexicographic order removed."""
+    least = min((a - 5.5) ** 2 + (11 - a - 5.5) ** 2 for a in range(12))
+    ties = [(a, 11 - a) for a in range(12) if (a - 5.5) ** 2 + (11 - a - 5.5) ** 2 == least]
+    assert ties == [(5, 6), (6, 5)] and min(ties) == (5, 6)
+    assert "the vector `(q_C)` that is LEAST in lexicographic order" in _g16()
+
+
+def test_patient_scores_and_the_weight_follow_the_arithmetic_rule():
+    """Codex item 14: G16.8 forbids a library logarithm or quantile. Mutant:
+    'the normal quantile of `u_p`'."""
+    method = _g16()
+    assert "one `integers` call of FOUR words a patient" in method
+    assert "two FROZEN TABLES of the shared module" in method
+    assert "`z_p` the normal quantile of `u_p`" not in method
+
+
+def _p_off(eligible, patients, repaired):
+    scores = [patients * lo if repaired else lo - 1 for lo in eligible] + [0]
+    top = max(scores)
+    weights = [2.718281828459045 ** (-(top - v) / TAU) for v in scores]
+    return (1 - 2 ** -30) * weights[-1] / sum(weights) + 2 ** -30 / len(scores)
+
+
+def test_the_census_draw_scores_patients_so_off_keeps_only_the_uniform_share():
+    """Codex item 15, computed on its census (only lo = 1 eligible): 'off'
+    took one half under 'lo - 1', and below one in a billion under 'N lo'.
+    Mutant: 'each scored `lo - 1`'."""
+    assert abs(_p_off([1], 100, False) - 0.5) < 1e-6
+    assert _p_off([1], 100, True) < 1e-9
+    assert _p_off([1, 2, 3], 184, False) > 0.15
+    census = _part("4")
+    assert "each scored `N lo`" in census and "each scored `lo - 1`," not in census
+    assert "scored `N` times its number of bands" in _part("2")
+    assert "3.8 to 50 per cent" in _part("3")
+
+
+def test_uncarried_groups_trends_are_not_called_flat():
+    """Codex item 16. Mutant: 'every other group's trend over visits is flat
+    in the twin'."""
+    limits = _part("11")
+    assert "every other group's trend over visits is flat in the twin" not in limits
+    assert "approximate or unconstrained, NOT flat" in limits

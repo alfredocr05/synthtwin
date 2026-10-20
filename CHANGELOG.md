@@ -19,19 +19,23 @@ validation V12.7 to V12.9), and its first review round's repairs:
   over visit position halved (`Q`), behind a certificate read on
   published facts alone, with its proof; the exact sum is never
   published, and the trend is offered only where no published fact of
-  the column fixes its cells' total. Its run 3, with the floor enforced on every
+  the column fixes its cells' total: the second review round found that
+  the column's exact mean and its tails fix that total on every
+  description, so the trend now needs at least `f` rows outside its
+  cells with free codes. Its run 3, with the floor enforced on every
   patient-level family, recovered the arm-by-visit trend at 0.968 to
-  0.998 of the real one on 24 runs up to 100,000 rows; the design
-  study's 100,000-row figures, measured on a description the floor
-  forbids, are restated.
+  0.998 of the real one on 22 of 24 runs up to 100,000 rows (a table
+  where every patient holds every visit now publishes no trend); the
+  design study's 100,000-row figures, measured on a description the
+  floor forbids, are restated.
 - **The within-patient correlation.** A patient's own level and first
   date become patient-level parents of the repeated readings; the row
   family under an own mean takes its child at the median and a floored
   split found by exact integer search, and the generator's patient
   weight is read on that published table. Run 3: within 0.0317 of the real
   on 24 runs (0.0091 on the test table at 100,000 rows) and within
-  0.0093 on the long table, where the first build's route was 0.076 to
-  0.081 low.
+  0.0093 on the long table with PWIT judging its row family, where the
+  first build's route was 0.076 to 0.081 low.
 - **When the layer is on, and what it replaces.** At least `f` extra
   rows, one person column, no row without a person, and a drawn census
   of rows per patient (the draw may take "off" on any table, so the gate
@@ -47,10 +51,26 @@ validation V12.7 to V12.9), and its first review round's repairs:
 - **Stated limits, each with its owner:** the trend is not carried on
   long tables (January's stretch); the correlation on long tables was
   0.076 to 0.081 below the real under the study's route, its cause the
-  patient weight, its route the published weight (within 0.0093 in run 3, which lane
-  GR confirms on the built generator); the
-  tighter clause of the correlation where run 3 still misses it
-  (January's stretch, widened).
+  patient weight, its route the published weight (within 0.0093 in run
+  3 with PWIT judging, OPEN until lane CHa measures the floored split
+  there and lane GR confirms on the built generator); the tighter clause
+  of the correlation where run 3 still misses it (January's stretch,
+  widened); counts of patients by their exact readings beside a trend
+  or an own mean, measured to leak on the fixtures' worst cases (the
+  orchestrator's ruling and lane CHa's product-scale run); the third
+  candidate, the ICC and the trend carried by moments, not measured
+  (lane GR, before the stage-6 gate).
+- **The second review round** (its verify and one outside review)
+  also bounded every search the page asks for, put a census scored by
+  its patients so that the layer turns off only by the draw's uniform
+  share (on the health data zoo it had turned off 3.8 to 50 per cent of
+  the time), defined the grain family where rows per patient are
+  constant, required every patient-level family holding the row count
+  to hold its other members in the grain family (a counterexample of
+  248 patients fixed a count at 6 without it), read a patient-fixed
+  column's row census on the patient table, let the first-date repair
+  move dates across bands, and made the patient scores and the weight
+  reproducible bit for bit.
 
 ### Between columns: the chain's method page, written before its code (2026-10-19)
 

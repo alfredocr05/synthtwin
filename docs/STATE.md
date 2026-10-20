@@ -608,13 +608,18 @@ cannot get worse unseen.
   real rows inside cells that include the child's band, not the banding.
   The page's route (G16.15's weight read on the published row family):
   within 0.0093 of the real on the
-  three long-table runs of the page's run 3 (in method; lane GR confirms
-  on the built generator). Clause (5), where run 3 still misses it: `ST2` at 20,000 rows seed 1 (the
+  three long-table runs of the page's run 3, with PWIT judging the row
+  family (OPEN until lane CHa measures the floored split on long tables
+  and lane GR confirms on the built generator). Clause (5), where run 3 still misses it: `ST2` at 20,000 rows seed 1 (the
   correlation, -0.0210 against BASE's -0.0105, yardstick 0.0075) and
   `ST2-AGE` at 100,000 rows on its (arm, old) route (the lag-1
   correlation); owner
   the January stretch item. The visit trend publishes no cell on long
-  tables (owner the January `r`-band form).
+  tables (owner the January `r`-band form), nor where every patient
+  holds every visit (its cells' code total is then fixed). Counts of
+  patients by their exact readings beside a trend or an own mean leak on
+  the fixtures' worst cases (the page's limit 9; owner the
+  orchestrator's ruling and lane CHa's product-scale run).
 
 ## The rules an assistant breaks first here
 

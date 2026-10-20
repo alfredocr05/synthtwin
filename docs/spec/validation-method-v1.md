@@ -3786,8 +3786,8 @@ and never reads the key.
 | a row family | counted in ROWS in each (parent cell, band) on the file, compared with the published table cell for cell | EXACT-OBSERVABLE: HELD or MISSED |
 | a derived column | recomputed on the file (each patient's first date, own mean), cut at the published edges, its families counted as above | EXACT-OBSERVABLE: HELD or MISSED |
 | a published `Q_P` | the file's `S_P`, on the published grid code and positions, in the published window | EXACT-OBSERVABLE: HELD or MISSED |
-| a position-like column's list | the file's modal value at each listed position equals the listed one | EXACT-OBSERVABLE: HELD or MISSED |
-| a patient-fixed column's row census, where published | the file's row counts equal the published ones | EXACT-OBSERVABLE: HELD or MISSED |
+| a position-like column's list | the file's modal value at each LISTED position equals the listed one; a `null` entry is not judged, and a list of `null` entries alone prints no verdict (contract 4.6c.6 (c)) | EXACT-OBSERVABLE: HELD or MISSED |
+| a patient-fixed column's row census, where published | read on the file's PATIENT TABLE: for each value, the sum of `r` over the file's patients whose value at their first position is that value, equal to the published count (contract 4.6c.5 (b)); never the file's own count of rows holding the value, which differs on the up to `T` patients the class lets hold a second value | EXACT-OBSERVABLE: HELD or MISSED |
 | a patient-fixed column constant within each patient; a dealt date in order within each patient | not a line of this report (V12.8) | none here |
 | the classes, the gate and the withheld maps | invariants S29 to S33 | the loader refuses, naming the column |
 
@@ -3795,9 +3795,15 @@ Each verdict follows V12.3: no measured number on any line, the verdict
 printed only where the file's own description would publish the same
 object (the census eligible on the file's own census, the family's
 certificate passing on the file's counts, SWING passing on the file's
-own `S_P`), otherwise V5.3's fixed sentence; a census, family or trend
-line of a file whose `L0` totals or census differ reads "not judged" in
-V12.3's fixed words.
+own `S_P`), otherwise V5.3's fixed sentence. THE CENSUS LINE IS JUDGED
+FIRST, and always: a file whose census differs from the published one
+reads MISSED on the census line, never "not judged" (the codex review
+of 2026-10-20, item 5: the first build's last sentence made the census
+line "not judged" exactly when its census differed, against its own
+EXACT-OBSERVABLE kind and mutant 7's MISSED). Only the lines that read
+the census or the `L0` totals, a family, a row family, a derived column,
+a trend and a row census, read "not judged" in V12.3's fixed words on a
+file whose `L0` totals or census differ.
 
 **V12.8 What is checked elsewhere, and why.** Whether a patient-fixed
 column is constant within each patient, and whether each dealt date
@@ -3823,9 +3829,18 @@ vacuous, and its cost.** Each is a twin damaged one way:
 10. a position-like column shifted by one position in every patient:
     its list MISSED;
 11. a dealt date column's readings moved between patients of different
-    first-date bands: the first-date family MISSED.
-Each EXACT-OBSERVABLE line of V12.7 has its red case among them, and a
-green case beside it: the same twin undamaged, every line HELD. The
+    first-date bands: the first-date family MISSED;
+12. one patient-fixed value changed on every row of 11 patients from a
+    level of one band to a level of another: that family of the patient
+    chain MISSED (the page's verify, item 7);
+13. one patient of the census's top band given, on every row, a
+    patient-fixed column's value of another band: the column's row
+    census MISSED, its rows moving by the patient's `r` (the page's
+    verify, item 7).
+Each EXACT-OBSERVABLE line of V12.7 has its red case among them
+(mutant 7 the census, 12 a family of the patient chain, 8 a row family,
+11 a derived column, 9 a trend, 10 a position list, 13 a row census),
+and a green case beside it: the same twin undamaged, every line HELD. The
 lines count by band codes and patient keys, as V12.6 counts; the
 derived columns add one pass over the rows. Lane CHv measures them with
 V12.6's under `K-S6-15`.

@@ -18193,8 +18193,16 @@ G16.0 to G16.12 like any other.
    cells by the walk, with the patient term of G16.15.
 5. **Positions and order**: every dealt date column sorted within each
    patient, the first giving positions (contract 4.6c.7); position-like
-   columns written from their lists (contract 4.6c.6 (c)).
-6. **The derived columns' close and the trends** (G16.15).
+   columns written from their lists (contract 4.6c.6 (c)): at a listed
+   position the listed value, at a `null` entry, and beyond `L` where
+   nothing is listed, the column's stand-in, the cell plan P4-D401
+   writes for a held column (the codex review of 2026-10-20, item 8: a
+   list `[null, null]` writes stand-ins on every row).
+6. **The derived columns' close and the trends** (G16.15). It runs
+   wherever a derived column is published, WHETHER OR NOT its source is
+   the child of a placed row family (the codex review of 2026-10-20,
+   item 9: the first build skipped it with no row family, leaving the
+   patient chain's derived family unmet and unnamed).
 7. **Computed dates** (G16.16), then the computed columns of G16.2 step
    5 for every other carried rule.
 8. **The other columns**: a column whose multiplicity map is withheld
@@ -18242,9 +18250,17 @@ generator finds one by exact integer search (a small linear system in
 the `q_C`, one equation a parent cell of each family, `q_C` whole and
 at least 0; lane GR's, through the scipy route of plan P4-D407, subject
 to lane DEP's bundle and lane MDEP's zones of plan P4-D409), the least
-`sum (q_C - q m_C / m)^2` among its solutions, `m_C` the cell's
-top-band patients, so the excess stays near proportional. With no row
-family placed, the one line over the whole top band stands.
+`sum |q_C - q m_C / m|` among its solutions (a linear objective, one
+auxiliary unknown a cell), `m_C` the cell's top-band patients, so the
+excess stays near proportional; then, among its minimisers, the vector
+`(q_C)` that is LEAST in lexicographic order over `G`'s cells in their
+published order, found by fixing each `q_C` in turn at its least value
+over the minimisers (one further solve a cell). That order is total, so
+identical inputs give one twin (the codex review of 2026-10-20, item
+13: two grain cells of 55 top-band patients under one parent cell,
+`q = 11`, make `(5, 6)` and `(6, 5)` both least under the first build's
+squares, and their row totals 115 and 116 could fall either way). With
+no row family placed, the one line over the whole top band stands.
 
 **A row family `{y | parents}`.** Its parent cells are cells of the
 patient table, so each patient's parent cell is known after step 1.
@@ -18265,14 +18281,27 @@ never reaches `generate`.
 
 **The patient term (the within-patient correlation's route, short and
 long tables; contract 4.6c.2 (e) and 4.6c.11 limits 3 and 4).** For each
-repeated FINE column `y` with an own-mean parent, every patient draws
-one PATIENT SCORE: a uniform `u_p` inside its own-mean band's share of
-patients AT THE PUBLISHED LEVEL (the band's patient counts, published by
-the patient chain), `z_p` the normal quantile of `u_p` (one `integers`
-call of three words a patient, G16.8's hidden score); row `j` of patient
-`p` is ranked inside its parent cell by `omega z_p + sqrt(1 - omega^2)
-z_pj` (the square root correctly rounded, as IEEE 754 requires of it on
-every machine). THE WEIGHT `omega` is the latent correlation of a row's
+repeated FINE column `y` with a published own-mean column, every patient
+takes one PATIENT SCORE, a normal score inside its own-mean band's share
+of patients AT THE PUBLISHED LEVEL (the band's patient counts, published
+by the patient chain), made under G16.8's arithmetic alone (the codex
+review of 2026-10-20, item 14: the first build asked for "the normal
+quantile of a uniform", which G16.8 forbids, with no word-to-uniform
+rule, no quantile algorithm and no tie rule): one `integers` call of
+FOUR words a patient, in patient order; words 1 to 3 make the patient's
+hidden score `h_p` exactly as G16.8 makes a row's (the twelve 16-bit
+pieces summed, `(S - 393210) / 65536`), and word 4, read as a whole
+number, is its place `w_p` inside its band. The `N` hidden scores,
+sorted ascending (stable on patient order), are dealt in that order to
+the patients sorted by own-mean band at the published level ascending,
+then `w_p` ascending, then patient order: patient `p`'s score `z_p` is
+the hidden score dealt to it. So `z_p` rises with the band, is a normal
+order statistic inside the band's share of patients, the law the
+measured route drew, and needs only additions, comparisons and a
+stable sort. Row `j` of patient `p` is ranked inside its parent cell by
+`omega z_p + sqrt(1 - omega^2) z_pj`, `z_pj` the row's hidden score of
+G16.8 (the square root correctly rounded, as IEEE 754 requires of it on
+every machine), ties by row order. THE WEIGHT `omega` is the latent correlation of a row's
 reading with its patient's own-mean score that the PUBLISHED row
 family's table implies under a bivariate normal law: the value on the
 grid `0, 0.005, ..., 0.995` that maximises the multinomial likelihood
@@ -18282,7 +18311,30 @@ uniform on each band's share of patients (24 equal quantile points a
 band) and the child's band edges at the normal quantiles of its
 published row shares. It reads published counts only, so it is a
 function of the description, and it does not depend on the child's
-level: a finer child refines the table the same law is fitted to. The
+level: a finer child refines the table the same law is fitted to.
+*Its arithmetic, under G16.8* (the codex review's item 14). Every
+normal distribution value, normal quantile and logarithm `omega` reads
+comes from two FROZEN TABLES of the shared module (G16.9), written once
+as decimal strings of 17 significant digits and frozen with the
+oracle's vectors: `PHI`, the normal distribution function at `z = -8 +
+k / 256`, `k = 0 .. 4096`, and `LN`, the natural logarithm of `1 + k /
+4096`, `k = 0 .. 4096`. `Phi(z)` is `PHI` read by linear interpolation
+(0 below -8, 1 above 8); the quantile of `p` is the `z` at which that
+interpolation equals `p`, found by bisection over `PHI`'s entries and
+one linear inverse interpolation; `ln(x)` is `e * LN2 + LN` at the
+mantissa `x / 2**e` in `[1, 2)` by linear interpolation, `e` exact
+(`math.frexp`) and `LN2` the binary64 value nearest `ln 2`. Each is
+binary64 `+ - * /`, an exact comparison or an exact power of two, so
+every machine computes the same likelihood; a cell of probability 0
+contributes `-inf` only where it holds rows; the grid points are tried
+in ascending order and a tie keeps the smaller `omega`. JUDGEMENT: the
+tables' interpolation errors (below `10**-6` in `Phi` and `10**-8` in
+`ln`) move `omega` by less than one grid step against run 3's library
+values; lane GR checks it on run 3's 24 route-runs.
+*Where the source has no placed row family* (the codex review's item
+9), no published table implies a weight: `omega` is 0, the derived
+columns' close below alone meets the own-mean bands, and the private
+report says the within-patient correlation is not carried there. The
 trend term below is added to that score as it is: the row's noise is
 not shrunk by the trend's variance. `omega` is 0 where the column has
 no own-mean parent. The term moves no published count: it only orders
@@ -18304,16 +18356,37 @@ against 0.695 on `ST2`), which is the measured cause of both the long
 table's gap and the 100,000-row misses of the floor-respecting runs.
 
 **The derived columns' close.** After step 4 every patient's own mean
-of each column with an own-mean parent, and its first date of each date
-column with a first-date parent, is recomputed. Where a patient's own
-mean lies outside its own-mean band, exchanges of the column's cells
-between two rows of the SAME parent cell and the SAME band of the row
-family are proposed, in row order, each kept when it moves both
-patients' means toward their bands without moving either out; a first
-date outside its band is met by exchanging the date with a row of the
-same cell and band. Each exchange keeps every row family's table and
-every count of one column. A patient left outside its band is named in
-the twin's DEVIATIONS with the family it misses, never silently.
+of each column with a published own-mean column, and its first date of
+each date column with a published first-date column, is recomputed,
+whether or not the source is a row family's child. An exchange swaps
+the source's cells between two rows of two patients in the SAME PARENT
+CELL of the source's row family (the whole table where the source is
+no row family's child): each of the cell's (parent cell, band) counts
+keeps its rows, so every row family's table and every count of one
+column is kept, whatever the two cells' bands. *Own means:* where a
+patient's own mean lies outside its own-mean band, exchanges are
+proposed in row order, a row of the patient against a row of another
+patient of its parent cell, each kept when it moves both patients'
+means toward their bands without moving either out. *First dates (the
+codex review of 2026-10-20, item 4):* where a patient's earliest
+present date lies in a band other than its first-date band `b`, the
+exchange is ACROSS bands: one of its dates outside `b` against a date
+in `b` that another patient `p'` of the parent cell holds and does not
+need (a date of `p'` that is not its first, or whose leaving keeps
+`p'`'s earliest date in `p'`'s band), and where its earliest date lies
+BELOW `b`, that date against a date of `b` or above held the same way;
+an exchange is kept when it puts the patient's first date in `b` and
+leaves `p'`'s in its band. The first build kept these exchanges inside
+one band, which leaves every patient's band counts as dealt: 200
+patients of two rows, a lower parent cell of 100 lower and 100 upper
+dates whose walk gave 20 patients two upper dates and 20 two lower,
+has 20 patients out of band that no such exchange can mend, and every
+one of them mended by one exchange across bands (MEASURED,
+`wave6/MG/repair2/repro.py`). The first dates' close runs before the
+trend's close below, and after it every dealt date is sorted within
+each patient again (step 5), so positions are final before any `S_P`
+is closed. A patient left outside its band is named in the twin's
+DEVIATIONS with the family it misses, never silently.
 
 **The trend over visits (contract 4.6c.1; the design study's text,
 adopted).** For each FINE `x` carrying trends, the walk's score of row
@@ -18322,13 +18395,27 @@ patient's target slope in `x`'s units:
 - where `p`'s cell `P` of `F_S` carries `Q_P`:
   `(2 Q_P + h) u / (2 |P| Sxx(r))`, `h` one half for even `r` and 0
   for odd;
-- otherwise the EXTENSION: the pooled slope `sum (2 Q + h) / sum 2 |P'|
-  Sxx(r')` over the published cells `P'` sharing `p`'s parent cell
+- otherwise the EXTENSION: the pooled slope `u sum (2 Q + h) / sum 2
+  |P'| Sxx(r')` over the published cells `P'` sharing `p`'s parent cell
   across `r`, else sharing its first parent, else over every published
-  cell; with no published cell, 0;
+  cell; with no published cell, 0. It carries the grid step `u` as the
+  carried cells' slope does, so both are in `x`'s units (the codex
+  review of 2026-10-20, item 11: without it a cell beside a carried
+  slope of 1 took a target of 10 at `u = 0.1`); the design study's
+  harness applied it so (`repair_twin.py`, the target times the grid
+  step);
 - `gamma` is ONE rescale for the column, from the generator's own first
-  pass: the least-squares slope of the achieved on the target slopes
-  over every patient with a target.
+  pass, the INVERSE of the response (the codex review's item 12: the
+  first build multiplied by the response, so a first pass reaching half
+  its targets would reach a quarter): the first pass runs with `gamma_0
+  = 1 / s`, `s` the column's published robust scale (its interquartile
+  range over 1.349, from its rungs), and `beta` is the least-squares
+  slope of the achieved on the target slopes over every patient with a
+  target; then `gamma = gamma_0 / beta` where `beta > 0.05`, and
+  `gamma_0` stays where `beta <= 0.05` (no usable response; the close
+  below alone meets the published cells, and the private report names
+  the column). The design study's harness computed it so
+  (`slope_twin3.py`, `latent_run`).
 Then THE CLOSE, by exchanges of `x`'s readings between two rows of ONE
 patient only, so every published table, every patient's own mean and
 every census is unchanged: first random improving exchanges, 30
@@ -18364,12 +18451,21 @@ stays overlapping the next `A`.
 
 **Draws.** After G16.8's words: the patient table's walk (G16.8 run on
 `N` patient rows), then for each row family in `grain.rows` order its
-rows' scores and, for a FINE child, the patient scores of G16.15, then
-the trend's random exchanges (one `integers` call of two words a
-proposal). Each call is a stage in G3.3's sense.
+rows' scores and, for a FINE child, the patient scores of G16.15 (one
+call of four words a patient: three for the hidden score, one for the
+place inside the band), then the trend's random exchanges (one
+`integers` call of two words a proposal). A FINE column with a published
+own-mean column and no row family takes its patient scores after the
+last row family's, in schema order. Each call is a stage in G3.3's
+sense.
 
-**Degenerate branches.** No row family: steps 4 and 6 do nothing. A
-parent cell with no rows: no word. A top band with `m = 0`: no excess.
+**Degenerate branches.** No row family: step 4 does nothing, and step
+6 still runs for every published derived column, its exchanges over the
+whole table (G16.13 step 6; the first build's "steps 4 and 6 do
+nothing" left a derived family unmet). A parent cell with no rows: no
+word. A position-like list with no listed entry: stand-ins on every row
+(G16.13 step 5). A rescale's first pass with `beta <= 0.05`: `gamma_0`
+kept. A top band with `m = 0`: no excess.
 A patient of one row: its position is 1 and it carries no trend. A
 dealt date absent on a row: sorted after the patient's present dates,
 in row order. `omega` 0: the patient term is nought.
@@ -18417,6 +18513,34 @@ mutant that must move it:
    every published patient-level cell is 0 or at least `f` (mutant: the
    design study's `fixed_levels`, W3 and NE without the floor, which
    published 7 to 13 such cells at 100,000 rows).
+11. **the first-date close across bands (the codex review of
+   2026-10-20, item 4):** 200 patients of two rows, a lower parent cell
+   of 100 lower and 100 upper dates whose walk gives 20 patients two
+   upper and 20 two lower dates: every patient's first date ends in its
+   band (mutant: exchanges kept inside one band, which mends none);
+12. **the position list with nothing listed (item 8):** two schedules in
+   equal halves, the list `[null, null]`: stand-ins on every row, and the
+   validator's list line judging no entry (mutant: the last listed value
+   written, which is undefined and raises);
+13. **the extension's units and the rescale's direction (items 11 and
+   12):** a carried cell and an uncarried one at `u = 0.1`, and a first
+   pass reaching half its targets: the uncarried cell's target in `x`'s
+   units, and the second pass reaching its targets within the close's
+   reach (mutants: the extension without `u`, which targets ten times
+   the slope; `gamma = gamma_0 beta`, which reaches a quarter);
+14. **the excess split's tie (item 13):** two grain cells of 55 top-band
+   patients under one parent cell, `q = 11`: `(q_C) = (5, 6)` on every
+   run and machine (mutant: the solver's first minimiser);
+15. **the patient scores and the weight, bit for bit (item 14):** the
+   patient scores of 1,000 patients in five bands and `omega` of a
+   published three-by-two table equal the frozen vector's on every
+   machine (mutant: the library's normal quantile and logarithm, which
+   G16.8 forbids);
+16. **a derived family with no row family (item 9):** a published
+   own-mean column whose source is no row family's child: step 6 runs,
+   and every patient's own mean ends in its band or is named in
+   DEVIATIONS (mutant: step 6 skipped, which leaves the patient chain's
+   own-mean family unmet and unnamed).
 
 ## Conformance checklist
 
