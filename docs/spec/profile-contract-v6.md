@@ -5787,10 +5787,11 @@ decided by ONE drawn step for each group of columns the numbers tie
 together, whose option "publish none" is always open, and an option that
 publishes is open only where an exact integer test, the joint-space
 witness, holds on facts the description publishes. The proofs (4.6d.5)
-show that, for a table with one row per patient, no union of cells of
-the full joint table refined by the codes is fixed or bounded inside 1
-to `f - 1` by the whole description, under one premise and with the
-remainders 4.6d.5 (h) names, CHECKED, NOT PROVEN, by `K-S6-08`.
+show that, for a table with one row per patient, no count of rows in a
+union of cells of the full joint table refined by the codes, beyond each
+column's own facts, is fixed or bounded inside 1 to `f - 1` by the whole
+description, under one premise and with the remainders 4.6d.5 (h)
+names, CHECKED, NOT PROVEN, by `K-S6-08`.
 
 #### 4.6d.1 Which columns take part, and what is offered
 
@@ -5888,7 +5889,8 @@ published class, otherwise `{procedure, codes, regions}`:
 - `regions`: one entry per REGION (4.6d.4) whose drawn option publishes,
   in region order, `{columns, families, option, sums}`: `columns` and
   `families` (indices in `chain`) name the region; `option` names the
-  drawn option of 4.6d.3; `sums` lists every published whole number of
+  drawn option of 4.6d.3 as `{classes, codes}`, its classes in that
+  order and `codes` `"L"` or `"S"`; `sums` lists every published whole number of
   the option, each `{class, columns, code, family, cell, value}`, the
   cell written as a `chain` table writes its row (the parents' bands, the
   child's band where the class is read in a family cell) or `null` for a
@@ -5919,26 +5921,31 @@ nodes share the SEPARATOR of the later one: its parents at its levels
 (the table's separator is every tabled row). This is the junction tree
 of 4.6b.9 (a), written as a tree.
 
-**Regions.** For each region column with an offered class, take every
-node holding it; for each offered `correlation`, add the path of the
-tree between the two columns' nodes; for each family whose published
-slopes (4.6b.6) read a region column, add that family. Sets sharing a
-node, or a region column, are joined until none do. Each set is a
-REGION: a connected subtree of the tree, its COLUMNS the region columns
-read inside it (every column whose readings an offered number or a
-published slope of the region reads; a slope parent that is FINE is
-one). Regions are listed in the order of their first column in schema
-order. All of it is read from the placed chain, `rules` and the offers,
-so it is class (b).
+**Regions.** A REGION is a set of nodes and a set of columns, built by
+joining until nothing changes: each region column with an offered class
+is a column of a region; each column of a region brings EVERY node
+holding it; each offered `correlation` brings the path of the tree
+between its two columns' nodes; each family of a region whose published
+slopes (4.6b.6) read a column of it brings its slope columns that are
+FINE, as columns of the region; and two regions sharing a node or a
+column are one. Each column's nodes form a connected subtree (4.6b.5),
+and a correlation's path joins two of them, so a region is a connected
+subtree of the tree holding every node of each of its columns. Regions
+are listed in the order of their first column in schema order. All of it
+is read from the placed chain, `rules`, `grain` and the offers, so it is
+class (b).
 
-**The options of a region**, in this fixed order, each the classes it
-publishes for every column and pair the region offers them for:
-`none`; `mean` on the linear code; `mean` with the second code in place
-of the linear code for every skewed column; each of these two with
-`correlation` added (on the same codes, and on the second code for a
-pair holding a skewed column); then, in the same order, each with
-`spread`, and each with `product`, where `procedure.classes` offers them
-(4.6d.10). An option is ELIGIBLE where (i) every published correlation
+**The options of a region**, each the classes it publishes for every
+column and pair the region offers them for, on one of two code choices:
+`L`, every mean on the linear code and every correlation on the linear
+code and, for a pair holding a skewed column, on the second code too;
+`S`, the same but every skewed column's means on its second code. The
+order is `none`; then `mean` (`S`, then `L`); then `mean` and
+`correlation` (`S`, then `L`); then those with `spread`; then those with
+`product`; then those with `cell_slopes`; each only where
+`procedure.classes` offers its last class (4.6d.10), so that at each
+depth the linear code comes last and is preferred, as the design's
+`M-b` prefers it. An option is ELIGIBLE where (i) every published correlation
 of it has `r^2 < (95/100)^2`, `r` computed exactly from its nine sums
 (rule `M5`'s first test, now a test on published sums), and (ii) the
 joint-space witness of 4.6d.4 holds for the region with the option's
@@ -5964,7 +5971,7 @@ size. `M5`'s withholding (inventory row 26) is test (i), read on the
 published sums; the design's second test, the rearrangement bound, is
 covered by the witness, whose joint space holds the pairing of the two
 columns' atoms; and `M-b`'s choice of code (inventory row 25) is the
-choice between options 2 and 3, drawn. The statistical price of the
+choice between the `S` and `L` options of one depth, drawn. The statistical price of the
 share is the chance `2**-30` of a poorer option.
 
 #### 4.6d.4 The joint space and the witness, with their quantifiers exact
@@ -5978,8 +5985,8 @@ share is the chance `2**-30` of a poorer option.
 - a POINT is a vector of whole numbers `N(lambda) >= 0` and
   `n(lambda, alpha) >= 0` such that: (1) `n` sums over `alpha` to
   `N(lambda)`; (2) `N` summed to each node's members at the node's levels
-  is that node's published table, and to each member's `L0` bands its
-  published totals; (3) each column of `R` keeps its own published
+  is that node's published table, and to each column of `R`'s `L0` bands
+  its published totals; (3) each column of `R` keeps its own published
   facts as counts of atoms: each own-fact group's published count (fixed,
   or inside its published bounds), each rung's count of readings below
   it, its rows holding no reading in each band; (4) every number `o`
@@ -5997,7 +6004,7 @@ empty where `o` is the real table's own option.
 - **(b) zero.** Some point has `n(g) = 0` for every `g` in `V-`;
 - **(c) small atoms.** For every small atom `G` and every group `g`
   holding `G` that some point with 0 rows on `V-` makes non-empty, some
-  point with 0 rows on `V-` puts every row `G` holds in it into `g`;
+  point with 0 rows on `V-` puts all of `G`'s rows into `g`.
 
 **The quantifiers, as lane MDEP's decision states them (plan P4-D409,
 part 5, with Codex's condition on it).** (a) asks whether SOME point
@@ -6172,6 +6179,19 @@ covered by the same proof. *The price, stated:* ruling R3's residual
 (4.6b.13, stated limit 1) applies here as at every drawn step: a reader
 who sees `none` may believe, with odds up to `m` times `2**30`, that the
 richer option was not eligible; nothing becomes derivable.
+
+*The inventory's rows this page owns* (4.6b.9 (b)'s table, rows 22 to
+26 and `withheld` of row 34, with the decisions this page adds):
+
+| # | decision | class here, and why |
+|---|---|---|
+| 22 | FINE, the code's clip, the cells' size rule (`2 f`, or `f` for `cell_slopes`) | (b): published within-column facts and published cell counts |
+| 23 | which columns are skewed | (b): the quantile skew from published rungs against `skew_cut` |
+| 24 | a region's numbers published or not (joint-space witness) | (a): drawn, `none` always eligible, a publishing option's eligibility read on published facts only (Lemma 5) |
+| 25 | the code a skewed column's means are read on | (a): the `S` and `L` options of one depth, drawn |
+| 26 | `M5`'s withholding | (a): test (i) on published sums, inside the same draw |
+| 34 | `withheld` | (b): the offered classes the drawn option does not publish, one word each, no reason |
+| new | the regions, their columns and nodes, the offers, the exact route's class | (b): read from the placed chain, `rules`, `grain`, published facts and published sizes |
 
 **(b) Lemma 6 (item 2): every point the witness uses extends to a whole
 table of the preimage, and points of different regions combine.**
