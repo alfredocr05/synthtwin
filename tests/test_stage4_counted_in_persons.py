@@ -472,3 +472,21 @@ def test_a_cell_is_read_as_each_published_value_it_can_be() -> None:
     assert "pchf" in keys
     dated = profile._Published(frozenset({"2019-04-17"}), frozenset(), (), "month-first-date")
     assert "w2019-04-17" in profile._keys_of("04/17/2019", dated, {})
+
+
+def test_a_written_form_fewer_than_eleven_people_wear_is_not_published(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 4 beside labels: two patients' own codes wear a form on more than eleven rows.
+
+    Each code stands on too few rows to be named and the remainder the
+    floor merges is held by many patients, so only the form -- a letter,
+    two figures, a hyphen and a figure, worn by two people -- is a value
+    of fewer than eleven; the row floor alone publishes it.
+    """
+    table, _screen = _profiled(tmp_path, "forms", persons_counted.forms_table(2000),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "forms"), "site")
+    assert _held(block), block
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0

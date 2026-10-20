@@ -510,3 +510,27 @@ def census_table(small: bool) -> str:
         for _row in range(size):
             lines += [f"REC{90000000 + 3 * person:08d},{draw.uniform(3, 150):.1f}"]
     return "\n".join(lines) + "\n"
+
+
+def forms_table(rows: int) -> str:
+    """150 declared patients; `site` North and South, rare wards, and two patients' own codes.
+
+    A fifth of every patient's rows name a rare ward (`Annex` and three
+    letters), so the remainder the floor merges is held by many patients;
+    two patients' rows are written as codes (`Q07-3`), each code on too
+    few rows to be named, but the form they wear stands on more than
+    eleven rows -- worn by two patients.
+    """
+    draw = random.Random(41)
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    lines = ["patient,site,value"]
+    for _row in range(rows):
+        person = draw.randrange(150)
+        if person in (11, 22):
+            site = f"Q{draw.randrange(100):02d}-{draw.randrange(10)}"
+        elif draw.random() < 0.2:
+            site = "Annex" + "".join(letters[draw.randrange(26)] for _place in range(3))
+        else:
+            site = ("North", "South")[draw.randrange(2)]
+        lines += [f"REC{40000000 + 3 * person:08d},{site},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
