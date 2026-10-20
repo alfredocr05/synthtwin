@@ -3868,7 +3868,8 @@ published facts (4.6b.9 (b), inventory row 34):
   than two bands over the tabled rows (`one_band`): each of its tables
   would have no degree of freedom;
 - a column a CARRIED rule computes (`computed`, 4.6b.7): it is written
-  from other columns, row by row, and publishes no count of its own;
+  from other columns, row by row, and publishes nothing read from its
+  cells but its role;
 - RESERVED for lane MG: a column of a table with several rows per
   patient that its page declares position-like (`position_like`).
 
@@ -3968,8 +3969,15 @@ parents). `k_max` is a constant of 4.6b.14 (3 in December).
   level each, the earlier in schema order the parent and the later the
   child. It places two families: the parent as a family with no parent,
   at its level, and the child under it. The option "no family" at step 0
-  places nothing: the description then holds no chain, and `statistical`
-  is `null`.
+  places no family with a parent, and no later step is drawn: where no
+  rule step carried a rule (4.6b.7), `statistical` is then `null`; where
+  one did, every eligible column is placed as a family with no parent at
+  `L0`, in schema order, so the ladder, the carried rules and their
+  derived families stand without a family between two columns (the
+  RULES-ONLY description; the first build's `null` here would have
+  erased a rule already carried, whose computed column's facts were
+  withheld: Codex's item 4 of 2026-10-19). Where fewer than two columns
+  are eligible, "no family" is the root step's only option.
 - **Step `s` from 1.** For each eligible column `d` not yet placed: the
   option "no family for `d`", which places `d` as a family with no
   parent at `L0`; and every option `(d, P, levels)` where `P` is a set
@@ -4019,8 +4027,10 @@ family" scores `u = 0`.
 **Which options are ELIGIBLE.** "No family" always is. Another option is
 eligible when it is offered and:
 1. **the floor:** every cell of its table is 0 or at least `f`;
-2. **RULE W1, read member by member and across the chain** (below);
-3. RESERVED for lane MG: a family counted in rows under a family counted
+2. **RULE W1, read member by member and across the chain, in full at
+   every step** (below);
+3. **RULE WE, the records holding nothing** (below);
+4. RESERVED for lane MG: a family counted in rows under a family counted
    in patients passes PWIT, with its floored vector `R*` built from
    published counts.
 
@@ -4058,7 +4068,46 @@ simply not eligible, and a coarser variant of it, or "no family", may be
 drawn instead. A derived column's family `{D | A}` (4.6b.7), placed at
 its rule's step before the chain is searched, counts as a placed family
 for RULE W1 at every later step, the derived column's one level read as
-its coarsest.
+its coarsest. W1 is checked IN FULL for every option of every step:
+every placed column, every own-fact group and every other placed
+column, never only the pairs that hold the step's child. The first
+build's shortcut ("adding a family never narrows an earlier support")
+is withdrawn: a step whose child already stands in a placed family, a
+derived one included, can confine an older band through it (Codex's
+item 2 of 2026-10-19, a `K-S6-08` fixture, 4.6b.9 (c)).
+
+**RULE WE (the records holding nothing; Codex's item 1 of 2026-10-19).**
+The description publishes its records holding nothing (4.6b.5), so the
+tabled rows that hold nothing in every column of the table are few: at
+most `Z`, where `Z` is, on a text file, the census line less one for
+each of `source.dialect.empty_rows`' three counts published as nought
+(a count below the census line, `max(2, f)`, is published as nought;
+none at a floor of one, where the counts are exact), and, on a
+workbook, nought where `source.workbook.empty_rows_inside` is published
+and the census line less one where it is `null`. A tabled row blank in
+every ELIGIBLE column is then one of those, or holds a cell in some
+other column: so at most `Z + P` tabled rows are blank in every
+eligible column, `P` being the sum, over the table's columns outside
+the ladder, of their tabled cells that are not blank, each read from
+the column's own published counts (`n_rows` less `n_missing_blank`), a
+column that publishes no such count (a computed one) counting 0. Let
+`x0` be the cell of the full joint table (4.6b.9 (a)) that holds, for
+each eligible column, the `L0` band holding its blank cells; where some
+eligible column holds no blank cell on a tabled row, there is no such
+cell and the rule holds. An option other than "no family" is eligible
+only where, with it placed, the cell bound `b(x0)` (4.6b.9 (a)) is at
+most `Z + P`. A placed family only lowers `b(x0)`, so the rule binds at
+the root pair. It holds on any table where a column outside the ladder
+holds a cell on every tabled row (an identifier, the row sequence), so
+`P` is at least the tabled rows. Without it, the source's own census
+narrows the joint table beyond `Omega(D)`: on 133 rows of three columns
+each eligible, `E` = 33 published as 11 leading, 11 interior and 11
+trailing, `AB = [[22, 22], [28, 28]]` and `C | B = [[22, 28], [22,
+28]]` (every cell 0 or at least `f`, W3 and NE holding), the census
+holds the tabled rows blank in all three at 0 and so fixes the rows
+"`A` and `C` recorded, `B` blank" at 6 on every table of the preimage
+(Codex's case, enumerated by `tests/test_chain_method_page.py`); RULE WE
+refuses that root pair, since `b(x0)` is 22 and `Z + P` is 0.
 
 **The weights' raises (weights only, never an exclusion).** With `n` the
 tabled rows (a published fact), an option's score is raised before the
@@ -4073,7 +4122,22 @@ draw:
   screen of three columns at once, on the sample of 4.6b.8; inventory row
   12) that holds the option's child: once for a seed of two columns
   whose other column is a parent, and once for each further column of a
-  seed of three that the option's parents hold (lane `A0a`'s rule).
+  seed of three that the option's parents hold (lane `A0a`'s rule). A
+  seed of three so raises both the option placing two of its columns in
+  one family and the option giving the third both as parents. The
+  screen's seeds are OFFERED to the draw as weights, never forced: the
+  screen's scores are a decision taken from the real table, so a seed
+  forcing a family would publish what RULE W5 masks (the orchestrator's
+  addendum of 2026-10-19, 19:04, on the library study of that day). On
+  a column of few levels (a `binary` column, or a label column whose
+  published levels lane CHa's screen can code one by one) the screen
+  reads each published level as its own code, never only the top two
+  levels and a pool: a FINER-CODED screen, which changes weights only.
+  Interactions of a fine column with a binary one (a blood pressure on
+  age by group) are not carried by families and their seeds alone: their
+  carrier is lane MPOL's within-cell products (class M-d), a disclosure
+  class whose release lane MPOL decides. The settings and their measurements:
+  4.6b.14.
 
 A raise is read on the score's own scale, which grows with the rows:
 lane `A0a`'s search scored `(X2 - df) / n` and added `0.05` a seed, which
@@ -4096,10 +4160,16 @@ choice tells the reader that a losing candidate scored lower, which is a
 fact about a table nobody publishes (the design review's third attack,
 items B1 and B2; plan P4-D407).
 
-**The weights.** Among a step's eligible options, in OPTION ORDER (by
-the child's place in schema order, "no family" first, then by the
-anchor's place in chain order, the parents' places in schema order and
-the levels, finest first), option `i` with raised score `v_i` (4.6b.3)
+**The weights.** Among a step's eligible options, in OPTION ORDER (a
+step of kind `place`: by the child's place in schema order, "no family"
+first, then by the anchor's place in chain order, the parents' places
+in schema order and the levels, finest first; a step of kind `rule`:
+"not carried" first, then each source carrier by the carrier column's
+place in schema order, then each derived option by the derived
+column's level, finest first, and then by `A`'s level, finest first,
+and last a formula rule's one carried option; so the order is total on
+every field an option holds, Codex's item 10 of 2026-10-19), option
+`i` with raised score `v_i` (4.6b.3)
 takes the weight `w_i = E((v_max - v_i) / tau)`, where `v_max` is the
 largest `v_i` and `E(y)` is the stated exponential of `e` to the power
 `-y`, for `y >= 0`:
@@ -4159,10 +4229,15 @@ independent words; the same table under one name and one key, with the
 same settings, the same answers in the questions file and the same
 `procedure` constants, takes the same words, so a re-profile publishes
 the same description byte for byte. An answer that changes which columns
-are eligible (one that ends a hold, plan P4-D401), another floor, or
-another constant changes every word: the first review measured 0 of 39
-step words equal before and after one column became eligible. The ledger
-below refuses that second description.
+are eligible (one that ends a hold, plan P4-D401) changes every word,
+the eligible columns being an input: the first review measured 0 of 39
+step words equal before and after one column became eligible. Another
+floor or another `procedure` constant leaves every word as it was, since
+neither is an input, but it can change which options are offered or
+eligible and their weights, so the same words can place other options
+(Codex's item 16 of 2026-10-19 corrected the first build's "changes
+every word" here). Either way the description can differ, and the
+ledger below refuses a second, different description.
 
 **The key** is 32 bytes from `secrets.token_bytes`, made by the first
 `synthtwin profile` on the installation and kept in the installation's
@@ -4186,8 +4261,19 @@ beside a run's output. It holds, for each table described on the
 installation, its name, its CONTENT HASH (4.6b.8), the fingerprint of
 the key that described it and the DESCRIPTION DIGEST of what that run
 published: unkeyed BLAKE2b, `digest_size=32`,
-`person=b"synthtwin.desc.1"`, over the bytes of the description's
-`relationships.statistical` object as written. It is read before
+`person=b"synthtwin.desc.1"`, over the PROTECTED PUBLICATION, which is
+the whole description as written, in the canonical serialization of
+section 3, less only the keys that stamp the run (the producer's
+version and any time or path it records; lane CHa lists them from
+section 4.1). So another setting, another column block or another chain
+each gives another digest, and a description whose `statistical` is
+`null` is digested whole too (Codex's item 9 of 2026-10-19: the first
+build digested `relationships.statistical` alone, which a floor of 12
+against 11 could leave unchanged while the column blocks moved). The
+ledger compares two descriptions of one table only where one of them
+publishes something between columns (`statistical` not `null`); two
+that both publish nothing between columns are the base product's, as
+today, and the second is recorded without a refusal. It is read before
 anything is published, and its decisions are printed on the screen of
 the person who holds the table, never written into the description, the
 twin, a log or either report (inventory row 33):
@@ -4227,7 +4313,33 @@ twin, a log or either report (inventory row 33):
 - **no ledger and no key** (a new installation, or a deleted data
   folder): a new key is made, and one line says so: "A new private key
   was made at <path>. Keep it: describing the same table again needs the
-  same key."
+  same key.";
+- **a key file but no ledger** (the ledger deleted or lost): the run
+  proceeds, starts a new ledger, and one line says so: "No record of
+  earlier descriptions was found beside the private key at <path>, so a
+  new record was started. If this installation described tables before,
+  describe each again only under its old name." (stated limit 2: a
+  deleted ledger);
+- **a ledger that cannot be read** (damaged, or written in a form this
+  version does not know): REFUSED before anything is read: "The record
+  of earlier descriptions at <path> cannot be read. Put back a copy that
+  can; or, if no description made on this installation was ever shared,
+  move it aside and run again."
+
+**One run at a time, and the entry before the description.** A run
+holds the installation's LOCK, a file it makes in the data folder with
+`os.open` and the flags `O_CREAT | O_EXCL` (standard library, the same
+on every platform), from the moment it reads the ledger until the
+description and its ledger entry are both written, and then removes it.
+A run that finds the lock refuses in plain words: "Another synthtwin
+profile is running on this installation. Run again when it has
+finished. If none is running (the computer stopped during a run),
+delete <path> and run again." The ledger entry is written first, to a
+temporary file moved into place with `os.replace`, and the description
+after it, so two runs can never both find no entry and both publish
+(Codex's item 9 of 2026-10-19), and a run stopped between the two
+leaves an entry whose re-run, publishing the same description,
+proceeds.
 
 `--replace-description` is the person's declaration that the earlier
 description of this table was never shared; the run then proceeds and
@@ -4241,7 +4353,9 @@ never replaces a key file that exists.
 The content hash is the ledger's index and nothing else: it is never a
 draw input and never published. A re-save that keeps every value gives
 the same hash (a CSV and a workbook of one table included); a copy whose
-values changed is a different table to the ledger (stated limit 2).
+values changed is a different table to the ledger, and so is a copy with
+a column renamed, added or dropped, since the hash reads cells keyed by
+column name (stated limit 2).
 
 #### 4.6b.5 The chain and its tables (O2, O3)
 
@@ -4263,7 +4377,8 @@ level, parents, anchor, table, slopes}`:
   level is the finest at which any table cuts it;
 - `parents`: `[{column, level}]`, in schema order; empty for a family
   with no parent: the root pair's first column, at the level the root
-  pair placed it, or a column placed by "no family", at `L0`;
+  pair placed it, or a column placed by "no family", at `L0` (every
+  column of a RULES-ONLY description, 4.6b.3);
 - `anchor`: the index in `chain` of the earliest family holding every
   parent, or `null` where there is no parent;
 - `table`: the family's COMPLETE count table over the tabled rows: one
@@ -4308,7 +4423,9 @@ this section does not fix); `computed` names the column the rule
 computes (`B` of an order rule `A <= B`, or a formula's output);
 `inputs` names its other columns in schema order; `carrier` is `null`,
 or for an order rule the source column carrying its difference, or
-`derived`; `class` is `"phrase"` or the count of failing rows (4.6b.7);
+`derived`; `class` is `"phrase"`, or the count of failing rows where
+the carrier is `derived` (a source carrier and a formula rule take the
+phrase only, 4.6b.7);
 `derived` is `null` or the derived column's entry
 `{name, edges, totals, parent, table}`: its one level's edges and band
 totals, `parent` as `{column, level}` naming `A` and the level of `A`
@@ -4421,8 +4538,17 @@ holds none. Its PARTITION is the PHRASE "holds, except on at most
 `f - 1` rows" ("at most 10 rows" at the default floor) for `v` from 0
 to `f - 1`, the COUNT `v` itself for each `v` from `f` up to MR's
 inference limit, and nothing above; the PHRASE-ONLY partition is the
-phrase for `v` up to `f - 1` and nothing above. A carried rule publishes the class
-its real `v` falls in (`rules[].class`, 4.6b.5) and nothing else of `v`.
+phrase for `v` up to `f - 1` and nothing above. A derived carrier reads
+the partition; a SOURCE carrier and a formula rule read the PHRASE-ONLY
+partition alone. The twin writes the computed column from its rule on
+every row, so it breaks a source-carried or formula rule on no row, and
+a count class there would promise `v` failing rows that nothing places:
+with twelve source rows where `B` is `A + D + 1`, writing `B` as `A + D`
+leaves none of the twelve the class promised (Codex's item 3 of
+2026-10-19). Only a derived carrier places its failing rows, as its
+readings below 0 (the generation method's G16.2 step 5). A carried rule
+publishes the class its real `v` falls in (`rules[].class`, 4.6b.5) and
+nothing else of `v`.
 
 *Its BASE.* The rule's base is the facts the description publishes
 whether or not the rule is carried: the own facts (each column block,
@@ -4487,7 +4613,10 @@ phrase-only partition is read the same way; where neither passes, only
 "not carried" is eligible. Lane MR's inference opens a rule's step on
 the real table, and owes that every table a carried rule's description
 allows opens the same step: its conditions are to be implied by the
-base, the class and the antecedent bound (Lemma 2, 4.6b.9 (b)).
+base, the class and the antecedent bound (Lemma 2, 4.6b.9 (b)). That is
+a PRECONDITION of the proof for inventory rows 9, 9b, 10 and 14, OPEN
+until lane MR's page proves it: those rows are proven on that condition
+only (4.6b.9 (h)).
 Which partition applies is a function of the base, which the description
 publishes whenever the rule is carried, and the class is published with
 the rule, so a carried option's eligibility is a function of the
@@ -4502,36 +4631,70 @@ that lane MR's inference names (a column equal to `B - A` on most rows;
 the option's failing rows then count the rows where `B` differs from
 `A + D` as well, so the identity is held to the same partition and the
 same test as the order; inventory row 10), or by a DERIVED `D` (below).
-`B` is COMPUTED: in every row of the twin it is written as `A + D` in
-`B`'s own layout (the generation method's G16.2), where both hold a
-reading, and absent elsewhere, so `B >= A` on every row where `D >= 0`.
-Where a source `D` carries the rule, the weight raise goes to the
-chain's option `{D | A}`. MR's page writes how the twin treats the rows
-where a source `D` is negative, and a formula rule's arithmetic. In the
-phrase class the twin breaks the rule on no row; in a count class on
-exactly `v` rows (MR's page).
+A source `D` is offered only where its own block publishes `n_negative`
+0: the twin keeps `D`'s cells, so six negative readings of `D` beside a
+present `A` would break the order on six twin rows, which the phrase
+promises it does not (Codex's item 3 of 2026-10-19).
+`B` is COMPUTED: in every row of the twin it is written as `A + D`,
+where both hold a reading, and absent elsewhere, so `B >= A` on every
+row where `D >= 0`; it is written in `A`'s published layout words (the
+generation method's G16.2 step 5), since `B` publishes none of its own
+(below). Where a source `D` carries the rule, the weight raise goes to
+the chain's option `{D | A}`. MR's page writes a formula rule's
+arithmetic and the layout of its output. In the phrase class the twin
+breaks the rule on no row; in a count class, which only a derived
+carrier takes, on exactly `v` rows, its readings below 0.
 
-**What a computed column publishes: nothing of its own rows.** A column
-a carried rule computes publishes no count of its own, so no exact
+**What a computed column publishes: its name, its place and its role,
+and nothing read from its cells.** A column a carried rule computes
+publishes no count, statistic, form or word of its cells, so no exact
 cumulative count of it exists (inventory row 9 and the third attack's
-B3). Its block publishes its role, its layout and its written forms, and
-NONE of: every universal key that counts its cells (`n_present`,
-`n_missing`, `missing_by_class`, `missing_by_source`, `n_missing_blank`,
+B3) and no fact of its cells tells its failing rows from none. THE RULE:
+its block keeps `name`, `position` and `role`, and writes EVERY other
+key `null`, or `{}` where the key holds an object and `[]` where it
+holds a list: every universal key of section 5.1 that counts its cells
+or describes them in words (`n_present`, `n_missing`,
+`missing_by_class`, `missing_by_source`, `n_missing_blank`,
 `n_missing_withheld`, `n_distinct`, `n_distinct_folded`, `n_numeric`,
 `n_not_numeric`, `n_out_of_range`, `n_contradictory`,
-`n_sentinel_candidates_unpublished`, and the counts inside
-`sentinel_verdicts`), each written `null` (the landing that ships stage
-6 amends section 5.1 to allow `null` there on a column `ineligible` as
-`computed`, and nowhere else); its cell census; `mode` and
-`mode_count`; `percentiles` and `percentiles_between`;
-`value_histogram`; `tails` and `bin_groups`; a datetime's heavy dates
-and calendar censuses; `field_widths` and `pad_widths`; its `L0` totals
-or any ladder; or a family. `synthtwin validate` prints none of its
-counts (validation method `V12.3`). Its absent cells are withheld with the
-rest: with `A`'s absent cells and `D`'s present rows published, the
-count of `B`'s absent cells would fix the rows where `A` is absent and
-`B` holds a reading (the first review measured 2 and 5 such rows on
-1,000 rows). Every count a reader can form about a computed column is a
+`n_sentinel_candidates_unpublished`, `sentinel_verdicts`,
+`statistical_type`, `quality_state`, `structural_role`,
+`detection_evidence`, `remarks`), and every key the matrix of section
+6.11 lists for its role, whether it holds a count, a share, a rung, a
+moment, a census, a heap, a tail, a histogram, a width, a form or a
+word. The keys a reader could otherwise subtract are named so that no
+reading of the rule leaves them: for numbers `numeric_styles`,
+`fraction_widths`, `pad_widths`, `field_widths`, `number_spellings`,
+`n_zero`, `n_negative`, `mean`, `std`, `skew`, `mode`, `mode_count`,
+`percentiles`, `percentiles_between` and `value_histogram`; for dates and
+clocks `n_unparsed`, `datetime_separators`, `utc_offsets`, `zulu_case`,
+`quarter_marker_case`, `month_name_styles`, `date_field_widths`,
+`resolution_mix`, `heavy_dates` and the calendar censuses; on a label
+role the counts of `shape_forms` and `layout_forms`; and `integer_valued`,
+a format and a resolution, each read from its cells. Its `L0` totals,
+any ladder and any family are withheld too. Why the census goes: `B`'s
+`numeric_styles` `{"integer": 980}` less `D`'s present rows (978, 975
+and 971) fixed "`A` absent, `B` recorded" at 2, 5 and 9 on the first
+review's 1,000 rows (the verify of 2026-10-19, item 1, MEASURED; a
+timestamp `B`'s `datetime_separators` gives the same, and `B`'s `n_zero`
+beside `A`'s fixes "`A` = 0 and `D` = 0"). Why the words go: with `A`
+and a source `D` publishing `integer_valued` true, `B`'s `false` would
+say that some row holds `B` other than `A + D`, a failing row, so the
+phrase "at most `f - 1`" would read 1 to `f - 1`. The twin writes the
+column in its rule's layout (an order rule's `B` in `A`'s published
+layout words; a formula's output as lane MR's page fixes), a move of a
+computed column's written forms that `K-S6-02` lists and the private
+report names. The landing that ships stage 6 amends section 5.1 and the
+role sections to allow `null`, `{}` and `[]` there on a column
+`ineligible` as `computed`, and nowhere else, and waives on it every
+invariant that reads a withheld key, among them P1 and P3
+(`numeric_styles`), D13 (`datetime_separators`), SF3 (`shape_forms`),
+and LF3 and LF4 (`layout_forms`). `synthtwin validate` prints none of
+its counts (validation method `V12.3`). Its absent cells are withheld
+with the rest: with `A`'s absent cells and `D`'s present rows
+published, the count of `B`'s absent cells would fix the rows where `A`
+is absent and `B` holds a reading (the first review measured 2 and 5
+such rows on 1,000 rows). Every count a reader can form about a computed column is a
 count over `(A, D)`: at band level a union of floored family cells (the
 theorem, 4.6b.9 (a)); finer than the bands, `A`'s and `D`'s own facts
 read together across two columns, which is the design's straddle count,
@@ -4632,15 +4795,43 @@ columns, `E` inside a family and `A` otherwise; code run unchanged, `E`
 within columns; three or more columns together, `E` inside a family and
 `N` otherwise.
 
+**A grade `E` is owed only where the twin met the family's published
+table.** Where this twin's family was made against a MOVED target (the
+generation method's G16.6: a member made without its published band
+totals, or parent cells an earlier move changed), the twin does not
+hold the published table: the twin's report grades that family's pairs
+and analyses `A`, and names the family "moved in this twin" beside its
+structural word, which stays the description's (Codex's item 14 of
+2026-10-19: the move from `[[50, 0], [0, 50]]` to `[[40, 20], [0, 40]]`
+changes the family's rates and adds a combination the real table never
+held). Whether a family was moved is a function of the description and
+the seed.
+
 **The two reports (the owner's answer to question 12, 2026-10-18, ruling
 R7 (2)).**
-- **The SHARED report** travels with the twin. It prints structural
+- **The SHARED report** is the twin's report, written by `generate` and
+  travelling with the twin. Its between-columns lines print structural
   grades only: each pair's word, each analysis family's grade, and
   example lines in that vocabulary ("Logistic models for died: exact for
   age band and admission type, which share its family; implied for crp"). It prints
   no real estimate, no rate, no gap and no reason a pair was left out,
   and it says, in one line, that each table should be described once, on
-  one installation, under one name (4.6b.13).
+  one installation, under one name, with the same columns under the same
+  names, a copy with a column renamed, added or dropped being described
+  as another table (4.6b.13).
+- **The twin's DEVIATIONS**, a section of the same report that every
+  twin's report carries today (the generation method's named
+  deviations), list what this twin did not meet of its description,
+  each a function of the description and the seed alone, which anyone
+  holding both recomputes by generating the twin again: they print no
+  fact of the real table. For this layer they name each family made
+  against a moved target, with the cells the move changed and the units
+  it placed in a published nought, and each stray row left (the
+  generation method's G16.5). They are no grade: R7 (2) restricts the
+  grades the shared report prints, and gate clause (3)'s "no published
+  or achieved value" is said of the pair lines, while a deviation counts
+  the twin's own rows, never the real table's (Codex's item 13 of
+  2026-10-19 asked which surface prints them).
 - **The PRIVATE report** is written in the private output folder of the
   person who ran `synthtwin profile` on their own table, and is never
   part of the description, the twin, a log or the shared report. It
@@ -4661,8 +4852,14 @@ R7 (2)).**
 **The CONTENT HASH of a row** is BLAKE2b (`hashlib.blake2b`, unkeyed,
 `digest_size=32`, `person=b"synthtwin.row.1"`) over the row's cells as
 the reader parsed them, taken in the order of their column names, each
-written as the column name's UTF-8 bytes, the byte `0x1f`, the cell's
-text's UTF-8 bytes and the byte `0x1e`. **The table's content hash** is
+written as the column name's UTF-8 bytes and then the cell's text's
+UTF-8 bytes (a cell read as holding nothing is the empty text), each of
+the two preceded by its own length in bytes as 8 bytes big-endian: a
+LENGTH-FRAMED encoding, which no text can imitate. The first build's
+separator bytes `0x1f` and `0x1e` could stand inside a cell, so under
+columns `A` and `B` the rows `("x\u001eB\u001fy", "z")` and `("x",
+"y\u001eB\u001fz")` wrote the same bytes and took one hash with no
+collision of BLAKE2b (Codex's item 15 of 2026-10-19). **The table's content hash** is
 the sum of its rows' content hashes, each read as a big-endian whole
 number, modulo `2**256`: free of row order, of column order and of the
 file's form, since it reads parsed cells keyed by column name (lane CHa
@@ -4673,12 +4870,25 @@ of one table give one hash). It is used only as the ledger's index
 **The self-test's sample** (layer `L2b`, lane ST) is chosen by content and
 SORTED by content before anything is generated from it, so a whole-row
 shuffle of the real table changes nothing (the held page's Codex item
-14): a row is sampled where `u * n < m * 2**64`, `u` the first 8 bytes
-of its content hash read big-endian, `n` the tabled rows and `m` the
-constant `selftest_sample` of 4.6b.14 (in December 20,000 below
-1,000,000 tabled rows and 200,000 from there); the sample is then
-sorted by the whole content hash, rows of equal hash being, but for a
-BLAKE2b collision, equal rows. Its simulation's words are SplitMix64
+14). Each row's SAMPLE KEY is BLAKE2b (`digest_size=8`,
+`person=b"synthtwin.smp.1"`) over its content hash followed by its
+OCCURRENCE, the count of earlier rows with the same content hash,
+written as 8 bytes big-endian: equal rows are interchangeable, so the
+multiset of keys is a function of the content alone, and each copy of
+a repeated row takes a key of its own. The sample is the `min(m, n)`
+rows of smallest key, `n` the tabled rows and `m` the constant
+`selftest_sample` of 4.6b.14 (in December 20,000 below 1,000,000
+tabled rows and 200,000 from there), equal keys (a chance of `2**-64`)
+taken in order of content hash and then occurrence; it is sorted by
+key. It holds exactly `min(m, n)` rows, never none and never more. The
+first build sampled a row where the first 8 bytes of its content hash
+fell below a cut, which took or left every copy of a row together: on
+500,000 rows `0,0` beside 500,000 rows `1,1` it took no row, and on
+other tables with many equal rows half the table or no row of one
+category (Codex's item 8 of 2026-10-19); keyed by occurrence, that
+table gives about 100,000 rows of each. Counting occurrences holds one
+count for each different row while the sample is drawn; lane ST
+measures it under the 2.5 GB watchdog. Its simulation's words are SplitMix64
 outputs keyed by a constant and by the sampled rows' hashes (lane ST
 writes them). The triple screen's seeds (4.6b.3) read the same sample.
 No content hash is ever a draw input of RULE W5 (R6).
@@ -4799,7 +5009,8 @@ facts `D` publishes, then the preimage of `D` is `CONS(D)`.
 `T` of `CONS(D)` and run the procedure on it. Each decision of class (b)
 reads facts `D` publishes, which `T` shares, so it decides as it did on
 the real table. Each rule step `D` carries opens on `T` too (lane MR's
-obligation, 4.6b.7), and a rule step `T` opens that `D` does not list
+obligation, 4.6b.7: a PRECONDITION of this proof for rows 9, 9b, 10 and
+14, open until MR's page proves it), and a rule step `T` opens that `D` does not list
 can draw "not carried", which is always eligible. At each drawn step
 the offered options are the same (row 3 below is (b)), in the same
 option order, and the option `D` placed is eligible on `T`, since its
@@ -4821,11 +5032,22 @@ inside a band; the facts that read positions, the sort, the records
 holding nothing and blank lines, are kept by placing whole rows, as the
 twin does), so Theorem 1 holds over the preimage: tables, levels,
 placements, anchors, rule words and structural words tell a reader who
-knows the procedure exactly what they tell a reader of the numbers. A
+knows the procedure exactly what they tell a reader of the numbers.
+One published fact reads across every column at once: the census of
+records holding nothing, which leaves at most `Z` tabled rows blank in
+every column (4.6b.3, RULE WE). Under RULE WE every table of `Omega(D)`
+holds at most `b(x0)`, so at most `Z + P`, rows blank in every eligible
+column; the columns outside the ladder stand in no family, so their
+non-blank cells can be dealt to any rows, those first, and the rest
+are records holding nothing of the counts published as nought. So
+every table of `Omega(D)` extends to a table of `CONS(D)`, and the
+census removes none (Codex's item 1 of 2026-10-19 showed that without
+the rule it can: its 133-row case fixes a count at 6). A
 derived column's readings are dealt inside its bands likewise, and a
 table of `Omega(D)` builds a real one (`B` written as `A + D` where `D`
 holds a reading, absent where `A` does and `D` does not, and free where
-`A` is absent, since a computed `B` publishes nothing). That needs the
+`A` is absent, since a computed `B` publishes nothing read from its
+cells but its role, 4.6b.7). That needs the
 STRUCTURAL ZEROS of 4.6b.7 rule 2 to be published cells, so that
 `Omega(D)` holds no table in which `D` holds a reading beside an absent
 `A`: the first draft published `D`'s band totals alone, its `Omega(D)`
@@ -4852,15 +5074,16 @@ covers the rows marked MBC.
 | 2 | a placed family's level variant | (a): every variant is a separate option of the same draw | MBC |
 | 3 | which candidates and levels are offered (`k_max`, parents in one earlier family, levels no finer, W3, NE, the coarsening order) | (b): read from band totals, band counts and published tables only | MBC |
 | 4 | an option passes the floor; a row-level option passes PWIT with `R*` | (a): a placed option's floor shows in its own table; an option not drawn is never named, its pairs read `implied`, and why goes to the private report only | MBC; MG for PWIT and `R*` |
-| 5 | RULE W1 | (a): an eligibility filter reading published tables and own facts only; nothing is merged | MBC |
+| 5 | RULE W1 | (a): an eligibility filter reading published tables and own facts only, checked in full at every step; nothing is merged | MBC |
+| 5a | RULE WE | (a): an eligibility filter reading published counts and tables only (the census of records holding nothing, the other columns' non-blank cells, `b(x0)`); it binds at the root pair | MBC |
 | 6 | a source column's `L0` merge | a fact of one column (P4-D363); its taken-in sub-band is an own-fact group, so W1 covers its counts across columns | MBC |
 | 7 | rule inference and the rule raise | (a): weights only, and opening a rule step whose "not carried" is always eligible; an inferred rule not carried is neither published nor named | MBC with MR |
 | 8 | rule words | (b): every qualifying zero of a placed family's table | MBC |
-| 9, 9b, 10 | an order rule or formula rule carried, and "computed"; a source column taken as `D` | (a): drawn at the rule's step, "not carried" always eligible; a carried option is eligible under row 9's ONE test read once on the rule's base (facts published in either outcome) and the antecedent bound (4.6b.7) | MBC with MR; MR prices it |
+| 9, 9b, 10 | an order rule or formula rule carried, and "computed"; a source column taken as `D` | (a): drawn at the rule's step, "not carried" always eligible; a carried option is eligible under row 9's ONE test read once on the rule's base (facts published in either outcome) and the antecedent bound (4.6b.7), a source carrier and a formula rule on the phrase only; PRECONDITION, open until lane MR's page proves it: MR's inference conditions implied by the base, the class and the antecedent bound | MBC with MR; MR prices it |
 | 11 | time-and-event pairs raised | (b) for the detection (published roles and names); (a) for the raise | MBC, CHa |
-| 12 | the triple screen's seeds | (a): weights only; off in December, provisionally (4.6b.14) | MBC |
+| 12 | the triple screen's seeds, its finer coding of few-level columns included | (a): offered as weights only, never forced; read on the self-test's sample, never published; off in December, provisionally (4.6b.14) | MBC |
 | 13 | placed cuts | off in December; if ever on, each cut set enters as a level option, (a) | MBC |
-| 14 | a derived column's level and its family `{D \| A}` | (a): each pair of levels a carried option of the rule's step, eligible on the family's own table, `A`'s published totals and the class (4.6b.7, (e) below) | MBC with MR |
+| 14 | a derived column's level and its family `{D \| A}` | (a): each pair of levels a carried option of the rule's step, eligible on the family's own table, `A`'s published totals and the class (4.6b.7, (e) below); the same PRECONDITION as rows 9, 9b and 10 | MBC with MR |
 | 15, 15a, 16 to 21 | the patient layer: whether it is on, `r`'s census, the KEY test, the modal values by position, visit order, ordered dates, patient-fixed columns, `r`'s level, derived patient-level parents | RESERVED: lane MG's page | MG |
 | 22 to 26 | FINE, the code's clip, cells of `2 f` rows, the second code's trigger, joint-space WIT, the second code, `M5`'s withholding | RESERVED: lane MPOL's page | MPOL |
 | 27 | a slope stands | (b): its 100 rows read from published cells; FINE bands are facts of one column (P4-D363); its value is a moment, (h) | MBC; MPOL for the value |
@@ -5008,11 +5231,25 @@ over `[0, 6]` and 0 of 1,030 descriptions leak, against a fixed 6 and
 423 of 1,453 with the merge W1 replaced; the example has one parent, so
 this section's reading decides it the same way.
 
-*Adding a family never narrows an earlier support,* so W1 is checked at
-each step only for the pairs that hold the step's child: a cell
-supported before the step keeps a band of the new child beside it, since
-the new family's table summed over its child is its anchor's table,
-non-zero there.
+*W1 is checked in full at every step* (4.6b.3). The first build checked
+only the pairs holding the step's child, on the claim that adding a
+family never narrows an earlier support; the claim fails where the
+step's child already stands in a placed family. Codex's case (item 2 of
+2026-10-19), on 100 rows: `C` holds 6 absent cells, 44 `u` and 50 `v`,
+its `L0` merge joining the six with `u` into a band of 50 (the six an
+own-fact group); `E` has two levels of 50; `A` holds 0, 1, 2 and 3, 25
+rows each; an order rule is carried by a derived `D` of 10 beside `A`
+0 or 2 and 20 otherwise. Placed in turn: `{D | A}` reading `[[25, 0],
+[0, 25], [25, 0], [0, 25]]`, the root `C, E` with every cell 25, then
+`A | C` reading `[[25, 0, 25, 0], [0, 25, 0, 25]]`. Every cell is 0 or
+at least `f`, and W3 and NE hold; checked on the pairs holding `A`
+alone, W1 passes, since `C`'s first band admits `A` at 0 and at 2, two
+bands of `A`'s `L2`. But through `{D | A}` that band of `C` admits one
+band of `D` only, so "the six absent cells of `C` AND `D` below 15" is
+fixed at 6: the full check refuses `A | C` at that level, as it must.
+The case is a `K-S6-08` fixture, with the shortcut as its mutant, and
+`tests/test_chain_method_page.py` computes it. Lane CHa prices the full
+check beside the search.
 
 *Remainder, checked not proven.* None in the table layer beyond (h)'s;
 Lemma 3 is exact for the description without slopes and moments.
@@ -5028,8 +5265,8 @@ Lemma 3 is exact for the description without slopes and moments.
   class (a), and the paragraph on every count in (b)). The phrase covers
   0 to `f - 1` failing rows at once, so no word tells 0 from 1 to
   `f - 1`.
-- A COMPUTED column publishes no count of its own (4.6b.7's inventory of
-  absent facts, its absent cells among them), so no exact cumulative
+- A COMPUTED column publishes no count of its own (4.6b.7's rule: its
+  name, place and role only, its absent cells withheld), so no exact cumulative
   count of it exists. A count of its rows below a value `x` is a count
   over `(A, D)`. With the readings free inside their bands, it reaches
   the count of the union of the cells of `A` and `D` whose rows may lie
@@ -5068,7 +5305,7 @@ failing reading. Take any table `T` of the preimage and set each
 negative reading of `D` to 0, writing `B` as `A + D` there: `A` is
 unchanged, `D`'s readings change only below rank `v + 1`, so its edges
 and totals stand, every row keeps its band and so every family keeps its
-cells, `B` publishes nothing, and the class holds with no failing row;
+cells, `B` publishes nothing read from its cells, and the class holds with no failing row;
 every draw keeps its eligible options, which read only published facts.
 So the preimage holds, beside every table, one with no failing row, and
 there a union's count is the count of the band-level union of its HOLDS
@@ -5111,13 +5348,16 @@ and nothing in it enters a shared file.
   settings, the same answers in the questions file and the same
   `procedure` constants, is deterministic, so it publishes the same
   bytes, and a second copy tells nothing.
-- A re-profile whose description would differ (an answer that ends a
-  hold and makes a column eligible, another floor, another constant)
-  draws new words: the first review measured 0 of 39 step words equal
-  before and after one column became eligible, which is the two-keys
-  case of stated limit 2 on one installation. The ledger refuses it
+- A re-profile whose description would differ is refused by the ledger
   unless the person declares, with `--replace-description`, that the
-  earlier description was never shared (4.6b.4).
+  earlier description was never shared (4.6b.4). An answer that ends a
+  hold and makes a column eligible draws new words (the first review
+  measured 0 of 39 step words equal before and after), which is the
+  two-keys case of stated limit 2 on one installation; another floor or
+  another constant draws the same words over other options or weights
+  (4.6b.4, corrected by Codex's item 16 of 2026-10-19). Either way the
+  two descriptions differ, and the ledger reads the whole protected
+  publication, so it sees both cases.
 - Two descriptions under one key and two DIFFERENT names draw on words
   whose inputs differ, so in the model of (b) their words are
   independent: the procedure publishes both from a pair of tables
@@ -5142,9 +5382,15 @@ and nothing in it enters a shared file.
   table's cells, and no count of an own-fact group's rows across
   columns, is fixed at or bounded inside 1 to `f - 1` by the
   description's ladder, chain, family tables, rule words, structural
-  words and names (O1 to O3, O7, O8); nor by a carried rule's class over
-  its base, nor, for an order rule carried by a derived column, over the
-  whole description ((e)). "No count" means none beyond each column's
+  words and names (O1 to O3, O7, O8), the census of records holding
+  nothing read beside them (RULE WE, the Corollary of (b)); nor by a
+  carried rule's class over its base, nor, for an order rule carried by
+  a derived column, over the whole description ((e)). The carried
+  rules' rows (inventory rows 9, 9b, 10 and 14) are proven on one
+  PRECONDITION, open until lane MR's page proves it: that MR's
+  inference conditions are implied by the base, the class and the
+  antecedent bound, so that every table a carried rule's description
+  allows opens the same rule step (Lemma 2; 4.6b.7). "No count" means none beyond each column's
   own facts, which the base product publishes as today, accepted within
   one column (P4-D363); among them a person column's exact repetition
   census while the patient layer is off. What the reading of case (ii)
@@ -5160,6 +5406,8 @@ and nothing in it enters a shared file.
   step order of 4.6b.7 (the third attack's two-rules table, a `K-S6-08`
   fixture); and the pseudorandom property of keyed BLAKE2b ((b), the
   model).
+- **Open preconditions:** lane MR's inference conditions, above, for
+  rows 9, 9b, 10 and 14.
 - **The other three threats.** Identifiers and free text are ineligible
   (4.6b.1). No end of any column is published: every edge, and the
   code's clip, is an interior published rung. Real rows: a twin meeting
@@ -5212,9 +5460,28 @@ brings into the suite; plan P4-D407 gives their measured results):
   count is 1 to `f - 1`, and no table of the preimage may hold a derived
   reading beside an absent `A` (mutant: the first draft's band totals
   alone);
+- the second review round's cases (Codex's and the verify's of
+  2026-10-19), each beside its mutant: Codex's 133-row table of three
+  columns with 33 records holding nothing published, where RULE WE must
+  refuse the root pair `AB` (mutant: no RULE WE, which fixes "`A` and
+  `C` recorded, `B` blank" at 6 over the whole preimage); Codex's
+  100-row derived-family case of 4.6b.9 (c), where W1 checked in full
+  must refuse `A | C` (mutant: the shortcut checking only the pairs
+  holding the step's child, which fixes "the six absent cells of `C`
+  AND `D` below 15" at 6); the first review's 1,000 rows with a
+  computed `B`, where a reader must fix nothing from `B`'s block
+  (mutant: `B`'s `numeric_styles` `{"integer": 980}` published, or a
+  timestamp `B`'s `datetime_separators`, which fix "`A` absent, `B`
+  recorded" at 2, 5 and 9); and a source carrier with `B` other than
+  `A + D` on a few rows beside integer-valued `A` and `D`, where the
+  phrase must not read 1 to `f - 1` (mutant: `B`'s `integer_valued`
+  published);
 - one table described before and after an answer makes one more column
   eligible: the ledger must refuse the second description (mutant: a
-  ledger comparing content, name and key alone);
+  ledger comparing content, name and key alone); one table described at
+  floors 11 and 12 whose `statistical` object comes out the same: the
+  ledger must refuse the second (mutant: a digest of `statistical`
+  alone);
 - the names: two different tables under DIFFERENT names on one key,
   which must read 0 leaking pairs, PASSED;
 - FOUR STATED-LIMIT FIXTURES, reported every run and never passed: the
@@ -5253,9 +5520,14 @@ each parent's level is its level there or coarser. The loader recomputes
 W3 and NE from the published totals and tables and finds each placed
 family's levels among the variants they offer (4.6b.3), and it
 recomputes RULE W1's filter from the published tables and the columns'
-own published facts and finds every placed family eligible: which
+own published facts, and RULE WE's from the published counts, and
+finds every placed family eligible: which
 options are eligible is a function of the description (inventory rows 3
-to 5), so the loader can check it.
+to 5a), so the loader can check it. `statistical` is `null` only where
+the root step drew "no family" and no rule is carried; a chain whose
+every family has no parent stands only beside a carried rule (the
+RULES-ONLY description, 4.6b.3), each eligible column then at `L0`, in
+schema order.
 
 **Invariant S25 (the tables).** Every family table is complete, has the
 shape of its members' levels, sums to the tabled rows, and every cell is
@@ -5281,11 +5553,15 @@ and one class word only.
 
 **Invariant S28 (rules, computed, derived and position-like columns).**
 Each entry of `rules` names a `computed` column that no other entry
-computes and no entry reads as an input, and its `class` is `"phrase"`
-or a count from `settings.small_cell_floor` up; a column `ineligible`
-as `computed` is named by exactly one entry, has no `ladder` entry, no
-family, and none of the counts 4.6b.7 lists in its own block (each
-written `null`). A derived column appears only in its entry's `derived`:
+computes and no entry reads as an input, and its `class` is `"phrase"`,
+or a count from `settings.small_cell_floor` up where its `carrier` is
+`derived`; a source carrier's own block publishes `n_negative` 0; a
+column `ineligible` as `computed` is named by exactly one entry, has no
+`ladder` entry and no family, and its block holds `name`, `position`
+and `role` and every other key `null`, `{}` or `[]` (4.6b.7's rule,
+checked key by key over section 5.1 and the role's keys of section
+6.11, never against a list; the invariants that read a withheld key,
+among them P1, P3, D13, SF3, LF3 and LF4, are not read on it). A derived column appears only in its entry's `derived`:
 one level, every value band holding at least `max(2 f, f + 4)` rows, its
 family's table complete, every cell 0 or at least
 `settings.small_cell_floor`, `A`'s `missing` band a band of its own
@@ -5303,11 +5579,12 @@ family counted in rows has a free visit-position parent.
 | field | disposition | why |
 |---|---|---|
 | `procedure`, `ladder`, `chain[].parents`, `chain[].level`, `chain[].anchor`, `words`, `not_carried`, `ineligible`, `withheld`, `rules[].kind`, `rules[].computed`, `rules[].inputs`, `rules[].carrier` | LOADER-ONLY | they choose and name what is measured; checked on input (S23 to S28), owed by no twin |
-| `ladder[].totals` | EXACT-OBSERVABLE, given layer `L0` | each eligible column's twin holds exactly its `L0` totals over the tabled rows (lane BT; generation method G16.0); without `L0` they are REPORT-ONLY, and every family is judged against its moved target |
-| `chain[].table` | EXACT-OBSERVABLE: HELD or MISSED | recounted on the written twin at the published levels over its tabled rows and compared cell for cell with the family's TARGET: the published table where the twin's own totals equal its margins, otherwise the table the generation method's G16.6 moves it to, which the validator re-derives from the published table and the twin's totals alone; the moved units are printed, never a verdict (validation method `V12`) |
+| `ladder[].totals` | EXACT-OBSERVABLE, given layer `L0` | each eligible column's twin holds exactly its `L0` totals over the tabled rows (lane BT; generation method G16.0); a column made without them reads MISSED, and the twin's DEVIATIONS name it (4.6b.8) |
+| `chain[].table` | EXACT-OBSERVABLE: HELD or MISSED | recounted on the written file at the published levels over its tabled rows and compared cell for cell with the PUBLISHED table, the verdict printed alone and only where validation method `V12.3` lets it stand; the validator computes no moved table: a family the generator made against a moved target (generation method G16.6) is not the published table, reads so, and is named in the twin's DEVIATIONS with the cells the move changed (4.6b.8) |
 | a pair reading `implied` | REPORT-ONLY | the table the chain implies is printed with its dealing spread, both from the description alone; nothing measured on the file is printed for it (validation method `V12.3`), and it is never a verdict |
-| `rules[].class` | EXACT-OBSERVABLE | the file's failing rows of the carried rule lie in the published class: at most `f - 1` under the phrase, exactly the count in a count class (validation method `V12`); the twin's own rows meet more (none under the phrase, generation method G16.2), which the oracle and `K-S6-01` check, never the report, since a verdict of "none" would tell 1 to `f - 1` failing rows on the real table from 0 |
-| `rules[].derived.table` | EXACT-OBSERVABLE: HELD or MISSED | the derived column recomputed on the file as `B - A` and its family counted at the published levels, compared cell for cell like a `chain` table (`V12`) |
+| `rules[].class` | EXACT-OBSERVABLE | the file's failing rows of the carried rule lie in the published class: at most `f - 1` under the phrase, exactly the count in a count class (a derived carrier only), the verdict printed alone and only where validation method `V12.3` lets it stand; the twin's own rows meet more (none under the phrase, generation method G16.2), which the oracle and `K-S6-01` check, never the report, since a verdict of "none" would tell 1 to `f - 1` failing rows on the real table from 0 |
+| `rules[].derived.table` | EXACT-OBSERVABLE: HELD or MISSED | the derived column recomputed on the file as `B - A` and its family counted at the published levels, compared cell for cell with the published table like a `chain` table (`V12`) |
+| a computed column's withheld keys | REPORT-ONLY, never checked | the column publishes `name`, `position` and `role` only (4.6b.7); the twin writes it in its rule's layout, and `K-S6-02` lists the move |
 | `chain[].slopes` | REPORT-ONLY | the twin's achieved slope printed beside the published one, in standard errors |
 
 **Its size.** The ladder under 30 KB at 50 eligible columns; the chain 0.1
@@ -5324,8 +5601,10 @@ as `f`): for a table with one row per patient, no count of 1 to `f - 1`
 without the key, given one description per table and name on an
 installation; proven for the published numbers (4.6b.9 (a)) and for the
 procedure through the draw lemma ((b)), with the own-fact groups of each
-column covered by RULE W1 ((c), case (ii) read as ruled) and the carried
-rules as (b), (d) and (e) state, each remainder named in (h). "No count"
+column covered by RULE W1 ((c), case (ii) read as ruled), the census of
+records holding nothing by RULE WE ((b)), and the carried rules as (b),
+(d) and (e) state, on lane MR's open precondition, each remainder named
+in (h). "No count"
 means none beyond each column's own facts, which the base product
 publishes as today (P4-D363).
 
@@ -5342,10 +5621,13 @@ P4-D407 states.
 
 **Hours** (the ratification's hours line, re-priced by the statistics
 review of this page; JUDGEMENT): 2,000,000 x 50 described, generated
-and checked in about 7.3 to 10 hours on Python 3.13, and about 7.3 to
-11.2 on Python 3.10 with the two savings that remain, under one hour
-short of the owner's 12; the search over every tabled row, the level
-variants and RULE W1's check are not yet priced (plan P4-D407).
+and checked in about 7.3 to 10 hours on Python 3.13. From lane DEP-1
+the oldest Python synthtwin runs on is 3.11 (the owner, 2026-10-19,
+19:00), whose hours are not yet measured; the first build's figure for
+Python 3.10 (about 7.3 to 11.2 hours with the two savings that remain)
+no longer applies, and `K-S6-15` measures 3.11 once. The search over
+every tabled row, the level variants and RULE W1's full check are not
+yet priced (plan P4-D407).
 
 **Not promised:** a Bayesian reader's belief beyond full support (limit
 1); several descriptions of one table (limit 2); the reading of case
@@ -5372,15 +5654,19 @@ of the other, described twice; two DIFFERENT tables given the SAME name
 on one installation, which share their words (136 of 29,018 targeted
 pairs leak; a witness cell goes from `[0, 15]` to `[3, 8]`); a copy
 whose values a re-save changed, which the ledger does not recognise; a
-description replaced with `--replace-description` although it had been
-shared, which the person's declaration covers and the ledger cannot
-see; a deleted data folder, which loses the key and the ledger together,
-so that the next run describes the table as a new installation would;
-and anyone who can run `synthtwin` under the installation's account, who
-holds the key in effect (with the words known, 88 of 7,165 single
-descriptions leak). The shared report's one line: describe each table
-once, on one installation, under one name, and give a different table
-its own name.
+copy with a column renamed, added or dropped, whose content hash differs
+since it reads cells keyed by column name (the verify of 2026-10-19,
+item 7); a description replaced with `--replace-description` although
+it had been shared, which the person's declaration covers and the
+ledger cannot see; a deleted data folder, which loses the key and the
+ledger together, so that the next run describes the table as a new
+installation would; a deleted or lost ledger beside a kept key, after
+which the next run starts a new record (4.6b.4); and anyone who can run
+`synthtwin` under the installation's account, who holds the key in
+effect (with the words known, 88 of 7,165 single descriptions leak).
+The shared report's one line: describe each table once, on one
+installation, under one name, with the same columns under the same
+names, and give a different table its own name.
 
 **Stated limit 3 (case (ii) of Lemma 3, as ruled).** A small own-fact
 group's rows can be shown to lie, every one of them, among the
@@ -5407,15 +5693,15 @@ written as a fraction and read on the scale of the score (4.6b.3).
 
 | setting | December value | status and evidence |
 |---|---|---|
-| `k_max` | 3 at every size | FIXED up to 50,000 rows: polished, `k` = 3 scored 393 and 140, `k` = 2 387 and 139, within noise of each other on both bases (`A0a`'s check, item 3); unpolished 286 and 98 against 285 and 95. `k` = 4 from some size is PROVISIONAL: `A0b`'s step 8 decides it at 200,000 rows |
+| `k_max` | 3 at every size | FIXED up to 50,000 rows: polished, `k` = 3 scored 393 and 140, `k` = 2 387 and 139, within noise of each other on both bases (`A0a`'s check, item 3); unpolished 286 and 98 against 285 and 95. `k` = 4 from some size is PROVISIONAL: `A0b`'s step 8 decides it at 200,000 rows. A larger `k` is NOT a lever for interactions: at 50,000 rows `k` = 3, 4 and 5 left the interactions built into the test table the same distance off (diabetes x current smoker 7.72 SE at each; the three-way xor 85.90, 86.38 and 86.38; blood pressure and a laboratory value on age by group 47.89 and 57.72 at each), since the search never puts the interacting columns in one family (the library study of 2026-10-19, MEASURED, greedy) |
 | the ladder | three levels: `L0` the deciles with `p25` and `p75`, `L1` four rungs, `L2` the median | FIXED. `L0` is the cut `A0a` measured, its `dec` ladder: the 10th, 20th, 25th, 30th, 40th, 50th, 60th, 70th, 75th, 80th and 90th percentiles. Three levels won every polished pair against four (placed cuts as a fourth level), while four win on the chain alone (303 against 286 at 20,000 rows, 103 against 98 at 50,000): this setting trades about 3 points of the chain alone for the polished result (`A0a`'s setting 2 and its check's item 2) |
 | `L0`'s cut (`l0_cut`) | `deciles` at every size | FIXED up to 50,000 rows: every fifth percentile scored 366 against 387 at 20,000 rows and 137 against 136 at 50,000 (`A0a`'s setting 10). PROVISIONAL above 50,000 rows: the design's 100,000-row probe favoured every fifth percentile, 166 against 153 of 279, not on every seed; `A0b`'s legs `X5a` and `X5c` decide |
 | placed cuts | off | FIXED (`A0a`'s setting 2; inventory row 13) |
-| `w_seed`, the triple screen's seeds | `"0"`, off | PROVISIONAL. When on, `A0a`'s and `A0b`'s value, `"1/20"`: their search scored `(X2 - df) / n` and added 0.05 a seed. Polished, `A0a` measured seeds costing least squares (347 and 127 against 393 and 140). `A0b`'s early 50-column measurement (2026-10-19) shows the seedless chain losing every interaction built into the test table that a fresh sample and the design's every-pair swap candidate (`A2`) keep (diabetes x current smoker 0.06 against -1.76 real; the pure three-way -0.02 against -3.47; an age-by-group interaction in blood pressure 0.02 against 0.30) and question 9's trigger firing at 50,000 x 50 (`A2` ahead by 17.0 points on least squares and 26.5 on logistic models). `A0b`'s step 7 (chains with seeds) decides; seeds enter only as a weight raise, so turning them on changes no proof |
+| `w_seed`, the triple screen's seeds | `"0"`, off | PROVISIONAL. When on, `A0a`'s and `A0b`'s value, `"1/20"`: their search scored `(X2 - df) / n` and added 0.05 a seed. Polished, `A0a` measured seeds costing least squares (347 and 127 against 393 and 140). `A0b`'s early 50-column measurement (2026-10-19) shows the seedless chain losing every interaction built into the test table that a fresh sample and the design's every-pair swap candidate (`A2`) keep (diabetes x current smoker 0.06 against -1.76 real; the pure three-way -0.02 against -3.47; an age-by-group interaction in blood pressure 0.02 against 0.30) and question 9's trigger firing at 50,000 x 50 (`A2` ahead by 17.0 points on least squares and 26.5 on logistic models). `A0b`'s step 7 (chains with seeds) decides; seeds enter only as a weight raise, so turning them on changes no proof. The library study of 2026-10-19 (MEASURED, greedy, at 50,000 and 200,000 rows) offered the screen's seeds as weights: the three-way xor went from 85.90 and 173.88 SE off to 0.00, while diabetes x current smoker, which the screen ranks 187 to 190 of 19,600 triples on its coarse codes (the top two levels and a pool), stayed off (4.95 to 13.20 SE) and came back (0.00) only when its triple was offered; hence the FINER-CODED screen of 4.6b.3 for few-level columns (JUDGEMENT that it finds that triple; `A0b`'s legs measure it). Blood pressure and a laboratory value on age by group stayed off with seeds, and with their triples offered (24.75 to 183.96 SE): their carrier is lane MPOL's class M-d, whose release lane MPOL decides. Seeds are offered as weights, never forced, and `A0b`'s 200,000-row legs still decide them |
 | `w_te`, the time-and-event raise | `"0"`: no measured effect | PROVISIONAL. `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables. The root pair's orientation is schema order (t0's); `A0b`'s t0 and t1 leg measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first (`ST3`, or `A0b`'s 50-column table) |
 | `w_rule`, the inferred rule's raise | `"1/20"` | PROVISIONAL: never measured (the design's raise of `10 tau` was not measured either, and on the scale of the score it would vanish). Lane CHa's battery run measures it |
 | `tau` | two, provisionally | PROVISIONAL: ruling R5 holds it until it is measured at 50 columns, and no leg of `A0b` measures it. Every figure above was measured greedily; at 5,000 rows, the suite tier of `K-S6-01` (ii), the last steps' scores shrink to about 6 to 27, where `tau` = 2 gives "no family" a real share of each step (the statistics review's arithmetic). Lane CHa's battery run measures the chain under the draw, at `tau` = 2 and with RULE W1 as read here, at 5,000 and 20,000 rows, before the stage-6 gate; a change is a measured amendment |
-| `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the Python 3.10 hours (plan P4-D407). The sample is never published, so its size moves no proof |
+| `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the hours on the oldest Python synthtwin runs on, 3.11 from lane DEP-1 (plan P4-D407). The sample holds exactly that many rows, or every row of a smaller table, chosen by content and occurrence (4.6b.8). It is never published, so its size moves no proof |
 | the polish (lane MPOL's) | classes M-a and M-b cell means, with the second code on skewed fine columns, at `P` = 4 proposals a fine cell below 200,000 rows | recorded here for MPOL's page, which fixes them (`A0a`'s settings 5 to 8: M-d off, spreads off); `P` = 2 from 1,000,000 rows is `A0b`'s measurement |
 
 ---

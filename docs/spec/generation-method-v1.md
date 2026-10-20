@@ -17739,9 +17739,23 @@ of its preconditions failed), the groups' sizes are the column's own and
 not the published totals, and G16.6 gives the TARGET of every family
 holding that column; before lane BT lands, that is every family.
 
-**A family's TARGET.** The published table where every member's band
-totals in the twin equal the published ones (always, given layer L0);
-otherwise the moved table of G16.6.
+**A family's TARGET.** The published table where the twin's count of
+each of the family's parent cells, as the families before it placed
+them, equals the published table's row total there, and the child's
+band totals at the family's level equal its column totals (always,
+given layer L0, since every earlier family then met its own published
+table); otherwise the moved table of G16.6. A derived family `{D | A}`
+(G16.2 step 5) takes its target by the same test. The first build
+compared each member's band totals alone, which a move upstream can
+leave equal while it changes the JOINT counts of a later family's
+parents (Codex's item 5 of 2026-10-19): with `AB` published `[[60, 40],
+[40, 60]]` and `B`'s totals made `[80, 120]`, `AB` moves to `[[50, 50],
+[30, 70]]`, `C | AB` published `[[60, 0], [0, 40], [0, 40], [60, 0]]`
+moves to `[[50, 0], [0, 50], [0, 30], [70, 0]]`, and `A` and `C` keep
+their totals while their joint cells go from 60, 40, 60 and 40 to 50,
+50, 70 and 30, so a later `D | AC` published `[[30, 30], [20, 20], [30,
+30], [20, 20]]` could not be dealt against its published table; read
+on the parent cells, its target is moved.
 
 ### G16.1 Codes
 
@@ -17755,10 +17769,16 @@ and each later step reads them:
   step 1 reads the band codes of a family's parents;
 - **the VALUE CODE**, for a FINE ordered column (contract 4.6b.6): the
   8-bit code of the row's reading, the contract's formula. One byte a
-  row in a `bytearray`; a row whose cell holds no reading of the
-  column's order (an absent, unreadable or label cell) is marked by its
-  band code and reads no value code. G16.2 step 2 reads the value codes
-  of a family's slope parents, and G16.3 reads them for the polish.
+  row in a `bytearray`;
+- **the READING MAP**, for the same columns: one bit a row in a
+  `bytearray` (bit `r mod 8` of byte `r // 8`), set where the row's cell
+  holds a reading of the column's order and clear where it holds none
+  (an absent, unreadable or label cell), whose value code is then 0 and
+  is never read. The band code cannot mark such a row: five absent cells
+  merged with 95 readings stand in one ordered band, and every value
+  code byte is a code some reading takes (Codex's item 11 of
+  2026-10-19). G16.2 step 2 reads the value codes and reading maps of a
+  family's slope parents, and G16.3 reads them for the polish.
 
 `bytearray` is allowed by the offline scan
 (`tools/offline_scan/scan_imports.py`, `_ALLOWED_CALL_BUILTINS`);
@@ -17780,10 +17800,11 @@ parents `P` at `F`'s levels, target `t`:
      m_1) + ... + beta_k (s_k - m_k) + sigma z`, summed in that order in
      binary64, over the slope parents. `s_p` is parent `p`'s value code
      in the row, already placed; `m_p` is the mean of `p`'s value codes
-     over the arranged rows of the row's parent cell that hold one, an
-     exact integer sum divided once in binary64; a row whose parent `p`
-     holds no value code takes nought for that term; a cell where no row
-     holds a value code of `p` takes nought for every row's term.
+     over the arranged rows of the row's parent cell whose reading map
+     for `p` is set, an exact integer sum divided once in binary64; a
+     row whose reading map for `p` is clear takes nought for that term;
+     a cell where no row's reading map for `p` is set takes nought for
+     every row's term.
    - Otherwise `L = z`. A label child takes `L = z`.
    - No term constant inside a parent cell is added: the walk orders
      rows only inside a cell (step 3) or by `L` across cells whose terms
@@ -17823,22 +17844,30 @@ parents `P` at `F`'s levels, target `t`:
    - A DERIVED column's family `{D | A}` is dealt by steps 1 to 4 as a
      family whose one parent is `A` at the family's level of `A`, read
      from the band of `A`'s cell in each row (its `L0` group, G16.0,
-     coarsened to that level), and whose target is its published table.
-     `D`'s readings are made by lane MR's page from the published level,
-     each reading inside its band: in the phrase class none below 0, in
-     a count class exactly the published count below 0, inside the parts
-     the cut at 0 publishes. The rows of `A`'s `missing` band all take
-     `D`'s `missing` band, since the table's structural zeros leave them
-     no other target. A derived column is no column of the table, so
-     the twin writes none: its readings serve only to write `B`, and are
-     freed once `B` is written.
+     coarsened to that level), and whose target is G16.0's: its
+     published table where the twin's counts of `A`'s bands at that
+     level equal the table's row totals, otherwise its moved table
+     (G16.6). `D`'s readings are made by lane MR's page from the
+     target's band totals, each reading inside its band: in the phrase
+     class none below 0, in a count class exactly the published count
+     below 0, inside the parts the cut at 0 publishes, and dealt only to
+     rows where `A` holds a reading. The rows of `A`'s `missing` band
+     all take `D`'s `missing` band, since the table's structural zeros
+     leave them no other target; a moved table puts units there only
+     where the totals force it, each named among the twin's DEVIATIONS,
+     and such a row writes `B` absent below. A derived column is no
+     column of the table, so the twin writes none: its readings serve
+     only to write `B`, and are freed once `B` is written.
    - Then each column the description marks computed is written row by
-     row from its rule, in its own layout: for an order rule `A <= B`
-     carried by `D` (a source column or a derived one), `B`'s cell in a
-     row is `A + D` where both hold a reading, and absent where either
-     does not. Its cells are not made by G4 to G14 and draw no word.
-     Lane MR's page fixes a formula rule's arithmetic and every other
-     row.
+     row from its rule: for an order rule `A <= B` carried by `D` (a
+     source column or a derived one), `B`'s cell in a row is `A + D`
+     where both hold a reading, and absent where either does not,
+     written in `A`'s published layout words, since `B` publishes
+     nothing read from its cells but its role (contract 4.6b.7), the
+     number of places after the point being the larger of `A`'s and
+     `D`'s in that row. Its cells are not made by G4 to G14 and draw no
+     word. Lane MR's page fixes a formula rule's arithmetic, the layout
+     of its output and every other row.
    - The rule words of the description are zeros of family targets, met
      by step 3, which deals no row into a cell whose target is nought.
 
@@ -17856,7 +17885,7 @@ twin (plan P4-D407).
 ### G16.3 RESERVED: the polish (lane MPOL)
 
 Lane MPOL's page writes it: exchanges of one fine column's cells, with
-their value codes and cell indices, between two arranged rows of the
+their value codes, reading-map bits and cell indices, between two arranged rows of the
 same `L0` band of that column, towards the moments of contract O5 and
 O6. An exchange inside an `L0` band keeps every band of every column, so
 it moves no family table and no within-column fact. Its words follow
@@ -17882,26 +17911,34 @@ G16.2 step 5), and no latent score or second sort is needed.
 - **STRAY ROWS.** After G16.4 an arranged row can hold nothing in every
   column, where every eligible column keeps a cell holding nothing
   beyond those the reservation took. G2.1 step 2's second walk runs on
-  such rows with GIVERS taken from the INELIGIBLE columns only: each
-  exchange moves one cell of one ineligible column between two rows, as
-  G2.1 states it. Where no ineligible column can give, the row stays
+  such rows with GIVERS taken only from the INELIGIBLE columns that no
+  carried rule computes or reads (none named by a `rules` entry's
+  `computed`, `inputs` or `carrier`), and never from the row-sequence
+  column: each exchange moves one cell of one such column between two
+  rows, as G2.1 states it. Where no such column can give, the row stays
   holding nothing. No cell of an eligible column moves after the
-  arrangement (the obligation lane BTp's page relies on). The twin's
-  report names the stray rows left, and where they would make the twin,
-  described again, publish other counts of records holding nothing than
-  its description does, it names that deviation too, which validation's
-  V12 prints on a REPORT-ONLY line. How often that happens is lane CHb's
-  count on the battery (`K-S6-02`). The held page's fix, an exchange of
-  an eligible column's cell, would break a family table, and is
-  withdrawn.
+  arrangement (the obligation lane BTp's page relies on), and no cell
+  of a computed column or of a rule's input: a computed `B` is
+  ineligible, and its cell moved onto a stray row would leave `B`
+  without `A` there and `A` and `D` without `B` on the giver, two rows
+  breaking `B = A + D` where G16.2 promises none (the verify of
+  2026-10-19, item 2, MEASURED on a fixture of four rows). The twin's
+  DEVIATIONS (contract 4.6b.8) name the stray rows left, and where they
+  would make the twin, described again, publish other counts of records
+  holding nothing than its description does, they name that too; on a
+  measured file those counts are judged by the checks their own keys
+  already have. How often that happens is lane CHb's count on the
+  battery (`K-S6-02`). The held page's fix, an exchange of an eligible
+  column's cell, would break a family table, and is withdrawn.
 - **The row sequence** is written in place last (G2.1 step 1), and the
   sort by `row_order` moves whole rows (G2.1 step 3), the reserved rows
   staying where they stand. Neither moves a cell of any table.
 
 ### G16.6 Without layer L0: the moved target
 
-Where a member of a family `F` was made without its published band
-totals (G16.0), `F`'s target is its MOVED TABLE: among the tables of
+Where G16.0's test fails for a family `F` (a member made without its
+published band totals, or parent cells an earlier move changed), `F`'s
+target is its MOVED TABLE: among the tables of
 non-negative whole numbers whose row totals are the twin's counts of
 `F`'s parent cells (as the families before it placed them) and whose
 column totals are the child's band totals in the twin (its groups'
@@ -17919,9 +17956,12 @@ Codex's case on the held page (its item 1): the published table `[[50,
 0], [0, 50]]` against row totals `[60, 40]` and column totals `[40, 60]`
 is moved to `[[40, 20], [0, 40]]`, the only table with 20 units in
 published noughts, the fewest possible. Each moved family is named in
-the twin's report with the cells moved and every unit placed in a
-published nought, and validation's V12 re-derives the moved table from
-the published table and the file's own totals alone.
+the twin's DEVIATIONS (contract 4.6b.8), a function of the description
+and the seed, with the cells the move changed and every unit placed in
+a published nought, and the twin's report grades its pairs and analyses
+`A`, "moved in this twin". Validation's V12 compares every family with
+its PUBLISHED table and computes no moved table, so a moved family
+reads as not meeting it wherever V12.3 lets its verdict stand.
 
 ### G16.7 RESERVED: several rows per patient (lane MG)
 
@@ -17975,20 +18015,27 @@ functions take their words as an argument. Two callers use it:
 - `generate`, passing words of the single stream (G16.8);
 - the profiler's self-test (contract 4.6b.8, lane ST), passing
   SplitMix64 words keyed by a constant and by the sampled rows' content
-  hashes, on the band and value codes of its sample.
+  hashes, on the band codes, value codes and reading maps of its
+  sample.
 
 The generator's closure test (`tests/test_generation.py`, the
 generator's import graph) still passes, since the module adds no import.
-The validator never imports it: validation's V12 re-derives its targets
-(G16.6's moved tables, the chain's implied tables) with its own code,
+The validator never imports it: validation's V12 compares each family
+with its published table, computes no moved table, and re-derives the
+chain's implied tables with its own code,
 and the validate path never reaches the generation module (validation
 V10). This is the design's recommendation, ratified with it for this
 page (the orchestrator's ruling R8 (3), recorded in plan P4-D407).
 
 ### G16.10 Every degenerate branch, defined
 
-- Fewer than two eligible columns, no family with a parent, or fewer
-  than two arranged rows: the section does not run (G16.0).
+- No family with a parent and no carried rule, or fewer than two
+  arranged rows: the section does not run (G16.0).
+- A RULES-ONLY description (contract 4.6b.3: the root step drew "no
+  family" beside a carried rule, or fewer than two columns are
+  eligible): every family has no parent, so each eligible column is
+  dealt in its one cell by its hidden score (steps 3 and 4), and step 5
+  deals the derived families and writes the computed columns.
 - A parent cell holding no row: no targets, no positions, no word beyond
   G16.8's count.
 - A cell whose target row holds spread bands only (a child always absent
@@ -17999,8 +18046,9 @@ page (the orchestrator's ruling R8 (3), recorded in plan P4-D407).
 - A slope parent whose codes do not vary inside a cell: the published
   `beta` is 0 (contract 4.6b.6), so its term is nought; `sigma` 0: `L`
   ties, broken by row number.
-- A cell where no row holds a value code of a slope parent: that
-  parent's term is nought in the cell.
+- A cell where no row's reading map is set for a slope parent: that
+  parent's term is nought in the cell. A column whose reading map is
+  clear on every row: every term it enters is nought.
 - A value code whose clip rungs are equal: every code is 0 (contract
   4.6b.6).
 - More than 255 bands at a chain level: two-byte band codes. More than
@@ -18017,7 +18065,8 @@ page (the orchestrator's ruling R8 (3), recorded in plan P4-D407).
 At 2,000,000 arranged rows by 50 columns, the section holds (JUDGEMENT
 on the design's figures, plan P4-D407):
 - band codes, one byte a row and column: 100 MB;
-- value codes of about 30 fine columns: 60 MB;
+- value codes of about 30 fine columns: 60 MB, and their reading maps,
+  one bit a row: 7.5 MB;
 - one family's parent-cell keys, scores and sort, freed before the next
   family: 200 to 300 MB;
 - one column's cells read back from lane SG's spill file: 150 to 200 MB;
@@ -18064,7 +18113,24 @@ each case beside a mutant that must move it:
 8. the cell index read back, at 3 bytes and at 4;
 9. a stray row given a cell by an ineligible column, and one with no
    ineligible giver, which stays and is named (mutant: an eligible
-   column's cell moved).
+   column's cell moved);
+9b. a stray row beside a computed column: columns `A`, `B` computed as
+   `A + D` and `C`, one stray row, where the computed column gives no
+   cell and the row stays, named, or takes a cell of a column no rule
+   computes or reads (mutant: the computed column giving its cell, which
+   breaks `B = A + D` on 2 rows);
+10. a moved parent count: `AB` published `[[60, 40], [40, 60]]` with
+   `B`'s totals made `[80, 120]`, so `C | AB` moves and a later `D |
+   AC` takes its moved target by G16.0's test on the parent cells, every
+   target met (mutant: the first build's test on members' totals alone,
+   which leaves `D | AC` no table to deal);
+11. five absent cells merged with 95 readings into one ordered band of a
+   slope parent: the reading map clear on those five rows, which take no
+   slope term and stand outside their cell's mean (mutant: the band code
+   read as the mark, which reads them as readings);
+12. a RULES-ONLY description: one eligible column `A` beside a computed
+   `B` and its derived family, `A` dealt alone and `B` written (mutant:
+   the section not running, which writes no `B`).
 
 For the profile side, lane CHa's cases hold, each beside its mutant: the
 levels W3 and NE offer, and the floor, at `small_cell_floor` 36 on the
@@ -18080,9 +18146,19 @@ ledger refusing a second description of one table after an answer makes
 one more column eligible (mutant: a ledger comparing content, name and
 key alone); row 9's sufficient form on a fixed base, its largest counts
 and its zero world (mutant: `S(K)` read up to `f` instead of `f - 1`);
-and the first review's derived difference, where the family's floor
+the first review's derived difference, where the family's floor
 leaves only "not carried" eligible (mutant: the derived column's band
-totals published alone).
+totals published alone); and the second review round's cases of
+contract 4.6b.10 (RULE WE on Codex's 133 rows; W1 checked in full on
+its derived-family case; a computed column's block keeping `name`,
+`position` and `role` only; a source carrier offered only beside `n_negative`
+0, and on the phrase only), with the rule-step option order, the
+length-framed content hash (mutant: the separator bytes, which give
+Codex's two rows one hash), the self-test's sample of exactly
+`min(m, n)` rows on 500,000 rows `0,0` beside 500,000 rows `1,1`
+(mutant: the first build's cut on the content hash, which takes no
+row), and the ledger's whole-description digest and lock (mutants: a
+digest of `statistical` alone; two runs without the lock).
 
 ---
 

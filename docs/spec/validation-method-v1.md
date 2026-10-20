@@ -3629,14 +3629,14 @@ contract 4.6b.6's fit on the measured file's codes.
 
 | object | check | kind |
 |---|---|---|
-| a family's table | the measured table equals the family's TARGET cell for cell: the published table where the file's band totals of every member, and its counts of the family's parent cells, equal the published ones; otherwise the moved table of the generation method's G16.6, which the validator re-derives from the published table and the file's own totals, and from nothing else. The line names where the totals differ, the cells the move changed and the units placed in a published nought, as named facts and never as a miss, each number only as V12.3 allows | EXACT-OBSERVABLE: HELD or MISSED |
-| a published nought of a family (a rule word among them) | no measured row stands in it, beyond the units the moved table names | part of the line above |
-| an `L0` band total | the file's count of each `L0` band over its tabled rows equals the published total | EXACT-OBSERVABLE with layer L0; REPORT-ONLY without it, every family then judged against its moved table |
+| a family's table | the measured table equals the family's PUBLISHED table cell for cell. The validator computes no moved table: a twin whose family the generator moved (the generation method's G16.6) does not hold the published table, and its DEVIATIONS say so (contract 4.6b.8). The line prints the verdict and the published table, and the verdict only as V12.3 lets it stand | EXACT-OBSERVABLE: HELD or MISSED |
+| a published nought of a family (a rule word among them) | no measured row stands in it | part of the line above |
+| an `L0` band total | the file's count of each `L0` band over its tabled rows equals the published total; the line prints the verdict and the published total. Each verdict is a fact of one column: HELD fixes the count at a published total, 0 or at least `f`, and MISSED excludes one value, so neither bounds a count inside 1 to `f - 1` | EXACT-OBSERVABLE with layer L0; a column made without its band totals reads MISSED, and its families are not judged (V12.3) |
 | a pair reading `implied` | printed as the description publishes it: the table the chain IMPLIES at the two columns' chain levels (the junction-tree product of the published families along the path between them, in exact fractions) and its DEALING SPREAD `s`, half the sum over the implied table's cells of `sqrt(p (1 - p) / n')`, `p` each cell's implied share and `n'` the description's tabled rows; nothing measured on the file is printed for it (V12.3) | REPORT-ONLY, named, never a check |
-| a slope | the measured `beta` against the published one, in standard errors: the published `sigma` times the root of the slope parent's diagonal entry in the inverse of the parents' pooled within-cell cross-product matrix of codes on the file (with one slope parent, `sigma` over the root of its pooled within-cell sum of squares); marked inside (within one) or outside | REPORT-ONLY |
-| a carried rule (contract 4.6b.7, `rules`) | the file's failing rows, counted as the contract defines them, lie in the published class: at most `f - 1` under the phrase, exactly the published count in a count class; the verdict alone is printed | EXACT-OBSERVABLE: HELD or MISSED |
-| a derived column's family | the derived column recomputed on the file (`B - A` where both hold a reading, absent elsewhere) and `{D \| A}` counted at its published levels equals the published table cell for cell, or its moved table (G16.6) | EXACT-OBSERVABLE: HELD or MISSED |
-| stray rows (generation method G16.5) | the arranged rows holding nothing in every column, and whether the file's own counts of records holding nothing differ from the description's | REPORT-ONLY, named |
+| a slope | the measured `beta` against the published one, in standard errors: the published `sigma` times the root of the slope parent's diagonal entry in the inverse of the parents' pooled within-cell cross-product matrix of codes on the file (with one slope parent, `sigma` over the root of its pooled within-cell sum of squares); marked inside (within one) or outside. Where that matrix is singular on the file, the parents to which contract 4.6b.6's fit gives `beta` 0 there (a pivot nought in its exact elimination, in the parents' order: a parent whose codes do not vary inside any cell, or one the earlier parents determine) are left out of the matrix, each printed "not measured on this file: its codes do not vary inside the family's cells once the earlier parents are read", and the others' errors are read from the inverse of the matrix that remains, which is then not singular; where an error is 0 (the published `sigma` 0), the line reads inside only where the measured `beta` equals the published one to four decimals (Codex's item 12 of 2026-10-19: forty readings in two tight clusters coded 0 and 255 give a within-cell sum of squares of nought at `L2`) | REPORT-ONLY |
+| a carried rule (contract 4.6b.7, `rules`) | the file's failing rows, counted as the contract defines them, lie in the published class: at most `f - 1` under the phrase, exactly the published count in a count class (a derived carrier only); the verdict alone is printed, only as V12.3 lets it stand | EXACT-OBSERVABLE: HELD or MISSED |
+| a derived column's family | the derived column recomputed on the file (`B - A` where both hold a reading, absent elsewhere) and `{D \| A}` counted at its published levels equals the published table cell for cell; the verdict alone, only as V12.3 lets it stand | EXACT-OBSERVABLE: HELD or MISSED |
+| the records holding nothing (stray rows, generation method G16.5) | no line of this section: the file's census of records holding nothing is judged by the checks its own keys already have (`bytes.empty-rows` among them), and the twin's DEVIATIONS name the stray rows left | none here |
 | the structural words | printed as the description publishes them; the loader has already checked them (contract S27) | named, never a check |
 | the description itself | invariants S23 to S28 | the loader refuses, naming the family or column |
 
@@ -3657,22 +3657,54 @@ the self-test in the private report (contract 4.6b.8), never by this
 report.
 
 **V12.3 What a report may print about the measured file** follows V5.1
-unchanged: no more than `synthtwin profile` run on that file would
-publish at the published levels. So:
-- a family's measured cells are printed only where every cell of its
-  measured table is nought or at least the floor `f` (contract 4.6b). A
-  measured table holding a cell of 1 to `f - 1` prints no cell, no count
-  and no flag: its line gives its verdict, MISSED, alone. Printing its
-  other cells would give the small one back by subtraction from the
-  published totals (D3's reason for never hiding a cell), and a flag
-  "holds a cell below the floor" would bound a cell itself: beside a
-  margin of `f` rows, a two-by-two table holds such a cell exactly when
-  its free cell lies in 1 to `f - 1`;
-- a measured total, its difference from a published total, and a count
-  of units the moved table of G16.6 placed or moved are each printed
-  only where it is nought or at least `f`; otherwise the line says only
-  that the total differs, or that units were moved or placed in a
-  published nought, with no number;
+and V5.3 unchanged: no more than `synthtwin profile` run on that file
+would publish at the published levels, its verdicts included, and no
+line whose form tells a number the line withholds. So:
+- **no measured number stands on any line of this section** but a
+  slope's (below): no measured cell, total or difference, no count of
+  failing rows or of moved units, and no mark of where or by how much
+  the file differs. Each EXACT-OBSERVABLE line prints its verdict and
+  what the description publishes (the published table, total or class),
+  so its printed form is the same whatever the size of what it
+  withholds: a band total off by 3 and one off by 30 print the same
+  line. The first build printed a total, a difference or a count of
+  moved units only where it was nought or at least `f`, and otherwise
+  the words "differs" with no number, and those words were the flag
+  they were meant to avoid: beside a published total of 500 they stood
+  exactly for measured totals of 490 to 499 and 501 to 510, and on a
+  two-by-two table beside a printed margin of 11, "MISSED alone" stood
+  exactly for a free cell of 1 to 10 (the verify of 2026-10-19, item 3,
+  MEASURED);
+- **the verdict is the check's result**, HELD or MISSED against the
+  PUBLISHED table, total or class, and no rule about printing changes
+  it: the first build's moved target `[[45, 10], [0, 45]]` read HELD
+  under V12.2 and mutant 6 but MISSED under this rule, since a cell held
+  ten (Codex's item 7 of 2026-10-19);
+- **a verdict is a statement about the measured file (V5.3), so it is
+  printed only where the file's own description lets it stand.** A
+  family's verdict, a derived family's and a carried rule's stand only
+  where every `L0` total line of their columns reads HELD, so the file's
+  bands are the published ones, and where the published table is
+  ELIGIBLE on the file's own description, which V2.1 builds: the floor,
+  RULE WE read with the file's census of records holding nothing, and
+  RULE W1 read with the file's own-fact groups (contract 4.6b.3). Where
+  a total line reads MISSED, the line says in fixed words "not judged:
+  the file's band totals differ from the published ones"; where the
+  published table is not eligible beside the file's own facts, V5.3's
+  fixed sentence stands in the verdict's place, and the census counts
+  the line withheld. Whether a line is withheld is then a function of
+  the description, of lines already printed and of the file's own
+  description, never of the measured table. Codex's case (item 6 of
+  2026-10-19): a published `AB` of `[[25, 25], [25, 25]]` beside an
+  own-fact group of five rows in `A`'s first band, and a file keeping
+  `A`'s values and `B`'s totals but reading `[[50, 0], [0, 50]]`. The
+  first build printed every measured cell, each 0 or at least `f`, and
+  so fixed "the group AND `B`'s first band" at 5, a family RULE W1
+  refuses on that file; this rule prints MISSED and no cell. A HELD
+  says the file's table is the published one, so it is printed only
+  where RULE W1 admits that table beside the file's own groups, and a
+  MISSED excludes one table from what the file's other published facts
+  allow, as every base check's MISSED does where V5.3's gate stays open;
 - a pair reading `implied` prints nothing measured: `profile` publishes
   nothing about a pair outside a family, and a measured statistic of its
   table can give a cell back. The first review's case: on 1,000 rows, a
@@ -3706,23 +3738,30 @@ one, since each of those fixes facts by row position:
 4. whole rows shuffled together: every line exactly as before;
 5. a twin generated from a copy of the description whose family `F`
    lost one parent, validated against the original: `F` MISSED;
-6. a file whose band totals differ from the published totals: every
-   family judged against its moved table (G16.6), HELD where the file
-   meets it with the moved units named as V12.3 allows, MISSED where it
-   does not.
+6. a file whose band totals differ from the published totals: the
+   `L0` total lines of those columns MISSED, and every family holding
+   one of them "not judged" in V12.3's fixed words, the same words
+   whether a total is off by 3 or by 30, with no number printed.
 
 **V12.5 Not vacuous.** Every EXACT-OBSERVABLE line has a red case in the
 suite: mutants 1 to 3, 5 and 6; a twin whose order rule fails on `f`
 rows under the phrase; and a derived family dealt by its band totals
 alone, with a reading of the derived column beside an absent `A`. The
-slope's line has a case where it prints outside. Four green cases stand
-beside them: the moved table of G16.6 on the held page's Codex case,
-HELD with its 20 units in a nought named; a twin with a stray row given
-a cell by an ineligible column, every family HELD; the first review's
-1,000-row pair and the 60-row pair above, where the report prints the
-implied table and its spread and no measured number; and a family whose
-measured table holds a cell of 1 to `f - 1`, whose line prints MISSED
-alone.
+slope's line has a case where it prints outside, one where a parent's
+codes do not vary inside the family's cells on the file ("not
+measured") and one with two parents the first determines. Green cases
+stand beside them: a twin with a stray row given a cell by an
+ineligible column that no carried rule computes or reads, every family
+HELD; the first review's 1,000-row pair and the 60-row pair above,
+where the report prints the implied table and its spread and no
+measured number; two files whose band totals differ from the published
+ones by 3 and by 30 rows, whose lines print the same words; a file
+whose measured table holds a cell of 1 to `f - 1`, whose line prints
+its verdict and no cell, in the words a file holding no such cell
+prints; and Codex's case of V12.3, which prints MISSED and no cell,
+beside a file whose own-fact groups the published table confines,
+whose verdict is withheld in V5.3's words whether its table is the
+published one or not.
 
 **V12.6 What it costs.** The tables are counted from the band codes, one
 byte a row and column, a cell being the rows whose codes match: the held

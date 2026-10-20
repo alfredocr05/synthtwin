@@ -47,6 +47,24 @@ back. The settings and the targets are restated against what was
 actually measured, the stage-6 gate's measured risk is told, and
 `tests/test_chain_method_page.py` holds every repaired item.
 
+A second review round, with one outside review, repaired it again. A
+column a rule computes now publishes its name, place and role only,
+since its counts of written forms gave back how many rows held a
+discharge and no admission (2, 5 and 9 of 1,000). The file's own count
+of empty records is read beside the tables, so it can no longer fix a
+count the tables leave free (one case fixed 6 rows). Each step checks
+its safety rule across the whole chain, a rule carried by a recorded
+difference is promised only where the twin keeps it, and leaving the
+chain out no longer drops a rule already carried. A validation report
+prints no measured number between columns, judges each table against
+the one published, and gives a verdict only where the file's own
+description would allow it, because "differs, with no number" told a
+small difference. The self-test sample takes exactly the rows it names
+even when many rows repeat, the content fingerprint can no longer be
+imitated by a cell's text, the record of earlier descriptions compares
+whole descriptions and lets one run at a time, and the hours no
+longer quote Python 3.10, which the new oldest version, 3.11, retires.
+
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
 **A follow-up to batch 4b** (lane CF4b of the December plan; CI run
