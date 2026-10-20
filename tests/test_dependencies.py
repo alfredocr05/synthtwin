@@ -382,6 +382,33 @@ def test_every_page_states_the_floor_python() -> None:
         assert set(versions) <= {FLOOR_PYTHON}, (name, versions)
 
 
+def test_the_brief_claims_byte_equality_only_on_the_tested_matrix() -> None:
+    """CLAUDE.md names the systems and Pythons CI checks, and no more.
+
+    The Codex review of lane DEP-1: the brief said the reference vectors
+    CI checks "on every system and Python" made the bytes equal "on every
+    platform", while the matrix runs Ubuntu and Windows under 3.11 to
+    3.14 and macOS under 3.14 alone. The sentence now names the matrix
+    the workflow holds, read from the workflow itself.
+    """
+    workflow = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    matrix = workflow.split("      matrix:\n        os: [ubuntu-latest, windows-latest]\n", 1)
+    assert len(matrix) == 2, "the test job's matrix moved; read it again here"
+    block = matrix[1].split("    runs-on:", 1)[0]
+    full = re.findall(r'"(3\.\d+)"', block.split("include:", 1)[0])
+    mac = set(re.findall(r'macos-latest\n\s+python-version: "(3\.\d+)"', block))
+    assert full and mac, (full, mac)
+    brief = " ".join((REPO / "CLAUDE.md").read_text(encoding="utf-8").split())
+    assert "on every platform" not in brief
+    assert "on every system and Python" not in brief
+    stated = (
+        "Ubuntu and Windows under Python " + full[0] + " to " + full[-1] + ", "
+        "macOS under Python " + " and ".join(sorted(mac)) + " - and is never "
+        "promised beyond the cells it tests"
+    )
+    assert stated in brief, stated
+
+
 # -- pandas' string storage, set by the reader itself (plan P4-D410) ----
 
 

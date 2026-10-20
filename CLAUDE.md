@@ -271,9 +271,11 @@ though it existed:
   explicitly through every consumer. No module-level randomness; sorted
   iteration wherever randomness is consumed; output column order a
   fixed function of the schema. Same profile, seed, version, and locked
-  environment produce the same bytes on the same platform (plan D12) -
-  and, by the reference vectors CI checks on every system and Python,
-  on every platform. THE ZONES (plan P4-D409 part 2, enforced by the
+  environment produce the same bytes on the same platform (plan D12).
+  Across platforms, equality is a tested result of the CI matrix's
+  reference vectors - Ubuntu and Windows under Python 3.11 to 3.14,
+  macOS under Python 3.14 - and is never promised beyond the cells it
+  tests. THE ZONES (plan P4-D409 part 2, enforced by the
   offline scanner, P4-D410): every product module is in one zone. In
   zone G, generation, nothing but Python integers, numpy integer
   arrays, elementwise + - * / and sqrt in a fixed order and the one

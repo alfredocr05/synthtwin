@@ -96,8 +96,9 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   and P modules and the polish kernel (G); the generation path is
   COMPUTED from the tree: every other module the generator, the
   description's loader or the twin's three writers reach by import,
-  from any line, is zone G (_GENERATION_ROOTS); every other first-party
-  module is D. Every admitted library module carries the zones it may
+  from any line, is zone G (_GENERATION_ROOTS), and so is every
+  package's `__init__` above a reached module, which Python runs first;
+  every other first-party module is D. Every admitted library module carries the zones it may
   run in (_LIBRARY_ZONES; the standard library runs everywhere, and no
   library is admitted for W), a use outside them is a violation, a
   module of zone G or W may not even IMPORT a library not admitted for
@@ -115,18 +116,29 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   pandas.read_csv is), then read_options, parse_options and
   convert_options only, each a call of its option class written in
   place, read_options always, with ReadOptions(use_threads=False) by
-  name; ParseOptions takes no invalid_row_handler; scipy.optimize.milp
-  takes options written as a dictionary holding 'disp': False and a
-  'node_limit', never a 'time_limit' (a budget in seconds would let a
-  slow computer decide otherwise than a fast one); numba.njit is only
+  name; ParseOptions takes no invalid_row_handler and, as pyarrow
+  26.0.0 does, no positional argument; scipy.optimize.milp
+  takes options written as a dictionary holding 'disp': False,
+  'mip_rel_gap': 0 and a 'node_limit' written as a whole number from 1
+  to _HIGHS_NODE_LIMIT_MAX, never a 'time_limit' (a budget in seconds
+  would let a slow computer decide otherwise than a fast one), and the
+  result it returns is bound to a name and goes nowhere else -- no
+  subscription, return, argument, container or loop -- until the
+  adopting lane enters a member; numba.njit is only
   the decorator call njit(fastmath=False, parallel=False, cache=False)
   over a function written at the top level of the kernel module, and
   the compiled function it makes is CALLED and nothing else, in the
-  kernel and in every module that imports it (numba's dispatcher
-  carries its compiler settings, `targetoptions`, and the uncompiled
-  body, `py_func`: one statement writing fast-math into the first
-  compiled the kernel with fast-math, measured on numba 0.68.0);
-  numpy's sort and argsort, wherever a later lane admits them, take
+  kernel and in every module that imports it, the kernel module and
+  its package are no bare values, the compiled function makes no
+  function of its own (no lambda, def or class under it), and a
+  dispatcher's attributes (_DISPATCHER_ATTRIBUTES) are refused on
+  every object (numba's dispatcher carries its compiler settings,
+  `targetoptions`, and the uncompiled body, `py_func`: one statement
+  writing fast-math into the first compiled the kernel with fast-math,
+  measured on numba 0.68.0); every API with an argument rule is the
+  function of a call written in place and nothing else, so map(), a
+  stored name or an argument never calls it with arguments no rule
+  read; numpy's sort and argsort, wherever a later lane admits them, take
   kind='stable'; and n_jobs is refused on every call, as a keyword and
   as the text 'n_jobs' anywhere (a dictionary of keywords expanded
   into a call carries it as a key), because it is how a library starts
@@ -656,7 +668,8 @@ attribute absent from it is not allowed at all:
   a clock if given time_limit, which the argument rule turns into
   'disp': False and a node budget. Bounds and LinearConstraint hold
   arrays as data. The result is a dictionary of arrays and answers to
-  nothing until the adopting lane (MR, CHa) enters what it reads; what
+  nothing -- no attribute, no key, and it is handed to nothing --
+  until the adopting lane (MR, CHa) enters what it reads; what
   HiGHS exhibits is re-checked in Python integers (P4-D409 part 5).
 * scipy.linalg (lane DEP-1, plan P4-D410), zone P only: cho_factor and
   cho_solve, LAPACK's Cholesky factorization and solve on arrays they
@@ -2259,6 +2272,95 @@ def _compiled_reference_message(name: str) -> str:
     )
 
 
+# The attributes through which a numba dispatcher is compiled again, or
+# read beneath its compiled form: its compiler's settings, its compiler,
+# its uncompiled body, its cache and its compiled overloads (lane
+# DEP-1's repair 2, plan P4-D410). getattr, setattr, vars and every
+# double-underscore name are refused already, so a written attribute is
+# the one way to reach them, and these names are refused wherever they
+# are written, on whatever object: a dispatcher that reached a name this
+# audit does not hold to calls still cannot be given fast-math.
+_DISPATCHER_ATTRIBUTES = frozenset(
+    {
+        "_cache",
+        "_compiler",
+        "disable_compile",
+        "enable_caching",
+        "get_compile_result",
+        "overloads",
+        "py_func",
+        "recompile",
+        "targetoptions",
+    }
+)
+
+
+def _dispatcher_attribute_message(name: str) -> str:
+    return (
+        "names the attribute '" + name + "', which a numba dispatcher "
+        "carries: its compiler's settings, its compiler, its uncompiled "
+        "body, its cache or its compiled forms (plan P4-D409 part 4; lane "
+        "DEP-1's plan P4-D410). The name is refused on whatever object it "
+        "is written, so a compiled function that reached a name this "
+        "audit does not hold to calls still cannot be compiled again with "
+        "fast-math. A first-party attribute that shares the spelling is "
+        "renamed."
+    )
+
+
+def _kernel_closure_message(kind: str) -> str:
+    return (
+        "writes " + kind + " inside a compiled kernel function (plan "
+        "P4-D409 part 4; lane DEP-1's plan P4-D410). A function made "
+        "inside compiled code comes back to Python as a dispatcher of its "
+        "own, under a name this audit does not hold to calls: returned "
+        "from the kernel and given fast-math through its settings, it "
+        "changed a product's last bits (measured on numba 0.68.0, the "
+        "Codex review of lane DEP-1). A compiled function returns data; "
+        "a helper it needs is a compiled function of its own, written at "
+        "the top level of the module."
+    )
+
+
+def _argument_rule_reference_message(dotted: str) -> str:
+    return (
+        "names '" + dotted + "' other than as the function of a call "
+        "written in place (plan P4-D409 part 3 (d); lane DEP-1's plan "
+        "P4-D410). Its argument rule reads the arguments where the call "
+        "is written; handed to map, stored or passed on, it is called "
+        "with arguments no rule read -- map(pandas.set_option, ...) set "
+        "the string storage to pyarrow and map(milp, ...) ran the solver "
+        "with no budget, both scanning clean before (the Codex review of "
+        "lane DEP-1). Call it directly, with its arguments written out."
+    )
+
+
+# The calls whose result is the solver's own dictionary of floats (plan
+# P4-D409 part 5; lane DEP-1's repair 2, plan P4-D410).
+_SOLVER_RESULT_ORIGINS = frozenset({"scipy.optimize.milp"})
+
+
+def _solver_result_message(subscripted: bool) -> str:
+    if subscripted:
+        action = "reads a member of the solver's result by subscription"
+    else:
+        action = (
+            "hands the solver's result on (returned, passed to a call, "
+            "put in a container, iterated, compared or formatted)"
+        )
+    return (
+        action + " (plan P4-D409 part 5; lane DEP-1's plan P4-D410). "
+        "scipy.optimize.milp returns a dictionary of HiGHS' own floats, "
+        "and `found['x']` reads what `found.x` reads. What HiGHS "
+        "exhibits is re-checked in Python integers, and the result "
+        "answers to no member until the adopting lane (MR, CHa) enters "
+        "each one it reads, by attribute, with its audit: until then it "
+        "is bound to a name and goes nowhere else, so no subscription, "
+        "call, container or return carries a solver float out of the "
+        "search."
+    )
+
+
 def _compiled_function_names(tree: ast.Module) -> "set[str]":
     """The names of the polish kernel's compiled functions, read from its text.
 
@@ -2507,6 +2609,8 @@ def _attr_component_message(name: str, dotted: "str | None") -> "str | None":
             "reach code this audit cannot see; they are banned in "
             "synthtwin source."
         )
+    if name in _DISPATCHER_ATTRIBUTES:
+        return _dispatcher_attribute_message(name)
     if name == "load" and dotted != "json.load":
         return (
             "reads an attribute named 'load'. Only json.load is "
@@ -2644,6 +2748,16 @@ class _Checker(ast.NodeVisitor):
         # bare names inside the kernel module itself.
         self.compiled_functions: set[str] = set()
         self.compiled_names: set[str] = set()
+        # The solver's result (plan P4-D409 part 5; lane DEP-1's repair 2,
+        # plan P4-D410) may stand only where it is bound to a plain name,
+        # thrown away, or read through an attribute the surface rule
+        # governs: the ids of those positions, and of every subscripted
+        # value, filled by scan_source. Watched only in a module whose
+        # text names milp, the one way to make such a result (getattr and
+        # star imports are refused).
+        self.watch_solver_results = False
+        self.solver_result_positions: set[int] = set()
+        self.subscript_values: set[int] = set()
         # A stack of scopes. Each scope maps a local name to the SET of
         # possible origins it may hold: ("module", dotted),
         # ("api", dotted), ("def", name) for functions and classes
@@ -4228,7 +4342,11 @@ class _Checker(ast.NodeVisitor):
                 if dotted in self.compiled_functions:
                     self._flag(node, _compiled_reference_message(dotted))
                     return
+                if dotted in _ARGUMENT_RULES:
+                    self._flag(node, _argument_rule_reference_message(dotted))
+                    return
         if isinstance(node.ctx, ast.Load):
+            self._check_solver_result(node)
             bound = self._lookup(node.id)
             if bound:
                 seen: set[str] = set()
@@ -4240,8 +4358,17 @@ class _Checker(ast.NodeVisitor):
                         # string, or an untraced value is fine; only what
                         # is DONE with them is restricted.
                         continue
-                    if kind == "module" and not origin.startswith(
-                        _FIRST_PARTY_ROOT
+                    # A first-party module may be a bare value, save one
+                    # that holds a compiled kernel function, and the
+                    # package above it: through `[kernel][0].propose` the
+                    # dispatcher is reached by no name this audit holds
+                    # to calls (the verify of lane DEP-1's repair 1).
+                    if kind == "module" and (
+                        not origin.startswith(_FIRST_PARTY_ROOT)
+                        or any(
+                            compiled.startswith(origin + ".")
+                            for compiled in self.compiled_functions
+                        )
                     ):
                         message: str | None = _bare_module_message(origin)
                     else:
@@ -4283,6 +4410,30 @@ class _Checker(ast.NodeVisitor):
             return True
         return False
 
+    def _check_solver_result(self, node: ast.expr) -> None:
+        """The solver's result is bound to a name and goes nowhere else.
+
+        Plan P4-D409 part 5, lane DEP-1's repair 2 (plan P4-D410): what
+        scipy.optimize.milp returns is a dictionary of HiGHS' floats, so
+        `found['x']` reads what the closed attribute `found.x` reads, and
+        a result returned, passed or put in a container leaves for code
+        this audit then reads as untraced. The value may stand only in
+        the positions scan_source records -- bound to a plain name,
+        thrown away, or read through an attribute, which the surface
+        rule governs -- and asked position-blind, as every restriction
+        is, so a binding written below the use counts too.
+        """
+        if not self.watch_solver_results:
+            return
+        if id(node) in self.solver_result_positions:
+            return
+        for kind, origin in sorted(self._trust_origins(node)):
+            if kind == "instance" and origin in _SOLVER_RESULT_ORIGINS:
+                self._flag(
+                    node, _solver_result_message(id(node) in self.subscript_values)
+                )
+                return
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if self._check_restricted_attribute(node):
             return
@@ -4295,6 +4446,9 @@ class _Checker(ast.NodeVisitor):
                     return
                 if dotted in _CALL_ONLY_APIS:
                     self._flag(node, _call_only_message(dotted))
+                    return
+                if dotted in _ARGUMENT_RULES:
+                    self._flag(node, _argument_rule_reference_message(dotted))
                     return
         if parts is not None:
             # A compiled kernel function reached through a module, or an
@@ -4456,6 +4610,7 @@ class _Checker(ast.NodeVisitor):
         self._check_fenced_call(node)
         self._check_writer_handle(node)
         self._check_argument_rules(node)
+        self._check_solver_result(node)
         # A CLOSED GRAMMAR for call targets (review item P1-R3-F7). A
         # call target is either a bare name or a pure dotted chain, and
         # nothing else. Every other shape -- a conditional expression, a
@@ -5073,6 +5228,29 @@ class _Checker(ast.NodeVisitor):
                 and id(inner) not in self.call_targets
             ):
                 self._flag(inner, _compiled_reference_message(inner.id))
+        # A compiled function makes no function of its own: a lambda, a
+        # def or a class written anywhere under it -- its defaults, its
+        # body, at any depth -- would come back to Python as a dispatcher
+        # under a name the rule above never sees (the Codex review of
+        # lane DEP-1, plan P4-D410). Its decorators are read by the njit
+        # argument rule, which admits literals alone.
+        made: "dict[type[ast.AST], str]" = {
+            ast.Lambda: "a lambda",
+            ast.FunctionDef: "a def",
+            ast.AsyncFunctionDef: "a def",
+            ast.ClassDef: "a class",
+        }
+        for statement in node.body:
+            if not (
+                isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and statement.name in self.compiled_names
+            ):
+                continue
+            for part in (statement.args, *statement.body):
+                for inner in ast.walk(part):
+                    kind = made.get(type(inner))
+                    if kind is not None:
+                        self._flag(inner, _kernel_closure_message(kind))
 
     def visit_Constant(self, node: ast.Constant) -> None:
         if node.value == "n_jobs":
@@ -5510,9 +5688,18 @@ def _rule_pyarrow_read_options(checker: "_Checker", node: ast.Call) -> "str | No
 
 
 def _rule_pyarrow_parse_options(checker: "_Checker", node: ast.Call) -> "str | None":
-    """pyarrow.csv.ParseOptions: no row handler, and only the delimiter by position."""
-    if len(node.args) > 1:
-        return "with more than the delimiter by position"
+    """pyarrow.csv.ParseOptions: no row handler, every setting by name.
+
+    pyarrow 26.0.0 takes no positional argument here: ParseOptions(",")
+    raises TypeError, so a positional delimiter is a reader that fails
+    before it reads (the Codex review of lane DEP-1).
+    """
+    if node.args:
+        return (
+            "with positional arguments: pyarrow takes every setting of "
+            "ParseOptions by name (ParseOptions(delimiter=',')), and "
+            "ParseOptions(',') raises TypeError on pyarrow 26.0.0"
+        )
     for keyword in node.keywords:
         if keyword.arg is None:
             return "with ** expansion, which hides whether a row handler is set"
@@ -5526,6 +5713,12 @@ def _rule_pyarrow_parse_options(checker: "_Checker", node: ast.Call) -> "str | N
 
 
 _MILP_OPTIONS = frozenset({"disp", "mip_rel_gap", "node_limit", "presolve"})
+
+# The largest node budget the scanner admits (lane DEP-1's repair 2, plan
+# P4-D410): a search that needs more than ten million branch-and-bound
+# nodes is one the adopting lane argues for in its own plan decision.
+# HiGHS' own default, 2,147,483,647, is no budget at all.
+_HIGHS_NODE_LIMIT_MAX = 10_000_000
 
 
 def _rule_milp(checker: "_Checker", node: ast.Call) -> "str | None":
@@ -5570,6 +5763,32 @@ def _rule_milp(checker: "_Checker", node: ast.Call) -> "str | None":
         return (
             "without 'node_limit': the search's budget is counted in "
             "branch-and-bound nodes, the same on every computer"
+        )
+    budget = keys["node_limit"]
+    if not (
+        isinstance(budget, ast.Constant)
+        and type(budget.value) is int
+        and 1 <= budget.value <= _HIGHS_NODE_LIMIT_MAX
+    ):
+        return (
+            "with a 'node_limit' that is not a whole number from 1 to "
+            + format(_HIGHS_NODE_LIMIT_MAX, ",")
+            + " written in the call: scipy passes None on as no option "
+            "at all, and HiGHS ignores a value outside its range, so "
+            "either leaves HiGHS' own default of 2,147,483,647 nodes, no "
+            "budget at all; a budget computed while the program runs is "
+            "one this audit cannot read (the Codex review of lane DEP-1)"
+        )
+    gap = keys.get("mip_rel_gap")
+    if not (
+        isinstance(gap, ast.Constant)
+        and type(gap.value) in (int, float)
+        and gap.value == 0
+    ):
+        return (
+            "without 'mip_rel_gap': 0 written as the literal 0: plan "
+            "P4-D409 runs HiGHS with no optimality gap, so that what it "
+            "exhibits is the optimum it proves, not one within a tolerance"
         )
     return None
 
@@ -5680,7 +5899,15 @@ def _first_party_imports(
 
 
 def _generation_path(imports: "dict[str, set[str]]") -> "set[str]":
-    """The modules _GENERATION_ROOTS reach by import, the roots among them."""
+    """The modules _GENERATION_ROOTS reach by import, the roots among them.
+
+    Importing a module runs every package above it first, so each
+    package's `__init__` a reached module sits under is reached too, at
+    every depth, and what that `__init__` imports with it: on this tree
+    `synthtwin/__init__.py` runs before the generator does (the Codex
+    review of lane DEP-1, plan P4-D410). A package's `__init__` carries
+    the package's own dotted name, as _first_party_module_name gives it.
+    """
     reached: "set[str]" = set()
     waiting = [root for root in _GENERATION_ROOTS if root in imports]
     while waiting:
@@ -5689,6 +5916,11 @@ def _generation_path(imports: "dict[str, set[str]]") -> "set[str]":
             continue
         reached.add(name)
         waiting += sorted(imports.get(name, set()) - reached)
+        pieces = name.split(".")
+        for length in range(1, len(pieces)):
+            package = ".".join(pieces[:length])
+            if package in imports and package not in reached:
+                waiting += [package]
     return reached
 
 
@@ -5754,9 +5986,26 @@ def scan_source(
         checker.compiled_functions |= {
             _POLISH_KERNEL + "." + name for name in checker.compiled_names
         }
+    checker.watch_solver_results = "milp" in source_text
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             checker.call_targets.add(id(node.func))
+        # Where the solver's result may stand (_check_solver_result):
+        # bound to plain names, thrown away, or read through an attribute.
+        if isinstance(node, ast.Assign) and all(
+            isinstance(target, ast.Name) for target in node.targets
+        ):
+            checker.solver_result_positions.add(id(node.value))
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.value is not None
+        ):
+            checker.solver_result_positions.add(id(node.value))
+        elif isinstance(node, (ast.Expr, ast.Attribute)):
+            checker.solver_result_positions.add(id(node.value))
+        elif isinstance(node, ast.Subscript):
+            checker.subscript_values.add(id(node.value))
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             for decorator in node.decorator_list:
                 if isinstance(decorator, ast.Call):

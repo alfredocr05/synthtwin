@@ -15,6 +15,8 @@ import subprocess
 import sys
 import textwrap
 
+import pytest
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCANNER_PATH = REPO_ROOT / "tools" / "offline_scan" / "scan_imports.py"
 SRC_TREE = REPO_ROOT / "src" / "synthtwin"
@@ -3322,11 +3324,39 @@ _PYARROW_READER = textwrap.dedent(
         return pyarrow.csv.read_csv(
             file_path,
             read_options=pyarrow.csv.ReadOptions(use_threads=False),
-            parse_options=pyarrow.csv.ParseOptions(","),
+            parse_options=pyarrow.csv.ParseOptions(delimiter=","),
             convert_options=pyarrow.csv.ConvertOptions(check_utf8=True),
         )
     """
 )
+
+
+def test_the_pyarrow_reader_specimen_builds_on_the_pinned_pyarrow():
+    """The clean specimen's option calls run on the installed pyarrow.
+
+    The Codex review of lane DEP-1: `ParseOptions(",")` scanned clean in
+    the specimen and raises TypeError on pyarrow 26.0.0, whose option
+    classes take every setting by name. Each option call written in the
+    specimen is built here, with its written settings, so the specimen
+    shows a reader that can read.
+    """
+    csv_module = pytest.importorskip("pyarrow.csv")
+    built = []
+    for node in ast.walk(ast.parse(_PYARROW_READER)):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr.endswith("Options")
+        ):
+            continue
+        settings = {
+            keyword.arg: ast.literal_eval(keyword.value) for keyword in node.keywords
+        }
+        values = [ast.literal_eval(argument) for argument in node.args]
+        built += [getattr(csv_module, node.func.attr)(*values, **settings)]
+    assert len(built) == 3, built
+    assert built[0].use_threads is False
+    assert built[1].delimiter == ","
 
 
 def test_the_reader_string_storage_setting_scans_clean(tmp_path):
@@ -3410,7 +3440,9 @@ def test_pyarrow_reader_settings_built_elsewhere_go_red(tmp_path):
 
 
 def test_pyarrow_reader_extra_settings_go_red(tmp_path):
-    """Bypass class: a memory pool, a second positional argument, a row handler."""
+    """Bypass class: a memory pool, a second positional argument, a row
+    handler, a delimiter by position (pyarrow 26.0.0 raises TypeError on
+    it: the Codex review of lane DEP-1)."""
     for old, new, needle in (
         (
             "convert_options=pyarrow.csv.ConvertOptions(check_utf8=True),",
@@ -3419,9 +3451,14 @@ def test_pyarrow_reader_extra_settings_go_red(tmp_path):
         ),
         ("file_path,\n", "file_path, None,\n", "more than the one positional argument"),
         (
-            'ParseOptions(",")',
-            'ParseOptions(",", invalid_row_handler=None)',
+            'ParseOptions(delimiter=",")',
+            'ParseOptions(delimiter=",", invalid_row_handler=None)',
             "invalid_row_handler",
+        ),
+        (
+            'ParseOptions(delimiter=",")',
+            'ParseOptions(",")',
+            "ParseOptions' with positional arguments",
         ),
     ):
         code = _PYARROW_READER.replace(old, new)
@@ -3487,24 +3524,48 @@ _HIGHS_SEARCH = textwrap.dedent(
             constraints=scipy.optimize.LinearConstraint(rows, low, high),
             options={"disp": False, "node_limit": 100000, "mip_rel_gap": 0},
         )
-        return found
+        kept = found
     """
 )
 
 
 def test_the_highs_search_in_its_one_form_scans_clean(tmp_path):
-    """HiGHS in zone D's search side: silenced, budgeted in nodes (P4-D409 part 5)."""
+    """HiGHS in zone D's search side: silenced, budgeted in nodes (P4-D409 part 5).
+
+    The result is bound to a name, and to another by plain assignment;
+    until the adopting lane enters a member, that is all it does.
+    """
     violations = _scan_in(tmp_path, "summary", _HIGHS_SEARCH)
     assert violations == [], violations
 
 
 def test_a_highs_budget_in_seconds_or_a_loud_solver_goes_red(tmp_path):
-    """Bypass class: a clock decides, the solver prints, or the budget is missing."""
+    """Bypass class: a clock decides, the solver prints, or the budget is missing.
+
+    The Codex review of lane DEP-1: `'node_limit': None` scanned clean,
+    and scipy 1.17.1 passes None on as no option at all, leaving HiGHS'
+    default of 2,147,483,647 nodes; a negative budget is refused by HiGHS
+    with a warning and the same default (measured). The budget is a
+    whole number written in the call, from 1 to ten million, and the gap
+    is plan P4-D409's 0.
+    """
+    budget = '"node_limit": 100000'
     for old, new, needle in (
         ('"node_limit": 100000', '"time_limit": 5.0', "time_limit"),
         ('"disp": False, ', "", "'disp': False"),
         ('"disp": False', '"disp": True', "'disp': False"),
         ('"node_limit": 100000, ', "", "node_limit"),
+        (budget, '"node_limit": None', "a 'node_limit' that is not a whole number"),
+        (budget, '"node_limit": -1', "a 'node_limit' that is not a whole number"),
+        (budget, '"node_limit": 0', "a 'node_limit' that is not a whole number"),
+        (budget, '"node_limit": True', "a 'node_limit' that is not a whole number"),
+        (budget, '"node_limit": 2.5', "a 'node_limit' that is not a whole number"),
+        (budget, '"node_limit": 100000000', "a 'node_limit' that is not a whole number"),
+        (budget, '"node_limit": OPTIONS', "a 'node_limit' that is not a whole number"),
+        (budget, '"node_limit": len(costs)', "a 'node_limit' that is not a whole number"),
+        (', "mip_rel_gap": 0', "", "'mip_rel_gap': 0"),
+        ('"mip_rel_gap": 0', '"mip_rel_gap": 0.01', "'mip_rel_gap': 0"),
+        ('"mip_rel_gap": 0', '"mip_rel_gap": False', "'mip_rel_gap': 0"),
         ('"mip_rel_gap": 0', '"threads": 4', "'threads'"),
         (
             'options={"disp": False, "node_limit": 100000, "mip_rel_gap": 0},',
@@ -3530,9 +3591,50 @@ def test_a_highs_result_answers_to_nothing(tmp_path):
     What HiGHS exhibits is re-checked in Python integers by the adopting
     lane (MR, CHa), which enters each attribute it reads with its audit.
     """
-    code = _HIGHS_SEARCH.replace("    return found", "    return found.x")
-    violations = _scan_in(tmp_path, "summary", code)
-    _assert_red(violations, "a value produced by scipy")
+    for tail in ("    return found.x\n", "    return found.get('x')\n"):
+        violations = _scan_in(tmp_path / str(abs(hash(tail))), "summary", _HIGHS_SEARCH + tail)
+        _assert_red(violations, "a value produced by scipy")
+
+
+def test_a_highs_result_goes_nowhere_by_key_or_by_hand(tmp_path):
+    """Bypass class: the result's members read as dictionary keys, or the
+    result handed on (the Codex review of lane DEP-1).
+
+    milp's result is a dictionary: `found['fun']` and `found['x']` read
+    what the closed `found.fun` and `found.x` read, and scanned clean in
+    a summary module; a result returned, passed or put in a container
+    leaves for code this audit reads as untraced. Bound to a name, and
+    to another, it stays clean (the specimen).
+    """
+    keyed = "reads a member of the solver's result by subscription"
+    handed = "hands the solver's result on"
+    for tail, needle in (
+        ("    print(found['fun'])\n", keyed),
+        ("    return found['x']\n", keyed),
+        ("    return found['status']\n", keyed),
+        ("    return kept['x']\n", keyed),
+        ("    return found\n", handed),
+        ("    print(found)\n", handed),
+        ("    return dict(found)\n", handed),
+        ("    return [found][0]\n", handed),
+        ("    return {**found}\n", handed),
+        ("    return [key for key in found]\n", handed),
+        ("    first, second = found\n", handed),
+        ("    return f'{found}'\n", handed),
+        ("    return found == kept\n", handed),
+        ("    return (lambda: found)()\n", handed),
+    ):
+        violations = _scan_in(tmp_path / str(abs(hash(tail))), "summary", _HIGHS_SEARCH + tail)
+        _assert_red(violations, needle)
+    direct = _HIGHS_SEARCH.replace("found = scipy.optimize.milp(", "return scipy.optimize.milp(")
+    _assert_red(_scan_in(tmp_path / "direct", "summary", direct), handed)
+    imported = (
+        "from scipy.optimize import milp\n\n\n"
+        "def search(costs):\n"
+        "    return milp(costs, options={'disp': False, 'node_limit': 10, "
+        "'mip_rel_gap': 0})['x']\n"
+    )
+    _assert_red(_scan_in(tmp_path / "imported", "summary", imported), keyed)
 
 
 def test_highs_never_runs_on_the_generation_path(tmp_path):
@@ -3697,6 +3799,48 @@ def test_the_compiled_kernel_is_called_and_nothing_else(tmp_path):
             violations,
             "uses the compiled kernel function 'synthtwin.polish_kernel.propose'",
         )
+    # The kernel MODULE as a bare value (the verify of lane DEP-1's
+    # repair 1): through `[pk][0].propose` or a module handed to a
+    # function, the dispatcher is reached by no name held to calls, and
+    # `warm(pk)` compiled the kernel with fast-math on numba 0.68.0.
+    # The kernel module, and the package above it, are no bare values.
+    kernel_module = "refers to the module 'synthtwin.polish_kernel' as a bare value"
+    tweak = ".propose.targetoptions['fastmath'] = True\n"
+    for label, code, needle in (
+        ("list", "[pk][0]" + tweak, kernel_module),
+        ("tuple", "(pk,)[0]" + tweak, kernel_module),
+        ("dict", "{'k': pk}['k']" + tweak, kernel_module),
+        ("conditional", "(pk if True else pk)" + tweak, kernel_module),
+        ("walrus", "(m := pk)" + tweak, kernel_module),
+        ("default", "def f(m=pk):\n    m" + tweak.replace("\n", "") + "\n", kernel_module),
+        (
+            "handed module",
+            "def warm(m):\n    m" + tweak.replace("\n", "") + "\n\n\nwarm(pk)\n",
+            kernel_module,
+        ),
+    ):
+        violations = _scan_in(
+            tmp_path / ("module " + label),
+            "summary",
+            "from synthtwin import polish_kernel as pk\n\n" + code,
+            {"synthtwin/polish_kernel.py": _POLISH_KERNEL},
+        )
+        _assert_red(violations, needle)
+    violations = _scan_in(
+        tmp_path / "package",
+        "summary",
+        "import synthtwin.polish_kernel\n\n[synthtwin][0].polish_kernel" + tweak,
+        {"synthtwin/polish_kernel.py": _POLISH_KERNEL},
+    )
+    _assert_red(violations, "refers to the module 'synthtwin' as a bare value")
+    # Another first-party module stays a value, as it was: no compiled
+    # function sits under it.
+    assert _scan_in(
+        tmp_path / "other module",
+        "summary",
+        "from synthtwin import paths\n\n\ndef pick():\n    return [paths][0]\n",
+        {"synthtwin/polish_kernel.py": _POLISH_KERNEL},
+    ) == []
     called = _scan_in(
         tmp_path / "called",
         "summary",
@@ -3729,6 +3873,175 @@ def test_the_kernel_decorator_over_a_nested_or_class_def_goes_red(tmp_path):
     ):
         violations = _scan_in(tmp_path / label, "polish_kernel", code)
         _assert_red(violations, "over something other than a def written at the top level")
+
+
+_RETURNED_DISPATCHER = textwrap.dedent(
+    """
+    import numba
+
+
+    @numba.njit(fastmath=False, parallel=False, cache=False)
+    def make_kernel():
+        return lambda a, b, c: a * b + c
+
+
+    calculate = make_kernel()
+    """
+)
+
+
+def test_a_compiled_function_makes_no_function_of_its_own(tmp_path):
+    """Bypass class: a dispatcher returned by the kernel (the Codex review of lane DEP-1).
+
+    A function made inside compiled code comes back to Python as a
+    dispatcher of its own: `calculate = make_kernel()` held one under a
+    name the call rule never saw, and with fast-math written into its
+    settings, a*b+c at a=1+2**-27, b=1-2**-27, c=-1 gave
+    -5.551115123125783e-17 against 0.0 (numba 0.68.0). A lambda, a def or
+    a class anywhere under a compiled function is refused, the complete
+    two-module case among them.
+    """
+    closure = "inside a compiled kernel function"
+    two_modules = _scan_in(
+        tmp_path / "two modules",
+        "polish_kernel",
+        _RETURNED_DISPATCHER,
+        {
+            "synthtwin/generation.py": (
+                "from synthtwin.polish_kernel import calculate\n\n\n"
+                "def run(a, b, c):\n    return calculate(a, b, c)\n"
+            )
+        },
+    )
+    _assert_red(two_modules, "writes a lambda " + closure)
+    for label, old, new, needle in (
+        (
+            "def",
+            "    return lambda a, b, c: a * b + c",
+            "    def inner(a, b, c):\n        return a * b + c\n\n    return inner",
+            "writes a def " + closure,
+        ),
+        (
+            "deep",
+            "    return lambda a, b, c: a * b + c",
+            "    if True:\n        for _ in range(1):\n"
+            "            inner = lambda a: a\n    return inner",
+            "writes a lambda " + closure,
+        ),
+        (
+            "default",
+            "def make_kernel():\n    return lambda a, b, c: a * b + c",
+            "def make_kernel(f=lambda a: a):\n    return f",
+            "writes a lambda " + closure,
+        ),
+        (
+            "class",
+            "    return lambda a, b, c: a * b + c",
+            "    class Inner:\n        pass\n\n    return Inner",
+            "writes a class " + closure,
+        ),
+    ):
+        code = _RETURNED_DISPATCHER.replace(old, new)
+        assert code != _RETURNED_DISPATCHER
+        _assert_red(_scan_in(tmp_path / label, "polish_kernel", code), needle)
+    # A plain-Python function of the kernel module may still define a
+    # function: it is not compiled, and what it makes is no dispatcher.
+    plain = _POLISH_KERNEL + (
+        "\n\ndef outer(rows):\n    def inner(value):\n        return value\n\n"
+        "    return inner(rows)\n"
+    )
+    assert _scan_in(tmp_path / "plain", "polish_kernel", plain) == []
+
+
+def test_a_dispatcher_attribute_goes_red_on_any_object(tmp_path):
+    """Bypass class: a dispatcher's settings, body or compiler reached by
+    whatever name holds it (the Codex review of lane DEP-1).
+
+    getattr, setattr, vars and every double-underscore name are refused
+    already, so a written attribute is the one route to them; the names
+    are refused on any object, in the kernel and in every other module.
+    """
+    for name, line in (
+        ("targetoptions", "calculate.targetoptions['fastmath'] = True\n"),
+        ("py_func", "raw = calculate.py_func\n"),
+        ("_compiler", "raw = calculate._compiler\n"),
+        ("recompile", "calculate.recompile()\n"),
+        ("overloads", "raw = calculate.overloads\n"),
+        ("enable_caching", "calculate.enable_caching()\n"),
+        ("targetoptions", "raw = [calculate][0].targetoptions\n"),
+    ):
+        label = str(abs(hash(line)))
+        needle = "names the attribute '" + name + "'"
+        violations = _scan_in(
+            tmp_path / ("kernel " + label),
+            "polish_kernel",
+            _POLISH_KERNEL + "\n\ncalculate = propose\n" + line,
+        )
+        _assert_red(violations, needle)
+        violations = _scan_in(
+            tmp_path / ("other " + label),
+            "generation",
+            "def tune(calculate):\n    " + line,
+        )
+        _assert_red(violations, needle)
+
+
+def test_an_api_with_an_argument_rule_is_only_called(tmp_path):
+    """Bypass class: an argument-ruled API called through map, a stored
+    name or an argument (the Codex review of lane DEP-1).
+
+    `list(map(pandas.set_option, ['mode.string_storage'], ['pyarrow']))`
+    scanned clean in reading.py and set the storage DEP-1 removes, and
+    `list(map(milp, [[1.0, 1.0]]))` ran the solver with no budget in a
+    summary module: the rules read arguments where a call is written, so
+    these APIs are called where they are written and named nowhere else.
+    """
+    for module, code, dotted in (
+        (
+            "reading",
+            "import pandas\n\n\ndef settle():\n"
+            "    list(map(pandas.set_option, ['mode.string_storage'], ['pyarrow']))\n",
+            "pandas.set_option",
+        ),
+        (
+            "reading",
+            "from pandas import set_option\n\n\ndef settle():\n"
+            "    list(map(set_option, ['compute.use_numba'], [True]))\n",
+            "pandas.set_option",
+        ),
+        (
+            "reading",
+            "import pandas\n\n\ndef settle():\n    setter = pandas.set_option\n"
+            "    setter('compute.use_numba', True)\n",
+            "pandas.set_option",
+        ),
+        (
+            "summary",
+            "from scipy.optimize import milp\n\n\ndef search():\n"
+            "    return list(map(milp, [[1.0, 1.0]]))\n",
+            "scipy.optimize.milp",
+        ),
+        (
+            "summary",
+            "import scipy.optimize\n\n\ndef search(run):\n"
+            "    return run(scipy.optimize.milp, [1.0, 1.0])\n",
+            "scipy.optimize.milp",
+        ),
+        (
+            "reading",
+            "import pyarrow.csv\n\n\ndef options():\n"
+            "    return list(map(pyarrow.csv.ReadOptions, [True]))\n",
+            "pyarrow.csv.ReadOptions",
+        ),
+        (
+            "reading",
+            "import pyarrow.csv\n\n\ndef options():\n"
+            "    return list(map(pyarrow.csv.ParseOptions, [',']))\n",
+            "pyarrow.csv.ParseOptions",
+        ),
+    ):
+        violations = _scan_in(tmp_path / str(abs(hash(code))), module, code)
+        _assert_red(violations, "names '" + dotted + "' other than as the function of a call")
 
 
 def test_numba_code_generator_and_process_pools_stay_forbidden(tmp_path):
@@ -3916,6 +4229,69 @@ def test_the_generation_path_follows_imports_inside_functions_and_relative_ones(
         _assert_red(violations, "imports 'pandas' into the generation path (zone G)")
 
 
+def test_the_package_init_runs_on_the_generation_path(tmp_path):
+    """Importing a module runs every package above it first (the Codex
+    review of lane DEP-1).
+
+    `synthtwin/__init__.py` reading a table scanned clean: it was zone D,
+    while Python runs it before the generator does. Every package's
+    `__init__` above a module on the path is on the path, at any depth,
+    and what it imports with it.
+    """
+    reading = {"synthtwin/reading.py": "def read_table(path):\n    return path\n"}
+    violations = _scan_in(
+        tmp_path / "init reads",
+        "generation",
+        "def run():\n    return 1\n",
+        dict(
+            reading,
+            **{
+                "synthtwin/__init__.py": (
+                    "from synthtwin import reading\n"
+                    "TABLE = reading.read_table('patients.csv')\n"
+                )
+            },
+        ),
+    )
+    _assert_red(violations, "imports the zone R module 'synthtwin.reading'")
+    violations = _scan_in(
+        tmp_path / "init library",
+        "generation",
+        "def run():\n    return 1\n",
+        {"synthtwin/__init__.py": "import pandas\n"},
+    )
+    _assert_red(violations, "imports 'pandas' into the generation path (zone G)")
+    violations = _scan_in(
+        tmp_path / "nested",
+        "generation",
+        "from synthtwin.inner.deeper import tool\n",
+        {
+            "synthtwin/inner/__init__.py": "",
+            "synthtwin/inner/deeper/__init__.py": "import pyarrow.csv\n",
+            "synthtwin/inner/deeper/tool.py": "VALUE = 1\n",
+        },
+    )
+    _assert_red(violations, "imports 'pyarrow.csv' into the generation path (zone G)")
+    violations = _scan_in(
+        tmp_path / "reached by an init",
+        "generation",
+        "import synthtwin.inner.tool\n",
+        {
+            "synthtwin/inner/__init__.py": "from synthtwin import helper\n",
+            "synthtwin/inner/tool.py": "VALUE = 1\n",
+            "synthtwin/helper.py": "import pandas\n",
+        },
+    )
+    _assert_red(violations, "imports 'pandas' into the generation path (zone G)")
+    # The same init beside no generation path stays zone D.
+    assert _scan_in(
+        tmp_path / "no path",
+        "profile",
+        "from synthtwin import reading\n",
+        dict(reading, **{"synthtwin/__init__.py": "from synthtwin import reading\n"}),
+    ) == []
+
+
 def test_the_random_stream_stays_out_of_zone_d(tmp_path):
     """numpy.random is zone G alone: a description module may not draw."""
     violations = _scan_in(
@@ -3961,7 +4337,13 @@ def test_the_real_generation_path_is_the_one_the_loader_reaches(tmp_path):
         for name, tree in trees.items()
     }
     path = _SCANNER._generation_path(imports)
-    for inside in ("synthtwin.generation", "synthtwin.contract", "synthtwin.parsing"):
+    # The package's own __init__ runs before any of its modules does.
+    for inside in (
+        "synthtwin",
+        "synthtwin.generation",
+        "synthtwin.contract",
+        "synthtwin.parsing",
+    ):
         assert inside in path, sorted(path)
         assert _SCANNER._zone_of(inside, path) == "G"
     for writer in ("synthtwin.writing", "synthtwin.sheetwriting", "synthtwin.rendering"):
