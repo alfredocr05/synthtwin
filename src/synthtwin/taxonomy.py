@@ -25881,24 +25881,6 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
             rows = rows + size * entry
     if people == 0:
         return column
-    forms = column.details["layout_forms"] if "layout_forms" in column.details else None
-    if isinstance(forms, dict) and _layout_parts(column.n_present, forms) >= 2:
-        # A CENSUS SPREAD OVER THE WHOLE COLUMN CANNOT BE MET BESIDE TWO
-        # LAYOUTS OR MORE (lane HX2's skeptic, round 2, item 2): 20
-        # patients keyed `P#####` on 268 rows beside 130 keyed
-        # `REC########` on 1,732, all pooled and spread as 13 and 14 rows
-        # a person, left no way to fill 268 rows from twenty of them, and
-        # the twin failed its own validation. Such a column publishes the
-        # census its published counts imply, each layout's rows spread
-        # over its share of the people (`_even_census`, lane HX's): held
-        # whole, no real group size reaches it.
-        implied: dict[str, object] = {}
-        for key in sorted(column.details):
-            implied[key] = column.details[key]
-        implied["n_distinct_by_occurrences"] = _even_census(
-            column.n_present, census, forms
-        )
-        return dataclasses.replace(column, details=implied)
     while kept and (
         people < floor or _spread_is_real(census, kept, people, rows, floor)
     ):
@@ -25922,21 +25904,85 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
     for key in sorted(column.details):
         details[key] = column.details[key]
     details["n_distinct_by_occurrences"] = spread
+    forms = details["layout_forms"] if "layout_forms" in details else None
+    if isinstance(forms, dict) and not _spread_meets_layouts(
+        kept, _layout_part_rows(column.n_present, forms)
+    ):
+        # A SPREAD NO TWIN CAN MEET BESIDE THE LAYOUTS (lane HX2's
+        # skeptic, round 2, item 2): 20 patients keyed `P#####` on 268
+        # rows beside 130 keyed `REC########` on 1,732, all pooled and
+        # spread as 13 and 14 rows a person, left no way to fill 268
+        # rows from twenty of them, and the twin failed its own
+        # validation. Such a column publishes the census its published
+        # counts imply, each layout's rows spread over its share of the
+        # people (`_even_census`, lane HX's): held whole, no real group
+        # size reaches it.
+        details["n_distinct_by_occurrences"] = _even_census(
+            column.n_present, census, forms
+        )
     return dataclasses.replace(column, details=details)
 
 
-def _layout_parts(n_present: int, forms: "dict[str, object]") -> int:
-    """How many parts a layout census cuts the present rows into (`_even_census`)."""
-    parts = 0
+def _layout_part_rows(n_present: int, forms: "dict[str, object]") -> "list[int]":
+    """The rows of each part a layout census cuts the present rows into (`_even_census`).
+
+    Each named layout, the `(withheld)` pool, and the present cells no
+    entry counts, each a part.
+    """
+    parts: "list[int]" = []
     named = 0
-    for key in forms:
+    for key in sorted(forms):
         entry = forms[key]
         if isinstance(entry, int) and entry > 0:
-            parts = parts + 1
+            parts += [entry]
             named = named + entry
     if n_present > named:
-        parts = parts + 1
+        parts += [n_present - named]
     return parts
+
+
+def _spread_meets_layouts(sizes: "dict[int, int]", parts: "list[int]") -> bool:
+    """Whether a census of rows a value can be dealt into the layouts' parts.
+
+    PLAN P4-D406. A census of one part is met by any twin. Over several,
+    a census of one size or two a row apart (`s` and `s` + 1) is met
+    exactly where each part's rows can be cut into `s` and `s` + 1 --
+    between ceil(rows / (`s` + 1)) and floor(rows / `s`) values -- and
+    those ranges add up around the census's values; the count of the
+    larger size then follows from the rows. A census of wider sizes --
+    groups of eleven people and more kept beside the spread pool -- is
+    not judged and reads as met: it kept the twins of every battery
+    meeting their layouts (the catalogue and the suite's description
+    batteries), and the census its counts imply, tried in its place,
+    lost three of them (`test_landing_2b18_identifier_layout.py`'s
+    small-supply cases).
+    """
+    if len(parts) < 2:
+        return True
+    smallest = 0
+    values = 0
+    for size in sizes:
+        if sizes[size] > 0:
+            values = values + sizes[size]
+            if smallest == 0 or size < smallest:
+                smallest = size
+    for size in sizes:
+        if sizes[size] > 0 and size not in (smallest, smallest + 1):
+            return True
+    if smallest < 1:
+        return True
+    fewest = 0
+    most = 0
+    for rows in parts:
+        low = (rows + smallest) // (smallest + 1)
+        high = rows // smallest
+        if smallest + 1 not in sizes or sizes[smallest + 1] == 0:
+            low = high if rows % smallest == 0 else high + 1
+        if low > high:
+            return False
+        fewest = fewest + low
+        most = most + high
+    return fewest <= values <= most
 
 
 def _even_spread(people: int, rows: int) -> "list[tuple[int, int]]":

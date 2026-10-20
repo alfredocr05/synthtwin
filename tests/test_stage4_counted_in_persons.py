@@ -674,3 +674,14 @@ def test_a_key_tuple_is_kept_once_and_a_day_is_read_only_where_one_is_published(
                                   "format": "month-first-date",
                                   "date_percentiles": {"p50": "2019-04-17"}}, True)
     assert days.date_format == "month-first-date"
+
+
+def test_a_spread_is_kept_only_where_the_layouts_can_hold_it() -> None:
+    """Item 2: 13 and 14 rows a person cannot fill 268 rows from twenty; 2 and 3 can fill 405 and 395."""
+    assert not taxonomy._spread_meets_layouts({13: 2, 14: 141}, [268, 1732])
+    assert taxonomy._spread_meets_layouts({2: 316, 3: 56}, [405, 395])
+    assert taxonomy._spread_meets_layouts({13: 2, 14: 141}, [2000])
+    assert not taxonomy._spread_meets_layouts({4: 10}, [21, 19])
+    assert taxonomy._spread_meets_layouts({4: 10}, [20, 20])
+    # A wider census (groups of eleven and more kept beside the spread) is not judged.
+    assert taxonomy._spread_meets_layouts({1: 302, 2: 67, 18: 16, 19: 4}, [422, 378])
