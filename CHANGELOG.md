@@ -25,7 +25,12 @@ far values are now placed where its description says, and at any size the
 quality report and the twin's own report measure its average, spread,
 skew and tail weight against windows that hold the twin that was built.
 No description changes; twins of columns whose tails already met their
-description are the same bytes.
+description are the same bytes. Its repair (2026-10-19): the furthest rows
+now stand apart without pulling the tail outward -- a heavy-tailed count's
+tail had drifted 11 per cent -- and as far as the number of different
+spellings asks, so a column of readings written both `4` and `4.0` keeps
+every number; no twin piles rows on its derived end; and a tail that names
+its values gives each the rows a value needs to be named.
 
 ### Python 3.10 lets each census reading go, and the lines to type on Windows stay PowerShell's (2026-10-16)
 
