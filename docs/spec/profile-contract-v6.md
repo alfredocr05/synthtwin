@@ -5876,7 +5876,7 @@ cap lemma of 4.6c.4.
   (breadth given up, never a leak, since only an exhibited certificate
   is ever relied on). The bounds are this section's own constants,
   PROVISIONAL until lane CHa measures their refusals on the zoo and
-  lane E0b's battery: `TRIES_MAX = 1,000,000` steps of the census's
+  lane `E0b`'s battery: `TRIES_MAX = 1,000,000` steps of the census's
   deficit search (4.6c.4 (b)); `PATTERNS_MAX = 4,096` patterns a class
   in a floored split, taken in the fixed order of 4.6c.8 (a); and
   `NODES_MAX = 10,000` branch-and-bound nodes of the exact integer
@@ -6285,10 +6285,10 @@ derived kind]]`), among the levels `l` where:
    the draw's temperature `tau` (two, 4.6b.14), which left "no derived
    column" a share of `exp(-b / tau)` against a level of `b` bands
    (about a quarter where only a two-band level is eligible); scaled by
-   `N` (at least `2 f` where any value band stands), its share is
-   below the uniform share's `2**-30` (the census draw's scores were
-   repaired the same way, 4.6c.4 (c); the codex review of 2026-10-20,
-   item 15).
+   `N`, its share is at most `exp(-N b / tau)`, below one in a billion
+   wherever `N b >= 42` (an own-mean level of two value bands holds `N
+   >= 44`; the census draw's scores were repaired the same way, 4.6c.4
+   (c); the codex review of 2026-10-20, item 15).
 Both tests read published totals only, so a drawn level's eligibility is
 a function of the description. The test of item 2 is needed: the
 source's total and the derived total are both published, and their
@@ -6787,7 +6787,7 @@ patient-fixed (`V_K = 1 <= T`), its file row counts are 99 and 101,
 and its row census as defined here is 100 and 100. Publishing the file's
 counts would break the census's being a function of the patient table
 ((c)); the census published is the one defined here, and the validator
-measures that one (the validation method's V12.7), so the real file
+measures that one (the validation method's `V12.7`), so the real file
 meets its own census.
 
 **(c) The row census: decided once, from the description without it
@@ -6998,7 +6998,7 @@ listed): at a `null` position, and beyond `L` where no value is listed,
 the twin writes the column's STAND-IN, the cell plan P4-D401 writes for
 a held column (no value of the table), so a list of `null` entries
 writes stand-ins on every row; the validator judges the listed entries
-only (the validation method's V12.7). The column's values that a `null`
+only (the validation method's `V12.7`). The column's values that a `null`
 entry hides are given up, named in the private report.
 
 **(d) Proof that the list carries no count, position `L` included.**
@@ -7163,15 +7163,13 @@ already publishes, so it adds no count.
 
 *Every family holding `r` holds its other members in `G` (the codex
 review of 2026-10-20, item 6, and the page's verify, item 5).* A family
-of the patient chain that holds `r` is offered only where every one of
-its other members is a member of every LATER family that holds `r`
-too, at the same level or finer; in practice the draw offers a family
-holding `r` only with every member of every EARLIER family holding `r`
-among its own members, each at the earlier family's level or finer (a
-rule on the offered options, a function of the placed chain, class
-(b)). Then, `G` being the latest such family, every family holding `r`
-has its other members in `G` at `G`'s level or coarser, and each of its
-cells is a union of grain cells crossed with values of `r`: `R*`'s tie
+of the patient chain that holds `r` is offered only with every member
+of every EARLIER family holding `r` among its own members, each at the
+earlier family's level or finer (a rule on the offered options, a
+function of the placed chain, class (b)). Then `G`, the latest such
+family, holds every member of every family holding `r`, so every family
+holding `r` has its other members in `G` at `G`'s level or coarser, and
+each of its cells is a union of grain cells crossed with values of `r`: `R*`'s tie
 (step 4) is defined on it, and moving patients' `r` inside a grain cell
 keeps its table (step 5). Codex's chain `{r_fine, A}`, then `{B | A,
 r_coarse}`, then `{C | B, r_coarse}` is refused at its third family,
@@ -7180,7 +7178,7 @@ count "`r = 2`, `A1`, `B1`" at 6 in every table that meets them
 (MEASURED by this page's second repair, `wave6/MG/repair2/repro.py`, an
 exact integer search: least and greatest both 6), the cross the
 theorem below claims. The price, families refused that the first build
-offered, is unmeasured: lane CHa counts it on the zoo and lane E0b's
+offered, is unmeasured: lane CHa counts it on the zoo and lane `E0b`'s
 battery before the stage-6 gate.
 
 A ROW FAMILY `{y | parents}` has as its child one repeated or dealt
@@ -7246,7 +7244,7 @@ price: PWIT in one cell holds for every band once the table holds at
 least `2 f` patients (a band of `s_x >= f` rows has `floor(s_x / f) >=
 s_x / (2 f)` and `|P| >= 2 f`), so on one `r` it refuses only tables of
 fewer than 22 patients; the floored split's refusals on tables of
-several `r` are unmeasured, lane CHa's count on the zoo and lane E0b's
+several `r` are unmeasured, lane CHa's count on the zoo and lane `E0b`'s
 battery before the stage-6 gate.
 
 *The floored split's patterns, in order* (the setting's bound). For a
@@ -7856,7 +7854,7 @@ visit beyond what their patient-level parents imply.
    route-runs and the long table, before the December plan's stage-6
    gate (Fri 2026-11-13 at the earliest), the page adopting it by the
    addendum's rule (clauses (1) to (4) at 100,000 rows on at least 5 of
-   6 runs). *Why A0 stands meanwhile:* A0 meets that rule (6 of 6 on
+   6 runs). *Why `A0` stands meanwhile:* `A0` meets that rule (6 of 6 on
    `ST2` at 100,000 rows, 22 of 24 route-runs under the corrected
    guard of 4.6c.1 (b) 6) and publishes no patient-level cell of 1 to
    `f - 1`; candidate (c) has no certificate on this page: its

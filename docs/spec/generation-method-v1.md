@@ -18382,10 +18382,10 @@ patients of two rows, a lower parent cell of 100 lower and 100 upper
 dates whose walk gave 20 patients two upper dates and 20 two lower,
 has 20 patients out of band that no such exchange can mend, and every
 one of them mended by one exchange across bands (MEASURED,
-`wave6/MG/repair2/repro.py`). The first dates' close runs before the
-trend's close below, and after it every dealt date is sorted within
-each patient again (step 5), so positions are final before any `S_P`
-is closed. A patient left outside its band is named in the twin's
+`wave6/MG/repair2/repro.py`). Both closes, own means and first dates,
+run before the trend's close below, and after them every dealt date is
+sorted within each patient again (step 5), so positions are final
+before any `S_P` is closed. A patient left outside its band is named in the twin's
 DEVIATIONS with the family it misses, never silently.
 
 **The trend over visits (contract 4.6c.1; the design study's text,

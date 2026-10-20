@@ -3803,7 +3803,9 @@ line "not judged" exactly when its census differed, against its own
 EXACT-OBSERVABLE kind and mutant 7's MISSED). Only the lines that read
 the census or the `L0` totals, a family, a row family, a derived column,
 a trend and a row census, read "not judged" in V12.3's fixed words on a
-file whose `L0` totals or census differ.
+file whose `L0` totals or census differ: the `L0` totals of the file's
+own columns and of `r`, never a derived column's, whose patient totals
+are what its own line judges (mutant 11 reads MISSED there).
 
 **V12.8 What is checked elsewhere, and why.** Whether a patient-fixed
 column is constant within each patient, and whether each dealt date
@@ -3830,13 +3832,17 @@ vacuous, and its cost.** Each is a twin damaged one way:
     its list MISSED;
 11. a dealt date column's readings moved between patients of different
     first-date bands: the first-date family MISSED;
-12. one patient-fixed value changed on every row of 11 patients from a
-    level of one band to a level of another: that family of the patient
-    chain MISSED (the page's verify, item 7);
-13. one patient of the census's top band given, on every row, a
-    patient-fixed column's value of another band: the column's row
-    census MISSED, its rows moving by the patient's `r` (the page's
-    verify, item 7).
+12. a patient-fixed column's values exchanged, on every row, between 11
+    patients of one cell of a family's other member holding one of its
+    levels and 11 patients of another cell holding another (the
+    column's `L0` totals in patients unchanged, so the line is judged):
+    that family of the patient chain MISSED (the page's verify, item
+    7);
+13. a patient-fixed column's values exchanged, on every row, between a
+    patient of the census's top band and a patient of one row holding a
+    level of another band (its `L0` totals in patients and the census
+    unchanged): the column's row census MISSED, its rows moving by the
+    top-band patient's `r` less one (the page's verify, item 7).
 Each EXACT-OBSERVABLE line of V12.7 has its red case among them
 (mutant 7 the census, 12 a family of the patient chain, 8 a row family,
 11 a derived column, 9 a trend, 10 a position list, 13 a row census),

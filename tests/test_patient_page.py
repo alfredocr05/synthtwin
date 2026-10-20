@@ -555,7 +555,7 @@ def test_the_moments_candidate_is_named_unmeasured_with_its_owner():
     limits = _part("11")
     assert "*The third candidate, NOT MEASURED (the orchestrator's ADDENDUM 2 of 2026-10-20, 12:51" in limits
     assert "Papadimitropoulou 2020" in limits and "Matthews 1990" in limits
-    assert "*Why A0 stands meanwhile:*" in limits
+    assert "*Why `A0` stands meanwhile:*" in limits
     assert "candidate (c), moments: NOT MEASURED in this lane" in _decision()
 
 
@@ -625,6 +625,7 @@ def test_the_numbers_the_verify_corrected():
     assert "on ALL FIFTEEN fixtures with `k = 0`, 0 leaking descriptions over 163,755 SWING passes" in _part("1")
     assert "the other fourteen fixtures at this level are lane CHa's" not in section
     assert "the oracle's ten cases after the first repair" in _decision()
+    assert "**What is written (specified, NOT BUILT; no product code changed).** Contract section 4.6c" in _decision()
     fixed = _part("5")
     assert "has TWO clauses, and passes where either holds" in fixed
     assert "the health data zoo's 14 tables the gate turns on" in fixed
@@ -655,8 +656,9 @@ def test_the_verifys_green_mutants_are_pinned():
     assert "every other column's `n_distinct_by_occurrences` is `null` unless its" in _part("3")
     assert "and the census of `r`'s top band is empty or lies wholly in one of the column's bands at that level" in _part("5")
     v12 = _v12()
-    assert "12. one patient-fixed value changed on every row of 11 patients" in v12
-    assert "13. one patient of the census's top band given, on every row" in v12
+    assert "12. a patient-fixed column's values exchanged, on every row, between 11 patients" in v12
+    assert "13. a patient-fixed column's values exchanged, on every row, between a patient of the census's top band" in v12
+    assert "(the column's `L0` totals in patients unchanged, so the line is judged)" in v12
 
 
 def _deficit_search(m, q):

@@ -61,10 +61,10 @@ validation V12.7 to V12.9), and its first review round's repairs:
   candidate, the ICC and the trend carried by moments, not measured
   (lane GR, before the stage-6 gate).
 - **The second review round** (its verify and one outside review)
-  also bounded every search the page asks for, put a census scored by
-  its patients so that the layer turns off only by the draw's uniform
-  share (on the health data zoo it had turned off 3.8 to 50 per cent of
-  the time), defined the grain family where rows per patient are
+  also bounded every search the page asks for, scored a census by its
+  patients so that the layer turns off only by the draw's uniform share
+  (the first build's scores let it turn off 3.8 to 50 per cent of the
+  time on the health data zoo's tables), defined the grain family where rows per patient are
   constant, required every patient-level family holding the row count
   to hold its other members in the grain family (a counterexample of
   248 patients fixed a count at 6 without it), read a patient-fixed
