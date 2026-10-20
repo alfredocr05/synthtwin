@@ -105,12 +105,14 @@ def test_a_value_fewer_than_eleven_people_hold_is_not_published(
     counted = persons_counted.count_files(table, tmp_path)
     assert counted["subjects"] == ["patient"], counted
     assert counted["few"] == 0, counted
-    # A declared person column publishes the census its counts imply.
+    # A declared person column publishes its census of rows a person
+    # counted in people: no entry of one to ten people stands apart.
     if kind.endswith("_beside"):
-        census = _block(_described(tmp_path, f"{kind}_long"), "patient")[
-            "n_distinct_by_occurrences"
-        ]
-        assert isinstance(census, dict) and len(census) <= 2, census
+        block = _block(_described(tmp_path, f"{kind}_long"), "patient")
+        cells = [line.split(",")[0] for line in
+                 table.read_text(encoding="utf-8").splitlines()[1:]]
+        assert persons_counted.census_few(block, cells) == 0, block[
+            "n_distinct_by_occurrences"]
 
 
 def test_the_stated_shapes_have_no_people_to_count_in(tmp_path: pathlib.Path) -> None:
@@ -147,7 +149,8 @@ def test_no_repeating_subject_column_is_described_byte_for_byte(
         raise AssertionError("the count in people ran where no subject column repeats")
 
     monkeypatch.setattr(profile, "_counted_in_subjects", refused)
-    monkeypatch.setattr(taxonomy, "with_even_census", refused)
+    monkeypatch.setattr(profile, "_layouts_in_subjects", refused)
+    monkeypatch.setattr(taxonomy, "with_census_in_people", refused)
     table = tmp_path / "visits.csv"
     if shape == "one row a person":
         table.write_text(_visits(1200, None), encoding="utf-8", newline="\n")
@@ -317,3 +320,155 @@ def test_a_column_attached_to_its_people_counts_every_value_it_publishes(
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
     assert _NOTICE in screen
     assert _twin_validates(table, tmp_path) == 0
+
+
+# -- the first repair (skeptic 1 of lane HX2) ------------------------------
+
+
+def _profiled(tmp_path: pathlib.Path, stem: str, text: str, *extra: str) -> "tuple[pathlib.Path, str]":
+    table = tmp_path / f"{stem}.csv"
+    table.write_text(text, encoding="utf-8", newline="\n")
+    code, screen = _profile(table, tmp_path, *extra)
+    assert code == 0, screen
+    return table, screen
+
+
+def _held(block: "dict[str, object]") -> bool:
+    return block["role"] == taxonomy.ROLE_IDENTIFIER and block[
+        "detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
+
+
+def test_the_two_candidates_in_the_other_order_publish_nothing_either(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 7: the value failing under the FIRST candidate only is held too."""
+    table, screen = _profiled(tmp_path, "two", persons_counted.two_candidates_reversed(600))
+    described = _described(tmp_path, "two")
+    assert "north" not in json.dumps(_block(described, "site")).casefold()
+    counted = persons_counted.count_files(table, tmp_path)
+    assert counted["subjects"] == ["visit", "patient"]
+    assert counted["few"] == 0, counted
+    assert _NOTICE in screen
+
+
+def test_the_remainder_the_floor_merges_is_counted_in_people(tmp_path: pathlib.Path) -> None:
+    """Item 3: rare sites of three patients, merged into one remainder of more than eleven rows."""
+    table, _screen = _profiled(tmp_path, "rest", persons_counted.remainder_table(2000),
+                               "--identifier", "patient")
+    rows = [line.split(",") for line in table.read_text(encoding="utf-8").splitlines()[1:]]
+    rare = [row for row in rows if row[1].startswith("Rare")]
+    assert len({row[0] for row in rare}) == 3 and len(rare) >= 11
+    block = _block(_described(tmp_path, "rest"), "site")
+    assert _held(block), block
+    assert "suppressed_rows" not in block
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_column_written_for_two_people_publishes_no_statistic_of_them(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 3: fifteen doses of two patients -- their mean, spread and points are not published."""
+    table, _screen = _profiled(tmp_path, "dose", persons_counted.sparse_table(2000),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "dose"), "dose")
+    assert _held(block), block
+    for statistic in ("mean", "std", "percentiles", "levels"):
+        assert statistic not in block
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+@pytest.mark.parametrize("kind", ("name_open", "address_open"))
+def test_no_layout_fewer_than_eleven_people_wear_is_named(
+    tmp_path: pathlib.Path, kind: str
+) -> None:
+    """Item 4: each layout the held column names is worn by eleven patients or more."""
+    seen = shapes.run(tmp_path, kind, 600)
+    assert seen["validate_exit"] == 0, seen
+    table = tmp_path / f"{kind}_long.csv"
+    block = _block(_described(tmp_path, f"{kind}_long"), kind)
+    rows = [line.split(",") for line in table.read_text(encoding="utf-8").splitlines()[1:]]
+    from synthtwin import parsing
+    present = [row[1] for row in rows]
+    convention = parsing.layout_convention(present)
+    named = [form for form in block["layout_forms"] if form != taxonomy.SUPPRESSED_LABEL]
+    for form in named:
+        wearing = {row[0] for row in rows
+                   if parsing.layout_form(row[1], convention) == form}
+        assert len(wearing) >= 11, (form, len(wearing))
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+
+
+@pytest.mark.parametrize("small", (False, True))
+def test_the_person_census_is_counted_in_people(tmp_path: pathlib.Path, small: bool) -> None:
+    """Item 6: groups of eleven people or more stand as they are; a group of three is pooled."""
+    table, _screen = _profiled(tmp_path, "people", persons_counted.census_table(small),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "people"), "patient")
+    census = {int(key): value for key, value in block["n_distinct_by_occurrences"].items()}
+    cells = [line.split(",")[0] for line in table.read_text(encoding="utf-8").splitlines()[1:]]
+    assert persons_counted.census_few(block, cells) == 0, census
+    if not small:
+        assert census == {1: 30, 2: 40, 3: 25, 4: 20, 5: 15}
+        assert _real_misses(table, tmp_path) == set()
+    else:
+        assert 9 not in census, census
+        assert sum(census.values()) == 133
+        assert sum(size * people for size, people in census.items()) == len(cells)
+    assert _twin_validates(table, tmp_path) == 0
+
+
+@pytest.mark.parametrize("differing", (0.0, 0.25))
+def test_a_measurement_attached_to_its_people_counts_its_points(
+    tmp_path: pathlib.Path, differing: float
+) -> None:
+    """Item 7: one height a patient is held; a quarter of the later rows changed, it is not."""
+    table, _screen = _profiled(tmp_path, "tall", persons_counted.height_table(differing),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "tall"), "height")
+    if differing == 0.0:
+        assert _held(block), block
+        assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    else:
+        assert block["role"] == taxonomy.ROLE_CONTINUOUS, block["role"]
+    assert _twin_validates(table, tmp_path) == 0
+
+
+@pytest.mark.parametrize("written", ("iso", "us"))
+def test_dates_and_times_of_day_are_counted_in_people_at_their_points(
+    tmp_path: pathlib.Path, written: str
+) -> None:
+    """Ruling of 2026-10-19 15:42, item 2: a visit date or a time a few patients hold is no point.
+
+    No date stands on eleven rows, so the row floor's own reason holds
+    none: the dates' points, each held by a patient or two, are what the
+    count reaches. Written `04/17/2019`, a cell is the ISO point only read
+    again in the block's format (item 7).
+    """
+    table, _screen = _profiled(tmp_path, "visits", persons_counted.visit_table(2000, written),
+                               "--identifier", "patient")
+    described = _described(tmp_path, "visits")
+    assert _held(_block(described, "seen")), _block(described, "seen")["role"]
+    assert _held(_block(described, "at")), _block(described, "at")["role"]
+    assert _block(described, "value")["role"] == taxonomy.ROLE_CONTINUOUS
+    assert persons_counted.count_files(table, tmp_path)["few"] == 0
+    assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_cell_is_read_as_each_published_value_it_can_be() -> None:
+    """Item 7: a prefix, a mapping key and a word of a sentence are published values."""
+    block: "dict[str, object]" = {
+        "name": "x",
+        "variants": {"Smithfield": 12},
+        "remarks": ["the value Northgate stands on 14 rows"],
+        "wrappers": [{"prefix": "CHF ", "count": 20}],
+    }
+    published = profile._published_in(block, True)
+    assert "smithfield" in published.words
+    assert "northgate" in published.words
+    assert published.prefixes == ("chf",)
+    keys = profile._keys_of("CHF 12.5", published, {})
+    assert "pchf" in keys
+    dated = profile._Published(frozenset({"2019-04-17"}), frozenset(), (), "month-first-date")
+    assert "w2019-04-17" in profile._keys_of("04/17/2019", dated, {})

@@ -5,11 +5,13 @@ Shared by `tests/test_stage4_counted_in_persons.py` and
 and the ledger count the same way.
 
 THE COUNT, made from the table and the description alone and written apart
-from the product's own (`profile._counted_in_subjects`), so a slip in one is
-seen by the other. For every column but the subject columns -- the declared
-person columns (`settings.person_columns`) and the candidates of an open
-person question (the columns the questions file asks it of) -- and for each
-subject column:
+from the product's own (`profile._counted_in_subjects`,
+`profile._layouts_in_subjects`, `taxonomy.with_census_in_people`), so a slip
+in one is seen by the other. The SUBJECT columns are the declared person
+columns (`settings.person_columns`) and the candidates of an open person
+question (the columns the questions file asks it of), each that repeats;
+one of fewer than eleven different values counts only the columns ATTACHED
+to it. For every other column and each subject column:
 
 - each different value of the column, folded, is held by some rows and by
   some different subjects;
@@ -17,19 +19,31 @@ subject column:
   rows of a subject met again holds another value than the one it was first
   met with;
 - a value is IN THE RULE'S SCOPE where one to ten subjects hold it and the
-  column is attached, or at least eleven rows hold it and it is published
-  off the rungs (the points along the range and the tails' boundaries,
-  which the floor publishes whatever the rows at the point);
+  column is attached or holds dates or times of day, or at least eleven
+  rows hold it and it is published off the rungs (the points along the
+  range and the tails' boundaries, which the floor publishes whatever the
+  rows at the point);
 - a value is PUBLISHED where its column's block in the description carries
   it: a text leaf or a mapping key equal to it folded, a word of a sentence
   equal to it, a number leaf (not a count) equal to its reading as a
-  number, or a date leaf equal to its reading in the block's date format.
+  number, or a date leaf equal to its reading in the block's date format;
+- a written FORM the block names (`shape_forms`, or a record number's
+  `layout_forms`) is published, and in scope where one to ten subjects
+  wear it;
+- the REMAINDER -- the present rows reading as no published value -- and
+  the column's present rows as a whole are in scope, where the block
+  publishes statistics over them (any role but a record number's), when
+  eleven rows or more and one to ten subjects hold them;
+- a declared person column's census of rows a person publishes no entry
+  of one to ten people that is not the even spread of a pool of eleven
+  people or more.
 
-`few` is the number of values in scope and published, under any subject
-column (the KPI's target, 0); `literal` the number of published values one
-to ten subjects hold whatever their rows and attachment (recorded beside
-it, never failed: the measurements a patient holds on one row each, which
-the floor judges in rows on a table of one row a person too).
+`few` is the number of values, forms and groups in scope and published,
+under any subject column (the KPI's target, 0); `literal` the number of
+published values one to ten subjects hold whatever their rows and
+attachment (recorded beside it, never failed: the measurements a patient
+holds on one row each, which the floor judges in rows on a table of one row
+a person too).
 """
 
 from __future__ import annotations
@@ -161,10 +175,15 @@ def _written(described: "dict[str, object]") -> "tuple[str, str]":
     return encoding, f"{delimiter}" or ","
 
 
+def repeats(cells: "list[str]") -> bool:
+    """A subject column the count uses: two present cells hold the same text."""
+    present = [cell for cell in cells if parsing.folded(cell)]
+    return len(set(present)) < len(present)
+
+
 def counts_people(cells: "list[str]") -> bool:
-    """A subject column the count uses: it repeats and holds at least FLOOR values."""
-    present = [cell for cell in cells if cell.strip()]
-    return len(set(present)) >= FLOOR and len(set(present)) < len(present)
+    """A subject column holding at least FLOOR different values."""
+    return len({cell for cell in cells if parsing.folded(cell)}) >= FLOOR
 
 
 def subject_columns(described: "dict[str, object]",
@@ -183,32 +202,118 @@ def subject_columns(described: "dict[str, object]",
     return found
 
 
+def _layout_of(cell: str, convention: str, named: "dict[str, int]") -> str:
+    layout = parsing.layout_form(cell, convention)
+    while layout and layout not in named and parsing.layout_fill(layout) >= 2:
+        layout = parsing.layout_shallower(layout)
+    return layout if layout in named else ""
+
+
+def _forms_of(block: "dict[str, object]", values: "list[str]") -> "list[str]":
+    """The published form each cell wears, or "" (record-number layouts or shape forms)."""
+    if isinstance(block.get("layout_forms"), dict):
+        named = {k: v for k, v in block["layout_forms"].items() if k != "(withheld)"}
+        present = [v for v in values if parsing.folded(v)]
+        convention = parsing.layout_convention(present)
+        return [_layout_of(v, convention, named) if parsing.folded(v) else "" for v in values]
+    forms = block.get("shape_forms")
+    if isinstance(forms, dict):
+        named = {k: v for k, v in forms.items() if k != "(withheld)"}
+        found = []
+        for value in values:
+            form = parsing.census_form(value, named) if parsing.folded(value) else ""
+            found += [form if form in named else ""]
+        return found
+    return ["" for _value in values]
+
+
+def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
+    """Entries of a person column's census that name one to ten people.
+
+    The real census counts how many people have each number of rows. A
+    published entry under eleven stands only as the even spread of a pool:
+    at most two such entries, a row apart, and the people outside the real
+    entries published exactly at eleven or more number at least eleven.
+    """
+    census = block.get("n_distinct_by_occurrences")
+    if not isinstance(census, dict) or not census:
+        return 0
+    rows: "dict[str, int]" = {}
+    for cell in cells:
+        if parsing.folded(cell):
+            rows[cell] = rows.get(cell, 0) + 1
+    real: "dict[int, int]" = {}
+    for count in rows.values():
+        real[count] = real.get(count, 0) + 1
+    shown = {int(key): int(value) for key, value in census.items()}
+    small = sorted(key for key, value in shown.items() if 1 <= value < FLOOR)
+    if not small:
+        return 0
+    exact = sum(value for key, value in shown.items()
+                if value >= FLOOR and real.get(key, 0) == value)
+    pool = len(rows) - exact
+    if len(small) <= 2 and small[-1] - small[0] <= 1 and pool >= FLOOR:
+        return 0
+    return len(small)
+
+
 def count(names: "list[str]", columns: "list[list[str]]",
           described: "dict[str, object]", subjects: "list[str]") -> "dict[str, object]":
-    """Published values of the columns but the subjects', held by one to ten people."""
+    """Published values, forms and groups of the other columns held by one to ten people."""
     blocks = {block["name"]: block for block in described["columns"]}
+    settings = described["settings"]
+    declared = list(settings["person_columns"]) if isinstance(settings, dict) else []
     few = 0
     literal = 0
     named: "list[str]" = []
+    for name in subjects:
+        if name in declared and name in blocks:
+            found = census_few(blocks[name], columns[names.index(name)])
+            few += found
+            if found:
+                named += [f"{name}=census"]
     for name, values in zip(names, columns):
         if name in subjects or name not in blocks:
             continue
         block = blocks[name]
+        dated = block.get("role") in ("datetime", "time_of_day")
+        statistics = block.get("role") != "identifier"
         seen = leaves(block)
         plain = leaves(block, rungs=False)
         spelled: "dict[str, str]" = {}
         for value in values:
             spelled.setdefault(parsing.folded(value), value)
+        forms = _forms_of(block, values)
+        remainder = [value if parsing.folded(value) and not is_published(value, block, seen)
+                     else "" for value in values]
         in_scope: "set[str]" = set()
         any_few: "set[str]" = set()
+        groups: "set[str]" = set()
         for subject in subjects:
-            holders, rows, attached = held_by(values, columns[names.index(subject)])
+            people = columns[names.index(subject)]
+            holders, rows, attached = held_by(values, people)
+            enough = counts_people(people)
+            if not enough and not attached and not dated:
+                continue
             for value, who in holders.items():
                 if len(who) < FLOOR:
                     any_few.add(value)
-                    if attached or (rows[value] >= FLOOR
-                                    and is_published(spelled[value], block, plain)):
+                    if (not enough or attached or dated
+                            or (rows[value] >= FLOOR
+                                and is_published(spelled[value], block, plain))):
                         in_scope.add(value)
+            form_holders, _rows, _attached = held_by(forms, people)
+            for form, who in form_holders.items():
+                if len(who) < FLOOR and (enough or attached or statistics):
+                    groups.add(f"form {form}")
+            if not enough or not statistics:
+                continue
+            for label, cells in (("remainder", remainder), ("present", values)):
+                group_holders, group_rows, _attached = held_by(
+                    ["x" if parsing.folded(cell) else "" for cell in cells], people)
+                if "x" in group_holders and len(group_holders["x"]) < FLOOR \
+                        and group_rows["x"] >= FLOOR:
+                    groups.add(label)
         for value in sorted(any_few):
             if not is_published(spelled[value], block, seen):
                 continue
@@ -216,6 +321,8 @@ def count(names: "list[str]", columns: "list[list[str]]",
             if value in in_scope:
                 few += 1
                 named += [f"{name}={spelled[value]}"]
+        few += len(groups)
+        named += [f"{name}:{group}" for group in sorted(groups)]
     return {"few": few, "literal": literal, "named": named}
 
 
@@ -227,7 +334,7 @@ def count_files(table: pathlib.Path, folder: pathlib.Path) -> "dict[str, object]
     questions = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else None
     names, columns = table_columns(table, *_written(described))
     subjects = [name for name in subject_columns(described, questions)
-                if name in names and counts_people(columns[names.index(name)])]
+                if name in names and repeats(columns[names.index(name)])]
     found = count(names, columns, described, subjects)
     found["subjects"] = subjects
     return found
@@ -292,7 +399,7 @@ def withheld_values(table: pathlib.Path, ruled: pathlib.Path, plain: pathlib.Pat
     questions = json.loads(asked.read_text(encoding="utf-8")) if asked.exists() else None
     names, columns = table_columns(table, *_written(on))
     subjects = [name for name in subject_columns(on, questions)
-                if name in names and counts_people(columns[names.index(name)])]
+                if name in names and repeats(columns[names.index(name)])]
     blocks_on = {block["name"]: block for block in on["columns"]}
     blocks_off = {block["name"]: block for block in off["columns"]}
     lost = 0
@@ -302,3 +409,104 @@ def withheld_values(table: pathlib.Path, ruled: pathlib.Path, plain: pathlib.Pat
         lost += len(published_values(cells, blocks_off[name])
                     - published_values(cells, blocks_on[name]))
     return lost
+
+
+# -- the first repair's tables (skeptic 1 of lane HX2) ----------------------
+
+
+def two_candidates_reversed(rows: int) -> str:
+    """`two_candidates` with its two candidate columns in the other order."""
+    lines = two_candidates(rows).splitlines()
+    turned = []
+    for line in lines:
+        patient, visit, rest = line.split(",", 2)
+        turned += [f"{visit},{patient},{rest}"]
+    return "\n".join(turned) + "\n"
+
+
+def remainder_table(rows: int) -> str:
+    """150 declared patients; `site` North and South, and rare sites three patients visit.
+
+    Each rare site stands on too few rows to be named, so the floor merges
+    them into one remainder of more than eleven rows -- held by three
+    patients.
+    """
+    draw = random.Random(21)
+    lines = ["patient,site,value"]
+    for _row in range(rows):
+        person = draw.randrange(150)
+        if person in (7, 16, 25) and draw.random() < 0.5:
+            site = f"Rare{draw.randrange(12)}"
+        else:
+            site = ("North", "South")[draw.randrange(2)]
+        lines += [f"REC{50000000 + 3 * person:08d},{site},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def sparse_table(rows: int) -> str:
+    """150 declared patients; `dose` written on the rows of two of them only, fifteen values."""
+    draw = random.Random(23)
+    lines = ["patient,dose,value"]
+    written = 0
+    for _row in range(rows):
+        person = draw.randrange(150)
+        dose = ""
+        if person in (4, 9):
+            dose = f"{1 + written % 15}"
+            written += 1
+        lines += [f"REC{60000000 + 3 * person:08d},{dose},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def height_table(differing: float) -> str:
+    """150 declared patients on four rows each; `height` one value a patient.
+
+    ``differing`` is the share of a patient's later rows written with
+    another height: nought keeps the column attached to the patient, a
+    quarter does not.
+    """
+    draw = random.Random(29)
+    heights = [f"{draw.uniform(150, 199):.1f}" for _person in range(150)]
+    lines = ["patient,height,value"]
+    for place in range(600):
+        person = place % 150
+        height = heights[person]
+        if place >= 150 and draw.random() < differing:
+            height = f"{draw.uniform(150, 199):.1f}"
+        lines += [f"REC{70000000 + 3 * person:08d},{height},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def visit_table(rows: int, written: str) -> str:
+    """150 declared patients; `seen` a visit date over eight years, no date on eleven rows.
+
+    ``written`` is `iso` (2019-04-17) or `us` (04/17/2019); the description
+    publishes its dates as ISO either way, so a US cell is the published
+    date only read again in the block's format.
+    """
+    draw = random.Random(31)
+    lines = ["patient,seen,at,value"]
+    for _row in range(rows):
+        person = draw.randrange(150)
+        year, month, day = draw.randint(2015, 2022), draw.randint(1, 12), draw.randint(1, 28)
+        seen = (f"{year}-{month:02d}-{day:02d}" if written == "iso"
+                else f"{month:02d}/{day:02d}/{year}")
+        at = f"{draw.randint(0, 23):02d}:{draw.randint(0, 59):02d}"
+        lines += [f"REC{80000000 + 3 * person:08d},{seen},{at},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def census_table(small: bool) -> str:
+    """Declared patients on one to five rows; every rows-a-person group has eleven people or more.
+
+    ``small`` adds three patients on nine rows each: a group of three.
+    """
+    draw = random.Random(37)
+    sizes = [1] * 30 + [2] * 40 + [3] * 25 + [4] * 20 + [5] * 15
+    if small:
+        sizes += [9] * 3
+    lines = ["patient,value"]
+    for person, size in enumerate(sizes):
+        for _row in range(size):
+            lines += [f"REC{90000000 + 3 * person:08d},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"

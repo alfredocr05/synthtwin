@@ -11391,6 +11391,27 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     # refused the producer's own document. The question is asked of the
     # shared rule, `parsing.census_names_one_row`, which the loader asks
     # too.
+    return _no_complement_of_one(
+        named, pooled, written_pool, floor, totals, len(cells.present)
+    )
+
+
+def _no_complement_of_one(
+    named: "dict[str, int]",
+    pooled: int,
+    written_pool: bool,
+    floor: int,
+    totals: "list[tuple[int, str]]",
+    n_present: int,
+) -> "dict[str, int]":
+    """C6-131b's whole-census rule over named layouts and their pool.
+
+    `_layout_forms`'s loop, stated once so that a census some of whose
+    layouts were pooled for another reason (`layouts_counted_in_people`,
+    plan P4-D406) is asked the same question. ``named`` is changed in
+    place. Guarantees: returns the census to publish, keys in sorted
+    order. Raises nothing. No I/O.
+    """
     while named or written_pool:
         taken = ""
         readings: list[tuple[int, int]] = []
@@ -11399,7 +11420,7 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
         whole = _layout_cells_within(named, "")
         if written_pool:
             whole = whole + pooled
-        readings += [(len(cells.present), whole)]
+        readings += [(n_present, whole)]
         failed = parsing.census_names_one_row({}, readings)
         if failed < 0:
             break
@@ -11419,6 +11440,68 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     if written_pool and pooled >= 2:
         published[SUPPRESSED_LABEL] = pooled
     return published
+
+
+def layouts_counted_in_people(
+    column: "ColumnProfile",
+    held: "tuple[str, ...]",
+    floor: int,
+    plain: bool,
+) -> "ColumnProfile":
+    """A record-number block whose layouts ``held`` are pooled (plan P4-D406).
+
+    Each layout of ``held`` -- one that fewer people than the floor wear
+    on a table of several rows a person -- leaves the named census for
+    the `(withheld)` pool, and the census is asked C6-131b's whole-census
+    rule again (`_no_complement_of_one`) against the totals the block
+    publishes beside it: `n_present`, `n_code_alphabet` and, where the
+    layouts are written in the plain convention (``plain``),
+    `n_all_digits`. A prefix entry of a layout no longer named goes with
+    it, and none stays where no layout is named (invariant LP1).
+
+    Guarantees: accepts a described column; returns it with those two
+    fields changed, or unchanged where it publishes no layout census.
+    Determinism: a fixed function of the arguments. Raises nothing. No
+    I/O.
+    """
+    forms = (
+        column.details["layout_forms"] if "layout_forms" in column.details else None
+    )
+    if column.role != ROLE_IDENTIFIER or not isinstance(forms, dict) or not held:
+        return column
+    pooled = 0
+    named: "dict[str, int]" = {}
+    for layout in sorted(forms):
+        count = int(f"{forms[layout]}")
+        if layout == SUPPRESSED_LABEL or layout in held:
+            pooled = pooled + count
+        else:
+            named[f"{layout}"] = count
+    code_alphabet = column.details["n_code_alphabet"] if "n_code_alphabet" in column.details else 0
+    all_digits = column.details["n_all_digits"] if "n_all_digits" in column.details else 0
+    totals = [
+        (int(f"{code_alphabet}"), _LAYOUT_CODE_MARKS),
+        (int(f"{all_digits}") if plain else 0, _LAYOUT_FIGURE_MARKS),
+    ]
+    census = _no_complement_of_one(
+        named, pooled, pooled >= 2, floor, totals, column.n_present
+    )
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    details["layout_forms"] = census
+    prefixes = details["layout_prefixes"] if "layout_prefixes" in details else None
+    if isinstance(prefixes, dict):
+        still: "dict[str, object]" = {}
+        names_one = False
+        for layout in census:
+            if layout != SUPPRESSED_LABEL:
+                names_one = True
+        for scope in sorted(prefixes):
+            if names_one and (scope == "(column)" or scope in census):
+                still[scope] = prefixes[scope]
+        details["layout_prefixes"] = still
+    return dataclasses.replace(column, details=details)
 
 
 def _layout_prefixes(
@@ -25749,24 +25832,28 @@ def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
     )
 
 
-def with_even_census(column: ColumnProfile) -> ColumnProfile:
-    """A person column's census of repetition, held (plan P4-D406).
+def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
+    """A person column's census of rows a person, counted in people (plan P4-D406).
 
     The census a declared record number publishes says how many values
     cover one row, two rows and so on (review item P1-R8-F4). On the
-    column that names the PEOPLE, each entry is how many people have
-    that many rows, and an entry of one to ten is a group of people
-    smaller than the floor, published under no floor (contract 5.3, I2;
-    accepted within one column by P4-D363 while nobody counted in
-    people). Lane HX2 holds it: the column publishes the census its
-    published counts imply (`_even_census`, which lane HX built for a
-    column whose person question is open), and nothing more. A column
-    different on every row keeps its census, which is that one already.
+    column that names the PEOPLE each entry is how many people have that
+    many rows, and an entry of one to ten is a group of people smaller
+    than the floor, published under no floor (contract 5.3, I2; accepted
+    within one column by P4-D363 while nobody counted in people). Lane
+    HX2 counts it in people: an entry of at least ``floor`` people is
+    published as it is; the entries of fewer are pooled, and the pool's
+    people and rows are spread as evenly as whole rows go (one entry, or
+    two a row apart) and added to the census. Where the pool holds one
+    to ``floor`` - 1 people, the smallest entries kept join it until it
+    holds ``floor`` or more, so no group of fewer people stands apart by
+    subtraction. A census with no entry of fewer people is unchanged.
 
-    Guarantees: accepts a described column; returns it with that one
-    field changed, or unchanged where its role publishes no census.
-    Determinism: a fixed function of the argument. Raises nothing. No
-    I/O.
+    Guarantees: accepts a described column and the floor; returns it
+    with that one field changed, or unchanged where its role publishes no
+    census. The census still closes: entries sum to the values, keys
+    weighted by entries to the rows. Determinism: a fixed function of the
+    arguments. Raises nothing. No I/O.
     """
     if column.role != ROLE_IDENTIFIER:
         return column
@@ -25775,17 +25862,46 @@ def with_even_census(column: ColumnProfile) -> ColumnProfile:
         if "n_distinct_by_occurrences" in column.details
         else None
     )
-    forms = (
-        column.details["layout_forms"] if "layout_forms" in column.details else None
-    )
     if not isinstance(census, dict) or not census:
         return column
+    kept: "dict[int, int]" = {}
+    people = 0
+    rows = 0
+    for key in census:
+        size = int(f"{key}")
+        entry = int(f"{census[key]}")
+        if entry >= floor:
+            kept[size] = entry
+        elif entry > 0:
+            people = people + entry
+            rows = rows + size * entry
+    if people == 0:
+        return column
+    while 0 < people < floor and kept:
+        smallest = 0
+        for size in sorted(kept):
+            if smallest == 0 or kept[size] < kept[smallest]:
+                smallest = size
+        people = people + kept[smallest]
+        rows = rows + smallest * kept[smallest]
+        del kept[smallest]
+    share = rows // people
+    over = rows % people
+    if people > over:
+        kept[share] = (kept[share] if share in kept else 0) + people - over
+    if over:
+        kept[share + 1] = (kept[share + 1] if share + 1 in kept else 0) + over
+    widest = 0
+    for size in kept:
+        widest = max(widest, size)
+    width = len(f"{widest}")
+    spread: "dict[str, int]" = {}
+    for size in sorted(kept):
+        spread[_left_padded(size, width)] = kept[size]
     details: dict[str, object] = {}
     for key in sorted(column.details):
         details[key] = column.details[key]
-    details["n_distinct_by_occurrences"] = _even_census(
-        column.n_present, census, forms if isinstance(forms, dict) else {}
-    )
+    details["n_distinct_by_occurrences"] = spread
     return dataclasses.replace(column, details=details)
 
 

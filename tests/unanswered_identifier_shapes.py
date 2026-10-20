@@ -197,10 +197,13 @@ BESIDE = ("email_beside", "beneficiary_beside", "phone_beside")
 # on a long table with a subject column -- a health plan or account
 # number beside a DECLARED person column, and a name, a street address or
 # a full birth date beside a patient key whose person question is OPEN
-# (`_open`: 44 patients, nothing declared). Every value is held by one
-# patient, so none is published and the twin writes none.
+# (`_open`: 44 patients, nothing declared; `_ten`: ten patients, fewer than
+# the floor's number of keys, lane HX2's first repair). Every value is held
+# by one patient, so none is published and the twin writes none.
 COUNTED = ("plan2_beside", "record2_beside", "name_open", "address_open",
-           "dob_open")
+           "dob_open", "name_ten", "dob_ten")
+# The patients of a `_ten` table.
+PATIENTS_TEN = 10
 # The STATED shapes: a name, a street address and a full birth date on a
 # long table with NO subject column -- the value is the only thing that
 # says who the rows are, nothing is declared and no person question is
@@ -226,8 +229,8 @@ UNKNOWN_KEY = "-1"
 
 
 def _base(kind: str) -> str:
-    """The shape a kind writes: `plan2_beside` and `name_open` write `plan2` and `name`."""
-    for ending in ("_beside", "_open"):
+    """The shape a kind writes: `plan2_beside`, `name_open` and `name_ten` write `plan2` and `name`."""
+    for ending in ("_beside", "_open", "_ten"):
         if kind.endswith(ending):
             return kind[: -len(ending)]
     return kind
@@ -235,7 +238,7 @@ def _base(kind: str) -> str:
 
 def _beside(kind: str) -> bool:
     """Whether the table carries a patient key beside the shape's column."""
-    return kind.endswith("_beside") or kind.endswith("_open")
+    return kind.endswith("_beside") or kind.endswith("_open") or kind.endswith("_ten")
 
 
 def _cell(value: str) -> str:
@@ -248,6 +251,8 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
     draw = random.Random(SEED + len(kind))
     beside = _beside(kind)
     patients = PATIENTS_BESIDE if kind.endswith("_beside") else PATIENTS
+    if kind.endswith("_ten"):
+        patients = PATIENTS_TEN
     people: "list[str]" = []
     for place in range(patients):
         one = _patient(kind, place, draw)

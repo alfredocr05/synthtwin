@@ -32,6 +32,7 @@ import io
 import pathlib
 import sys
 import tempfile
+import typing
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -52,8 +53,19 @@ def _quiet(argv: "list[str]") -> int:
             return cli.main(argv)
 
 
-def _rule_off(*_args: object, **_kwargs: object) -> bool:
-    return False
+@contextlib.contextmanager
+def count_off() -> "typing.Iterator[None]":
+    """The product with the count in people switched off: the row floor alone."""
+    saved = (profile._counted_in_subjects, profile._layouts_in_subjects,
+             taxonomy.with_census_in_people)
+    profile._counted_in_subjects = lambda *_a, **_k: False  # type: ignore[assignment]
+    profile._layouts_in_subjects = lambda described, *_a, **_k: described  # type: ignore[assignment]
+    taxonomy.with_census_in_people = lambda column, _floor: column  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        (profile._counted_in_subjects, profile._layouts_in_subjects,
+         taxonomy.with_census_in_people) = saved
 
 
 def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "dict[str, object]":
@@ -65,13 +77,8 @@ def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "d
     stem = table.name[: -len(".csv")]
     if _quiet(["profile", f"{table}", "--out-dir", f"{ruled}", "--replace"] + declared) != 0:
         return {"skipped": True}
-    counted, census = profile._counted_in_subjects, taxonomy.with_even_census
-    profile._counted_in_subjects = _rule_off  # type: ignore[assignment]
-    taxonomy.with_even_census = lambda column: column  # type: ignore[assignment]
-    try:
+    with count_off():
         _quiet(["profile", f"{table}", "--out-dir", f"{plain}", "--replace"] + declared)
-    finally:
-        profile._counted_in_subjects, taxonomy.with_even_census = counted, census
     found = persons_counted.count_files(table, ruled)
     found["withheld"] = persons_counted.withheld_values(table, ruled, plain)
     described = ruled / f"{stem}-profile.json"

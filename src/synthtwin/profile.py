@@ -4259,8 +4259,12 @@ def build_document(
     withheld_names = [] if unanswered is None else unanswered
     # THE SUBJECT COLUMNS THAT REPEAT (plan P4-D406): one different on
     # every row counts each value in rows already, as the floor does.
+    # Each is kept with whether it holds the floor's number of different
+    # values (`_reaches_the_floor`): one of fewer is counted in too, but
+    # only for the columns attached to it (`_counted_in_subjects`).
     subject_cells: "list[list[str]]" = []
     subject_names: "list[str]" = []
+    subject_enough: "list[bool]" = []
     for subject in subjects if subjects else []:
         if subject in subject_names or subject not in table.column_names:
             continue
@@ -4268,11 +4272,12 @@ def build_document(
         for place, column_name in enumerate(table.column_names):
             if column_name == subject:
                 held_cells = table.columns[place]
-        if _repeats(held_cells) and _reaches_the_floor(
-            held_cells, settings.small_cell_floor
-        ):
+        if _repeats(held_cells):
             subject_cells += [held_cells]
             subject_names += [subject]
+            subject_enough += [
+                _reaches_the_floor(held_cells, settings.small_cell_floor)
+            ]
     described_identifiers = forced_identifiers + [
         name for name in withheld_names if name not in forced_identifiers
     ]
@@ -4409,20 +4414,50 @@ def build_document(
 
         described = described_from(cells, handed_over)
         handed_over = None
+        # COUNTED IN PEOPLE, NOT ROWS (plan P4-D406). A column of record
+        # numbers names no layout fewer than the floor's number of
+        # subjects wear, before its census of repetition is drawn from
+        # its layouts.
+        counted_here = bool(subject_cells) and name not in subject_names
+        if counted_here:
+            described = _layouts_in_subjects(
+                described,
+                cells,
+                subject_cells,
+                subject_enough,
+                settings.small_cell_floor,
+            )
         if name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
-        # COUNTED IN PEOPLE, NOT ROWS (plan P4-D406).
         if name in subject_names:
-            described = taxonomy.with_even_census(described)
+            # The person column's census of rows a person, counted in
+            # people; a candidate whose question is open keeps the even
+            # census `as_unanswered_identity` gave it.
+            if name not in withheld_names:
+                described = taxonomy.with_census_in_people(
+                    described, settings.small_cell_floor
+                )
         elif (
-            subject_cells
+            counted_here
             and name not in described_identifiers
             and _counted_in_subjects(
-                described, cells, subject_cells, settings.small_cell_floor
+                described,
+                cells,
+                subject_cells,
+                settings.small_cell_floor,
+                subject_enough,
             )
         ):
             described_identifiers += [name]
-            described = taxonomy.as_held_in_people(described_from(cells, None))
+            described = taxonomy.as_held_in_people(
+                _layouts_in_subjects(
+                    described_from(cells, None),
+                    cells,
+                    subject_cells,
+                    subject_enough,
+                    settings.small_cell_floor,
+                )
+            )
             if counted_in_subjects is not None:
                 counted_in_subjects += [name]
         columns += [_column_block(described)]
@@ -4930,44 +4965,196 @@ def _keys_of(
     return frozen
 
 
+# THE KEYS A CELL IS COUNTED UNDER beside the values it reads as
+# (`_cell_keys`): every present cell counts under `_KEY_PRESENT`, the
+# column's printed totals -- its present rows, its mean, its spread -- and
+# a present cell that reads as no published value counts under
+# `_KEY_REMAINDER`, the remainder the row floor merges and prints as one
+# count. A cell wearing a published written form counts under `f` and
+# that form.
+_KEY_PRESENT = "a"
+_KEY_REMAINDER = "r"
+
+
+def _named_forms(block: "dict[str, object]") -> "dict[str, int]":
+    """The written forms a block's `shape_forms` census names, pool apart."""
+    forms = block["shape_forms"] if "shape_forms" in block else None
+    named: "dict[str, int]" = {}
+    if isinstance(forms, dict):
+        for form in forms:
+            count = forms[form]
+            if form != taxonomy.SUPPRESSED_LABEL and isinstance(count, int):
+                named[f"{form}"] = count
+    return named
+
+
+def _cell_keys(
+    cell: str,
+    published: _Published,
+    forms: "dict[str, int]",
+    absent: "frozenset[str]",
+    memo: "dict[str, tuple[str, ...]]",
+) -> "tuple[str, ...]":
+    """Every key one cell is counted under, nothing for an absent cell."""
+    if cell in memo:
+        return memo[cell]
+    found: "list[str]" = []
+    if parsing.folded(cell) and cell not in absent:
+        values = _keys_of(cell, published, {})
+        found += list(values)
+        found += [_KEY_PRESENT]
+        if not values:
+            found += [_KEY_REMAINDER]
+        if forms:
+            form = parsing.census_form(cell, forms)
+            if form in forms:
+                found += [f"f{form}"]
+    frozen = tuple(found)
+    if len(memo) < 65536:
+        memo[cell] = frozen
+    return frozen
+
+
 def _counted_in_subjects(
     described: taxonomy.ColumnProfile,
     cells: "list[str]",
     subject_cells: "list[list[str]]",
     floor: int,
+    enough: "list[bool] | None" = None,
 ) -> bool:
     """Whether a column publishes a value fewer than `floor` subjects hold.
 
     PLAN P4-D406. Every value the column's description publishes is read
-    back off its block (`_published_in`) and counted in each subject
+    back off its block (`_published_in`), and every written form its
+    `shape_forms` census names, and each is counted in each subject
     column (`_holding`): one held by one to `floor` - 1 different
     subjects, under any subject column, is one the column may not
-    publish -- in a column attached to that subject whatever its rows,
-    in any other where `floor` rows or more hold it and it stands off the
-    rungs. Such a column is then described as a held record number
+    publish -- in a column attached to that subject, or a column of
+    dates or times of day, whatever its rows; in any other where `floor`
+    rows or more hold it and it stands off the rungs. So are the
+    column's present rows as a whole and the remainder of rows that read
+    as no published value, wherever `floor` rows or more hold either: a
+    column all of whose rows, or whose merged remainder, belong to one
+    to `floor` - 1 subjects prints a count of that few people.
+
+    ``enough`` says, per subject column, whether it holds `floor`
+    different values (None: every one does). Under one of fewer every
+    value is held by fewer subjects than the floor, so only a column
+    attached to it, or of dates or times of day, is counted there: the
+    ward code of seven values a question was put to blanks no column of
+    measurements or labels, and the names, birth dates and visit dates of
+    seven patients are held.
+
+    Such a column is then described as a held record number
     (`taxonomy.as_held_in_people`), as lane HX describes a column whose
     identity question is open, so the twin writes made-up values in the
     column's layouts and the real table still meets its own description.
     """
     shown = _column_block(described)
     published = _published_in(shown, True)
-    if not published.words and not published.numbers and not published.prefixes:
-        return False
     plain = _published_in(shown, False)
+    forms = _named_forms(shown)
+    absent = frozenset(described.absent_spellings)
+    dated = described.role in (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
     memo: "dict[str, tuple[str, ...]]" = {}
     keyed: "list[tuple[str, ...]]" = []
     for cell in cells:
-        keyed += [_keys_of(cell, published, memo)]
-    for subject in subject_cells:
+        keyed += [_cell_keys(cell, published, forms, absent, memo)]
+    for place, subject in enumerate(subject_cells):
+        people = enough is None or enough[place]
         attached = _attached(cells, subject)
+        if not people and not attached and not dated:
+            continue
         counted = _holding(keyed, subject, floor)
         for key in counted:
             held = counted[key]
-            if len(held.holders) < floor and (
-                attached or (held.rows >= floor and _plainly(key, plain))
-            ):
+            if len(held.holders) >= floor:
+                continue
+            if key in (_KEY_PRESENT, _KEY_REMAINDER):
+                if people and held.rows >= floor:
+                    return True
+                continue
+            if not people or attached or dated:
+                return True
+            if held.rows >= floor and _plainly(key, plain):
                 return True
     return False
+
+
+def _layouts_in_subjects(
+    described: taxonomy.ColumnProfile,
+    cells: "list[str]",
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+) -> taxonomy.ColumnProfile:
+    """A record-number column's layout census, no layout named that few subjects wear.
+
+    PLAN P4-D406. A layout says what kind of character stood at each
+    place, so one that one to `floor` - 1 subjects wear is a fact about
+    those people -- the letters of one patient's name, the figures of
+    one house number -- however many of their rows wear it. Each named
+    layout's cells are counted in each subject column (as `enough` says:
+    one of fewer than `floor` values counts only a column attached to
+    it), and a layout too few subjects wear goes to the `(withheld)`
+    pool before the whole-census rule (`taxonomy.layouts_counted_in_
+    people`). A column of any other role, or whose layouts every subject
+    column reaches, is returned as it was.
+    """
+    if described.role != taxonomy.ROLE_IDENTIFIER:
+        return described
+    forms = (
+        described.details["layout_forms"]
+        if "layout_forms" in described.details
+        else None
+    )
+    if not isinstance(forms, dict):
+        return described
+    named: "dict[str, bool]" = {}
+    for layout in forms:
+        if layout != taxonomy.SUPPRESSED_LABEL:
+            named[f"{layout}"] = True
+    if not named:
+        return described
+    absent = frozenset(described.absent_spellings)
+    present: "list[str]" = []
+    for cell in cells:
+        if parsing.folded(cell) and cell not in absent:
+            present += [cell]
+    convention = parsing.layout_convention(present)
+    present = []
+    memo: "dict[str, tuple[str, ...]]" = {}
+    keyed: "list[tuple[str, ...]]" = []
+    for cell in cells:
+        if cell in memo:
+            keyed += [memo[cell]]
+            continue
+        key: "tuple[str, ...]" = ()
+        if parsing.folded(cell) and cell not in absent:
+            layout = parsing.layout_form(cell, convention)
+            while layout and layout not in named and parsing.layout_fill(layout) >= 2:
+                layout = parsing.layout_shallower(layout)
+            if layout in named:
+                key = (layout,)
+        if len(memo) < 65536:
+            memo[cell] = key
+        keyed += [key]
+    held: "dict[str, bool]" = {}
+    for place, subject in enumerate(subject_cells):
+        if not enough[place] and not _attached(cells, subject):
+            continue
+        counted = _holding(keyed, subject, floor)
+        for layout in counted:
+            if len(counted[layout].holders) < floor:
+                held[layout] = True
+    if not held:
+        return described
+    return taxonomy.layouts_counted_in_people(
+        described,
+        tuple(sorted(held)),
+        floor,
+        convention == parsing.LAYOUT_PLAIN,
+    )
 
 
 def _without_table_suffix(name: str) -> str:
