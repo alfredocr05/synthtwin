@@ -40,7 +40,7 @@ import pytest
 
 import fixtures
 import health_zoo as zoo
-from synthtwin import asking, cli
+from synthtwin import asking, cli, date_counts
 
 ROWS = 600
 SEED = 20261016
@@ -632,6 +632,363 @@ def test_the_section_is_absent_where_nothing_was_answered(tmp_path: pathlib.Path
     assert profile(table) == 0
     document = questions(table)
     assert asking.ANSWERED_BEFORE not in document and asking.ANSWERED_BEFORE_SAYS not in document
+
+
+# -- the reading the file was written under (skeptic 1, item 1) -----------
+
+_SUBJECTS_200 = 200
+_ROWS_200 = 2400
+
+
+def two_hundred_subjects(folder: pathlib.Path) -> Table:
+    """Skeptic 1's table: a header `column_2,column_1` over 2,400 records of 200 subjects.
+
+    The first field holds the subject codes, twelve rows each; the second
+    holds 150 visit labels, and `column_1` in its first sixteen rows, so
+    the header reads as a record and both readings name the columns
+    `column_1` and `column_2` -- each a different field under each.
+    """
+    lines = ["column_2,column_1"]
+    for place in range(_ROWS_200):
+        second = "column_1" if place < 16 else f"V{place % 150 + 1:04d}"
+        lines += [f"P{place % _SUBJECTS_200 + 1:05d},{second}"]
+    folder.mkdir(parents=True, exist_ok=True)
+    return Table(fixtures.write(folder, "clinic.csv", "\n".join(lines) + "\n"), "clinic")
+
+
+def subject_codes_published(table: Table) -> int:
+    """How many of the 200 real subject codes the description, summary or twin print."""
+    files = outputs(table)
+    found = 0
+    for number in range(1, _SUBJECTS_200 + 1):
+        code = f"P{number:05d}"
+        if any(code.encode() in files[name] or code.lower().encode() in files[name] for name in files):
+            found += 1
+    return found
+
+
+def answered_in_two_rounds(table: Table) -> None:
+    """Round one answers `names`; round two `identifier` for the subjects, `keep` for the labels."""
+    assert profile(table) == 0
+    first = questions(table)
+    give(first, [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_NAMES)])
+    hand_back(table, first)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    second = questions(table)
+    assert give(second, [("column_2", asking.ANSWER_IDENTIFIER), ("column_1", asking.ANSWER_KEEP)]) == [
+        ("column_2", asking.ANSWER_IDENTIFIER, "kind"), ("column_1", asking.ANSWER_KEEP, "kind"),
+    ]
+    hand_back(table, second)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    assert subject_codes_published(table) == 0
+
+
+def refused_with_nothing_written(table: Table, document: "dict[str, object]", *typed: str) -> str:
+    """Hand `document` back with `typed`: exit 2, every file as it was; the screen's words."""
+    hand_back(table, document)
+    before = {one.name: one.read_bytes() for one in table.folder.iterdir()}
+    with contextlib.redirect_stdout(io.StringIO()) as screen:
+        with contextlib.redirect_stderr(screen):
+            code = cli.main(["profile", f"{table.source}", "--replace", "--answers", f"{table.path('questions.json')}", *typed])
+    assert code == 2, code
+    assert {one.name: one.read_bytes() for one in table.folder.iterdir()} == before
+    return screen.getvalue()
+
+
+_OTHER_READING = "this run would read it another way"
+_OTHER_NAMES = "this run reads your table under other names"
+
+
+def kept_entry_of(document: "dict[str, object]", column: str) -> "dict[str, object]":
+    section = document[ANSWERED_BEFORE]
+    assert isinstance(section, list)
+    for entry in section:
+        if entry["column"] == column:
+            return entry
+    raise AssertionError(column)
+
+
+@pytest.mark.parametrize("route", ["edited", "typed", "deleted"])
+def test_the_kept_reading_changed_beside_kept_columns_is_refused(tmp_path: pathlib.Path, route: str) -> None:
+    """Round three reads the table another way than round two's file: refused, no subject code printed.
+
+    Measured on 9acf61d7: the kept `names` edited to `first-record`, or
+    `--first-row data` typed, put `identifier` on the visit labels and
+    `keep` on the subject column, and published 200 of 200 real subject
+    codes; with the kept entry deleted, the same.
+    """
+    table = two_hundred_subjects(tmp_path)
+    answered_in_two_rounds(table)
+    document = questions(table)
+    typed: "list[str]" = []
+    if route == "edited":
+        kept_entry_of(document, asking.FIRST_ROW_SUBJECT)["your_answer"] = asking.ANSWER_FIRST_ROW_DATA
+    elif route == "typed":
+        typed = ["--first-row", "data"]
+    else:
+        section = document[ANSWERED_BEFORE]
+        assert isinstance(section, list)
+        document[ANSWERED_BEFORE] = [entry for entry in section if entry["column"] != asking.FIRST_ROW_SUBJECT]
+    words = refused_with_nothing_written(table, document, *typed)
+    assert (_OTHER_NAMES if route == "deleted" else _OTHER_READING) in " ".join(words.split())
+    assert subject_codes_published(table) == 0
+
+
+@pytest.mark.parametrize("route", ["edited", "typed"])
+def test_the_kept_delimiter_changed_beside_a_kept_column_is_refused(tmp_path: pathlib.Path, route: str) -> None:
+    """A kept delimiter edited or typed over, beside a kept column answer: refused by the reading's words."""
+    table = mixed_table(tmp_path)
+    assert profile(table, "--delimiter", ",", "--code", "reg") == 0
+    assert (asking.DELIMITER_SUBJECT, "comma") in kept(table)
+    document = questions(table)
+    typed: "list[str]" = []
+    if route == "edited":
+        kept_entry_of(document, asking.DELIMITER_SUBJECT)["your_answer"] = "semicolon"
+    else:
+        typed = ["--delimiter", ";"]
+    words = refused_with_nothing_written(table, document, *typed)
+    assert _OTHER_READING in " ".join(words.split())
+
+
+def test_the_kept_reading_unchanged_or_typed_alike_is_acted_on(tmp_path: pathlib.Path) -> None:
+    """The kept `names` handed back as it stands, or typed alike: the run goes on, no code printed."""
+    table = two_hundred_subjects(tmp_path)
+    answered_in_two_rounds(table)
+    once = outputs(table)
+    hand_back(table, questions(table))
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    assert outputs(table) == once
+    assert profile(table, "--answers", f"{table.path('questions.json')}", "--first-row", "names") == 0
+    assert outputs(table) == once
+
+
+# -- every typed form replaces a kept answer (skeptic 1, item 2) -----------
+
+
+def counts_table(folder: pathlib.Path) -> Table:
+    """Whole numbers that read as days from 1899 as well as counts, beside a label."""
+    draw = random.Random(5)
+    lines = ["n,label"]
+    for _place in range(ROWS):
+        lines += [f"{draw.randrange(40000, 45000)},L{draw.randrange(1, 9)}"]
+    folder.mkdir(parents=True, exist_ok=True)
+    return Table(fixtures.write(folder, "counts.csv", "\n".join(lines) + "\n"), "counts")
+
+
+# (form, table, round one typed, round one answered in the file, round
+# two typed, the kept answer that must win, the one it replaces)
+_TYPED_CASES: "list[tuple[str, Callable[[pathlib.Path], Table], list[str], list[tuple[str, str]], list[str], tuple[str, str], tuple[str, str]]]" = [
+    ("--code", mixed_table, ["--measurement", "reg"], [], ["--code", "reg"], ("reg", asking.ANSWER_CODE), ("reg", asking.ANSWER_MEASUREMENT)),
+    ("--identifier", mixed_table, [], [("amount", asking.ANSWER_DECIMAL_COMMA)], ["--identifier", "amount"], ("amount", asking.ANSWER_IDENTIFIER), ("amount", asking.ANSWER_DECIMAL_COMMA)),
+    ("--measurement", mixed_table, ["--code", "reg"], [], ["--measurement", "reg"], ("reg", asking.ANSWER_MEASUREMENT), ("reg", asking.ANSWER_CODE)),
+    ("--decimal-comma", mixed_table, ["--measurement", "amount"], [], ["--decimal-comma", "amount"], ("amount", asking.ANSWER_DECIMAL_COMMA), ("amount", asking.ANSWER_MEASUREMENT)),
+    ("--twelve-hour", mixed_table, ["--code", "clock"], [], ["--twelve-hour", "clock"], ("clock", asking.ANSWER_TWELVE_HOUR), ("clock", asking.ANSWER_CODE)),
+    ("--date-column", mixed_table, [], [("mostly", asking.ANSWER_KEEP)], ["--date-column", "mostly"], ("mostly", asking.ANSWER_DATES), ("mostly", asking.ANSWER_KEEP)),
+    ("--date-count", counts_table, ["--measurement", "n"], [], ["--date-count", "n", date_counts.EXCEL_1900], ("n", date_counts.EXCEL_1900), ("n", asking.ANSWER_MEASUREMENT)),
+    ("--century", mixed_table, ["--century", "born=1930"], [], ["--century", "born=1900"], ("born", asking.ANSWER_CENTURY_1900), ("born", asking.ANSWER_CENTURY_1930)),
+    ("--day-first", mixed_table, [], [(asking.DAY_FIRST_SUBJECT, asking.ANSWER_MONTH_FIRST)], ["--day-first"], (asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST), (asking.DAY_FIRST_SUBJECT, asking.ANSWER_MONTH_FIRST)),
+    ("--delimiter", mixed_table, ["--delimiter", ";"], [], ["--delimiter", ","], (asking.DELIMITER_SUBJECT, "comma"), (asking.DELIMITER_SUBJECT, "semicolon")),
+    ("--first-row", mixed_table, ["--first-row", "data"], [], ["--first-row", "names"], (asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_NAMES), (asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_DATA)),
+]
+# The answer word each form is set against kept answers by.
+_FORM_WORDS = {
+    "--code": asking.ANSWER_CODE,
+    "--identifier": asking.ANSWER_IDENTIFIER,
+    "--measurement": asking.ANSWER_MEASUREMENT,
+    "--decimal-comma": asking.ANSWER_DECIMAL_COMMA,
+    "--twelve-hour": asking.ANSWER_TWELVE_HOUR,
+    "--date-column": asking.ANSWER_DATES,
+    "--date-count": date_counts.EXCEL_1900,
+    "--century": asking.ANSWER_CENTURY_1900,
+    "--day-first": asking.ANSWER_DAY_FIRST,
+    "--delimiter": "comma",
+    "--first-row": asking.ANSWER_FIRST_ROW_NAMES,
+}
+
+
+def typed_case(folder: pathlib.Path, form: str) -> None:
+    """One typed form replacing a kept answer: acted on, kept, and one round's bytes."""
+    _form, make, typed_first, answered_first, typed_then, wins, loses = [case for case in _TYPED_CASES if case[0] == form][0]
+    table = make(folder)
+    assert profile(table, *typed_first) == 0
+    if answered_first:
+        document = questions(table)
+        assert len(give(document, answered_first)) == len(answered_first)
+        hand_back(table, document)
+        assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    assert loses in kept(table)
+    hand_back(table, questions(table))
+    assert profile(table, "--answers", f"{table.path('questions.json')}", *typed_then) == 0
+    held = kept(table)
+    assert wins in held and loses not in held, sorted(held)
+    several = outputs(table)
+    if form == "--identifier":
+        description = json.loads(several["description"])
+        column = [one for one in description["columns"] if one["name"] == "amount"][0]
+        assert column["role"] == "identifier"
+        source = table.source.read_text(encoding="utf-8").splitlines()[1:]
+        place = _MIXED.split(",").index("amount")
+        values = {line.split(",")[place] for line in source}
+        published = json.dumps(column)
+        assert not [value for value in values if f'"{value}"' in published]
+    hand_back(table, questions(table))
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    assert wins in kept(table)
+    assert outputs(table) == several
+    clear(table)
+    assert profile(table, *typed_then) == 0
+    assert outputs(table) == several
+
+
+@pytest.mark.parametrize("form", [case[0] for case in _TYPED_CASES])
+def test_every_typed_form_replaces_a_kept_answer(tmp_path: pathlib.Path, form: str) -> None:
+    """Each option `_typed_answers` maps, typed over a kept answer about its column: the typed one wins."""
+    typed_case(tmp_path, form)
+
+
+@pytest.mark.parametrize("form", [case[0] for case in _TYPED_CASES])
+def test_mutant_a_typed_form_not_set_against_kept_answers_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, form: str) -> None:
+    """The form left out of `_typed_answers`: the kept answer stands, or the run refuses."""
+    real = cli._typed_answers
+    word = _FORM_WORDS[form]
+
+    def typed_answers(*arguments: object) -> "tuple[tuple[str, str], ...]":
+        return tuple(one for one in real(*arguments) if one[1] != word)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(cli, "_typed_answers", typed_answers)
+    with pytest.raises(AssertionError):
+        typed_case(tmp_path, form)
+
+
+# -- a blank kept entry keeps its answer (skeptic 1, item 3) ---------------
+
+
+def test_a_blank_kept_entry_keeps_its_answer(tmp_path: pathlib.Path) -> None:
+    """A kept `identifier` and a kept `code` with `your_answer` cleared: the unedited file's bytes."""
+    table = mixed_table(tmp_path)
+    assert profile(table) == 0
+    first = questions(table)
+    give(first, [("pid", asking.ANSWER_IDENTIFIER), ("reg", asking.ANSWER_CODE)])
+    hand_back(table, first)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    handed = questions(table)
+    hand_back(table, handed)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    unedited = outputs(table)
+    for column in ("pid", "reg"):
+        kept_entry_of(handed, column)["your_answer"] = ""
+    hand_back(table, handed)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    assert outputs(table) == unedited
+
+
+def test_mutant_a_blank_kept_entry_read_as_unanswered_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A cleared kept line read as no answer: the person column is held again, the code kept blank."""
+    real = asking._entry_answer
+
+    def entry_answer(entry: object, place: str, carried: bool = False) -> "tuple[str, str, tuple[str, ...]] | None":
+        return real(entry, place, False)
+
+    monkeypatch.setattr(asking, "_entry_answer", entry_answer)
+    with pytest.raises(AssertionError):
+        test_a_blank_kept_entry_keeps_its_answer(tmp_path)
+
+
+# -- the contradicted answer (skeptic 1, item 4) ---------------------------
+
+
+def test_answers_not_kept_names_what_the_section_drops() -> None:
+    """A carried answer the section lacks is named; a carried `keep` beside a declaration is not."""
+    section = asking.answered_before(asking.Given(columns=("a", "b"), codes=("b",)))
+    carried = (("a", asking.ANSWER_CODE, "kind"), ("b", asking.ANSWER_KEEP, "kind"), ("b", asking.ANSWER_CODE, "kind"))
+    assert asking.answers_not_kept(carried, section) == ["a"]
+    assert asking.answers_not_kept((("a", asking.ANSWER_TWELVE_HOUR, "clock"),), section) == ["a"]
+    assert asking.answers_not_kept((("b", asking.ANSWER_CODE, "kind"),), section) == []
+
+
+def test_mutant_answers_not_kept_naming_nothing_is_seen(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(asking, "answers_not_kept", lambda carried, section: [])
+    with pytest.raises(AssertionError):
+        test_answers_not_kept_names_what_the_section_drops()
+
+
+# -- `keep` alone does not make two questions one (skeptic 1, item 6) ------
+
+
+def test_a_fresh_keep_to_another_question_leaves_a_kept_code(tmp_path: pathlib.Path) -> None:
+    """`mostly` kept as `code`; the question of dates answered `keep` beside it: both stand.
+
+    The question of dates is the round-zero file's own entry, handed back
+    in the `asked` section of the file the next run wrote; it offers only
+    `keep` and `dates`, so it is not the question `code` answered.
+    """
+    table = mixed_table(tmp_path)
+    assert profile(table) == 0
+    dated = [entry for entry in entries(questions(table)) if entry["column"] == "mostly"]
+    assert len(dated) == 1 and offered(dated[0]) == (asking.ANSWER_KEEP, asking.ANSWER_DATES)
+    assert profile(table, "--code", "mostly") == 0
+    document = questions(table)
+    dated[0]["your_answer"] = asking.ANSWER_KEEP
+    asked = document["asked"]
+    assert isinstance(asked, list)
+    asked += [dated[0]]
+    hand_back(table, document)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+    held = kept(table)
+    assert ("mostly", asking.ANSWER_CODE) in held and ("mostly", asking.ANSWER_KEEP) in held
+
+
+def test_mutant_keep_making_two_questions_one_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def same_question(earlier: "tuple[str, ...]", later: "tuple[str, ...]") -> bool:
+        return any(word in later for word in earlier)
+
+    monkeypatch.setattr(asking, "_same_question", same_question)
+    with pytest.raises(AssertionError):
+        test_a_fresh_keep_to_another_question_leaves_a_kept_code(tmp_path)
+
+
+# -- codes in dates answered against the table's order (skeptic 1, item 5) -
+
+
+def test_codes_in_dates_answered_against_the_table_order(tmp_path: pathlib.Path) -> None:
+    """The first column's codes in round one, the second's in round two: one round's bytes.
+
+    The second run acts on the fresh answer before the kept one, against
+    the table's order, and the files are one round's all the same. Two
+    columns sharing a spelling cannot be answered in different rounds:
+    the first answer declares the spelling in every column, so the next
+    file no longer asks it (measured with `UNK` twice, and `UNK` beside
+    `unk`, answered `missing` and `real-value`).
+    """
+    draw = random.Random(11)
+    lines = ["seen_at,other"]
+    for place in range(ROWS):
+        lines += [",".join([
+            "UNK" if place % 40 == 0 else f"2023-{draw.randrange(1, 13):02d}-{draw.randrange(1, 29):02d}",
+            "TBD" if place % 40 == 7 else f"2024-{draw.randrange(1, 13):02d}-{draw.randrange(1, 29):02d}",
+        ])]
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    table = Table(fixtures.write(tmp_path, "real.csv", "\n".join(lines) + "\n"), "real")
+    plan = [[("seen_at", asking.ANSWER_NO_DATE)], [("other", asking.ANSWER_NO_DATE)]]
+    rounds, differs = compare(table, by_round(plan))
+    assert len(rounds.given) == 2 and rounds.lost == []
+    assert not any(differs.values()), differs
+
+
+# -- the reading's mutants (skeptic 1, item 1) ------------------------------
+
+
+@pytest.mark.parametrize("route", ["edited", "typed"])
+def test_mutant_the_kept_reading_not_checked_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, route: str) -> None:
+    monkeypatch.setattr(cli, "_kept_reading_changed", lambda written, first_row, delimiter, kept: [])
+    with pytest.raises(AssertionError):
+        test_the_kept_reading_changed_beside_kept_columns_is_refused(tmp_path, route)
+
+
+def test_mutant_the_names_not_checked_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(asking, "columns_answered_under", lambda document: None)
+    with pytest.raises(AssertionError):
+        test_the_kept_reading_changed_beside_kept_columns_is_refused(tmp_path, "deleted")
 
 
 # -- the mutants, each red ------------------------------------------------

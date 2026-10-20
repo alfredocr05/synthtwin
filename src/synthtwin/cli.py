@@ -1922,28 +1922,6 @@ def _answers_given(
     )
 
 
-def _in_table_order(names: "list[str]", columns: "list[str]") -> "list[str]":
-    """`names` in the order the table holds them, each as often as named.
-
-    Plan P4-D408: the answers about codes in a column of dates are acted
-    on in this order, which is the order one questions file asks them
-    in, so answers given over several rounds are acted on as one round's
-    are. A name the table does not hold keeps its place after the rest.
-    """
-    times: "dict[str, int]" = {}
-    for name in names:
-        times[name] = (times[name] if name in times else 0) + 1
-    ordered: "list[str]" = []
-    for name in columns:
-        if name in times:
-            ordered += [name] * times[name]
-            del times[name]
-    for name in names:
-        if name in times:
-            ordered += [name]
-    return ordered
-
-
 def _earlier_answers_dropped(
     carried: "tuple[tuple[str, str, str], ...]",
     columns: "list[str]",
@@ -3932,16 +3910,6 @@ def _run_profile(
                 )
             )
             return 2
-    # ...AND THE ANSWERS ABOUT CODES IN A COLUMN OF DATES ARE ACTED ON IN
-    # THE TABLE'S ORDER, which is the order one questions file asks them
-    # in, so the same answers given over several rounds declare the same
-    # values in the same order as one round's (plan P4-D408).
-    answered_missing_dates = _in_table_order(
-        answered_missing_dates, read.column_names
-    )
-    answered_real_values = _in_table_order(
-        answered_real_values, read.column_names
-    )
     # THE CODES THE QUESTIONS FILE ANSWERED, FOUND AGAIN IN THE TABLE
     # (plan P4-D381). The file names the column and never its codes --
     # it carries no value of the table -- so the codes are read here,
