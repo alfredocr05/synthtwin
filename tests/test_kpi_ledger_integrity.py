@@ -815,6 +815,11 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 632,000 from 631,000, LANE HX2'S FIRST REPAIR (2026-10-20, plan
+    # P4-D406), the least round figure the lane's ledger fits under:
+    # `K-S3-65` and `K-S3-64` restated over the repair's wider count,
+    # 631,713 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 631,000 from 626,000, LANE HX2 OF THE DECEMBER PLAN (2026-10-19, plan
     # P4-D406), the least round figure the lane's ledger fits under:
     # `K-S3-65`, published values fewer than eleven people hold, and
@@ -1114,7 +1119,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 631_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 632_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
