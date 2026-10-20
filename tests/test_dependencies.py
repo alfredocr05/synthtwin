@@ -357,6 +357,33 @@ def test_python_floor_matches_the_supported_matrix() -> None:
     assert f'requires-python = ">={FLOOR_PYTHON}"' in _pyproject_text()
 
 
+# -- pandas' string storage, set by the reader itself (plan P4-D410) ----
+
+
+def test_the_reader_sets_pandas_string_storage_itself(tmp_path: pathlib.Path) -> None:
+    """read_table chooses Python strings whatever else is installed.
+
+    With pyarrow merely installed -- and it is a runtime dependency now --
+    pandas 3 stores `dtype=str` text in pyarrow on its own ("auto"), and
+    the checking pass read 500,000 rows 24 % slower (plan P4-D410). The
+    option is put back to pandas' own default first, so the line that
+    sets it is what this sees, and pandas' option context restores the
+    process's setting afterwards.
+    """
+    import pandas
+
+    from synthtwin import reading
+
+    table = tmp_path / "clinic.csv"
+    table.write_text("age,ward\n41,north\n52,south\n", encoding="utf-8", newline="\n")
+    with pandas.option_context("mode.string_storage", "auto"):
+        read = reading.read_table(str(table))
+        assert pandas.get_option("mode.string_storage") == "python"
+        frame = pandas.read_csv(table, dtype=str)
+        assert frame["ward"].dtype.storage == "python"
+    assert read.columns[1] == ["north", "south"]
+
+
 # -- the TEST-ONLY cross-check reader -----------------------------------
 #
 # openpyxl is not a dependency of synthtwin and `src` imports it
