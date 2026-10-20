@@ -61,6 +61,7 @@ no path arrives except from the caller.
 
 import dataclasses
 import pathlib
+import typing
 import zipfile
 
 from synthtwin import errors, parsing
@@ -1111,7 +1112,7 @@ def _write_part(
     encoding: str = "utf-8",
     newline: str = "\n",
     data: "bytes | None" = None,
-    members: "list[tuple[str, str]] | None" = None,
+    members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None,
     pieces: "list[str] | None" = None,
 ) -> "tuple[str, str]":
     """Fill one working file; say what went wrong and what it holds now.
@@ -1264,7 +1265,7 @@ def write_both_files(
     first_encoding: str = "utf-8",
     first_newline: str = "\n",
     first_data: "bytes | None" = None,
-    first_members: "list[tuple[str, str]] | None" = None,
+    first_members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None,
 ) -> "list[str]":
     """Write the two files as one outcome, or leave the folder untouched.
 
@@ -2128,7 +2129,7 @@ def write_one_file(
 
 def write_workbook_file(
     target: pathlib.Path,
-    members: "list[tuple[str, str]]",
+    members: "list[tuple[str, int, typing.Iterable[str]]]",
     words: errors.ArtifactWords = errors.PROFILE_WORDS,
 ) -> None:
     """Write the parts of a spreadsheet package as one file.
@@ -2138,13 +2139,27 @@ def write_workbook_file(
     container is assembled here, where every other output of this
     package is written, so the rule that one module writes still holds.
 
+    EACH PART IS WRITTEN AS A STREAM (plan P4-D411). A part arrives as
+    its name, its size in bytes and its text in pieces
+    (`sheetwriting.workbook_stream`), and each piece is written into
+    the member as it comes, so the table's sheet is never held whole.
+    The member is told its size before its first piece, which is what
+    `writestr` told it of a whole text: the zip writer then chooses the
+    same header (zip64 only for a member past zipfile's ZIP64_LIMIT,
+    2**31 - 1 bytes, over 1.05: about 2.045 billion bytes).
+    madler's zlib (1.2.12, measured on every Python here) writes the
+    same deflate stream however its input is cut, so there the file is the
+    bytes `writestr` wrote for the same parts. On zlib-ng (CPython 3.14
+    on Windows, and systems shipping zlib-ng-compat) the compressed
+    bytes may differ from `writestr`'s while every member's text and
+    every header field but the compressed size and the offsets the zip64
+    field carries are the same.
+
     Guarantees:
 
     - Inputs: one local path, the parts in the order they are to be
       written, and the words this command uses for its own files.
-      Each part is handed over as TEXT and `writestr` writes it as
-      UTF-8, which is the same road `write_text_file` takes through
-      pathlib: nothing in this package encodes text by hand.
+      Each piece is TEXT, written as UTF-8.
     - Determinism: every member is given ONE FIXED MOMENT rather than
       the clock and they are written in the order given, so the same
       parts give the same file. Across platforms the compressed stream
@@ -2152,7 +2167,8 @@ def write_workbook_file(
       as a limit rather than claiming past.
     - Errors raised: PathValidationError when the path is not a plain
       local one, and ProfileError, with a plain-language message, when
-      the location cannot be written.
+      the location cannot be written. TypeError where a part's pieces
+      are not the bytes its size said, a defect in the caller.
     - Boundary: one file is written and nothing is read.
     """
     validated = validate_local_path(f"{target}", purpose="output file")
@@ -2160,11 +2176,25 @@ def write_workbook_file(
     try:
         bundle = zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED)
         try:
-            for name, data in members:
+            for name, size, pieces in members:
                 entry = zipfile.ZipInfo(name, _PACKAGE_MOMENT)
                 entry.compress_type = zipfile.ZIP_DEFLATED
                 entry.external_attr = 0o600 << 16
-                bundle.writestr(entry, data)
+                entry.file_size = size
+                written = 0
+                member = bundle.open(entry, "w")
+                try:
+                    for piece in pieces:
+                        data = bytes(piece, "utf-8")
+                        written = written + len(data)
+                        member.write(data)
+                finally:
+                    member.close()
+                if written != size:
+                    raise TypeError(
+                        "internal check: a part of the workbook was not "
+                        "the size it was declared"
+                    )
         finally:
             bundle.close()
     except OSError as error:

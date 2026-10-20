@@ -964,12 +964,24 @@ _GENERATOR_ORIGIN = "numpy.random.default_rng"
 _DRAW_ARRAY_ORIGIN = "numpy.random.default_rng.integers"
 _DRAW_SCALAR_ORIGIN = "numpy.random.default_rng.integers.element"
 _WRITER_ORIGIN = "csv.writer"
+# THE ZIP MEMBER WRITER (plan P4-D411). `writing` writes the workbook
+# twin's sheet into its zip member a piece at a time, so the sheet is
+# never held whole, and the one object that takes the pieces is what
+# `ZipFile.open(entry, "w")` hands back. Left untraced, its `write` is
+# a method call on an untraced value and refused; traced as an ordinary
+# api-instance it would accept ANY method. So it is its own surface:
+# `write` and `close` and nothing else, no attribute at all. Both act
+# on the zip file `writing` already opened on its validated path and
+# reach no other path, no program and no network.
+_ZIP_ORIGIN = "zipfile.ZipFile"
+_ZIP_MEMBER_ORIGIN = "zipfile.ZipFile.open"
 
 _RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
     _GENERATOR_ORIGIN: (frozenset({"integers"}), frozenset()),
     _DRAW_ARRAY_ORIGIN: (frozenset(), frozenset()),
     _DRAW_SCALAR_ORIGIN: (frozenset(), frozenset()),
     _WRITER_ORIGIN: (frozenset({"writerow", "writerows"}), frozenset()),
+    _ZIP_MEMBER_ORIGIN: (frozenset({"close", "write"}), frozenset()),
 }
 
 # How each surface is named in a violation message, in words that say
@@ -979,6 +991,7 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
     _DRAW_ARRAY_ORIGIN: "the array of words the generator's integers method returned",
     _DRAW_SCALAR_ORIGIN: "one word taken out of the array integers returned",
     _WRITER_ORIGIN: "the CSV writer made by csv.writer",
+    _ZIP_MEMBER_ORIGIN: "the zip member writer made by ZipFile.open",
     "numpy": "a value produced by numpy",
     "pandas": "a value produced by pandas",
 }
@@ -1001,6 +1014,18 @@ _RESTRICTED_ELEMENT: "dict[str, str]" = {
 # the library.
 _RESTRICTED_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
     (_GENERATOR_ORIGIN, "integers"): _DRAW_ARRAY_ORIGIN,
+}
+
+# What a method of an ORDINARY api-instance hands back, where the
+# returned object needs a surface of its own (plan P4-D411): the zip
+# member writer, which `ZipFile.open` returns, and the modules where it
+# is traced. The member writer is `writing`'s alone, the one module that
+# writes: zipfile's own admission also holds `reading`, and there the
+# result stays untraced, so a member written in `reading` is refused
+# (skeptic 1 of lane XW, item 4). Every other method result of an
+# ordinary api-instance stays untraced, as before.
+_INSTANCE_METHOD_RESULTS: "dict[tuple[str, str], tuple[str, frozenset[str]]]" = {
+    (_ZIP_ORIGIN, "open"): (_ZIP_MEMBER_ORIGIN, frozenset({"synthtwin.writing"})),
 }
 
 # The one restricted surface whose values may still be handed to
@@ -2839,6 +2864,11 @@ class _Checker(ast.NodeVisitor):
         out: set[tuple[str, str]] = set()
         for kind, origin in self._trust_origins(func.value):
             if kind != "instance":
+                continue
+            opened = _INSTANCE_METHOD_RESULTS.get((origin, func.attr))
+            if opened is not None:
+                if self.module_name in opened[1]:
+                    out.add(("instance", opened[0]))
                 continue
             key = _surface_key(origin)
             if key is None:

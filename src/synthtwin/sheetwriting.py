@@ -35,6 +35,8 @@ stream itself may differ between zlib builds, which the landing states
 as a limit rather than claiming past it.
 """
 
+import typing
+
 from synthtwin import contract, dialect, generation
 
 # THE ONE MOMENT EVERY MEMBER CARRIES. A zip member ordinarily records
@@ -965,10 +967,62 @@ def _sheet_part(
     items: "list[str]",
     places: "dict[str, int]",
 ) -> str:
-    """The worksheet: the rows above, the header, the records, the blanks."""
+    """The worksheet as one text: `_sheet_pieces` joined, for the parts' text."""
+    return "".join(
+        _sheet_pieces(
+            names,
+            cells,
+            classes,
+            styles,
+            n_rows,
+            write_header,
+            header_style,
+            rows_above,
+            empty_places,
+            trailing_rows,
+            trailing_columns,
+            frozen_rows,
+            autofilter,
+            table,
+            items,
+            places,
+        )
+    )
+
+
+def _sheet_pieces(
+    names: "tuple[str, ...]",
+    cells: "list[tuple[str, ...]]",
+    classes: "list[tuple[str, ...]]",
+    styles: "list[tuple[int, ...]]",
+    n_rows: int,
+    write_header: bool,
+    header_style: int,
+    rows_above: int,
+    empty_places: "dict[int, bool]",
+    trailing_rows: int,
+    trailing_columns: int,
+    frozen_rows: int,
+    autofilter: bool,
+    table: bool,
+    items: "list[str]",
+    places: "dict[str, int]",
+) -> "typing.Iterator[str]":
+    """The worksheet in pieces: the rows above, the header, the records, the blanks.
+
+    THE SHEET IS WRITTEN AS A STREAM (plan P4-D411). It was one text
+    grown a row at a time, `text = text + row`, which copied the whole
+    sheet for every row: quadratic in time and in memory, killed by the
+    library study's 1.9 GB guard at 19,999 rows of fifty columns after
+    44 s. The same elements are now made in the same order and handed
+    on one row a piece, so the pieces joined are the text the old writer
+    made, character for character, and what is held at once is one
+    row. `_place_of` is asked in the same order too, which
+    is what keeps the shared-string table the same.
+    """
     width = len(names)
     empty_place = _place_of(items, places, "")
-    text = _DECLARATION + f'<worksheet xmlns="{_MAIN}" xmlns:r="{_RELS}">'
+    head = _DECLARATION + f'<worksheet xmlns="{_MAIN}" xmlns:r="{_RELS}">'
     last_row = rows_above + (1 if write_header else 0) + n_rows
     if trailing_rows:
         last_row = last_row + trailing_rows
@@ -977,31 +1031,34 @@ def _sheet_part(
         last_row = 1
     if last_column < 1:
         last_column = 1
-    text = text + (
+    head = head + (
         f'<dimension ref="A1:{column_reference(last_column)}{last_row}"/>'
     )
     if frozen_rows:
-        text = text + (
+        head = head + (
             '<sheetViews><sheetView workbookViewId="0">'
             f'<pane ySplit="{frozen_rows}" topLeftCell="A{frozen_rows + 1}" '
             'activePane="bottomLeft" state="frozen"/>'
             "</sheetView></sheetViews>"
         )
     else:
-        text = text + '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
-    text = text + "<sheetFormatPr/><sheetData>"
+        head = head + '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+    head = head + "<sheetFormatPr/><sheetData>"
+    yield head
 
     number = 0
     # The rows above the header: one empty-string cell apiece, no more.
     for _above in range(rows_above):
         number = number + 1
-        text = text + f'<row r="{number}">'
-        text = text + _cell(f"A{number}", "s", f"{empty_place}", 0)
-        text = text + "</row>"
+        yield (
+            f'<row r="{number}">'
+            + _cell(f"A{number}", "s", f"{empty_place}", 0)
+            + "</row>"
+        )
 
     if write_header:
         number = number + 1
-        text = text + f'<row r="{number}">'
+        line = ""
         for index in range(width):
             reference = column_reference(index + 1) + f"{number}"
             # A HEADER CELL THE SOURCE LEFT BLANK IS WRITTEN BLANK (plan
@@ -1013,19 +1070,19 @@ def _sheet_part(
             if names[index] == dialect.unnamed_column(index):
                 continue
             place = _place_of(items, places, _cleaned(names[index]))
-            text = text + _cell(reference, "s", f"{place}", header_style)
+            line = line + _cell(reference, "s", f"{place}", header_style)
         # The formatted blanks BEYOND the table stand on the header row.
         for extra in range(trailing_columns):
             reference = column_reference(width + extra + 1) + f"{number}"
-            text = text + _cell(reference, "", "", 0)
-        text = text + "</row>"
+            line = line + _cell(reference, "", "", 0)
+        yield f'<row r="{number}">' + line + "</row>"
 
     for row in range(n_rows):
         number = number + 1
         if row in empty_places:
             # A record holding nothing: the row is written with no cells
             # at all, which is what every reader reads as an empty record.
-            text = text + f'<row r="{number}"/>'
+            yield f'<row r="{number}"/>'
             continue
         line = ""
         for index in range(width):
@@ -1073,27 +1130,25 @@ def _sheet_part(
             place = _place_of(items, places, value)
             line = line + _cell(reference, "s", f"{place}", style)
         if not line:
-            text = text + f'<row r="{number}"/>'
+            yield f'<row r="{number}"/>'
             continue
-        text = text + f'<row r="{number}">' + line + "</row>"
+        yield f'<row r="{number}">' + line + "</row>"
 
     # The formatted blanks BELOW the table.
     for _below in range(trailing_rows):
         number = number + 1
-        text = text + f'<row r="{number}">'
-        text = text + _cell(f"A{number}", "", "", 0)
-        text = text + "</row>"
+        yield f'<row r="{number}">' + _cell(f"A{number}", "", "", 0) + "</row>"
 
-    text = text + "</sheetData>"
+    tail = "</sheetData>"
     if autofilter and write_header and width:
         first = rows_above + 1
-        text = text + (
+        tail = tail + (
             f'<autoFilter ref="A{first}:{column_reference(width)}{last_row}"/>'
         )
     if table:
-        text = text + '<tableParts count="1"><tablePart r:id="rId1"/></tableParts>'
-    text = text + "</worksheet>"
-    return text
+        tail = tail + '<tableParts count="1"><tablePart r:id="rId1"/></tableParts>'
+    tail = tail + "</worksheet>"
+    yield tail
 
 
 def _other_sheet_part(
@@ -1598,14 +1653,68 @@ def _clocks_as_day_fractions(
     return tuple(out)
 
 
+def _bytes_of(pieces: "typing.Iterable[str]") -> int:
+    """How many bytes ``pieces`` take written one after another as UTF-8."""
+    total = 0
+    for piece in pieces:
+        total = total + len(bytes(piece, "utf-8"))
+    return total
+
+
+def _places_already_taken(
+    pieces: "typing.Iterator[str]", items: "list[str]"
+) -> "typing.Iterator[str]":
+    """The sheet's second pass, refused if it meets text not yet in the table.
+
+    The shared-string table is written BEFORE the sheet, so every text
+    the sheet points at must have its place when the table is written:
+    the first pass gave each its place, and the second, making the same
+    elements in the same order, finds every one already there. A text
+    added now would point at a place the written table does not hold.
+    """
+    before = len(items)
+    for piece in pieces:
+        yield piece
+    if len(items) != before:
+        raise TypeError(
+            "internal check: the sheet's second pass met text the shared "
+            "strings were written without"
+        )
+
+
 def _members(
     profile: "contract.Profile", twin: "generation.Twin"
 ) -> "list[tuple[str, str]]":
-    """Every part of the twin's package, in the one fixed order.
+    """Every part of the twin's package as one text each, in the one fixed order."""
+    members: "list[tuple[str, str]]" = []
+    for name, _size, pieces in _package(profile, twin):
+        text = ""
+        for piece in pieces:
+            if not isinstance(piece, str):
+                raise TypeError("internal check: a piece of a part was not text")
+            text = text + piece
+        members += [(name, text)]
+    return members
+
+
+def _package(
+    profile: "contract.Profile", twin: "generation.Twin"
+) -> "list[tuple[str, int, typing.Iterable[str]]]":
+    """Every part of the twin's package, in the one fixed order, to be written.
 
     THE ORDER IS PART OF THE DETERMINISM. The members are written in
     this order and each is given one fixed moment rather than the clock,
     so the same description and the same seed give the same bytes.
+
+    EACH PART IS ITS NAME, ITS SIZE IN BYTES AND ITS TEXT IN PIECES
+    (plan P4-D411). The table's sheet is made TWICE and held never: the
+    first pass gives every text its place in the shared-string table,
+    which is written before the sheet, and counts the sheet's bytes,
+    which the zip writer is told before the first piece so that it
+    chooses the member's header exactly as it chose it for the whole
+    text (zip64 only past zipfile's ZIP64_LIMIT, 2**31 - 1 bytes, over
+    1.05: about 2.045 billion bytes); the second pass is
+    the pieces themselves, made as the zip writer takes them.
     """
     form = profile.source.workbook
     if form is None:
@@ -1715,47 +1824,70 @@ def _members(
         chosen = 1
     hidden = _hidden_states(len(sheet_names), chosen, form.sheet_hidden)
 
-    parts: "list[tuple[str, str]]" = []
+    parts: "list[tuple[str, int, typing.Iterable[str]]]" = []
     for index in range(len(sheet_names)):
         number = index + 1
         if number != chosen:
             extent: "tuple[int, int] | None" = None
             if index < len(form.sheet_extents):
                 extent = form.sheet_extents[index]
+            other = _other_sheet_part(extent, items, places)
             parts += [
                 (
                     f"xl/worksheets/sheet{number}.xml",
-                    _other_sheet_part(extent, items, places),
+                    _bytes_of((other,)),
+                    (other,),
                 )
             ]
             continue
-        parts += [
-            (
-                f"xl/worksheets/sheet{number}.xml",
-                _sheet_part(
-                    names,
-                    cells,
-                    classes,
-                    styles,
-                    n_rows,
-                    write_header,
-                    len(codes),
-                    rows_above,
-                    empty_places,
-                    form.trailing_blank_rows,
-                    form.trailing_blank_columns,
-                    form.frozen_rows,
-                    form.autofilter,
-                    table,
-                    items,
-                    places,
-                ),
+        # The first pass: places given, bytes counted, every piece let go.
+        size = _bytes_of(
+            _sheet_pieces(
+                names,
+                cells,
+                classes,
+                styles,
+                n_rows,
+                write_header,
+                len(codes),
+                rows_above,
+                empty_places,
+                form.trailing_blank_rows,
+                form.trailing_blank_columns,
+                form.frozen_rows,
+                form.autofilter,
+                table,
+                items,
+                places,
             )
-        ]
+        )
+        # The second pass, made only as the zip writer takes it.
+        second = _places_already_taken(
+            _sheet_pieces(
+                names,
+                cells,
+                classes,
+                styles,
+                n_rows,
+                write_header,
+                len(codes),
+                rows_above,
+                empty_places,
+                form.trailing_blank_rows,
+                form.trailing_blank_columns,
+                form.frozen_rows,
+                form.autofilter,
+                table,
+                items,
+                places,
+            ),
+            items,
+        )
+        parts += [(f"xl/worksheets/sheet{number}.xml", size, second)]
 
     first_row = rows_above + 1
     last_row = rows_above + (1 if write_header else 0) + n_rows
-    members: "list[tuple[str, str]]" = [
+    texts: "list[tuple[str, str]]" = [
         ("[Content_Types].xml", _content_types_part(len(sheet_names), table)),
         ("_rels/.rels", _root_rels_part()),
         ("docProps/app.xml", _app_part()),
@@ -1772,18 +1904,21 @@ def _members(
         ("xl/styles.xml", _styles_part(tuple(codes))),
         ("xl/sharedStrings.xml", _shared_strings_part(items)),
     ]
-    for name, data in parts:
-        members += [(name, data)]
+    members: "list[tuple[str, int, typing.Iterable[str]]]" = []
+    for name, text in texts:
+        members += [(name, _bytes_of((text,)), (text,))]
+    for part in parts:
+        members += [part]
     if table:
+        rels = _sheet_rels_part()
+        defined = _table_part(names, first_row, last_row, form.autofilter)
         members += [
             (
                 f"xl/worksheets/_rels/sheet{chosen}.xml.rels",
-                _sheet_rels_part(),
+                _bytes_of((rels,)),
+                (rels,),
             ),
-            (
-                "xl/tables/table1.xml",
-                _table_part(names, first_row, last_row, form.autofilter),
-            ),
+            ("xl/tables/table1.xml", _bytes_of((defined,)), (defined,)),
         ]
     return members
 
@@ -1816,3 +1951,23 @@ def workbook_members(
     column types on the twin as on the source.
     """
     return _members(profile, twin)
+
+
+def workbook_stream(
+    profile: "contract.Profile", twin: "generation.Twin"
+) -> "list[tuple[str, int, typing.Iterable[str]]]":
+    """The twin's package as `writing.write_workbook_file` writes it (plan P4-D411).
+
+    Guarantees:
+
+    - Inputs: as `workbook_members`.
+    - Returns: one (name, size, pieces) a part, in the order
+      `workbook_members` gives them: ``size`` is the part's bytes in
+      UTF-8 and ``pieces`` its text in order, the pieces joined being
+      exactly the text `workbook_members` gives for that part. The
+      table's sheet is made as its pieces are taken and is never held
+      whole, and its pieces may be taken ONCE.
+    - Determinism and errors: as `workbook_members`.
+    - Boundary: nothing is opened, read or written.
+    """
+    return _package(profile, twin)

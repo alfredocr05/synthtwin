@@ -330,6 +330,87 @@ def test_the_zip_extractors_go_red(tmp_path):
     assert violations, "extractall reached a path and was not reported"
 
 
+def _member_writer_module(body):
+    """`synthtwin.writing` opening one zip member for writing, then ``body``."""
+    lines = [
+        "import zipfile",
+        "",
+        "",
+        'def save(path: str, pieces: "list[str]") -> None:',
+        '    bundle = zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED)',
+        '    entry = zipfile.ZipInfo("sheet.xml", (1980, 1, 1, 0, 0, 0))',
+        "    entry.file_size = 3",
+        '    member = bundle.open(entry, "w")',
+    ]
+    lines += ["    " + line for line in textwrap.dedent(body).strip().splitlines()]
+    lines += ["    bundle.close()", ""]
+    return {"synthtwin/__init__.py": "", "synthtwin/writing.py": "\n".join(lines)}
+
+
+def test_the_zip_member_writer_writes_and_closes_and_stays_clean(tmp_path):
+    """Plan P4-D411: the member `ZipFile.open(entry, "w")` hands back is
+    written a piece at a time and closed, in `writing`, and nothing else."""
+    violations = _scan_package(
+        tmp_path,
+        _member_writer_module(
+            """
+            for piece in pieces:
+                member.write(bytes(piece, "utf-8"))
+            member.close()
+            """
+        ),
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_an_unenumerated_zip_member_method_goes_red(tmp_path):
+    """Bypass class: a method of the member writer that is not write or close.
+
+    Left as an ordinary api-instance the member would accept ANY method;
+    `write` and `close` are the whole list (plan P4-D411).
+    """
+    for method in ("flush", "seek", "writelines"):
+        violations = _scan_package(
+            tmp_path / method, _member_writer_module(f"member.{method}()")
+        )
+        _assert_red(violations, method)
+
+
+def test_an_attribute_of_the_zip_member_goes_red(tmp_path):
+    """Bypass class: an attribute read on the member writer, none admitted."""
+    violations = _scan_package(
+        tmp_path, _member_writer_module("return member._fileobj")
+    )
+    _assert_red(violations, "attribute")
+
+
+def test_the_zip_member_writer_does_not_reach_another_module(tmp_path):
+    """Bypass class: the same member writer named from the generator."""
+    modules = _member_writer_module("member.close()")
+    modules["synthtwin/generation.py"] = modules.pop("synthtwin/writing.py")
+    violations = _scan_package(tmp_path, modules)
+    _assert_red(violations, "admitted for synthtwin.reading, synthtwin.writing only")
+
+
+def test_the_zip_member_writer_does_not_reach_the_reader(tmp_path):
+    """Bypass class: the same member writer named from `reading`.
+
+    zipfile's own admission holds `reading` and `writing`; the member
+    writer is `writing`'s alone (skeptic 1 of lane XW, item 4; plan
+    P4-D411), so written in `reading` it is refused.
+    """
+    modules = _member_writer_module(
+        """
+        for piece in pieces:
+            member.write(bytes(piece, "utf-8"))
+        member.close()
+        """
+    )
+    modules["synthtwin/reading.py"] = modules.pop("synthtwin/writing.py")
+    violations = _scan_package(tmp_path, modules)
+    _assert_red(violations, "calls the method 'write' on a value this audit cannot trace")
+
+
 def test_a_neighbouring_expat_attribute_goes_red(tmp_path):
     """Bypass class: an expat name the workbook admission did not admit."""
     violations = _scan_code(
