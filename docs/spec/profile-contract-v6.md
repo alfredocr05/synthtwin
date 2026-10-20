@@ -6119,7 +6119,7 @@ key, one description per table and name on an installation, and R1 read
 as R3 reads it.
 
 **The premise (R), realization.** Every point a proof below uses is
-REALIZED: each column of its region takes, in each row, a reading inside
+MET BY READINGS: each column of its region takes, in each row, a reading inside
 the row's atom, and the readings of each column keep every fact it
 publishes about itself. The atoms carry, by construction, every count
 those facts fix (rungs, own-fact groups, bands, absent cells); what they
@@ -6197,7 +6197,7 @@ richer option was not eligible; nothing becomes derivable.
 table of the preimage, and points of different regions combine.**
 
 *Lemma 6.* For each region `R` choose a point `P_R` of `Sigma(R, o_R)`,
-`o_R` its drawn option, realized under (R). Then some table of
+`o_R` its drawn option, each met by readings under (R). Then some table of
 `CONS(D)` agrees with every `P_R` on its region. Moreover, for a full
 joint cell `x` (4.6b.9 (a)) with `b(x) >= f` and an atom vector `alpha`
 of the region columns such that each region's group `(lambda_R(x),
@@ -6366,7 +6366,7 @@ column (input of lane `A0c`; 4.6b.3's amended paragraph).** The owner
 asked for this fidelity where privacy holds (question 9, 2026-10-19).
 Lane `A0c` measured at 200,000 rows x 50 columns that families, their
 seeds and class `M-d` leave blood pressure and a laboratory value 28 to
-30 and 43 to 47 standard errors off in their age-by-sex slopes, and that
+30 and 43 to 47 standard errors off in their age-by-group slopes, and that
 two carriers help.
 - **The finer-band carrier.** *What it publishes:* nothing outside 4.6b:
   the number's own family `{y | a, s}` holding the other number `a` at a
@@ -6384,7 +6384,7 @@ two carriers help.
   privacy. *Measured:* only with the true triple offered by an oracle
   (blood pressure 0.275 against a real 0.296, 6.6 SE; the laboratory
   value stayed 93 SE off because its age entered at the median split);
-  the finer screen's ranking that puts age x sex x blood pressure in its
+  the finer screen's ranking that puts age x group x blood pressure in its
   top ten without an oracle is lane `A0c`'s queued run, unmeasured:
   lanes MPp and CHa measure it. A REFINEMENT node (a published table of
   `a` at a finer level inside each cell of its chain level and `s`, so
