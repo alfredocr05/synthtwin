@@ -4827,11 +4827,11 @@ def _holding(
     """`subjects_holding` over the keys each row's cell is counted as."""
     rows: "dict[str, int]" = {}
     held: "dict[str, list[str]]" = {}
-    # ...and, past a small floor, a set beside each list, so a raised
+    # ...and, past a small floor, a mapping beside each list, so a raised
     # floor never asks a long list whether it holds a subject (Codex's
     # review of lane HX2, item 10). At the default floor of eleven the
     # list alone is asked, and costs no more memory than it did.
-    sets: "dict[str, set[str]]" = {}
+    sets: "dict[str, dict[str, bool]]" = {}
     small = floor <= _LIST_ASKED_UP_TO
     for place, keys in enumerate(keyed):
         if not keys:
@@ -4848,14 +4848,15 @@ def _holding(
                         holders += [subject]
                 elif subject not in sets[key]:
                     holders += [subject]
-                    sets[key].add(subject)
+                    met = sets[key]
+                    met[subject] = True
                     if len(holders) >= floor:
                         del sets[key]
             else:
                 rows[key] = 1
                 held[key] = [subject]
                 if not small:
-                    sets[key] = {subject}
+                    sets[key] = {subject: True}
     counted: "dict[str, SubjectCount]" = {}
     for key in rows:
         counted[key] = SubjectCount(rows[key], tuple(held[key]))
