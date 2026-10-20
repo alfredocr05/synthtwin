@@ -1250,11 +1250,16 @@ def test_mutant_the_comma_in_the_slot_of_what_the_column_holds_is_seen(tmp_path:
         test_a_measurement_and_its_comma_are_both_kept(tmp_path)
 
 
-def visits_table(folder: pathlib.Path) -> Table:
-    """Codex's item 2: 600 visit dates written as Excel day counts, `random.Random(5).randrange(40000, 45000)`."""
+def visits_table(folder: pathlib.Path, grouped: bool = False) -> Table:
+    """Codex's item 2: 600 visit dates written as Excel day counts, `random.Random(5).randrange(40000, 45000)`.
+
+    `grouped` writes each count with a point between the thousands,
+    `42.345` (lane AQ's close verify, finding 1).
+    """
     draw = random.Random(5)
     folder.mkdir(parents=True, exist_ok=True)
-    lines = ["visit"] + [f"{draw.randrange(40000, 45000)}" for _ in range(ROWS)]
+    counts = [draw.randrange(40000, 45000) for _ in range(ROWS)]
+    lines = ["visit"] + [f"{one // 1000}.{one % 1000:03d}" if grouped else f"{one}" for one in counts]
     return Table(fixtures.write(folder, "visits.csv", "\n".join(lines) + "\n"), "visits")
 
 
@@ -1288,22 +1293,48 @@ def test_a_comma_beside_counted_dates_keeps_the_dates(tmp_path: pathlib.Path) ->
     (`cli._run_profile`) and the run refused. The privacy face: the date
     reading is kept and no day count is published, in the description or
     the summary.
+
+    The third route answers the comma in the file (lane AQ's close
+    verify, finding 1): the 600 counts written with a point between the
+    thousands, `42.345`, the first file's question about `visit` answered
+    `decimal_comma` -- an answer deciding what the column holds as well
+    as how its numbers are written -- with `--date-count visit
+    excel-1900` typed. The typed count is kept after the round and after
+    one hand-back unchanged, and the files equal one round's; deleting
+    the counted dates of every column the file's answers speak for
+    (`spoken_for` in place of `held_by_answer`) drops it, as bbdf0f88
+    did. Kept, that count is declined with a notice -- the cells do not
+    read as such dates -- so this route judges the answers and the
+    files, not the reading: the day counts it then publishes as numbers
+    are lane HX2's item.
     """
-    for route in ("typed-over", "handed-back"):
-        table = visits_table(tmp_path / route)
+    for route in ("typed-over", "handed-back", "comma-answered"):
+        dated = route != "comma-answered"
+        table = visits_table(tmp_path / route, grouped=not dated)
         if route == "typed-over":
             assert profile(table, "--date-count", "visit", date_counts.EXCEL_1900) == 0
             hand_back(table, questions(table))
             assert profile(table, "--answers", f"{table.path('questions.json')}", "--decimal-comma", "visit") == 0
-        else:
+        elif route == "handed-back":
             assert profile(table, "--date-count", "visit", date_counts.EXCEL_1900, "--decimal-comma", "visit") == 0
+            hand_back(table, questions(table))
+            assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+        else:
+            assert profile(table) == 0
+            document = questions(table)
+            assert give(document, [("visit", asking.ANSWER_DECIMAL_COMMA)]), route
+            hand_back(table, document)
+            assert profile(table, "--answers", f"{table.path('questions.json')}", "--date-count", "visit", date_counts.EXCEL_1900) == 0
+            assert ("visit", date_counts.EXCEL_1900) in kept(table), (route, sorted(kept(table)))
             hand_back(table, questions(table))
             assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
         held = kept(table)
         assert ("visit", date_counts.EXCEL_1900) in held and ("visit", asking.ANSWER_DECIMAL_COMMA) in held, (route, sorted(held))
-        assert described_column(table, "visit")["role"] == "datetime", route
+        if dated:
+            assert described_column(table, "visit")["role"] == "datetime", route
         several = outputs(table)
-        assert day_counts_printed(several) == 0, route
+        if dated:
+            assert day_counts_printed(several) == 0, route
         clear(table)
         assert profile(table, "--date-count", "visit", date_counts.EXCEL_1900, "--decimal-comma", "visit") == 0
         assert outputs(table) == several, route
