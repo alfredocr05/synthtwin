@@ -42,7 +42,7 @@ import zipfile
 import pytest
 
 import workbook_stream_cases as cases
-from synthtwin import dialect, generation, sheetwriting, writing
+from synthtwin import generation, sheetwriting, writing
 
 SHEET = "xl/worksheets/sheet1.xml"
 
@@ -199,41 +199,6 @@ def test_mutants_of_the_rows_go_red(
 # -- the memory -----------------------------------------------------------
 
 
-# One pool of cells a kind, so the twin's own cells are a few objects
-# repeated and what tracemalloc sees is the writer's.
-_POOLS: "tuple[tuple[str, tuple[str, ...]], ...]" = (
-    (dialect.SHEET_CELL_TEXT, ("alpha", "beta & co", "gamma", " spaced ", "delta")),
-    (dialect.SHEET_CELL_NUMBER, ("12", "3.25", "-7", "1000000", "0.5")),
-    (dialect.SHEET_CELL_DATE, ("2024-01-05", "2023-12-31", "2025-06-30")),
-    (dialect.SHEET_CELL_BOOLEAN, ("TRUE", "FALSE")),
-    (dialect.SHEET_CELL_NUMBER, ("45291", "45292.5", "45300.25")),
-    (dialect.SHEET_CELL_TEXT, ("00123", "00456", "07789", "A-1", "B-2", "C-3")),
-    (dialect.SHEET_CELL_BLANK, ("",)),
-    (dialect.SHEET_CELL_EMPTY, ("",)),
-    (dialect.SHEET_CELL_ERROR, ("#N/A",)),
-    (dialect.SHEET_CELL_NUMBER, ("1", "2", "3", "4", "5", "6", "7", "8", "9")),
-)
-
-
-def _sheet_arguments(n_rows: int, width: int = 50) -> tuple:
-    """`_sheet_pieces`'s arguments for a sheet of ``n_rows`` rows of ``width`` columns."""
-    names = tuple(f"column_{index:02d}" for index in range(width))
-    cells: "list[tuple[str, ...]]" = []
-    classes: "list[tuple[str, ...]]" = []
-    styles: "list[tuple[int, ...]]" = []
-    for index in range(width):
-        kind, pool = _POOLS[index % len(_POOLS)]
-        cells += [tuple(pool[(row * 7 + index) % len(pool)] for row in range(n_rows))]
-        classes += [(kind,) * n_rows]
-        styles += [((index % 3),) * n_rows]
-    items: "list[str]" = []
-    places: "dict[str, int]" = {}
-    return (
-        names, cells, classes, styles, n_rows, True, 3, 0, {}, 0, 0, 1, True, False,
-        items, places,
-    )
-
-
 def _windowed(
     pieces: "typing.Iterable[str]", start_at: int, readings: "list[int]"
 ) -> "typing.Iterator[str]":
@@ -265,7 +230,7 @@ def _traced_write(folder: pathlib.Path, n_rows: int, window_from: int) -> "tuple
     the window's share of the sheet, and tracing every row would only
     take four times as long (168 s at this size, measured).
     """
-    arguments = _sheet_arguments(n_rows)
+    arguments = cases.sheet_arguments(n_rows)
     items = arguments[14]
     held = 0
     readings: "list[int]" = []
