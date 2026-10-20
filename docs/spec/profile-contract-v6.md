@@ -6286,7 +6286,8 @@ holds every node of each of its columns), with the cross-sums of
 and spreads; every union of `(cell, code)` groups, and every union of
 cells of the full joint table beside them: the table theorem's unions
 are the refined cells' unions over every atom, so Theorem 1 of 4.6b.9
-holds for a description holding moments. In the table layer alone
+holds for a description holding moments, read beyond each column's own
+facts as this theorem states it. In the table layer alone
 (`moments` null) `O(U)` is case (ii) of 4.6b.9 (c), so Theorem 2 is that
 section's statement.
 
@@ -6540,10 +6541,10 @@ size rule on the published tables (`2 f` rows for `mean`, `spread` and
 its count and codes allow (a code sum from 0 to 255 times its count; a
 square sum at least the code sum squared over the count, by
 Cauchy-Schwarz); each correlation's sums give `400 cov**2 < 361 var_a
-var_b` (4.6d.6); and where `procedure.witness` names the closed form
-`CF1`, the loader recomputes the witness and finds it holding.
-Elsewhere the witness is a function of the description that the
-producer computes and `K-S6-08` checks, as S26's FINE is.
+var_b` (4.6d.6); and the loader recomputes the witness of every region
+inside the closed form `CF1`'s class and finds it holding. For the other
+regions the witness is a function of the description that the producer
+computes and `K-S6-08` checks, as S26's FINE is.
 
 **Invariant S37 (words and names).** `withheld` names exactly the
 offered classes the drawn options do not publish, a column or pair and
