@@ -3769,3 +3769,63 @@ page's prototype counted a six-by-six table in 26 milliseconds at
 2,000,000 rows by bit masks. The implied tables are products of
 published tables, independent of the rows. Lane CHv measures the whole
 check at 200,000 and 2,000,000 rows under `K-S6-15`.
+
+**V12.7 The patient layer's lines (lane MG, plan P4-D412; specified,
+NOT BUILT).** Where the description's `relationships.grain` stands
+(contract section 4.6c), the file is re-described as V2 says, with the
+published choices and none of its own: its patients are read by the
+published person column, its positions by the published position
+column, every column at its published class, levels and edges. The
+validator never draws, never chooses a census, a class or a family,
+and never reads the key.
+
+| object | check | kind |
+|---|---|---|
+| `r`'s census | the file's patients in each published band of `r` and its rows in the top band equal the published counts; the verdict alone | EXACT-OBSERVABLE: HELD or MISSED |
+| a family of the patient chain | counted in PATIENTS on the file's patient table (each patient's value at its first position), compared with the published table as V12.2 compares a family | EXACT-OBSERVABLE: HELD or MISSED |
+| a row family | counted in ROWS in each (parent cell, band) on the file, compared with the published table cell for cell | EXACT-OBSERVABLE: HELD or MISSED |
+| a derived column | recomputed on the file (each patient's first date, own mean), cut at the published edges, its families counted as above | EXACT-OBSERVABLE: HELD or MISSED |
+| a published `Q_P` | the file's `S_P`, on the published grid code and positions, in the published window | EXACT-OBSERVABLE: HELD or MISSED |
+| a position-like column's list | the file's modal value at each listed position equals the listed one | EXACT-OBSERVABLE: HELD or MISSED |
+| a patient-fixed column's row census, where published | the file's row counts equal the published ones | EXACT-OBSERVABLE: HELD or MISSED |
+| a patient-fixed column constant within each patient; a dealt date in order within each patient | not a line of this report (V12.8) | none here |
+| the classes, the gate and the withheld maps | invariants S29 to S33 | the loader refuses, naming the column |
+
+Each verdict follows V12.3: no measured number on any line, the verdict
+printed only where the file's own description would publish the same
+object (the census eligible on the file's own census, the family's
+certificate passing on the file's counts, SWING passing on the file's
+own `S_P`), otherwise V5.3's fixed sentence; a census, family or trend
+line of a file whose `L0` totals or census differ reads "not judged" in
+V12.3's fixed words.
+
+**V12.8 What is checked elsewhere, and why.** Whether a patient-fixed
+column is constant within each patient, and whether each dealt date
+runs in visit order, are properties of a twin, met by construction
+(the generation method's G16.13 and G16.14) and checked by the oracle
+and by the KPI harness (`K-BC-06`'s clauses "fixed columns constant in
+100 per cent of twin patients" and "visit dates in order"). On a REAL
+file either verdict would be a count: the contract's class lets up to
+`T` patients hold two values or a decrease, so a MISSED there would say
+that 1 to `T` patients do, a count the description never publishes.
+The validator prints neither.
+
+**V12.9 The patient layer's mutants (`K-S6-04`, beside V12.4's six), not
+vacuous, and its cost.** Each is a twin damaged one way:
+7. one patient's rows split between two new person values: the census
+   line MISSED;
+8. one repeated column's cells exchanged between rows of two patients
+   in DIFFERENT parent cells and different bands of a row family: that
+   row family MISSED;
+9. the readings of a FINE column carrying a trend reversed in position
+   within every patient of a cell: that cell's `Q_P` MISSED (its `S_P`
+   negated);
+10. a position-like column shifted by one position in every patient:
+    its list MISSED;
+11. a dealt date column's readings moved between patients of different
+    first-date bands: the first-date family MISSED.
+Each EXACT-OBSERVABLE line of V12.7 has its red case among them, and a
+green case beside it: the same twin undamaged, every line HELD. The
+lines count by band codes and patient keys, as V12.6 counts; the
+derived columns add one pass over the rows. Lane CHv measures them with
+V12.6's under `K-S6-15`.

@@ -600,6 +600,13 @@ cannot get worse unseen.
   because publishing both solved for the held-back values. The twin's
   pooled mean is now exact and its spread is unchecked, about 2 out
   (`K-2B-50`, green on the mean). Stated, not hidden.
+- **The patient layer's within-patient correlation on long tables**
+  (2026-10-20; specified, not built, plan P4-D412). On the design's
+  invented long table (a median of 20 rows a patient) the layer's own
+  route brings the correlation back 0.077 to 0.081 below the real one,
+  outside `K-BC-06`'s 0.07 (stated on short tables, where it holds);
+  the visit trend publishes no cell there. Owners: lane GR's
+  generation-only patient term first; otherwise the January stretch.
 
 ## The rules an assistant breaks first here
 

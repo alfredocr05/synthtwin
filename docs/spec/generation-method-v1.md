@@ -18162,6 +18162,185 @@ digest of `statistical` alone; two runs without the lock).
 
 ---
 
+### G16.13 Several rows per patient: what runs, and in what order (lane MG, plan P4-D412; specified, NOT BUILT)
+
+**These clauses fill G16.7's reservation; G16.7's sentence stands as
+written.** They fix how lane GR (with lanes CHb and CHo) makes a twin of
+a description whose `relationships.grain` stands (contract section
+4.6c), so that the patient chain, `r`'s census, the row families, the
+classes, the derived columns and the trends come back, and what the
+oracle freezes. While `grain` is `null`, or before the landing that
+ships stage 6, nothing here runs and a table is arranged in rows by
+G16.0 to G16.12 like any other.
+
+**The order of the steps.**
+1. **The patient table.** Its columns (the patient-fixed columns, `r`,
+   the derived columns) are made over `N` patient rows exactly as G4
+   makes a column from its block, here the block counted in patients
+   (contract 4.6c.5 (b)), and arranged by G16.0 to G16.6 run on the
+   patient table against the patient chain, counted in patients. `r`'s
+   cells are written from the census (G16.14), never dealt from a block.
+2. **Patients into rows.** Patient `p` becomes `r_p` rows, in patient
+   order, the patients in the patient table's row order. Each row of `p`
+   takes `p`'s value of every patient-fixed column, and the person
+   column's value of `p` (G4's identifier cells, `N` different values,
+   one a patient). A derived column is never written.
+3. **The row columns' cells.** Each repeated and dealt date column's
+   cells are made by G4 exactly as its block in rows publishes them
+   (contract 4.6c.9, `grain.ladder`), so every fact of one column
+   counted in rows is met as today.
+4. **The row families** (G16.14): each dealt to the rows of its parent
+   cells by the walk, with the patient term of G16.15.
+5. **Positions and order**: every dealt date column sorted within each
+   patient, the first giving positions (contract 4.6c.7); position-like
+   columns written from their lists (contract 4.6c.6 (c)).
+6. **The derived columns' close and the trends** (G16.15).
+7. **Computed dates** (G16.16), then the computed columns of G16.2 step
+   5 for every other carried rule.
+8. **The other columns**: a column whose multiplicity map is withheld
+   (contract 4.6c.3 (c)) has its present cells written with its
+   published `n_distinct` values, each value on `floor(n_present /
+   n_distinct)` or one more of its rows in value order, placed by
+   G4.2; the private report names the given-up map. Every other column
+   keeps G4.2's placement.
+
+### G16.14 `r`, and the row families
+
+**`r`.** Each value `rho` below the census's `lo` is written on its
+published count of patients exactly. The top band's `m` patients take
+excess values by one stated rule, a function of the description: the
+geometric law whose mean is the band's mean excess `q / m`, its
+quantiles at `(i + 1/2) / m` for `i = 0 .. m - 1`, each rounded down,
+then one unit added to the values in descending order until they sum to
+`q`. So the census is met exactly, and the top band keeps a tail. Which
+patients take which `r` is the patient chain's walk, `r` being one of
+its columns (step 1).
+
+**A row family `{y | parents}`.** Its parent cells are cells of the
+patient table, so each patient's parent cell is known after step 1.
+Inside each parent cell the rows of its patients take `y`'s cells by
+G16.2's walk: each row's hidden score (G16.8's twelve pieces), the
+rows ranked by score, and the cell's target count of each band of `y`
+placed in band order down the ranking, the cells of each band dealt in
+the same order. The patient term of G16.15 is added to the score
+first. A repeated column that is no row family's child is dealt over
+all rows by hidden score alone.
+
+**Its certificate is not generation's.** PWIT, `R*` and the floored
+split are the producer's and the loader's (contract 4.6c.8, 4.6c.2);
+generation reads only the published tables and meets them, and `R*`
+never reaches `generate`.
+
+### G16.15 The patient term, the derived columns' close, and the trend over visits
+
+**The patient term (the within-patient correlation's December route on
+long tables, contract 4.6c.11 limit 4).** For each repeated FINE column
+`y` with a row family, every patient draws one PATIENT SCORE `z_p` (one
+`integers` call of three words a patient, G16.8's hidden score), and row
+`j` of patient `p` is ranked inside its parent cell by
+`sqrt(omega) z_p + sqrt(1 - omega) z_pj`, where `omega` is the
+column's patient weight. `omega` is a function of the description:
+lane GR fixes the rule (JUDGEMENT: the share of the column's
+between-patient variance its published own-mean bands do not carry,
+read from the row family's band shares by own-mean band under a normal
+law), and `omega` is 0 where the column has no own-mean parent. The term
+moves no published count: it only orders rows inside a cell before the
+cell's target counts are placed.
+
+**The derived columns' close.** After step 4 every patient's own mean
+of each column with an own-mean parent, and its first date of each date
+column with a first-date parent, is recomputed. Where a patient's own
+mean lies outside its own-mean band, exchanges of the column's cells
+between two rows of the SAME parent cell and the SAME band of the row
+family are proposed, in row order, each kept when it moves both
+patients' means toward their bands without moving either out; a first
+date outside its band is met by exchanging the date with a row of the
+same cell and band. Each exchange keeps every row family's table and
+every count of one column. A patient left outside its band is named in
+the twin's DEVIATIONS with the family it misses, never silently.
+
+**The trend over visits (contract 4.6c.1; the design study's text,
+adopted).** For each FINE `x` carrying trends, the walk's score of row
+`j` of patient `p` gains `gamma mu_p (j - (r_p + 1) / 2)`, `mu_p` the
+patient's target slope in `x`'s units:
+- where `p`'s cell `P` of `F_S` carries `Q_P`:
+  `(2 Q_P + h) u / (2 |P| Sxx(r))`, `h` one half for even `r` and 0
+  for odd;
+- otherwise the EXTENSION: the pooled slope `sum (2 Q + h) / sum 2 |P'|
+  Sxx(r')` over the published cells `P'` sharing `p`'s parent cell
+  across `r`, else sharing its first parent, else over every published
+  cell; with no published cell, 0;
+- `gamma` is ONE rescale for the column, from the generator's own first
+  pass: the least-squares slope of the achieved on the target slopes
+  over every patient with a target.
+Then THE CLOSE, by exchanges of `x`'s readings between two rows of ONE
+patient only, so every published table, every patient's own mean and
+every census is unchanged: first random improving exchanges, 30
+proposals a patient; then, until each published cell's `S_P` lies in its
+window, one exchange whose half-step `(c_a - c_b)(j_b - j_a)` equals the
+remaining half-gap, else TWO exchanges on different patients whose
+half-steps sum to it, else the largest that fits, adjacent positions
+first and positions at most 40 apart, each pass `O(rows)`. MEASURED by
+the design study's second run: every published `Q_P` met, 106 of 106
+cells, with 0 gaps; the random exchanges alone reached every window, so
+the one-or-two-exchange step never ran (lane GR's gate case below forces
+it). The later polish (G16.3) exchanges `x` only between rows of the
+same band, the same position and the same cell of `F_S`.
+
+### G16.16 Computed dates in the patient layer
+
+A date `B = A + D` carried by an order rule (contract 4.6c.7 (c)): `A`
+is dealt and sorted within each patient (G16.13 step 5); `D` is dealt as
+its row family's child; then, patient by patient and position by
+position, where `A_j + D_j` passes `A_(j+1)`, `D_j` is exchanged with
+the nearest other `D` of the SAME patient (by position, the earlier
+first on a tie) that removes the overlap and makes none; where none
+does, the overlap stays and is counted. `D` is never sorted, which
+would plant a trend by visit. `B` is then written as `A + D` (G16.2 step
+5). The twin's report counts the patients whose `B` decreases and the
+stays overlapping the next `A`.
+
+### G16.17 Draws, degenerate branches and the oracle's cases
+
+**Draws.** After G16.8's words: the patient table's walk (G16.8 run on
+`N` patient rows), then for each row family in `grain.rows` order its
+rows' scores and, for a FINE child, the patient scores of G16.15, then
+the trend's random exchanges (one `integers` call of two words a
+proposal). Each call is a stage in G3.3's sense.
+
+**Degenerate branches.** No row family: steps 4 and 6 do nothing. A
+parent cell with no rows: no word. A top band with `m = 0`: no excess.
+A patient of one row: its position is 1 and it carries no trend. A
+dealt date absent on a row: sorted after the patient's present dates,
+in row order. `omega` 0: the patient term is nought.
+
+**Memory.** At 2,000,000 rows the patient table adds `N` rows of its
+own columns, and each row family one parent-cell key a row (4 bytes):
+inside G16.11's figure. The close holds one cell's rows at a time.
+
+**The oracle's cases (lane CHo, beside G16.12's).** In
+`tools/reference/make_generation_reference_vectors.py`, each beside a
+mutant that must move it:
+1. `r` from a census with an open top band: the census met exactly
+   (mutant: the top band's patients given its mean excess each);
+2. a row family under a patient cell of three patients: the table met
+   cell for cell (mutant: rows dealt over the whole table, not per
+   parent cell);
+3. a patient-fixed column constant on every row of every patient
+   (mutant: dealt as a repeated column);
+4. a dealt date sorted within each patient and its census unchanged
+   (mutant: dates rebuilt from gaps);
+5. a position-like column written from its list, and past the list by
+   the stated rule (mutant: dealt);
+6. **THE TWO-EXCHANGE CLOSE (lane GR's gate case, the orchestrator's
+   ruling of 2026-10-20):** a cell whose remaining half-gap no single
+   within-patient exchange fits and two on different patients do, with
+   the random exchanges switched off: the cell's `S_P` ends in its
+   window (mutant: one exchange only, which leaves the gap);
+7. the computed date: `B` equal to `A + D` on every row, and the overlap
+   removed by the nearest exchange (mutant: `D` sorted within the
+   patient).
+
 ## Conformance checklist
 
 An implementation conforms to this document when all of the following
