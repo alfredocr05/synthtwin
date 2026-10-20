@@ -6794,31 +6794,32 @@ column of no publishing region below its bands is outside the promise
    no own-fact group: on lane `A0b`'s 200,000-row chain 23 of 33 number
    columns sit in more than one family (the statistics review of
    2026-10-20, reading `vis2` and `vis3` as numbers), every one of the
-   31 number columns skeptic 1's probe lists sits in a family whose child
-   and a parent are both number columns, where 4.6b.6 may publish a slope
-   (MY COUNT on the chain's `structure`), the outer `L0`
-   bands always hold the rungs `p01`, `p05`, `p95` and `p99`, and the
-   mode's band holds an own-fact group. So with `witness` `"cf1"` no
-   option but `none` is eligible on that chain, and `correlation` is
-   never eligible anywhere. (c) Every polished figure below was measured
-   greedily WITHOUT the witness; under it, December's yield lies between
-   the chain alone (127 of 287) and the polished chain (188), not at 188
-   or 202. (d) The levers, none adopted here: a region rule leaving out
-   the nodes that read a column only at band level (JUDGEMENT: sound by
-   Lemma 6's own steps where the region stays a connected subtree holding
-   each column's `L0` totals node and every node whose numbers read its
-   codes) splits nothing while `mean` is offered in every family holding
-   a column (the kit's `M-b`); regions sharing a node without merging
-   need a gluing lemma this page cannot write, since a node holding both
-   regions' columns deals its child against three two-way margins at
-   once, which can have no filling (two rows whose margins on the first
-   and second coordinates and on the first and third are each the 2 x 2
-   identity, and on the second and third its reverse diagonal, fill no
-   2 x 2 x 2 table: `tests/test_moment_method_page.py` computes it); and
-   `mean`
+   31 number columns skeptic 1's probe lists sits in a family whose
+   child and a parent are both number columns, where 4.6b.6 may publish
+   a slope (MY COUNT on the chain's `structure`), the outer `L0` bands
+   always hold the rungs `p01`, `p05`, `p95` and `p99`, and the mode's
+   band holds an own-fact group. So with `witness` `"cf1"` no option but
+   `none` is eligible on that chain, and `correlation` is never eligible
+   anywhere. (c) Every polished figure below was measured greedily
+   WITHOUT the witness; under it, December's yield lies between the
+   chain alone (127 of 287) and the polished chain (188), not at 188 or
+   202. (d) The levers, none adopted here: a region rule leaving out the
+   nodes that read a column only at band level (JUDGEMENT: sound by
+   Lemma 6's own steps where the region stays a connected subtree
+   holding each column's `L0` totals node and every node whose numbers
+   read its codes) splits nothing while `mean` is offered in every
+   family holding a column (the kit's `M-b`); regions sharing a node
+   without merging need a gluing lemma this page cannot write, since a
+   node holding both regions' columns deals its child against three
+   two-way margins at once, which can have no filling (two rows whose
+   margins on the first and second coordinates and on the first and
+   third are each the 2 x 2 identity, and on the second and third its
+   reverse diagonal, fill no 2 x 2 x 2 table:
+   `tests/test_moment_method_page.py` computes it); and `mean`
    restricted to interior bands, or offered in one family a column,
-   leaves `CF1` excluding every column a slope reads, which is every
-   number column of that chain. The yield therefore rests on lane CHo's
+   leaves `CF1` excluding every column a slope reads, which, wherever
+   4.6b.6's slopes stand, is every number column of that chain. The
+   yield therefore rests on lane CHo's
    oracle class (or a closed form taking slopes and several `L0` bands a
    cell) deciding regions of many columns at 200,000 rows and more;
    lanes MPp and CHa measure the pooled count with the witness on (lane
