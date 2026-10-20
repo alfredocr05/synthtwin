@@ -18208,11 +18208,14 @@ G16.0 to G16.12 like any other.
 
 **`r`.** Each value `rho` below the census's `lo` is written on its
 published count of patients exactly. The top band's `m` patients take
-excess values by one stated rule, a function of the description: the
-geometric law whose mean is the band's mean excess `q / m`, its
-quantiles at `(i + 1/2) / m` for `i = 0 .. m - 1`, each rounded down,
-then one unit added to the values in descending order until they sum to
-`q`. So the census is met exactly, and the top band keeps a tail. Which
+excess values by one stated rule in whole numbers (no logarithm,
+G16.8): the `i`-th of them, `i = 0 .. m - 1`, takes `floor(q (2 m - 2 i
+- 1) / m^2)`, a straight decreasing line from about twice the mean
+excess `q / m` to 0; then, while the values sum to less than `q`, one
+unit is added to each in turn from the largest, and while they sum to
+more, one is taken from each in turn from the largest. So the census is
+met exactly and the top band keeps a tail up to about twice its mean
+(JUDGEMENT; lane GR measures the rows-per-patient spread it gives). Which
 patients take which `r` is the patient chain's walk, `r` being one of
 its columns (step 1).
 
@@ -18238,8 +18241,9 @@ long tables, contract 4.6c.11 limit 4).** For each repeated FINE column
 `y` with a row family, every patient draws one PATIENT SCORE `z_p` (one
 `integers` call of three words a patient, G16.8's hidden score), and row
 `j` of patient `p` is ranked inside its parent cell by
-`sqrt(omega) z_p + sqrt(1 - omega) z_pj`, where `omega` is the
-column's patient weight. `omega` is a function of the description:
+`sqrt(omega) z_p + sqrt(1 - omega) z_pj` (each square root correctly
+rounded, as IEEE 754 requires of it on every machine), where `omega` is
+the column's patient weight. `omega` is a function of the description:
 lane GR fixes the rule (JUDGEMENT: the share of the column's
 between-patient variance its published own-mean bands do not carry,
 read from the row family's band shares by own-mean band under a normal
