@@ -22,20 +22,31 @@ are for tests; polars, duckdb, python-calamine, xlsxwriter, lifelines,
 networkx and statsmodels in the product are not adopted, each for a
 measured reason. Five zones say where a library may run: generation
 keeps integers and elementwise + - * / and sqrt in a fixed order, so
-the twin stays the same bytes on every computer; the description and
-the shared report use only integer-exact counting or `math.fsum`,
-because a library's float sum made published statistics depend on row
-order (P1's finding, now reversed only for integer-exact numpy);
-library floats run only in the custodian's private report and the
-tests; reading cross-checks every library cell for cell; writing stays
-the standard library's. The offline scanner is to enforce the zones
-module by module (lane DEP-1); CLAUDE.md's principle 3 is restated for
-one numba kernel whose twin bytes CI must prove identical to the
-plain-Python polish on every system and Python; and a solver's "no
-such arrangement" never publishes alone: only an exact closed form or
-the exact oracle confirming it for that table does, otherwise the
-count is refused. The delegated choices D-L1 to D-L5 are recorded, and
-lanes DEP-1 and DEP-2 build the mechanics and the bundle.
+the twin stays the same bytes on every computer; a published
+statistic keeps P1-D11's exact whole-number sums, rounded once; a
+score that only chooses what is published adds over cells in code
+order, never over rows, or uses `math.fsum`; and no transcendental or
+float power decides either, because a library's float sum made
+published statistics depend on row order and no standard rounds `pow`
+or `log` correctly (P1's ban on numpy is reversed only for
+integer-exact counting); library floats run only in the custodian's
+private report and the tests, on one thread; reading cross-checks every
+library cell for cell and never prints a library's error text on
+validate's path; pyreadstat only converts a native file to a CSV the
+person keeps; writing stays the standard library's. The offline
+scanner is to enforce the zones module by module, operators included
+(lane DEP-1); CLAUDE.md's principle 3 is restated for one numba kernel
+whose twin bytes CI must prove identical to the plain-Python polish over
+a whole schedule on every system and Python, with its integer bounds
+checked before each call; and a solver's "no such arrangement" never
+publishes alone: only an exact closed form or the exact oracle
+confirming it for that table does, otherwise the count is refused, so
+lane MR's 24 rules at 20,000 and 200,000 rows are re-priced first. The
+delegated choices D-L1 to D-L5 are recorded, and lanes DEP-1 and DEP-2
+build the mechanics and the bundle. Today's code reaches the
+platform's `pow` through `**` on a float in eight places (on this Mac
+`x ** 0.5` differs from `math.sqrt(x)` on 2,672 of 2,000,000 doubles):
+a stated limit owned by lane DEP-1.
 
 ### Batch 4c's records: more stated limits given owners, three KPI drops owned (2026-10-19)
 
