@@ -80,7 +80,13 @@ def count_off() -> "typing.Iterator[None]":
 # the column's layout reading (`@----` beside 578 five-figure codes, the
 # catalogue's diagnoses table at 600 rows, a code column held beside the
 # person question's code candidates). Counted apart, named, never failed.
-GENERATOR_LIMITS = ("z-diagnoses_procedures",)
+#
+# ...and a column of names written in capitals on some rows (lane HX2's
+# skeptic, round 2, item 5): held, its layouts -- five and more beside a
+# pool -- met by an even census the identifier generator's packing walk
+# does not always find, so its twin misses a few rows of each named
+# layout at 2,000 and 20,000 rows.
+GENERATOR_LIMITS = ("z-diagnoses_procedures", "g-caps-2000", "g-caps-20000")
 
 
 def _one(table: pathlib.Path, folder: pathlib.Path, declared: "list[str]") -> "dict[str, object]":
@@ -151,6 +157,25 @@ def _tables(scratch: pathlib.Path) -> "list[tuple[str, pathlib.Path, list[str]]]
         path = home / f"{stem}.csv"
         path.write_text(text, encoding="utf-8", newline="\n")
         found += [("people", path, ["--identifier", "patient"] if stem == "sites" else [])]
+    # Lane HX2's second repair (skeptic 1, round 2): two record systems in
+    # one person column, a plan written apart for three patients (one
+    # person column declared, then two), spellings of one key, and names
+    # in capitals on some rows.
+    for stem, text, declared in (
+        ("systems-2000", persons_counted.two_systems_table(2000), ["--identifier", "patient"]),
+        ("systems-20000", persons_counted.two_systems_table(20000), ["--identifier", "patient"]),
+        ("plans-20000", persons_counted.plan_rare_table(20000), ["--identifier", "patient"]),
+        ("plans2-20000", persons_counted.plan_rare_table(20000),
+         ["--identifier", "patient", "--identifier", "x"]),
+        ("spelled-2000", persons_counted.spellings_table(2000), []),
+        ("caps-2000", persons_counted.capitals_table(2000), []),
+        ("caps-20000", persons_counted.capitals_table(20000), []),
+    ):
+        home = scratch / f"g-{stem}"
+        home.mkdir()
+        path = home / "x.csv"
+        path.write_text(text, encoding="utf-8", newline="\n")
+        found += [("people", path, declared)]
     return found
 
 

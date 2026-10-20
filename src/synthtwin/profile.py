@@ -4273,10 +4273,14 @@ def build_document(
             if column_name == subject:
                 held_cells = table.columns[place]
         if _repeats(held_cells):
-            subject_cells += [held_cells]
+            # Each cell read as the subject it names, its spellings
+            # merged (`subject_keys`): `REC-7`, `rec7` and `REC0007` are
+            # one person, never three.
+            keyed_subjects = subject_keys(held_cells)
+            subject_cells += [keyed_subjects]
             subject_names += [subject]
             subject_enough += [
-                _reaches_the_floor(held_cells, settings.small_cell_floor)
+                _reaches_the_floor(keyed_subjects, settings.small_cell_floor)
             ]
     described_identifiers = forced_identifiers + [
         name for name in withheld_names if name not in forced_identifiers
@@ -4419,12 +4423,22 @@ def build_document(
         # subjects wear, before its census of repetition is drawn from
         # its layouts.
         counted_here = bool(subject_cells) and name not in subject_names
-        if counted_here:
+        # ...and a subject column's own layouts are counted in every
+        # OTHER subject column (lane HX2's skeptic, round 2, item 3): a
+        # plan number declared beside the patient names no layout three
+        # patients' plans wear.
+        others: "list[list[str]]" = []
+        others_enough: "list[bool]" = []
+        for place, subject_name in enumerate(subject_names):
+            if subject_name != name:
+                others += [subject_cells[place]]
+                others_enough += [subject_enough[place]]
+        if others:
             described = _layouts_in_subjects(
                 described,
                 cells,
-                subject_cells,
-                subject_enough,
+                others,
+                others_enough,
                 settings.small_cell_floor,
             )
         if name in withheld_names:
@@ -4665,9 +4679,10 @@ def subjects_holding(
     subject column's cells, both in row order and of one length; each
     present cell, as written, is a value. Lanes MG and GR reuse it for a
     family read in patients, and it reads lane SR's `reading.
-    column_values` unchanged. A subject cell is the subject as written:
-    blank cells are one subject between them, the reading that can only
-    make a value look held by FEWER people.
+    column_values` unchanged. A subject cell is read as the subject it
+    names, its spellings merged (`subject_keys`), and blank cells are one
+    subject between them: both readings can only make a value look held
+    by FEWER people.
 
     Guarantees: accepts two lists of text of one length and the floor;
     returns, for every value some present cell holds, its rows and at
@@ -4678,7 +4693,68 @@ def subjects_holding(
     keyed: "list[tuple[str, ...]]" = []
     for cell in values:
         keyed += [(cell,) if parsing.folded(cell) else ()]
-    return _holding(keyed, subjects, floor)
+    return _holding(keyed, subject_keys(subjects), floor)
+
+
+def subject_keys(subjects: "list[str]") -> "list[str]":
+    """Each subject cell as the subject it names, its spellings merged.
+
+    PLAN P4-D406 (lane HX2's skeptic, round 2, item 6). One patient's key
+    written `REC20000007`, `rec20000007` and `REC-20000007` is one
+    subject, not three: counted as written, a code six patients hold on
+    eighteen spellings passed the floor of eleven. Each cell is folded
+    (`parsing.folded`), every character of the ASCII range that is neither
+    a letter nor a figure is dropped (one outside it is kept: the reading
+    may merge fewer spellings, never split one), and so is every zero
+    that opens a run of figures
+    (a run of zeros alone stays one zero): `REC-0007`, `rec7` and
+    `Rec 7` are all `rec7`. The reading can only MERGE spellings, never
+    split one, so a value can only look held by fewer people than it is
+    -- the side the floor errs on. Blank cells are one subject between
+    them, as before.
+
+    Guarantees: accepts a list of text; returns a list of one key a
+    cell, in row order. Memory: one entry a different spelling, and a
+    cell already in its merged form is returned as the same object.
+    Determinism: a fixed function of the argument. Raises TypeError if a
+    cell is not text. No I/O.
+    """
+    merged: "dict[str, str]" = {}
+    keys: "list[str]" = []
+    for cell in subjects:
+        if cell in merged:
+            keys += [merged[cell]]
+            continue
+        key = _subject_key(cell)
+        if key == cell:
+            key = cell
+        merged[cell] = key
+        keys += [key]
+    return keys
+
+
+def _subject_key(cell: str) -> str:
+    """One subject cell's merged form (`subject_keys`)."""
+    kept = ""
+    zeros = False
+    started = False
+    for character in parsing.folded(cell):
+        if "0" <= character <= "9":
+            if started or character != "0":
+                kept = kept + character
+                started = True
+            else:
+                zeros = True
+            continue
+        if zeros and not started:
+            kept = kept + "0"
+        zeros = False
+        started = False
+        if "a" <= character <= "z" or character > "\x7f":
+            kept = kept + character
+    if zeros and not started:
+        kept = kept + "0"
+    return kept
 
 
 def _holding(
@@ -4934,12 +5010,34 @@ def _published_in(block: "dict[str, object]", rungs: bool) -> _Published:
                 numbers[number] = True
     shown = block["format"] if "format" in block else ""
     role = block["role"] if "role" in block else ""
+    # A cell is read again on its day only where the block publishes a
+    # date in the form a reading gives it (`YYYY-MM-DD`, `YYYY-Qn`): with
+    # none, no cell's day can be a published value, and a column of
+    # date-and-time cells each different is not parsed twice (lane HX2's
+    # skeptic, round 2, item 7).
+    days = False
+    for word in words:
+        if _a_read_date(word):
+            days = True
+            break
     return _Published(
         frozenset(words),
         frozenset(numbers),
         tuple(sorted(prefixes)),
-        shown if isinstance(shown, str) and role == taxonomy.ROLE_DATETIME else "",
+        shown
+        if isinstance(shown, str) and role == taxonomy.ROLE_DATETIME and days
+        else "",
     )
+
+
+def _a_read_date(word: str) -> bool:
+    """Whether a published word opens as a reading writes a date: four figures and a dash."""
+    if len(word) < 7 or word[4:5] != "-":
+        return False
+    for character in word[:4]:
+        if not "0" <= character <= "9":
+            return False
+    return True
 
 
 def _longest_figures(text: str) -> str:
@@ -5019,8 +5117,15 @@ def _cell_keys(
     forms: "dict[str, int]",
     absent: "frozenset[str]",
     memo: "dict[str, tuple[str, ...]]",
+    interned: "dict[tuple[str, ...], tuple[str, ...]]",
 ) -> "tuple[str, ...]":
-    """Every key one cell is counted under, nothing for an absent cell."""
+    """Every key one cell is counted under, nothing for an absent cell.
+
+    The tuple returned is the one ``interned`` already holds for the same
+    keys, so a column of cells each different -- every one a miss of the
+    capped ``memo`` -- keeps one reference a row and not one tuple a row
+    (lane HX2's skeptic, round 2, item 7).
+    """
     if cell in memo:
         return memo[cell]
     found: "list[str]" = []
@@ -5035,6 +5140,10 @@ def _cell_keys(
             if form in forms:
                 found += [f"f{form}"]
     frozen = tuple(found)
+    if frozen in interned:
+        frozen = interned[frozen]
+    else:
+        interned[frozen] = frozen
     if len(memo) < 65536:
         memo[cell] = frozen
     return frozen
@@ -5084,9 +5193,10 @@ def _counted_in_subjects(
     absent = frozenset(described.absent_spellings)
     dated = described.role in (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
     memo: "dict[str, tuple[str, ...]]" = {}
+    interned: "dict[tuple[str, ...], tuple[str, ...]]" = {}
     keyed: "list[tuple[str, ...]]" = []
     for cell in cells:
-        keyed += [_cell_keys(cell, published, forms, absent, memo)]
+        keyed += [_cell_keys(cell, published, forms, absent, memo, interned)]
     for place, subject in enumerate(subject_cells):
         people = enough is None or enough[place]
         attached = _attached(cells, subject)
@@ -5151,6 +5261,10 @@ def _layouts_in_subjects(
     convention = parsing.layout_convention(present)
     present = []
     memo: "dict[str, tuple[str, ...]]" = {}
+    pool_key = (taxonomy.SUPPRESSED_LABEL,)
+    named_keys: "dict[str, tuple[str, ...]]" = {}
+    for layout in named:
+        named_keys[layout] = (layout,)
     keyed: "list[tuple[str, ...]]" = []
     for cell in cells:
         if cell in memo:
@@ -5161,29 +5275,92 @@ def _layouts_in_subjects(
             layout = parsing.layout_form(cell, convention)
             while layout and layout not in named and parsing.layout_fill(layout) >= 2:
                 layout = parsing.layout_shallower(layout)
-            if layout in named:
-                key = (layout,)
+            # A present cell no named layout takes is in the remainder the
+            # census pools or leaves to subtraction: counted as one key.
+            key = named_keys[layout] if layout in named else pool_key
         if len(memo) < 65536:
             memo[cell] = key
         keyed += [key]
-    held: "dict[str, bool]" = {}
+    countings: "list[dict[str, SubjectCount]]" = []
     for place, subject in enumerate(subject_cells):
         if not enough[place] and not (
             _attached(cells, subject) and _names_its_people(cells, subject)
         ):
             continue
-        counted = _holding(keyed, subject, floor)
+        countings += [_holding(keyed, subject, floor)]
+    held: "dict[str, bool]" = {}
+    for counted in countings:
         for layout in counted:
-            if len(counted[layout].holders) < floor:
+            if layout in named and len(counted[layout].holders) < floor:
                 held[layout] = True
+    # THE POOL IS COUNTED IN SUBJECTS TOO (lane HX2's skeptic, round 2,
+    # item 4): the cells no named layout takes -- printed as `(withheld)`
+    # or left to subtraction from the present rows -- are a count of
+    # their subjects' rows. While one to `floor` - 1 subjects hold them
+    # under any subject column, the named layout the fewest subjects
+    # wear joins them; with none left, no layout is named.
+    while _pool_short(countings, held, floor):
+        fewest = ""
+        wearing = 0
+        for layout in sorted(named):
+            if layout in held:
+                continue
+            least = floor
+            for counted in countings:
+                if layout in counted:
+                    least = min(least, len(counted[layout].holders))
+            if not fewest or least < wearing:
+                fewest = layout
+                wearing = least
+        if not fewest:
+            break
+        held[fewest] = True
     if not held:
         return described
-    return taxonomy.layouts_counted_in_people(
+    pooled = taxonomy.layouts_counted_in_people(
         described,
         tuple(sorted(held)),
         floor,
         convention == parsing.LAYOUT_PLAIN,
     )
+    if not _pool_short(countings, held, floor):
+        return pooled
+    # EVERY LAYOUT POOLED AND THE POOL STILL FEWER THAN `floor` SUBJECTS'
+    # (a dose written for two patients only): no layout census at all.
+    details: "dict[str, object]" = {}
+    for field in sorted(pooled.details):
+        details[field] = pooled.details[field]
+    details["layout_forms"] = {}
+    if "layout_prefixes" in details:
+        details["layout_prefixes"] = {}
+    return dataclasses.replace(pooled, details=details)
+
+
+def _pool_short(
+    countings: "list[dict[str, SubjectCount]]",
+    held: "dict[str, bool]",
+    floor: int,
+) -> bool:
+    """Whether the layouts' remainder is held by one to `floor` - 1 subjects.
+
+    The remainder is every cell no named layout takes (`taxonomy.
+    SUPPRESSED_LABEL`) and every cell of a layout ``held`` pools. Its
+    subjects are the union of each part's, each kept up to the floor: a
+    union of sets capped at the floor reaches the floor exactly when the
+    whole sets' union does, so no second pass is needed.
+    """
+    for counted in countings:
+        people: "dict[str, bool]" = {}
+        for layout in counted:
+            if layout != taxonomy.SUPPRESSED_LABEL and layout not in held:
+                continue
+            for subject in counted[layout].holders:
+                people[subject] = True
+            if len(people) >= floor:
+                break
+        if 0 < len(people) < floor:
+            return True
+    return False
 
 
 def _without_table_suffix(name: str) -> str:

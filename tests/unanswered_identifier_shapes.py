@@ -200,8 +200,15 @@ BESIDE = ("email_beside", "beneficiary_beside", "phone_beside")
 # (`_open`: 44 patients, nothing declared; `_ten`: ten patients, fewer than
 # the floor's number of keys, lane HX2's first repair). Every value is held
 # by one patient, so none is published and the twin writes none.
+#
+# ...and beside a patient key ANOTHER identity question holds (`_keyzero`,
+# lane HX2's skeptic, round 2, item 1): 150 patients keyed by a number of
+# seven figures padded with zeros (`0001013`), which the codes-or-
+# measurements question is put to and not the person question -- a full
+# birth date beside it, and a name beside it written without its zeros on
+# about half the rows.
 COUNTED = ("plan2_beside", "record2_beside", "name_open", "address_open",
-           "dob_open", "name_ten", "dob_ten")
+           "dob_open", "name_ten", "dob_ten", "dob_keyzero", "name_keyzero")
 # The patients of a `_ten` table.
 PATIENTS_TEN = 10
 # The STATED shapes: a name, a street address and a full birth date on a
@@ -230,7 +237,7 @@ UNKNOWN_KEY = "-1"
 
 def _base(kind: str) -> str:
     """The shape a kind writes: `plan2_beside`, `name_open` and `name_ten` write `plan2` and `name`."""
-    for ending in ("_beside", "_open", "_ten"):
+    for ending in ("_beside", "_open", "_ten", "_keyzero"):
         if kind.endswith(ending):
             return kind[: -len(ending)]
     return kind
@@ -238,7 +245,8 @@ def _base(kind: str) -> str:
 
 def _beside(kind: str) -> bool:
     """Whether the table carries a patient key beside the shape's column."""
-    return kind.endswith("_beside") or kind.endswith("_open") or kind.endswith("_ten")
+    return (kind.endswith("_beside") or kind.endswith("_open") or kind.endswith("_ten")
+            or kind.endswith("_keyzero"))
 
 
 def _cell(value: str) -> str:
@@ -250,7 +258,8 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
     """The table, written as a CSV file; its path and its different identifiers."""
     draw = random.Random(SEED + len(kind))
     beside = _beside(kind)
-    patients = PATIENTS_BESIDE if kind.endswith("_beside") else PATIENTS
+    patients = (PATIENTS_BESIDE if kind.endswith("_beside") or kind.endswith("_keyzero")
+                else PATIENTS)
     if kind.endswith("_ten"):
         patients = PATIENTS_TEN
     people: "list[str]" = []
@@ -275,8 +284,13 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
             seen[who] = True
         test = ("Sodium", "Potassium", "Glucose")[draw.randrange(3)]
         value = f"{draw.uniform(3, 150):.1f}"
+        key = f"REC{20000000 + 7 * place:08d}"
+        if kind.endswith("_keyzero"):
+            key = f"{1000 + 13 * place:07d}"
+            if kind == "name_keyzero" and draw.random() < 0.5:
+                key = key.lstrip("0")
         if beside:
-            lines += [f"REC{20000000 + 7 * place:08d},{_cell(who)},{test},{value}"]
+            lines += [f"{key},{_cell(who)},{test},{value}"]
         else:
             lines += [f"{_cell(who)},{test},{value}"]
     path = folder / f"{kind}_long.csv"

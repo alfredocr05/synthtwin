@@ -52,8 +52,9 @@ import csv
 import json
 import pathlib
 import random
+import re
 
-from synthtwin import parsing
+from synthtwin import parsing, taxonomy
 
 FLOOR = 11
 
@@ -133,6 +134,16 @@ def is_published(value: str, block: "dict[str, object]",
     return False
 
 
+def subject_of(cell: str) -> str:
+    """The subject a person cell names: folded, letters and figures only, no zero opening a run.
+
+    `REC-0007`, `rec7` and `Rec 7` are one patient (lane HX2's skeptic, round
+    2, item 6); written apart from `profile.subject_keys`, with patterns.
+    """
+    text = re.sub(r"[\x00-\x2f\x3a-\x60\x7b-\x7f]+", "", parsing.folded(cell))
+    return re.sub(r"(?<![0-9])0+(?=[0-9])", "", text)
+
+
 def held_by(values: "list[str]", subjects: "list[str]") -> "tuple[dict[str, set[str]], dict[str, int], bool]":
     """Each folded value's subjects and rows, and whether the column is attached."""
     holders: "dict[str, set[str]]" = {}
@@ -201,15 +212,20 @@ def counts_people(cells: "list[str]") -> bool:
 
 def subject_columns(described: "dict[str, object]",
                     questions: "dict[str, object] | None") -> "list[str]":
-    """The declared person columns and the open person question's candidates."""
+    """The declared person columns and every column an open question offering `identifier` holds.
+
+    The open person question's candidates, and a key another identity
+    question holds, such as a patient number of figures padded with zeros
+    put the codes-or-measurements question (lane HX2's skeptic, round 2,
+    item 1).
+    """
     settings = described["settings"]
     assert isinstance(settings, dict)
     found = list(settings["person_columns"])
     for entry in (questions or {}).get("asked", []):
         offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
-        if ("identifier" in offered and "keep" in offered
+        if ("identifier" in offered
                 and entry.get("your_answer", "") == ""
-                and "the people the rows are about" in json.dumps(entry)
                 and entry["column"] not in found):
             found += [entry["column"]]
     return found
@@ -267,6 +283,14 @@ def census_few(block: "dict[str, object]", cells: "list[str]") -> int:
         real[count] = real.get(count, 0) + 1
     shown = {int(key): int(value) for key, value in census.items()}
     people, total = len(rows), sum(rows.values())
+    # ...nor does the census lane HX's rule draws from the block's own
+    # published counts, each layout's rows over its share of the people
+    # (`taxonomy._even_census`): a column in two layouts or more publishes it.
+    forms = block.get("layout_forms")
+    if isinstance(forms, dict):
+        implied = taxonomy._even_census(int(f"{block['n_present']}"), census, forms)
+        if shown == {int(key): int(value) for key, value in implied.items()}:
+            return 0
     even = {total // people: people - total % people}
     if total % people:
         even[total // people + 1] = total % people
@@ -296,7 +320,12 @@ def count(names: "list[str]", columns: "list[list[str]]",
             if found:
                 named += [f"{name}=census"]
     for name, values in zip(names, columns):
-        if name in subjects or name not in blocks:
+        if name not in blocks:
+            continue
+        # A subject column is counted too, in every OTHER subject column
+        # (lane HX2's skeptic, round 2, item 3): its layouts, its pool.
+        others = [subject for subject in subjects if subject != name]
+        if not others:
             continue
         block = blocks[name]
         dated = block.get("role") in ("datetime", "time_of_day")
@@ -312,8 +341,8 @@ def count(names: "list[str]", columns: "list[list[str]]",
         in_scope: "set[str]" = set()
         any_few: "set[str]" = set()
         groups: "set[str]" = set()
-        for subject in subjects:
-            people = columns[names.index(subject)]
+        for subject in others:
+            people = [subject_of(cell) for cell in columns[names.index(subject)]]
             holders, rows, attached = held_by(values, people)
             enough = counts_people(people)
             if not enough and not (attached and names_people(values, people)):
@@ -329,6 +358,15 @@ def count(names: "list[str]", columns: "list[list[str]]",
             for form, who in form_holders.items():
                 if len(who) < FLOOR and (enough or attached or statistics):
                     groups.add(f"form {form}")
+            # THE LAYOUTS' POOL: the present cells no named layout takes, a
+            # count printed as `(withheld)` or left to subtraction
+            # (lane HX2's skeptic, round 2, item 4).
+            if enough and block.get("layout_forms"):
+                pool = ["x" if parsing.folded(value) and not form else ""
+                        for value, form in zip(values, forms)]
+                pool_holders, _rows, _attached = held_by(pool, people)
+                if "x" in pool_holders and len(pool_holders["x"]) < FLOOR:
+                    groups.add("layout pool")
             if not enough or not statistics:
                 continue
             for label, cells in (("remainder", remainder), ("present", values)):
@@ -592,3 +630,64 @@ def filler_table(rows: int) -> str:
         year, month, day = draw.randint(2015, 2022), draw.randint(1, 12), draw.randint(1, 28)
         lines += [f"{year}-{month:02d}-{day:02d},{regions[place]},row{place % 7}"]
     return "\n".join(lines) + "\n"
+
+
+# -- lane HX2's second repair: the skeptic's round-2 tables -----------------
+
+
+def _long_rows(rows: int, seed: int, cell) -> str:
+    """150 patients on rows weighted one to twenty-five, a column `x` written by ``cell``.
+
+    ``cell(place, row, draw)`` returns the row's (patient key, x).
+    """
+    draw = random.Random(seed)
+    weights = [1.0 + (place % 9) * 3 for place in range(150)]
+    lines = ["patient,x,test,value"]
+    for row in range(rows):
+        place = draw.choices(range(150), weights)[0]
+        key, x = cell(place, row, draw)
+        test = ("Sodium", "Potassium", "Glucose")[draw.randrange(3)]
+        lines += [f"{key},{x},{test},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def two_systems_table(rows: int) -> str:
+    """Item 2: twenty patients keyed `P#####` and 130 keyed `REC########` (two record systems merged)."""
+    def cell(place: int, _row: int, draw: random.Random) -> "tuple[str, str]":
+        key = f"P{50000 + place:05d}" if place < 20 else f"REC{20000000 + 7 * place:08d}"
+        return key, ("I10", "E11.9", "J45")[draw.randrange(3)]
+    return _long_rows(rows, 91, cell)
+
+
+def plan_rare_table(rows: int) -> str:
+    """Items 3 and 4: three patients' plans written `ZQ-#####`, everyone else's `XKH#########`."""
+    def cell(place: int, _row: int, _draw: random.Random) -> "tuple[str, str]":
+        plan = f"ZQ-{30000 + place:05d}" if place < 3 else f"XKH{100000000 + 7919 * place:09d}"
+        return f"REC{20000000 + 7 * place:08d}", plan
+    return _long_rows(rows, 92, cell)
+
+
+def spellings_table(rows: int) -> str:
+    """Item 6: a code six patients hold, their keys written three ways (`REC…`, `rec…`, `REC-…`)."""
+    def cell(place: int, _row: int, draw: random.Random) -> "tuple[str, str]":
+        key = f"REC{20000000 + 7 * place:08d}"
+        key = (key, key.lower(), key[:3] + "-" + key[3:])[draw.randrange(3)]
+        code = ("Q87.4" if place < 6 and draw.random() < 0.7
+                else ("I10", "E11.9", "J45")[draw.randrange(3)])
+        return key, code
+    return _long_rows(rows, 93, cell)
+
+
+def capitals_table(rows: int) -> str:
+    """Item 5: each patient's name, in capitals on about 15 % of rows, beside an open patient key."""
+    first = ("James", "Maria", "Robert", "Linda", "Michael", "Patricia", "David",
+             "Jennifer", "William", "Elizabeth", "Richard", "Susan")
+    last = ("Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
+            "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez")
+    names = [f"{first[(7 * place) % len(first)]} {last[(5 * place + place // 13) % len(last)]}"
+             for place in range(150)]
+
+    def cell(place: int, _row: int, draw: random.Random) -> "tuple[str, str]":
+        name = names[place] if draw.random() < 0.85 else names[place].upper()
+        return f"REC{20000000 + 7 * place:08d}", name
+    return _long_rows(rows, 94, cell)

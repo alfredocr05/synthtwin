@@ -4282,8 +4282,13 @@ def _run_profile(
     published = document
     if withheld:
         _warn(_withheld_notice(withheld))
-        # ...and the candidates of the open person question are the
-        # people every other value is counted in (plan P4-D406).
+        # ...and every column held so -- the candidates of the open
+        # person question, and a key held by another identity question,
+        # such as a patient number of figures padded with zeros that the
+        # codes-or-measurements question was put to -- is a subject every
+        # other value is counted in (plan P4-D406; lane HX2's skeptic,
+        # round 2, item 1). One that never repeats counts in rows, as the
+        # floor does, and is set aside by `profile.build_document`.
         counted_in_people = []
         published = profile.build_document(
             read,
@@ -4297,8 +4302,7 @@ def _run_profile(
             table_notes=population_notes,
             stored_as=storage,
             unanswered=list(withheld),
-            subjects=list(person_columns)
-            + [name for name in person_asked if name in withheld],
+            subjects=list(person_columns) + list(withheld),
             counted_in_subjects=counted_in_people,
         )
     if counted_in_people:

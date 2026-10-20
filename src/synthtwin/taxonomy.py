@@ -25881,6 +25881,24 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
             rows = rows + size * entry
     if people == 0:
         return column
+    forms = column.details["layout_forms"] if "layout_forms" in column.details else None
+    if isinstance(forms, dict) and _layout_parts(column.n_present, forms) >= 2:
+        # A CENSUS SPREAD OVER THE WHOLE COLUMN CANNOT BE MET BESIDE TWO
+        # LAYOUTS OR MORE (lane HX2's skeptic, round 2, item 2): 20
+        # patients keyed `P#####` on 268 rows beside 130 keyed
+        # `REC########` on 1,732, all pooled and spread as 13 and 14 rows
+        # a person, left no way to fill 268 rows from twenty of them, and
+        # the twin failed its own validation. Such a column publishes the
+        # census its published counts imply, each layout's rows spread
+        # over its share of the people (`_even_census`, lane HX's): held
+        # whole, no real group size reaches it.
+        implied: dict[str, object] = {}
+        for key in sorted(column.details):
+            implied[key] = column.details[key]
+        implied["n_distinct_by_occurrences"] = _even_census(
+            column.n_present, census, forms
+        )
+        return dataclasses.replace(column, details=implied)
     while kept and (
         people < floor or _spread_is_real(census, kept, people, rows, floor)
     ):
@@ -25905,6 +25923,20 @@ def with_census_in_people(column: ColumnProfile, floor: int) -> ColumnProfile:
         details[key] = column.details[key]
     details["n_distinct_by_occurrences"] = spread
     return dataclasses.replace(column, details=details)
+
+
+def _layout_parts(n_present: int, forms: "dict[str, object]") -> int:
+    """How many parts a layout census cuts the present rows into (`_even_census`)."""
+    parts = 0
+    named = 0
+    for key in forms:
+        entry = forms[key]
+        if isinstance(entry, int) and entry > 0:
+            parts = parts + 1
+            named = named + entry
+    if n_present > named:
+        parts = parts + 1
+    return parts
 
 
 def _even_spread(people: int, rows: int) -> "list[tuple[int, int]]":
