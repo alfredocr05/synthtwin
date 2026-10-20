@@ -20,16 +20,24 @@ different people under every such column; a column that would publish
 one held by fewer than 11 of them is described as record numbers
 (contract NF126), its twin writes made-up values in its layouts, and the
 screen names it. A column with one value a person (a birth date, a name)
-counts every value it publishes; any other counts the values eleven rows
-or more hold, and keeps its points along the range as on a table of one
-row a person. A person column publishes the census of repetition its
-counts imply rather than how many people hold each number of rows. A
-table with no such column, or whose person column is different on every
-row, is described exactly as before, and a code of fewer than eleven
-values put the person question counts nothing. KPI `K-S3-65` (new): 0
-published values in the rule's scope over 53 long tables; `K-S3-64`
-now holds the five counted shapes at 0. Measured costs and the limits
-left to lanes MG, CODES-1 part C and CODES-2 are in P4-D406.
+and a column of dates or times of day count every value they publish;
+any other counts the values eleven rows or more hold, and keeps its
+points along the range as on a table of one row a person. Written forms,
+the remainder the floor merges and a column's present rows are counted
+in people too, and a record number's layouts worn by fewer than eleven
+people are pooled. A person column's census of rows a person keeps each
+entry of eleven people or more and spreads the rest evenly, never back
+into a real group of fewer. A table with no such column, or whose person
+column is different on every row, is described exactly as before; a key
+of fewer than eleven values put the person question counts only the
+columns attached to it that tell its values apart, so the names and
+birth dates of ten patients are held and a filler code blanks nothing.
+KPI `K-S3-65` (new): 0 published values in the rule's scope over 75 long
+tables with the healthcare catalogue; `K-S3-64` now holds the seven
+counted shapes at 0. Held date columns' twins write figures in the
+dates' layout that do not read as dates (lane PS pools them). Measured
+costs and the limits left to lanes MG, PS, CODES-1 part C and CODES-2
+are in P4-D406.
 
 ### No real identifier is published while its question is open (2026-10-16)
 
