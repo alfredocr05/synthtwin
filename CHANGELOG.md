@@ -36,19 +36,21 @@ converts a native file, value labels applied, to a CSV the person
 keeps; writing stays the standard library's. The offline scanner is to
 enforce the zones module by module, operators included, with every
 numpy operator in generation and description written inside one audited
-helper that checks dtypes and bounds, because numpy's int64 wraps
-without a word (lane DEP-1); CLAUDE.md's principle 3 is restated for
-one numba kernel whose twin bytes CI must prove identical to the
-plain-Python polish over a whole schedule on every system and Python,
-with its integer bounds checked before each call; and an integer solver
-never changes what the between-columns design's exact tests ask (every
-group can reach the floor, or the groups that cannot are zero together,
-so a possible arrangement with a group of 1 to 10 rows is no reason to
-refuse): it only finds arrangements that Python re-checks, an absence
-is proven only by an exact closed form or the exact oracle, and the
-verdict is that exact route's, the same on every computer, so lane MR's
-24 rules at 20,000 and 200,000 rows are re-priced first. The delegated
-choices D-L1 to D-L5 are recorded, and lanes DEP-1 and DEP-2 build the
+helper that checks dtypes and bounds (the shifts and bitwise operators
+among them, and uint64 admitted only for the multiply-high by 32-bit
+limbs), because numpy's int64 wraps without a word (lane DEP-1);
+CLAUDE.md's principle 3 is restated for one numba kernel whose twin
+bytes CI must prove identical to the plain-Python polish over a whole
+schedule on every system and Python, with its integer bounds checked
+before each call; and an integer solver never changes what the
+between-columns design's exact tests ask (every group can reach the
+floor, or the groups that cannot are zero together, so a possible
+arrangement with a group of 1 to 10 rows is no reason to refuse): it
+only finds arrangements that Python re-checks, an absence is proven
+only by an exact closed form or the exact oracle, and the verdict is
+that exact route's, the same on every computer, so lane MR's 24 rules
+at 20,000 and 200,000 rows are re-priced first. The delegated choices
+D-L1 to D-L5 are recorded, and lanes DEP-1 and DEP-2 build the
 mechanics and the bundle. Today's code reaches the platform's `pow`
 through `**` on a float in eight places (on this Mac `x ** 0.5` differs
 from `math.sqrt(x)` on 2,672 of 2,000,000 doubles): a stated limit
