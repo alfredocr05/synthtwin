@@ -7707,6 +7707,26 @@ its expected reading:
    family refused, the column HELD (reading 0); and 22 patients of two
    rows with a band of 23 of 44 rows: PWIT passes and the cross of step
    5 is read.
+7. NEW with the page's second verify (2026-10-20; the orchestrator's
+   ADDENDUM 3 (2) of 14:55), owed by candidate (c)'s certificate
+   (4.6c.11 limit 3) before that candidate may be adopted: the design
+   study's run 3c fixtures, `bc-design/SLOPE-run3c/mom_fix.py`, one
+   patient cell with every world enumerated and the floor scaled to
+   `f = 2`: `MF1` (codes 0 to 3, `r = 2`, 4 to 6 patients, publishing
+   `n` and the column's exact sum and square sum), `MF2` (with a row
+   family, 5 and 6 patients), `MF3` (with the row family and an own-mean
+   family, 5 and 6 patients), `MF4` (codes 0 to 2, `r` of 2 or 3, with
+   the `r` census, 4 patients) and `MF5` (`f = 3`, 6 patients), each
+   beside the `SSB` exact, rounded to `u^2` and to `10 u^2`, the mean
+   slope exact, its sum rounded to one code and the mean rounded to its
+   resolution, and both exact. Reading: no description the certificate
+   lets stand holds a union of types fixed or bounded inside 1 to
+   `f - 1` (MEASURED with no certificate, `out/mfix.json`: the `SSB`
+   exact or to `u^2` pins such a count in 6,396 to 6,697 of 8,159 to
+   8,445 descriptions, the mean slope exact or its sum to one code in
+   5,166 to 5,579 of 10,859 to 11,327, and the witness of a column's
+   mean and spread read on the derived patient column alone accepts 996
+   to 5,317 of the leaking ones, which is why it is no cover).
 
 #### 4.6c.11 What this section promises, its scope and its stated limits
 
@@ -7793,9 +7813,21 @@ visit beyond what their patient-level parents imply.
    on the same column; a grid of two or more codes on the tail
    boundary rungs; and NO trend where the rows outside the trend's
    cells are too few to leave their code total free (4.6c.1 (b) 6:
-   fewer than `f` free rows outside them beside a fixed code total; MEASURED on run 3, `ST2` without dropout, every
-   patient holding every visit, loses its trend, 0.003 and 0.006 of the
-   real). Only `F_S`'s cells carry a published trend; every other
+   fewer than `f` free rows outside them beside a fixed code total).
+   *Complete follow-up, a December limit* (the orchestrator's ADDENDUM
+   4 of 2026-10-20, 17:35): On a table where every patient has every
+   visit, change over visits is not published in December. There
+   `F_S`'s cells hold every row, so the column's exact mean and tails
+   fix their code total (`O_free = 0`) and 4.6c.1 (b) 6 refuses every
+   `Q_P`. Its measured price, on run 3: one table of the battery is
+   such a table, `ST2` without dropout (`st2full`, two runs at 20,000
+   rows, every patient eight rows), whose arm-by-visit trend falls to
+   BASE's 0.003 and 0.006 of the real, failing clause (1) there; 22 of
+   24 route-runs meet clauses (1) to (4), and READY's 6 of 6 on `ST2` at
+   100,000 rows stands. Complete follow-up is common in designed
+   studies, so the owner is told. *Owner:* lane GR in January, a
+   certificate covering cells of `F_S` that hold every row, measured on
+   `st2full`. Only `F_S`'s cells carry a published trend; every other
    group's trend over visits comes back only as the published cells'
    trends and the generation method's extension (G16.15) imply it,
    approximate or unconstrained, NOT flat (the codex review of
@@ -7803,17 +7835,27 @@ visit beyond what their patient-level parents imply.
    upward trend, and an unpublished cell takes the extension's pooled
    slope), and the private report says so in plain words, naming which
    groups are carried by a published `Q_P` and which only by the
-   extension (ruling R7 (2)). On a long table SWING publishes no cell: MEASURED by
+   extension (ruling R7 (2)); on a table where every patient holds
+   every visit it says, in these words: "on a table where every patient
+   has every visit, change over visits is not published in December".
+   On a long table SWING publishes no cell: MEASURED by
    the design study's second run on its long table (rows per patient
    lognormal, median 20, at most 120): 0 cells of one `r` at 3,000
    patients, and all 76 refused at 6,000 (the largest 95 to 107
    patients), the arm-by-visit trend recovered at 0.014 to 0.019, as
-   without the object. Cells of about 100 patients cannot hold the `f`
+   without the object; on the same long tables every route of this
+   page's run 3, this page's own included, brings it back at 0.012 to
+   0.019 of the real (`wave6/MG/run3/summ-L.txt`, as the design study's
+   run 3c cites it). Cells of about 100 patients cannot hold the `f`
    reserve, which grows with `r` squared. The `r`-band form (one moment
    per `r`-band cell, each patient's moment scaled to one unit of swing,
    SWING's classes taken over (own-mean band, pattern, `r`) under `R*`)
    is the January stretch item "`K-BC-06` (8) at 50 per cent through the
-   `r`-band form".
+   `r`-band form". Candidate (c) of limit 3, moments, would carry it:
+   arm by visit at 0.903 to 0.931 of the real on those long tables, with
+   the correlation's gaps +0.005 to +0.034 (MEASURED by run 3c), once
+   its certificate is proven; until then the long-table trend is this
+   limit, at today's 0.012 to 0.019.
 3. **The within-patient correlation and `K-BC-06`'s clause (5), as run 3
    measured them** (the orchestrator's rulings of 2026-10-20: December
    reads the correlation at 100,000 rows under clause (4), 0.07; READY
@@ -7839,23 +7881,56 @@ visit beyond what their patient-level parents imply.
    above the real and broke clause (5) on 21 of 23 runs, so G16.15 takes
    none. Owner of what clause (5) still misses:
    the January stretch item "the ICC inside its yardstick at 100,000
-   rows", widened to name those runs. *The third candidate, NOT
-   MEASURED (the orchestrator's ADDENDUM 2 of 2026-10-20, 12:51; the
-   page's verify, item 2):* carrying the ICC and the trend by MOMENTS
-   (one between-patient sum of squares a column beside its mean, spread
+   rows", widened to name those runs. *The third candidate, MEASURED,
+   the long-table route NOT YET ADOPTED (the orchestrator's ADDENDUM 2
+   of 2026-10-20, 12:51, and ADDENDUM 3, 14:55; the page's second
+   verify, item 1):* carrying the ICC and the trend by MOMENTS (one
+   between-patient sum of squares `SSB` a column beside its mean, spread
    and `r` census; each arm's mean of its patients' own least-squares
    slopes over visit position, the summary-measure analysis of Matthews
    1990 and Vossoughi 2012; generation in two stages made exact by the
    standardise-and-recolour step of Papadimitropoulou 2020; optionally a
-   lag-1 moment a column) was neither measured beside candidates (a)
-   and (b) on `ST2` and `ST2-AGE` at 20,000 and 100,000 rows and on
-   the long table, nor named, in run 3. It stays unmeasured in this
-   page. *Owner and date:* lane GR, through run 3's harness on its 24
-   route-runs and the long table, before the December plan's stage-6
-   gate (Fri 2026-11-13 at the earliest), the page adopting it by the
-   addendum's rule (clauses (1) to (4) at 100,000 rows on at least 5 of
-   6 runs). *Why `A0` stands meanwhile:* `A0` meets that rule (6 of 6 on
-   `ST2` at 100,000 rows, 22 of 24 route-runs under the corrected
+   lag-1 moment a column). MEASURED by the design study's run 3c
+   (`bc-design/SLOPE-run3c.md`, 2026-10-20, on run 2's harness and
+   seeds with the floor enforced): clauses (1) to (4) at 100,000 rows on
+   6 of 6 `ST2` runs (the correlation's gaps -0.0056 to -0.0009, arm by
+   visit 0.972 to 0.990); on the long table (3,000 and 6,000 patients)
+   the only route measured that carries the trend, arm by visit 0.903 to
+   0.931 with the correlation's gaps +0.005 to +0.034, where this page's
+   route gives 0.012 to 0.019 (limits 2 and 4); its pooled
+   within-patient form (`MOMw`) met clauses (1) to (5) on 6 of 6 `ST2`
+   runs at 100,000 and at 20,000 rows but loses clause (2) on the long
+   table; the lag-1 moment brought the lag-1 correlation inside its
+   yardstick on 27 of 27 route-runs. *Why it is not adopted:* no
+   existing witness covers its moments. On exhaustive fixtures
+   (`K-S6-08` item 7) an exact or finely rounded `SSB` pins a count of 1
+   to `f - 1` patients in 6,396 to 6,697 of 8,159 to 8,445 descriptions,
+   and an exact or finely rounded mean slope in 5,166 to 5,579 of 10,859
+   to 11,327; the witness of a column's mean and spread, read on the
+   derived patient column alone, accepts 996 to 5,317 of those leaking
+   descriptions, since the pin combines the `SSB` with the column's
+   row-level square sum, which that witness never reads; SWING certifies
+   the moment of one cell of one `r` only. *What it is owed:* a
+   certificate, the `r`-band SWING proof of limit 2 (the per-arm slope
+   is its coarsest case) plus a joint witness reading the `SSB` with the
+   column's square sum, proven, and reading 0 on `K-S6-08` item 7; and
+   its resolutions read from the census bound (the orchestrator's
+   ADDENDUM 3 (3)): the mean slope's resolution
+   `10^ceil(log10(10 u / n_g))` a visit takes for `n_g` the lower bound
+   the published census gives on the group's patients with `r >= 2`,
+   and `MOMw`'s pooled
+   slope takes for its sum of `Sxx` the bound the census gives on that
+   sum, never the true patient count or the true sum, which would be
+   decisions taken from the real table. *Owner and date:* the January
+   stretch, beside limit 2's `r`-band form, unless the certificate lands
+   in December (ADDENDUM 3 (2)); until then limits 2 and 4 state the
+   long table's trend and correlation with run 3c's numbers (ADDENDUM 3
+   (4)). *Why `A0` stands:* the orchestrator's ADDENDUM 3 (1) adopts
+   candidate (a), the row family's child at the median, for December,
+   which the design study reads as meeting 10 of 10 route-runs at
+   100,000 rows under SWING's proven per-cell certificate; `A0` meets
+   the addendum's rule (clauses (1) to (4) at 100,000 rows on at least 5
+   of 6 runs: 6 of 6 on `ST2`, 22 of 24 route-runs under the corrected
    guard of 4.6c.1 (b) 6) and publishes no patient-level cell of 1 to
    `f - 1`; candidate (c) has no certificate on this page: its
    per-arm slope moment pools patients of every `r` in the arm, which
@@ -7898,6 +7973,13 @@ visit beyond what their patient-level parents imply.
    correlation is not carried at all. Run 3's own floored search tied
    `R*` to the exact (arm, `r`) counts, which a long table does not
    publish, so it could not run there (the page's verify, item 6.1).
+   *Beside it, MEASURED by the design study's run 3c on the same long
+   tables* (the orchestrator's ADDENDUM 3 (4)): candidate (c) of limit 3
+   brings the correlation within +0.005 to +0.034 of the real (gaps
+   +0.0049, +0.0254 and +0.0343, against this route's -0.0093 to
+   +0.0015) and carries the trend there (arm by visit 0.903 to 0.931,
+   where this route gives 0.012 to 0.019, limit 2): the long-table route
+   once its certificate is proven, NOT YET ADOPTED.
    `STATE.md` keeps the line until both land.
 5. **Tables the gate turns off** (4.6c.3 (e)): two or more person
    columns, a tabled row lacking a person value, 1 to `f - 1` extra

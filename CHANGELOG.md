@@ -49,7 +49,12 @@ validation V12.7 to V12.9), and its first review round's repairs:
   world that keeps it, which the review showed was missing (330 leaking
   descriptions on its probe, all refused now).
 - **Stated limits, each with its owner:** the trend is not carried on
-  long tables (January's stretch); the correlation on long tables was
+  long tables (0.012 to 0.019 of the real on run 3's long tables;
+  January's stretch); on a table where every patient has every visit,
+  change over visits is not published in December (run 3 holds one
+  such table, its trend at 0.003 and 0.006 of the real, and 22 of 24
+  runs still meet the clauses; lane GR in January, a certificate for
+  the trend's cells that hold every row); the correlation on long tables was
   0.076 to 0.081 below the real under the study's route, its cause the
   patient weight, its route the published weight (within 0.0093 in run
   3 with PWIT judging, OPEN until lane CHa measures the floored split
@@ -58,8 +63,12 @@ validation V12.7 to V12.9), and its first review round's repairs:
   widened); counts of patients by their exact readings beside a trend
   or an own mean, measured to leak on the fixtures' worst cases (the
   orchestrator's ruling and lane CHa's product-scale run); the third
-  candidate, the ICC and the trend carried by moments, not measured
-  (lane GR, before the stage-6 gate).
+  candidate, the ICC and the trend carried by moments, measured by the
+  design study's run 3c (on the long table the trend at 0.903 to 0.931
+  of the real and the correlation +0.005 to +0.034 off) and not
+  adopted: no existing witness covers its moments, which pin small
+  counts of patients on exhaustive fixtures, so it waits for its
+  certificate (January's stretch unless it is proven in December).
 - **The second review round** (its verify and one outside review)
   also bounded every search the page asks for, scored a census by its
   patients so that the layer turns off only by the draw's uniform share

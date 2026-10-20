@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 12,509 collected (batch 4b: lanes S4d, L3 and TI merged on batch 4a, with Codex's two conditions on its integration; lane CF4b's follow-up for CI's Windows and Python 3.10 jobs; lane MBC's chain method page, 54 checks over two review rounds; lane MG's patient page, 49 checks after its second review round). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 12,178, on `3d893032` (batch 4a), the five shards took 20.7 to 30.5 minutes each, 124.6 minutes summed and 30.5 end to end, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 12,511 collected (batch 4b: lanes S4d, L3 and TI merged on batch 4a, with Codex's two conditions on its integration; lane CF4b's follow-up for CI's Windows and Python 3.10 jobs; lane MBC's chain method page, 54 checks over two review rounds; lane MG's patient page, 51 checks after its second verify). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 12,178, on `3d893032` (batch 4a), the five shards took 20.7 to 30.5 minutes each, 124.6 minutes summed and 30.5 end to end, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 217 KPIs over phases 0-4, stages 1, 2, 2b, 3, 3b and 4 and the terminal, 32 of them headlines under a cap of 32 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H; and from 31 by the orchestrator's recorded call D15 of the December plan, plan P4-D397, for the terminal's `K-S8-01`, the owner may veto it); 187 green, 14 open, 16 limits the owner accepted. Of the 14 open, as each one's `target_stage` reads: 8 have the stage or lane that owns the whole (`K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-44` lane S4b, `K-S8-01` the terminal's lanes TT and TS); 1 is owned in part (`K-2B-47`: stage 3 owns the carried fidelity items, its residue of 2026-09-19, the identifier-layout misses, has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-08` and `K-S4-15` (`K-S4-09` to `K-S4-14` reserved by the December plan), `K-S4-03` a headline in `K-2B-14`'s place; the terminal's (stage 8's ids, lane TI) `K-S8-01`, a headline, and `K-S8-04`. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -615,8 +615,23 @@ cannot get worse unseen.
   `ST2-AGE` at 100,000 rows on its (arm, old) route (the lag-1
   correlation); owner
   the January stretch item. The visit trend publishes no cell on long
-  tables (owner the January `r`-band form), nor where every patient
-  holds every visit (its cells' code total is then fixed). Counts of
+  tables (arm by visit 0.012 to 0.019 of the real on run 3's long
+  tables; owner the January `r`-band form). Complete follow-up, a
+  December limit: on a table where every patient has every visit,
+  change over visits is not published in December, since the trend's
+  cells then hold every row and their code total is fixed (measured
+  price, run 3: one table, `ST2`
+  without dropout, its trend at 0.003 and 0.006 of the real; 22 of 24
+  route-runs meet `K-BC-06`'s clauses (1) to (4); owner lane GR in
+  January, a certificate covering cells that hold every row, measured
+  on that table). The third candidate, moments (the design study's run
+  3c), is measured and not adopted: on the long tables it carries the
+  trend at 0.903 to 0.931 and the correlation within +0.005 to +0.034,
+  but no existing witness covers its moments, which pin small counts of
+  patients on exhaustive fixtures; it waits for its certificate (the
+  `r`-band SWING proof and a joint witness of its sum of squares with
+  the column's square sum), January's stretch unless proven in
+  December. Counts of
   patients by their exact readings beside a trend or an own mean leak on
   the fixtures' worst cases (the page's limit 9; owner the
   orchestrator's ruling and lane CHa's product-scale run).

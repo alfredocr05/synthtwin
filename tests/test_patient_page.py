@@ -32,6 +32,15 @@ each, computing what can be computed (the code total from the mean and
 the tails, the one-cell pigeonhole, Codex's 248-patient count, the
 deficit search against the full one, the census draw's chance of "off").
 
+THE SECOND VERIFY. It found the moments candidate recorded as not
+measured although the design study's run 3c had measured it (the
+orchestrator's ADDENDUM 3 rules it measured and not adopted), lane ST
+still told "trend flat", and eight repaired rules held by no check; the
+orchestrator's ADDENDUM 4 adds the complete-follow-up limit in plain
+words. The checks naming the second verify or ADDENDUM 4 hold each,
+computing the exact sum of squares' pin on run 3c's smallest fixture,
+PWIT's 22 patients and the empty outside of a complete follow-up table.
+
 WHAT IS NOT HERE. No patient-layer code exists to run, so nothing here
 says a twin meets a census or a trend. `K-S6-08`'s enumeration and the
 oracle's cases (G16.17) are where lanes CHa, GR and CHo run the method.
@@ -549,14 +558,64 @@ def test_the_trend_without_dropout_is_restated_and_the_verify_tables_are_cases()
     assert "`make_tail_table.py`" in cases and "`make_heaped_min.py`" in cases
 
 
-def test_the_moments_candidate_is_named_unmeasured_with_its_owner():
-    """Verify item 2: the orchestrator's ADDENDUM 2 (12:51), candidate (c).
-    Mutant: the paragraph removed."""
+def _exact_ssb_pins_a_count():
+    """The design study's run 3c fixture `MF1` at 4 patients (`mom_fix.py`):
+    every world of four two-row patients over codes 0 to 3 whose eight
+    codes sum to 21 with square sum 57 (the column's exact mean and
+    spread). Returns, for each sum over patients of the squared code
+    total (what an exact SSB adds), the counts of (3, 3) patients."""
+    types = list(itertools.product(range(4), repeat=2))
+    found = {}
+    for world in itertools.combinations_with_replacement(types, 4):
+        codes = [c for patient in world for c in patient]
+        if sum(codes) == 21 and sum(c * c for c in codes) == 57:
+            squares = sum(sum(patient) ** 2 for patient in world)
+            found.setdefault(squares, set()).add(world.count((3, 3)))
+    return found
+
+
+def test_the_moments_candidate_is_measured_and_not_adopted():
+    """The second verify's item 1 (MAJOR) and the orchestrator's ADDENDUM 3
+    (14:55) on `bc-design/SLOPE-run3c.md`: candidate (c) was MEASURED (6 of
+    6 at 100,000 rows; on the long table the trend at 0.903 to 0.931 and
+    the correlation +0.005 to +0.034 off), is NOT ADOPTED for want of a
+    certificate, is owed the `r`-band SWING proof and a joint witness, has
+    `mom_fix.py`'s cases in `K-S6-08`, and reads its resolutions from the
+    census bound. Computed: on `MF1`'s four patients the count of (3, 3)
+    patients is 1 or 2 without the moment (f-able at `f = 2`) and exactly
+    1 with an exact SSB, the leak run 3c worked through. Mutants: 'NOT YET
+    ADOPTED' -> 'ADOPTED'; the first repair's 'NOT MEASURED' back; item 7
+    of `K-S6-08` dropped; the census bound -> the true count; the long
+    table's 0.903 to 0.931 dropped from limit 2."""
+    found = _exact_ssb_pins_a_count()
+    assert found == {111: {1}, 113: {2}}
+    assert set().union(*found.values()) == {1, 2} and found[111] == {1}
     limits = _part("11")
-    assert "*The third candidate, NOT MEASURED (the orchestrator's ADDENDUM 2 of 2026-10-20, 12:51" in limits
+    assert "*The third candidate, MEASURED, the long-table route NOT YET ADOPTED (the orchestrator's ADDENDUM 2 of 2026-10-20, 12:51, and ADDENDUM 3, 14:55;" in limits
+    assert "MEASURED by the design study's run 3c (`bc-design/SLOPE-run3c.md`" in limits
+    assert "*Why it is not adopted:* no existing witness covers its moments." in limits
+    assert "the `r`-band SWING proof of limit 2 (the per-arm slope is its coarsest case) plus a joint witness reading the `SSB` with the column's square sum" in limits
+    assert "*Owner and date:* the January stretch, beside limit 2's `r`-band form, unless the certificate lands in December" in limits
+    assert "takes for `n_g` the lower bound the published census gives on the group's patients with `r >= 2`" in limits
+    assert "never the true patient count or the true sum" in limits
     assert "Papadimitropoulou 2020" in limits and "Matthews 1990" in limits
-    assert "*Why `A0` stands meanwhile:*" in limits
-    assert "candidate (c), moments: NOT MEASURED in this lane" in _decision()
+    assert "*Why `A0` stands:* the orchestrator's ADDENDUM 3 (1) adopts candidate (a)" in limits
+    assert "NOT MEASURED" not in limits and "stays unmeasured" not in limits
+    assert "arm by visit at 0.903 to 0.931 of the real on those long tables, with the correlation's gaps +0.005 to +0.034" in limits
+    assert "until then the long-table trend is this limit, at today's 0.012 to 0.019" in limits
+    assert "candidate (c) of limit 3 brings the correlation within +0.005 to +0.034 of the real" in limits
+    cases = _part("10")
+    assert "7. NEW with the page's second verify" in cases and "`bc-design/SLOPE-run3c/mom_fix.py`" in cases
+    assert "pins such a count in 6,396 to 6,697 of 8,159 to 8,445 descriptions" in cases
+    decision = _decision()
+    assert "candidate (c), moments: MEASURED by the design study's run 3c" in decision
+    assert "it is written as the long-table route NOT YET ADOPTED, owed a certificate" in decision
+    assert "NOT MEASURED in this lane" not in decision
+    entry = _entry()
+    assert "measured by the design study's run 3c" in entry and "0.903 to 0.931" in entry
+    assert "not measured (lane GR" not in entry
+    state = _flat(STATE.read_text(encoding="utf-8"))
+    assert "is measured and not adopted" in state and "0.903 to 0.931" in state
 
 
 def test_a_computed_dates_difference_has_levels_and_a_certificate():
@@ -813,8 +872,66 @@ def test_the_census_draw_scores_patients_so_off_keeps_only_the_uniform_share():
 
 
 def test_uncarried_groups_trends_are_not_called_flat():
-    """Codex item 16. Mutant: 'every other group's trend over visits is flat
-    in the twin'."""
+    """Codex item 16, and the second verify's item 2: P4-D412 still told
+    lane ST to report 'every other group's trend flat'. Mutants: 'every
+    other group's trend over visits is flat in the twin'; the decision's
+    'trend flat' back."""
     limits = _part("11")
     assert "every other group's trend over visits is flat in the twin" not in limits
     assert "approximate or unconstrained, NOT flat" in limits
+    assert "every other group's trend approximate or unconstrained, never flat" in _decision()
+    assert "trend flat" not in _flat(PLAN.read_text(encoding="utf-8"))
+
+
+def test_the_second_verifys_green_mutants_are_pinned():
+    """The second verify's item 3: eight repaired rules no check held (its
+    `mutate_extra.py`, each mutant alone on a copy). The first two are the
+    BLOCKER's threshold, `f` in both places; the third is Codex 5's core.
+    Computed: PWIT in one cell holds for every band of at least `f` rows
+    once the table holds `2 f` = 22 patients, and refuses a band at 20.
+    Mutants, each red on its own: S33's floor -> 1; (b) 6's 'at least `f`'
+    -> 'at least one'; the census line 'not judged'; 'drawn HELD' -> 'drawn
+    as it is'; 22 -> 11 patients; `D` given a `ladder` entry; STATE's and
+    the CHANGELOG's long-table route called closed."""
+    for patients in range(2 * FLOOR, 2 * FLOOR + 40):
+        for band in range(FLOOR, 10 * patients + 1):
+            assert patients * (band // FLOOR) >= band
+    assert not _pwit(20, [21, 19])
+    assert "`O_free = n - sum |P| r - n_one`, read on the census, `F_S`'s published counts and the column's `L0` totals, is at least `settings.small_cell_floor` (4.6c.1 (b) 6;" in _part("10")
+    assert "or where the rows outside those cells keep a free code total: at least `f` of them," in _part("1")
+    assert 'a file whose census differs from the published one reads MISSED on the census line, never "not judged"' in _v12()
+    rows = _part("8")
+    assert "Where the certificate fails the column is drawn HELD (inventory row 19a)" in rows
+    assert "so on one `r` it refuses only tables of fewer than 22 patients" in rows
+    assert "with the edges 4.6b.7 publishes and no `ladder` entry of its own (the row family's table is its only count)" in _part("7")
+    state = _flat(STATE.read_text(encoding="utf-8"))
+    assert "three long-table runs of the page's run 3, with PWIT judging the row family (OPEN until lane CHa measures" in state
+    assert "within 0.0093 in run 3 with PWIT judging, OPEN until lane CHa measures" in _entry()
+
+
+def test_complete_follow_up_is_a_stated_december_limit_in_plain_words():
+    """The orchestrator's ADDENDUM 4 (17:35), on the second repair's point
+    1. Computed: where every patient of the table holds all eight visits,
+    the trend's one cell holds every row, so no row outside it keeps a
+    free code total (`O_free = 0 < f`) and 4.6c.1 (b) 6 refuses the trend.
+    The page's limits, the private report's words the page names, P4-D412
+    and STATE say so in plain words, with the measured price (run 3:
+    `st2full` only; 22 of 24 route-runs meet clauses (1) to (4)) and the
+    owner (lane GR, January). Mutants: the sentence removed from any one
+    place; the price or the owner dropped."""
+    patients, visits = 3000, 8
+    rows = patients * visits
+    assert rows - patients * visits - 0 == 0 < FLOOR
+    words = "on a table where every patient has every visit, change over visits is not published in December"
+    limits = _part("11")
+    assert "*Complete follow-up, a December limit* (the orchestrator's ADDENDUM 4 of 2026-10-20, 17:35): On a table where every patient has every visit, change over visits is not published in December." in limits
+    assert 'it says, in these words: "' + words + '"' in limits
+    assert "22 of 24 route-runs meet clauses (1) to (4), and READY's 6 of 6 on `ST2` at 100,000 rows stands" in limits
+    assert "*Owner:* lane GR in January, a certificate covering cells of `F_S` that hold every row, measured on `st2full`." in limits
+    decision = _decision()
+    assert "COMPLETE FOLLOW-UP, A DECEMBER LIMIT" in decision and words + ", since" in decision
+    assert "owner lane GR in January: a certificate covering `F_S` cells that hold every row, measured on `st2full`" in decision
+    state = _flat(STATE.read_text(encoding="utf-8"))
+    assert "Complete follow-up, a December limit: " + words in state
+    assert "22 of 24 route-runs meet `K-BC-06`'s clauses (1) to (4); owner lane GR in January" in state
+    assert words in _entry()
