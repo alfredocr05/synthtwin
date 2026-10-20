@@ -4780,7 +4780,8 @@ def _names_its_people(values: "list[str]", subjects: "list[str]") -> bool:
             first[subjects[place]] = text
     met: "dict[str, int]" = {}
     commonest = 0
-    for text in first.values():
+    for subject in first:
+        text = first[subject]
         met[text] = (met[text] if text in met else 0) + 1
         commonest = max(commonest, met[text])
     return len(first) >= 2 and commonest * 2 <= len(first)

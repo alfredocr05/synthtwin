@@ -368,7 +368,7 @@ def test_the_remainder_the_floor_merges_is_counted_in_people(tmp_path: pathlib.P
 def test_a_column_written_for_two_people_publishes_no_statistic_of_them(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Item 3: fifteen doses of two patients -- their mean, spread and points are not published."""
+    """Item 3: fifteen readings of two patients -- their mean, spread and points are not published."""
     table, _screen = _profiled(tmp_path, "dose", persons_counted.sparse_table(2000),
                                "--identifier", "patient")
     block = _block(_described(tmp_path, "dose"), "dose")
@@ -423,10 +423,10 @@ def test_the_person_census_is_counted_in_people(tmp_path: pathlib.Path, small: b
 def test_a_measurement_attached_to_its_people_counts_its_points(
     tmp_path: pathlib.Path, differing: float
 ) -> None:
-    """Item 7: one height a patient is held; a quarter of the later rows changed, it is not."""
-    table, _screen = _profiled(tmp_path, "tall", persons_counted.height_table(differing),
+    """Item 7: one size a patient is held; a quarter of the later rows changed, it is not."""
+    table, _screen = _profiled(tmp_path, "tall", persons_counted.size_table(differing),
                                "--identifier", "patient")
-    block = _block(_described(tmp_path, "tall"), "height")
+    block = _block(_described(tmp_path, "tall"), "size")
     if differing == 0.0:
         assert _held(block), block
         assert persons_counted.count_files(table, tmp_path)["few"] == 0

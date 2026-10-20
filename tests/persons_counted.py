@@ -481,22 +481,22 @@ def sparse_table(rows: int) -> str:
     return "\n".join(lines) + "\n"
 
 
-def height_table(differing: float) -> str:
-    """150 declared patients on four rows each; `height` one value a patient.
+def size_table(differing: float) -> str:
+    """150 declared patients on four rows each; `size` one value a patient.
 
     ``differing`` is the share of a patient's later rows written with
-    another height: nought keeps the column attached to the patient, a
+    another size: nought keeps the column attached to the patient, a
     quarter does not.
     """
     draw = random.Random(29)
-    heights = [f"{draw.uniform(150, 199):.1f}" for _person in range(150)]
-    lines = ["patient,height,value"]
+    sizes = [f"{draw.uniform(150, 199):.1f}" for _person in range(150)]
+    lines = ["patient,size,value"]
     for place in range(600):
         person = place % 150
-        height = heights[person]
+        size = sizes[person]
         if place >= 150 and draw.random() < differing:
-            height = f"{draw.uniform(150, 199):.1f}"
-        lines += [f"REC{70000000 + 3 * person:08d},{height},{draw.uniform(3, 150):.1f}"]
+            size = f"{draw.uniform(150, 199):.1f}"
+        lines += [f"REC{70000000 + 3 * person:08d},{size},{draw.uniform(3, 150):.1f}"]
     return "\n".join(lines) + "\n"
 
 
