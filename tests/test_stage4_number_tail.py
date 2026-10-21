@@ -1004,6 +1004,94 @@ def test_the_oracle_s_tail_mirrors_are_each_read_against_the_product(tmp_path: p
     assert list(read.low.counts) == list(heaped.low["counts"])
 
 
+def _band_inputs(facts: contract.NumericFacts) -> "tuple[int, int, int, int]":
+    """The positive band's first rank, its cells and strata, and the grid: the column's different values less the zero stratum, as the delays' case above asks."""
+    start = facts.n_negative - facts.n_negative_unrepresentable + facts.n_zero
+    strata = facts.n_distinct_values - (1 if facts.n_zero > 0 else 0)
+    return start, facts.n_used_in_statistics - start, strata, contract._tail_figures(facts)
+
+
+def test_the_oracle_holds_the_sign_bands_as_the_product_does(tmp_path: pathlib.Path) -> None:
+    """`hb` and `wt` at 20,000 rows, data seeds 1 to 4: the oracle's ladder, its reading at every tail row and its division of the positive band are the product's (verify 2's item 1).
+
+    Every column's low tail reads the shared staircase across nought, and
+    seven of the eight hold a zero stratum there. No case read the oracle
+    against the product on such a tail: the product's zero-stratum rule
+    withdrawn (`contract._sign_held` reading nought at a rank of the zero
+    stratum) passed the gate's sign and oracle cases, and the oracle's
+    sign bands (`staircase_sign_held`) or its rows frozen in another band
+    (`sign_frozen`) withdrawn passed those and both reference files.
+    Mutants: each of the three withdrawn.
+    """
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    ladder_off = readings = divisions = crossing = zeroed = 0
+    for seed in (1, 2, 3, 4):
+        described = kpi_shapes.describe(tmp_path / f"signs{seed}", f"signs{seed}", _table(_sign_crossing(20000, seed)))
+        for place, block in enumerate(described.loaded.columns):
+            facts = block.facts
+            assert isinstance(facts, contract.NumericFacts)
+            mine = contract.tail_ladder(facts)
+            theirs = oracle.tail_ladder(oracle.plain_numbers(described.document["columns"][place]))  # type: ignore[attr-defined]
+            assert isinstance(mine, contract.ShapedLadder) and mine.low is not None and mine.high is not None
+            numbers = facts.n_used_in_statistics
+            same = list(mine) == list(theirs)
+            for reader, other in ((mine.low, theirs.low), (mine.high, theirs.high)):
+                same = same and list(reader.steps) == list(other["steps"]) and reader.shared == bool(other.get("shared"))
+                for row in range(reader.rows):
+                    rank = reader.rows - 1 - row if reader.low else numbers - reader.rows + row
+                    read = contract.tail_read(mine, 2 * rank + 1, 2 * numbers)
+                    readings += read != oracle.tail_read_at(theirs, 2 * rank + 1, 2 * numbers)  # type: ignore[attr-defined]
+            ladder_off += not same
+            start, cells, strata, figures = _band_inputs(facts)
+            sizes = generation._shape_sizes(
+                start, cells, strata, mine, numbers, facts.integer_valued, figures, 0, generation._BAND_POSITIVE
+            )
+            divisions += sizes != oracle.band_allotment(  # type: ignore[attr-defined]
+                cells, strata, theirs, start, numbers, facts.integer_valued, figures, 0, generation._BAND_POSITIVE
+            )
+            crossing += mine.low.shared and facts.n_negative > 0 and start < mine.low.rows
+            zeroed += mine.low.shared and facts.n_zero > 0
+    assert (crossing, zeroed) == (8, 7), "premise: every shared low tail crosses nought, seven with a zero stratum"
+    assert (ladder_off, readings, divisions) == (0, 0, 0)
+
+
+def test_the_oracle_protects_a_pinned_end_only_where_its_tail_is_shared(tmp_path: pathlib.Path) -> None:
+    """P4-D390's eight-figure dates beside labels at a floor of eleven: the oracle divides the numbers' positive band as `generation._shape_sizes` does, the low tail shared and the high tail not (verify 2's item 1).
+
+    Codex's item 2 keeps a pinned end's run from G5.2a's join only where
+    that end's own tail reads the shared staircase, and P4-D390's own test
+    holds the product to it; no case held the oracle's mirror
+    (`band_allotment`'s `first_pinned` and `last_pinned`) to it: pinning
+    either end where either tail is shared, it passed the gate's oracle
+    and pinned-end cases and both reference files. Mutant: the oracle
+    pinning either end where either tail is shared.
+    """
+    import fixtures
+    import test_p4d390_counts_per_block as counts_per_block
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    document = counts_per_block.described(tmp_path, "dates_beside_low_and_high_f11")
+    loaded = contract.load_profile(f"{fixtures.write_profile(tmp_path, 'dates.json', document)}")
+    compound = loaded.columns[0].facts
+    assert isinstance(compound, contract.CompoundFacts)
+    facts = compound.numbers
+    mine = contract.tail_ladder(facts)
+    theirs = oracle.tail_ladder(oracle.plain_numbers(document["columns"][0]["numbers"]))  # type: ignore[attr-defined]
+    assert isinstance(mine, contract.ShapedLadder) and mine.low is not None and mine.high is not None
+    assert mine.low.shared and not mine.high.shared, "premise: the low tail alone reads the shared staircase"
+    assert list(mine) == list(theirs)
+    numbers = facts.n_used_in_statistics
+    start, cells, strata, figures = _band_inputs(facts)
+    assert (start, cells) == (0, numbers), "premise: the band runs from the first rank to the last"
+    sizes = generation._shape_sizes(
+        start, cells, strata, mine, numbers, facts.integer_valued, figures, 0, generation._BAND_POSITIVE
+    )
+    assert sizes == oracle.band_allotment(  # type: ignore[attr-defined]
+        cells, strata, theirs, start, numbers, facts.integer_valued, figures, 0, generation._BAND_POSITIVE
+    )
+
+
 def test_k_s4_20_s_ceilings_fail_on_the_pushed_staircase(
     tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
 ) -> None:
