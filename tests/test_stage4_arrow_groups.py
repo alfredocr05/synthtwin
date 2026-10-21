@@ -281,6 +281,29 @@ def test_pyarrow_is_asked_for_the_group_alone_on_one_thread(
         assert set(types) == set(included) and all(f"{kind}" == "string" for kind in types.values())
 
 
+def test_the_walk_is_proved_one_group_at_a_time(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A walk of several groups asks pyarrow for one group's columns a reading: a proof of the whole walk at once is red."""
+    table = tmp_path / "wide.csv"
+    _wide(table, 8, 400)
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1 << 40)
+    asked: "list[tuple[object, ...]]" = []
+    real = pyarrow.csv.read_csv
+
+    def watched(path: object, **settings: object) -> object:
+        asked.append(tuple(settings["convert_options"].include_columns))  # type: ignore[attr-defined]
+        return real(path, **settings)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading.pyarrow.csv, "read_csv", watched)
+    read = reading.read_table(str(table), in_groups=True)
+    assert read.source is not None and len(read.source.walks) == 1
+    assert len(read.source.groups) == 8
+    assert asked == [(f"{reading._ARROW_NAMES}{place}",) for place in range(8)], asked
+    assert all(proof.digest >= 0 for proof in read.source.proofs)
+
+
 def test_a_group_read_through_pyarrow_holds_the_group_and_nothing_of_pyarrow(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

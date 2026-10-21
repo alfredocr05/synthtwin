@@ -3144,12 +3144,14 @@ def _arrow_proof(
 ) -> "list[_ArrowProof]":
     """pyarrow's reader held to the survey's reading of the columns ``start`` to ``end``: each column's proof, or `_NOT_PROVEN`.
 
-    Asked of a walk the standard reader and pandas have checked. A form
-    pyarrow's reader is known to read otherwise -- comma-space, short
-    rows, a closing delimiter, an end-of-file mark, a delimiter of more
-    than one character -- is not asked at all; every other is read and
-    held to the survey's values, every row of every column, and a
-    single difference proves none of the walk's columns.
+    Asked of each group of a walk the standard reader and pandas have
+    checked, one group at a time, so pyarrow never holds more than one
+    group's cells beside the walk. A form pyarrow's reader is known to
+    read otherwise -- comma-space, short rows, a closing delimiter, an
+    end-of-file mark, a delimiter of more than one character -- is not
+    asked at all; every other is read and held to the survey's values,
+    every row of every column, and a single difference proves none of
+    the group's columns.
     """
     form = surveyed.form
     unproven = [_NOT_PROVEN for _place in range(start, end)]
@@ -3722,18 +3724,22 @@ def _walk_the_groups(
                 refused += [refusal]
         # PYARROW'S READER HELD TO THE WALK (lane SR-A, plan P4-D414): on
         # a walk both checks passed, its columns read by pyarrow and held
-        # to the survey's, value by value; a column it read so is read
-        # again by it (`_read_group`), and by the standard reader
-        # otherwise. A file some check refuses is refused, never read
-        # again, and is not asked.
+        # to the survey's, value by value, ONE GROUP AT A TIME, so what
+        # pyarrow holds beside the walk is one group's cells at most; a
+        # column it read so is read again by it (`_read_group`), and by
+        # the standard reader otherwise. A file some check refuses is
+        # refused, never read again, and is not asked.
         if not differences and not refused and reading.n_rows:
-            proven = _arrow_proof(
-                raw_path, shown, facts, surveyed, headed, reading.columns,
-                start, end,
-            )
-            _still_the_same(table_path, facts, shown)
-            for place in range(start, end):
-                proofs[place] = proven[place - start]
+            for group_start, group_end in groups:
+                if group_start < start or group_end > end:
+                    continue
+                proven = _arrow_proof(
+                    raw_path, shown, facts, surveyed, headed, reading.columns,
+                    group_start, group_end,
+                )
+                _still_the_same(table_path, facts, shown)
+                for place in range(group_start, group_end):
+                    proofs[place] = proven[place - group_start]
         for place in range(start, end):
             forms[place] = surveyed.form.columns[place]
             holds[place] = surveyed.quoting_holds[place]
