@@ -259,17 +259,24 @@ def test_a_tail_three_people_hold_is_pooled_into_the_first_bucket(tmp_path: path
 
 
 def test_a_mode_three_people_hold_is_never_printed(tmp_path: pathlib.Path) -> None:
-    """Three patients hold 300 rows of June 2023 and nobody else: no point names June, and the twin parses."""
+    """Three patients hold 300 rows of June 2023 and nobody else: no point names June, and the twin parses.
+
+    The walk reaches the month (1,500 rows of about 400 people), where
+    June would be the column's commonest point, held by three people: the
+    column is held, its twin written in valid dates.
+    """
     june = [(950 + one % 3, datetime.date(2023, 6, 10 + one % 5)) for one in range(300)]
-    text = _visits(600, 200, datetime.date(2023, 1, 1), 730, 17, "iso", [])
+    text = _visits(1200, 400, datetime.date(2023, 1, 1), 730, 17, "iso", [])
     lines = text.splitlines()
     kept = [lines[0]] + [line for line in lines[1:] if line.split(",")[1][:7] != "2023-06"]
     draw = random.Random(3)
     for person, day in june:
         kept += [f"REC{80000000 + 7 * person:08d},{day.isoformat()},{draw.uniform(3, 150):.1f}"]
     described = _profiled(tmp_path, "visits", "\n".join(kept) + "\n", "--identifier", "patient")
-    shown = json.dumps(_block(described, "seen"))
+    block = _block(described, "seen")
+    shown = json.dumps(block)
     assert "2023-06" not in shown, shown
+    assert block["role"] == "identifier" and block["time_grain"]["rung"] == grains.HELD
     twin, real = _generated_and_validated(tmp_path, "visits")
     assert twin == set() and "seen" not in real
     assert _parses(_column(tmp_path / "visits-twin.csv", "seen"), "%Y-%m-%d") == 0
