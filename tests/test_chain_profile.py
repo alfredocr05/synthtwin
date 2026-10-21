@@ -729,3 +729,409 @@ def test_the_moment_inputs_are_computed_and_nothing_of_them_is_published(tmp_pat
     # The published description holds none of them.
     text = json.dumps(statistical)
     assert "sums" not in text and "offers" not in text
+
+
+# -- REPAIR 1: RULE W1'S OWN-FACT GROUPS, THE MERGE, THE BOUNDARIES ---------
+
+
+def _number_block(**extra: object) -> "dict[str, object]":
+    """An invented count column's block: rungs 10 to 90, no other fact unless given."""
+    rungs = {key: float(key[1:]) for key in chain_rules.NUMBER_RUNGS[0]}
+    block: "dict[str, object]" = {"name": "x", "role": "count", "percentiles": rungs, "n_zero": 0, "mode": None, "mode_count": 0, "n_distinct_values": 90}
+    block.update(extra)
+    return block
+
+
+def _groups_of(block: "dict[str, object]", totals: "list[int] | None" = None) -> "set[int]":
+    start = chain_rules.starting_bands(block, (False, False, False))
+    assert start is not None
+    ladder = chain_rules.merge_ladder("x", start, totals or [50] * len(start.names), FLOOR)
+    assert ladder is not None
+    return chain_rules.small_group_bands(block, start, ladder, FLOOR)
+
+
+EVERY_BAND = set(range(12))
+
+
+@pytest.mark.parametrize(
+    "source, extra, expected",
+    [
+        ("n_zero", {"n_zero": 5}, {0}),
+        ("mode_count", {"mode": 55.0, "mode_count": 4}, {6}),
+        ("heaped", {"heaped": {"5": 30}}, EVERY_BAND),
+        ("a tail of a few rows", {"tails": {"high": {"percent": 98, "rows": 5, "values": []}}}, EVERY_BAND),
+        ("six or fewer values", {"n_distinct_values": 4}, EVERY_BAND),
+        ("none", {}, set()),
+    ],
+)
+def test_each_own_fact_source_marks_its_band(source, extra, expected):
+    """4.6b.3's list, one source a case beside nothing else (skeptic 1's item 5, mutants M16 to M21):
+    each source read alone marks exactly its band, or every value band where the facts do not place it."""
+    assert _groups_of(_number_block(**extra)) == expected, source
+
+
+def test_a_merged_band_holds_the_sub_band_it_took_in():
+    """Mutant M18: a merged `L0` band not marked."""
+    totals = [50] * 12
+    totals[3] = 5
+    start = chain_rules.starting_bands(_number_block(), (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, totals, FLOOR)
+    merged = [at for at in range(len(ladder.l0)) if len(ladder.l0[at]) > 1]
+    assert len(merged) == 1
+    assert chain_rules.small_group_bands(_number_block(), start, ladder, FLOOR) == set(merged)
+
+
+def test_a_date_tail_of_a_few_rows_marks_every_value_band():
+    """Mutant M22: a date or clock tail's own facts not read."""
+    rungs = dict(zip(chain_rules.NINE_RUNGS[0], ["2021-01-05", "2021-02-01", "2021-03-01", "2021-04-01", "2021-06-01", "2021-08-01", "2021-10-01", "2021-11-01", "2021-12-01"]))
+    block = {"name": "d", "role": "datetime", "date_percentiles": rungs, "low_tail": {"boundary": "2021-01-02", "rows": 5, "values": None}}
+    start = chain_rules.starting_bands(block, (False, False, False))
+    ladder = chain_rules.merge_ladder("d", start, [50] * len(start.names), FLOOR)
+    assert chain_rules.small_group_bands(block, start, ladder, FLOOR) == set(range(len(ladder.l0)))
+    block["low_tail"] = {"boundary": "2021-01-02", "rows": 40, "values": None}
+    assert chain_rules.small_group_bands(block, start, ladder, FLOOR) == set()
+
+
+def test_the_l0_merge_takes_a_band_of_exactly_the_floor_less_one():
+    """Mutant M10: a merge at `floor - 1`, which leaves a printed `L0` total of exactly ten."""
+    totals = [50] * 12
+    totals[5] = FLOOR - 1
+    start = chain_rules.starting_bands(_number_block(), (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, totals, FLOOR)
+    assert len(ladder.l0) == 11 and FLOOR - 1 not in ladder.totals
+    totals[5] = FLOOR
+    assert len(chain_rules.merge_ladder("x", start, totals, FLOOR).l0) == 12
+
+
+def test_the_l0_merge_joins_equal_neighbours_to_the_earlier():
+    """4.6b.2 as amended: ties go to the earlier neighbour (mutant M11)."""
+    totals = [50] * 12
+    totals[1], totals[2], totals[3] = 40, 5, 40
+    start = chain_rules.starting_bands(_number_block(), (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, totals, FLOOR)
+    assert ladder.totals[1] == 45 and ladder.totals[2] == 40
+
+
+def test_the_label_merge_keeps_every_band_between_the_two_smallest(tmp_path):
+    """Skeptic 1's item 2: one blank cell beside a binary column of 425 and 375 merges with the
+    smaller level and keeps the larger, so the column stays eligible. Mutant: the old slice that
+    dropped every band between the two smallest (one band of 376 left, the column ineligible)."""
+    draw = random.Random(2)
+    rows = [[f"{draw.randint(18, 90)}", "F" if place < 425 else "M"] for place in range(800)] + [["50", ""]]
+    table, document, settings, _chained = _describe(tmp_path, _csv(["age", "sex"], rows), name="blank")
+    read = chain.read_column(table, 1, document["columns"][1], settings, {"code": False, "measurement": False, "decimal_comma": False}, "", 0)
+    totals = [0] * len(read.start.names)
+    for row in range(table.n_rows):
+        totals[read.codes[row]] += 1
+    ladder = chain_rules.merge_ladder("sex", read.start, totals, FLOOR)
+    assert sorted(ladder.totals) == [376, 425]
+    start = chain_rules.Starting(("missing", ("a",), ("b",), ("c",)), ((-1, 0, 1, 2),) * 3, (False, True, True, True), True, ())
+    ladder = chain_rules.merge_ladder("l", start, [1, 300, 500, 15], FLOOR)
+    assert ladder.totals == (16, 300, 500)
+
+
+def _slice_table(n_rows: int = 600) -> str:
+    """Ages all different; sex F on every row of the middle decile [p40, p50) (skeptic 1's probe)."""
+    draw = random.Random(5)
+    ages = sorted(20 + 0.01 * value for value in draw.sample(range(6000), n_rows))
+    rows = [[f"{ages[at]:.2f}", "F" if 0.40 * n_rows <= at < 0.50 * n_rows else draw.choice("FM")] for at in range(n_rows)]
+    draw.shuffle(rows)
+    return _csv(["age", "sex"], rows)
+
+
+def _clock_table() -> str:
+    """Clocks whose band [p25, p50) leaves one row outside the census groups inside it, all g = a there."""
+    draw = random.Random(2)
+    clocks = [draw.randint(0, 1439) for _ in range(600)]
+    marks = random.Random(7)
+    plain = [marks.choice("ab") for _ in clocks]
+    rows = [[f"{c // 60:02d}:{c % 60:02d}", g] for c, g in zip(clocks, plain)]
+    settings = taxonomy.Settings(small_cell_floor=FLOOR)
+    document = profile.build_document(reading.read_table(str(fixtures.write(_clock_folder(), "c.csv", _csv(["clock", "g"], rows))), small_cell_floor=FLOOR), settings, [], [], [])
+    rungs = document["columns"][0]["clock_percentiles"]
+    low = int(rungs["p25"][:2]) * 60 + int(rungs["p25"][3:5])
+    high = int(rungs["p50"][:2]) * 60 + int(rungs["p50"][3:5])
+    rows = [[f"{c // 60:02d}:{c % 60:02d}", "a" if low <= c < high else marks.choice("ab")] for c in clocks]
+    return _csv(["clock", "g"], rows)
+
+
+def _clock_folder() -> pathlib.Path:
+    import tempfile
+
+    return pathlib.Path(tempfile.mkdtemp(prefix="chain-clock-"))
+
+
+def _no_confined_row(statistical: "dict[str, object] | None", column: str) -> bool:
+    """Every row of every published family holding `column` as a parent has two non-zero cells."""
+    if not statistical:
+        return True
+    for family in statistical["chain"]:
+        if not family["parents"] or column not in [parent["column"] for parent in family["parents"]]:
+            continue
+        for row in family["table"]:
+            if sum(row) and len([cell for cell in row if cell]) < 2:
+                return False
+    return True
+
+
+def _value_runs(tmp_path, text, name, column):
+    table, document, settings, _chained = _describe(tmp_path, text, name=name)
+    place = [block["name"] for block in document["columns"]].index(column)
+    block = document["columns"][place]
+    read = chain.read_column(table, place, block, settings, {"code": False, "measurement": False, "decimal_comma": False}, "", 0)
+    totals = [0] * len(read.start.names)
+    for row in range(table.n_rows):
+        totals[read.codes[row]] += 1
+    ladder = chain_rules.merge_ladder(column, read.start, totals, FLOOR)
+    return table, document, settings, block, read, ladder
+
+
+def test_a_percentile_slice_of_a_few_rows_marks_its_band(tmp_path):
+    """Skeptic 1's item 1 (a): at 600 all-different ages every 1 % slice between two published
+    rungs holds exactly six rows, an own-fact group; every value band is marked and no key
+    publishes the decile [p40, p50) confined to one sex. Mutant: the rungs drawing no cut."""
+    text = _slice_table()
+    table, document, settings, block, read, ladder = _value_runs(tmp_path, text, "slice", "age")
+    marked = chain.value_run_bands(block, read.start, ladder, FLOOR, read.readings)
+    assert marked == {at for at in range(len(ladder.l0)) if ladder.ordered[at]}
+    for key in range(4):
+        found = chain.describe(table, document, settings, chain.ChainSwitch("slice", bytes([key]) * 32))
+        assert _no_confined_row(found.statistical, "age")
+
+
+def test_a_census_remainder_of_a_few_rows_marks_its_band(tmp_path):
+    """Skeptic 1's item 1 (b): the clock band [p25, p50) totals 149 and the census groups wholly
+    inside it 148, so one row's count is fixed; that band is marked and no key publishes it
+    confined to g = a. Mutant: the census's edges drawing no cut."""
+    text = _clock_table()
+    table, document, settings, block, read, ladder = _value_runs(tmp_path, text, "clock", "clock")
+    marked = chain.value_run_bands(block, read.start, ladder, FLOOR, read.readings)
+    rungs = block["clock_percentiles"]
+    band = [at for at in range(len(ladder.l0)) if any(isinstance(name, tuple) and name[0] == "p25" for name in ladder.l0[at])]
+    assert band and band[0] in marked, (rungs, marked)
+    for key in range(4):
+        found = chain.describe(table, document, settings, chain.ChainSwitch("clock", bytes([key]) * 32))
+        assert _no_confined_row(found.statistical, "clock")
+
+
+def _censored(n_rows: int = 2000) -> str:
+    """Follow-up days with a quarter of the rows at the study's end, 366, every one of them censored."""
+    draw = random.Random(11)
+    rows: "list[list[str]]" = []
+    for _place in range(n_rows):
+        if draw.random() < 0.25:
+            rows += [["366", "0"]]
+        else:
+            rows += [[f"{draw.randint(1, 365)}", "1" if draw.random() < 0.3 else "0"]]
+    return _csv(["followup_days", "event"], rows)
+
+
+def test_a_one_value_tail_at_the_cap_keeps_time_and_event_eligible(tmp_path, monkeypatch):
+    """The statistics skeptic's item 1: a tail listing one value of at least `f` rows names no
+    group of 1 to 10, so the band at the cap, confined to `event` 0, is not marked and the pair
+    stays eligible at the follow-up's finest level. Mutant: each listed tail value marking its
+    band (the build's amendment (i)), which refuses the pair there on every censored table."""
+    table, document, settings, block, read, ladder = _value_runs(tmp_path, _censored(), "survival", "followup_days")
+    tails = block["tails"]["high"]
+    assert tails["values"] == [366.0] and tails["rows"] >= FLOOR
+    groups = chain_rules.small_group_bands(block, read.start, ladder, FLOOR) | chain.value_run_bands(
+        block, read.start, ladder, FLOOR, read.readings
+    )
+    cap = [at for at in range(len(ladder.l0)) if ladder.ordered[at]][-1]
+    assert cap not in groups
+    seen: "list[tuple[str, tuple[str, ...], tuple[int, ...]]]" = []
+    original = chain._root_options
+
+    def recording(search, x0, room):
+        options = original(search, x0, room)
+        seen.extend((option.child, option.parents, option.levels) for option in options)
+        return options
+
+    monkeypatch.setattr(chain, "_root_options", recording)
+    chain.describe(table, document, settings, chain.ChainSwitch("survival", TEST_KEY))
+    finest = [one for one in seen if one[1] and ((one[0] == "event" and one[2][1] == 0) or (one[0] == "followup_days" and one[2][0] == 0))]
+    assert finest
+
+
+def test_a_blank_record_keeps_the_content_hash_and_the_ledger_refuses_the_copy(tmp_path, monkeypatch, capsys):
+    """Skeptic 1's item 6: a row blank in every column adds no content (4.6b.8 as amended), so the
+    table with one more empty record is the same table to the ledger. Mutant: every row hashed."""
+    text = _clinic()
+    first = reading.read_table(str(fixtures.write(tmp_path, "one.csv", text)), small_cell_floor=FLOOR)
+    second = reading.read_table(str(fixtures.write(tmp_path, "two.csv", text + ",,,,,,\n")), small_cell_floor=FLOOR)
+    hashes_one, filled_one = chain.row_hashes(first)
+    hashes_two, filled_two = chain.row_hashes(second)
+    assert len(hashes_two) == len(hashes_one) + 1
+    assert chain.content_hash(hashes_two, filled_two) == chain.content_hash(hashes_one, filled_one)
+    monkeypatch.chdir(tmp_path)
+    fixtures.write(tmp_path, "clinic.csv", text)
+    fixtures.write(tmp_path, "copy.csv", text + ",,,,,,\n")
+    data = str(tmp_path / "data")
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=data), capsys)[0] == 0
+    code, said = _profile(tmp_path, "copy.csv", cli.ChainRun(folder=data), capsys)
+    assert code == 1 and "described before under the name 'clinic'" in said
+
+
+def test_neither_record_prints_its_key():
+    """Skeptic 1's item 8: the two records holding the key print no byte of it."""
+    key = bytes(range(100, 132))
+    shown = repr(chain.ChainSwitch("t", key)) + repr(installation.Opened(pathlib.Path("."), key, (), (), "", False))
+    assert repr(key) not in shown and "key=" not in shown
+
+
+def test_a_declared_person_column_gets_no_chain(tmp_path):
+    """Mutant M27: the person column's check removed."""
+    table, document, settings, chained = _describe(tmp_path, _clinic(), name="persons")
+    assert chained.statistical is not None
+    document["settings"]["person_columns"] = ["record"]
+    off = chain.describe(table, document, settings, chain.ChainSwitch("persons", TEST_KEY))
+    assert off.statistical is None and any(chain.OFF_PERSON in note for note in off.notes)
+
+
+def _stub_ladder(name: str, totals: "list[int]", coarse: "list[int]") -> chain_rules.Ladder:
+    count = len(totals)
+    return chain_rules.Ladder(
+        name,
+        tuple(((f"{name}{at}",),) for at in range(count)),
+        (tuple(range(count)), tuple(coarse), tuple(coarse)),
+        (count, max(coarse) + 1, max(coarse) + 1),
+        tuple(totals),
+        (True,) * count,
+    )
+
+
+def _stub_search(scales: "dict[str, chain_rules.Ladder]", groups: "dict[str, set[int]]"):
+    import types
+
+    columns = {name: types.SimpleNamespace(groups=frozenset(groups.get(name, set()))) for name in scales}
+    return types.SimpleNamespace(scales=scales, columns=columns)
+
+
+def test_the_root_pair_reads_w1_at_the_other_members_coarsest_level():
+    """4.6b.3's corrected clause on a root pair, both ways (mutants M04 and M05): a group's band whose
+    two non-zero cells share one `L2` band of the other member is refused."""
+    parent = chain_rules.Ladder("p", tuple(((f"p{at}",),) for at in range(4)), ((0, 1, 2, 3), (0, 1, 2, 3), (0, 0, 1, 1)), (4, 4, 2), (30, 30, 30, 30), (True,) * 4)
+    child = chain_rules.Ladder("c", (("c0",), ("c1",)), ((0, 1), (0, 1), (0, 1)), (2, 2, 2), (20, 100), (True, True))
+    search = _stub_search({"p": parent, "c": child}, {"c": {0}})
+    table = (10, 20, 10, 20, 0, 30, 0, 30)
+    assert not chain._w1_holds(search, None, None, None, "c", ("p",), (0, 0), table)
+    families = [chain_rules.Family("p", 0, (), None, (30, 30, 30, 30)), chain_rules.Family("c", 0, (("p", 0),), 0, table)]
+    assert chain_rules.w1_refusals(families, search.scales, {"p": set(), "c": {0}})
+    # The other way: the parent's group's row reaches two child bands inside one of its `L2` bands.
+    parent = chain_rules.Ladder("p", (("p0",), ("p1",)), ((0, 1), (0, 1), (0, 1)), (2, 2, 2), (20, 80), (True, True))
+    child = chain_rules.Ladder("c", tuple(((f"c{at}",),) for at in range(4)), ((0, 1, 2, 3), (0, 1, 2, 3), (0, 0, 1, 1)), (4, 4, 2), (20, 20, 30, 30), (True,) * 4)
+    search = _stub_search({"p": parent, "c": child}, {"p": {0}})
+    table = (10, 10, 0, 0, 10, 10, 30, 30)
+    assert not chain._w1_holds(search, None, None, None, "c", ("p",), (0, 0), table)
+
+
+def test_the_fast_check_reads_a_band_no_clamp_narrows_as_one_band():
+    """Mutant M35: a band of another column that no clamp narrows counted twice. Chain m -> s -> a:
+    m = 1 forces s0, s0 forces a0; a new child's own band stands only beside a1 and a2, so it
+    forces m = 0, one `L2` band of m."""
+    m = _stub_ladder("m", [60, 40], [0, 1])
+    s = _stub_ladder("s", [60, 20, 20], [0, 0, 1])
+    a = _stub_ladder("a", [70, 10, 10, 10], [0, 0, 1, 1])
+    c = _stub_ladder("c", [10, 90], [0, 1])
+    search = _stub_search({"m": m, "s": s, "a": a, "c": c}, {"c": {0}})
+    placed = [
+        chain_rules.Family("m", 0, (), None, (60, 40)),
+        chain_rules.Family("s", 0, (("m", 0),), 0, (20, 20, 20, 40, 0, 0)),
+        chain_rules.Family("a", 0, (("s", 0),), 1, (60, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5)),
+    ]
+    clamps = chain._clamps_of(search, placed, True)
+    table = (0, 70, 5, 5, 5, 5, 0, 10)
+    assert not chain._w1_holds(search, clamps, 2, placed[2], "c", ("a",), (0, 0), table)
+    full = placed + [chain_rules.Family("c", 0, (("a", 0),), 2, table)]
+    assert chain_rules.w1_refusals(full, search.scales, {"m": set(), "s": set(), "a": set(), "c": {0}})
+
+
+def test_the_final_check_refuses_a_chain_the_fast_check_let_through(tmp_path, monkeypatch):
+    """Mutant M28: with the fast check broken, the full check over the drawn chain still refuses."""
+    draw = random.Random(4)
+    rows = []
+    for place in range(3000):
+        zeros = 0 if place < 7 else draw.randint(1, 100)
+        rows += [[f"{zeros}", "u" if zeros < 20 else draw.choice("uv")]]
+    text = _csv(["z", "w"], rows)
+    monkeypatch.setattr(chain, "_w1_holds", lambda *arguments: True)
+    refused = 0
+    for key in range(6):
+        _table, _document, _settings, found = _describe(tmp_path / f"k{key}", text, name="final", key=bytes([key]) * 32)
+        if any("the chain's own check found" in note for note in found.notes):
+            refused += 1
+            assert found.statistical is None
+        else:
+            assert _no_confined_row(found.statistical, "z")
+    assert refused
+
+
+def test_rule_w3_coarsens_at_exactly_the_floor_times_the_product():
+    """Mutant M02: W3 read at `(f - 1)` times the product. A band of 21 beside a parent of two
+    bands fails 22 and is coarsened; a band of 22 stays."""
+    parent = _stub_ladder("p", [50, 50], [0, 1])
+    failing = chain_rules.Ladder("c", tuple(((f"c{at}",),) for at in range(3)), ((0, 1, 2), (0, 0, 1), (0, 0, 1)), (3, 2, 2), (21, 40, 39), (True,) * 3)
+    holding = chain_rules.Ladder("c", tuple(((f"c{at}",),) for at in range(3)), ((0, 1, 2), (0, 0, 1), (0, 0, 1)), (3, 2, 2), (22, 39, 39), (True,) * 3)
+    assert chain_rules.offered_levels([failing, parent], [0, 0], [0, 1], None, 100, FLOOR) == [1, 0]
+    assert chain_rules.offered_levels([holding, parent], [0, 0], [0, 1], None, 100, FLOOR) == [0, 0]
+
+
+def test_rule_ne_reads_exactly_the_floor_and_one_times_the_rows():
+    """Mutant M03: NE at `f` times the rows. 24 x 48 = 1,152 falls short of 12 x 100 and binary
+    members cannot coarsen, so nothing is offered; 25 x 48 = 1,200 is offered."""
+    parent = _stub_ladder("p", [48, 52], [0, 1])
+    for child_low, offered in ((24, None), (25, [0, 0])):
+        child = _stub_ladder("c", [child_low, 100 - child_low], [0, 1])
+        margins = chain_rules.parent_cells({"p": parent, "c": child}, ("p",), None)
+        assert chain_rules.offered_levels([child, parent], [0, 0], [0, 1], margins, 100, FLOOR) == offered
+
+
+def test_rule_w3_moves_the_member_first_in_schema_order_on_a_tie():
+    """Mutant M30: the tie read the other way. Both members fail with a smallest band of 30; the
+    child, first in schema order, is coarsened and the parent then holds."""
+    child = _stub_ladder("c", [30, 35, 35, 30], [0, 0, 1, 1])
+    parent = _stub_ladder("p", [30, 50, 50], [0, 0, 1])
+    assert chain_rules.offered_levels([child, parent], [0, 0], [0, 1], None, 130, FLOOR) == [1, 0]
+    assert chain_rules.offered_levels([child, parent], [0, 0], [1, 0], None, 130, FLOOR) == [0, 1]
+
+
+def test_every_coarser_variant_is_an_option_of_its_own():
+    """Mutant M26: only the offered levels themselves."""
+    assert chain_rules.variants_of([1, 2]) == [(1, 2), (2, 2)]
+    assert chain_rules.variants_of([0]) == [(0,), (1,), (2,)]
+
+
+def test_the_raises_are_the_stated_weights_times_the_rows():
+    """Mutants M24 and M36: `w_seed n` a seed's further column and `w_te n` a time-and-event pair."""
+    import types
+
+    search = types.SimpleNamespace(pairs=frozenset({("fu", "event"), ("event", "fu")}), seeds=(("a", "b", "c"),), tabled=1000)
+    assert chain._raise_of(search, "fu", ("event",)) == chain_rules.W_TE * 1000
+    assert chain._raise_of(search, "a", ("b",)) == chain_rules.W_SEED * 1000
+    assert chain._raise_of(search, "a", ("b", "c")) == 2 * chain_rules.W_SEED * 1000
+    assert chain._raise_of(search, "x", ("y",)) == 0
+
+
+def test_the_digest_reads_the_chain_itself():
+    """Mutant M32: the chain counted among the stamps the digest leaves out."""
+    one = {"relationships": {"statistical": {"chain": [1]}}, "created_with": "1"}
+    two = {"relationships": {"statistical": {"chain": [2]}}, "created_with": "1"}
+    assert installation.description_digest(one) != installation.description_digest(two)
+
+
+def test_a_run_less_a_single_value_a_published_count_names_marks_its_band():
+    """`value_run_bands`' remainder: the run [p50, p60) holds the mode's 300 rows and five more, so
+    the five rows' count is fixed (the run less the mode) and the band is marked; without the five,
+    nothing is. A listed tail value holding a few rows marks its band too. Mutant: the subsets of a
+    run's single values not read."""
+    block = _number_block(mode=50.0, mode_count=300)
+    start = chain_rules.starting_bands(block, (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, [50] * 12, FLOOR)
+    base = [(5.0 + 10 * at, 50) for at in range(10) if at != 5]
+    with_five = tuple(sorted(base + [(50.0, 300), (55.0, 5)]))
+    without = tuple(sorted(base + [(50.0, 300)]))
+    assert chain.value_run_bands(block, start, ladder, FLOOR, with_five) == {6}
+    assert chain.value_run_bands(block, start, ladder, FLOOR, without) == set()
+    listed = _number_block(tails={"high": {"percent": 98, "rows": 40, "values": [97.0, 99.0]}})
+    readings = tuple(sorted(base + [(50.0, 60), (97.0, 4), (99.0, 36)]))
+    assert 11 in chain.value_run_bands(listed, start, ladder, FLOOR, readings)

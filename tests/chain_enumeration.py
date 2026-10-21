@@ -437,3 +437,100 @@ def mirror_agrees(table: "tuple[int, ...]", scales: "list[rules.Ladder]") -> boo
             else:
                 reached.add(head + (tuple(sorted(index_of[name] for name in option.parents)), option.table))
     return reached == {canonical(description) for description in options(table, scales)}
+
+
+# -- THE OWN-FACT SOURCES W1 MISSED BEFORE REPAIR 1 (skeptic 1's item 1) ----
+
+
+def _slice_rows() -> "tuple[list[str], list[list[str]], tuple[str, str]]":
+    """600 all-different ages, sex F on every row of [p40, p50): each 1 % slice holds six rows."""
+    import random
+
+    draw = random.Random(5)
+    ages = sorted(20 + 0.01 * value for value in draw.sample(range(6000), 600))
+    rows = [[f"{ages[at]:.2f}", "F" if 240 <= at < 300 else draw.choice("FM")] for at in range(600)]
+    draw.shuffle(rows)
+    return ["age", "sex"], rows, ("p40", "p50")
+
+
+def _clock_rows() -> "tuple[list[str], list[list[str]], tuple[str, str]]":
+    """600 clocks; g = a on every row of [p25, p50), whose total less the census groups inside it is 1."""
+    import random
+
+    draw = random.Random(2)
+    clocks = [draw.randint(0, 1439) for _ in range(600)]
+    ordered = sorted(clocks)
+    # The type-7 readings of p25 and p50 at 600 rows (positions 149.75 and 299.5).
+    low = ordered[149] + (ordered[150] - ordered[149]) * 3 // 4
+    high = ordered[299] + (ordered[300] - ordered[299]) // 2
+    marks = random.Random(7)
+    plain = [marks.choice("ab") for _ in clocks]
+    rows = [[f"{c // 60:02d}:{c % 60:02d}", "a" if low <= c < high else plain[at]] for at, c in enumerate(clocks)]
+    return ["clock", "g"], rows, ("p25", "p50")
+
+
+def own_fact_case(name: str, product: bool) -> "dict[str, int]":
+    """Every root option the draw can take on one fixture (two columns: the chain is its root
+    pair), and how many confine the band holding the fixture's own-fact group to one `L2` band of
+    the other column (RULE W1 read in full with the TRUE group). `product` False is the mutant:
+    the groups `chain.value_run_bands` reads on the column's own values left out."""
+    import pathlib
+    import tempfile
+
+    from synthtwin import chain, profile, reading, taxonomy
+
+    header, rows, band_name = _slice_rows() if name == "slice" else _clock_rows()
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="chain-own-facts-"))
+    path = folder / f"{name}.csv"
+    path.write_text(",".join(header) + "\n" + "".join(",".join(row) + "\n" for row in rows), encoding="utf-8", newline="\n")
+    settings = taxonomy.Settings(small_cell_floor=F)
+    table = reading.read_table(str(path), small_cell_floor=F)
+    document = profile.build_document(table, settings, [], [], [])
+    seen: "list[object]" = []
+    original_options = chain._root_options
+    original_runs = chain.value_run_bands
+
+    def recording(search, x0, room):  # type: ignore[no-untyped-def]
+        found = original_options(search, x0, room)
+        seen.extend([(option, search.scales) for option in found])
+        return found
+
+    try:
+        chain._root_options = recording  # type: ignore[assignment]
+        if not product:
+            chain.value_run_bands = lambda *arguments: set()  # type: ignore[assignment]
+        chain.describe(table, document, settings, chain.ChainSwitch(name, bytes(32)))
+    finally:
+        chain._root_options = original_options  # type: ignore[assignment]
+        chain.value_run_bands = original_runs  # type: ignore[assignment]
+        path.unlink()
+        folder.rmdir()
+    column = header[0]
+    options = 0
+    confining = 0
+    for option, scales in seen:
+        if not option.child:  # type: ignore[attr-defined]
+            continue
+        options += 1
+        ladder = scales[column]
+        group = [at for at in range(len(ladder.l0)) if any(isinstance(one, tuple) and one == band_name for one in ladder.l0[at])]
+        parent = option.parents[0]  # type: ignore[attr-defined]
+        placed = [
+            rules.Family(parent, option.levels[1], (), None, tuple(rules.totals_at(scales[parent], option.levels[1]))),  # type: ignore[attr-defined]
+            rules.Family(option.child, option.levels[0], ((parent, option.levels[1]),), 0, option.table),  # type: ignore[attr-defined]
+        ]
+        if rules.w1_refusals(placed, scales, {column: set(group), header[1]: set()}):
+            confining += 1
+    return {"options": options, "confining": confining}
+
+
+def own_fact_sources() -> "dict[str, int]":
+    """K-S6-08's two own-fact fixtures, the product and its mutant (no group read on the values)."""
+    out = {"own_fact_options": 0, "own_fact_confining": 0, "own_fact_mutant_confining": 0}
+    for name in ("slice", "clock"):
+        found = own_fact_case(name, True)
+        mutant = own_fact_case(name, False)
+        out["own_fact_options"] += found["options"]
+        out["own_fact_confining"] += found["confining"]
+        out["own_fact_mutant_confining"] += mutant["confining"]
+    return out

@@ -476,7 +476,8 @@ def read_column(
         kind, value = meaning[text]
         if kind == "value" and value is not None:
             by_value[value] = by_value[value] + rows_of[text] if value in by_value else rows_of[text]
-    readings = tuple(sorted(by_value.items(), key=lambda pair: pair[0]))  # type: ignore[arg-type, return-value]
+    ordered: "list[object]" = sorted(by_value)  # type: ignore[type-var]
+    readings = tuple((value, by_value[value]) for value in ordered)
     return _Read(start, codes, agrees, blanks, linear, second, has_reading, readings)
 
 
@@ -497,6 +498,10 @@ PERIODIC = (
     ("second_census", 60),
 )
 
+# How a census's bin is read off a reading (`_bin_of`).
+BIN_HISTOGRAM = "histogram"
+BIN_CLOCK = "clock"
+
 
 def _first_index(keys: "list[object]", value: object, side: int) -> int:
     """How many readings stand below `value` (side 0) or at or below it (side 1)."""
@@ -513,11 +518,35 @@ def _first_index(keys: "list[object]", value: object, side: int) -> int:
     return low
 
 
-def _first_where(keys: "list[object]", low: int, high: int, test: "object") -> int:
-    """The first place in `keys[low:high]` where a test that turns on once holds, else `high`."""
+def _bin_of(reading: object, kind: str, lowest: float, highest: float, step: int) -> int:
+    """A reading's bin: C6-31f's division of `[lowest, highest]`, or a clock's bin of `step` units."""
+    if kind == BIN_HISTOGRAM:
+        number = _number(reading)
+        return parsing.histogram_bin(number if number is not None else lowest, lowest, highest)
+    if isinstance(reading, int) and not isinstance(reading, bool):
+        return reading // step
+    return 0
+
+
+def _first_bin_at_least(keys: "list[object]", low: int, high: int, at: int, kind: str, lowest: float, highest: float, step: int) -> int:
+    """The first place in `keys[low:high]` whose bin is `at` or above (bins never fall), else `high`."""
     while low < high:
         middle = (low + high) // 2
-        if test(keys[middle]):  # type: ignore[operator]
+        if _bin_of(keys[middle], kind, lowest, highest, step) >= at:
+            high = middle
+        else:
+            low = middle + 1
+    return low
+
+
+def _first_day_after(keys: "list[object]", day: str, strict: bool) -> int:
+    """The first reading written on `day` or later (on a later day where `strict`)."""
+    low = 0
+    high = len(keys)
+    while low < high:
+        middle = (low + high) // 2
+        written = f"{keys[middle]}"[:10]
+        if written > day or (not strict and written == day):
             high = middle
         else:
             low = middle + 1
@@ -541,11 +570,42 @@ def _number_holder(block: "dict[str, object]") -> "dict[str, object]":
     return holder if isinstance(holder, dict) else {}
 
 
-def _group_cuts(keys: "list[object]", low: int, high: int, firsts: "list[int]", bin_of: "object") -> "list[int]":
-    """Where a census's group changes between `keys[low:high]`, read by a bin that never falls."""
-    out: "list[int]" = []
-    for first in firsts:
-        out += [_first_where(keys, low, high, lambda one, at=first: bin_of(one) >= at)]  # type: ignore[operator]
+def _run_of(keys: "list[object]", value: object) -> "tuple[int, int] | None":
+    """The readings equal to `value`, as a run of places, or None where none is."""
+    if value is None:
+        return None
+    low = _first_index(keys, value, 0)
+    high = _first_index(keys, value, 1)
+    return (low, high) if low < high else None
+
+
+@dataclasses.dataclass(frozen=True)
+class _Places:
+    """Where a column's readings stand among its `L0` bands."""
+
+    keys: "list[object]"
+    values: "tuple[object, ...]"
+    value_starts: "list[int]"
+    l0_of_start: "dict[int, int]"
+
+
+def _band_at(places: _Places, index: int) -> "set[int]":
+    """The `L0` band holding the reading at `index`."""
+    found = rules.band_of_value(places.values, places.keys[index])
+    if found < len(places.value_starts) and places.value_starts[found] in places.l0_of_start:
+        return {places.l0_of_start[places.value_starts[found]]}
+    return set()
+
+
+def _bands_between(places: _Places, low: int, high: int) -> "set[int]":
+    """Every `L0` band holding a reading of `keys[low:high]`."""
+    if low >= high:
+        return set()
+    out = _band_at(places, low)
+    for edge in places.values:
+        at = _first_index(places.keys, edge, 0)
+        if low < at < high:
+            out = out | _band_at(places, at)
     return out
 
 
@@ -592,10 +652,10 @@ def _turn_groups(census: "list[object]", places: int, from_one: bool) -> "tuple[
         first = _get(group, "first")
         last = _get(group, "last")
         count = _get(group, "count")
-        if not all(isinstance(one, int) and not isinstance(one, bool) for one in (first, last, count)):
+        if not isinstance(first, int) or not isinstance(last, int) or not isinstance(count, int):
             return None
-        at = int(f"{first}") - (1 if from_one else 0)
-        end = int(f"{last}") - (1 if from_one else 0)
+        at = first - (1 if from_one else 0)
+        end = last - (1 if from_one else 0)
         steps = 0
         while 0 <= at < places and steps <= places:
             where[at] = index
@@ -603,8 +663,28 @@ def _turn_groups(census: "list[object]", places: int, from_one: bool) -> "tuple[
                 break
             at = (at + 1) % places
             steps += 1
-        counts += [int(f"{count}")]
+        counts += [count]
     return where, counts
+
+
+def _census_cuts(
+    keys: "list[object]",
+    groups: "list[object]",
+    span: "tuple[int, int]",
+    kind: str,
+    lowest: float,
+    highest: float,
+    step: int,
+) -> "set[int] | None":
+    """Where a census of value ranges changes group inside `span`; None where its groups are unread."""
+    out: "set[int]" = set()
+    for at in range(1, len(groups)):
+        group = groups[at]
+        first = _get(group, "first") if isinstance(group, dict) else None
+        if not isinstance(first, int) or isinstance(first, bool):
+            return None
+        out = out | {_first_bin_at_least(keys, span[0], span[1], first, kind, lowest, highest, step)}
+    return out
 
 
 def value_run_bands(
@@ -627,15 +707,15 @@ def value_run_bands(
     the single values a published count names inside it (the mode, nought,
     a clock heap, a heavy date, a tail's listed value), and so is such a
     value counted 1 to `floor - 1` itself. A periodic census (days of the
-    week or month, hours, minutes, seconds) beside the bands marks every
-    value band where some run of neighbouring bands holds all but 1 to
-    `floor - 1` rows of the groups it reaches, and marks a run's bands
-    where the groups lying wholly inside it leave 1 to `floor - 1` of its
-    rows. The counts are read on the column's own values (`readings`,
-    each reading with its rows, ascending), so a cut whose count the
-    published facts leave open is read as if they fixed it: this marks
-    more than 4.6b.3's definition, refuses more, and never passes a group
-    it names (repair 1 of lane CHa, skeptic 1's item 1).
+    week or month, hours, minutes, seconds) marks every value band where
+    some run of neighbouring bands holds all but 1 to `floor - 1` rows of
+    the groups it reaches, and marks a run's bands where the groups lying
+    wholly inside it leave 1 to `floor - 1` of its rows. The counts are
+    read on the column's own values (`readings`, each reading with its
+    rows, ascending), so a cut whose count the published facts leave open
+    is read as if they fixed it: this marks more than 4.6b.3's definition,
+    refuses more, and never passes a group it names (repair 1 of lane CHa,
+    skeptic 1's item 1).
     """
     role = f"{_get(block, 'role')}"
     if role not in rules.ORDERED_ROLES or not readings or not start.values:
@@ -653,23 +733,7 @@ def value_run_bands(
                     l0_of_start[place] = at
     value_starts = [place for place in range(len(start.names)) if start.value[place]]
     every_value = {l0_of_start[place] for place in value_starts if place in l0_of_start}
-
-    def band_at(index: int) -> "set[int]":
-        found = rules.band_of_value(start.values, keys[index])
-        if found < len(value_starts) and value_starts[found] in l0_of_start:
-            return {l0_of_start[value_starts[found]]}
-        return set()
-
-    def bands_between(low: int, high: int) -> "set[int]":
-        if low >= high:
-            return set()
-        out = band_at(low)
-        for edge in start.values:
-            at = _first_index(keys, edge, 0)
-            if low < at < high:
-                out = out | band_at(at)
-        return out
-
+    places = _Places(keys, start.values, value_starts, l0_of_start)
     form = _get(block, "clock_form")
     seconds = isinstance(form, str) and "-mm-ss" in form
     cuts: "set[int]" = {0, total}
@@ -694,23 +758,13 @@ def value_run_bands(
                 cuts = cuts | {ends[-1]}
         if len(ends) == 2:
             body = (ends[0], ends[1])
-    points: "list[tuple[int, int]]" = []
-
-    def point(value: object) -> None:
-        nonlocal points
-        if value is None:
-            return
-        low = _first_index(keys, value, 0)
-        high = _first_index(keys, value, 1)
-        if low < high and (low, high) not in points:
-            points += [(low, high)]
-
+    singles: "list[object]" = []
     if role in rules.NUMBER_ROLES:
         holder = _number_holder(block)
         groups = _get(holder, "bin_groups")
         tails = _get(holder, "tails")
         if isinstance(groups, list) and groups:
-            ends_read = None
+            ends_read: "tuple[float, float] | None" = None
             if isinstance(tails, dict) and isinstance(rungs, dict):
                 low_side = _get(tails, "low")
                 high_side = _get(tails, "high")
@@ -722,89 +776,75 @@ def value_run_bands(
                         highest = _number(_get(rungs, f"p{high_percent:02d}"))
                         if lowest is not None and highest is not None and highest > lowest:
                             ends_read = (lowest, highest)
-            firsts = [_get(group, "first") for group in groups if isinstance(group, dict)]
-            if ends_read is None or not all(isinstance(one, int) for one in firsts):
+            found = None
+            if ends_read is not None:
+                span = (_first_index(keys, ends_read[0], 0), _first_index(keys, ends_read[1], 1))
+                cuts = cuts | set(span)
+                found = _census_cuts(keys, groups, span, BIN_HISTOGRAM, ends_read[0], ends_read[1], 1)
+            if found is None:
                 marked = marked | every_value
             else:
-                lowest, highest = ends_read
-                span = (_first_index(keys, lowest, 0), _first_index(keys, highest, 1))
-                cuts = cuts | set(span)
-                firsts_read = [int(f"{one}") for one in firsts[1:]]
-                cuts = cuts | set(
-                    _group_cuts(
-                        keys,
-                        span[0],
-                        span[1],
-                        firsts_read,
-                        lambda one: parsing.histogram_bin(float(f"{one}"), lowest, highest),
-                    )
-                )
+                cuts = cuts | found
         histogram = _get(holder, "value_histogram")
         if isinstance(histogram, dict) and histogram:
-            lowest_seen = _number(_get(rungs, "min")) if isinstance(rungs, dict) else None
-            highest_seen = _number(_get(rungs, "max")) if isinstance(rungs, dict) else None
-            if lowest_seen is None or highest_seen is None or not highest_seen > lowest_seen:
+            low_end = _number(_get(rungs, "min")) if isinstance(rungs, dict) else None
+            high_end = _number(_get(rungs, "max")) if isinstance(rungs, dict) else None
+            if low_end is None or high_end is None or not high_end > low_end:
                 marked = marked | every_value
             else:
-                low_end, high_end = lowest_seen, highest_seen
                 span = (_first_index(keys, low_end, 0), _first_index(keys, high_end, 1))
                 cuts = cuts | set(span)
-                cuts = cuts | set(
-                    _group_cuts(
-                        keys,
-                        span[0],
-                        span[1],
-                        list(range(1, parsing.HISTOGRAM_BINS)),
-                        lambda one: parsing.histogram_bin(float(f"{one}"), low_end, high_end),
-                    )
-                )
+                every_bin: "list[object]" = [{"first": at} for at in range(parsing.HISTOGRAM_BINS)]
+                found = _census_cuts(keys, every_bin, span, BIN_HISTOGRAM, low_end, high_end, 1)
+                cuts = cuts | (found or set())
         mode_count = _get(holder, "mode_count")
         if isinstance(mode_count, int) and not isinstance(mode_count, bool) and mode_count > 0:
-            point(_number(_get(holder, "mode")))
+            singles += [_number(_get(holder, "mode"))]
         n_zero = _get(holder, "n_zero")
         if isinstance(n_zero, int) and not isinstance(n_zero, bool) and n_zero > 0:
-            point(0.0)
+            singles += [0.0]
         if isinstance(tails, dict):
             for name in ("low", "high"):
                 tail_side = _get(tails, name)
                 listed = _get(tail_side, "values") if isinstance(tail_side, dict) else None
                 if isinstance(listed, list):
                     for one in listed:
-                        point(_number(one))
+                        singles += [_number(one)]
     if role == rules.ROLE_CLOCK:
         census = _get(block, "clock_census")
         if isinstance(census, list) and census:
-            firsts = [_get(group, "first") for group in census if isinstance(group, dict)]
-            if not all(isinstance(one, int) for one in firsts):
+            found = _census_cuts(keys, census, body, BIN_CLOCK, 0.0, 0.0, 600 if seconds else 10)
+            if found is None:
                 marked = marked | every_value
             else:
-                step = 600 if seconds else 10
-                cuts = cuts | set(
-                    _group_cuts(keys, body[0], body[1], [int(f"{one}") for one in firsts[1:]], lambda one: int(f"{one}") // step)
-                )
+                cuts = cuts | found
         heaps = _get(block, "clock_heaps")
         if isinstance(heaps, list):
             for heap in heaps:
                 text = _get(heap, "value") if isinstance(heap, dict) else None
                 if isinstance(text, str):
-                    point(rules.rung_value(role, text, form))
+                    singles += [rules.rung_value(role, text, form)]
     if role in (rules.ROLE_DATETIME, rules.ROLE_CLOCK):
         for name in ("low_tail", "high_tail"):
             tail = _get(block, name)
             listed = _get(tail, "values") if isinstance(tail, dict) else None
             if isinstance(listed, list):
                 for one in listed:
-                    point(rules.rung_value(role, one, form) if isinstance(one, str) else one)
+                    singles += [rules.rung_value(role, one, form) if isinstance(one, str) else one]
+    points: "list[tuple[int, int]]" = []
+    for single in singles:
+        run = _run_of(keys, single)
+        if run is not None and run not in points:
+            points += [run]
     if role == rules.ROLE_DATETIME:
         heavy = _get(block, "heavy_dates")
         if isinstance(heavy, list):
             for entry in heavy:
                 day = _get(entry, "date") if isinstance(entry, dict) else None
                 if isinstance(day, str) and len(day) == 10:
-                    low = _first_where(keys, 0, total, lambda one, at=day: f"{one}"[:10] >= at)
-                    high = _first_where(keys, 0, total, lambda one, at=day: f"{one}"[:10] > at)
-                    if low < high and (low, high) not in points:
-                        points += [(low, high)]
+                    run = (_first_day_after(keys, day, False), _first_day_after(keys, day, True))
+                    if run[0] < run[1] and run not in points:
+                        points += [run]
     ordered_cuts = sorted(cuts)
     for at in range(len(ordered_cuts) - 1):
         low = ordered_cuts[at]
@@ -814,7 +854,7 @@ def value_run_bands(
             continue
         inside = [pair for pair in points if low <= pair[0] and pair[1] <= high]
         if 0 < rows < floor or len(inside) > RUN_POINTS_AT_MOST:
-            marked = marked | band_at(low)
+            marked = marked | _band_at(places, low)
             continue
         sizes = [sums[pair[1]] - sums[pair[0]] for pair in inside]
         for chosen in range(1, 1 << len(sizes)):
@@ -823,14 +863,14 @@ def value_run_bands(
                 if chosen >> place & 1:
                     left -= sizes[place]
             if 0 < left < floor:
-                marked = marked | band_at(low)
+                marked = marked | _band_at(places, low)
                 break
     for pair in points:
         size = sums[pair[1]] - sums[pair[0]]
         if 0 < size < floor:
-            marked = marked | bands_between(pair[0], pair[1])
+            marked = marked | _bands_between(places, pair[0], pair[1])
     if role in (rules.ROLE_DATETIME, rules.ROLE_CLOCK):
-        marked = marked | _periodic_marks(block, role, seconds, keys, readings, start, body, floor, every_value, bands_between)
+        marked = marked | _periodic_marks(block, role, seconds, places, readings, body, floor, every_value)
     return marked
 
 
@@ -838,26 +878,25 @@ def _periodic_marks(
     block: "dict[str, object]",
     role: str,
     seconds: bool,
-    keys: "list[object]",
+    places: _Places,
     readings: "tuple[tuple[object, int], ...]",
-    start: rules.Starting,
     body: "tuple[int, int]",
     floor: int,
     every_value: "set[int]",
-    bands_between: "object",
 ) -> "set[int]":
     """The bands a periodic census marks beside the value bands (`value_run_bands`)."""
     marked: "set[int]" = set()
     for heaps in ("minute_heaps", "second_heaps"):
         if _get(block, heaps) not in (None, []):
             return set(every_value)
-    edges = [_first_index(keys, edge, 0) for edge in start.values]
+    keys = places.keys
+    edges = [_first_index(keys, edge, 0) for edge in places.values]
     starts = [body[0]] + [min(max(at, body[0]), body[1]) for at in edges] + [body[1]]
-    for key, places in PERIODIC:
+    for key, turn in PERIODIC:
         census = _get(block, key)
         if not isinstance(census, list) or not census:
             continue
-        read = _turn_groups(census, places, key == "day_of_month_census")
+        read = _turn_groups(census, turn, key == "day_of_month_census")
         if read is None:
             return set(every_value)
         where, counts = read
@@ -870,7 +909,7 @@ def _periodic_marks(
         for band in range(bands):
             for index in range(starts[band], starts[band + 1]):
                 place = _periodic_place(key, keys[index], role, seconds)
-                if place is None or not 0 <= place < places or where[place] < 0:
+                if place is None or not 0 <= place < turn or where[place] < 0:
                     return set(every_value)
                 group = where[place]
                 rows_in[band] += readings[index][1]
@@ -891,7 +930,7 @@ def _periodic_marks(
                     return set(every_value)
                 held = sum(counts[group] for group in range(len(counts)) if counts[group] and first <= lowest[group] and highest[group] <= last)
                 if 0 < rows - held < floor:
-                    marked = marked | bands_between(starts[first], starts[last + 1])  # type: ignore[operator]
+                    marked = marked | _bands_between(places, starts[first], starts[last + 1])
     return marked
 
 

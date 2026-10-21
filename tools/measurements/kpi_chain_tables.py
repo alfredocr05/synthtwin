@@ -12,6 +12,13 @@ Lane CHa's stamp of `K-S6-08` on the fixtures of the design's section 2.7
 - RULE W1'S PART C recast as the product's filter: `part_c_leaking`, target
   0; its mutant, the version 2.2 merge after the draw, must leak
   (`part_c_mutant_leaking` above 0, the case's discrimination);
+- RULE W1'S OWN-FACT SOURCES (repair 1, skeptic 1's item 1): a 1 % slice of
+  six rows between two published rungs of 600 all-different ages, and the
+  one row a clock census leaves of its band [p25, p50); every root option
+  the draw can take on each (two columns: the chain is its root pair) is
+  read by RULE W1 in full with the true group: `own_fact_confining`, target
+  0, over `own_fact_options`; the mutant, the groups read on the column's
+  own values left out, confines (`own_fact_mutant_confining` above 0);
 - THE MIRROR: on `MIRROR_TABLES` tables sampled across the sets, the
   producer's own search reaches exactly the scan's descriptions
   (`mirror_mismatches`, target 0);
@@ -55,6 +62,7 @@ def measure() -> "dict[str, object]":
     # (79,619, 92,189 and 66,920 tables); the first holds 396,405.
     ordered = sets[1:4] + sets[:1] + sets[4:]
     scan = enumeration.margin_scan(ordered, pairs_on=3)
+    own_facts = enumeration.own_fact_sources()
     part_c = enumeration.part_c("filter")
     mutant = enumeration.part_c("merge")
     draw = random.Random(SEED)
@@ -74,6 +82,9 @@ def measure() -> "dict[str, object]":
         "part_c_leaking": part_c["descriptions_leaking"],
         "part_c_descriptions": part_c["descriptions"],
         "part_c_mutant_leaking": mutant["descriptions_leaking"],
+        "own_fact_options": own_facts["own_fact_options"],
+        "own_fact_confining": own_facts["own_fact_confining"],
+        "own_fact_mutant_confining": own_facts["own_fact_mutant_confining"],
         "mirror_tables": MIRROR_TABLES,
         "mirror_mismatches": mismatches,
         "different_names_leaking": scan["descriptions_leaking"],
