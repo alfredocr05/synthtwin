@@ -6,6 +6,25 @@ exists).
 
 ## [Unreleased]
 
+### The zoo-fix reading page: where each new reading stands in the classifier, the questions it adds, what it may publish (lane ZR-a, plan P4-D419, 2026-10-21; NOT BUILT)
+
+**A method page, written before the code of the health data zoo's fix
+lanes UN-1a, UN-1b, TR, LISTS, UN-2 and NOTES and of CODES-3's question**
+(`docs/plans/phase-4-columns.md`, "The zoo-fix reading page"). It fixes
+the classifier's order for every new reading -- clock times written as
+figures before the numeric rule, four new stand-asides of the categories
+rule, a templated reading from a closed list and a list reading both ahead
+of the long tail, and a share line of a quarter of the rows for a long tail
+written as text -- the eight questions they add, none naming a value of the
+table, the keys of the templated reading and of a new role for several
+values in one cell, why each prints no count of one to ten, how
+`synthtwin validate` reads each, and the KPIs each lane stamps. No new
+reading lifts a hold of plan P4-D401 but its own exemption for dates and
+times. Measured on 98c0fce6: templated notes cover 13.3 % of rows at 20,000
+and 24.1 % at 200,000, so the trigger NOTES keeps, not the line, holds whole
+notes out of every description. No product code, golden, vector or KPI
+moves; `tests/test_zoo_reading_page.py` pins the page's computed figures.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans
