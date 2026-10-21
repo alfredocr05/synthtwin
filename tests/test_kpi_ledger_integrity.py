@@ -815,6 +815,15 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 741,000 from 737,500, AT BATCH 4E'S RECORDS (2026-10-21; push critic
+    # 11's MINOR 6), raised once, the least round figure the ledger fits
+    # under: `K-S4-09` and `K-S4-11` stamped from the night window of
+    # 2026-10-21 with their evidence and lane SR-A's limits, `K-P4-06`
+    # restamped, `K-HZ-01` and `K-HZ-02` recorded as kept by the
+    # orchestrator and the zoo's 'needs owner' line re-owned, the note's
+    # clauses moved with the stamps: 740,527 bytes. A MEASUREMENT IS NEVER
+    # TRIMMED TO FIT.
+    #
     # 737,500 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger fits under:
@@ -1268,7 +1277,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 737_500
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 741_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

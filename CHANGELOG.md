@@ -19,8 +19,7 @@ censuses are pooled in people and two code columns held whole, so 14 of
 kinds at 20,000 rows where 28 did. Each failure is owned -- pooling in
 subject units by lane PS, the census in subject bands by lane MG, a held
 column's missed forms by CODES-1 part C -- and `K-HZ-01` and `K-HZ-02`
-move to the measured bounds, the integrator's call for the orchestrator
-to keep or reverse. On `K-S3-14`'s shapes `synthtwin profile` publishes 2
+move to the measured bounds, KEPT by the orchestrator, 2026-10-21 (HIPAA first: the floor counted in people); lane PS (P4-D417) owns the held dates and times, the valid-layout floor first. On `K-S3-14`'s shapes `synthtwin profile` publishes 2
 of the 68 values the library call publishes (plan P4-D348). The
 orchestrator's night window of 2026-10-21 stamped the four time entries
 with `K-S1-07` and `K-2B-38` on batch 4d's head, nothing heavy beside it;
@@ -41,10 +40,38 @@ chain's polish row now says `P` = 2 scored 172 of 287 against 188 at `P`
 while the moment layer's gate stays closed) and counts 13,275 cases and
 245 KPIs.
 
-### On a table of several rows a person, every published value is counted in persons (2026-10-19)
+**Records 2 (2026-10-21, push critic 11's items).** The zoo's price of
+lane HX2 is recorded as KEPT by the orchestrator (HIPAA first: the floor
+counted in people), lane PS (P4-D417) owning the held dates and times,
+the valid-layout floor first, in `K-HZ-01`, `K-HZ-02`, STATE and
+P4-D406. `K-S4-09` and `K-S4-11` are stamped from the orchestrator's
+night window of 2026-10-21 on 8a02faa3 under Python 3.11: `K-S4-09`
+OPEN-WORSE (the mixed describe peak projected 2,694.2 MB at 2,000,000 x
+50, 19.6 traced bytes a cell over 17.7, the Gaussian 2,215.9 MB),
+`K-S4-11` passing (the mixed describe 6,151.6 s projected); lane SR-A
+(P4-D414) owns them, the subject columns' keyed cells held for the whole
+describe and `K-S4-09` with a person column, unmeasured (P4-D400).
+STATE's limits carry lane HX2's stated limits 1 to 4, each with its
+owner; the HX2 entry's lead and P4-D406's title, by a dated amendment
+line, name the rungs of a column not attached to its subject, still
+judged in rows. `K-P4-06` is restamped on d90d16b4 at 552 and 0 under
+its ceiling of 579 and 3; STATE's `K-P3-03` sentence reads the merged
+head's figures; the mixed result column's held-back mean at 20,000 rows,
+the zoo's one 'needs owner' line, is lane G2T2's in OWNERS; P4-D407
+points forward to ruling R12's amendment and P4-D413's point (v) is
+closed. The ledger's byte cap is raised once.
 
-**A value fewer than 11 people hold is not published, however many rows
-hold it** (plan P4-D406, lane HX2 of the December plan). The floor
+OWED, NOT DONE HERE: the six time entries (`K-P3-12`, `K-S1-01`,
+`K-S1-05`, `K-S1-06`, `K-S1-07`, `K-2B-38`), stamped with the
+repository's Python 3.13 interpreter, re-timed under floor311 in a quiet
+night window: the orchestrator's (push critic 11's MAJOR 5). The
+wall-time assertion of
+`tests/test_stage4_counted_in_persons.py::test_a_raised_floor_asks_a_set_of_subjects`,
+watched on CI's first run of the push: the orchestrator's (MINOR 5).
+
+### On a table of several rows a person, every published value is counted in persons, save an unattached column's rungs (2026-10-19)
+
+**A value fewer than 11 people hold is not published, however many rows hold it, except the rungs and tail boundaries of a measurement or code column not attached to its subject, which are still judged in rows** (plan P4-D406, lane HX2 of the December plan; the orchestrator's ruling of 2026-10-19, item 2: on `K-S3-14`'s repeated-measures table two rungs of a score are published, each on 11 rows of 10 people). The floor
 counted rows, so a value one patient holds on fourteen rows passed it:
 beside a declared person column, health plan and account numbers were
 published (139 and 137 of 150 at 20,000 rows), and beside a patient key

@@ -55,9 +55,10 @@ SEED = 20261016
 # The lanes of the December plan a failing kind may be owned by, and the
 # words for one no lane covers yet (the orchestrator names a new one).
 # Lanes MG and PS own what lane HX2's count in people costs the zoo (plan
-# P4-D406; batch 4e's integration).
+# P4-D406; batch 4e's integration); lane G2T2 the mixed result column's
+# held-back mean at 20,000 rows (batch 4e's records).
 PLAN_LANES = (
-    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "MG", "PS", *zoo.ZOO_LANES, zoo.NEEDS_OWNER,
+    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", *zoo.ZOO_LANES, zoo.NEEDS_OWNER,
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing
@@ -778,8 +779,20 @@ def test_the_measures_count_what_they_say() -> None:
     assert first["tables"] == 3 and first["tables_generated"] == 3
 
 
-def test_a_failure_with_only_a_gap_stated_is_counted_apart() -> None:
-    """The tripwire's item 7: 'needs owner' names a gap, not a lane, and K-HZ-02 counts it apart."""
+def test_a_failure_with_only_a_gap_stated_is_counted_apart(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tripwire's item 7: 'needs owner' names a gap, not a lane, and K-HZ-02 counts it apart.
+
+    The catalogue's one such line, the mixed result column's mean at
+    20,000 rows, has lane G2T2 since batch 4e's records, so the gap is
+    stated here on its own line, in place of that one, and the shipped
+    line is held to its lane.
+    """
+    shipped = zoo.zoo_measures([_result("labs", misses=[["result_value", "mean"]])])
+    assert shipped["K-HZ-02"]["failures_needing_owner"] == 0
+    assert shipped["kinds"]["mixed_results"]["owners"] == ["G2T2"]
+    gap = (zoo.NEEDS_OWNER, "a gap stated and no lane", zoo.covers("miss result_value"))
+    lines = tuple(line for line in zoo.OWNERS["mixed_results"] if not re.fullmatch(line[2], "miss result_value"))
+    monkeypatch.setitem(zoo.OWNERS, "mixed_results", (*lines, gap))
     owned = zoo.zoo_measures([_result("labs", misses=[["result_value", "mean"]])])
     assert owned["K-HZ-02"]["failures_without_owner"] == 0
     assert owned["K-HZ-02"]["failures_needing_owner"] == 1

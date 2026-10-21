@@ -2877,8 +2877,17 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             columns=("result_value",))),
         ("CODES-1", "a held-back result's shape is filled from the whole alphabet", covers(
             "a result is a number, a censored number or a word", columns=("result_value",))),
-        (NEEDS_OWNER, "one result column holding numbers, censored numbers and words: at 20,000 rows "
-                      "validate misses the mean of its numbers", covers("miss result_value")),
+        # RE-OWNED AT BATCH 4E'S RECORDS (2026-10-21; push critic 11's MINOR 3), read
+        # on d90d16b4 at 20,000 rows, the driver's seed for labs (20261019): validate
+        # measures the twin's held-back pool exactly as generate wrote it (26 labels,
+        # 95 cells), so the miss is generation's, not validate's (lane SV's work is
+        # validate's scale): the 95 held-back numbers land at a mean of 6.124 against
+        # the published 6.325 (window 6.125 to 6.525), kept to one figure before the
+        # point beside the published 2.0 to 9.0, since the real's 10.0 to 11.2 are a
+        # form under the floor. A placement held by a width: lane G2T2's.
+        ("G2T2", "one result column holding numbers, censored numbers and words: at 20,000 rows "
+                 "the twin's held-back numbers, kept to the one-figure width, miss their published "
+                 "mean, which validate reports", covers("miss result_value")),
     ),
     "vitals": (
         ("PS", HELD_DATES, covers("taken_at parses")),
