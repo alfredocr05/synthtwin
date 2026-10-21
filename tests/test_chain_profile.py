@@ -1135,3 +1135,54 @@ def test_a_run_less_a_single_value_a_published_count_names_marks_its_band():
     listed = _number_block(tails={"high": {"percent": 98, "rows": 40, "values": [97.0, 99.0]}})
     readings = tuple(sorted(base + [(50.0, 60), (97.0, 4), (99.0, 36)]))
     assert 11 in chain.value_run_bands(listed, start, ladder, FLOOR, readings)
+
+
+def test_a_periodic_census_marks_the_bands_holding_the_rows_it_fixes():
+    """`value_run_bands`' periodic rule: a band of one Monday (50 rows) reaches the census's Monday
+    group alone, which counts 53, so the three Mondays outside it are fixed; the bands holding them
+    are marked, and no other. Mutant: the reached groups' rows outside a run not read."""
+    import datetime
+
+    readings: "list[tuple[object, int]]" = []
+    day = datetime.date(2021, 1, 4)
+    while day <= datetime.date(2021, 1, 31):
+        if day.weekday() != 0 or day.day < 25:
+            readings += [(day.isoformat(), 1)]
+        day += datetime.timedelta(days=1)
+    readings += [("2021-03-01", 50)]
+    day = datetime.date(2021, 4, 6)
+    while day <= datetime.date(2021, 4, 11):
+        readings += [(day.isoformat(), 10)]
+        day += datetime.timedelta(days=1)
+    counts = [0] * 7
+    for text, rows in readings:
+        counts[datetime.date.fromisoformat(f"{text}").weekday()] += rows
+    assert counts[0] == 53
+    block = {"weekday_census": [{"first": at, "last": at, "count": counts[at]} for at in range(7)]}
+    keys = [one[0] for one in readings]
+    places = chain._Places(keys, ("2021-03-01", "2021-03-02"), [0, 1, 2], {0: 0, 1: 1, 2: 2})
+    marked = chain._periodic_marks(block, "datetime", False, places, tuple(readings), (0, len(keys)), FLOOR, {0, 1, 2})
+    assert marked == {0, 2}
+
+
+def test_a_periodic_census_marks_a_band_its_whole_groups_leave_a_few_rows_of():
+    """The other half: a band holds every Saturday (30 rows) and four Monday rows; Saturday's group
+    lies wholly inside it, so the four rows' count is fixed and the band is marked. Mutant: the
+    groups lying wholly inside a run not read."""
+    import datetime
+
+    readings: "list[tuple[object, int]]" = []
+    for start, stop in ((datetime.date(2021, 1, 4), datetime.date(2021, 1, 8)), (datetime.date(2021, 4, 5), datetime.date(2021, 4, 9))):
+        day = start
+        while day <= stop:
+            readings += [(day.isoformat(), 10)]
+            day += datetime.timedelta(days=1)
+    readings = sorted(readings + [("2021-03-06", 30), ("2021-03-08", 4)])
+    counts = [0] * 7
+    for text, rows in readings:
+        counts[datetime.date.fromisoformat(f"{text}").weekday()] += rows
+    block = {"weekday_census": [{"first": at, "last": at, "count": counts[at]} for at in range(7)]}
+    keys = [one[0] for one in readings]
+    places = chain._Places(keys, ("2021-03-06", "2021-03-09"), [0, 1, 2], {0: 0, 1: 1, 2: 2})
+    marked = chain._periodic_marks(block, "datetime", False, places, tuple(readings), (0, len(keys)), FLOOR, {0, 1, 2})
+    assert marked == {1}

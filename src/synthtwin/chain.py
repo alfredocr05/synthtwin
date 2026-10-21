@@ -707,10 +707,11 @@ def value_run_bands(
     the single values a published count names inside it (the mode, nought,
     a clock heap, a heavy date, a tail's listed value), and so is such a
     value counted 1 to `floor - 1` itself. A periodic census (days of the
-    week or month, hours, minutes, seconds) marks every value band where
-    some run of neighbouring bands holds all but 1 to `floor - 1` rows of
-    the groups it reaches, and marks a run's bands where the groups lying
-    wholly inside it leave 1 to `floor - 1` of its rows. The counts are
+    week or month, hours, minutes, seconds) marks the body's bands outside
+    a run of neighbouring bands that holds all but 1 to `floor - 1` rows
+    of the groups it reaches (those rows lie there), and marks a run's
+    bands where the groups lying wholly inside it leave 1 to `floor - 1`
+    of its rows. The counts are
     read on the column's own values (`readings`, each reading with its
     rows, ascending), so a cut whose count the published facts leave open
     is read as if they fixed it: this marks more than 4.6b.3's definition,
@@ -925,9 +926,11 @@ def _periodic_marks(
             for last in range(first, bands):
                 reached = reached | reach[last]
                 rows += rows_in[last]
+                # The reached groups' rows outside the run lie in the body's
+                # other bands: those bands hold the group the count fixes.
                 outside = sum(counts[group] for group in reached) - rows
                 if 0 < outside < floor:
-                    return set(every_value)
+                    marked = marked | _bands_between(places, starts[0], starts[first]) | _bands_between(places, starts[last + 1], starts[bands])
                 held = sum(counts[group] for group in range(len(counts)) if counts[group] and first <= lowest[group] and highest[group] <= last)
                 if 0 < rows - held < floor:
                     marked = marked | _bands_between(places, starts[first], starts[last + 1])
