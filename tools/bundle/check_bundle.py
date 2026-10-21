@@ -23,17 +23,26 @@ with a message in plain words when it may not. It refuses:
   pin: pip then has nowhere to go but the bundle's own files, and each
   of them is the one the lock names;
 * a `wheelhouse` without exactly one synthtwin wheel;
-* a Python older than 3.11, and a bundle made for another system or
-  for other Pythons than the one found (the message names the ones it
-  was made for).
+* a Python older than 3.11 or newer than 3.14, and a bundle made for
+  another system, another kind of chip, a newer macOS or a newer Linux
+  than this computer's, or for other Pythons than the one found (the
+  message names, in plain words, what the bundle is for and what to do).
 """
 
 import hashlib
 import os
+import platform
 import re
 import sys
+import sysconfig
 
+# The Pythons every bundle serves: CI's tests matrix, 3.11 to 3.14 (plan
+# P4-D410). tests/test_bundle.py holds these two, the install scripts'
+# own range and the matrix to each other. The advice names NEWEST: a
+# person sent to python.org's newest Python would get one no bundle
+# serves once 3.15 is out (lane DEP-2's skeptic, item 2).
 FLOOR = (3, 11)
+NEWEST = (3, 14)
 
 # The files every bundle lists in SHA256SUMS besides its wheels: the lock
 # pip installs from and the three scripts that read it.
@@ -63,8 +72,28 @@ _FETCHING = (
 )
 
 
-def _python_label(version):
+def _dotted(version):
     return str(version[0]) + "." + str(version[1])
+
+
+def _in_words(versions):
+    labels = [_dotted(item) for item in sorted(versions)]
+    if len(labels) < 2:
+        return "".join(labels)
+    return ", ".join(labels[:-1]) + " and " + labels[-1]
+
+
+def _served_range():
+    return [(3, minor) for minor in range(FLOOR[1], NEWEST[1] + 1)]
+
+
+def _python_advice():
+    label = _dotted(NEWEST)
+    return (
+        "Install Python " + label + " from python.org (choose Downloads, then "
+        "the newest Python " + label + " release; INSTALL.txt in this folder "
+        "says how), open a new terminal window, and run the install script again."
+    )
 
 
 def _wheel_tags(name):
@@ -95,6 +124,205 @@ def _this_system():
     if sys.platform.startswith("linux"):
         return "Linux"
     return sys.platform
+
+
+def _machine_word(raw):
+    """A chip's name as wheels and Pythons spell it, in one word: arm, x86_64 or x86."""
+    lowered = raw.lower()
+    if lowered in ("arm64", "aarch64", "arm64e", "armv8l"):
+        return "arm"
+    if lowered in ("x86_64", "amd64", "x64", "em64t"):
+        return "x86_64"
+    if lowered in ("i386", "i486", "i586", "i686", "x86", "win32"):
+        return "x86"
+    return lowered
+
+
+def _release(text):
+    """(major, minor) of a release written 14.5.1, or None when it is not one."""
+    found = re.match(r"(\d+)\.(\d+)", text or "")
+    return (int(found.group(1)), int(found.group(2))) if found else None
+
+
+def _this_computer():
+    """This computer as a bundle's wheels ask about it.
+
+    The chip is the one this Python runs on: an Intel Python on a Mac
+    with an Apple chip runs as on an Intel Mac, and pip installs for it
+    as for one. On Windows sysconfig names the Python's own build
+    (win32, win-amd64, win-arm64), which a 32-bit Python on a 64-bit
+    computer would otherwise hide.
+    """
+    system = _this_system()
+    if system == "Windows":
+        machine = _machine_word(sysconfig.get_platform().split("-")[-1])
+    else:
+        machine = _machine_word(platform.machine())
+    macos = None
+    glibc = None
+    if system == "macOS":
+        macos = _release(platform.mac_ver()[0])
+    elif system == "Linux":
+        name, number = platform.libc_ver()
+        if name == "glibc":
+            glibc = _release(number)
+    return {"system": system, "machine": machine, "macos": macos, "glibc": glibc}
+
+
+_MAC_MACHINES = {
+    "arm64": ("arm",),
+    "x86_64": ("x86_64",),
+    "universal2": ("arm", "x86_64"),
+    "intel": ("x86_64", "x86"),
+    "universal": ("x86_64", "x86"),
+    "i386": ("x86",),
+}
+_OLD_MANYLINUX = {"manylinux1": (2, 5), "manylinux2010": (2, 12), "manylinux2014": (2, 17)}
+
+
+def _needs(tag):
+    """What one platform tag asks of a computer: (system, chips, release).
+
+    `chips` is empty when the tag names none this check knows, and
+    `release` is the oldest macOS (macosx_12_0) or glibc (manylinux_2_28)
+    the tag allows, or None.
+    """
+    found = re.fullmatch(r"macosx_(\d+)_(\d+)_([a-z0-9_]+)", tag)
+    if found:
+        chips = _MAC_MACHINES.get(found.group(3), (found.group(3),))
+        return "macOS", frozenset(chips), (int(found.group(1)), int(found.group(2)))
+    found = re.fullmatch(r"manylinux_(\d+)_(\d+)_([a-z0-9_]+)", tag)
+    if found:
+        return (
+            "Linux",
+            frozenset({_machine_word(found.group(3))}),
+            (int(found.group(1)), int(found.group(2))),
+        )
+    found = re.fullmatch(r"(manylinux1|manylinux2010|manylinux2014)_([a-z0-9_]+)", tag)
+    if found:
+        return "Linux", frozenset({_machine_word(found.group(2))}), _OLD_MANYLINUX[found.group(1)]
+    found = re.fullmatch(r"(?:musllinux_\d+_\d+|linux)_([a-z0-9_]+)", tag)
+    if found:
+        return "Linux", frozenset({_machine_word(found.group(1))}), None
+    if tag == "win32":
+        return "Windows", frozenset({"x86"}), None
+    if tag.startswith("win_"):
+        return "Windows", frozenset({_machine_word(tag[len("win_") :])}), None
+    return _system_words(tag), frozenset(), None
+
+
+def _misfit(needs, computer):
+    """Why a computer cannot take a wheel of this tag: 'chip', 'release' or None."""
+    _, chips, release = needs
+    machine = computer.get("machine")
+    if chips and machine is not None and machine not in chips:
+        return "chip"
+    have = computer.get("macos") if needs[0] == "macOS" else computer.get("glibc")
+    if release is not None and have is not None and tuple(have) < release:
+        return "release"
+    return None
+
+
+def _mac_words(release):
+    """macOS 12 for (12, 0), as Apple names it; 10.9 for (10, 9)."""
+    return str(release[0]) if release[1] == 0 else _dotted(release)
+
+
+def _chip_words(chips, system):
+    words = []
+    for chip in sorted(chips):
+        if chip == "arm":
+            words += ["an Apple chip (M1 or later)" if system == "macOS" else "an Arm processor"]
+        elif chip == "x86_64":
+            words += ["an Intel chip" if system == "macOS" else "a 64-bit Intel or AMD processor"]
+        elif chip == "x86":
+            words += ["a 32-bit Intel or AMD processor"]
+        else:
+            words += ["a " + chip + " processor"]
+    return " or ".join(words)
+
+
+def _platform_problem(wheels, computer):
+    """The plain-words refusal of a bundle whose wheels this computer cannot take, or None.
+
+    A wheel fits when any of its platform tags fits; the message says
+    what the whole bundle is for -- its chips, and the newest macOS or
+    glibc any of its wheels needs -- what this computer is, and what to
+    do (lane DEP-2's skeptic, item 3: a bundle of macOS 14 wheels passed
+    the check on a Mac running macOS 12, and pip then stopped with
+    nothing the person could act on).
+    """
+    system = computer.get("system")
+    chips = None
+    release = None
+    reasons = []
+    for name in wheels:
+        tags = _wheel_tags(name)
+        if tags is None:
+            continue
+        needs = [_needs(tag) for tag in tags[2].split(".") if tag != "any"]
+        needs = [item for item in needs if item[0] == system]
+        if not needs:
+            continue
+        offered = frozenset().union(*(item[1] for item in needs))
+        if offered:
+            chips = offered if chips is None else chips & offered
+        lowest = [item[2] for item in needs if item[2] is not None]
+        if lowest:
+            least = min(lowest)
+            release = least if release is None or least > release else release
+        misfits = [_misfit(item, computer) for item in needs]
+        if all(misfits):
+            reasons += [misfits[0]]
+    if not reasons:
+        return None
+    if system == "macOS":
+        kind = "Macs"
+        what = "this Mac"
+    else:
+        kind = system + " computers"
+        what = "this computer"
+    made_for = "this bundle is made for " + kind
+    if chips:
+        made_for += " with " + _chip_words(chips, system)
+    if release is not None and system == "macOS":
+        made_for += " on macOS " + _mac_words(release) + " or later"
+    elif release is not None:
+        made_for += " whose system library, glibc, is version " + _dotted(release) + " or later"
+    if "chip" in reasons:
+        machine = str(computer.get("machine"))
+        said = made_for + ", and " + what + "'s Python runs on " + _chip_words({machine}, system) + ". "
+        if system == "macOS" and machine == "x86_64" and chips and "arm" in chips:
+            return said + (
+                "If this Mac has an Apple chip, the Python found is one made for "
+                "Intel Macs. " + _python_advice() + " On a Mac with an Intel "
+                "chip this bundle cannot be installed: send this message to whoever "
+                "looks after synthtwin."
+            )
+        if system == "Windows" and machine == "arm" and chips and "x86_64" in chips:
+            return said + (
+                "Windows 11 runs the 64-bit Python for Intel and AMD processors on "
+                "an Arm processor too: install Python " + _dotted(NEWEST) + " from "
+                "python.org choosing its \"Windows installer (64-bit)\", not the "
+                "ARM64 one, open a new Command Prompt window, and run the install "
+                "script again."
+            )
+        return said + (
+            "There is no synthtwin bundle for this computer's processor yet: send "
+            "this message to whoever looks after synthtwin."
+        )
+    have = computer.get("macos") if system == "macOS" else computer.get("glibc")
+    if system == "macOS":
+        return made_for + ", and this Mac runs macOS " + _dotted(have) + ". " + (
+            "Update macOS to " + _mac_words(release) + " or later (Apple menu, "
+            "then System Settings, General, Software Update), then run the install "
+            "script again; if this Mac cannot take it, send this message to whoever "
+            "looks after synthtwin."
+        )
+    return made_for + ", and this computer's is " + _dotted(have) + ". " + (
+        "Ask whoever looks after this computer for a newer Linux, or send this "
+        "message to whoever looks after synthtwin."
+    )
 
 
 def _lock_problems(lock_text):
@@ -137,21 +365,26 @@ def _lock_problems(lock_text):
     return problems
 
 
-def check(folder, version=None, system=None):
+def check(folder, version=None, system=None, computer=None):
     """Every reason the bundle in `folder` may not be installed from.
 
-    `version` is the (major, minor) of the Python that will install, and
-    `system` its system in words (Windows, macOS or Linux); both default
-    to this Python's own.
+    `version` is the (major, minor) of the Python that will install;
+    `computer` holds its `system` in words (Windows, macOS or Linux), its
+    `machine` (arm, x86_64 or x86), its `macos` and its `glibc` release,
+    each None where it is not known (and then not judged); `system`
+    alone may be given in its place. All default to this computer's own.
     """
     version = tuple(version or sys.version_info[:2])
-    system = system or _this_system()
-    if version < FLOOR:
+    if computer is None and system is None:
+        computer = _this_computer()
+    computer = dict(computer or {})
+    computer["system"] = system or computer.get("system") or _this_system()
+    system = computer["system"]
+    if not FLOOR <= version <= NEWEST:
         return [
-            "this computer's Python is " + _python_label(version) + ", and "
-            "synthtwin needs Python 3.11 or later. Install the newest Python 3 "
-            "from python.org (INSTALL.txt in this folder says how), open a new "
-            "terminal window, and run the install script again."
+            "this computer's Python is " + _dotted(version) + ", and this "
+            "synthtwin bundle serves Python " + _in_words(_served_range()) + ". "
+            + _python_advice()
         ]
     sums_path = os.path.join(folder, "SHA256SUMS")
     if not os.path.isfile(sums_path):
@@ -264,13 +497,17 @@ def check(folder, version=None, system=None):
             "this computer runs " + system + ". Download the synthtwin bundle "
             "made for " + system + " and run its install script."
         ]
+    unfit = _platform_problem(wheels, computer)
+    if unfit is not None:
+        return [unfit]
     if pythons and version not in pythons:
-        served = ", ".join(_python_label(item) for item in sorted(pythons))
         return [
-            "this bundle holds the libraries for Python " + served + ", and the "
-            "Python found is " + _python_label(version) + ". Install one of "
-            "those from python.org (INSTALL.txt in this folder says how), open "
-            "a new terminal window, and run the install script again."
+            "this bundle holds the libraries for Python " + _in_words(pythons)
+            + ", and the Python found is " + _dotted(version) + ". Install "
+            "Python " + _dotted(max(pythons)) + " from python.org (choose "
+            "Downloads, then the newest Python " + _dotted(max(pythons))
+            + " release; INSTALL.txt in this folder says how), open a new terminal "
+            "window, and run the install script again."
         ]
     return []
 

@@ -12,14 +12,17 @@
 #
 # What it does, and nothing else:
 #
-# 1. finds Python 3.11 or later (python3, then python; or the one named
-#    in the SYNTHTWIN_PYTHON variable), and says in plain words what to
-#    do when the Python it finds is older;
+# 1. finds a Python the bundle serves, 3.11 to 3.14: python3, then
+#    python, then python3.14, python3.13, python3.12 and python3.11 (or
+#    the one named in the SYNTHTWIN_PYTHON variable), so a Python 3.15
+#    beside a 3.14 takes the 3.14; and says in plain words what to do
+#    when there is none (lane DEP-2's skeptic, item 2);
 # 2. runs scripts/check_bundle.py with that Python, which checks every
 #    file of the bundle against SHA256SUMS, every library wheel against
 #    the hashes requirements-install.lock pins, that the lock names no
 #    place to fetch from, and that the bundle was made for this system
-#    and this Python -- before anything on this computer is changed;
+#    (its chip and, on a Mac, its macOS) and this Python -- before
+#    anything on this computer is changed;
 # 3. makes a fresh private environment, `.venv`, inside the bundle's
 #    folder, so nothing else on this computer changes. An earlier one
 #    there is cleared first (venv --clear), every time: a file in it is
@@ -64,44 +67,46 @@ folder of the bundle it sits in. Type sh scripts/install.sh with nothing \
 after it, in the bundle's folder, and run it again."
 fi
 
-new_enough() {
-    "$@" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' \
+served() {
+    "$@" -c 'import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) else 1)' \
         >/dev/null 2>&1
 }
 
-too_old_advice="Install the newest Python 3 from python.org (INSTALL.txt in \
-this folder says how), open a new terminal window, and run this script again."
+too_old_advice="Install Python 3.14 from python.org (choose Downloads, then the \
+newest Python 3.14 release; INSTALL.txt in this folder says how), open a new \
+terminal window, and run this script again."
 
 python=""
-older=""
+found=""
 if [ -n "${SYNTHTWIN_PYTHON:-}" ]; then
-    if new_enough "$SYNTHTWIN_PYTHON"; then
+    if served "$SYNTHTWIN_PYTHON"; then
         python="$SYNTHTWIN_PYTHON"
     else
-        stop "SYNTHTWIN_PYTHON names $SYNTHTWIN_PYTHON, which is not Python 3.11 \
-or later. Name a Python 3.11 or later there, or leave SYNTHTWIN_PYTHON unset, \
+        stop "SYNTHTWIN_PYTHON names $SYNTHTWIN_PYTHON, which is not Python 3.11, \
+3.12, 3.13 or 3.14. Name one of those there, or leave SYNTHTWIN_PYTHON unset, \
 and run this script again."
     fi
 else
-    for candidate in python3 python; do
+    for candidate in python3 python python3.14 python3.13 python3.12 python3.11; do
         if command -v "$candidate" >/dev/null 2>&1; then
-            if new_enough "$candidate"; then
+            if served "$candidate"; then
                 python="$candidate"
                 break
             fi
-            if [ -z "$older" ]; then
-                older=$("$candidate" -c 'import sys; print("%d.%d" % sys.version_info[:2])' \
+            if [ -z "$found" ]; then
+                found=$("$candidate" -c 'import sys; print("%d.%d" % sys.version_info[:2])' \
                     2>/dev/null)
             fi
         fi
     done
 fi
-if [ -z "$python" ] && [ -n "$older" ]; then
-    stop "this computer's Python is $older, and synthtwin needs Python 3.11 \
-or later. $too_old_advice"
+if [ -z "$python" ] && [ -n "$found" ]; then
+    stop "this computer's Python is $found, and this synthtwin bundle serves \
+Python 3.11, 3.12, 3.13 and 3.14. $too_old_advice"
 fi
 if [ -z "$python" ]; then
-    stop "no Python 3.11 or later was found on this computer. $too_old_advice"
+    stop "no Python 3.11, 3.12, 3.13 or 3.14 was found on this computer. \
+$too_old_advice"
 fi
 
 if ! "$python" -c 'import sys; sys.exit(0 if sys.prefix == sys.base_prefix else 1)' \
@@ -112,6 +117,12 @@ this script again."
 fi
 
 if [ ! -f "$lock" ] || [ ! -f "$here/scripts/check_bundle.py" ]; then
+    if [ -f "$here/pyproject.toml" ] && [ -d "$here/src/synthtwin" ]; then
+        stop "this is synthtwin's source folder, not a bundle, and synthtwin is \
+installed only from its bundle. README.md in this folder says where to get it, \
+under 'Then get the synthtwin bundle'; unzip the bundle and run this script \
+again from its folder."
+    fi
     stop "this folder is not a whole synthtwin bundle: requirements-install.lock \
 or scripts/check_bundle.py is missing from $here. Download the synthtwin bundle \
 for this computer again, unzip it whole, and run this script again from its folder."

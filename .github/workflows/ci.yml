@@ -1600,8 +1600,14 @@ jobs:
     # THIRD-PARTY-NOTICES.txt gathered from the wheels' own metadata
     # (never committed: the decontamination scanner matches lines of the
     # libraries' licence texts, and wheels are binary files) and
-    # SHA256SUMS over every file. The zip goes to bundle-test as this
-    # run's artifact and nowhere else: nothing is published.
+    # SHA256SUMS over every file. The zip, synthtwin-<version>-<platform>.zip
+    # as README names it, goes to bundle-test as this run's artifact and
+    # nowhere else: nothing is published. On macOS the wheels are the
+    # ones macOS 12 takes (pip download --platform macosx_12_0_arm64),
+    # not the macOS 14 wheels pip would pick for the runner itself, so
+    # the bundle serves every Mac with an Apple chip on macOS 12 or later
+    # and bundle-test proves those wheels' bytes (lane DEP-2's skeptic,
+    # item 3); a wheel needing a newer macOS stops the job.
     needs: build
     strategy:
       fail-fast: false
@@ -1650,9 +1656,21 @@ jobs:
           PY314: ${{ steps.py314.outputs.python-path }}
         run: |
           for PY in "$PY311" "$PY312" "$PY313" "$PY314"; do
-            "$PY" -m pip download --require-hashes --only-binary=:all: \
-              --dest "$RUNNER_TEMP/wheelhouse" -r requirements-install.lock
+            if [ "$RUNNER_OS" = "macOS" ]; then
+              VERSION="$("$PY" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+              "$PY" -m pip download --require-hashes --only-binary=:all: \
+                --platform macosx_12_0_arm64 --implementation cp \
+                --python-version "$VERSION" --abi "cp${VERSION/./}" \
+                --dest "$RUNNER_TEMP/wheelhouse" -r requirements-install.lock
+            else
+              "$PY" -m pip download --require-hashes --only-binary=:all: \
+                --dest "$RUNNER_TEMP/wheelhouse" -r requirements-install.lock
+            fi
           done
+          if ls "$RUNNER_TEMP/wheelhouse" | grep -E 'macosx_(1[3-9]|[2-9][0-9])_'; then
+            echo "A wheel above needs a macOS newer than 12; the bundle serves macOS 12 and later."
+            exit 1
+          fi
       - name: Assemble the bundle (every file hashed, notices gathered)
         run: |
           python tools/bundle/build_bundle.py \
@@ -1660,7 +1678,7 @@ jobs:
             --synthtwin-wheel dist/synthtwin-*.whl \
             --platform "${{ matrix.platform }}" \
             --out "$RUNNER_TEMP/bundle" \
-            --zip "$RUNNER_TEMP/synthtwin-bundle-${{ matrix.platform }}.zip"
+            --zip-into "$RUNNER_TEMP/zipped"
       - name: Check the bundle with every Python it serves
         env:
           PY311: ${{ steps.py311.outputs.python-path }}
@@ -1677,7 +1695,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: synthtwin-bundle-${{ matrix.platform }}
-          path: ${{ runner.temp }}/synthtwin-bundle-${{ matrix.platform }}.zip
+          path: ${{ runner.temp }}/zipped/synthtwin-*-${{ matrix.platform }}.zip
           if-no-files-found: error
           retention-days: 5
 
@@ -1753,9 +1771,12 @@ jobs:
               opened.extractall(temp / "clean bundle")
           SCRIPT
       - name: Deny the network, prove it denied, install, run doctor
+        env:
+          PYTHON_CELL: ${{ matrix.python-version }}
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" "$@"; }
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
           else
             offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 \
               ALL_PROXY=http://127.0.0.1:9 http_proxy=http://127.0.0.1:9 \
@@ -1783,14 +1804,70 @@ jobs:
             test -x .venv/bin/synthtwin
           fi
           test "$status" -eq 0
-          if grep -E "Downloading|Looking in indexes|Looking in links: http" install.log; then
+          if grep -E "Downloading|Looking in indexes|Looking in links: http|Retrying|Could not fetch URL|ProxyError|NewConnectionError|Failed to establish|pypi.org|files.pythonhosted.org" install.log; then
             echo "pip reached for the network during the install; the bundle must be enough."
             exit 1
           fi
+          python -I - "$PYTHON_CELL" <<'SCRIPT'
+          import pathlib
+          import re
+          import sys
+
+          said = pathlib.Path("install.log").read_text(encoding="utf-8", errors="replace")
+          used = re.findall(r"^using .* (\d+\.\d+)\.\d+", said, re.M)
+          print("the install used Python", used, "in the cell of", sys.argv[1])
+          if used != [sys.argv[1]]:
+              sys.exit("The script installed with another Python than this cell's.")
+          SCRIPT
+      - name: A bundle with one changed byte is refused before anything is made
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
+          else
+            offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 "$@"; }
+          fi
+          BUNDLE="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'clean bundle').glob('synthtwin-*')))")"
+          CHANGED="$RUNNER_TEMP/changed bundle/$(basename "$BUNDLE")"
+          python - "$BUNDLE" "$CHANGED" <<'SCRIPT'
+          import pathlib
+          import shutil
+          import sys
+
+          source, target = (pathlib.Path(name) for name in sys.argv[1:])
+          shutil.copytree(source, target, ignore=shutil.ignore_patterns(".venv", "install.log"))
+          wheel = sorted(
+              path for path in (target / "wheelhouse").glob("*.whl")
+              if not path.name.startswith("synthtwin-")
+          )[0]
+          data = bytearray(wheel.read_bytes())
+          data[len(data) // 2] ^= 1
+          wheel.write_bytes(bytes(data))
+          print("changed one byte of", wheel.name)
+          SCRIPT
+          cd "$CHANGED"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export MSYS_NO_PATHCONV=1
+            if offline cmd.exe /d /c "scripts\\install.bat" > refused.log 2>&1; then
+              cat refused.log
+              echo "install.bat installed a bundle with a changed file."
+              exit 1
+            fi
+          else
+            if offline sh scripts/install.sh > refused.log 2>&1; then
+              cat refused.log
+              echo "install.sh installed a bundle with a changed file."
+              exit 1
+            fi
+          fi
+          cat refused.log
+          grep -q "does not match its hash in SHA256SUMS" refused.log
+          test ! -e .venv
       - name: Profile, generate and validate an invented table, network denied
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" "$@"; }
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
           else
             offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 "$@"; }
           fi
@@ -1809,7 +1886,8 @@ jobs:
       - name: Run the golden tests on the installed synthtwin, network denied
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" "$@"; }
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
           else
             offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 "$@"; }
           fi

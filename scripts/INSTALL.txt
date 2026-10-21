@@ -5,8 +5,16 @@ This folder holds everything synthtwin needs. Installing it needs no
 internet and changes nothing else on your computer: it all goes into
 one new folder, .venv, inside this one.
 
-You need Python 3.11, 3.12, 3.13 or 3.14 first. Then you type one
+You need Python 3.11, 3.12, 3.13 or 3.14 first. Python 3.15 or later
+will not do yet: this bundle has nothing for it. Then you type one
 command. It takes a minute or two.
+
+Each bundle is made for one kind of computer, named at the end of its
+folder's name:
+
+    macos_arm64    a Mac with an Apple chip (M1 or later), macOS 12 or later
+    win_amd64      Windows on a 64-bit Intel or AMD computer
+    linux_x86_64   Linux on a 64-bit Intel or AMD computer
 
 
 On a Mac
@@ -19,9 +27,16 @@ On a Mac
        python3 --version
 
    If it shows Python 3.11, 3.12, 3.13 or 3.14, go to step 2.
-   Otherwise go to python.org, choose Downloads, download the Python 3
+   Otherwise -- an older number, 3.15 or later, or a window offering to
+   install developer tools -- install Python 3.14: go to python.org,
+   choose Downloads, then the newest Python 3.14 release, download its
    installer for macOS, open it and follow its steps. Then close
-   Terminal, open it again and check once more.
+   Terminal, open it again, and check with this line:
+
+       python3.14 --version
+
+   It should show Python 3.14. The install script finds it even when a
+   newer Python is there too.
 
 2. Unzip this bundle. Double-click the zip file you downloaded. A
    folder appears beside it, named like synthtwin-0.1.0-macos_arm64.
@@ -61,18 +76,26 @@ On Windows
        python --version
 
    If it shows Python 3.11, 3.12, 3.13 or 3.14, go to step 2.
-   Otherwise go to python.org, choose Downloads, download the Python 3
-   installer for Windows and run it. On its first screen tick
-   "Add python.exe to PATH", then choose "Install Now". Then close
-   Command Prompt.
+   Otherwise -- an older number, 3.15 or later, a message that python
+   is not recognized, or the Microsoft Store opening -- install Python
+   3.14: go to python.org, choose Downloads, then the newest Python
+   3.14 release, download its "Windows installer (64-bit)" and run it.
+   On its first screen tick "Add python.exe to PATH", then choose
+   "Install Now". Then close Command Prompt, open a new one, and check
+   with this line:
+
+       py -3.14 --version
+
+   It should show Python 3.14. The install script finds it even when a
+   newer Python is there too.
 
 2. Unzip this bundle. Right-click the zip file you downloaded and
-   choose "Extract All", then "Extract". A folder opens, named like
-   synthtwin-0.1.0-win_amd64.
+   choose "Extract All", then "Extract". A folder opens. Inside it,
+   double-click the folder named like synthtwin-0.1.0-win_amd64.
 
-3. Open Command Prompt in that folder. In the folder's window, click
-   the address bar at the top, type cmd and press Enter. A Command
-   Prompt opens, already in the folder.
+3. Open Command Prompt in that folder, the one that holds INSTALL.txt.
+   In the folder's window, click the address bar at the top, type cmd
+   and press Enter. A Command Prompt opens, already in the folder.
 
 4. Install. Paste this line and press Enter:
 
@@ -90,6 +113,10 @@ On Windows
 
        synthtwin profile my-table.csv
 
+   synthtwin prints the commands it suggests for PowerShell. In Command
+   Prompt, where a name stands between single quotes 'like this', type
+   it between double quotes "like this".
+
 
 On Linux
 --------
@@ -105,9 +132,9 @@ If it stops
 The script never stops without saying why and what to do next. If it
 says the bundle did not pass its check, download the bundle again and
 unzip it into a new folder: a file was changed or damaged on the way.
-If it says the bundle is made for another system or other Pythons,
-download the bundle made for your computer, or install one of the
-Pythons it names.
+If it says the bundle is made for another kind of computer or other
+Pythons, download the bundle made for your computer, or install the
+Python it names.
 
 Checking the files yourself: SHA256SUMS lists the SHA-256 of every file
 in this folder. The install script checks them all before it installs

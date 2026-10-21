@@ -996,6 +996,15 @@ def _is_whole_literal(node: ast.AST) -> bool:
     )
 
 
+def _whole_literal_value(node: ast.AST) -> int:
+    """The value of a node _is_whole_literal accepts: 2, -2 or +2."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        inner = _whole_literal_value(node.operand)
+        return -inner if isinstance(node.op, ast.USub) else inner
+    assert isinstance(node, ast.Constant) and isinstance(node.value, int)
+    return node.value
+
+
 def _holds_float_literal(node: ast.AST) -> bool:
     return any(
         isinstance(inner, ast.Constant) and isinstance(inner.value, float)
@@ -1009,8 +1018,10 @@ def _float_power_reason(base: ast.AST, exponent: ast.AST) -> "str | None":
     An exact power of two -- the literal 2 or 2.0 raised to a whole
     number literal -- is no float power (P4-D409 part 3 (e)). Otherwise a
     float literal in either operand makes it one, and so does a computed
-    base raised to a whole-number literal of 2 or more, which on a float
-    is the platform's pow where `x * x` rounds alike everywhere.
+    base raised to any whole-number literal but 0 and 1, a negative one
+    included (`x ** -2`; lane DEP-2's skeptic, item 8), which on a float
+    is the platform's pow where `x * x` or `1.0 / (x * x)` rounds alike
+    everywhere.
     """
     if (
         isinstance(base, ast.Constant)
@@ -1023,10 +1034,8 @@ def _float_power_reason(base: ast.AST, exponent: ast.AST) -> "str | None":
         return "a float literal stands in it"
     if (
         not isinstance(base, ast.Constant)
-        and isinstance(exponent, ast.Constant)
-        and isinstance(exponent.value, int)
-        and not isinstance(exponent.value, bool)
-        and exponent.value >= 2
+        and _is_whole_literal(exponent)
+        and _whole_literal_value(exponent) not in (0, 1)
     ):
         return "a computed base is raised to a whole number"
     return None

@@ -225,9 +225,10 @@ def test_the_check_refuses_a_missing_hash(tmp_path: pathlib.Path) -> None:
     sums.write_text(
         "".join(line + "\n" for line in whole.splitlines() if "stubdep" not in line),
         encoding="utf-8",
+        newline="\n",
     )
     _refused(bundle, "wheelhouse/stubdep-1.0-py3-none-any.whl has no hash in SHA256SUMS")
-    sums.write_text(whole, encoding="utf-8")
+    sums.write_text(whole, encoding="utf-8", newline="\n")
     assert CHECK.check(str(bundle)) == []
     shutil.copyfile(
         bundle / "wheelhouse" / "stubdep-1.0-py3-none-any.whl",
@@ -259,7 +260,7 @@ def test_the_check_refuses_a_changed_file_and_an_unpinned_wheel(tmp_path: pathli
     _refused(bundle, "is not a file the lock pins by its hash")
     for script in ("scripts/install.sh", "scripts/check_bundle.py", "requirements-install.lock"):
         fresh = _bundle(tmp_path / script.replace("/", "-"))
-        with (fresh / script).open("a", encoding="utf-8") as handle:
+        with (fresh / script).open("a", encoding="utf-8", newline="\n") as handle:
             handle.write("\n")
         _refused(fresh, script + " does not match its hash")
 
@@ -300,35 +301,169 @@ def test_the_check_reads_the_real_locks_as_clean() -> None:
         assert CHECK._lock_problems((REPO / name).read_text(encoding="utf-8")) == [], name
 
 
-def test_the_check_refuses_a_wrong_python(tmp_path: pathlib.Path) -> None:
-    """Older than 3.11 always; another Python than the bundle's wheels serve."""
-    bundle = _bundle(tmp_path)
-    _refused(bundle, "this computer's Python is 3.10, and synthtwin needs Python 3.11", version=(3, 10))
+def _with_wheels(bundle: pathlib.Path, project: str, tags: "list[str]") -> None:
+    """Stand-in native wheels of ``project``, one a tag, pinned in the lock and listed."""
     house = bundle / "wheelhouse"
-    for minor in (11, 12, 13, 14):
-        _wheel(house, "stubnative", "1.0", {"stubnative/__init__.py": ""},
-               tags=f"cp3{minor}-cp3{minor}-macosx_11_0_arm64")
-    # A wheel for any Python 3 (abi3) names no Python the bundle serves.
-    _wheel(house, "stubabi", "1.0", {"stubabi/__init__.py": ""},
-           tags="cp37-abi3-macosx_11_0_arm64")
+    made = [_wheel(house, project, "1.0", {project + "/__init__.py": ""}, tags=tag) for tag in tags]
     lock = bundle / "requirements-install.lock"
-    added = ""
-    for project in ("stubnative", "stubabi"):
-        pins = "".join(
-            f"    --hash=sha256:{_sha256(path)} \\\n" for path in sorted(house.glob(project + "-*"))
-        )
-        added += f"{project}==1.0 \\\n" + pins.rstrip(" \\\n") + "\n"
-    lock.write_text(lock.read_text(encoding="utf-8") + added, encoding="utf-8", newline="\n")
+    pins = " \\\n".join(f"    --hash=sha256:{_sha256(path)}" for path in made)
+    lock.write_text(
+        lock.read_text(encoding="utf-8") + f"{project}==1.0 \\\n{pins}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     _resum(bundle)
+
+
+def test_the_check_refuses_a_wrong_python(tmp_path: pathlib.Path) -> None:
+    """Older than 3.11 or newer than 3.14 always; another Python than the wheels serve.
+
+    The advice names Python 3.14, not python.org's newest Python, which
+    from 3.15 on no bundle serves (lane DEP-2's skeptic, item 2).
+    """
+    bundle = _bundle(tmp_path)
+    for version in ((3, 10), (3, 15)):
+        _refused(
+            bundle,
+            f"this computer's Python is {version[0]}.{version[1]}, and this synthtwin bundle "
+            "serves Python 3.11, 3.12, 3.13 and 3.14. Install Python 3.14 from python.org",
+            version=version,
+        )
+    for minor in (11, 12, 13, 14):
+        assert CHECK.check(str(bundle), version=(3, minor)) == []
+    _with_wheels(bundle, "stubnative", [f"cp3{minor}-cp3{minor}-macosx_11_0_arm64" for minor in (11, 12, 13)])
+    # A wheel for any Python 3 (abi3) names no Python the bundle serves.
+    _with_wheels(bundle, "stubabi", ["cp37-abi3-macosx_11_0_arm64"])
     assert CHECK.check(str(bundle), version=(3, 13), system="macOS") == []
     _refused(
         bundle,
-        "holds the libraries for Python 3.11, 3.12, 3.13, 3.14, and the Python found is 3.15",
-        version=(3, 15),
+        "holds the libraries for Python 3.11, 3.12 and 3.13, and the Python found is 3.14. "
+        "Install Python 3.13 from python.org",
+        version=(3, 14),
         system="macOS",
     )
     _refused(bundle, "this bundle is made for macOS, and this computer runs Windows",
              version=(3, 13), system="Windows")
+
+
+def test_the_pythons_agree_everywhere() -> None:
+    """The check's range, both scripts' and the guide's are CI's tests matrix."""
+    pythons = _list(jobs_of(WORKFLOW.read_text(encoding="utf-8")).get("tests", ""), "python-version")
+    assert [CHECK._dotted(version) for version in CHECK._served_range()] == pythons
+    assert (CHECK.FLOOR, CHECK.NEWEST) == (CHECK._served_range()[0], CHECK._served_range()[-1])
+    for name in ("install.sh", "install.bat"):
+        assert _version_range(pythons) in (SCRIPTS / name).read_text(encoding="utf-8"), name
+    guide = (SCRIPTS / "INSTALL.txt").read_text(encoding="utf-8")
+    assert "Python " + ", ".join(pythons[:-1]) + " or " + pythons[-1] + " first" in guide
+
+
+MAC_ARM = {"system": "macOS", "machine": "arm", "macos": (14, 5)}
+
+
+def test_the_check_reads_the_chip_and_the_macos_a_bundle_needs(tmp_path: pathlib.Path) -> None:
+    """Lane DEP-2's skeptic, item 3: a Mac too old, an Intel chip, both in plain words."""
+    bundle = _bundle(tmp_path)
+    _with_wheels(bundle, "stubnative", ["cp313-cp313-macosx_12_0_arm64"])
+    assert CHECK.check(str(bundle), version=(3, 13), computer=MAC_ARM) == []
+    assert CHECK.check(str(bundle), version=(3, 13), computer=dict(MAC_ARM, macos=(12, 0))) == []
+    _refused(
+        bundle,
+        "this bundle is made for Macs with an Apple chip (M1 or later) on macOS 12 or later, "
+        "and this Mac runs macOS 11.7. Update macOS to 12 or later",
+        version=(3, 13),
+        computer=dict(MAC_ARM, macos=(11, 7)),
+    )
+    _refused(
+        bundle,
+        "and this Mac's Python runs on an Intel chip. If this Mac has an Apple chip, the "
+        "Python found is one made for Intel Macs. Install Python 3.14",
+        version=(3, 13),
+        computer=dict(MAC_ARM, machine="x86_64"),
+    )
+    # What this computer is not known about is not judged: pip decides.
+    assert CHECK.check(str(bundle), version=(3, 13), system="macOS") == []
+    # The newest macOS any wheel needs is the bundle's: one wheel of
+    # macOS 14 makes a macOS 12.7 Mac refuse the whole bundle.
+    _with_wheels(bundle, "stubnewer", ["cp313-cp313-macosx_14_0_arm64"])
+    _refused(
+        bundle,
+        "on macOS 14 or later, and this Mac runs macOS 12.7",
+        version=(3, 13),
+        computer=dict(MAC_ARM, macos=(12, 7)),
+    )
+
+
+def test_a_wheel_fits_when_any_of_its_tags_fits(tmp_path: pathlib.Path) -> None:
+    bundle = _bundle(tmp_path)
+    _with_wheels(bundle, "stubboth", ["cp313-cp313-macosx_10_9_x86_64.macosx_11_0_arm64"])
+    _with_wheels(bundle, "stubuniversal", ["cp313-cp313-macosx_10_9_universal2"])
+    assert CHECK.check(str(bundle), version=(3, 13), computer=dict(MAC_ARM, macos=(11, 0))) == []
+    intel = {"system": "macOS", "machine": "x86_64", "macos": (10, 15)}
+    assert CHECK.check(str(bundle), version=(3, 13), computer=intel) == []
+
+
+def test_the_check_reads_the_chip_on_windows_and_the_glibc_on_linux(tmp_path: pathlib.Path) -> None:
+    windows = _bundle(tmp_path / "windows")
+    _with_wheels(windows, "stubnative", ["cp313-cp313-win_amd64"])
+    assert CHECK.check(str(windows), version=(3, 13), computer={"system": "Windows", "machine": "x86_64"}) == []
+    _refused(
+        windows,
+        "this bundle is made for Windows computers with a 64-bit Intel or AMD processor, and "
+        "this computer's Python runs on an Arm processor. Windows 11 runs the 64-bit Python",
+        version=(3, 13),
+        computer={"system": "Windows", "machine": "arm"},
+    )
+    _refused(
+        windows,
+        "runs on a 32-bit Intel or AMD processor. There is no synthtwin bundle for this "
+        "computer's processor yet",
+        version=(3, 13),
+        computer={"system": "Windows", "machine": "x86"},
+    )
+    linux = _bundle(tmp_path / "linux")
+    _with_wheels(linux, "stubnative", ["cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64"])
+    _with_wheels(linux, "stubolder", ["cp313-cp313-manylinux2014_x86_64"])
+    computer = {"system": "Linux", "machine": "x86_64", "glibc": (2, 31)}
+    assert CHECK.check(str(linux), version=(3, 13), computer=computer) == []
+    _refused(
+        linux,
+        "whose system library, glibc, is version 2.27 or later, and this computer's is 2.17",
+        version=(3, 13),
+        computer=dict(computer, glibc=(2, 17)),
+    )
+    _refused(
+        linux,
+        "made for Linux computers with a 64-bit Intel or AMD processor whose system library",
+        version=(3, 13),
+        computer=dict(computer, machine="arm"),
+    )
+
+
+def test_this_computer_is_read_as_the_wheels_name_it() -> None:
+    found = CHECK._this_computer()
+    assert found["system"] == CHECK._this_system()
+    assert found["machine"] in ("arm", "x86_64", "x86"), found
+    if sys.platform == "darwin":
+        assert found["macos"] is not None and found["macos"] >= (11, 0), found
+
+
+def test_the_check_refuses_a_pinned_source_archive(tmp_path: pathlib.Path) -> None:
+    """A source archive runs build code when installed, pinned by the lock or not."""
+    bundle = _bundle(tmp_path)
+    archive = bundle / "wheelhouse" / "stubdep-1.0.tar.gz"
+    archive.write_bytes(b"a source archive")
+    lock = bundle / "requirements-install.lock"
+    lock.write_text(
+        lock.read_text(encoding="utf-8").replace(
+            "\n    # via synthtwin", f" \\\n    --hash=sha256:{_sha256(archive)}\n    # via synthtwin"
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    assert _sha256(archive) in lock.read_text(encoding="utf-8")
+    assert CHECK._lock_problems(lock.read_text(encoding="utf-8")) == []
+    _resum(bundle)
+    _refused(bundle, "wheelhouse/stubdep-1.0.tar.gz is not a wheel")
 
 
 # -- install.sh, run for real on the stub bundle --------------------------------
@@ -361,7 +496,7 @@ def _install(bundle: pathlib.Path, *arguments: str, **extra: str) -> "subprocess
     }
     env.update(extra)
     return subprocess.run(
-        ["sh", "scripts/install.sh", *arguments],
+        [shutil.which("sh") or "/bin/sh", "scripts/install.sh", *arguments],
         cwd=bundle,
         env=env,
         capture_output=True,
@@ -376,6 +511,31 @@ posix_only = pytest.mark.skipif(
 )
 
 
+# What pip prints when it reaches for the network: a download, an index
+# or a find-links URL it looks in, and -- with every proxy at a closed
+# port, or no network at all -- the retries and connection errors of a
+# lookup that failed. "Looking in indexes" alone is printed only for an
+# index other than PyPI's, so an install that went to PyPI and fell back
+# on the bundle printed none of the first three (lane DEP-2's skeptic,
+# item 5). bundle-test's grep names every one of these.
+NETWORK_WORDS = (
+    "Downloading",
+    "Looking in indexes",
+    "Looking in links: http",
+    "Retrying",
+    "Could not fetch URL",
+    "ProxyError",
+    "NewConnectionError",
+    "Failed to establish",
+    "pypi.org",
+    "files.pythonhosted.org",
+)
+
+
+def _reached_for_network(said: str) -> "list[str]":
+    return [word for word in NETWORK_WORDS if word in said]
+
+
 @posix_only
 def test_install_sh_installs_from_the_bundle_alone(tmp_path: pathlib.Path) -> None:
     bundle = _bundle(tmp_path)
@@ -385,8 +545,28 @@ def test_install_sh_installs_from_the_bundle_alone(tmp_path: pathlib.Path) -> No
     assert "The bundle's files match their hashes." in said
     assert "stand-in doctor ran: doctor the stand-in library loaded" in said
     assert "synthtwin is installed." in said
-    assert "Downloading" not in said and "Looking in indexes" not in said
+    assert _reached_for_network(said) == [], said
     assert (bundle / ".venv" / "bin" / "synthtwin").exists()
+
+
+@posix_only
+def test_an_install_that_reaches_for_an_index_is_seen(tmp_path: pathlib.Path) -> None:
+    """Mutation case of the real run: install.sh without --no-index on the lock install.
+
+    Measured by the skeptic: pip tries PyPI through the closed proxy,
+    retries, falls back on the bundle and the script ends "synthtwin is
+    installed" with exit 0 -- so only the retries and errors show it.
+    """
+    bundle = _bundle(tmp_path)
+    script = bundle / "scripts" / "install.sh"
+    text = script.read_text(encoding="utf-8")
+    mutated = text.replace('    --no-index --find-links "$wheels" \\\n', '    --find-links "$wheels" \\\n')
+    assert mutated != text
+    script.write_text(mutated, encoding="utf-8", newline="\n")
+    _resum(bundle)
+    ran = _install(bundle)
+    said = ran.stdout + ran.stderr
+    assert _reached_for_network(said), said
 
 
 @posix_only
@@ -401,61 +581,197 @@ def test_install_sh_stops_and_never_fetches_when_a_library_is_missing(
     said = ran.stdout + ran.stderr
     assert ran.returncode == 1, said
     assert "pip could not install the bundle's libraries" in said
-    assert "Downloading" not in said and "Looking in indexes" not in said
+    assert _reached_for_network(said) == [], said
     assert "stand-in doctor ran" not in said
+
+
+# A stand-in Python of any version: the real interpreter, with
+# sys.version_info and sys.version replaced before it runs what it was
+# given (-c CODE, -m MODULE or a script), so each script's own version
+# test runs on it as written.
+_FAKER = """import runpy
+import sys
+
+version = tuple(int(part) for part in sys.argv[1].split("."))
+sys.version_info = version + (0, "final", 0)
+sys.version = sys.argv[1] + ".0 (a stand-in written by tests/test_bundle.py)"
+arguments = sys.argv[2:]
+while arguments and arguments[0] in ("-I", "-E", "-s"):
+    arguments = arguments[1:]
+if arguments[0] == "-c":
+    sys.argv = ["-c", *arguments[2:]]
+    exec(compile(arguments[1], "<string>", "exec"), {"__name__": "__main__"})
+elif arguments[0] == "-m":
+    sys.argv = [arguments[1], *arguments[2:]]
+    runpy.run_module(arguments[1], run_name="__main__", alter_sys=True)
+else:
+    sys.argv = list(arguments)
+    runpy.run_path(arguments[0], run_name="__main__")
+"""
+
+
+def _pythons(folder: pathlib.Path, **named: str) -> str:
+    """A PATH of stand-in Pythons by name (a version, or "real") and the tools install.sh calls."""
+    folder.mkdir(parents=True)
+    faker = folder / "faker.py"
+    faker.write_text(_FAKER, encoding="utf-8", newline="\n")
+    real = _base_python()
+    for name, version in named.items():
+        if version == "real":
+            body = f'#!/bin/sh\nexec "{real}" "$@"\n'
+        else:
+            body = f'#!/bin/sh\nexec "{real}" -I "{faker}" {version} "$@"\n'
+        (folder / name).write_text(body, encoding="utf-8", newline="\n")
+        (folder / name).chmod(0o755)
+    for tool in ("dirname", "uname"):
+        found = shutil.which(tool)
+        assert found, tool
+        (folder / tool).symlink_to(found)
+    return str(folder)
+
+
+@posix_only
+def test_install_sh_takes_a_served_python_beside_a_newer_one(tmp_path: pathlib.Path) -> None:
+    """python3 is 3.15 and python3.14 works: the script takes 3.14 (the skeptic, item 2 (c))."""
+    bundle = _bundle(tmp_path)
+    path = _pythons(tmp_path / "pythons", python3="3.15", python="3.15", **{"python3.14": "real"})
+    ran = _install(bundle, SYNTHTWIN_PYTHON="", PATH=path)
+    said = ran.stdout + ran.stderr
+    assert ran.returncode == 0, said
+    using = [line for line in said.splitlines() if line.startswith("using ")]
+    assert len(using) == 1 and " 3.15." not in using[0], using
+    assert "synthtwin is installed." in said
+
+
+@posix_only
+@pytest.mark.parametrize("version", ["3.9", "3.15"])
+def test_install_sh_names_the_python_to_install(tmp_path: pathlib.Path, version: str) -> None:
+    """No Python the bundle serves: it names the one found and Python 3.14, before any change."""
+    bundle = _bundle(tmp_path)
+    path = _pythons(tmp_path / "pythons", python3=version, python=version)
+    ran = _install(bundle, SYNTHTWIN_PYTHON="", PATH=path)
+    assert ran.returncode == 1, ran.stdout
+    flowing = " ".join(ran.stdout.split())
+    assert (
+        f"this computer's Python is {version}, and this synthtwin bundle serves Python 3.11, "
+        "3.12, 3.13 and 3.14. Install Python 3.14 from python.org"
+    ) in flowing, flowing
+    assert "INSTALL.txt" in flowing
+    assert not (bundle / ".venv").exists()
+    ran = _install(bundle, SYNTHTWIN_PYTHON=str(tmp_path / "pythons" / "python3"))
+    assert ran.returncode == 1
+    assert "which is not Python 3.11, 3.12, 3.13 or 3.14" in " ".join(ran.stdout.split())
+    assert not (bundle / ".venv").exists()
 
 
 @posix_only
 def test_install_sh_refuses_before_changing_anything(tmp_path: pathlib.Path) -> None:
-    """A missing hash, a wrong Python and an argument stop it before the environment."""
+    """A missing hash and an argument stop it before the environment."""
     bundle = _bundle(tmp_path)
     sums = bundle / "SHA256SUMS"
     whole = sums.read_text(encoding="utf-8")
     sums.write_text(
         "".join(line + "\n" for line in whole.splitlines() if "stubdep" not in line),
         encoding="utf-8",
+        newline="\n",
     )
     ran = _install(bundle)
     assert ran.returncode == 1 and "has no hash in SHA256SUMS" in ran.stdout, ran.stdout
     assert "the bundle's check above did not pass" in ran.stdout
     assert not (bundle / ".venv").exists()
-    sums.write_text(whole, encoding="utf-8")
+    sums.write_text(whole, encoding="utf-8", newline="\n")
 
     ran = _install(bundle, "wheelhouse")
     assert ran.returncode == 1 and "this script takes no folder" in ran.stdout, ran.stdout
     assert not (bundle / ".venv").exists()
 
-    fake = tmp_path / "old python"
-    fake.mkdir()
-    for name in ("python3", "python"):
-        old = fake / name
-        old.write_text(
-            '#!/bin/sh\ncase "$2" in\n  *">= (3, 11)"*) exit 1 ;;\n  *version_info*) echo 3.9 ;;\nesac\n',
-            encoding="utf-8",
-        )
-        old.chmod(0o755)
-    ran = _install(bundle, SYNTHTWIN_PYTHON="", PATH=f"{fake}:/usr/bin:/bin")
-    assert ran.returncode == 1, ran.stdout
-    assert "this computer's Python is 3.9, and synthtwin needs Python 3.11" in ran.stdout
-    assert "python.org" in ran.stdout and "INSTALL.txt" in ran.stdout
-    assert not (bundle / ".venv").exists()
-    ran = _install(bundle, SYNTHTWIN_PYTHON=str(fake / "python3"))
-    assert ran.returncode == 1 and "which is not Python 3.11" in ran.stdout, ran.stdout
+
+@posix_only
+def test_install_sh_in_the_source_folder_says_it_is_not_a_bundle(tmp_path: pathlib.Path) -> None:
+    """Run from a copy of the repository, it points to README's bundle (the skeptic, item 10)."""
+    source = tmp_path / "synthtwin"
+    (source / "scripts").mkdir(parents=True)
+    (source / "src" / "synthtwin").mkdir(parents=True)
+    for name in ("pyproject.toml", "requirements-install.lock"):
+        shutil.copyfile(REPO / name, source / name)
+    shutil.copyfile(SCRIPTS / "install.sh", source / "scripts" / "install.sh")
+    ran = _install(source)
+    flowing = " ".join(ran.stdout.split())
+    assert ran.returncode == 1, flowing
+    assert "this is synthtwin's source folder, not a bundle" in flowing
+    assert "'Then get the synthtwin bundle'" in flowing
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    assert "**Then get the synthtwin bundle" in readme
+    assert not (source / ".venv").exists()
 
 
 # -- both scripts' text -----------------------------------------------------------
 
 
-def script_problems(name: str, text: str) -> "list[str]":
+MATRIX = ("3.11", "3.12", "3.13", "3.14")
+
+
+def _version_range(pythons: "tuple[str, ...] | list[str]" = MATRIX) -> str:
+    """The one version test both scripts write: the first served Python to the last."""
+    low, high = (tuple(int(part) for part in item.split(".")) for item in (pythons[0], pythons[-1]))
+    return f"{low} <= sys.version_info[:2] <= {high}"
+
+
+def _candidates(name: str, pythons: "tuple[str, ...] | list[str]" = MATRIX) -> str:
+    """The Pythons a script tries, in order: the one a person types, then each served one, newest first."""
+    newest_first = list(reversed(pythons))
+    if name == "install.sh":
+        return "for candidate in python3 python " + " ".join("python" + item for item in newest_first) + "; do"
+    return "call :served python\n" + "".join(f"if not defined PY call :served py -{item}\n" for item in newest_first)
+
+
+_CHECK_LINE = {
+    "install.sh": '"$python" -I "$here/scripts/check_bundle.py" "$here"',
+    "install.bat": '%PY% -I "%HERE%\\scripts\\check_bundle.py" "%HERE%"',
+}
+_REFUSE_LINE = {
+    "install.sh": 'if [ "$#" -ne 0 ]; then',
+    "install.bat": 'if not "%~1"=="" goto :takes_no_folder',
+}
+
+
+def _stops_after(name: str, text: str, line: str) -> bool:
+    """The command on ``line`` stops the script when it fails.
+
+    install.sh: the command ends in `|| stop`. install.bat: the next line
+    is `if errorlevel 1 goto :LABEL`, and LABEL's block ends `exit /b 1`.
+    """
+    if name == "install.sh":
+        return "|| stop " in line
+    lines = text.splitlines()
+    index = lines.index(line)
+    following = lines[index + 1].strip() if index + 1 < len(lines) else ""
+    label = re.fullmatch(r"if errorlevel 1 goto :(\w+)", following)
+    if label is None:
+        return False
+    block = re.search(rf"\n:{label.group(1)}\n(.*?)\nexit /b (\S+)", "\n" + text, re.S)
+    return block is not None and block.group(2) == "1"
+
+
+def script_problems(name: str, text: str, pythons: "tuple[str, ...] | list[str]" = MATRIX) -> "list[str]":
     """What in an install script could reach past the bundle or skip its check.
 
-    Every pip command installs, with --isolated and --no-index; the lock
-    is installed with --require-hashes; nothing is downloaded or fetched;
-    the check runs after the Python floor and before the environment is
-    made; the script refuses an argument before anything else.
+    Every pip command installs, with --isolated and --no-index, this
+    computer's pip configuration files set aside ON THE COMMAND (install.sh's
+    pip lines begin `PIP_CONFIG_FILE=/dev/null`; install.bat sets it to nul
+    on a line of its own before its first pip; a comment does not count:
+    with --isolated alone pip 24 still reads the global and site files,
+    and a find-links named there reaches the network, the skeptic's item
+    4); the lock is installed with --require-hashes; nothing is
+    downloaded or fetched; the check, the environment and each pip
+    command stop the script when they fail; every version test is the
+    one range, 3.11 to 3.14, and the Pythons are tried in their order;
+    the script refuses an argument first, then finds its Python, then
+    runs the check, then makes the environment.
     """
     problems: "list[str]" = []
-    flat = re.sub(r"\\\n\s*", " ", text.replace("\r\n", "\n"))
+    text = text.replace("\r\n", "\n")
+    flat = re.sub(r"\\\n\s*", " ", text)
     pips = [line for line in flat.splitlines() if re.search(r"-m pip\b|\bpip install\b", line)]
     pips = [line for line in pips if not line.lstrip().startswith(("#", "rem ", "REM "))]
     if len(pips) != 2:
@@ -468,14 +784,42 @@ def script_problems(name: str, text: str) -> "list[str]":
     for word in ("pip download", "://", "curl ", "wget ", "Invoke-WebRequest", "bitsadmin"):
         if word in text:
             problems += [f"{name} fetches or names a place to fetch from ({word!r})"]
-    called = re.search(r'-I "[^"\n]*check_bundle\.py" "', text)
-    checked = called.start() if called else -1
+    # pip's own configuration files set aside, on the command itself.
+    if name == "install.sh":
+        for line in pips:
+            if not line.lstrip().startswith('PIP_CONFIG_FILE=/dev/null "$venv_python" -m pip install'):
+                problems += [f"{name}: a pip command without PIP_CONFIG_FILE=/dev/null on it: {line.strip()}"]
+    else:
+        sets = [
+            line.strip()
+            for line in text.splitlines()
+            if "PIP_CONFIG_FILE" in line and not line.lstrip().lower().startswith("rem")
+        ]
+        first_pip = text.find(pips[0].strip()) if pips else -1
+        if sets != ['set "PIP_CONFIG_FILE=nul"'] or not 0 <= text.find(sets[0]) < first_pip:
+            problems += [f"{name}: PIP_CONFIG_FILE is not set to nul once, before the first pip: {sets}"]
+    # Each step that can fail stops the script.
+    commands = [_CHECK_LINE[name]] + [line.strip() for line in pips]
+    commands += [line.strip() for line in flat.splitlines() if "-m venv --clear" in line]
+    for command in commands:
+        lines = [line for line in (flat if name == "install.sh" else text).splitlines() if command in line.strip()]
+        if len(lines) != 1 or not _stops_after(name, flat if name == "install.sh" else text, lines[0]):
+            problems += [f"{name}: a failure of `{command[:50]}` does not stop the script"]
+    # One version test, the served range, everywhere; the Pythons in order.
+    wanted = _version_range(pythons)
+    if wanted not in text:
+        problems += [f"{name} never tests the version as {wanted}"]
+    rest = text.replace(wanted, "")
+    if re.search(r"sys\.version_info(?:\[:2\])?\s*[<>]|[<>]=?\s*sys\.version_info", rest):
+        problems += [f"{name}: a version test other than {wanted}"]
+    tried = text.find(_candidates(name, pythons))
+    if tried < 0:
+        problems += [f"{name} does not try the Pythons as {_candidates(name, pythons)!r}"]
+    checked = text.find(_CHECK_LINE[name])
     made = text.find("-m venv --clear")
-    floor = text.find("(3, 11)")
-    if not 0 <= floor < checked < made:
-        problems += [f"{name}: the bundle's check does not run after the floor and before the environment"]
-    refuse = text.find('if [ "$#" -ne 0 ]') if name == "install.sh" else text.find('if not "%~1"=="" goto :takes_no_folder')
-    if not 0 <= refuse < floor:
+    if not 0 <= tried < checked < made:
+        problems += [f"{name}: the bundle's check does not run after the Python is found and before the environment"]
+    if not 0 <= text.find(_REFUSE_LINE[name]) < tried:
         problems += [f"{name}: an argument is not refused first"]
     return problems
 
@@ -484,7 +828,10 @@ def script_problems(name: str, text: str) -> "list[str]":
 def test_the_scripts_install_from_the_bundle_alone(name: str) -> None:
     text = (SCRIPTS / name).read_text(encoding="utf-8")
     assert script_problems(name, text) == []
-    assert "PIP_CONFIG_FILE" in text and "doctor" in text.split("pip install")[-1]
+    assert "doctor" in text.split("pip install")[-1]
+
+
+_SH_PIP_LOCK = 'PIP_CONFIG_FILE=/dev/null "$venv_python" -m pip install --isolated \\\n    --disable-pip-version-check \\\n    --no-index --find-links'
 
 
 @pytest.mark.parametrize(
@@ -496,15 +843,44 @@ def test_the_scripts_install_from_the_bundle_alone(name: str) -> None:
         ("install.sh", lambda text: text.replace("--no-index --no-deps", "--no-deps")),
         ("install.sh", lambda text: text.replace('"$python" -I "$here/scripts/check_bundle.py" "$here"', "true")),
         ("install.sh", lambda text: text.replace('if [ "$#" -ne 0 ]; then', "if false; then")),
+        # S3: the configuration files read again (the comment still names the setting).
+        ("install.sh", lambda text: text.replace(_SH_PIP_LOCK, _SH_PIP_LOCK.replace("PIP_CONFIG_FILE=/dev/null ", ""))),
+        # A failed check, venv or pip goes on.
+        ("install.sh", lambda text: text.replace(
+            "    || stop \"the bundle's check above did not pass.", "    || say \"the bundle's check above did not pass.")),
+        ("install.sh", lambda text: text.replace('--clear "$env_dir" || stop', '--clear "$env_dir" || say')),
+        ("install.sh", lambda text: text.replace(
+            '    --require-hashes -r "$lock" \\\n    || stop', '    --require-hashes -r "$lock" \\\n    || say')),
+        # S7 and the ceiling: a version test of its own, or none above.
+        ("install.sh", lambda text: text.replace(
+            "sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) else 1)",
+            "sys.exit(0 if sys.version_info >= (3, 11) else 1)")),
+        ("install.sh", lambda text: text.replace(" python3.14 python3.13", " python3.13")),
         ("install.bat", lambda text: text.replace("--isolated --disable-pip-version-check --no-index --find-links",
                                                   "--disable-pip-version-check --find-links")),
         ("install.bat", lambda text: text.replace(
             'set "STATUS=%ERRORLEVEL%"', 'set "STATUS=%ERRORLEVEL%"\r\ncurl https://example.invalid')),
         ("install.bat", lambda text: text.replace('%PY% -I "%HERE%\\scripts\\check_bundle.py" "%HERE%"', "rem")),
+        # S1 and S4: a failed check or library install goes on.
+        ("install.bat", lambda text: text.replace("if errorlevel 1 goto :bundle_refused\r\n", "")),
+        ("install.bat", lambda text: text.replace("if errorlevel 1 goto :no_locked_wheels\r\n", "")),
+        ("install.bat", lambda text: text.replace("if errorlevel 1 goto :no_env\r\n", "")),
+        # A label that does not stop.
+        ("install.bat", lambda text: text.replace(
+            "echo what it says, then run this script again.\r\nexit /b 1",
+            "echo what it says, then run this script again.\r\nexit /b 0")),
+        # S2: the setting gone, or left in a comment only.
+        ("install.bat", lambda text: text.replace('set "PIP_CONFIG_FILE=nul"\r\n', "")),
+        ("install.bat", lambda text: text.replace('set "PIP_CONFIG_FILE=nul"\r\n', 'rem set "PIP_CONFIG_FILE=nul"\r\n')),
+        # S7: one floor lowered; the ceiling gone; a served Python not tried.
+        ("install.bat", lambda text: text.replace("(3, 11) <= sys.version_info[:2]", "(3, 9) <= sys.version_info[:2]")),
+        ("install.bat", lambda text: text.replace(" <= sys.version_info[:2] <= (3, 14)", " <= sys.version_info[:2]")),
+        ("install.bat", lambda text: text.replace("if not defined PY call :served py -3.14\r\n", "")),
+        ("install.bat", lambda text: text.replace('if not "%~1"=="" goto :takes_no_folder', "rem")),
     ],
 )
 def test_a_script_reaching_past_the_bundle_is_red(name: str, mutate) -> None:
-    text = (SCRIPTS / name).read_text(encoding="utf-8")
+    text = (SCRIPTS / name).read_bytes().decode("utf-8")
     mutated = mutate(text)
     assert mutated != text
     assert script_problems(name, mutated), "the mutant passed"
@@ -517,9 +893,37 @@ def test_the_guide_is_plain_and_every_command_is_on_its_own_line() -> None:
     commands = [line.strip() for line in guide.splitlines() if line.startswith("       ")]
     assert "sh scripts/install.sh" in commands and "scripts\\install.bat" in commands
     assert "python3 --version" in commands and "python --version" in commands
+    assert "python3.14 --version" in commands and "py -3.14 --version" in commands
     assert "source .venv/bin/activate" in commands and ".venv\\Scripts\\activate" in commands
     for jargon in ("pip ", "wheel", "venv ", "hash ", "PATH variable", "environment variable"):
         assert jargon not in guide, jargon
+    flowing = " ".join(guide.split())
+    # The Python to install is named, and a newer one sent away (item 2 (b)).
+    assert "newest Python 3 " not in flowing
+    assert flowing.count("install Python 3.14: go to python.org, choose Downloads, then the newest Python 3.14 release") == 2
+    assert flowing.count("3.15 or later") == 3
+    # Which computer each bundle serves (item 3 (c)); the folder inside the
+    # folder Windows' Extract All opens (item 9).
+    assert "a Mac with an Apple chip (M1 or later), macOS 12 or later" in flowing
+    assert "A folder opens. Inside it, double-click the folder named like synthtwin-0.1.0-win_amd64." in flowing
+
+
+POWERSHELL = (
+    "synthtwin prints the commands it suggests for PowerShell. In Command Prompt, where a "
+    "name stands between single quotes 'like this', type it between double quotes \"like this\"."
+)
+
+
+def test_windows_is_told_how_to_type_what_synthtwin_prints() -> None:
+    """Item 7: the guide and install.bat send people to Command Prompt; synthtwin prints PowerShell."""
+    guide = " ".join((SCRIPTS / "INSTALL.txt").read_text(encoding="utf-8").split())
+    assert POWERSHELL in guide
+    windows = guide[guide.index("On Windows") : guide.index("On Linux")]
+    assert POWERSHELL in windows
+    batch = (SCRIPTS / "install.bat").read_bytes().decode("utf-8").replace("\r\n", "\n")
+    closing = batch[batch.index('"%ENVDIR%\\Scripts\\synthtwin.exe" doctor') : batch.index("exit /b %STATUS%")]
+    spoken = " ".join(line[len("echo ") :] for line in closing.splitlines() if line.startswith("echo "))
+    assert POWERSHELL in " ".join(spoken.split())
 
 
 # -- the builder -----------------------------------------------------------------------
@@ -640,6 +1044,12 @@ def bundle_job_problems(text: str) -> "list[str]":
         "tools/bundle/build_bundle.py",
         "scripts/check_bundle.py",
         "actions/upload-artifact@",
+        # The zip README names, synthtwin-<version>-<platform>.zip (item 9).
+        '--zip-into "$RUNNER_TEMP/zipped"',
+        "zipped/synthtwin-*-${{ matrix.platform }}.zip",
+        # The wheels macOS 12 takes, and none needing a newer macOS (item 3).
+        "--platform macosx_12_0_arm64 --implementation cp",
+        "grep -E 'macosx_(1[3-9]|[2-9][0-9])_'",
     ):
         if needed not in build:
             problems += [f"bundle-build lacks {needed!r}"]
@@ -659,11 +1069,35 @@ def bundle_job_problems(text: str) -> "list[str]":
         '"$ST" profile',
         '"$ST" generate',
         '"$ST" validate',
-        "Downloading|Looking in indexes",
+        # Every word pip prints when it reaches for the network (item 5).
+        "|".join(NETWORK_WORDS),
+        # The install used this cell's Python, not another one on the runner.
+        "PYTHON_CELL: ${{ matrix.python-version }}",
+        "if used != [sys.argv[1]]:",
+        # A copy with one changed byte is refused, nothing made (item 4).
+        "data[len(data) // 2] ^= 1",
+        'if offline cmd.exe /d /c "scripts\\\\install.bat" > refused.log 2>&1; then',
+        "if offline sh scripts/install.sh > refused.log 2>&1; then",
+        'grep -q "does not match its hash in SHA256SUMS" refused.log',
+        "test ! -e .venv",
         *GOLDEN,
     ):
         if needed not in tested:
             problems += [f"bundle-test lacks {needed!r}"]
+    # Whatever runs the installed synthtwin, its tests or an install
+    # script runs with the network denied (item 4: the golden tests ran
+    # online with `offline` taken off their line, and the gate stayed green).
+    for line in tested.splitlines():
+        spoken = line.strip()
+        if re.search(r'"\$ST" |-m pytest|scripts/install\.sh|install\.bat"', spoken) and not spoken.startswith(
+            ("offline ", "if offline ", "#")
+        ):
+            problems += [f"bundle-test runs this with the network on: {spoken}"]
+    # sudo strips LD_* variables; setup-python's Python may need its
+    # library path inside the namespace (item 11).
+    linux = tested.count("sudo unshare --net")
+    if linux < 3 or tested.count('"LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }') != linux:
+        problems += ["a Linux offline() drops LD_LIBRARY_PATH"]
     for step in tested.split("      - name: ")[1:]:
         if "offline " in step and (
             "sudo unshare --net" not in step or "http://127.0.0.1:9" not in step
@@ -721,6 +1155,17 @@ def test_the_ci_jobs_parse_and_name_every_platform() -> None:
         ("os: [ubuntu-latest, windows-latest, macos-latest]\n        python-version",
          "os: [ubuntu-latest, macos-latest]\n        python-version"),
         ("  bundle-test:\n", "  bundle-test:\n\t"),
+        # S6: the golden tests, or a run of synthtwin, with the network on.
+        ('offline env "PYTHONPATH=$RUNNER_TEMP/pytest-only" "$BPY" -m pytest',
+         'env "PYTHONPATH=$RUNNER_TEMP/pytest-only" "$BPY" -m pytest'),
+        ('offline "$ST" generate', '"$ST" generate'),
+        # S5's grep: the retries of a lookup PyPI never answered not read.
+        ("|Retrying|Could not fetch URL", "|Could not fetch URL"),
+        ('"LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }', '"$@"; }'),
+        ("--platform macosx_12_0_arm64 --implementation cp \\\n", ""),
+        ('grep -q "does not match its hash in SHA256SUMS" refused.log\n', ""),
+        ("          if used != [sys.argv[1]]:\n", "          if not used:\n"),
+        ('--zip-into "$RUNNER_TEMP/zipped"', '--zip "$RUNNER_TEMP/synthtwin-bundle-${{ matrix.platform }}.zip"'),
     ],
 )
 def test_a_ci_job_short_of_the_plan_is_red(old: str, new: str) -> None:

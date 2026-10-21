@@ -32,9 +32,12 @@ wheels may enter: a source archive would run its build code on the
 person's computer. Usage:
 
     python tools/bundle/build_bundle.py --wheelhouse DIR \
-        --synthtwin-wheel FILE --platform NAME --out DIR [--zip FILE]
+        --synthtwin-wheel FILE --platform NAME --out DIR [--zip-into DIR]
 
-It prints the folder it made and, given --zip, the zip's SHA-256.
+It makes the folder synthtwin-<version>-<platform> in --out and, given
+--zip-into, the zip synthtwin-<version>-<platform>.zip there, the name
+README gives it, holding that one folder; it prints both and the zip's
+SHA-256.
 """
 
 import argparse
@@ -201,6 +204,11 @@ def assemble(
     return []
 
 
+def bundle_name(synthtwin_wheel: pathlib.Path, platform: str) -> str:
+    """synthtwin-<version>-<platform>: the bundle's folder, and its zip's name before .zip."""
+    return f"synthtwin-{synthtwin_wheel.name.split('-')[1]}-{platform}"
+
+
 def zip_folder(folder: pathlib.Path, target: pathlib.Path) -> str:
     """Zip ``folder`` under its own name, member order and times fixed; its SHA-256."""
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -223,10 +231,9 @@ def main(argv: "list[str] | None" = None) -> int:
     parser.add_argument("--synthtwin-wheel", required=True, type=pathlib.Path)
     parser.add_argument("--platform", required=True)
     parser.add_argument("--out", required=True, type=pathlib.Path)
-    parser.add_argument("--zip", type=pathlib.Path)
+    parser.add_argument("--zip-into", type=pathlib.Path)
     args = parser.parse_args(argv)
-    version = args.synthtwin_wheel.name.split("-")[1]
-    out = args.out / f"synthtwin-{version}-{args.platform}"
+    out = args.out / bundle_name(args.synthtwin_wheel, args.platform)
     problems = assemble(args.wheelhouse, args.synthtwin_wheel, out)
     if problems:
         print("The bundle was not made:")
@@ -234,8 +241,10 @@ def main(argv: "list[str] | None" = None) -> int:
             print(" -", problem)
         return 1
     print(f"made {out}")
-    if args.zip is not None:
-        print(f"{zip_folder(out, args.zip)}  {args.zip.name}")
+    if args.zip_into is not None:
+        args.zip_into.mkdir(parents=True, exist_ok=True)
+        target = args.zip_into / (out.name + ".zip")
+        print(f"{zip_folder(out, target)}  {target.name}")
     return 0
 
 

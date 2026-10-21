@@ -13,13 +13,16 @@ rem
 rem It is a .bat file and not a PowerShell script because many managed
 rem Windows computers refuse to run PowerShell scripts.
 rem
-rem What it does, and nothing else: finds Python 3.11 or later (python,
-rem then the py launcher), and says in plain words what to do when the
-rem Python it finds is older; runs scripts\check_bundle.py with it, which
+rem What it does, and nothing else: finds a Python the bundle serves,
+rem 3.11 to 3.14 (python, then the py launcher's 3.14, 3.13, 3.12 and
+rem 3.11, so a Python 3.15 beside a 3.14 takes the 3.14: lane DEP-2's
+rem skeptic, item 2), and says in plain words what to do when there is
+rem none; runs scripts\check_bundle.py with it, which
 rem checks every file of the bundle against SHA256SUMS, every library
 rem wheel against the hashes requirements-install.lock pins, that the
 rem lock names no place to fetch from, and that the bundle was made for
-rem this system and this Python, before anything is changed; makes a
+rem this system, its chip and this Python, before anything is changed;
+rem every step that fails goes to a label that stops the script; makes a
 rem fresh private environment, .venv, inside the bundle's folder,
 rem clearing an earlier one there first (venv --clear), every time, since
 rem pip skips a package whose version is already in place without
@@ -46,28 +49,28 @@ set "PY="
 
 if not "%~1"=="" goto :takes_no_folder
 
-python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
-if not errorlevel 1 set "PY=python"
+call :served python
+if not defined PY call :served py -3.14
+if not defined PY call :served py -3.13
+if not defined PY call :served py -3.12
+if not defined PY call :served py -3.11
 if defined PY goto :found_python
-py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
-if not errorlevel 1 set "PY=py -3"
-if defined PY goto :found_python
-python -c "import sys" >nul 2>&1
-if not errorlevel 1 goto :too_old
-py -3 -c "import sys" >nul 2>&1
-if not errorlevel 1 goto :too_old
+set "FOUND="
+call :version_of python
+if not defined FOUND call :version_of py -3
+if defined FOUND goto :not_served
 echo.
-echo The installation stopped: no Python 3.11 or later was found on this
-echo computer. Install the newest Python 3 from python.org (INSTALL.txt in
-echo this folder says how), open a new Command Prompt window, and run this
-echo script again.
+echo The installation stopped: no Python 3.11, 3.12, 3.13 or 3.14 was found
+echo on this computer. Install Python 3.14 from python.org (choose Downloads,
+echo then the newest Python 3.14 release; INSTALL.txt in this folder says
+echo how), open a new Command Prompt window, and run this script again.
 exit /b 1
 
 :found_python
 %PY% -c "import sys; sys.exit(0 if sys.prefix == sys.base_prefix else 1)" >nul 2>&1
 if errorlevel 1 goto :switched_on
-if not exist "%LOCK%" goto :not_a_bundle
-if not exist "%HERE%\scripts\check_bundle.py" goto :not_a_bundle
+if not exist "%LOCK%" goto :not_a_bundle_or_source
+if not exist "%HERE%\scripts\check_bundle.py" goto :not_a_bundle_or_source
 
 rem The bundle is checked before anything is changed, so a damaged or
 rem wrong bundle leaves an earlier environment as it was.
@@ -79,6 +82,7 @@ for %%W in ("%WHEELS%\synthtwin-*.whl") do call :count_wheel "%%~fW"
 if not "%COUNT%"=="1" goto :wrong_wheels
 
 for %%P in ("%ENVDIR%") do echo Installing synthtwin into %%~P
+%PY% -c "import sys; print('using', sys.executable, sys.version.split()[0])"
 if exist "%ENVDIR%\pyvenv.cfg" for %%P in ("%ENVDIR%") do echo Replacing the earlier private environment in %%~P; a package you installed into it yourself must be installed again afterwards.
 %PY% -m venv --clear "%ENVDIR%"
 if errorlevel 1 goto :no_env
@@ -100,11 +104,23 @@ echo Prompt window, switch its private environment on first, then type the
 echo commands as INSTALL.txt writes them and as synthtwin prints them:
 for %%P in ("%ENVDIR%\Scripts\activate.bat") do echo   "%%~P"
 echo   synthtwin profile my-table.csv
+echo synthtwin prints the commands it suggests for PowerShell. In Command
+echo Prompt, where a name stands between single quotes 'like this', type it
+echo between double quotes "like this".
 exit /b %STATUS%
 
 :count_wheel
 set "WHEEL=%~1"
 set /a COUNT+=1
+goto :eof
+
+:served
+%* -c "import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) else 1)" >nul 2>&1
+if not errorlevel 1 set "PY=%*"
+goto :eof
+
+:version_of
+for /f "delims=" %%V in ('%* -c "import sys; print('.'.join(map(str, sys.version_info[:2])))" 2^>nul') do set "FOUND=%%V"
 goto :eof
 
 :takes_no_folder
@@ -114,12 +130,13 @@ echo the wheelhouse folder of the bundle it sits in. Type scripts\install.bat
 echo with nothing after it, in the bundle's folder, and run it again.
 exit /b 1
 
-:too_old
+:not_served
 echo.
-echo The installation stopped: the Python on this computer is older than
-echo 3.11, and synthtwin needs Python 3.11 or later. Install the newest
-echo Python 3 from python.org (INSTALL.txt in this folder says how), open a
-echo new Command Prompt window, and run this script again.
+echo The installation stopped: this computer's Python is %FOUND%, and this
+echo synthtwin bundle serves Python 3.11, 3.12, 3.13 and 3.14. Install
+echo Python 3.14 from python.org (choose Downloads, then the newest Python
+echo 3.14 release; INSTALL.txt in this folder says how), open a new Command
+echo Prompt window, and run this script again.
 exit /b 1
 
 :switched_on
@@ -127,6 +144,16 @@ echo.
 echo The installation stopped: the Python found belongs to a private
 echo environment that is switched on in this Command Prompt window. Type
 echo deactivate, press Enter, and run this script again.
+exit /b 1
+
+:not_a_bundle_or_source
+if not exist "%HERE%\pyproject.toml" goto :not_a_bundle
+if not exist "%HERE%\src\synthtwin" goto :not_a_bundle
+echo.
+echo The installation stopped: this is synthtwin's source folder, not a
+echo bundle, and synthtwin is installed only from its bundle. README.md in
+echo this folder says where to get it, under 'Then get the synthtwin
+echo bundle'; unzip the bundle and run this script again from its folder.
 exit /b 1
 
 :not_a_bundle

@@ -261,4 +261,82 @@ def test_a_kernel_arrives_with_its_cases() -> None:
         )
     for name, compiled, plain, arguments in KERNEL_CASES:
         assert callable(compiled) and callable(plain), name
-        assert compiled(*arguments) == plain(*arguments), name
+        assert _same_bytes(compiled(*arguments), plain(*arguments)), name
+
+
+def _canonical(value) -> bytes:
+    """A result as bytes that differ wherever the twin's text could.
+
+    Equal values are not enough (lane DEP-2's skeptic, item 6): `1.0 ==
+    1` and `-0.0 == 0.0` are True, yet the twin writes `1.0` and `1`,
+    `-0.0` and `0.0`. So every value carries its kind: a bool, an int
+    with its exact digits, a float with its eight bytes, a string, a
+    numpy scalar or array with its dtype, shape and bytes, and a tuple
+    or list with its length and each item, recursively.
+    """
+    if isinstance(value, (bool, numpy.bool_)):
+        return b"b" + (b"1" if value else b"0")
+    if isinstance(value, numpy.ndarray):
+        head = f"a{value.dtype.str}{value.shape}".encode("ascii")
+        return head + numpy.ascontiguousarray(value).tobytes()
+    if isinstance(value, numpy.generic):
+        return f"n{value.dtype.str}".encode("ascii") + value.tobytes()
+    if isinstance(value, int):
+        return b"i" + str(value).encode("ascii") + b";"
+    if isinstance(value, float):
+        return b"d" + struct.pack("<d", value)
+    if isinstance(value, str):
+        data = value.encode("utf-8")
+        return b"s" + str(len(data)).encode("ascii") + b":" + data
+    if isinstance(value, (tuple, list)):
+        kind = b"t" if isinstance(value, tuple) else b"l"
+        return kind + str(len(value)).encode("ascii") + b":" + b"".join(
+            _canonical(item) for item in value
+        )
+    if value is None:
+        return b"N"
+    raise TypeError(f"no byte form for {type(value).__name__}; add one before comparing it")
+
+
+def _same_bytes(compiled_result, plain_result) -> bool:
+    return _canonical(compiled_result) == _canonical(plain_result)
+
+
+def _plain_kernel(values):
+    """A stand-in plain-Python kernel: a whole number and a signed sum."""
+    total = 0
+    for value in values:
+        total += value
+    return total, 0.0 * total
+
+
+@pytest.mark.parametrize(
+    "compiled",
+    [
+        # Returns 1.0 where plain Python returns 1: equal, not the same bytes.
+        lambda values: (float(sum(values)), 0.0 * sum(values)),
+        # Returns -0.0 where plain Python returns 0.0.
+        lambda values: (sum(values), -0.0),
+    ],
+)
+def test_a_kernel_equal_in_value_but_not_in_bytes_is_refused(compiled) -> None:
+    """Mutation cases of the kernel comparison: `==` admits both kernels, bytes do not."""
+    arguments = ([1, 2, -2],)
+    assert compiled(*arguments) == _plain_kernel(*arguments), "the case must be equal in value"
+    assert not _same_bytes(compiled(*arguments), _plain_kernel(*arguments))
+    assert _same_bytes(_plain_kernel(*arguments), _plain_kernel(*arguments))
+
+
+def test_the_byte_form_tells_kinds_apart() -> None:
+    forms = [
+        _canonical(value)
+        for value in (
+            1, 1.0, True, -0.0, 0.0, 0, "1", (1,), [1],
+            numpy.int64(1), numpy.float64(1.0),
+            numpy.array([1], dtype=numpy.int64), numpy.array([1], dtype=numpy.int32),
+            numpy.array([[1]], dtype=numpy.int64),
+        )
+    ]
+    assert len(set(forms)) == len(forms)
+    with pytest.raises(TypeError):
+        _canonical(object())

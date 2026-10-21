@@ -737,26 +737,35 @@ seed, so byte-stability is promised only across identical inputs.
 
 ## Before you start
 
-synthtwin runs on Python 3.11, 3.12, 3.13 or 3.14, on a Mac with Apple
-silicon, on Windows or on Linux. You need nothing else installed first:
-the bundle below holds everything else. To see which Python a computer
-has (Ubuntu 22.04's own Python is 3.10, which is too old):
+synthtwin runs on Python 3.11, 3.12, 3.13 or 3.14 -- not yet on 3.15 or
+later -- on a Mac with an Apple chip (M1 or later) running macOS 12
+(Monterey) or later, on Windows on a 64-bit Intel or AMD computer, or on
+Linux on a 64-bit Intel or AMD computer. A Mac with an Intel chip, and
+a Windows or Linux computer with an Arm processor, have no bundle yet;
+the install script says so in plain words. You need nothing else
+installed first: the bundle below holds everything else. To see which
+Python a computer has (Ubuntu 22.04's own Python is 3.10, which is too
+old):
 
 **On a Mac.** Open Terminal (Applications, then Utilities) and type
-`python3 --version`. If it prints `Python 3.11` or a later number, you
-are ready. If it prints an older number, or a window offers to install
-"command line developer tools", go to python.org, choose Downloads, and
-download the newest Python 3 installer for macOS. Open the file you
-downloaded and follow its steps. Then close Terminal, open it again and
-type `python3 --version` once more.
+`python3 --version`. If it prints `Python 3.11`, `3.12`, `3.13` or
+`3.14`, you are ready. If it prints another number, or a window offers
+to install "command line developer tools", go to python.org, choose
+Downloads, then the newest Python 3.14 release, and download its
+installer for macOS. Open the file you downloaded and follow its steps.
+Then close Terminal, open it again and type `python3.14 --version`: it
+should print `Python 3.14`. The install script finds it even when a
+newer Python is there too.
 
 **On Windows.** Open Command Prompt (type `cmd` in the Start menu) and
-type `python --version`. If it prints `Python 3.11` or a later number,
-you are ready. If it prints an older number, says the command is not
-recognized, or opens the Microsoft Store, go to python.org, choose
-Downloads, and download the newest Python 3 installer for Windows. Run
-it and, on its first screen, tick "Add python.exe to PATH" before you
-choose "Install Now". Then close Command Prompt and open a new one.
+type `python --version`. If it prints `Python 3.11`, `3.12`, `3.13` or
+`3.14`, you are ready. If it prints another number, says the command is
+not recognized, or opens the Microsoft Store, go to python.org, choose
+Downloads, then the newest Python 3.14 release, and download its
+"Windows installer (64-bit)". Run it and, on its first screen, tick
+"Add python.exe to PATH" before you choose "Install Now". Then close
+Command Prompt, open a new one and type `py -3.14 --version`: it should
+print `Python 3.14`.
 
 **On Linux.** Type `python3 --version` in a terminal. On Debian and
 Ubuntu the private environment the script makes needs one more package,
@@ -770,11 +779,17 @@ Apple silicon, `synthtwin-<version>-win_amd64.zip` for Windows,
 `synthtwin-<version>-linux_x86_64.zip` for Linux. It holds every library
 synthtwin needs for Python 3.11 to 3.14, each pinned to an exact version
 and checked by its hash, the install script and a plain-words guide,
-`INSTALL.txt`. Unzip it. It is never published on PyPI (the owner's
+`INSTALL.txt`. Unzip it: it holds one folder of the same name, and you
+install from that folder. It is never published on PyPI (the owner's
 decision of 2026-10-20, plan P4-D416). **[planned]** The bundles are
 built and tested by CI on every change, with the network denied, and
-are handed out with the first release; until then CI builds them and
-nobody downloads them yet.
+are handed out with the first release. Until then a person with access
+to the repository's CI can take one from a CI run: on the run's page,
+under Artifacts, `synthtwin-bundle-<platform>` holds the zip for 5 days
+after the run. GitHub hands it over zipped once more, so unzip twice:
+first the download, then the `synthtwin-<version>-<platform>.zip`
+inside it. A copy of this repository is not a bundle: the install
+script run in it says so and sends you here.
 
 ## Installing
 
@@ -793,12 +808,15 @@ On Windows, in Command Prompt:
 scripts\install.bat
 ```
 
-The script takes no folder and needs no internet. It finds Python 3.11
-or later and says in plain words what to do if the one it finds is
-older; checks every file of the bundle against the bundle's
-`SHA256SUMS`, every library against the hashes `requirements-install.lock`
-pins, and that the bundle was made for this computer and this Python,
-before it changes anything; makes a fresh private environment named
+The script takes no folder and needs no internet. It finds a Python the
+bundle serves, 3.11 to 3.14 -- the one you type first (`python3` or
+`python`), then each of those versions by its own name, newest first,
+so a Python 3.15 beside a 3.14 takes the 3.14 -- and says in plain words
+which Python to install if there is none; checks every file of the
+bundle against the bundle's `SHA256SUMS`, every library against the
+hashes `requirements-install.lock` pins, and that the bundle was made
+for this computer -- its system, its chip and, on a Mac, its macOS
+version -- and this Python, before it changes anything; makes a fresh private environment named
 `.venv` inside the bundle's folder so nothing else on the computer
 changes (an earlier one there is replaced, so every file in it is
 checked again, and a package you installed into it yourself must be
