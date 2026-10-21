@@ -64,6 +64,23 @@ problems must still demonstrate the checking that was performed.
    zone D (anything published) a float reduction, a transcendental,
    BLAS or LAPACK, a solver's tolerance or a threaded kernel, which the
    byte-identity zones of plan P4-D409 part 2 keep in zone P alone.
+   Also a float power: `**` on a float is the platform's pow, which no
+   standard requires to round correctly (`x ** 0.5` against
+   `math.sqrt(x)` differed on 2,672 of 2,000,000 doubles on the
+   measuring Mac, `x ** 2` against `x * x` on 2,609). The offline
+   scanner's `_FLOAT_POWERS` table enters today's eight by site with
+   that audit (plan P4-D409 part 3 (f), entered by plan P4-D416):
+   three `(spread[first] * spread[second]) ** 0.5` in generation's pair
+   walk and its margin `10.0 ** (-parsing.RANK_AGREEMENT_PLACES)`, the
+   rank agreement's `** 0.5` in parsing, `(1.0 - 1.0 / room) ** parsed`
+   and `(1.0 - 1.0 / points) ** parsed` in
+   `calendar_clock.lattice_crowded`, and
+   `(observed[index] - expected) ** 2` in
+   `calendar_rules._per_freedom`. The scanner refuses a new `**` with a
+   float literal or a computed base raised to a literal 2 or more; what
+   it cannot see -- a name holding a float raised to a name -- is this
+   check's: a new one in zone G or D is a review item, unless it is an
+   exact power of two or a power of Python integers.
 5. **Profile/generator boundary violations.** Any code path, test
    helper, or convenience by which generation code could read the real
    table instead of the profile.
