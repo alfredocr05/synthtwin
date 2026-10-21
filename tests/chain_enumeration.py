@@ -443,14 +443,14 @@ def mirror_agrees(table: "tuple[int, ...]", scales: "list[rules.Ladder]") -> boo
 
 
 def _slice_rows() -> "tuple[list[str], list[list[str]], tuple[str, str]]":
-    """600 all-different ages, sex F on every row of [p40, p50): each 1 % slice holds six rows."""
+    """600 all-different ages, gender F on every row of [p40, p50): each 1 % slice holds six rows."""
     import random
 
     draw = random.Random(5)
     ages = sorted(20 + 0.01 * value for value in draw.sample(range(6000), 600))
     rows = [[f"{ages[at]:.2f}", "F" if 240 <= at < 300 else draw.choice("FM")] for at in range(600)]
     draw.shuffle(rows)
-    return ["age", "sex"], rows, ("p40", "p50")
+    return ["age", "gender"], rows, ("p40", "p50")
 
 
 def _clock_rows() -> "tuple[list[str], list[list[str]], tuple[str, str]]":

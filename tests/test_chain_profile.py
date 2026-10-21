@@ -818,12 +818,12 @@ def test_the_label_merge_keeps_every_band_between_the_two_smallest(tmp_path):
     dropped every band between the two smallest (one band of 376 left, the column ineligible)."""
     draw = random.Random(2)
     rows = [[f"{draw.randint(18, 90)}", "F" if place < 425 else "M"] for place in range(800)] + [["50", ""]]
-    table, document, settings, _chained = _describe(tmp_path, _csv(["age", "sex"], rows), name="blank")
+    table, document, settings, _chained = _describe(tmp_path, _csv(["age", "gender"], rows), name="blank")
     read = chain.read_column(table, 1, document["columns"][1], settings, {"code": False, "measurement": False, "decimal_comma": False}, "", 0)
     totals = [0] * len(read.start.names)
     for row in range(table.n_rows):
         totals[read.codes[row]] += 1
-    ladder = chain_rules.merge_ladder("sex", read.start, totals, FLOOR)
+    ladder = chain_rules.merge_ladder("gender", read.start, totals, FLOOR)
     assert sorted(ladder.totals) == [376, 425]
     start = chain_rules.Starting(("missing", ("a",), ("b",), ("c",)), ((-1, 0, 1, 2),) * 3, (False, True, True, True), True, ())
     ladder = chain_rules.merge_ladder("l", start, [1, 300, 500, 15], FLOOR)
@@ -831,12 +831,12 @@ def test_the_label_merge_keeps_every_band_between_the_two_smallest(tmp_path):
 
 
 def _slice_table(n_rows: int = 600) -> str:
-    """Ages all different; sex F on every row of the middle decile [p40, p50) (skeptic 1's probe)."""
+    """Ages all different; gender F on every row of the middle decile [p40, p50) (skeptic 1's probe)."""
     draw = random.Random(5)
     ages = sorted(20 + 0.01 * value for value in draw.sample(range(6000), n_rows))
     rows = [[f"{ages[at]:.2f}", "F" if 0.40 * n_rows <= at < 0.50 * n_rows else draw.choice("FM")] for at in range(n_rows)]
     draw.shuffle(rows)
-    return _csv(["age", "sex"], rows)
+    return _csv(["age", "gender"], rows)
 
 
 def _clock_table() -> str:
@@ -889,7 +889,7 @@ def _value_runs(tmp_path, text, name, column):
 def test_a_percentile_slice_of_a_few_rows_marks_its_band(tmp_path):
     """Skeptic 1's item 1 (a): at 600 all-different ages every 1 % slice between two published
     rungs holds exactly six rows, an own-fact group; every value band is marked and no key
-    publishes the decile [p40, p50) confined to one sex. Mutant: the rungs drawing no cut."""
+    publishes the decile [p40, p50) confined to one gender. Mutant: the rungs drawing no cut."""
     text = _slice_table()
     table, document, settings, block, read, ladder = _value_runs(tmp_path, text, "slice", "age")
     marked = chain.value_run_bands(block, read.start, ladder, FLOOR, read.readings)
