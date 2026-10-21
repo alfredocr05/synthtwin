@@ -12,18 +12,25 @@ exists).
 lanes UN-1a, UN-1b, TR, LISTS, UN-2 and NOTES and of CODES-3's question**
 (`docs/plans/phase-4-columns.md`, "The zoo-fix reading page"). It fixes
 the classifier's order for every new reading -- clock times written as
-figures before the numeric rule, four new stand-asides of the categories
-rule, a templated reading from a closed list and a list reading both ahead
-of the long tail, and a share line of a quarter of the rows for a long tail
-written as text -- the eight questions they add, none naming a value of the
-table, the keys of the templated reading and of a new role for several
-values in one cell, why each prints no count of one to ten, how
-`synthtwin validate` reads each, and the KPIs each lane stamps. No new
-reading lifts a hold of plan P4-D401 but its own exemption for dates and
-times. Measured on 98c0fce6: templated notes cover 13.3 % of rows at 20,000
-and 24.1 % at 200,000, so the trigger NOTES keeps, not the line, holds whole
-notes out of every description. No product code, golden, vector or KPI
-moves; `tests/test_zoo_reading_page.py` pins the page's computed figures.
+figures before the numeric rule, read only on the answer `clock-figures`,
+four new stand-asides of the categories rule, a templated reading from a
+closed list and a list reading both ahead of the long tail, and a share
+line of a quarter of the rows for a long tail NOTES' trigger reaches until
+its question is answered -- the eight questions they add, none naming a
+value of the table, the keys of the templated reading and of a new role
+for several values in one cell, why each prints no count of one to ten,
+how `synthtwin validate` reads each, and the KPIs each lane stamps, with
+the zoo kinds each can turn. No new reading lifts a hold of plan P4-D401:
+its exemption for dates and times covers only what today's reader reads
+so, because padded keys numbered in order stay on the clock's grid and a
+month-year register reads as dates (read unanswered, 9 to 12 real keys and
+13 of 180 cases published, measured by the lane's skeptics). Measured on
+98c0fce6: templated notes cover 13.3 % of rows at 20,000 and 24.1 % at
+200,000, and spaced label tails 7.5 to 22.5 %, so the trigger NOTES keeps,
+not the line, holds whole notes out of every description, and the line
+waits on the answer. No product code, golden, vector or KPI moves;
+`tests/test_zoo_reading_page.py` pins the page's computed figures and
+each rule's operative sentence.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
