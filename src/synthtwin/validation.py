@@ -163,7 +163,7 @@ import pathlib
 
 from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
-from synthtwin import date_counts
+from synthtwin import date_counts, grains
 
 
 # THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
@@ -5075,6 +5075,11 @@ def measure(
     # clocks is one the description says holds numbers -- a reading of
     # clocks holds none -- the check stops and says to describe the
     # table again.
+    # THE GRAIN IS READ (plan P4-D417, validation V14): a column whose
+    # description names a `time_grain` rung is measured at that rung, every
+    # check of it -- the redescription and the checks that count the file's
+    # own cells -- over its cells written as the starts of their buckets.
+    table = _at_their_grains(table, published_grains(description))
     clocked = _clocks_published_as_numbers(description, table)
     if clocked:
         raise errors.ProfileError(
@@ -5126,6 +5131,9 @@ def measure(
             # -- 3b.R4 (P4-D384): a column of counted dates read at the
             # precision its description published.
             counted_units=counted_units(description),
+            # -- P4-D417: a column of dates or times described at the grain
+            # its description published, the tails pooled into its ends.
+            time_grains=published_grains(description),
         )
         over_the_split = profile.build_document(
             table,
@@ -5146,6 +5154,7 @@ def measure(
             # -- 3b.R4 (P4-D384): a column of counted dates read at the
             # precision its description published.
             counted_units=counted_units(description),
+            time_grains=published_grains(description),
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -5188,6 +5197,56 @@ def measure(
             description, column, headed, why
         )
     return _assembled(checks, listings, measured_name)
+
+
+def _at_their_grains(
+    table: reading.Table, grained: "dict[str, grains.Grain]"
+) -> reading.Table:
+    """The checked table with each grained column's cells at its published rung (V14).
+
+    A column read whole is handed over at its grain; the rest of the table
+    is the same object's. A table read in groups of columns (lane SR) is
+    returned as it is: its columns are asked of `reading.column_values`,
+    and the redescription reads the grain itself (`profile.build_document`'s
+    ``time_grains``).
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    if not grained or table.source is not None:
+        return table
+    columns: "list[list[str]]" = []
+    changed = False
+    for place in range(len(table.columns)):
+        name = table.column_names[place] if place < len(table.column_names) else ""
+        if name in grained:
+            columns += [grains.coarse_cells(table.columns[place], grained[name])]
+            changed = True
+        else:
+            columns += [table.columns[place]]
+    if not changed:
+        return table
+    return dataclasses.replace(table, columns=columns)
+
+
+def published_grains(description: contract.Profile) -> "dict[str, grains.Grain]":
+    """Every grain a description published, by column (plan P4-D417, validation V14).
+
+    THE VALIDATOR READS THE GRAIN AND NEVER CHOOSES ONE: a column whose
+    block carries a `time_grain` record at a rung is described at that
+    rung -- each cell written as the start of its bucket, the cells before
+    the record's first bucket or after its last counted in those two --
+    so the real table meets the description it was described into, and a
+    twin is judged on the buckets its cells fall in. A held record (rung
+    `held`) is a record number like any held column and is read as one.
+
+    Guarantees: a function of the description. Raises nothing. No I/O.
+    """
+    found: "dict[str, grains.Grain]" = {}
+    for column in description.columns:
+        grain = column.time_grain
+        if grain is not None and grain.rung != grains.HELD:
+            found[column.name] = grain
+    return found
 
 
 def _still_evidencible(

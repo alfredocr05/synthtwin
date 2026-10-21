@@ -143,7 +143,7 @@ import math
 import typing
 from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
-from synthtwin import date_counts
+from synthtwin import date_counts, grains
 
 import numpy.random
 
@@ -62362,7 +62362,12 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             _counted_holes(column, profile),
         )
         plans += [plan]
-        words = words + plan.content_words + plan.placement_words
+        words = (
+            words
+            + plan.content_words
+            + plan.placement_words
+            + _grain_words(column, profile.n_rows)
+        )
     return GenerationPlan(columns=tuple(plans), words_planned=words)
 
 
@@ -63176,7 +63181,25 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 spelled,
                 [order[place] < dates_written for place in range(profile.n_rows)],
             )
-        columns += [tuple(spelled)]
+        # THE CELLS INSIDE THEIR GRAIN (method G7.13, plan P4-D417), drawn
+        # in this scope as the two stages above are: one word a row where
+        # the column's description names a `time_grain`, none elsewhere.
+        # Like the comma's swap, it changes only the bytes that leave: the
+        # twin is measured below in the cells its description was made from.
+        inside: "list[int]" = []
+        if _grain_words(column, profile.n_rows) > 0:
+            inside = [
+                int(word)
+                for word in generator.integers(
+                    0,
+                    _WORD_CEILING,
+                    size=int(_grain_words(column, profile.n_rows)),
+                    dtype="uint64",
+                    endpoint=True,
+                )
+            ]
+        drawn = drawn + len(inside)
+        columns += [tuple(_inside_the_grain(column, spelled, inside))]
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
         # is what every measurement below owes (review item
         # P4-G3-R5-F2). THE SWAP AND THE READING ARE NOT THE SAME
@@ -63377,6 +63400,61 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         seed=seed,
         form=profile.source.dialect,
     )
+
+
+def _grain_words(column: contract.ColumnBlock, rows: int) -> int:
+    """How many words a column's grain draws (method G7.13): one a row where it names one, else none."""
+    return rows if column.time_grain is not None else 0
+
+
+def _inside_the_grain(
+    column: contract.ColumnBlock, cells: "list[str]", words: "list[int]"
+) -> "list[str]":
+    """A column's cells as they leave, inside its published grain (method G7.13, plan P4-D417).
+
+    POOLED: each cell the description's own machinery wrote is the start
+    of a bucket at the record's rung, and the twin writes a value drawn
+    uniformly inside that bucket at the cell's own precision, in the
+    cell's own form (`grains.drawn_inside`), with the row's word. HELD
+    (the G1 floor): each different made-up value of the held column is
+    written once as a valid date or time in its own layout, drawn inside
+    the record's last span or the method's fixed one (`grains.filled`),
+    with the word of the row it first stands on, and every row holding
+    it takes the same; two made-up values never take one, so the census
+    of repetition the column publishes holds. A cell absent, or that the
+    record cannot write, leaves as it was written.
+    """
+    grain = column.time_grain
+    if grain is None or len(words) != len(cells):
+        return cells
+    holes = _hole_spellings(column)
+    found: "list[str]" = []
+    if grain.rung != grains.HELD:
+        for place in range(len(cells)):
+            cell = cells[place]
+            if cell in holes or not parsing.folded(cell):
+                found += [cell]
+                continue
+            found += [grains.drawn_inside(cell, grain.reading, grain.rung, words[place])]
+        return found
+    span = grains.held_span(grain)
+    padded = grains.column_padded(cells, grain.reading, True)
+    made: "dict[str, str]" = {}
+    taken: "dict[str, bool]" = {}
+    for place in range(len(cells)):
+        cell = cells[place]
+        if cell in holes or not parsing.folded(cell):
+            found += [cell]
+            continue
+        if cell not in made:
+            valid = grains.filled(cell, grain.reading, words[place], span, padded, taken)
+            if valid is None:
+                valid = cell
+            else:
+                taken[valid] = True
+            made[cell] = valid
+        found += [made[cell]]
+    return found
 
 
 def _sequence_start(profile: contract.Profile, column: contract.ColumnBlock) -> int:
