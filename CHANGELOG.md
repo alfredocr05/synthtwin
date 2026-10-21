@@ -6,6 +6,61 @@ exists).
 
 ## [Unreleased]
 
+### A big table's numbers keep their spread, their tails and their range (2026-10-19)
+
+**Stage 4 lane G2T** (plan P4-D405). On a column that repeats its
+numbers -- readings written to one or two places, counts, amounts -- the
+twin used to place each row of a tail on a number of its own, so on big
+tables a tail stretched far past where the real one stands: fifty columns
+of bell-shaped readings at 250,000 rows came back with every spread about
+12 per cent too wide, and `validate` named all fifty; a count of a few
+values put almost its whole top tail on one number above the real
+largest. Rows of a tail now share their numbers the way the real rows do,
+and the furthest few stand apart only as far as the column's published
+count of different numbers asks.
+
+**Where it applies.** A tail is read this new way when the column is on a
+grid (whole numbers, or one number of decimal places), holds at least two
+cells for each different number, its tail is not a short list of named
+values, the old reading stood more than half a grid step past the tail's
+published distance, and no width or end rule moved its end. There the
+twin meets its published spread to within a few parts per thousand on
+the columns measured, holds each tail's summed distance to within half a
+grid step wherever a row can move one step onto a neighbouring value, and
+writes nothing past the range the description publishes. On the
+batteries measured: average spread error 0.45 per cent at 20,000 rows
+(64 columns; 9.1 per cent before), every `validate` clean.
+
+**Where it does not, measured.** A column whose every number is different,
+such as one counting upward, keeps one number a row; at 200,000 rows and
+more its far values are now placed where its description says, and the
+reports measure its average, spread, skew and tail weight against windows
+that hold the twin that was built. A tail held by a field width or by the
+reach rule keeps the old reading, the same twin as before (150 two-figure
+readings beside one `185` write 38 cells on `97` and `98` against the
+source's 5; lane G2T2). At 2,000 rows a whole-number tail's mean distance
+can stand up to 52 per cent off, the shape fitted to few rows a point. A
+column whose nought end holds several zeros keeps every one of them there,
+as the source does. The twin may write one cell on an end the description
+only implies, one step past the source's own largest (`13` against `12`),
+which no description publishes.
+
+No description changes; twins of columns whose tails already met their
+description are the same bytes. Its repair (2026-10-19): the furthest rows
+stand apart without pulling the tail outward -- a heavy-tailed count's
+tail had drifted 11 per cent -- and as far as the number of different
+spellings asks, so a column of readings written both `4` and `4.0` keeps
+every number; and a tail that names its values gives each the rows a
+value needs to be named. Its second repair (2026-10-20): a tail that
+crosses nought keeps the column's counts of negatives and zeros at their
+ranks, so a column of a few negatives keeps its median and its count; the
+work is near-linear in the tail's rows again (one Pareto column's tail at
+250,000 rows in 0.17 s, where the first repair took over five minutes);
+a tail of a few whole numbers meets its mean distance (a negated count
+stood 21 per cent short); grid points of up to 25 decimal places are read
+exactly; and the twin of eight-figure dates beside labels meets its 75th
+percentile again.
+
 ### Between columns: the moment page, written before its code (2026-10-20)
 
 **Nothing is built by this entry, and no twin carries any structure

@@ -4523,7 +4523,7 @@ CASE_MUTANTS = {
         "the rest to the outermost, which is the obvious rule and the "
         "wrong one: the staircase moves and the twin's cells with it",
         attribute="listed_counts",
-        replacement=lambda boundary, listed, rows, mean, root: (
+        replacement=lambda boundary, listed, rows, mean, root, heap=0: (
             [rows - len(listed) + 1] + [1] * (len(listed) - 1)
             if listed
             else []

@@ -13004,6 +13004,7 @@ def _tail_window(
     side: contract.TailSide,
     low: bool,
     reach_rule: bool = True,
+    hulled: bool = True,
 ) -> "tuple[tuple[float, float], tuple[float, float]]":
     """G12.13: the windows a file's two distances of one tail stand in.
 
@@ -13023,6 +13024,14 @@ def _tail_window(
     rule 1 withdrawn, the one ``ladder`` is then handed as: the windows
     110cb46 drew, which a tail whose end the rule moved answers to as
     well (`_tail_checks`, V6.1-A2).
+
+    ON A DENSE SIDE the root-mean-square's window is the hull with the
+    one the ladder rule 4's placement reads draws (`contract.dense_placed`,
+    plan P4-D405; ``hulled`` False draws the first alone), as the mean
+    distance's is with `_dense_mean_window`: G2's dense
+    tail at 300,000 rows wrote its high tail's root-mean-square at
+    19,281.5 against a published 19,305.9, past a window drawn through
+    the staircase alone (14,417.0 to 16,165.9).
     """
     count = _numeric_cells(facts)
     widest = _window_stratum(facts, floor, reach_rule)
@@ -13065,10 +13074,29 @@ def _tail_window(
             min(mean_window[0], dense[0]),
             max(mean_window[1], dense[1]),
         )
-    return (
-        mean_window,
-        (_window_root(near, rows), _window_root(far, rows)),
+    root_window = (_window_root(near, rows), _window_root(far, rows))
+    reader = (
+        (ladder.low if low else ladder.high)
+        if isinstance(ladder, contract.ShapedLadder)
+        else None
     )
+    placed = (
+        contract.dense_placed(ladder, facts)
+        if hulled
+        and isinstance(ladder, contract.ShapedLadder)
+        and reader is not None
+        and reader.dense_grid >= 0
+        else None
+    )
+    if placed is not None:
+        other_root = _tail_window(
+            facts, floor, placed, side, low, reach_rule, False
+        )[1]
+        root_window = (
+            min(root_window[0], other_root[0]),
+            max(root_window[1], other_root[1]),
+        )
+    return (mean_window, root_window)
 
 
 def _dense_mean_window(

@@ -6932,9 +6932,21 @@ def _pair_key(
 
 
 def _merge_down(
-    lengths: "list[int]", held: "list[float]", strata: int, cap: int = 0
+    lengths: "list[int]",
+    held: "list[float]",
+    strata: int,
+    cap: int = 0,
+    pinned: "tuple[bool, bool]" = (False, False),
 ) -> "tuple[list[int], list[float]]":
     """Merge adjacent runs until there are `strata` of them.
+
+    ``pinned`` names a first and a last run a pinned stratum holds
+    (G5.3b's shared staircase, plan P4-D405): the join the key chooses
+    that would take one of them takes the pair beside it instead, inward
+    -- the run before the last joined to the one before it, or the run
+    after the first to the one after it -- unless that pair touches the
+    other pinned run. With neither named this is `_merge_nearest`
+    repeated, as below.
 
     THE SAME ANSWER AS REPEATING `_merge_nearest`, AND THAT EQUIVALENCE
     IS THE WHOLE CONTRACT OF THIS FUNCTION. `_merge_nearest` rescans
@@ -6984,10 +6996,12 @@ def _merge_down(
     stamp = [0] * total
     heap: "list[tuple[tuple[int, int, int, float], int, int]]" = []
     size = 0
+
+    def keyed(left: int, right: int) -> "tuple[int, int, int, float]":
+        return _pair_key(run_lengths, values, left, right, cap)
+
     for place in range(total - 1):
-        size = _heap_push(
-            heap, size, (_pair_key(run_lengths, values, place, place + 1, cap), place, 0)
-        )
+        size = _heap_push(heap, size, (keyed(place, place + 1), place, 0))
     standing = total
     while standing > strata:
         entry, size = _heap_pop(heap, size)
@@ -6997,6 +7011,19 @@ def _merge_down(
         joined = after[here]
         if joined == -1 or not alive[joined]:
             continue
+        # A JOIN THAT WOULD TAKE A PINNED END'S RUN TAKES THE PAIR BESIDE
+        # IT INSTEAD, inward (`pinned`, G5.2a): the pinned run keeps its
+        # own rows, and every other join is the one it was.
+        if pinned[1] and after[joined] == -1:
+            back = before[here]
+            if back != -1 and not (pinned[0] and back == 0):
+                joined = here
+                here = back
+        elif pinned[0] and here == 0:
+            onward = after[joined]
+            if onward != -1 and not (pinned[1] and after[onward] == -1):
+                here = joined
+                joined = onward
         run_lengths[here] = run_lengths[here] + run_lengths[joined]
         alive[joined] = False
         after[here] = after[joined]
@@ -7009,7 +7036,7 @@ def _merge_down(
             size = _heap_push(
                 heap,
                 size,
-                (_pair_key(run_lengths, values, here, onward, cap), here, stamp[here]),
+                (keyed(here, onward), here, stamp[here]),
             )
         back = before[here]
         if back != -1:
@@ -7017,7 +7044,7 @@ def _merge_down(
             size = _heap_push(
                 heap,
                 size,
-                (_pair_key(run_lengths, values, back, here, cap), back, stamp[back]),
+                (keyed(back, here), back, stamp[back]),
             )
     out_lengths: "list[int]" = []
     out_values: "list[float]" = []
@@ -7419,11 +7446,35 @@ def _shape_sizes(
     # source holds fifty of each, and the fifty published pluses split
     # across two values -- four spellings of three numbers.
     evens = lead > whole[0] or trail > whole[1]
+    # A PINNED END'S RUN IS NEVER JOINED WHERE ITS OWN TAIL READS THE
+    # SHARED STAIRCASE (G5.3b, plan P4-D405). Its rows share points, so
+    # the runs beside a pinned end are runs of a few rows, the smallest a
+    # join takes first, and a join keeps the pinned stratum's value: a
+    # clipped bell at one place, 20,000 rows, joined its five outermost runs of
+    # two rows, 47.4 to 47.8, into the end and wrote 11 cells on its
+    # derived end `55.1` where the source holds one at 52.2. An end whose
+    # tail reads the pushed staircase joins as it did on 36ad3061 (the
+    # second repair): protected beside a shared low tail, the high end of
+    # P4-D390's eight-figure dates moved its joins and the twin's `p75`
+    # left its window at seed 7.
+    first = False
+    last = False
+    if isinstance(rungs, contract.ShapedLadder):
+        first = start == 0 and rungs.low is not None and rungs.low.shared
+        last = (
+            start + cells == numbers
+            and rungs.high is not None
+            and rungs.high.shared
+        )
     if lead + trail > 0 and strata > lead + trail:
         inner = lengths[lead : len(lengths) - trail]
         inner_values = values[lead : len(values) - trail]
         inner, inner_values = _merge_down(
-            inner, inner_values, strata - lead - trail, cap
+            inner,
+            inner_values,
+            strata - lead - trail,
+            cap,
+            (first and lead == 0, last and trail == 0),
         )
         while len(inner) < strata - lead - trail:
             inner, inner_values = _split_widest(inner, inner_values)
@@ -7441,7 +7492,7 @@ def _shape_sizes(
             + lengths[len(lengths) - trail :]
         )
         return _levelled(sized, cap) if evens else sized
-    lengths, values = _merge_down(lengths, values, strata, cap)
+    lengths, values = _merge_down(lengths, values, strata, cap, (first, last))
     while len(lengths) < strata:
         lengths, values = _split_widest(lengths, values)
     return _levelled(lengths, cap)
@@ -66340,6 +66391,17 @@ def _numeric_approximations(
     else:
         slack = _grid_half_unit(_pinned_fraction(column, facts))
     lows, highs, middles = _numeric_window(rungs, held, widest, slack)
+    # AND ON A DENSE SIDE THE MOMENTS' WINDOWS ARE THE HULL WITH THOSE
+    # RULE 4'S PLACEMENT DRAWS (method G12.3, plan P4-D405), as the
+    # quality report's are (`contract.dense_placed`).
+    dense = (
+        contract.dense_placed(rungs, facts)
+        if isinstance(rungs, contract.ShapedLadder)
+        else None
+    )
+    placed_window = (
+        None if dense is None else _numeric_window(dense, held, widest, slack)
+    )
     found: list[Approximation] = []
     for step in range(1, 10):
         percent = _PCT[step]
@@ -66375,6 +66437,9 @@ def _numeric_approximations(
     if facts.mean is not None:
         lowest = _average(lows)
         highest = _average(highs)
+        if placed_window is not None:
+            lowest = min(lowest, _average(placed_window[0]))
+            highest = max(highest, _average(placed_window[1]))
         found += [
             Approximation(
                 column=column.name,
@@ -66408,6 +66473,10 @@ def _numeric_approximations(
         middle = centre if centre is not None else 0.0
         lowest = max(0.0, middle - room)
         highest = middle + room
+        if placed_window is not None:
+            other_lowest, other_highest = _spread_window(placed_window, held)
+            lowest = min(lowest, other_lowest)
+            highest = max(highest, other_highest)
         found += [
             Approximation(
                 column=column.name,
@@ -66423,6 +66492,13 @@ def _numeric_approximations(
         ]
     if facts.skew is not None and shape is not None:
         lowest, highest = _shape_window(lows, highs, middles, reach, held)
+        if placed_window is not None:
+            other_lowest, other_highest = _shape_window(
+                placed_window[0], placed_window[1], placed_window[2],
+                _window_reach(placed_window, held), held,
+            )
+            lowest = min(lowest, other_lowest)
+            highest = max(highest, other_highest)
         found += [
             Approximation(
                 column=column.name,
@@ -66441,6 +66517,13 @@ def _numeric_approximations(
         ]
     if facts.kurtosis is not None and tails is not None and held >= 4:
         lowest, highest = _tails_window(lows, highs, middles, reach, held)
+        if placed_window is not None:
+            other_lowest, other_highest = _tails_window(
+                placed_window[0], placed_window[1], placed_window[2],
+                _window_reach(placed_window, held), held,
+            )
+            lowest = min(lowest, other_lowest)
+            highest = max(highest, other_highest)
         found += [
             Approximation(
                 column=column.name,
@@ -66460,7 +66543,7 @@ def _numeric_approximations(
     # quality report reads the same window off the same block, so the
     # two reports print one window.
     found = found + _tail_approximations(
-        column, facts, values, lows, highs, subject
+        column, facts, values, lows, highs, subject, placed_window
     )
     if not cardinalities:
         # A POSITION OF A JOINED COLUMN PUBLISHES NO DISTINCTNESS OF ITS
@@ -66472,6 +66555,26 @@ def _numeric_approximations(
         # the earlier attempt at this report.
         return found
     return found + _numeric_cardinalities(column, plan, written)
+
+
+def _window_reach(
+    window: "tuple[list[float], list[float], list[float]]", held: int
+) -> float:
+    """`E` of method G12.3 for one rank window: the root-mean-square of each rank's furthest reach."""
+    lows, highs, middles = window
+    return _root_mean_square(
+        [max(middles[rank] - lows[rank], highs[rank] - middles[rank]) for rank in range(held)]
+    )
+
+
+def _spread_window(
+    window: "tuple[list[float], list[float], list[float]]", held: int
+) -> "tuple[float, float]":
+    """G12.3's `std` window for one rank window, in the order the report's own takes."""
+    room = _window_reach(window, held) * math.sqrt(held / (held - 1))
+    centre = taxonomy.spread_of(list(window[2]))
+    middle = centre if centre is not None else 0.0
+    return max(0.0, middle - room), middle + room
 
 
 def _tail_facts_of(
@@ -66524,6 +66627,7 @@ def _tail_approximations(
     lows: "list[float]",
     highs: "list[float]",
     subject: str,
+    placed_window: "tuple[list[float], list[float], list[float]] | None" = None,
 ) -> "list[Approximation]":
     """Each tail's two distances, measured and bounded (method G12.13).
 
@@ -66550,7 +66654,24 @@ def _tail_approximations(
         measured = _tail_facts_of(values, side.percent, low)
         if measured is None:
             continue
+        # A DENSE SIDE'S ROOT-MEAN-SQUARE ANSWERS TO THE HULL WITH THE
+        # WINDOW THE PLACED LADDER DRAWS (plan P4-D405, `contract.dense_placed`),
+        # the checker's too: rule 4 puts the far strata where their squares
+        # stand nearest the published total, past the staircase's reach.
+        placed_root: "tuple[float, float] | None" = None
+        reader = (ladder.low if low else ladder.high) if isinstance(
+            ladder, contract.ShapedLadder
+        ) else None
+        if placed_window is not None and reader is not None and reader.dense_grid >= 0:
+            placed_root = _tail_window_of(
+                placed_window[0], placed_window[1], side.percent, low, len(values)
+            )[1]
         window = _tail_window_of(lows, highs, side.percent, low, len(values))
+        if placed_root is not None:
+            window = (
+                window[0],
+                (min(window[1][0], placed_root[0]), max(window[1][1], placed_root[1])),
+            )
         # A DENSE TAIL'S MEAN DISTANCE ANSWERS TO THE WINDOW G6.6.8's
         # RULE 4 DRAWS (stage 4 lane S4c, plan P4-D377), the checker's
         # own (`contract.dense_tail_mean_window`).

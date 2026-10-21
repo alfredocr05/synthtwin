@@ -595,7 +595,15 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # (Codex's review of lane XW, item 3). What it loads is a committed file
 # under tools/, which this guard reads directly, so the floor holds for it
 # as it does for the other thirty-eight.
-FILES_LOADED_AS_MODULES = 39
+#
+# 40 AT THE INTEGRATION OF BATCH 4E (2026-10-21), which merged lane G2T's
+# own 37 (its repair, plan P4-D405) with the 39 above:
+# `tests/test_stage4_number_tail.py` loads the million-row driver
+# `tools/measurements/kpi_dense_million.py` the same way, to ask what
+# environment it hands its child. What it loads is a committed file under
+# tools/, which this guard reads directly, so the floor holds for it as it
+# does for the other thirty-nine.
+FILES_LOADED_AS_MODULES = 40
 
 
 def _files() -> "list[pathlib.Path]":
