@@ -55103,6 +55103,102 @@ def shared_clock_document():
     }
 
 
+# ---------------------------------------------------------------------------
+# Method section G7.13 (lane PS, plan P4-D417): a column pooled in people is
+# written as the starts of its buckets, and each present cell leaves drawn
+# inside its bucket at its own precision, with its row's word. Written from
+# the method's words with `datetime`, for the forms it names here: ISO dates
+# and stamps (a space or `T`, to the minute or the second), padded US and
+# day-first dates, padded 24-hour clocks, and Excel's 1900 serials of whole
+# days. `tests/test_dates_pooled_in_people.py` holds the product to it.
+
+_POOLED_FIXED = {"second": 1, "minute": 60, "hour": 3600, "four hours": 14400, "day": 86400}
+
+
+def pooled_bucket(moment, rung):
+    """The start of ``moment``'s bucket at ``rung`` and the start of the next, as `datetime`s."""
+    if rung == "year":
+        start = datetime.datetime(moment.year, 1, 1)
+        return start, datetime.datetime(moment.year + 1, 1, 1)
+    if rung in ("quarter", "month"):
+        step = 3 if rung == "quarter" else 1
+        month = (moment.month - 1) // step * step + 1
+        start = datetime.datetime(moment.year, month, 1)
+        months = moment.year * 12 + month - 1 + step
+        return start, datetime.datetime(months // 12, months % 12 + 1, 1)
+    size = _POOLED_FIXED[rung]
+    midnight = datetime.datetime(moment.year, moment.month, moment.day)
+    seconds = int((moment - midnight).total_seconds()) // size * size
+    start = midnight + datetime.timedelta(seconds=seconds)
+    return start, start + datetime.timedelta(seconds=size)
+
+
+_POOLED_FORMS = {
+    "iso-date": (re.compile(r"^(\d{4})-(\d{2})-(\d{2})$"), "%Y-%m-%d"),
+    "month-first-date": (re.compile(r"^(\d{2})/(\d{2})/(\d{4})$"), "%m/%d/%Y"),
+    "day-first-date": (re.compile(r"^(\d{2})/(\d{2})/(\d{4})$"), "%d/%m/%Y"),
+}
+_POOLED_STAMP = re.compile(r"^(\d{4})-(\d{2})-(\d{2})([ T])(\d{2}):(\d{2})(?::(\d{2}))?$")
+_POOLED_CLOCK = re.compile(r"^(\d{2}):(\d{2})(?::(\d{2}))?$")
+_EXCEL_EPOCH = datetime.datetime(1899, 12, 30)
+
+
+def pooled_drawn_inside(cell, reading, rung, word):
+    """One cell drawn inside its bucket at its own precision (G7.13), or the cell as written."""
+    if reading in _POOLED_FORMS:
+        pattern, form = _POOLED_FORMS[reading]
+        if not pattern.match(cell):
+            return cell
+        moment = datetime.datetime.strptime(cell, form)
+        start, end = pooled_bucket(moment, rung)
+        count = (end - start).days
+        if count <= 1:
+            return cell
+        return (start + datetime.timedelta(days=bounded(word, count))).strftime(form)
+    if reading == "iso-datetime":
+        found = _POOLED_STAMP.match(cell)
+        if not found:
+            return cell
+        with_seconds = found.group(7) is not None
+        moment = datetime.datetime(
+            int(found.group(1)), int(found.group(2)), int(found.group(3)),
+            int(found.group(5)), int(found.group(6)),
+            int(found.group(7)) if with_seconds else 0,
+        )
+        start, end = pooled_bucket(moment, rung)
+        unit = 1 if with_seconds else 60
+        count = int((end - start).total_seconds()) // unit
+        if count <= 1:
+            return cell
+        made = start + datetime.timedelta(seconds=bounded(word, count) * unit)
+        text = made.strftime("%Y-%m-%d") + found.group(4) + made.strftime("%H:%M")
+        return text + (made.strftime(":%S") if with_seconds else "")
+    if reading in ("hh-mm", "hh-mm-ss"):
+        found = _POOLED_CLOCK.match(cell)
+        if not found or (found.group(3) is not None) != (reading == "hh-mm-ss"):
+            return cell
+        seconds = int(found.group(1)) * 3600 + int(found.group(2)) * 60 + int(found.group(3) or 0)
+        moment = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=seconds)
+        start, end = pooled_bucket(moment, rung)
+        end = min(end, datetime.datetime(2000, 1, 2))
+        unit = 1 if reading == "hh-mm-ss" else 60
+        count = int((end - start).total_seconds()) // unit
+        if count <= 1:
+            return cell
+        made = start + datetime.timedelta(seconds=bounded(word, count) * unit)
+        return made.strftime("%H:%M:%S" if reading == "hh-mm-ss" else "%H:%M")
+    if reading == "excel-1900":
+        if not re.match(r"^\d+$", cell) or int(cell) <= 60:
+            return cell
+        moment = _EXCEL_EPOCH + datetime.timedelta(days=int(cell))
+        start, end = pooled_bucket(moment, rung)
+        count = (end - start).days
+        if count <= 1:
+            return cell
+        return f"{(start - _EXCEL_EPOCH).days + bounded(word, count)}"
+    return cell
+
+
 def main(argv=None, part=None):
     """Write the vectors to the path given by --out.
 

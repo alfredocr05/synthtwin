@@ -838,6 +838,15 @@ places everything else, which is what makes their positions
 seeded-random (P2-D9) without a second mechanism and without a second
 draw budget.
 
+**A third stage, on a column pooled in people or held with valid dates
+(lane PS, plan P4-D417; G7.13).** A column whose block carries a
+`time_grain` record draws, after its placement words, exactly `n_rows`
+more words in one call, one a row, whatever its cells; a column without
+one draws none and makes no call, so every description without the key
+draws the words it drew before, word for word. The words of a later
+column move on a table that has such a column, which is a new kind of
+description.
+
 ### G4.2a The reservation of records holding nothing (layer L0, plan P4-D404; specified, NOT BUILT)
 
 **No generator in this repository runs this section yet; lane BT builds
@@ -11081,6 +11090,116 @@ every column of dates, so a twin whose source holds numbers the date
 role could not read misses `n_numeric`; and a workbook's clock cells
 keep their binary64 reading, which moves 94 of them by a millisecond,
 rather than this one.
+
+### G7.13 Dates and times pooled in people: drawn inside their grain, and the G1 floor
+
+Lane PS (plan P4-D417; contract NF128 to NF130). A column of dates,
+stamps, clock times or counted dates beside a person column that the
+count in people (plan P4-D406) would hold is either DESCRIBED AT A GRAIN
+-- its cells written as the starts of their buckets, the tails pooled
+into the first and the last bucket the floor's number of people hold, and
+that column described by its role's own rules -- or HELD, as a record
+number, with the record its twin writes valid values from. Either way its
+block carries `time_grain` (contract NF128, NF129): `rung` (a rung or
+`held`), `finest` (the column's own precision), `kind` (`date`, `stamp`,
+`clock`, `counted`), `reading` (the date member, clock form or counting
+member its cells read under), `mark`, `rows` and `spans`.
+
+The twin is built from the block by every rule of its role -- G7 to G7.10
+for dates, G7A for clocks, G8 where the coarse cells took one or two
+values and the constant or binary role, G9 for a held record number --
+and MEASURED as built, against the description it was built from. Then,
+as the decimal comma of G6 is applied, only the cells that LEAVE move,
+with the third stage's words (G4.2), word `r` for row `r`:
+
+**A pooled column (a rung).** A cell that is absent -- empty, or a
+spelling the column publishes among its holes -- leaves as written. Every
+other cell is read under the record's reading; one that does not read
+leaves as written. Its moment `t` names a bucket `[s, e)` at the rung:
+`s` the start of `t`'s year (1 January), quarter (its first month's
+first day), month (its first day), day (midnight), block of four hours
+(00, 04, 08, 12, 16 or 20 hours), hour, minute or second, and `e` the
+next bucket's start, a clock's never past the end of its day. The cell's
+own precision gives the step `u`: a day for a date, a month for
+`iso-month`, a quarter for `year-quarter`; for a stamp its finest field
+-- the hour, the minute, the second, or ten to the minus `k` seconds for
+`k` figures of a fraction; a clock form's own step; for a counted date
+its member's unit over ten to the figures after its mark. With `c` the
+steps in `[s, e)` (the months or quarters in it, for those two), a cell
+with `c` at most one leaves as written; otherwise the target is `s` plus
+`bounded(word_r, c)` steps (G3.4b), and the cell is written AGAIN IN ITS
+OWN FORM naming it: a clock by its form's one spelling (G7A.1), a
+counted date by its member's count with the cell's own figures after the
+mark (G7.10), and a date or stamp field by field over the cell's own runs
+of figures and letters, assigned by the member's own order (a layout's by
+its items; a layout holding a field no run rule writes -- a weekday, a
+month's name, a spaced field -- is written by the layout's own writer of
+G7.5 at the first width word that writes the cell's form and reads back)
+-- each field at the width its run shows (one figure stays
+one, an opening zero stays padded; a run of two figures that shows
+neither is padded unless the cell writes some field with one figure), a
+month's name at its own length and case, the marker of the half of the
+day by the new hour, and every other character, the offset's included,
+as written. Where the cell so written does not read back under the
+member as the target at the cell's precision, with the same offset, the
+cell leaves as written. The bucket the twin's cell falls in is the one
+its built cell named, so the twin, read at the grain, is the twin as
+built and meets the description as the build was measured.
+
+**A held column (rung `held`): the G1 floor.** The span is the record's
+last span, from its first bucket's start to the start after its last
+bucket (a clock's never past its day), or, where the record publishes
+none, the method's FIXED SPAN, 1 January 2000 to 31 December 2029 (a
+clock: its whole day) -- never the table. The DIFFERENT made-up cells of
+the column (G9), in the order of the rows each first stands on, each take
+one value, and every row holding that made-up cell writes it. A made-up
+cell's runs are read by the member's own order from its layout alone:
+each run of figures is the field the member writes there, and a run of
+letters by where it stands -- one letter between the date and the clock
+a joint, written `T` in its case; two after the clock a marker of the
+half of the day; one after the clock a zulu letter, `Z`; three, `UTC`.
+The step `u` is a day, an hour where the layout writes an hour, a minute
+where it writes minutes and a second where it writes seconds; with `c`
+the steps in the span, the walk starts at the span's first moment plus
+`bounded(word, c)` steps, with the word of the row the made-up cell first
+stands on, and steps forward (from the span's end back to its start) --
+to the next day where the month, the day or the month's name cannot fill
+its run, to the next hour where the hour cannot -- to the first moment
+every field of which fills its run at the run's width (one figure: below
+ten; two: any value, or ten and more where some made-up cell of the
+column writes that field with one figure), whose cell, written with its
+offset's figures as noughts and its fraction as the moment's own
+figures, reads under the member and is no value an earlier made-up cell
+took; at most 200,000 steps, after which the made-up cell leaves as
+written. A counted member steps by days and writes its member's count
+with the made-up cell's figures after the mark, taken only where it is
+as long as the made-up cell; a layout no run rule writes is filled by
+the layout's own writer, by days (by steps of 3,607 seconds where it has
+a clock), at most 20,000 steps, at the first moment it writes in the
+made-up cell's very form. So the held column keeps every layout,
+every width and the census of repetition its block publishes (two
+made-up values never take one), and every value parses under its member.
+
+**What is measured.** The twin's report and its approximations are
+measured on the cells as built (the bytes before this step), exactly as
+the validator, which reads the grain (validation V14), measures them; a
+held column's are the record-number block's, which its filled cells meet
+as its made-up ones did. The oracle (`tools/reference/
+make_generation_reference_vectors.py`, `pooled_drawn_inside`) writes the
+pooled draw from these words for ISO dates and stamps, padded US and
+day-first dates, padded 24-hour clocks and Excel's whole serials, and
+`tests/test_dates_pooled_in_people.py` holds the product to it word for
+word. No frozen vector moves: no description of the vectors carries the
+key.
+
+**Stated limits.** A stamp's offset is written as it was, so a value
+drawn across a change of daylight saving can wear an offset not in force
+on its new date (lane DST's limit, as before); a member whose cells this
+method cannot write again -- `days-since-1840` with its contact numbers,
+a layout the day of the year rules -- is held whole, and a made-up cell no
+step of the walk fills leaves as written; a column whose two-figure
+fields mix padded and unpadded cells writes a field that showed neither
+as padded.
 
 ## G7A. Clock columns (`time_of_day`)
 

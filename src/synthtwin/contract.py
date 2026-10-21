@@ -3602,8 +3602,8 @@ class ColumnBlock:
     facts: ColumnFacts
     # THE GRAIN (plan P4-D417, contract NF128 and NF129): how a column of
     # dates or times beside a person column was pooled in people -- the
-    # rung its cells were written at, the reading, the column's count of
-    # different values and the spans its walk passed -- or, rung `held`,
+    # rung its cells were written at, the reading, the rows its walk read
+    # and the spans it passed -- or, rung `held`,
     # how a held one's twin writes valid values. None on every other
     # column, whose block carries no `time_grain` key.
     time_grain: "grains.Grain | None" = None
@@ -7942,7 +7942,7 @@ def _column(
 # of dates and clock times, the two every column of one or two values
 # takes first, and a held record number.
 GRAIN_ROLES = (ROLE_DATETIME, ROLE_CLOCK, "constant", "binary", ROLE_IDENTIFIER)
-GRAIN_KEYS = ("finest", "kind", "mark", "reading", "rung", "spans", "values")
+GRAIN_KEYS = ("finest", "kind", "mark", "reading", "rung", "rows", "spans")
 
 
 def _time_grain(
@@ -7970,7 +7970,14 @@ def _time_grain(
     finest = _one_of(block["finest"], "finest", seat, grains.RUNGS)
     reading_text = _filled_text(block["reading"], "reading", seat)
     mark = _one_of(block["mark"], "mark", seat, date_counts.MARKS)
-    values = _whole(block["values"], "values", seat, 0)
+    rows = _whole(block["rows"], "rows", seat, 0)
+    if "n_present" in mapping and mapping["n_present"] != rows:
+        raise _broken(
+            "NF130",
+            seat,
+            f"the record's walk read {rows} rows",
+            "the block publishes another count of present cells",
+        )
     if (rung == grains.HELD) != (role == ROLE_IDENTIFIER):
         raise _broken(
             "NF129",
@@ -8008,13 +8015,13 @@ def _time_grain(
             raise _out_of_range(f"spans[{place}]", seat, "a start", "the start of a bucket, written as the record writes one")
         spans += [(span_rung, first, last)]
         place = place + 1
-    grain = grains.Grain(rung, grains.Reading(kind, reading_text, mark), values, tuple(spans), finest)
+    grain = grains.Grain(rung, grains.Reading(kind, reading_text, mark), rows, tuple(spans), finest)
     if not grains.walk_holds(grain, frame.floor):
         raise _broken(
             "NF130",
             seat,
             f"the record names the rung '{rung}'",
-            "its own published facts -- the count of different values and the spans -- choose another",
+            "its own published facts -- the rows and the spans -- choose another",
         )
     return grain
 

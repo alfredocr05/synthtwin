@@ -63430,12 +63430,31 @@ def _inside_the_grain(
     holes = _hole_spellings(column)
     found: "list[str]" = []
     if grain.rung != grains.HELD:
+        # A STAMP LEAVES WITH THE ONE JOINT ITS COLUMN WRITES: where the
+        # block's census names a single mark, a built cell that took
+        # another to reach the column's count of different values (G7.9)
+        # is drawn inside its bucket, so it needs none, and leaves wearing
+        # that mark.
+        joint = ""
+        if isinstance(column.facts, contract.DatetimeFacts):
+            named = [
+                name
+                for name in sorted(column.facts.datetime_separators)
+                if name != contract.WITHHELD
+            ]
+            if len(named) == 1 and len(column.facts.datetime_separators) == 1:
+                joint = _commonest_mark(column.facts)
         for place in range(len(cells)):
             cell = cells[place]
             if cell in holes or not parsing.folded(cell):
                 found += [cell]
                 continue
-            found += [grains.drawn_inside(cell, grain.reading, grain.rung, words[place])]
+            drawn = grains.drawn_inside(cell, grain.reading, grain.rung, words[place])
+            if joint and len(drawn) > 10 and drawn[10:11] in ("T", "t", " ") and drawn[10:11] != joint:
+                rejoined = drawn[0:10] + joint + drawn[11:]
+                if parsing.parse_datetime(rejoined, grain.reading.member) is not None:
+                    drawn = rejoined
+            found += [drawn]
         return found
     span = grains.held_span(grain)
     padded = grains.column_padded(cells, grain.reading, True)

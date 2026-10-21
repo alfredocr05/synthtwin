@@ -1823,15 +1823,14 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # other: how the column writes its counts (`date_counts.CountForm`).
     # THE GRAIN A COLUMN OF DATES OR TIMES WAS POOLED AT (plan P4-D417,
     # contract NF128 to NF130): its rung, the column's precision, its kind,
-    # how its cells read, the count of different values its walk read and
-    # the spans the walk passed.
+    # how its cells read, the rows its walk read and the spans it passed.
     ("columns", _EACH, "time_grain"): _OBJECT,
     ("columns", _EACH, "time_grain", "rung"): _WORD,
     ("columns", _EACH, "time_grain", "finest"): _WORD,
     ("columns", _EACH, "time_grain", "kind"): _WORD,
     ("columns", _EACH, "time_grain", "reading"): _WORD,
     ("columns", _EACH, "time_grain", "mark"): _COUNT_MARK,
-    ("columns", _EACH, "time_grain", "values"): _COUNT,
+    ("columns", _EACH, "time_grain", "rows"): _COUNT,
     ("columns", _EACH, "time_grain", "spans"): _ARRAY,
     ("columns", _EACH, "time_grain", "spans", _EACH): _ARRAY,
     ("columns", _EACH, "time_grain", "spans", _EACH, _EACH): _GRAIN_SPAN_PART,
@@ -4612,6 +4611,7 @@ def build_document(
             if time_reading is not None:
                 walked, coarse = _grain_walk(
                     cells,
+                    described.n_present,
                     time_reading,
                     counting,
                     counting_enough,
@@ -4632,7 +4632,7 @@ def build_document(
                             candidate, grains.record(walked)
                         )
                     else:
-                        held_dates = dataclasses.replace(walked, rung=grains.HELD)
+                        held_dates = _held_record(walked)
                 coarse = None
             if pooled is not None:
                 described = pooled
@@ -6008,6 +6008,7 @@ def _time_reading(
 
 def _grain_walk(
     cells: "list[str]",
+    present: int,
     time_reading: grains.Reading,
     subject_cells: "list[list[str]]",
     enough: "list[bool]",
@@ -6016,8 +6017,8 @@ def _grain_walk(
     """The grain a column of dates or times is described at, and its cells at it (plan P4-D417).
 
     Each present cell is read as its moment; the column's finest rung is
-    the finest any cell writes, and its count of different values the
-    different moments. At every rung of its ladder the ENDS are the first
+    the finest any cell writes, and the rows the walk reads are
+    ``present``, the block's `n_present`, published on every column. At every rung of its ladder the ENDS are the first
     and the last bucket held by `floor` different subjects or more under
     every subject column that counts in people (`_holding`, the one
     count), and `grains.walk` chooses the rung from the published facts
@@ -6032,14 +6033,12 @@ def _grain_walk(
     memo: "dict[str, int | None]" = {}
     finest = grains.YEAR
     kind_reading = time_reading
-    different: "dict[int, bool]" = {}
     for cell in cells:
         if cell in memo:
             moments += [memo[cell]]
             continue
         moment = grains.moment_of(cell, time_reading)
         if moment is not None:
-            different[moment] = True
             own = grains.finest_of(cell, time_reading)
             if grains.RANK[own] > grains.RANK[finest]:
                 finest = own
@@ -6055,7 +6054,7 @@ def _grain_walk(
         if not enough[place] and _attached(cells, subject_cells[place]) and (
             _names_its_people(cells, subject_cells[place])
         ):
-            return grains.Grain(grains.HELD, kind_reading, len(different), (), finest), None
+            return grains.Grain(grains.HELD, kind_reading, present, (), finest), None
     rungs = grains.ladder(kind_reading.kind, finest)
     ends: "dict[str, tuple[int, int] | None]" = {}
     for rung in rungs:
@@ -6087,10 +6086,10 @@ def _grain_walk(
             else:
                 found = (min(found[0], start), max(found[1], start))
         ends[rung] = found
-    rung, spans = grains.walk(len(different), floor, finest, kind_reading.kind, ends)
-    grain = grains.Grain(rung, kind_reading, len(different), spans, finest)
+    rung, spans = grains.walk(present, floor, finest, kind_reading.kind, ends)
+    grain = grains.Grain(rung, kind_reading, present, spans, finest)
     if rung == grains.HELD:
-        return grain, None
+        return _held_record(grain), None
     padded = grains.column_padded(cells, kind_reading)
     first = spans[len(spans) - 1][1]
     last = spans[len(spans) - 1][2]
@@ -6108,9 +6107,25 @@ def _grain_walk(
             if len(written) < 65536:
                 written[cell] = made
         if made is None:
-            return dataclasses.replace(grain, rung=grains.HELD), None
+            return _held_record(grain), None
         coarse += [made]
     return grain, coarse
+
+
+def _held_record(grain: grains.Grain) -> grains.Grain:
+    """The record a held column of dates or times publishes (plan P4-D417, NF129).
+
+    Rung `held`, the spans its walk passed -- each end a bucket the floor's
+    number of people hold -- and none for a clock: a clock's day is
+    bounded, so beside the held block's count of different values a span
+    could leave one bucket outside it that must hold someone, so its twin
+    draws from the whole day.
+    """
+    return dataclasses.replace(
+        grain,
+        rung=grains.HELD,
+        spans=() if grain.reading.kind == grains.CLOCK else grain.spans,
+    )
 
 
 def _layouts_in_subjects(

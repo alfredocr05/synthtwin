@@ -32,10 +32,10 @@ the precision its counts carry.
 THE GRAIN IS FIXED BY PUBLISHED FACTS ONLY (`walk`). At each rung the
 SPAN is the first and the last bucket at least the floor's number of people
 hold, under every subject column; the walk starts at the top rung and goes
-one rung finer while the column's count of different values (`values`,
-published in the record) is at least `VALUES_A_BUCKET` floors for every
-bucket of the finer rung inside the current span; each span it passes is
-published in the record. So the grain is a function of the record alone
+one rung finer while the column's present rows (`rows`, the block's own
+`n_present`) are at least `ROWS_A_BUCKET` floors for every bucket of the
+finer rung inside the current span; each span it passes is published in
+the record. So the grain is a function of the record alone
 (`walk_holds` recomputes it), and no finer point's failure chooses it. The
 rows before the first bucket of the chosen rung and after its last are
 counted in those two (the TAILS POOLED). Where the top rung has no span,
@@ -85,12 +85,11 @@ RANK = {YEAR: 0, QUARTER: 1, MONTH: 2, DAY: 3, BLOCK: 4, HOUR: 5, MINUTE: 6, SEC
 # The hours one block of a clock holds: six blocks a day, from midnight.
 BLOCK_HOURS = 4
 
-# THE WALK'S ONE CONSTANT: the column's different values a finer rung must
-# hold, on average, in every bucket inside the current span, counted in
-# floors. Two floors -- 22 different values a bucket at the default floor
-# of 11 -- so a rung is entered only where a bucket of it would on average
-# hold twice what its points need.
-VALUES_A_BUCKET = 2
+# THE WALK'S ONE CONSTANT: the rows a finer rung must hold, on average, in
+# every bucket inside the current span, counted in floors. Two floors -- 22
+# rows a bucket at the default floor of 11 -- so a rung is entered only
+# where a bucket of it would on average hold twice what its points need.
+ROWS_A_BUCKET = 2
 
 # THE FIXED SPAN the G1 floor draws from where nothing is published under
 # the floor in people: 1 January 2000 to 31 December 2029, the method's own
@@ -141,14 +140,16 @@ class Grain:
     ``spans`` holds, coarsest first, `(rung, first, last)`: the starts of the
     first and the last bucket at that rung that the floor's number of people
     hold, in nanoseconds from the start of 1 January 1970 (from midnight for
-    a clock). ``values`` is the column's count of different values the walk
-    read. A held record's rung is `HELD`, and its spans are those its walk
-    passed before it stopped (none where the top rung had no span).
+    a clock). ``rows`` is the column's present rows, its block's
+    `n_present`, which the walk reads. A held record's rung is `HELD`, and
+    its spans are those its walk passed before it stopped (none where the
+    top rung had no span, and none on a clock's, whose day is all its
+    twin draws from).
     """
 
     rung: str
     reading: Reading
-    values: int
+    rows: int
     spans: "tuple[tuple[str, int, int], ...]"
     # The column's own precision, the foot of its ladder.
     finest: str = DAY
@@ -218,7 +219,7 @@ def walk_holds(grain: Grain, floor: int) -> bool:
     """Whether a record's rung is the one its own published facts choose (plan P4-D417).
 
     The walk starts at the top rung and goes one rung finer while
-    ``values`` is at least `VALUES_A_BUCKET` floors a bucket of the finer
+    ``rows`` is at least `ROWS_A_BUCKET` floors a bucket of the finer
     rung inside the current span; a span is published for every rung it
     passes, each a pair of bucket starts at its rung, first at most last.
     A held record stops at its last span or before any; a pooled one at
@@ -237,7 +238,7 @@ def walk_holds(grain: Grain, floor: int) -> bool:
             return False
         if start_of(first, rung) != first or start_of(last, rung) != last:
             return False
-        if place > 0 and not _goes_finer(grain.values, floor, spans[place - 1], rung):
+        if place > 0 and not _goes_finer(grain.rows, floor, spans[place - 1], rung):
             return False
     if grain.rung == HELD:
         return True
@@ -245,7 +246,7 @@ def walk_holds(grain: Grain, floor: int) -> bool:
         return False
     place = len(spans)
     return place >= len(rungs) or not _goes_finer(
-        grain.values, floor, spans[place - 1], rungs[place]
+        grain.rows, floor, spans[place - 1], rungs[place]
     )
 
 
@@ -256,13 +257,13 @@ def _ladder_kind(grain: Grain) -> str:
     return grain.reading.kind
 
 
-def _goes_finer(values: int, floor: int, span: "tuple[str, int, int]", finer: str) -> bool:
+def _goes_finer(rows: int, floor: int, span: "tuple[str, int, int]", finer: str) -> bool:
     rung, first, last = span
-    return values >= VALUES_A_BUCKET * floor * buckets_between(first, after(last, rung), finer)
+    return rows >= ROWS_A_BUCKET * floor * buckets_between(first, after(last, rung), finer)
 
 
 def walk(
-    values: int,
+    rows: int,
     floor: int,
     finest: str,
     kind: str,
@@ -282,7 +283,7 @@ def walk(
         return HELD, ()
     spans: "list[tuple[str, int, int]]" = [(rungs[0], found[0], found[1])]
     for place in range(1, len(rungs)):
-        if not _goes_finer(values, floor, spans[len(spans) - 1], rungs[place]):
+        if not _goes_finer(rows, floor, spans[len(spans) - 1], rungs[place]):
             break
         found = ends[rungs[place]] if rungs[place] in ends else None
         if found is None:
@@ -577,8 +578,6 @@ def moment_of(cell: str, reading: Reading) -> "int | None":
         return None
     canonical = read[0]
     fields = _fields(cell, reading)
-    if fields is None:
-        return None
     if len(canonical) == 7 and canonical[4:6] in ("-Q", "-q"):
         year = int(canonical[0:4])
         quarter = int(canonical[6:7])
@@ -594,11 +593,47 @@ def moment_of(cell: str, reading: Reading) -> "int | None":
             + int(canonical[14:16]) * _NS_MINUTE
             + int(canonical[17:19]) * _NS_SECOND
         )
-        fraction = _fraction_of(cell, fields)
+        fraction = _fraction_of(cell, fields) if fields is not None else _trailing_fraction(cell)
         if fraction < 0:
             return None
         moment = moment + fraction
     return moment
+
+
+def _trailing_fraction(cell: str) -> int:
+    """A layout cell's fraction: its last run of figures after a point or a comma, in nanoseconds."""
+    runs = _runs(cell)
+    if not runs:
+        return 0
+    start, end, sort = runs[len(runs) - 1]
+    if sort != _DIGIT or cell[start - 1 : start] not in (".", ",") or end - start > 9:
+        return 0
+    return int(cell[start:end]) * int(10 ** (9 - (end - start)))
+
+
+def _ends_in_a_fraction(cell: str) -> bool:
+    runs = _runs(cell)
+    if not runs:
+        return False
+    start, _end, sort = runs[len(runs) - 1]
+    return sort == _DIGIT and cell[start - 1 : start] in (".", ",")
+
+
+def _layout_finest(member: str) -> str:
+    """The finest field a layout writes: its rung."""
+    items = parsing.layout_items(member)
+    finest = DAY
+    for kind, field in items if items is not None else ():
+        bare = field[: len(field) - 1] if field[len(field) - 1 : len(field)] == "?" else field
+        if kind != "f":
+            continue
+        if bare in ("SS", "F"):
+            return SECOND
+        if bare == "MI":
+            finest = MINUTE
+        elif bare in ("HH", "H", "_H", "hh", "h", "_h") and finest == DAY:
+            finest = HOUR
+    return finest
 
 
 def finest_of(cell: str, reading: Reading) -> str:
@@ -616,7 +651,7 @@ def finest_of(cell: str, reading: Reading) -> str:
         return QUARTER
     fields = _fields(cell, reading)
     if fields is None:
-        return DAY
+        return _layout_finest(reading.member) if parsing.is_layout_name(reading.member) else DAY
     codes = ""
     for code, _start, _end in fields:
         codes = codes + code
@@ -645,6 +680,11 @@ def unit_of(cell: str, reading: Reading) -> int:
         for code, start, end in fields if fields is not None else []:
             if code == "f":
                 return int(10 ** max(9 - (end - start), 0))
+        if fields is None and _trailing_fraction(cell + "") != 0 or (
+            fields is None and _ends_in_a_fraction(cell)
+        ):
+            runs = _runs(cell)
+            return int(10 ** max(9 - (runs[len(runs) - 1][1] - runs[len(runs) - 1][0]), 0))
         return _NS_SECOND
     if finest in _FIXED_LENGTHS:
         return _FIXED_LENGTHS[finest]
@@ -737,7 +777,7 @@ def rewritten(cell: str, reading: Reading, moment: int, padded: bool = True) -> 
         return _count_written(cell, reading, moment)
     fields = _fields(cell, reading)
     if fields is None:
-        return None
+        return _layout_written(cell, reading, moment, False)
     parts = _parts_of(moment)
     text = _filled_in(cell, fields, parts, padded, False)
     if text is None:
@@ -749,6 +789,69 @@ def rewritten(cell: str, reading: Reading, moment: int, padded: bool = True) -> 
     if before is None or again is None or before[1] != again[1]:
         return None
     return text
+
+
+# The width words a layout's flexible fields are written at, each tried in
+# turn for the one that writes a cell in its own form.
+_LAYOUT_WIDTHS = (
+    parsing.WIDTH_PADDED,
+    parsing.WIDTH_UNPADDED,
+    parsing.WIDTH_FIRST_PADDED,
+    parsing.WIDTH_SECOND_PADDED,
+)
+
+
+def _form_of(text: str) -> str:
+    """A cell's form, as the layouts census reads one: a figure `9`, a letter `a` or `A`, the rest as written."""
+    found = ""
+    for character in text:
+        if "0" <= character <= "9":
+            found = found + "9"
+        elif "a" <= character <= "z":
+            found = found + "a"
+        elif "A" <= character <= "Z":
+            found = found + "A"
+        else:
+            found = found + character
+    return found
+
+
+def _layout_written(cell: str, reading: Reading, moment: int, made_up: bool) -> "str | None":
+    """A layout cell written by the layout's own writer (`parsing.written_layout_date`), or None.
+
+    The moment's canonical text with the layout's clock where it has one,
+    the cell's own offset (none for a made-up cell), its fraction's
+    figures; the first width word that writes the cell's own form (a
+    made-up cell: its very form) and reads back under the member.
+    """
+    if not parsing.is_layout_name(reading.member):
+        return None
+    parts = _parts_of(moment)
+    canonical = f"{parts.year:04d}-{parts.month:02d}-{parts.day:02d}"
+    if parsing.layout_has_clock(reading.member):
+        canonical = f"{canonical} {parts.hour:02d}:{parts.minute:02d}:{parts.second:02d}"
+    offset = ""
+    if not made_up:
+        read = parsing.parse_datetime(cell, reading.member)
+        if read is None:
+            return None
+        offset = read[1]
+    figures = 0
+    runs = _runs(cell)
+    if runs and runs[len(runs) - 1][2] == _DIGIT and cell[runs[len(runs) - 1][0] - 1 : runs[len(runs) - 1][0]] in (".", ","):
+        figures = runs[len(runs) - 1][1] - runs[len(runs) - 1][0]
+    shape = _form_of(cell)
+    for width in _LAYOUT_WIDTHS:
+        text = parsing.written_layout_date(reading.member, canonical, offset, width, figures)
+        again = parsing.parse_datetime(text, reading.member)
+        if again is None:
+            continue
+        if made_up and _form_of(text) != shape:
+            continue
+        if not made_up and again[1] != offset:
+            continue
+        return text
+    return None
 
 
 def _clock_written(reading: Reading, moment: int) -> "str | None":
@@ -992,7 +1095,7 @@ def filled(
         return _filled_count(cell, reading, word, span, taken)
     fields = _fields(cell, reading, True)
     if fields is None:
-        return None
+        return _filled_layout(cell, reading, word, span, taken)
     unit = _NS_DAY
     for code, start, stop in fields:
         if code in ("h", "i") and unit > _NS_HOUR:
@@ -1019,6 +1122,33 @@ def filled(
             moment = moment + unit
             continue
         moment = after(start_of(moment, miss), miss)
+    return None
+
+
+def _filled_layout(
+    cell: str, reading: Reading, word: int, span: "tuple[int, int]", taken: "dict[str, bool]",
+) -> "str | None":
+    """A made-up cell of a layout no field rule writes, filled by the layout's own writer.
+
+    Steps of a day, or of a second where the layout has a clock, from the
+    drawn start to the first moment the layout writes in the made-up
+    cell's very form, no earlier made-up cell took; at most 20,000 steps.
+    """
+    if not parsing.is_layout_name(reading.member):
+        return None
+    first, end = span
+    unit = _NS_SECOND if parsing.layout_has_clock(reading.member) else _NS_DAY
+    count = (end - first) // unit
+    if count <= 0:
+        return None
+    moment = first + bounded(word, count) * unit
+    for _step in range(20000):
+        if moment >= end:
+            moment = first
+        made = _layout_written(cell, reading, moment, True)
+        if made is not None and made not in taken:
+            return made
+        moment = moment + (_NS_DAY if unit == _NS_DAY else 3607 * _NS_SECOND)
     return None
 
 
@@ -1138,7 +1268,7 @@ def record(grain: Grain) -> "dict[str, object]":
         "kind": grain.reading.kind,
         "reading": grain.reading.member,
         "mark": grain.reading.mark,
-        "values": grain.values,
+        "rows": grain.rows,
         "spans": [
             [rung, span_text(first, grain.reading.kind), span_text(last, grain.reading.kind)]
             for rung, first, last in grain.spans

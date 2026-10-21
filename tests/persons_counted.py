@@ -153,6 +153,84 @@ def _counted_day(text: str, member: str) -> "str | None":
     return None
 
 
+# THE GRAIN A BLOCK PUBLISHES (plan P4-D417), read apart from `grains`: each
+# value floored to the start of its bucket by `datetime`, written as the
+# canonical text the block's points are written in.
+_RUNG_ORDER = ("year", "quarter", "month", "day", "four hours", "hour", "minute", "second")
+
+
+def _grain_moment(value: str, grain: "dict[str, object]", member: str) -> "datetime.datetime | None":
+    kind = grain["kind"]
+    reading = f"{grain['reading']}"
+    if kind == "clock":
+        found = _clock(value)
+        if found is None:
+            return None
+        return datetime.datetime(2000, 1, 1) + datetime.timedelta(
+            minutes=found[0], seconds=max(found[1], 0))
+    if kind == "counted":
+        day = _counted_day(value, member or reading)
+        return None if day is None else datetime.datetime.fromisoformat(day)
+    read = parsing.parse_datetime(value, reading)
+    if read is None:
+        return None
+    text = read[0]
+    if len(text) == 7 and text[4:6].upper() == "-Q":
+        return datetime.datetime(int(text[:4]), (int(text[6]) - 1) * 3 + 1, 1)
+    if len(text) == 7:
+        return datetime.datetime(int(text[:4]), int(text[5:7]), 1)
+    return datetime.datetime.fromisoformat(text)
+
+
+def _grain_floor(moment: "datetime.datetime", rung: str) -> "datetime.datetime":
+    if rung == "year":
+        return datetime.datetime(moment.year, 1, 1)
+    if rung == "quarter":
+        return datetime.datetime(moment.year, (moment.month - 1) // 3 * 3 + 1, 1)
+    if rung == "month":
+        return datetime.datetime(moment.year, moment.month, 1)
+    if rung == "day":
+        return datetime.datetime(moment.year, moment.month, moment.day)
+    if rung == "four hours":
+        return moment.replace(hour=moment.hour // 4 * 4, minute=0, second=0, microsecond=0)
+    if rung == "hour":
+        return moment.replace(minute=0, second=0, microsecond=0)
+    if rung == "minute":
+        return moment.replace(second=0, microsecond=0)
+    return moment.replace(microsecond=0)
+
+
+def _grain_text(moment: "datetime.datetime", grain: "dict[str, object]", block: "dict[str, object]") -> str:
+    if grain["kind"] == "clock":
+        with_seconds = "-ss" in f"{block.get('clock_form', '')}" or "-ss" in f"{grain['reading']}"
+        return moment.strftime("%H:%M:%S" if with_seconds else "%H:%M")
+    if grain["kind"] == "stamp" or moment.time() != datetime.time(0):
+        return moment.strftime("%Y-%m-%d %H:%M:%S")
+    return moment.strftime("%Y-%m-%d")
+
+
+def at_the_grain(values: "list[str]", block: "dict[str, object]", member: str = "") -> "list[str]":
+    """A column's values as the points of its block's grain name them, or as they are."""
+    grain = block.get("time_grain")
+    if not isinstance(grain, dict) or grain.get("rung") == "held" or not grain.get("spans"):
+        return values
+    rung, first_text, last_text = grain["spans"][-1]
+    clock = grain["kind"] == "clock"
+    first = (datetime.datetime(2000, 1, 1) + (datetime.datetime.strptime(first_text, "%H:%M:%S")
+             - datetime.datetime(1900, 1, 1))) if clock else datetime.datetime.fromisoformat(first_text)
+    last = (datetime.datetime(2000, 1, 1) + (datetime.datetime.strptime(last_text, "%H:%M:%S")
+            - datetime.datetime(1900, 1, 1))) if clock else datetime.datetime.fromisoformat(last_text)
+    found: "list[str]" = []
+    for value in values:
+        moment = _grain_moment(value, grain, member) if parsing.folded(value) else None
+        if moment is None:
+            found += [value]
+            continue
+        start = min(max(_grain_floor(moment, rung), first), last)
+        found += [_grain_text(start, grain, block)]
+    return found
+
+
 def is_published(value: str, block: "dict[str, object]",
                  seen: "tuple[set[str], set[float]]",
                  how: "tuple[str, bool]" = ("", False)) -> bool:
@@ -402,6 +480,10 @@ def count(names: "list[str]", columns: "list[list[str]]",
         if not others:
             continue
         block = blocks[name]
+        # A COLUMN DESCRIBED AT A GRAIN (plan P4-D417): each of its values
+        # is counted as the start of its bucket, the tails pooled into the
+        # record's ends -- what each published point names.
+        values = at_the_grain(values, block, members.get(name, ""))
         how = (members.get(name, ""), name in commas)
         prefixes = _prefixes(block)
         dated = block.get("role") in ("datetime", "time_of_day")
