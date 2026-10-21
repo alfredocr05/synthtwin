@@ -1098,9 +1098,11 @@ def test_k_s4_20_s_ceilings_fail_on_the_pushed_staircase(
     """K-S4-20's ceilings judge the repair (Codex's item 3): the fixtures read through 36ad3061's pushed staircase break all three.
 
     Spread off at most 20 per thousand, a tail's mean distance at most
-    100 per thousand and at most five cells on a derived end; 36ad3061
-    stood at 76, 3,355 and 193, its counts of misses and of cells past the
-    range nought as here. Mutant: no side reads the shared staircase.
+    100 per thousand and at most five cells on a derived end; on 36ad3061
+    `number_tail_measures` reads 292.9 and 4,697.4 per thousand, both
+    `visits`'s, and 193 cells, `few`'s (the bell's own are 76.3 and
+    3,395.7), its counts of misses and of cells past the range nought as
+    here. Mutant: no side reads the shared staircase.
     """
     monkeypatch.setattr(contract, "_shares_its_points", lambda _side, _facts, _mean: False)
     measured = number_tail_measures(tmp_path)
@@ -1121,9 +1123,10 @@ def number_tail_measures(folder: pathlib.Path) -> "dict[str, float]":
     `validate` MISSED -- the moments and each tail's two distances. And,
     recorded beside them, each fixture's twin spread off the published one
     and each tail's mean distance off its published one, in parts per
-    thousand, the widest of each. On 36ad3061 the bell's spread stood 76
-    parts per thousand off and its tails 3,355; the count's high tail held
-    193 cells on its derived end.
+    thousand, the widest of each. On 36ad3061 these read 292.9 and 4,697.4
+    parts per thousand, both `visits`'s, and 193 cells, `few`'s high tail
+    on its derived end; the bell's own spread stood 76.3 parts per
+    thousand off and its tails 3,395.7 and 3,314.0.
     """
     tables = {
         "bell": {"reading": _bell_one_place(20000)},

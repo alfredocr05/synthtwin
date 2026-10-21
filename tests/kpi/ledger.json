@@ -9246,7 +9246,7 @@
    "headline": false,
    "name": "A number column's twin stays inside its published range and meets its spread and tails",
    "status": "GREEN",
-   "rule": "machine-free: over a bell written at one place and two counts of few values, 20,000 rows each, seed 0: the twin cells past the range each description publishes (its min and max where printed, the ladder's derived ends otherwise) are 0 and the moments' and tails' obligations validate MISSED are 0; and, since lane G2T's second repair (Codex's item 3), the widest twin spread off its published value at most 20 per thousand, the widest tail mean distance off at most 100 per thousand and the most cells on a derived end at most 5 -- ceilings 36ad3061 breaks on all three (76, 3,355 and 193), where its two counts were nought as here",
+   "rule": "machine-free: over a bell written at one place and two counts of few values, 20,000 rows each, seed 0: the twin cells past the range each description publishes (its min and max where printed, the ladder's derived ends otherwise) are 0 and the moments' and tails' obligations validate MISSED are 0; and, since lane G2T's second repair (Codex's item 3), the widest twin spread off its published value at most 20 per thousand, the widest tail mean distance off at most 100 per thousand and the most cells on a derived end at most 5 -- ceilings 36ad3061 breaks on all three, this KPI's own measure reading 292.9 and 4,697.4 per thousand there, both `visits`'s, and 193 cells, `few`'s (the bell's own 76.3 and 3,395.7), where its two counts were nought as here",
    "rule_kind": "exact",
    "key_kinds": {
     "most_cells_on_a_derived_end": "at_most",
