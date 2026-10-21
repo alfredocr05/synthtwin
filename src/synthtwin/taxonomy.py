@@ -29332,3 +29332,74 @@ def window_population_deviation(values: "list[float]", count: int) -> float:
         return float("inf")
     return spread * math.sqrt((count - 1) / count)
 
+
+
+# -- THE CHAIN'S READING OF ONE COLUMN (lane CHa, plan P4-D418) -----------
+
+
+def spellings_read(
+    values: "list[str]",
+    name: str,
+    settings: Settings,
+    forced_code: bool = False,
+    forced_measurement: bool = False,
+    forced_decimal_comma: bool = False,
+    stored_as: str = "",
+) -> "dict[str, tuple[str, float | None]]":
+    """Each spelling of one column read as `profile_column` reads it: (kind, number).
+
+    THE CHAIN'S BANDS READ THE CLASSIFIER'S OWN DECISION (contract
+    4.6b.2: the range bands count exactly the cells the generation method
+    lays out for the column's readings). Which cells are present, and what
+    each present one is as a number, is decided once for the whole column
+    by `_read_the_column` -- declarations, the judged stand-ins, the
+    calendar placeholders and the cores -- and every pass decides by the
+    spelling, so one spelling reads one way on every row. This hands that
+    decision over spelling by spelling: `missing` for a spelling the
+    column counts absent, otherwise the cell's kind (`parsing.NUMBER` and
+    its number, or another kind and None).
+
+    Guarantees: accepts the column's cells in row order, its name, the
+    table's settings and the declarations `profile_column` was given;
+    returns one entry for every spelling of the column. Determinism: a
+    function of the arguments. Errors raised: as `_read_the_column`.
+    No I/O. Used only behind the chain's switch, which no shipped command
+    turns on.
+    """
+    narrowed = counted_for_the_column(for_the_column(settings, name), name)
+    read = _read_the_column(
+        values,
+        len(values),
+        narrowed,
+        forced_code=forced_code,
+        forced_measurement=forced_measurement,
+        forced_decimal_comma=forced_decimal_comma,
+        stored_as=stored_as,
+    )
+    out: "dict[str, tuple[str, float | None]]" = {}
+    for text, _reason in read.missing:
+        out[text] = ("missing", None)
+    for cell in read.cells.classified:
+        if cell.text not in out:
+            out[cell.text] = (cell.kind, cell.value)
+    for text in read.present:
+        if text not in out:
+            out[text] = ("", None)
+    return out
+
+
+def core_read(
+    text: str, prefix: str, suffix: str, decimal_comma: bool = False
+) -> "tuple[str, float | None] | None":
+    """One affixed cell's core read as a number is: (kind, number), or None where it wears no pair."""
+    core = _core_of(text, prefix, suffix)
+    if core is None:
+        return None
+    cell = _classify_all([core], decimal_comma)[0]
+    return cell.kind, cell.value
+
+
+def spelling_read(text: str, decimal_comma: bool = False) -> "tuple[str, float | None]":
+    """One spelling classified as a cell is: (kind, number)."""
+    cell = _classify_all([text], decimal_comma)[0]
+    return cell.kind, cell.value

@@ -810,9 +810,9 @@ def members(family: Family) -> "tuple[tuple[str, int], ...]":
     return ((family.child, family.level),) + family.parents
 
 
-def radices(family: Family, ladders: "dict[str, Ladder]") -> "list[int]":
+def radices(family: Family, scales: "dict[str, Ladder]") -> "list[int]":
     """Each member's band count at its level in the family, child first."""
-    return [ladders[name].counts[level] for name, level in members(family)]
+    return [scales[name].counts[level] for name, level in members(family)]
 
 
 def cell_parts(index: int, sizes: "list[int]") -> "list[int]":
@@ -836,29 +836,29 @@ class ParentCells:
     same levels of many candidates.
     """
 
-    ladders: "dict[str, Ladder]"
+    scales: "dict[str, Ladder]"
     parents: "tuple[str, ...]"
     anchor: "Family | None"
     kept: "dict[tuple[int, ...], list[int]]"
 
 
-def parent_cells(ladders: "dict[str, Ladder]", parents: "tuple[str, ...]", anchor: "Family | None") -> ParentCells:
+def parent_cells(scales: "dict[str, Ladder]", parents: "tuple[str, ...]", anchor: "Family | None") -> ParentCells:
     """A candidate's margins, nothing summed yet."""
-    return ParentCells(ladders, parents, anchor, {})
+    return ParentCells(scales, parents, anchor, {})
 
 
 def parent_cells_at(margins: ParentCells, levels: "tuple[int, ...]") -> "list[int]":
     """The parents' joint cell totals at `levels`, the last parent varying fastest."""
     if levels in margins.kept:
         return margins.kept[levels]
-    ladders = margins.ladders
+    scales = margins.scales
     anchor = margins.anchor
     if anchor is None:
-        out = totals_at(ladders[margins.parents[0]], levels[0])
+        out = totals_at(scales[margins.parents[0]], levels[0])
         margins.kept[levels] = out
         return out
     held = members(anchor)
-    sizes = radices(anchor, ladders)
+    sizes = radices(anchor, scales)
     places: "list[int]" = []
     maps: "list[list[int]]" = []
     width = 1
@@ -867,8 +867,8 @@ def parent_cells_at(margins: ParentCells, levels: "tuple[int, ...]") -> "list[in
         for place in range(len(held)):
             if held[place][0] == name:
                 places += [place]
-                maps += [coarsen(ladders[name], held[place][1], levels[at_place])]
-        width *= ladders[name].counts[levels[at_place]]
+                maps += [coarsen(scales[name], held[place][1], levels[at_place])]
+        width *= scales[name].counts[levels[at_place]]
     out = [0] * width
     table = anchor.table
     for index in range(len(table)):
@@ -879,7 +879,7 @@ def parent_cells_at(margins: ParentCells, levels: "tuple[int, ...]") -> "list[in
         cell = 0
         for at_place in range(len(places)):
             name = margins.parents[at_place]
-            cell = cell * ladders[name].counts[levels[at_place]] + maps[at_place][parts[places[at_place]]]
+            cell = cell * scales[name].counts[levels[at_place]] + maps[at_place][parts[places[at_place]]]
         out[cell] += count
     margins.kept[levels] = out
     return out
@@ -889,7 +889,7 @@ def parent_cells_at(margins: ParentCells, levels: "tuple[int, ...]") -> "list[in
 
 
 def offered_levels(
-    ladders_of: "list[Ladder]",
+    scales_of: "list[Ladder]",
     start: "list[int]",
     order: "list[int]",
     margins: "ParentCells | None",
@@ -898,40 +898,40 @@ def offered_levels(
 ) -> "list[int] | None":
     """W3 and NE's levels for a candidate, or None where it is not offered.
 
-    `ladders_of[0]` is the child, the rest the parents; `start` their
+    `scales_of[0]` is the child, the rest the parents; `start` their
     starting levels (the child at `L0`, each parent at its level in the
     anchor, a root pair both at `L0`); `order` each member's place in
     schema order (the tie rule). `margins` gives the parents' joint cell
     totals (RULE NE); None for a candidate with no parent.
     """
     levels = list(start)
-    count = len(ladders_of)
+    count = len(scales_of)
     while True:
-        bands = [ladders_of[at].counts[levels[at]] for at in range(count)]
+        bands = [scales_of[at].counts[levels[at]] for at in range(count)]
         failing: "list[int]" = []
         for at in range(count):
             others = 1
             for other in range(count):
                 if other != at:
                     others *= bands[other]
-            if min(totals_at(ladders_of[at], levels[at])) < floor * others:
+            if min(totals_at(scales_of[at], levels[at])) < floor * others:
                 failing += [at]
         if not failing:
             break
-        movable = [(min(totals_at(ladders_of[at], levels[at])), order[at], at) for at in failing if levels[at] < 2]
+        movable = [(min(totals_at(scales_of[at], levels[at])), order[at], at) for at in failing if levels[at] < 2]
         if not movable:
             return None
         levels[min(movable)[2]] += 1
     if count == 1 or margins is None:
         return levels
     while True:
-        child_totals = totals_at(ladders_of[0], levels[0])
+        child_totals = totals_at(scales_of[0], levels[0])
         cells = parent_cells_at(margins, tuple(levels[1:]))
         smallest_cell = min(cells)
         smallest_child = min(child_totals)
         if smallest_child * smallest_cell >= (floor + 1) * tabled:
             return levels
-        movable = [(min(totals_at(ladders_of[at], levels[at])), order[at], at) for at in range(count) if levels[at] < 2]
+        movable = [(min(totals_at(scales_of[at], levels[at])), order[at], at) for at in range(count) if levels[at] < 2]
         if not movable:
             return None
         levels[min(movable)[2]] += 1
@@ -1019,7 +1019,7 @@ class Support:
     links: "tuple[tuple[tuple[int, tuple[int, ...]], ...], ...]"
 
 
-def support_of(families: "list[Family]", ladders: "dict[str, Ladder]") -> Support:
+def support_of(families: "list[Family]", scales: "dict[str, Ladder]") -> Support:
     """The chain's support, read from its families' published tables."""
     chain_level: "dict[str, int]" = {}
     home: "dict[str, int]" = {}
@@ -1035,7 +1035,7 @@ def support_of(families: "list[Family]", ladders: "dict[str, Ladder]") -> Suppor
     links: "list[tuple[tuple[int, tuple[int, ...]], ...]]" = []
     for at in range(len(families)):
         family = families[at]
-        sizes = radices(family, ladders)
+        sizes = radices(family, scales)
         live: "list[tuple[int, tuple[int, ...]]]" = []
         for index in range(len(family.table)):
             if family.table[index]:
@@ -1047,7 +1047,7 @@ def support_of(families: "list[Family]", ladders: "dict[str, Ladder]") -> Suppor
             for name, level in family.parents:
                 for place in range(len(anchor_members)):
                     if anchor_members[place][0] == name:
-                        link += [(place, tuple(coarsen(ladders[name], anchor_members[place][1], level)))]
+                        link += [(place, tuple(coarsen(scales[name], anchor_members[place][1], level)))]
         links += [tuple(link)]
     return Support(
         tuple(families),
@@ -1101,7 +1101,7 @@ def column_bands(support: Support, reached: "list[list[tuple[int, tuple[int, ...
 
 def w1_refusals(
     families: "list[Family]",
-    ladders: "dict[str, Ladder]",
+    scales: "dict[str, Ladder]",
     groups: "dict[str, set[int]]",
 ) -> "list[tuple[str, int, str]]":
     """RULE W1 in full (4.6b.3): every (column, chain-level band, other column) that fails.
@@ -1112,14 +1112,14 @@ def w1_refusals(
     bands of `m`'s coarsest level, `L2`. Returns each failing triple in
     chain order, empty where W1 holds.
     """
-    support = support_of(families, ladders)
+    support = support_of(families, scales)
     failing: "list[tuple[str, int, str]]" = []
     for family in families:
         name = family.child
         if name not in groups:
             continue
         level = support.chain_level[name]
-        ladder = ladders[name]
+        ladder = scales[name]
         bands = sorted({ladder.maps[level][at] for at in groups[name]})
         for band in bands:
             reached_all = beliefs(support, (name, {band}))
@@ -1128,7 +1128,7 @@ def w1_refusals(
                 if other == name:
                     continue
                 reached = column_bands(support, reached_all, other)
-                coarse = coarsen(ladders[other], support.chain_level[other], 2)
+                coarse = coarsen(scales[other], support.chain_level[other], 2)
                 if len({coarse[at] for at in reached}) < 2:
                     failing += [(name, band, other)]
     return failing
@@ -1197,13 +1197,13 @@ def outside_cells(document: "dict[str, object]", eligible: "set[str]") -> int:
     return total
 
 
-def blank_cell(ladders: "dict[str, Ladder]", blank_counts: "dict[str, int]") -> "dict[str, int] | None":
+def blank_cell(scales: "dict[str, Ladder]", blank_counts: "dict[str, int]") -> "dict[str, int] | None":
     """`x0`: each eligible column's `L0` band holding its blank cells, or None where one holds none."""
     out: "dict[str, int]" = {}
-    for name in ladders:
+    for name in scales:
         if name not in blank_counts or blank_counts[name] <= 0:
             return None
-        ladder = ladders[name]
+        ladder = scales[name]
         found = -1
         for at in range(len(ladder.l0)):
             if MISSING in ladder.l0[at]:
@@ -1214,22 +1214,22 @@ def blank_cell(ladders: "dict[str, Ladder]", blank_counts: "dict[str, int]") -> 
     return out
 
 
-def cell_bound(x0: "dict[str, int]", families: "list[Family]", ladders: "dict[str, Ladder]", tabled: int) -> int:
+def cell_bound(x0: "dict[str, int]", families: "list[Family]", scales: "dict[str, Ladder]", tabled: int) -> int:
     """`b(x0)`: the smallest published number counting a set of rows holding `x0` (4.6b.9 (a))."""
     bound = tabled
     for name in x0:
-        bound = min(bound, ladders[name].totals[x0[name]])
+        bound = min(bound, scales[name].totals[x0[name]])
     for family in families:
-        sizes = radices(family, ladders)
+        sizes = radices(family, scales)
         held = members(family)
         if any(name not in x0 for name, _level in held):
             continue
         index = 0
         for place in range(1, len(held)):
             name, level = held[place]
-            index = index * sizes[place] + ladders[name].maps[level][x0[name]]
+            index = index * sizes[place] + scales[name].maps[level][x0[name]]
         child, level = held[0]
-        bound = min(bound, family.table[index * sizes[0] + ladders[child].maps[level][x0[child]]])
+        bound = min(bound, family.table[index * sizes[0] + scales[child].maps[level][x0[child]]])
     return bound
 
 
