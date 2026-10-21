@@ -10,13 +10,15 @@ of fixed seeds, computed in integers and written into the vectors).
 """
 
 import importlib.util
-import pathlib
+import os
 
-HERE = pathlib.Path(__file__).resolve().parent
+# `pathlib` is not imported: on Python 3.11 it reaches `ntpath`, whose
+# import of `_winapi` the provenance guard refuses.
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _load(name):
-    spec = importlib.util.spec_from_file_location(name, HERE / (name + ".py"))
+    spec = importlib.util.spec_from_file_location(name, os.path.join(HERE, name + ".py"))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
