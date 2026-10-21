@@ -1268,7 +1268,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 737_500
+    #
+    # 743,000 from 737,500 (lane CHa, plan P4-D418, 2026-10-21), the least
+    # round figure the lane's ledger fits under: K-S6-08 new, the chain's
+    # tables part, with its note clause. The batch integrator settles this
+    # beside the other lanes' raises.
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 743_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
