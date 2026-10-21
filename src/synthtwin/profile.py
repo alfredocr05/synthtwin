@@ -1822,7 +1822,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # R4 fills on a column of counted dates and leaves `null` on every
     # other: how the column writes its counts (`date_counts.CountForm`).
     # THE GRAIN A COLUMN OF DATES OR TIMES WAS POOLED AT (plan P4-D417,
-    # contract NF128 to NF130): its rung, the column's precision, its kind,
+    # contract NF128, NF129 and TG1): its rung, the column's precision, its kind,
     # how its cells read, the rows its walk read and the spans it passed.
     ("columns", _EACH, "time_grain"): _OBJECT,
     ("columns", _EACH, "time_grain", "rung"): _WORD,
@@ -1831,6 +1831,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "time_grain", "reading"): _WORD,
     ("columns", _EACH, "time_grain", "mark"): _COUNT_MARK,
     ("columns", _EACH, "time_grain", "rows"): _COUNT,
+    ("columns", _EACH, "time_grain", "people"): _COUNT,
     ("columns", _EACH, "time_grain", "spans"): _ARRAY,
     ("columns", _EACH, "time_grain", "spans", _EACH): _ARRAY,
     ("columns", _EACH, "time_grain", "spans", _EACH, _EACH): _GRAIN_SPAN_PART,
@@ -6017,11 +6018,12 @@ def _grain_walk(
     """The grain a column of dates or times is described at, and its cells at it (plan P4-D417).
 
     Each present cell is read as its moment; the column's finest rung is
-    the finest any cell writes, and the rows the walk reads are
-    ``present``, the block's `n_present`, published on every column. At every rung of its ladder the ENDS are the first
+    the finest any cell writes; the walk reads ``present``, the block's
+    `n_present`, published on every column, and the people the subject
+    columns name, the description's population. At every rung of its ladder the ENDS are the first
     and the last bucket held by `floor` different subjects or more under
     every subject column that counts in people (`_holding`, the one
-    count), and `grains.walk` chooses the rung from the published facts
+    count), and `grains.ladder_walk` chooses the rung from the published facts
     alone: the count of different values and the spans. A subject column
     of fewer than `floor` values counts the column only where it is
     attached to it and tells its people apart (plan P4-D406), and then no
@@ -6054,7 +6056,19 @@ def _grain_walk(
         if not enough[place] and _attached(cells, subject_cells[place]) and (
             _names_its_people(cells, subject_cells[place])
         ):
-            return grains.Grain(grains.HELD, kind_reading, present, (), finest), None
+            return grains.Grain(grains.HELD, kind_reading, present, (), finest, 0), None
+    # THE PEOPLE THE SUBJECT COLUMNS NAME, the fewest under several: the
+    # population the description counts, which the walk reads beside the
+    # rows (`grains.estimate`).
+    people = 0
+    for place in range(len(subject_cells)):
+        if not enough[place]:
+            continue
+        named: "dict[str, bool]" = {}
+        for key in subject_cells[place]:
+            named[key] = True
+        if people == 0 or len(named) < people:
+            people = len(named)
     rungs = grains.ladder(kind_reading.kind, finest)
     ends: "dict[str, tuple[int, int] | None]" = {}
     for rung in rungs:
@@ -6086,8 +6100,10 @@ def _grain_walk(
             else:
                 found = (min(found[0], start), max(found[1], start))
         ends[rung] = found
-    rung, spans = grains.walk(present, floor, finest, kind_reading.kind, ends)
-    grain = grains.Grain(rung, kind_reading, present, spans, finest)
+    rung, spans = grains.ladder_walk(
+        grains.estimate(present, people), floor, finest, kind_reading.kind, ends
+    )
+    grain = grains.Grain(rung, kind_reading, present, spans, finest, people)
     if rung == grains.HELD:
         return _held_record(grain), None
     padded = grains.column_padded(cells, kind_reading)

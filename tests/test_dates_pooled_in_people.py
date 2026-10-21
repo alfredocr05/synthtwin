@@ -13,7 +13,7 @@ the spans its record publishes or the method's fixed span, never from the
 table. (2) POOLING IN PEOPLE: such a column is described at a coarser
 calendar grain instead -- every published point a bucket the floor's number
 of people hold, the tails pooled into the first and the last -- at the rung
-its own published facts choose (the rows and the spans: `grains.walk`), and
+its own published facts choose (the rows and the spans: `grains.ladder_walk`), and
 its twin draws each value inside its bucket.
 
 THE GATE: every zoo kind's date column parses on the twin; grains at day,
@@ -35,7 +35,6 @@ import io
 import json
 import pathlib
 import random
-import types
 
 import pytest
 
@@ -45,8 +44,6 @@ import health_zoo
 import persons_counted
 import unanswered_identifier_shapes as shapes
 
-REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
-ORACLE = REPOSITORY / "tools" / "reference" / "make_generation_reference_vectors.py"
 FLOOR = 11
 
 
@@ -203,15 +200,15 @@ def test_every_zoo_kinds_dates_parse_on_the_twin(tmp_path: pathlib.Path, name: s
 @pytest.mark.parametrize(
     ("rung", "rows", "patients", "days", "written", "form"),
     (
-        ("day", 3000, 600, 90, "stamp", "%Y-%m-%d %H:%M"),
-        ("month", 600, 200, 730, "us", "%m/%d/%Y"),
+        ("day", 6000, 1500, 90, "stamp", "%Y-%m-%d %H:%M"),
+        ("month", 1200, 400, 730, "us", "%m/%d/%Y"),
         ("year", 300, 150, 5 * 365, "us", "%m/%d/%Y"),
     ),
 )
 def test_a_grain_at_day_month_and_year(
     tmp_path: pathlib.Path, rung: str, rows: int, patients: int, days: int, written: str, form: str
 ) -> None:
-    """The walk's rung moves with the rows a bucket would hold; every point at it holds eleven people."""
+    """The walk's rung moves with the visits a bucket would hold; every point at it holds eleven people."""
     text = _visits(rows, patients, datetime.date(2023, 1, 1), days, 7, written)
     described = _profiled(tmp_path, "visits", text, "--identifier", "patient")
     block = _block(described, "seen")
@@ -340,13 +337,13 @@ def test_the_grain_is_chosen_from_published_facts_and_not_from_failing_points(
 
 
 def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathlib.Path) -> None:
-    """NF130: a description naming a finer or a coarser rung than its rows and spans choose is not loaded."""
-    text = _visits(600, 200, datetime.date(2023, 1, 1), 730, 7)
+    """TG1: a description naming a finer or a coarser rung than its rows, people and spans choose is not loaded."""
+    text = _visits(1200, 400, datetime.date(2023, 1, 1), 730, 7)
     _profiled(tmp_path, "visits", text, "--identifier", "patient")
     path = tmp_path / "visits-profile.json"
     original = json.loads(path.read_text(encoding="utf-8"))
     assert _block(original, "seen")["time_grain"]["rung"] == "month"
-    for change in ("finer", "coarser", "rows", "held", "reading", "key", "start"):
+    for change in ("finer", "coarser", "rows", "people", "held", "reading", "key", "start"):
         document = json.loads(json.dumps(original))
         grain = _block(document, "seen")["time_grain"]
         if change == "finer":
@@ -356,7 +353,9 @@ def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathli
             grain["spans"] = grain["spans"][:2]
             grain["rung"] = "quarter"
         elif change == "rows":
-            grain["rows"] = 599
+            grain["rows"] = 1199
+        elif change == "people":
+            grain["people"] = 200
         elif change == "held":
             grain["rung"] = grains.HELD
         elif change == "reading":
@@ -371,7 +370,7 @@ def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathli
 
 
 def test_the_walk_reads_its_record_alone() -> None:
-    """`walk_holds` recomputes the rung from the rows and the spans; every other rung is refused."""
+    """`walk_holds` recomputes the rung from the rows, the people and the spans; every other rung is refused."""
     day = 86400 * 10**9
     first = 19358 * day
     reading = grains.Reading(grains.DATE, "iso-date")
@@ -380,12 +379,16 @@ def test_the_walk_reads_its_record_alone() -> None:
         ("quarter", first, grains.start_of(first + 700 * day, "quarter")),
         ("month", first, grains.start_of(first + 720 * day, "month")),
     )
-    assert grains.walk_holds(grains.Grain("month", reading, 600, spans, "day"), FLOOR)
-    assert not grains.walk_holds(grains.Grain("quarter", reading, 600, spans[:2], "day"), FLOOR)
-    assert not grains.walk_holds(grains.Grain("month", reading, 500, spans, "day"), FLOOR)
-    assert grains.walk_holds(grains.Grain("quarter", reading, 500, spans[:2], "day"), FLOOR)
-    assert grains.walk_holds(grains.Grain(grains.HELD, reading, 600, spans, "day"), FLOOR)
-    assert grains.walk_holds(grains.Grain(grains.HELD, reading, 600, (), "day"), FLOOR)
+    # 600 rows of 200 people: about 346 visits, 22 a bucket reach eight
+    # quarters and not twenty-four months.
+    assert grains.estimate(600, 200) == 346
+    assert grains.walk_holds(grains.Grain("quarter", reading, 600, spans[:2], "day", 200), FLOOR)
+    assert not grains.walk_holds(grains.Grain("month", reading, 600, spans, "day", 200), FLOOR)
+    assert grains.walk_holds(grains.Grain("month", reading, 600, spans, "day", 600), FLOOR)
+    assert not grains.walk_holds(grains.Grain("quarter", reading, 600, spans[:2], "day", 600), FLOOR)
+    assert grains.walk_holds(grains.Grain(grains.HELD, reading, 600, spans, "day", 600), FLOOR)
+    assert grains.walk_holds(grains.Grain(grains.HELD, reading, 600, (), "day", 0), FLOOR)
+    assert not grains.walk_holds(grains.Grain("day", reading, 600, spans, "day", 600), FLOOR)
 
 
 # -- (6) clocks, stamps and counted dates ------------------------------------
@@ -406,9 +409,10 @@ def test_clock_times_are_pooled_by_the_hour_and_parse(tmp_path: pathlib.Path) ->
 
 def test_the_draw_is_the_oracles() -> None:
     """Method G7.13: the product's draw inside a bucket is the oracle's, word for word."""
-    module = types.ModuleType("oracle_pooled")
-    module.__dict__["__file__"] = str(ORACLE)
-    exec(compile(ORACLE.read_text(encoding="utf-8"), str(ORACLE), "exec"), module.__dict__)
+    # The oracle as the witnesses' test runs it (one route that runs it,
+    # `tests/test_version_reach.py`'s ROUTES_THAT_RUN_SOURCE).
+    from test_oracle_rule_witnesses import ORACLE_MODULE as module
+
     draw = random.Random(41)
     cases = (
         ("03/01/2024", "month-first-date", grains.DATE, "month"),

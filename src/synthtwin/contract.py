@@ -7942,7 +7942,7 @@ def _column(
 # of dates and clock times, the two every column of one or two values
 # takes first, and a held record number.
 GRAIN_ROLES = (ROLE_DATETIME, ROLE_CLOCK, "constant", "binary", ROLE_IDENTIFIER)
-GRAIN_KEYS = ("finest", "kind", "mark", "reading", "rung", "rows", "spans")
+GRAIN_KEYS = ("finest", "kind", "mark", "people", "reading", "rung", "rows", "spans")
 
 
 def _time_grain(
@@ -7952,14 +7952,14 @@ def _time_grain(
     mapping: "dict[str, object]",
     frame: "_Frame",
 ) -> "grains.Grain":
-    """A block's `time_grain` record, checked in full (contract NF128 to NF130).
+    """A block's `time_grain` record, checked in full (contract NF128, NF129 and TG1).
 
     The rung is `held` on a held record number and on no other role; the
     reading is one this description's own readers know, and the date
     member or clock form the block itself publishes where it publishes
     one; each span is a pair of bucket starts at its own rung, first at
     most last; and the rung is the one the record's own published facts
-    choose (`grains.walk_holds`, NF130): a description cannot carry a
+    choose (`grains.walk_holds`, TG1): a description cannot carry a
     grain chosen any other way.
     """
     seat = f"{where}, in its `time_grain`"
@@ -7971,9 +7971,10 @@ def _time_grain(
     reading_text = _filled_text(block["reading"], "reading", seat)
     mark = _one_of(block["mark"], "mark", seat, date_counts.MARKS)
     rows = _whole(block["rows"], "rows", seat, 0)
+    people = _whole(block["people"], "people", seat, 0)
     if "n_present" in mapping and mapping["n_present"] != rows:
         raise _broken(
-            "NF130",
+            "TG1",
             seat,
             f"the record's walk read {rows} rows",
             "the block publishes another count of present cells",
@@ -8007,7 +8008,7 @@ def _time_grain(
     for entry in _listing(block["spans"], "spans", seat):
         listed = _listing(entry, f"spans[{place}]", seat)
         if len(listed) != 3:
-            raise _broken("NF130", seat, f"span {place + 1} holds {len(listed)} entries", "a span is a rung and two starts")
+            raise _broken("TG1", seat, f"span {place + 1} holds {len(listed)} entries", "a span is a rung and two starts")
         span_rung = _one_of(listed[0], f"spans[{place}][0]", seat, grains.RUNGS)
         first = grains.span_moment(_text(listed[1], f"spans[{place}][1]", seat), kind)
         last = grains.span_moment(_text(listed[2], f"spans[{place}][2]", seat), kind)
@@ -8015,13 +8016,15 @@ def _time_grain(
             raise _out_of_range(f"spans[{place}]", seat, "a start", "the start of a bucket, written as the record writes one")
         spans += [(span_rung, first, last)]
         place = place + 1
-    grain = grains.Grain(rung, grains.Reading(kind, reading_text, mark), rows, tuple(spans), finest)
+    grain = grains.Grain(
+        rung, grains.Reading(kind, reading_text, mark), rows, tuple(spans), finest, people
+    )
     if not grains.walk_holds(grain, frame.floor):
         raise _broken(
-            "NF130",
+            "TG1",
             seat,
             f"the record names the rung '{rung}'",
-            "its own published facts -- the rows and the spans -- choose another",
+            "its own published facts -- the rows, the people and the spans -- choose another",
         )
     return grain
 

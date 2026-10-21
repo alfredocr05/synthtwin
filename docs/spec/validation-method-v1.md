@@ -3979,7 +3979,7 @@ it. Lane CHv measures the whole check under `K-S6-15`.
 ## V14. Dates and times read at their published grain (lane PS, plan P4-D417)
 
 **V14.1 The grain is read, never chosen.** A column whose block carries
-`time_grain` at a rung (contract NF128, NF130) was described from its
+`time_grain` at a rung (contract NF128, TG1) was described from its
 cells written as the starts of their buckets, the tails pooled into the
 record's last span. The validator measures such a column AT THAT RUNG:
 right after the checked file is read, each of the column's present cells

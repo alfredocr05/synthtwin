@@ -29,13 +29,17 @@ hour, minute, second; clock times a block of `BLOCK_HOURS` hours, hour,
 minute, second. A counted date climbs the dates' or the stamps' ladder by
 the precision its counts carry.
 
-THE GRAIN IS FIXED BY PUBLISHED FACTS ONLY (`walk`). At each rung the
+THE GRAIN IS FIXED BY PUBLISHED FACTS ONLY (`ladder_walk`). At each rung the
 SPAN is the first and the last bucket at least the floor's number of people
 hold, under every subject column; the walk starts at the top rung and goes
-one rung finer while the column's present rows (`rows`, the block's own
-`n_present`) are at least `ROWS_A_BUCKET` floors for every bucket of the
-finer rung inside the current span; each span it passes is published in
-the record. So the grain is a function of the record alone
+one rung finer while the column's ESTIMATE of its people's visits -- the
+whole square root of its present rows (`rows`, the block's own `n_present`)
+times the people the subject column names (`people`, the population the
+description counts) -- is at least `ROWS_A_BUCKET` floors for every bucket
+of the finer rung inside the current span; each span it passes is
+published in the record. The estimate lies between the people, each in
+one bucket, and the rows, each in its own, so neither a table of a few
+rows a person nor one of many on a visit day leads the walk far astray. So the grain is a function of the record alone
 (`walk_holds` recomputes it), and no finer point's failure chooses it. The
 rows before the first bucket of the chosen rung and after its last are
 counted in those two (the TAILS POOLED). Where the top rung has no span,
@@ -85,10 +89,11 @@ RANK = {YEAR: 0, QUARTER: 1, MONTH: 2, DAY: 3, BLOCK: 4, HOUR: 5, MINUTE: 6, SEC
 # The hours one block of a clock holds: six blocks a day, from midnight.
 BLOCK_HOURS = 4
 
-# THE WALK'S ONE CONSTANT: the rows a finer rung must hold, on average, in
-# every bucket inside the current span, counted in floors. Two floors -- 22
-# rows a bucket at the default floor of 11 -- so a rung is entered only
-# where a bucket of it would on average hold twice what its points need.
+# THE WALK'S ONE CONSTANT: the estimated visits a finer rung must hold, on
+# average, in every bucket inside the current span, counted in floors. Two
+# floors -- 22 a bucket at the default floor of 11 -- so a rung is entered
+# only where a bucket of it would on average hold twice what its points
+# need.
 ROWS_A_BUCKET = 2
 
 # THE FIXED SPAN the G1 floor draws from where nothing is published under
@@ -141,7 +146,8 @@ class Grain:
     first and the last bucket at that rung that the floor's number of people
     hold, in nanoseconds from the start of 1 January 1970 (from midnight for
     a clock). ``rows`` is the column's present rows, its block's
-    `n_present`, which the walk reads. A held record's rung is `HELD`, and
+    `n_present`, and ``people`` the people the subject columns name (the
+    fewest, under several), which the walk reads. A held record's rung is `HELD`, and
     its spans are those its walk passed before it stopped (none where the
     top rung had no span, and none on a clock's, whose day is all its
     twin draws from).
@@ -153,6 +159,7 @@ class Grain:
     spans: "tuple[tuple[str, int, int], ...]"
     # The column's own precision, the foot of its ladder.
     finest: str = DAY
+    people: int = 0
 
 
 # -- the ladders --------------------------------------------------------
@@ -219,7 +226,7 @@ def walk_holds(grain: Grain, floor: int) -> bool:
     """Whether a record's rung is the one its own published facts choose (plan P4-D417).
 
     The walk starts at the top rung and goes one rung finer while
-    ``rows`` is at least `ROWS_A_BUCKET` floors a bucket of the finer
+    the estimate (`estimate`) is at least `ROWS_A_BUCKET` floors a bucket of the finer
     rung inside the current span; a span is published for every rung it
     passes, each a pair of bucket starts at its rung, first at most last.
     A held record stops at its last span or before any; a pooled one at
@@ -238,7 +245,7 @@ def walk_holds(grain: Grain, floor: int) -> bool:
             return False
         if start_of(first, rung) != first or start_of(last, rung) != last:
             return False
-        if place > 0 and not _goes_finer(grain.rows, floor, spans[place - 1], rung):
+        if place > 0 and not _goes_finer(estimate(grain.rows, grain.people), floor, spans[place - 1], rung):
             return False
     if grain.rung == HELD:
         return True
@@ -246,8 +253,29 @@ def walk_holds(grain: Grain, floor: int) -> bool:
         return False
     place = len(spans)
     return place >= len(rungs) or not _goes_finer(
-        grain.rows, floor, spans[place - 1], rungs[place]
+        estimate(grain.rows, grain.people), floor, spans[place - 1], rungs[place]
     )
+
+
+def estimate(rows: int, people: int) -> int:
+    """The visits the walk reads: the whole square root of the rows times the people.
+
+    Whole-number arithmetic: the largest whole number whose square is at
+    most the product, found by halving. Determinism: a function of the
+    two. Raises nothing. No I/O.
+    """
+    product = rows * people
+    if product <= 0:
+        return 0
+    low = 0
+    high = product + 1
+    while high - low > 1:
+        middle = (low + high) // 2
+        if middle * middle <= product:
+            low = middle
+        else:
+            high = middle
+    return low
 
 
 def _ladder_kind(grain: Grain) -> str:
@@ -262,8 +290,8 @@ def _goes_finer(rows: int, floor: int, span: "tuple[str, int, int]", finer: str)
     return rows >= ROWS_A_BUCKET * floor * buckets_between(first, after(last, rung), finer)
 
 
-def walk(
-    rows: int,
+def ladder_walk(
+    visits: int,
     floor: int,
     finest: str,
     kind: str,
@@ -283,7 +311,7 @@ def walk(
         return HELD, ()
     spans: "list[tuple[str, int, int]]" = [(rungs[0], found[0], found[1])]
     for place in range(1, len(rungs)):
-        if not _goes_finer(rows, floor, spans[len(spans) - 1], rungs[place]):
+        if not _goes_finer(visits, floor, spans[len(spans) - 1], rungs[place]):
             break
         found = ends[rungs[place]] if rungs[place] in ends else None
         if found is None:
@@ -1269,6 +1297,7 @@ def record(grain: Grain) -> "dict[str, object]":
         "reading": grain.reading.member,
         "mark": grain.reading.mark,
         "rows": grain.rows,
+        "people": grain.people,
         "spans": [
             [rung, span_text(first, grain.reading.kind), span_text(last, grain.reading.kind)]
             for rung, first, last in grain.spans

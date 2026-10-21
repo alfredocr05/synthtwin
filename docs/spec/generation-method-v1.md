@@ -11093,7 +11093,7 @@ rather than this one.
 
 ### G7.13 Dates and times pooled in people: drawn inside their grain, and the G1 floor
 
-Lane PS (plan P4-D417; contract NF128 to NF130). A column of dates,
+Lane PS (plan P4-D417; contract NF128, NF129 and TG1). A column of dates,
 stamps, clock times or counted dates beside a person column that the
 count in people (plan P4-D406) would hold is either DESCRIBED AT A GRAIN
 -- its cells written as the starts of their buckets, the tails pooled

@@ -96,12 +96,21 @@ def test_a_value_fewer_than_eleven_people_hold_is_not_published(
     assert seen["description_fragments"] == 0, seen
     assert seen["twin_cells"] == 0, seen
     assert seen["twin_fragments"] == 0, seen
-    assert seen["role"] == taxonomy.ROLE_IDENTIFIER
+    # Since plan P4-D417 visit dates beside the key are described at the
+    # coarser grain where every point eleven people hold (their twin draws
+    # inside each bucket, counted apart as `twin_cells_drawn`); every
+    # other counted shape is held.
+    pooled = seen["role"] != taxonomy.ROLE_IDENTIFIER
+    if pooled:
+        assert kind == "visit_keyzero", seen["role"]
+        assert seen["evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_POOLED_IN_PEOPLE, ())
     # A shape the person question is put to itself (128 names over 600
     # rows beside the padded key) is held by lane HX's rule, its own
     # question open; every other is held by the count in people.
     asked_itself = bool(seen["asked"])
-    if asked_itself:
+    if pooled:
+        pass
+    elif asked_itself:
         assert kind == "name_keyzero" and rows == 600, seen["asked"]
         assert seen["evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ())
     else:
@@ -347,6 +356,15 @@ def _held(block: "dict[str, object]") -> bool:
         "detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
 
 
+def _held_or_pooled(block: "dict[str, object]") -> bool:
+    """Held in people, or -- a column of dates or times -- described at a grain (plan P4-D417)."""
+    grain = block.get("time_grain")
+    return _held(block) or (
+        isinstance(grain, dict) and grain["rung"] != "held"
+        and block["detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_POOLED_IN_PEOPLE, ())
+    )
+
+
 def test_the_two_candidates_in_the_other_order_publish_nothing_either(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -458,8 +476,10 @@ def test_dates_and_times_of_day_are_counted_in_people_at_their_points(
     table, _screen = _profiled(tmp_path, "visits", persons_counted.visit_table(2000, written),
                                "--identifier", "patient")
     described = _described(tmp_path, "visits")
-    assert _held(_block(described, "seen")), _block(described, "seen")["role"]
-    assert _held(_block(described, "at")), _block(described, "at")["role"]
+    # Since plan P4-D417 a column of dates or times is described at the
+    # coarser grain where every point holds eleven people, or held.
+    assert _held_or_pooled(_block(described, "seen")), _block(described, "seen")["role"]
+    assert _held_or_pooled(_block(described, "at")), _block(described, "at")["role"]
     assert _block(described, "value")["role"] == taxonomy.ROLE_CONTINUOUS
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
     assert _twin_validates(table, tmp_path) == 0
@@ -817,13 +837,20 @@ def test_a_cell_is_counted_as_the_value_its_column_reads_it_as(
                                    "--identifier", "patient", "--date-count", "day",
                                    "days-since-1970")
         block = _block(_described(tmp_path, "read"), "day")
-        assert "2022-" not in json.dumps(block) and "2023-" not in json.dumps(block), block
+        grain = block.get("time_grain")
+        if isinstance(grain, dict) and grain["rung"] in ("month", "quarter", "year"):
+            # Described at a grain (plan P4-D417): every date it publishes
+            # is a bucket's start, never a day of the table.
+            for point in block["date_percentiles"].values():
+                assert point is None or point[8:10] == "01", block["date_percentiles"]
+        else:
+            assert "2022-" not in json.dumps(block) and "2023-" not in json.dumps(block), block
     else:
         table, _screen = _profiled(tmp_path, "read", persons_counted.comma_table(),
                                    "--identifier", "patient", "--decimal-comma", "m")
         block = _block(_described(tmp_path, "read"), "m")
         assert "percentiles" not in block, block
-    assert block["role"] == taxonomy.ROLE_IDENTIFIER, block["role"]
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER or isinstance(block.get("time_grain"), dict), block["role"]
     assert persons_counted.count_files(table, tmp_path)["few"] == 0
     assert _twin_validates(table, tmp_path) == 0
 
@@ -1045,7 +1072,7 @@ def test_counted_dates_read_as_dates_and_held_in_people_are_not_named_as_decline
     text = persons_counted.day_count_table("plain")
     _table, screen = _profiled(tmp_path, "read", text, "--identifier", "patient",
                                "--date-count", "day", "days-since-1970")
-    assert _held(_block(_described(tmp_path, "read"), "day"))
+    assert _held_or_pooled(_block(_described(tmp_path, "read"), "day"))
     questions = json.loads((tmp_path / "read-questions.json").read_text(encoding="utf-8"))
     assert "held" not in questions, questions["held"]
     assert errors.the_date_count_declaration_did_not_reach("day", "days-since-1970") not in screen

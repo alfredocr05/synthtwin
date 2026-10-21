@@ -64,7 +64,7 @@ _COUNTS = ("count", "rows", "n_", "share", "width", "length",
            "position", "ceiling", "distance", "std", "mean", "skew",
            "kurtosis", "digits", "suppressed", "first", "last", "bins")
 # Entries that publish no value of the column at all.
-_NOTHING = ("missing", "withheld", "occurrences", "widths")
+_NOTHING = ("missing", "withheld", "occurrences", "widths", "time_grain")
 # The points along a range and the tails' boundaries.
 _RUNGS = ("percentiles", "percentiles_between", "date_percentiles",
             "clock_percentiles", "boundary")
@@ -207,6 +207,38 @@ def _grain_text(moment: "datetime.datetime", grain: "dict[str, object]", block: 
     if grain["kind"] == "stamp" or moment.time() != datetime.time(0):
         return moment.strftime("%Y-%m-%d %H:%M:%S")
     return moment.strftime("%Y-%m-%d")
+
+
+def bucket_names(grain: "dict[str, object]") -> "set[str]":
+    """The bucket starts a `time_grain` record's spans print: each names its bucket, never a day."""
+    found: "set[str]" = set()
+    for _rung, first, last in grain.get("spans", []):
+        found |= {f"{first}", f"{last}", f"{first}"[:10], f"{last}"[:10]}
+    return found
+
+
+def spans_few(values: "list[str]", people: "list[str]", block: "dict[str, object]",
+              member: str = "") -> "list[str]":
+    """The spans of a block's `time_grain` whose first or last bucket one to ten people hold."""
+    grain = block.get("time_grain")
+    if not isinstance(grain, dict):
+        return []
+    clock = grain["kind"] == "clock"
+    found: "list[str]" = []
+    for rung, first_text, last_text in grain.get("spans", []):
+        holders: "dict[str, set[str]]" = {}
+        for value, person in zip(values, people):
+            moment = _grain_moment(value, grain, member) if parsing.folded(value) else None
+            if moment is None:
+                continue
+            start = _grain_floor(moment, rung)
+            text = start.strftime("%H:%M:%S") if clock else (
+                start.strftime("%Y-%m-%d %H:%M:%S") if len(f"{first_text}") > 10 else start.strftime("%Y-%m-%d"))
+            holders.setdefault(text, set()).add(person)
+        for end in (first_text, last_text):
+            if len(holders.get(f"{end}", set())) < FLOOR:
+                found += [f"span {rung} {end}"]
+    return found
 
 
 def at_the_grain(values: "list[str]", block: "dict[str, object]", member: str = "") -> "list[str]":
@@ -483,6 +515,7 @@ def count(names: "list[str]", columns: "list[list[str]]",
         # A COLUMN DESCRIBED AT A GRAIN (plan P4-D417): each of its values
         # is counted as the start of its bucket, the tails pooled into the
         # record's ends -- what each published point names.
+        raw = values
         values = at_the_grain(values, block, members.get(name, ""))
         how = (members.get(name, ""), name in commas)
         prefixes = _prefixes(block)
@@ -534,6 +567,11 @@ def count(names: "list[str]", columns: "list[list[str]]",
                 pool_holders, _rows, _attached = held_by(pool, people)
                 if "x" in pool_holders and len(pool_holders["x"]) < FLOOR:
                     groups.add("layout pool")
+            # THE SPANS A `time_grain` RECORD PUBLISHES (plan P4-D417): each
+            # end a bucket eleven people hold, under every subject column.
+            if enough:
+                for span in spans_few(raw, people, block, members.get(name, "")):
+                    groups.add(span)
             if not enough or not statistics:
                 continue
             for label, cells in (("remainder", remainder), ("present", values)):
