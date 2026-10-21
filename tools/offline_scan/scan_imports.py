@@ -707,8 +707,8 @@ attribute absent from it is not allowed at all:
   rounds alike (math.sqrt, `x * x`, repeated multiplication as
   validation._tail_pow does, a written constant), a method change
   under A-P4-59; one more site, an integer square, is entered as
-  exact. An entry whose site is gone is a violation too, so the table
-  never outlives the code. What the syntax cannot show -- a power of a
+  exact. The tests hold every entry to a site of the real source, so
+  the table never outlives the code. What the syntax cannot show -- a power of a
   name that holds a float, raised to a name -- is AGENTS.md's check.
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
@@ -1039,14 +1039,13 @@ def _float_power_violations(
 
     Every `**` of a zone G, D, R or W module that _float_power_reason
     reads as a float power is a violation unless _FLOAT_POWERS or
-    _EXACT_POWERS enters its site; and an entry of either table for
-    this module whose site is gone is a violation at line 1, so the
-    table is held to the code.
+    _EXACT_POWERS enters its site. tests/test_offline_scan.py holds the
+    two tables to the code: each entry's site is found in the real
+    source and is red without its entry.
     """
     if zone not in _POWER_ZONES:
         return []
     found: "list[tuple[int, str]]" = []
-    seen: "set[tuple[str, str, str]]" = set()
     walking: "list[tuple[ast.AST, str]]" = [(tree, "")]
     while walking:
         node, where = walking.pop()
@@ -1066,7 +1065,6 @@ def _float_power_violations(
             continue
         key = (module_name, where, ast.unparse(node))
         if key in _FLOAT_POWERS or key in _EXACT_POWERS:
-            seen.add(key)
             continue
         found += [
             (
@@ -1083,18 +1081,6 @@ def _float_power_violations(
                 "_EXACT_POWERS with its audit.",
             )
         ]
-    for key in sorted(set(_FLOAT_POWERS) | set(_EXACT_POWERS)):
-        if key[0] == module_name and key not in seen:
-            found += [
-                (
-                    1,
-                    "names a power the scanner's table enters ('" + key[2]
-                    + "' in " + (key[1] or "the module's body") + ") that "
-                    "this module no longer holds there. Remove its entry "
-                    "from _FLOAT_POWERS or _EXACT_POWERS (plan P4-D416), "
-                    "naming the rewrite that removed it.",
-                )
-            ]
     return found
 
 

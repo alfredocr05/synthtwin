@@ -882,7 +882,7 @@ FRONT_PAGE_TAGS = (
         "cross-column structure, tagged planned",
     ),
     (
-        "**[planned]** pypi publication",
+        "**[planned]** the release: signed, reproducible, attested offline bundles",
         (
             "the release, tagged planned, which is what keeps the "
             "planned group from being emptied now that validation has "

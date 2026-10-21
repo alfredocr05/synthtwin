@@ -595,7 +595,13 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # (Codex's review of lane XW, item 3). What it loads is a committed file
 # under tools/, which this guard reads directly, so the floor holds for it
 # as it does for the other thirty-eight.
-FILES_LOADED_AS_MODULES = 39
+#
+# 40 AT LANE DEP-2 (plan P4-D416), not 39: `tests/test_bundle.py` loads
+# the bundle's builder and its check, `tools/bundle/build_bundle.py` and
+# `tools/bundle/check_bundle.py`, through one call. What it loads are
+# committed files under tools/, which this guard reads directly, so the
+# floor holds for them as it does for the other thirty-nine.
+FILES_LOADED_AS_MODULES = 40
 
 
 def _files() -> "list[pathlib.Path]":

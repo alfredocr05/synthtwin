@@ -4500,14 +4500,29 @@ def test_each_entered_power_is_red_without_its_entry(key, monkeypatch):
     assert key[2].split(" ** ")[-1].strip("()") in line
 
 
-def test_a_stale_entry_is_red(monkeypatch):
-    """An entry whose site the module no longer holds is a violation."""
+def test_every_entered_power_has_its_site_in_the_real_source():
+    """The tables never outlive the code: each entry names a `**` its module holds."""
     keys, sources = _power_sites()
-    key = ("synthtwin.calendar_rules", "_per_freedom", "(observed[index] - expected) ** 2")
-    rewritten = sources[key[0]].replace(key[2], "(observed[index] - expected) * (observed[index] - expected)")
-    assert rewritten != sources[key[0]]
-    found = _SCANNER._float_power_violations(ast.parse(rewritten), key[0], "D")
-    assert len(found) == 1 and found[0][0] == 1 and "no longer holds" in found[0][1]
+    for module, where, text in keys:
+        tree = ast.parse(sources[module])
+        sites = set()
+        walking = [(tree, "")]
+        while walking:
+            node, inside = walking.pop()
+            for child in ast.iter_child_nodes(node):
+                named = inside
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    named = child.name if not inside else inside + "." + child.name
+                walking += [(child, named)]
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+                sites.add((inside, ast.unparse(node)))
+        assert (where, text) in sites, (module, where, text)
+    rewritten = sources["synthtwin.calendar_rules"].replace(
+        "(observed[index] - expected) ** 2",
+        "(observed[index] - expected) * (observed[index] - expected)",
+    )
+    assert rewritten != sources["synthtwin.calendar_rules"]
+    assert "(observed[index] - expected) ** 2" not in rewritten
 
 
 @pytest.mark.parametrize(

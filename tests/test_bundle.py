@@ -12,7 +12,8 @@ every system of the matrix without one third-party file.
 
 What this file holds:
 
-* the check every install runs first (`scripts/check_bundle.py`)
+* the check every install runs first (`scripts/check_bundle.py` in the
+  bundle, `tools/bundle/check_bundle.py` here)
   refuses a missing hash, a changed file, an unpinned wheel, a lock
   that names a place to fetch from, a wrong Python and a wrong system;
 * `scripts/install.sh`, run for real on a stub bundle (POSIX systems),
@@ -59,7 +60,7 @@ def _load(name: str, relative: str):
     return module
 
 
-CHECK = _load("check_bundle", "scripts/check_bundle.py")
+CHECK = _load("check_bundle", "tools/bundle/check_bundle.py")
 BUILD = _load("build_bundle", "tools/bundle/build_bundle.py")
 
 STUB_LICENCE = "Stand-in licence of the stand-in library, written by tests/test_bundle.py.\n"
@@ -140,8 +141,13 @@ def _stub(tmp_path: pathlib.Path) -> "dict[str, pathlib.Path]":
     )
     repo = tmp_path / "repo"
     (repo / "scripts").mkdir(parents=True)
-    for name in ("install.sh", "install.bat", "check_bundle.py", "INSTALL.txt"):
+    (repo / "tools" / "bundle").mkdir(parents=True)
+    for name in ("install.sh", "install.bat", "INSTALL.txt"):
         shutil.copyfile(SCRIPTS / name, repo / "scripts" / name)
+    shutil.copyfile(
+        REPO / "tools" / "bundle" / "check_bundle.py",
+        repo / "tools" / "bundle" / "check_bundle.py",
+    )
     shutil.copyfile(REPO / "LICENSE", repo / "LICENSE")
     (repo / "requirements-install.lock").write_text(
         "--only-binary :all:\n"

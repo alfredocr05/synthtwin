@@ -23,6 +23,7 @@ The bundle folder holds:
     scripts/install.sh           the install script for macOS and Linux
     scripts/install.bat          the install script for Windows
     scripts/check_bundle.py      the check both scripts run first
+                                 (tools/bundle/check_bundle.py)
     wheelhouse/*.whl             every library wheel and synthtwin's own
     SHA256SUMS                   the SHA-256 of every file above
 
@@ -54,7 +55,7 @@ COPIED = {
     "requirements-install.lock": "requirements-install.lock",
     "scripts/install.sh": "scripts/install.sh",
     "scripts/install.bat": "scripts/install.bat",
-    "scripts/check_bundle.py": "scripts/check_bundle.py",
+    "scripts/check_bundle.py": "tools/bundle/check_bundle.py",
 }
 
 NOTICES = "THIRD-PARTY-NOTICES.txt"

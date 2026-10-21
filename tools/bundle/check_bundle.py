@@ -2,8 +2,10 @@
 
 Plan P4-D416 (lane DEP-2 of the December plan; the owner's D3 of
 2026-10-20: the offline bundle is the only way synthtwin is installed).
-`scripts/install.sh` and `scripts\\install.bat` run this file with the
-Python they found, before they change anything on the computer:
+It is kept in the repository as tools/bundle/check_bundle.py and placed
+in each bundle as scripts/check_bundle.py, where `scripts/install.sh`
+and `scripts\\install.bat` run it with the Python they found, before
+they change anything on the computer:
 
     python -I scripts/check_bundle.py BUNDLE_FOLDER
 
