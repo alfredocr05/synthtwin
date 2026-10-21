@@ -11,16 +11,21 @@ exists).
 **synthtwin installs from one offline bundle per kind of computer, with
 every file checked by its hash and no network at all** (plan P4-D416,
 lane DEP-2 of the December plan; the owner's decision of 2026-10-20: never
-PyPI). CI builds a bundle for Linux, Windows and Macs with Apple silicon,
-holding every library for Python 3.11 to 3.14, the install script, a
-plain-words guide (`INSTALL.txt`), the libraries' notices and
-`SHA256SUMS`, and installs it on a clean runner of each under each Python
-with the network denied before it runs the golden tests on what it
-installed. `sh scripts/install.sh` and `scripts\install.bat` take no
-folder and have no route over the internet: they say in plain words what
-to do about an old Python, check every file of the bundle before they
-change anything, install with `--isolated --no-index --require-hashes`
-and end with `synthtwin doctor`. A `numba-vectors` CI job holds the
+PyPI). CI builds a bundle for Linux, Windows and Macs with an Apple chip
+on macOS 12 or later, `synthtwin-<version>-<platform>.zip`, holding every
+library for Python 3.11 to 3.14, the install script, a plain-words guide
+(`INSTALL.txt`), the libraries' notices and `SHA256SUMS`, and installs it
+on a clean runner of each under each Python with the network denied
+before it runs the golden tests on what it installed; a copy with one
+changed byte is refused there before anything is made. `sh
+scripts/install.sh` and `scripts\install.bat` take no folder and have no
+route over the internet: they take a Python the bundle serves, 3.11 to
+3.14, even beside a newer one, and name Python 3.14 when there is none;
+check every file of the bundle, and that it fits this computer's chip
+and macOS, before they change anything; install with `--isolated
+--no-index --require-hashes`; and end with `synthtwin doctor`. Windows
+users are told how to type in Command Prompt the PowerShell commands
+synthtwin prints. A `numba-vectors` CI job holds the
 numba polish kernel to plain Python's bytes on every system and Python
 before lane MPn may adopt it, and the offline scanner enters the eight
 float powers of P4-D409 by site, each with its measurement, and refuses

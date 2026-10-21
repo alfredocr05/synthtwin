@@ -77,8 +77,8 @@ problems must still demonstrate the checking that was performed.
    `calendar_clock.lattice_crowded`, and
    `(observed[index] - expected) ** 2` in
    `calendar_rules._per_freedom`. The scanner refuses a new `**` with a
-   float literal or a computed base raised to a literal 2 or more; what
-   it cannot see -- a name holding a float raised to a name -- is this
+   float literal or a computed base raised to any whole literal but 0
+   and 1, a negative one included (`x ** -2`); what it cannot see -- a name holding a float raised to a name -- is this
    check's: a new one in zone G or D is a review item, unless it is an
    exact power of two or a power of Python integers.
 5. **Profile/generator boundary violations.** Any code path, test
