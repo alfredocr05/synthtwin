@@ -5,11 +5,13 @@ time (lane SR, plan P4-D400), and every group after the first is read
 from the file again. The standard reader took 6.9 s to read one column of
 2,000,000 rows of the made-up health table again; pyarrow's CSV reader,
 one thread, the group's columns alone, 0.8 s (lib-study/LIB-scale.md).
-It is never trusted to read as the survey reads: each walk asks it for
-the walk's columns and holds what it read to the survey's values, value
-by value, and only a column it read exactly so is read by it again, under
-the settings it was held under, its values folded to the digest the walk
-took of them; every other column is read again by the standard reader.
+It is never trusted to read as the survey reads: each walk folds every
+column's values, as the survey, the standard reader and pandas agreed on
+them, to a digest, and pyarrow's reading of a group is handed over only
+where it read as many records and every column folds to the survey's
+digest; otherwise the group is read again by the standard reader, and so
+is every column of a form pyarrow is not asked of. Nothing of pyarrow's
+is read while the walks are made.
 
 WHAT THIS FILE PINS, against the reading of the whole table and against
 the reading in groups by the standard reader alone:
@@ -22,9 +24,10 @@ the reading in groups by the standard reader alone:
    reader.
 2. `synthtwin profile` writes the same files and says the same words all
    three ways.
-3. What pyarrow is asked: the group's columns alone (the include list),
-   one thread, every value as text; what is held afterwards: the group's
-   columns as text and nothing of pyarrow's (its pool back where it was).
+3. What pyarrow is asked: nothing while the walks are made; then the
+   group's columns alone (the include list), one thread, every value as
+   text; what is held afterwards: the group's columns as text and
+   nothing of pyarrow's (its pool back where it was).
 4. A file that changes between two readings is refused on pyarrow's
    route as on the standard reader's, however small the change.
 """
@@ -48,10 +51,9 @@ from test_stage4_describe_groups import _ALPHABET, _SHAPES, _as_read, _profiled,
 
 
 def _no_arrow(
-    raw_path: str, shown: str, facts: object, surveyed: object, headed: bool,
-    columns: object, start: int, end: int,
+    facts: object, surveyed: object, headed: bool, columns: object, start: int, end: int,
 ) -> "list[reading._ArrowProof]":
-    """The walk's proof made to prove nothing: every group read again by the standard reader."""
+    """The walk asking nothing of pyarrow: every group read again by the standard reader."""
     return [reading._NOT_PROVEN for _place in range(start, end)]
 
 
@@ -65,20 +67,27 @@ def _read(path: pathlib.Path, first_row: str, in_groups: bool) -> "tuple[str, ob
 def _three_readings(
     path: pathlib.Path, first_row: str, monkeypatch: pytest.MonkeyPatch
 ) -> "tuple[tuple[str, object], tuple[str, object], tuple[str, object], int]":
-    """Whole; one column a group by the standard reader; one column a group by pyarrow where proven. And how many columns pyarrow proved."""
+    """Whole; one column a group by the standard reader; one column a group by pyarrow where it reads as the survey. And how many columns pyarrow read again."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         whole = _read(path, first_row, False)
         monkeypatch.setattr(reading, "GROUP_BYTES", 1)
         monkeypatch.setattr(reading, "WALK_BYTES", 1)
+        handed: "list[int]" = []
+        route = reading._arrow_group
+
+        def counted(source: reading.ColumnSource, places: "tuple[int, ...]") -> "list[list[str]] | None":
+            found = route(source, places)
+            if found is not None:
+                handed.append(len(places))
+            return found
+
+        monkeypatch.setattr(reading, "_arrow_group", counted)
         arrow = _read(path, first_row, True)
-        proven = 0
-        if arrow[0] == "read":
-            table = arrow[1]
-            assert isinstance(table, reading.Table)
-            if table.source is not None:
-                proven = sum(1 for proof in table.source.proofs if proof.digest >= 0)
         found_arrow = (arrow[0], _as_read(arrow[1]) if arrow[0] == "read" else arrow[1])  # type: ignore[arg-type]
+        # The columns pyarrow's reading was handed over for, every column
+        # read again once.
+        proven = sum(handed)
         monkeypatch.setattr(reading, "_arrow_proof", _no_arrow)
         standard = _read(path, first_row, True)
         found_standard = (standard[0], _as_read(standard[1]) if standard[0] == "read" else standard[1])  # type: ignore[arg-type]
@@ -106,7 +115,7 @@ def test_a_table_reads_the_same_whole_in_groups_and_through_pyarrow(
 def test_pyarrow_reads_again_the_plain_forms_and_leaves_the_others_to_the_standard_reader(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Which of the shapes pyarrow was held to: the plain ones, and none it reads otherwise."""
+    """Which of the shapes pyarrow read again: the plain ones, and none it reads otherwise."""
     proven: "dict[str, int]" = {}
     for shape in sorted(_SHAPES):
         data, first_row = _SHAPES[shape]
@@ -123,7 +132,7 @@ def test_pyarrow_reads_again_the_plain_forms_and_leaves_the_others_to_the_standa
         "utf-16 behind its mark", "windows-1252", "latin-1", "a first row that is a record",
         "a first row said to be data", "comma-space",
     ):
-        assert proven[shape] >= 2, (shape, proven)
+        assert proven[shape] >= 1, (shape, proven)
     # Left to the standard reader: a closing delimiter and short rows, a
     # line of spaces between records, an end-of-file mark, a quoted empty
     # name over shorter rows.
@@ -154,10 +163,10 @@ def test_adversarial_files_read_or_refused_the_same_three_ways(
     assert proven >= 3, proven
 
 
-def test_a_proof_that_held_nothing_would_hand_over_other_values(
+def test_a_reading_not_held_to_the_digest_would_hand_over_other_values(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The mutant of the proof: pyarrow trusted without being held to the survey reads a blank line above the names as a record."""
+    """The mutant of the check: pyarrow trusted without its digest reads a blank line above the names as a record."""
     path = tmp_path / "lead.csv"
     path.write_text("\na,b\n" + "".join(f"{k},{k * 2}\n" for k in range(30)), encoding="utf-8", newline="\n")
     whole = reading.read_table(str(path))
@@ -165,42 +174,75 @@ def test_a_proof_that_held_nothing_would_hand_over_other_values(
     monkeypatch.setattr(reading, "WALK_BYTES", 1)
     table = reading.read_table(str(path), in_groups=True)
     assert table.source is not None
+    proofs = table.source.proofs
+    assert all(proof.digest >= 0 for proof in proofs)
+    assert [reading.column_values(table, place) for place in (1, 0)] == [whole.columns[1], whole.columns[0]]
+    # pyarrow read it otherwise, so neither column is asked of it again.
     assert [proof.digest for proof in table.source.proofs] == [-1, -1]
-    assert [reading.column_values(table, place) for place in range(2)] == whole.columns
-    # Trusted unheld, under the settings the survey's form gives:
-    trusted = reading._ArrowProof(digest=0, skip=1, delimiter=",", backslash=False, codec="utf-8")
-    found = reading._arrow_columns(str(path), str(path), 2, (0, 1), trusted, None)
+    # Read without the digest, under the settings the survey's form gives:
+    found = reading._arrow_columns(str(path), str(path), 2, (0, 1), proofs[0])
     assert found is not None
     assert found[0] != whole.n_rows or found[2] != whole.columns
 
 
-def test_the_proof_holds_pyarrow_to_every_value_of_the_survey(
+def test_the_digest_holds_pyarrow_to_every_value_of_the_survey(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """One value the survey read otherwise -- the last of a column -- and no column of the walk is proven."""
+    """One value the survey read otherwise -- the last of the middle column -- and pyarrow's reading of that group is not handed over."""
     path = tmp_path / "t.csv"
     path.write_text("a,b,c\n" + "".join(f"{k},w{k % 4},{k * 3}\n" for k in range(50)), encoding="utf-8", newline="\n")
-    asked: "list[list[reading._ArrowProof]]" = []
+    whole = reading.read_table(str(path))
     real = reading._arrow_proof
 
     def doctored(
-        raw_path: str, shown: str, facts: reading._Facts, surveyed: object, headed: bool,
+        facts: reading._Facts, surveyed: object, headed: bool,
         columns: "list[list[str]]", start: int, end: int,
     ) -> "list[reading._ArrowProof]":
-        honest = real(raw_path, shown, facts, surveyed, headed, columns, start, end)  # type: ignore[arg-type]
         altered = [list(column) for column in columns]
-        altered[start][len(altered[start]) - 1] = "another"
-        asked.append(real(raw_path, shown, facts, surveyed, headed, altered, start, end))  # type: ignore[arg-type]
-        return honest
+        if start <= 1 < end:
+            altered[1][len(altered[1]) - 1] = "another"
+        return real(facts, surveyed, headed, altered, start, end)  # type: ignore[arg-type]
 
     monkeypatch.setattr(reading, "_arrow_proof", doctored)
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
     monkeypatch.setattr(reading, "WALK_BYTES", 1)
     read = reading.read_table(str(path), in_groups=True)
     assert read.source is not None and all(proof.digest >= 0 for proof in read.source.proofs)
-    assert len(asked) == 3
-    for proofs in asked:
-        assert [proof.digest for proof in proofs] == [-1]
+    taken: "list[tuple[tuple[int, ...], bool]]" = []
+    route = reading._arrow_group
+
+    def counted(source: reading.ColumnSource, places: "tuple[int, ...]") -> "list[list[str]] | None":
+        found = route(source, places)
+        taken.append((places, found is not None))
+        return found
+
+    monkeypatch.setattr(reading, "_arrow_group", counted)
+    assert [reading.column_values(read, place) for place in range(3)] == whole.columns
+    # The first group is held as the reading ends; the other two are read again.
+    assert taken == [((1,), False), ((2,), True)], taken
+    assert [proof.digest >= 0 for proof in read.source.proofs] == [True, False, True]
+
+
+def test_a_reading_of_another_record_count_is_not_handed_over(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """pyarrow's reading counted one record more than the survey, its digests the survey's: read again by the standard reader."""
+    path = tmp_path / "t.csv"
+    path.write_text("a,b\n" + "".join(f"{k},w{k % 4}\n" for k in range(40)), encoding="utf-8", newline="\n")
+    whole = reading.read_table(str(path))
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1)
+    read = reading.read_table(str(path), in_groups=True)
+    real = reading._arrow_columns
+
+    def miscounted(*arguments: object) -> object:
+        found = real(*arguments)  # type: ignore[arg-type]
+        assert found is not None
+        return found[0] + 1, found[1], [column[:1] for column in found[2]]
+
+    monkeypatch.setattr(reading, "_arrow_columns", miscounted)
+    assert reading.column_values(read, 1) == whole.columns[1]
+    assert read.source is not None and read.source.proofs[1].digest == -1
 
 
 # -- 2. synthtwin profile -------------------------------------------------
@@ -281,10 +323,10 @@ def test_pyarrow_is_asked_for_the_group_alone_on_one_thread(
         assert set(types) == set(included) and all(f"{kind}" == "string" for kind in types.values())
 
 
-def test_the_walk_is_proved_one_group_at_a_time(
+def test_the_walks_ask_pyarrow_nothing_and_a_group_read_again_asks_for_the_group(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A walk of several groups asks pyarrow for one group's columns a reading: a proof of the whole walk at once is red."""
+    """A walk of eight groups: no reading by pyarrow while the walks are made, then one reading of one column a group read again."""
     table = tmp_path / "wide.csv"
     _wide(table, 8, 400)
     monkeypatch.setattr(reading, "GROUP_BYTES", 1)
@@ -300,8 +342,11 @@ def test_the_walk_is_proved_one_group_at_a_time(
     read = reading.read_table(str(table), in_groups=True)
     assert read.source is not None and len(read.source.walks) == 1
     assert len(read.source.groups) == 8
-    assert asked == [(f"{reading._ARROW_NAMES}{place}",) for place in range(8)], asked
+    assert asked == [], asked
     assert all(proof.digest >= 0 for proof in read.source.proofs)
+    for place in (3, 0):
+        reading.column_values(read, place)
+    assert asked == [(f"{reading._ARROW_NAMES}3",), (f"{reading._ARROW_NAMES}0",)], asked
 
 
 def test_a_group_read_through_pyarrow_holds_the_group_and_nothing_of_pyarrow(
