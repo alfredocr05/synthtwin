@@ -249,7 +249,10 @@ def check(folder, version=None, system=None):
         tags = _wheel_tags(name)
         if tags is None:
             continue
-        for tag in tags[0].split("."):
+        # A wheel built for one CPython carries its version in the ABI
+        # tag (cp311); a wheel for any Python 3 (py3, none, abi3) says
+        # nothing about which Pythons the bundle serves.
+        for tag in tags[1].split("."):
             if re.fullmatch(r"cp3\d+", tag):
                 pythons.add((3, int(tag[3:])))
         for tag in tags[2].split("."):

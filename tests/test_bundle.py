@@ -308,15 +308,17 @@ def test_the_check_refuses_a_wrong_python(tmp_path: pathlib.Path) -> None:
     for minor in (11, 12, 13, 14):
         _wheel(house, "stubnative", "1.0", {"stubnative/__init__.py": ""},
                tags=f"cp3{minor}-cp3{minor}-macosx_11_0_arm64")
+    # A wheel for any Python 3 (abi3) names no Python the bundle serves.
+    _wheel(house, "stubabi", "1.0", {"stubabi/__init__.py": ""},
+           tags="cp37-abi3-macosx_11_0_arm64")
     lock = bundle / "requirements-install.lock"
-    pins = "".join(
-        f"    --hash=sha256:{_sha256(path)} \\\n" for path in sorted(house.glob("stubnative-*"))
-    )
-    lock.write_text(
-        lock.read_text(encoding="utf-8") + "stubnative==1.0 \\\n" + pins.rstrip(" \\\n") + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
+    added = ""
+    for project in ("stubnative", "stubabi"):
+        pins = "".join(
+            f"    --hash=sha256:{_sha256(path)} \\\n" for path in sorted(house.glob(project + "-*"))
+        )
+        added += f"{project}==1.0 \\\n" + pins.rstrip(" \\\n") + "\n"
+    lock.write_text(lock.read_text(encoding="utf-8") + added, encoding="utf-8", newline="\n")
     _resum(bundle)
     assert CHECK.check(str(bundle), version=(3, 13), system="macOS") == []
     _refused(
