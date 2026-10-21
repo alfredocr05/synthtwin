@@ -1254,7 +1254,8 @@ def describe(
     if persons:
         return _off(OFF_PERSON, counts, notes, content)
     for place in range(len(blocks)):
-        if _get(blocks[place], "name") in held and _repeats(reading.column_values(table, place)):
+        named = _get(blocks[place], "name")
+        if (named in held or named in identifiers) and _repeats(reading.column_values(table, place)):
             return _off(OFF_PERSON, counts, notes, content)
     blank_rows = rules.records_holding_nothing(document)
     excluded = bytearray(table.n_rows)
