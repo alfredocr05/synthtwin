@@ -14317,6 +14317,7 @@ def _heap_out(heap: "list[tuple[int, int]]") -> "tuple[int, int]":
     return least
 
 
+@dataclasses.dataclass
 class _Spread:
     """One shared side's movable rows on its grid, and the moves of G5.3b's spread (plan P4-D405).
 
@@ -14339,299 +14340,339 @@ class _Spread:
     of the rows. Raises nothing. No I/O.
     """
 
-    def __init__(self, points: "list[int]", boundary: int, limit: int) -> None:
-        self.boundary = boundary
-        self.limit = limit
-        self.count: "dict[int, int]" = {}
-        for point in points:
-            self.count[point] = (self.count[point] if point in self.count else 0) + 1
-        self.refused: "dict[int, bool]" = {}
-        self.starts: "list[int]" = []
-        self.stops: "dict[int, int]" = {}
-        self.able: "list[int]" = []
-        self.lone: "list[int]" = []
-        # Eight heaps: a gain, a loss, a shift and a settling move, each
-        # outward and inward; gains and losses least distance first and
-        # the outermost on a tie, shifts and settling moves innermost
-        # first.
-        self.heaps: "list[list[tuple[int, int]]]" = [[] for _heap in range(8)]
-        for point in sorted(self.count):
-            if self.starts and self.stops[self.starts[len(self.starts) - 1]] == point - 1:
-                self.stops[self.starts[len(self.starts) - 1]] = point
-            else:
-                self.starts += [point]
-                self.stops[point] = point
-            if self._is_able(point):
-                self.able += [point]
-            if self._is_lone(point):
-                self.lone += [point]
-        self._touched(sorted(self.count))
+    boundary: int
+    limit: int
+    count: "dict[int, int]"
+    refused: "dict[int, bool]"
+    starts: "list[int]"
+    stops: "dict[int, int]"
+    able: "list[int]"
+    lone: "list[int]"
+    # Eight heaps: a gain, a loss, a shift and a settling move, each
+    # outward and inward; gains and losses least distance first and the
+    # outermost on a tie, shifts and settling moves innermost first.
+    heaps: "list[list[tuple[int, int]]]"
 
-    def _is_able(self, point: int) -> bool:
-        held = self.count[point] if point in self.count else 0
-        return held >= 2 or (held >= 1 and point == self.boundary)
 
-    def _is_lone(self, point: int) -> bool:
-        held = self.count[point] if point in self.count else 0
-        return held == 1 and point != self.boundary
-
-    def _block(self, point: int) -> "tuple[int, int] | None":
-        place = _found_at(self.starts, point) - 1
-        if place < 0:
-            return None
-        start = self.starts[place]
-        stop = self.stops[start]
-        if stop < point:
-            return None
-        return start, stop
-
-    def _after(self, point: int) -> "int | None":
-        """The next occupied point outward, or None."""
-        block = self._block(point)
-        if block is None:
-            return None
-        if point < block[1]:
-            return point + 1
-        place = _found_at(self.starts, point)
-        return self.starts[place] if place < len(self.starts) else None
-
-    def _before(self, point: int) -> "int | None":
-        """The next occupied point inward, or None."""
-        block = self._block(point)
-        if block is None:
-            return None
-        if point > block[0]:
-            return point - 1
-        place = _found_at(self.starts, point) - 2
-        return self.stops[self.starts[place]] if place >= 0 else None
-
-    def _free(self, target: int) -> bool:
-        return self.boundary < target < self.limit and target not in self.refused
-
-    def _gain_best(self, block: "tuple[int, int]", outward: bool) -> "tuple[int, int] | None":
-        """The block's gain: (distance, point), its outermost able point outward, its innermost inward."""
-        start, stop = block
-        if outward:
-            place = _found_at(self.able, stop) - 1
-            if place < 0 or self.able[place] < start or not self._free(stop + 1):
-                return None
-            point = self.able[place]
-            return stop + 1 - point, point
-        place = _found_at(self.able, start - 1)
-        if place >= len(self.able) or self.able[place] > stop or not self._free(start - 1):
-            return None
-        point = self.able[place]
-        return point - start + 1, point
-
-    def _shift_room(self, point: int, outward: bool) -> int:
-        """How far a lone row at its block's edge may shift that way through free points, or nought (G5.3b, plan P4-D405).
-
-        The free points beside it that way, up to the next occupied point,
-        the boundary or the limit, and short of any refused stand-in.
-        """
-        if not self._is_lone(point):
-            return 0
-        block = self._block(point)
-        if block is None or block[1 if outward else 0] != point:
-            return 0
-        if outward:
-            after = self._after(point)
-            wall = self.limit if after is None else min(after, self.limit)
+def _spread_of(points: "list[int]", boundary: int, limit: int) -> _Spread:
+    """The movable rows as `_Spread`'s blocks, sorted lists and heaps."""
+    count: "dict[int, int]" = {}
+    for point in points:
+        count[point] = (count[point] if point in count else 0) + 1
+    starts: "list[int]" = []
+    stops: "dict[int, int]" = {}
+    able: "list[int]" = []
+    lone: "list[int]" = []
+    for point in sorted(count):
+        if starts and stops[starts[len(starts) - 1]] == point - 1:
+            stops[starts[len(starts) - 1]] = point
         else:
-            before = self._before(point)
-            wall = self.boundary if before is None else max(before, self.boundary)
-        for refused in self.refused:
-            if outward and point < refused < wall:
-                wall = refused
-            if not outward and wall < refused < point:
-                wall = refused
-        return wall - point - 1 if outward else point - wall - 1
+            starts += [point]
+            stops[point] = point
+        if count[point] >= 2 or point == boundary:
+            able += [point]
+        if count[point] == 1 and point != boundary:
+            lone += [point]
+    state = _Spread(
+        boundary=boundary,
+        limit=limit,
+        count=count,
+        refused={},
+        starts=starts,
+        stops=stops,
+        able=able,
+        lone=lone,
+        heaps=[[] for _heap in range(8)],
+    )
+    _spread_touched(state, sorted(count))
+    return state
 
-    def _lose_best(self, point: int, outward: bool) -> "int | None":
-        """A lone point's loss distance that way, or None."""
-        if not self._is_lone(point):
+
+def _spread_is_able(state: "_Spread", point: int) -> bool:
+    held = state.count[point] if point in state.count else 0
+    return held >= 2 or (held >= 1 and point == state.boundary)
+
+
+def _spread_is_lone(state: "_Spread", point: int) -> bool:
+    held = state.count[point] if point in state.count else 0
+    return held == 1 and point != state.boundary
+
+
+def _spread_block(state: "_Spread", point: int) -> "tuple[int, int] | None":
+    place = _found_at(state.starts, point) - 1
+    if place < 0:
+        return None
+    start = state.starts[place]
+    stop = state.stops[start]
+    if stop < point:
+        return None
+    return start, stop
+
+
+def _spread_after(state: "_Spread", point: int) -> "int | None":
+    """The next occupied point outward, or None."""
+    block = _spread_block(state, point)
+    if block is None:
+        return None
+    if point < block[1]:
+        return point + 1
+    place = _found_at(state.starts, point)
+    return state.starts[place] if place < len(state.starts) else None
+
+
+def _spread_before(state: "_Spread", point: int) -> "int | None":
+    """The next occupied point inward, or None."""
+    block = _spread_block(state, point)
+    if block is None:
+        return None
+    if point > block[0]:
+        return point - 1
+    place = _found_at(state.starts, point) - 2
+    return state.stops[state.starts[place]] if place >= 0 else None
+
+
+def _spread_free(state: "_Spread", target: int) -> bool:
+    return state.boundary < target < state.limit and target not in state.refused
+
+
+def _spread_gain_best(state: "_Spread", block: "tuple[int, int]", outward: bool) -> "tuple[int, int] | None":
+    """The block's gain: (distance, point), its outermost able point outward, its innermost inward."""
+    start, stop = block
+    if outward:
+        place = _found_at(state.able, stop) - 1
+        if place < 0 or state.able[place] < start or not _spread_free(state, stop + 1):
             return None
-        if outward:
-            after = self._after(point)
-            return None if after is None else after - point
-        before = self._before(point)
-        return point - (self.boundary if before is None else before)
-
-    def _touched(self, points: "list[int]") -> None:
-        """Push the true entries of every move a change at these points may have shortened (or, for a shift, lengthened)."""
-        blocks: "dict[int, int]" = {}
-        seen: "dict[int, bool]" = {}
-        for point in points:
-            if point in seen or point not in self.count:
-                continue
-            seen[point] = True
-            block = self._block(point)
-            if block is None:
-                continue
-            blocks[block[0]] = block[1]
-            for side in range(2):
-                lose = self._lose_best(point, side == 0)
-                if lose is not None:
-                    _heap_in(self.heaps[2 + side], (lose, -point))
-                if self._shift_room(point, side == 0) > 0:
-                    _heap_in(self.heaps[4 + side], (point, point))
-                if self._settles(point, side == 0):
-                    _heap_in(self.heaps[6 + side], (point, point))
-        for start in blocks:
-            block = (start, blocks[start])
-            for side in range(2):
-                outward = side == 0
-                gain = self._gain_best(block, outward)
-                if gain is not None:
-                    _heap_in(self.heaps[side], (gain[0], -gain[1]))
-                edge = block[1] if outward else block[0]
-                if self._shift_room(edge, outward) > 0:
-                    _heap_in(self.heaps[4 + side], (edge, edge))
-
-    def gain(self, outward: bool) -> "tuple[int, int, int] | None":
-        """The nearest gaining move that way: (from, to, distance), or None."""
-        heap = self.heaps[0 if outward else 1]
-        while heap:
-            distance, negative = heap[0]
-            point = -negative
-            block = self._block(point) if point in self.count else None
-            best: "tuple[int, int] | None" = None
-            if block is not None:
-                best = self._gain_best(block, outward)
-                if best == (distance, point):
-                    target = block[1] + 1 if outward else block[0] - 1
-                    return point, target, distance
-            _heap_out(heap)
+        point = state.able[place]
+        return stop + 1 - point, point
+    place = _found_at(state.able, start - 1)
+    if place >= len(state.able) or state.able[place] > stop or not _spread_free(state, start - 1):
         return None
+    point = state.able[place]
+    return point - start + 1, point
 
-    def lose(self, outward: bool) -> "tuple[int, int, int] | None":
-        """The nearest losing move that way: (from, to, distance), or None."""
-        heap = self.heaps[2 if outward else 3]
-        while heap:
-            distance, negative = heap[0]
-            point = -negative
-            best = self._lose_best(point, outward)
-            if best is not None and best == distance:
-                return point, point + distance if outward else point - distance, distance
-            _heap_out(heap)
+
+def _spread_shift_room(state: "_Spread", point: int, outward: bool) -> int:
+    """How far a lone row at its block's edge may shift that way through free points, or nought (G5.3b, plan P4-D405).
+
+    The free points beside it that way, up to the next occupied point,
+    the boundary or the limit, and short of any refused stand-in.
+    """
+    if not _spread_is_lone(state, point):
+        return 0
+    block = _spread_block(state, point)
+    if block is None or block[1 if outward else 0] != point:
+        return 0
+    if outward:
+        after = _spread_after(state, point)
+        wall = state.limit if after is None else min(after, state.limit)
+    else:
+        before = _spread_before(state, point)
+        wall = state.boundary if before is None else max(before, state.boundary)
+    for refused in state.refused:
+        if outward and point < refused < wall:
+            wall = refused
+        if not outward and wall < refused < point:
+            wall = refused
+    return wall - point - 1 if outward else point - wall - 1
+
+
+def _spread_lose_best(state: "_Spread", point: int, outward: bool) -> "int | None":
+    """A lone point's loss distance that way, or None."""
+    if not _spread_is_lone(state, point):
         return None
+    if outward:
+        after = _spread_after(state, point)
+        return None if after is None else after - point
+    before = _spread_before(state, point)
+    return point - (state.boundary if before is None else before)
 
-    def shift(self, outward: bool, owed: float) -> "tuple[int, int, int] | None":
-        """The shift that way G5.3b names: the innermost lone row at its block's edge with a free point beside it, through free points as far as the sum owes; (from, to, distance), or None."""
-        heap = self.heaps[4 if outward else 5]
-        while heap:
-            point = heap[0][0]
-            room = self._shift_room(point, outward)
-            if room <= 0:
-                _heap_out(heap)
-                continue
-            most = int(math.floor(owed)) if math.isfinite(owed) else room
-            distance = min(room, most)
-            if distance < 1:
-                if not 1.0 - owed < owed:
-                    return None
-                distance = 1
+
+def _spread_touched(state: "_Spread", points: "list[int]") -> None:
+    """Push the true entries of every move a change at these points may have shortened (or, for a shift, lengthened)."""
+    blocks: "dict[int, int]" = {}
+    seen: "dict[int, bool]" = {}
+    for point in points:
+        if point in seen or point not in state.count:
+            continue
+        seen[point] = True
+        block = _spread_block(state, point)
+        if block is None:
+            continue
+        blocks[block[0]] = block[1]
+        for side in range(2):
+            lose = _spread_lose_best(state, point, side == 0)
+            if lose is not None:
+                _heap_in(state.heaps[2 + side], (lose, -point))
+            if _spread_shift_room(state, point, side == 0) > 0:
+                _heap_in(state.heaps[4 + side], (point, point))
+            if _spread_settles(state, point, side == 0):
+                _heap_in(state.heaps[6 + side], (point, point))
+    for start in blocks:
+        block = (start, blocks[start])
+        for side in range(2):
+            outward = side == 0
+            gain = _spread_gain_best(state, block, outward)
+            if gain is not None:
+                _heap_in(state.heaps[side], (gain[0], -gain[1]))
+            edge = block[1] if outward else block[0]
+            if _spread_shift_room(state, edge, outward) > 0:
+                _heap_in(state.heaps[4 + side], (edge, edge))
+
+
+def _spread_gain(state: "_Spread", outward: bool) -> "tuple[int, int, int] | None":
+    """The nearest gaining move that way: (from, to, distance), or None."""
+    heap = state.heaps[0 if outward else 1]
+    while heap:
+        distance, negative = heap[0]
+        point = -negative
+        block = _spread_block(state, point) if point in state.count else None
+        best: "tuple[int, int] | None" = None
+        if block is not None:
+            best = _spread_gain_best(state, block, outward)
+            if best == (distance, point):
+                target = block[1] + 1 if outward else block[0] - 1
+                return point, target, distance
+        _heap_out(heap)
+    return None
+
+
+def _spread_lose(state: "_Spread", outward: bool) -> "tuple[int, int, int] | None":
+    """The nearest losing move that way: (from, to, distance), or None."""
+    heap = state.heaps[2 if outward else 3]
+    while heap:
+        distance, negative = heap[0]
+        point = -negative
+        best = _spread_lose_best(state, point, outward)
+        if best is not None and best == distance:
             return point, point + distance if outward else point - distance, distance
-        return None
+        _heap_out(heap)
+    return None
 
-    def _settles(self, point: int, outward: bool) -> bool:
-        """Whether a row may leave ``point`` for the occupied point beside it that way: no point gained or lost."""
-        beside = point + 1 if outward else point - 1
-        return self._is_able(point) and beside in self.count
 
-    def settle(self, outward: bool) -> "tuple[int, int] | None":
-        """The innermost settling move that way: one row of a point that keeps a row to the occupied point one step beside it; (from, to), or None."""
-        heap = self.heaps[6 if outward else 7]
-        while heap:
-            point = heap[0][0]
-            if self._settles(point, outward):
-                return point, point + 1 if outward else point - 1
+def _spread_shift(state: "_Spread", outward: bool, owed: float) -> "tuple[int, int, int] | None":
+    """The shift that way G5.3b names: the innermost lone row at its block's edge with a free point beside it, through free points as far as the sum owes; (from, to, distance), or None."""
+    heap = state.heaps[4 if outward else 5]
+    while heap:
+        point = heap[0][0]
+        room = _spread_shift_room(state, point, outward)
+        if room <= 0:
             _heap_out(heap)
-        return None
+            continue
+        most = int(owed) if math.isfinite(owed) else room
+        distance = min(room, most)
+        if distance < 1:
+            if not 1.0 - owed < owed:
+                return None
+            distance = 1
+        return point, point + distance if outward else point - distance, distance
+    return None
 
-    def refuse(self, point: int) -> None:
-        """Mark a stand-in point no row may move to."""
-        self.refused[point] = True
 
-    def move(self, source: int, target: int) -> None:
-        """One row from ``source`` to ``target``; the blocks, the sorted lists and the heaps follow."""
-        near = [source, target]
-        for point in (source, target):
-            for other in (self._before(point), self._after(point)):
-                if other is not None:
-                    near += [other]
-        self.count[source] = self.count[source] - 1
-        if self.count[source] == 0:
-            del self.count[source]
-            self._vacate(source)
-        if target in self.count:
-            self.count[target] = self.count[target] + 1
+def _spread_settles(state: "_Spread", point: int, outward: bool) -> bool:
+    """Whether a row may leave ``point`` for the occupied point beside it that way: no point gained or lost."""
+    beside = point + 1 if outward else point - 1
+    return _spread_is_able(state, point) and beside in state.count
+
+
+def _spread_settle(state: "_Spread", outward: bool) -> "tuple[int, int] | None":
+    """The innermost settling move that way: one row of a point that keeps a row to the occupied point one step beside it; (from, to), or None."""
+    heap = state.heaps[6 if outward else 7]
+    while heap:
+        point = heap[0][0]
+        if _spread_settles(state, point, outward):
+            return point, point + 1 if outward else point - 1
+        _heap_out(heap)
+    return None
+
+
+def _spread_refuse(state: "_Spread", point: int) -> None:
+    """Mark a stand-in point no row may move to."""
+    state.refused[point] = True
+
+
+def _spread_move(state: "_Spread", source: int, target: int) -> None:
+    """One row from ``source`` to ``target``; the blocks, the sorted lists and the heaps follow."""
+    near = [source, target]
+    for point in (source, target):
+        for other in (_spread_before(state, point), _spread_after(state, point)):
+            if other is not None:
+                near += [other]
+    state.count[source] = state.count[source] - 1
+    if state.count[source] == 0:
+        del state.count[source]
+        _spread_vacate(state, source)
+    if target in state.count:
+        state.count[target] = state.count[target] + 1
+    else:
+        state.count[target] = 1
+        _spread_occupy(state, target)
+    for point in (source, target):
+        if _spread_is_able(state, point):
+            if not _spread_listed(state, state.able, point):
+                _sorted_in(state.able, point)
         else:
-            self.count[target] = 1
-            self._occupy(target)
-        for point in (source, target):
-            if self._is_able(point):
-                if not self._listed(self.able, point):
-                    _sorted_in(self.able, point)
-            else:
-                _sorted_out(self.able, point)
-            if self._is_lone(point):
-                if not self._listed(self.lone, point):
-                    _sorted_in(self.lone, point)
-            else:
-                _sorted_out(self.lone, point)
-        for point in (source, target):
-            for other in (self._before(point), self._after(point), point - 1, point + 1):
-                if other is not None:
-                    near += [other]
-        self._touched(near)
-
-    def _listed(self, points: "list[int]", point: int) -> bool:
-        place = _found_at(points, point) - 1
-        return place >= 0 and points[place] == point
-
-    def _occupy(self, point: int) -> None:
-        left = self._block(point - 1)
-        right = self._block(point + 1)
-        if left is not None and right is not None:
-            self.stops[left[0]] = right[1]
-            del self.stops[right[0]]
-            _sorted_out(self.starts, right[0])
-        elif left is not None:
-            self.stops[left[0]] = point
-        elif right is not None:
-            del self.stops[right[0]]
-            place = _found_at(self.starts, right[0]) - 1
-            self.starts[place] = point
-            self.stops[point] = right[1]
+            _sorted_out(state.able, point)
+        if _spread_is_lone(state, point):
+            if not _spread_listed(state, state.lone, point):
+                _sorted_in(state.lone, point)
         else:
-            _sorted_in(self.starts, point)
-            self.stops[point] = point
+            _sorted_out(state.lone, point)
+    for point in (source, target):
+        for other in (_spread_before(state, point), _spread_after(state, point), point - 1, point + 1):
+            if other is not None:
+                near += [other]
+    _spread_touched(state, near)
 
-    def _vacate(self, point: int) -> None:
-        place = _found_at(self.starts, point) - 1
-        start = self.starts[place]
-        stop = self.stops[start]
-        if start == stop:
-            self.starts[place : place + 1] = []
-            del self.stops[start]
-        elif point == start:
-            self.starts[place] = start + 1
-            del self.stops[start]
-            self.stops[start + 1] = stop
-        elif point == stop:
-            self.stops[start] = stop - 1
-        else:
-            self.stops[start] = point - 1
-            self.starts[place + 1 : place + 1] = [point + 1]
-            self.stops[point + 1] = stop
 
-    def rows(self) -> "list[int]":
-        """Every movable row's point, innermost first."""
-        placed: "list[int]" = []
-        for point in sorted(self.count):
-            placed += [point] * self.count[point]
-        return placed
+def _spread_listed(state: "_Spread", points: "list[int]", point: int) -> bool:
+    place = _found_at(points, point) - 1
+    return place >= 0 and points[place] == point
+
+
+def _spread_occupy(state: "_Spread", point: int) -> None:
+    left = _spread_block(state, point - 1)
+    right = _spread_block(state, point + 1)
+    if left is not None and right is not None:
+        state.stops[left[0]] = right[1]
+        del state.stops[right[0]]
+        _sorted_out(state.starts, right[0])
+    elif left is not None:
+        state.stops[left[0]] = point
+    elif right is not None:
+        del state.stops[right[0]]
+        place = _found_at(state.starts, right[0]) - 1
+        state.starts[place] = point
+        state.stops[point] = right[1]
+    else:
+        _sorted_in(state.starts, point)
+        state.stops[point] = point
+
+
+def _spread_vacate(state: "_Spread", point: int) -> None:
+    place = _found_at(state.starts, point) - 1
+    start = state.starts[place]
+    stop = state.stops[start]
+    if start == stop:
+        state.starts[place : place + 1] = []
+        del state.stops[start]
+    elif point == start:
+        state.starts[place] = start + 1
+        del state.stops[start]
+        state.stops[start + 1] = stop
+    elif point == stop:
+        state.stops[start] = stop - 1
+    else:
+        state.stops[start] = point - 1
+        state.starts[place + 1 : place + 1] = [point + 1]
+        state.stops[point + 1] = stop
+
+
+def _spread_rows(state: "_Spread") -> "list[int]":
+    """Every movable row's point, innermost first."""
+    placed: "list[int]" = []
+    for point in sorted(state.count):
+        placed += [point] * state.count[point]
+    return placed
 
 
 def _spread_side(
@@ -14671,22 +14712,22 @@ def _spread_side(
     bound = abs(total - wanted)
     if bound < side.rows / 2.0:
         bound = side.rows / 2.0
-    spread = _Spread(points, boundary, limit)
+    spread = _spread_of(points, boundary, limit)
     gain = change > 0
     left = change if gain else -change
     while left > 0:
         outward = total <= wanted
-        move = spread.gain(outward) if gain else spread.lose(outward)
+        move = _spread_gain(spread, outward) if gain else _spread_lose(spread, outward)
         if move is None:
             outward = not outward
-            move = spread.gain(outward) if gain else spread.lose(outward)
+            move = _spread_gain(spread, outward) if gain else _spread_lose(spread, outward)
         if move is None:
             break
         source, target, distance = move
         if gain and _refused_point(target, toward, side, figures):
-            spread.refuse(target)
+            _spread_refuse(spread, target)
             continue
-        spread.move(source, target)
+        _spread_move(spread, source, target)
         total = total + (distance if outward else -distance)
         left = left - 1
         # AND THE SUM BROUGHT BACK by rows of one run moved to a free
@@ -14696,14 +14737,14 @@ def _spread_side(
         # sum then owes are taken from its sparse outer rows.
         while abs(total - wanted) > bound:
             onward = total < wanted
-            shift = spread.shift(onward, abs(total - wanted))
+            shift = _spread_shift(spread, onward, abs(total - wanted))
             if shift is None:
                 break
             source, point, moved = shift
             if _refused_point(point, toward, side, figures):
-                spread.refuse(point)
+                _spread_refuse(spread, point)
                 continue
-            spread.move(source, point)
+            _spread_move(spread, source, point)
             total = total + (moved if onward else -moved)
     # AND THE SUM SETTLED TO HALF A STEP (the second repair): a row of a
     # point that keeps a row moves one step to the occupied point beside
@@ -14716,13 +14757,13 @@ def _spread_side(
     # short, where the source holds 101 and 98.
     while abs(total - wanted) > 0.5:
         onward = total < wanted
-        settled = spread.settle(onward)
+        settled = _spread_settle(spread, onward)
         if settled is None:
             break
-        spread.move(settled[0], settled[1])
+        _spread_move(spread, settled[0], settled[1])
         total = total + (1 if onward else -1)
     placed: "list[float]" = []
-    for point in spread.rows():
+    for point in _spread_rows(spread):
         placed += [_grid_value(toward * point, figures)]
     cut = len(side.steps) - len(still)
     return tuple(placed) + side.steps[cut:]

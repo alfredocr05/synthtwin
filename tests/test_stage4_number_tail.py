@@ -35,6 +35,15 @@ tail reads the rank rounded down on both sides (`contract.tail_read`); a
 heap-listed tail counts each value from the floor (`contract._heap_floor`);
 and the three rules no case reached before -- every zero on a nought end,
 the half-step test, the twin report's hull -- each have one.
+
+THE SECOND REPAIR (lane G2T's combined verify and Codex's review of
+2026-10-20), each case red on its mutant: the shared staircase holds G5.2's
+sign bands (`contract._sign_held`, `_sign_frozen`) and settles each sum to
+half a step; the spread finds its moves in logarithmic time
+(`contract._Spread`), counted machine-free; grid points are read exactly
+(`contract._grid_index`, `_grid_value`, `_grid_exact`); the oracle's three
+unread mirrors are read against the product; and K-S4-20's ceilings fail
+on 36ad3061's pushed staircase.
 """
 
 from __future__ import annotations
@@ -799,7 +808,7 @@ def test_a_coarse_tail_settles_its_sum_to_half_a_step(
 
     assert abs(off()) < 0.05, off()
     assert _missed(described, 0) == []
-    monkeypatch.setattr(contract._Spread, "settle", lambda _self, _outward: None)
+    monkeypatch.setattr(contract, "_spread_settle", lambda _state, _outward: None)
     assert off() < -0.15, "the mutant stands short"
 
 
@@ -846,12 +855,12 @@ def test_the_spread_works_in_near_linear_time(
     units, rows = _units(facts, counted)
     bound = 16 * rows * math.log2(rows)
     assert units <= bound, (units, bound)
-    shipped = contract._Spread.shift
+    shipped = contract._spread_shift
 
-    def one_step(self: contract._Spread, outward: bool, owed: float) -> "tuple[int, int, int] | None":
-        return shipped(self, outward, min(owed, 1.0) if owed >= 1.0 else owed)
+    def one_step(state: contract._Spread, outward: bool, owed: float) -> "tuple[int, int, int] | None":
+        return shipped(state, outward, min(owed, 1.0) if owed >= 1.0 else owed)
 
-    monkeypatch.setattr(contract._Spread, "shift", one_step)
+    monkeypatch.setattr(contract, "_spread_shift", one_step)
     assert _units(facts, counted)[0] > 10 * bound, "the mutant moves one step at a time"
 
 
@@ -875,13 +884,13 @@ def test_the_spread_s_work_doubles_with_the_rows(
         facts_of[rows] = facts
     work = {rows: _units(facts_of[rows], counted)[0] for rows in facts_of}
     assert work[80000] <= 2.5 * work[40000], work
-    shipped = contract._Spread.move
+    shipped = contract._spread_move
 
-    def rescanning(self: contract._Spread, source: int, target: int) -> None:
-        shipped(self, source, target)
-        self._touched(sorted(self.count))
+    def rescanning(state: contract._Spread, source: int, target: int) -> None:
+        shipped(state, source, target)
+        contract._spread_touched(state, sorted(state.count))
 
-    monkeypatch.setattr(contract._Spread, "move", rescanning)
+    monkeypatch.setattr(contract, "_spread_move", rescanning)
     mutant = {rows: _units(facts_of[rows], counted)[0] for rows in facts_of}
     assert mutant[80000] > 3.0 * mutant[40000], mutant
 
