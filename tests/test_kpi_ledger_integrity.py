@@ -815,7 +815,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 737,000 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
+    # 737,500 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger fits under:
     # lane G2T's `K-S4-20` and `K-S4-21` (its branch raised its own cap to
@@ -826,8 +826,9 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # count in people costs the health data zoo, with their notes; then
     # the batch's records: the night window's six stamps, `K-P0-09`,
     # `K-HZ-02` and lane G2T's spread entries restamped with their two
-    # clauses, `K-S3-14`'s note on the product's path, 736,701 bytes. A
-    # MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # clauses, `K-S3-14`'s note on the product's path, 736,701 bytes; then
+    # `K-HZ-01` restamped on the records' own commit with its clause,
+    # 737,181 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
     # set once, the least round figure the merged ledger fits under: lane
@@ -1267,7 +1268,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 737_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 737_500
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
