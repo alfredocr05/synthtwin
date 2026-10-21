@@ -815,6 +815,11 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 738,500 from 737,500 ON LANE PS'S BRANCH (2026-10-21), the least round
+    # figure its ledger fits under, for the batch's integrator to reconcile
+    # and the orchestrator's call D15 to keep: `K-HZ-01`, `K-HZ-02` and
+    # `K-S3-65` restamped with their note clauses, 737,568 bytes.
+    #
     # 737,500 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger fits under:
@@ -1268,7 +1273,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 737_500
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 738_500
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

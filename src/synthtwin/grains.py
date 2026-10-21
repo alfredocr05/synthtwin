@@ -1221,15 +1221,17 @@ def count_filled(
                     empties[key] += [start]
             start = after(start, rung)
         taken: "dict[tuple[int, ...], int]" = {}
+        for key in empties:
+            taken[key] = 0
         for bucket, rows in givers:
             key = _census_key(bucket, rung, kind, finest)
             if key is None or key not in empties:
                 continue
             for row in rows:
-                if need <= 0 or taken.get(key, 0) >= len(empties[key]):
+                if need <= 0 or taken[key] >= len(empties[key]):
                     break
-                moved[row] = empties[key][taken.get(key, 0)]
-                taken[key] = taken.get(key, 0) + 1
+                moved[row] = empties[key][taken[key]]
+                taken[key] = taken[key] + 1
                 need -= 1
             if need <= 0:
                 return moved

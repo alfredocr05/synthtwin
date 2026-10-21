@@ -63536,13 +63536,16 @@ def _filled_to_the_count(
             _label, num, den = taxonomy.LADDER[place]
             rank = min(present - 1, ((present - 1) * num) // den)
             start = min(max(grains.start_of(moment, rung), first), last)
-            low, high = pinned.get(start, (rank, rank))
+            low, high = (rank, rank)
+            if start in pinned:
+                low, high = pinned[start]
             pinned[start] = (min(low, rank), max(high, rank))
     for ordinal, _rows in facts.heavy_dates:
         moment = grains.ordinal_moment(ordinal, facts.resolution)
         heavy = min(max(grains.start_of(moment, rung), first), last)
         points += [heavy]
-        pinned.pop(heavy, None)
+        if heavy in pinned:
+            del pinned[heavy]
     moved = grains.count_filled(
         buckets, points, (first, last), rung, grain.reading.kind, grain.finest,
         column.n_distinct, pinned,
