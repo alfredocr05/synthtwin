@@ -3267,8 +3267,37 @@ def _names_people(
     # P4-D401), asked whatever its reading but dates and clock times:
     # `_a_key_of_figures_repeating` says why the numeric roles' exclusion
     # below does not cover it.
-    if role not in _KEY_ROLES_EXCLUDED and _a_key_of_figures_repeating(present):
+    if _route_four_puts(present, role):
         return True
+    return _names_people_past_route_four(present, role, n_rows, settings)
+
+
+def _route_four_puts(present: "list[str]", role: str) -> bool:
+    """Whether route four of the person rule puts the person question (plan P4-D401).
+
+    The route's whole trigger, in one place: `_names_people` asks it
+    first, and `person_questions` asks it to know which questions offer
+    `code` (plan P4-D420). A fixed function of the cells and the role.
+    Raises nothing. No I/O, and no cell reaches what it returns.
+    """
+    return (
+        bool(present)
+        and role not in _KEY_ROLES_EXCLUDED
+        and _a_key_of_figures_repeating(present)
+    )
+
+
+def _names_people_past_route_four(
+    present: "list[str]", role: str, n_rows: int, settings: taxonomy.Settings
+) -> bool:
+    """Routes one, two and three of `_names_people`, route four already asked.
+
+    Split out so `person_questions` reads route four once (plan P4-D420)
+    and the rule is the same function as before. A fixed function of
+    the arguments. Raises nothing. No I/O.
+    """
+    if not present:
+        return False
     if role in _PERSON_ROLES_EXCLUDED:
         return False
     different: "dict[str, int]" = {}
@@ -3613,10 +3642,14 @@ def person_questions(
             present, _absent = taxonomy.split_missing(
                 table_columns[position], settings
             )
+        # ROUTE FOUR'S QUESTION OFFERS `code` (plan P4-D420, lane HX3):
+        # read once here, the trigger unchanged (`_names_people`).
+        by_route_four = not declared_people and _route_four_puts(present, role)
         if (
             _repeats_naming_one_person_a_cell(present, role)
             if declared_people
-            else _names_people(present, role, rows, settings)
+            else by_route_four
+            or _names_people_past_route_four(present, role, rows, settings)
         ):
             found += [
                 Question(
@@ -3628,7 +3661,9 @@ def person_questions(
                         present,
                         settings.small_cell_floor,
                     ),
-                    _person_choices(role, settings.small_cell_floor),
+                    _person_choices(
+                        role, settings.small_cell_floor, by_route_four
+                    ),
                     ANSWER_KEEP,
                 )
             ]
@@ -3636,21 +3671,50 @@ def person_questions(
     return found
 
 
-def _person_choices(role: str, floor: int) -> "list[Choice]":
-    """The two answers the person question may take.
+def _person_choices(
+    role: str, floor: int, offers_code: bool = False
+) -> "list[Choice]":
+    """The answers the person question may take: two, or three by route four.
 
     `keep` is first because it is what standing still gives: nobody
     declared this column, so the reading in force is the one it already
     has, and a list whose first entry is not the standing reading
     misleads whatever the words underneath say.
+
+    `code` SECOND, WHERE ROUTE FOUR PUT THE QUESTION (plan P4-D420, lane
+    HX3). Route four asks a column of whole numbers five figures wide or
+    more that repeat, read as a count or a measurement, and only the
+    checklist offered such a column `code` -- a round later, since a
+    column put the person question is not listed. Measured on the health
+    data zoo (batch 4d's integration, P4-D399): a diagnoses export's
+    SNOMED ids, eight and nine figures, answered `keep` in the one round
+    a person answers, wrote codes the real never writes and lost values
+    11 or more real rows hold. So the question offers `code` there, worded
+    about the data and nothing else, and the answer is the checklist's own
+    `code`: the same declaration (`answers_in`), the same description,
+    summary and twin. Routes one to three, which ask labels and text, are
+    offered the two answers as before.
     """
-    return [
+    choices = [
         Choice(
             ANSWER_KEEP,
             "not a person -- it repeats for some other reason, and the "
             "reading it has now is right",
             _publishes_under(ANSWER_KEEP, role, floor),
         ),
+    ]
+    if offers_code:
+        choices += [
+            Choice(
+                ANSWER_CODE,
+                "not a person -- codes of a coding system, such as "
+                "diagnoses, procedures or drugs, where each value stands "
+                "for a thing and repeats because that thing is recorded "
+                "on many rows",
+                _publishes_under(ANSWER_CODE, role, floor),
+            )
+        ]
+    choices += [
         Choice(
             ANSWER_IDENTIFIER,
             "the people the rows are about -- rows sharing a value of "
@@ -3658,6 +3722,7 @@ def _person_choices(role: str, floor: int) -> "list[Choice]":
             _publishes_under(ANSWER_IDENTIFIER, role, floor),
         ),
     ]
+    return choices
 
 
 # NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan

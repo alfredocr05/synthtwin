@@ -594,9 +594,13 @@ def test_route_four_reaches_a_key_of_figures_and_no_scale() -> None:
 
 
 def test_route_four_is_put_to_a_column_of_counts(tmp_path: pathlib.Path) -> None:
-    """A key read as a count gets the person question, and no question of dates."""
+    """A key read as a count gets the person question, and no question of dates.
+
+    Route four's question offers `code` beside `keep` and `identifier`
+    (plan P4-D420, lane HX3).
+    """
     seen = shapes.run(tmp_path, "randkey", _ROWS)
-    assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
     _check_held(seen, "randkey")
 
 
@@ -674,7 +678,7 @@ def test_income_in_whole_thousands_is_held_and_keep_gives_back_the_count(
     asked = [entry for entry in questions["asked"] if entry["column"] == "income"]
     assert [
         [choice["answer"] for choice in entry["answers_you_can_give"]] for entry in asked
-    ] == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    ] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
     assert [entry["read_as_now"] for entry in asked] == [asking.ANSWER_IDENTIFIER]
 
     for entry in asked:
