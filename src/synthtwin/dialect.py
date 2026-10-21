@@ -6844,7 +6844,7 @@ def twin_text(
 
 
 # How many lines one piece of `twin_pieces` holds at most.
-_LINES_A_PIECE = 4096
+_LINES_A_PIECE = 256
 
 
 def _blank_lines_total(places: "tuple[BlankPlace, ...]") -> int:

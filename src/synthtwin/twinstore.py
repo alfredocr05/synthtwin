@@ -19,10 +19,10 @@ one block of every column is ever Python text at once.
 
 THE SEPARATOR, AND THE ONE CASE IT CANNOT SERVE. The cells of a block
 are joined by the character U+0000, which a cell of an ordinary table
-never holds. A block where some cell DOES hold it cannot be told apart
-from more cells, so that block is held as its cells themselves, a tuple
-of text, and read back from there: the one case where a block costs
-what every block cost before, and never a different cell.
+never holds. A column where some cell DOES hold it cannot be told apart
+from more cells, so that column is held as its cells themselves, a
+tuple of text, and read back from there: the one case where a column
+costs what every column cost before, and never a different cell.
 
 WHY BYTES AND NOT THE JOINED TEXT. Python keeps a text at the width of
 its widest character, so one curly quotation mark in a block of numbers
@@ -41,32 +41,26 @@ for cell, and so does every block read in turn.
 import dataclasses
 
 # THE ROWS OF ONE BLOCK. Small enough that one block of each of fifty
-# columns, read back as text objects, holds a few tens of megabytes; large
-# enough that a block's own bookkeeping (one record and one bytes object,
-# about 150 bytes) is under a fiftieth of a byte a cell.
-BLOCK_ROWS = 8192
-
-
-@dataclasses.dataclass(frozen=True)
-class HeldBlock:
-    """The cells of one block of a column.
-
-    `data` is the cells joined by U+0000, as UTF-8 with surrogates passed
-    through, and `cells` is empty; or, where some cell of the block holds
-    U+0000 itself, `data` is empty and `cells` is the cells. `count` is
-    how many cells the block holds either way.
-    """
-
-    data: bytes
-    cells: "tuple[str, ...]"
-    count: int
+# columns, read back as text objects, holds under a megabyte, so a
+# writer walking the rows holds a block of each column and little else;
+# large enough that a block's own bytes object (about forty bytes beside
+# its cells) is a sixth of a byte a cell.
+BLOCK_ROWS = 256
 
 
 @dataclasses.dataclass(frozen=True)
 class HeldColumn:
-    """One finished column of the twin, its blocks in row order."""
+    """One finished column of the twin.
 
-    blocks: "tuple[HeldBlock, ...]"
+    `blocks` holds each block's cells joined by U+0000, as UTF-8 with
+    surrogates passed through, in row order, and `cells` is empty; or,
+    where some cell of the column holds U+0000 itself, `blocks` is empty
+    and `cells` is the cells. `count` is how many cells the column holds
+    either way.
+    """
+
+    blocks: "tuple[bytes, ...]"
+    cells: "tuple[str, ...]"
     count: int
 
 
@@ -75,56 +69,22 @@ def _listed(cells: "list[str]") -> "list[str]":
     return [cell for cell in cells]
 
 
-def held_block(cells: "list[str]") -> HeldBlock:
-    """One block of cells, held as their joined bytes.
-
-    Guarantees: accepts a list of texts; returns the block holding them,
-    which `block_cells` reads back cell for cell. Raises TypeError where
-    a cell is not text, as joining it would. No I/O of any kind.
-    """
-    joined = "\x00".join(_listed(cells))
-    if joined.count("\x00") == len(cells) - 1:
-        return HeldBlock(bytes(joined, "utf-8", "surrogatepass"), (), len(cells))
-    return HeldBlock(b"", tuple(cells), len(cells))
-
-
-def block_cells(block: HeldBlock) -> "list[str]":
-    """The cells of one block, in row order, as a new list of texts.
-
-    Guarantees: returns exactly the cells `held_block` was given. Raises
-    nothing. No I/O of any kind.
-    """
-    if block.count == 0:
-        return []
-    if block.cells:
-        return list(block.cells)
-    return str(block.data, "utf-8", "surrogatepass").split("\x00")
-
-
 def held_column(cells: "list[str]") -> HeldColumn:
     """A whole column held a block at a time.
 
     Guarantees: accepts the column's cells in row order; returns the held
     column, which `column_cells` reads back cell for cell and whose
-    blocks hold `BLOCK_ROWS` cells each but the last. No I/O of any kind.
+    blocks hold `BLOCK_ROWS` cells each but the last. Raises TypeError
+    where a cell is not text, as joining it would. No I/O of any kind.
     """
-    blocks: "list[HeldBlock]" = []
+    blocks: "list[bytes]" = []
     for start in range(0, len(cells), BLOCK_ROWS):
-        blocks += [held_block(cells[start : start + BLOCK_ROWS])]
-    return HeldColumn(tuple(blocks), len(cells))
-
-
-def column_cells(column: HeldColumn) -> "list[str]":
-    """Every cell of a held column, in row order, as a new list of texts.
-
-    The whole column becomes text objects again, so this is for one
-    column at a time (arranging the rows, a column's own walk) and never
-    for the whole twin at once. Raises nothing. No I/O of any kind.
-    """
-    cells: "list[str]" = []
-    for block in column.blocks:
-        cells += block_cells(block)
-    return cells
+        part = cells[start : start + BLOCK_ROWS]
+        joined = "\x00".join(_listed(part))
+        if joined.count("\x00") != len(part) - 1:
+            return HeldColumn((), tuple(cells), len(cells))
+        blocks += [bytes(joined, "utf-8", "surrogatepass")]
+    return HeldColumn(tuple(blocks), (), len(cells))
 
 
 def column_block(column: HeldColumn, index: int) -> "list[str]":
@@ -134,9 +94,26 @@ def column_block(column: HeldColumn, index: int) -> "list[str]":
     the next block's first; an index past the last block gives an empty
     list. Raises nothing. No I/O of any kind.
     """
-    if index < 0 or index >= len(column.blocks):
+    if index < 0 or index * BLOCK_ROWS >= column.count:
         return []
-    return block_cells(column.blocks[index])
+    if column.cells:
+        return list(column.cells[index * BLOCK_ROWS : (index + 1) * BLOCK_ROWS])
+    return str(column.blocks[index], "utf-8", "surrogatepass").split("\x00")
+
+
+def column_cells(column: HeldColumn) -> "list[str]":
+    """Every cell of a held column, in row order, as a new list of texts.
+
+    The whole column becomes text objects again, so this is for one
+    column at a time (arranging the rows, a column's own walk) and never
+    for the whole twin at once. Raises nothing. No I/O of any kind.
+    """
+    if column.cells:
+        return list(column.cells)
+    cells: "list[str]" = []
+    for index in range(len(column.blocks)):
+        cells += column_block(column, index)
+    return cells
 
 
 def blocks_of(n_rows: int) -> int:
@@ -147,12 +124,12 @@ def blocks_of(n_rows: int) -> int:
 def held_bytes(column: HeldColumn) -> int:
     """The bytes of cell text a held column keeps, for the memory record.
 
-    Counts each block's joined bytes, or the characters of a block held
+    Counts each block's joined bytes, or the characters of a column held
     as its cells; the bookkeeping around them is not counted.
     """
     total = 0
     for block in column.blocks:
-        total = total + len(block.data)
-        for cell in block.cells:
-            total = total + len(cell)
+        total = total + len(block)
+    for cell in column.cells:
+        total = total + len(cell)
     return total

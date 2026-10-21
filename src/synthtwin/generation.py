@@ -831,6 +831,14 @@ class _ColumnPlan:
     # (`date_counts.hole_words`), as ISO words: an absent spelling of this
     # column to every pass of G7, and no rank stands on one (G7.10).
     counted_holes: "tuple[str, ...]" = ()
+    # THE FINISHED VALUES HELD ONCE (plan P4-D415, lane SG). Every plan is
+    # made before the first column, so the values of the roles that make
+    # them up were held as text objects for the whole run, every such
+    # column at once: `plan_generation` holds them here compactly
+    # (`twinstore`) and leaves `cells` empty, and `_plan_cells` reads
+    # either. None for a plan whose `cells` hold the values, as a plan
+    # built by hand does.
+    held_cells: "twinstore.HeldColumn | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -62581,7 +62589,7 @@ def _plan_column(
         content_words=content,
         placement_words=placement,
         layout=layout,
-        cells=tuple(cells),
+        cells=(),
         notes=tuple(notes),
         remarks=tuple(remarks),
         carriers=carriers,
@@ -62591,7 +62599,19 @@ def _plan_column(
         code_declared=code_declared,
         withdrawn=tuple(withdrawn),
         counted_holes=counted_holes,
+        held_cells=twinstore.held_column(cells) if cells else None,
     )
+
+
+def _plan_cells(plan: "_ColumnPlan") -> "list[str]":
+    """The finished values a column's plan carries, as a new list (plan P4-D415).
+
+    Read from `held_cells` where the plan holds them there, else from
+    `cells`; the same values either way. Raises nothing. No I/O.
+    """
+    if plan.held_cells is not None:
+        return twinstore.column_cells(plan.held_cells)
+    return [cell for cell in plan.cells]
 
 
 def _block_plan(
@@ -62943,7 +62963,7 @@ def _content_of(
     if column.quality_state == "empty":
         return [], []
     if column.quality_state == "unrepresentable":
-        return [cell for cell in plan.cells], []
+        return _plan_cells(plan), []
     kind = column.statistical_type
     if kind == "constant" or kind == "binary" or kind == "categorical":
         return _label_content(plan, short)
@@ -62967,9 +62987,9 @@ def _content_of(
     if kind == "datetime":
         return _datetime_content(plan, words)
     if kind == "code":
-        return [cell for cell in plan.cells], []
+        return _plan_cells(plan), []
     if kind == "text":
-        return [cell for cell in plan.cells], []
+        return _plan_cells(plan), []
     raise _wrong_facts(column.name)
 
 
@@ -63452,6 +63472,8 @@ def twin_rows(twin: Twin) -> "typing.Iterator[tuple[str, ...]]":
         cells = [twinstore.column_block(column, block) for column in found]
         for row in range(len(cells[0])):
             yield tuple([cells[place][row] for place in range(width)])
+        # Let this block go before the next is read, so one block is held.
+        cells = []
 
 
 def _sequence_start(profile: contract.Profile, column: contract.ColumnBlock) -> int:
