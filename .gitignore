@@ -25,6 +25,11 @@ __pycache__/
 dist/
 build/
 wheelhouse/
+# The offline bundle's built files (plan P4-D416): wheels are binary and
+# the notices quote licence texts the decontamination scanner matches.
+*.whl
+THIRD-PARTY-NOTICES*
+SHA256SUMS
 .venv/
 venv/
 .pytest_cache/

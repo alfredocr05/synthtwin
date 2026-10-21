@@ -921,7 +921,13 @@ def test_the_times_of_day_notice_quotes_the_column_it_names(
 
 
 def test_the_install_scripts_keep_the_hash_checked_offline_procedure() -> None:
-    """Both scripts run README's two offline pip commands, flag for flag."""
+    """Both scripts run README's two offline pip commands, flag for flag, and no other.
+
+    Plan P4-D416 (lane DEP-2; the owner's D3 of 2026-10-20): the offline
+    bundle is the only way synthtwin is installed, so the branch that
+    fetched the locked files over the internet is gone and the lock is
+    installed once, from the bundle's wheelhouse, with every hash checked.
+    """
     for name in ("install.sh", "install.bat"):
         text = (SCRIPTS / name).read_text(encoding="utf-8")
         flat = re.sub(r"\\\s*\n\s*", " ", text)
@@ -931,8 +937,8 @@ def test_the_install_scripts_keep_the_hash_checked_offline_procedure() -> None:
         )
         assert offline, f"{name} lost the hash-checked install from the wheel folder"
         assert re.search(r"pip install[^\n]*--no-index --no-deps", flat), name
-        assert re.search(r"pip install[^\n]*--require-hashes -r \S+", flat.replace(offline.group(0), "")), (
-            f"{name}: the install from the folder fetches the lock's files unchecked"
+        assert not re.search(r"pip install[^\n]*-r \S+", flat.replace(offline.group(0), "")), (
+            f"{name}: a second install of the lock, past the bundle's wheelhouse"
         )
         assert "requirements-install.lock" in text
         assert "doctor" in text.split("pip install")[-1], f"{name} does not end with doctor"
@@ -1078,11 +1084,13 @@ def test_every_stop_of_the_install_scripts_says_what_to_do_next(name: str) -> No
         stops = [said for said in stops if "$*" not in said]
         advice = re.findall(r'venv_advice="((?:[^"\\]|\\.)*)"', flat)
         assert len(advice) == 2 and all("again" in said for said in advice), advice
+        older = re.findall(r'too_old_advice="((?:[^"\\]|\\.)*)"', flat)
+        assert len(older) == 1 and "again" in older[0] and "python.org" in older[0], older
     else:
         stops = re.findall(r"echo The installation stopped:(.*?)exit /b 1", text, re.S)
     assert len(stops) >= 8, stops
     for said in stops:
-        assert "again" in said or "$venv_advice" in said, said
+        assert "again" in said or "$venv_advice" in said or "$too_old_advice" in said, said
 
 
 def test_the_windows_script_is_a_batch_file_with_windows_line_endings() -> None:
