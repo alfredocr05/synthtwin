@@ -4990,7 +4990,12 @@ number, modulo `2**256`: free of row order, of column order and of the
 file's form, since it reads parsed cells keyed by column name (lane CHa
 specifies "parsed" for each form, with a test that a CSV and a workbook
 of one table give one hash). It is used only as the ledger's index
-(4.6b.4).
+(4.6b.4). **Amended 2026-10-21 (lane CHa's repair 1, plan P4-D418):** a
+row whose cells all hold nothing is left out of the table's content
+hash, so a table with one more empty record is the same table to the ledger,
+which refuses it under a second name; measured by lane CHa's skeptic,
+`clinic.csv` with one line of empty cells added had proceeded under a
+new name with no refusal and published a different chain.
 
 **The self-test's sample** (layer `L2b`, lane ST) is chosen by content and
 SORTED by content before anything is generated from it, so a whole-row

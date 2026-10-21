@@ -262,7 +262,7 @@ class Opened:
     """The installation opened for one run: its key and its ledger, or a refusal."""
 
     folder: pathlib.Path
-    key: bytes
+    key: bytes = dataclasses.field(repr=False)
     entries: "tuple[Entry, ...]"
     lines: "tuple[str, ...]"
     refusal: str

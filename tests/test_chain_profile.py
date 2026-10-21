@@ -32,6 +32,7 @@ Every fixture is invented here; the key is a fixed test key.
 import fractions
 import io
 import json
+import os
 import pathlib
 import random
 
@@ -186,7 +187,12 @@ def test_the_ledger_refuses_a_second_name_and_warns_on_a_name_reused(tmp_path, m
 
 
 @pytest.mark.parametrize("os_name", ["posix", "nt"])
-def test_the_ledger_decides_each_case_in_both_forms(tmp_path, os_name):
+def test_the_ledger_decides_each_case_in_both_forms(tmp_path, monkeypatch, os_name):
+    if os_name == "posix" and os.name == "nt":
+        # Windows reports every file as 0o666 and every folder as 0o777, so
+        # the POSIX form's mode check reads the real file system's answer
+        # nowhere here; the mode test below runs it where modes exist.
+        monkeypatch.setattr(installation, "_mode_is_private", lambda path, os_name: True)
     folder = installation.data_folder(
         os_name=os_name,
         environ={"LOCALAPPDATA": str(tmp_path / "local"), "XDG_DATA_HOME": str(tmp_path / "xdg")},
@@ -241,6 +247,7 @@ def test_the_ledger_decides_each_case_in_both_forms(tmp_path, os_name):
     installation.release(damaged)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows keeps no POSIX mode: files read 0o666 and folders 0o777")
 def test_a_key_file_others_can_read_is_refused_on_posix(tmp_path):
     folder = tmp_path / "data"
     opened = installation.open_installation(folder, os_name="posix")
@@ -248,10 +255,17 @@ def test_a_key_file_others_can_read_is_refused_on_posix(tmp_path):
     key_file = installation.key_path(folder)
     assert key_file.stat().st_mode & 0o777 == 0o600
     assert folder.stat().st_mode & 0o777 == 0o700
+    # Read OR write by the group or by others is refused (4.6b.4): each bit alone.
+    for mode in (0o644, 0o640, 0o604, 0o620, 0o602, 0o610, 0o601):
+        key_file.chmod(mode)
+        refused = installation.open_installation(folder, os_name="posix")
+        assert "can be read or changed by other accounts" in refused.refusal, oct(mode)
+        installation.release(refused)
+    key_file.chmod(0o600)
+    kept = installation.open_installation(folder, os_name="posix")
+    assert not kept.refusal and kept.key == opened.key
+    installation.release(kept)
     key_file.chmod(0o644)
-    refused = installation.open_installation(folder, os_name="posix")
-    assert "can be read or changed by other accounts" in refused.refusal
-    installation.release(refused)
     # The nt form reads no POSIX mode: the folder is the user's own local data.
     accepted = installation.open_installation(folder, os_name="nt")
     assert not accepted.refusal

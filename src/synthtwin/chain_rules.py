@@ -607,8 +607,10 @@ def merge_ladder(column: str, start: Starting, totals: "list[int]", floor: int) 
             else:
                 other = at - 1 if counts[at - 1] <= counts[at + 1] else at + 1
             low, high = (at, other) if at < other else (other, at)
-        bands = bands[:low] + [sorted(bands[low] + bands[high])] + bands[high + 1 :]
-        counts = counts[:low] + [counts[low] + counts[high]] + counts[high + 1 :]
+        # The two joined bands need not be neighbours on a label column:
+        # every band between them stays where it was (repair 1, item 2).
+        bands = bands[:low] + [sorted(bands[low] + bands[high])] + bands[low + 1 : high] + bands[high + 1 :]
+        counts = counts[:low] + [counts[low] + counts[high]] + counts[low + 1 : high] + counts[high + 1 :]
     first = tuple(range(len(bands)))
     second = union_closure(bands, start.groups[1])
     third = union_closure(bands, start.groups[2])
@@ -673,11 +675,15 @@ def small_group_bands(block: "dict[str, object]", start: Starting, ladder: Ladde
     conservatively: a group whose band the facts do not place marks every
     band it may stand in, which refuses more and never passes more):
     one reading's count fixed by `mode_count` or `n_zero`; a published
-    heap; a histogram bin of a few rows; a tail's published values or a
-    tail of a few rows; the readings of a column of at most six different
-    values; a missing spelling, a level's spelling or an unread kind of
-    cell counted 1 to `floor - 1`; and every sub-band an `L0` merge took
-    in.
+    heap; a histogram bin of a few rows; a tail of a few rows; the
+    readings of a column of at most six different values; a missing
+    spelling, a level's spelling or an unread kind of cell counted 1 to
+    `floor - 1`; and every sub-band an `L0` merge took in. A tail's
+    listed values mark nothing here (repair 1): a value a tail lists is
+    an own-fact group only where its rows are 1 to `floor - 1`, which the
+    producer reads on the column's own values (`chain.value_run_bands`,
+    with every run between two cuts the published facts draw); a loader,
+    holding no row, checks this list alone, a subset of the producer's.
     """
     role = f"{_get(block, 'role')}"
     l0_of_start: "dict[int, int]" = {}
@@ -731,11 +737,6 @@ def small_group_bands(block: "dict[str, object]", start: Starting, ladder: Ladde
                 side = tails[key]
                 if not isinstance(side, dict):
                     continue
-                values = _get(side, "values")
-                if isinstance(values, list):
-                    for one in values:
-                        if isinstance(one, (int, float)) and not isinstance(one, bool):
-                            marked = marked | at_value(float(one))
                 if _small(_get(side, "rows"), floor):
                     marked = marked | every_value
         distinct = _get(holder, "n_distinct_values")
@@ -752,7 +753,7 @@ def small_group_bands(block: "dict[str, object]", start: Starting, ladder: Ladde
         for key in ("low_tail", "high_tail"):
             side = _get(block, key)
             if isinstance(side, dict):
-                if _get(side, "values") not in (None, []) or _small(_get(side, "rows"), floor):
+                if _small(_get(side, "rows"), floor):
                     marked = marked | every_value
         if _small(_get(block, "n_unparsed"), floor) and OTHER in spread_at:
             marked = marked | {spread_at[OTHER]}
@@ -1135,7 +1136,7 @@ def blank_record_room(document: "dict[str, object]", floor: int) -> int:
     source = _get(document, "source")
     if not isinstance(source, dict):
         return 0
-    line = max(2, floor)
+    line = parsing.census_floor(floor)
     workbook = _get(source, "workbook")
     if isinstance(workbook, dict):
         return 0 if _get(workbook, "empty_rows_inside") is not None else line - 1

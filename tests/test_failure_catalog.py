@@ -228,6 +228,10 @@ CASES: "dict[str, tuple[object, ...]]" = {
         "the description gives the table a different number of rows",
     ),
     "profile_relationships_carried": ("grain",),
+    # The chain between columns breaking one of S23 to S28 (lane CHa,
+    # plan P4-D418), read only behind the loader's switch: the rule, where
+    # it broke, and what broke it.
+    "profile_chain_broken": ("S24", "chain", "an option W1 refuses was drawn"),
     "profile_out_of_memory": ("/reports/table-profile.json",),
     # Building the twin: the three refusals that belong to the command
     # rather than to the loader or to the method (plan P2-D10), plus the

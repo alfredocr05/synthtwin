@@ -18,7 +18,7 @@ written by a later landing and is refused as one this version cannot
 check.
 """
 
-from synthtwin import chain_rules as rules
+from synthtwin import chain_rules
 from synthtwin import errors
 
 
@@ -38,7 +38,7 @@ def _whole(value: object) -> bool:
 
 def _level_of(value: object, invariant: str, where: str) -> int:
     for place in range(3):
-        if value == rules.LEVELS[place]:
+        if value == chain_rules.LEVELS[place]:
             return place
     raise _broken(invariant, where, "a level is one of L0, L1 and L2")
 
@@ -75,10 +75,10 @@ def check(document: "dict[str, object]") -> None:
                 schema += [f"{block['name']}"]
     rows = _get(document, "n_rows")
     whole_rows = rows if isinstance(rows, int) and not isinstance(rows, bool) else 0
-    blank_rows = rules.records_holding_nothing(document)
+    blank_rows = chain_rules.records_holding_nothing(document)
     tabled = whole_rows - blank_rows
     procedure = statistical["procedure"]
-    if procedure != rules.procedure_record(tabled):
+    if procedure != chain_rules.procedure_record(tabled):
         raise _broken("S24", "procedure", "the constants are this version's (contract 4.6b.14)")
     if statistical["moments"] is not None or statistical["rules"] != [] or statistical["withheld"] != []:
         raise _broken("S28", "rules", "this version carries no rule, no moment and no withheld class")
@@ -90,15 +90,15 @@ def check(document: "dict[str, object]") -> None:
     for entry in reasons:
         if not isinstance(entry, dict) or sorted(entry) != ["column", "reason"]:
             raise _broken("S27", "ineligible", "each entry names a column and a reason")
-        if entry["column"] not in blocks or entry["reason"] not in rules.INELIGIBLE_REASONS:
+        if entry["column"] not in blocks or entry["reason"] not in chain_rules.INELIGIBLE_REASONS:
             raise _broken("S27", f"{entry['column']}", "a reason of contract 4.6b.1 for a column of this table")
         out_of_ladder = out_of_ladder | {f"{entry['column']}"}
     eligible = [name for name in schema if name not in out_of_ladder]
     published = statistical["ladder"]
     if not isinstance(published, list) or len(published) != len(eligible):
         raise _broken("S23", "ladder", "one entry for every eligible column, in schema order")
-    scales: "dict[str, rules.Ladder]" = {}
-    starts: "dict[str, rules.Starting]" = {}
+    scales: "dict[str, chain_rules.Ladder]" = {}
+    starts: "dict[str, chain_rules.Starting]" = {}
     for at in range(len(eligible)):
         name = eligible[at]
         entry = published[at]
@@ -111,9 +111,9 @@ def check(document: "dict[str, object]") -> None:
     chain = statistical["chain"]
     if not isinstance(chain, list) or not chain:
         raise _broken("S24", "chain", "a chain lists its families")
-    families: "list[rules.Family]" = []
+    families: "list[chain_rules.Family]" = []
     seen_children: "set[str]" = set()
-    k_max = rules.K_MAX
+    k_max = chain_rules.K_MAX
     for at in range(len(chain)):
         family = _family_of(chain[at], at, families, scales, eligible, floor, tabled, k_max)
         if family.child in seen_children:
@@ -133,8 +133,8 @@ def check(document: "dict[str, object]") -> None:
     # RULE W1, in full.
     groups: "dict[str, set[int]]" = {}
     for name in eligible:
-        groups[name] = rules.small_group_bands(blocks[name], starts[name], scales[name], floor)
-    failing = rules.w1_refusals(families, scales, groups)
+        groups[name] = chain_rules.small_group_bands(blocks[name], starts[name], scales[name], floor)
+    failing = chain_rules.w1_refusals(families, scales, groups)
     if failing:
         raise _broken("S24", failing[0][0], "RULE W1: a band holding a small group of the column reaches two bands of every other column's coarsest level")
     # RULE WE.
@@ -142,12 +142,12 @@ def check(document: "dict[str, object]") -> None:
     for name in eligible:
         blank = _get(blocks[name], "n_missing_blank")
         blank_counts[name] = (blank if isinstance(blank, int) else 0) - blank_rows
-    x0 = rules.blank_cell(scales, blank_counts)
-    room = rules.blank_record_room(document, floor) + rules.outside_cells(document, set(eligible))
-    if x0 is not None and rules.cell_bound(x0, families, scales, tabled) > room:
+    x0 = chain_rules.blank_cell(scales, blank_counts)
+    room = chain_rules.blank_record_room(document, floor) + chain_rules.outside_cells(document, set(eligible))
+    if x0 is not None and chain_rules.cell_bound(x0, families, scales, tabled) > room:
         raise _broken("S24", "chain", "RULE WE: the rows blank in every eligible column fit the records holding nothing")
     # -- words and names (S27) --
-    words, implied = rules.words_of(eligible, families)
+    words, implied = chain_rules.words_of(eligible, families)
     if statistical["words"] != words:
         raise _broken("S27", "words", "every candidate pair once, in schema order, with the word the description gives it")
     if statistical["not_carried"] != implied:
@@ -160,12 +160,12 @@ def _ladder_of(
     floor: int,
     tabled: int,
     blank_rows: int,
-) -> "tuple[rules.Ladder, rules.Starting]":
+) -> "tuple[chain_rules.Ladder, chain_rules.Starting]":
     """One ladder entry read back and checked against its column's own facts (S23)."""
     name = f"{_get(block, 'name')}"
     if sorted(entry) != ["column", "l0", "l1", "l2", "totals"]:
         raise _broken("S23", name, "a ladder entry holds column, l0, l1, l2 and totals")
-    start = rules.starting_bands(block, (True, True, True))
+    start = chain_rules.starting_bands(block, (True, True, True))
     if start is None:
         raise _broken("S23", name, "a column whose role takes no ladder")
     l0 = entry["l0"]
@@ -200,20 +200,20 @@ def _ladder_of(
     if sum(totals) != tabled:
         raise _broken("S23", name, "the L0 totals sum to the tabled rows")
     for at in range(len(bands)):
-        if names[at] == (rules.MISSING,):
+        if names[at] == (chain_rules.MISSING,):
             missing = _get(block, "n_missing")
             if not isinstance(missing, int) or totals[at] != missing - blank_rows:
                 raise _broken("S23", name, "the missing band counts the column's absent cells less the records holding nothing")
         if start.is_label and len(names[at]) == 1 and isinstance(names[at][0], tuple):
-            for label, count in rules.label_levels(block):
+            for label, count in chain_rules.label_levels(block):
                 if names[at][0] == (label,) and totals[at] != count:
                     raise _broken("S23", name, "a level's band counts its published count")
-    second = rules.union_closure(bands, start.groups[1])
-    third = rules.union_closure(bands, start.groups[2])
-    if entry["l1"] != rules.bands_of(second, max(second) + 1) or entry["l2"] != rules.bands_of(third, max(third) + 1):
+    second = chain_rules.union_closure(bands, start.groups[1])
+    third = chain_rules.union_closure(bands, start.groups[2])
+    if entry["l1"] != chain_rules.bands_of(second, max(second) + 1) or entry["l2"] != chain_rules.bands_of(third, max(third) + 1):
         raise _broken("S23", name, "L1 and L2 are read through L0, so the levels nest")
     ordered = tuple(any(start.value[place] for place in band) for band in bands)
-    scale = rules.Ladder(
+    scale = chain_rules.Ladder(
         name,
         tuple(names),
         (tuple(range(len(bands))), second, third),
@@ -227,13 +227,13 @@ def _ladder_of(
 def _family_of(
     entry: object,
     at: int,
-    families: "list[rules.Family]",
-    scales: "dict[str, rules.Ladder]",
+    families: "list[chain_rules.Family]",
+    scales: "dict[str, chain_rules.Ladder]",
     eligible: "list[str]",
     floor: int,
     tabled: int,
     k_max: int,
-) -> rules.Family:
+) -> chain_rules.Family:
     """One chain entry read back and checked (S24, S25)."""
     where = f"chain[{at}]"
     if not isinstance(entry, dict) or sorted(entry) != ["anchor", "child", "level", "parents", "slopes", "table"]:
@@ -265,13 +265,13 @@ def _family_of(
     else:
         earliest = None
         for place in range(len(families)):
-            held = {name for name, _level in rules.members(families[place])}
+            held = {name for name, _level in chain_rules.members(families[place])}
             if all(name in held for name, _level in parents):
                 earliest = place
                 break
         if earliest is None or anchor != earliest:
             raise _broken("S24", child, "the anchor is the earliest family holding every parent")
-        held_levels = dict(rules.members(families[earliest]))
+        held_levels = dict(chain_rules.members(families[earliest]))
         for name, parent_level in parents:
             if parent_level < held_levels[name]:
                 raise _broken("S24", child, "each parent stands at its level in the anchor or coarser")
@@ -292,30 +292,30 @@ def _family_of(
             flat += [cell]
     if sum(flat) != tabled:
         raise _broken("S25", child, "the table sums to the tabled rows")
-    family = rules.Family(child, level, tuple(parents), anchor if isinstance(anchor, int) and not isinstance(anchor, bool) else None, tuple(flat))
+    family = chain_rules.Family(child, level, tuple(parents), anchor if isinstance(anchor, int) and not isinstance(anchor, bool) else None, tuple(flat))
     # Its sum over the parents is the child's L0 totals at its level.
     by_child = [0] * sizes[0]
     for index in range(len(flat)):
         by_child[index % sizes[0]] += flat[index]
-    if by_child != rules.totals_at(scales[child], level):
+    if by_child != chain_rules.totals_at(scales[child], level):
         raise _broken("S25", child, "the table's sum over the parents is the child's L0 totals at its level")
     if parents and family.anchor is not None:
         by_parents = [0] * width
         for index in range(len(flat)):
             by_parents[index // sizes[0]] += flat[index]
-        margins = rules.parent_cells(scales, tuple(name for name, _level in parents), families[family.anchor])
-        if by_parents != rules.parent_cells_at(margins, tuple(parent_level for _name, parent_level in parents)):
+        margins = chain_rules.parent_cells(scales, tuple(name for name, _level in parents), families[family.anchor])
+        if by_parents != chain_rules.parent_cells_at(margins, tuple(parent_level for _name, parent_level in parents)):
             raise _broken("S25", child, "the table's sum over the child is its anchor's table summed to its parents")
-    elif not parents and flat != list(rules.totals_at(scales[child], level)):
+    elif not parents and flat != list(chain_rules.totals_at(scales[child], level)):
         raise _broken("S25", child, "a family with no parent is the child's totals at its level")
     return family
 
 
 def _offered(
-    family: rules.Family,
+    family: chain_rules.Family,
     at: int,
-    families: "list[rules.Family]",
-    scales: "dict[str, rules.Ladder]",
+    families: "list[chain_rules.Family]",
+    scales: "dict[str, chain_rules.Ladder]",
     eligible: "list[str]",
     floor: int,
     tabled: int,
@@ -327,16 +327,16 @@ def _offered(
     anchor = families[family.anchor]
     if at == 1 and not anchor.parents and family.anchor == 0:
         start = [0, 0]
-        margins = rules.parent_cells(scales, (names[1],), None)
+        margins = chain_rules.parent_cells(scales, (names[1],), None)
     else:
-        held = dict(rules.members(anchor))
+        held = dict(chain_rules.members(anchor))
         start = [0] + [held[name] for name in names[1:]]
-        margins = rules.parent_cells(scales, tuple(names[1:]), anchor)
+        margins = chain_rules.parent_cells(scales, tuple(names[1:]), anchor)
     place_of: "dict[str, int]" = {}
     for place in range(len(eligible)):
         place_of[eligible[place]] = place
     order = [place_of[name] for name in names]
-    offered = rules.offered_levels([scales[name] for name in names], start, order, margins, tabled, floor)
+    offered = chain_rules.offered_levels([scales[name] for name in names], start, order, margins, tabled, floor)
     placed = [family.level] + [level for _name, level in family.parents]
     if offered is None or any(placed[place] < offered[place] for place in range(len(placed))):
         raise _broken("S24", family.child, "RULES W3 and NE offer the family's levels")
