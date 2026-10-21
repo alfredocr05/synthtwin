@@ -460,6 +460,7 @@ GATE_SETTLED_BY: "dict[tuple[str, ...], str]" = {
     _path("columns.[].resolution_mix.{}"): "design row 22: settled, complement = n_unparsed",
     _path("columns.[].n_at_midnight"): "design row 23, invariant D15 (both sides at the line)",
     _path("columns.[].numeric_share"): "Q9: the ratio of two counts the block publishes",
+    _path("columns.[].time_grain.rows"): "P4-D417: the block's own n_present again (P4-D271), which the walk reads",
     _path("columns.[].levels.[].shape_form_cells"): (
         "P4-D160: a cell with no form is counted nowhere, so no population is published"
     ),
@@ -546,6 +547,7 @@ WORD_DEFAULTS: "dict[tuple[str, ...], object]" = {
 # two keys rather than one, spelled out in `_population`.
 GATE_POPULATIONS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     _path("n_rows"): (),
+    _path("columns.[].time_grain.people"): (),
     _path("columns.[].count"): (),
     _path("columns.[].mode_count"): ("n_used_in_statistics",),
     _path("columns.[].sentinel_verdicts.[].n_occurrences"): (),
@@ -592,6 +594,11 @@ GATE_NO_POPULATION: "dict[tuple[str, ...], str]" = {
         "and there is no smaller group behind it (taxonomy.BIND_POPULATION, "
         "contract NF59). What governs it is the POPULATION floor, asked in "
         "the refusal half"
+    ),
+    _path("columns.[].time_grain.people"): (
+        "the number IS the population: the people the subject column names, "
+        "nought or at least the floor (a subject column of fewer values is "
+        "read as none), with no smaller group behind it (plan P4-D417)"
     ),
     _path("columns.[].count"): (
         "an affix wrapper's cells; what is left of the column's n_affixed is "

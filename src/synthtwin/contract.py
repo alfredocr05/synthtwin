@@ -2404,6 +2404,24 @@ INVARIANTS = {
         "from at least the column's different values plus the smallest "
         "group size, once the prefix's own characters are fixed"
     ),
+    # -- lane PS (plan P4-D417): the grain a column of dates or times was
+    # pooled at, and the record a held one keeps.
+    "TG1": (
+        "a column's time grain is a walk its own published facts allow: "
+        "its rows are the column's present cells, its spans run one a "
+        "rung from the ladder's top, each a pair of bucket starts, and "
+        "each finer span reaches both ends of the one before and holds "
+        "few enough buckets for the visits its rows and people estimate"
+    ),
+    "NF128": (
+        "a column described at a grain reads its cells under the date "
+        "member or clock form the block itself publishes"
+    ),
+    "NF129": (
+        "a time grain is held on a held record-number column and on no "
+        "other, and a held record-number column of dates or times keeps "
+        "the grain its twin writes valid values from"
+    ),
 }
 
 
