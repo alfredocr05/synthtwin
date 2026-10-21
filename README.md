@@ -813,12 +813,14 @@ scripts\install.bat
 The script takes no folder and needs no internet. It finds a Python the
 bundle serves, 3.11 to 3.14 -- the one you type first (`python3` or
 `python`), then each of those versions by its own name, newest first,
-so a Python 3.15 beside a 3.14 takes the 3.14 -- and says in plain words
-which Python to install if there is none; checks every file of the
+so a Python 3.15 beside a 3.14 takes the 3.14, and only the usual
+Python from python.org, not its free-threaded build -- and says in plain
+words which Python to install if there is none; checks every file of the
 bundle against the bundle's `SHA256SUMS`, every library against the
 hashes `requirements-install.lock` pins, and that the bundle was made
 for this computer -- its system, its chip and, on a Mac, its macOS
-version -- and this Python, before it changes anything; makes a fresh private environment named
+version -- and this Python, and that it holds every library this
+computer needs, before it changes anything; makes a fresh private environment named
 `.venv` inside the bundle's folder so nothing else on the computer
 changes (an earlier one there is replaced, so every file in it is
 checked again, and a package you installed into it yourself must be

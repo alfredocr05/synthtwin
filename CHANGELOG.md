@@ -21,13 +21,17 @@ changed byte is refused there before anything is made. `sh
 scripts/install.sh` and `scripts\install.bat` take no folder and have no
 route over the internet: they take a Python the bundle serves, 3.11 to
 3.14, even beside a newer one, and name Python 3.14 when there is none;
-check every file of the bundle, and that it fits this computer's chip
-and macOS, before they change anything; install with `--isolated
---no-index --require-hashes`; and end with `synthtwin doctor`. Windows
-users are told how to type in Command Prompt the PowerShell commands
-synthtwin prints. A `numba-vectors` CI job holds the
-numba polish kernel to plain Python's bytes on every system and Python
-before lane MPn may adopt it, and the offline scanner enters the eight
+check every file of the bundle, every line of its lock, and that it
+fits this computer's chip, macOS or Linux and its Python's kind and
+holds every library they need, before they change anything (an
+incomplete bundle leaves an earlier install as it was); install with
+`--isolated --no-index --require-hashes`, synthtwin by its name, so a
+folder named with a semicolon installs; and end with `synthtwin
+doctor`. Windows users are told how to type in Command Prompt the
+PowerShell commands synthtwin prints, a doubled single quote once. A
+`numba-vectors` CI job holds the numba polish kernel to plain Python's
+bytes on every system and Python, each kernel run on its own copy of
+the arguments, before lane MPn may adopt it, and the offline scanner enters the eight
 float powers of P4-D409 by site, each with its measurement, and refuses
 any new one it can see. Nothing is published yet: the first release
 hands the bundles out. No twin, description or report byte moves.
