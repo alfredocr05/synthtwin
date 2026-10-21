@@ -1743,7 +1743,7 @@ def _package(
     # settles the classes over the cells as they will be written.
     for index in range(width):
         column = form.columns[index]
-        written = tuple(twin.columns[index])
+        written = generation.twin_column(twin, index)
         stores_dates = _stores_dates(column)
         if stores_dates:
             told: "frozenset[str]" = frozenset()

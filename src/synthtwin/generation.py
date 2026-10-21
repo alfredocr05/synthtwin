@@ -141,7 +141,7 @@ structure arrives in a later phase (Phase 5).
 import dataclasses
 import math
 import typing
-from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy
+from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy, twinstore
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts
 
@@ -712,6 +712,12 @@ class Twin:
     # (module `dialect`). None only for a twin built by hand, which is
     # written in the ordinary form.
     form: "dialect.Dialect | None" = None
+    # THE TWIN HELD ONCE (plan P4-D415, lane SG): its finished columns
+    # held compactly (`twinstore`), where `generate_held` built it, and then
+    # `columns` and `rows` are empty; None where the cells are in
+    # `columns` and `rows`. Read a twin of either kind through
+    # `twin_width`, `twin_column`, `twin_column_blocks` and `twin_rows`.
+    held_columns: "tuple[twinstore.HeldColumn, ...] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -62970,6 +62976,18 @@ def _content_of(
 def generate(profile: contract.Profile, seed: int) -> Twin:
     """Build the whole twin table from the description and the seed.
 
+    The twin `generate_held` builds, with its cells handed back both ways
+    round as text objects (`materialised`): every column a tuple of its
+    cells and every row a tuple of the same objects. Its guarantees are
+    `generate_held`'s. For a twin small enough to hold that way; the
+    command line builds the held twin and writes it from there.
+    """
+    return materialised(generate_held(profile, seed))
+
+
+def generate_held(profile: contract.Profile, seed: int) -> Twin:
+    """Build the whole twin table from the description and the seed, held once.
+
     Guarantees:
 
     - Inputs: one description loaded by `contract.load_profile`, and one
@@ -62994,10 +63012,20 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
       reachable from here (method G1). Nothing is written: this function
       hands back values, and the command decides what becomes of them.
 
-    What comes back is the twin's cells both ways round, the header the
-    description asks for, and one outcome per column recounted from the
-    cells themselves, carrying every deviation measured against the fact
-    it missed.
+    What comes back is the twin's cells, the header the description
+    asks for, and one outcome per column recounted from the cells
+    themselves, carrying every deviation measured against the fact it
+    missed.
+
+    THE TWIN IS HELD ONCE (plan P4-D415, lane SG). Each column is made,
+    measured and moved off the all-empty records on its own, then held
+    compactly (`twinstore.held_column`: its cells' own bytes and one byte
+    more), and the next column starts with nothing of the last one left
+    but that; the rows are then placed a column at a time
+    (`dialect.arranged_columns`). So the finished cells are never Python
+    objects all at once, `columns` and `rows` are empty and
+    `held_columns` holds the twin. The cells are those `generate` hands
+    back, byte for byte.
     """
     if isinstance(seed, bool) or not isinstance(seed, int):
         raise errors.ProfileError(_seed_out_of_range(0))
@@ -63005,7 +63033,10 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         raise errors.ProfileError(_seed_out_of_range(seed))
     plan = plan_generation(profile)
     generator = numpy.random.default_rng(seed)
-    columns: list[tuple[str, ...]] = []
+    arranging = dialect.arranging(
+        profile.source.dialect, profile.n_rows, len(plan.columns)
+    )
+    finished: "list[twinstore.HeldColumn]" = []
     outcomes: list[ColumnOutcome] = []
     deviations: list[Deviation] = []
     approximated: list[Approximation] = []
@@ -63037,6 +63068,8 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 f"{column.n_present}. This means a mistake in synthtwin; "
                 f"please report it. Nothing has been written."
             )
+        # Every word is in the column's values now; none is held longer.
+        words = []
         # WHICH CELLS THE NUMERIC MACHINERY WROTE, counted before the
         # absent cells join them: every present cell of a plain numeric
         # role, and the numeric half of a column of numbers and labels,
@@ -63065,7 +63098,9 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             ]
         drawn = drawn + len(places)
         order = _arrangement(places, profile.n_rows)
+        places = []
         written = [content[order[place]] for place in range(profile.n_rows)]
+        content = []
         # THE ROW SEQUENCE IS WRITTEN, NOT DRAWN (owner ruling 2026-09-15,
         # plan P4-D86). A column the description names as the row
         # sequence -- pandas' 0, 1, 2 or R's 1, 2, 3 -- holds exactly
@@ -63125,7 +63160,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 spelled,
                 [order[place] < dates_written for place in range(profile.n_rows)],
             )
-        columns += [tuple(spelled)]
+        order = []
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
         # is what every measurement below owes (review item
         # P4-G3-R5-F2). THE SWAP AND THE READING ARE NOT THE SAME
@@ -63303,21 +63338,28 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 remarks=each.remarks + tuple(spread) + tuple(joint),
             )
         ]
+        # THE COLUMN IS DONE, AND HELD (plan P4-D415): moved off the
+        # all-empty records, which asks nothing of any other column, then
+        # held as its cells' bytes; what built and measured it goes now,
+        # before the next column's words are drawn.
+        finished += [
+            twinstore.held_column(dialect.placed_column(arranging, list(spelled)))
+        ]
+        written = []
+        spelled = []
+        measured = []
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
     # one column for the empty records, so nothing measured above moves.
-    columns = dialect.arranged(columns, profile.source.dialect, profile.n_rows)
-    rows = [
-        tuple([columns[place][row] for place in range(len(columns))])
-        for row in range(profile.n_rows)
-    ]
+    # One column at a time (plan P4-D415).
+    finished = dialect.arranged_columns(arranging, finished)
     return Twin(
         names=tuple([column.name for column in profile.columns]),
         write_header=profile.source.header_source == "file",
         n_rows=profile.n_rows,
-        columns=tuple(columns),
-        rows=tuple(rows),
+        columns=(),
+        rows=(),
         outcomes=tuple(outcomes),
         deviations=tuple(deviations),
         approximations=tuple(approximated),
@@ -63325,7 +63367,91 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         words_drawn=drawn,
         seed=seed,
         form=profile.source.dialect,
+        held_columns=tuple(finished),
     )
+
+
+def materialised(twin: Twin) -> Twin:
+    """A held twin with its cells handed back both ways round (plan P4-D415).
+
+    Guarantees: accepts any twin; where `held_columns` is None it is
+    returned as it is, and otherwise the same twin with every column a
+    tuple of its cells, every row a tuple of the same objects and
+    `held_columns` None -- the twin `generate` has always handed back.
+    The whole twin becomes text objects, so this is for a twin small
+    enough to hold that way. Raises nothing. No I/O of any kind.
+    """
+    found = twin.held_columns
+    if found is None:
+        return twin
+    columns = tuple([tuple(twinstore.column_cells(column)) for column in found])
+    rows = [
+        tuple([columns[place][row] for place in range(len(columns))])
+        for row in range(twin.n_rows)
+    ]
+    return dataclasses.replace(
+        twin, columns=columns, rows=tuple(rows), held_columns=None
+    )
+
+
+def twin_width(twin: Twin) -> int:
+    """How many columns a twin has, held or not (plan P4-D415)."""
+    if twin.held_columns is not None:
+        return len(twin.held_columns)
+    return len(twin.columns)
+
+
+def twin_column(twin: Twin, index: int) -> "tuple[str, ...]":
+    """Column ``index`` of a twin, held or not, as a tuple of its cells.
+
+    One column becomes text objects; never ask it of every column at
+    once of a large twin. Raises IndexError for a column the twin does
+    not have. No I/O of any kind.
+    """
+    if twin.held_columns is not None:
+        return tuple(twinstore.column_cells(twin.held_columns[index]))
+    return twin.columns[index]
+
+
+def twin_column_blocks(twin: Twin, index: int) -> "typing.Iterator[list[str]]":
+    """Column ``index`` of a twin, a block of its cells at a time, in row order.
+
+    The blocks joined are the column's cells (`twin_column`); a held
+    column is read one `twinstore.BLOCK_ROWS` block at a time, so a walk over
+    one column holds one block. No I/O of any kind.
+    """
+    if twin.held_columns is not None:
+        column = twin.held_columns[index]
+        for block in range(len(column.blocks)):
+            yield twinstore.column_block(column, block)
+        return
+    yield list(twin.columns[index])
+
+
+def twin_rows(twin: Twin) -> "typing.Iterator[tuple[str, ...]]":
+    """The rows of a twin, held or not, one at a time and in row order.
+
+    A held twin is read a block of rows at a time: one block of every
+    column becomes text objects, its rows are handed out, and the next
+    block is read, so the whole twin is never text objects at once.
+    Guarantees: exactly `n_rows` rows, each the tuple of its cells in
+    column order, the same cells `materialised` puts in `rows`. Raises
+    nothing. No I/O of any kind.
+    """
+    found = twin.held_columns
+    if found is None:
+        for given in twin.rows:
+            yield given
+        return
+    width = len(found)
+    if not width:
+        for _row in range(twin.n_rows):
+            yield ()
+        return
+    for block in range(twinstore.blocks_of(twin.n_rows)):
+        cells = [twinstore.column_block(column, block) for column in found]
+        for row in range(len(cells[0])):
+            yield tuple([cells[place][row] for place in range(width)])
 
 
 def _sequence_start(profile: contract.Profile, column: contract.ColumnBlock) -> int:

@@ -591,6 +591,19 @@ attribute absent from it is not allowed at all:
   or a value this package's own code returned -- because the writer
   runs the iteration and text protocols of every row and every cell it
   is given.
+  THE HANDLE WRITTEN A PIECE AT A TIME (plan P4-D415, lane SG): in
+  synthtwin.writing alone, the output handle itself answers to write,
+  with one positional argument, and close, with none, and to nothing
+  else, no attribute either. Capability audit: the handle is the text
+  file pathlib.Path.open returns on the transaction's own validated
+  output target (the origin above, which nothing else can carry); its
+  write encodes the text it is handed in the handle's own encoding and
+  appends it to that one file, and refuses anything that is not text
+  with TypeError, running no protocol of its argument; close flushes and
+  closes that file. Neither opens another path, starts a program or
+  reaches a network. The twin is written this way so that its text is
+  never made whole: a table of 2,000,000 rows by 50 columns is about a
+  gigabyte of text.
 * math (Phase 1 extension E2, revised at round 1): fsum, frexp,
   isfinite, ldexp, sqrt. Every one is a pure numeric function of
   numbers; none takes a callable, none performs I/O, and each is a
@@ -1388,6 +1401,15 @@ _NUMBER = ("number", "")
 # so it cannot be manufactured from a caller-supplied object (E9).
 _LOCALHANDLE = ("localhandle", "")
 
+# THE HANDLE WRITTEN A PIECE AT A TIME (plan P4-D415, lane SG): the two
+# methods the output handle answers to, with how many positional
+# arguments each takes, and the one module where it answers to them.
+# `writing` writes the twin's text through the handle a piece at a time
+# so the text is never made whole; everywhere else the handle answers
+# to nothing, as before.
+_LOCALHANDLE_METHODS: "dict[str, int]" = {"close": 0, "write": 1}
+_LOCALHANDLE_WRITERS = frozenset({"synthtwin.writing"})
+
 # Origin kinds a value may carry and still be read, stored, or returned
 # without a message of its own. Every kind this audit records belongs
 # here; what each kind may be USED for is decided by the rules that
@@ -2128,6 +2150,28 @@ def _unknown_call_message(name: str) -> str:
         "the source, and a possibility once recorded is never "
         "discarded, so Phase 0 synthtwin source must call every "
         "function by its written-out name."
+    )
+
+
+def _localhandle_message(method: str) -> str:
+    return (
+        "calls the method '" + method + "' on the output handle opened on "
+        "the validated output target. Only synthtwin.writing writes "
+        "through it, with write(text) and close(), and nothing else of "
+        "it is reachable (plan P4-D415): any other method, an argument "
+        "by name or expanded, or the same calls in another module, could "
+        "read the file back, move within it or write it from code that "
+        "writes nothing."
+    )
+
+
+def _localhandle_attribute_message(name: str) -> str:
+    return (
+        "reads the attribute '" + name + "' of the output handle opened "
+        "on the validated output target. The handle answers to write(text) "
+        "and close() in synthtwin.writing and to no attribute anywhere "
+        "(plan P4-D415): its buffer would write past the text it is "
+        "handed, and nothing else of it is needed to write a file."
     )
 
 
@@ -4429,6 +4473,13 @@ class _Checker(ast.NodeVisitor):
             # A method call; the method rule governs it.
             return False
         for kind, origin in sorted(self._trust_origins(node.value)):
+            if kind == "localhandle":
+                # The output handle answers to two methods and no
+                # attribute at all (plan P4-D415): its `buffer` would
+                # write bytes past the text rule, its `name` reads back
+                # where it is.
+                self._flag(node, _localhandle_attribute_message(node.attr))
+                return True
             if kind != "instance":
                 continue
             key = _surface_key(origin)
@@ -4761,6 +4812,19 @@ class _Checker(ast.NodeVisitor):
         method = func.attr
         receiver = self._trust_origins(func.value)
         kinds = {kind for kind, _origin in receiver}
+        if kinds == {"localhandle"}:
+            # The output handle (plan P4-D415): write and close, in
+            # `writing` alone, each with its own count of positional
+            # arguments and nothing by name or expanded.
+            if (
+                method not in _LOCALHANDLE_METHODS
+                or self.module_name not in _LOCALHANDLE_WRITERS
+                or node.keywords
+                or len(node.args) != _LOCALHANDLE_METHODS[method]
+                or any(isinstance(value, ast.Starred) for value in node.args)
+            ):
+                self._flag(node, _localhandle_message(method))
+            return
         if kinds <= {"module", "api", "instance", "localpath"}:
             for kind, origin in sorted(receiver):
                 if kind != "instance":

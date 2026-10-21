@@ -1114,10 +1114,12 @@ def _write_part(
     data: "bytes | None" = None,
     members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None,
     pieces: "list[str] | None" = None,
+    stream: "typing.Iterable[str] | None" = None,
 ) -> "tuple[str, str]":
     """Fill one working file; say what went wrong and what it holds now.
 
-    ``pieces`` reaches `write_text_file` as it is, the text in pieces.
+    ``pieces`` reaches `write_text_file` as it is, the text in pieces,
+    and so does ``stream``, the text as pieces taken one at a time.
 
     Returns ("", ON_DISK_WORKING) when the text is on disk. On a refusal
     the first item is the message for the person and the second is what
@@ -1160,7 +1162,7 @@ def _write_part(
         if members is not None:
             write_workbook_file(place, members, words)
         elif data is None:
-            write_text_file(place, text, words, encoding, newline, pieces)
+            write_text_file(place, text, words, encoding, newline, pieces, stream)
         else:
             write_bytes_file(place, data, words)
     except PathValidationError as error:
@@ -1266,6 +1268,7 @@ def write_both_files(
     first_newline: str = "\n",
     first_data: "bytes | None" = None,
     first_members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None,
+    first_stream: "typing.Iterable[str] | None" = None,
 ) -> "list[str]":
     """Write the two files as one outcome, or leave the folder untouched.
 
@@ -1275,6 +1278,9 @@ def write_both_files(
     encoding and an empty newline, because a twin is written in its
     table's own form, its line endings already in its text (plan
     P4-D86). The second file is always UTF-8 with line feeds.
+    ``first_stream``, where given, is the FIRST file's text as pieces
+    taken one at a time, written in place of ``profile_text`` and never
+    made whole (plan P4-D415: the twin of a large table).
 
     The two files are one thing: the machine-readable profile is what
     the twin gets built from, and the summary is the only place the
@@ -1528,6 +1534,7 @@ def write_both_files(
             first_newline,
             first_data,
             first_members,
+            stream=first_stream,
         )
         if trouble:
             raise _stopped_clean(
@@ -2302,8 +2309,18 @@ def write_text_file(
     encoding: str = "utf-8",
     newline: str = "\n",
     pieces: "list[str] | None" = None,
+    stream: "typing.Iterable[str] | None" = None,
 ) -> None:
     """Write ``text`` to ``target`` as UTF-8 with newline line endings.
+
+    ``stream``, where given, is written in place of ``text``: its pieces
+    are taken one at a time and each written through the file's own
+    handle as it comes, in ``encoding`` and under ``newline`` exactly as
+    ``text`` would be, so the bytes are those of the pieces' whole text
+    and that text is never made, nor its bytes (plan P4-D415, lane SG:
+    the twin of 2,000,000 rows by 50 columns is about a gigabyte of
+    text). A failure part way leaves part of the text in the file, as a
+    failure of the whole write can; the transaction above clears it.
 
     ``pieces``, where given, is written in place of ``text``: the bytes
     are those the pieces added in order would be written as, and the
@@ -2344,7 +2361,11 @@ def write_text_file(
     validated = validate_local_path(f"{target}", purpose="output file")
     destination = pathlib.Path(validated)
     try:
-        if pieces is None:
+        if stream is not None:
+            with destination.open("w", encoding=encoding, newline=newline) as handle:
+                for piece in stream:
+                    handle.write(piece)
+        elif pieces is None:
             destination.write_text(text, encoding=encoding, newline=newline)
         else:
             destination.write_bytes(_pieces_encoded(pieces, encoding))

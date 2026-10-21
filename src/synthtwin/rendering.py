@@ -57,8 +57,11 @@ or through anything it imports: `contract` reads one description file,
 this package.
 
 Imports here stay within the allowlist (plan D6.2): this module imports
-only from this package.
+`typing`, for the annotation of the twin's pieces (plan P4-D415), and
+otherwise only from this package.
 """
+
+import typing
 
 from synthtwin import contract, dialect, generation, parsing
 
@@ -298,10 +301,24 @@ def twin_csv(twin: generation.Twin) -> str:
     order. The caller writes the text in the description's
     `source.encoding`.
     """
+    return "".join(twin_csv_pieces(twin))
+
+
+def twin_csv_pieces(twin: generation.Twin) -> "typing.Iterator[str]":
+    """The twin table's exact text, in pieces, never made whole (plan P4-D415).
+
+    Guarantees: the pieces joined in order are `twin_csv`'s text, for a
+    twin `generation.generate` or `generation.generate_held` built, or
+    one built by hand; the rows are read one at a time
+    (`generation.twin_rows`), so a held twin never becomes text objects
+    all at once. Determinism, errors and boundary as `twin_csv`'s.
+    """
     form = twin.form
     if form is None:
         form = dialect.ordinary(len(twin.names), twin.n_rows, twin.write_header)
-    return dialect.twin_text(twin.names, twin.rows, twin.write_header, form)
+    return dialect.twin_pieces(
+        twin.names, generation.twin_rows(twin), twin.write_header, form, twin.n_rows
+    )
 
 
 # -- the report (plan P2-D10, P2-D11) ---------------------------------
@@ -316,20 +333,31 @@ def _formula_hazard(twin: generation.Twin) -> "tuple[int, list[str]]":
     """
     total = 0
     named: list[str] = []
-    for place in range(len(twin.columns)):
+    for place in range(generation.twin_width(twin)):
         hits = 0
         if twin.write_header:
             for leader in _FORMULA_LEADERS:
                 if _first_character(twin.names[place]) == leader:
                     hits = hits + 1
-        for cell in twin.columns[place]:
-            for leader in _FORMULA_LEADERS:
-                if _first_character(cell) == leader:
-                    hits = hits + 1
+        # A block of the column at a time (plan P4-D415).
+        for block in generation.twin_column_blocks(twin, place):
+            for cell in block:
+                for leader in _FORMULA_LEADERS:
+                    if _first_character(cell) == leader:
+                        hits = hits + 1
         if hits:
             named += [f"'{_shown(twin.names[place])}'"]
         total = total + hits
     return (total, named)
+
+
+def _leads_a_formula(twin: generation.Twin, place: int) -> bool:
+    """Whether some data cell of column ``place`` begins as a formula does."""
+    for block in generation.twin_column_blocks(twin, place):
+        for cell in block:
+            if _first_character(cell) in _FORMULA_LEADERS:
+                return True
+    return False
 
 
 def _first_character(cell: str) -> str:
@@ -948,14 +976,12 @@ def _formula_lines(
     # remove. So the invented list is built from DATA cells only, and a
     # column whose only hazard is its name is left out of it.
     invented: list[str] = []
-    for place in range(len(twin.columns)):
+    for place in range(generation.twin_width(twin)):
         name = twin.names[place]
         if name not in made_up:
             continue
-        for cell in twin.columns[place]:
-            if _first_character(cell) in _FORMULA_LEADERS:
-                invented += [f"'{_shown(name)}'"]
-                break
+        if _leads_a_formula(twin, place):
+            invented += [f"'{_shown(name)}'"]
     lines = [
         "Common spreadsheet software reads a cell that begins with  =  +  -",
         "@  a tab or a carriage return as a formula rather than as text,",
