@@ -4,7 +4,8 @@ THE GATE OF LANE CHa. Stage 6's first layer is built, but invariant S12
 stands until the landing that ships stage 6 whole: `synthtwin profile`
 never turns the chain on, so every shipped description, summary and
 twin is byte for byte today's. The chain runs only where a caller hands
-`cli.main` (or `chain.describe`) its switch. This file holds:
+its switch to `chain.describe` or to the command's entry point. This
+file holds:
 
 - SWITCH OFF IS TODAY'S BYTES, and switch on adds the chain alone: the
   switched description is the unswitched one with `statistical` filled;
