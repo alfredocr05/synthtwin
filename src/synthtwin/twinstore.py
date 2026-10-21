@@ -31,14 +31,30 @@ need it. The error handler `surrogatepass` lets a lone surrogate, which
 a Python text may hold, through both ways, so every text round-trips
 exactly.
 
+AND WHY THE BYTES ARE PACKED (zlib, the standard library's DEFLATE, at
+its fastest level). A column's cells repeat their shapes block after
+block -- the same digits, the same widths, the same few labels -- and
+the twin's text at 2,000,000 rows by 50 columns is about 0.9 GB as
+bytes; packed, block by block, it is about 0.3 GB (2.6 to 2.9 bytes a
+cell on lane B0's two tables against 6.1 and 8.6 bytes of text; lane
+SG's measurement), which the per-column working sets need. DEFLATE is
+lossless: `zlib.decompress(zlib.compress(raw, level))` is `raw`, byte
+for byte, for every `raw`, whatever the zlib version or the level, so
+no byte of the twin can depend on it. What the packing writes (whose
+bytes do differ between zlib versions) never leaves the process: it is
+unpacked, here, before any cell is read.
+
 Guarantees, for every function here: a fixed function of its inputs,
 with no random draw, no clock and no input or output of any kind;
-nothing is imported but `dataclasses`. What goes in comes back: for any
+nothing is imported but `dataclasses` and `zlib`, whose two functions
+`compress` and `decompress` the offline scan admits in this module
+alone. What goes in comes back: for any
 list of texts, `column_cells(held_column(cells))` equals ``cells`` cell
 for cell, and so does every block read in turn.
 """
 
 import dataclasses
+import zlib
 
 # THE ROWS OF ONE BLOCK. Small enough that one block of each of fifty
 # columns, read back as text objects, holds under a megabyte, so a
@@ -47,13 +63,22 @@ import dataclasses
 # its cells) is a sixth of a byte a cell.
 BLOCK_ROWS = 256
 
+# How hard zlib packs a block: its fastest level. Packing costs about a
+# tenth of a microsecond a cell and unpacking half that (0.31 s and 0.12
+# s for the 2,500,000 cells of 50,000 rows of lane B0's mixed table; 12
+# s to pack 2,000,000 rows by 50). The level decides how small the held
+# bytes are and nothing else: what comes back out is the same at every
+# level.
+PACK_LEVEL = 1
+
 
 @dataclasses.dataclass(frozen=True)
 class HeldColumn:
     """One finished column of the twin.
 
     `blocks` holds each block's cells joined by U+0000, as UTF-8 with
-    surrogates passed through, in row order, and `cells` is empty; or,
+    surrogates passed through and packed by zlib, in row order, and
+    `cells` is empty; or,
     where some cell of the column holds U+0000 itself, `blocks` is empty
     and `cells` is the cells. `count` is how many cells the column holds
     either way.
@@ -83,7 +108,7 @@ def held_column(cells: "list[str]") -> HeldColumn:
         joined = "\x00".join(_listed(part))
         if joined.count("\x00") != len(part) - 1:
             return HeldColumn((), tuple(cells), len(cells))
-        blocks += [bytes(joined, "utf-8", "surrogatepass")]
+        blocks += [zlib.compress(bytes(joined, "utf-8", "surrogatepass"), PACK_LEVEL)]
     return HeldColumn(tuple(blocks), (), len(cells))
 
 
@@ -98,7 +123,7 @@ def column_block(column: HeldColumn, index: int) -> "list[str]":
         return []
     if column.cells:
         return list(column.cells[index * BLOCK_ROWS : (index + 1) * BLOCK_ROWS])
-    return str(column.blocks[index], "utf-8", "surrogatepass").split("\x00")
+    return str(zlib.decompress(column.blocks[index]), "utf-8", "surrogatepass").split("\x00")
 
 
 def column_cells(column: HeldColumn) -> "list[str]":
@@ -124,7 +149,7 @@ def blocks_of(n_rows: int) -> int:
 def held_bytes(column: HeldColumn) -> int:
     """The bytes of cell text a held column keeps, for the memory record.
 
-    Counts each block's joined bytes, or the characters of a column held
+    Counts each block's packed bytes, or the characters of a column held
     as its cells; the bookkeeping around them is not counted.
     """
     total = 0

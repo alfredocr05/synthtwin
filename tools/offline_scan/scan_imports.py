@@ -604,6 +604,22 @@ attribute absent from it is not allowed at all:
   reaches a network. The twin is written this way so that its text is
   never made whole: a table of 2,000,000 rows by 50 columns is about a
   gigabyte of text.
+* zlib (plan P4-D415, lane SG), in the module synthtwin.twinstore
+  ALONE (_MODULE_SCOPED_ADMISSIONS), zone G: compress and decompress.
+  Capability audit: both are pure functions of the bytes they are
+  handed (and compress of a level, a whole number): they read no file,
+  open no stream, start no process and take no callable; compressobj,
+  decompressobj and the checksums are not reachable. The held twin
+  packs each block of a finished column's cells with compress and
+  unpacks it with decompress before any cell is read. WHY IT CANNOT
+  DECIDE A BYTE: DEFLATE is lossless -- decompress(compress(raw, level))
+  is raw, byte for byte, for every raw, at every level and in every
+  zlib version -- and what compress writes, which does differ between
+  zlib versions, never leaves the process: it is held in memory and
+  read back only through decompress. A twin byte therefore depends on
+  the cells handed in and on nothing zlib chooses. The admission buys
+  memory: the twin's text at 2,000,000 rows by 50 columns, about 0.9 GB
+  as bytes, is held in about 0.3 GB.
 * math (Phase 1 extension E2, revised at round 1): fsum, frexp,
   isfinite, ldexp, sqrt. Every one is a pure numeric function of
   numbers; none takes a callable, none performs I/O, and each is a
@@ -775,10 +791,17 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # this path; until it exists, numba is a violation everywhere.
 _POLISH_KERNEL = "synthtwin.polish_kernel"
 
+# `zlib` belongs to the module that holds the twin's finished columns
+# (plan P4-D415, lane SG): it packs each block of a column's cells and
+# unpacks it before any cell is read, and nothing it writes leaves the
+# process. Nowhere else may a module pack or unpack.
+_TWIN_STORE = "synthtwin.twinstore"
+
 _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
     "xml.parsers.expat": frozenset({"synthtwin.workbook"}),
     "numba": frozenset({_POLISH_KERNEL}),
+    "zlib": frozenset({_TWIN_STORE}),
 }
 
 # The need each scoped admission was argued from, in the words its
@@ -789,6 +812,10 @@ _SCOPED_ADMISSION_NEEDS: "dict[str, str]" = {
     "numba": (
         "compiling the one audited polish kernel, whose twin bytes CI "
         "proves equal to the plain-Python polish (plan P4-D409 part 4)"
+    ),
+    "zlib": (
+        "holding the twin's finished columns packed in memory, unpacked "
+        "before any cell is read (plan P4-D415)"
     ),
 }
 
@@ -1016,6 +1043,9 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "math": frozenset(
         {"fsum", "frexp", "isfinite", "ldexp", "sqrt"}
     ),
+    # Lane SG (plan P4-D415): the held twin's blocks packed and unpacked,
+    # in synthtwin.twinstore alone (_MODULE_SCOPED_ADMISSIONS).
+    "zlib": frozenset({"compress", "decompress"}),
     # Extension E7. The key is the TWO-COMPONENT module path, which is
     # the shape os.path already uses here: it makes numpy.random the
     # module the one-attribute-step rule counts from, so
@@ -4170,7 +4200,7 @@ class _Checker(ast.NodeVisitor):
                 continue
             if name in {"argparse", "csv", "dataclasses", "json", "math",
                         "pandas", "pathlib", "typing", "sys", "os",
-                        "zipfile", "numba"}:
+                        "zipfile", "numba", "zlib"}:
                 self._bind(bound_name, ("module", name))
                 if report:
                     self._check_admitted_import(node, name)
@@ -4231,7 +4261,7 @@ class _Checker(ast.NodeVisitor):
     def _check_admitted_import(self, node: ast.AST, name: str) -> None:
         """An admitted library import, held to its scope and its zones.
 
-        A scoped admission (zipfile, expat, numba) is refused at the
+        A scoped admission (zipfile, expat, numba, zlib) is refused at the
         import itself outside the modules that hold it: importing numba
         alone loads its compiler. And a module of the generation path,
         or one of the twin's writers that root it, may not even import a

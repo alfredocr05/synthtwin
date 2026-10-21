@@ -4537,3 +4537,47 @@ def test_the_real_generation_path_is_the_one_the_loader_reaches(tmp_path):
         assert outside not in path, (outside, sorted(path))
     assert _SCANNER._zone_of("synthtwin.reading", path) == "R"
     assert _SCANNER._zone_of("synthtwin.profile", path) == "D"
+
+
+# -- lane SG (plan P4-D415): zlib, in the twin's store alone ----------------
+
+_TWIN_STORE_PACKING = textwrap.dedent(
+    """
+    import zlib
+
+
+    def packed(raw):
+        return zlib.compress(raw, 1)
+
+
+    def unpacked(held):
+        return zlib.decompress(held)
+    """
+)
+
+
+def test_the_twin_store_packing_its_blocks_scans_clean(tmp_path):
+    """zlib's compress and decompress in synthtwin.twinstore, on the generation path."""
+    violations = _scan_in(
+        tmp_path,
+        "twinstore",
+        _TWIN_STORE_PACKING,
+        {"synthtwin/generation.py": "from synthtwin import twinstore\n"},
+    )
+    assert violations == [], violations
+
+
+def test_zlib_outside_the_twin_store_goes_red(tmp_path):
+    """Bypass class: zlib named from a module its admission does not hold."""
+    violations = _scan_in(tmp_path, "generation", _TWIN_STORE_PACKING)
+    _assert_red(violations, "admitted for synthtwin.twinstore only")
+    violations = _scan_in(tmp_path / "from", "writing", "from zlib import decompress\n")
+    _assert_red(violations, "admitted for synthtwin.twinstore only")
+
+
+def test_a_neighbouring_zlib_name_goes_red_in_the_twin_store(tmp_path):
+    """The admission is an enumeration: a streaming packer or a checksum is still refused."""
+    for name in ("compressobj", "decompressobj", "crc32"):
+        code = _TWIN_STORE_PACKING.replace("zlib.compress(raw, 1)", "zlib." + name + "(raw)")
+        violations = _scan_in(tmp_path / name, "twinstore", code)
+        _assert_red(violations, "zlib." + name)

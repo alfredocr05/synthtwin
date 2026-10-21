@@ -240,14 +240,16 @@ def test_a_cell_holding_the_separator_keeps_its_column_as_text() -> None:
 
 # -- 2. a traced bound on the bytes held a cell -------------------------------
 
-# A held cell costs its UTF-8 bytes, one separator byte, and the block's
-# share of its bytes object and of the column's tuple (about a sixth of a
-# byte); everything else `generate_held` hands back with the twin -- each
-# column's outcome, its deviations and approximations, about eight
-# kilobytes a column here -- grows with the columns and not the rows.
-# Measured: 11.5 traced bytes a cell beside 7.5 of text at 2,000 rows by
-# 30 columns, and 51.2 with every column held as its text objects.
-_HELD_BEYOND_TEXT = 6.0
+# A held cell costs its share of its block's PACKED bytes (zlib; about a
+# third of its UTF-8 bytes and its separator) and the block's share of its
+# bytes object and of the column's tuple; everything else `generate_held`
+# hands back with the twin -- each column's outcome, its deviations and
+# approximations, about eight kilobytes a column here -- grows with the
+# columns and not the rows. So the twin held costs LESS than its own text.
+# Measured at 2,000 rows by 30 columns: 6.2 traced bytes a cell beside 7.6
+# of text; 11.1 with the blocks held unpacked, and 51.2 with every column
+# held as its text objects.
+_HELD_BEYOND_TEXT = 0.0
 
 
 def _traced_held(loaded: contract.Profile) -> "tuple[int, generation.Twin]":
@@ -278,7 +280,7 @@ def _bound_case(folder: pathlib.Path) -> "tuple[contract.Profile, int, int]":
 
 
 def test_the_held_twin_costs_its_text_and_a_few_bytes_a_cell(tmp_path: pathlib.Path) -> None:
-    """At most `_HELD_BEYOND_TEXT` traced bytes a cell beyond the twin's own text."""
+    """The held twin costs no more traced bytes a cell than its own text (`_HELD_BEYOND_TEXT`)."""
     loaded, text, cells = _bound_case(tmp_path)
     held, twin = _traced_held(loaded)
     assert twin.held_columns is not None
@@ -295,6 +297,17 @@ def test_a_column_held_as_text_objects_breaks_the_bound(
         "held_column",
         lambda found: twinstore.HeldColumn((), tuple(found), len(found)),
     )
+    held, _twin = _traced_held(loaded)
+    assert held / cells > text / cells + _HELD_BEYOND_TEXT, (held / cells, text / cells)
+
+
+def test_blocks_held_unpacked_break_the_bound(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTANT: each block held as its UTF-8 bytes, unpacked, as lane SG's first part held it."""
+    loaded, text, cells = _bound_case(tmp_path)
+    monkeypatch.setattr(twinstore.zlib, "compress", lambda raw, level: bytes(raw))
+    monkeypatch.setattr(twinstore.zlib, "decompress", lambda held: bytes(held))
     held, _twin = _traced_held(loaded)
     assert held / cells > text / cells + _HELD_BEYOND_TEXT, (held / cells, text / cells)
 
