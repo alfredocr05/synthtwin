@@ -85,10 +85,10 @@ def _floored(table: "tuple[int, ...]") -> bool:
 _OFFERED: "dict[tuple, object]" = {}
 
 
-def _offered_once(key: tuple, ladders: "list[rules.Ladder]", start: "list[int]", order: "list[int]", margins: rules.ParentCells, n: int) -> "list[int] | None":
+def _offered_once(key: tuple, scales: "list[rules.Ladder]", start: "list[int]", order: "list[int]", margins: rules.ParentCells, n: int) -> "list[int] | None":
     """W3 and NE's levels, kept by what they read (the members' totals and the anchor's table)."""
     if key not in _OFFERED:
-        _OFFERED[key] = rules.offered_levels(ladders, start, order, margins, n, F)
+        _OFFERED[key] = rules.offered_levels(scales, start, order, margins, n, F)
     found = _OFFERED[key]
     return found if isinstance(found, list) else None
 
