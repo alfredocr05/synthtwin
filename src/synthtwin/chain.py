@@ -104,6 +104,7 @@ class Chained:
     counts: "dict[str, int]"
     seeds: "tuple[tuple[str, str, str], ...]"
     chosen: "tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]"
+    content: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -142,6 +143,15 @@ def _get(mapping: "dict[str, object]", key: str) -> object:
 def _length_word(count: int) -> bytes:
     """A length as 8 bytes, big-endian (4.6b.8's framing)."""
     return bytes([(count >> shift) & 255 for shift in (56, 48, 40, 32, 24, 16, 8, 0)])
+
+
+def _hex(data: bytes) -> str:
+    """Bytes written as lower-case hexadecimal figures."""
+    figures = "0123456789abcdef"
+    out = ""
+    for byte in data:
+        out += figures[byte >> 4] + figures[byte & 15]
+    return out
 
 
 def _is_blank(text: str) -> bool:
@@ -422,7 +432,7 @@ def read_column(
                 label = f"{meaning[text][1]}"
                 counted[label] = counted[label] + 1 if label in counted else 1
         for label, count in rules.label_levels(block):
-            if role != rules.ROLE_CONSTANT and (counted[label] if label in counted else 0) != count:
+            if (counted[label] if label in counted else 0) != count:
                 agrees = False
     agrees = agrees and _recount_agrees(block, kinds, tabled_missing, blank_rows)
     return _Read(start, codes, agrees, blanks)
@@ -1184,8 +1194,8 @@ def _codes(values: "list[int]") -> "bytes | list[int]":
     return values
 
 
-def _off(note: str, counts: "dict[str, int]", notes: "list[str]") -> Chained:
-    return Chained(None, tuple(notes + [f"no chain is published: {note}"]), counts, (), ())
+def _off(note: str, counts: "dict[str, int]", notes: "list[str]", content: str) -> Chained:
+    return Chained(None, tuple(notes + [f"no chain is published: {note}"]), counts, (), (), content)
 
 
 def describe(
@@ -1239,13 +1249,14 @@ def describe(
         named = _get(settings_block, "person_columns")
         if isinstance(named, list):
             persons = [f"{name}" for name in named]
+    hashes, filled = row_hashes(table)
+    content = _hex(content_hash(hashes))
     if persons:
-        return _off(OFF_PERSON, counts, notes)
+        return _off(OFF_PERSON, counts, notes, content)
     for place in range(len(blocks)):
         if _get(blocks[place], "name") in held and _repeats(reading.column_values(table, place)):
-            return _off(OFF_PERSON, counts, notes)
+            return _off(OFF_PERSON, counts, notes, content)
     blank_rows = rules.records_holding_nothing(document)
-    hashes, filled = row_hashes(table)
     excluded = bytearray(table.n_rows)
     left = blank_rows
     for row in range(table.n_rows):
@@ -1253,7 +1264,7 @@ def describe(
             excluded[row] = 1
             left -= 1
     if left:
-        return _off(OFF_RECOUNT, counts, notes)
+        return _off(OFF_RECOUNT, counts, notes, content)
     tabled_rows = [row for row in range(table.n_rows) if not excluded[row]]
     tabled = len(tabled_rows)
     sample = sample_rows(hashes, tabled_rows, rules.selftest_size(tabled))
@@ -1290,7 +1301,7 @@ def describe(
         )
         if read is None or not read.agrees:
             notes += [f"the recount of column {name} disagreed with its published counts"]
-            return _off(OFF_RECOUNT, counts, notes)
+            return _off(OFF_RECOUNT, counts, notes, content)
         starting_totals = [0] * len(read.start.names)
         for row in tabled_rows:
             starting_totals[read.codes[row]] += 1
@@ -1336,7 +1347,7 @@ def describe(
         eligible += [name]
     counts["eligible_columns"] = len(eligible)
     if len(eligible) < 2:
-        return _off(OFF_FEW, counts, notes)
+        return _off(OFF_FEW, counts, notes, content)
     pairs = time_event_pairs(blocks, eligible)
     seed_places = screen_seeds([columns[name] for name in eligible])
     seeds = tuple((eligible[i], eligible[j], eligible[k]) for i, j, k in seed_places)
@@ -1350,14 +1361,14 @@ def describe(
     placed, step_notes = search_chain(search, switch, x0, room)
     notes += step_notes
     if not placed:
-        return _off(OFF_ROOT, counts, notes)
+        return _off(OFF_ROOT, counts, notes, content)
     refused = rules.w1_refusals(placed, scales, {name: set(columns[name].groups) for name in eligible})
     for family in placed:
         if not _floored(family.table, floor):
             refused += [(family.child, -1, "")]
     if refused:
         notes += [f"the chain's own check found {len(refused)} refusals"]
-        return _off("the chain's own check failed", counts, notes)
+        return _off("the chain's own check failed", counts, notes, content)
     words, implied = rules.words_of(eligible, placed)
     chain_entries: "list[dict[str, object]]" = []
     for family in placed:
@@ -1388,4 +1399,4 @@ def describe(
     if seeds:
         notes += [f"the screen offered {len(seeds)} seeds as weights"]
     chosen = tuple((family.child, tuple(name for name, _level in family.parents), tuple(level for _name, level in rules.members(family))) for family in placed)
-    return Chained(statistical, tuple(notes), counts, seeds, chosen)
+    return Chained(statistical, tuple(notes), counts, seeds, chosen, content)

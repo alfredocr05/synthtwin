@@ -456,14 +456,7 @@ def level_edge_values(block: "dict[str, object]", level: int) -> "list[object]":
 
 def label_levels(block: "dict[str, object]") -> "list[tuple[str, int]]":
     """A label column's published levels, in published order: (label, count)."""
-    role = _get(block, "role")
     out: "list[tuple[str, int]]" = []
-    if role == ROLE_CONSTANT:
-        value = _get(block, "value")
-        present = _get(block, "n_present")
-        if isinstance(value, str):
-            out += [(value, present if isinstance(present, int) and not isinstance(present, bool) else 0)]
-        return out
     levels = _get(block, "levels")
     if not isinstance(levels, list):
         return out

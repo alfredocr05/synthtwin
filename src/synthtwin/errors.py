@@ -3305,3 +3305,19 @@ def workbook_column_mixes_storage(
         f"Please open the workbook, give every cell of that column one "
         f"number format, save it again, and run the command again."
     )
+
+
+def profile_chain_broken(invariant: str, where: str, detail: str) -> str:
+    """S23 to S28 (contract 4.6b.11, lane CHa): the chain between columns breaks one of its invariants.
+
+    Reached only where a loader was asked to read the chain, which no
+    shipped command does (invariant S12 stands until the landing that
+    ships stage 6).
+    """
+    return (
+        f"The description's chain between columns breaks its rule "
+        f"{invariant} at '{_shown(where)}': {detail}. A description "
+        f"synthtwin writes always keeps this rule, so this file was changed "
+        f"by hand or written by another version of synthtwin. Describe the "
+        f"table again with this version, then run the command again."
+    )

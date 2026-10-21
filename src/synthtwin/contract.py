@@ -92,7 +92,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import calendar_clock, calendar_rules, canonical, dialect, errors, parsing
+from synthtwin import calendar_clock, calendar_rules, canonical, chain_check, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module that imports `parsing` alone.
 from synthtwin import date_counts
@@ -6993,7 +6993,7 @@ def _declared_pairs(
     return pairs
 
 
-def _relationships(value: object) -> RelationshipManifest:
+def _relationships(value: object, chain: bool = False) -> RelationshipManifest:
     """The eight reserved names, every one of them empty (S12).
 
     Guarantees: accepts the value under `relationships`; returns the
@@ -7012,6 +7012,12 @@ def _relationships(value: object) -> RelationshipManifest:
     mapping = _mapping(value, "relationships", _AT_THE_TOP)
     _keys(mapping, where, RELATIONSHIP_KEYS, "that block")
     for name in RELATIONSHIP_KEYS:
+        # THE CHAIN'S SWITCH (lane CHa, plan P4-D418; contract 4.6b, NOT
+        # IN FORCE): a caller that asks for it lets `statistical` through
+        # to `chain_check`'s invariants S23 to S28. No shipped command
+        # asks, so S12 stands word for word for every one of them.
+        if chain and name == "statistical":
+            continue
         if mapping[name] is not None:
             raise errors.ProfileError(
                 errors.profile_relationships_carried(name)
@@ -21779,7 +21785,7 @@ def _nothing_is_held_back(document: "dict[str, object]", floor: int) -> None:
         )
 
 
-def _validated(document: "dict[str, object]") -> Profile:
+def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     """Step 7 and step 8: every rule, then the typed objects (10.1).
 
     The top level is checked first and the columns afterwards, in list
@@ -21801,7 +21807,7 @@ def _validated(document: "dict[str, object]") -> Profile:
     )
     source = _source(document["source"])
     settings = _settings(document["settings"])
-    relationships = _relationships(document["relationships"])
+    relationships = _relationships(document["relationships"], chain)
     notes = _notes(document["publication_notes"])
     # S13 IS A TOP-LEVEL RULE AND RUNS WITH THE TOP LEVEL. What it reads
     # is the floor, which lives in `settings`, and what it says is a fact
@@ -21847,6 +21853,10 @@ def _validated(document: "dict[str, object]") -> Profile:
     _hour_storage(source, columns)
     # -- the minute and the second (3b.T3, P4-D372)
     _clock_field_storage(source, columns)
+    # -- the chain's invariants S23 to S28, behind its switch (lane CHa,
+    # plan P4-D418; contract 4.6b.11, NOT IN FORCE)
+    if chain:
+        chain_check.check(document)
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,
@@ -22035,7 +22045,7 @@ def _answers_mapping(
     return parsed
 
 
-def load_profile(raw_path: str) -> Profile:
+def load_profile(raw_path: str, chain: bool = False) -> Profile:
     """Read one profile document, or refuse it (contract section 10).
 
     Guarantees:
@@ -22096,7 +22106,7 @@ def load_profile(raw_path: str) -> Profile:
         _scanned(text, shown)
         document = _versioned(_parsed(text, shown), shown)
         _round_tripped(document, text, size, shown)
-        return _validated(document)
+        return _validated(document, chain)
     except MemoryError as error:
         raise errors.ProfileError(
             errors.profile_out_of_memory(shown)
