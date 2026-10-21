@@ -55,10 +55,14 @@ are held. A cell is matched to the value its column prints as the column
 reads it: `8:30` is the `08:30` of a clock column, `19000` the date a
 declared count of days names, `10,07` the number a declared decimal
 comma writes. Dates declared as counts that do not read as dates (`42.345`
-for an Excel day) are held beside the people they belong to instead of
-being published as plain numbers. A declared person column's census of
-rows a person never prints a real group of one to ten people, and is
-always one its twin can deal into the column's layouts; a record
+for an Excel day) are held on every table, one row a person or several,
+instead of being published as plain numbers (contract NF127); the
+screen, the summary and a new `held` section of the questions file name
+them and say to write the dates one way and describe the table again. A declared
+person column's census of
+rows a person never prints a real group of one to ten people, even where
+too few rows stand past one a value for any census without a small
+entry, and is always one its twin can deal into the column's layouts; a record
 number's layouts are pooled in people even when only its pool is
 printed. A run of four hundred figures in a note no longer stops the
 profile, and pooling many layouts, or counting under a raised floor,
