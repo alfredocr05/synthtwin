@@ -11103,7 +11103,7 @@ number, with the record its twin writes valid values from. Either way its
 block carries `time_grain` (contract NF128, NF129): `rung` (a rung or
 `held`), `finest` (the column's own precision), `kind` (`date`, `stamp`,
 `clock`, `counted`), `reading` (the date member, clock form or counting
-member its cells read under), `mark`, `rows` and `spans`.
+member its cells read under), `mark`, `rows`, `people` and `spans`.
 
 The twin is built from the block by every rule of its role -- G7 to G7.10
 for dates, G7A for clocks, G8 where the coarse cells took one or two
@@ -11142,8 +11142,13 @@ month's name at its own length and case, the marker of the half of the
 day by the new hour, and every other character, the offset's included,
 as written. Where the cell so written does not read back under the
 member as the target at the cell's precision, with the same offset, the
-cell leaves as written. The bucket the twin's cell falls in is the one
-its built cell named, so the twin, read at the grain, is the twin as
+cell leaves as written. A STAMP LEAVES WITH ITS COLUMN'S ONE JOINT: where
+the block's `datetime_separators` names one mark and no withheld pool, a
+drawn stamp whose eleventh character is another joint (`T`, `t` or a
+space) -- one the build took to reach the column's count of different
+values (G7.9), which a value drawn inside its bucket no longer needs --
+leaves wearing the named mark, where it still reads. The bucket the twin's
+cell falls in is the one its built cell named, so the twin, read at the grain, is the twin as
 built and meets the description as the build was measured.
 
 **A held column (rung `held`): the G1 floor.** The span is the record's
