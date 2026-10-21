@@ -873,12 +873,13 @@ def clock_table() -> str:
     return _lines("patient,clock,lab", rows)
 
 
-def day_count_table(written: str) -> str:
-    """Item 5 and the orchestrator's addendum 2: 600 day counts beside 150 patients.
+def day_count_table(written: str, people: int = 150, name: str = "day") -> str:
+    """Item 5 and the orchestrator's addendum 2: 600 day counts beside ``people`` patients.
 
     ``written`` `plain`: 19000 to 19599, days since 1970, one a row;
     `pointed`: Excel days 42000 to 42599 written with a point between the
-    thousands (`42.345`), which no reading takes as a count.
+    thousands (`42.345`), which no reading takes as a count. 150 people
+    hold four rows each; 600 one each (lane HX2's second verify, `a2_onerow`).
     """
     draw = random.Random(63)
     rows = []
@@ -888,8 +889,24 @@ def day_count_table(written: str) -> str:
         else:
             number = 42000 + row
             day = f"{number // 1000}.{number % 1000:03d}"
-        rows += [[f"REC{20000000 + 7 * (row % 150):08d}", day, f"{draw.uniform(3, 150):.1f}"]]
-    return _lines("patient,day,lab", rows)
+        rows += [[f"REC{20000000 + 7 * (row % people):08d}", day, f"{draw.uniform(3, 150):.1f}"]]
+    return _lines(f"patient,{name},lab", rows)
+
+
+def past_one_table() -> str:
+    """Lane HX2's second verify, item 1 (`past1`): 95 patients on one row and 5 on two.
+
+    Five rows past one a value, fewer than eleven: no census that closes is
+    without a small entry, and the even spread of 105 rows over 100
+    patients is the real census, {1: 95, 2: 5}, its group of five printed.
+    """
+    draw = random.Random(1)
+    rows = []
+    for person in range(100):
+        rows += [[f"REC{20000000 + 7 * person:08d}", f"{draw.uniform(3, 150):.1f}"]
+                 for _row in range(2 if person >= 95 else 1)]
+    draw.shuffle(rows)
+    return _lines("patient,lab", rows)
 
 
 def comma_table() -> str:

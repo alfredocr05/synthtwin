@@ -757,6 +757,12 @@ EVIDENCE_UNANSWERED_IDENTITY = "evidence_unanswered_identity"
 # smallest group size (plan P4-D406, contract NF126): it is described as
 # record numbers, and an answer cannot give its values back.
 EVIDENCE_HELD_IN_PEOPLE = "evidence_held_in_people"
+# ...and the one a column takes where a person declared or answered that it
+# writes its dates as counts and its cells did not read as such dates (plan
+# P4-D406, contract NF127): a number that counts a date is that date, so the
+# column is held on every table, one row a person or several, and is
+# described as record numbers.
+EVIDENCE_COUNTED_DATES_HELD = "evidence_counted_dates_held"
 
 # Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
@@ -1147,6 +1153,7 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     EVIDENCE_UNANSWERED_IDENTITY: 0,
     EVIDENCE_HELD_IN_PEOPLE: 0,
+    EVIDENCE_COUNTED_DATES_HELD: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     # THE LINE, and nothing else (contract NF60). One argument, and it
@@ -2670,6 +2677,13 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "would publish is held by fewer people than the smallest group "
             "size, so it is described as record numbers and none of its "
             "values is published"
+        )
+    if form == EVIDENCE_COUNTED_DATES_HELD:
+        return (
+            "you said this column writes its dates as counts, but its "
+            "cells did not read as such dates, and a number that counts a "
+            "date is that date all the same, so it is described as record "
+            "numbers and none of its values is published"
         )
     if form == EVIDENCE_UNANSWERED_IDENTITY:
         return (
@@ -25835,6 +25849,32 @@ def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
     )
 
 
+def as_counted_dates_held(column: ColumnProfile) -> ColumnProfile:
+    """A record-number description, for counted dates not read as dates (plan P4-D406).
+
+    The column was declared or answered as writing its dates as counts,
+    its cells did not read as such dates, and it was described again
+    with ``forced_identifier``: read as it reads without the
+    declaration, its mean, points and tails, or its levels, would be
+    those dates published as plain numbers (the orchestrator's LANE HX2
+    ADDENDUM 2, held on every table by its ruling on lane HX2's second
+    verify, item 3). It takes `as_unanswered_identity`'s block -- no
+    prefix, the census its published counts imply -- with its own
+    evidence (contract NF127).
+
+    Guarantees: accepts a column described with ``forced_identifier``;
+    returns it with those fields changed, or unchanged where its role is
+    not `identifier` (a column with no present cell). Determinism: a
+    fixed function of the argument. Raises nothing. No I/O.
+    """
+    held = as_unanswered_identity(column)
+    if held.role != ROLE_IDENTIFIER:
+        return held
+    return dataclasses.replace(
+        held, detection_evidence=note(EVIDENCE_COUNTED_DATES_HELD)
+    )
+
+
 def with_census_in_people(
     column: ColumnProfile,
     floor: int,
@@ -25894,10 +25934,14 @@ def with_census_in_people(
     A census the column's printed totals force -- every value on one row,
     or all but one -- is published as it is: it says nothing they do not.
     Where the rows past one a value are fewer than ``floor``, no census
-    that closes is without a small entry: the even spread of the printed
-    rows over the printed values is published, always, or the census the
-    layouts' printed counts imply (`_even_parts`), each a function of
-    printed counts alone.
+    that closes is without a small entry, and what is published is step
+    3's: the census the layouts' printed counts imply (`_even_parts`), or
+    the even spread of the printed rows over the printed values, only
+    where no entry of it equals a real group (`_census_safe`); else each
+    part's people moved a few rows off even until none does
+    (`_safe_by_parts`) -- a hundred people, 95 on one row and 5 on two,
+    print {1: 96, 2: 3, 3: 1} and never the real {1: 95, 2: 5}, whose
+    group of 5 the even spread is -- and else step 4's.
 
     Guarantees: accepts a described column and the floor; returns it
     with its census (and, in the last case, its layout census) changed,

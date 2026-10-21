@@ -37,6 +37,7 @@ here.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import io
 import json
 import pathlib
@@ -44,7 +45,7 @@ import random
 
 import pytest
 
-from synthtwin import cli, profile, reading, taxonomy
+from synthtwin import asking, cli, errors, profile, reading, taxonomy
 
 import persons_counted
 import unanswered_identifier_shapes as shapes
@@ -856,6 +857,26 @@ def test_a_census_spread_back_into_its_real_small_group_is_not_printed(
     assert _twin_validates(table, tmp_path) == 0
 
 
+def test_a_census_of_too_few_rows_past_one_prints_no_real_group(tmp_path: pathlib.Path) -> None:
+    """The second verify's item 1 (`past1`): 95 patients on one row and 5 on two.
+
+    Five rows past one a value, fewer than eleven: every census that closes
+    has a small entry, and the even spread of the printed counts IS the real
+    census, its group of five printed. What is published closes, prints no
+    real group of one to ten, is not the real census, and the twin meets it
+    (`taxonomy._census_safe` refusing a census that prints a real small
+    group as it is: mutant `census_safe_equal_dropped`).
+    """
+    table, _screen = _profiled(tmp_path, "past", persons_counted.past_one_table(),
+                               "--identifier", "patient")
+    block = _block(_described(tmp_path, "past"), "patient")
+    cells = [row[0] for row in _x_rows(table)]
+    _closes(block, cells)
+    assert persons_counted.census_few(block, cells) == 0, block["n_distinct_by_occurrences"]
+    assert _census(block) != {1: 95, 2: 5}, block["n_distinct_by_occurrences"]
+    assert _twin_validates(table, tmp_path) == 0
+
+
 def test_the_census_oracle_exempts_no_census_drawn_from_counts() -> None:
     """Codex's item 11: an even spread that reproduces a real group of one prints it."""
     cells = [f"P{person}" for person in range(101) for _row in range(10 if person == 0 else 9)]
@@ -972,16 +993,66 @@ def test_a_layouts_pool_is_counted_under_every_candidate(
     assert _twin_validates(table, tmp_path) == 0
 
 
-def test_dates_declared_as_counts_and_not_read_are_held(tmp_path: pathlib.Path) -> None:
-    """The orchestrator's addendum 2: Excel days written `42.345` publish no mean, point or tail."""
-    table, screen = _profiled(tmp_path, "pointed", persons_counted.day_count_table("pointed"),
-                              "--identifier", "patient", "--date-count", "day", "excel-1900")
+@pytest.mark.parametrize("people", (150, 600))
+def test_dates_declared_as_counts_and_not_read_are_held(tmp_path: pathlib.Path, people: int) -> None:
+    """The orchestrator's addendum 2: Excel days written `42.345` publish no mean, point or tail.
+
+    ON EVERY TABLE (the orchestrator's ruling on the second verify, item
+    3): beside 150 patients on four rows each, and beside 600 patients on
+    one row each -- the verify's `a2_onerow`, whose `visit` published its
+    mean (42.2995) and percentiles while the hold stood beside a repeating
+    subject column only (mutant `declined_needs_subjects`). The screen, the
+    summary and the questions file name the column (item 2: mutant
+    `held_dates_unnamed`), and the twin is generated and validates.
+    """
+    table, screen = _profiled(tmp_path, "pointed",
+                              persons_counted.day_count_table("pointed", people, "visit"),
+                              "--identifier", "patient", "--date-count", "visit", "excel-1900")
     described = _described(tmp_path, "pointed")
-    block = _block(described, "day")
+    block = _block(described, "visit")
     assert block["role"] == taxonomy.ROLE_IDENTIFIER, block
-    for field in ("mean", "percentiles", "low_tail", "high_tail"):
+    for field in ("mean", "percentiles", "low_tail", "high_tail", "mode", "levels"):
         assert field not in block, field
     assert "42." not in json.dumps(block)
-    assert _NOTICE in screen
+    assert block["detection_evidence"] == taxonomy.rendered(
+        taxonomy.EVIDENCE_COUNTED_DATES_HELD, ())
+    assert errors.the_date_count_declaration_did_not_reach("visit", "excel-1900") in screen
     assert described["settings"]["forced_date_counts"] == []
+    assert "visit" in described["settings"]["forced_identifiers"]
+    summary = (tmp_path / "pointed-profile.txt").read_text(encoding="utf-8")
+    assert "because its counts did not read as the dates you named" in summary
+    questions = json.loads((tmp_path / "pointed-questions.json").read_text(encoding="utf-8"))
+    held = questions["held"] if "held" in questions else []
+    assert [entry["column"] for entry in held] == ["visit"], held
+    assert "(excel-1900)" in held[0]["what_synthtwin_saw"]
+    assert held[0]["what_this_run_did"] == asking.HELD_DATES_SAID
     assert _twin_validates(table, tmp_path) == 0
+
+
+def test_a_declaration_reconstructed_from_a_description_holds_nothing(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The hold reads a PERSON'S declaration: the validator's checked file is described as it reads.
+
+    `synthtwin validate` hands the description's declarations over
+    (`declarations_are_reconstructed`); a checked file whose counts do not
+    read as the dates published is described as before, which is how its
+    report says what it misses (mutant `reconstructed_holds`).
+    """
+    path = _written(tmp_path, "checked", persons_counted.day_count_table("pointed", 600, "visit"))
+    read = reading.read_table(f"{path}")
+    settings = dataclasses.replace(
+        taxonomy.Settings(), forced_date_counts=(("visit", "excel-1900"),))
+    held = _block(profile.build_document(read, settings, []), "visit")
+    assert held["detection_evidence"] == taxonomy.rendered(
+        taxonomy.EVIDENCE_COUNTED_DATES_HELD, ())
+    checked = _block(profile.build_document(
+        read, settings, [], declarations_are_reconstructed=True), "visit")
+    assert checked["role"] not in (taxonomy.ROLE_IDENTIFIER, taxonomy.ROLE_DATETIME), checked
+
+
+def test_a_questions_file_with_nothing_held_has_no_held_section() -> None:
+    """The `held` section is written only where a column is held, so every other file is as before."""
+    assert "held" not in asking.questions_document("t.csv", [], [])
+    named = asking.questions_document("t.csv", [], [], held_dates=[("visit", "excel-1900")])
+    assert [entry["column"] for entry in named["held"]] == ["visit"]

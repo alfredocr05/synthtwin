@@ -1124,6 +1124,20 @@ def _trip(folder: pathlib.Path, cells: "list[str]", member: str, *extra: str) ->
     }
 
 
+def _held_as_counted_dates(block: "dict[str, object]") -> bool:
+    """A declaration whose counts did not read as dates HOLDS the column (plan P4-D406, NF127).
+
+    Since lane HX2's close (the orchestrator's ruling on its second verify,
+    item 3) such a column is never described as the numbers or labels it
+    reads as, which would publish those dates as plain numbers: it is held
+    as a record number on every table, its declaration taken out of the
+    settings, and the run says so. NF115's remark is carried by a
+    description written before that.
+    """
+    return block["role"] == taxonomy.ROLE_IDENTIFIER and block[
+        "detection_evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_COUNTED_DATES_HELD, ())
+
+
 @pytest.mark.parametrize("name", ("xl_date", "xl_dt15g", "sas_secs", "unix_ms", "epic_real", "unix_s_birth"))
 def test_c4_every_twin_cell_keeps_the_columns_spelling_and_names_a_date(
     tmp_path: pathlib.Path, name: str
@@ -1247,15 +1261,22 @@ def test_c5_a_count_that_names_no_date_is_no_value_and_written_back(tmp_path: pa
 
 
 def test_c5_a_declaration_whose_cells_are_no_dates_decides_nothing(tmp_path: pathlib.Path) -> None:
-    """CD1 and NF115: the column is described as it reads, and the run says so."""
+    """CD1 and NF115, and since plan P4-D406 NF127: the column is held, and the run says so.
+
+    The declaration reads no date, so it decides nothing about a reading:
+    the column is held as a record number (lane HX2's close), its
+    declaration out of the settings, so the description loads under CD1.
+    """
     draw = random.Random(115)
     cells = [f"A{draw.randrange(100, 999)}" for _row in range(300)]
     path = _table(tmp_path, cells)
     code, said = _exit_of(["profile", str(path), "--date-count", "seen", "excel-1900", "--out-dir", str(tmp_path), "--replace"])
-    assert code == 0 and "did not read as such" in said
-    block = json.loads((tmp_path / "table-profile.json").read_text(encoding="utf-8"))["columns"][0]
-    assert block["role"] != "datetime"
-    assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in block["remarks"])
+    assert code == 0 and "did not read as such" in said and "so the column is held" in said
+    described = json.loads((tmp_path / "table-profile.json").read_text(encoding="utf-8"))
+    block = described["columns"][0]
+    assert _held_as_counted_dates(block), block
+    assert described["settings"]["forced_date_counts"] == []
+    contract.load_profile(str(tmp_path / "table-profile.json"))
     rendered = taxonomy.rendered(taxonomy.REMARK_COUNTED_DATES_NOT_READ, ("excel-1900",))
     assert contract.COUNTED_NOT_READ_MARK in rendered
 
@@ -2075,8 +2096,9 @@ def test_c4_figures_no_unit_keeps_are_refused_and_the_rest_written_back(
     finer the twin's own cells are rounded onto the column's coarser grid
     as they are written -- the first build's twin of one figure missed its
     own description, and its Unix tenths came back as whole seconds. Such a
-    column is not read as counted dates (NF115) and is twinned as the
-    numbers it reads, both files at exit 0. Four figures of a day at
+    column is not read as counted dates: until plan P4-D406 it was twinned
+    as the numbers it reads (NF115), and since then it is held as a record
+    number (NF127), both files at exit 0. Four figures of a day at
     whole minutes and five at whole seconds are kept: read as dates, every
     source cell written back as itself.
     """
@@ -2086,8 +2108,7 @@ def test_c4_figures_no_unit_keeps_are_refused_and_the_rest_written_back(
     block = trip["block"]
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
     if not kept:
-        assert block["role"] != "datetime", name
-        assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in block["remarks"])
+        assert _held_as_counted_dates(block), name
         return
     assert block["role"] == "datetime" and block["count_form"] is not None
     loaded = contract.load_profile(str(trip["described"]))
@@ -2110,7 +2131,8 @@ def test_c4_a_truncating_exporter_is_refused(tmp_path: pathlib.Path) -> None:
     to six figures instead of rounding: each count stands up to a whole
     last figure, 86 milliseconds, below its moment, so no unit keeps the
     column's figures -- Q3 offers no system and the declaration is refused
-    (NF115), both files at exit 0. Held within a whole last figure, the
+    (NF115; the column held since plan P4-D406, NF127), both files at exit
+    0. Held within a whole last figure, the
     column was read as dates and only 514 of its 1,000 cells were written
     back as themselves.
     """
@@ -2123,8 +2145,7 @@ def test_c4_a_truncating_exporter_is_refused(tmp_path: pathlib.Path) -> None:
     assert said is None or "excel-1900" not in [member for member, _first, _last in said.readings]
     trip = _trip(tmp_path / "declared", cells, "excel-1900")
     block = trip["block"]
-    assert isinstance(block, dict) and block["role"] != "datetime"
-    assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in block["remarks"])
+    assert isinstance(block, dict) and _held_as_counted_dates(block), block
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
 
 
@@ -2559,15 +2580,19 @@ def test_c5_keep_value_does_not_reach_a_declared_columns_placeholder(
 def test_c5_a_declaration_reading_two_dates_decides_nothing(tmp_path: pathlib.Path) -> None:
     """Mutant M19: two different serials are read as dates, and the date rule does not take two values.
 
-    The column is then read as if nothing had been declared and says so
-    (NF115); without that the first build left a column of two dates on
-    another role, and `generate` and `validate` stopped.
+    The column was then read as if nothing had been declared and said so
+    (NF115), and since plan P4-D406 it is held as a record number (NF127):
+    the two serials are two dates, so neither is published and the twin
+    writes two made-up counts of the same layout. Without that the first
+    build left a column of two dates on another role, and `generate` and
+    `validate` stopped.
     """
     cells = ["45000" if row % 2 else "45001" for row in range(battery.ROWS)]
     trip = _trip(tmp_path, cells, "excel-1900")
-    assert trip["block"]["role"] != "datetime"
-    assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in trip["block"]["remarks"])
-    assert sorted(set(trip["twin"])) == ["45000", "45001"]
+    assert _held_as_counted_dates(trip["block"]), trip["block"]
+    assert "45000" not in json.dumps(trip["block"]) and "45001" not in json.dumps(trip["block"])
+    assert len(set(trip["twin"])) == 2
+    assert all(len(cell) == 5 and parsing.is_digit_text(cell) for cell in trip["twin"])
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
 
 
@@ -2602,8 +2627,9 @@ def test_c5_an_epic_day_with_a_binary64_tail_is_no_count(tmp_path: pathlib.Path,
     An Epic `*_DATE_REAL` exported with seventeen significant figures
     stopped `profile` with an internal fault once declared. Such a cell is
     no count: it stands to the date role's own line, so a column of them
-    is read as it reads without the declaration and says so (NF115), and
-    a column of five among a thousand is read as dates with five cells it
+    was read as it reads without the declaration and said so (NF115), and
+    is held as a record number since plan P4-D406 (NF127); a column of
+    five among a thousand is read as dates with five cells it
     could not read. Question Q3 does not offer the 1840 system for it.
     """
     shape = battery.BY_NAME["epic_real"]
@@ -2614,8 +2640,7 @@ def test_c5_an_epic_day_with_a_binary64_tail_is_no_count(tmp_path: pathlib.Path,
     assert sum(len(cell.split(".")[1]) > 9 for cell in cells if "." in cell) == noisy
     trip = _trip(tmp_path, cells, shape.system)
     if noisy > 10:
-        assert trip["block"]["role"] != "datetime"
-        assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in trip["block"]["remarks"])
+        assert _held_as_counted_dates(trip["block"]), trip["block"]
         assert trip["twin_exit"] == 0
         said = _q3(_block_of(tmp_path / "asked", cells))
         assert said is None or "days-since-1840" not in [m for m, _f, _l in said.readings]

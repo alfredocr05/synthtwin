@@ -5250,6 +5250,7 @@ def questions_document(
     about_file: "list[Question] | None" = None,
     about_table: "list[str] | None" = None,
     answered: "list[dict[str, object]] | None" = None,
+    held_dates: "list[tuple[str, str]] | None" = None,
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data.
 
@@ -5271,6 +5272,12 @@ def questions_document(
     Guarantees:
 
     - Inputs: the table's name and the two lists of questions.
+      ``held_dates`` names each column declared as counted dates whose
+      cells did not read as such dates, with the counting system it was
+      declared with (plan P4-D406, contract NF127): held on every table,
+      each is written in a section of its own, `held`, which no answer
+      in the file changes. Absent where there is none, so every other
+      file is written as before, byte for byte.
     - Determinism: a fixed function of the arguments, in the table's
       own column order.
     - Errors raised: none.
@@ -5331,7 +5338,37 @@ def questions_document(
     # answer was carried into is written as before, byte for byte.
     if answered:
         written["answered_before"] = answered
+    # ...AND EVERY COLUMN DECLARED AS COUNTED DATES THAT DID NOT READ SO,
+    # HELD (the orchestrator's LANE HX2 ADDENDUM 2: "name it in the
+    # questions"). The column's name and the system the person gave are
+    # theirs already; no cell of the column is.
+    held_entries: "list[dict[str, object]]" = []
+    for name, member in held_dates if held_dates else []:
+        held_entries += [
+            {
+                "column": name,
+                "what_synthtwin_saw": (
+                    f"you said this column writes its dates as counts "
+                    f"({member}), and its cells did not read as such dates"
+                ),
+                "what_this_run_did": HELD_DATES_SAID,
+            }
+        ]
+    if held_entries:
+        written["held"] = held_entries
     return written
+
+
+# WHAT THE `held` SECTION SAYS OF EACH OF ITS COLUMNS (plan P4-D406,
+# contract NF127), the same for every one of them.
+HELD_DATES_SAID = (
+    "Held: a count that names a date is that date all the same, so none of "
+    "its values is published, the description treats the column as record "
+    "numbers, and the twin writes made-up values there. No answer in this "
+    "file gives them back. Write every date in the column the same way -- "
+    "all as counts in one spelling, or all as text -- and describe the "
+    "table again with the same declaration."
+)
 
 
 @dataclasses.dataclass(frozen=True)

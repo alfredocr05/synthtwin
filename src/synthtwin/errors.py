@@ -1772,14 +1772,18 @@ def date_count_system_not_supported(given: str) -> str:
     )
 
 
-def the_date_count_declaration_did_not_reach(
-    name: str, member: str, role: str
-) -> str:
+def the_date_count_declaration_did_not_reach(name: str, member: str) -> str:
     """Message when `--date-count` names a column whose cells did not read as such dates (landing R4).
 
     NOT A REFUSAL, for the comma declaration's reason: whether a column's
     cells are counts that name dates is known only once the table is
-    read. The description says the same in NF115.
+    read. AND THE COLUMN IS HELD (plan P4-D406, contract NF127; the
+    orchestrator's ruling on lane HX2's second verify, item 3): read
+    without the declaration its numbers would be those dates published
+    as plain numbers, so on every table it publishes none of its values,
+    and the description and the questions file say so too. The answer
+    is the person's: the column's name, the system, or one way of
+    writing its dates.
     """
     return (
         f"The column '{_shown(name)}' was named with --date-count as "
@@ -1789,13 +1793,14 @@ def the_date_count_declaration_did_not_reach(
         f"figures after the point step between the units a date is "
         f"written to, as one to three figures of a day or tenths of a "
         f"second do, some cells are written as dates in text beside the "
-        f"counts, or the counts are not written one way -- so it was "
-        f"described as {role}, as it reads without the declaration. The "
-        f"description that was written is correct about everything else, "
-        f"and says which columns were declared. Check the column's name "
-        f"and the system; where its dates are written two ways, write "
-        f"every one the same way -- all as counts in one spelling, or all "
-        f"as text -- and run the command again."
+        f"counts, or the counts are not written one way. A count that "
+        f"names a date is that date all the same, so the column is held: "
+        f"none of its values is published, the description treats it as "
+        f"record numbers, and the twin writes made-up values there. The "
+        f"description that was written is correct about everything else. "
+        f"Check the column's name and the system; where its dates are "
+        f"written two ways, write every one the same way -- all as counts "
+        f"in one spelling, or all as text -- and run the command again."
     )
 
 

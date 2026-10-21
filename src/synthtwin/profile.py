@@ -4255,6 +4255,13 @@ def build_document(
       every column as before, byte for byte. ``counted_in_subjects``,
       where given, is a list this call extends with the name of each
       column whose description that count changed, for the screen.
+    - A column a person declared as counted dates whose cells did not
+      read as such dates is held as a record number on EVERY table, with
+      or without ``subjects`` (`taxonomy.as_counted_dates_held`, contract
+      NF127): read without the declaration, its numbers would be those
+      dates published as plain numbers. Declarations reconstructed from
+      a description (``declarations_are_reconstructed``, the validator's)
+      hold nothing: a checked file is described as its cells read.
     """
     withheld_names = [] if unanswered is None else unanswered
     # THE SUBJECT COLUMNS THAT REPEAT (plan P4-D406): one different on
@@ -4339,7 +4346,8 @@ def build_document(
     columns: list[dict[str, object]] = []
     absent_spellings: "list[tuple[str, ...]]" = []
     notes: list[dict[str, str]] = []
-    # The columns the count in people held (plan P4-D406).
+    # The columns held as record numbers (plan P4-D406): by the count in
+    # people, or declared as counted dates their cells did not read as.
     held_in_people: "list[str]" = []
     # THE NOTES ABOUT THE WHOLE TABLE COME FIRST (plan P4-D341), each
     # naming no column. They are PASSED IN and never decided here: this
@@ -4459,49 +4467,65 @@ def build_document(
                 settings.small_cell_floor,
             )
         real_census = _census_of(described)
+        # DATES DECLARED AS COUNTS AND NOT READ AS DATES are never
+        # published as plain numbers (the orchestrator's LANE HX2 ADDENDUM
+        # 2, from lane AQ's close verify): `42.345` for an Excel day leaves
+        # the column read as a count, whose mean and points are those
+        # dates, so it is held whole -- ON EVERY TABLE, one row a person as
+        # well as several (the orchestrator's ruling on lane HX2's second
+        # verify, item 3): 600 such days beside 600 patients, one row each,
+        # published their mean and percentiles, each date a person's own.
+        # A PERSON'S declaration only: the validator hands over the
+        # description's (`declarations_are_reconstructed`), and a checked
+        # file whose counts do not read so is described as before, which
+        # is how its report says what it misses.
+        declined = (
+            not declarations_are_reconstructed
+            and name not in withheld_names
+            and name not in described_identifiers
+            and _counted_dates_declined(settings, name, described)
+        )
         if name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
-        elif (
+        elif declined or (
             counting
             and name not in described_identifiers
-            and (
-                # DATES DECLARED AS COUNTS AND NOT READ AS DATES are never
-                # published as plain numbers beside the people they are
-                # about (the orchestrator's LANE HX2 ADDENDUM 2, from lane
-                # AQ's close verify): `42.345` for an Excel day leaves the
-                # column read as a count, whose mean and points are those
-                # dates, so it is held whole.
-                _counted_dates_declined(settings, name, described)
-                or _counted_in_subjects(
-                    described,
-                    cells,
-                    counting,
-                    settings.small_cell_floor,
-                    counting_enough,
-                    _CellReading(
-                        taxonomy.counted_member(
-                            taxonomy.counted_for_the_column(settings, name)
-                        )
-                        if described.role == taxonomy.ROLE_DATETIME
-                        else "",
-                        name in declared_commas,
-                    ),
-                )
+            and _counted_in_subjects(
+                described,
+                cells,
+                counting,
+                settings.small_cell_floor,
+                counting_enough,
+                _CellReading(
+                    taxonomy.counted_member(
+                        taxonomy.counted_for_the_column(settings, name)
+                    )
+                    if described.role == taxonomy.ROLE_DATETIME
+                    else "",
+                    name in declared_commas,
+                ),
             )
         ):
             described_identifiers += [name]
             held_in_people += [name]
-            fresh = _layouts_in_subjects(
-                described_from(cells, None, True),
-                cells,
-                counting,
-                counting_enough,
-                settings.small_cell_floor,
-            )
+            fresh = described_from(cells, None, True)
+            if counting:
+                fresh = _layouts_in_subjects(
+                    fresh,
+                    cells,
+                    counting,
+                    counting_enough,
+                    settings.small_cell_floor,
+                )
             real_census = _census_of(fresh)
-            described = taxonomy.as_held_in_people(fresh)
-            if counted_in_subjects is not None:
-                counted_in_subjects += [name]
+            if declined:
+                # Named on the screen and in the questions file as a
+                # declaration that did not reach, not as a count in people.
+                described = taxonomy.as_counted_dates_held(fresh)
+            else:
+                described = taxonomy.as_held_in_people(fresh)
+                if counted_in_subjects is not None:
+                    counted_in_subjects += [name]
         if (
             name in subject_names
             and name not in withheld_names
@@ -5560,9 +5584,10 @@ def _short(pools: "list[dict[str, bool]]", floor: int) -> bool:
 def _without_held(
     settings: taxonomy.Settings, held: "list[str]"
 ) -> taxonomy.Settings:
-    """The settings a description records, each column the count in people held taken out of the readings it was declared under.
+    """The settings a description records, each held column taken out of the readings it was declared under.
 
-    PLAN P4-D406. A column held as a record number counted in people is
+    PLAN P4-D406. A column held as a record number -- counted in people,
+    or declared as counted dates its cells did not read as -- is
     described as one, and the contract reads a column one way only (S8a,
     S8d): one also named as writing a decimal comma, counted dates, dates
     of another reading, two-figure years or a 12-hour clock would be

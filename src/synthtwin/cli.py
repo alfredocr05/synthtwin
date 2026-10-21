@@ -2750,6 +2750,31 @@ def _table_sentences(document: "dict[str, object]") -> "list[str]":
     return said
 
 
+def _held_counted_dates(
+    document: "dict[str, object]", counted: "dict[str, str]"
+) -> "list[tuple[str, str]]":
+    """Each column declared as counted dates that did not read so, with its system.
+
+    Plan P4-D406 (contract NF127): such a column is held on every table,
+    and the questions file names it beside the screen and the summary
+    (the orchestrator's LANE HX2 ADDENDUM 2). Read back out of the FINAL
+    document, as `_table_sentences` is, in the table's column order: a
+    declared column the description reads as anything but dates.
+    Raises nothing, opens no file.
+    """
+    from synthtwin import taxonomy
+
+    held: "list[tuple[str, str]]" = []
+    for described_column in _described_columns(document):
+        name = f"{described_column['name']}"
+        if name not in counted:
+            continue
+        if described_column["role"] == taxonomy.ROLE_DATETIME:
+            continue
+        held += [(name, counted[name])]
+    return held
+
+
 def _counted_in_rows_notice(names: "list[str]") -> str:
     """What the screen says when nobody has said who the rows are about.
 
@@ -3783,7 +3808,7 @@ def _run_profile(
             )
     # -- 3b.R4 (P4-D384): ...AND A COLUMN DECLARED TO WRITE ITS DATES AS
     # COUNTS WHOSE CELLS DID NOT READ AS SUCH DATES, said here as the
-    # description says it (NF115).
+    # description says it: held, on every table (plan P4-D406, NF127).
     for name in sorted(counted):
         for described_column in _described_columns(document):
             if described_column["name"] != name:
@@ -3792,7 +3817,7 @@ def _run_profile(
                 continue
             _warn(
                 errors.the_date_count_declaration_did_not_reach(
-                    name, counted[name], f"{described_column['role']}"
+                    name, counted[name]
                 )
             )
     # ...AND THE 12-HOUR DECLARATION, WHICH REACHES ONLY AN UNMARKED CLOCK
@@ -4762,6 +4787,9 @@ def _run_profile(
                     answered=asking.answered_again(
                         answered_entries, asked_about + listed_about
                     ),
+                    # ...and each column declared as counted dates that
+                    # did not read so, held on every table (P4-D406).
+                    held_dates=_held_counted_dates(document, counted),
                 )
             ),
             sources=guarded_questions,

@@ -323,9 +323,10 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # the twelve is refused before the table is opened, and it takes what
     # the person typed, theirs already; a column so named whose cells did
     # not read as such dates is told so after the run, for the comma
-    # declaration's reason, with the system and the role synthtwin read.
+    # declaration's reason, with the system -- and that it is held, on
+    # every table (plan P4-D406), so the role it read no longer travels.
     "date_count_system_not_supported": ("excel-2000",),
-    "the_date_count_declaration_did_not_reach": ("visit_day", "excel-1900", "count"),
+    "the_date_count_declaration_did_not_reach": ("visit_day", "excel-1900"),
     # NOT a refusal: the loud remark for a declaration that was
     # accepted and then could not be honoured, because the column's
     # role was not known until the table had been read (R-P4-52). It

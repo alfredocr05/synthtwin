@@ -1116,6 +1116,11 @@ _UNANSWERED_EVIDENCE = taxonomy.rendered(
 )
 # ...and one counted in people (plan P4-D406): no answer gives it back.
 _HELD_IN_PEOPLE_EVIDENCE = taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
+# ...and one declared as counted dates its cells did not read as (plan
+# P4-D406, contract NF127): held on every table, its dates written again.
+_COUNTED_DATES_HELD_EVIDENCE = taxonomy.rendered(
+    taxonomy.EVIDENCE_COUNTED_DATES_HELD, ()
+)
 
 
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
@@ -1129,6 +1134,10 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         role == taxonomy.ROLE_IDENTIFIER
         and _text_of(column["detection_evidence"]) == _HELD_IN_PEOPLE_EVIDENCE
     )
+    counted_dates_held = (
+        role == taxonomy.ROLE_IDENTIFIER
+        and _text_of(column["detection_evidence"]) == _COUNTED_DATES_HELD_EVIDENCE
+    )
     said_role = _role_words(role)
     if unanswered:
         said_role = (
@@ -1139,6 +1148,11 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         said_role = (
             "record numbers or codes, because too few people hold "
             "its values"
+        )
+    if counted_dates_held:
+        said_role = (
+            "record numbers or codes, because its counts did not read as "
+            "the dates you named"
         )
     lines = [
         f"  {_text_of(column['name'])}",
@@ -1302,6 +1316,17 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                     "    Each row of this table belongs to a person, and "
                     "some value of this column is held by too few people "
                     "to be published, so none of its values is."
+                ),
+            ]
+        elif counted_dates_held:
+            lines += [
+                (
+                    "    You said this column writes its dates as counts, "
+                    "and its cells did not read as such dates, so none of "
+                    "its values is published: a count that names a date "
+                    "is that date. Write every date in it the same way -- "
+                    "all as counts in one spelling, or all as text -- and "
+                    "describe the table again."
                 ),
             ]
         else:
