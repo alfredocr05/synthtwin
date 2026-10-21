@@ -3870,3 +3870,108 @@ and a green case beside it: the same twin undamaged, every line HELD. The
 lines count by band codes and patient keys, as V12.6 counts; the
 derived columns add one pass over the rows. Lane CHv measures them with
 V12.6's under `K-S6-15`.
+
+## V13. Between columns: the moments read on the file (stage 6, plan P4-D413; specified, NOT BUILT)
+
+**No validator in this repository runs anything in this section.** It
+adds the moments' lines that V12's opening paragraph leaves to lane
+MPOL, against the numbers `docs/spec/profile-contract-v6.md` section
+4.6d publishes and the polish `docs/spec/generation-method-v1.md` G17
+makes. It extends V12 and edits none of its clauses; V12.1's rule holds
+here too: the validator re-uses the published codes, regions and cells,
+and never chooses, draws or reads the installation's key.
+
+**V13.1 The measurement.** On the file, re-described as V2 says, each
+column of `moments.codes` is coded by its PUBLISHED rungs (contract
+4.6d.1), each published sum of `regions` is recounted over the file's
+rows of its published cell, in whole numbers, and each correlation's
+nine sums over the file's rows holding both readings.
+
+**V13.2 The lines, every one REPORT-ONLY, never a verdict.**
+
+| object | line | kind |
+|---|---|---|
+| a published sum | HELD where the file's sum equals the published one, else MISSED, beside the published value; no measured sum and no distance (V13.3) | REPORT-ONLY: HELD or MISSED, never deciding the report's verdict |
+| a published correlation | its nine sums, each HELD or MISSED as a published sum's line is, beside the published `r` computed from them to four decimals; no measured `r` | REPORT-ONLY |
+| `withheld`, a pair's `pinned` | printed as the description publishes them; the loader has checked them (contract S37) | named, never a check |
+| the description itself | invariants S34 to S38 | the loader refuses, naming the region, column or pair |
+
+**The private report** (ruling R7 (2); contract 4.6b.8) carries what the
+shared lines may not, each test decided in exact fractions: each sum
+measured on the file, and its distance in standard errors `sqrt(m v)`,
+`m` and `v` as generation method G17.2 defines them but read on the
+file (`v` the file's own variance of the summed term, never read as 1 as
+a weight's may be), marked inside exactly when `(S_file - S_pub)**2 <= m
+v`; and each
+correlation's measured `r` beside the published one, marked inside
+exactly when `|X - Y| <= T`, `X` and `Y` the file's and the published
+`r` and `T = max(1 - Y**2, 1/20) / sqrt(n)`. `X**2`, `Y**2`, `X Y`'s
+square and every sign are exact fractions of the nine sums, and `T**2`
+is exact, so the test is decided as `X**2 + Y**2 - T**2 <= 2 X Y`: true
+where the left side is at most 0 and `X Y` at least 0, false where the
+left side is above 0 and `X Y` below 0, and otherwise read by comparing
+the two sides' squares with the signs they carry (skeptic 1 of
+2026-10-20, item 10: the first build left these tests unstated).
+
+**Undefined measures** (Codex's round of 2026-10-20, item 5). A file
+may keep both columns' readings and every `L0` total and still hold no
+row with both readings (its reading masks disjoint: two FINE columns of
+200 readings among 400 rows, published with 100 rows holding both), or
+hold one code only on one side of the pairs: its count `n` or one of its
+`n S_20 - S_10**2` and `n S_02 - S_01**2` is then 0, and its `r` is
+UNDEFINED. The private report then prints the word `undefined` for the
+file's `r`, marks the pair outside, and computes no `T` (whose `n` is
+the file's count); the published `r` is always defined, since test (i)
+of contract 4.6d.3 needs both published variances above 0. A sum's
+distance is likewise UNDEFINED where `m v` is 0: the line prints
+`undefined` where `S_file` differs from `S_pub` and 0 where they are
+equal, and the inside test `(S_file - S_pub)**2 <= m v` still decides it
+exactly (inside only where they are equal). The shared lines are
+unchanged: they print HELD or MISSED on each published sum and the
+published `r`, which never needs the file's.
+
+**V13.3 What a report may print** follows V12.3 and V5.3 unchanged: no
+measured sum, product, correlation or distance stands on any line of
+this section, and each line prints its verdict, HELD or MISSED against
+the PUBLISHED sum, beside what the description publishes, so its
+printed form is the same whatever the size of what it withholds. A
+verdict stands only where V12.3 lets a family's stand: every `L0` total
+line of the region's columns reads HELD, so the file's bands are the
+published ones, and the region's PUBLISHED option is ELIGIBLE on the
+file's own description (V2.1 builds it) with the PUBLISHED numbers:
+test (i) of contract 4.6d.3 on the published sums, and the witness of
+contract 4.6d.4 on the file's own tables and own facts with the
+published sums, never with the file's own. Where a total line reads
+MISSED the line says V12.3's fixed words; where the option is not
+eligible, V5.3's fixed sentence stands in the verdict's place and the
+census counts the line withheld. Whether a line is withheld is then a
+function of the description, of lines already printed and of the
+file's own tables and own facts, never of a sum the line withholds, and
+a MISSED excludes one value of the sum from what the file's other facts
+allow, as V12.3's MISSED excludes one table. The first build withheld a
+line where the option was not eligible with the FILE's own sums: on a
+cell of 22 rows over codes 0 to `k`, that happened exactly when the
+file's code sum lay in 1 to 10 or in `22 k - 10` to `22 k - 1`, so a
+withheld line told that 1 to 10 of the cell's rows lay off one end code,
+the two-sided form V12.3 counts as a leak, and it printed measured sums
+and distances besides (skeptic 1 of 2026-10-20, item 2). The file may
+be the real table: its sums are then the published ones, and every line
+reads HELD.
+
+**V13.4 Not vacuous.** The suite holds: a twin whose polish was skipped,
+whose lines print MISSED; a file whose own tables fail the witness with
+the published sums, whose lines print V5.3's sentence; the 22-row cell
+above beside a published sum the file misses, whose line prints the
+same words whatever the file's own sum; two duplicate fine columns,
+whose correlation test (i) refuses, so the description publishes none
+and no line stands; a file meeting every published sum, whose lines print HELD;
+the private report's inside and outside at the exact boundary
+`(S_file - S_pub)**2 = m v`; a file whose two columns share no row
+holding both readings, whose `r` prints `undefined` and outside, with
+no division; and a sum of a constant cell (`m v` = 0) missed by 1,
+whose distance prints `undefined` and outside.
+
+**V13.5 What it costs.** Each sum is read from the codes in one pass over
+the file's rows, one byte a row and column; the witness on the file's
+own description is the profile's (contract 4.6d.4) and is priced with
+it. Lane CHv measures the whole check under `K-S6-15`.

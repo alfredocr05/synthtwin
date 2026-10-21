@@ -6,6 +6,57 @@ exists).
 
 ## [Unreleased]
 
+### Between columns: the moment page, written before its code (2026-10-20)
+
+**Nothing is built by this entry, and no twin carries any structure
+between columns yet.** It writes, before any code, how averages,
+spreads and correlations read on each number column's 8-bit code inside
+the chain's family cells are to be published and met (lane MPOL of the
+December plan; plan P4-D413). The profile contract's section 4.6d
+specifies them as exact whole-number sums, published for each group of
+columns they tie together only where an exact integer test shows that
+every group of rows they describe could hold at least the floor's
+number of rows, or none, and chosen by a drawn step whose option to
+publish none is always open, so that a refusal tells a reader nothing.
+It proves that, for a table with one row per patient, these numbers let
+no group of 1 to 10 rows be worked out beyond each column's own facts,
+under one premise it names, and names what stays checked rather than
+proven. The solver may only propose; every verdict is an exact
+whole-number one. On a table with several rows per patient no average or
+correlation reads a repeated measurement in December. The generation
+method's G17 specifies the exchanges inside each band that bring the
+twin's sums towards the published ones, with the arithmetic a compiled
+kernel must keep; the validation method's V13 prints the moments as
+reports, never as verdicts. Two ways to carry a number's slope that
+differs by a yes/no column are written and kept off until measured.
+After two reviews the page states plainly what it covers and what it
+does not. Every published number needs a proof (the owner's decision
+of 2026-10-20), so the page has no rule-checked class, and nothing of
+it is published beside a slope outside its groups of columns. Under
+that decision the orchestrator ruled, and the page writes as an
+explicit, dated amendment of the chain page's slope clause, that a
+slope the chain would publish is published only inside a group of
+columns that publishes, where the page's proof covers it, and withheld
+everywhere else: until the moment layer's gate opens no slope is
+published, and what that costs in estimates is unmeasured, owed by two
+later lanes on the test battery. A small group of rows in one column beside another group's
+codes can give a count of 1 to 3 rows, which the orchestrator's ruling
+counts among that column's own facts; inside one group the exact test
+now refuses the measured cases where that reading would publish a count
+of two columns, and the orchestrator confirmed that reading: the ruling
+reaches only a count that splits such a small group, and the exact test
+keeps its clause over every case. As written, the exact test December can run publishes
+almost no averages on the measured 50-column table: the estimates
+measured without it (127 of 287 for the chain alone, 188 polished, 202
+with the screen's seeds) are reference measurements, not bounds, and
+the yield with the test on is unmeasured, the main risk to fidelity,
+resting on the exact solver lane CHo writes. The validation report
+prints only whether each published sum is met, never a measured number,
+and says when a measure is undefined; the polish reads each count on
+its own table, keeps a weight wherever an exchange can move a sum,
+rounds a band's targets so they keep its total, and keeps four passes
+at every size.
+
 ### Between columns: the patient page, several rows per patient written before its code (2026-10-20)
 
 **Nothing is built by this entry, and no twin carries several rows per
