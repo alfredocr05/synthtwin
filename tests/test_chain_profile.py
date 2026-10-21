@@ -70,13 +70,13 @@ def _clinic(n_rows: int = 800, seed: int = 7) -> str:
     rows: "list[list[str]]" = []
     for place in range(n_rows):
         age = draw.randint(18, 90)
-        sex = draw.choice(["F", "M"])
+        gender = draw.choice(["F", "M"])
         group = draw.choice(["a", "b", "c", "d"])
         pressure = "" if draw.random() < 0.05 else f"{round(100 + age * 0.5 + draw.gauss(0, 12), 1)}"
         died = "1" if draw.random() < 0.1 + age / 300 else "0"
         days = f"{draw.randint(1, 400)}"
-        rows += [[f"P{place:05d}", f"{age}", sex, group, pressure, days, died]]
-    return _csv(["record", "age", "sex", "group", "pressure", "followup_days", "event"], rows)
+        rows += [[f"P{place:05d}", f"{age}", gender, group, pressure, days, died]]
+    return _csv(["record", "age", "gender", "group", "pressure", "followup_days", "event"], rows)
 
 
 def _describe(tmp_path: pathlib.Path, text: str, name: str = "clinic", key: bytes = TEST_KEY, floor: int = FLOOR):
@@ -519,9 +519,9 @@ def test_a_time_and_event_pair_is_read_from_roles_and_names():
         {"name": "followup_days", "role": "count"},
         {"name": "event", "role": "binary"},
         {"name": "age", "role": "count"},
-        {"name": "sex", "role": "binary"},
+        {"name": "gender", "role": "binary"},
     ]
-    pairs = chain.time_event_pairs(blocks, ["followup_days", "event", "age", "sex"])
+    pairs = chain.time_event_pairs(blocks, ["followup_days", "event", "age", "gender"])
     assert pairs == frozenset({("followup_days", "event"), ("event", "followup_days")})
 
 
