@@ -815,15 +815,19 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 732,500 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
-    # INTERIM, set once at the batch's records: lane G2T's `K-S4-20` and
-    # `K-S4-21` kept by id (its branch raised its own cap to 627,500, below)
-    # with their two note clauses, then lane HX2's `K-S3-65` and its
-    # `K-S3-64` (635,000 on its branch, below) with its clause in place of
-    # HX's, the count of entries off the base 127, 729,293 bytes; then
-    # `K-HZ-01`'s and `K-HZ-02`'s bounds moved to what lane HX2's count in
-    # people costs the health data zoo, with their status notes, 731,978
-    # bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # 737,000 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
+    # the orchestrator's recorded call D15 (the owner may veto), set once
+    # for the batch, the least round figure the merged ledger fits under:
+    # lane G2T's `K-S4-20` and `K-S4-21` (its branch raised its own cap to
+    # 627,500, below) and lane HX2's `K-S3-65` with its `K-S3-64` (635,000
+    # on its branch, below), with their note clauses, every entry kept by
+    # id and the note merged clause by clause, 729,293 bytes as merged;
+    # then `K-HZ-01`'s and `K-HZ-02`'s bounds moved to what lane HX2's
+    # count in people costs the health data zoo, with their notes; then
+    # the batch's records: the night window's six stamps, `K-P0-09`,
+    # `K-HZ-02` and lane G2T's spread entries restamped with their two
+    # clauses, `K-S3-14`'s note on the product's path, 736,701 bytes. A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
     # set once, the least round figure the merged ledger fits under: lane
@@ -1263,7 +1267,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 732_500
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 737_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

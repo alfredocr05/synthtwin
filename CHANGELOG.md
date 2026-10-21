@@ -6,6 +6,41 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
+
+**Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans
+P4-D412, P4-D413, P4-D405 and P4-D406). Lane HX2's count in people reads
+each subject column through lane SR's column access, so a table read one
+column a group is described byte for byte as one read whole. It costs the
+health data zoo: thirteen date and time columns beside a person column
+are held whole and their twins written as made-up figures, two person
+censuses are pooled in people and two code columns held whole, so 14 of
+40 kinds pass at 600 rows where 20 did, and 23 of the delimited exports'
+kinds at 20,000 rows where 28 did. Each failure is owned -- pooling in
+subject units by lane PS, the census in subject bands by lane MG, a held
+column's missed forms by CODES-1 part C -- and `K-HZ-01` and `K-HZ-02`
+move to the measured bounds, the integrator's call for the orchestrator
+to keep or reverse. On `K-S3-14`'s shapes `synthtwin profile` publishes 2
+of the 68 values the library call publishes (plan P4-D348). The
+orchestrator's night window of 2026-10-21 stamped the four time entries
+with `K-S1-07` and `K-2B-38` on batch 4d's head, nothing heavy beside it;
+`K-P0-09` and `K-HZ-02` are restamped from real runs, and lane G2T's
+spread entries `K-P3-03`, `K-S3-22` and `K-P2-07` re-run on the merged
+head, the first two a little nearer the published spread and moments.
+Owners named: the eight float powers to lane DEP-2 (plans P4-D409 and
+P4-D410); lane AQ's two limits to CODES-1 part C and lane AQ2 (P4-D408);
+the grouped describe's peak, under 0.6 of the whole table's and not
+half, to lane H3 (P4-D400); what stage 5 reads for the chain to lane CHv
+(P4-D395); a declared date column with no cell, named nowhere, to lane
+ST (P4-D406). Dated paragraphs record lane DEP-1's read window (not
+worse: 7.92 s against 7.87 s), lane XW's largest workbook (1,048,576 rows
+by 50: the sheet alone written at 1.35 GB, the whole route stopped at
+1.9 GB as expected) and Codex's review of lane HX item by item. The
+chain's polish row now says `P` = 2 scored 172 of 287 against 188 at `P`
+= 4; STATE mirrors ruling R12 (no chain slope published in December
+while the moment layer's gate stays closed) and counts 13,275 cases and
+245 KPIs.
+
 ### On a table of several rows a person, every published value is counted in persons (2026-10-19)
 
 **A value fewer than 11 people hold is not published, however many rows
@@ -307,8 +342,8 @@ person now answers `keep` where a question offers `identifier` and it
 knows the column as something else, since a blank holds such a column
 under lane HX's rule; the zoo's SNOMED ids still wait a round for their
 `code` answer, so `K-HZ-02`'s analyst bound moves from 100 to 101, the
-integrator's call for the orchestrator to keep or reverse (plan
-P4-D401); re-measured at lane AQ's merge it stays 101, since the zoo
+integrator's call, which the orchestrator kept, naming lane HX3 to
+restore 100 (plan P4-D401); re-measured at lane AQ's merge it stays 101, since the zoo
 answers one round and the `code` question comes in the next file.
 `K-S3-41` and `K-S3-62` are restamped on the merged head, each value
 as before; `K-P0-09` names the four runtime libraries. STATE says

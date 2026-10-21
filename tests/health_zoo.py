@@ -2800,6 +2800,11 @@ HELD_DATES = (
     "whole: the twin writes made-up figures in the date's layout, so code that parses the column "
     "fails on the twin; pooling a date's points in subject units is lane PS's (plan P4-D406)"
 )
+HELD_VALUES = (
+    "a measurement column beside a person column holding a value one to ten people hold is held "
+    "whole (the orchestrator's ruling of 2026-10-19 15:42, item 1): its twin writes made-up values "
+    "in the column's layouts; pooling values in subject units is lane PS's (plan P4-D406)"
+)
 CENSUS_IN_PEOPLE = (
     "the person column's census of rows a person is counted in people, its groups of one to ten "
     "pooled, so the shares of patients with two and three rows move on the twin; a census in "
@@ -2841,11 +2846,18 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "encounters": (
         ("MG", CENSUS_IN_PEOPLE, covers("patients with two rows or more, and three or more, as shares")),
+        ("PS", HELD_DATES, covers("admit_ts parses with its offset", "discharge_ts parses with its offset")),
         ("DST", "the twin writes an offset not in force on its date (US Eastern)", covers(
             "admit_ts wears an offset in force on its date", "discharge_ts wears an offset in force on its date")),
     ),
     "labs": (
         ("PS", HELD_DATES, covers("collected_at parses as %Y-%m-%d %H:%M")),
+        ("PS", HELD_VALUES, covers(
+            "censored values read past < and >", "the numbers of viral_load keep their range",
+            columns=("viral_load",))),
+        ("CODES-1", "a measurement column held whole in people (plan P4-D406) gets a twin that misses "
+                    "its published forms at 20,000 rows: the identifier generator's limit, lane CODES-1 "
+                    "part C (P4-D406's stated limit 4)", covers("miss viral_load")),
         ("MG", CENSUS_IN_PEOPLE, covers("patients with two rows or more, and three or more, as shares")),
         ("UN-1a", UNITS_AS_LABELS, covers(
             "a value and its unit", "the value read as a number", "the numbers of result keep their range",
@@ -2932,6 +2944,7 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("CODES-1", MADE_UP_CODES, covers("TNM", "ICD-O-3 morphology", "ICD-O-3 topography", columns=("tnm",))),
     ),
     "partial_dates": (
+        ("PS", HELD_DATES, covers("first_treatment_month parses as %Y-%m")),
         ("TR", "a date known to the month ('03/2019') or the year beside full dates is written as a "
                "made-up figure string", covers("dates to the year, the month or the day")),
     ),
