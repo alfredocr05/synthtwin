@@ -29,23 +29,37 @@ hour, minute, second; clock times a block of `BLOCK_HOURS` hours, hour,
 minute, second. A counted date climbs the dates' or the stamps' ladder by
 the precision its counts carry.
 
-THE GRAIN IS FIXED BY PUBLISHED FACTS ONLY (`ladder_walk`). At each rung the
-SPAN is the first and the last bucket at least the floor's number of people
-hold, under every subject column; the walk starts at the top rung and goes
-one rung finer while the column's ESTIMATE of its people's visits -- the
-whole square root of its present rows (`rows`, the block's own `n_present`)
-times the people the subject column names (`people`, the population the
-description counts) -- is at least `ROWS_A_BUCKET` floors for every bucket
-of the finer rung inside the current span; each span it passes is
-published in the record. The estimate lies between the people, each in
-one bucket, and the rows, each in its own, so neither a table of a few
-rows a person nor one of many on a visit day leads the walk far astray. So the grain is a function of the record alone
-(`walk_holds` recomputes it), and no finer point's failure chooses it. The
-rows before the first bucket of the chosen rung and after its last are
-counted in those two (the TAILS POOLED). Where the top rung has no span,
-or the chosen rung's description would still publish a point one to ten
-people hold, the column is HELD as plan P4-D406 holds it, with the G1
-floor above.
+THE WALK (`ladder_walk`). At each rung the SPAN is the first and the last
+bucket at least the floor's number of people hold, under every subject
+column; the walk starts at the top rung and goes one rung finer while the
+finer rung has a span that reaches both ends of the coarser one (its first
+bucket inside the coarser first, its last inside the coarser last) and the
+column's ESTIMATE of its people's visits -- the whole square root of its
+present rows (`rows`, the block's own `n_present`) times the people the
+subject column names (`people`, the population the description counts) --
+is at least `ROWS_A_BUCKET` floors for every bucket of that finer SPAN
+(repair round 1: the finer rung's own span, so a short session reaches a
+fine rung inside a long coarse bucket).
+The estimate lies between the people, each in one bucket, and the rows,
+each in its own, so neither a table of a few rows a person nor one of many
+on a visit day leads the walk far astray. The rows before the first bucket
+of the chosen rung and after its last are counted in those two (the TAILS
+POOLED).
+
+THE STEP BACK (plan P4-D417 as amended in repair round 1). The description
+at the rung the walk reached is used only where it publishes no count one
+to ten people hold: every bucket inside its span holds nobody or the
+floor's number of people (`thin`), the cells that read as no moment hold
+nobody or the floor (they are one published count, `n_unparsed`), and so
+does each written member a joint column's `resolution_mix` counts. Where it
+would, the walk steps back one rung -- the record keeping the spans down to
+that rung and no finer -- and asks again, up to the top; where no rung
+serves, the column is HELD as plan P4-D406 holds it, with the G1 floor
+above and every span the walk passed. A record says nothing of why the
+walk stopped where it did: the loader (`walk_holds`) checks that each span
+is one the walk could enter and that the rung is the last span's, and the
+plan's proof shows that the one fact a stop publishes -- the column is not
+described finer -- fixes no count of one to ten people.
 
 THE TWIN draws each value uniformly inside the bucket its coarse cell names
 (`drawn_inside`), at the column's own precision, and writes it in the
@@ -223,15 +237,19 @@ def buckets_between(first: int, end: int, rung: str) -> int:
 
 
 def walk_holds(grain: Grain, floor: int) -> bool:
-    """Whether a record's rung is the one its own published facts choose (plan P4-D417).
+    """Whether a record's spans are a walk its own published facts allow (plan P4-D417, TG1).
 
-    The walk starts at the top rung and goes one rung finer while
-    the estimate (`estimate`) is at least `ROWS_A_BUCKET` floors a bucket of the finer
-    rung inside the current span; a span is published for every rung it
-    passes, each a pair of bucket starts at its rung, first at most last.
-    A held record stops at its last span or before any; a pooled one at
-    its rung, which is its last span's, and goes no finer. The ladder's
-    foot is the record's own `finest`, the column's precision.
+    The spans run one a rung from the ladder's top, each a pair of bucket
+    starts at its rung, first at most last, and each past the first one
+    the walk could enter: it reaches both ends of the one before, and the
+    estimate (`estimate`) is at least `ROWS_A_BUCKET` floors a bucket of
+    it (`_goes_finer`). A held record stops at its last span or before any; a
+    pooled one's rung is its last span's. Where the walk stopped -- for a
+    finer span too wide, a finer rung with none, or a finer description
+    that would publish a count one to ten people hold (the step back) -- is
+    not checked: no published fact records it, which is what the plan's
+    proof rests on. The ladder's foot is the record's own `finest`, the
+    column's precision.
     """
     rungs = ladder(_ladder_kind(grain), grain.finest)
     if not rungs or rungs[len(rungs) - 1] != grain.finest:
@@ -239,22 +257,20 @@ def walk_holds(grain: Grain, floor: int) -> bool:
     spans = grain.spans
     if len(spans) > len(rungs):
         return False
+    visits = estimate(grain.rows, grain.people)
     for place in range(len(spans)):
         rung, first, last = spans[place]
         if rung != rungs[place] or first > last:
             return False
         if start_of(first, rung) != first or start_of(last, rung) != last:
             return False
-        if place > 0 and not _goes_finer(estimate(grain.rows, grain.people), floor, spans[place - 1], rung):
+        if place == 0:
+            continue
+        if not _goes_finer(visits, floor, spans[place - 1], spans[place]):
             return False
     if grain.rung == HELD:
         return True
-    if not spans or grain.rung != spans[len(spans) - 1][0]:
-        return False
-    place = len(spans)
-    return place >= len(rungs) or not _goes_finer(
-        estimate(grain.rows, grain.people), floor, spans[place - 1], rungs[place]
-    )
+    return bool(spans) and grain.rung == spans[len(spans) - 1][0]
 
 
 def estimate(rows: int, people: int) -> int:
@@ -285,9 +301,26 @@ def _ladder_kind(grain: Grain) -> str:
     return grain.reading.kind
 
 
-def _goes_finer(rows: int, floor: int, span: "tuple[str, int, int]", finer: str) -> bool:
+def _goes_finer(
+    visits: int, floor: int, outer: "tuple[str, int, int]", span: "tuple[str, int, int]"
+) -> bool:
+    """Whether the walk may enter a finer rung whose span is ``span`` from the span ``outer``.
+
+    The finer span must REACH both ends of the one before -- its first
+    bucket inside ``outer``'s first, its last inside ``outer``'s last -- so
+    the tails it pools stay inside the end buckets the coarser rung
+    already pools them into, and the estimate must be at least
+    `ROWS_A_BUCKET` floors a bucket of the finer span ITSELF (repair round
+    1, the statistics skeptic's item 2: a short session reaches a fine
+    rung inside a long coarse bucket). Every bucket the decision reads is
+    an end of a span, held by the floor's number of people, which the
+    record publishes once the walk enters.
+    """
+    outer_rung, outer_first, outer_last = outer
     rung, first, last = span
-    return rows >= ROWS_A_BUCKET * floor * buckets_between(first, after(last, rung), finer)
+    if start_of(first, outer_rung) != outer_first or start_of(last, outer_rung) != outer_last:
+        return False
+    return visits >= ROWS_A_BUCKET * floor * buckets_between(first, after(last, rung), rung)
 
 
 def ladder_walk(
@@ -297,13 +330,14 @@ def ladder_walk(
     kind: str,
     ends: "dict[str, tuple[int, int] | None]",
 ) -> "tuple[str, tuple[tuple[str, int, int], ...]]":
-    """The rung the walk stops at, or `HELD`, and the spans it passed.
+    """The rung the walk reaches, or `HELD` where the top rung has no span, and the spans it passed.
 
     ``ends`` holds, for each rung of the ladder, the starts of the first
     and the last bucket the floor's number of people hold, or None where
-    none does: the one place the people are counted. The walk reads it
-    only for the rungs it enters, and every decision reads the record
-    alone.
+    none does: the one place the people are counted. The walk goes one
+    rung finer while that rung has a span the estimate covers
+    (`_goes_finer`); the description it reaches may still step back
+    (`walk_holds`, the profile's `_grain_walk`).
     """
     rungs = ladder(kind, finest)
     found = ends[rungs[0]] if rungs[0] in ends else None
@@ -311,11 +345,11 @@ def ladder_walk(
         return HELD, ()
     spans: "list[tuple[str, int, int]]" = [(rungs[0], found[0], found[1])]
     for place in range(1, len(rungs)):
-        if not _goes_finer(visits, floor, spans[len(spans) - 1], rungs[place]):
-            break
         found = ends[rungs[place]] if rungs[place] in ends else None
-        if found is None:
-            return HELD, tuple(spans)
+        if found is None or not _goes_finer(
+            visits, floor, spans[len(spans) - 1], (rungs[place], found[0], found[1])
+        ):
+            break
         spans += [(rungs[place], found[0], found[1])]
     return spans[len(spans) - 1][0], tuple(spans)
 
@@ -842,6 +876,11 @@ def _form_of(text: str) -> str:
         else:
             found = found + character
     return found
+
+
+def shape_of(text: str) -> str:
+    """A cell's written shape, a figure `9` and a letter `a` or `A`: what tells a cell's written form apart."""
+    return _form_of(text)
 
 
 def _layout_written(cell: str, reading: Reading, moment: int, made_up: bool) -> "str | None":

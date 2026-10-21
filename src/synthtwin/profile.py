@@ -4610,16 +4610,28 @@ def build_document(
                 else _time_reading(described, settings, name, declared_commas)
             )
             if time_reading is not None:
-                walked, coarse = _grain_walk(
+                walked = _grain_walk(
                     cells,
                     described.n_present,
                     time_reading,
                     counting,
                     counting_enough,
                     settings.small_cell_floor,
+                    frozenset(described.absent_spellings),
                 )
-                held_dates = walked
-                if coarse is not None:
+                held_dates = _held_record(walked.grain)
+                spans = walked.grain.spans
+                # THE STEP BACK (plan P4-D417, repair round 1): from the
+                # rung the walk reached up to the top, the first rung whose
+                # description publishes no count one to ten people hold.
+                place = len(spans) if walked.grain.rung != grains.HELD else 0
+                while place > 0 and pooled is None and not walked.unread_thin:
+                    place = place - 1
+                    if walked.thin[spans[place][0]]:
+                        continue
+                    coarse = _cells_at(cells, walked, spans[place])
+                    if coarse is None:
+                        continue
                     candidate = described_from(coarse, None)
                     if candidate.role in _GRAIN_ROLES and not _counted_in_subjects(
                         candidate,
@@ -4630,11 +4642,16 @@ def build_document(
                         cell_reading,
                     ):
                         pooled = taxonomy.with_time_grain(
-                            candidate, grains.record(walked)
+                            candidate,
+                            grains.record(
+                                dataclasses.replace(
+                                    walked.grain,
+                                    rung=spans[place][0],
+                                    spans=spans[: place + 1],
+                                )
+                            ),
                         )
-                    else:
-                        held_dates = _held_record(walked)
-                coarse = None
+                    coarse = None
             if pooled is not None:
                 described = pooled
             else:
@@ -6007,6 +6024,25 @@ def _time_reading(
     return grains.Reading(grains.STAMP, shown)
 
 
+@dataclasses.dataclass(frozen=True)
+class _Walked:
+    """What `_grain_walk` found of one column: its record, and what the step back reads.
+
+    ``grain`` is the record at the rung the walk reached (or `held`, where
+    the top rung has no span or a subject column of few people tells its
+    people apart); ``thin`` names, for every rung, whether some bucket
+    inside that rung's span holds one to `floor` - 1 people under some
+    subject column; ``unread_thin`` whether the cells that read as no
+    moment, or a member of a joint column's resolution mix, are held so.
+    """
+
+    grain: grains.Grain
+    moments: "list[int | None]"
+    thin: "dict[str, bool]"
+    unread_thin: bool
+    padded: bool
+
+
 def _grain_walk(
     cells: "list[str]",
     present: int,
@@ -6014,22 +6050,28 @@ def _grain_walk(
     subject_cells: "list[list[str]]",
     enough: "list[bool]",
     floor: int,
-) -> "tuple[grains.Grain, list[str] | None]":
-    """The grain a column of dates or times is described at, and its cells at it (plan P4-D417).
+    absent: "frozenset[str]" = frozenset(),
+) -> _Walked:
+    """The walk of a column of dates or times down its ladder (plan P4-D417).
 
     Each present cell is read as its moment; the column's finest rung is
     the finest any cell writes; the walk reads ``present``, the block's
     `n_present`, published on every column, and the people the subject
-    columns name, the description's population. At every rung of its ladder the ENDS are the first
-    and the last bucket held by `floor` different subjects or more under
-    every subject column that counts in people (`_holding`, the one
-    count), and `grains.ladder_walk` chooses the rung from the published facts
-    alone: the count of different values and the spans. A subject column
-    of fewer than `floor` values counts the column only where it is
-    attached to it and tells its people apart (plan P4-D406), and then no
-    bucket can reach the floor: the column is held. The cells at the rung
-    are None where the walk holds the column or a cell that reads cannot
-    be written at it.
+    columns name, the description's population. At every rung of its
+    ladder the ENDS are the first and the last bucket held by `floor`
+    different subjects or more under every subject column that counts in
+    people (`_holding`, the one count), and `grains.ladder_walk` chooses
+    the rung the walk reaches from the spans and the estimate. A rung is
+    THIN where a bucket strictly inside its span holds one to `floor` - 1
+    people under some subject column (the description there would name a
+    bucket whose count one to ten people hold, by subtraction where it is
+    not printed: the skeptic's item 1), and the cells that read as no
+    moment (present, not an absent spelling) are counted as one value,
+    each written shape apart, beside each written member of a joint
+    column (the skeptic's items 1 and 2). A subject column of fewer than
+    `floor` values counts the column only where it is attached to it and
+    tells its people apart (plan P4-D406), and then no bucket can reach
+    the floor: the column is held.
     """
     moments: "list[int | None]" = []
     memo: "dict[str, int | None]" = {}
@@ -6056,7 +6098,10 @@ def _grain_walk(
         if not enough[place] and _attached(cells, subject_cells[place]) and (
             _names_its_people(cells, subject_cells[place])
         ):
-            return grains.Grain(grains.HELD, kind_reading, present, (), finest, 0), None
+            return _Walked(
+                grains.Grain(grains.HELD, kind_reading, present, (), finest, 0),
+                moments, {}, True, True,
+            )
     # THE PEOPLE THE SUBJECT COLUMNS NAME, the fewest under several: the
     # population the description counts, which the walk reads beside the
     # rows (`grains.estimate`).
@@ -6069,8 +6114,26 @@ def _grain_walk(
             named[key] = True
         if people == 0 or len(named) < people:
             people = len(named)
+    # THE CELLS THAT READ AS NO MOMENT, and the members of a joint column:
+    # counts the description at every rung publishes the same.
+    joint = time_reading.kind == grains.STAMP and time_reading.member == taxonomy.FORMAT_ISO_MIXED
+    apart: "list[tuple[str, ...]]" = []
+    for place in range(len(cells)):
+        cell = cells[place]
+        if moments[place] is None:
+            if parsing.folded(cell) and cell not in absent:
+                apart += [("u", f"u{grains.shape_of(cell)}")]
+            else:
+                apart += [()]
+        elif joint:
+            apart += [(f"r{parsing.parse_datetime(cell, taxonomy.ISO_FORMS[1]) is not None}",)]
+        else:
+            apart += [()]
+    unread_thin = _any_thin(apart, subject_cells, enough, floor)
+    apart = []
     rungs = grains.ladder(kind_reading.kind, finest)
     ends: "dict[str, tuple[int, int] | None]" = {}
+    thin: "dict[str, bool]" = {}
     for rung in rungs:
         keyed: "list[tuple[str, ...]]" = []
         starts: "dict[str, int]" = {}
@@ -6100,32 +6163,69 @@ def _grain_walk(
             else:
                 found = (min(found[0], start), max(found[1], start))
         ends[rung] = found
+        # Every bucket strictly inside the span that some row holds is
+        # held by the floor under every subject column, or the rung is thin.
+        thin[rung] = found is None or any(
+            found[0] < starts[key] < found[1]
+            and (passing is None or key not in passing)
+            for key in starts
+        )
     rung, spans = grains.ladder_walk(
         grains.estimate(present, people), floor, finest, kind_reading.kind, ends
     )
-    grain = grains.Grain(rung, kind_reading, present, spans, finest, people)
-    if rung == grains.HELD:
-        return _held_record(grain), None
-    padded = grains.column_padded(cells, kind_reading)
-    first = spans[len(spans) - 1][1]
-    last = spans[len(spans) - 1][2]
+    return _Walked(
+        grains.Grain(rung, kind_reading, present, spans, finest, people),
+        moments,
+        thin,
+        unread_thin,
+        grains.column_padded(cells, kind_reading) if rung != grains.HELD else True,
+    )
+
+
+def _any_thin(
+    keyed: "list[tuple[str, ...]]",
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+) -> bool:
+    """Whether some key is held by one to `floor` - 1 subjects under a subject column that counts in people."""
+    for place in range(len(subject_cells)):
+        if not enough[place]:
+            continue
+        counted = _holding(keyed, subject_cells[place], floor)
+        for key in counted:
+            if 0 < len(counted[key].holders) < floor:
+                return True
+    return False
+
+
+def _cells_at(
+    cells: "list[str]", walked: _Walked, span: "tuple[str, int, int]"
+) -> "list[str] | None":
+    """Every cell written as the start of its bucket at ``span``'s rung, the tails pooled into its ends.
+
+    A cell that reads as no moment is kept as written; None where a cell
+    that reads cannot be written at the rung in its own form.
+    """
+    rung, first, last = span
+    reading = walked.grain.reading
     coarse: "list[str]" = []
     written: "dict[str, str | None]" = {}
     for place in range(len(cells)):
         cell = cells[place]
-        if moments[place] is None:
+        if walked.moments[place] is None:
             coarse += [cell]
             continue
         if cell in written:
             made = written[cell]
         else:
-            made = grains.coarse_cell(cell, kind_reading, rung, first, last, padded)
+            made = grains.coarse_cell(cell, reading, rung, first, last, walked.padded)
             if len(written) < 65536:
                 written[cell] = made
         if made is None:
-            return _held_record(grain), None
+            return None
         coarse += [made]
-    return grain, coarse
+    return coarse
 
 
 def _held_record(grain: grains.Grain) -> grains.Grain:

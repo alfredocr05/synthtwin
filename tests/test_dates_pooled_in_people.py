@@ -38,7 +38,7 @@ import random
 
 import pytest
 
-from synthtwin import cli, contract, errors, generation, grains, validation
+from synthtwin import canonical, cli, contract, errors, generation, grains, validation
 
 import health_zoo
 import persons_counted
@@ -263,7 +263,8 @@ def test_a_mode_three_people_hold_is_never_printed(tmp_path: pathlib.Path) -> No
 
     The walk reaches the month (1,500 rows of about 400 people), where
     June would be the column's commonest point, held by three people: the
-    column is held, its twin written in valid dates.
+    month is refused and the walk steps back to the quarter (repair round
+    1), whose every bucket the floor's number of people hold.
     """
     june = [(950 + one % 3, datetime.date(2023, 6, 10 + one % 5)) for one in range(300)]
     text = _visits(1200, 400, datetime.date(2023, 1, 1), 730, 17, "iso", [])
@@ -276,31 +277,52 @@ def test_a_mode_three_people_hold_is_never_printed(tmp_path: pathlib.Path) -> No
     block = _block(described, "seen")
     shown = json.dumps(block)
     assert "2023-06" not in shown, shown
-    assert block["role"] == "identifier" and block["time_grain"]["rung"] == grains.HELD
+    assert block["role"] == "datetime" and block["time_grain"]["rung"] == "quarter", block["time_grain"]
+    assert [span[0] for span in block["time_grain"]["spans"]] == ["year", "quarter"]
     twin, real = _generated_and_validated(tmp_path, "visits")
-    assert twin == set() and "seen" not in real
+    assert (twin, real) == (set(), set())
     assert _parses(_column(tmp_path / "visits-twin.csv", "seen"), "%Y-%m-%d") == 0
     assert _counted_few(tmp_path, "visits") == 0
 
 
+def _years_apart(written: str) -> str:
+    """Four years of 200 patients' visits, 2041 to 2045, and between them 2043 held by three patients alone."""
+    draw = random.Random(31)
+    lines = ["patient,seen,value"]
+    for _row in range(600):
+        year = draw.choice((2041, 2042, 2044, 2045))
+        day = datetime.date(year, 1, 1) + datetime.timedelta(days=draw.randrange(365))
+        lines += [f"REC{80000000 + 7 * draw.randrange(200):08d},{day.strftime(written)},{draw.uniform(3, 150):.1f}"]
+    for one in range(15):
+        day = datetime.date(2043, 3 + one % 3, 2 + one)
+        lines += [f"REC{80000000 + 7 * (900 + one % 3):08d},{day.strftime(written)},{draw.uniform(3, 150):.1f}"]
+    return "\n".join(lines) + "\n"
+
+
 def test_a_held_column_writes_valid_dates_from_its_spans(tmp_path: pathlib.Path) -> None:
-    """The G1 floor: where no grain serves, the held column's twin parses in its own layout."""
-    june = [(950 + one % 3, datetime.date(2023, 6, 10 + one % 5)) for one in range(300)]
-    text = _visits(600, 200, datetime.date(2023, 1, 1), 730, 17, "us", [])
-    lines = text.splitlines()
-    kept = [lines[0]] + [line for line in lines[1:] if line.split(",")[1][:2] != "06"]
-    draw = random.Random(3)
-    for person, day in june:
-        kept += [f"REC{80000000 + 7 * person:08d},{day.strftime('%m/%d/%Y')},{draw.uniform(3, 150):.1f}"]
-    described = _profiled(tmp_path, "visits", "\n".join(kept) + "\n", "--identifier", "patient")
+    """The G1 floor: where no rung serves, the held column's twin parses in its own layout, inside its record's last span.
+
+    2043 lies inside the years' span and three patients alone hold it, so
+    every rung is thin and the column is held; its twin draws inside the
+    span its record publishes (2041 to 2045), never the method's fixed
+    span (2000 to 2029), and never prints 2043.
+    """
+    described = _profiled(tmp_path, "visits", _years_apart("%m/%d/%Y"), "--identifier", "patient")
     block = _block(described, "seen")
-    if block["role"] == "identifier":
-        assert block["time_grain"]["rung"] == grains.HELD
-        assert any("drawn inside the last span" in f"{remark}" for remark in block["remarks"])
+    assert block["role"] == "identifier" and block["time_grain"]["rung"] == grains.HELD
+    assert any("drawn inside the last span" in f"{remark}" for remark in block["remarks"])
+    assert "2043" not in json.dumps(block)
+    loaded = contract.load_profile(f"{tmp_path / 'visits-profile.json'}")
+    record = [one for one in loaded.columns if one.name == "seen"][0].time_grain
+    assert record is not None and record.spans
+    first, end = grains.held_span(record)
     twin, _real = _generated_and_validated(tmp_path, "visits")
     assert twin == set()
     cells = _column(tmp_path / "visits-twin.csv", "seen")
     assert _parses(cells, "%m/%d/%Y") == 0, cells[:5]
+    for cell in cells:
+        moment = grains.moment_of(cell, record.reading)
+        assert moment is not None and first <= moment < end, (cell, record.spans)
     assert _counted_few(tmp_path, "visits") == 0
 
 
@@ -344,21 +366,32 @@ def test_the_grain_is_chosen_from_published_facts_and_not_from_failing_points(
 
 
 def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathlib.Path) -> None:
-    """TG1: a description naming a finer or a coarser rung than its rows, people and spans choose is not loaded."""
+    """TG1: a description whose grain record its own rows, people and spans do not allow is not loaded.
+
+    Each edit is written in the canonical form (`canonical.serialize`), so
+    the record's own rule refuses it, by its name, and not the form check
+    (the skeptic's item 4); and a refusal is a ProfileError, never a
+    KeyError.
+    """
     text = _visits(1200, 400, datetime.date(2023, 1, 1), 730, 7)
     _profiled(tmp_path, "visits", text, "--identifier", "patient")
     path = tmp_path / "visits-profile.json"
     original = json.loads(path.read_text(encoding="utf-8"))
     assert _block(original, "seen")["time_grain"]["rung"] == "month"
-    for change in ("finer", "coarser", "rows", "people", "held", "reading", "key", "start"):
+    changes = {
+        "finer": "TG1", "mismatched": "TG1", "unreached": "TG1", "rows": "TG1", "people": "TG1",
+        "start": "TG1", "held": "NF129", "reading": "NF128",
+    }
+    for change, rule in changes.items():
         document = json.loads(json.dumps(original))
         grain = _block(document, "seen")["time_grain"]
         if change == "finer":
             grain["spans"] += [["day", "2023-01-01", "2024-12-31"]]
             grain["rung"] = "day"
-        elif change == "coarser":
-            grain["spans"] = grain["spans"][:2]
+        elif change == "mismatched":
             grain["rung"] = "quarter"
+        elif change == "unreached":
+            grain["spans"][2][1] = "2023-04-01"
         elif change == "rows":
             grain["rows"] = 1199
         elif change == "people":
@@ -367,17 +400,26 @@ def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathli
             grain["rung"] = grains.HELD
         elif change == "reading":
             grain["reading"] = "month-first-date"
-        elif change == "key":
-            grain["extra"] = 1
         else:
             grain["spans"][2][1] = "2023-01-02"
-        path.write_text(json.dumps(document), encoding="utf-8", newline="\n")
-        with pytest.raises(errors.ProfileError):
+        path.write_text(canonical.serialize(document), encoding="utf-8", newline="\n")
+        with pytest.raises(errors.ProfileError) as refused:
             contract.load_profile(f"{path}")
+        assert rule in f"{refused.value}", (change, f"{refused.value}")
+    # ...and the very document written back loads, so the form check is not what refused.
+    path.write_text(canonical.serialize(original), encoding="utf-8", newline="\n")
+    contract.load_profile(f"{path}")
 
 
 def test_the_walk_reads_its_record_alone() -> None:
-    """`walk_holds` recomputes the rung from the rows, the people and the spans; every other rung is refused."""
+    """`walk_holds` checks every span the record publishes from the rows, the people and the spans alone.
+
+    Each finer span must reach both ends of the one before and hold at
+    most the estimate's buckets at two floors a bucket; the rung is the
+    last span's. Where the walk stopped is not checked: a record that
+    stops above where its spans would let it go is the step back, which
+    publishes nothing of why (plan P4-D417, repair round 1).
+    """
     day = 86400 * 10**9
     first = 19358 * day
     reading = grains.Reading(grains.DATE, "iso-date")
@@ -392,10 +434,223 @@ def test_the_walk_reads_its_record_alone() -> None:
     assert grains.walk_holds(grains.Grain("quarter", reading, 600, spans[:2], "day", 200), FLOOR)
     assert not grains.walk_holds(grains.Grain("month", reading, 600, spans, "day", 200), FLOOR)
     assert grains.walk_holds(grains.Grain("month", reading, 600, spans, "day", 600), FLOOR)
-    assert not grains.walk_holds(grains.Grain("quarter", reading, 600, spans[:2], "day", 600), FLOOR)
+    # The step back: a record stopping above where its spans would go.
+    assert grains.walk_holds(grains.Grain("quarter", reading, 600, spans[:2], "day", 600), FLOOR)
     assert grains.walk_holds(grains.Grain(grains.HELD, reading, 600, spans, "day", 600), FLOOR)
     assert grains.walk_holds(grains.Grain(grains.HELD, reading, 600, (), "day", 0), FLOOR)
     assert not grains.walk_holds(grains.Grain("day", reading, 600, spans, "day", 600), FLOOR)
+    assert not grains.walk_holds(grains.Grain("quarter", reading, 600, spans, "day", 600), FLOOR)
+    # A finer span that does not reach the coarser one's ends is refused:
+    # its tails would leave the end buckets the coarser rung pools them in.
+    short = (spans[0], ("quarter", grains.start_of(first + 400 * day, "quarter"), spans[1][2]))
+    assert not grains.walk_holds(grains.Grain("quarter", reading, 600, short, "day", 600), FLOOR)
+    # The finer span's OWN buckets are what the estimate covers: one day
+    # inside a month of a year (the statistics skeptic's item 2).
+    session = (("year", first, first), ("quarter", first, first), ("month", first, first),
+               ("day", first, first))
+    assert grains.walk_holds(grains.Grain("day", reading, 60, session, "day", 10), FLOOR)
+    assert grains.walk_holds(grains.Grain("day", reading, 25, session, "day", 25), FLOOR)
+    assert not grains.walk_holds(grains.Grain("day", reading, 21, session, "day", 21), FLOOR)
+
+
+# -- (5b) repair round 1: what the description at a rung may not name -------
+
+
+def _hole(rows_in_july: int) -> str:
+    """Two hundred patients' ten visits a month apart over 2022 and 2023, July 2022 held by ``rows_in_july`` of them."""
+    draw = random.Random(2)
+    lines = ["patient,seen"]
+    months = [(2022 + month // 12, 1 + month % 12) for month in range(24)]
+    for person in range(200):
+        for _visit in range(10):
+            year, month = months[draw.randrange(24)]
+            while (year, month) == (2022, 7):
+                year, month = months[draw.randrange(24)]
+            lines += [f"P{100000 + person},{year}-{month:02d}-{1 + draw.randrange(28):02d}"]
+    for one in range(rows_in_july):
+        lines += [f"P{100000 + one},2022-07-{10 + one:02d}"]
+    return "\n".join(lines) + "\n"
+
+
+def _buckets_held(path: pathlib.Path, name: str, grain: "dict[str, object]") -> "dict[str, set[str]]":
+    """The people each bucket at a record's rung holds, read apart from the product (`persons_counted`)."""
+    names = _column(path, "patient")
+    cells = _column(path, name)
+    held: "dict[str, set[str]]" = {}
+    for cell, person in zip(persons_counted.at_the_grain(cells, {"time_grain": grain}), names):
+        if cell:
+            held.setdefault(cell, set()).add(person)
+    return held
+
+
+@pytest.mark.parametrize("rows_in_july", (1, 10))
+def test_a_bucket_inside_the_span_a_few_people_hold_is_never_named(
+    tmp_path: pathlib.Path, rows_in_july: int
+) -> None:
+    """July 2022 holds one (or ten) patients: the month would name it by subtraction, so the walk steps back to the quarter.
+
+    At the month every other month holds the floor's number of rows and is
+    listed among the heavy dates, the count of different values says July
+    holds someone, and its rows are the present rows less every listed
+    count (the skeptic's item 1, b1.csv and b10.csv). Every bucket at the
+    rung the description takes holds the floor's number of people.
+    """
+    text = _hole(rows_in_july)
+    described = _profiled(tmp_path, "visits", text, "--identifier", "patient")
+    block = _block(described, "seen")
+    grain = block["time_grain"]
+    assert grain["rung"] == "quarter", grain
+    assert [span[0] for span in grain["spans"]] == ["year", "quarter"]
+    held = _buckets_held(tmp_path / "visits.csv", "seen", grain)
+    assert held and min(len(people) for people in held.values()) >= FLOOR, {
+        bucket: len(people) for bucket, people in held.items()}
+    assert all(point["date"][5:7] in ("01", "04", "07", "10") for point in block["heavy_dates"])
+    twin, real = _generated_and_validated(tmp_path, "visits")
+    assert (twin, real) == (set(), set())
+    assert _counted_few(tmp_path, "visits") == 0
+
+
+def test_a_quarter_three_people_hold_steps_the_stamps_back_to_the_year(tmp_path: pathlib.Path) -> None:
+    """Stamps over eight quarters, 2022's fourth held by three patients: the quarter is refused, the year serves (q.csv)."""
+    draw = random.Random(5)
+    lines = ["patient,seen"]
+    for _row in range(600):
+        quarter = draw.choice((0, 1, 2, 4, 5, 6, 7))
+        day = datetime.date(2022 + quarter // 4, 3 * (quarter % 4) + 1, 1) + datetime.timedelta(
+            days=draw.randrange(88))
+        lines += [f"P{100000 + draw.randrange(100)},{day.isoformat()} {draw.randint(0, 23):02d}:{draw.randint(0, 59):02d}"]
+    for one in range(3):
+        lines += [f"P{100000 + one},2022-{10 + one}-{10 + one} 10:00"]
+    described = _profiled(tmp_path, "visits", "\n".join(lines) + "\n", "--identifier", "patient")
+    grain = _block(described, "seen")["time_grain"]
+    assert grain["rung"] == "year" and len(grain["spans"]) == 1, grain
+    assert "2022-10" not in json.dumps(described)
+    twin, real = _generated_and_validated(tmp_path, "visits")
+    assert (twin, real) == (set(), set())
+    assert _parses(_column(tmp_path / "visits-twin.csv", "seen"), "%Y-%m-%d %H:%M") == 0
+    assert _counted_few(tmp_path, "visits") == 0
+
+
+def _two_writings(person_rows: int, people: int, stamp: str) -> str:
+    """Two hundred patients' dates; ``people`` of them write ``person_rows`` rows a person as ``stamp`` does instead."""
+    draw = random.Random(9)
+    lines = ["patient,seen"]
+    for person in range(200):
+        for _visit in range(10):
+            day = datetime.date(2022, 1, 1) + datetime.timedelta(days=draw.randrange(730))
+            if person < people and _visit < person_rows:
+                lines += [f"P{100000 + person},{day.strftime(stamp)}"]
+            else:
+                lines += [f"P{100000 + person},{day.isoformat()}"]
+    return "\n".join(lines) + "\n"
+
+
+def test_cells_no_date_reads_that_one_person_writes_hold_the_column(tmp_path: pathlib.Path) -> None:
+    """One patient writes ten stamps beside 1,990 dates: the ten read as no date at any rung, a count one person holds (m1.csv).
+
+    Every description of the column publishes them as `n_unparsed`, so no
+    rung serves and the column is held, its twin valid dates.
+    """
+    described = _profiled(tmp_path, "visits", _two_writings(10, 1, "%Y-%m-%d %H:%M"),
+                          "--identifier", "patient")
+    block = _block(described, "seen")
+    assert block["role"] == "identifier" and block["time_grain"]["rung"] == grains.HELD, block.get("time_grain")
+    twin, _real = _generated_and_validated(tmp_path, "visits")
+    assert twin == set()
+    assert _counted_few(tmp_path, "visits") == 0
+
+
+def test_a_written_member_three_people_hold_is_never_counted(tmp_path: pathlib.Path) -> None:
+    """Three patients write their thirty visits with a clock beside 1,970 dates: `resolution_mix` would count them (m2.csv).
+
+    The joint column's two members are each counted in people; one that
+    one to ten people hold leaves no rung serving, and the column is held.
+    """
+    described = _profiled(tmp_path, "visits", _two_writings(10, 3, "%Y-%m-01 08:00"),
+                          "--identifier", "patient")
+    block = _block(described, "seen")
+    assert block["role"] == "identifier" and block["time_grain"]["rung"] == grains.HELD, block.get("time_grain")
+    assert "resolution_mix" not in block or "iso-datetime" not in block["resolution_mix"]
+    twin, _real = _generated_and_validated(tmp_path, "visits")
+    assert twin == set()
+    assert _counted_few(tmp_path, "visits") == 0
+
+
+def test_the_walks_ends_are_counted_in_people_never_in_rows(tmp_path: pathlib.Path) -> None:
+    """One patient's thirty rows of 2019 and three patients' forty-five of 2025 never end a span (a.csv).
+
+    Counted in rows each would hold the floor and end the years' span;
+    counted in people neither does, so they are pooled into 2022 and 2023.
+    """
+    text = _visits(2000, 200, datetime.date(2022, 1, 1), 730, 37, "iso")
+    lines = text.splitlines()
+    for one in range(30):
+        lines += [f"REC{80000000 + 7 * 990:08d},2019-0{1 + one % 9}-1{one % 10},5.0"]
+    for one in range(45):
+        lines += [f"REC{80000000 + 7 * (991 + one % 3):08d},2025-03-{1 + one % 28:02d},5.0"]
+    described = _profiled(tmp_path, "visits", "\n".join(lines) + "\n", "--identifier", "patient")
+    grain = _block(described, "seen")["time_grain"]
+    named = json.dumps(grain["spans"])
+    assert "2019" not in named and "2025" not in named, grain["spans"]
+    assert grain["spans"][0][1:] == ["2022-01-01", "2023-01-01"], grain["spans"]
+    assert "2019" not in json.dumps(described) and "2025-" not in json.dumps(described)
+    twin, real = _generated_and_validated(tmp_path, "visits")
+    assert (twin, real) == (set(), set())
+    assert _counted_few(tmp_path, "visits") == 0
+
+
+def test_a_rung_no_bucket_of_which_holds_the_floor_leaves_the_year(tmp_path: pathlib.Path) -> None:
+    """Twelve patients a year over ten years, three a quarter: no quarter holds the floor, so the years describe the column (f.csv).
+
+    The walk stops where the finer rung has no span (the step back the
+    plan's proof covers, repair round 1); every year holds twelve people,
+    and the description loads and validates.
+    """
+    draw = random.Random(43)
+    lines = ["patient,seen"]
+    for year in range(10):
+        for quarter in range(4):
+            for one in range(3):
+                person = 100000 + year * 12 + quarter * 3 + one
+                for _visit in range(100):
+                    day = datetime.date(2014 + year, 3 * quarter + 1, 1) + datetime.timedelta(days=draw.randrange(89))
+                    lines += [f"P{person},{day.isoformat()}"]
+    described = _profiled(tmp_path, "visits", "\n".join(lines) + "\n", "--identifier", "patient")
+    block = _block(described, "seen")
+    grain = block["time_grain"]
+    assert block["role"] == "datetime" and grain["rung"] == "year", grain
+    assert grain["spans"] == [["year", "2014-01-01", "2023-01-01"]]
+    loaded = contract.load_profile(f"{tmp_path / 'visits-profile.json'}")
+    record = [one for one in loaded.columns if one.name == "seen"][0].time_grain
+    assert record is not None and grains.walk_holds(record, FLOOR)
+    twin, real = _generated_and_validated(tmp_path, "visits")
+    assert (twin, real) == (set(), set())
+    assert _counted_few(tmp_path, "visits") == 0
+
+
+def test_a_seventy_minute_session_is_described_by_the_hour(tmp_path: pathlib.Path) -> None:
+    """A wearable's 70-minute session to the second: the finer span's own buckets choose the hour (statistics item 2).
+
+    Counted over the day's 24 hours the walk stopped at the day, and the
+    twin spread the session over the whole day (the zoo's wearables, day
+    and hour TVD 0.96 and 0.90 at 600 rows); counted over its own two
+    hours the walk reaches the hour, and the twin stays inside them.
+    """
+    draw = random.Random(47)
+    lines = ["patient,ts"]
+    start = datetime.datetime(2024, 5, 1, 8, 0, 1)
+    for _row in range(600):
+        when = start + datetime.timedelta(seconds=draw.randrange(70 * 60 - 7))
+        lines += [f"P{100000 + draw.randrange(120)},{when.strftime('%Y-%m-%d %H:%M:%S')}"]
+    _profiled(tmp_path, "session", "\n".join(lines) + "\n", "--identifier", "patient")
+    described = json.loads((tmp_path / "session-profile.json").read_text(encoding="utf-8"))
+    grain = _block(described, "ts")["time_grain"]
+    assert grain["rung"] == "hour", grain
+    twin, real = _generated_and_validated(tmp_path, "session")
+    assert (twin, real) == (set(), set())
+    cells = _column(tmp_path / "session-twin.csv", "ts")
+    assert _parses(cells, "%Y-%m-%d %H:%M:%S") == 0
+    assert all("2024-05-01 08:00:00" <= cell <= "2024-05-01 09:59:59" for cell in cells), (min(cells), max(cells))
 
 
 # -- (6) clocks, stamps and counted dates ------------------------------------
@@ -497,15 +752,48 @@ def test_the_twin_is_one_function_of_the_description_and_the_seed(tmp_path: path
 # -- (5) the count of different values, met at the rung ----------------------
 
 
-def test_a_column_written_to_the_month_holds_its_count_of_years(tmp_path: pathlib.Path) -> None:
-    """The catalogue's tumor registry, unanswered: its month column pooled by the year meets every count.
+def _months_of_years(years: int, patients_a_year: int, seed: int) -> str:
+    """Each year from 1990 its own patients, each with two months of treatment written `%Y-%m`."""
+    draw = random.Random(seed)
+    lines = ["patient,first_month,value"]
+    for year in range(years):
+        for one in range(patients_a_year):
+            person = year * patients_a_year + one
+            for _visit in range(2):
+                lines += [
+                    f"REC{80000000 + 7 * person:08d},{1990 + year}-{draw.randint(1, 12):02d},"
+                    f"{draw.uniform(3, 150):.1f}"
+                ]
+    return "\n".join(lines) + "\n"
 
-    Its codes are the open questions' candidates, so its first treatment
-    month is counted in a few dozen people and described by the year; the
+
+def test_a_column_written_to_the_month_holds_its_count_of_years(tmp_path: pathlib.Path) -> None:
+    """A month column pooled by the year meets every count: its twin writes as many years as it publishes.
+
+    Thirty years of fifteen patients each: every year holds the floor, no
+    quarter does, so the column is described by the year. The
     description's machinery builds its count of different values by the
-    month, and two built months of one year once left the twin six years
-    short (23 of 29, K-S3-65 on lane PS's first head). The rows moved to the
-    empty years between the same two published points meet it.
+    month, and two built months of one year once left the twin years short
+    (the catalogue's tumor registry, 23 of 29, K-S3-65 on lane PS's first
+    head); the rows moved to the empty years between the same two
+    published points meet it (method G7.13).
+    """
+    described = _profiled(tmp_path, "registry", _months_of_years(30, 15, 41), "--identifier", "patient")
+    block = _block(described, "first_month")
+    assert block["time_grain"]["rung"] == "year", block["time_grain"]
+    twin, real = _generated_and_validated(tmp_path, "registry")
+    assert (twin, real) == (set(), set())
+    years = {cell[:4] for cell in _column(tmp_path / "registry-twin.csv", "first_month")}
+    assert len(years) == block["n_distinct"] == 30
+    assert _parses(_column(tmp_path / "registry-twin.csv", "first_month"), "%Y-%m") == 0
+
+
+def test_the_tumor_registrys_month_column_is_held_and_parses(tmp_path: pathlib.Path) -> None:
+    """The catalogue's tumor registry, unanswered: 32 people over 29 years leave years inside the span that one to ten hold.
+
+    So no rung serves (the skeptic's item 1: a bucket inside the span is
+    named by the count of different values and its rows by subtraction),
+    the column is held, and its twin still parses as `%Y-%m`.
     """
     table = [one for one in health_zoo.runnable_tables() if one.name == "tumor_registry"][0]
     place = [one.name for one in health_zoo.runnable_tables()].index("tumor_registry")
@@ -516,11 +804,11 @@ def test_a_column_written_to_the_month_holds_its_count_of_years(tmp_path: pathli
             assert cli.main(["profile", f"{path}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
     described = json.loads((tmp_path / "tumor_registry-profile.json").read_text(encoding="utf-8"))
     grain = _block(described, "first_treatment_month")["time_grain"]
-    assert isinstance(grain, dict) and grain["rung"] == "year", grain
+    assert isinstance(grain, dict) and grain["rung"] == grains.HELD, grain
     twin, _real = _generated_and_validated(tmp_path, "tumor_registry")
     assert "first_treatment_month" not in twin, twin
-    years = {cell[:4] for cell in _column(tmp_path / "tumor_registry-twin.csv", "first_treatment_month")}
-    assert len(years) == _block(described, "first_treatment_month")["n_distinct"]
+    cells = _column(tmp_path / "tumor_registry-twin.csv", "first_treatment_month")
+    assert _parses(cells, "%Y-%m") == 0, cells[:5]
 
 
 def test_the_count_at_the_rung_is_the_oracles() -> None:

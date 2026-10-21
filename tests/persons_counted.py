@@ -263,6 +263,45 @@ def at_the_grain(values: "list[str]", block: "dict[str, object]", member: str = 
     return found
 
 
+def grain_groups(raw: "list[str]", values: "list[str]", people: "list[str]",
+                 block: "dict[str, object]", member: str = "") -> "list[str]":
+    """The counts a description at a grain prints or leaves to subtraction that one to ten people hold.
+
+    Repair round 1 of lane PS (its skeptic's items 1 and 2). At a rung
+    coarser than the cells' own, every bucket the heavy dates do not list
+    holds ten rows or fewer, and the count of different values says
+    which buckets inside the span hold anyone, so the present rows less
+    every listed count, the tails and the unread cells is the one
+    unlisted bucket's: each bucket at the rung is counted (`bucket`). So
+    are the cells no date reads, which the block prints as `n_unparsed`
+    (`unread`), and each written member a joint column's `resolution_mix`
+    counts (`member`).
+    """
+    grain = block.get("time_grain")
+    if not isinstance(grain, dict) or grain.get("rung") == "held" or not grain.get("spans"):
+        return []
+    absent = block.get("missing_by_source")
+    nobody = {parsing.folded(f"{key}") for key in absent} if isinstance(absent, dict) else set()
+    buckets: "list[str]" = []
+    unread: "list[str]" = []
+    members: "list[str]" = []
+    joint = block.get("format") == "iso-mixed"
+    for cell, at in zip(raw, values):
+        folded = parsing.folded(cell)
+        reads = bool(folded) and _grain_moment(cell, grain, member) is not None
+        buckets += [at if reads else ""]
+        unread += ["x" if folded and folded not in nobody and not reads else ""]
+        members += [("datetime" if parsing.parse_datetime(cell, "iso-datetime") is not None else "date")
+                    if joint and reads else ""]
+    found: "list[str]" = []
+    for label, keyed in (("bucket", buckets), ("unread", unread), ("member", members)):
+        holders, _rows, _attached = held_by(keyed, people)
+        for key, who in sorted(holders.items()):
+            if len(who) < FLOOR:
+                found += [f"{label} {key}"]
+    return found
+
+
 def is_published(value: str, block: "dict[str, object]",
                  seen: "tuple[set[str], set[float]]",
                  how: "tuple[str, bool]" = ("", False)) -> bool:
@@ -572,6 +611,8 @@ def count(names: "list[str]", columns: "list[list[str]]",
             if enough:
                 for span in spans_few(raw, people, block, members.get(name, "")):
                     groups.add(span)
+                for group in grain_groups(raw, values, people, block, members.get(name, "")):
+                    groups.add(group)
             if not enough or not statistics:
                 continue
             for label, cells in (("remainder", remainder), ("present", values)):
