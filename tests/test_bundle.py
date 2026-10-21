@@ -545,9 +545,21 @@ def test_the_check_refuses_a_bundle_missing_a_library_this_computer_needs(tmp_pa
     assert CHECK.check(str(native), version=(3, 12), computer=MAC_ARM) == []
     _refused(native, "has no file of stubother that this computer and its Python 3.13 can take",
              version=(3, 13), computer=MAC_ARM)
-    # A wheel the lock pins for another library does not stand in for this one.
-    (native / "wheelhouse" / "stubother-1.0-cp312-cp312-macosx_11_0_arm64.whl").unlink()
+    # A file stands for a library only when it is that library's and the
+    # lock pins it on that library's line: stubother's 3.12 wheel pinned
+    # on stubnative's line, and stubnative's on stubother's, leave
+    # stubother with nothing for 3.12.
+    house = native / "wheelhouse"
+    other = _sha256(house / "stubother-1.0-cp312-cp312-macosx_11_0_arm64.whl")
+    mine = _sha256(house / "stubnative-1.0-cp312-cp312-macosx_11_0_arm64.whl")
+    lock = native / "requirements-install.lock"
+    text = lock.read_text(encoding="utf-8")
+    head, tail = text.split("stubother==1.0", 1)
+    tail = tail.replace(other, mine)
+    head = head.replace(mine, mine + " \\\n    --hash=sha256:" + other)
+    lock.write_text(head + "stubother==1.0" + tail, encoding="utf-8", newline="\n")
     _resum(native)
+    assert other in head and mine in tail and other not in tail
     _refused(native, "has no file of stubother", version=(3, 12), computer=MAC_ARM)
     # A requirement for Windows alone is asked of Windows alone.
     conditioned = _bundle(tmp_path / "conditioned")
