@@ -56,6 +56,7 @@ import hashlib
 import json
 import math
 
+from synthtwin import chain_moments as moments
 from synthtwin import chain_rules as rules
 from synthtwin import parsing, reading, taxonomy
 
@@ -105,6 +106,7 @@ class Chained:
     seeds: "tuple[tuple[str, str, str], ...]"
     chosen: "tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]"
     content: str
+    moments: "dict[str, object] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -119,6 +121,7 @@ class Column:
     screen_levels: int
     few: bool
     blank: int
+    value_codes: "tuple[bytes, bytes | None, bytearray] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -359,6 +362,9 @@ class _Read:
     codes: "list[int]"
     agrees: bool
     blanks: bytearray
+    linear: "bytes | None"
+    second: "bytes | None"
+    has_reading: bytearray
 
 
 def read_column(
@@ -435,7 +441,33 @@ def read_column(
             if (counted[label] if label in counted else 0) != count:
                 agrees = False
     agrees = agrees and _recount_agrees(block, kinds, tabled_missing, blank_rows)
-    return _Read(start, codes, agrees, blanks)
+    # THE MOMENT LAYER'S CODES (contract 4.6d.1), one byte a row, for a FINE
+    # column: read here once, for the inputs `chain_moments` computes.
+    linear: "bytes | None" = None
+    second: "bytes | None" = None
+    has_reading = bytearray(len(values))
+    found = moments.codes_of(block) if moments.fine(block) else None
+    if found is not None:
+        by_text: "dict[str, tuple[int, int]]" = {}
+        for text in meaning:
+            kind, value = meaning[text]
+            if kind != "value":
+                continue
+            exact = moments.ordinal(role, value, block)
+            if exact is None:
+                continue
+            by_text[text] = (moments.linear_code(found, exact), moments.second_code(found, exact))
+        first_codes = bytearray(len(values))
+        second_codes = bytearray(len(values))
+        for row in range(len(values)):
+            if values[row] in by_text:
+                pair = by_text[values[row]]
+                first_codes[row] = pair[0]
+                second_codes[row] = pair[1]
+                has_reading[row] = 1
+        linear = bytes(first_codes)
+        second = bytes(second_codes) if found.second is not None else None
+    return _Read(start, codes, agrees, blanks, linear, second, has_reading)
 
 
 # -- THE CONTENT HASH AND THE SELF-TEST SAMPLE (4.6b.8) ------------------
@@ -574,41 +606,56 @@ def _screen_codes(block: "dict[str, object]", read: _Read, ladder: rules.Ladder)
     return out, 4, False
 
 
+_SHAPES: "dict[tuple[int, int, int], tuple[list[int], list[int], list[int]]]" = {}
+
+
+def _slots(a: int, b: int, c: int) -> "tuple[list[int], list[int], list[int]]":
+    """Each cell's place in the ab, ac and bc margins of an a x b x c table, kept by shape."""
+    key = (a, b, c)
+    if key not in _SHAPES:
+        first: "list[int]" = []
+        second: "list[int]" = []
+        third: "list[int]" = []
+        for i in range(a):
+            for j in range(b):
+                for k in range(c):
+                    first += [i * b + j]
+                    second += [i * c + k]
+                    third += [j * c + k]
+        _SHAPES[key] = (first, second, third)
+    return _SHAPES[key]
+
+
 def _triple_score(table: "list[int]", a: int, b: int, c: int) -> float:
     """A triple's departure from the model of no three-way term, `(X2 - df) / sqrt(2 df)`.
 
     The fit is the swap candidate's (lanes A0b and A0c): six rounds of
     proportional fitting to the three two-way margins in the order ab, ac,
     bc; `X2` over the fitted cells above 0.5, `df` a quarter of them and
-    at least 1. Binary64 in a fixed order over the triple's cells.
+    at least 1. Binary64 in a fixed order over the triple's cells, which
+    chooses only which options are raised (plan P4-D409 part 2, zone D).
     """
     size = a * b * c
-    ab = [0.0] * (a * b)
-    ac = [0.0] * (a * c)
-    bc = [0.0] * (b * c)
-    for i in range(a):
-        for j in range(b):
-            for k in range(c):
-                value = float(table[(i * b + j) * c + k])
-                ab[i * b + j] += value
-                ac[i * c + k] += value
-                bc[j * c + k] += value
+    places = _slots(a, b, c)
+    widths = (a * b, a * c, b * c)
+    targets: "list[list[float]]" = []
+    for which in range(3):
+        target = [0.0] * widths[which]
+        slots = places[which]
+        for cell in range(size):
+            target[slots[cell]] += float(table[cell])
+        targets += [target]
     fit = [1.0] * size
     for _round in range(SCREEN_ROUNDS):
         for which in range(3):
-            current = [0.0] * (a * b if which == 0 else (a * c if which == 1 else b * c))
-            for i in range(a):
-                for j in range(b):
-                    for k in range(c):
-                        slot = i * b + j if which == 0 else (i * c + k if which == 1 else j * c + k)
-                        current[slot] += fit[(i * b + j) * c + k]
-            target = ab if which == 0 else (ac if which == 1 else bc)
-            for i in range(a):
-                for j in range(b):
-                    for k in range(c):
-                        slot = i * b + j if which == 0 else (i * c + k if which == 1 else j * c + k)
-                        cell = (i * b + j) * c + k
-                        fit[cell] = fit[cell] * target[slot] / current[slot] if current[slot] > 0.0 else 0.0
+            slots = places[which]
+            target = targets[which]
+            current = [0.0] * widths[which]
+            for cell in range(size):
+                current[slots[cell]] += fit[cell]
+            for cell in range(size):
+                slot = slots[cell]
+                fit[cell] = fit[cell] * target[slot] / current[slot] if current[slot] > 0.0 else 0.0
     chi = 0.0
     cells = 0
     for cell in range(size):
@@ -817,6 +864,7 @@ class _Search:
     seeds: "tuple[tuple[str, str, str], ...]"
     tables: "dict[tuple[str, tuple[str, ...], tuple[int, ...]], tuple[int, ...]]"
     counts: "dict[str, int]"
+    scored: "dict[tuple[str, tuple[str, ...], tuple[int, ...]], tuple[bool, fractions.Fraction]]"
 
 
 def _table_at(search: _Search, child: str, parents: "tuple[str, ...]", base: "tuple[int, ...]", levels: "tuple[int, ...]") -> "tuple[int, ...]":
@@ -841,6 +889,20 @@ def _table_at(search: _Search, child: str, parents: "tuple[str, ...]", base: "tu
     return table
 
 
+def _judged(search: _Search, child: str, parents: "tuple[str, ...]", levels: "tuple[int, ...]", table: "tuple[int, ...]") -> "tuple[bool, fractions.Fraction]":
+    """Whether a candidate's table passes the floor, and its score with its raises: facts of the table, kept."""
+    key = (child, parents, levels)
+    if key in search.scored:
+        return search.scored[key]
+    floored = _floored(table, search.floor)
+    value = fractions.Fraction(0)
+    if floored:
+        columns = search.scales[child].counts[levels[0]]
+        value = rules.score(table, len(table) // columns, columns) + _raise_of(search, child, parents)
+    search.scored[key] = (floored, value)
+    return floored, value
+
+
 def _raise_of(search: _Search, child: str, parents: "tuple[str, ...]") -> fractions.Fraction:
     """The score's raise for a family (weights only, 4.6b.3): `w_te n` and `w_seed n` a seed's further column."""
     raised = fractions.Fraction(0)
@@ -863,6 +925,8 @@ class _Clamps:
     support: rules.Support
     groups: "dict[tuple[str, int], list[list[tuple[int, tuple[int, ...]]]]]"
     bands: "dict[tuple[str, int], list[list[tuple[int, tuple[int, ...]]]]]"
+    projected: "dict[tuple[str, str, int, int, tuple[str, ...], tuple[int, ...]], frozenset[int]]"
+    narrowed: "dict[tuple[str, str, int], frozenset[int]]"
 
 
 def _clamps_of(search: _Search, placed: "list[rules.Family]", need_bands: bool) -> _Clamps:
@@ -888,7 +952,17 @@ def _clamps_of(search: _Search, placed: "list[rules.Family]", need_bands: bool) 
             for wide in range(ladder.counts[2]):
                 inside = {band for band in range(len(coarse)) if coarse[band] == wide}
                 bands[(name, wide)] = rules.beliefs(support, (name, inside))
-    return _Clamps(support, groups, bands)
+    # Which families each clamp NARROWS: where it leaves every non-zero cell of
+    # a family feasible, the projection onto any parents is every parent cell
+    # the family's table holds, and the option's own table answers alone.
+    narrowed: "dict[tuple[str, str, int], frozenset[int]]" = {}
+    for which, held in (("group", groups), ("band", bands)):
+        for key in held:
+            reached = held[key]
+            narrowed[(which, key[0], key[1])] = frozenset(
+                at for at in range(len(placed)) if len(reached[at]) != len(support.cells[at])
+            )
+    return _Clamps(support, groups, bands, {}, narrowed)
 
 
 def _projector(search: _Search, anchor: rules.Family, parents: "tuple[str, ...]", levels: "tuple[int, ...]") -> "list[tuple[int, list[int], int]]":
@@ -947,19 +1021,20 @@ def _w1_holds(
         return True
     if clamps is None or anchor_at is None:
         return True
-    projector = _projector(search, anchor, parents, levels[1:])
-
-    def parent_cell(parts: "tuple[int, ...]") -> int:
-        cell = 0
-        for place, mapping, size in projector:
-            cell = cell * size + mapping[parts[place]]
-        return cell
-
+    width = len(table) // child_bands
+    whole: "set[int]" = set()
+    for row in range(width):
+        for c in range(child_bands):
+            if table[row * child_bands + c]:
+                whole = whole | {to_coarse[c]}
     for key in clamps.groups:
-        feasible = clamps.groups[key][anchor_at]
+        if anchor_at not in clamps.narrowed[("group", key[0], key[1])]:
+            if len(whole) < 2:
+                return False
+            continue
+        reachable = _projected(search, clamps, "group", key, anchor_at, anchor, parents, levels[1:])
         reached_bands: "set[int]" = set()
-        for _index, parts in feasible:
-            row = parent_cell(parts)
+        for row in reachable:
             for c in range(child_bands):
                 if table[row * child_bands + c]:
                     reached_bands = reached_bands | {to_coarse[c]}
@@ -970,7 +1045,6 @@ def _w1_holds(
     own = {ladder.maps[levels[0]][group] for group in search.columns[child].groups}
     for band in sorted(own):
         rows_holding: "set[int]" = set()
-        width = len(table) // child_bands
         for row in range(width):
             if table[row * child_bands + band]:
                 rows_holding = rows_holding | {row}
@@ -978,14 +1052,48 @@ def _w1_holds(
         for other in placed_names:
             admitted = 0
             for wide in range(search.scales[other].counts[2]):
-                feasible = clamps.bands[(other, wide)][anchor_at]
-                for _index, parts in feasible:
-                    if parent_cell(parts) in rows_holding:
-                        admitted += 1
-                        break
+                if anchor_at not in clamps.narrowed[("band", other, wide)]:
+                    admitted += 1 if rows_holding else 0
+                    continue
+                feasible_rows = _projected(search, clamps, "band", (other, wide), anchor_at, anchor, parents, levels[1:])
+                if feasible_rows & rows_holding:
+                    admitted += 1
             if admitted < 2:
                 return False
     return True
+
+
+def _projected(
+    search: _Search,
+    clamps: _Clamps,
+    which: str,
+    key: "tuple[str, int]",
+    anchor_at: int,
+    anchor: rules.Family,
+    parents: "tuple[str, ...]",
+    plevels: "tuple[int, ...]",
+) -> "frozenset[int]":
+    """The parent cells, at a candidate's parent levels, of the anchor's cells a clamp leaves feasible.
+
+    Kept for the step: options sharing an anchor, parents and levels read
+    one projection however many children and child levels they offer.
+    """
+    slot = (which, key[0], key[1], anchor_at, parents, plevels)
+    if slot in clamps.projected:
+        return clamps.projected[slot]
+    feasible = (clamps.groups if which == "group" else clamps.bands)[key][anchor_at]
+    projector = _projector(search, anchor, parents, plevels)
+    found = frozenset(_fold(projector, parts) for _index, parts in feasible)
+    clamps.projected[slot] = found
+    return found
+
+
+def _fold(projector: "list[tuple[int, list[int], int]]", parts: "tuple[int, ...]") -> int:
+    """One anchor cell's parent cell at a candidate's levels."""
+    cell = 0
+    for place, mapping, size in projector:
+        cell = cell * size + mapping[parts[place]]
+    return cell
 
 
 def _listed(names: "tuple[str, ...]") -> str:
@@ -1052,15 +1160,13 @@ def _step_options(
             base = tuple(offered)
             for levels in rules.variants_of(offered):
                 table = _table_at(search, child, subset, base, levels)
-                if not _floored(table, search.floor):
+                floored, value = _judged(search, child, subset, levels, table)
+                if not floored:
                     search.counts["floor_refusals"] += 1
                     continue
                 if not _w1_holds(search, clamps, anchor_at, anchor, child, subset, levels, table):
                     search.counts["w1_refusals"] += 1
                     continue
-                sizes = [search.scales[child].counts[levels[0]]]
-                width = len(table) // sizes[0]
-                value = rules.score(table, width, sizes[0]) + _raise_of(search, child, subset)
                 option = Option(child, subset, levels, anchor_at, table, value)
                 found += [(anchor_at, tuple(search.place[name] for name in subset), levels, len(found), option)]
         for _anchor, _places, _levels, _serial, option in sorted(found):
@@ -1194,6 +1300,51 @@ def _codes(values: "list[int]") -> "bytes | list[int]":
     return values
 
 
+def moment_inputs(
+    placed: "list[rules.Family]",
+    scales: "dict[str, rules.Ladder]",
+    columns: "dict[str, Column]",
+    blocks: "dict[str, dict[str, object]]",
+    floor: int,
+) -> "dict[str, object]":
+    """The moment layer's offers, regions, codes, sums and the witness's inputs (contract 4.6d), never published.
+
+    Lane MPOL's GATE is closed, so `procedure.classes` is empty and the
+    description's `moments` stays `null`; these are handed to the caller
+    for lane MPp's witness and lane CHo's oracle (4.6d.10's "owed
+    elsewhere").
+    """
+    region_columns = [name for name in blocks if columns[name].value_codes is not None]
+    codes: "list[dict[str, object]]" = []
+    for name in region_columns:
+        found = moments.codes_of(blocks[name])
+        if found is not None:
+            codes += [{"column": name, "hi": found.hi, "lo": found.lo, "p50": found.p50,
+                       "second": None if found.second is None else list(found.second)}]
+    offers = moments.offers_of(placed, scales, region_columns, floor)
+    regions = moments.regions_of(placed, offers)
+    level_codes = {name: columns[name].codes for name in columns}
+    value_codes: "dict[str, tuple[bytes, bytes | None, bytearray]]" = {}
+    for name in region_columns:
+        held = columns[name].value_codes
+        if held is not None:
+            value_codes[name] = held
+    sums = moments.sums_of(placed, scales, level_codes, value_codes, offers)
+    cuts: "dict[str, int]" = {}
+    for name in region_columns:
+        found = moments.codes_of(blocks[name])
+        if found is not None:
+            cuts[name] = len(moments.cut_points(found, blocks[name], scales[name]))
+    return {
+        "classes_published": [],
+        "codes": codes,
+        "cut_points": cuts,
+        "offers": [{"class": "mean", "column": name, "family": at} for name, at in offers],
+        "regions": [{"columns": list(names), "families": list(nodes)} for names, nodes in regions],
+        "sums": sums,
+    }
+
+
 def _off(note: str, counts: "dict[str, int]", notes: "list[str]", content: str) -> Chained:
     return Chained(None, tuple(notes + [f"no chain is published: {note}"]), counts, (), (), content)
 
@@ -1278,6 +1429,7 @@ def describe(
     eligible: "list[str]" = []
     ineligible: "list[dict[str, object]]" = []
     columns: "dict[str, Column]" = {}
+    moment_blocks: "dict[str, dict[str, object]]" = {}
     scales: "dict[str, rules.Ladder]" = {}
     for place in range(len(blocks)):
         block = blocks[place]
@@ -1334,6 +1486,16 @@ def describe(
         for row in tabled_rows:
             blank += read.blanks[row]
         groups = rules.small_group_bands(block, read.start, ladder, floor)
+        value_codes: "tuple[bytes, bytes | None, bytearray] | None" = None
+        if read.linear is not None:
+            linear_rows = read.linear
+            second_rows = read.second
+            value_codes = (
+                bytes(linear_rows[row] for row in tabled_rows),
+                None if second_rows is None else bytes(second_rows[row] for row in tabled_rows),
+                bytearray(read.has_reading[row] for row in tabled_rows),
+            )
+            moment_blocks[name] = block
         columns[name] = Column(
             name,
             ladder,
@@ -1343,6 +1505,7 @@ def describe(
             screen_levels,
             few,
             blank,
+            value_codes,
         )
         scales[name] = ladder
         eligible += [name]
@@ -1355,7 +1518,7 @@ def describe(
     place_of: "dict[str, int]" = {}
     for at in range(len(eligible)):
         place_of[eligible[at]] = at
-    search = _Search(columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts)
+    search = _Search(columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts, {})
     blank_counts = {name: columns[name].blank for name in eligible}
     x0 = rules.blank_cell(scales, blank_counts)
     room = rules.blank_record_room(document, floor) + rules.outside_cells(document, set(eligible))
@@ -1370,6 +1533,10 @@ def describe(
     if refused:
         notes += [f"the chain's own check found {len(refused)} refusals"]
         return _off("the chain's own check failed", counts, notes, content)
+    inputs = moment_inputs(placed, scales, columns, moment_blocks, floor)
+    for key, name in (("moment_region_columns", "codes"), ("moment_offers", "offers"), ("moment_regions", "regions"), ("moment_sums", "sums")):
+        listed = inputs[name]
+        counts[key] = len(listed) if isinstance(listed, list) else 0
     words, implied = rules.words_of(eligible, placed)
     chain_entries: "list[dict[str, object]]" = []
     for family in placed:
@@ -1400,4 +1567,4 @@ def describe(
     if seeds:
         notes += [f"the screen offered {len(seeds)} seeds as weights"]
     chosen = tuple((family.child, tuple(name for name, _level in family.parents), tuple(level for _name, level in rules.members(family))) for family in placed)
-    return Chained(statistical, tuple(notes), counts, seeds, chosen, content)
+    return Chained(statistical, tuple(notes), counts, seeds, chosen, content, inputs)

@@ -789,7 +789,12 @@ _POLISH_KERNEL = "synthtwin.polish_kernel"
 # facts (reached by the loader, so zone G), its producer (zone D) and
 # the installation's key, ledger and lock (zone D).
 _INSTALLATION = "synthtwin.installation"
-_CHAIN_MODULES = ("synthtwin.chain", "synthtwin.chain_rules", _INSTALLATION)
+_CHAIN_MODULES = (
+    "synthtwin.chain",
+    "synthtwin.chain_moments",
+    "synthtwin.chain_rules",
+    _INSTALLATION,
+)
 
 _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),

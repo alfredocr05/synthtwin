@@ -42,6 +42,7 @@ import workbooks
 
 from synthtwin import (
     chain,
+    chain_moments,
     chain_check,
     chain_rules,
     cli,
@@ -658,3 +659,45 @@ def test_a_table_of_several_rows_per_person_gets_no_chain(tmp_path):
     chained = chain.describe(table, document, settings, chain.ChainSwitch("visits", TEST_KEY))
     assert chained.statistical is None
     assert any("several rows per person" in note for note in chained.notes)
+
+
+# -- THE MOMENT LAYER'S INPUTS (4.6d, never published while its gate is closed) --
+
+
+def test_the_second_code_reads_the_rungs_probability_scale():
+    """Contract 4.6d.1's example: with lo and hi at p01 and p99, p05 takes code 10, p10 23, p20 49,
+    p50 128 and p95 245 (the first build's equal share of codes gave p05 18 and p95 237)."""
+    rungs = {f"p{k:02d}": float(k * k) for k in range(1, 100)}
+    block = {"name": "x", "role": "continuous", "n_used_in_statistics": 5000, "n_present": 5000,
+             "percentiles": {key: rungs[key] for key in ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")},
+             "percentiles_between": {key: rungs[key] for key in rungs if key not in ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")}}
+    codes = chain_moments.codes_of(block)
+    assert codes is not None and codes.lo == "p01" and codes.hi == "p99" and codes.second is not None
+    expected = {"p05": 10, "p10": 23, "p20": 49, "p50": 128, "p95": 245}
+    for key, code in expected.items():
+        assert chain_moments.second_code(codes, fractions.Fraction(rungs[key])) == code
+    assert chain_moments.linear_code(codes, fractions.Fraction(1)) == 0
+    assert chain_moments.linear_code(codes, fractions.Fraction(9801)) == 255
+
+
+def test_the_moment_inputs_are_computed_and_nothing_of_them_is_published(tmp_path):
+    _table, document, _settings, chained = _describe(tmp_path, _clinic())
+    assert chained.statistical is not None and chained.statistical["moments"] is None
+    inputs = chained.moments
+    assert inputs is not None and inputs["classes_published"] == []
+    assert inputs["codes"] and inputs["offers"] and inputs["regions"]
+    # Every offered mean meets rule M3 in its home family: a cell of its pure bands is 0 or at least 2f.
+    statistical = chained.statistical
+    for offer in inputs["offers"]:
+        family = statistical["chain"][offer["family"]]
+        names = [family["child"]] + [parent["column"] for parent in family["parents"]]
+        assert offer["column"] in names
+    # Each band sum is the code total of that band's rows: re-derived here from the sums alone.
+    band_sums = [one for one in inputs["sums"] if one["class"] == "band"]
+    cell_sums = [one for one in inputs["sums"] if one["class"] == "mean"]
+    assert band_sums and cell_sums
+    for one in cell_sums:
+        assert isinstance(one["value"], int) and one["value"] >= 0
+    # The published description holds none of them.
+    text = json.dumps(statistical)
+    assert "sums" not in text and "offers" not in text
