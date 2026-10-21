@@ -15,14 +15,20 @@
 # 1. finds a Python the bundle serves, 3.11 to 3.14: python3, then
 #    python, then python3.14, python3.13, python3.12 and python3.11 (or
 #    the one named in the SYNTHTWIN_PYTHON variable), so a Python 3.15
-#    beside a 3.14 takes the 3.14; and says in plain words what to do
-#    when there is none (lane DEP-2's skeptic, item 2);
+#    beside a 3.14 takes the 3.14; it takes only CPython's usual build,
+#    so a free-threaded python3 (3.14t) beside a usual python3.14 takes
+#    the usual one (Codex's review of lane DEP-2, item 3); and says in
+#    plain words what to do when there is none (lane DEP-2's skeptic,
+#    item 2);
 # 2. runs scripts/check_bundle.py with that Python, which checks every
 #    file of the bundle against SHA256SUMS, every library wheel against
 #    the hashes requirements-install.lock pins, that the lock names no
 #    place to fetch from, and that the bundle was made for this system
 #    (its chip and, on a Mac, its macOS) and this Python -- before
-#    anything on this computer is changed;
+#    anything on this computer is changed, and that the wheelhouse holds
+#    a file this computer can take for every library the lock asks for,
+#    so an incomplete bundle stops before an earlier environment is
+#    replaced (Codex's review of lane DEP-2, item 5);
 # 3. makes a fresh private environment, `.venv`, inside the bundle's
 #    folder, so nothing else on this computer changes. An earlier one
 #    there is cleared first (venv --clear), every time: a file in it is
@@ -32,8 +38,11 @@
 #    TI's repair, the Codex review's items 2 and 3, the skeptic's item 3);
 # 4. installs the libraries from the bundle's wheelhouse and nothing
 #    else (--no-index), the hash of every file checked against the lock
-#    (--require-hashes), then the synthtwin wheel found there with
-#    --no-deps, so the checked versions stay in place. Both pip commands
+#    (--require-hashes), then synthtwin by its name from the same folder
+#    with --no-deps, so the checked versions stay in place. synthtwin is
+#    named, not its file: pip reads a ';' in a file's path as the start
+#    of a condition, so a bundle under a folder named like `notes;old`
+#    stopped there (lane DEP-2's verify, item 3). Both pip commands
 #    run with pip's --isolated and PIP_CONFIG_FILE set to /dev/null, so
 #    no pip setting of this computer -- a find-links or an index named
 #    in a pip.conf or a PIP_ variable -- adds a place to fetch from (the
@@ -68,7 +77,7 @@ after it, in the bundle's folder, and run it again."
 fi
 
 served() {
-    "$@" -c 'import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) else 1)' \
+    "$@" -c 'import sys, sysconfig; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) and sys.implementation.name == "cpython" and not sysconfig.get_config_var("Py_GIL_DISABLED") else 1)' \
         >/dev/null 2>&1
 }
 
@@ -83,8 +92,8 @@ if [ -n "${SYNTHTWIN_PYTHON:-}" ]; then
         python="$SYNTHTWIN_PYTHON"
     else
         stop "SYNTHTWIN_PYTHON names $SYNTHTWIN_PYTHON, which is not Python 3.11, \
-3.12, 3.13 or 3.14. Name one of those there, or leave SYNTHTWIN_PYTHON unset, \
-and run this script again."
+3.12, 3.13 or 3.14 (the usual build from python.org). Name one of those there, \
+or leave SYNTHTWIN_PYTHON unset, and run this script again."
     fi
 else
     for candidate in python3 python python3.14 python3.13 python3.12 python3.11; do
@@ -94,7 +103,7 @@ else
                 break
             fi
             if [ -z "$found" ]; then
-                found=$("$candidate" -c 'import sys; print("%d.%d" % sys.version_info[:2])' \
+                found=$("$candidate" -c 'import sys, sysconfig; print("%d.%d" % sys.version_info[:2] + ("" if sys.implementation.name == "cpython" else " (" + sys.implementation.name + ")") + (" (free-threaded)" if sysconfig.get_config_var("Py_GIL_DISABLED") else ""))' \
                     2>/dev/null)
             fi
         fi
@@ -174,7 +183,7 @@ their hashes checked. Download the synthtwin bundle made for this computer \
 again, unzip it whole into a new folder, and run this script again from there."
 PIP_CONFIG_FILE=/dev/null "$venv_python" -m pip install --isolated \
     --disable-pip-version-check \
-    --no-index --no-deps "$wheel" \
+    --no-index --no-deps --find-links "$wheels" synthtwin \
     || stop "pip could not install $wheel. Download the synthtwin bundle \
 again, unzip it whole into a new folder, and run this script again from \
 there; if it stops here again, send the lines above to whoever looks after \

@@ -17,16 +17,27 @@ with a message in plain words when it may not. It refuses:
   a relative path inside the bundle, a file it lists that is missing or
   whose bytes do not match, and a file of the `wheelhouse` folder it
   does not list (every file the install reads is checked by its hash);
-* a lock (`requirements-install.lock`) that names a place to fetch from
-  (an index, a find-links, a URL, a path or an editable), a requirement
-  with no `--hash`, or a library wheel whose SHA-256 the lock does not
-  pin: pip then has nowhere to go but the bundle's own files, and each
-  of them is the one the lock names;
-* a `wheelhouse` without exactly one synthtwin wheel;
-* a Python older than 3.11 or newer than 3.14, and a bundle made for
-  another system, another kind of chip, a newer macOS or a newer Linux
-  than this computer's, or for other Pythons than the one found (the
-  message names, in plain words, what the bundle is for and what to do).
+* a lock (`requirements-install.lock`) holding anything but its two
+  directives, written exactly (`--only-binary :all:` and
+  `--require-hashes`), and requirements of one exact version, a
+  condition this check can read and `--hash` options alone -- so no
+  index, find-links, URL, path or editable can ride on any line -- or a
+  library wheel whose SHA-256 the lock does not pin: pip then has
+  nowhere to go but the bundle's own files, and each of them is the one
+  the lock names;
+* a `wheelhouse` without exactly one synthtwin wheel, or without a wheel
+  this computer and its Python can take for every requirement the lock
+  makes for them (so a bundle missing a file stops here, before an
+  earlier environment is replaced, and not in pip afterwards);
+* a Python older than 3.11 or newer than 3.14, a Python that is not
+  CPython or is CPython's free-threaded build where the bundle's
+  libraries are made for the usual one, and a bundle made for another
+  system, another kind of chip, a newer macOS, a newer Linux or a Linux
+  without glibc than this computer's, or for other Pythons than the one
+  found (the message names, in plain words, what the bundle is for and
+  what to do);
+* a file it cannot read (a folder this computer will not let it read):
+  the message names the file and what to do, never a traceback.
 """
 
 import hashlib
@@ -56,6 +67,25 @@ REQUIRED = (
 _SUM_LINE = re.compile(r"([0-9a-f]{64})  ([^\r\n]+)")
 _PINNED = re.compile(r"--hash=sha256:([0-9a-f]{64})")
 _REQUIREMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*==[^\s;\\]+")
+# One requirement as the lock writes it, whole: a name, one exact
+# version, a condition after `;` and nothing but `--hash` options after.
+_REQUIREMENT_LINE = re.compile(
+    r"([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9.+!_-]+)"
+    r"(?:\s*;\s*(.+?))?((?:\s+--hash=sha256:[0-9a-f]{64})+)"
+)
+# The two directives a lock may carry, each written exactly: anything
+# else on their line (Codex's review of lane DEP-2, item 1:
+# `--only-binary=:all: --find-links https://...` passed when a line
+# beginning with a directive was skipped whole) is read as an option.
+_DIRECTIVE = re.compile(r"--only-binary(?: +|=):all:|--require-hashes")
+# The conditions the lock writes after `;` (uv's markers): a name, a
+# comparison and a quoted value, joined by `and` and `or`.
+_MARKER_TERM = re.compile(
+    r"\s*(python_full_version|python_version|sys_platform|os_name|platform_machine"
+    r"|platform_system|implementation_name|platform_python_implementation)"
+    r"\s*(==|!=|<=|>=|<|>)\s*'([^']*)'\s*"
+)
+_VERSIONED = ("python_full_version", "python_version")
 # Lock options that add a place to fetch from, or install something that
 # is not a pinned release of the index's own files.
 _FETCHING = (
@@ -160,13 +190,67 @@ def _this_computer():
         machine = _machine_word(platform.machine())
     macos = None
     glibc = None
+    libc = None
     if system == "macOS":
         macos = _release(platform.mac_ver()[0])
     elif system == "Linux":
+        # glibc answers by its own name (os.confstr); a Linux whose
+        # system library is musl, as Alpine's is, gives none, and the
+        # bundle's manylinux wheels do not run there (Codex's review of
+        # lane DEP-2, item 4).
         name, number = platform.libc_ver()
+        libc = "glibc" if name == "glibc" else "other"
         if name == "glibc":
             glibc = _release(number)
-    return {"system": system, "machine": machine, "macos": macos, "glibc": glibc}
+    return {"system": system, "machine": machine, "macos": macos, "glibc": glibc, "libc": libc}
+
+
+def _this_python():
+    """The Python running this check as wheels ask about it: its kind and its ABI tag.
+
+    CPython's free-threaded build takes wheels tagged cp314t, not the
+    usual build's cp314 (Codex's review of lane DEP-2, item 3).
+    """
+    free = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+    return {
+        "implementation": sys.implementation.name,
+        "abi": "cp3" + str(sys.version_info[1]) + ("t" if free else ""),
+    }
+
+
+def _environment(version, computer, real):
+    """The values the lock's conditions read, for this Python and computer."""
+    system = computer.get("system")
+    if real:
+        return {
+            "python_full_version": platform.python_version(),
+            "python_version": _dotted(version),
+            "sys_platform": sys.platform,
+            "os_name": os.name,
+            "platform_machine": platform.machine(),
+            "platform_system": platform.system(),
+            "implementation_name": sys.implementation.name,
+            "platform_python_implementation": platform.python_implementation(),
+        }
+    machine = computer.get("machine")
+    spelled = {
+        ("arm", "macOS"): "arm64",
+        ("arm", "Linux"): "aarch64",
+        ("arm", "Windows"): "ARM64",
+        ("x86_64", "Windows"): "AMD64",
+        ("x86", "Windows"): "x86",
+        ("x86", "Linux"): "i686",
+    }.get((machine, system), machine or "")
+    return {
+        "python_full_version": _dotted(version) + ".0",
+        "python_version": _dotted(version),
+        "sys_platform": {"macOS": "darwin", "Windows": "win32", "Linux": "linux"}.get(system, str(system).lower()),
+        "os_name": "nt" if system == "Windows" else "posix",
+        "platform_machine": spelled,
+        "platform_system": {"macOS": "Darwin"}.get(system, str(system)),
+        "implementation_name": "cpython",
+        "platform_python_implementation": "CPython",
+    }
 
 
 _MAC_MACHINES = {
@@ -181,46 +265,101 @@ _OLD_MANYLINUX = {"manylinux1": (2, 5), "manylinux2010": (2, 12), "manylinux2014
 
 
 def _needs(tag):
-    """What one platform tag asks of a computer: (system, chips, release).
+    """What one platform tag asks of a computer: (system, chips, release, libc).
 
-    `chips` is empty when the tag names none this check knows, and
+    `chips` is empty when the tag names none this check knows,
     `release` is the oldest macOS (macosx_12_0) or glibc (manylinux_2_28)
-    the tag allows, or None.
+    the tag allows, or None, and `libc` the system library a Linux tag
+    asks for (glibc for manylinux, musl for musllinux), or None.
     """
     found = re.fullmatch(r"macosx_(\d+)_(\d+)_([a-z0-9_]+)", tag)
     if found:
         chips = _MAC_MACHINES.get(found.group(3), (found.group(3),))
-        return "macOS", frozenset(chips), (int(found.group(1)), int(found.group(2)))
+        return "macOS", frozenset(chips), (int(found.group(1)), int(found.group(2))), None
     found = re.fullmatch(r"manylinux_(\d+)_(\d+)_([a-z0-9_]+)", tag)
     if found:
         return (
             "Linux",
             frozenset({_machine_word(found.group(3))}),
             (int(found.group(1)), int(found.group(2))),
+            "glibc",
         )
     found = re.fullmatch(r"(manylinux1|manylinux2010|manylinux2014)_([a-z0-9_]+)", tag)
     if found:
-        return "Linux", frozenset({_machine_word(found.group(2))}), _OLD_MANYLINUX[found.group(1)]
-    found = re.fullmatch(r"(?:musllinux_\d+_\d+|linux)_([a-z0-9_]+)", tag)
+        return "Linux", frozenset({_machine_word(found.group(2))}), _OLD_MANYLINUX[found.group(1)], "glibc"
+    found = re.fullmatch(r"musllinux_\d+_\d+_([a-z0-9_]+)", tag)
     if found:
-        return "Linux", frozenset({_machine_word(found.group(1))}), None
+        return "Linux", frozenset({_machine_word(found.group(1))}), None, "musl"
+    found = re.fullmatch(r"linux_([a-z0-9_]+)", tag)
+    if found:
+        return "Linux", frozenset({_machine_word(found.group(1))}), None, None
     if tag == "win32":
-        return "Windows", frozenset({"x86"}), None
+        return "Windows", frozenset({"x86"}), None, None
     if tag.startswith("win_"):
-        return "Windows", frozenset({_machine_word(tag[len("win_") :])}), None
-    return _system_words(tag), frozenset(), None
+        return "Windows", frozenset({_machine_word(tag[len("win_") :])}), None, None
+    return _system_words(tag), frozenset(), None, None
 
 
 def _misfit(needs, computer):
-    """Why a computer cannot take a wheel of this tag: 'chip', 'release' or None."""
-    _, chips, release = needs
+    """Why a computer cannot take a wheel of this tag: 'chip', 'libc', 'release' or None."""
+    _, chips, release, libc = needs
     machine = computer.get("machine")
     if chips and machine is not None and machine not in chips:
         return "chip"
+    have_libc = computer.get("libc")
+    if have_libc is None and computer.get("glibc") is not None:
+        have_libc = "glibc"
+    if libc == "glibc" and have_libc not in (None, "glibc"):
+        return "libc"
+    if libc == "musl" and have_libc == "glibc":
+        return "libc"
     have = computer.get("macos") if needs[0] == "macOS" else computer.get("glibc")
     if release is not None and have is not None and tuple(have) < release:
         return "release"
     return None
+
+
+def _python_fits(python_tag, abi_tag, version, abi):
+    """Whether a Python of `version` and ABI tag `abi` (cp313, cp314t) takes this pair of a wheel's tags."""
+    minor = version[1]
+    if abi_tag == abi:
+        return python_tag == "cp3" + str(minor)
+    numbered = re.fullmatch(r"(cp|py)3(\d*)", python_tag)
+    if numbered is None:
+        return False
+    below = numbered.group(2) == "" or int(numbered.group(2)) <= minor
+    if abi_tag == "abi3":
+        return numbered.group(1) == "cp" and numbered.group(2) != "" and below and not abi.endswith("t")
+    if abi_tag == "none":
+        if numbered.group(1) == "cp":
+            return numbered.group(2) == str(minor)
+        return below
+    return False
+
+
+def _wheel_fits(name, version, abi, computer):
+    """Whether this computer and its Python take the wheel named `name`."""
+    tags = _wheel_tags(name)
+    if tags is None:
+        return False
+    if not any(
+        _python_fits(python_tag, abi_tag, version, abi)
+        for python_tag in tags[0].split(".")
+        for abi_tag in tags[1].split(".")
+    ):
+        return False
+    for tag in tags[2].split("."):
+        if tag == "any":
+            return True
+        needs = _needs(tag)
+        if needs[0] == computer.get("system") and _misfit(needs, computer) is None:
+            return True
+    return False
+
+
+def _project(name):
+    """A project's name as pip compares it: python_dateutil and python-dateutil alike."""
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 def _mac_words(release):
@@ -289,6 +428,12 @@ def _platform_problem(wheels, computer):
         made_for += " on macOS " + _mac_words(release) + " or later"
     elif release is not None:
         made_for += " whose system library, glibc, is version " + _dotted(release) + " or later"
+    if "libc" in reasons and "chip" not in reasons:
+        return made_for + ", and this computer's system library is not glibc (as on Alpine Linux). " + (
+            "There is no synthtwin bundle for it yet: install synthtwin on a Linux "
+            "whose system library is glibc, such as Ubuntu, Debian, Fedora or Red Hat, "
+            "or send this message to whoever looks after synthtwin."
+        )
     if "chip" in reasons:
         machine = str(computer.get("machine"))
         said = made_for + ", and " + what + "'s Python runs on " + _chip_words({machine}, system) + ". "
@@ -325,66 +470,204 @@ def _platform_problem(wheels, computer):
     )
 
 
+def _marker(text):
+    """A condition after `;` as or-groups of and-terms, or None when it is not one."""
+    groups = []
+    for part in re.split(r"\s+or\s+", text.strip()):
+        terms = []
+        for piece in re.split(r"\s+and\s+", part):
+            found = _MARKER_TERM.fullmatch(piece)
+            if found is None:
+                return None
+            if found.group(1) not in _VERSIONED and found.group(2) not in ("==", "!="):
+                return None
+            if found.group(1) in _VERSIONED and _version_of(found.group(3)) is None:
+                return None
+            terms += [found.groups()]
+        groups += [terms]
+    return groups
+
+
+def _version_of(text):
+    return tuple(int(part) for part in text.split(".")) if re.fullmatch(r"\d+(\.\d+)*", text) else None
+
+
+def _holds(groups, environment):
+    """Whether a condition read by `_marker` holds for `environment`."""
+    for terms in groups:
+        met = True
+        for name, operator, value in terms:
+            have = environment.get(name, "")
+            if name in _VERSIONED:
+                left = _version_of(have) or (0,)
+                right = _version_of(value) or (0,)
+                width = max(len(left), len(right))
+                left = left + (0,) * (width - len(left))
+                right = right + (0,) * (width - len(right))
+            else:
+                left, right = have, value
+            if not {
+                "==": left == right,
+                "!=": left != right,
+                "<": left < right,
+                "<=": left <= right,
+                ">": left > right,
+                ">=": left >= right,
+            }[operator]:
+                met = False
+                break
+        if met:
+            return True
+    return False
+
+
+def _lock_lines(lock_text):
+    """The lock's lines with continuations joined and comments dropped (as pip reads it)."""
+    joined = re.sub(r"\\\r?\n", " ", lock_text)
+    lines = []
+    for raw in joined.splitlines():
+        line = re.sub(r"(^|\s+)#.*$", "", raw).strip()
+        if line:
+            lines += [line]
+    return lines
+
+
+def _requirements(lock_text):
+    """(name, condition or None, set of pinned SHA-256s) of each requirement line of the lock."""
+    found = []
+    for line in _lock_lines(lock_text):
+        whole = _REQUIREMENT_LINE.fullmatch(line)
+        if whole is None:
+            continue
+        condition = _marker(whole.group(3)) if whole.group(3) else None
+        found += [(whole.group(1), condition, set(_PINNED.findall(whole.group(4))))]
+    return found
+
+
 def _lock_problems(lock_text):
     """What in the lock could send pip anywhere but the bundle's files."""
     problems = []
-    joined = re.sub(r"\\\r?\n", " ", lock_text)
-    for raw in joined.splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("--only-binary") or line.startswith("--require-hashes"):
-            continue
+    for line in _lock_lines(lock_text):
         padded = " " + line + " "
-        for word in _FETCHING:
-            if word in padded:
-                problems.append(
-                    "the lock names a place to fetch from or a file outside the "
-                    "bundle ('" + line[:60] + "'), so pip could reach past the bundle"
-                )
-                break
-        else:
-            if line.startswith("-"):
-                problems.append(
-                    "the lock carries an option this check does not know ('"
-                    + line[:60]
-                    + "')"
-                )
-                continue
+        if any(word in padded for word in _FETCHING):
+            problems.append(
+                "the lock names a place to fetch from or a file outside the "
+                "bundle ('" + line[:60] + "'), so pip could reach past the bundle"
+            )
+            continue
+        if _DIRECTIVE.fullmatch(line):
+            continue
+        if line.startswith("-"):
+            problems.append(
+                "the lock carries an option this check does not know ('"
+                + line[:60]
+                + "')"
+            )
+            continue
+        whole = _REQUIREMENT_LINE.fullmatch(line)
+        if whole is None:
             if not _REQUIREMENT.match(line):
                 problems.append(
                     "the lock names a requirement that is not one exact version ('"
                     + line[:60]
                     + "')"
                 )
-                continue
-            if not _PINNED.search(line):
+            elif not _PINNED.search(line):
+                problems.append("the lock names " + line.split()[0] + " with no hash")
+            else:
                 problems.append(
-                    "the lock names " + line.split()[0] + " with no hash"
+                    "the lock carries something beside a requirement's hashes ('"
+                    + line[:60]
+                    + "')"
                 )
+            continue
+        if whole.group(3) and _marker(whole.group(3)) is None:
+            problems.append(
+                "the lock names a condition this check cannot read ('" + line[:60] + "')"
+            )
     return problems
 
 
-def check(folder, version=None, system=None, computer=None):
+class _Unreadable(Exception):
+    """A file of the bundle this computer would not let the check read."""
+
+    def __init__(self, relative, error):
+        super().__init__(relative)
+        self.relative = relative
+        self.reason = getattr(error, "strerror", None) or type(error).__name__
+
+
+def _read(folder, relative):
+    try:
+        with open(os.path.join(folder, *relative.split("/")), "rb") as handle:
+            return handle.read()
+    except OSError as error:
+        raise _Unreadable(relative, error) from None
+
+
+def _digest(folder, relative):
+    hasher = hashlib.sha256()
+    try:
+        with open(os.path.join(folder, *relative.split("/")), "rb") as handle:
+            for block in iter(lambda: handle.read(1 << 20), b""):
+                hasher.update(block)
+    except OSError as error:
+        raise _Unreadable(relative, error) from None
+    return hasher.hexdigest()
+
+
+def check(folder, version=None, system=None, computer=None, python=None):
     """Every reason the bundle in `folder` may not be installed from.
 
-    `version` is the (major, minor) of the Python that will install;
-    `computer` holds its `system` in words (Windows, macOS or Linux), its
-    `machine` (arm, x86_64 or x86), its `macos` and its `glibc` release,
+    `version` is the (major, minor) of the Python that will install and
+    `python` its `implementation` (cpython) and its ABI tag (cp313, or
+    cp313t for the free-threaded build); `computer` holds its `system` in
+    words (Windows, macOS or Linux), its `machine` (arm, x86_64 or x86),
+    its `macos` and its `glibc` release and its `libc` (glibc or other),
     each None where it is not known (and then not judged); `system`
-    alone may be given in its place. All default to this computer's own.
+    alone may be given in its place. All default to this computer's own
+    (and `python`, when `version` is given, to the usual CPython of it).
     """
+    real = version is None and computer is None and system is None
+    if python is None:
+        python = _this_python() if version is None else {
+            "implementation": "cpython",
+            "abi": "cp3" + str(tuple(version)[1]),
+        }
     version = tuple(version or sys.version_info[:2])
     if computer is None and system is None:
         computer = _this_computer()
     computer = dict(computer or {})
     computer["system"] = system or computer.get("system") or _this_system()
+    try:
+        return _check(folder, version, computer, python, real)
+    except _Unreadable as unreadable:
+        # Codex's review of lane DEP-2, item 6: a folder an institution's
+        # settings keep from being read gave a traceback, and the script
+        # then said to follow it.
+        return [
+            "this computer would not let synthtwin read " + unreadable.relative
+            + " in this folder (" + unreadable.reason + "), so the bundle cannot "
+            "be checked. Copy the bundle's zip file into a folder of your own, such "
+            "as one in Documents, unzip it there, and run the install script from "
+            "the new folder; if it stops here again, send this message to whoever "
+            "looks after this computer."
+        ]
+
+
+def _check(folder, version, computer, python, real):
     system = computer["system"]
     if not FLOOR <= version <= NEWEST:
         return [
             "this computer's Python is " + _dotted(version) + ", and this "
             "synthtwin bundle serves Python " + _in_words(_served_range()) + ". "
             + _python_advice()
+        ]
+    if python.get("implementation") != "cpython":
+        return [
+            "the Python found is " + str(python.get("implementation")) + " " + _dotted(version)
+            + ", and this synthtwin bundle serves the usual Python, CPython, from "
+            "python.org. " + _python_advice()
         ]
     sums_path = os.path.join(folder, "SHA256SUMS")
     if not os.path.isfile(sums_path):
@@ -393,8 +676,7 @@ def check(folder, version=None, system=None, computer=None):
             "it cannot be checked. Download the synthtwin bundle again and "
             "unzip it whole, then run the install script again."
         ]
-    with open(sums_path, "rb") as handle:
-        sums_text = handle.read().decode("utf-8", "replace")
+    sums_text = _read(folder, "SHA256SUMS").decode("utf-8", "replace")
     listed = {}
     problems = []
     for number, raw in enumerate(sums_text.splitlines(), 1):
@@ -424,17 +706,16 @@ def check(folder, version=None, system=None, computer=None):
         if not os.path.isfile(path):
             problems.append(relative + " is listed in SHA256SUMS but missing")
             continue
-        hasher = hashlib.sha256()
-        with open(path, "rb") as handle:
-            for block in iter(lambda: handle.read(1 << 20), b""):
-                hasher.update(block)
-        if hasher.hexdigest() != digest:
+        if _digest(folder, relative) != digest:
             problems.append(
                 relative + " does not match its hash in SHA256SUMS (it was "
                 "changed or damaged after the bundle was made)"
             )
     house = os.path.join(folder, "wheelhouse")
-    wheels = sorted(os.listdir(house)) if os.path.isdir(house) else []
+    try:
+        wheels = sorted(os.listdir(house)) if os.path.isdir(house) else []
+    except OSError as error:
+        raise _Unreadable("wheelhouse", error) from None
     if not wheels:
         problems.append("the wheelhouse folder is missing or empty")
     for name in wheels:
@@ -445,9 +726,9 @@ def check(folder, version=None, system=None, computer=None):
             )
     lock_path = os.path.join(folder, "requirements-install.lock")
     pinned = set()
+    lock_text = ""
     if os.path.isfile(lock_path):
-        with open(lock_path, "rb") as handle:
-            lock_text = handle.read().decode("utf-8", "replace")
+        lock_text = _read(folder, "requirements-install.lock").decode("utf-8", "replace")
         problems += _lock_problems(lock_text)
         pinned = set(_PINNED.findall(lock_text))
     else:
@@ -477,17 +758,21 @@ def check(folder, version=None, system=None, computer=None):
             "new folder, and run the install script from there."
         ]
     pythons = set()
+    abis = set()
     systems = set()
     for name in wheels:
         tags = _wheel_tags(name)
         if tags is None:
             continue
         # A wheel built for one CPython carries its version in the ABI
-        # tag (cp311); a wheel for any Python 3 (py3, none, abi3) says
-        # nothing about which Pythons the bundle serves.
+        # tag (cp311, cp314t for the free-threaded build); a wheel for
+        # any Python 3 (py3, none, abi3) says nothing about which
+        # Pythons the bundle serves.
         for tag in tags[1].split("."):
-            if re.fullmatch(r"cp3\d+", tag):
-                pythons.add((3, int(tag[3:])))
+            found = re.fullmatch(r"cp3(\d+)t?", tag)
+            if found:
+                pythons.add((3, int(found.group(1))))
+                abis.add(tag)
         for tag in tags[2].split("."):
             if tag != "any":
                 systems.add(_system_words(tag))
@@ -509,7 +794,48 @@ def check(folder, version=None, system=None, computer=None):
             + " release; INSTALL.txt in this folder says how), open a new terminal "
             "window, and run the install script again."
         ]
+    abi = str(python.get("abi"))
+    if abis and abi not in abis and abi.endswith("t"):
+        return [
+            "the Python found is the free-threaded build of Python " + _dotted(version)
+            + ", and this bundle's libraries are made for its usual build. Run the "
+            "install script with the usual Python " + _dotted(version) + " (python"
+            + _dotted(version) + ", not python" + _dotted(version) + "t), or install "
+            "it from python.org without the free-threaded option, open a new "
+            "terminal window, and run the install script again."
+        ]
+    # Every requirement the lock makes of this computer and its Python
+    # has a wheel here it can take (Codex's review of lane DEP-2, item 5:
+    # a bundle missing one stopped in pip only after the environment it
+    # replaced was gone).
+    environment = _environment(version, computer, real)
+    missing = []
+    for project, condition, hashes in _requirements(lock_text):
+        if condition is not None and not _holds(condition, environment):
+            continue
+        if not any(
+            _project(name.split("-")[0]) == _project(project)
+            and listed.get("wheelhouse/" + name) in hashes
+            and _wheel_fits(name, version, abi, computer)
+            for name in wheels
+        ):
+            missing += [project]
+    if missing:
+        return [
+            "the bundle in this folder has no file of " + _in_names(missing)
+            + " that this computer and its Python " + _dotted(version) + " can "
+            "take, so it is not whole. Download the synthtwin bundle made for this "
+            "computer again, unzip it whole into a new folder, and run the install "
+            "script from there; if it stops here again, send this message to whoever "
+            "looks after synthtwin."
+        ]
     return []
+
+
+def _in_names(names):
+    if len(names) < 2:
+        return "".join(names)
+    return ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def main(argv=None):

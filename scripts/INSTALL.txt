@@ -14,7 +14,8 @@ folder's name:
 
     macos_arm64    a Mac with an Apple chip (M1 or later), macOS 12 or later
     win_amd64      Windows on a 64-bit Intel or AMD computer
-    linux_x86_64   Linux on a 64-bit Intel or AMD computer
+    linux_x86_64   Linux on a 64-bit Intel or AMD computer, such as
+                   Ubuntu, Debian, Fedora or Red Hat (not Alpine)
 
 
 On a Mac
@@ -115,7 +116,9 @@ On Windows
 
    synthtwin prints the commands it suggests for PowerShell. In Command
    Prompt, where a name stands between single quotes 'like this', type
-   it between double quotes "like this".
+   it between double quotes "like this", and where two single quotes
+   stand together inside it, as in 'Crohn''s disease', type one:
+   "Crohn's disease".
 
 
 On Linux
@@ -124,6 +127,11 @@ On Linux
 The same as on a Mac: python3 --version, then, in the unzipped folder,
 sh scripts/install.sh. On Debian or Ubuntu, whoever looks after the
 computer may first need to run: sudo apt install python3-venv
+
+The Linux bundle is for the usual Linux systems, whose system library
+is glibc: Ubuntu, Debian, Fedora, Red Hat and most others. It does not
+install on Alpine Linux, and the script says so before it changes
+anything.
 
 
 If it stops
@@ -134,7 +142,9 @@ says the bundle did not pass its check, download the bundle again and
 unzip it into a new folder: a file was changed or damaged on the way.
 If it says the bundle is made for another kind of computer or other
 Pythons, download the bundle made for your computer, or install the
-Python it names.
+Python it names. If it says this computer would not let it read a
+file, copy the zip file into a folder of your own, such as one in
+Documents, unzip it there and run the script from the new folder.
 
 Checking the files yourself: SHA256SUMS lists the SHA-256 of every file
 in this folder. The install script checks them all before it installs

@@ -16,20 +16,24 @@ rem
 rem What it does, and nothing else: finds a Python the bundle serves,
 rem 3.11 to 3.14 (python, then the py launcher's 3.14, 3.13, 3.12 and
 rem 3.11, so a Python 3.15 beside a 3.14 takes the 3.14: lane DEP-2's
-rem skeptic, item 2), and says in plain words what to do when there is
+rem skeptic, item 2), CPython's usual build only (Codex's review of lane
+rem DEP-2, item 3), and says in plain words what to do when there is
 rem none; runs scripts\check_bundle.py with it, which
 rem checks every file of the bundle against SHA256SUMS, every library
 rem wheel against the hashes requirements-install.lock pins, that the
 rem lock names no place to fetch from, and that the bundle was made for
-rem this system, its chip and this Python, before anything is changed;
+rem this system, its chip and this Python, and that the wheelhouse
+rem holds a file this computer takes for every library the lock asks
+rem for, before anything is changed (Codex's review of lane DEP-2, item 5);
 rem every step that fails goes to a label that stops the script; makes a
 rem fresh private environment, .venv, inside the bundle's folder,
 rem clearing an earlier one there first (venv --clear), every time, since
 rem pip skips a package whose version is already in place without
 rem checking its bytes; installs the libraries from the bundle's
 rem wheelhouse and nothing else (--no-index) with the hash of every file
-rem checked (--require-hashes), then the synthtwin wheel found there with
-rem --no-deps, both run with pip's --isolated and PIP_CONFIG_FILE set to
+rem checked (--require-hashes), then synthtwin by its name from the same
+rem folder with --no-deps (a ';' in the wheel's path would be read by pip
+rem as a condition: lane DEP-2's verify, item 3), both run with pip's --isolated and PIP_CONFIG_FILE set to
 rem nul so no pip setting of this computer adds a place to fetch from;
 rem and ends by running "synthtwin doctor", whose exit code it returns.
 rem There is no other way in: when a file is missing, pip stops and so
@@ -92,7 +96,7 @@ echo from the bundle's wheelhouse, with no internet
 set "PIP_CONFIG_FILE=nul"
 "%VPY%" -m pip install --isolated --disable-pip-version-check --no-index --find-links "%WHEELS%" --require-hashes -r "%LOCK%"
 if errorlevel 1 goto :no_locked_wheels
-"%VPY%" -m pip install --isolated --disable-pip-version-check --no-index --no-deps "%WHEEL%"
+"%VPY%" -m pip install --isolated --disable-pip-version-check --no-index --no-deps --find-links "%WHEELS%" synthtwin
 if errorlevel 1 goto :no_synthtwin_wheel
 
 echo.
@@ -106,7 +110,8 @@ for %%P in ("%ENVDIR%\Scripts\activate.bat") do echo   "%%~P"
 echo   synthtwin profile my-table.csv
 echo synthtwin prints the commands it suggests for PowerShell. In Command
 echo Prompt, where a name stands between single quotes 'like this', type it
-echo between double quotes "like this".
+echo between double quotes "like this", and where two single quotes stand
+echo together inside it, as in 'Crohn''s disease', type one: "Crohn's disease".
 exit /b %STATUS%
 
 :count_wheel
@@ -115,7 +120,7 @@ set /a COUNT+=1
 goto :eof
 
 :served
-%* -c "import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) else 1)" >nul 2>&1
+%* -c "import sys, sysconfig; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) and sys.implementation.name == 'cpython' and not sysconfig.get_config_var('Py_GIL_DISABLED') else 1)" >nul 2>&1
 if not errorlevel 1 set "PY=%*"
 goto :eof
 

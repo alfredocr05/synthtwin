@@ -33,6 +33,7 @@ kernel, its whole-schedule reference cases (every pass, every column of
 the polish reference table, plain-Python polish as the oracle).
 """
 
+import copy
 import hashlib
 import importlib.util
 import os
@@ -261,7 +262,7 @@ def test_a_kernel_arrives_with_its_cases() -> None:
         )
     for name, compiled, plain, arguments in KERNEL_CASES:
         assert callable(compiled) and callable(plain), name
-        assert _same_bytes(compiled(*arguments), plain(*arguments)), name
+        assert _same_outcome(compiled, plain, arguments), name
 
 
 def _canonical(value) -> bytes:
@@ -298,8 +299,23 @@ def _canonical(value) -> bytes:
     raise TypeError(f"no byte form for {type(value).__name__}; add one before comparing it")
 
 
-def _same_bytes(compiled_result, plain_result) -> bool:
-    return _canonical(compiled_result) == _canonical(plain_result)
+def _outcome(kernel, arguments) -> bytes:
+    """What one kernel gives on its OWN copy of the arguments, read at once.
+
+    Codex's review of lane DEP-2, item 2: both kernels called on the same
+    lists, and their results read only after both had run, compared the
+    plain kernel's writes with themselves wherever a kernel returns an
+    argument it changed in place. So each kernel gets a deep copy, its
+    result is turned into bytes before the other runs, and what it left
+    in its arguments is part of what it gave.
+    """
+    own = copy.deepcopy(arguments)
+    result = kernel(*own)
+    return _canonical(result) + b"|" + _canonical(tuple(own))
+
+
+def _same_outcome(compiled, plain, arguments) -> bool:
+    return _outcome(compiled, arguments) == _outcome(plain, arguments)
 
 
 def _plain_kernel(values):
@@ -323,8 +339,44 @@ def test_a_kernel_equal_in_value_but_not_in_bytes_is_refused(compiled) -> None:
     """Mutation cases of the kernel comparison: `==` admits both kernels, bytes do not."""
     arguments = ([1, 2, -2],)
     assert compiled(*arguments) == _plain_kernel(*arguments), "the case must be equal in value"
-    assert not _same_bytes(compiled(*arguments), _plain_kernel(*arguments))
-    assert _same_bytes(_plain_kernel(*arguments), _plain_kernel(*arguments))
+    assert not _same_outcome(compiled, _plain_kernel, arguments)
+    assert _same_outcome(_plain_kernel, _plain_kernel, arguments)
+
+
+def _writes_seven(values):
+    values[0] = 7
+    return values
+
+
+def _writes_three(values):
+    values[0] = 3
+    return values
+
+
+def _writes_seven_returns_none(values):
+    values[0] = 7
+
+
+def _writes_three_returns_none(values):
+    values[0] = 3
+
+
+def test_a_kernel_that_writes_into_its_arguments_is_compared_on_its_own_copy() -> None:
+    """Codex's item 2, the mutation case: shared arguments, read after both ran, hide a difference."""
+    arguments = ([0, 1],)
+    shared = ([0, 1],)
+    compiled_result = _writes_seven(*shared)
+    plain_result = _writes_three(*shared)
+    assert _canonical(compiled_result) == _canonical(plain_result), "the old comparison is fooled"
+    assert not _same_outcome(_writes_seven, _writes_three, arguments)
+    # The same result and different writes into the arguments differ too.
+    assert not _same_outcome(_writes_seven_returns_none, _writes_three_returns_none, arguments)
+    assert _same_outcome(_writes_seven, _writes_seven, arguments)
+    assert arguments == ([0, 1],), "the case's own arguments are never changed"
+    # A numpy array is copied as a list is.
+    array = (numpy.array([0, 1], dtype=numpy.int64),)
+    assert not _same_outcome(_writes_seven, _writes_three, array)
+    assert array[0].tolist() == [0, 1]
 
 
 def test_the_byte_form_tells_kinds_apart() -> None:

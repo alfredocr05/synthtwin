@@ -160,9 +160,9 @@ def _stub(tmp_path: pathlib.Path) -> "dict[str, pathlib.Path]":
     return {"house": house, "library": library, "ours": ours, "repo": repo}
 
 
-def _bundle(tmp_path: pathlib.Path) -> pathlib.Path:
+def _bundle(tmp_path: pathlib.Path, parent: str = "a folder with spaces") -> pathlib.Path:
     stub = _stub(tmp_path)
-    out = tmp_path / "a folder with spaces" / "synthtwin-0.0.1-stub"
+    out = tmp_path / parent / "synthtwin-0.0.1-stub"
     assert BUILD.assemble(stub["house"], stub["ours"], out, repo=stub["repo"]) == []
     return out
 
@@ -239,6 +239,18 @@ def test_the_check_refuses_a_missing_hash(tmp_path: pathlib.Path) -> None:
     sums.unlink()
     _refused(bundle, "SHA256SUMS is missing")
     _resum(bundle)
+    # The files the install reads besides the wheels: a line of SHA256SUMS
+    # gone for any of them is refused (lane DEP-2's verify, item 2, V8).
+    whole = sums.read_text(encoding="utf-8")
+    for required in CHECK.REQUIRED:
+        sums.write_text(
+            "".join(line + "\n" for line in whole.splitlines() if not line.endswith("  " + required)),
+            encoding="utf-8",
+            newline="\n",
+        )
+        _refused(bundle, "SHA256SUMS gives no hash for " + required)
+    sums.write_text(whole, encoding="utf-8", newline="\n")
+    assert CHECK.check(str(bundle)) == []
     lock = bundle / "requirements-install.lock"
     lock.write_text(
         lock.read_text(encoding="utf-8") + "otherdep==2.0\n", encoding="utf-8", newline="\n"
@@ -284,6 +296,18 @@ def test_the_check_refuses_a_bundle_without_one_synthtwin_wheel(tmp_path: pathli
         "stubdep @ https://example.invalid/stubdep-1.0-py3-none-any.whl",
         "--no-binary :all:",
         "stubdep>=1.0 --hash=sha256:" + "0" * 64,
+        # Codex's review of lane DEP-2, item 1: a directive with more on
+        # its line, which the check skipped whole, and options riding on
+        # a requirement's line.
+        "--only-binary=:all: --find-links https://example.invalid/wheels",
+        "--only-binary :all: -fhttps://example.invalid/wheels",
+        "--require-hashes --index-url=https://example.invalid/simple",
+        "--only-binary=:all: --no-index",
+        "--require-hashes -r /somewhere/else.txt",
+        "--only-binary :all: --no-binary stubdep",
+        "otherdep==2.0 --hash=sha256:" + "0" * 64 + " --config-settings x=y",
+        "otherdep==2.0 ; sys_platform == 'linux' --no-binary otherdep --hash=sha256:" + "0" * 64,
+        "otherdep==2.0 ; extra == 'x' --hash=sha256:" + "0" * 64,
     ],
 )
 def test_the_check_refuses_a_lock_that_could_fetch(tmp_path: pathlib.Path, line: str) -> None:
@@ -298,7 +322,39 @@ def test_the_check_refuses_a_lock_that_could_fetch(tmp_path: pathlib.Path, line:
 
 def test_the_check_reads_the_real_locks_as_clean() -> None:
     for name in ("requirements-install.lock", "requirements-dev.lock", "requirements-min.lock"):
-        assert CHECK._lock_problems((REPO / name).read_text(encoding="utf-8")) == [], name
+        text = (REPO / name).read_text(encoding="utf-8")
+        assert CHECK._lock_problems(text) == [], name
+        # Every requirement line is read whole, its condition included.
+        named = [line for line in CHECK._lock_lines(text) if not line.startswith("-")]
+        assert len(CHECK._requirements(text)) == len(named) > 0, name
+
+
+def test_the_directives_are_read_exactly() -> None:
+    """Item 1's mutant: a line beginning with a directive skipped whole."""
+    for line in ("--only-binary :all:", "--only-binary=:all:", "--require-hashes"):
+        assert CHECK._lock_problems(line + "\n") == [], line
+    assert CHECK._lock_problems("--only-binary=:all: --find-links https://example.invalid/wheels\n")
+
+
+def test_the_lock_conditions_are_read_for_this_computer() -> None:
+    """The lock's numpy for 3.11 and for 3.12 on, and tzdata on Windows alone."""
+    text = (REPO / "requirements-install.lock").read_text(encoding="utf-8")
+
+    def active(version: "tuple[int, int]", system: str) -> "dict[str, frozenset[str]]":
+        environment = CHECK._environment(version, {"system": system, "machine": "x86_64"}, False)
+        found: "dict[str, frozenset[str]]" = {}
+        for name, condition, hashes in CHECK._requirements(text):
+            if condition is None or CHECK._holds(condition, environment):
+                assert name not in found, name
+                found[name] = frozenset(hashes)
+        return found
+
+    assert "tzdata" in active((3, 13), "Windows") and "tzdata" not in active((3, 13), "Linux")
+    assert active((3, 11), "Linux")["numpy"] != active((3, 12), "Linux")["numpy"]
+    assert active((3, 12), "Linux")["numpy"] == active((3, 14), "macOS")["numpy"]
+    assert CHECK._marker("python_full_version >= '3.12'") == [[("python_full_version", ">=", "3.12")]]
+    assert CHECK._marker("sys_platform < 'win32'") is None
+    assert CHECK._marker("extra == 'x'") is None
 
 
 def _with_wheels(bundle: pathlib.Path, project: str, tags: "list[str]") -> None:
@@ -466,6 +522,139 @@ def test_the_check_refuses_a_pinned_source_archive(tmp_path: pathlib.Path) -> No
     _refused(bundle, "wheelhouse/stubdep-1.0.tar.gz is not a wheel")
 
 
+def _lock_line(bundle: pathlib.Path, line: str) -> None:
+    lock = bundle / "requirements-install.lock"
+    lock.write_text(lock.read_text(encoding="utf-8") + line + "\n", encoding="utf-8", newline="\n")
+    _resum(bundle)
+
+
+def test_the_check_refuses_a_bundle_missing_a_library_this_computer_needs(tmp_path: pathlib.Path) -> None:
+    """Codex's review of lane DEP-2, item 5: an incomplete bundle stops in the check.
+
+    Before, the check passed it, the script cleared the earlier
+    environment, and pip stopped afterwards.
+    """
+    bundle = _bundle(tmp_path)
+    (bundle / "wheelhouse" / "stubdep-1.0-py3-none-any.whl").unlink()
+    _resum(bundle)
+    _refused(bundle, "has no file of stubdep that this computer and its Python")
+    # One library with every Python's wheel, one without 3.13's.
+    native = _bundle(tmp_path / "native")
+    _with_wheels(native, "stubnative", [f"cp3{minor}-cp3{minor}-macosx_11_0_arm64" for minor in (11, 12, 13)])
+    _with_wheels(native, "stubother", [f"cp3{minor}-cp3{minor}-macosx_11_0_arm64" for minor in (11, 12)])
+    assert CHECK.check(str(native), version=(3, 12), computer=MAC_ARM) == []
+    _refused(native, "has no file of stubother that this computer and its Python 3.13 can take",
+             version=(3, 13), computer=MAC_ARM)
+    # A wheel the lock pins for another library does not stand in for this one.
+    (native / "wheelhouse" / "stubother-1.0-cp312-cp312-macosx_11_0_arm64.whl").unlink()
+    _resum(native)
+    _refused(native, "has no file of stubother", version=(3, 12), computer=MAC_ARM)
+    # A requirement for Windows alone is asked of Windows alone.
+    conditioned = _bundle(tmp_path / "conditioned")
+    _lock_line(conditioned, "stubwin==1.0 ; sys_platform == 'win32' \\\n    --hash=sha256:" + "0" * 64)
+    assert CHECK.check(str(conditioned), version=(3, 13), computer={"system": "Linux", "machine": "x86_64"}) == []
+    _refused(conditioned, "has no file of stubwin", version=(3, 13),
+             computer={"system": "Windows", "machine": "x86_64"})
+
+
+def test_the_check_reads_the_kind_of_python(tmp_path: pathlib.Path) -> None:
+    """Codex's review of lane DEP-2, item 3: a free-threaded or another Python is refused first."""
+    bundle = _bundle(tmp_path)
+    _with_wheels(bundle, "stubnative", ["cp314-cp314-macosx_12_0_arm64"])
+    usual = {"implementation": "cpython", "abi": "cp314"}
+    free = {"implementation": "cpython", "abi": "cp314t"}
+    assert CHECK.check(str(bundle), version=(3, 14), computer=MAC_ARM, python=usual) == []
+    _refused(
+        bundle,
+        "the Python found is the free-threaded build of Python 3.14, and this bundle's "
+        "libraries are made for its usual build. Run the install script with the usual "
+        "Python 3.14 (python3.14, not python3.14t)",
+        version=(3, 14), computer=MAC_ARM, python=free,
+    )
+    _refused(
+        bundle,
+        "the Python found is pypy 3.14, and this synthtwin bundle serves the usual Python, "
+        "CPython, from python.org. Install Python 3.14",
+        version=(3, 14), computer=MAC_ARM, python={"implementation": "pypy", "abi": "pypy314_pp73"},
+    )
+    # A wheel for every CPython 3 (abi3) is not one the free-threaded build takes.
+    stable = _bundle(tmp_path / "abi3")
+    _with_wheels(stable, "stubabi", ["cp37-abi3-macosx_11_0_arm64"])
+    assert CHECK.check(str(stable), version=(3, 14), computer=MAC_ARM, python=usual) == []
+    _refused(stable, "has no file of stubabi", version=(3, 14), computer=MAC_ARM, python=free)
+    # This Python, as the check reads it.
+    import sysconfig
+
+    found = CHECK._this_python()
+    assert found["implementation"] == sys.implementation.name
+    assert found["abi"] == f"cp3{sys.version_info[1]}" + ("t" if sysconfig.get_config_var("Py_GIL_DISABLED") else "")
+
+
+def test_the_check_refuses_a_linux_without_glibc(tmp_path: pathlib.Path, monkeypatch) -> None:
+    """Codex's review of lane DEP-2, item 4: Alpine's musl was read as 'not known' and passed."""
+    linux = _bundle(tmp_path)
+    _with_wheels(linux, "stubnative", ["cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64"])
+    musl = {"system": "Linux", "machine": "x86_64", "glibc": None, "libc": "other"}
+    _refused(
+        linux,
+        "made for Linux computers with a 64-bit Intel or AMD processor whose system library, "
+        "glibc, is version 2.27 or later, and this computer's system library is not glibc (as "
+        "on Alpine Linux). There is no synthtwin bundle for it yet",
+        version=(3, 13), computer=musl,
+    )
+    assert CHECK.check(str(linux), version=(3, 13), computer=dict(musl, libc="glibc", glibc=(2, 35))) == []
+    assert CHECK.check(str(linux), version=(3, 13), computer={"system": "Linux", "machine": "x86_64"}) == []
+    # How this computer is read: glibc answers by its name, musl does not.
+    monkeypatch.setattr(CHECK, "_this_system", lambda: "Linux")
+    monkeypatch.setattr(CHECK.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(CHECK.platform, "libc_ver", lambda: ("", ""))
+    assert CHECK._this_computer()["libc"] == "other"
+    monkeypatch.setattr(CHECK.platform, "libc_ver", lambda: ("glibc", "2.35"))
+    assert CHECK._this_computer() == {
+        "system": "Linux", "machine": "x86_64", "macos": None, "glibc": (2, 35), "libc": "glibc",
+    }
+
+
+def test_a_32_bit_python_on_64_bit_windows_is_read_as_one(tmp_path: pathlib.Path, monkeypatch) -> None:
+    """Lane DEP-2's verify, item 2 (V7): sysconfig names the Python's own build on Windows."""
+    monkeypatch.setattr(CHECK, "_this_system", lambda: "Windows")
+    monkeypatch.setattr(CHECK.sysconfig, "get_platform", lambda: "win32")
+    monkeypatch.setattr(CHECK.platform, "machine", lambda: "AMD64")
+    found = CHECK._this_computer()
+    assert found["machine"] == "x86", found
+    windows = _bundle(tmp_path)
+    _with_wheels(windows, "stubnative", ["cp313-cp313-win_amd64"])
+    _refused(windows, "runs on a 32-bit Intel or AMD processor", version=(3, 13), computer=found)
+
+
+def test_an_unreadable_file_is_named_and_never_a_traceback(tmp_path: pathlib.Path, monkeypatch) -> None:
+    """Codex's review of lane DEP-2, item 6: a file this computer will not let the check read."""
+    bundle = _bundle(tmp_path)
+    real_open = open
+    for blocked in ("SHA256SUMS", "requirements-install.lock", "stubdep-1.0-py3-none-any.whl"):
+
+        def refusing(path, *arguments, blocked=blocked, **named):
+            if os.path.basename(str(path)) == blocked:
+                raise PermissionError(13, "Permission denied", str(path))
+            return real_open(path, *arguments, **named)
+
+        monkeypatch.setattr(CHECK, "open", refusing, raising=False)
+        found = " ".join(CHECK.check(str(bundle)))
+        assert "this computer would not let synthtwin read " in found and blocked in found, found
+        assert "(Permission denied)" in found and "Copy the bundle's zip file into a folder of your own" in found
+        assert CHECK.main([str(bundle)]) == 1
+    monkeypatch.setattr(CHECK, "open", real_open, raising=False)
+    real_listdir = os.listdir
+
+    def no_listing(path):
+        if os.path.basename(str(path)) == "wheelhouse":
+            raise PermissionError(13, "Permission denied", str(path))
+        return real_listdir(path)
+
+    monkeypatch.setattr(CHECK.os, "listdir", no_listing)
+    assert "would not let synthtwin read wheelhouse" in " ".join(CHECK.check(str(bundle)))
+
+
 # -- install.sh, run for real on the stub bundle --------------------------------
 
 
@@ -570,31 +759,74 @@ def test_an_install_that_reaches_for_an_index_is_seen(tmp_path: pathlib.Path) ->
 
 
 @posix_only
-def test_install_sh_stops_and_never_fetches_when_a_library_is_missing(
+def test_install_sh_stops_before_the_environment_when_a_library_is_missing(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The lock names a library the wheelhouse lacks: pip stops, so does the script."""
+    """The lock names a library the wheelhouse lacks: the check stops it, nothing is fetched,
+    and an earlier environment stays as it was (Codex's review of lane DEP-2, item 5)."""
     bundle = _bundle(tmp_path)
+    ran = _install(bundle)
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    kept = bundle / ".venv" / "kept-by-the-check.txt"
+    kept.write_text("an earlier environment\n", encoding="utf-8", newline="\n")
     (bundle / "wheelhouse" / "stubdep-1.0-py3-none-any.whl").unlink()
     _resum(bundle)
     ran = _install(bundle)
     said = ran.stdout + ran.stderr
     assert ran.returncode == 1, said
-    assert "pip could not install the bundle's libraries" in said
+    assert "has no file of stubdep that this computer and its Python" in " ".join(said.split())
+    assert "the bundle's check above did not pass" in said
     assert _reached_for_network(said) == [], said
     assert "stand-in doctor ran" not in said
+    assert kept.exists() and (bundle / ".venv" / "bin" / "synthtwin").exists()
 
 
-# A stand-in Python of any version: the real interpreter, with
-# sys.version_info and sys.version replaced before it runs what it was
-# given (-c CODE, -m MODULE or a script), so each script's own version
-# test runs on it as written.
+@posix_only
+@pytest.mark.parametrize("form", ["by its name", "by its path"])
+def test_install_sh_installs_from_a_folder_whose_name_holds_a_semicolon(
+    tmp_path: pathlib.Path, form: str
+) -> None:
+    """Lane DEP-2's verify, item 3: pip reads a ';' in a file's path as a condition.
+
+    synthtwin is installed by its name from the wheelhouse; installed by
+    its file's path, as before, the bundle under `notes;old` stops (the
+    mutation case).
+    """
+    bundle = _bundle(tmp_path, parent="notes;old")
+    if form == "by its path":
+        script = bundle / "scripts" / "install.sh"
+        text = script.read_text(encoding="utf-8")
+        mutated = text.replace('--no-deps --find-links "$wheels" synthtwin', '--no-deps "$wheel"')
+        assert mutated != text
+        script.write_text(mutated, encoding="utf-8", newline="\n")
+        _resum(bundle)
+    ran = _install(bundle)
+    said = ran.stdout + ran.stderr
+    if form == "by its name":
+        assert ran.returncode == 0, said
+        assert "stand-in doctor ran: doctor the stand-in library loaded" in said
+    else:
+        assert ran.returncode == 1 and "stand-in doctor ran" not in said, said
+
+
+# A stand-in Python of any version (3.14t: the free-threaded build): the
+# real interpreter, with sys.version_info and sys.version replaced before
+# it runs what it was given (-c CODE or a script), so each script's own
+# version test runs on it as written; asked to run a module (-m venv), it
+# stops.
 _FAKER = """import runpy
 import sys
 
-version = tuple(int(part) for part in sys.argv[1].split("."))
+spoken = sys.argv[1]
+version = tuple(int(part) for part in spoken.rstrip("t").split("."))
 sys.version_info = version + (0, "final", 0)
-sys.version = sys.argv[1] + ".0 (a stand-in written by tests/test_bundle.py)"
+sys.version = spoken.rstrip("t") + ".0 (a stand-in written by tests/test_bundle.py)"
+if spoken.endswith("t"):
+    # CPython's free-threaded build, as sysconfig names it.
+    import sysconfig
+
+    given = sysconfig.get_config_var
+    sysconfig.get_config_var = lambda name: 1 if name == "Py_GIL_DISABLED" else given(name)
 arguments = sys.argv[2:]
 while arguments and arguments[0] in ("-I", "-E", "-s"):
     arguments = arguments[1:]
@@ -602,8 +834,10 @@ if arguments[0] == "-c":
     sys.argv = ["-c", *arguments[2:]]
     exec(compile(arguments[1], "<string>", "exec"), {"__name__": "__main__"})
 elif arguments[0] == "-m":
-    sys.argv = [arguments[1], *arguments[2:]]
-    runpy.run_module(arguments[1], run_name="__main__", alter_sys=True)
+    # A stand-in answers about itself and makes nothing: an environment
+    # it made would be the real Python's, and a script making one with
+    # the wrong Python would pass unseen (lane DEP-2's verify, item 1).
+    sys.exit("a stand-in Python runs no module")
 else:
     sys.argv = list(arguments)
     runpy.run_path(arguments[0], run_name="__main__")
@@ -631,20 +865,27 @@ def _pythons(folder: pathlib.Path, **named: str) -> str:
 
 
 @posix_only
-def test_install_sh_takes_a_served_python_beside_a_newer_one(tmp_path: pathlib.Path) -> None:
-    """python3 is 3.15 and python3.14 works: the script takes 3.14 (the skeptic, item 2 (c))."""
+@pytest.mark.parametrize("other", ["3.15", "3.14t"])
+def test_install_sh_takes_a_served_python_beside_another(tmp_path: pathlib.Path, other: str) -> None:
+    """python3 is 3.15 (the skeptic, item 2 (c)) or the free-threaded 3.14 (Codex's review,
+    item 3) and python3.14 works: the script takes 3.14 and makes the environment with it
+    (lane DEP-2's verify, item 1: the stand-in makes none)."""
     bundle = _bundle(tmp_path)
-    path = _pythons(tmp_path / "pythons", python3="3.15", python="3.15", **{"python3.14": "real"})
+    path = _pythons(tmp_path / "pythons", python3=other, python=other, **{"python3.14": "real"})
     ran = _install(bundle, SYNTHTWIN_PYTHON="", PATH=path)
     said = ran.stdout + ran.stderr
     assert ran.returncode == 0, said
     using = [line for line in said.splitlines() if line.startswith("using ")]
-    assert len(using) == 1 and " 3.15." not in using[0], using
+    assert len(using) == 1 and "stand-in" not in using[0], using
     assert "synthtwin is installed." in said
+    asked = [str(bundle / ".venv" / "bin" / "python"), "-c", "import sys; print(sys.version)"]
+    made = subprocess.run(asked, capture_output=True, text=True, check=False).stdout
+    real = subprocess.run([_base_python(), *asked[1:]], capture_output=True, text=True, check=False).stdout
+    assert made == real and "stand-in" not in made, made
 
 
 @posix_only
-@pytest.mark.parametrize("version", ["3.9", "3.15"])
+@pytest.mark.parametrize("version", ["3.9", "3.15", "3.14t"])
 def test_install_sh_names_the_python_to_install(tmp_path: pathlib.Path, version: str) -> None:
     """No Python the bundle serves: it names the one found and Python 3.14, before any change."""
     bundle = _bundle(tmp_path)
@@ -652,8 +893,9 @@ def test_install_sh_names_the_python_to_install(tmp_path: pathlib.Path, version:
     ran = _install(bundle, SYNTHTWIN_PYTHON="", PATH=path)
     assert ran.returncode == 1, ran.stdout
     flowing = " ".join(ran.stdout.split())
+    named = version.replace("t", " (free-threaded)")
     assert (
-        f"this computer's Python is {version}, and this synthtwin bundle serves Python 3.11, "
+        f"this computer's Python is {named}, and this synthtwin bundle serves Python 3.11, "
         "3.12, 3.13 and 3.14. Install Python 3.14 from python.org"
     ) in flowing, flowing
     assert "INSTALL.txt" in flowing
@@ -729,6 +971,24 @@ _CHECK_LINE = {
     "install.sh": '"$python" -I "$here/scripts/check_bundle.py" "$here"',
     "install.bat": '%PY% -I "%HERE%\\scripts\\check_bundle.py" "%HERE%"',
 }
+# The environment is made with the Python the script chose (lane
+# DEP-2's verify, item 1: `python3 -m venv` beside a chosen python3.14
+# passed every rule), and synthtwin is installed by its name from the
+# wheelhouse, never by its file's path, which pip reads a ';' in as a
+# condition (the verify's item 3).
+_VENV_LINE = {
+    "install.sh": '"$python" -m venv --clear "$env_dir"',
+    "install.bat": '%PY% -m venv --clear "%ENVDIR%"',
+}
+_SYNTHTWIN_PIP = {
+    "install.sh": '--no-index --no-deps --find-links "$wheels" synthtwin || stop',
+    "install.bat": '--no-index --no-deps --find-links "%WHEELS%" synthtwin',
+}
+# The usual CPython alone is served (Codex's review of lane DEP-2, item 3).
+_KIND = {
+    "install.sh": ' and sys.implementation.name == "cpython" and not sysconfig.get_config_var("Py_GIL_DISABLED")',
+    "install.bat": " and sys.implementation.name == 'cpython' and not sysconfig.get_config_var('Py_GIL_DISABLED')",
+}
 _REFUSE_LINE = {
     "install.sh": 'if [ "$#" -ne 0 ]; then',
     "install.bat": 'if not "%~1"=="" goto :takes_no_folder',
@@ -798,6 +1058,18 @@ def script_problems(name: str, text: str, pythons: "tuple[str, ...] | list[str]"
         first_pip = text.find(pips[0].strip()) if pips else -1
         if sets != ['set "PIP_CONFIG_FILE=nul"'] or not 0 <= text.find(sets[0]) < first_pip:
             problems += [f"{name}: PIP_CONFIG_FILE is not set to nul once, before the first pip: {sets}"]
+    venvs = [
+        line.strip()
+        for line in flat.splitlines()
+        if "-m venv" in line and not line.lstrip().startswith(("#", "rem ", "REM "))
+    ]
+    if len(venvs) != 1 or not venvs[0].startswith(_VENV_LINE[name]):
+        problems += [f"{name}: the environment is not made as {_VENV_LINE[name]!r}: {venvs}"]
+    ours = [line for line in pips if _SYNTHTWIN_PIP[name] in " ".join(line.split())]
+    if len(ours) != 1 or any(word in line for line in pips for word in ('"$wheel"', '"%WHEEL%"')):
+        problems += [f"{name}: synthtwin is not installed by its name from the wheelhouse ({_SYNTHTWIN_PIP[name]!r})"]
+    if _version_range(pythons) + _KIND[name] not in text:
+        problems += [f"{name}: a Python is served without being the usual CPython"]
     # Each step that can fail stops the script.
     commands = [_CHECK_LINE[name]] + [line.strip() for line in pips]
     commands += [line.strip() for line in flat.splitlines() if "-m venv --clear" in line]
@@ -853,8 +1125,8 @@ _SH_PIP_LOCK = 'PIP_CONFIG_FILE=/dev/null "$venv_python" -m pip install --isolat
             '    --require-hashes -r "$lock" \\\n    || stop', '    --require-hashes -r "$lock" \\\n    || say')),
         # S7 and the ceiling: a version test of its own, or none above.
         ("install.sh", lambda text: text.replace(
-            "sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) else 1)",
-            "sys.exit(0 if sys.version_info >= (3, 11) else 1)")),
+            "sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 14) and",
+            "sys.exit(0 if sys.version_info >= (3, 11) and")),
         ("install.sh", lambda text: text.replace(" python3.14 python3.13", " python3.13")),
         ("install.bat", lambda text: text.replace("--isolated --disable-pip-version-check --no-index --find-links",
                                                   "--disable-pip-version-check --find-links")),
@@ -877,6 +1149,17 @@ _SH_PIP_LOCK = 'PIP_CONFIG_FILE=/dev/null "$venv_python" -m pip install --isolat
         ("install.bat", lambda text: text.replace(" <= sys.version_info[:2] <= (3, 14)", " <= sys.version_info[:2]")),
         ("install.bat", lambda text: text.replace("if not defined PY call :served py -3.14\r\n", "")),
         ("install.bat", lambda text: text.replace('if not "%~1"=="" goto :takes_no_folder', "rem")),
+        # The verify's V1 and V2: the environment made with another Python.
+        ("install.sh", lambda text: text.replace('"$python" -m venv --clear "$env_dir"', 'python3 -m venv --clear "$env_dir"')),
+        ("install.bat", lambda text: text.replace('%PY% -m venv --clear "%ENVDIR%"', 'python -m venv --clear "%ENVDIR%"')),
+        # The verify's item 3: synthtwin's wheel installed by its path.
+        ("install.sh", lambda text: text.replace('--no-deps --find-links "$wheels" synthtwin', '--no-deps "$wheel"')),
+        ("install.bat", lambda text: text.replace('--no-deps --find-links "%WHEELS%" synthtwin', '--no-deps "%WHEEL%"')),
+        # Codex's item 3: another Python, or the free-threaded build, served.
+        ("install.sh", lambda text: text.replace(' and sys.implementation.name == "cpython"', "")),
+        ("install.sh", lambda text: text.replace(' and not sysconfig.get_config_var("Py_GIL_DISABLED") else 1)', " else 1)")),
+        ("install.bat", lambda text: text.replace(" and sys.implementation.name == 'cpython'", "")),
+        ("install.bat", lambda text: text.replace(" and not sysconfig.get_config_var('Py_GIL_DISABLED') else 1)", " else 1)")),
     ],
 )
 def test_a_script_reaching_past_the_bundle_is_red(name: str, mutate) -> None:
@@ -910,7 +1193,9 @@ def test_the_guide_is_plain_and_every_command_is_on_its_own_line() -> None:
 
 POWERSHELL = (
     "synthtwin prints the commands it suggests for PowerShell. In Command Prompt, where a "
-    "name stands between single quotes 'like this', type it between double quotes \"like this\"."
+    "name stands between single quotes 'like this', type it between double quotes \"like this\", "
+    "and where two single quotes stand together inside it, as in 'Crohn''s disease', type one: "
+    "\"Crohn's disease\"."
 )
 
 
@@ -924,6 +1209,13 @@ def test_windows_is_told_how_to_type_what_synthtwin_prints() -> None:
     closing = batch[batch.index('"%ENVDIR%\\Scripts\\synthtwin.exe" doctor') : batch.index("exit /b %STATUS%")]
     spoken = " ".join(line[len("echo ") :] for line in closing.splitlines() if line.startswith("echo "))
     assert POWERSHELL in " ".join(spoken.split())
+    # The verify's item 4: PowerShell doubles a single quote inside a name;
+    # Command Prompt takes it once. README says the same.
+    readme = " ".join((REPO / "README.md").read_text(encoding="utf-8").split())
+    assert "where it printed `'Crohn''s disease'`, type `\"Crohn's disease\"`" in readme
+    from synthtwin import cli
+
+    assert cli._quoted_for_the_shell("Crohn's disease", windows=True) == "'Crohn''s disease'"
 
 
 # -- the builder -----------------------------------------------------------------------
@@ -1061,7 +1353,10 @@ def bundle_job_problems(text: str) -> "list[str]":
         "zipped/synthtwin-*-${{ matrix.platform }}.zip",
         # The wheels macOS 12 takes, and none needing a newer macOS (item 3).
         "--platform macosx_12_0_arm64 --implementation cp",
-        "grep -E 'macosx_(1[3-9]|[2-9][0-9])_'",
+        # ... and the step stops on one (the verify's item 2, V3).
+        "grep -E 'macosx_(1[3-9]|[2-9][0-9])_'; then\n"
+        '            echo "A wheel above needs a macOS newer than 12; the bundle serves macOS 12 and later."\n'
+        "            exit 1\n",
     ):
         if needed not in build:
             problems += [f"bundle-build lacks {needed!r}"]
@@ -1178,6 +1473,7 @@ def test_the_ci_jobs_parse_and_name_every_platform() -> None:
         ('grep -q "does not match its hash in SHA256SUMS" refused.log\n', ""),
         ("          if used != [sys.argv[1]]:\n", "          if not used:\n"),
         ('--zip-into "$RUNNER_TEMP/zipped"', '--zip "$RUNNER_TEMP/synthtwin-bundle-${{ matrix.platform }}.zip"'),
+        ('the bundle serves macOS 12 and later."\n            exit 1\n', 'the bundle serves macOS 12 and later."\n'),
     ],
 )
 def test_a_ci_job_short_of_the_plan_is_red(old: str, new: str) -> None:

@@ -740,7 +740,9 @@ seed, so byte-stability is promised only across identical inputs.
 synthtwin runs on Python 3.11, 3.12, 3.13 or 3.14 -- not yet on 3.15 or
 later -- on a Mac with an Apple chip (M1 or later) running macOS 12
 (Monterey) or later, on Windows on a 64-bit Intel or AMD computer, or on
-Linux on a 64-bit Intel or AMD computer. A Mac with an Intel chip, and
+Linux on a 64-bit Intel or AMD computer whose system library is glibc
+(Ubuntu, Debian, Fedora, Red Hat and most others; not Alpine). A Mac
+with an Intel chip, and
 a Windows or Linux computer with an Arm processor, have no bundle yet;
 the install script says so in plain words. You need nothing else
 installed first: the bundle below holds everything else. To see which
@@ -845,7 +847,9 @@ On Windows, synthtwin writes the commands it prints for PowerShell. In
 Command Prompt, type a path it shows between single quotes between
 double quotes instead: where it printed
 `synthtwin generate 'C:\Users\Ana Maria\clinic-profile.json'`, type
-`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"`.
+`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"`. Where two
+single quotes stand together inside such a name, type one: where it
+printed `'Crohn''s disease'`, type `"Crohn's disease"`.
 
 ### Checking the computer: `synthtwin doctor`
 
