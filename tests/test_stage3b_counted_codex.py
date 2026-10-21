@@ -334,7 +334,10 @@ def test_item3_the_source_meets_the_form_its_producer_published(
         whole = block["all_whole_numbers"] is True
         assert missed == (["type.all_whole_numbers"] if whole else []), missed
         return
-    # PUBLISHED, the twin meets the description.
+    # PUBLISHED, only as dates (lane HX2's close verify, item 2): read as
+    # a count or a number, the column would publish those dates as plain
+    # numbers (mutant `declined_published`). The twin meets the description.
+    assert block.get("count_form") is not None, block
     assert missed == []
 
 

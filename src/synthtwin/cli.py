@@ -2750,6 +2750,24 @@ def _table_sentences(document: "dict[str, object]") -> "list[str]":
     return said
 
 
+def _held_as_counted_dates(described_column: "dict[str, object]") -> bool:
+    """Whether a column block is held as counted dates its cells did not read as (NF127).
+
+    Asked of the block's EVIDENCE, never of its role (lane HX2's close
+    verify, item 1): the count in people (NF126) makes a declared column
+    that DID read as dates a record number too, and naming it as a
+    declaration that did not reach told the person something false and a
+    remedy that changes nothing. Raises nothing, opens no file.
+    """
+    from synthtwin import taxonomy
+
+    if "detection_evidence" not in described_column:
+        return False
+    return f"{described_column['detection_evidence']}" == taxonomy.rendered(
+        taxonomy.EVIDENCE_COUNTED_DATES_HELD, ()
+    )
+
+
 def _held_counted_dates(
     document: "dict[str, object]", counted: "dict[str, str]"
 ) -> "list[tuple[str, str]]":
@@ -2759,17 +2777,15 @@ def _held_counted_dates(
     and the questions file names it beside the screen and the summary
     (the orchestrator's LANE HX2 ADDENDUM 2). Read back out of the FINAL
     document, as `_table_sentences` is, in the table's column order: a
-    declared column the description reads as anything but dates.
-    Raises nothing, opens no file.
+    declared column whose block carries NF127's evidence
+    (`_held_as_counted_dates`). Raises nothing, opens no file.
     """
-    from synthtwin import taxonomy
-
     held: "list[tuple[str, str]]" = []
     for described_column in _described_columns(document):
         name = f"{described_column['name']}"
         if name not in counted:
             continue
-        if described_column["role"] == taxonomy.ROLE_DATETIME:
+        if not _held_as_counted_dates(described_column):
             continue
         held += [(name, counted[name])]
     return held
@@ -3808,12 +3824,14 @@ def _run_profile(
             )
     # -- 3b.R4 (P4-D384): ...AND A COLUMN DECLARED TO WRITE ITS DATES AS
     # COUNTS WHOSE CELLS DID NOT READ AS SUCH DATES, said here as the
-    # description says it: held, on every table (plan P4-D406, NF127).
+    # description says it: held, on every table (plan P4-D406, NF127),
+    # chosen by its evidence and never by its role, which the count in
+    # people (NF126) sets to `identifier` for a column read as dates.
     for name in sorted(counted):
         for described_column in _described_columns(document):
             if described_column["name"] != name:
                 continue
-            if described_column["role"] == taxonomy.ROLE_DATETIME:
+            if not _held_as_counted_dates(described_column):
                 continue
             _warn(
                 errors.the_date_count_declaration_did_not_reach(

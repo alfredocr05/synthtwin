@@ -1029,6 +1029,35 @@ def test_dates_declared_as_counts_and_not_read_are_held(tmp_path: pathlib.Path, 
     assert _twin_validates(table, tmp_path) == 0
 
 
+def test_counted_dates_read_as_dates_and_held_in_people_are_not_named_as_declined(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Lane HX2's close verify, item 1: the gate's `days` is held by the count in people, not by NF127.
+
+    600 days since 1970 beside 150 patients on four rows each, declared
+    `--date-count day days-since-1970`: the cells read as dates (described
+    alone they take a count form), and the count in people (NF126) holds
+    the column. The declaration reached, so the questions file has no
+    `held` entry and the screen no sentence saying it did not: both select
+    on NF127's evidence, never on the role, which NF126 sets to
+    `identifier` too (mutants `held_by_role` and `screen_by_role`).
+    """
+    text = persons_counted.day_count_table("plain")
+    _table, screen = _profiled(tmp_path, "read", text, "--identifier", "patient",
+                               "--date-count", "day", "days-since-1970")
+    assert _held(_block(_described(tmp_path, "read"), "day"))
+    questions = json.loads((tmp_path / "read-questions.json").read_text(encoding="utf-8"))
+    assert "held" not in questions, questions["held"]
+    assert errors.the_date_count_declaration_did_not_reach("day", "days-since-1970") not in screen
+    assert "was named with --date-count" not in screen
+    lines = text.splitlines()
+    place = lines[0].split(",").index("day")
+    alone = "day\n" + "".join(f"{line.split(',')[place]}\n" for line in lines[1:])
+    _profiled(tmp_path, "alone", alone, "--date-count", "day", "days-since-1970")
+    read_alone = _block(_described(tmp_path, "alone"), "day")
+    assert read_alone["role"] == taxonomy.ROLE_DATETIME and read_alone.get("count_form") is not None
+
+
 def test_a_declaration_reconstructed_from_a_description_holds_nothing(
     tmp_path: pathlib.Path,
 ) -> None:
