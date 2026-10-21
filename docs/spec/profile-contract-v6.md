@@ -4513,6 +4513,27 @@ list in plan P4-D407) and checked by `K-S6-08`; it is not part of this
 section's proof (4.6b.9 (h)). Whether a slope stands is decided on
 published facts and on facts of one column (inventory row 27).
 
+**AMENDED by ruling R12 (the orchestrator, 2026-10-20; lane MPOL's
+page, plan P4-D413): where a slope is published.** A slope that stands
+by the rule above is PUBLISHED only inside a PUBLISHING region of
+section 4.6d (4.6d.3): its family is a node of that region and every
+column it reads is a column of the region, so that Theorem 2 of 4.6d.5
+covers it as condition (5) of every point of the region's joint space
+(4.6d.4; 4.6d.5 (d) (i)). Anywhere else it is WITHHELD: the family's
+`slopes` is `null`, as where no slope stands. So while the GATE of
+4.6d.5 (h) is closed, `moments` is `null`, no region publishes and no
+slope is published on any table; and on lane `A0b`'s chain, where under
+`"cf1"` only `none` is eligible (4.6d.10, stated limit 3), none is.
+*Reason:* the owner's ruling R10 (strict proof only, 2026-10-20): every
+published number between columns needs a proof, and outside a
+publishing region nothing proves that a slope adds no small count (this
+page listed the slopes CHECKED, NOT PROVEN in 4.6b.9 (h)). *Price:* the
+slopes withheld and the estimates they carried, UNMEASURED; lanes MPp
+and CHa measure it on lane `E0b`'s battery (4.6d.10, stated limit 6).
+Whether a slope STANDS is still decided by the rule above (inventory
+row 27); this amendment decides only whether a slope that stands is
+published, and every other clause of this section stands as written.
+
 #### 4.6b.7 Rules between columns, computed columns and derived columns (with lane MR)
 
 The rules the profiler infers between two columns (the owner's `D2r`
@@ -5442,6 +5463,15 @@ and nothing in it enters a shared file.
   step order of 4.6b.7 (the third attack's two-rules table, a `K-S6-08`
   fixture); and the pseudorandom property of keyed BLAKE2b ((b), the
   model).
+- **AMENDED by ruling R12 (the orchestrator, 2026-10-20; plan
+  P4-D413):** the slopes leave the list above. A slope is published only
+  inside a publishing region of section 4.6d, where Theorem 2 of 4.6d.5
+  covers it as condition (5) of every point (PROVEN under that section's
+  premise (R), but for its exception (i): 4.6d.5 (d) (i) and (h));
+  anywhere else it is withheld (4.6b.6, as amended), so no published
+  slope stays CHECKED, NOT PROVEN. Reason: the owner's ruling R10,
+  strict proof only. Price: the withheld slopes, unmeasured, owed by
+  lanes MPp and CHa on lane `E0b`'s battery.
 - **Open preconditions:** lane MR's inference conditions, above, for
   rows 9, 9b, 10 and 14.
 - **The other three threats.** Identifiers and free text are ineligible
@@ -5760,8 +5790,11 @@ families, written before any of their code, so that the profile side
 (lane CHa), the polish (lanes CHb and MPp, and lane MPn's compiled
 kernel), the validator (lane CHv) and the oracle (lane CHo) are built
 against one text. It extends section 4.6b and edits none of its
-clauses: every rule of 4.6b holds here as written, and where this
-section adds a condition it says so. Until the landing that ships stage
+clauses but two, 4.6b.6 and 4.6b.9 (h), which ruling R12 (the
+orchestrator, 2026-10-20) amends, each marked and dated there, so that
+a slope is published only inside a publishing region (4.6d.5 (d));
+every other rule of 4.6b holds here as written, and where this section
+adds a condition it says so. Until the landing that ships stage
 6, invariant S12 stands word for word, `statistical` is `null`, and no
 description carries any number of this section. Nothing here is a claim
 about what any twin carries today. Lane MG's page, written beside this
@@ -6034,6 +6067,20 @@ real table's rows, matched inside each separator cell, which would keep
 a slope whose family shares no node with a publishing region (stated
 limit 3).
 
+**Slopes, under ruling R12** (the orchestrator, 2026-10-20; 4.6b.6 as
+amended). Where the regions above, test (iii) and condition (5) of
+4.6d.4 read a slope 4.6b.6 publishes, they read a slope 4.6b.6's rule
+lets STAND (inventory row 27, a function of the rest of the
+description). After the step a slope that stands is published only
+where its family is a node of a publishing region holding every column
+it reads; anywhere else, a region that drew `none` included, it is
+withheld and its family's `slopes` is `null`. So where any region
+publishes, test (iii) puts every slope that stands in a publishing
+region and each is published, and a loader rebuilds the regions from
+the published slopes (S35); where none publishes, `moments` is `null`
+and no slope is published. A slope is no option of the step: it is
+published with its region's drawn option and withheld with `none`.
+
 **The draw.** One word of RULE W5 (4.6b.4), of kind `moments`, its index
 the region's place in the list and its columns the region's columns:
 with the uniform share (`2**-30`, 4.6b.4) it takes a uniform choice among
@@ -6258,7 +6305,8 @@ reaches, or reading a column a carried rule names, which no region
 holds) is moved by Lemma 6's dealing, so Lemma 6 and Theorem 2 then
 claim nothing for ANY region of that description, and the description
 would stand where the chain's own Theorem 1 stands beside a slope:
-CHECKED, NOT PROVEN (4.6b.9 (h) lists the slopes so). On the measured
+CHECKED, NOT PROVEN (as 4.6b.9 (h) listed the slopes before ruling
+R12). On the measured
 chains that is every description holding a slope: on lane `A0b`'s chain
 at 20,000 and 200,000 rows all 31 number columns sit in a family whose
 child and a parent are both number columns, and under `"cf1"` a
@@ -6267,14 +6315,21 @@ publishing region holds no column a slope reads (the verify of
 of 4.6d.3 makes (S) an ELIGIBILITY test: an option publishes only on a
 description that meets (S), and for every published number Lemma 6 and
 Theorem 2 stand PROVEN under (R). Where (S) fails, every region draws
-`none`, and the slope stands under 4.6b.6's rule alone ((d) (ii))
-(skeptic 1 of 2026-10-20, item 3).
+`none`, and the slope is WITHHELD ((d) (ii)) (skeptic 1 of 2026-10-20,
+item 3). **Ruling R12** (the orchestrator, 2026-10-20) closes what
+remained: 4.6b.6, as amended, publishes a slope that stands only inside
+a publishing region, so no PUBLISHED slope fails (S) and none stands
+beside the chain's Theorem 1 checked, not proven; test (iii), read on
+the slopes that stand (4.6d.3), stays the stricter eligibility the
+orchestrator kept under ruling R10 the same day.
 
 **(a) Lemma 5 (item 3): the drawn step tells the procedure's reader
 nothing the numbers do not, and a refusal is uninformative.**
 
 *The context* of region `R` in a description `D` is every fact `D`
-publishes except `R`'s `sums` and `R`'s entries in `withheld`.
+publishes except `R`'s `sums`, the slopes of `R`'s families (published
+only where `R` publishes: ruling R12, 4.6b.6 as amended) and `R`'s
+entries in `withheld`.
 
 *Lemma 5.* With the step of 4.6d.3, Lemma 2 of 4.6b.9 (b) holds for a
 description holding moments: its preimage is `CONS(D)`, every table
@@ -6288,8 +6343,10 @@ gives the cell sums `(100, 100)`, and one code-0 row of `A` exchanged
 with one code-2 row of `B` gives `(102, 98)`, both eligible for `mean`.)
 
 *Proof.* Let `T` be in `CONS(D)`. The regions, their columns and their
-offered classes are read from the placed chain, `rules`, `grain` and
-published facts (4.6d.1, 4.6d.3), which `T` shares, so on `T` the same
+offered classes are read from the placed chain, `rules`, `grain`,
+published facts and the slopes that stand (4.6d.1, 4.6d.3; inventory
+row 27, a function of the rest of the description), which `T` shares,
+so on `T` the same
 regions are formed and the same options offered, in the same order.
 Take region `R` and the option `o` that `D` placed. If `o` is `none`, it
 is eligible on every table. Otherwise its eligibility reads (i) the
@@ -6297,8 +6354,8 @@ published sums of `o`, which `T` shares, (ii) `WIT(R, o)` over
 `Sigma(R, o)`, which 4.6d.4 builds from `R`'s published tables, the
 columns' published facts, `o`'s published numbers and the published
 slopes only, all of which `T` shares, the exact route's class, read on
-published sizes, and (iii) premise (S), read on the slopes and families
-the chain publishes, which `T` shares. So `o` is eligible on `T`, and the draw gives
+published sizes, and (iii) premise (S), read on the slopes that stand
+and the families the chain publishes, which `T` shares. So `o` is eligible on `T`, and the draw gives
 it a chance of at least `2**-30` over `m_T`, `m_T` the eligible options
 on `T`. The word of each region's step is keyed by its kind, index and
 columns, inputs no other step shares, so the steps are independent in
@@ -6307,7 +6364,8 @@ the model of 4.6b.9 (b), and the chance that every step of the run on
 of numbers above nought. Every number then published is `T`'s, which is
 `D`'s. So `T` is in the preimage. For the second sentence: where `o` is
 `none`, `D` publishes for `R` only the names in `withheld`, functions of
-the offers and of `o`, so `CONS(D)` is every table matching the context,
+the offers and of `o`, and no slope of its families (ruling R12), so
+`CONS(D)` is every table matching the context,
 all of which are in the preimage. ∎
 
 *Why this answers the design's item 3.* The design asked for an
@@ -6584,23 +6642,29 @@ readings publishes none but enters the pooled fit (skeptic 1 of
 publishing region (every class off, December's default until the GATE;
 `none` drawn; a family no offer reaches), or reading a column a carried
 rule names. Lemma 6 and Theorem 2 do not reach it, since their dealing
-of the other columns' readings in any order would move it; it stands
-under 4.6b.6's coefficient rule alone (at least 100 rows; FINE bands
-with ten readings whose counts the column's own facts leave free),
-which closes the case the rule was written for and is CHECKED, NOT
-PROVEN (4.6b.9 (h)). Since (S) is a premise on the whole description,
-test (iii) of 4.6d.3 then leaves every region `none`, so no number of
-this section stands beside such a slope; `K-S6-08` holds a slope in a
-family of no region beside a region whose option would otherwise
-publish, and finds only `none` eligible (4.6d.7). The slope itself is
-lane MBC's (4.6b.6, 4.6b.9 (h)), a published number between columns
-that ruling R10 also asks a proof of: owed by that page, not edited
-here. Closing it here would make the slope an
-option of 4.6d.3's step, eligible under the witness, a stricter rule
-than 4.6b.6's; under Codex's condition on lane MDEP's decision (a
-stricter restriction needs a decision and a measured statistical cost)
-this page does not adopt it, as the orchestrator ruled on 2026-10-20,
-its price to be counted by lanes MPp and CHa.
+of the other columns' readings in any order would move it, and 4.6b.6's
+coefficient rule alone (at least 100 rows; FINE bands with ten readings
+whose counts the column's own facts leave free) closes only the case
+the rule was written for: CHECKED, NOT PROVEN. **So such a slope is
+WITHHELD** (ruling R12, the orchestrator, 2026-10-20): its family's
+`slopes` is `null`. This page writes the ruling as an explicit, dated
+amendment of lane MBC's 4.6b.6 and 4.6b.9 (h), each marked there, every
+other clause of 4.6b untouched: a slope that stands is published only
+inside a publishing region, where (i) covers it as condition (5) of
+every point. *Reason:* the owner's ruling R10, strict proof only.
+*Price:* the slopes withheld and the estimates they carried,
+UNMEASURED: lanes MPp and CHa measure it on lane `E0b`'s battery; while
+the GATE is closed no region publishes, so no slope is published on any
+table (4.6d.10, stated limit 6). The slope is still no option of 4.6d.3's
+step (the orchestrator's ruling of 2026-10-20, point 2, after Codex's
+condition on lane MDEP's decision): it is published with its region's
+drawn option and withheld with `none`, which Lemma 5 reads as part of
+the region's own publication. Test (iii) of 4.6d.3 still leaves every
+region `none` where a slope that stands lies outside it, so no number
+of this section stands beside a withheld slope; `K-S6-08` holds a slope
+in a family of no region beside a region whose option would otherwise
+publish, and finds only `none` eligible and the slope withheld
+(4.6d.7).
 
 **(e) Derived and computed columns (item 5).** No number of this
 section reads a derived or a computed column's readings, or any reading
@@ -6733,12 +6797,13 @@ per-cell slope carrier when `K-S6-08` passes on its fixtures at `f` =
   Lemma 6 (extension, given (R) and (S)), Theorem 2 ((A) and (B), given
   (R) and (S), but for its exception (i), with "own facts" as rulings R9
   and R11 read them), the closed form `CF1`, the derived and computed
-  columns (e), the finer-band carrier's tables. (S) holds for every
-  description holding a number of this section (test (iii) of 4.6d.3).
+  columns (e), the finer-band carrier's tables, and the chain's slopes,
+  each published only inside a publishing region as condition (5) of
+  every point ((d) (i); ruling R12). (S) holds for every description
+  holding a number of this section (test (iii) of 4.6d.3).
 - **Checked, not proven** (`K-S6-08` at `f` = 11): (R); exception (i)
-  of Theorem 2 (two small atoms of one region); the chain's slopes
-  where (S) fails ((d) (ii); no number of this section stands beside
-  them); the patient-layer combination where lane MG's (v) is not
+  of Theorem 2 (two small atoms of one region); the patient-layer
+  combination where lane MG's (v) is not
   proven; the exact route's own correctness (lane CHo's oracle and its
   tests); the model of keyed BLAKE2b. `B5`'s enumeration (199,023
   configurations before its 280 s time cap, not every configuration)
@@ -6852,7 +6917,9 @@ section, each with the mutant that must fail:
 - **premise (S) as test (iii):** a slope in a family of no region
   beside a region whose witness holds: only `none` is eligible, so
   nothing of this section stands beside the slope (mutant: test (iii)
-  dropped, which publishes beside it);
+  dropped, which publishes beside it), and by ruling R12 the slope
+  itself is withheld (mutant: the slope published outside every
+  publishing region);
 - the per-cell slope carrier: a parent cell of 11 rows holding two
   readings of the slope parent, refused, beside one of 22, published;
 - a derived difference and its order rule beside a FINE column's
@@ -6901,7 +6968,10 @@ hold every number of that option exactly once, in the canonical order of
 names its row) or its `band` (a place among the column's `L0` bands),
 as 4.6d.2 states for its class, every cell meeting its size rule on the
 published tables (`2 f` rows for `mean`, `spread` and `product`; `f`
-rows with a reading of both for `cell_slopes`).
+rows with a reading of both for `cell_slopes`). Under ruling R12 (4.6b.6
+as amended), a family's `slopes` is not `null` only where the family is
+a node of a publishing region holding every column the slope reads, and
+every family's `slopes` is `null` where `moments` is `null`.
 
 **Invariant S36 (sums).** Every sum is a whole number inside the range
 its count and codes allow (a code sum from 0 to 255 times its count; a
@@ -6944,8 +7014,8 @@ never fixed or bounded inside 1 to `f - 1` by the whole description,
 its moments included (Theorem 2 (A) and (B), ruling R9's wording), but
 for Theorem 2's exception (i); a refusal tells nothing beyond the rest
 of the description (Lemma 5). No number of this section stands where
-(S) fails (test (iii) of 4.6d.3); such a slope stands under 4.6b.6's
-rule alone ((d) (ii)), and a count that splits a column of no
+(S) fails (test (iii) of 4.6d.3), and such a slope is withheld (ruling
+R12, (d) (ii)); a count that splits a column of no
 publishing region below its bands is outside the promise (4.6d.5
 (c)).
 
@@ -6992,8 +7062,8 @@ publishing region below its bands is outside the promise (4.6d.5
    band holds an own-fact group. So with `witness` `"cf1"` no option but
    `none` is eligible on that chain, and `correlation` is never eligible
    anywhere; and test (iii) of 4.6d.3 (premise (S), ruling R10) leaves
-   only `none` on any description of that chain where 4.6b.6 publishes
-   a slope, the verdict `"cf1"` already gives there. (c) Every polished
+   only `none` on any description of that chain where 4.6b.6's rule lets
+   a slope stand, the verdict `"cf1"` already gives there. (c) Every polished
    figure below was measured greedily WITHOUT the witness, and each is a
    REFERENCE MEASUREMENT, not a bound on December's yield: 127 of 287
    for lane `A0b`'s chain without the screen's seeds and without moments
@@ -7039,6 +7109,14 @@ publishing region below its bands is outside the promise (4.6d.5
    December ((f)).
 5. **A carried rule's columns, derived and computed columns** carry no
    moment ((e)).
+6. **The chain's slopes, withheld outside a publishing region** (ruling
+   R12, the orchestrator, 2026-10-20; 4.6b.6 and 4.6b.9 (h) as amended):
+   a slope that stands is published only inside a publishing region,
+   where Theorem 2 covers it ((d) (i)). So while the GATE of (h) is
+   closed no slope is published on any table, and on lane `A0b`'s chain
+   under `"cf1"` none is. What withholding them costs in estimates is
+   UNMEASURED: lanes MPp and CHa measure it on lane `E0b`'s battery
+   before the stage-6 gate.
 
 **Statistics, as measured before this page** (plan P4-D407; plan P4-D413
 names each figure's conditions; every figure greedy, without the draw
@@ -7094,9 +7172,12 @@ measurements named in the settings. Lane MPn: the compiled kernel under
 its gate. Lane CHv: validation method `V13`. Lane MG: the patient-unit
 witness for codes (January). Lane ST: the private report's lines for
 `withheld` and `V13`'s distances. Lane MPp also: the seeded chain
-without moments (limit 3 (c)) and the regions test (iii) refuses. Lane
-MBC's page: a proof for the chain's slopes under ruling R10 (4.6b.9 (h)
-lists them checked, not proven; not edited here). The orchestrator: the
+without moments (limit 3 (c)) and the regions test (iii) refuses. Lanes
+MPp and CHa: the price of ruling R12, the slopes withheld outside
+publishing regions (limit 6), on lane `E0b`'s battery. Lane MBC's page:
+nothing more for its slopes under ruling R10, since ruling R12 amends
+its 4.6b.6 and 4.6b.9 (h), each marked and dated there, so that a slope
+is published only where Theorem 2 covers it. The orchestrator: the
 open points of the plan decision (P4-D413); its point (i), clause (c)
 kept in the witness beside ruling R11, was confirmed as R11 AMENDED
 (2026-10-20).

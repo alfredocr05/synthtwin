@@ -101,6 +101,16 @@ def _state_limit():
     return _flat(_between(STATE, "- **Relationships between columns are not carried.**", "\n- **"))
 
 
+def _mbc_slopes():
+    """Lane MBC's 4.6b.6, which ruling R12 amends."""
+    return _flat(_between(CONTRACT, "#### 4.6b.6 Slopes (O4)", "#### 4.6b.7 "))
+
+
+def _mbc_scope():
+    """Lane MBC's 4.6b.9 (h), which ruling R12 amends."""
+    return _flat(_between(CONTRACT, "**(h) R1's scope as ruled, and what is proven.**", "#### 4.6b.10 "))
+
+
 # --- the witness's predicate, computed on explicit point sets ------------
 
 
@@ -869,6 +879,7 @@ def test_the_plan_decision_records_the_page_and_its_repair():
     assert "`K-S6-08`" in decision
     assert "**Repair round 1 (2026-10-20).**" in decision
     assert "**Repair round 2 (2026-10-20).**" in decision
+    assert "**Repair round 3 (2026-10-20).**" in decision
     assert "ruling R10" in decision and "ruling R11" in decision
     assert "THE MAIN FIDELITY RISK" in decision
     assert "the GATE waits for the choice" not in decision
@@ -915,12 +926,54 @@ def test_the_central_sentences_are_pinned():
 
 def test_strict_proof_only_is_stated():
     """Ruling R10, the owner's decision D1 of 2026-10-20 (mutants: the
-    design's "rules plus enumeration" label kept; the sentence dropped)."""
+    design's "rules plus enumeration" label kept; the sentence dropped).
+    Ruling R12 of the same day, written as an explicit, dated amendment of
+    lane MBC's 4.6b.6 and 4.6b.9 (h): a slope that stands is published
+    only inside a publishing region, where Theorem 2 covers it as
+    condition (5), and withheld anywhere else (mutants: the slope standing
+    outside a region again; published inside or outside one; the reason,
+    the price's owners or the date dropped; the amendment of (h) dropped;
+    (d) (ii)'s withholding, Lemma 5's context, S35's check, limit 6 or the
+    plan's record dropped)."""
     section = _section()
     assert "**Strict proof only** (ruling R10, the owner's decision of 2026-10-20)" in section
     assert 'this page has no rule-checked class and no "safe statistics" class' in section
     assert '"rules plus enumeration" for the classes `M-a`, `M-b` and `M-d` is WITHDRAWN' in section
     assert "stands until (R) is proven" not in section
+    slopes = _mbc_slopes()
+    assert (
+        "**AMENDED by ruling R12 (the orchestrator, 2026-10-20; lane MPOL's page, plan P4-D413): where a slope "
+        "is published.**" in slopes
+    )
+    assert "A slope that stands by the rule above is PUBLISHED only inside a PUBLISHING region of section 4.6d" in slopes
+    assert (
+        "so that Theorem 2 of 4.6d.5 covers it as condition (5) of every point of the region's joint space" in slopes
+    )
+    assert "Anywhere else it is WITHHELD: the family's `slopes` is `null`, as where no slope stands." in slopes
+    assert "while the GATE of 4.6d.5 (h) is closed, `moments` is `null`, no region publishes and no slope" in slopes
+    assert "*Reason:* the owner's ruling R10 (strict proof only, 2026-10-20)" in slopes
+    assert "lanes MPp and CHa measure it on lane `E0b`'s battery (4.6d.10, stated limit 6)" in slopes
+    assert "this amendment decides only whether a slope that stands is published" in slopes
+    scope = _mbc_scope()
+    assert "**AMENDED by ruling R12 (the orchestrator, 2026-10-20; plan P4-D413):** the slopes leave the list above." in scope
+    assert "anywhere else it is withheld (4.6b.6, as amended), so no published slope stays CHECKED, NOT PROVEN" in scope
+    assert "owed by lanes MPp and CHa on lane `E0b`'s battery" in scope
+    assert "edits none of its clauses but two, 4.6b.6 and 4.6b.9 (h), which ruling R12" in section
+    assert "**So such a slope is WITHHELD** (ruling R12, the orchestrator, 2026-10-20)" in section
+    assert "it stands under 4.6b.6's coefficient rule alone" not in section
+    assert "such a slope stands under 4.6b.6's rule alone" not in section
+    assert "the slope stands under 4.6b.6's rule alone" not in section
+    assert "the slopes of `R`'s families (published only where `R` publishes: ruling R12, 4.6b.6 as amended)" in section
+    assert (
+        "a family's `slopes` is not `null` only where the family is a node of a publishing region holding every "
+        "column the slope reads, and every family's `slopes` is `null` where `moments` is `null`" in section
+    )
+    assert "6. **The chain's slopes, withheld outside a publishing region** (ruling R12" in section
+    assert "Where the regions above, test (iii) and condition (5) of 4.6d.4 read a slope 4.6b.6 publishes" in section
+    decision = _decision()
+    assert "**Ruling R12 amends lane MBC's contract 4.6b.6 and 4.6b.9 (h)**, explicitly and dated in both" in decision
+    assert "Reason: the owner's ruling R10, strict proof only." in decision
+    assert "owed by lanes MPp and CHa on lane `E0b`'s battery (contract 4.6d.10, stated limit 6)" in decision
 
 
 def _pair_sums(pairs):

@@ -32,8 +32,14 @@ differs by a yes/no column are written and kept off until measured.
 After two reviews the page states plainly what it covers and what it
 does not. Every published number needs a proof (the owner's decision
 of 2026-10-20), so the page has no rule-checked class, and nothing of
-it is published beside a slope the chain publishes outside its groups
-of columns. A small group of rows in one column beside another group's
+it is published beside a slope outside its groups of columns. Under
+that decision the orchestrator ruled, and the page writes as an
+explicit, dated amendment of the chain page's slope clause, that a
+slope the chain would publish is published only inside a group of
+columns that publishes, where the page's proof covers it, and withheld
+everywhere else: until the moment layer's gate opens no slope is
+published, and what that costs in estimates is unmeasured, owed by two
+later lanes on the test battery. A small group of rows in one column beside another group's
 codes can give a count of 1 to 3 rows, which the orchestrator's ruling
 counts among that column's own facts; inside one group the exact test
 now refuses the measured cases where that reading would publish a count
