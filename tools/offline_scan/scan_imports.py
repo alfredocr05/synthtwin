@@ -85,7 +85,9 @@ phase-4-columns.md, P4-D409 and lane DEP-1's P4-D410):
   with three option classes; from scipy, scipy.optimize's milp with
   Bounds and LinearConstraint, and scipy.linalg's cho_factor and
   cho_solve; and numba.njit in the one polish-kernel module (P4-D410,
-  each audited below). Imports of the synthtwin package's own modules
+  each audited below); and, in the chain's three modules alone (lane
+  CHa, plan P4-D418), fractions.Fraction, hashlib.blake2b and
+  secrets.token_bytes (the last in synthtwin.installation alone). Imports of the synthtwin package's own modules
   are allowed because those files are scanned too. Every other import
   is a violation.
 * THE ZONES (plan P4-D409 parts 2 and 3, enforced by lane DEP-1, plan
@@ -690,6 +692,27 @@ attribute absent from it is not allowed at all:
   objmode, config, jit -- is reachable, and llvmlite is forbidden
   outright. numba's settings by environment variable are lane MPn's
   to close (P4-D409 part 4 (vi)).
+* fractions (lane CHa, plan P4-D418): Fraction, in the chain's
+  modules alone (_MODULE_SCOPED_ADMISSIONS). Capability audit: a
+  Fraction is a pair of Python integers and its arithmetic is exact
+  integer arithmetic; it performs no I/O, starts no process, takes no
+  callable and loads no code. The chain's score `u = X2 - df` and the
+  draw's gaps are exact fractions because the contract (4.6b.3, 4.6b.4)
+  fixes them so and plan P4-D409 part 2 names `fractions` as zone D's
+  exact route. Its instances answer to every method under policy case
+  (b): each is arithmetic on the pair.
+* hashlib (lane CHa, plan P4-D418): blake2b, in the chain's modules
+  alone. Capability audit: one keyed or unkeyed BLAKE2b digest of the
+  bytes it is handed, computed in memory; no I/O, no process, no
+  callable, no code loaded. The contract names it (4.6b.4: the draw's
+  word, the key's fingerprint, the description digest; 4.6b.8: the row
+  content hash and the sample key). Its hash object answers under
+  policy case (b): update and digest, each on bytes in memory.
+* secrets (lane CHa, plan P4-D418): token_bytes, in
+  synthtwin.installation alone. Capability audit: reads the operating
+  system's random source for the number of bytes asked; no network, no
+  process, no callable, no code loaded. It makes the installation's
+  32-byte private key once (4.6b.4) and nothing else.
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
   (the callable argument SLOT); print (file SLOT -- print invokes
@@ -762,10 +785,21 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # this path; until it exists, numba is a violation everywhere.
 _POLISH_KERNEL = "synthtwin.polish_kernel"
 
+# The chain's modules (lane CHa, plan P4-D418): its rules over published
+# facts (reached by the loader, so zone G), its producer (zone D) and
+# the installation's key, ledger and lock (zone D).
+_INSTALLATION = "synthtwin.installation"
+_CHAIN_MODULES = ("synthtwin.chain", "synthtwin.chain_rules", _INSTALLATION)
+
 _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
     "xml.parsers.expat": frozenset({"synthtwin.workbook"}),
     "numba": frozenset({_POLISH_KERNEL}),
+    # Lane CHa (plan P4-D418): the chain's exact score and draw, its keyed
+    # words and digests, and the installation's key, in their own modules.
+    "fractions": frozenset(_CHAIN_MODULES),
+    "hashlib": frozenset(_CHAIN_MODULES),
+    "secrets": frozenset({_INSTALLATION}),
 }
 
 # The need each scoped admission was argued from, in the words its
@@ -776,6 +810,19 @@ _SCOPED_ADMISSION_NEEDS: "dict[str, str]" = {
     "numba": (
         "compiling the one audited polish kernel, whose twin bytes CI "
         "proves equal to the plain-Python polish (plan P4-D409 part 4)"
+    ),
+    "fractions": (
+        "the chain's exact score and the draw's exact gaps (contract "
+        "4.6b.3 and 4.6b.4, plan P4-D418)"
+    ),
+    "hashlib": (
+        "the chain's keyed words, the key's fingerprint and the "
+        "description and row digests (contract 4.6b.4 and 4.6b.8, plan "
+        "P4-D418)"
+    ),
+    "secrets": (
+        "making the installation's private key once (contract 4.6b.4, "
+        "plan P4-D418)"
     ),
 }
 
@@ -1003,6 +1050,10 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "math": frozenset(
         {"fsum", "frexp", "isfinite", "ldexp", "sqrt"}
     ),
+    # Lane CHa (plan P4-D418), each scoped to the chain's modules.
+    "fractions": frozenset({"Fraction"}),
+    "hashlib": frozenset({"blake2b"}),
+    "secrets": frozenset({"token_bytes"}),
     # Extension E7. The key is the TWO-COMPONENT module path, which is
     # the shape os.path already uses here: it makes numpy.random the
     # module the one-attribute-step rule counts from, so
@@ -4126,7 +4177,8 @@ class _Checker(ast.NodeVisitor):
                 continue
             if name in {"argparse", "csv", "dataclasses", "json", "math",
                         "pandas", "pathlib", "typing", "sys", "os",
-                        "zipfile", "numba"}:
+                        "zipfile", "numba", "fractions", "hashlib",
+                        "secrets"}:
                 self._bind(bound_name, ("module", name))
                 if report:
                     self._check_admitted_import(node, name)
