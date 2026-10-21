@@ -45,7 +45,9 @@ from synthtwin import canonical
 
 FOLDER = "synthtwin"
 KEY_FILE = "chain-key"
-LEDGER_FILE = "chain-ledger.json"
+# The record holds JSON but takes no ending: it lives in the installation's
+# data folder, never among the files a run leaves beside the twin.
+LEDGER_FILE = "chain-ledger"
 LOCK_FILE = "chain-profile.lock"
 LEDGER_VERSION = 1
 KEY_BYTES = 32

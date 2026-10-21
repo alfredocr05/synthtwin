@@ -4405,10 +4405,11 @@ as built.** The DATA FOLDER is `$XDG_DATA_HOME/synthtwin` where that is
 set, else `~/Library/Application Support/synthtwin` on macOS and
 `~/.local/share/synthtwin` elsewhere on POSIX, and
 `%LOCALAPPDATA%\synthtwin` on Windows (`~\AppData\Local\synthtwin`
-where it is unset); it holds `chain-key`, `chain-ledger.json` and, during
+where it is unset); it holds `chain-key`, `chain-ledger` (JSON, with no ending: a private
+record, never among the files a run leaves beside the twin) and, during
 a run, `chain-profile.lock`. The lock is made with `pathlib.Path.touch(...,
 exist_ok=False)`, which is `os.open` with `O_CREAT | O_EXCL`; the ledger
-entry goes to `chain-ledger.json.new` and is moved into place with
+entry goes to `chain-ledger.new` and is moved into place with
 `pathlib.Path.replace` (`os.replace`). A key file that a group or other
 account may read or write is refused on POSIX; on Windows the folder is
 the user's own, and no POSIX mode is read. `tests/test_chain_profile.py`

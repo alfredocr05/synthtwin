@@ -9,8 +9,9 @@ exists).
 ### Lane CHa: the chain's profile side, built behind a switch no user reaches (2026-10-21)
 
 **The first code of the broad between-columns program** (plan P4-D418,
-contract 4.6b). Behind a switch that only a caller of `cli.main` or
-`chain.describe` can turn on, `synthtwin profile` now cuts each column
+contract 4.6b). Behind a switch that only a caller can turn on (a
+parameter of the entry point and of `chain.describe`, no command-line
+option), `synthtwin profile` now cuts each column
 into three nested levels of bands, counts every pair's and family's
 table on all rows, draws the chain with the installation's private key
 (rule W5, keyed by the key, the table's name and the step), refuses by
