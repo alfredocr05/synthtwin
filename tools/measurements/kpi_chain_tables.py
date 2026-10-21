@@ -16,8 +16,8 @@ Lane CHa's stamp of `K-S6-08` on the fixtures of the design's section 2.7
   producer's own search reaches exactly the scan's descriptions
   (`mirror_mismatches`, target 0);
 - THE STATED LIMITS, reported and never passed: two descriptions of one
-  table (`two_key_pairs_leaking` of `two_key_pairs`, on the three smallest
-  sets), and two different tables under one name (the design check's
+  table (`two_key_pairs_leaking` of `two_key_pairs`, on the scan's second
+  to fourth sets), and two different tables under one name (the design check's
   figure, cited: the product's keyed run of it is owed). Two tables under
   DIFFERENT names draw independent words, so a pair's preimage is the
   product of the two single ones and leaks exactly where a single
@@ -51,8 +51,9 @@ SAME_NAME = "136 of 29,018 targeted pairs (design check V23-repair, out/named-ke
 def measure() -> "dict[str, object]":
     started = time.time()
     sets = enumeration.scan_sets(100, 124, SETS, SEED)
-    by_size = sorted(sets, key=lambda one: len(enumeration.tables_with_margins(*one)))
-    ordered = by_size[:3] + [one for one in sets if one not in by_size[:3]]
+    # The two-keys pairs on the second to fourth sets of the scan's order
+    # (79,619, 92,189 and 66,920 tables); the first holds 396,405.
+    ordered = sets[1:4] + sets[:1] + sets[4:]
     scan = enumeration.margin_scan(ordered, pairs_on=3)
     part_c = enumeration.part_c("filter")
     mutant = enumeration.part_c("merge")

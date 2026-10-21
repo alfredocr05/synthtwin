@@ -416,6 +416,7 @@ def mirror_agrees(table: "tuple[int, ...]", scales: "list[rules.Ladder]") -> boo
         {},
         counts,
         {},
+        {},
     )
     index_of = {names[place]: place for place in range(3)}
     reached: "set[tuple]" = set()

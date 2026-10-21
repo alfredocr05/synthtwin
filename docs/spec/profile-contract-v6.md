@@ -3944,6 +3944,18 @@ contradictory, cells without the affixes) and `labels` (on
   stopped being an edge) is a group of rows whose count the column's
   published facts bound inside 1 to `f - 1`: RULE W1 (4.6b.3) treats it
   as an own-fact group.
+- **Amended 2026-10-21 (lane CHa, plan P4-D418): the merge's order,
+  which the text above leaves open, fixed as built.** A value band
+  holding no row joins the value band above it (the one below it at the
+  top), its upper edge ceasing to be an edge. Then, while some band holds
+  1 to `f - 1` rows: on a number, date or clock column the EARLIEST such
+  band in band order is joined with its neighbour holding fewer rows,
+  ties to the earlier neighbour; on a label column the two smallest
+  bands, ties to the earlier in band order. `L1` and `L2` are each
+  starting band's band of that level joined wherever one `L0` band spans
+  two (on a label column an `L0` band joining a level of the ten
+  commonest with another joins their `L1` bands). Every choice is a fact
+  of one column (plan P4-D363), and `tests/test_chain_profile.py` pins it.
 
 **These four facts are what the generator's band-totals interface (lane
 BTp's `cells_by_band`, plan P4-D404) assumes, stated here as obligations
@@ -4198,6 +4210,30 @@ choice tells the reader that a losing candidate scored lower, which is a
 fact about a table nobody publishes (the design review's third attack,
 items B1 and B2; plan P4-D407).
 
+**Amended 2026-10-21 (lane CHa, plan P4-D418): what the producer reads
+where this section leaves a reading open.** (i) THE OWN-FACT GROUPS of
+RULE W1 are read from the column's published block conservatively: a
+reading's count fixed by `mode_count` or `n_zero` marks the band holding
+it; a published heap, a histogram bin of 1 to `f - 1` rows, a tail of 1
+to `f - 1` rows or the readings of a column of at most six different
+values mark every value band; each published tail value marks its band;
+a missing spelling, a level's spelling or an unread kind of cell counted
+1 to `f - 1` marks its spread or level band; and every merged `L0` band
+holds the sub-band it took in. Marking more refuses more and passes no
+leak. (ii) THE TIME-AND-EVENT DETECTOR (inventory row 11): an eligible
+`count` or `continuous` column whose name holds a word of time (`time`,
+`days`, `day`, `months`, `month`, `years`, `year`, `weeks`, `week`,
+`duration`, `followup`, `follow`, `fu`, `survival`, `futime`, `tte`,
+`length`, `stay`) beside an eligible `binary` column whose name holds a
+word of an event (`event`, `status`, `died`, `death`, `dead`,
+`deceased`, `censor`, `censored`, `outcome`, `relapse`, `failure`,
+`mortality`, `readmit`, `readmitted`, `recurrence`), a name's words
+being its runs of letters and figures, in lower case; it raises weights
+only. (iii) "The levels, finest first" in OPTION ORDER compares the
+option's levels written child first and then each parent's in the
+parents' order, entry by entry; the root step lists "no family", then
+its pairs by the child's place, the parent's place and those levels.
+
 **The weights.** Among a step's eligible options, in OPTION ORDER (a
 step of kind `place`: by the child's place in schema order, "no family"
 first, then by the anchor's place in chain order, the parents' places
@@ -4364,6 +4400,20 @@ twin, a log or either report (inventory row 33):
   can; or, if no description made on this installation was ever shared,
   move it aside and run again."
 
+**Amended 2026-10-21 (lane CHa, plan P4-D418): the folder and the lock
+as built.** The DATA FOLDER is `$XDG_DATA_HOME/synthtwin` where that is
+set, else `~/Library/Application Support/synthtwin` on macOS and
+`~/.local/share/synthtwin` elsewhere on POSIX, and
+`%LOCALAPPDATA%\synthtwin` on Windows (`~\AppData\Local\synthtwin`
+where it is unset); it holds `chain-key`, `chain-ledger.json` and, during
+a run, `chain-profile.lock`. The lock is made with `pathlib.Path.touch(...,
+exist_ok=False)`, which is `os.open` with `O_CREAT | O_EXCL`; the ledger
+entry goes to `chain-ledger.json.new` and is moved into place with
+`pathlib.Path.replace` (`os.replace`). A key file that a group or other
+account may read or write is refused on POSIX; on Windows the folder is
+the user's own, and no POSIX mode is read. `tests/test_chain_profile.py`
+runs every case in both forms.
+
 **One run at a time, and the entry before the description.** A run
 holds the installation's LOCK, a file it makes in the data folder with
 `os.open` and the flags `O_CREAT | O_EXCL` (standard library, the same
@@ -4396,6 +4446,20 @@ a column renamed, added or dropped, since the hash reads cells keyed by
 column name (stated limit 2).
 
 #### 4.6b.5 The chain and its tables (O2, O3)
+
+**Amended 2026-10-21 (lane CHa, plan P4-D418): where the producer
+publishes no chain.** `statistical` is also `null` (a) where a declared
+person column repeats a value (`settings.person_columns` not empty), or
+a column held by an open question offering `identifier`, or declared
+an identifier, repeats one: the table may hold several rows per person,
+which this section's proof does not cover (lane MG's page); nothing
+waits, the description is written without a chain until the question
+is answered; and (b) where a column's recount, cell by cell, disagrees
+with its own published counts (the range bands against `K`, `missing`
+against `n_missing`, a level against its count): the producer's own
+check that 4.6b.2's obligations hold. Each publishes nothing between
+columns, which the base product's description already is, so no proof
+moves; the private notes say which.
 
 **The tabled rows.** Every table of this section counts the TABLED ROWS:
 every row of the table except the records holding nothing that a
@@ -5594,7 +5658,8 @@ own published facts, and RULE WE's from the published counts, and
 finds every placed family eligible: which
 options are eligible is a function of the description (inventory rows 3
 to 5a), so the loader can check it. `statistical` is `null` only where
-the root step drew "no family" and no rule is carried; a chain whose
+the root step drew "no family" and no rule is carried, or where 4.6b.5's
+amendment of 2026-10-21 withholds the chain (lane CHa, plan P4-D418); a chain whose
 every family has no parent stands only beside a carried rule (the
 RULES-ONLY description, 4.6b.3), each eligible column then at `L0`, in
 schema order.

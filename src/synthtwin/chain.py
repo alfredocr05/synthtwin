@@ -482,15 +482,16 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
     each of the two preceded by its own length in bytes as 8 bytes
     big-endian (4.6b.8). The cells are the reader's own
     (`reading.column_values`), so a CSV and a workbook of one table give
-    one hash. Each row's framed bytes are gathered column by column in
-    name order and digested once the last name is read; the price is the
-    framed table held at once (`K-S6-15`'s count on a table read in
-    groups, plan P4-D418).
+    one hash. Each row's hash is fed column by column in name order and
+    read once the last name is fed; the price is one BLAKE2b state a row
+    held at once (about 460 bytes, MEASURED on Python 3.11, whatever the
+    width of the row; the framed bytes held whole cost about 1.25 kB a
+    row at 50 columns), plan P4-D418.
     """
     names = list(table.column_names)
     order = sorted((names[place], place) for place in range(len(names)))
     rows = table.n_rows
-    framed = [bytearray() for _row in range(rows)]
+    states = [hashlib.blake2b(digest_size=32, person=b"synthtwin.row.1") for _row in range(rows)]
     filled = bytearray(rows)
     for name, place in order:
         name_bytes = bytes(name, "utf-8")
@@ -499,13 +500,11 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
         for row in range(rows):
             text = values[row]
             cell = bytes(text, "utf-8")
-            framed[row] += head + _length_word(len(cell)) + cell
+            states[row].update(head + _length_word(len(cell)) + cell)
             if not _is_blank(text):
                 filled[row] = 1
-    hashes: "list[bytes]" = []
-    for row in range(rows):
-        hashes += [hashlib.blake2b(bytes(framed[row]), digest_size=32, person=b"synthtwin.row.1").digest()]
-        framed[row] = bytearray()
+    hashes = [state.digest() for state in states]
+    del states
     return hashes, filled
 
 
@@ -865,6 +864,7 @@ class _Search:
     tables: "dict[tuple[str, tuple[str, ...], tuple[int, ...]], tuple[int, ...]]"
     counts: "dict[str, int]"
     scored: "dict[tuple[str, tuple[str, ...], tuple[int, ...]], tuple[bool, fractions.Fraction]]"
+    refused: "dict[tuple[str, tuple[str, ...], tuple[int, ...]], bool]"
 
 
 def _table_at(search: _Search, child: str, parents: "tuple[str, ...]", base: "tuple[int, ...]", levels: "tuple[int, ...]") -> "tuple[int, ...]":
@@ -1166,6 +1166,7 @@ def _step_options(
                     continue
                 if not _w1_holds(search, clamps, anchor_at, anchor, child, subset, levels, table):
                     search.counts["w1_refusals"] += 1
+                    search.refused[(child, subset, levels)] = True
                     continue
                 option = Option(child, subset, levels, anchor_at, table, value)
                 found += [(anchor_at, tuple(search.place[name] for name in subset), levels, len(found), option)]
@@ -1203,6 +1204,7 @@ def _root_options(search: _Search, x0: "dict[str, int] | None", room: int) -> "l
                     continue
                 if not _w1_holds(search, None, None, None, child, (parent,), levels, table):
                     search.counts["w1_refusals"] += 1
+                    search.refused[(child, (parent,), levels)] = True
                     continue
                 option = Option(child, (parent,), levels, 0, table, rules.score(table, search.scales[parent].counts[levels[1]], search.scales[child].counts[levels[0]]) + _raise_of(search, child, (parent,)))
                 if x0 is not None:
@@ -1518,11 +1520,12 @@ def describe(
     place_of: "dict[str, int]" = {}
     for at in range(len(eligible)):
         place_of[eligible[at]] = at
-    search = _Search(columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts, {})
+    search = _Search(columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts, {}, {})
     blank_counts = {name: columns[name].blank for name in eligible}
     x0 = rules.blank_cell(scales, blank_counts)
     room = rules.blank_record_room(document, floor) + rules.outside_cells(document, set(eligible))
     placed, step_notes = search_chain(search, switch, x0, room)
+    counts["w1_refused_options"] = len(search.refused)
     notes += step_notes
     if not placed:
         return _off(OFF_ROOT, counts, notes, content)
