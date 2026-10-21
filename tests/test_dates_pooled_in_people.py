@@ -576,6 +576,42 @@ def test_a_written_member_three_people_hold_is_never_counted(tmp_path: pathlib.P
     assert _counted_few(tmp_path, "visits") == 0
 
 
+@pytest.mark.parametrize(
+    ("written", "census", "entry"),
+    (
+        ("%Y-%m-%dT%H:%M", "datetime_separators", "upper_t"),
+        ("{year}-{month}-{day} %H:%M", "date_field_widths", "unpadded"),
+    ),
+)
+def test_a_written_form_three_people_use_is_never_counted(
+    tmp_path: pathlib.Path, written: str, census: str, entry: str
+) -> None:
+    """Three patients write their stamps with a `T`, or with fields of one figure: no census of the column's written forms counts them.
+
+    At the month every bucket holds the floor, but `datetime_separators`
+    and `date_field_widths` would count the three patients' thirty rows
+    (repair round 1: the skeptic's item 2, met wherever a census counts
+    how a date is written). Every written shape is counted in people; one
+    that one to ten people write leaves no rung serving.
+    """
+    draw = random.Random(9)
+    lines = ["patient,seen"]
+    for person in range(200):
+        for _visit in range(10):
+            when = datetime.datetime(2022, 1, 1) + datetime.timedelta(minutes=draw.randrange(730 * 1440))
+            text = when.strftime("%Y-%m-%d %H:%M")
+            if person < 3:
+                text = when.strftime(written.format(year=when.year, month=when.month, day=when.day))
+            lines += [f"P{100000 + person},{text}"]
+    described = _profiled(tmp_path, "visits", "\n".join(lines) + "\n", "--identifier", "patient")
+    block = _block(described, "seen")
+    assert block["role"] == "identifier" and block["time_grain"]["rung"] == grains.HELD, block.get("time_grain")
+    assert entry not in json.dumps(block.get(census, {}))
+    twin, _real = _generated_and_validated(tmp_path, "visits")
+    assert twin == set()
+    assert _counted_few(tmp_path, "visits") == 0
+
+
 def test_the_walks_ends_are_counted_in_people_never_in_rows(tmp_path: pathlib.Path) -> None:
     """One patient's thirty rows of 2019 and three patients' forty-five of 2025 never end a span (a.csv).
 

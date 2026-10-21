@@ -6033,7 +6033,7 @@ class _Walked:
     people apart); ``thin`` names, for every rung, whether some bucket
     inside that rung's span holds one to `floor` - 1 people under some
     subject column; ``unread_thin`` whether the cells that read as no
-    moment, or a member of a joint column's resolution mix, are held so.
+    moment, or a written shape or offset of those that do, are held so.
     """
 
     grain: grains.Grain
@@ -6067,8 +6067,10 @@ def _grain_walk(
     bucket whose count one to ten people hold, by subtraction where it is
     not printed: the skeptic's item 1), and the cells that read as no
     moment (present, not an absent spelling) are counted as one value,
-    each written shape apart, beside each written member of a joint
-    column (the skeptic's items 1 and 2). A subject column of fewer than
+    each written shape apart, beside every written shape and offset of
+    the cells that read (the skeptic's items 1 and 2: `n_unparsed`,
+    `resolution_mix` and every census of how a date is written count
+    unions of them, at every rung alike). A subject column of fewer than
     `floor` values counts the column only where it is attached to it and
     tells its people apart (plan P4-D406), and then no bucket can reach
     the floor: the column is held.
@@ -6114,10 +6116,15 @@ def _grain_walk(
             named[key] = True
         if people == 0 or len(named) < people:
             people = len(named)
-    # THE CELLS THAT READ AS NO MOMENT, and the members of a joint column:
-    # counts the description at every rung publishes the same.
-    joint = time_reading.kind == grains.STAMP and time_reading.member == taxonomy.FORMAT_ISO_MIXED
+    # THE CELLS THAT READ AS NO MOMENT, AND EVERY WRITTEN FORM OF THOSE THAT
+    # DO: counts the description at every rung publishes the same --
+    # `n_unparsed`, `resolution_mix`, `datetime_separators`,
+    # `date_field_widths`, `utc_offsets` and the other censuses of how a
+    # date is written, each a union of written shapes (a figure `9`, a
+    # letter `a` or `A`) or of offsets, which a cell keeps at every rung.
+    dated = time_reading.kind in (grains.DATE, grains.STAMP)
     apart: "list[tuple[str, ...]]" = []
+    shaped: "dict[str, tuple[str, ...]]" = {}
     for place in range(len(cells)):
         cell = cells[place]
         if moments[place] is None:
@@ -6125,10 +6132,18 @@ def _grain_walk(
                 apart += [("u", f"u{grains.shape_of(cell)}")]
             else:
                 apart += [()]
-        elif joint:
-            apart += [(f"r{parsing.parse_datetime(cell, taxonomy.ISO_FORMS[1]) is not None}",)]
+            continue
+        if cell not in shaped:
+            keys: "tuple[str, ...]" = (f"s{grains.shape_of(cell)}",)
+            read = parsing.parse_datetime(cell, time_reading.member) if dated else None
+            if read is not None and read[1]:
+                keys = keys + (f"o{read[1]}",)
+            if len(shaped) < 65536:
+                shaped[cell] = keys
+            apart += [keys]
         else:
-            apart += [()]
+            apart += [shaped[cell]]
+    shaped = {}
     unread_thin = _any_thin(apart, subject_cells, enough, floor)
     apart = []
     rungs = grains.ladder(kind_reading.kind, finest)

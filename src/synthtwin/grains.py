@@ -1357,6 +1357,13 @@ def filled(
     return None
 
 
+# How many steps a made-up layout cell's very form is looked for before the
+# layout's own form is written instead (repair round 1): a held column whose
+# layouts are all withheld gives made-up cells no date can wear, and 20,000
+# steps a cell took half an hour on 2,000 rows.
+_FORM_STEPS = 64
+
+
 def _filled_layout(
     cell: str, reading: Reading, word: int, span: "tuple[int, int]", taken: "dict[str, bool]",
 ) -> "str | None":
@@ -1364,7 +1371,12 @@ def _filled_layout(
 
     Steps of a day, or of a second where the layout has a clock, from the
     drawn start to the first moment the layout writes in the made-up
-    cell's very form, no earlier made-up cell took; at most 20,000 steps.
+    cell's very form, no earlier made-up cell took, for `_FORM_STEPS`
+    steps; then, from the same start, the first moment no earlier cell
+    took written in the layout's own form at the made-up cell's length,
+    and at last at any length (its first width that reads back), so the
+    cell is a valid date whatever form it was made up in: the G1 floor
+    first, the made-up form and its length where a date can wear them.
     """
     if not parsing.is_layout_name(reading.member):
         return None
@@ -1373,14 +1385,44 @@ def _filled_layout(
     count = (end - first) // unit
     if count <= 0:
         return None
-    moment = first + bounded(word, count) * unit
-    for _step in range(20000):
+    start = first + bounded(word, count) * unit
+    step = _NS_DAY if unit == _NS_DAY else 3607 * _NS_SECOND
+    moment = start
+    for _step in range(_FORM_STEPS):
         if moment >= end:
             moment = first
         made = _layout_written(cell, reading, moment, True)
         if made is not None and made not in taken:
             return made
-        moment = moment + (_NS_DAY if unit == _NS_DAY else 3607 * _NS_SECOND)
+        moment = moment + step
+    for size in (len(cell), 0):
+        moment = start
+        for _step in range(_FORM_STEPS * 6 if size else 20000):
+            if moment >= end:
+                moment = first
+            made = _layout_own(reading, moment, size)
+            if made is not None and made not in taken:
+                return made
+            moment = moment + step
+    return None
+
+
+def _layout_own(reading: Reading, moment: int, size: int = 0) -> "str | None":
+    """A moment written in a layout's own form: its first width that reads back, with no offset.
+
+    ``size``: the first width whose text is that long, so a held column's
+    lengths hold; nought takes the first width that reads back.
+    """
+    parts = _parts_of(moment)
+    canonical = f"{parts.year:04d}-{parts.month:02d}-{parts.day:02d}"
+    if parsing.layout_has_clock(reading.member):
+        canonical = f"{canonical} {parts.hour:02d}:{parts.minute:02d}:{parts.second:02d}"
+    for width in _LAYOUT_WIDTHS:
+        text = parsing.written_layout_date(reading.member, canonical, "", width, 0)
+        if size and len(text) != size:
+            continue
+        if parsing.parse_datetime(text, reading.member) is not None:
+            return text
     return None
 
 
