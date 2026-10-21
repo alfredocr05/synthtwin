@@ -660,20 +660,24 @@ cannot get worse unseen.
   them on a table of 12 patients over 1,196 visits (`K-S3-14`, an
   accepted limit, plan P4-D348). The design for counting people per
   value is written and shelved.
-- **A long table publishes a patient's name, street address or birth
-  date while nobody has answered the person question.** No identity
-  question flags them, and no general rule reaches them without hiding
-  columns that identify nobody: 214 real values in the description over
-  600 and 20,000 rows (`K-S3-64`, plan P4-D401). Lane HX2 owns them.
+- **A name, street address or birth date is held beside a patient
+  key, declared or asked about by any question offering `identifier`,
+  and published where nothing says who the rows are.** Beside a subject column, of any number of people,
+  every published value, written form, remainder and census entry is
+  counted in people (plan P4-D406, `K-S3-65` at 0); a long table whose
+  only clue to the person is the name itself has no people to count in:
+  214 real values over 600 and 20,000 rows (`K-S3-64`'s stated shapes),
+  names and addresses owned by CODES-2's allowlist, birth dates by
+  CODES-1 part C.
 - **Dates published as plain numbers when a declared date count is
-  declined.** A `--date-count` (`excel-1900`) declined because the day
-  counts are written with a point between thousands (`42.345`)
-  describes the column as a count with a notice and publishes its mean
-  (42470.275), p05 to p95 and the tail bounds: dates attached to
-  persons, published outside the rule that counts them in subjects; the
-  same in one round and before lane AQ (its close verify, P4-D408).
-  Lane HX2 owns it (the orchestrator's addendum 2 to that lane,
-  2026-10-20): such a column is to be held, not published.
+  declined: CLOSED by lane HX2** (plan P4-D406, contract NF127; merged
+  in batch 4e). A column a person declared as counted dates whose cells
+  did not read as such dates (`42.345` for an Excel day) is held on
+  every table, one row a person or several: it publishes none of its
+  values, the twin writes made-up values there, and the screen, the
+  summary and the questions file's `held` section name it. Before, it
+  was described as a count publishing its mean (42470.275), p05 to p95
+  and the tail bounds (lane AQ's close verify, P4-D408).
 - **A record-number key written beside `-1` gets a twin that misses its
   published forms** (validate exit 3), declared or held until answered:
   on 68dae22f a declared key of 1,200 rows wrote fewer than 11 of its
@@ -681,13 +685,10 @@ cannot get worse unseen.
   P4-D401). So does a telephone number opening `+` (its `+` layout) and
   a key exported as `100001.0` (the twin writes a figure after the
   point). Lane CODES-1 part C owns them.
-- **A second record number beside a declared person column is
-  published.** A health plan or account number written with letters
-  and figures is read as a number with an affix or as labels and asked
-  nothing, since the declaration answers the person question: 71 of 132
-  values at 600 rows, 139 of 150 at 20,000 (`K-S3-64`'s stated shapes,
-  plan P4-D401). Lane HX2's rule, widened to a declared person column,
-  owns it.
+- **A second record number beside a declared person column is held**
+  (plan P4-D406): each of its values is one person's, so the column is
+  described as record numbers counted in people and publishes none
+  (`K-S3-64`, 0 at 600 and 20,000 rows).
 - **A pool's spread is no longer verified.** The owner chose on
   2026-09-21 to publish a pooled column's mean and not its spread,
   because publishing both solved for the held-back values. The twin's

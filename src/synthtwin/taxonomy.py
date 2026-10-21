@@ -752,6 +752,17 @@ EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 # Nobody declared it, so the declared sentence would be false; it is
 # described as record numbers until the question is answered.
 EVIDENCE_UNANSWERED_IDENTITY = "evidence_unanswered_identity"
+# ...and the one a column takes where the table has several rows a person
+# and a value its reading would publish is held by fewer people than the
+# smallest group size (plan P4-D406, contract NF126): it is described as
+# record numbers, and an answer cannot give its values back.
+EVIDENCE_HELD_IN_PEOPLE = "evidence_held_in_people"
+# ...and the one a column takes where a person declared or answered that it
+# writes its dates as counts and its cells did not read as such dates (plan
+# P4-D406, contract NF127): a number that counts a date is that date, so the
+# column is held on every table, one row a person or several, and is
+# described as record numbers.
+EVIDENCE_COUNTED_DATES_HELD = "evidence_counted_dates_held"
 
 # Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
@@ -1141,6 +1152,8 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_NO_READING_FITS: 5,
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     EVIDENCE_UNANSWERED_IDENTITY: 0,
+    EVIDENCE_HELD_IN_PEOPLE: 0,
+    EVIDENCE_COUNTED_DATES_HELD: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     # THE LINE, and nothing else (contract NF60). One argument, and it
@@ -2657,6 +2670,20 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             "you told synthtwin that this column holds record numbers "
             "rather than measurements"
+        )
+    if form == EVIDENCE_HELD_IN_PEOPLE:
+        return (
+            "this table has several rows a person, and a value this column "
+            "would publish is held by fewer people than the smallest group "
+            "size, so it is described as record numbers and none of its "
+            "values is published"
+        )
+    if form == EVIDENCE_COUNTED_DATES_HELD:
+        return (
+            "you said this column writes its dates as counts, but its "
+            "cells did not read as such dates, and a number that counts a "
+            "date is that date all the same, so it is described as record "
+            "numbers and none of its values is published"
         )
     if form == EVIDENCE_UNANSWERED_IDENTITY:
         return (
@@ -11607,6 +11634,27 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     # refused the producer's own document. The question is asked of the
     # shared rule, `parsing.census_names_one_row`, which the loader asks
     # too.
+    return _no_complement_of_one(
+        named, pooled, written_pool, floor, totals, len(cells.present)
+    )
+
+
+def _no_complement_of_one(
+    named: "dict[str, int]",
+    pooled: int,
+    written_pool: bool,
+    floor: int,
+    totals: "list[tuple[int, str]]",
+    n_present: int,
+) -> "dict[str, int]":
+    """C6-131b's whole-census rule over named layouts and their pool.
+
+    `_layout_forms`'s loop, stated once so that a census some of whose
+    layouts were pooled for another reason (`layouts_counted_in_people`,
+    plan P4-D406) is asked the same question. ``named`` is changed in
+    place. Guarantees: returns the census to publish, keys in sorted
+    order. Raises nothing. No I/O.
+    """
     while named or written_pool:
         taken = ""
         readings: list[tuple[int, int]] = []
@@ -11615,7 +11663,7 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
         whole = _layout_cells_within(named, "")
         if written_pool:
             whole = whole + pooled
-        readings += [(len(cells.present), whole)]
+        readings += [(n_present, whole)]
         failed = parsing.census_names_one_row({}, readings)
         if failed < 0:
             break
@@ -11635,6 +11683,71 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     if written_pool and pooled >= 2:
         published[SUPPRESSED_LABEL] = pooled
     return published
+
+
+def layouts_counted_in_people(
+    column: "ColumnProfile",
+    held: "tuple[str, ...]",
+    floor: int,
+    plain: bool,
+) -> "ColumnProfile":
+    """A record-number block whose layouts ``held`` are pooled (plan P4-D406).
+
+    Each layout of ``held`` -- one that fewer people than the floor wear
+    on a table of several rows a person -- leaves the named census for
+    the `(withheld)` pool, and the census is asked C6-131b's whole-census
+    rule again (`_no_complement_of_one`) against the totals the block
+    publishes beside it: `n_present`, `n_code_alphabet` and, where the
+    layouts are written in the plain convention (``plain``),
+    `n_all_digits`. A prefix entry of a layout no longer named goes with
+    it, and none stays where no layout is named (invariant LP1).
+
+    Guarantees: accepts a described column; returns it with those two
+    fields changed, or unchanged where it publishes no layout census.
+    Determinism: a fixed function of the arguments. Raises nothing. No
+    I/O.
+    """
+    forms = (
+        column.details["layout_forms"] if "layout_forms" in column.details else None
+    )
+    if column.role != ROLE_IDENTIFIER or not isinstance(forms, dict) or not held:
+        return column
+    pooled = 0
+    named: "dict[str, int]" = {}
+    # Asked of a set: a census of many layouts pooled one by one asked a
+    # tuple of them once a layout (Codex's review of lane HX2, item 9).
+    pooling = frozenset(held)
+    for layout in sorted(forms):
+        count = int(f"{forms[layout]}")
+        if layout == SUPPRESSED_LABEL or layout in pooling:
+            pooled = pooled + count
+        else:
+            named[f"{layout}"] = count
+    code_alphabet = column.details["n_code_alphabet"] if "n_code_alphabet" in column.details else 0
+    all_digits = column.details["n_all_digits"] if "n_all_digits" in column.details else 0
+    totals = [
+        (int(f"{code_alphabet}"), _LAYOUT_CODE_MARKS),
+        (int(f"{all_digits}") if plain else 0, _LAYOUT_FIGURE_MARKS),
+    ]
+    census = _no_complement_of_one(
+        named, pooled, pooled >= 2, floor, totals, column.n_present
+    )
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    details["layout_forms"] = census
+    prefixes = details["layout_prefixes"] if "layout_prefixes" in details else None
+    if isinstance(prefixes, dict):
+        still: "dict[str, object]" = {}
+        names_one = False
+        for layout in census:
+            if layout != SUPPRESSED_LABEL:
+                names_one = True
+        for scope in sorted(prefixes):
+            if names_one and (scope == "(column)" or scope in census):
+                still[scope] = prefixes[scope]
+        details["layout_prefixes"] = still
+    return dataclasses.replace(column, details=details)
 
 
 def _layout_prefixes(
@@ -25944,6 +26057,623 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     )
 
 
+def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
+    """A record-number description, for a column counted in people (plan P4-D406).
+
+    The column was described with ``forced_identifier`` because a value its
+    own reading would publish is held by fewer people than the floor. It
+    takes `as_unanswered_identity`'s block -- no prefix, the census its
+    published counts imply -- with its own evidence (contract NF126).
+
+    Guarantees: accepts a column described with ``forced_identifier``;
+    returns it with those fields changed, or unchanged where its role is
+    not `identifier`. Determinism: a fixed function of the argument. Raises
+    nothing. No I/O.
+    """
+    held = as_unanswered_identity(column)
+    if held.role != ROLE_IDENTIFIER:
+        return held
+    return dataclasses.replace(
+        held, detection_evidence=note(EVIDENCE_HELD_IN_PEOPLE)
+    )
+
+
+def as_counted_dates_held(column: ColumnProfile) -> ColumnProfile:
+    """A record-number description, for counted dates not read as dates (plan P4-D406).
+
+    The column was declared or answered as writing its dates as counts,
+    its cells did not read as such dates, and it was described again
+    with ``forced_identifier``: read as it reads without the
+    declaration, its mean, points and tails, or its levels, would be
+    those dates published as plain numbers (the orchestrator's LANE HX2
+    ADDENDUM 2, held on every table by its ruling on lane HX2's second
+    verify, item 3). It takes `as_unanswered_identity`'s block -- no
+    prefix, the census its published counts imply -- with its own
+    evidence (contract NF127).
+
+    Guarantees: accepts a column described with ``forced_identifier``;
+    returns it with those fields changed, or unchanged where its role is
+    not `identifier` (a column with no present cell). Determinism: a
+    fixed function of the argument. Raises nothing. No I/O.
+    """
+    held = as_unanswered_identity(column)
+    if held.role != ROLE_IDENTIFIER:
+        return held
+    return dataclasses.replace(
+        held, detection_evidence=note(EVIDENCE_COUNTED_DATES_HELD)
+    )
+
+
+def with_census_in_people(
+    column: ColumnProfile,
+    floor: int,
+    parts: "list[dict[int, int]] | None" = None,
+) -> ColumnProfile:
+    """A person column's census of rows a person, counted in people (plan P4-D406).
+
+    The census a declared record number publishes says how many values
+    cover one row, two rows and so on (review item P1-R8-F4). On the
+    column that names the PEOPLE each entry is how many people have that
+    many rows, and an entry of one to ten is a group of people smaller
+    than the floor, published under no floor (contract 5.3, I2; accepted
+    within one column by P4-D363 while nobody counted in people). Lane
+    HX2 counts it in people: an entry of at least ``floor`` people is
+    published as it is; the entries of fewer are pooled, the smallest
+    entries kept joining the pool until it holds ``floor`` people or more
+    and can be spread with no entry of fewer (`_floored_spread`), and the
+    pool's people are spread over its rows so.
+
+    NO ENTRY OF ONE TO ``floor`` - 1 EQUALS A REAL GROUP (Codex's review
+    of lane HX2, item 6: an even spread that happened to be the real
+    census printed its small group). The pool's spreads print no entry of
+    fewer than ``floor`` at all, real or not: each is a fixed function of
+    the people and rows it spreads, with entries of none or ``floor`` and
+    more. Only where none can be (a part of fewer than ``floor`` people,
+    or too few rows past one a value) is a census with a small entry
+    published, and then none that equals the real entry at its size; that
+    such a census was moved off the even one tells a reader the even one
+    was real, a reader combining the method with printed counts, which
+    the owner's rulings accept.
+
+    It is asked of a DECLARED person column: a candidate whose question
+    is open, or a subject the count held, carries the census its printed
+    counts imply (`_even_census`, lane HX's, P4-D401). ``parts`` is the real
+    census of each part the block's layout census cuts the rows into
+    (`profile._census_parts`), or None where it was not counted.
+
+    WHAT IS PUBLISHED IS ALWAYS A CENSUS THE TWIN CAN DEAL INTO THE
+    LAYOUTS (Codex's item 1), the first of:
+
+    1. the groups kept beside the pool's spread, where the pooled people
+       can be dealt into the layouts' parts beside the groups kept where
+       they really are (`_spread_meets_layouts`) -- a declared column;
+    2. the groups kept beside each part's pooled people spread over that
+       part's pooled rows -- a declared column;
+    3. the census the block's own counts imply, each layout's rows over
+       its share of the values (`_even_parts`), each part spread so; else
+       that census spread evenly where no entry of it equals a real group
+       (`_census_safe`); else each part's people -- the real parts, or
+       the implied ones -- spread a few people away from even until none
+       does (`_safe_by_parts`), which is how a column whose rows past one
+       a value are fewer than ``floor`` (no census of it is without a
+       small entry) is published;
+    4. no layout named and every person spread over every row
+       (`_whole_census`), which one part always meets.
+
+    A census the column's printed totals force -- every value on one row,
+    or all but one -- is published as it is: it says nothing they do not.
+    Where the rows past one a value are fewer than ``floor``, no census
+    that closes is without a small entry, and what is published is step
+    3's: the census the layouts' printed counts imply (`_even_parts`), or
+    the even spread of the printed rows over the printed values, only
+    where no entry of it equals a real group (`_census_safe`); else each
+    part's people moved a few rows off even until none does
+    (`_safe_by_parts`) -- a hundred people, 95 on one row and 5 on two,
+    print {1: 96, 2: 3, 3: 1} and never the real {1: 95, 2: 5}, whose
+    group of 5 the even spread is -- and else step 4's.
+
+    Guarantees: accepts a described column and the floor; returns it
+    with its census (and, in the last case, its layout census) changed,
+    or unchanged where its role publishes no census or the census holds
+    no entry of fewer people. The census still closes: entries sum to
+    the values, keys weighted by entries to the rows. Determinism: a
+    fixed function of the arguments. Raises nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER:
+        return column
+    shown = (
+        column.details["n_distinct_by_occurrences"]
+        if "n_distinct_by_occurrences" in column.details
+        else None
+    )
+    census = shown
+    if not isinstance(census, dict) or not census:
+        return column
+    truth: "dict[int, int]" = {}
+    values = 0
+    covered = 0
+    for key in census:
+        size = int(f"{key}")
+        truth[size] = int(f"{census[key]}")
+        values = values + truth[size]
+        covered = covered + size * truth[size]
+    if covered - values <= 1 or values <= 1:
+        # A CENSUS ITS PUBLISHED TOTALS FORCE: every value on one row, or
+        # all but one, which holds two -- the only census that closes on
+        # the column's present rows and different values, both printed
+        # beside it.
+        return column
+    if _no_small_entry(truth, floor):
+        return column
+    forms = (
+        column.details["layout_forms"] if "layout_forms" in column.details else None
+    )
+    layouts: "dict[str, object]" = forms if isinstance(forms, dict) else {}
+    several = len(_layout_part_rows(column.n_present, layouts)) >= 2
+    kept: "dict[int, int]" = {}
+    people = 0
+    rows = 0
+    for size in truth:
+        entry = truth[size]
+        if entry >= floor:
+            kept[size] = entry
+        elif entry > 0:
+            people = people + entry
+            rows = rows + size * entry
+    while kept and (
+        people < floor or _floored_spread(people, rows, floor) is None
+    ):
+        smallest = 0
+        for size in sorted(kept):
+            if smallest == 0 or kept[size] < kept[smallest]:
+                smallest = size
+        people = people + kept[smallest]
+        rows = rows + smallest * kept[smallest]
+        del kept[smallest]
+    spread = _floored_spread(people, rows, floor)
+    if spread is not None:
+        # (1) THE POOL'S SPREAD, dealt beside the kept groups.
+        if not several or (
+            parts is not None
+            and _spread_meets_layouts(spread, _pooled_rows(parts, kept, truth))
+        ):
+            return _with_census(column, _added(kept, spread))
+        # (2) EACH PART'S POOLED PEOPLE OVER ITS OWN POOLED ROWS.
+        pooled = None if parts is None else _pooled_people(parts, kept, truth)
+        if pooled is not None:
+            found = _floored_parts(kept, pooled, floor)
+            if found is not None:
+                return _with_census(column, found)
+    # (3) THE CENSUS THE BLOCK'S OWN COUNTS IMPLY: each part floored;
+    # else as it is, where it prints no real small group (`_census_safe`).
+    implied: "list[tuple[int, int]]" = []
+    if column.n_present >= values:
+        drawn_parts, own = _even_parts(column.n_present, values, layouts)
+        if own or not several:
+            implied = drawn_parts
+            found = _floored_parts({}, implied, floor)
+            if found is not None:
+                return _with_census(column, found)
+            even_parts: "dict[int, int]" = {}
+            for part_values, part_rows in implied:
+                for size, entry in _even_spread(part_values, part_rows):
+                    even_parts[size] = (
+                        even_parts[size] if size in even_parts else 0
+                    ) + entry
+            if _census_safe(even_parts, truth, floor):
+                return _with_census(column, even_parts)
+    # ...and, where the rows past one a value are too few for any census
+    # without a small entry, each part's people spread a few away from
+    # even until no entry equals a real group (`_safe_by_parts`): over the
+    # real parts of a declared column, else over the implied ones.
+    near_parts = implied
+    if parts is not None:
+        whole = _pooled_people(parts, {}, truth)
+        if whole is not None:
+            near_parts = whole
+    if near_parts:
+        found = _safe_by_parts({}, near_parts, truth, floor)
+        if found is not None:
+            return _with_census(column, found)
+    # (4) NO LAYOUT NAMED, every person over every row.
+    return _whole_census(column, values, covered, floor, truth)
+
+
+def _no_small_entry(census: "dict[int, int]", floor: int) -> bool:
+    """Whether every entry of a census is none or at least ``floor``."""
+    for size in census:
+        if 0 < census[size] < floor:
+            return False
+    return True
+
+
+def _added(one: "dict[int, int]", other: "dict[int, int]") -> "dict[int, int]":
+    """Two censuses added size by size."""
+    total: "dict[int, int]" = {}
+    for size in one:
+        total[size] = one[size]
+    for size in other:
+        total[size] = (total[size] if size in total else 0) + other[size]
+    return total
+
+
+def _with_census(column: ColumnProfile, sizes: "dict[int, int]") -> ColumnProfile:
+    """The column with its census of repetition replaced, in the key form."""
+    widest = 0
+    for size in sizes:
+        if sizes[size] > 0:
+            widest = max(widest, size)
+    width = len(f"{widest}")
+    spread: "dict[str, int]" = {}
+    for size in sorted(sizes):
+        if sizes[size] > 0:
+            spread[_left_padded(size, width)] = sizes[size]
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    details["n_distinct_by_occurrences"] = spread
+    return dataclasses.replace(column, details=details)
+
+
+def _census_safe(
+    published: "dict[int, int]", real: "dict[int, int]", floor: int
+) -> bool:
+    """Whether a census prints no real group of one to ``floor`` - 1 people.
+
+    PLAN P4-D406 (Codex's review of lane HX2, item 6). No entry of one
+    to ``floor`` - 1 equals the real census's entry at that size -- that
+    many real people with that many rows, printed as they are -- and the
+    people whose real entry is NOT printed as it is, the pool a reader
+    finds by subtraction, number none or ``floor`` and more. A census
+    drawn from counts alone is judged so too: a count that reproduces a
+    real group prints it, whatever drew it.
+    """
+    pool = 0
+    for size in real:
+        entry = real[size]
+        shown = published[size] if size in published else 0
+        if shown != entry:
+            pool = pool + entry
+        elif 0 < entry < floor:
+            return False
+    return not 0 < pool < floor
+
+
+# How far `_spreads_near` moves people from the even spread: at most this
+# many people in all, down a row or up one or two.
+_SPREAD_MOVES_AT_MOST = 64
+
+
+def _spreads_near(people: int, rows: int) -> "list[dict[int, int]]":
+    """``people`` over ``rows``: the even spread, then spreads a few people away from it.
+
+    `s` is the whole rows a person and `over` the rows left: `a` people
+    of `s` - 1 rows, `c` of `s` + 1 and `d` of `s` + 2 beside the rest on
+    `s`, where `c` + 2`d` - `a` = `over`, in order of `a` + `d`, the
+    people moved off the even spread (at most `_SPREAD_MOVES_AT_MOST`).
+    Each keeps the people and the rows, so a part spread so is met by
+    its own rows.
+    """
+    if people < 1:
+        return []
+    share = rows // people
+    over = rows % people
+    found: "list[dict[int, int]]" = []
+    for moved in range(0, _SPREAD_MOVES_AT_MOST + 1):
+        for twice in range(0, moved + 1):
+            down = moved - twice
+            if down > 0 and share < 2:
+                continue
+            up = over + down - 2 * twice
+            middle = people - down - up - twice
+            if up < 0 or middle < 0:
+                continue
+            sizes: "dict[int, int]" = {}
+            for size, entry in (
+                (share - 1, down),
+                (share, middle),
+                (share + 1, up),
+                (share + 2, twice),
+            ):
+                if entry > 0:
+                    sizes[size] = entry
+            found += [sizes]
+            if len(found) > 4 * _SPREAD_MOVES_AT_MOST:
+                return found
+    return found
+
+
+def _safe_by_parts(
+    fixed: "dict[int, int]",
+    parts: "list[tuple[int, int]]",
+    real: "dict[int, int]",
+    floor: int,
+) -> "dict[int, int] | None":
+    """``fixed`` beside each part's (people, rows) spread evenly, or one part spread otherwise.
+
+    The first census that is safe (`_census_safe`): every part even;
+    then, part by part (the most people first), that part spread a few
+    people away from even (`_spreads_near`), the rest even. None where
+    none is. Each part keeps its people and rows, so a twin deals the
+    census part by part.
+    """
+    evens: "list[dict[int, int]]" = []
+    total: "dict[int, int]" = {}
+    for size in fixed:
+        total[size] = fixed[size]
+    for people, rows in parts:
+        even: "dict[int, int]" = {}
+        if people > 0:
+            for size, entry in _even_spread(people, rows):
+                even[size] = entry
+        evens += [even]
+        total = _added(total, even)
+    if _census_safe(total, real, floor):
+        return total
+    order: "list[tuple[int, int]]" = []
+    for place, (people, _rows) in enumerate(parts):
+        order += [(-people, place)]
+    for _most, place in sorted(order):
+        people, rows = parts[place]
+        without: "dict[int, int]" = {}
+        for size in total:
+            without[size] = total[size] - (
+                evens[place][size] if size in evens[place] else 0
+            )
+        for near in _spreads_near(people, rows):
+            trial = _added(without, near)
+            cleaned: "dict[int, int]" = {}
+            for size in trial:
+                if trial[size] > 0:
+                    cleaned[size] = trial[size]
+            if _census_safe(cleaned, real, floor):
+                return cleaned
+    return None
+
+
+# How many people `_floored_spread` moves off the even spread at most, in
+# floors: a row down, a row up or two rows up.
+_FLOORS_MOVED_AT_MOST = 3
+
+
+def _floored_spread(people: int, rows: int, floor: int) -> "dict[int, int] | None":
+    """``people`` over ``rows`` with no entry of one to ``floor`` - 1, or None.
+
+    PLAN P4-D406. `s` is the whole rows a person and `over` the rows left.
+    The even spread (`over` people on `s` + 1, the rest on `s`) where its
+    entries are none or ``floor`` and more; otherwise `a` people moved down
+    to `s` - 1 and `d` up to `s` + 2 beside `c` on `s` + 1 and the rest on
+    `s`, where `c` + 2`d` - `a` = `over`, every entry none or ``floor``
+    and more, the fewest people moved first (`a` + `d`, then `a`), each of
+    `a` and `d` none or ``floor`` to ``_FLOORS_MOVED_AT_MOST`` floors. A
+    fixed function of the three numbers, so what it prints tells nothing
+    of the real groups beyond them. None where no such spread exists (a
+    part of fewer than ``floor`` people).
+    """
+    if people < 1:
+        return {}
+    share = rows // people
+    over = rows % people
+    moves = [0] + list(range(floor, floor * _FLOORS_MOVED_AT_MOST + 1))
+    best: "tuple[int, int, int] | None" = None
+    for down in moves:
+        if down > 0 and share < 2:
+            continue
+        for twice in moves:
+            up = over + down - 2 * twice
+            middle = people - down - up - twice
+            if up < 0 or middle < 0:
+                continue
+            if 0 < up < floor or 0 < middle < floor:
+                continue
+            ranked = (down + twice, down, twice)
+            if best is None or ranked < best:
+                best = ranked
+    if best is None:
+        return None
+    down = best[1]
+    twice = best[2]
+    up = over + down - 2 * twice
+    sizes: "dict[int, int]" = {}
+    for size, entry in (
+        (share - 1, down),
+        (share, people - down - up - twice),
+        (share + 1, up),
+        (share + 2, twice),
+    ):
+        if entry > 0:
+            sizes[size] = entry
+    return sizes
+
+
+def _floored_parts(
+    fixed: "dict[int, int]", parts: "list[tuple[int, int]]", floor: int
+) -> "dict[int, int] | None":
+    """``fixed`` beside each part's (people, rows) spread with no small entry, or None."""
+    total: "dict[int, int]" = {}
+    for size in fixed:
+        total[size] = fixed[size]
+    for people, rows in parts:
+        if people == 0:
+            continue
+        spread = _floored_spread(people, rows, floor)
+        if spread is None:
+            return None
+        total = _added(total, spread)
+    return total
+
+
+def _whole_census(
+    column: ColumnProfile,
+    people: int,
+    rows: int,
+    floor: int,
+    real: "dict[int, int]",
+) -> ColumnProfile:
+    """Every person spread over every row, no layout named (plan P4-D406).
+
+    The last census `with_census_in_people` publishes: one part, which
+    any closing census meets, so the layout census names no layout (its
+    prefixes go with it, invariant LP1), and the people spread with no
+    entry of fewer than ``floor`` (`_floored_spread`); where none can be
+    -- a column of a handful of people -- the even spread, a function of
+    the column's published rows and values alone.
+    """
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    if "layout_forms" in details:
+        details["layout_forms"] = {}
+    if "layout_prefixes" in details:
+        details["layout_prefixes"] = {}
+    found = _floored_spread(people, rows, floor)
+    if found is None:
+        found = _safe_by_parts({}, [(people, rows)], real, floor)
+    if found is None:
+        found = {}
+        for size, entry in _even_spread(max(people, 1), rows):
+            found[size] = entry
+    return _with_census(dataclasses.replace(column, details=details), found)
+
+
+def _pooled_people(
+    parts: "list[dict[int, int]]", kept: "dict[int, int]", real: "dict[int, int]"
+) -> "list[tuple[int, int]] | None":
+    """Each part's pooled (people, rows), the groups kept staying where they are.
+
+    Empty where the parts are not the column's census (the caller then
+    publishes a census it can prove another way).
+    """
+    if not _pooled_rows(parts, kept, real):
+        return None
+    found: "list[tuple[int, int]]" = []
+    for part in parts:
+        people = 0
+        rows = 0
+        for size in part:
+            if size not in kept:
+                people = people + part[size]
+                rows = rows + size * part[size]
+        found += [(people, rows)]
+    return found
+
+
+def _pooled_rows(
+    parts: "list[dict[int, int]]", kept: "dict[int, int]", real: "dict[int, int]"
+) -> "list[int]":
+    """The rows each part's pooled people hold, the groups kept staying where they are.
+
+    Empty where the parts do not add up to the column's census, which is
+    then not dealt (`_spread_meets_layouts` reads an empty list as
+    unmet).
+    """
+    added: "dict[int, int]" = {}
+    pooled: "list[int]" = []
+    for part in parts:
+        rows = 0
+        for size in part:
+            added[size] = (added[size] if size in added else 0) + part[size]
+            if size not in kept:
+                rows = rows + size * part[size]
+        pooled += [rows]
+    for size in real:
+        if real[size] != (added[size] if size in added else 0):
+            return []
+    for size in added:
+        if size not in real:
+            return []
+    return pooled
+
+
+def _layout_part_rows(n_present: int, forms: "dict[str, object]") -> "list[int]":
+    """The rows of each part a layout census cuts the present rows into (`_even_census`).
+
+    Each named layout, the `(withheld)` pool, and the present cells no
+    entry counts, each a part.
+    """
+    parts: "list[int]" = []
+    named = 0
+    for key in sorted(forms):
+        entry = forms[key]
+        if isinstance(entry, int) and entry > 0:
+            parts += [entry]
+            named = named + entry
+    if n_present > named:
+        parts += [n_present - named]
+    return parts
+
+
+def census_part_names(forms: "dict[str, object]") -> "list[str]":
+    """The parts of the rows a layout census names, in order (plan P4-D406).
+
+    Each named layout with rows, in sorted order, and then one part for
+    every present cell no named layout takes -- the `(withheld)` pool and
+    the cells left to subtraction, which `profile._census_parts` counts
+    as one and reads as not counted where both hold rows.
+    """
+    names: "list[str]" = []
+    for key in sorted(forms):
+        entry = forms[key]
+        if key != SUPPRESSED_LABEL and isinstance(entry, int) and entry > 0:
+            names += [f"{key}"]
+    return names
+
+
+def _spread_meets_layouts(sizes: "dict[int, int]", parts: "list[int]") -> bool:
+    """Whether the pool's even spread can be dealt into the parts' pooled rows.
+
+    PLAN P4-D406 (Codex's review of lane HX2, item 1). ``sizes`` is the
+    spread of the pooled people alone -- one size `s`, or `s` and `s` +
+    1 -- and ``parts`` the rows the pooled people hold in each part of
+    the layout census, the groups kept standing where they really are,
+    so a deal found here is a twin that meets the census beside its
+    layouts. A part of `r` pooled rows takes `a` people of `s` rows and
+    `b` of `s` + 1 exactly where `s` * `a` + (`s` + 1) * `b` = `r`: `a`
+    is `-r` modulo `s` + 1, or that plus a multiple of `s` + 1, up to
+    `r` // `s`. Each part's least `a` must be possible, and the `a`s
+    must add up to the spread's people of `s` rows: their sum moves in
+    steps of `s` + 1 between the least and the most. Any other census
+    (sizes further apart, an empty ``parts``) reads as unmet, and the
+    caller publishes a census it can prove instead.
+    """
+    if not parts:
+        return False
+    smallest = 0
+    for size in sizes:
+        if sizes[size] > 0 and (smallest == 0 or size < smallest):
+            smallest = size
+    if smallest < 1:
+        return False
+    for size in sizes:
+        if sizes[size] > 0 and size not in (smallest, smallest + 1):
+            return False
+    wanted = sizes[smallest]
+    least = 0
+    steps = 0
+    for rows in parts:
+        first = (-rows) % (smallest + 1)
+        most = rows // smallest
+        if first > most:
+            return False
+        least = least + first
+        steps = steps + (most - first) // (smallest + 1)
+    if wanted < least or (wanted - least) % (smallest + 1) != 0:
+        return False
+    return (wanted - least) // (smallest + 1) <= steps
+
+
+def _even_spread(people: int, rows: int) -> "list[tuple[int, int]]":
+    """``people`` spread over ``rows`` as evenly as whole rows go: (rows a person, people)."""
+    share = rows // people
+    over = rows % people
+    found: "list[tuple[int, int]]" = []
+    if people > over:
+        found += [(share, people - over)]
+    if over:
+        found += [(share + 1, over)]
+    return found
+
+
 def _even_census(
     n_present: int, census: "dict[str, object]", forms: "dict[str, object]"
 ) -> "dict[str, int]":
@@ -25983,6 +26713,29 @@ def _even_census(
         for key in census:
             kept[key] = int(f"{census[key]}")
         return kept
+    spread, _each = _even_parts(n_present, values, forms)
+    sizes: "dict[int, int]" = {}
+    for count, rows in spread:
+        for size, entry in _even_spread(count, rows):
+            sizes[size] = (sizes[size] if size in sizes else 0) + entry
+    widest = 0
+    for size in sizes:
+        widest = max(widest, size)
+    width = len(f"{widest}")
+    for size in sorted(sizes):
+        kept[_left_padded(size, width)] = sizes[size]
+    return kept
+
+
+def _even_parts(
+    n_present: int, values: int, forms: "dict[str, object]"
+) -> "tuple[list[tuple[int, int]], bool]":
+    """`_even_census`'s parts: (values, rows) of each, and whether each layout's part is its own.
+
+    The second answer is false where `_values_per_part` found no share
+    and the whole column was spread as one part beside several layouts,
+    which a twin may not be able to deal (plan P4-D406).
+    """
     parts: "list[int]" = []
     room: "list[int]" = []
     named = 0
@@ -25996,27 +26749,15 @@ def _even_census(
         parts += [n_present - named]
         room += [values]
     shares = _values_per_part(values, parts, room, n_present)
+    own = True
     if not shares:
+        own = len(parts) < 2
         parts = [n_present]
         shares = [values]
-    sizes: "dict[int, int]" = {}
+    found: "list[tuple[int, int]]" = []
     for place, rows in enumerate(parts):
-        count = shares[place]
-        share = rows // count
-        over = rows % count
-        if count > over:
-            sizes[share] = (sizes[share] if share in sizes else 0) + count - over
-        if over:
-            sizes[share + 1] = (
-                sizes[share + 1] if share + 1 in sizes else 0
-            ) + over
-    widest = 0
-    for size in sizes:
-        widest = max(widest, size)
-    width = len(f"{widest}")
-    for size in sorted(sizes):
-        kept[_left_padded(size, width)] = sizes[size]
-    return kept
+        found += [(shares[place], rows)]
+    return found, own
 
 
 def _layout_room(layout: str, values: int) -> int:

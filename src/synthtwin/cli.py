@@ -3051,6 +3051,47 @@ def _table_sentences(document: "dict[str, object]") -> "list[str]":
     return said
 
 
+def _held_as_counted_dates(described_column: "dict[str, object]") -> bool:
+    """Whether a column block is held as counted dates its cells did not read as (NF127).
+
+    Asked of the block's EVIDENCE, never of its role (lane HX2's close
+    verify, item 1): the count in people (NF126) makes a declared column
+    that DID read as dates a record number too, and naming it as a
+    declaration that did not reach told the person something false and a
+    remedy that changes nothing. Raises nothing, opens no file.
+    """
+    from synthtwin import taxonomy
+
+    if "detection_evidence" not in described_column:
+        return False
+    return f"{described_column['detection_evidence']}" == taxonomy.rendered(
+        taxonomy.EVIDENCE_COUNTED_DATES_HELD, ()
+    )
+
+
+def _held_counted_dates(
+    document: "dict[str, object]", counted: "dict[str, str]"
+) -> "list[tuple[str, str]]":
+    """Each column declared as counted dates that did not read so, with its system.
+
+    Plan P4-D406 (contract NF127): such a column is held on every table,
+    and the questions file names it beside the screen and the summary
+    (the orchestrator's LANE HX2 ADDENDUM 2). Read back out of the FINAL
+    document, as `_table_sentences` is, in the table's column order: a
+    declared column whose block carries NF127's evidence
+    (`_held_as_counted_dates`). Raises nothing, opens no file.
+    """
+    held: "list[tuple[str, str]]" = []
+    for described_column in _described_columns(document):
+        name = f"{described_column['name']}"
+        if name not in counted:
+            continue
+        if not _held_as_counted_dates(described_column):
+            continue
+        held += [(name, counted[name])]
+    return held
+
+
 def _counted_in_rows_notice(names: "list[str]") -> str:
     """What the screen says when nobody has said who the rows are about.
 
@@ -3110,6 +3151,30 @@ def _withheld_notice(names: "tuple[str, ...]") -> str:
         f"the twin writes made-up record numbers there. Answer the "
         f"questions file, and run the command again with --answers: any "
         f"answer gives the column the description that answer names."
+    )
+
+
+def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
+    """What the screen says of the columns whose values were counted in people.
+
+    Plan P4-D406. On a table of several rows a person, a value fewer
+    than the smallest group size of PEOPLE hold is not published however
+    many rows hold it: its column is described as record numbers, and the
+    twin writes made-up values in the column's layouts.
+
+    Guarantees: accepts the columns and the floor; returns one
+    paragraph. A fixed function of the names, which are the table's own
+    column names and are published in the description like every other.
+    Raises nothing, opens no file.
+    """
+    return (
+        f"\nVALUES HELD BY FEWER THAN {floor} PEOPLE\n"
+        f"This table has several rows a person, so each value of "
+        f"{_joined(list(names), ' and ')} was counted in people as well "
+        f"as rows: a value fewer than {floor} people hold is not "
+        f"published however many rows hold it, so these columns are "
+        f"described as record numbers and the twin writes made-up values "
+        f"there. No answer gives such a value back."
     )
 
 
@@ -4148,6 +4213,9 @@ def _run_profile(
     # again, and the reading would only be held beside them.
     census_box = [census_readings if read.source is None else ()]
     census_readings = ()
+    # The columns whose values the count in people changed (plan
+    # P4-D406), named on the screen.
+    counted_in_people: "list[str]" = []
     document = profile.build_document(
         read,
         settings,
@@ -4168,6 +4236,9 @@ def _run_profile(
         # as one lived through the whole description there.
         readings_box=census_box,
         stored_as=storage,
+        # -- P4-D406: every value counted in the declared people too.
+        subjects=list(person_columns),
+        counted_in_subjects=counted_in_people,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -4202,16 +4273,18 @@ def _run_profile(
             )
     # -- 3b.R4 (P4-D384): ...AND A COLUMN DECLARED TO WRITE ITS DATES AS
     # COUNTS WHOSE CELLS DID NOT READ AS SUCH DATES, said here as the
-    # description says it (NF115).
+    # description says it: held, on every table (plan P4-D406, NF127),
+    # chosen by its evidence and never by its role, which the count in
+    # people (NF126) sets to `identifier` for a column read as dates.
     for name in sorted(counted):
         for described_column in _described_columns(document):
             if described_column["name"] != name:
                 continue
-            if described_column["role"] == taxonomy.ROLE_DATETIME:
+            if not _held_as_counted_dates(described_column):
                 continue
             _warn(
                 errors.the_date_count_declaration_did_not_reach(
-                    name, counted[name], f"{described_column['role']}"
+                    name, counted[name]
                 )
             )
     # ...AND THE 12-HOUR DECLARATION, WHICH REACHES ONLY AN UNMARKED CLOCK
@@ -4500,6 +4573,7 @@ def _run_profile(
                 )
                 census_box = [census_readings if read.source is None else ()]
                 census_readings = ()
+                counted_in_people = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -4512,6 +4586,8 @@ def _run_profile(
                     table_notes=population_notes,
                     readings_box=census_box,
                     stored_as=storage,
+                    subjects=list(person_columns),
+                    counted_in_subjects=counted_in_people,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -4674,9 +4750,44 @@ def _run_profile(
             )
             + identities_kept,
         )
+    # THE CANDIDATES OF THE OPEN PERSON QUESTION ARE SUBJECTS whether or
+    # not their own description is held (Codex's review of lane HX2,
+    # item 4): a key read as free text publishes no value of its own, so
+    # it is held by nothing above, yet every other value is still counted
+    # in it.
+    candidates: "list[str]" = []
+    if not answered:
+        declared_here = (
+            forced_identifiers
+            + forced_codes
+            + forced_measurements
+            + list(forced_decimal_commas)
+            + list(twelve_hours)
+            + list(date_columns)
+            + sorted(counted)
+            + list(identities_kept)
+        )
+        for question in asked_about:
+            if (
+                question.reason == asking.BECAUSE_REPEATS_AND_MANY
+                and asking.offers_identifier(question)
+                and question.name not in declared_here
+                and question.name not in withheld
+                and question.name not in candidates
+            ):
+                candidates += [question.name]
     published = document
-    if withheld:
-        _warn(_withheld_notice(withheld))
+    if withheld or candidates:
+        if withheld:
+            _warn(_withheld_notice(withheld))
+        # ...and every column held so -- the candidates of the open
+        # person question, and a key held by another identity question,
+        # such as a patient number of figures padded with zeros that the
+        # codes-or-measurements question was put to -- is a subject every
+        # other value is counted in (plan P4-D406; lane HX2's skeptic,
+        # round 2, item 1). One that never repeats counts in rows, as the
+        # floor does, and is set aside by `profile.build_document`.
+        counted_in_people = []
         published = profile.build_document(
             read,
             settings,
@@ -4689,6 +4800,18 @@ def _run_profile(
             table_notes=population_notes,
             stored_as=storage,
             unanswered=list(withheld),
+            subjects=list(person_columns) + list(withheld) + candidates,
+            counted_in_subjects=counted_in_people,
+        )
+    if counted_in_people:
+        named_once: "list[str]" = []
+        for name in counted_in_people:
+            if name not in named_once:
+                named_once += [name]
+        _warn(
+            _counted_in_people_notice(
+                tuple(named_once), settings.small_cell_floor
+            )
         )
 
     # The summary crosses the boundary ONCE, here, and the same text is
@@ -5104,6 +5227,9 @@ def _run_profile(
                     ),
                     # ...with the names those answers use (P4-D408).
                     answered_columns=list(read.column_names),
+                    # ...and each column declared as counted dates that
+                    # did not read so, held on every table (P4-D406).
+                    held_dates=_held_counted_dates(document, counted),
                 )
             ),
             sources=guarded_questions,

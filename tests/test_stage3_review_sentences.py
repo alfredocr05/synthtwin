@@ -171,11 +171,13 @@ def test_every_page_explaining_the_floor_names_the_unit_each_one_counts(
     explained.
 
     MEASURED HERE: a hundred declared people of twelve visits each, one
-    of whom holds a value nobody else does. The value is published with
-    the count of that person's ROWS at the default floor -- the test
-    reads the count off the description and checks it against the visits
-    per person rather than against the number 12 -- while the population
-    notice above it counts the table in people.
+    of whom holds a value nobody else does. Until lane HX2 the value was
+    published with the count of that person's ROWS at the default floor.
+    Since plan P4-D406 a value is counted in the declared people as well,
+    so the column holding it is held as a record number and the value is
+    not published; the floor itself still counts rows, which is what the
+    sentences below say, and where nobody has said who the rows are the
+    lone value is still published with its rows.
     """
     visits = 12
     people = 100
@@ -198,25 +200,23 @@ def test_every_page_explaining_the_floor_names_the_unit_each_one_counts(
         for column in document["columns"]
         for level in (column.get("levels") or [])
     }
-    assert counts.get("lone") == visits, (
-        "one person's own value is no longer published with the count of "
-        f"their rows ({counts.get('lone')!r} against {visits} visits), so "
-        "re-measure P4-D348 before trusting the sentences below."
-    )
-    # AND THE COUNT CLEARS THE FLOOR, which is the whole of P4-D348: the
-    # floor counts rows, one person holds this many of them, so nothing
-    # holds the value back.
+    # COUNTED IN PEOPLE (plan P4-D406): the lone value stands on twelve
+    # rows, which clear the floor, and on one person, who does not.
     floor = document["settings"]["small_cell_floor"]
-    assert counts["lone"] >= floor, (
-        f"one person's {visits} visits no longer clear a floor of {floor}, "
-        "so this shape does not exercise the limit the sentences below "
-        "have to state."
+    assert visits >= floor
+    assert "lone" not in counts, (
+        "one person's own value is published with the count of their rows "
+        "beside a declared person column, which plan P4-D406 closed."
+    )
+    grade = [column for column in document["columns"] if column["name"] == "grade"][0]
+    assert grade["detection_evidence"] == taxonomy.rendered(
+        taxonomy.EVIDENCE_HELD_IN_PEOPLE, ()
     )
     summary = (tmp_path / "table-profile.txt").read_text(encoding="utf-8")
     assert not _says(summary, "every count here is a count over that population"), (
         "the population notice still says every count is a count over the "
         f"population, which this description counts in people ({people}) "
-        f"while its counts are rows: 'lone' publishes {counts['lone']}. Say "
+        f"while its counts are rows. Say "
         "which unit each number is in."
     )
     assert _says(summary, "every count here is a count of ROWS over that population"), (

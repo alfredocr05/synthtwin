@@ -54,7 +54,11 @@ SEED = 20261016
 
 # The lanes of the December plan a failing kind may be owned by, and the
 # words for one no lane covers yet (the orchestrator names a new one).
-PLAN_LANES = ("DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", *zoo.ZOO_LANES, zoo.NEEDS_OWNER)
+# Lanes MG and PS own what lane HX2's count in people costs the zoo (plan
+# P4-D406; batch 4e's integration).
+PLAN_LANES = (
+    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "MG", "PS", *zoo.ZOO_LANES, zoo.NEEDS_OWNER,
+)
 
 # The kinds the lane's step names, and the ones its reviews found missing
 # (skeptic 1, item 4; Codex, item 6; the tripwire of repair 1, item 6):

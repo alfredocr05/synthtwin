@@ -815,11 +815,15 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 721,500 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
+    # 732,500 from 716,000, AT THE INTEGRATION OF BATCH 4E (2026-10-21),
     # INTERIM, set once at the batch's records: lane G2T's `K-S4-20` and
     # `K-S4-21` kept by id (its branch raised its own cap to 627,500, below)
-    # with their two note clauses, the count of entries off the base 126,
-    # 721,076 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # with their two note clauses, then lane HX2's `K-S3-65` and its
+    # `K-S3-64` (635,000 on its branch, below) with its clause in place of
+    # HX's, the count of entries off the base 127, 729,293 bytes; then
+    # `K-HZ-01`'s and `K-HZ-02`'s bounds moved to what lane HX2's count in
+    # people costs the health data zoo, with their status notes, 731,978
+    # bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
     # set once, the least round figure the merged ledger fits under: lane
@@ -905,6 +909,29 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # several rounds write against one, with its note clause, 629,268
     # bytes. The integrator sets the cap for the batch as a whole. A
     # MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 635,000 from 633,000, LANE HX2'S THIRD REPAIR (2026-10-20, plan
+    # P4-D406), the least round figure the lane's ledger fits under:
+    # `K-S3-64` over its visit-date shape and `K-S3-65` judging its
+    # coverage (`not_counted`, `skipped`, `coverage_short`). A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 633,000 from 632,000, LANE HX2'S SECOND REPAIR (2026-10-20, plan
+    # P4-D406), the least round figure the lane's ledger fits under:
+    # `K-S3-64` and `K-S3-65` restated over every held key, the merged
+    # spellings and the layouts' pool. A MEASUREMENT IS NEVER TRIMMED TO
+    # FIT.
+    #
+    # 632,000 from 631,000, LANE HX2'S FIRST REPAIR (2026-10-20, plan
+    # P4-D406), the least round figure the lane's ledger fits under:
+    # `K-S3-65` and `K-S3-64` restated over the repair's wider count,
+    # 631,713 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 631,000 from 626,000, LANE HX2 OF THE DECEMBER PLAN (2026-10-19, plan
+    # P4-D406), the least round figure the lane's ledger fits under:
+    # `K-S3-65`, published values fewer than eleven people hold, and
+    # `K-S3-64` restated over its counted shapes. The integrator sets the
+    # cap for the batch as a whole. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 626,000 from 625,000, LANE HX'S REPAIR ROUND (2026-10-16, plan
     # P4-D401), the least round figure the lane's ledger fits under:
@@ -1236,7 +1263,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 721_500
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 732_500
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

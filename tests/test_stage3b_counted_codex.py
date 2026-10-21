@@ -4,7 +4,8 @@ Each clause reproduces the reviewer's own input and turned red on the
 landing's head, `dbb347a`:
 
 * item 1 -- a declared column mixing counts with dates written as text is
-  declined in NF115 with a way out, and the producer never writes a
+  declined with a way out -- in NF115 until plan P4-D406, held as a
+  record number since (NF127) -- and the producer never writes a
   description its loader refuses (a battery over mixed columns);
 * item 2 -- a column is settled only to a unit its writer keeps: Excel
   serials written `%.14f` are read at the millisecond, and every moment
@@ -105,29 +106,50 @@ def _block_of(tmp: pathlib.Path, cells: "list[str]") -> "dict[str, object]":
 
 
 def _declined(block: "dict[str, object]") -> bool:
-    remarks = block["remarks"]
-    assert isinstance(remarks, list)
-    return block.get("count_form") is None and any(contract.COUNTED_NOT_READ_MARK in remark for remark in remarks)
+    """The declaration did not reach, and the column is HELD (plan P4-D406, contract NF127).
+
+    Since lane HX2's close (the orchestrator's ruling on its second verify,
+    item 3) a column a person declared as counted dates whose cells did
+    not read so is never described as the numbers or labels it reads as,
+    which publishes those dates as plain numbers: it is held as a record
+    number on every table, its declaration taken out of the settings, and
+    the screen, the summary and the questions file say why and what to do.
+    NF115's remark is carried by descriptions written before that.
+    """
+    return (
+        block.get("count_form") is None
+        and block["role"] == taxonomy.ROLE_IDENTIFIER
+        and block["detection_evidence"]
+        == taxonomy.rendered(taxonomy.EVIDENCE_COUNTED_DATES_HELD, ())
+    )
+
+
+# What the SOURCE misses against its held description: the census of
+# repetition the held block draws from its published counts, by design
+# (contract NF126 and NF127), and nothing else.
+_HELD_CENSUS = {"distinct.n_distinct_by_occurrences"}
 
 
 # -- item 1: counts beside dates written as text --------------------------------
 
 
 def test_item1_counts_beside_iso_dates_are_declined_with_a_way_out(tmp_path: pathlib.Path) -> None:
-    """900 Excel serials and 100 cells `2023-06-01`: no twin of numbers alone, and NF115 says why and what to do.
+    """900 Excel serials and 100 cells `2023-06-01`: no twin of numbers alone, and the run says why and what to do.
 
     On `dbb347a` the column was described as counted dates with no
     unparsed cell, its twin held numbers only, and the source met its own
-    form check.
+    form check. Declined, the column is held (NF127), and the screen says
+    to write every date one way, as NF115 does.
     """
     cells = [f"{45000 + row}" for row in range(900)] + ["2023-06-01"] * 100
     random.Random(1).shuffle(cells)
     trip = _described(tmp_path, cells, "excel-1900")
     block = trip["block"]
     assert isinstance(block, dict)
-    assert _declined(block), block["count_form"]
+    assert _declined(block), block
     said = taxonomy.rendered(taxonomy.REMARK_COUNTED_DATES_NOT_READ, ("excel-1900",))
     assert "written as dates in text" in said and "the same way" in said
+    assert "written as dates in text" in f"{trip['said']}" and "the same way" in f"{trip['said']}"
     twin = _twin(trip, tmp_path / "twin")
     assert any(not parsing.is_digit_text(cell) for cell in twin if cell)
 
@@ -142,7 +164,7 @@ def test_item1_epic_contacts_beside_iso_dates_never_write_what_the_loader_refuse
     assert _declined(block)
     _twin(trip, tmp_path / "twin")
     assert _missed(trip, tmp_path / "twin" / "table-twin.csv") == []
-    assert _missed(trip, trip["path"]) == []
+    assert set(_missed(trip, trip["path"])) <= _HELD_CENSUS
 
 
 _MIXED_COUNTS = {
@@ -184,17 +206,17 @@ def test_item1_the_producer_always_loads_over_mixed_count_and_text_columns(
         assert _declined(block), (counts, texts, share)
     _twin(trip, tmp_path / "twin")
     missed = _missed(trip, tmp_path / "twin" / "table-twin.csv")
-    assert _missed(trip, trip["path"]) == []
     if block.get("count_form") is not None:
+        assert _missed(trip, trip["path"]) == []
         assert missed == []
         return
-    # DECLINED, THE COLUMN IS THE COLUMN UNDECLARED: its twin meets its
-    # description as the undeclared one's does (a free-text twin of
-    # numbers beside dates misses its published forms either way, a limit
-    # of the free-text role that no declaration touches).
-    plain = _described(tmp_path / "plain", cells, "")
-    _twin(plain, tmp_path / "plain" / "twin")
-    assert missed == _missed(plain, tmp_path / "plain" / "twin" / "table-twin.csv"), (counts, texts, share)
+    # DECLINED, THE COLUMN IS HELD (plan P4-D406, contract NF127; lane
+    # HX2's close): no value of it is published, its twin meets the held
+    # description, and the source misses only the census of repetition the
+    # held block draws from its published counts.
+    assert _declined(block), (counts, texts, share)
+    assert missed == [], (counts, texts, share)
+    assert set(_missed(trip, trip["path"])) <= _HELD_CENSUS, (counts, texts, share)
 
 
 # -- item 2: a unit the writer keeps -------------------------------------------
@@ -297,11 +319,26 @@ def test_item3_the_source_meets_the_form_its_producer_published(
     cells = [spelled(row) for row in range(100)]
     trip = _described(tmp_path, cells, "seconds-since-1970")
     assert "form.count_form" not in _missed(trip, trip["path"])
-    # WHETHER THE FORM IS PUBLISHED OR THE DECLARATION DECLINED, the twin
-    # meets the description: a declined column's twin is read without the
-    # declaration, as its source was.
     _twin(trip, tmp_path / "twin")
-    assert _missed(trip, tmp_path / "twin" / "table-twin.csv") == []
+    missed = _missed(trip, tmp_path / "twin" / "table-twin.csv")
+    block = trip["block"]
+    assert isinstance(block, dict)
+    if _declined(block):
+        # DECLINED, THE COLUMN IS HELD (plan P4-D406, NF127): its twin
+        # writes made-up figures in the column's layouts, a figure after
+        # the point where the source wrote `.0` or an exponent of whole
+        # counts, so a column of whole counts misses `type.all_whole_numbers`
+        # -- the identifier generator's stated limit (a key exported as
+        # `100001.0`, lane CODES-1 part C; P4-D406 stated limit 8) -- and
+        # nothing else. Red once it is met.
+        whole = block["all_whole_numbers"] is True
+        assert missed == (["type.all_whole_numbers"] if whole else []), missed
+        return
+    # PUBLISHED, only as dates (lane HX2's close verify, item 2): read as
+    # a count or a number, the column would publish those dates as plain
+    # numbers (mutant `declined_published`). The twin meets the description.
+    assert block.get("count_form") is not None, block
+    assert missed == []
 
 
 def test_item3_an_exponent_forms_own_writing_is_one_its_checker_holds() -> None:
@@ -536,7 +573,9 @@ def test_item7_one_count_longer_than_python_writes_as_text_is_held_to_its_own_fo
     cells = _one_long_serial(4400)
     declared = _described(tmp_path / "declared", cells, "excel-1900")
     block = declared["block"]
-    assert isinstance(block, dict) and block["role"] == "continuous" and _declined(block), block["remarks"]
+    # Declined, and since plan P4-D406 HELD rather than read as numbers
+    # (NF127): its mean and points would be those dates.
+    assert isinstance(block, dict) and _declined(block), block
     undeclared = _described(tmp_path / "undeclared", cells, "")
     block = undeclared["block"]
     assert isinstance(block, dict) and block["role"] == "continuous" and block.get("count_form") is None

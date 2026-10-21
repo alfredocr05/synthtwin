@@ -6,6 +6,71 @@ exists).
 
 ## [Unreleased]
 
+### On a table of several rows a person, every published value is counted in persons (2026-10-19)
+
+**A value fewer than 11 people hold is not published, however many rows
+hold it** (plan P4-D406, lane HX2 of the December plan). The floor
+counted rows, so a value one patient holds on fourteen rows passed it:
+beside a declared person column, health plan and account numbers were
+published (139 and 137 of 150 at 20,000 rows), and beside a patient key
+whose person question was open, names, street addresses and birth
+dates. Now, where a person column is declared or answered, or a question
+offering `identifier` is open on a column that repeats (the person
+question's candidates, or a patient number padded with zeros that the
+codes-or-measurements question is put to), each value another column
+would publish is counted in different people under every such column,
+one person's key written `REC-0007`, `rec7` or `Rec 7` counted once; a column that would publish
+one held by fewer than 11 of them is described as record numbers
+(contract NF126), its twin writes made-up values in its layouts, and the
+screen names it. A column with one value a person (a birth date, a name)
+and a column of dates or times of day count every value they publish;
+any other counts the values eleven rows or more hold, and keeps its
+points along the range as on a table of one row a person. Written forms,
+the remainder the floor merges and a column's present rows are counted
+in people too, and a record number's layouts worn by fewer than eleven
+people are pooled, a person column's own under every other person column,
+until the pool itself is held by eleven people or more. A person
+column's census of rows a person keeps each entry of eleven people or
+more and spreads the rest evenly, never back into a real group of fewer;
+written in two layouts or more, it publishes the census its published
+counts imply, layout by layout, which its twin can meet. A table with no such column, or whose person
+column is different on every row, is described exactly as before; a key
+of fewer than eleven values put the person question counts only the
+columns attached to it that tell its values apart, so the names and
+birth dates of ten patients are held and a filler code blanks nothing.
+KPI `K-S3-65` (new): 0 published values in the rule's scope over the long
+tables of K-S3-64, the gate and the healthcare catalogue; `K-S3-64` now
+holds the nine counted shapes at 0. Held date columns' twins write figures in the
+dates' layout that do not read as dates (lane PS pools them). Measured
+costs and the limits left to lanes MG, PS, CODES-1 part C and CODES-2
+are in P4-D406.
+
+**People are counted as the run reads them** (lane HX2's third repair,
+after its combined verify and Codex's review). A patient key written in twelve
+cases is one person, and every spelling of nobody (`NA`, `null`,
+`#DIV/0!`, a blank) is one unknown person, so a label five patients hold
+on 60 rows is no longer published. Every candidate of an open person
+question counts, even one read as free text, so the birth dates beside it
+are held. A cell is matched to the value its column prints as the column
+reads it: `8:30` is the `08:30` of a clock column, `19000` the date a
+declared count of days names, `10,07` the number a declared decimal
+comma writes. Dates declared as counts that do not read as dates (`42.345`
+for an Excel day) are held on every table, one row a person or several,
+instead of being published as plain numbers (contract NF127); the
+screen, the summary and a new `held` section of the questions file name
+them, and never a declared column that read as dates and is held because
+too few people hold its values, and say to write the dates one way and describe the table again. A declared
+person column's census of
+rows a person never prints a real group of one to ten people, even where
+too few rows stand past one a value for any census without a small
+entry, and is always one its twin can deal into the column's layouts; a record
+number's layouts are pooled in people even when only its pool is
+printed. A run of four hundred figures in a note no longer stops the
+profile, and pooling many layouts, or counting under a raised floor,
+costs a sort and a set rather than a scan a value. KPI `K-S3-65` now
+fails when a table is lost to the count. The costs and the limits left
+to lanes MG, PS and CODES-1 part C are in P4-D406.
+
 ### A big table's numbers keep their spread, their tails and their range (2026-10-19)
 
 **Stage 4 lane G2T** (plan P4-D405). On a column that repeats its

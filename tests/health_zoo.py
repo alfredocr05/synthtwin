@@ -2787,6 +2787,24 @@ MADE_UP_CODES = (
     "an NPI that fails its Luhn check), so a grammar or a check figure the real codes obey "
     "rejects them"
 )
+# HELD IN PEOPLE (lane HX2, plan P4-D406; batch 4e's integration, the
+# integrator's, unreviewed). Beside a person column, a date or time column
+# whose values one to ten people hold is held whole (the orchestrator's
+# ruling of 2026-10-19 15:42, item 2), and the person column's census of
+# rows a person is counted in people, its groups of one to ten pooled:
+# the zoo measured both at 600 rows on the merge, owned by the lanes
+# P4-D406 names (stated limit 3: pooling a date's points in subject
+# units, lane PS; the census in subject bands, lane MG).
+HELD_DATES = (
+    "a date or time column beside a person column, whose values one to ten people hold, is held "
+    "whole: the twin writes made-up figures in the date's layout, so code that parses the column "
+    "fails on the twin; pooling a date's points in subject units is lane PS's (plan P4-D406)"
+)
+CENSUS_IN_PEOPLE = (
+    "the person column's census of rows a person is counted in people, its groups of one to ten "
+    "pooled, so the shares of patients with two and three rows move on the twin; a census in "
+    "subject bands is lane MG's (plan P4-D406)"
+)
 OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "demographics": (
         ("CODES-2", WITHHELD, covers(
@@ -2795,6 +2813,9 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             columns=("ancestry", "ethnicity", "gender_code", "gender_word"))),
     ),
     "diagnoses": (
+        ("CODES-1", "a code column held whole in people (plan P4-D406) gets a twin that misses its "
+                    "published forms: the identifier generator's limit, lane CODES-1 part C "
+                    "(P4-D406's stated limit 4)", covers("miss icd10_dotted")),
         ("CODES-1", "a held-back code is written outside its pattern or as a number-class stand-in "
                     "('486' as '99.9'), and a SNOMED id answered 'code' loses values 11 or more rows "
                     "hold", covers(
@@ -2816,12 +2837,16 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "perioperative": (
         ("CODES-2", WITHHELD, covers("physical status with its emergency mark", columns=("phys_status",))),
+        ("PS", HELD_DATES, covers("durations as HH:MM")),
     ),
     "encounters": (
+        ("MG", CENSUS_IN_PEOPLE, covers("patients with two rows or more, and three or more, as shares")),
         ("DST", "the twin writes an offset not in force on its date (US Eastern)", covers(
             "admit_ts wears an offset in force on its date", "discharge_ts wears an offset in force on its date")),
     ),
     "labs": (
+        ("PS", HELD_DATES, covers("collected_at parses as %Y-%m-%d %H:%M")),
+        ("MG", CENSUS_IN_PEOPLE, covers("patients with two rows or more, and three or more, as shares")),
         ("UN-1a", UNITS_AS_LABELS, covers(
             "a value and its unit", "the value read as a number", "the numbers of result keep their range",
             columns=("result",))),
@@ -2844,6 +2869,7 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                       "validate misses the mean of its numbers", covers("miss result_value")),
     ),
     "vitals": (
+        ("PS", HELD_DATES, covers("taken_at parses")),
         ("UN-1a", UNITS_AS_LABELS, covers(
             "oxygen saturation with %", "stature in cm", "temperature with its unit",
             "the numbers of stature keep their range", "the numbers of temp keep their range",
@@ -2865,6 +2891,7 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "stature in feet and inches", "the numbers of stature keep their range", columns=("stature",))),
     ),
     "flowsheet_long": (
+        ("PS", HELD_DATES, covers("recorded_at parses")),
         ("KV", "a long table's value is read by its row name; the twin carries no relation "
                "between the two columns (the between-columns program, TRACKED T1 and T2)", covers(
             "BP rows hold '120/80' (read by row name)", "other rows hold numbers (read by row name)",
@@ -2886,6 +2913,7 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("UN-2", "no question asks whether -99 means missing", covers("scores 1 to 5 or -99")),
     ),
     "dicom_metadata": (
+        ("PS", HELD_DATES, covers("DA dates parse as %Y%m%d")),
         ("TR", "DICOM's TM time of day ('074512.123456') is read as a decimal number: the twin "
                "loses its leading zero and writes minutes and seconds past 59, and at 20,000 rows "
                "validate misses its spread", covers("TM times parse as %H%M%S.%f", "miss study_time")),
@@ -2909,6 +2937,25 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "immunizations_providers": (
         ("CODES-1", MADE_UP_CODES, covers("NPIs pass their Luhn check", columns=("npi",))),
+    ),
+    "redcap": (
+        ("PS", HELD_DATES, covers("consent_date parses")),
+    ),
+    "claims": (
+        ("PS", HELD_DATES, covers("service_date parses as %m/%d/%Y")),
+    ),
+    "wearables": (
+        ("PS", HELD_DATES, covers("ts parses to the second")),
+    ),
+    "clock_times": (
+        ("PS", HELD_DATES, covers(
+            "anes_start parses as %H:%M:%S", "in_room parses as %H:%M", "incision_time parses as %I:%M %p")),
+    ),
+    "excel_serial_dates": (
+        ("PS", HELD_DATES, covers("serial dates read from 1899-12-30")),
+    ),
+    "sql_server_export": (
+        ("PS", HELD_DATES, covers("created_dttm with milliseconds")),
     ),
 }
 
