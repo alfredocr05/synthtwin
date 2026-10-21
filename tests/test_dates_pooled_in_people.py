@@ -492,3 +492,87 @@ def test_the_twin_is_one_function_of_the_description_and_the_seed(tmp_path: path
     assert first.columns == second.columns
     plan = generation.plan_generation(loaded)
     assert first.words_drawn == plan.words_planned
+
+
+# -- (5) the count of different values, met at the rung ----------------------
+
+
+def test_a_column_written_to_the_month_holds_its_count_of_years(tmp_path: pathlib.Path) -> None:
+    """The catalogue's tumor registry, unanswered: its month column pooled by the year meets every count.
+
+    Its codes are the open questions' candidates, so its first treatment
+    month is counted in a few dozen people and described by the year; the
+    description's machinery builds its count of different values by the
+    month, and two built months of one year once left the twin six years
+    short (23 of 29, K-S3-65 on lane PS's first head). The rows moved to the
+    empty years between the same two published points meet it.
+    """
+    table = [one for one in health_zoo.runnable_tables() if one.name == "tumor_registry"][0]
+    place = [one.name for one in health_zoo.runnable_tables()].index("tumor_registry")
+    path = pathlib.Path(health_zoo.write_table(table, tmp_path, 600, 20261016 + place))
+    screen = io.StringIO()
+    with shapes.nobody_at_the_keyboard():
+        with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
+            assert cli.main(["profile", f"{path}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
+    described = json.loads((tmp_path / "tumor_registry-profile.json").read_text(encoding="utf-8"))
+    grain = _block(described, "first_treatment_month")["time_grain"]
+    assert isinstance(grain, dict) and grain["rung"] == "year", grain
+    twin, _real = _generated_and_validated(tmp_path, "tumor_registry")
+    assert "first_treatment_month" not in twin, twin
+    years = {cell[:4] for cell in _column(tmp_path / "tumor_registry-twin.csv", "first_treatment_month")}
+    assert len(years) == _block(described, "first_treatment_month")["n_distinct"]
+
+
+def test_the_count_at_the_rung_is_the_oracles() -> None:
+    """Method G7.13's count at the rung: the product's moved rows are the oracle's, row for row."""
+    from test_oracle_rule_witnesses import ORACLE_MODULE as module
+
+    def moment(when: datetime.datetime) -> int:
+        made = grains.canonical_moment(when.strftime("%Y-%m-%d %H:%M:%S"), "datetime")
+        assert made is not None
+        return made
+
+    draw = random.Random(43)
+    shapes_of = (
+        ("year", grains.DATE, "month", datetime.datetime(1995, 1, 1)),
+        ("year", grains.DATE, "day", datetime.datetime(2001, 1, 1)),
+        ("month", grains.DATE, "day", datetime.datetime(2023, 1, 1)),
+        ("quarter", grains.COUNTED, "day", datetime.datetime(2019, 1, 1)),
+        ("day", grains.STAMP, "minute", datetime.datetime(2024, 2, 1)),
+        ("hour", grains.STAMP, "second", datetime.datetime(2024, 5, 1, 6)),
+        ("hour", grains.CLOCK, "minute", datetime.datetime(2000, 1, 1)),
+    )
+    moves = 0
+    for _case in range(150):
+        rung, kind, finest, base = shapes_of[draw.randrange(len(shapes_of))]
+        starts = [base]
+        for _one in range(draw.randint(4, 60)):
+            starts += [module.pooled_bucket(starts[-1], rung)[1]]
+        held = sorted(draw.sample(starts, draw.randint(2, len(starts))))
+        cells: "list[datetime.datetime | None]" = []
+        for bucket in held:
+            cells += [bucket] * draw.choice((1, 1, 2, 3, 7))
+        cells += [None] * draw.randint(0, 3)
+        draw.shuffle(cells)
+        points = sorted(draw.sample(held, draw.randint(0, min(6, len(held)))))
+        below: "dict[datetime.datetime, int]" = {}
+        seen = 0
+        for bucket in held:
+            below[bucket] = seen
+            seen += cells.count(bucket)
+        pinned: "dict[datetime.datetime, tuple[int, int]]" = {}
+        for point in points:
+            if draw.random() < 0.7:
+                low = below[point] + draw.randrange(cells.count(point))
+                pinned[point] = (low, draw.randint(low, below[point] + cells.count(point) - 1))
+        target = len(held) + draw.randint(1, 12)
+        first, last = starts[0], starts[-1]
+        product = grains.count_filled(
+            [None if cell is None else moment(cell) for cell in cells],
+            [moment(point) for point in points], (moment(first), moment(last)), rung, kind,
+            finest, target, {moment(point): ranks for point, ranks in pinned.items()},
+        )
+        oracle = module.pooled_count_filled(cells, points, first, last, rung, kind, finest, target, pinned)
+        assert product == {row: moment(start) for row, start in oracle.items()}, (rung, kind, finest)
+        moves += len(product)
+    assert moves > 100

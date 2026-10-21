@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### Dates and times beside a person column pooled in people at a coarser grain, and a held one's twin written in valid dates (lane PS, 2026-10-21)
+
+**Lane PS** (plan P4-D417; contract NF128, NF129 and TG1; method G7.13;
+validation V14). Where counting in people (P4-D406) would hold a column
+of dates, stamps, clock times or counted dates beside a person column,
+the column is now described at a coarser calendar grain -- year,
+quarter, month, day, then hour, minute and second; a clock by blocks of
+four hours first -- with its tails pooled into the first and last bucket
+the floor's number of people hold, every point still counted in people.
+The grain is chosen by published facts alone (the present rows, the
+people and the spans), never by which finer points fail; the plan
+writes the proof. Where no grain serves, the column is held and its
+twin now writes valid dates and times in the column's own layouts,
+never made-up figures, so code that parses the column runs on the twin.
+The health data zoo passes 20 of 40 kinds at 600 rows again (14 at
+batch 4e) and 28 at 20,000 rows (24); every check that parses a date
+or a time beside a person column holds at both sizes. `K-HZ-01` and
+`K-HZ-02` are restamped and their bounds moved back; `K-S3-65` stays 0.
+A table with no subject column is described byte for byte as before.
+Stated limits: a stamp of a few evenly filled hours misses its count of
+different values (`wearables` at 20,000 rows, lane PS's follow-up); a
+measurement attached to its person is held as before (lane PS's
+follow-up); P4-D406's limit (2), a table of ten people or fewer, stays
+open.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

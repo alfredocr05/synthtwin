@@ -63430,6 +63430,7 @@ def _inside_the_grain(
     holes = _hole_spellings(column)
     found: "list[str]" = []
     if grain.rung != grains.HELD:
+        cells = _filled_to_the_count(column, cells, holes)
         # A STAMP LEAVES WITH THE ONE JOINT ITS COLUMN WRITES: where the
         # block's census names a single mark, a built cell that took
         # another to reach the column's count of different values (G7.9)
@@ -63474,6 +63475,84 @@ def _inside_the_grain(
             made[cell] = valid
         found += [made[cell]]
     return found
+
+
+def _filled_to_the_count(
+    column: contract.ColumnBlock, cells: "list[str]", holes: "typing.Collection[str]"
+) -> "list[str]":
+    """A pooled column's built cells moved so the twin holds its count at the rung (method G7.13).
+
+    The description's machinery builds the count of different values
+    (G7.9) at the column's own precision, finer than its rung, so two
+    built values may share a bucket and the twin, read at its grain, hold
+    fewer buckets than the description publishes. Where it does, rows
+    move to empty buckets between the same two published points
+    (`grains.count_filled`), each written as its new bucket's start in its
+    own form; the draw inside the bucket follows. No word is drawn.
+    """
+    grain = column.time_grain
+    facts = column.facts
+    if grain is None or not isinstance(facts, contract.DatetimeFacts) or column.n_distinct <= 0:
+        return cells
+    rung, first, last = grain.spans[len(grain.spans) - 1]
+    if rung != grain.rung:
+        return cells
+    buckets: "list[int | None]" = []
+    for cell in cells:
+        moment = None
+        if cell not in holes and parsing.folded(cell):
+            moment = grains.moment_of(cell, grain.reading)
+        if moment is None:
+            buckets += [None]
+            continue
+        buckets += [min(max(grains.start_of(moment, rung), first), last)]
+    ladder = facts.date_percentiles
+    texts = [text for text in ladder.rungs if text is not None]
+    texts += [text for text in (ladder.minimum, ladder.maximum) if text is not None]
+    for tail in (facts.low_tail, facts.high_tail):
+        if tail is not None:
+            texts += [tail.boundary]
+            for value in tail.values or ():
+                texts += [value]
+    points: "list[int]" = []
+    for text in texts:
+        moment = grains.canonical_moment(text, facts.resolution)
+        if moment is None:
+            return cells
+        points += [min(max(grains.start_of(moment, rung), first), last)]
+    # THE RANKS EACH RUNG HOLDS (taxonomy's rule): a published bucket a
+    # heavy date or a tail names gives no row; a rung gives only the rows
+    # beyond the ranks it is published at.
+    present = len([bucket for bucket in buckets if bucket is not None])
+    pinned: "dict[int, tuple[int, int]]" = {}
+    if len(ladder.rungs) == len(taxonomy.LADDER):
+        for place in range(len(ladder.rungs)):
+            published = ladder.rungs[place]
+            moment = (
+                None if published is None else grains.canonical_moment(published, facts.resolution)
+            )
+            if moment is None or present < 1:
+                continue
+            _label, num, den = taxonomy.LADDER[place]
+            rank = min(present - 1, ((present - 1) * num) // den)
+            start = min(max(grains.start_of(moment, rung), first), last)
+            low, high = pinned.get(start, (rank, rank))
+            pinned[start] = (min(low, rank), max(high, rank))
+    for ordinal, _rows in facts.heavy_dates:
+        moment = grains.ordinal_moment(ordinal, facts.resolution)
+        heavy = min(max(grains.start_of(moment, rung), first), last)
+        points += [heavy]
+        pinned.pop(heavy, None)
+    moved = grains.count_filled(
+        buckets, points, (first, last), rung, grain.reading.kind, grain.finest,
+        column.n_distinct, pinned,
+    )
+    if not moved:
+        return cells
+    return [
+        grains.moved_to(cells[place], grain.reading, moved[place]) if place in moved else cells[place]
+        for place in range(len(cells))
+    ]
 
 
 def _sequence_start(profile: contract.Profile, column: contract.ColumnBlock) -> int:

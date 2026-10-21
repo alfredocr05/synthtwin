@@ -55199,6 +55199,82 @@ def pooled_drawn_inside(cell, reading, rung, word):
     return cell
 
 
+def _pooled_next(start, rung):
+    """The start of the bucket after ``start`` at ``rung``."""
+    return pooled_bucket(start, rung)[1]
+
+
+def _pooled_census_key(start, rung, kind, finest):
+    """What a census at the rung reads of a bucket start; None where no row may move (G7.13)."""
+    if kind == "clock":
+        return None
+    if finest in ("year", "quarter", "month"):
+        return ()
+    if rung in ("year", "quarter", "month"):
+        return (start.weekday(),)
+    return (start.weekday(), start.day, start.hour * 3600 + start.minute * 60 + start.second)
+
+
+def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target, pinned):
+    """Method G7.13's count at the rung, from its words, over `datetime` bucket starts.
+
+    The twin holds the description's count of different buckets: where its
+    built cells hold fewer, rows move to EMPTY buckets lying between the
+    same two published points (or the span's ends) and reading the same
+    census key; first from a bucket no point names that holds two rows or
+    more (fullest first, ties earlier; its last rows first), then from the
+    rung just below the stretch (its last ranks, beyond every rank the rung
+    is published at), then from the rung just above (its first ranks); each
+    row to the earliest empty bucket of its key; until the count is met.
+    Returns {row: new bucket start}.
+    """
+    rows_of = {}
+    for row, bucket in enumerate(buckets):
+        if bucket is not None:
+            rows_of.setdefault(bucket, []).append(row)
+    need = target - len(rows_of)
+    moved = {}
+    if need <= 0 or first > last:
+        return moved
+    below = {}
+    seen = 0
+    for bucket in sorted(rows_of):
+        below[bucket] = seen
+        seen += len(rows_of[bucket])
+    ends = sorted({first, last} | {point for point in points if first <= point <= last})
+    for low, high in zip(ends, ends[1:]):
+        givers = []
+        inside = [bucket for bucket in rows_of if low < bucket < high and len(rows_of[bucket]) >= 2]
+        for bucket in sorted(inside, key=lambda one: (-len(rows_of[one]), one)):
+            givers.append((bucket, list(reversed(rows_of[bucket][1:]))))
+        if low in pinned and low in rows_of:
+            rows = rows_of[low]
+            spare = min(len(rows) - 1, below[low] + len(rows) - 1 - pinned[low][1])
+            givers.append((low, list(reversed(rows))[: max(spare, 0)]))
+        if high in pinned and high in rows_of:
+            rows = rows_of[high]
+            spare = min(len(rows) - 1, pinned[high][0] - below[high])
+            givers.append((high, rows[: max(spare, 0)]))
+        empties = {}
+        start = _pooled_next(low, rung)
+        while start < high:
+            if start not in rows_of:
+                key = _pooled_census_key(start, rung, kind, finest)
+                if key is not None:
+                    empties.setdefault(key, []).append(start)
+            start = _pooled_next(start, rung)
+        for bucket, rows in givers:
+            free = empties.get(_pooled_census_key(bucket, rung, kind, finest), [])
+            for row in rows:
+                if need <= 0 or not free:
+                    break
+                moved[row] = free.pop(0)
+                need -= 1
+            if need <= 0:
+                return moved
+    return moved
+
+
 def main(argv=None, part=None):
     """Write the vectors to the path given by --out.
 

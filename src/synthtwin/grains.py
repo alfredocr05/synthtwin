@@ -23,8 +23,8 @@ POOLING IN PEOPLE. A column that would publish a point one to ten people
 hold is described at a coarser calendar GRAIN instead: each cell is written
 as the start of its bucket (`coarse_cell`) in its own form, and the column
 of those cells is described as any column is, so every rule of the
-description holds it and every published point is a bucket. The ladders,
-coarsest first: dates year, quarter, month, day; stamps the same and then
+description holds it and every published point is a bucket. The ladder of each
+kind, coarsest first: dates year, quarter, month, day; stamps the same and then
 hour, minute, second; clock times a block of `BLOCK_HOURS` hours, hour,
 minute, second. A counted date climbs the dates' or the stamps' ladder by
 the precision its counts carry.
@@ -162,7 +162,7 @@ class Grain:
     people: int = 0
 
 
-# -- the ladders --------------------------------------------------------
+# -- the ladder of each kind ---------------------------------------------
 
 
 def ladder(kind: str, finest: str) -> "tuple[str, ...]":
@@ -1077,6 +1077,169 @@ def _shows_unpadded(cell: str, reading: Reading) -> bool:
         if code in ("M", "D", "h", "i") and end - start == 1:
             return True
     return False
+
+
+# -- the count of different values, met at the rung ----------------------
+
+
+def canonical_moment(text: str, resolution: str) -> "int | None":
+    """A published point's canonical text (contract 5.6) as a moment, or None where it does not read.
+
+    `YYYY-Qn` at the resolution `quarter`, `YYYY-MM` at `month`,
+    `YYYY-MM-DD` at `date` and `YYYY-MM-DD HH:MM:SS` at `datetime`.
+    """
+    try:
+        year = int(text[0:4])
+        if resolution == "quarter":
+            return parsing.days_from_civil(year, 3 * (int(text[6]) - 1) + 1, 1) * _NS_DAY
+        month = int(text[5:7])
+        if resolution == "month":
+            return parsing.days_from_civil(year, month, 1) * _NS_DAY
+        days = parsing.days_from_civil(year, month, int(text[8:10]))
+        if resolution == "date":
+            return days * _NS_DAY
+        seconds = 3600 * int(text[11:13]) + 60 * int(text[14:16]) + int(text[17:19])
+        return days * _NS_DAY + seconds * _NS_SECOND
+    except (ValueError, IndexError):
+        return None
+
+
+def ordinal_moment(ordinal: int, resolution: str) -> int:
+    """A published ordinal (method G7.1: quarters, months, days or seconds from 1970) as a moment."""
+    if resolution == "quarter":
+        return parsing.days_from_civil(1970 + ordinal // 4, 3 * (ordinal % 4) + 1, 1) * _NS_DAY
+    if resolution == "month":
+        return parsing.days_from_civil(1970 + ordinal // 12, ordinal % 12 + 1, 1) * _NS_DAY
+    if resolution == "date":
+        return ordinal * _NS_DAY
+    return ordinal * _NS_SECOND
+
+
+def _census_key(start: int, rung: str, kind: str, finest: str) -> "tuple[int, ...] | None":
+    """What a published census reads of a bucket start, or None where a row may not move.
+
+    A clock's censuses read every block it fills, so no row of a clock
+    moves. A column written to the month or coarser writes no day, so a
+    row moves freely. Otherwise a bucket keeps its weekday, and, at the
+    day or finer, its day of the month and its time of day too.
+    """
+    if kind == CLOCK:
+        return None
+    if finest in (YEAR, QUARTER, MONTH):
+        return ()
+    days = start // _NS_DAY
+    if RANK[rung] <= RANK[MONTH]:
+        return ((days + 4) % 7,)
+    _year, _month, date = parsing.civil_from_days(days)
+    return ((days + 4) % 7, date, start % _NS_DAY)
+
+
+def count_filled(
+    buckets: "list[int | None]",
+    points: "list[int]",
+    span: "tuple[int, int]",
+    rung: str,
+    kind: str,
+    finest: str,
+    target: int,
+    pinned: "dict[int, tuple[int, int]] | None" = None,
+) -> "dict[int, int]":
+    """Rows moved to empty buckets so the column holds ``target`` different ones (method G7.13).
+
+    ``buckets`` holds each row's bucket start at ``rung``, None for a row
+    that holds none; ``points`` the buckets the description's published
+    points name; ``span`` the record's first and last bucket; ``pinned``
+    the lowest and highest rank of a ladder rung each published bucket
+    holds (a bucket a heavy date or a tail names is in ``points`` and not
+    here). A row moves only to an empty bucket between the same two
+    published points (or the span's ends) whose census key is its own
+    (`_census_key`): from a bucket no point names that holds two rows or
+    more, and then from the rung just below (its last ranks) or just above
+    (its first ranks) where every rank pinned to it stays inside it. So
+    every published point keeps its rank, every tail and every heavy date
+    its rows, and every census at the rung its counts. Inside each stretch
+    donors give fullest first (ties earlier), then the rung below, then
+    the rung above, each row to the earliest empty bucket of its key.
+    Returns the moved rows and their buckets.
+
+    Guarantees: a function of its arguments. Raises nothing. No I/O.
+    """
+    rows_of: "dict[int, list[int]]" = {}
+    for row in range(len(buckets)):
+        bucket = buckets[row]
+        if bucket is None:
+            continue
+        if bucket not in rows_of:
+            rows_of[bucket] = []
+        rows_of[bucket] += [row]
+    first, last = span
+    need = target - len(rows_of)
+    moved: "dict[int, int]" = {}
+    if need <= 0 or first > last:
+        return moved
+    ranks = pinned if pinned is not None else {}
+    below: "dict[int, int]" = {}
+    seen = 0
+    for bucket in sorted(rows_of):
+        below[bucket] = seen
+        seen += len(rows_of[bucket])
+    ends = sorted({first, last} | {point for point in points if first <= point <= last})
+    steps = 4 * len(buckets) + 4096
+    for place in range(len(ends) - 1):
+        low = ends[place]
+        high = ends[place + 1]
+        givers: "list[tuple[int, list[int]]]" = []
+        for _size, bucket in sorted(
+            (-len(rows_of[bucket]), bucket)
+            for bucket in rows_of
+            if low < bucket < high and len(rows_of[bucket]) >= 2
+        ):
+            rows = rows_of[bucket]
+            givers += [(bucket, [rows[give] for give in range(len(rows) - 1, 0, -1)])]
+        if low in ranks and low in rows_of:
+            # The rung below gives its last ranks, from its last rows.
+            rows = rows_of[low]
+            spare = min(len(rows) - 1, below[low] + len(rows) - 1 - ranks[low][1])
+            givers += [(low, [rows[len(rows) - 1 - give] for give in range(max(spare, 0))])]
+        if high in ranks and high in rows_of:
+            # The rung above gives its first ranks, from its first rows, so
+            # a rung giving to both its stretches never gives one row twice.
+            rows = rows_of[high]
+            spare = min(len(rows) - 1, ranks[high][0] - below[high])
+            givers += [(high, [rows[give] for give in range(max(spare, 0))])]
+        if not any(rows for _bucket, rows in givers):
+            continue
+        empties: "dict[tuple[int, ...], list[int]]" = {}
+        start = after(low, rung)
+        while start < high and steps > 0:
+            steps -= 1
+            if start not in rows_of:
+                key = _census_key(start, rung, kind, finest)
+                if key is not None:
+                    if key not in empties:
+                        empties[key] = []
+                    empties[key] += [start]
+            start = after(start, rung)
+        taken: "dict[tuple[int, ...], int]" = {}
+        for bucket, rows in givers:
+            key = _census_key(bucket, rung, kind, finest)
+            if key is None or key not in empties:
+                continue
+            for row in rows:
+                if need <= 0 or taken.get(key, 0) >= len(empties[key]):
+                    break
+                moved[row] = empties[key][taken.get(key, 0)]
+                taken[key] = taken.get(key, 0) + 1
+                need -= 1
+            if need <= 0:
+                return moved
+    return moved
+
+
+def moved_to(cell: str, reading: Reading, start: int) -> str:
+    """A cell written as the start of another bucket, in its own form; as written where it cannot be."""
+    made = rewritten(cell, reading, start, not _shows_unpadded(cell, reading))
+    return cell if made is None else made
 
 
 # -- the G1 floor: a held column's twin writes valid values -------------

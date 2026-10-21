@@ -546,6 +546,20 @@ cannot get worse unseen.
   integrator for the orchestrator to keep or reverse; a date's points
   pooled in subject units are lane PS's, the census in subject bands
   lane MG's, the held code's forms CODES-1 part C's (P4-D406).
+- **Dates and times beside a person column, pooled in people (lane PS,
+  2026-10-21, P4-D417).** The dates part of the batch 4e limit above is
+  closed: such a column is described at a coarser grain chosen by its
+  published facts alone, or held with a twin of valid dates in its own
+  layouts; the zoo passes 20 of 40 kinds at 600 rows and 28 at 20,000
+  rows again, every check that parses a date or a time holding. Still
+  so, each with its owner: a stamp of a few evenly filled hours misses
+  its count of different values and its count at midnight (`wearables`
+  at 20,000 rows: 32 of 39 hours, 1,208 rows at midnight against 515),
+  lane PS's follow-up; a measurement attached to its person (`labs`'
+  `viral_load` at 20,000 rows) is held whole with made-up numbers in
+  its layouts, lane PS's follow-up; a table of ten people or fewer whose
+  person question is open still publishes per rows (P4-D406's limit
+  (2)), the orchestrator's to decide.
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Lane L1
   (P4-D390, P4-D384, `K-S3-61`) writes made-up figure codes at the

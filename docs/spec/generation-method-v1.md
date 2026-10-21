@@ -11149,7 +11149,30 @@ space) -- one the build took to reach the column's count of different
 values (G7.9), which a value drawn inside its bucket no longer needs --
 leaves wearing the named mark, where it still reads. The bucket the twin's
 cell falls in is the one its built cell named, so the twin, read at the grain, is the twin as
-built and meets the description as the build was measured.
+built and meets the description as the build was measured -- but for the
+count of different values, which G7.9 builds at the column's own
+precision, so two built values may share one bucket.
+
+**The count at the rung** (`grains.count_filled`; `generation._filled_to_the_count`).
+Before the draw, where the built cells fall in fewer buckets than the
+block's `n_distinct`, rows move to EMPTY buckets, each written as its new
+bucket's start in the cell's own form. A row moves only between the same
+two published points -- the buckets the ladder's rungs, the tails'
+boundaries and values and the heavy dates name, and the span's ends --
+and only to a bucket whose census key is its donor's: none on a clock; any
+on a column written to the month or coarser; the weekday at a rung of the
+month or coarser; the weekday, the day of the month and the time of day at
+the day or finer. Donors, stretch by stretch from the earliest: buckets no
+point names holding two rows or more, fullest first (ties earlier), each
+giving its last rows first; then the rung just below the stretch, giving
+its last rows while every rank it is published at (taxonomy's rank
+`((n - 1) * num) // den` over the present rows) stays inside it; then the
+rung just above, giving its first rows on the same terms. A bucket a heavy
+date, a tail or a span's end names gives none. Each row goes to the
+earliest empty bucket of its key, until the count is met or no move is
+left. So every published point keeps its rank, every tail and heavy date
+its rows and every census at the rung its counts; no word is drawn. The
+oracle's `pooled_count_filled` holds the product to it.
 
 **A held column (rung `held`): the G1 floor.** The span is the record's
 last span, from its first bucket's start to the start after its last
