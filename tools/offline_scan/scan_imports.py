@@ -659,6 +659,24 @@ attribute absent from it is not allowed at all:
   refused by the argument rule as well. What read_csv returns, a
   pyarrow table, answers to no method and no attribute until the
   adopting lane (SR-A) enters each one it reads with its own audit.
+* pyarrow's table, its columns and their pieces (lane SR-A, plan
+  P4-D414), zone R alone, as read_csv is: five names, each its own
+  surface (_ARROW_TABLE_ORIGIN, _ARROW_COLUMN_ORIGIN,
+  _ARROW_CHUNK_ORIGIN), every other name of them refused. Capability
+  audit: the table's `num_rows` is a whole number and its
+  `column(i)` hands over the i-th column it read, a chunked array --
+  no I/O, no process, no callable; the column's `num_chunks` is a
+  whole number and its `chunk(i)` hands over one piece, an array,
+  likewise; the piece's `to_pylist()` copies its values into a plain
+  Python list of text (strings_can_be_null=False in the reader's
+  settings: no None), which leaves the library -- what it returns is
+  a built-in list, read as any untraced value is. Not admitted, and
+  refused by the surfaces: the table's and the arrays' writers and
+  conversions (to_pandas, to_batches, to_numpy, cast), their buffers,
+  schema and statistics, every compute kernel, and anything they
+  carry. Zone R: the values are the person's file's text, compared
+  with the survey's and handed to `column_values` as text; no float
+  of the library is made or read.
 * scipy.optimize (lane DEP-1, plans P4-D409 part 5 and P4-D410), zone D
   on the search side, and zone P: milp, Bounds, LinearConstraint.
   Capability audit: milp hands the arrays it is given to the HiGHS
@@ -1291,6 +1309,15 @@ _WRITER_ORIGIN = "csv.writer"
 # reach no other path, no program and no network.
 _ZIP_ORIGIN = "zipfile.ZipFile"
 _ZIP_MEMBER_ORIGIN = "zipfile.ZipFile.open"
+# PYARROW'S TABLE, ITS COLUMNS AND THEIR PIECES (lane SR-A, plan
+# P4-D414), each a surface of its own: the table pyarrow.csv.read_csv
+# returns answers to `column` and `num_rows`, a column to `chunk` and
+# `num_chunks`, a piece to `to_pylist`, and nothing else; the audit is
+# in the module docstring. `to_pylist` returns a plain list of text,
+# which leaves the library.
+_ARROW_TABLE_ORIGIN = "pyarrow.csv.read_csv"
+_ARROW_COLUMN_ORIGIN = "pyarrow.csv.read_csv.column"
+_ARROW_CHUNK_ORIGIN = "pyarrow.csv.read_csv.column.chunk"
 
 _RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
     _GENERATOR_ORIGIN: (frozenset({"integers"}), frozenset()),
@@ -1298,6 +1325,9 @@ _RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
     _DRAW_SCALAR_ORIGIN: (frozenset(), frozenset()),
     _WRITER_ORIGIN: (frozenset({"writerow", "writerows"}), frozenset()),
     _ZIP_MEMBER_ORIGIN: (frozenset({"close", "write"}), frozenset()),
+    _ARROW_TABLE_ORIGIN: (frozenset({"column"}), frozenset({"num_rows"})),
+    _ARROW_COLUMN_ORIGIN: (frozenset({"chunk"}), frozenset({"num_chunks"})),
+    _ARROW_CHUNK_ORIGIN: (frozenset({"to_pylist"}), frozenset()),
 }
 
 # How each surface is named in a violation message, in words that say
@@ -1308,6 +1338,9 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
     _DRAW_SCALAR_ORIGIN: "one word taken out of the array integers returned",
     _WRITER_ORIGIN: "the CSV writer made by csv.writer",
     _ZIP_MEMBER_ORIGIN: "the zip member writer made by ZipFile.open",
+    _ARROW_TABLE_ORIGIN: "the table pyarrow.csv.read_csv returned",
+    _ARROW_COLUMN_ORIGIN: "a column of the table pyarrow.csv.read_csv returned",
+    _ARROW_CHUNK_ORIGIN: "a piece of a column of the table pyarrow.csv.read_csv returned",
     "numpy": "a value produced by numpy",
     "pandas": "a value produced by pandas",
     "numba": "a value produced by numba",
@@ -1333,6 +1366,8 @@ _RESTRICTED_ELEMENT: "dict[str, str]" = {
 # the library.
 _RESTRICTED_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
     (_GENERATOR_ORIGIN, "integers"): _DRAW_ARRAY_ORIGIN,
+    (_ARROW_TABLE_ORIGIN, "column"): _ARROW_COLUMN_ORIGIN,
+    (_ARROW_COLUMN_ORIGIN, "chunk"): _ARROW_CHUNK_ORIGIN,
 }
 
 # What a method of an ORDINARY api-instance hands back, where the
