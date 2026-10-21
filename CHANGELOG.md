@@ -24,7 +24,8 @@ real never writes, not 132: `K-HZ-02`'s analyst failures fall from 118 to
 117. The zoo's prescriptions export, whose `rxnorm` route four also asks,
 is answered in one round too, so `K-S3-66`'s tables answered over
 rounds fall from 5 to 4, no answer lost and no byte differing. Enter at
-the keyboard and a blank in the file keep `keep`, never `code`.
+the keyboard keeps `keep`, and a blank in the file leaves the column
+held, as before; neither declares `code`.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
