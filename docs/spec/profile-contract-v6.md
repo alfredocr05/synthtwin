@@ -5753,6 +5753,2297 @@ written as a fraction and read on the scale of the score (4.6b.3).
 | `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the hours on the oldest Python synthtwin runs on, 3.11 from lane DEP-1 (plan P4-D407). The sample holds exactly that many rows, or every row of a smaller table, chosen by content and occurrence (4.6b.8). It is never published, so its size moves no proof |
 | the polish (lane MPOL's) | classes M-a and M-b cell means, with the second code on skewed fine columns, at `P` = 4 proposals a fine cell below 200,000 rows | recorded here for MPOL's page, which fixes them (`A0a`'s settings 5 to 8: M-d off, spreads off); `P` = 2 from 1,000,000 rows is `A0b`'s measurement |
 
+### 4.6c `relationships.grain` — the patient layer: several rows per patient (specified for stage 6, plan P4-D412; NOT IN FORCE)
+
+**THIS SECTION DESCRIBES A SLOT NO BUILT SYNTHTWIN FILLS.** It is the
+wire shape, the producer's rules and the disclosure argument of the
+patient layer (the slot `grain`, object O9), written before any of its
+code, so that the profile side (lanes CHa and GR), the generator (lanes
+CHb and GR), the validator (lane CHv) and the oracle (lane CHo) are
+built against one text. It fills every place section 4.6b marks
+RESERVED for lane MG: the `position_like` reason of 4.6b.1, the fourth
+eligibility condition of 4.6b.3 (a family counted in rows under a
+family counted in patients), the draw's kinds `census` and `row` of
+4.6b.4, the inventory rows 15, 15a and 16 to 21 of 4.6b.9 (b), the
+patient layer's line of the invariants of 4.6b.11, and the grade
+"several rows per patient" of 4.6b.8. Section 4.6b is not edited: each
+of its clauses holds as written, and this section adds to it. Until the
+landing that ships stage 6, `grain` is `null` on every description, a
+loader refuses anything else, and nothing here is a claim about what any
+twin carries today.
+
+**What is written first.** The owner's answer of 2026-10-18 (ruling R7
+of the December plan) brought change over visits into December, and
+the orchestrator's ruling of 2026-10-20 adopted the visit-trend method
+of the design study for it. Change over visits is 4.6c.1, and the
+derived patient-level parents that the within-patient correlation
+needs are 4.6c.2. Both rest on the setting below and on the theorem of
+4.6c.8, which they cite and which is proven there.
+
+**What a leak is.** As 4.6b states it (rulings R1 and R3): the
+PREIMAGE of a description `D` is every table from which the procedure,
+run with SOME key the reader does not know, publishes `D` byte for
+byte, and a SMALL count, 1 to `f - 1`, leaks when it lies inside 1 to
+`f - 1` on every table of the preimage. Here a count is of PATIENTS
+wherever the object counts patients, and of rows wherever it counts
+rows; a count is 0-ABLE when some table of the preimage gives it 0,
+and F-ABLE when some table gives it at least `f`. A count that is
+0-able or f-able does not leak. The reader knows the procedure, every
+published fact and which columns hold each value at most once per
+patient (ruling R4). The reader may also know any upper bound on the
+rows a patient holds that is TRUE of the table, such as a study
+protocol's visit count, whether or not the person declares one (ruling
+R8 (1)); every rule below is proven for every such bound, through the
+cap lemma of 4.6c.4.
+
+#### The setting, and the words used throughout
+
+- **Patients.** A PATIENT is a set of tabled rows sharing a folded
+  value of the person column (`settings.person_columns`; the gate of
+  4.6c.3 asks for exactly one). `N` is the number
+  of patients and `n` the number of tabled rows (4.6b.5: the rows that
+  are not records holding nothing). `r_p` is patient `p`'s number of
+  rows, and `xr = n - N`, the EXTRA rows, is the sum of `r_p - 1`.
+- **The layer.** The patient layer is ON or OFF by the gate of 4.6c.3.
+  While it is OFF, `grain` is `null`, the table is described in rows by
+  section 4.6b alone, and the person column's block is section 5.3's.
+  Everything else in this section speaks of a layer that is ON.
+- **Visit position.** A patient's rows are ranked `1` to `r_p` by its
+  POSITION column, the first dealt date column in schema order (4.6c.7),
+  ties and absent dates by row order; with no dealt date column, by row
+  order. Position is a weight and an order, never a grouping: no
+  published table has a band of position, and no family counted in rows
+  has a parent that varies with position.
+- **The column classes.** Each column of a table whose layer is ON is
+  exactly one of: a person column; PATIENT-FIXED (one value per patient,
+  4.6c.5); POSITION-LIKE (4.6c.6); a DEALT DATE column (EVERY column of
+  a date role that is neither patient-fixed nor computed by a carried
+  rule, 4.6c.7: the KEY test of 4.6c.6 never reads a date-role column,
+  so no date is position-like); COMPUTED (4.6b.7); REPEATED (every other
+  eligible column); HELD (a repeated column the KEY test reads whose
+  class witness of 4.6c.5 (e) the draw does not take); or ineligible for
+  4.6b.1's other reasons. The class is published in `grain.classes`.
+- **The patient table.** One row per patient. Its columns are the
+  patient-fixed columns (each patient's value at its first position),
+  the patient's row count `r` (a column the profiler makes, never read
+  from the file), and the DERIVED patient-level columns of 4.6c.2 (a
+  first-date band, an own-mean band). Because the patient table has one
+  row per patient, section 4.6b applies to it word for word with "row"
+  read as "patient": its ladder, the search, RULES W1, WE, W3 and NE,
+  the draw, the chain and its tables, the words and names. That chain,
+  counted in patients, is the PATIENT CHAIN, and its theorem is 4.6b.9
+  (a) in patient units.
+- **The grain family.** `G` is the ONE family of the patient chain whose
+  members parent every row family; it holds `r` (4.6c.8), and `r` may
+  stand in other families of the patient chain too, each holding its
+  other members in `G` (4.6c.8 (a)). Where no placed family holds `r`
+  (the census leaves `r` one nonempty band, so `r` is constant and
+  ineligible under 4.6b.1's `one_band`, or no family took it), `G` is
+  `r`'s census itself: its cells are the census's bands, one cell
+  holding every patient where `r` is constant (4.6c.8 (a)). A family
+  counted in ROWS, a ROW FAMILY, has as its child one repeated or dealt
+  date column at one of its levels and as its parents some members of
+  `G` at levels no finer than in `G`; a row family has no parent counted
+  in rows (a stated limit of December, 4.6c.11). A cell of `G` is a
+  GRAIN CELL; the cells of a row family's parents are its PARENT CELLS,
+  each a union of grain cells.
+- **Patterns and types.** A patient's PATTERN in a row family is its
+  number of rows in each band of the row family's child. A patient's
+  TYPE is its grain cell, its `r` and its pattern in every row family.
+  A count of patients that a reader can form from the row families is a
+  count of a UNION of types (4.6c.8, step 1).
+- **The grid code.** For a FINE repeated column `x` (4.6b.6's FINE, read
+  over rows), its grid code is `c(v) = min(K, max(0, round((v - L) /
+  u)))`, read on the column's TAIL BOUNDARY RUNGS, which invariant TL1
+  publishes whenever `tails` stands (section 6.7a; the codex review of
+  2026-10-20, item 2, and the page's verify, item 1 (b)): `L` is the
+  rung at `tails.low.percent` and `H` the rung at `tails.high.percent`
+  (`p01` and `p99` on a column of enough readings, a wider pair on a
+  smaller one, where TL1 withholds `p01` and `p99` themselves); `u` is
+  the column's published resolution (its grid step: `0.1` for a reading
+  kept to one decimal; for a column with none, `(H - L) / 4095`); and
+  `K = (H - L) / u` rounded to the nearest whole number. A reading below
+  `L` or above `H` takes the end code `0` or `K`. `u`, `L` and `K` are
+  facts of the column alone. One grid step of a reading is one code
+  unit. *Where the grid is not defined:* where `tails` is `null`, or
+  either side of it is `null` (only the moments published), the column
+  has no grid; where `H = L` (a zero central span) `u` and `K` are 0 and
+  the column has no grid either. A column with no grid, or with `K < 1`,
+  carries no trend (4.6c.1 (e)) and its own mean's patterns are read in
+  the band model alone (4.6c.2 (c)). No rule of this section reads `min`
+  or `max`, which TL1 publishes only where at least max(`f`, 3) rows
+  hold that end.
+- **The searches' bounds (the codex review of 2026-10-20, item 7).**
+  Every search this section asks of the producer and the loader is
+  bounded, deterministic and the same on every machine, and a search
+  that reaches its bound without a certificate means "not eligible"
+  (breadth given up, never a leak, since only an exhibited certificate
+  is ever relied on). The bounds are this section's own constants,
+  PROVISIONAL until lane CHa measures their refusals on the zoo and
+  lane `E0b`'s battery: `TRIES_MAX = 1,000,000` steps of the census's
+  deficit search (4.6c.4 (b)); `PATTERNS_MAX = 4,096` patterns a class
+  in a floored split, taken in the fixed order of 4.6c.8 (a); and
+  `NODES_MAX = 10,000` branch-and-bound nodes of the exact integer
+  search, run on one thread by the solver lane DEP's bundle pins (the
+  scipy route of plan P4-D407, subject to lane DEP's bundle and lane
+  MDEP's zones of plan P4-D409), so that the loader re-running a search
+  reaches the producer's outcome.
+
+**The two models of a world.** A WORLD is a table consistent with
+every published fact. The arguments below are carried out in one of two
+models, and each says which:
+- **The band model.** A world is an assignment of each row to a patient
+  and of each row's every column to its published band. Every published
+  table counts bands, so the band model holds every family, census and
+  class of this section.
+- **The grid model**, used only where an object reads a FINE column's
+  readings inside its bands (an own-mean band, 4.6c.2; a trend, 4.6c.1):
+  the band model, plus each row's grid code of that column, free inside
+  its band's code range. The grid model does NOT hold the column's own
+  facts finer than its bands (its exact spread, its rungs inside a band,
+  its value counts); the within-column lemma of 4.6c.1 (d) says what of
+  them the arguments keep, and what is checked rather than proven.
+
+**The one-world lemma.** *If some world of the preimage gives every
+union of a set of types a count of 0 or at least `f`, no union of those
+types leaks.* Proof: that world gives each such count a value 0 or at
+least `f`, so no such count lies inside 1 to `f - 1` on every table of
+the preimage. ∎ A FLOORED world is one in which every type of the set
+is held by 0 or at least `f` patients; every union of types then holds
+0 or at least `f`, since a union of nonempty floored types holds at
+least `f`. Several certificates below are floored worlds exhibited from
+published facts alone.
+
+#### 4.6c.1 Change over visits: the trend moment `Q` behind the SWING certificate (written first)
+
+The owner's December target (`K-BC-06`'s slope clause): the twin's
+arm-by-visit trend within 50 per cent of the real one. Visit position
+is never a grouping, so no table can carry it; it travels as ONE
+integer per patient cell, behind a certificate read on published facts
+alone. The object, its certificate and its numbers are those of the
+design study the orchestrator adopted on 2026-10-20, whose second run
+measured them (plan P4-D412).
+
+**(a) The object.** Let `x` be a FINE repeated column holding a reading
+on every row of the table, and carrying no row-level product moment of
+lane MPOL (item (e)). `F_S` is the placed family of the patient chain
+that holds `r` and every member of `G` that is a parent of `x`'s row
+family and is not derived (4.6c.2), at the finest level of `r` among
+such families; where none holds them all, the one holding `r` with the
+most of them; ties by chain order. For each cell `P` of `F_S` holding
+ONE value `r >= 2`, the description may carry
+
+    Q_P = floor(S_P / 2),   S_P = sum over p in P of
+          sum over j = 1 .. r of c(x_pj) * (2 j - r - 1),
+
+`x_pj` being `p`'s reading at position `j` and `c` the grid code. For
+odd `r` every weight `2 j - r - 1` is even, so `S_P` is even and
+`Q_P = S_P / 2`. For even `r` every weight is odd, so `S_P` has the
+parity of the cell's code sum, and `Q_P` drops it: `S_P` is one of
+`2 Q_P` and `2 Q_P + 1`. Its WINDOW is that pair (even `r`) or `2 Q_P`
+(odd `r`). `Q_P` counts nothing and gives no statistic by position. To
+a reader it is the cell's mean within-patient least-squares slope of
+`x` on position: `(2 Q_P + h) u / (2 |P| Sxx(r))`, with `h` one half for
+even `r` and 0 for odd, and `Sxx(r) = (r^3 - r) / 12`.
+
+**`S` exact is never published.** The design study's second run
+(MEASURED, plan P4-D412) enumerated every description of its fifteen
+fixtures: under `Q` the SWING certificate below passes 1,516
+descriptions and 0 leak; under `S` exact the same certificate passes
+220 leaking descriptions, all of even `r` (the first: eight patients,
+own-mean counts 0, 0 and 8, rows 0, 0, 5 and 11, where the union of the
+patient types `(2, 2)` and `(3, 3)` is fixed at 1 over its 4 preimage
+worlds). Step (d) 2 says why: the window holds both parities.
+
+**(b) The certificate, SWING, on published facts only.** For a cell `P`
+(one `r >= 2`, `|P|` patients) and `x`'s row family:
+1. **Classes.** A CLASS `c` is a pair `(b, k)`: `b` a band of `x`'s
+   own-mean column (4.6c.2) at its level in `G` holding patients of `P`
+   (one band where `G` holds none), and `k` a pattern of `x`'s row
+   family whose every band the row family's published table leaves
+   non-zero in the parent cell holding `P`'s patients of band `b`. Its
+   CODE-SUM INTERVAL is the integers `s` with `L + s u / r` inside `b`'s
+   value interval (exact on the grid), and each band of the row family
+   has the code range its published edges give.
+2. **Its pair.** In the SORTED arrangement (the pattern's bands ascending
+   over positions `1` to `r`), at the code sum `s` of the class's
+   interval whose greedy maximum is largest: `b_c` is the greedy
+   maximum of `S` (code units placed into the highest weights first,
+   each position inside its band's range) and `a_c` the greedy minimum
+   (units into the lowest weights first). Where the sorted arrangement
+   puts a position whose band holds ONE code with a position of a wider
+   band somewhere BEFORE it and somewhere AFTER it (not only next to it:
+   two or more positions in one-code bands between wider ones count
+   alike), `a_c` is set to `b_c`: the class is read as reaching only
+   `b_c` and `-b_c`, less than it can, never more (step (d) 1 says
+   why). A one-code band with no wider band before it, or none after
+   it, breaks nothing: its positions sit at their floor below every
+   position that can move, or at their ceiling above it.
+3. **Its bound.** `u_c = min(|P|, n_b, floor(s_beta / k_beta))` over the
+   bands `beta` the pattern uses, `n_b` the published patient count of
+   the grain cells of `P`'s patients in band `b` and `s_beta` the
+   published row count of the row family's cell holding them. Each is
+   an upper bound on the class's patients in any world.
+4. **The two capacities.** `cap_b(P)` and `cap_g(P)` are the least
+   `sum n_c b_c` and the least `sum n_c (b_c - a_c)` over integers
+   `0 <= n_c <= u_c` summing to `|P|` (and, per band `b`, at most `n_b`):
+   each is computed by the greedy fill, cheapest classes first, which
+   is exact for these laminar bounds. They are lower bounds over every
+   world.
+5. **SWING passes** when, the maxima taken over classes with `u_c > 0`,
+   `W+(r) = floor(r^2 / 4)`, and `|S|max` the larger of `|2 Q_P|` and
+   `|2 Q_P + 1|` for even `r` and `|2 Q_P|` for odd `r`:
+   (i) `|S|max <= cap_b(P) - f (max b_c + K W+(r))`, and
+   (ii) `max (a_c + b_c) <= cap_g(P) - f max (b_c - a_c) + 2`.
+
+6. **The unpinned total (the exact mean's guard; rewritten by the
+   page's verify of 2026-10-20, item 1, BLOCKER).** `x` publishes its
+   exact mean (section 5's block, counted in rows) and, beyond its two
+   boundary rungs `L` and `H`, its two tails (section 6.7a): each tail's
+   `rows` (TL4) and either its pair `mean_distance` and `rms_distance`
+   (TL5) or its listed values. Beside the mean a tail's rows and its pair
+   or values give the sum of its readings, so the readings between `L`
+   and `H` sum to the mean's total less the two tails' sums; each of them
+   has the code `(v - L) / u` on its grid, and each reading beyond a
+   boundary has the end code `0` or `K`. So the code total over EVERY
+   row of `x` is FIXED wherever the exact mean is published and each
+   tail publishes its pair or lists its values, whatever `min` and `max`
+   say: TL1 publishes an end only where at least max(`f`, 3) rows hold
+   it, so an end shown below `p01`, or no end shown, is no sign that the
+   total is free. MEASURED by the page's verify with this tree's own
+   profile, two invented tables of 2,000 patients of eight rows: the
+   code total read back from the mean and the two tails exactly, 406,482
+   with both ends `null` (135 readings below `p01`, 152 above `p99`)
+   and 397,200 with `min` published at 3.0 below `p01` 4.9. This page
+   counts the total as fixed in every such case, the readings on the
+   grid or not (a reader may know the readings' grid better than the
+   description states it). Where it is fixed, the code total of the
+   cells of `F_S` holding one `r >= 2` is fixed exactly when the code
+   total of the rows OUTSIDE those cells is, and with it, for even `r`,
+   the parity of each `S_P`: `Q_P` and that parity give `S_P` exactly,
+   the regime `Q` exists to avoid (the ruling: `Q` only, NEVER `S`
+   exact). So `Q_P` is offered for `x` only where the total is not fixed
+   (a tail publishes neither its pair nor its values), or where the rows
+   outside those cells keep a free code total: at least `f` of them,
+   counted on published facts alone as
+   `O_free = n - sum |P| r - n_one`, the sum over the cells of `F_S`
+   holding one `r >= 2` (their `|P|` and `r` published) and `n_one` the
+   rows of `x` in bands of ONE code at its `L0` levels (each such row's
+   code is fixed by its band, and every one of them is taken, at worst,
+   to lie outside).
+   No published fact sums `x`'s codes over fewer rows than the whole
+   column but a cell's own `Q` (a tail's pair, a heap's count and a
+   listed value count rows of the whole column and place none of them
+   in a cell), so beside the bands only `n_one` pins an outside row's
+   code: in the grid model each other outside row takes any code of its
+   band of two or more codes, and the outside total takes values of both
+   parities. Step (d) 4 says what this closes and what stays open.
+
+`Q_P` is ELIGIBLE when SWING passes, item 6 holds and `x`'s row family
+is eligible under its own certificate (4.6c.8). Every quantity read is
+`Q_P`, `|P|`, `r`, the grid code's `u`, `L` and `K`, `x`'s published
+mean, its tails' rows and pairs or listed values, its `L0` totals, and
+published counts and edges, so eligibility, once `Q_P` is placed, is a
+function of the description.
+
+**(c) The draw.** For each FINE `x` and each cell `P` that row 35a's
+conditions (item (e)) allow, in chain order of `F_S`'s cells, the draw
+of 4.6b.4 takes one step of a NEW kind, `trend` (joining 4.6b.4's
+kinds; its word keyed over `[name, "trend", index, [x, P's cell
+labels]]`): the options are "no moment", always eligible and scored 0,
+and `Q_P` where eligible, scored `|P|`. The uniform share `2**-30` gives
+each eligible option a chance. A cell whose `Q_P` is not drawn
+publishes nothing for it and is never named.
+
+**(d) Why no small count can be worked out: the proof.** The argument
+is in the grid model for `x` (4.6c's setting). Fix a cell `P` whose
+`Q_P` is published and eligible.
+
+1. **The slice lemma.** *Fix a class `c = (b, k)`, its sorted
+   arrangement and its code sum `s`. Every value of `S`'s parity in
+   `[a_c, b_c]` and in `[-b_c, -a_c]` is the `S` of some code vector of
+   the class with sum `s`.* Proof. Moving one code unit from position
+   `j` to position `j + 1` keeps the sum and raises `S` by exactly 2,
+   since the weights of adjacent positions differ by 2. Starting from
+   the greedy minimum, while `S < b_c` such a move exists that keeps
+   every position inside its band's range: if none existed, let `k` be
+   the first position above its band's floor; the move from `k` to
+   `k + 1` is refused only if `k + 1` sits at its ceiling, which lies
+   above its floor when its band holds two or more codes, so the same
+   holds at `k + 1`, and so on: every later position sits at its
+   ceiling and every earlier one at its floor, which is the greedy
+   maximum, `S = b_c`. A position in a band of ONE code with a wider
+   band somewhere before it and somewhere after it breaks that step: it
+   sits at its floor and its ceiling at once, so the walk can stop with
+   a wider position before it above its floor and a wider one after it
+   below its ceiling, short of `b_c` (two or more one-code positions in
+   a row stop it alike). That is why item (b) 2 reads such a class as
+   reaching `b_c` and `-b_c` only; the lemma holds for that pair
+   trivially. Each move changes `S` by 2, so every
+   value of the parity of `a_c` between `a_c` and `b_c` is met; the
+   pattern, the sum and so the own-mean band never change, so the class
+   is kept. Reversing the positions (`j` to `r + 1 - j`) negates every
+   weight and keeps sum and pattern, which gives `[-b_c, -a_c]`. ∎
+2. **The sign-flip chain.** *Let patients `1` to `t` each reach every
+   value of one parity in `J_i = [a_i, b_i]` and in `-J_i`, with
+   `a_i + b_i <= sum_i (b_i - a_i) + 2` for every `i`. Then together
+   they reach every value of one parity in `[-B, B]`, `B = sum b_i`.*
+   Proof. Put the first `k` patients on `+J` and the rest on `-J`. The
+   reachable sums form a progression of step 2 from `A_k` to `B_k`,
+   with `B_k - A_k = sum (b_i - a_i)` for every `k`, and `A_k` rises
+   from `-B` (all on `-J`) to `sum a_i` (all on `+J`) by `A_{k+1} - A_k
+   = a_{k+1} + b_{k+1}`. The condition makes consecutive progressions
+   meet or overlap, so their union is every value of one parity from
+   `-B` to `B`. ∎ For even `r` the window `{2 Q_P, 2 Q_P + 1}` holds
+   both parities, so the target is met whatever parity the patients'
+   sums give; for odd `r` every `S` and `2 Q_P` are even. This is why
+   `Q` and never `S`: with `S` exact and `r` even, the target's parity
+   is the parity of the cell's code sum, one more equation the
+   absorbing patients must meet, and the measured 220 leaks are of
+   that parity. The same parity comes back if the description fixes the
+   cell's code total some other way, which is why item (b) 6 asks that
+   it does not.
+3. **The witness worlds keep the cell's trend.** Let `W` be any
+   witness world of the row family's certificate (4.6c.8: a world
+   holding at least `f` patients of a hostable type `t`, the zero world
+   of PWIT, or the floored world). In `W`, take the patients of `P`
+   that the witness argument does not fix (all `|P|` of them in the
+   zero world and in the floored world; all but the `f` patients of
+   type `t` otherwise). By item (b) 3 their class counts are at most
+   `u_c`, so their `sum b_i` is at least `cap_b(P) - f max b_c` and
+   their `sum (b_i - a_i)` at least `cap_g(P) - f max (b_c - a_c)`.
+   Set each at its class's code sum `s` (inside its own-mean band, so
+   the patient-level tables are kept; this moves the patients' code
+   total, which the grid model does not hold: whether the column's exact
+   facts keep this world is step 4's, checked and not proven) and apply
+   steps 1 and 2: they
+   reach every value of one parity in `[-B, B]`, and the target
+   `S_P - S_fixed`, where `|S_fixed| <= f K W+(r)` is the fixed
+   patients' part, lies inside by condition (i) and inside the window
+   by step 2. Every move keeps each patient's class, so `W`'s types,
+   and so every count the witness argument uses, are unchanged. Hence
+   the worlds that make every union of types 0-able or f-able without
+   `Q_P` remain worlds with it, and no union of types leaks. ∎
+4. **The within-column lemma (what the moves keep, what item (b) 6
+   closes, what stays open).** The moves of steps 1 to 3 keep every
+   row's band of `x` in the row family's bands, so every row family's
+   table and every patient's own-mean band; inside a band they move
+   codes, so `x`'s totals at its finer `L0` levels, its exact mean,
+   spread and moments, its rungs inside a band and its counts of single
+   readings are NOT kept by them: beside those published facts the
+   witness of step 3 need not be a world (it resets code sums, which
+   moves the total the exact mean reads, and moves codes, which moves
+   the sum of squares the exact spread reads). The first skeptic
+   measured where that bites (the fifteen fixtures, each cell's code
+   total published beside `Q`, a cell holding every row and every
+   reading on the grid): 873 descriptions SWING passed leak because `Q`
+   stands beside the total, odd `r` among them (38 on `F6` and `F7`).
+   MEASURED by this page's repair (`mean_ab2.py`, the reader also given
+   the exact sum AND sum of squares of the codes, the exact mean and
+   spread, over the cell and `k` readings off it that it does not see),
+   at two levels:
+   - *at this page's level*, unions of TYPES (own-mean band, pattern):
+     on fixture `F3`, 0 leaking descriptions over 324 SWING passes with
+     `k = 0`, where the moments fix the cell's code total, and 0 over
+     1,144 with `k = 2`; and on ALL FIFTEEN fixtures with `k = 0`, 0
+     leaking descriptions over 163,755 SWING passes (`mean_ab2.py`,
+     `fixout/meanB2c-type-0.json`). The promise of 4.6c.11 for types
+     holds there, MEASURED, not proven;
+   - *at the level of exact readings*, unions of patients by their exact
+     code vectors, finer than any band the description publishes (the
+     design study's own fixture standard): with `k = 0`, the regime item
+     (b) 6 refuses, fixture `F1` alone holds 3,808 descriptions leaking
+     only because `Q` stands beside the moments; with `k = 1` to `4`
+     readings off the cell, fixture `F3` still holds 125, 132, 133 and
+     136 (and 81 to 202 that leak from the families and the moments
+     alone, without `Q`: 202 at `k = 1`, of 327 leaking there, 125 by
+     `Q`; `fixout/tB1.json` to `tB24.json`). Item (b) 6 removes the
+     regime where the published facts FIX the cells' total; it does not
+     close this residue.
+   *The exchange form*, the skeptic's proof route (absorbing patients
+   exchanging only their own readings, which keeps every fact of `x`
+   alone), passes NO description of the fifteen fixtures (MEASURED,
+   `mean_ab.py`): a patient's permutations move `S` in steps of twice
+   its code differences, so its reach is contiguous only where its codes
+   lie one apart, and a certificate valid in every world must take each
+   class's worst multiset; as written it carries no trend. So the lemma
+   at the level of exact readings is OPEN, a stated limit (4.6c.11 limit
+   9) whose owner is the orchestrator's ruling (R1 read at the level of
+   exact readings, against the owner's principle of 2026-10-01 that the
+   threat is HIPAA exposure and not reconstruction) and lane CHa's
+   product-scale `K-S6-08` run (4.6c.10) before the stage-6 gate.
+5. **The census tie.** In an `r`-band parent cell the witness worlds use
+   the floored vector `R*` of 4.6c.8, which is tied to every published
+   table holding `r`; `F_S`'s cells are cut by single values of `r`, and
+   `R*`'s tie is what makes a world with one `r` in `P` and a pooled `r`
+   in the row family consistent.
+6. **Every count (ruling R8 (2)).** The decision is drawn (inventory row
+   35, class (a)): "no moment" is eligible on every table, so it
+   removes no table from the preimage, and a published `Q_P` removes
+   only tables whose own `S_P` leaves its window or whose SWING fails,
+   while step 3 keeps every witness world of every union of types, and
+   a union of patient-level cells is untouched (its worlds exchange
+   patient-level values between patients of one grain cell and move no
+   row, 4.6c.8 step 5). Ruling R3's residual stands: `Q_P` is exact,
+   so a reader's belief moves; nothing becomes derivable.
+
+**(e) Where it may stand (inventory rows 35a, 35c, 35d; class (b)).**
+`Q_P` is offered for `x` only where `x` is FINE, holds a reading on
+every row (its published `n_missing` over tabled rows is 0), has a grid
+of two or more codes (`tails` standing on both sides and `K >= 1`, the
+setting), and carries no placed row-level product moment of lane MPOL;
+for cells of `F_S` (row 35c, a function of the placed chain); with the
+grid code (row 35d, facts of `x` alone). A row-level product moment of lane MPOL on the
+same column is one more equation the moves of (d) would have to keep:
+until lanes MG and MPOL write that joint argument, `Q_P` and such a
+moment on one column are exclusive options of the draw.
+
+**(f) What it carries, MEASURED** (invented test tables `ST2`, about
+3,000 patients and 20,000 rows, and 15,000 patients and 100,000 rows,
+and `ST2-AGE`; plan P4-D412). *The design study's second run*: at
+20,000 rows SWING published the two `r = 8` cells (about 1,000 patients
+each); the arm-by-visit coefficient came back at 0.974 to 0.999 of the
+real one (a fresh real sample: 0.939 to 0.999), the old-by-visit trend
+at 0.968 to 0.983, every published `Q_P` met (106 cells of 106). ITS
+100,000-ROW FIGURES WERE MEASURED ON A DESCRIPTION THIS PAGE FORBIDS:
+the own-mean family it published held 7, 11 and 9 cells of 1 to 10
+patients on `ST2` (seeds 1 to 3) and 1 and 13 on `ST2-AGE`; held to the
+floor in that run's own generator (the statistics skeptic's re-run,
+2026-10-20), the trend came back at 0.012 to 0.535 and the
+within-patient correlation missed by 0.127 to 0.137 on 5 of 6 runs.
+*This page's run 3* (2026-10-20; the floor enforced on every
+patient-level family; the row family's child at the median; the
+floored split of 4.6c.2 (d) decided by exact integer search; the
+patient weight of the generation method's G16.15): on 24 route-runs (`ST2` at 20,000 rows, seeds 1 to 3 and 21 to 23,
+and at 100,000 rows, seeds 1 to 3, by both coarsening orders the floor
+leaves; `ST2-AGE` with and without the age band a parent; `ST2` without
+dropout) no patient-level family published a cell of 1 to 10 patients;
+SWING published 2 of 14 one-`r` cells at 20,000 rows and 10 to 14 of 14
+at 100,000 (4 or 19 of 28 on `ST2-AGE`'s (arm, old) route); the
+arm-by-visit coefficient came back at 0.968 to 0.998 of the real one at
+20,000 rows and 0.987 to 0.996 at 100,000, the old-by-visit trend at
+0.969 to 0.984, and every published `Q_P` was met: `K-BC-06`'s clauses
+(1) to (4) held on all 14 runs at 20,000 rows and all 10 at 100,000 (6
+of 6 on `ST2`, where READY asks 5 of 6). With the child left free to
+move to quartiles and the 90th percentile the trend missed clause (1)
+on 4 of 8 runs at 100,000 rows (0.013 to 0.378 of the real): the
+child's median of 4.6c.2 (e) is what carries it. Clause (5) is 4.6c.11
+limit 3's. *Under the guard of (b) 6 as rewritten by the page's verify*
+(run 3's own harness read the void `min` alternative, `min < p01` on 14
+of 14 runs): `ST2` and `ST2-AGE` keep every `Q_P` they published, since
+their patients of one row lie outside every cell of `F_S` holding one
+`r >= 2` (137 to 846 rows a run, in bands of many codes, so
+`O_free >= f`); `ST2` without dropout (two runs at 20,000 rows, every
+patient eight rows, `F_S`'s one cell holding every row, `O_free = 0`)
+publishes NO `Q_P`, and its arm-by-visit trend falls to BASE's 0.003
+and 0.006 of the real, failing clause (1) there. So clauses (1) to (4)
+hold on 12 of the 14 route-runs at 20,000 rows and still on all 10 at
+100,000 (6 of 6 on `ST2`); the corrected guard's whole price on run 3
+is those two runs, a table on which every patient holds every visit.
+On a long table (median 20 rows a patient) SWING publishes 0 cells, and
+the trend is not carried (4.6c.11).
+
+#### 4.6c.2 Derived patient-level parents: the first date and the own mean (written first; the within-patient correlation's route)
+
+A row family under the patient chain carries what a patient's rows
+share only through the patient's cells. A repeated reading's
+within-patient correlation (the intraclass correlation, `K-BC-06`) and
+the gaps between visits need a patient-level column made FROM the rows:
+the patient's own level of the reading, and the patient's first date.
+Such a column is DERIVED: the profiler makes it, it is a column of the
+patient table, and it ties the patient's rows, which is why a row family
+under it needs the argument below.
+
+**(a) The two derived columns.**
+- **The first-date band of a dealt date column `D`** (4.6c.7): each
+  patient's earliest present reading of `D`, read at `D`'s own ladder.
+  It publishes NO edge of its own: its levels are `D`'s levels, cut at
+  `D`'s published rungs. A patient whose `D` is absent on every row is
+  in its `missing` band.
+- **The own-mean band of a FINE repeated column `x`**: each patient's
+  mean of its present readings of `x`, read at a ladder of its own, the
+  `L0` cut of 4.6b.14 (the deciles with `p25` and `p75`) taken over
+  patients, with `L1` and `L2` as 4.6b.2 builds them. A patient holding
+  no reading is in its `missing` band. Its rungs are percentiles of
+  patients' means, made by the profiler and never read from a column,
+  so it is a derived column under 4.6b.7's rule read in patients: every
+  value band of a published level holds at least `max(2 f, f + 4)`
+  patients, and only the drawn level's edges are published.
+
+**(b) Which level is published (inventory row 21; class (a)).** Each
+derived column enters the patient chain as an ordinary member of the
+patient table, and its level in every family is drawn by 4.6b.4's draw
+as any member's is. Its OWN level, the finest its `ladder` entry
+publishes, is drawn first, at a step of the new kind `patient_level`
+(word keyed over `[name, "patient_level", index, [source column,
+derived kind]]`), among the levels `l` where:
+1. every band total at `l` is 0 or at least `f` patients, and for the
+   own mean at least `max(2 f, f + 4)` patients in every value band;
+2. for the first date only, every DIFFERENCE between the source's
+   published row total in a band of `l` and the derived column's patient
+   total in the same band is 0 or at least `f` rows: the difference is
+   the band's RESIDUAL rows, those that are not some patient's first;
+3. "no derived column" is always eligible, scored 0; a level `l` is
+   scored `N` times its number of bands (`N` the patients, published).
+   The first build scored a level by its bands alone, on the scale of
+   the draw's temperature `tau` (two, 4.6b.14), which left "no derived
+   column" a share of `exp(-b / tau)` against a level of `b` bands
+   (about a quarter where only a two-band level is eligible); scaled by
+   `N`, its share is at most `exp(-N b / tau)`, below one in a billion
+   wherever `N b >= 42` (an own-mean level of two value bands holds `N
+   >= 44`; the census draw's scores were repaired the same way, 4.6c.4
+   (c); the codex review of 2026-10-20, item 15).
+Both tests read published totals only, so a drawn level's eligibility is
+a function of the description. The test of item 2 is needed: the
+source's total and the derived total are both published, and their
+difference is a count of rows a reader forms by subtraction, which the
+floor on each alone does not keep out of 1 to `f - 1`. The own mean
+takes no such test, and needs none: its edges are percentiles of the
+patients' means, made by the profiler and never rungs of its source,
+so no band of the source and band of the own mean share their two
+edges, and no published total of one minus a published total of the
+other counts the same set of rows; a first date's levels ARE its
+source's rungs, which is why it takes the test.
+
+*Every cell of the families holding a derived column is floored.* A
+derived column is a member of the patient chain, so every family that
+holds it, the own-mean family `{own mean | parents}` included, publishes
+each cell at 0 or at least `f` patients (4.6b's floor read in
+patients): where the finest levels W3 and NE leave would hold a cell of
+1 to `f - 1` patients (deciles of the own mean crossed with single
+values of `r` on a large table do), the draw takes a coarser option of
+the family, never that cell. The visit-trend study's second run broke
+this at 100,000 rows (MEASURED by the page's statistics skeptic: 7, 11
+and 9 cells of 1 to 10 patients on `ST2` seeds 1 to 3, 1 and 13 on
+`ST2-AGE`), which is why its 100,000-row figures are restated in (f)
+and 4.6c.1 (f); `K-S6-08` holds the case (4.6c.10).
+
+**(c) The patterns a derivation allows.** A derived parent ties the
+rows of its own source column, never another column's rows.
+- **First date.** Let a row family's child be `D` itself, under a parent
+  cell where every patient's first-date band is `b`. The row family
+  must take `D` at the derived column's own level (the same edges) and
+  the first-date column at its own level, never pooled (a rule on the
+  offered options, class (b)). Then every patient of the cell holds
+  exactly one row (its first) in band `b`, its other `r - 1` rows in
+  VALUE bands at or above `b` or in `D`'s `missing` band, and no row in
+  a value band below `b`. Conversely every such pattern is the pattern
+  of some table: put the first row at `b`'s lowest reading. So the
+  ALLOWED patterns are exactly `e_b + y`, `y` any pattern of `r - 1`
+  rows over the value bands at or above `b` and `missing`. The
+  `missing` band is read apart from the value bands' order, wherever
+  4.6b.2 places it in the ladder: a patient whose earliest present date
+  is in `b` may hold absent dates on any other row (a follow-up date not
+  yet recorded; the codex review of 2026-10-20, item 10, found the first
+  build's "at or above `b`" leaving them out). A patient in the derived
+  column's own `missing` band holds no present date: its ONE allowed
+  pattern is `r` rows in `missing`.
+- **Own mean.** In the grid model, a pattern `k` of `x`'s row family is
+  ALLOWED for own-mean band `b` when the interval
+  `[sum k_beta lo_beta, sum k_beta hi_beta]`, `lo_beta` and `hi_beta`
+  the first and last grid codes of band `beta` and the sum taken over
+  present readings, meets `b`'s code-sum interval for `k`'s count of
+  readings. Exactly then some code vector of pattern `k` has its mean in
+  `b`, since the code sum moves by single units between those ends. For
+  a column with no grid (the setting) the same test is read in values:
+  `lo_beta` and `hi_beta` are band `beta`'s published lower and upper
+  edges and `b`'s interval is read as a sum of readings, which moves
+  continuously between those ends.
+- A row family whose child is NOT the derived column's source has its
+  patterns unrestricted by it. A row family whose child IS the source is
+  restricted whether or not the derived column is its parent, since
+  every world must keep each patient's derived value; 4.6c.8 (a) says
+  how such a family is placed.
+
+**(d) The certificates.**
+- **First date: residual PWIT.** For a parent cell `P` of first-date
+  VALUE band `b`, with `|P|` patients and published row counts `s_beta`
+  of `D` at the derived level, the RESIDUAL supplies are `s'_b = s_b -
+  |P|`, `s'_beta = s_beta` for every value band above `b`, and
+  `s'_missing = s_missing` for `D`'s `missing` band; every `s_beta` of
+  a value band below `b` is 0 by construction. The row family is
+  eligible when every residual supply is 0 or at least `f` and PWIT
+  (4.6c.8) holds for the residual cell: `|P|` patients of `r - 1`
+  residual rows each, supplies `s'`. Every residual row is allowed for
+  every patient of `P` (all lie in value bands at or above `b` or in
+  `missing`), so the residual cell is an UNRESTRICTED cell and 4.6c.8's
+  theorem applies to it as written, with `r - 1` for `r`. A union of
+  types is a union of residual types (the first row's band is fixed for
+  every patient of `P`), so the theorem gives every union 0-able or
+  f-able. ∎ A parent cell of the derived `missing` band holds `s_missing
+  = |P| r` and no other row: its one allowed pattern makes every patient
+  of it one type, held by `|P|` patients, 0 or at least `f`, and its
+  certificate is that count.
+- **Own mean: the floored split.** For a parent cell `P` of `x`'s row
+  family, the producer exhibits, from published counts alone:
+  1. for every grain cell `C` inside `P`, a floored vector `R*_C`
+     (4.6c.8) tied to every published table holding `r`;
+  2. for every CLASS `(C, rho)` with `R*_C(rho) > 0`, a split of its
+     `R*_C(rho)` patients into patterns, each pattern used by 0 or at
+     least `f` patients, each pattern allowed for `C`'s own-mean band and
+     of `rho` rows;
+  3. such that, summed over the classes inside `P`, the patterns' rows
+     in each band equal the published `s_beta`.
+  The row family is eligible when the producer finds such a split; it
+  searches by exact integer search over the allowed patterns of every
+  class in the fixed order of 4.6c.8 (a), at most `PATTERNS_MAX` a
+  class, within `NODES_MAX` nodes (the setting's bounds; lane CHa's,
+  through the scipy route plan P4-D407 names, subject to lane DEP's
+  bundle and lane MDEP's zones of plan P4-D409; patterns, class totals,
+  the ties of `R*` and the parent cells' row counts are linear, each
+  pattern's count 0 or at least `f` one binary beside it), and its
+  failure, or a search ending at a bound, means "not eligible", which
+  the draw masks. Every allowed pattern of a class is NOT enumerated:
+  a class of 1,000 rows over 20 levels has about `10**40` (the codex
+  review of 2026-10-20, item 7). MEASURED by this page's run 3
+  (2026-10-20, scipy's HiGHS through `milp`, in the evaluation
+  environment): a split exists at the first option offered, the child
+  at the median, on all 24 route-runs at 20,000 and 100,000 rows; the
+  search took at most 11.3 seconds (1,248 unknowns) at 20,000 rows,
+  where each grain cell pools `r` and `R*` is searched with the split,
+  and at most 0.83 seconds at 100,000. It was not run on the long table
+  (lane CHa's).
+  The first build offered the split only "where item (b) 6 of 4.6c.1
+  holds for its child (the published `min` below `p01` or `max` above
+  `p99`)"; that guard is REMOVED (the page's verify, item 1 (c)): on
+  the product's block `min` and `max` are `null` wherever fewer than
+  max(`f`, 3) rows hold an end, so it never offered the split on a
+  continuous column, and where it did it guarded nothing, since the
+  mean and the tails fix the code total anyway (4.6c.1 (b) 6). *Proof
+  that it is a certificate, in the grid model.* The split gives a world
+  in the grid model: put each patient in its class with its pattern,
+  and give its rows codes inside their bands with their mean in the
+  patient's own-mean band (the pattern is allowed); every published
+  patient count, row count and census holds by items 1 and 3. In that
+  world every type is held by 0 or at least `f` patients, so by the
+  one-world lemma no union of types leaks. ∎ The grid model holds none
+  of the child's facts finer than its bands, its published code total
+  among them: whether the split's world can be re-coded to the column's
+  exact mean, spread and tails is NOT proven, and 4.6c.11 lists it as
+  checked (0 leaking descriptions at the level of types over 163,755
+  SWING passes on all fifteen visit-trend fixtures with the exact mean
+  and spread published, `k = 0` included, the own-mean family among the
+  published tables; `fixout/meanB2c-type-0.json`). It is stronger
+  than it must be (it asks for blocks of `f` patients alike, where
+  PWIT's two worlds need not), and it costs breadth, never a leak.
+  *Beside other row families.* A type crosses every row family. Read a
+  pattern of a floored family as HOSTABLE when it is one of its split's
+  blocks; then 4.6c.8 step 3's argument runs family by family: a union
+  holding a type whose every pattern is hostable gets at least `f`
+  patients by choosing the `f` patients of each PWIT family's hostable
+  world inside the floored block (row worlds assign patterns freely
+  within a class, step 2), and a union holding no such type holds 0 in
+  the world made of the floored split and every PWIT family's zero
+  world. Two or more floored families couple the same way: inside a
+  class each family's blocks hold 0 or at least `f` patients, and no
+  published table couples two families, so any `f` patients of the
+  class can be given one block of each family; a union holding a type
+  whose every pattern is a block of its family therefore holds at least
+  `f` in some coupling, and a union holding none holds 0 in every
+  coupling of the floored worlds.
+- **Why the own mean cannot use PWIT's round robin.** PWIT's zero world
+  deals each band's rows in turn; a patient so dealt can be given every
+  row below its own-mean band, a pattern no table allows, and the
+  absorbing step of PWIT's hostable world (4.6c.8 step 2) splits the
+  rest into ANY patterns, again possibly disallowed ones. The first
+  date escapes both, because every residual row is allowed for every
+  patient of its cell.
+
+**(e) The coarser offers of the row family (the within-patient
+correlation's route; inventory row 4 for MG).** A row family is offered
+at the levels W3 and NE fix and at every coarser published level of its
+child and of each parent, each a separate option of the draw's kind
+`row`; an option is eligible when its table holds 0 or at least `f`
+rows in every cell, RULE W1 holds on it in rows (4.6b.3, the child's
+own-fact groups), and its certificate holds in patients (4.6c.8 (a)
+says which). A coarser option is eligible on its own published table
+and counts, so the draw may take it where a finer one fails, and the
+failure is masked. *The child at the median.* A row family whose child
+is the source of an own mean takes its child at the median, the
+two-band level of its ladder, whenever that level is not finer than
+the one W3 and NE fix: its options are the median of the child with
+each coarser option of its parents, and finer levels of the child are
+not offered. The rule is a function of the placed chain and the
+child's published ladder (class (b)), and run 3 measured why: with the
+child free to move to quartiles and the 90th percentile once the
+own-mean family was floored, the published weight still kept the
+correlation (within 0.032), but SWING published fewer cells and the
+trend missed clause (1) on 4 of 8 runs at 100,000 rows (0.013 to 0.378
+of the real); at the median every clause (1) to (4) held (f). This is
+the route the design measured, with its child pinned.
+
+**(f) MEASURED** (plan P4-D412 cites each run). With the own-mean
+parent and the coarser offer, the design's test table `ST2` (2,000
+patients, about 13,300 rows, three seeds) got its within-patient
+correlation back at 0.712, 0.700 and 0.707 against 0.715, 0.713 and
+0.720 real; without a derived parent, 0.00. The visit-trend study's
+second run (the same route, the row family judged by PWIT): within
+0.024 of the real on its 20,000-row runs; its 100,000-row runs were
+measured on an own-mean family holding cells of 1 to 10 patients,
+which (b) forbids, and held to the floor in the same generator the
+correlation fell to 0.578 to 0.594 against 0.715 to 0.721 on 5 of 6
+runs (the statistics skeptic's re-run, 2026-10-20). With a first-date
+parent, 30-day readmission came back at 32 per cent against a real 37
+(9,000 patients); with no time parent, 13. *This page's run 3* (the
+floor enforced, the child at the median by (e), the floored split by
+exact search, the patient weight of the generation method's G16.15):
+within 0.0091 of the real on all 6 `ST2` runs at 100,000 rows, within
+0.0317 on all 10 route-runs there (twin 0.7103 to 0.7350 against real
+0.7033 to 0.7209) and within 0.0263 on the 14 at 20,000 (twin 0.6997
+to 0.7334, real 0.7014 to 0.7257), inside clause (4)'s 0.07 everywhere.
+The weight is what changed: the study's weight, fitted on real rows
+inside cells that include the child's band, fell from about 0.69 to
+0.32 to 0.33 when the child moved to quartiles and the 90th
+percentile; the published one stayed at 0.855 to 0.87.
+
+#### 4.6c.3 The gate: when the layer is on, and the person column's census it replaces
+
+**(a) The rule (inventory row 15a; items 1 to 3 class (b) on published
+facts, item 4 class (a)).** The patient layer is ON exactly when all
+four hold:
+1. `settings.person_columns` names exactly ONE column, the PERSON
+   column;
+2. no tabled row lacks a person value: the person column's published
+   `n_missing` equals the published count of records holding nothing
+   (4.6b.5), which lack every value;
+3. the extra rows `xr = n - N` are at least `f`, where `N` is the
+   person column's `n_distinct`, the patient count under item 2;
+4. the census draw of 4.6c.4 (c), whose options are every eligible
+   candidate census AND "off" (always eligible, scored 0), does not draw
+   "off".
+Otherwise it is OFF: `grain` is `null`, the person column's block is
+section 5.3's as today, and the table is described in rows by section
+4.6b alone, the person column ineligible for families (4.6b.1).
+
+**(b) What the person column publishes while the layer is ON (the
+contract text that replaces its repetition census).** Section 5.3 and
+invariant I2 give a person column's block `n_distinct_by_occurrences`,
+its repetition multiset (how many patients hold exactly one row, two
+rows, and so on), exactly and under no floor. That multiset IS the
+exact census of `r`. While the layer is ON:
+- the person column's `n_distinct_by_occurrences` is `null`, and
+  `grain.census` (4.6c.4), the drawn census of `r`, stands in its place:
+  it is the ONLY census of `r` the description holds;
+- every other key of the person column's block that counts ROWS is
+  counted over the patient table instead, one value a patient (its
+  layouts, `layout_forms`, and its digit and code-alphabet counts among
+  them): a person value is the same on every row of its patient, so a
+  count over rows of any fact of it is a sum of `r` over the patients
+  holding that fact, a census of `r` by another name. One key is NOT
+  moved: `n_present` stays the count of tabled rows holding a person
+  value, which item 2 makes `n`, the census's rows (invariant I2's
+  second equation below and S29 read it so); it is a total of `r`
+  over every patient, which `grain.census` publishes anyway;
+- invariant I2's two equations (the map's values sum to `n_distinct`,
+  its keys weighted by its values sum to `n_present`) are read on
+  `grain.census` instead: its patients sum to `N` and its rows to `n`;
+- `n_distinct`, `n_missing`, the lengths and the literal prefix of
+  section 7.12a stay as section 5.3 publishes them: none of them is a
+  count of rows grouped by patient.
+While the layer is OFF the person column's exact multiset stays
+published, as today, by the base product: a fact of one column (plan
+P4-D363), whose flooring in patients is lane HX2's (plan P4-D406).
+
+**(c) Every other census of `r` (the design's 10.7 item 4 (ii)).** A
+multiplicity map counts how many values cover one row, two rows, and so
+on. On a column whose values follow its patients, that map is a census
+of `r` again: a free-text column holding each patient's name on every
+row has the map of `r` exactly, and a column holding it on most rows
+has a map close to it. So while the layer is ON:
+- a PATIENT-FIXED column (4.6c.5) publishes its block over the patient
+  table, its map counting PATIENTS a value covers;
+- every other column's `n_distinct_by_occurrences` is `null` unless its
+  every present value covers one row (the map `{1: n_present}`, which
+  `n_distinct` and `n_present` already state); the twin writes such a
+  column's present cells as the generation method's G16.13 says, and
+  the private report names the given-up map.
+Then `grain.census` is the only census of `r` and of any sum of `r` over
+a published grouping of patients that the description holds (the row
+census of a patient-fixed column is 4.6c.5's).
+
+**(d) Proof that neither outcome removes a table beyond what is
+published.**
+- *Items 1 to 3 (class (b)).* Both descriptions publish
+  `settings.person_columns`, the person column's `n_missing`, the count
+  of records holding nothing, `N` (the person column's `n_distinct`
+  OFF, the census's patients ON) and `n` (the tabled rows OFF, the
+  census's rows ON). Items 1 and 2 are read on them, and under item 2
+  item 3 is too. So whether items 1 to 3 hold is a function of either
+  description, and that part of the decision removes no table the
+  published numbers keep.
+- *Item 4 (class (a)).* "Off" is an option of the census draw on EVERY
+  table, eligible and given the uniform share `2**-30` of 4.6b.4's
+  draw, so every table that meets items 1 to 3 can draw it: an OFF
+  description removes no table from the preimage for the census's sake,
+  whatever the census is, and so bounds no count beside the person
+  column's own block. In particular the OFF description reads nothing
+  of the exact census: the person column's census stays whatever the
+  base product publishes for it, today its exact multiset (a fact of
+  one column, plan P4-D363) and, once plan P4-D406 (lane HX2) lands, its
+  census in people with every entry of 1 to `f - 1` people pooled. The
+  first build read item 4 on the exact multiset, which P4-D406 removes
+  (the page's first skeptic, item 5: whether `lo = 3` or `lo = 4` is
+  eligible can turn on how a pooled remainder splits); the draw makes
+  that reading unnecessary. An ON description publishes a census that
+  is eligible, a fact checked on that census alone (4.6c.4 (b)), drawn
+  among the eligible candidates with full support (class (a)), so ON
+  removes only the tables on which the published census is not that of
+  the table or not eligible, both read on the description.
+- *Every count (ruling R8 (2)).* A decision that is a function of the
+  published description, or drawn with an option eligible on every
+  table, adds no table to and removes no table from the preimage beyond
+  the published numbers, so every count keeps the range the rest of
+  the description gives it.
+- *The extra rows from 1 to `f - 1`.* Then no candidate is eligible, so
+  item 3 only says early what item 4 says. Proof: between 1 and `xr`
+  patients hold two or more rows. A candidate with top edge `lo = 1`
+  has one open band of all `N` patients and excess `xr`, and a floored
+  split (4.6c.4 (b)) must put each positive excess value on 0 or at
+  least `f` patients, while those patients number at least 1 and at
+  most `xr <= f - 1`. A candidate with `lo >= 2` publishes the bands of
+  `r = 2` to `lo - 1` and the top band, which together hold the same 1
+  to `f - 1` patients, so one of them holds 1 to `f - 1`. ∎
+
+**(e) The price, a stated limit (4.6c.11).** A table with exactly one
+person column whose patients repeat on 1 to `f - 1` extra rows, or whose
+census admits no eligible candidate, or with a tabled row lacking a
+person value, or with two or more person columns, is described in rows:
+its patients' fixed facts may then differ between their rows, and the
+layer carries nothing. A table with an eligible candidate is described
+in rows only when the draw takes "off". Under the census draw's scores
+as repaired (4.6c.4 (c): a candidate scored `N lo`, "off" 0) that chance
+is at most `exp(-N lo* / tau)` plus the uniform share's `2**-30`, `lo*`
+the finest eligible top edge: below one in a billion once `N lo*` is
+at least 42 at `tau` = 2, and at most 0.41 per cent on the smallest
+table that can have an eligible census (`N lo* = f`). The first build
+claimed "about one in a billion" while it scored a candidate `lo - 1`,
+on the scale of `tau`: MEASURED by this page's second repair
+(`wave6/MG/repair2/repro.py`, the health data zoo's tables built at
+600 rows), "off" took 3.8 to 50 per cent on the 14 tables the gate can
+turn on (50 per cent on `wearables`, whose only eligible candidate is
+`lo = 1`, scored 0 like "off"; Codex's census of 100 patients, `c_1 =
+1`, `c_2 = 87`, `c_3 = 12`, likewise), and at most `4.7 * 10**-10`
+under the repaired scores (the codex review of 2026-10-20, item 15).
+MEASURED by the design (`patient_layer.py`,
+every census of 11 to 20 patients holding 1 to 5 rows each, 50,127
+censuses, under its earlier excess check): at extra rows 1 to 10 none
+of 930 had an eligible candidate; at 11 or more the layer was ON in
+37,015 of 49,187 and OFF in 12,172 (24.7 per cent, on tables of at most
+20 patients). MEASURED by this page's repair on the health data zoo's
+25 tables (`tests/health_zoo.py` at b075342a, built at its 600 rows,
+`zoo_gate.py`, the person columns derived as `settings.person_columns`
+derives them): the layer is ON on 14 (each with an eligible census, the
+finest top edge at 1 to 6 rows); 10 hold no repeating identifier (a
+table of one row a person, or no person column) and stay as today; 1
+(`sql_server`, one extra row) is OFF by item 3; the two new conditions,
+items 1 and 2, turn OFF NONE of the 25 (no table holds two repeating
+identifiers or a row without its person). The private report names
+which condition turned the layer off.
+
+#### 4.6c.4 The census of `r`: its open top band, the floored split, and its draw
+
+**(a) Candidates.** A CANDIDATE is a top edge `lo >= 1`. It publishes
+each value `rho` from 1 to `lo - 1` as a band of its own, holding
+`c_rho` patients, and one OPEN top band "`r` at least `lo`" holding `m`
+patients and `n_top` rows, from which the reader has the top band's
+excess `q = n_top - lo m`. The top band's largest value is never
+published. The
+candidates are every `lo` from 1 to one more than the largest `r` held
+(at the last, the top band is empty).
+
+**(b) Eligibility (inventory row 15; the excess rule for every `q`).**
+A candidate is ELIGIBLE when
+1. every `c_rho` is 0 or at least `f`, and `m` is 0 or at least `f`;
+2. where `m > 0`, the top band admits a FLOORED SPLIT at the TIGHT CAP
+   `t = ceil(q / m)`: whole numbers `n_v >= 0` for `v` from 0 to `t`,
+   each 0 or at least `f`, with `sum n_v = m` and `sum v n_v = q`.
+The producer decides item 2 by the bounded DEFICIT SEARCH (the codex
+review of 2026-10-20, item 7: the first build's search over every three
+values of `0 .. t` tries 166,616,670,000 triples on 99 patients of
+10,000 rows and one of 9,999, before refusing). Let `D = m t - q`, the
+DEFICIT, which lies in `0 .. m - 1`. A split puts `m - P` patients at
+`t` and `P` patients in BLOCKS below it, block `i` holding `n_i`
+patients at `t - d_i`, with `sum n_i d_i = D`; since every `d_i >= 1`,
+`P <= D < m`, so the block at `t` is never empty and must hold at
+least `f`: `P <= m - f`; every `n_i >= f`, so `d_i <= D / f`; and no
+value is below 0, so `d_i <= t`: every `d_i <= min(t, D / f)`. The
+search tries, in this order: (i) `D = 0`, every patient at `t`; (ii)
+one block, `d` from 1 to `min(t, floor(D / f))`, where `d` divides `D`
+and `f <= D / d <= m - f`; (iii) two blocks at `d` and `d + 1`, `d`
+from 1 to `min(t - 1, floor(D / f))`, where some `P` from `max(2 f,
+ceil((D + f) / (d + 1)))` to `min(m - f, floor((D - f) / d))` exists;
+(iv) two blocks at any `d1 < d2 - 1`, both at most `min(t, floor(D /
+f))`, pairs in order of `d1` then `d2`, each solved for its least `n2
+>= f` in its residue class and stepped up while `n1 >= f`; it stops at
+`TRIES_MAX` steps (the setting), and "not eligible" where nothing is
+found. Every split it finds has at most three values, so it is a split
+of the rule; it may refuse a band a longer search would pass (breadth,
+never a leak). MEASURED by this page's second repair
+(`wave6/MG/repair2/repro.py`): on every top band of every census of 11
+to 20 patients holding 1 to 5 rows (126,500 bands), and on every top
+band of `m` from 11 to 60 patients and an excess `q` up to `4 m` (7,150
+bands), it decides exactly as the complete three-value search does, and
+on Codex's census it refuses at its first step (`D = 1 < f`). Both items read `c_rho`, `m`
+and `q` only, so the candidate's eligibility is a function of the census
+it publishes, and the loader repeats the same search.
+
+*Proof that an eligible census leaves every count of `r` 0-able or
+f-able, for a reader knowing any true cap.* The reader's counts are
+unions over values of `r`: a set `S` of values below `lo` and a set `A`
+of excess values of the top band, whose count is
+`sum over rho in S of c_rho + n_A`, `n_A` the top patients whose excess
+lies in `A`. If some `c_rho` in `S` is at least `f`, the count is at
+least `f` in every table. Otherwise it is `n_A`. The floored split is
+the census of SOME table: give the band's `m` patients the excess values
+the split names, which sum to `q`. In that table `n_A` is a sum of `n_v`
+over `v` in `A`, each 0 or at least `f`, so `n_A` is 0 or at least `f`,
+and by the one-world lemma it does not leak. The split's largest value
+is at most `t`, the least largest excess any table of the band can
+have, so the split is the census of a table under EVERY cap the real
+table obeys: a true cap is at least the real largest excess, which is at
+least `t`. ∎ The census's values inside its top band are facts of `r`
+alone, finer than its bands; crossed with other columns they are read
+by RULE W1 in patients (4.6b.9 (c)), and by this proof no group of them
+is fixed or bounded inside 1 to `f - 1`, so W1 finds no own-fact group
+of `r` to filter.
+
+*The cap lemma.* A count's range over a set of tables only widens as the
+set grows, so a count that is 0-able or f-able under a tight cap stays
+so under every looser one. A rule shown safe at the least cap any table
+of the description allows is therefore safe for a reader knowing any
+true cap, declared or not; every argument of this section is shown at
+that least cap or with no cap at all. ∎
+
+*Its relation to the design's excess check.* The design checked the
+counts "patients with at least `k` extra rows" by a formula and every
+union of extra values only for an excess up to 18. The floored split
+answers every union for every excess at once, by one exhibited table;
+it may refuse a band the exact check would pass (it is sufficient, not
+sharp), and it refuses, as it must, a band where a reader who knows a
+tight cap could fix a count: 20 patients with 30 extra rows each at most
+2 hold "patients with at most one extra row" inside 5 to 10, and no
+floored split exists (the values 0, 1 and 2 would need 5, 0 and 15
+patients). Where `m` is far above `f`, the split exists unless `q mod m`
+falls in a narrow range: on the two values `t - 1` and `t` it needs the
+patients at `t`, `s = q - m (t - 1)`, to number `m` or to lie between
+`f` and `m - f`, and a third value widens that.
+
+**(c) The draw (inventory rows 15 and 15a; class (a)).** The census
+structure is drawn by 4.6b.4's draw at a step of kind `census` (word
+keyed over `[name, "census", 0, [person column]]`), its options the
+eligible candidates, each scored `N lo` (`N` the patients, published;
+`lo` one more than the values the candidate publishes as bands of their
+own), and "off", always eligible and scored 0, which turns the layer off
+(4.6c.3 (a) item 4); so the draw favours the finest eligible census,
+"off" keeps at most `exp(-N lo* / tau)` beside the uniform share
+(4.6c.3 (e)), and the uniform share `2**-30` gives every eligible
+option, "off" included, a chance on every table. The first build scored
+a candidate `lo - 1`, which gave `lo = 1` the score of "off" (the codex
+review of 2026-10-20, item 15). The step runs
+only where items 1 to 3 of 4.6c.3 (a) hold. The same
+draw replaces any merge of an `r` value held by 1 to `f - 1` patients:
+such a value can only sit inside the top band of a candidate whose `lo`
+lies at or below it.
+
+**(d) `r` in the patient chain (inventory row 20; class (b)).** `r` is a
+column of the patient table whose `L0` is the drawn census's bands
+(every value below `lo`, then the top band), with coarser levels made by
+4.6b.2's rule over those bands; W3 and NE fix its level in each family
+from those published totals, as for any member.
+
+#### 4.6c.5 Patient-fixed columns, and their row census (ruling R8 (1))
+
+**(a) The class (inventory row 19; class (b) on a threshold).** Let
+`N2` be the patients holding two or more rows. `T = max(f - 1,
+floor(N2 / 100))` where the census publishes `r = 1` as a band of its
+own (`lo >= 2`, so `N2 = N - c_1` is published); where `lo = 1` the
+census is one open band, `N2` is not published, and `T = f - 1`. `T` is
+thus read on the description. An eligible column (4.6b.1) that is not
+the person column is PATIENT-FIXED when at most `T` patients hold two
+different cells in it (two different present values, or a present
+value and an absent cell). Its outcome reads, for that count `V_K`,
+`[0, T]` (0-able) or at least `T + 1`, which is at least `f` (since `T
+>= f - 1`). A patient-fixed column is a column of the patient table,
+its value for each patient the one at the patient's first position; the
+twin writes it on every row of the patient, and the `V_K` patients'
+other values are given up, named in the private report only. *The
+price:* up to `T` patients' second values, where `T` reaches `floor(N2
+/ 100)` on large tables (141 on the design's `ST2` at 100,000 rows,
+`N2` = 14,196; 29 on its long table at 3,000 patients, `N2` = 2,987;
+MEASURED by the page's statistics skeptic), not only the `f - 1` of a
+small one.
+
+**(b) What it publishes.** Its block is section 5's block computed over
+the PATIENT TABLE, one value a patient, every count in patients: its
+counts, rungs, heaps, tails and multiplicity map are facts of one
+column of a table with one row per patient (plan P4-D363 read in
+patients), and its `L0` totals in `ladder` count patients. Its ROW
+CENSUS is every count of it taken over rows instead, READ ON THE PATIENT
+TABLE: for each value, band, heap or absent cell, the sum of `r` over
+the patients whose patient-level value (the one at the first position)
+lies there, which is the count of rows the twin writes it on. It is NOT
+the file's own count of rows holding each value: up to `T` patients
+hold another value on some later row (the class allows them, (a)), and
+there the two differ. Codex's case (the codex review of 2026-10-20,
+item 3): 100 patients of two rows, 50 with A and 50 with B at their
+first position, one A patient's second row B; the column is
+patient-fixed (`V_K = 1 <= T`), its file row counts are 99 and 101,
+and its row census as defined here is 100 and 100. Publishing the file's
+counts would break the census's being a function of the patient table
+((c)); the census published is the one defined here, and the validator
+measures that one (the validation method's `V12.7`), so the real file
+meets its own census.
+
+**(c) The row census: decided once, from the description without it
+(ruling R8 (1); its computable form).** Let `D0` be the description
+with the row census left out. The row census is published only where
+it is a FUNCTION of `D0`; otherwise it is withheld while the layer is
+ON (a fact of one column given up only then, named in the private
+report only). The producer's test, read on `D0` alone, has TWO clauses,
+and passes where either holds (the page's verify, item 6.7: the loader
+of S30 recomputes both):
+1. *by `r`'s single values:* some published table of the patient chain
+   counts patients by the column at the census's level and by `r` at
+   single values, and the census of `r`'s top band is empty or lies
+   wholly in one of the column's bands at that level. Then each band's
+   row count is `sum over rho of rho` times its published patient count
+   at `rho`, plus, for the one band holding the top band, the top
+   band's rows, all read from `D0`;
+2. *by a row family's parent totals:* some placed row family has the
+   column as a parent at the census's level or finer. Its table counts
+   rows in each (parent cell, band of its child), so each parent cell's
+   row total is the sum of its row counts, and summed over the parent
+   cells inside one band of the column it is that band's row census,
+   read from `D0` (the paragraph below says why).
+Where both clauses fail the row census is withheld, even where it would
+have been a function of `D0` by a longer route: the test is sufficient,
+not sharp.
+
+*Proof that this meets ruling R8 (1).* R8 (1) asks that the row census
+be decided once from `D0`, as row 9's one test decides a rule, and be
+published only where no possible value of it fixes or bounds a union of
+patient cells inside 1 to `f - 1`. The decision reads `D0` only, so it
+is a function of the description it is published in (class (b)), and
+it splits no preimage. Where the census is a function of `D0`, its only
+possible value given `D0` is the published one, and adding it removes
+no table from `D0`'s preimage: every count keeps the range `D0` gives
+it, which the rest of this section shows is never inside 1 to `f - 1`.
+Where it is withheld, nothing is published. A cap the reader knows on
+`r` only shrinks the set of tables `D0` allows, and a function of `D0`
+stays a function of `D0` on any subset, so the proof holds whatever
+cap the reader knows. ∎ The design's first wording (publish each
+level's row census where its excess passes the excess check on its
+own) is refused by its own fixture: with the gender column's count in patients
+published and a reader knowing `r <= 5`, "female and `r >= 3`" lay in
+1 to 8 (`fixed_member_r3.py`), because each level passed alone while
+the two levels together, beside `r`'s census, did not. Under this rule
+that census is not a function of `D0` there and is withheld, and the
+fixture's bare description leaks 0 unions over 97,834 worlds (MEASURED
+by the design's third repair). The design's other clause, that a
+published row census is a row-level child of every patient cell it
+splits and must pass PWIT, is met at once: a census that is a function
+of `D0` adds no equation to `D0`'s worlds.
+
+*A row family with the column as a parent publishes it anyway.* A row
+family's table counts rows in each (parent cell, band) cell, so each
+parent cell's row total is published, and summed over the parent cells
+inside one band of the column it IS the column's row count of that band
+(the page's first skeptic). That is the test's clause 2: the row census
+is published wherever some placed row family has the column as a parent
+at the census's level or finer, a function of `D0` by summation, and
+the twin must meet it (the generation method's G16.14 deals the top
+band's excess grain cell by grain cell to those totals). Both clauses
+read the census as defined in (b), a sum of `r` over patients, which
+is what a row family's parent totals sum, so the two clauses agree
+wherever both hold.
+
+*The price (MEASURED; 4.6c.11 limit 6 states it).* On a table whose
+census of `r` publishes every value with an empty top band (the design's
+test table `ST2`, eight visits at most, every value of `r` held by
+hundreds of patients) and whose patient chain holds the column beside
+`r` at single values (`ST2`'s `{arm | r}`), the row census is
+published. On a long table the top band is open, its excess is spread
+over the column's bands, and where no row family has the column as a
+parent the row census is withheld: the twin then meets the column's
+census in PATIENTS exactly and its rows only as its patients' `r` fall,
+and the private report names the column. Limit 6 gives the twin's
+misses, the expected one of a proportional split and the one
+G16.14's dealing actually gives. Both figures are on the design's
+invented `ST2` and long table only; the price on real shapes (R8 (1)
+asked for it there) is lane CHa's count, before the stage-6 gate, of
+the patient-fixed columns whose row census each clause publishes and
+withholds on the health data zoo's 14 tables the gate turns on (the
+page's verify, item 6.8).
+
+**(d) Every count (ruling R8 (2)), and the class.** A class read on a
+threshold is published with a count of the real table on one side of
+`T`; a world a witness argument builds must keep that count on the same
+side, or it is not in the preimage. *Patient-fixed.* A count of the
+column's patient-level values is a count of the patient chain, whose
+witness worlds give each patient a value; write that value on each of
+the patient's rows: every such world has `V_K = 0`, inside `[0, T]`, so
+the class `fixed` holds in it, and a count not involving the column
+keeps its range, since its witness worlds are completed this way.
+*Not patient-fixed* (`repeated`, `dealt_date`, `position_like`): `V_K
+>= T + 1` in the real table, and every witness world must keep it so;
+(e) says how for a repeated or dealt date column, 4.6c.6 (d) for a
+position-like one. The first build's argument for this side (every
+patient of two or more rows holds two cells "wherever every band holds
+two or more values") does not survive a row family's witness worlds,
+which may put every row of a patient in one band, and it said nothing of
+the KEY test's `V`; (e) replaces it.
+
+**(e) The class witness (inventory rows 16, 19 and 19a; the page's
+first skeptic, item 1).** PWIT's zero world deals each band's rows in
+turn, so it can give every patient its rows in different bands (`V =
+0`, the column then position-like there) or, with one band, every row of
+a patient in it (`V_K = 0`): such a world is outside the preimage of a
+description that publishes the class `repeated`. MEASURED (the
+skeptic's `key_class_leak.py`: one grain cell, every patient `r = 2`, a
+two-band label child, `f = 11`, 11 to 80 patients): 330 of 4,768
+descriptions PWIT passes leak once the class stands beside them, 100 of
+them from the KEY class alone; the first, 22 patients of two rows with
+13 and 31 rows in the two bands: `V >= 11` and `V_K >= 11` fix "patients
+with both rows in the first band" at 1, where the counts alone allow 0
+to 6. So a class read on a threshold is published only beside a world
+that keeps it:
+1. *A column the KEY test reads* (a label, a binary column or a number
+   column that is not FINE, 4.6c.6 (a)) classed `repeated` is the child
+   of a row family only under the FLOORED SPLIT of 4.6c.2 (d) taken at
+   its `L0` levels inside each parent cell (patterns of `L0` levels,
+   summing in each band to the row family's table and over the parent
+   cells to the column's `L0` totals, each pattern on 0 or at least `f`
+   patients of its class), whose patterns ALSO give at least `T + 1`
+   patients holding one level on two rows (`V`) and at least `T + 1`
+   holding two different levels (`V_K`). With no row family the same
+   split is required with every patient in ONE parent cell: the
+   column's `L0` totals in rows are that cell's table and fix the same
+   counts (the skeptic's example is one grain cell). Every count read
+   from the split's patterns is published, so the witness's existence
+   is a function of the description. Its search is the floored split's,
+   bounded as the setting says (at most `PATTERNS_MAX` patterns a class
+   in 4.6c.8 (a)'s order, within `NODES_MAX` nodes; a witness found
+   among them is a witness): a label of 20 levels on 1,000 rows a
+   patient has `C(1019, 19)`, about `9.9 * 10**39`, patterns a class,
+   which the first build's "every pattern" would have enumerated (the
+   codex review of 2026-10-20, item 7). Where no such split exists for
+   any option, the column is drawn HELD (inventory row 19a, class (a)):
+   its description in rows is an option of the draw eligible only with
+   the witness, and HELD (its block and `ladder` entry `null`, its class
+   `held`, the twin writing it as plan P4-D401 writes a held column) an
+   option always eligible and scored 0. MEASURED: the skeptic's rule
+   refuses all 330 leaking descriptions.
+2. *A FINE number column or a date column* classed `repeated` or
+   `dealt_date` (the KEY test does not read it, so its class reads `V_K`
+   alone) keeps `V_K >= T + 1` in every band-model world in which every
+   band of it, at its row family's level, spans two or more of its
+   published readings (its edges at least one grid step apart): a
+   patient of two or more rows then holds two rows that can take two
+   different readings, so `V_K = N2`, and `N2 >= T + 1` (the real `V_K
+   >= T + 1` patients each hold two or more rows). Where some band holds
+   one reading, item 1's floored split is required, `V_K` read from its
+   patterns.
+Each witness is the certificate of its row family as well (4.6c.8 (a)):
+one world serves the class and every union of types.
+
+#### 4.6c.6 Position-like columns and the KEY test
+
+**(a) The levels (inventory row 16).** The KEY test reads an eligible
+column (4.6b.1) that is not patient-fixed, is not of a date role and,
+if it is a number column, is not FINE (4.6b.6): a label or a binary
+column at each of its levels, a number column at each of its readings
+(at most 20, by FINE's definition), `missing` a level of its own. A
+FINE number column, a column of a date role and a column with no ladder
+(an ineligible one) are never tested and never position-like. *Why not
+those:* a FINE column's or a date's levels in the test would be its
+`L0` bands, at most 13, computed on its own readings; a world built for
+another argument changes those readings and so their bands, so no
+witness of the class could be exhibited from published facts, and a
+patient of more rows than bands must repeat one. Visit numbers, event
+names in schedule order and encounter sequences are labels or numbers
+of few readings, which the test reads. The first build tested dates
+and FINE numbers at their `L0` bands and defined a dealt date as "not
+position-like" while the test skipped dealt dates (the page's first
+skeptic, item 6); a date is now never tested.
+
+**(b) The test (class (b) on a threshold).** With `N2` and `T` as in
+4.6c.5 (a), let `V` be the patients of `N2` holding some level of the
+column on two of their rows. The column is POSITION-LIKE when `V <= T`
+and, for a number column, the readings its witness uses (item (d)) are
+at most 20. Visit numbers, event names in schedule order and encounter
+sequences pass in any row order; a repeated measurement fails, since a
+patient's readings share levels. The outcome reads `V` in `[0, T]`
+(0-able) or, not position-like, a class whose own witness (4.6c.5 (e))
+holds `V` at least `T + 1 >= f`. *The price:* up to `T = max(f - 1,
+floor(N2 / 100))` patients' repeats are not rebuilt (141 patients on
+the design's `ST2` at 100,000 rows; MEASURED by the page's statistics
+skeptic), and the column's whole block is replaced by its modal list
+(item (c)); both are named in the private report only.
+
+**(c) Its one object.** A position-like column publishes NO block of
+its own: no levels, rungs, histogram, bins, tails, mode or counts. Its
+only object, `grain.positions[column]`, is the list of its MODAL VALUE
+at positions 1 to `L`: `L` is the top band's lower edge `lo` where the
+top band holds patients, and otherwise the largest value of `r` the
+census publishes. The list runs to `L`; it has no end rule. The modal
+value at position `j` is the value held at `j` by the most patients.
+An entry is `null` where that value is held by fewer than `f` patients
+at `j`, where two or more values tie for the most patients at `j` (no
+order breaks a tie), or where it lies in a level an earlier listed
+entry's value lies in. Rows beyond `L` take one stated rule: for a
+number, the last listed value plus the difference of the last two
+listed values (the last listed value where only one is listed); for a
+label, the last listed value. *What the twin writes where nothing is
+listed* (the codex review of 2026-10-20, item 8: 100 patients of two
+rows, half on the schedule A, B and half on B, A, make the column
+position-like with the list `[null, null]`, and the first build defined
+neither the `null` entries' cells nor the rule beyond `L` with nothing
+listed): at a `null` position, and beyond `L` where no value is listed,
+the twin writes the column's STAND-IN, the cell plan P4-D401 writes for
+a held column (no value of the table), so a list of `null` entries
+writes stand-ins on every row; the validator judges the listed entries
+only (the validation method's `V12.7`). The column's values that a `null`
+entry hides are given up, named in the private report.
+
+**(d) Proof that the list carries no count, position `L` included.**
+`L` is a function of the census, and the number of patients holding a
+row at position `j <= L`, `P_j`, is a sum of census bands, 0 or at least
+`f`, the same in every world of this section (the census's bands are
+published, and every patient of the top band holds a row at every
+position up to `lo`). Consider the TIE WORLD: at a listed position `j`,
+every one of the `P_j` patients holds the listed value `v_j`; at a
+`null` position, the `P_j` patients are split over two values used at
+no other position into two groups of `floor(P_j / 2)` (three values
+where `P_j` is odd, the third held by one patient), so the two largest
+tie; at each position beyond `L`, every patient holding a row there
+holds a value used at no other position. *It is in the preimage.* No
+table holds the column. At a listed position all `P_j >= f` patients
+hold `v_j`, so `v_j` is modal, untied and held by at least `f`, and by
+the list's own rule it lies in a level no earlier listed entry uses;
+at a `null` position the tie makes the entry `null`, as published.
+The listed values lie in pairwise different levels and every other
+value is used at one position only, so no patient holds a level twice:
+`V = 0`, inside the class's `[0, T]`; and every patient of two or more
+rows holds two different values, so `V_K = N2 >= T + 1` (the real
+`V_K >= T + 1` patients each hold two rows), and the column is not
+patient-fixed there either. For a number column the readings
+the world uses number the listed entries, plus two or three for each
+`null` entry, plus one for each position from `L + 1` to `lo + t`, `t`
+the top band's tight cap (4.6c.4 (b)), the largest position any world
+of this section gives a patient; the class rule (b) asks that this
+count, read on the list and the census, be at most 20, so the column
+stays not FINE and the KEY test reads it in the tie world as in the
+real table. *What it shows.* In the tie world the count of patients
+holding any set of listed values at any set of listed positions is a
+sum of `P_j`, each 0 or at least `f`, so by the one-world lemma no such
+count leaks. A count naming a value at a `null` or unlisted position is
+0 in a tie world whose fresh values avoid it. ∎ The first build's
+all-modal world put the last listed value on every position past the
+list (so `V` reached `P_{end+1}`), held one value at a `null` position
+(where the procedure would have listed it) and, for a number, wrote
+values the procedure would have listed; it was not in the preimage
+(the page's first skeptic, item 3). The tie world is, by construction.
+
+**(e) Every count, and the class.** *Position-like*: the tie world
+assigns the column's cells in every witness world of every other
+argument, since it reads only each patient's positions and `P_j` is the
+census's in every such world; `V = 0` there. *Not position-like*: the
+column is repeated or patient-fixed, and its class is kept as 4.6c.5
+(d) and (e) say: by the class witness, whose world holds `V` and `V_K`
+at least `T + 1` (a floored split read at the column's levels), or by
+the patient-fixed world, `V_K = 0`.
+
+#### 4.6c.7 Dates: visit order, dates ordered by role, and computed dates
+
+**(a) Visit position (inventory row 18; class (b)).** The POSITION
+column is the first dealt date column in schema order; with none, row
+order gives position. A function of published roles.
+
+**(b) Ordered dates by role (inventory row 18b; class (b); the
+December choice of the design's 10.7 item 10).** Every DEALT date column
+of a patient table (a date role, not patient-fixed, not position-like,
+not computed by a carried rule) is DECLARED ORDERED within a patient by
+its published role alone, and the twin sorts its readings within each
+patient by position. The declaration has one outcome per description,
+so it removes no table from any preimage and every count keeps its
+range: nothing is to prove beyond that. Sorting moves no reading between
+patients and changes no pattern, so every row family, census and band
+total of the column is met as dealt.
+
+*The price.* A dealt date column whose real readings are not in visit
+order inside a patient comes back sorted: a date column that is not a
+visit date (a date of diagnosis repeated on each visit, a last-test
+date that is sometimes older than the visit before) loses its real
+within-patient order, and a comparison between it and the position
+column on one row is changed. Its own counts and its row family's
+tables are exact. The share of patients whose readings decrease is
+counted in the private report only, which names each column. MEASURED
+by this page's repair on the health data zoo (`zoo_dates.py`,
+`tests/health_zoo.py` at b075342a): of the 14 tables the gate turns ON,
+one holds a date column beside its position column, `encounters`,
+whose discharge stamps decrease along the admissions for 8 of the 165
+patients of two or more rows at 600 rows (4.85 per cent) and 351 of
+5,344 at 20,000 rows (6.57 per cent; overlapping stays). Those
+patients' discharges come back in admission order (where a carried
+rule computes the discharge from the admission, (c), it is never
+sorted). *The data test the design offered instead* (declared ordered
+where at most `T` patients hold a decrease, outcomes `[0, T]` or at
+least `T + 1`) has a witness now: an ordered outcome's world sorts the
+column within each patient, 0 decreases; a not-ordered outcome's world
+gives `T + 1` of the class witness's patients holding two different
+present readings (4.6c.5 (e)) a decrease, since no published fact ties
+a dealt date's reading to one row of its patient (4.6c.8 step 2). Its
+price is the other way round: a column declared not ordered keeps its
+DEALT order, which decreases for at least half the patients of two or
+more rows (every patient of two rows holding two readings, with even
+chance), where the role rule leaves none; on `encounters` that is at
+least 50 per cent against a real 4.85 to 6.57, where the role rule
+gives 0. December keeps the role rule. *The trigger:* a dealt date
+column on which more than half the real patients of two or more rows
+decrease, where the dealt order is the nearer twin; lane CHa's count on
+the zoo's long tables names any such column before the stage-6 gate,
+and the data test is then taken for it (none on the zoo today: the
+largest share is 6.57 per cent).
+
+**(c) Computed dates in the patient layer (inventory rows 9, 9b, 14;
+the design's 10.7 item 7).** A date `B` computed by a carried order rule
+from a dealt date `A` and a difference `D` (4.6b.7) publishes nothing
+of its own but its name, place and role, as 4.6b.7 states. While the
+layer is ON, `A` is counted in rows, so 4.6b.7's family `{D | A}` would
+be a family counted in rows under a parent counted in rows, which this
+layer does not publish: `D` is published instead as the child of a row
+family of its own under members of `G` (4.6c.8), at the levels 4.6b.7
+gives it. *What that row family is* (the page's verify, item 3: 4.6b.1
+gives a derived column no `ladder` entry and no family, S31 admitted
+only a repeated or dealt date child, and 4.6c.8 (a) named no
+certificate for it): `D`'s LEVELS are 4.6b.7's, the bands at which
+4.6b.7 would publish `{D | A}`, with the edges 4.6b.7 publishes and no
+`ladder` entry of its own (the row family's table is its only count);
+its CERTIFICATE is PWIT where every parent cell is one grain cell
+holding one value of `r`, and the floored split of 4.6c.2 (d) on `R*`
+otherwise, as 4.6c.8 (a) assigns to any child; it takes NO class
+witness, since `D` has no class read on a threshold (it is computed,
+4.6b.7, never tested by the KEY test or for being patient-fixed); and
+S31 and `grain.rows` admit "a carried rule's difference" as a child
+beside a repeated or dealt date column. `B` is never declared ordered. The generator sorts `A` within
+each patient and swaps `D`'s readings between the rows of ONE patient
+only where `A + D` would pass the patient's next `A`, the nearest swap
+that removes the overlap and makes none (the generation method's
+G16.16). Those swaps are generation only: they move no reading between
+patients, so every pattern and every published table holds, and the
+twin stays a function of the description and its seed. MEASURED by the
+design on long admission and discharge tables (9,000 and 90,000
+patients): stays overlapping the next admission fell from 151 to 18 and
+from 1,420 to 152; the stay's mean by visit gained no trend by visit of its own
+(3.47, 3.70 and 3.74 against a real 3.63, 3.60 and 3.59). The report
+counts both residuals.
+
+#### 4.6c.8 The row families: PWIT, the floored vector `R*`, and the theorem in patient units
+
+**(a) What is published, and where it may stand.** The patient chain is
+section 4.6b run on the patient table, in patients (the setting). `G`,
+the GRAIN FAMILY, is the family of the patient chain whose members
+parent the row families: the latest family in chain order that holds
+`r` (a function of the placed chain, class (b)).
+
+*Where no family holds `r` (the codex review of 2026-10-20, item 1).*
+100 patients of two rows each have an eligible census whose only
+nonempty band is `r = 2`: `r` is then constant, ineligible for families
+under 4.6b.1's `one_band`, and the first build had no `G` and no
+`grain_family`. So: where no placed family of the patient chain holds
+`r`, because `r` is constant or because no step took it, `G` is `r`'s
+census itself, with no family of `statistical.chain` behind it
+(`grain.grain_family` is then `null`): its cells are the census's bands,
+and where `r` is constant its ONE cell holds every patient and one
+value of `r`. A row family's parents are then `r` alone, at the
+census's bands or coarser, or none. The census is published anyway
+(4.6c.4), so this `G` publishes nothing new. *`statistical` is never
+`null` while the layer is ON:* where the patient chain's root step draws
+"no family" (4.6b.4) and no rule is carried, every eligible column of
+the patient table is placed as a family with no parent at `L0`, in
+schema order, the RULES-ONLY shape of 4.6b.4 read in patients; each such
+table is that column's own `L0` totals in patients, which its block
+already publishes, so it adds no count.
+
+*Every family holding `r` holds its other members in `G` (the codex
+review of 2026-10-20, item 6, and the page's verify, item 5).* A family
+of the patient chain that holds `r` is offered only with every member
+of every EARLIER family holding `r` among its own members, each at the
+earlier family's level or finer (a rule on the offered options, a
+function of the placed chain, class (b)). Then `G`, the latest such
+family, holds every member of every family holding `r`, so every family
+holding `r` has its other members in `G` at `G`'s level or coarser, and
+each of its cells is a union of grain cells crossed with values of `r`: `R*`'s tie
+(step 4) is defined on it, and moving patients' `r` inside a grain cell
+keeps its table (step 5). Codex's chain `{r_fine, A}`, then `{B | A,
+r_coarse}`, then `{C | B, r_coarse}` is refused at its third family,
+which leaves out `A`: with it, 248 patients' published tables fix the
+count "`r = 2`, `A1`, `B1`" at 6 in every table that meets them
+(MEASURED by this page's second repair, `wave6/MG/repair2/repro.py`, an
+exact integer search: least and greatest both 6), the cross the
+theorem below claims. The price, families refused that the first build
+offered, is unmeasured: lane CHa counts it on the zoo and lane `E0b`'s
+battery before the stage-6 gate.
+
+A ROW FAMILY `{y | parents}` has as its child one repeated or dealt
+date column `y`, at one of `y`'s levels, or a carried rule's difference
+`D` at 4.6b.7's levels (4.6c.7 (c)), and as parents some members of
+`G`, each at its level in `G` or coarser (or `r` at the census's bands
+or coarser, where `G` is the census); its table counts ROWS in each
+(parent cell, band of `y`), each cell 0 or at least `f` rows. Row families are placed after the patient
+chain, one step of kind `row` for each eligible column `y` in schema
+order (word keyed over `[name, "row", index, [y]]`), the options every
+offered (parents, levels) and "no family", always eligible. A derived
+column of the patient table ties its source's rows whether or not it is
+a parent, so: a derived column whose source is the child of a row family
+is a member of `G`; a row family whose child is the source of a first
+date takes that first date as a parent at its own level. A row family
+is never a parent.
+
+*Its certificate (inventory row 4; a function of the placed chain and
+the child's class, class (b)).*
+- The FLOORED SPLIT of 4.6c.2 (d), built on `R*` (step 4): where the
+  child is the source of an own mean (its patterns allowed for each
+  patient's own-mean band); where the child is a column the KEY test
+  reads (taken at the child's `L0` levels, with the class witness of
+  4.6c.5 (e) item 1); and wherever a parent cell joins two or more grain
+  cells or a grain cell holds a band of `r` (the page's first skeptic,
+  item 4: there its one world proves step 5's cross of a patient union
+  with a type union, which PWIT's two worlds leave open).
+- Under a first date, residual PWIT (4.6c.2 (d)) where every parent cell
+  is one grain cell holding one value of `r`, and the floored split of
+  the residual rows (every residual row allowed for every patient of the
+  cell) otherwise.
+- PWIT (step 3) for a FINE number or date child, or a carried rule's
+  difference `D` (4.6c.7 (c)), whose every parent cell is one grain cell
+  holding one value of `r`, its class kept by 4.6c.5 (e) item 2 (`D`
+  has no class).
+Each is read on published counts, so each option's eligibility is a
+function of the description, and a failed certificate is masked by the
+draw.
+
+*The one-cell family (the page's verify, item 4).* A repeated or dealt
+date column that is the child of NO row family still publishes its
+`L0` totals in rows (`grain.ladder`, its `missing` band included), and
+beside the census they are a table of one cell that the first build's
+certificates never read: MEASURED by the verify
+(`one_cell_pigeonhole.py`), 20 patients of two rows with a band holding
+21 of the 40 rows fix "patients with both rows in that band" inside 1
+to 10 in every world. So every such column is read as the child of a
+row family with NO parent, its one parent cell the whole table and its
+table the column's `L0` totals (a band of 1 to `f - 1` rows merged,
+for the certificate only, with the next band in ladder order: its own
+count is the column's own fact in rows, plan P4-D363, whose count in
+patients is lane PS's, (d)), and takes that family's certificate:
+PWIT where every patient holds one value of `r`, the floored split on
+`R*` otherwise (a column the KEY test reads already takes it, with its
+class witness, 4.6c.5 (e) item 1). PWIT here covers the cross of step 5
+as well, though the one cell joins every grain cell: there every
+patient holds the same `r`, so any `f` patients' patterns, each at most
+`floor(s_x / f)` in every band, sum to at most `s_x`, and the `f`
+patients of a union can be taken from any grain cells (step 5, *the
+pooled cell of one `r`*). Where the certificate fails the column is
+drawn HELD (inventory row 19a), as a column the KEY test reads is. Its
+price: PWIT in one cell holds for every band once the table holds at
+least `2 f` patients (a band of `s_x >= f` rows has `floor(s_x / f) >=
+s_x / (2 f)` and `|P| >= 2 f`), so on one `r` it refuses only tables of
+fewer than 22 patients; the floored split's refusals on tables of
+several `r` are unmeasured, lane CHa's count on the zoo and lane `E0b`'s
+battery before the stage-6 gate.
+
+*The floored split's patterns, in order* (the setting's bound). For a
+class `(C, rho)` and a family whose child has `B` bands at the
+family's level with published supplies `s_beta` in the parent cell
+holding `C`, the search's patterns are the allowed ones among, in this
+order, until `PATTERNS_MAX`: the PROPORTIONAL pattern (`rho s_beta /
+sum s` rounded by largest remainders, ties to the earlier band); every
+pattern one row away from it (one row moved from one band to another,
+bands in order); every pattern holding all `rho` rows in one band;
+every pattern of two bands, `a` rows in the earlier and `rho - a` in
+the later, `a` ascending, pairs of bands in order; then the rest in
+lexicographic order of the band counts. A split found among them is a
+split; one not found is "not eligible".
+
+**(b) The theorem (the design's 10.7 items 1 and 2).** *Let every placed
+row family hold 0 or at least `f` rows in every cell, pass RULE W1 in
+rows, and pass its certificate of (a). Then, in the band model, every
+union of types is 0-able or f-able; and a union of patient-level cells
+crossed with a union of types is 0-able or f-able.* The proof is steps
+1 to 6.
+
+**Step 1: what a reader can count.** Every published table either counts
+patients by their patient-level values (the patient chain, `r`'s
+census, a patient-fixed column's block), or counts rows by (parent
+cell, band) (a row family; the `L0` totals of a dealt or repeated
+column, or of a carried rule's difference, that is the child of no row
+family, read as the one-cell family of (a)), or is a class or list of
+4.6c.5 to 4.6c.7. A row family's table is a sum, over its parent cell's
+patients, of their patterns. So any count a reader forms from the row
+families, the one-cell families included, is a count of patients by
+their grain cell, `r` and patterns: a count of a union of TYPES; and a
+count crossed with patient-level facts is a union of types crossed with
+a union of patient-level cells. A column's own facts finer than its
+`L0` bands (its rungs inside a band, its heaps, its exact moments) are
+not types: the band model does not hold them, and 4.6c.11 says what of
+them is checked. The first build's sentence ("a dealt or repeated
+column's own facts in rows") claimed types for every such fact, and
+left the `L0` totals of a column that is no row family's child with no
+certificate (the page's verify, item 4).
+
+**Step 2: worlds built column by column (the design's argument (i)).**
+Fix a patient table consistent with the patient chain. For each row
+family separately, choose a pattern for every patient, summing to its
+`r`, whose sum over each parent cell's patients is the published table;
+then form each patient's rows by taking, for its `j`-th row, the `j`-th
+unit of its pattern in each family, in any order of positions. *Every
+such choice is a world of the band model.* The patient chain is kept
+(the patient table is), `r` and its census are kept (each patient has
+`r` rows), every row family's table is kept (by the choice), and each
+repeated column's `L0` totals are kept, since inside a band of its row
+family the rows' `L0` bands are free and sum to the published totals.
+No published table couples two row families (no row family has a parent
+counted in rows), so the choices for different families combine in any
+way. A column that is the child of no row family is its one-cell
+family's child (a), chosen the same way. Positions are free: a dealt
+date is sorted by role and carries no data constraint, a position-like
+column takes 4.6c.6 (d)'s tie-world values (the first build cited the
+all-modal world, which the page's first repair showed lies outside the
+preimage), and a published trend is restored by 4.6c.1 (d) 3 in any
+such world.
+
+**Step 3: one value of `r` in a parent cell: PWIT in closed form.** Let a
+parent cell `P` hold `|P|` patients all with `r` rows, and let `s_x` be
+the published row count of band `x` of one row family under `P`. PWIT
+holds for that family in `P` when
+
+    s_x <= |P| * floor(s_x / f)   for every band x.
+
+*The zero world.* Deal the family's units band after band, each band's
+`s_x` units in a row, to the patients of `P` in turn (unit `k` to
+patient `k mod |P|`). Each patient receives exactly `r` units, since
+`sum s_x = |P| r`, and at most `ceil(s_x / |P|)` units of band `x`, which
+is at most `floor(s_x / f)` by PWIT. So there is a world in which every
+patient's pattern is at most `floor(s_x / f)` in every band.
+*Hostable types.* Call a type HOSTABLE when its grain cell holds at
+least `f` patients of its `r` and, in every row family, `f` times its
+pattern is at most the published counts of its parent cell. Then a world
+holds at least `f` patients of it: give `f` patients of its grain cell
+and its `r` the type's pattern in every family; in each family the
+remaining `|P| r - f r` units of the cell are any multiset of band
+units of that size, and any such multiset splits into chunks of the
+remaining patients' sizes `r`, so the choice is a world by step 2. In
+the zero world every patient's type is hostable: its grain cell lies in
+`P` and holds `|C| >= f` patients of `r` (a published cell is 0 or at
+least `f`), and `f` times a pattern at most `floor(s_x / f)` is at most
+`s_x`.
+*Every union.* A union of types either holds a hostable type, and then
+some world holds at least `f` patients of it, or holds none, and then
+the zero world, where every type is hostable, holds 0 of it. ∎ So in a
+one-`r` cell PWIT is sufficient. It is also exact on the design's
+exhaustive cases (185 cells of 3 to 6 patients, `f = 3`: it passes 169,
+none leaking, and refuses 16, each leaking).
+
+**Step 4: a band of `r` in a parent cell: the floored vector `R*`.** Where
+a grain cell `C` holds a band of `r`, the reader does not know how its
+patients split over the band's values. (Under (a) such a cell's row
+family is certified by the floored split, built on the `R*` below, its
+blocks of patterns taking the place of item 4's flow; the flow and the
+zero world after it are the design's PWIT form, kept because they say
+why `R*` must be tied and floored.) The producer exhibits `R*`, a
+whole-number table `R*_C(rho)` over grain cells and values of `r`, with:
+1. `sum over rho of R*_C(rho) = |C|` and `R*_C(rho) = 0` outside `C`'s
+   band of `r`, and every value of `r` in the census's top band is at
+   most `lo + t`, `t` the top band's tight cap (4.6c.4 (b)), so that
+   `R*`'s world is a table under every cap the reader may know;
+2. every `R*_C(rho)` is 0 or at least `f` (FLOORED);
+3. THE TIE: summed over the grain cells inside each cell of every
+   published table holding `r` (`r`'s census, every family of the
+   patient chain holding `r`), at that table's level of `r`, `R*` gives
+   the published count; and summed with `rho` over the grain cells
+   inside each parent cell of each row family, it gives the published
+   row total of that parent cell (the sum of its row counts). Each such
+   cell IS a union of grain cells crossed with values of `r`, because
+   every family holding `r` holds its other members in `G` at `G`'s
+   level or coarser ((a)); without that rule a family such as `{age |
+   r}`, `age` no member of `G`, has cells no sum of grain cells makes,
+   and the tie is undefined there (the page's verify, item 5);
+4. for each row family and parent cell `P`, the FLOW from bands (supply
+   `s_x`) to the classes `(C, rho)` inside `P` (capacity `R*_C(rho)
+   floor(s_x / f)` from band `x`, demand `R*_C(rho) rho`) saturates.
+Then the patient table whose composition is `R*` is a world of the
+patient chain: take any patient table of the chain and, inside each
+grain cell `C`, give its patients the values of `r` that `R*_C` names
+(any `R*_C(rho)` of them each); every table holding `r` is met, by item
+3, since its cells are unions of grain cells crossed with values of
+`r`; every table not holding `r` is untouched; so is every grain cell's
+count. The flow gives each class totals, and dealing each
+class's totals in turn among its patients gives every patient at most
+`floor(s_x / f)` units of band `x`: the zero world, with every patient's
+type hostable (its class holds 0 or at least `f` patients by item 2).
+Steps 3's hostable worlds and union argument go through class by class.
+∎ Every number `R*` reads is published, so its existence, once the
+family is placed, is a function of the description. *Its construction*
+(the design's small supports): for each grain cell, `R*_C` is tried on
+one value of `r`, then on every pair (two linear equations), then on
+every triple (one free count), each floored and checked by the flow;
+then the tie is checked; the first `R*` that passes both is kept. If
+none passes, the row family is not eligible, which the draw masks. The
+tie is the design's open item, now a stated condition: without it the
+worlds of different grain cells need not form one table. Where the
+tie's small-support search fails, an exact search (an integer program,
+lane CHa's, through the scipy route the orchestrator named for lane MR
+in plan P4-D407, subject to lane DEP's bundle and lane MDEP's zones of
+plan P4-D409, within the setting's `NODES_MAX`) may replace it; either
+way failure means "not eligible", never a leak. MEASURED by the design:
+small supports found an `R*` on 24 of 24 cells at each of three seeds of
+`ST2`, in about 2 ms against 48 s for a capped search (the tie was not
+part of that run; lane CHa measures it).
+
+**Step 5: a patient-level union crossed with a union of types (the
+design's argument (v)).** Let `Z` be a union of cells of the patient
+table at its finest published levels and `U` a union of types. *Under
+PWIT* (by (a), every grain cell of its parent cells holds one value of
+`r` and every parent cell is a grain cell). Let `H` be the grain cells
+in which `U` holds a hostable type. If `H` is empty, the zero world holds no patient of `U`,
+and `Z` crossed with `U` holds 0. Otherwise `Z_H`, the patients of `Z`
+in the cells of `H`, is a union of finest patient cells (each grain cell
+is a cell of the published family `G`), so by the patient chain's
+theorem it is 0-able or f-able.
+- If `Z_H` is f-able, take a patient table with `|Z_H| >= f`. Row
+  worlds choose patterns per patient and never read the patients'
+  other patient-level values, so in each cell `C` of `H` give `f`
+  patients of `U`'s hostable type, chosen to include every patient of
+  `Z` in `C` when there are fewer than `f` of them and `f` of them
+  otherwise. Cells are independent (each is its own parent cell), so
+  all these choices form one world, and in it `Z` crossed with `U` holds
+  at least `min(f, |Z_H|) = f`.
+- If `Z_H` is 0-able and not f-able, take a patient table with `Z_H`
+  empty and the zero world: there every patient of `U` stands in a cell
+  of `H` (every type of the zero world is hostable, and `U`'s hostable
+  types lie in `H`), so `Z` crossed with `U` holds 0. ∎
+*Under the floored split* (every family whose parent cell joins
+grain cells or whose grain cell holds a band of `r`, by (a); the
+page's first skeptic, item 4). Let `W*` be the world of every floored
+family's split on `R*`'s composition, coupled as 4.6c.2 (d) says, with
+every PWIT family's zero world. Let `H` be the CLASSES `(C, rho)` in
+which `U` holds a type whose every pattern is a block of its family
+(at least `f` patients) or hostable in its PWIT family. If `H` is
+empty, `U` holds no patient of `W*`, and `Z` crossed with `U` holds 0.
+Otherwise let `C_H` be the grain cells holding a class of `H`, and
+`Z'`, the patients of `Z` in the cells of `C_H`: a union of finest
+patient cells, since grain cells are cells of the published family `G`,
+so the patient chain's theorem makes it 0-able or f-able in some
+patient table of the chain. That table is then given `R*`'s
+composition by step 4's move (inside each grain cell, any `R*_C(rho)`
+patients take `rho`), which keeps every published patient table,
+because every family holding `r` has its other members in `G` ((a)).
+The first build applied the chain's theorem to classes, grain cells
+crossed with values of `r` finer than any published table holds, which
+the theorem does not cover: Codex's chain, which (a) now refuses, fixes
+such a count at 6 (the codex review of 2026-10-20, item 6).
+- If `Z'` is f-able, take a patient table with `|Z'| >= f` and, inside
+  each cell `C` of `C_H`, give `Z`'s patients of `C` first the values of
+  `r` of `H`'s classes there: each such class holds at least `f`
+  patients (`R*` is floored), so the patients of `Z` in classes of `H`
+  number at least `min(f, |Z'|) = f`. Row worlds assign blocks to a
+  class's patients freely (step 2), and each of `U`'s blocks holds at
+  least `f` patients: put every patient of `Z` in a class of `H` into
+  `U`'s block there, up to its size. In that world `Z` crossed with `U`
+  holds at least `f`.
+- If `Z'` is 0-able and not f-able, take a patient table with `Z'`
+  empty, given `R*`'s composition, and `W*`: there every patient of `U`
+  stands in a class of `H`, inside a cell of `C_H`, so `Z` crossed with
+  `U` holds 0. ∎
+*The pooled cell of one `r`* (the one-cell family under PWIT, (a)).
+Where a parent cell joins grain cells and every patient of it holds the
+same `r`, PWIT's argument above goes through with `H` the grain cells
+in which `U` holds a hostable type and `f` patients of `Z_H` taken from
+ANY of those cells, each given its own cell's hostable pattern of `U`:
+each such pattern is at most `floor(s_x / f)` in every band `x`, so `f`
+of them, whatever their cells, sum to at most `s_x`, and the cell's
+remaining units split into chunks of the one `r` (step 3).
+So the cross is proven under both certificates, for the patient chains
+(a) admits (every family holding `r` holding its other members in `G`),
+and no case of it is left checked: the first build's "CHECKED, NOT
+PROVEN" case (an `r`-band grain cell or a pooled parent cell under PWIT)
+no longer stands, since (a) gives such cells the floored split, and
+the pooled cell of one `r` is argued above. For a chain outside (a)'s
+rule the cross is NOT proven, and Codex's chain shows it fails; the
+rule refuses such chains.
+
+**Step 6: unions defined by `r`.** `r`'s values are a patient-level
+column of the patient table; a union of types defined by `r` alone is a
+union of patient-level cells, and in an `r`-band cell `R*` holds every
+value of `r` by 0 or at least `f` patients, so the zero world's counts
+of any set of `r` values are 0 or at least `f` there.
+
+**(c) Why the different-patient count is no gate.** The number of
+different patients in a row family's cell is never published, and a
+gate on it would tell the reader that it passed (the second attack's
+fifth case: a pair count fixed at 5 once the reader knows the gate
+held). PWIT reads published counts only. MEASURED by the design: over
+the exhaustive cases of one value of `r` (185 cells), a band `{1, 2}`
+(498 cells) and a band `{1, 2, 3}` (935 cells), PWIT with `R*` passed
+169, 205 and 524 cells with 0 unions fixed or bounded, and refused 16,
+293 and 411, of which 16, 293 and 269 leaked: it is sufficient, not
+sharp, and its refusals cost breadth.
+
+**(d) RULE W1 and a repeated column's own facts.** A row family's option
+must also pass RULE W1 in rows (4.6b.3), reading the child's own-fact
+groups counted in rows. A group's count in patients is at most its
+count in rows, so a row range `[0, g]` that W1 leaves gives a patient
+range starting at 0. A repeated column's own facts stay counted in rows
+(a fact of one column, plan P4-D363; counting them in patients is lane
+PS's, plan P4-D406).
+
+#### 4.6c.9 The wire shape of `grain`, and what `statistical` holds while it stands
+
+While the layer is ON, `statistical` (4.6b.5) is the patient chain, never
+`null` (4.6c.8 (a)): its
+`ladder` holds the patient table's columns (the patient-fixed columns,
+`r` under the name `"(rows per patient)"`, and the derived columns),
+their totals counted in PATIENTS, and its `chain` the families of the
+patient table. `grain` holds everything counted in rows or by position:
+
+| key | what it holds |
+|---|---|
+| `person` | the person column's name |
+| `census` | `r`'s drawn census: `lo`; `bands`, one `{r, patients}` for each value from 1 to `lo - 1`; `top`, `{patients, rows}` of the open band "`r` at least `lo`" (4.6c.4) |
+| `classes` | one `{column, class}` for each column of the table, the class one of `person`, `patient_fixed`, `position_like`, `dealt_date`, `computed`, `repeated`, `held`, `ineligible` (4.6c's setting) |
+| `position` | the position column's name, or `null` where row order gives position (4.6c.7) |
+| `positions` | one `{column, values}` for each position-like column: its modal values at positions 1 to `L`, `null` where the modal value is held by fewer than `f` patients, where two or more values tie for it, or where its level is an earlier listed entry's (4.6c.6); the twin writes the column's stand-in at a `null` entry, and beyond `L` where nothing is listed (4.6c.6 (c)) |
+| `ladder` | for each repeated and dealt date column, its ladder as 4.6b.2 builds it, its totals counted in ROWS |
+| `derived` | one `{name, kind, source, level, edges}` for each derived column, `kind` one of `first_date` and `own_mean`; a first date's `edges` are rungs of its source (4.6c.2) |
+| `grain_family` | the index in `statistical.chain` of the grain family `G`; `null` where no placed family holds `r` and `G` is `r`'s census itself (4.6c.8 (a)) |
+| `rows` | the row families, in placement order: each `{child, level, parents, table}`, the child a repeated or dealt date column or a carried rule's difference (4.6c.7 (c)), every parent a member of `G` at its level there or coarser (or `r` at the census's bands or coarser where `G` is the census), the table complete, every cell 0 or at least `f` rows (4.6c.8) |
+| `fixed_rows` | for each patient-fixed column whose row census is a function of the rest (4.6c.5 (c), either clause of its test), that census, read on the patient table (the sum of `r` over the patients holding each value, 4.6c.5 (b)); the column is absent here otherwise |
+| `grid` | for each FINE column carrying a trend, `{column, u, L, K}` (the setting's grid code), the numbers written as decimal strings |
+| `trend` | each published `Q_P`: `{column, cell, q}`, `cell` the labels of `F_S`'s cell (4.6c.1) |
+
+No key of `grain` carries a reason: why a candidate census, a row
+family, a derived level, a trend or a row census was not published goes
+to the private report only (inventory row 4). `grain` is `null`
+whenever the layer is OFF.
+
+#### 4.6c.10 The invariants a loader checks, the inventory, and `K-S6-08`'s cases
+
+**Invariant S29 (the gate).** `grain` is `null` unless
+`settings.person_columns` names exactly one column, that column's
+`n_missing` equals the count of records holding nothing, the census's
+patients equal its `n_distinct`, its rows equal the tabled rows, and the
+extra rows are at least `settings.small_cell_floor` (it is also `null`
+where the census draw took "off", which the loader neither can nor
+needs to tell). Where `grain` stands, the person column's
+`n_distinct_by_occurrences` is `null`, every key of its block that
+counts rows but `n_present` is counted over the patient table,
+`n_present` equals the census's rows, every other column's
+multiplicity map is `null` or `{1: n_present}`, the census is
+eligible as 4.6c.4 (b) computes it from the census alone (the bounded
+deficit search, repeated), and `statistical` is not `null`.
+
+**Invariant S30 (classes, positions and the patient table).** Every
+column has one class. A position-like column is a label, a binary
+column or a number column that is not FINE, never of a date role; it
+has no `ladder` entry, no family and no block key but `name`,
+`position` and `role` (every other `null`, `{}` or `[]`), and one
+`positions` entry of exactly `L` entries, its listed (non-`null`)
+values in pairwise different levels, and for a number column the
+readings of 4.6c.6 (d)'s tie world at most 20. A `held` column has
+the same empty block and no `ladder` entry, family or `positions`
+entry. A patient-fixed column's block and `L0` totals count patients; it
+appears in `fixed_rows` only where 4.6c.5 (c)'s test holds on the rest
+of the description, by either clause of that test (the loader
+recomputes both, the summation clause from the placed row families'
+parent totals), and its census there is read on the patient table.
+Every dealt date column is declared ordered.
+
+**Invariant S31 (row families).** Each entry of `rows` has a repeated or
+dealt date child, or a carried rule's difference at 4.6b.7's levels
+(4.6c.7 (c)), parents that are members of `G` at their level in `G` or
+coarser (or `r` at the census's bands or coarser where
+`grain_family` is `null`), and a complete table whose every cell is 0
+or at least `settings.small_cell_floor` rows and whose sum over the
+parents is the child's `L0` totals summed to the entry's level (for a
+difference, its 4.6b.7 totals). No parent is a column counted in rows.
+Every family of the patient chain that holds `r` holds its other
+members among `G`'s, each at `G`'s level or coarser (4.6c.8 (a)). The loader recomputes each entry's certificate from
+published counts, the one 4.6c.8 (a) assigns (PWIT; residual PWIT; the
+floored split by exact integer search, with the class witness of
+4.6c.5 (e) where the child's class asks for one), and finds it passes,
+and finds RULE W1 holding in rows. A repeated column the KEY test reads
+that is the child of no row family carries its one-cell class witness,
+which the loader recomputes the same way; every other repeated or dealt
+date column that is the child of no row family carries its one-cell
+family's certificate (4.6c.8 (a): PWIT where every patient holds one
+value of `r`, the floored split otherwise), recomputed the same way.
+Every search the loader repeats is bounded as 4.6c's setting states,
+and reaches the producer's outcome.
+
+**Invariant S32 (derived columns).** A first date's edges are rungs of
+its source, at a level where every difference of 4.6c.2 (b) is 0 or at
+least `f` rows; an own mean's value bands each hold at least
+`max(2 f, f + 4)` patients. A derived column is a member of the patient
+chain and of no row family's child.
+
+**Invariant S33 (trends).** Each `trend` entry names a FINE column with
+`n_missing` 0 over tabled rows and no row-level product moment, a cell
+of `F_S` holding one value `r >= 2`, and a `grid` entry whose `u`, `L`
+and `K` agree with the column's block, `L` and `H` read on its tail
+boundary rungs and `K >= 1`; either some tail of the column publishes
+neither its pair nor its values (its code total is then not fixed), or
+`O_free = n - sum |P| r - n_one`, read on the census, `F_S`'s
+published counts and the column's `L0` totals, is at least
+`settings.small_cell_floor` (4.6c.1 (b) 6; no rule reads `min` or
+`max`); the loader recomputes SWING (4.6c.1 (b)) and finds it passes.
+
+**The inventory rows this section proves (4.6b.9 (b)'s rows owned by
+lane MG, and its new rows).** Each row's decision, its class, and the
+argument that the decision removes no witness world of any count
+(ruling R8 (2), "every count"):
+
+| # | decision | class | proof, every count included |
+|---|---|---|---|
+| 4 (MG's part) | a row family passes the certificate 4.6c.8 (a) assigns (the floored split, residual PWIT or PWIT), with the class witness where the child's class asks for one | (a): the certificate reads published counts only | 4.6c.8 steps 3 to 5; 4.6c.2 (d); 4.6c.5 (e) |
+| 15 | `r`'s census structure | (a): drawn among eligible candidates | 4.6c.4 (b), (c) |
+| 15a | whether the layer is on | items 1 to 3: (b) on published facts; item 4: (a), drawn, "off" eligible on every table | 4.6c.3 (d) |
+| 16 | the KEY test | (b) on `T`: the tie world keeps position-like, the class witness keeps the rest | 4.6c.6 (b), (d), (e); 4.6c.5 (e) |
+| 17 | the modal values by position, `null` entries included | (b): published; the tie world reproduces the list | 4.6c.6 (d) |
+| 18 | the position column | (b): roles | 4.6c.7 (a) |
+| 18b | dates declared ordered | (b): roles, one outcome | 4.6c.7 (b) |
+| 19 | patient-fixed columns | (b) on `T`: the written world (`V_K = 0`) keeps fixed, the class witness keeps the rest | 4.6c.5 (a), (d), (e) |
+| 19a | a repeated column the KEY test reads described in rows, or HELD | (a): drawn, HELD eligible on every table | 4.6c.5 (e) |
+| 20 | `r`'s level in a family | (b): W3 and NE on the census | 4.6c.4 (d) |
+| 21 | a derived column's own level | (a): drawn among eligible levels | 4.6c.2 (b) |
+| 35 | whether `Q_P` is published for a cell | (a): drawn against "no moment" | 4.6c.1 (c), (d) |
+| 35a | which cells can carry `Q_P` | (b): roles, `n_missing`, the placed moments | 4.6c.1 (e) |
+| 35b | the trend's latent term, its one rescale, the extension and the close | none: generation only | the generation method's G16.15 |
+| 35c | the family `F_S` | (b): a function of the placed chain | 4.6c.1 (a) |
+| 35d | the grid code's `u`, `L` and `K` | (b): facts of one column | the setting |
+| 36 | the grain family `G`, or `r`'s census where no placed family holds `r` | (b): a function of the placed chain | 4.6c.8 (a) |
+| 37 | a multiplicity map withheld, a person column's row counts read in patients | (b): the class and the layer | 4.6c.3 (b), (c) |
+| 38 | a patient-fixed column's row census published | (b): read on `D0`, either clause | 4.6c.5 (c) |
+| 39 | a family of the patient chain holding `r` offered only with every member of every earlier such family | (b): a function of the placed chain | 4.6c.8 (a), step 5 |
+| 40 | a repeated or dealt date column that is no row family's child: its one-cell family's certificate, or HELD | (a): HELD eligible on every table; the certificate read on published counts | 4.6c.8 (a), step 5 |
+
+**`K-S6-08`'s patient cases.** Lane CHa adds them to 4.6b.10's preimage
+enumeration, at `f = 11` unless a case names its own floor, each with
+its expected reading:
+1. the design's patient fixtures, re-run under this section's rules:
+   the band of 30 patients with visit cells 30, 25 and 22; the "visit
+   4+" cell of 11 rows from one patient; the 12-patient cell of 21 rows;
+   the second attack's census beside a per-row merge, its visit-number
+   column and its 16-patient, 21-row cell (all refused or reading 0);
+   the third attack's census tables and position columns; the long
+   admission and discharge tables; the grain seeds; every census of 11
+   to 20 patients holding 1 to 5 rows (`patient_layer.py`: no eligible
+   candidate at extra rows 1 to 10, 0 leaking ON outcomes);
+2. `fixed_rows.py` and `fixed_member_r3.py`: every reading 0 under
+   4.6c.5 (c), the census withheld in the reading with the gender column's count in
+   patients published;
+3. the visit-trend fixtures (`repair_fix.py`, fifteen fixtures, and the
+   attack's `attack_fix.py` and `attack_scale.py`): under `Q`, 0 leaking
+   descriptions (MEASURED: 1,516 of 1,516, and the same 1,516 with the
+   rigid rule of 4.6c.1 (b) 2 as repaired, which reads no class of them
+   rigid); under `S` exact, reported as the reason `S` is never
+   published (220 leak);
+4. NEW, owed by lane CHa before the stage-6 gate: a trend fixture
+   publishing `x`'s exact mean, spread and one heap beside `Q_P` (the
+   within-column lemma of 4.6c.1 (d) 4); a label column at `V = T` and
+   `T + 1` for the KEY test and for the patient-fixed class, under the
+   class witness (4.6c.5 (e)); a position list with a `null` entry by
+   count, by tie and by a repeated level, rebuilt by its tie world
+   (4.6c.6 (d)); a top band whose excess falls where no floored split
+   exists (refused) and one where the exact check would pass and the
+   split fails (refused: breadth, never a leak); an `R*` whose tie
+   fails; a first-date cell whose residual is 1 to 10 rows (refused);
+   an own-mean cell under the floored split; the cross of a patient
+   union with a type union in an `r`-band cell and in a pooled parent
+   cell (now proven, 4.6c.8 step 5; the fixture checks the proof);
+5. NEW with the page's first repair (2026-10-20), each with its reading:
+   the first skeptic's 330 descriptions of `key_class_leak.py` (one
+   grain cell, `r = 2`, a two-band label child, 11 to 80 patients) and
+   its first, 22 patients of two rows with 13 and 31 rows in the two
+   bands: refused by the class witness, the column drawn HELD where no
+   option has one (reading 0); a patient-level family whose finest
+   levels would hold a cell of 1 to `f - 1` patients (the own-mean
+   family at deciles crossed with single values of `r` on `ST2` at
+   100,000 rows, seeds 1 to 3: 7, 11 and 9 such cells): a coarser
+   option published, never the cell (the orchestrator's ruling of
+   2026-10-20, 10:41); the gate at the edge of eligibility: two tables
+   differing only in how a pooled remainder of plan P4-D406's census
+   splits, one with an eligible `lo = 4` and one with none, whose OFF
+   descriptions are byte for byte one (reading 0); one cell of `F_S`
+   holding every row of `x` with every reading on the grid inside
+   `[p01, p99]`: `Q` refused by 4.6c.1 (b) 6 (the skeptic's 873); a
+   FINE child with a band of one reading: the floored split taken; a
+   number column of few readings whose tie world would use more than
+   20: not position-like; a class with one or two rows in a one-code
+   band with wider bands before and after it: read rigid by 4.6c.1 (b)
+   2 (none of the fifteen visit-trend fixtures has one, `F14`'s
+   one-code band being its lowest; MEASURED: under the rule they read
+   1,516 passes and 0 leaks under `Q`, as before).
+6. NEW with the page's second repair (2026-10-20, its verify and the
+   codex review), each with its reading: the verify's two invented
+   tables of 2,000 patients of eight rows (`make_tail_table.py`, both
+   ends `null`, and `make_heaped_min.py`, `min` 3.0 published below
+   `p01` 4.9), `F_S`'s one cell holding every row: `Q` refused by
+   4.6c.1 (b) 6 as rewritten (`O_free = 0`), where the first build's
+   `min` alternative offered it beside a code total the mean and the
+   tails fix (reading 0); a column whose `p01` and `p99` TL1 withholds
+   (about 200 readings): its grid read on the tail boundary rungs, and a
+   column of zero central span: no grid, no trend; 100 patients of two
+   rows (`r` constant): `G` the census's one cell, `grain_family`
+   `null`, every row family under it certified by PWIT; Codex's chain
+   `{r_fine, A}`, `{B | A, r_coarse}`, `{C | B, r_coarse}` on 248
+   patients: the third family refused, since with it "`r = 2`, `A1`,
+   `B1`" is fixed at 6; the census of 99 patients of 10,000 rows and one
+   of 9,999: refused at the deficit search's first step; a label of 20
+   levels on 1,000 rows a patient: the class witness searched within its
+   bounds; a position-like column of two schedules in equal halves: the
+   list `[null, null]` and the twin's stand-ins; a first-date cell with
+   absent later dates (at least 11 rows in `missing`): the residual
+   `missing` supply allowed; Codex's census `c_1 = 1`, `c_2 = 87`, `c_3
+   = 12` and the zoo's `wearables` (only `lo = 1` eligible): ON but for
+   the uniform share; a computed date `B = A + D` whose grain cell holds
+   a band of `r`: `D`'s row family under the floored split; a FINE
+   column that is no row family's child, 20 patients of two rows and a
+   band of 21 of 40 rows (`one_cell_pigeonhole.py`): its one-cell
+   family refused, the column HELD (reading 0); and 22 patients of two
+   rows with a band of 23 of 44 rows: PWIT passes and the cross of step
+   5 is read.
+7. NEW with the page's second verify (2026-10-20; the orchestrator's
+   ADDENDUM 3 (2) of 14:55), owed by candidate (c)'s certificate
+   (4.6c.11 limit 3) before that candidate may be adopted: the design
+   study's run 3c fixtures, `bc-design/SLOPE-run3c/mom_fix.py`, one
+   patient cell with every world enumerated and the floor scaled to
+   `f = 2`: `MF1` (codes 0 to 3, `r = 2`, 4 to 6 patients, publishing
+   `n` and the column's exact sum and square sum), `MF2` (with a row
+   family, 5 and 6 patients), `MF3` (with the row family and an own-mean
+   family, 5 and 6 patients), `MF4` (codes 0 to 2, `r` of 2 or 3, with
+   the `r` census, 4 patients) and `MF5` (`f = 3`, 6 patients), each
+   beside the `SSB` exact, rounded to `u^2` and to `10 u^2`, the mean
+   slope exact, its sum rounded to one code and the mean rounded to its
+   resolution, and both exact. Reading: no description the certificate
+   lets stand holds a union of types fixed or bounded inside 1 to
+   `f - 1` (MEASURED with no certificate, `out/mfix.json`: the `SSB`
+   exact or to `u^2` pins such a count in 6,396 to 6,697 of 8,159 to
+   8,445 descriptions, the mean slope exact or its sum to one code in
+   5,166 to 5,579 of 10,859 to 11,327, and the witness of a column's
+   mean and spread read on the derived patient column alone accepts 996
+   to 5,317 of the leaking ones, which is why it is no cover).
+
+#### 4.6c.11 What this section promises, its scope and its stated limits
+
+**Proven** (for a reader who knows the procedure and every published
+fact but not the key, given one description per table and name, with
+R1 read as R3 states it, and whatever true cap on `r` the reader
+knows):
+- in the band model: the gate, its "off" drawn on every table, and the
+  census of `r` (4.6c.3, 4.6c.4); every class's own counts, by the
+  patient-fixed world, the tie world and the class witness (4.6c.5,
+  4.6c.6), and the position list with its `null` entries (4.6c.6); dates
+  ordered by role (4.6c.7); every union of types under each certificate
+  4.6c.8 (a) assigns, the one-cell family of a column that is no row
+  family's child included, and a patient union crossed with a type union
+  under each of them (4.6c.8 step 5), for the patient chains 4.6c.8 (a)
+  admits (every family holding `r` holding its other members in `G`;
+  for a chain outside that rule the cross fails, Codex's chain fixing a
+  count at 6, and the rule refuses it);
+- in the grid model, as a statement about that model (it holds no fact
+  of a FINE column finer than its bands: not its exact mean, spread,
+  tails, rungs inside a band or value counts): every union of types
+  under the own-mean floored split (4.6c.2) and beside a published trend
+  `Q_P` (4.6c.1). The first build read this line as a promise about
+  the product's description "where 4.6c.1 (b) 6 leaves the code total
+  unfixed"; on the product's block the mean and the tails fix that
+  total (the page's verify, item 1), so the step from this model to the
+  column's own exact facts is moved to the checked list below, for the
+  own-mean certificate and for the trend alike.
+
+**Checked, not proven** (each a `K-S6-08` case of 4.6c.10): the
+within-column lemma for unions of types, that is, the own-mean floored
+split's world and the trend's witness worlds re-coded to the column's
+own exact facts (its published code total, exact moments, tails, rungs
+inside a band and single-reading counts) beside a trend or an own-mean
+parent: MEASURED 0 leaking descriptions at the level of types over
+163,755 SWING passes on all fifteen visit-trend fixtures with the exact
+mean and spread published, `k = 0` included, where the moments fix the
+cell's code total (`fixout/meanB2c-type-0.json`; the own-mean
+certificate's grid-model line moved here by the page's verify, item 1
+(c)); for a
+FINE number or date column, the joint of its own `L0` totals with its
+row family's coarser table beyond each table's own certificate; an
+own-mean column's pinned order statistics, as 4.6b.9 (e) states for a
+derived column; and every remainder 4.6b.9 (h) names. The first build's
+other checked items (the cross in `r`-band and pooled cells, a label
+column's class kept by the witness worlds, the position list's
+omissions) are proven now.
+
+**Not promised:** ruling R3's Bayesian residual, sharper here because
+`Q_P` is exact; the whole limit of ruling R6 as amended (2026-10-18),
+which this layer makes sharper because a patient chain republishes a
+person's facts: one table described by two installations; overlapping
+or RELATED tables described twice (a demographics table described
+beside its visits table, whose patient chain republishes the same
+patients' patient-fixed facts, counted in patients both times);
+different tables given the same name (4.6b.13's limit 2); counts of
+patients by their EXACT readings beside a trend or an own-mean parent,
+finer than any band the description publishes (limit 9).
+
+**The grade of 4.6b.8's family "several rows per patient".** `E` for
+patient-level rates and tables inside one family of the patient chain,
+and for a row family's table at its bands; `P` for the trend over
+visits of `F_S`'s parent groups where a `Q_P` is published (the
+shared report's word for that pair, `pinned`); `A` for mixed models,
+the within-patient correlation, the gaps between visits and every other
+group's trend over visits, which comes back only as the published
+cells' trends and the generation method's extension imply it (a
+group joining published cells carries their pooled trend, and a cell
+of no `Q_P` takes the extension's pooled slope: approximate, never
+flat by rule); `N` for a relation between two repeated columns at one
+visit beyond what their patient-level parents imply.
+
+**Stated limits** (each with its measured size and its owner):
+1. **No row family has a parent counted in rows** (December). A
+   relation between two repeated columns at the same visit comes back
+   only through their patient-level parents; a product moment between
+   two FINE repeated columns at row level is lane MPOL's, under its own
+   argument; a repeated column's cell means inside row cells are off. A
+   row family under a row family needs the joint argument over linked
+   families: January's.
+2. **Change over visits.** Change over visit ORDER, not time (a moment
+   on the gap-coded date is January's); a column with a reading on every
+   row; cells of one `r`; FINE columns only; no row-level product moment
+   on the same column; a grid of two or more codes on the tail
+   boundary rungs; and NO trend where the rows outside the trend's
+   cells are too few to leave their code total free (4.6c.1 (b) 6:
+   fewer than `f` free rows outside them beside a fixed code total).
+   *Complete follow-up, a December limit* (the orchestrator's ADDENDUM
+   4 of 2026-10-20, 17:35): On a table where every patient has every
+   visit, change over visits is not published in December. There
+   `F_S`'s cells hold every row, so the column's exact mean and tails
+   fix their code total (`O_free = 0`) and 4.6c.1 (b) 6 refuses every
+   `Q_P`. Its measured price, on run 3: one table of the battery is
+   such a table, `ST2` without dropout (`st2full`, two runs at 20,000
+   rows, every patient eight rows), whose arm-by-visit trend falls to
+   BASE's 0.003 and 0.006 of the real, failing clause (1) there; 22 of
+   24 route-runs meet clauses (1) to (4), and READY's 6 of 6 on `ST2` at
+   100,000 rows stands. Complete follow-up is common in designed
+   studies, so the owner is told. *Owner:* lane GR in January, a
+   certificate covering cells of `F_S` that hold every row, measured on
+   `st2full`. Only `F_S`'s cells carry a published trend; every other
+   group's trend over visits comes back only as the published cells'
+   trends and the generation method's extension (G16.15) imply it,
+   approximate or unconstrained, NOT flat (the codex review of
+   2026-10-20, item 16: two arms both trending up give their union an
+   upward trend, and an unpublished cell takes the extension's pooled
+   slope), and the private report says so in plain words, naming which
+   groups are carried by a published `Q_P` and which only by the
+   extension (ruling R7 (2)); on a table where every patient holds
+   every visit it says, in these words: "on a table where every patient
+   has every visit, change over visits is not published in December".
+   On a long table SWING publishes no cell: MEASURED by
+   the design study's second run on its long table (rows per patient
+   lognormal, median 20, at most 120): 0 cells of one `r` at 3,000
+   patients, and all 76 refused at 6,000 (the largest 95 to 107
+   patients), the arm-by-visit trend recovered at 0.014 to 0.019, as
+   without the object; on the same long tables every route of this
+   page's run 3, this page's own included, brings it back at 0.012 to
+   0.019 of the real (`wave6/MG/run3/summ-L.txt`, as the design study's
+   run 3c cites it). Cells of about 100 patients cannot hold the `f`
+   reserve, which grows with `r` squared. The `r`-band form (one moment
+   per `r`-band cell, each patient's moment scaled to one unit of swing,
+   SWING's classes taken over (own-mean band, pattern, `r`) under `R*`)
+   is the January stretch item "`K-BC-06` (8) at 50 per cent through the
+   `r`-band form". Candidate (c) of limit 3, moments, would carry it:
+   arm by visit at 0.903 to 0.931 of the real on those long tables, with
+   the correlation's gaps +0.005 to +0.034 (MEASURED by run 3c), once
+   its certificate is proven; until then the long-table trend is this
+   limit, at today's 0.012 to 0.019.
+3. **The within-patient correlation and `K-BC-06`'s clause (5), as run 3
+   measured them** (the orchestrator's rulings of 2026-10-20: December
+   reads the correlation at 100,000 rows under clause (4), 0.07; READY
+   asks clauses (1) to (4) at 100,000 rows on at least 5 of 6 runs). The
+   design study's second run met clause (4) on all fifteen runs but was
+   measured, at 100,000 rows, on an own-mean family holding cells of 1 to
+   10 patients (4.6c.1 (f)); held to the floor in its own generator,
+   clauses (1) and (4) failed on 5 of 6 runs. Run 3 (this page's route:
+   the floor enforced, the child at the median, the floored split by
+   exact search, the published weight of the generation method's G16.15,
+   no noise shrink): clauses (1) to (4) held on all 10
+   route-runs at 100,000 rows (6 of 6 on `ST2`) and all 14 at 20,000;
+   clause (5) held on all 6 `ST2` runs at 100,000 rows, the stretch's own
+   case (the correlation within 0.0091 of the real, its excess over BASE
+   inside the yardstick at every seed and order), and missed on 3
+   route-runs: `ST2` at 20,000 rows seed 1 (the correlation, -0.0210
+   against BASE's -0.0105, yardstick 0.0075; the study's own weight
+   misses there too, -0.0099 against +0.0003), and `ST2-AGE` at 100,000
+   rows on its (arm, old) route by both orders (the lag-1 correlation,
+   +0.0055 against BASE's -0.0012, yardstick 0.0037; with `r` coarsened
+   first also the age coefficient and the arm mean difference). A noise
+   shrink by the trend's variance raised the correlation 0.015 to 0.051
+   above the real and broke clause (5) on 21 of 23 runs, so G16.15 takes
+   none. Owner of what clause (5) still misses:
+   the January stretch item "the ICC inside its yardstick at 100,000
+   rows", widened to name those runs. *The third candidate, MEASURED,
+   the long-table route NOT YET ADOPTED (the orchestrator's ADDENDUM 2
+   of 2026-10-20, 12:51, and ADDENDUM 3, 14:55; the page's second
+   verify, item 1):* carrying the ICC and the trend by MOMENTS (one
+   between-patient sum of squares `SSB` a column beside its mean, spread
+   and `r` census; each arm's mean of its patients' own least-squares
+   slopes over visit position, the summary-measure analysis of Matthews
+   1990 and Vossoughi 2012; generation in two stages made exact by the
+   standardise-and-recolour step of Papadimitropoulou 2020; optionally a
+   lag-1 moment a column). MEASURED by the design study's run 3c
+   (`bc-design/SLOPE-run3c.md`, 2026-10-20, on run 2's harness and
+   seeds with the floor enforced): clauses (1) to (4) at 100,000 rows on
+   6 of 6 `ST2` runs (the correlation's gaps -0.0056 to -0.0009, arm by
+   visit 0.972 to 0.990); on the long table (3,000 and 6,000 patients)
+   the only route measured that carries the trend, arm by visit 0.903 to
+   0.931 with the correlation's gaps +0.005 to +0.034, where this page's
+   route gives 0.012 to 0.019 (limits 2 and 4); its pooled
+   within-patient form (`MOMw`) met clauses (1) to (5) on 6 of 6 `ST2`
+   runs at 100,000 and at 20,000 rows but loses clause (2) on the long
+   table; the lag-1 moment brought the lag-1 correlation inside its
+   yardstick on 27 of 27 route-runs. *Why it is not adopted:* no
+   existing witness covers its moments. On exhaustive fixtures
+   (`K-S6-08` item 7) an exact or finely rounded `SSB` pins a count of 1
+   to `f - 1` patients in 6,396 to 6,697 of 8,159 to 8,445 descriptions,
+   and an exact or finely rounded mean slope in 5,166 to 5,579 of 10,859
+   to 11,327; the witness of a column's mean and spread, read on the
+   derived patient column alone, accepts 996 to 5,317 of those leaking
+   descriptions, since the pin combines the `SSB` with the column's
+   row-level square sum, which that witness never reads; SWING certifies
+   the moment of one cell of one `r` only. *What it is owed:* a
+   certificate, the `r`-band SWING proof of limit 2 (the per-arm slope
+   is its coarsest case) plus a joint witness reading the `SSB` with the
+   column's square sum, proven, and reading 0 on `K-S6-08` item 7; and
+   its resolutions read from the census bound (the orchestrator's
+   ADDENDUM 3 (3)): the mean slope's resolution
+   `10^ceil(log10(10 u / n_g))` a visit takes for `n_g` the lower bound
+   the published census gives on the group's patients with `r >= 2`,
+   and `MOMw`'s pooled
+   slope takes for its sum of `Sxx` the bound the census gives on that
+   sum, never the true patient count or the true sum, which would be
+   decisions taken from the real table. *Owner and date:* the January
+   stretch, beside limit 2's `r`-band form, unless the certificate lands
+   in December (ADDENDUM 3 (2)); until then limits 2 and 4 state the
+   long table's trend and correlation with run 3c's numbers (ADDENDUM 3
+   (4)). *Why `A0` stands:* the orchestrator's ADDENDUM 3 (1) adopts
+   candidate (a), the row family's child at the median, for December,
+   which the design study reads as meeting 10 of 10 route-runs at
+   100,000 rows under SWING's proven per-cell certificate; `A0` meets
+   the addendum's rule (clauses (1) to (4) at 100,000 rows on at least 5
+   of 6 runs: 6 of 6 on `ST2`, 22 of 24 route-runs under the corrected
+   guard of 4.6c.1 (b) 6) and publishes no patient-level cell of 1 to
+   `f - 1`; candidate (c) has no certificate on this page: its
+   per-arm slope moment pools patients of every `r` in the arm, which
+   SWING's slice lemma does not cover (that is the `r`-band form of
+   limit 2, January's), and its between-patient sum of squares is one
+   more exact moment beside the column's exact mean and spread, which
+   the within-column lemma (checked, not proven) would have to cover.
+4. **The within-patient correlation on long tables: a measured limit of
+   today's layer, found 2026-10-20.** On the design study's long table
+   its route brought the correlation back 0.076 to 0.081 below the real
+   one: 0.6462 against 0.7230 and 0.6278 against 0.7091 at 3,000
+   patients (seeds 1 and 2), 0.6433 against 0.7194 at 6,000 (MEASURED by
+   the study's second run, which publishes no trend there, so the figure
+   is the layer's own route), outside clause (4)'s 0.07. `K-BC-06`'s ICC
+   clause is stated on `ST2`, so this is no KPI miss today; it is stated
+   so that no report claims the 0.07 on long tables without its run.
+   *The cause, MEASURED* (the page's statistics skeptic, 2026-10-20, in
+   the study's own generator): not the banding of the own mean (bands of
+   200 instead of deciles moved the long table's correlation by 0.000
+   and -0.002) but the patient term's WEIGHT, which the study fitted on
+   real rows inside cells that include the child's band: 0.604 and 0.588
+   on the long table against 0.695 on `ST2`; the same weight times 1.15
+   brings the gap within 0.021 (-0.0174 and -0.0205), times 1.3 past it
+   (+0.029 and +0.028). The first build's cause (the dealing refilling
+   the spread on short patients) is withdrawn. *The December route*, the
+   generation method's G16.15 weight, read on the published row family's
+   table and not on the child's level: MEASURED by run 3 on the same long tables
+   (the study's route otherwise unchanged, its row family judged by its
+   capped PWIT; the floored split's own pass rate there is lane CHa's):
+   the correlation 0.7137 against 0.7230, 0.7106 against 0.7091 and
+   0.7161 against 0.7194, gaps -0.0093, +0.0015 and -0.0033, where the
+   study's weight gave -0.0770, -0.0815 and -0.0762; taking the own
+   mean's own noise out of the weight gives -0.0193 to -0.0085 and is
+   not taken. So the published weight is a December ROUTE, measured
+   with PWIT judging the row family (run 2's capped PWIT): the limit is
+   OPEN until lane CHa measures the floored split on long tables, which
+   4.6c.8 (a) requires there (their grain cells hold bands of `r`), and
+   until lane GR's first run confirms the route on the built generator;
+   where no floored split exists the row family does not stand and the
+   correlation is not carried at all. Run 3's own floored search tied
+   `R*` to the exact (arm, `r`) counts, which a long table does not
+   publish, so it could not run there (the page's verify, item 6.1).
+   *Beside it, MEASURED by the design study's run 3c on the same long
+   tables* (the orchestrator's ADDENDUM 3 (4)): candidate (c) of limit 3
+   brings the correlation within +0.005 to +0.034 of the real (gaps
+   +0.0049, +0.0254 and +0.0343, against this route's -0.0093 to
+   +0.0015) and carries the trend there (arm by visit 0.903 to 0.931,
+   where this route gives 0.012 to 0.019, limit 2): the long-table route
+   once its certificate is proven, NOT YET ADOPTED.
+   `STATE.md` keeps the line until both land.
+5. **Tables the gate turns off** (4.6c.3 (e)): two or more person
+   columns, a tabled row lacking a person value, 1 to `f - 1` extra
+   rows, or no eligible census (and, with the draw's uniform share, about
+   one table in a billion that has one). They are described in rows, as
+   today. MEASURED on the health data zoo's 25 tables: 14 ON, the two new
+   conditions turning none off.
+6. **A patient-fixed column's row census on a long table** (4.6c.5 (c)).
+   MEASURED by this page's probe (`ST2` at 20,000 rows, seeds 1 to 3, and
+   100,000 rows, and the design's long table at 3,000 and 6,000
+   patients; the three-value search over every three values of `0 .. t`,
+   as 4.6c.4 (b) states, which left the counts unchanged): on `ST2` the
+   finest eligible census has an empty top band and the arm's row census
+   is published; on the long table the finest eligible census opens its
+   top band at 50, 54 and 62 rows (414, 381 and 601 patients) and, where
+   no row family has the arm as a parent, the arm's row census is
+   withheld. The twin's miss on the arm's rows: 2.4, 167.4 and 52.7 rows
+   as the expectation of a split in proportion to the top band's
+   patients (0.006 to 0.42 per cent), and AS DEALT by the generation
+   method's straight line dealt without regard to the arm a median of
+   126, 181 and 146 rows and a 90th percentile of 293, 380 and 360, at
+   most 0.89 per cent of the arm (MEASURED by the page's statistics
+   skeptic, 2,000 deals each). Where a row family has the arm as a
+   parent, the census is published by summation and the twin meets it
+   (G16.14 deals the excess grain cell by grain cell). On real shapes
+   the price is lane CHa's count on the health data zoo's 14 tables the
+   gate turns on, before the stage-6 gate (4.6c.5 (c)).
+7. **Dates ordered by role** (4.6c.7 (b)): a non-monotone dealt date
+   column comes back sorted within each patient. MEASURED on the zoo's
+   `encounters`: 4.85 per cent of patients at 600 rows and 6.57 per
+   cent at 20,000 hold a decreasing discharge, which the twin sorts; the
+   data test's trigger (more than half) is met by no zoo column.
+8. **Given up while the layer is on, named in the private report only:**
+   a patient-fixed column's other values held by its `V_K` patients; a
+   position-like column's repeats held by its `V` patients; every
+   repeating multiplicity map; a row census that is not a function of
+   the rest; a repeated column the KEY test reads that has no class
+   witness, drawn HELD (4.6c.5 (e)).
+9. **Counts of patients by their exact readings beside a trend or an
+   own-mean parent** (4.6c.1 (d) 4; the page's first skeptic, item 2).
+   MEASURED on the visit-trend fixtures with the column's exact mean and
+   spread published: at the level of exact code vectors, descriptions
+   leak only because `Q` stands beside the moments (3,808 on `F1` where
+   the moments fix the cell's total, which 4.6c.1 (b) 6 refuses; 125 to
+   136 on `F3` with one to four readings off the cell, which it does
+   not), and some leak from the own-mean family and the moments alone
+   (81 to 202 on `F3`, 202 at one reading off the cell); at the level
+   of the page's types, 0 over 163,755 SWING passes on all fifteen
+   fixtures. The
+   fixtures are the worst case (at most 9 patients of two rows, codes 0
+   to 3, `f` of 2 or 3); at product scale the moments are four equations
+   over thousands of readings, and nothing is measured there yet. The
+   exchange form that would prove the lemma carries no trend as written.
+   *Owner:* the orchestrator's ruling on whether R1 reaches counts of
+   patients by their exact readings (the owner's principle of
+   2026-10-01: the threat is HIPAA exposure, not reconstruction), and
+   lane CHa's product-scale `K-S6-08` run before the stage-6 gate; until
+   the ruling, `Q_P` and the own-mean parent stand as this page writes
+   them, NOT IN FORCE like the rest of the section.
+
 ---
 
 <!-- s5: the column block: universal keys and the axes -->

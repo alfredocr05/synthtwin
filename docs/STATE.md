@@ -689,6 +689,41 @@ cannot get worse unseen.
   because publishing both solved for the held-back values. The twin's
   pooled mean is now exact and its spread is unchecked, about 2 out
   (`K-2B-50`, green on the mean). Stated, not hidden.
+- **The patient layer's within-patient correlation** (2026-10-20;
+  specified, not built, plan P4-D412). On the design's invented long
+  table (a median of 20 rows a patient) the study's route brought the
+  correlation back 0.076 to 0.081 below the real one, outside
+  `K-BC-06`'s 0.07; the cause, measured, is the patient weight fitted on
+  real rows inside cells that include the child's band, not the banding.
+  The page's route (G16.15's weight read on the published row family):
+  within 0.0093 of the real on the
+  three long-table runs of the page's run 3, with PWIT judging the row
+  family (OPEN until lane CHa measures the floored split on long tables
+  and lane GR confirms on the built generator). Clause (5), where run 3 still misses it: `ST2` at 20,000 rows seed 1 (the
+  correlation, -0.0210 against BASE's -0.0105, yardstick 0.0075) and
+  `ST2-AGE` at 100,000 rows on its (arm, old) route (the lag-1
+  correlation); owner
+  the January stretch item. The visit trend publishes no cell on long
+  tables (arm by visit 0.012 to 0.019 of the real on run 3's long
+  tables; owner the January `r`-band form). Complete follow-up, a
+  December limit: on a table where every patient has every visit,
+  change over visits is not published in December, since the trend's
+  cells then hold every row and their code total is fixed (measured
+  price, run 3: one table, `ST2`
+  without dropout, its trend at 0.003 and 0.006 of the real; 22 of 24
+  route-runs meet `K-BC-06`'s clauses (1) to (4); owner lane GR in
+  January, a certificate covering cells that hold every row, measured
+  on that table). The third candidate, moments (the design study's run
+  3c), is measured and not adopted: on the long tables it carries the
+  trend at 0.903 to 0.931 and the correlation within +0.005 to +0.034,
+  but no existing witness covers its moments, which pin small counts of
+  patients on exhaustive fixtures; it waits for its certificate (the
+  `r`-band SWING proof and a joint witness of its sum of squares with
+  the column's square sum), January's stretch unless proven in
+  December. Counts of
+  patients by their exact readings beside a trend or an own mean leak on
+  the fixtures' worst cases (the page's limit 9; owner the
+  orchestrator's ruling and lane CHa's product-scale run).
 
 ## The rules an assistant breaks first here
 
