@@ -916,7 +916,8 @@ class Setting:
     `own_groups` lists each eligible column's own-fact groups of 1 to
     `f - 1` rows as `(column, L0 band)` (the producer reads them from the
     column's published block: `mode_count`, `n_zero`, a heap, a bin of
-    one reading, a sub-band an `L0` merge took in). `we` is None or
+    one reading); the sub-bands an `L0` merge took in are added from each
+    ladder's `taken_in` at every check. `we` is None or
     `{"blank": {column: L0 band holding its blank cells, or None}, "z":
     Z, "p": P}` (RULE WE). `rule_pairs` and `te_pairs` are column pairs
     (sets); `seeds` the triple screen's seeds, each a tuple of columns.
@@ -1015,7 +1016,10 @@ def eligible(setting, chain, option, lads, n, w1=None):
     if not floor_holds(table, setting.floor):
         return False, "floor"
     placed = _placed(chain, option, lads)
-    check = w1 or (lambda ch: w1_holds(ch, lads, setting.own_groups)[0])
+    groups = list(setting.own_groups)
+    for column in sorted(lads):
+        groups += [(column, band) for band in lads[column].taken_in if (column, band) not in groups]
+    check = w1 or (lambda ch: w1_holds(ch, lads, groups)[0])
     if not check(placed):
         return False, "W1"
     if not we_holds(setting, placed, lads, n):
