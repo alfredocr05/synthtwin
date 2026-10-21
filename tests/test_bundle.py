@@ -957,6 +957,18 @@ def test_the_notices_come_from_the_wheels_and_the_zip_is_the_same_twice(tmp_path
     assert "synthtwin-0.0.1-stub/SHA256SUMS" in names
 
 
+def test_the_zip_has_the_name_readme_gives_it() -> None:
+    """synthtwin-<version>-<platform>.zip, holding the folder of the same name (item 9)."""
+    named = BUILD.bundle_name(pathlib.Path("dist/synthtwin-0.1.0-py3-none-any.whl"), "win_amd64")
+    assert named == "synthtwin-0.1.0-win_amd64"
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    for platform in ("macos_arm64", "win_amd64", "linux_x86_64"):
+        assert f"`synthtwin-<version>-{platform}.zip`" in readme, platform
+    guide = " ".join((SCRIPTS / "INSTALL.txt").read_text(encoding="utf-8").split())
+    assert "named like synthtwin-0.1.0-macos_arm64" in guide
+    assert "named like synthtwin-0.1.0-win_amd64" in guide
+
+
 def test_nothing_the_builder_makes_can_be_committed() -> None:
     """Wheels, notices and sums are ignored by git; the builder writes outside the tree."""
     ignored = (REPO / ".gitignore").read_text(encoding="utf-8").splitlines()
