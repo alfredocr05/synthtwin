@@ -58,7 +58,8 @@ comma writes. Dates declared as counts that do not read as dates (`42.345`
 for an Excel day) are held on every table, one row a person or several,
 instead of being published as plain numbers (contract NF127); the
 screen, the summary and a new `held` section of the questions file name
-them and say to write the dates one way and describe the table again. A declared
+them, and never a declared column that read as dates and is held because
+too few people hold its values, and say to write the dates one way and describe the table again. A declared
 person column's census of
 rows a person never prints a real group of one to ten people, even where
 too few rows stand past one a value for any census without a small
