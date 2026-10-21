@@ -1567,10 +1567,26 @@ def answer_and_run(table: Table, wanted: "list[tuple[str, str]]") -> None:
 def route_four_case(folder: pathlib.Path) -> None:
     """`code` answered to route four's question in round one, against the checklist's `code` in round two."""
     once = diagnoses_table(folder / "once")
-    assert profile(once) == 0
+    put: "dict[str, list[asking.Question]]" = {"questions": []}
+    asks = asking.person_questions
+
+    def recorded(*arguments: object, **named: object) -> "list[asking.Question]":
+        found = asks(*arguments, **named)  # type: ignore[arg-type]
+        put["questions"] += found
+        return found
+
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(asking, "person_questions", recorded)
+        assert profile(once) == 0
+    # `code` is never what standing still gives (skeptic 1 of lane HX3, item
+    # 2): Enter at the keyboard, or a blank in the file, on a patient key
+    # route four reaches would otherwise declare it a code and publish it.
+    standing = [one.taken for one in put["questions"] if one.name == _ROUTE_FOUR_COLUMN]
+    assert standing != [] and set(standing) == {asking.ANSWER_KEEP}, f"the standing answer is not keep: {standing}"
     first = questions(once)
     asked = entry_about(list(first["asked"]), _ROUTE_FOUR_COLUMN)  # type: ignore[arg-type]
     assert len(asked) == 1 and asked[0]["read_as_now"] == asking.ANSWER_IDENTIFIER, "route four did not put the question"
+    assert asked[0]["your_answer"] == "", f"the file answers for the person: {asked[0]['your_answer']!r}"
     assert offered(asked[0]) == (asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER), (
         f"code not offered in round one: {offered(asked[0])}"
     )
@@ -1637,6 +1653,42 @@ def test_mutant_route_four_answers_not_kept_is_seen(tmp_path: pathlib.Path, monk
     """The file the answering run writes carries no `answered_before` (plan P4-D408)."""
     monkeypatch.setattr(asking, "answered_before", lambda given: [])
     with pytest.raises(AssertionError, match="answered_before lost"):
+        route_four_case(tmp_path)
+
+
+asking_person_questions = asking.person_questions
+
+
+def code_standing(*arguments: object, **named: object) -> "list[asking.Question]":
+    """The mutant: route four's question stands on `code`, so a blank or Enter declares a code."""
+    found = asking_person_questions(*arguments, **named)  # type: ignore[arg-type]
+    return [
+        dataclasses.replace(one, taken=asking.ANSWER_CODE)
+        if asking.ANSWER_CODE in [choice.answer for choice in one.choices]
+        else one
+        for one in found
+    ]
+
+
+def test_mutant_code_standing_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Route four's question standing on `code` (skeptic 1 of lane HX3, item 2)."""
+    monkeypatch.setattr(asking, "person_questions", code_standing)
+    with pytest.raises(AssertionError, match="the standing answer is not keep"):
+        route_four_case(tmp_path)
+
+
+def test_mutant_the_file_prefilling_code_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The questions file writes `code` beside route four's question as if the person had said it."""
+    real = asking._question_entry
+
+    def prefilled(question: asking.Question) -> "dict[str, object]":
+        entry = real(question)
+        if asking.ANSWER_CODE in [choice.answer for choice in question.choices]:
+            entry["your_answer"] = asking.ANSWER_CODE
+        return entry
+
+    monkeypatch.setattr(asking, "_question_entry", prefilled)
+    with pytest.raises(AssertionError, match="the file answers for the person"):
         route_four_case(tmp_path)
 
 

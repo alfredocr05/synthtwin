@@ -33,6 +33,7 @@ patient key the count in people of lane HX2 holds them
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import pathlib
 import random
@@ -602,6 +603,50 @@ def test_route_four_is_put_to_a_column_of_counts(tmp_path: pathlib.Path) -> None
     seen = shapes.run(tmp_path, "randkey", _ROWS)
     assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
     _check_held(seen, "randkey")
+
+
+def _enter_at_route_four(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Enter at the keyboard on a patient key route four reaches declares no code.
+
+    Route four's question offers `code` (plan P4-D420), and Enter keeps
+    the reading standing still gives, `keep`: never `code`, which would
+    publish every key 11 or more rows share (skeptic 1 of lane HX3, item 2).
+    """
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    table, _real = shapes.write_table(tmp_path, "randkey", _ROWS)
+    assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}"]) == 0
+    document = json.loads(
+        (tmp_path / f"{table.stem}-profile.json").read_text(encoding="utf-8")
+    )
+    settings = document["settings"]
+    assert isinstance(settings, dict)
+    assert settings["forced_codes"] == [], f"Enter declared a code: {settings['forced_codes']}"
+
+
+def test_enter_at_route_fours_question_declares_no_code(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enter_at_route_four(tmp_path, monkeypatch)
+
+
+def test_mutant_route_four_standing_on_code_is_seen(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: route four's question stands on `code`, so Enter declares the key a code."""
+    real = asking.person_questions
+
+    def code_standing(*arguments: object, **named: object) -> "list[asking.Question]":
+        return [
+            dataclasses.replace(one, taken=asking.ANSWER_CODE)
+            if asking.ANSWER_CODE in [choice.answer for choice in one.choices]
+            else one
+            for one in real(*arguments, **named)  # type: ignore[arg-type]
+        ]
+
+    monkeypatch.setattr(asking, "person_questions", code_standing)
+    with pytest.raises(AssertionError, match="Enter declared a code"):
+        _enter_at_route_four(tmp_path, monkeypatch)
 
 
 def test_a_wider_placeholder_and_a_narrow_measurement() -> None:
