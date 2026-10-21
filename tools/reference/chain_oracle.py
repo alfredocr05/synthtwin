@@ -460,7 +460,10 @@ def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, p
         totals[b] += 1
     taken_in = sorted({where[g[0]] for g, _ in taken})
     ordered = [any(isinstance(s, tuple) for s in band) for band in l0]
-    if label_role:
+    if role in ("binary", "constant"):
+        l1 = [[i] for i in range(len(l0))]
+        l2 = [[i] for i in range(len(l0))]
+    elif label_role:
         l1, l2 = _label_levels(l0, levels)
     else:
         l1 = _number_level(l0, starting, NUMBER_L1)

@@ -4022,9 +4022,18 @@
   "exception_i": {
    "class": "cho1",
    "bound": 16912,
-   "nodes": 908,
-   "empty": true,
-   "v_minus": [],
+   "nodes": 1829,
+   "empty": false,
+   "v_minus": [
+    [
+     "A",
+     3
+    ],
+    [
+     "B",
+     3
+    ]
+   ],
    "b": false,
    "c": false,
    "holds": false

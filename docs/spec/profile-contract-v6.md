@@ -9449,6 +9449,32 @@ amended by a dated sentence in plan P4-D413 on the measurement named):
 - `second_code`: `true`, on the rungs' probability scale (4.6d.1, the
   kit's code);
 - `witness`: `"cf1"` until lane CHo's decision names the oracle's class.
+  AMENDED 2026-10-21 (plan P4-D421): `witness` is `"cho1"`, the class of
+  lane CHo's exact route (`tools/reference/moment_oracle.py`, a layered
+  count of the joint space's groups in Python integers). An instance,
+  the region's joint space under the option as 4.6d.4 builds it, lies in
+  `"cho1"` where its groups number at most 50,000 and the bound the route
+  reads from its sizes before any search (each group's largest published
+  count, each published number's whole coefficients and its value) is
+  at most 10,000,000 transitions; a region whose nodes publish a slope
+  (point condition (5)) lies outside. Inside, the route decides clauses
+  (a) to (c) exactly within that budget (MEASURED at the boundary: at
+  most 8.6 seconds and 0.29 GB on the reference machine under Python
+  3.11), and on every cell of 22 to 40 rows over runs of up to six
+  codes it gives `CF1`'s verdict on every group (8,949 cells). Its
+  reach, MEASURED: no region the chains of lanes `A0b` (2,000 to 200,000
+  rows) and `E0b` (ST1, 20,000 rows) form lies inside, each joining
+  every FINE column and at least 2 to the power of its 17 to 49 members
+  in base cells; even alone in a family of its own, a FINE column lies
+  inside only where it holds few readings (5 of 62 measured columns at
+  20,000 rows and 3 of 62 at 200,000, counts of 29 to 42 readings, the
+  witness holding on each), since the 99 published rungs
+  cut nearly every `L0` band of a measured column (464 of 493 bands of
+  ST1, ST4 and lane `A0b`'s table at 20,000 rows), which also leaves
+  `CF1`'s interior bands to such columns. No M-a region holding `f` rows lies inside, so `correlation`
+  stays off. With `"cho1"` the layer publishes 0 of the 287 analysis
+  results of lane `A0b`'s table beyond the chain's own, and stated limit
+  3 stands as measured.
 Beside them, the polish's own, never published (generation method G17):
 its passes `P`, 4 at every size, PROVISIONAL (lane `A0b`: `P` = 2 scored
 172 of 287 against 188 at 200,000 rows; lane MPp measures 2, 4 and 8 at

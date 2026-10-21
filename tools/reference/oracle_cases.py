@@ -616,14 +616,14 @@ def spec_q_or_s(total, square=None):
 
 def spec_two_small_atoms():
     """Exception (i) of Theorem 2: two small atoms of one region (`n_zero` 3 at code 0 and a
-    heap of 4 at code 2) over two cells of 22 rows on codes 0 to 3, code sums 30 and 34."""
+    heap of 4 at code 2) over two cells of 22 rows on codes 0 to 3, code sums 30 and 33."""
     return {"floor": 11, "cells": [{"name": "A", "bands": {"c": 0}}, {"name": "B", "bands": {"c": 0}}],
             "atoms": {"c": [_atom("zero", 0, 0, small=True), _atom(1, 0, 1), _atom("heap", 0, 2, small=True),
                             _atom(3, 0, 3)]},
             "margins": [{"cells": [0], "count": 22}, {"cells": [1], "count": 22}],
             "facts": [{"column": "c", "atoms": ["zero"], "lo": 3, "hi": 3},
                       {"column": "c", "atoms": ["heap"], "lo": 4, "hi": 4}],
-            "sums": [_sum(["c"], [1], [0], 30), _sum(["c"], [1], [1], 34)]}
+            "sums": [_sum(["c"], [1], [0], 30), _sum(["c"], [1], [1], 33)]}
 
 
 def spec_correlation(rows, sums):
