@@ -305,6 +305,20 @@ def test_a_workbook_and_a_csv_of_one_table_give_one_hash(tmp_path):
     assert chain.content_hash(chain.row_hashes(from_book)[0]) == chain.content_hash(from_text)
 
 
+def test_a_table_read_whole_and_one_read_in_groups_give_one_hash_a_row(tmp_path, monkeypatch):
+    # The row walk (a table held whole) and the column walk (a table read
+    # in groups of columns) are two routes to one hash a row, and to one
+    # record of the rows holding nothing (plan P4-D418).
+    rows = [[f"{place}", "" if place % 4 else "x", f"{place % 3}", ""] for place in range(60)]
+    path = tmp_path / "groups.csv"
+    path.write_text(_csv(["b", "a", "c", "d"], rows), encoding="utf-8", newline="\n")
+    whole = reading.read_table(str(path), small_cell_floor=FLOOR)
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    grouped = reading.read_table(str(path), small_cell_floor=FLOOR, in_groups=True)
+    assert whole.source is None and grouped.source is not None and grouped.columns == []
+    assert chain.row_hashes(whole) == chain.row_hashes(grouped)
+
+
 def test_the_sample_takes_exactly_its_rows_however_many_repeat():
     first = bytes(32)
     second = bytes([1] * 32)

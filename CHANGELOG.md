@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### Lane CHa: the chain's profile side, built behind a switch no user reaches (2026-10-21)
+
+**The first code of the broad between-columns program** (plan P4-D418,
+contract 4.6b). Behind a switch that only a caller of `cli.main` or
+`chain.describe` can turn on, `synthtwin profile` now cuts each column
+into three nested levels of bands, counts every pair's and family's
+table on all rows, draws the chain with the installation's private key
+(rule W5, keyed by the key, the table's name and the step), refuses by
+RULE W1 every option that would confine a small group of another column,
+offers the triple screen's seeds and time-and-event pairs as weights
+only, computes the moment layer's inputs without publishing them, keeps
+the key and a private record of each table's name beside it, and loads a
+description carrying the chain under invariants S23 to S28. No shipped
+description, summary or twin moves: S12 stands. `K-S6-08`'s tables part
+is new and green: no description the draw can publish fixes or bounds a
+count of 1 to 10 over 3,154,474 tables. Measured on A0b's 50-column
+table: 106 s and 217 MB at 20,000 rows, 725 s and 582 MB at 200,000.
+Points for the orchestrator: columns of few values whose median is
+their lowest value are left out (`one_band`), and `w_te` 1 cost
+estimates at 20,000 rows.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

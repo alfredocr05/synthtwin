@@ -482,29 +482,47 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
     each of the two preceded by its own length in bytes as 8 bytes
     big-endian (4.6b.8). The cells are the reader's own
     (`reading.column_values`), so a CSV and a workbook of one table give
-    one hash. Each row's hash is fed column by column in name order and
-    read once the last name is fed; the price is one BLAKE2b state a row
-    held at once (about 460 bytes, MEASURED on Python 3.11, whatever the
-    width of the row; the framed bytes held whole cost about 1.25 kB a
-    row at 50 columns), plan P4-D418.
+    one hash. A table held whole (`table.source` None) is walked row by
+    row, one row's framed bytes held at a time, since its columns are
+    held already. A table read in groups of columns is walked column by
+    column in name order and each row's framed bytes are digested once
+    the last name is read; the price there is the framed table held at
+    once (about 1.25 kB a row at 50 columns, MEASURED; plan P4-D418's
+    stated limit, which a row walk from the reader removes).
     """
     names = list(table.column_names)
     order = sorted((names[place], place) for place in range(len(names)))
     rows = table.n_rows
-    states = [hashlib.blake2b(digest_size=32, person=b"synthtwin.row.1") for _row in range(rows)]
-    filled = bytearray(rows)
-    for name, place in order:
+    heads: "list[bytes]" = []
+    for name, _place in order:
         name_bytes = bytes(name, "utf-8")
-        head = _length_word(len(name_bytes)) + name_bytes
-        values = reading.column_values(table, place)
+        heads += [_length_word(len(name_bytes)) + name_bytes]
+    filled = bytearray(rows)
+    hashes: "list[bytes]" = []
+    if table.source is None:
+        columns = [reading.column_values(table, place) for _name, place in order]
+        for row in range(rows):
+            one = bytearray()
+            for at in range(len(columns)):
+                text = columns[at][row]
+                cell = bytes(text, "utf-8")
+                one += heads[at] + _length_word(len(cell)) + cell
+                if not _is_blank(text):
+                    filled[row] = 1
+            hashes += [hashlib.blake2b(bytes(one), digest_size=32, person=b"synthtwin.row.1").digest()]
+        return hashes, filled
+    framed = [bytearray() for _row in range(rows)]
+    for at in range(len(order)):
+        values = reading.column_values(table, order[at][1])
         for row in range(rows):
             text = values[row]
             cell = bytes(text, "utf-8")
-            states[row].update(head + _length_word(len(cell)) + cell)
+            framed[row] += heads[at] + _length_word(len(cell)) + cell
             if not _is_blank(text):
                 filled[row] = 1
-    hashes = [state.digest() for state in states]
-    del states
+    for row in range(rows):
+        hashes += [hashlib.blake2b(bytes(framed[row]), digest_size=32, person=b"synthtwin.row.1").digest()]
+        framed[row] = bytearray()
     return hashes, filled
 
 
