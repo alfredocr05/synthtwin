@@ -63461,19 +63461,39 @@ def _inside_the_grain(
     padded = grains.column_padded(cells, grain.reading, True)
     made: "dict[str, str]" = {}
     taken: "dict[str, bool]" = {}
+    first_row: "dict[str, int]" = {}
     for place in range(len(cells)):
         cell = cells[place]
-        if cell in holes or not parsing.folded(cell):
-            found += [cell]
+        if cell in holes or not parsing.folded(cell) or cell in made:
             continue
-        if cell not in made:
-            valid = grains.filled(cell, grain.reading, words[place], span, padded, taken)
-            if valid is None:
-                valid = cell
-            else:
-                taken[valid] = True
-            made[cell] = valid
-        found += [made[cell]]
+        valid = grains.filled(cell, grain.reading, words[place], span, padded, taken)
+        if valid is None:
+            valid = cell
+        else:
+            taken[valid] = True
+        made[cell] = valid
+        first_row[cell] = place
+    # THE HELD BLOCK'S LENGTHS (repair round 1): a made-up value whose
+    # length no valid value on its side of the code alphabet wears took
+    # another length; where that leaves the column without its longest or
+    # its shortest made-up length, the first made-up value of that length
+    # is filled once more at its own length, whatever its side.
+    lengths = [len(cell) for cell in made]
+    for extreme in sorted({max(lengths), min(lengths)}) if lengths else []:
+        if any(len(made[cell]) == extreme for cell in made):
+            continue
+        for cell in made:
+            if len(cell) != extreme:
+                continue
+            again = grains.filled(cell, grain.reading, words[first_row[cell]], span, padded, taken, True)
+            if again is not None:
+                if made[cell] in taken:
+                    del taken[made[cell]]
+                taken[again] = True
+                made[cell] = again
+            break
+    for cell in cells:
+        found += [made[cell] if cell in made else cell]
     return found
 
 

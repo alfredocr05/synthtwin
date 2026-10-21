@@ -1308,7 +1308,7 @@ def held_span(grain: Grain) -> "tuple[int, int]":
 
 def filled(
     cell: str, reading: Reading, word: int, span: "tuple[int, int]",
-    padded: bool, taken: "dict[str, bool]",
+    padded: bool, taken: "dict[str, bool]", keep_length: bool = False,
 ) -> "str | None":
     """A made-up cell of a held column written as a VALID value in its own layout (the G1 floor).
 
@@ -1323,11 +1323,28 @@ def filled(
     first, end = span
     if end <= first:
         return None
+    made: "str | None" = None
+    if keep_length:
+        return _filled_own(cell, reading, word, span, taken, True)
     if reading.kind == COUNTED:
-        return _filled_count(cell, reading, word, span, taken)
-    fields = _fields(cell, reading, True)
-    if fields is None:
-        return _filled_layout(cell, reading, word, span, taken)
+        made = _filled_count(cell, reading, word, span, taken)
+    else:
+        fields = _fields(cell, reading, True)
+        if fields is None:
+            made = _filled_layout(cell, reading, word, span, taken)
+        else:
+            made = _filled_fields(cell, reading, word, span, padded, taken, fields)
+    if made is None:
+        made = _filled_own(cell, reading, word, span, taken)
+    return made
+
+
+def _filled_fields(
+    cell: str, reading: Reading, word: int, span: "tuple[int, int]",
+    padded: bool, taken: "dict[str, bool]", fields: "list[tuple[str, int, int]]",
+) -> "str | None":
+    """A made-up cell whose runs read as the member's fields, each filled at its run's width; None after `_FIELD_STEPS`."""
+    first, end = span
     unit = _NS_DAY
     for code, start, stop in fields:
         if code in ("h", "i") and unit > _NS_HOUR:
@@ -1341,7 +1358,7 @@ def filled(
         return None
     moment = first + bounded(word, count) * unit
     steps = 0
-    while steps < 200000:
+    while steps < _FIELD_STEPS:
         steps = steps + 1
         if moment >= end:
             moment = first
@@ -1357,11 +1374,107 @@ def filled(
     return None
 
 
-# How many steps a made-up layout cell's very form is looked for before the
-# layout's own form is written instead (repair round 1): a held column whose
-# layouts are all withheld gives made-up cells no date can wear, and 20,000
-# steps a cell took half an hour on 2,000 rows.
+# How many steps a made-up cell's very form is looked for before the
+# member's own form is written instead (repair round 1): a held column whose
+# layouts are all withheld gives made-up cells no date can wear -- runs of
+# marks and letters -- and 20,000 steps a cell took half an hour on 2,000
+# rows, leaving the cells made up.
 _FORM_STEPS = 64
+_FIELD_STEPS = 4000
+
+
+def _filled_own(
+    cell: str, reading: Reading, word: int, span: "tuple[int, int]", taken: "dict[str, bool]",
+    keep_length: bool = False,
+) -> "str | None":
+    """A made-up cell no date wears, written as a valid value in the member's own form (the G1 floor's last step).
+
+    From the drawn start inside ``span``, by days (by steps of 3,607
+    seconds where the member writes a clock, of about a minute for a clock
+    time), the first moment no earlier made-up cell took, written in the
+    member's own form (`_own_form`): first at the made-up cell's length
+    and on its side of the code alphabet (`parsing.is_code_text`), then on
+    its side alone, for `_FORM_STEPS` times six steps each, and at last in
+    any form -- so the held block's `n_code_alphabet` holds wherever a date
+    can keep it, and every cell is valid. ``keep_length`` asks the
+    made-up cell's length alone (the generator's one refill of a length
+    the column would otherwise lose); None where none is found.
+    """
+    first, end = span
+    clocked = reading.kind == CLOCK or (
+        reading.kind == STAMP
+        and (not parsing.is_layout_name(reading.member) or parsing.layout_has_clock(reading.member))
+    )
+    unit = _NS_SECOND if clocked else _NS_DAY
+    count = (end - first) // unit
+    if count <= 0:
+        return None
+    start = first + bounded(word, count) * unit
+    step = _NS_DAY if unit == _NS_DAY else 3607 * _NS_SECOND
+    if reading.kind == CLOCK and reading.member in parsing.CLOCK_FORMS:
+        step = parsing.clock_step(reading.member) * 61 * _NS_SECOND
+    code = parsing.is_code_text(cell)
+    tries: "tuple[tuple[int, bool | None, int], ...]" = (
+        (len(cell), code, _FORM_STEPS * 6),
+        (0, code, _FORM_STEPS * 6),
+        (0, None, 20000),
+    )
+    if keep_length:
+        tries = ((len(cell), None, _FORM_STEPS * 6),)
+    for size, side, steps in tries:
+        moment = start
+        for _step in range(steps):
+            if moment >= end:
+                moment = first + (moment - end) % max(end - first, 1)
+            made = _own_form(reading, moment, size, side)
+            if made is not None and made not in taken:
+                return made
+            moment = moment + step
+    return None
+
+
+# The ISO members a stamp of the same calendar also reads under: a held ISO
+# date column whose source wrote a few stamps keeps their length as stamps.
+_ISO_STAMPS = ("iso-date", "iso-datetime", "iso-mixed")
+
+
+def _own_form(
+    reading: Reading, moment: int, size: int = 0, code: "bool | None" = None
+) -> "str | None":
+    """A moment written in its member's own form, ``size`` long and on ``code``'s side of the code alphabet where they ask; None where none reads."""
+    found: "list[str]" = []
+    if reading.kind == CLOCK:
+        made = _clock_written(reading, moment)
+        found = [made] if made is not None else []
+    elif reading.kind == COUNTED:
+        if reading.member in date_counts.MEMBERS and not date_counts.TABLE[reading.member].contacts:
+            counted = date_counts.count_of(reading.member, moment, date_counts.NANOSECOND)
+            if counted is not None:
+                form = date_counts.CountForm(0, False, None, False, reading.mark, None)
+                found = [date_counts.spelled_count(counted[0], counted[1], form)]
+    elif parsing.is_layout_name(reading.member):
+        found = _layout_forms_of(reading, moment)
+    else:
+        parts = _parts_of(moment)
+        try:
+            day = parsing.written_date(parts.year, parts.month, parts.day, reading.member)
+        except ValueError:
+            return None
+        clock = f"{parts.hour:02d}:{parts.minute:02d}"
+        seconds = f"{clock}:{parts.second:02d}"
+        found = [day, f"{day} {clock}", f"{day} {seconds}", f"{day}T{seconds}"]
+    for text in found:
+        if size and len(text) != size:
+            continue
+        if code is not None and parsing.is_code_text(text) != code:
+            continue
+        if moment_of(text, reading) is not None:
+            return text
+        if (size or code is not None) and reading.member in _ISO_STAMPS and (
+            parsing.parse_datetime(text, "iso-datetime") is not None
+        ):
+            return text
+    return None
 
 
 def _filled_layout(
@@ -1372,11 +1485,10 @@ def _filled_layout(
     Steps of a day, or of a second where the layout has a clock, from the
     drawn start to the first moment the layout writes in the made-up
     cell's very form, no earlier made-up cell took, for `_FORM_STEPS`
-    steps; then, from the same start, the first moment no earlier cell
-    took written in the layout's own form at the made-up cell's length,
-    and at last at any length (its first width that reads back), so the
-    cell is a valid date whatever form it was made up in: the G1 floor
-    first, the made-up form and its length where a date can wear them.
+    steps; None after them, and `filled` writes the layout's own form
+    (`_filled_own`), so the cell is a valid date whatever form it was
+    made up in: the G1 floor first, the made-up form where a date can
+    wear it.
     """
     if not parsing.is_layout_name(reading.member):
         return None
@@ -1395,35 +1507,21 @@ def _filled_layout(
         if made is not None and made not in taken:
             return made
         moment = moment + step
-    for size in (len(cell), 0):
-        moment = start
-        for _step in range(_FORM_STEPS * 6 if size else 20000):
-            if moment >= end:
-                moment = first
-            made = _layout_own(reading, moment, size)
-            if made is not None and made not in taken:
-                return made
-            moment = moment + step
     return None
 
 
-def _layout_own(reading: Reading, moment: int, size: int = 0) -> "str | None":
-    """A moment written in a layout's own form: its first width that reads back, with no offset.
-
-    ``size``: the first width whose text is that long, so a held column's
-    lengths hold; nought takes the first width that reads back.
-    """
+def _layout_forms_of(reading: Reading, moment: int) -> "list[str]":
+    """A moment written in a layout's own form at each width that reads back, with no offset."""
     parts = _parts_of(moment)
     canonical = f"{parts.year:04d}-{parts.month:02d}-{parts.day:02d}"
     if parsing.layout_has_clock(reading.member):
         canonical = f"{canonical} {parts.hour:02d}:{parts.minute:02d}:{parts.second:02d}"
+    found: "list[str]" = []
     for width in _LAYOUT_WIDTHS:
         text = parsing.written_layout_date(reading.member, canonical, "", width, 0)
-        if size and len(text) != size:
-            continue
-        if parsing.parse_datetime(text, reading.member) is not None:
-            return text
-    return None
+        if text not in found and parsing.parse_datetime(text, reading.member) is not None:
+            found += [text]
+    return found
 
 
 def _fits(cell: str, fields: "list[tuple[str, int, int]]", parts: _Parts, padded: bool) -> str:

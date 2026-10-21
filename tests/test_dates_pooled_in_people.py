@@ -609,6 +609,13 @@ def test_a_written_form_three_people_use_is_never_counted(
     assert entry not in json.dumps(block.get(census, {}))
     twin, _real = _generated_and_validated(tmp_path, "visits")
     assert twin == set()
+    # The G1 floor: every twin cell reads under the record's reading, even
+    # where every layout is withheld and the made-up cells no date wears.
+    loaded = contract.load_profile(f"{tmp_path / 'visits-profile.json'}")
+    record = [one for one in loaded.columns if one.name == "seen"][0].time_grain
+    assert record is not None
+    cells = _column(tmp_path / "visits-twin.csv", "seen")
+    assert [cell for cell in cells if grains.moment_of(cell, record.reading) is None] == []
     assert _counted_few(tmp_path, "visits") == 0
 
 
