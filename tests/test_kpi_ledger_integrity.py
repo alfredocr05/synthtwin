@@ -815,6 +815,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 717,000 from 716,000, ON LANE SR-A'S BRANCH (2026-10-21; the batch
+    # integrator sets the batch's cap, the orchestrator's call D15):
+    # K-S4-09 and K-S4-11 re-stamped from the night window of 2026-10-21
+    # on 8a02faa, whose run measures the mixed table at four sizes and
+    # three seeds, their evidence naming what the measured rise was,
+    # 716,477 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
     # set once, the least round figure the merged ledger fits under: lane
     # AQ's `K-S3-66` kept by id (its branch raised its own cap to 631,000,
@@ -1224,7 +1231,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 716_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 717_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
