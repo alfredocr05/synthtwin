@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### Route four's person question offers `code` in its first round (2026-10-21)
+
+**A key of figures the person question asks can be answered `code` at
+once** (plan P4-D420, lane HX3 of the December plan). Route four of the
+person rule asks a column of whole numbers five figures wide or more that
+repeat -- a patient key, or a register of codes such as SNOMED concept
+ids -- the person question, which offered `keep` and `identifier` only;
+`code` came a round later, on the checklist. The question now offers
+`code` beside them, worded about the data alone, and the answer is the
+checklist's own: the same description, summary and twin, byte for byte,
+as answering `keep` and then the checklist's `code`. Every other answer
+writes what it wrote before, and an unanswered column stays held. On the
+health data zoo the diagnoses export's SNOMED ids are answered `code` in
+its one round, so their levels come back and 7 twin cells hold a code the
+real never writes, not 132: `K-HZ-02`'s analyst failures fall from 118 to
+117.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

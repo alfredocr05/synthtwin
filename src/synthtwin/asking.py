@@ -3708,7 +3708,7 @@ def _person_choices(
             Choice(
                 ANSWER_CODE,
                 "not a person -- codes of a coding system, such as "
-                "diagnoses, procedures or drugs, where each value stands "
+                "diagnoses, procedures or medicines, where each value stands "
                 "for a thing and repeats because that thing is recorded "
                 "on many rows",
                 _publishes_under(ANSWER_CODE, role, floor),
