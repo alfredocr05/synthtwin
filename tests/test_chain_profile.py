@@ -1186,3 +1186,20 @@ def test_a_periodic_census_marks_a_band_its_whole_groups_leave_a_few_rows_of():
     places = chain._Places(keys, ("2021-03-06", "2021-03-09"), [0, 1, 2], {0: 0, 1: 1, 2: 2})
     marked = chain._periodic_marks(block, "datetime", False, places, tuple(readings), (0, len(keys)), FLOOR, {0, 1, 2})
     assert marked == {1}
+
+
+def test_a_rung_cuts_where_its_rank_is_held_and_not_beside_tied_rows():
+    """A rung no row stands on is a cut (its rank is the reader's); one tied rows stand on is not
+    (the ties' number is unpublished), and on a column whose values all differ a rung one row stands
+    on cuts on both sides of that row. Mutants: every rung a cut; a one-row rung no cut."""
+    block = _number_block(percentiles_between={"p41": 41.5})
+    start = chain_rules.starting_bands(block, (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, [50] * 12, FLOOR)
+    base = [(5.0 + 10 * at, 50) for at in range(10) if at != 4]
+    tied = tuple(sorted(base + [(41.0, 5), (41.5, 3), (45.0, 50)]))
+    assert 5 not in chain.value_run_bands(block, start, ladder, FLOOR, tied)
+    unheld = tuple(sorted(base + [(41.0, 5), (45.0, 50)]))
+    assert 5 in chain.value_run_bands(block, start, ladder, FLOOR, unheld)
+    distinct = tuple(sorted([(40.0 + 0.05 * at, 1) for at in range(1, 25)] + [(41.5, 1)] + [(43.0 + 0.1 * at, 1) for at in range(30)]))
+    assert len({one[0] for one in distinct}) == len(distinct)
+    assert 5 in chain.value_run_bands(block, start, ladder, FLOOR, distinct)

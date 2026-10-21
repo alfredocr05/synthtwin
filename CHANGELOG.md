@@ -28,6 +28,17 @@ Points for the orchestrator: columns of few values whose median is
 their lowest value are left out (`one_band`), and `w_te` 1 cost
 estimates at 20,000 rows.
 
+**Repair 1.** RULE W1 now finds a column's small groups on its own
+values: a slice of six rows between two published percentiles, or the
+one row a clock census leaves of a band, is refused beside a column it
+would confine, and `K-S6-08` holds both cases. A follow-up capped at the
+study's end keeps its pair with the event: W1 now costs nothing on lane
+E0b's battery and A0b's table, except the registry at 5,000 rows, where a
+real group of 9 censor dates is confined. A label column with a few
+blank cells keeps its bands, a row blank in every column no longer makes
+a second table to the record, the key never prints, and the suite and
+Windows failures the lane caused are repaired.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

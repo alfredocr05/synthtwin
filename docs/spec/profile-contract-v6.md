@@ -4249,7 +4249,7 @@ rows are 1 to `f - 1`: a tail listing one value of at least `f` rows (a
 follow-up capped at the study's end) names a group of at least `f`, and
 the first build's "each published tail value marks its band" refused the
 time-and-event pair on every administratively censored table (29 to 57 %
-of the chain's score lost on lane E0b's cohort, registry and curve
+of the chain's score lost on lane `E0b`'s cohort, registry and curve
 tables, MEASURED by lane CHa's statistics skeptic). A PERIODIC census
 (days of the week or month, hours, minutes, seconds) marks the body's
 bands outside a run of neighbouring bands that holds all but 1 to
