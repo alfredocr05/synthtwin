@@ -716,7 +716,12 @@ def value_run_bands(
     rows, ascending), so a cut whose count the published facts leave open
     is read as if they fixed it: this marks more than 4.6b.3's definition,
     refuses more, and never passes a group it names (repair 1 of lane CHa,
-    skeptic 1's item 1).
+    skeptic 1's item 1). A rung tied rows stand on is no cut: the rows
+    below it and through it are open to a reader (the ties' number is not
+    published), and reading it as a cut refused the registry's censor date
+    beside its event date at 5,000 rows on a run whose count no published
+    fact fixes; on a column whose values all differ, a rung one row stands
+    on cuts on both sides of that row.
     """
     role = f"{_get(block, 'role')}"
     if role not in rules.ORDERED_ROLES or not readings or not start.values:
@@ -744,8 +749,20 @@ def value_run_bands(
     if isinstance(rungs, dict):
         for name in rungs:
             value = rules.rung_value(role, _get(rungs, name), form)
-            if value is not None:
-                cuts = cuts | {_first_index(keys, value, 0)}
+            if value is None:
+                continue
+            # A rung no row stands on reads the rank its percent sets, so the
+            # rows below it are a count a reader holds. On a column whose
+            # values all differ, a rung one row stands on holds that row's
+            # count too (its own value printed). Where rows may tie, a rung a
+            # row stands on leaves both counts open: no cut.
+            below = _first_index(keys, value, 0)
+            through = _first_index(keys, value, 1)
+            held_at = sums[through] - sums[below]
+            if held_at == 0:
+                cuts = cuts | {below}
+            elif held_at == 1 and len(keys) == sums[-1]:
+                cuts = cuts | {below, through}
     marked: "set[int]" = set()
     body = (0, total)
     if role in (rules.ROLE_DATETIME, rules.ROLE_CLOCK):
