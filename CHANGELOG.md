@@ -37,7 +37,9 @@ of columns. A small group of rows in one column beside another group's
 codes can give a count of 1 to 3 rows, which the orchestrator's ruling
 counts among that column's own facts; inside one group the exact test
 now refuses the measured cases where that reading would publish a count
-of two columns. As written, the exact test December can run publishes
+of two columns, and the orchestrator confirmed that reading: the ruling
+reaches only a count that splits such a small group, and the exact test
+keeps its clause over every case. As written, the exact test December can run publishes
 almost no averages on the measured 50-column table: the estimates
 measured without it (127 of 287 for the chain alone, 188 polished, 202
 with the screen's seeds) are reference measurements, not bounds, and

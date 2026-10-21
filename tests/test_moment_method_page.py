@@ -29,7 +29,10 @@ targets and the poorer option that tells tables apart.
 
 THE CENTRAL SENTENCES. The verify of 2026-10-20 (item 2) found 19 of 20
 one-line mutants of the page's central rules surviving the file; each is
-pinned now, on the flattened section, by the test that names it.
+pinned now, on the flattened section, by the test that names it. Its
+second round (item 1) found 12 of 20 more surviving (E4, E6, E7, E8,
+E10, G-E11, G-E12, G-E15, V-E16, V-E17, S-E19 and P-E20); each of those
+sentences is pinned too, in the test whose docstring names it.
 
 WHAT IS NOT HERE. No moment code exists to run, so nothing here says a
 twin meets a moment. `K-S6-08`'s enumeration and the oracle's cases
@@ -307,7 +310,9 @@ def test_cases_q_and_s_are_refused_by_clause_c_over_every_point():
     `S` (a union of 1 to 9 rows in every point), counts no column's own
     facts publish, while `e` alone is refused at (b). Read over every
     point, (c) refuses both (mutant: `zeros_only`, the first build's
-    clause, and the page's sentence for it)."""
+    clause, and the page's sentence for it). Ruling R11 AMENDED confirms
+    the clause kept over every point (mutant: the withdrawn wording
+    restored)."""
     small = tuple(("G", v) for v in (10, 11, 12))
     q_points = _one_region_points(223, 2263)
     assert len(q_points) == 4
@@ -344,7 +349,11 @@ def test_cases_q_and_s_are_refused_by_clause_c_over_every_point():
     assert "The union of `G` at codes 10 or 12 with `H` at code 11 holds 1 to 9 rows in every point." in section
     assert "**cases `Q` and `S`** of 4.6d.5 (c), MEASURED" in section
     assert "refused by clause (c) read over every point" in section
-    assert "does not write Theorem 2 \"with no clause (c)\"" in section
+    assert (
+        "keeps clause (c), read over every point, in the witness: ruling R11 AMENDED (the orchestrator, "
+        "2026-10-20) confirms this reading and withdraws R11's first wording" in section
+    )
+    assert "no clause (c)" not in section
 
 
 def test_a_refusal_decided_on_the_real_sums_bounds_a_count_and_a_drawn_one_does_not():
@@ -485,9 +494,14 @@ def test_theorem_two_states_its_premises_its_one_exception_and_ruling_r11():
     group in the split condition; X2, the proof's group no longer kept off
     `U`; the proof's (c) over zero points again; `O*(U)` read as R11's
     every-group-met reading; (S) read as one region's premise; test (iii)
-    dropped). Theorem 2 holds under (R) and (S) for publishing regions, in
-    the forms (A) and (B), but for one exception; a union that splits a
-    small atom counts its rows by ruling R11."""
+    dropped). The verify 2 of 2026-10-20, item 1 (mutants: E8, "every
+    table" in WHOLLY HOLDS read as "some table"; E10, (B)'s premise that
+    `U` splits no small atom dropped; E4, step (2)'s "one at most" dropped).
+    Ruling R11 AMENDED (mutants: the split reading widened back to every
+    group a union meets; the withdrawn wording restored). Theorem 2 holds
+    under (R) and (S) for publishing regions, in the forms (A) and (B), but
+    for one exception; a union that splits a small atom counts its rows by
+    ruling R11 as amended, and only such a union."""
     theorem = _part("*Theorem 2.*", "*Proof of (A).*")
     assert "Under (R), (S) and the model of 4.6b.9 (b)" in theorem
     assert "let every publishing region's drawn option satisfy `WIT`" in theorem
@@ -496,14 +510,27 @@ def test_theorem_two_states_its_premises_its_one_exception_and_ruling_r11():
     assert "which is ruling R9's wording" in theorem
     assert "The EXCEPTION is (i): two small atoms of one publishing region, neither split by `U`" in theorem
     assert "ACROSS REGIONS" not in theorem
+    assert (
+        "**(B)** where `U` splits no small atom and every small own-fact group `U` wholly holds is a small atom, "
+        "the count of `U`'s rows outside `O(U)` has 0 in its range" in theorem
+    )
     section = _section()
+    assert "WHOLLY HOLDS the group when every table puts every row of it there." in section
     assert (
         "`U` SPLITS a small atom `G` of a publishing region `R` when it meets `G` without wholly holding it and "
         "every group of `R` holding `G` that SOME POINT of `Sigma(R, o_R)` makes non-empty shares a refined cell "
         "with `U`" in section
     )
     assert "`O*(U)` is `O(U)` together with the rows of every small atom `U` splits" in section
+    assert (
+        "ruling R11 AMENDED (the orchestrator, 2026-10-20) reads as a column's own facts the rows of a small atom "
+        "a union SPLITS, and only those" in section
+    )
     proof = _part("*Proof of (A).*", "*Proof of (B).*")
+    assert (
+        "`G` of `R` that it does not split (one at most, outside exception (i)), take instead a point of clause (c)"
+        in proof
+    )
     assert (
         "some group `g` of `R` holding `G` that some point makes non-empty shares no refined cell with `U`, "
         "and (c) gives a point with 0 rows on `V-_R` putting all of `G`'s rows into `g`" in proof
@@ -511,6 +538,7 @@ def test_theorem_two_states_its_premises_its_one_exception_and_ruling_r11():
     assert "The step needs (c) over EVERY point" in proof
     assert "Inside one region clause (c) refuses this" not in section
     assert "(A) then holds with no clause (c) and no exception" not in section
+    assert "no clause (c)" not in section
     assert "**(S) is a premise on the WHOLE description, not on one region:**" in section
     assert "and (iii) PREMISE (S) of 4.6d.5 is met, read on the published chain" in section
     assert "no slope the chain publishes (4.6b.6) stands in a family outside the region's nodes" in section
@@ -830,6 +858,10 @@ def test_the_section_cites_no_identifier_in_plain_text():
 
 
 def test_the_plan_decision_records_the_page_and_its_repair():
+    """The records (the verify 2 of 2026-10-20, item 1; mutants: S-E19,
+    STATE's limits row citing ruling R9 alone; P-E20, plan point (i)'s
+    confirmation dropped, rewritten to ruling R11 AMENDED's dated sentence;
+    the withdrawn wording restored in the plan)."""
     decision = _decision()
     assert "lane MPOL" in decision
     assert "RULING NEEDED" not in decision
@@ -840,6 +872,10 @@ def test_the_plan_decision_records_the_page_and_its_repair():
     assert "ruling R10" in decision and "ruling R11" in decision
     assert "THE MAIN FIDELITY RISK" in decision
     assert "the GATE waits for the choice" not in decision
+    assert "This reading was confirmed by the orchestrator as R11 AMENDED (2026-10-20)" in decision
+    assert "The orchestrator confirms or overrules this reading." not in decision
+    assert "no clause (c)" not in decision
+    assert '"own facts" as rulings R9 and R11 read them' in _state_limit()
 
 
 def test_the_central_sentences_are_pinned():
@@ -912,7 +948,9 @@ def test_correlation_targets_read_each_count_on_its_own_table():
     (2, 2) 25 times each, the twin's 50 times each, both at r = 0. With
     each count on its own table the targets are the twin's own sums; with
     the published n they are twice as large, and the twin meeting them by
-    aligning every 2 with another 2 has r = 1."""
+    aligning every 2 with another 2 has r = 1. The verify 2 of 2026-10-20,
+    item 1 (mutant G-E11: the sentence giving a pair with `n'`, `V'_a` or
+    `V'_b` at 0 no target dropped)."""
     published = [(a, b) for a in (0, 2) for b in (0, 2) for _ in range(25)]
     twin = [(a, b) for a in (0, 2) for b in (0, 2) for _ in range(50)]
     assert _correlation_targets(published, twin) == [200, 400, 400, 800]
@@ -929,6 +967,7 @@ def test_correlation_targets_read_each_count_on_its_own_table():
     assert "`T = S'_i0 S'_0j / n' + (n' / n) (S_ij - S_i0 S_0j / n)`" in method
     assert "`T = S'_10 S'_01 / n + q`" not in method
     assert "(8) a pair whose twin overlap `n'` differs from the published `n`" in method
+    assert "Where `n'`, `V'_a` or `V'_b` is 0 the pair has no target." in method
 
 
 def _term(weight, delta, error):
@@ -940,7 +979,9 @@ def test_a_constant_cell_keeps_a_weight_where_an_exchange_can_move_it():
     cell's own variance is 0): two `mean` cells of 22 rows in one band,
     each publishing 2442, left by the walk at 110 and 112 throughout. With
     `v` read as 1 the greedy kernel of G17.3 makes exactly 11 exchanges
-    and meets both targets; with weights of 0 it makes none."""
+    and meets both targets; with weights of 0 it makes none. The verify 2
+    of 2026-10-20, item 1 (mutant G-E12: the zero weight's exception read
+    as TWO moved factors where every band holds ONE)."""
     for weight, expected in ((1 / 22, 11), (0.0, 0)):
         first, second = [110] * 22, [112] * 22
         made = 0
@@ -963,6 +1004,10 @@ def test_a_constant_cell_keeps_a_weight_where_an_exchange_can_move_it():
     assert "**Where `v` is 0** the target is weighed with `v` read as 1, unless no exchange can change its sum" in method
     assert "meet both targets after 11 exchanges" in method
     assert "a target with `v` = 0 has weight 0 and is not weighed" not in method
+    assert (
+        "only where every `L0` band of `c` holding one of its rows holds ONE moved factor among its rows with "
+        "those rows' reading-map bits" in method
+    )
 
 
 def _conserved(exact, total):
@@ -979,7 +1024,9 @@ def test_a_bands_targets_are_rounded_to_keep_its_sum():
     """Codex's round of 2026-10-20, item 8 (mutant: each target rounded
     alone, half to even): three cells of 22 rows publishing 220 each
     beside a twin band sum of 661 give exact targets of 220 1/3; rounded
-    alone they total 660, while every exchange keeps 661."""
+    alone they total 660, while every exchange keeps 661. The verify 2 of
+    2026-10-20, item 1 (mutant G-E15: the targets rounded alone said to
+    conserve too)."""
     exact = [220 + Fraction(1, 3)] * 3
     assert sum(exact) == 661
     assert [round(x) for x in exact] == [220, 220, 220]
@@ -991,6 +1038,7 @@ def test_a_bands_targets_are_rounded_to_keep_its_sum():
     method = _g17()
     assert "add 1 to the `k` targets with the largest fractional parts, ties to the cell first in its table's order" in method
     assert "and rounded to a whole number, half to even. A cell of a" not in method
+    assert "is rounded to the nearest whole number, half to even; no conservation is claimed for them." in method
 
 
 def _sum_key(entry):
@@ -1005,7 +1053,9 @@ def test_every_sum_names_what_it_sums_and_omitted_regions_drew_none():
     with no powers; `regions` holding every offered region): every sum
     names its class, columns, codes, powers and cell or band in one
     canonical order, a duplicate is refused, and a region that drew `none`
-    has no entry and is rebuilt from the offers."""
+    has no entry and is rebuilt from the offers. The verify 2 of
+    2026-10-20, item 1 (mutants: E6, a list in any order accepted; E7, no
+    class of an omitted region read in `withheld`)."""
     bands = [{"class": "band", "columns": ("c",), "codes": ("L",), "powers": (1,), "band": b, "value": v}
              for b, v in ((1, 440), (0, 220))]
     assert len({_sum_key(e) for e in bands}) == 2
@@ -1019,6 +1069,11 @@ def test_every_sum_names_what_it_sums_and_omitted_regions_drew_none():
     assert "each `{class, columns, codes, powers, family, cell, band, value}`" in section
     assert "The `sums` of a region are listed in ONE canonical order" in section
     assert "Two sums agreeing on every field but `value` are a DUPLICATE, which a loader refuses (S35)" in section
+    assert "which a loader refuses (S35), as it refuses a list out of that order" in section
+    assert (
+        "a loader rebuilds it from the offers (4.6d.3), as every region is rebuilt, and reads every class it "
+        "offered in `withheld` (S35, S37)" in section
+    )
     assert "- `regions`: one entry per PUBLISHING region (4.6d.3) only" in section
     assert "each region it builds and `regions` omits is read as one that drew `none`" in section
     assert "every class it offered must be named in `withheld` (S37)" in section
@@ -1038,7 +1093,10 @@ def _file_r(pairs):
 def test_undefined_measures_have_a_reporting_rule():
     """Codex's round of 2026-10-20, item 5 (mutant: the rule dropped, which
     leaves the file's r a division by 0): a file whose two columns share
-    no row with both readings, or hold one code on one side, has no r."""
+    no row with both readings, or hold one code on one side, has no r. The
+    verify 2 of 2026-10-20, item 1 (mutants: V-E17, an undefined distance
+    printed as 0; V-E16, the file's `v` read as 1 where it is 0, as a
+    weight's may be)."""
     assert _file_r([]) is None
     assert _file_r([(3, 1), (3, 2), (3, 5)]) is None
     assert _file_r([(1, 1), (2, 2), (3, 3)]) == 1
@@ -1047,6 +1105,8 @@ def test_undefined_measures_have_a_reporting_rule():
     assert "marks the pair outside, and computes no `T`" in lines
     assert "A sum's distance is likewise UNDEFINED where `m v` is 0" in lines
     assert "whose `r` prints `undefined` and outside, with no division" in lines
+    assert "the line prints `undefined` where `S_file` differs from `S_pub` and 0 where they are equal" in lines
+    assert "(`v` the file's own variance of the summed term, never read as 1 as a weight's may be)" in lines
 
 
 def test_a_poorer_option_that_publishes_tells_tables_apart():

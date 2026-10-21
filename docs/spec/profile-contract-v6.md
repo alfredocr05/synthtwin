@@ -6411,10 +6411,11 @@ restriction to `R` is a point), `U` would wholly hold `G`. So `U`
 splits `G` only where it holds some refined cells of a group of `R` and
 not others: a group SPLIT by the atoms of another publishing region or
 by the bands of a column of no publishing region. `O*(U)` is `O(U)` together with the rows of
-every small atom `U` splits: ruling R11 (the orchestrator, 2026-10-20)
-reads the rows of a small own-fact group a union MEETS as that column's
-own facts, and this page applies that reading where the union splits
-the group, the case R11 was ruled on (below).
+every small atom `U` splits: ruling R11 AMENDED (the orchestrator,
+2026-10-20) reads as a column's own facts the rows of a small atom a
+union SPLITS, and only those, the case R11 was ruled on (below); R11's
+first wording, every small own-fact group a union MEETS, is withdrawn,
+and clause (c) of 4.6d.4 stays, read over every point.
 
 *Theorem 2.* Under (R), (S) and the model of 4.6b.9 (b), let every
 publishing region's drawn option satisfy `WIT` (as 4.6d.3's eligibility
@@ -6544,10 +6545,10 @@ code 11), whose other rows are 0-able, so (A) would accept "exactly 3
 rows of the cell at code 11", a count of two columns that no column's
 own facts publish. R11's basis, the owner's acceptance of counts worked
 out from several facts of ONE column, does not reach it, and ruling R10
-forbids it. So this page reads R11 where a union splits an atom (above)
-and keeps clause (c), read over every point, in the witness; it does
-not write Theorem 2 "with no clause (c)" (a point for the orchestrator,
-plan P4-D413, point (i)).
+forbids it. So this page reads R11 only where a union splits an atom
+(above) and keeps clause (c), read over every point, in the witness:
+ruling R11 AMENDED (the orchestrator, 2026-10-20) confirms this reading
+and withdraws R11's first wording (plan P4-D413, point (i)).
 
 *What it covers.* Item 1's joint space exactly: every band row the
 columns' own facts couple, across every family of the column (a region
@@ -6748,11 +6749,12 @@ per-cell slope carrier when `K-S6-08` passes on its fixtures at `f` =
   is `K-S6-08`'s fixtures (the statistics review of 2026-10-20, item 7).
 - **Decided by ruling, then proven:** that a union which splits a small
   atom may count that atom's rows as its column's own facts is ruling
-  R11's decision (the case across two regions of (c), 1 to 3 rows, and
-  its form beside a column of no region); given it, (A) is proven for
-  such a union (step (2) of its proof). Its fixture is reported as
-  accepted under R11; cases `Q` and `S` of (c), one region each, are
-  refused by clause (c) read over every point.
+  R11's decision, which R11 AMENDED (2026-10-20) confines to such unions
+  (the case across two regions of (c), 1 to 3 rows, and its form beside
+  a column of no region); given it, (A) is proven for such a union (step
+  (2) of its proof). Its fixture is reported as accepted under R11;
+  cases `Q` and `S` of (c), one region each, are refused by clause (c)
+  read over every point.
 - **The GATE.** Each class (`correlation`, then `mean` and `product`,
   `spread`, `cell_slopes`) is offered by default only once `K-S6-08`
   finds 0 counts fixed or bounded inside 1 to `f - 1` beyond each
@@ -6956,11 +6958,11 @@ publishing region below its bands is outside the promise (4.6d.5
    own-fact group beside a count that can be 0 may lie inside 1 to `f -
    1` (4.6d.4's 30-row cell, 3 to 6 rows; the base product's own facts
    give such unions across two columns); clause (d) stays a named
-   option, its price counted by lanes MPp and CHa. Ruling R11 (the
-   orchestrator, 2026-10-20) reads a union that SPLITS a small atom's
-   groups, by another publishing region's atoms or by the bands of a
-   column of no publishing region, as counting the atom's rows among its
-   own facts: so a small atom of 3 rows less the rows of another
+   option, its price counted by lanes MPp and CHa. Ruling R11, as R11
+   AMENDED (the orchestrator, 2026-10-20) confines it, reads only a union
+   that SPLITS a small atom's groups, by another publishing region's
+   atoms or by the bands of a column of no publishing region, as counting
+   the atom's rows among its own facts: so a small atom of 3 rows less the rows of another
    region's code that holds at most 2 lies in 1 to 3 rows in every table
    (MEASURED, 4.6d.5 (c)), and the guarantee there is (A) with `O*(U)`.
    Inside ONE region, where no group is split, clause (c) read over
@@ -7095,8 +7097,9 @@ witness for codes (January). Lane ST: the private report's lines for
 without moments (limit 3 (c)) and the regions test (iii) refuses. Lane
 MBC's page: a proof for the chain's slopes under ruling R10 (4.6b.9 (h)
 lists them checked, not proven; not edited here). The orchestrator: the
-points of the plan decision (P4-D413), first among them clause (c) kept
-in the witness beside ruling R11 (point (i)).
+open points of the plan decision (P4-D413); its point (i), clause (c)
+kept in the witness beside ruling R11, was confirmed as R11 AMENDED
+(2026-10-20).
 
 ---
 
