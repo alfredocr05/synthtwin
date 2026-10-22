@@ -1526,6 +1526,196 @@ def test_mutant_judged_reading_refusals_as_twins_is_seen(tmp_path: pathlib.Path,
         test_k_s3_66_counts_a_refusal_on_both_routes_apart(tmp_path, monkeypatch)
 
 
+# -- lane HX3 (plan P4-D420): route four's person question offers `code` --------
+#
+# Route four of the person rule (plan P4-D401) asks a key of figures
+# repeating on its patients' rows the person question, and the checklist,
+# the one question that offered such a column `code`, lists it only once a
+# person column is declared, a round later. Measured on the health data
+# zoo at batch 4d's integration (P4-D399): the diagnoses export's SNOMED
+# ids, answered `keep` in the one round a person answers, wrote codes the
+# real never writes and lost values 11 or more real rows hold. So the
+# question route four puts offers `code` in round one, and that answer is
+# the checklist's: the same description, summary and twin, byte for byte.
+
+_ROUTE_FOUR_COLUMN = "snomed_id"
+_ROUTE_FOUR_PERSON = ("enc_id", asking.ANSWER_IDENTIFIER)
+
+
+def diagnoses_table(folder: pathlib.Path) -> Table:
+    kind = zoo.table_named("diagnoses_procedures")
+    return Table(zoo.write_table(kind, folder, ROWS, SEED), kind.name)
+
+
+def entry_about(entries_of: "list[object]", column: str) -> "list[dict[str, object]]":
+    return [entry for entry in entries_of if isinstance(entry, dict) and entry["column"] == column]
+
+
+def code_choice(entry: "dict[str, object]") -> "dict[str, object]":
+    choices = entry["answers_you_can_give"]
+    assert isinstance(choices, list)
+    return [choice for choice in choices if choice["answer"] == asking.ANSWER_CODE][0]
+
+
+def answer_and_run(table: Table, wanted: "list[tuple[str, str]]") -> None:
+    document = questions(table)
+    assert [(one[0], one[1]) for one in give(document, wanted)] == wanted, "an answer not offered where it is given"
+    hand_back(table, document)
+    assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
+
+
+def route_four_case(folder: pathlib.Path) -> None:
+    """`code` answered to route four's question in round one, against the checklist's `code` in round two."""
+    once = diagnoses_table(folder / "once")
+    put: "dict[str, list[asking.Question]]" = {"questions": []}
+    asks = asking.person_questions
+
+    def recorded(*arguments: object, **named: object) -> "list[asking.Question]":
+        found = asks(*arguments, **named)  # type: ignore[arg-type]
+        put["questions"] += found
+        return found
+
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(asking, "person_questions", recorded)
+        assert profile(once) == 0
+    # `code` is never what standing still gives (skeptic 1 of lane HX3, item
+    # 2): Enter at the keyboard, or a blank in the file, on a patient key
+    # route four reaches would otherwise declare it a code and publish it.
+    standing = [one.taken for one in put["questions"] if one.name == _ROUTE_FOUR_COLUMN]
+    assert standing != [] and set(standing) == {asking.ANSWER_KEEP}, f"the standing answer is not keep: {standing}"
+    first = questions(once)
+    asked = entry_about(list(first["asked"]), _ROUTE_FOUR_COLUMN)  # type: ignore[arg-type]
+    assert len(asked) == 1 and asked[0]["read_as_now"] == asking.ANSWER_IDENTIFIER, "route four did not put the question"
+    assert asked[0]["your_answer"] == "", f"the file answers for the person: {asked[0]['your_answer']!r}"
+    assert offered(asked[0]) == (asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER), (
+        f"code not offered in round one: {offered(asked[0])}"
+    )
+    said_in_round_one = code_choice(asked[0])
+    answer_and_run(once, [_ROUTE_FOUR_PERSON, (_ROUTE_FOUR_COLUMN, asking.ANSWER_CODE)])
+    in_one = outputs(once)
+    described = json.loads(in_one["description"])
+    settings = described["settings"]
+    block = [one for one in described["columns"] if one["name"] == _ROUTE_FOUR_COLUMN][0]
+    assert block["role"] != "identifier" and _ROUTE_FOUR_COLUMN in settings["forced_codes"], (
+        f"code answered, the column still held: {block['role']}, {settings['forced_codes']}"
+    )
+    assert _ROUTE_FOUR_COLUMN not in settings["forced_identifiers"], "code answered, the column still held"
+    held = kept(once)
+    assert (_ROUTE_FOUR_COLUMN, asking.ANSWER_CODE) in held and _ROUTE_FOUR_PERSON in held, (
+        f"answered_before lost: {sorted(held)}"
+    )
+
+    rounds = diagnoses_table(folder / "rounds")
+    assert profile(rounds) == 0
+    answer_and_run(rounds, [_ROUTE_FOUR_PERSON, (_ROUTE_FOUR_COLUMN, asking.ANSWER_KEEP)])
+    second = questions(rounds)
+    assert entry_about(list(second["asked"]), _ROUTE_FOUR_COLUMN) == []  # type: ignore[arg-type]
+    checklist = second["checklist"]
+    assert isinstance(checklist, dict)
+    listed = entry_about(list(checklist["columns"]), _ROUTE_FOUR_COLUMN)
+    assert len(listed) == 1, "the checklist does not list the column in round two"
+    assert code_choice(listed[0])["then_the_description_publishes"] == said_in_round_one["then_the_description_publishes"]
+    answer_and_run(rounds, [(_ROUTE_FOUR_COLUMN, asking.ANSWER_CODE)])
+    in_two = outputs(rounds)
+    differing = [name for name in ("description", "summary", "twin", "questions") if in_one[name] != in_two[name]]
+    assert differing == [], f"code in round one is not the checklist's code in round two: {differing}"
+
+
+def test_route_four_offers_code_in_round_one_and_it_is_the_checklists_code(tmp_path: pathlib.Path) -> None:
+    """Lane HX3's gate case (plan P4-D420)."""
+    route_four_case(tmp_path)
+
+
+def test_mutant_route_four_not_offering_code_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The person question offers `keep` and `identifier` alone, as before plan P4-D420."""
+    real = asking._person_choices
+    monkeypatch.setattr(asking, "_person_choices", lambda role, floor, offers_code=False: real(role, floor, False))
+    with pytest.raises(AssertionError, match="code not offered in round one"):
+        route_four_case(tmp_path)
+
+
+def test_mutant_code_answered_and_still_held_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A `code` answered to the person question read as no answer: the column stays held."""
+    real = asking._entry_answer
+
+    def entry_answer(entry: object, place: str, carried: bool = False) -> "tuple[str, str, tuple[str, ...]] | None":
+        read = real(entry, place, carried)
+        if read is not None and read[1] == asking.ANSWER_CODE and asking.ANSWER_KEEP in read[2]:
+            return None
+        return read
+
+    monkeypatch.setattr(asking, "_entry_answer", entry_answer)
+    with pytest.raises(AssertionError, match="the column still held"):
+        route_four_case(tmp_path)
+
+
+def test_mutant_route_four_answers_not_kept_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The file the answering run writes carries no `answered_before` (plan P4-D408)."""
+    monkeypatch.setattr(asking, "answered_before", lambda given: [])
+    with pytest.raises(AssertionError, match="answered_before lost"):
+        route_four_case(tmp_path)
+
+
+asking_person_questions = asking.person_questions
+
+
+def code_standing(*arguments: object, **named: object) -> "list[asking.Question]":
+    """The mutant: route four's question stands on `code`, so a blank or Enter declares a code."""
+    found = asking_person_questions(*arguments, **named)  # type: ignore[arg-type]
+    return [
+        dataclasses.replace(one, taken=asking.ANSWER_CODE)
+        if asking.ANSWER_CODE in [choice.answer for choice in one.choices]
+        else one
+        for one in found
+    ]
+
+
+def test_mutant_code_standing_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Route four's question standing on `code` (skeptic 1 of lane HX3, item 2)."""
+    monkeypatch.setattr(asking, "person_questions", code_standing)
+    with pytest.raises(AssertionError, match="the standing answer is not keep"):
+        route_four_case(tmp_path)
+
+
+def test_mutant_the_file_prefilling_code_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The questions file writes `code` beside route four's question as if the person had said it."""
+    real = asking._question_entry
+
+    def prefilled(question: asking.Question) -> "dict[str, object]":
+        entry = real(question)
+        if asking.ANSWER_CODE in [choice.answer for choice in question.choices]:
+            entry["your_answer"] = asking.ANSWER_CODE
+        return entry
+
+    monkeypatch.setattr(asking, "_question_entry", prefilled)
+    with pytest.raises(AssertionError, match="the file answers for the person"):
+        route_four_case(tmp_path)
+
+
+def test_route_fours_other_answers_move_no_byte(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unanswered (held) and `keep`: the description, summary and twin of the question without `code`."""
+    found: "dict[str, dict[str, dict[str, bytes]]]" = {}
+    real = asking._person_choices
+    for offers in ("with_code", "without_code"):
+        with monkeypatch.context() as patched:
+            if offers == "without_code":
+                patched.setattr(asking, "_person_choices", lambda role, floor, offers_code=False: real(role, floor, False))
+            unanswered = diagnoses_table(tmp_path / offers / "unanswered")
+            assert profile(unanswered) == 0
+            kept_table = diagnoses_table(tmp_path / offers / "keep")
+            assert profile(kept_table) == 0
+            answer_and_run(kept_table, [_ROUTE_FOUR_PERSON, (_ROUTE_FOUR_COLUMN, asking.ANSWER_KEEP)])
+            found[offers] = {"unanswered": outputs(unanswered), "keep": outputs(kept_table)}
+    held = json.loads(found["with_code"]["unanswered"]["description"])
+    assert [one["role"] for one in held["columns"] if one["name"] == _ROUTE_FOUR_COLUMN] == ["identifier"]
+    for route in ("unanswered", "keep"):
+        for name in ("description", "summary", "twin"):
+            assert found["with_code"][route][name] == found["without_code"][route][name], (route, name)
+    # Only the open question's list of answers differs; once answered, the file too is the same.
+    assert found["with_code"]["unanswered"]["questions"] != found["without_code"]["unanswered"]["questions"]
+    assert found["with_code"]["keep"]["questions"] == found["without_code"]["keep"]["questions"]
+
+
 # -- K-S3-66: over the zoo and the cases above ------------------------------
 
 

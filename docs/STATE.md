@@ -520,15 +520,14 @@ cannot get worse unseen.
   past `workbook.MAXIMUM_CELLS`, are lane XL's. `analyst_kit.chi2_sf`
   stops at 500 terms, 0.7 % off at 69,295 degrees of freedom and p 0.5:
   lane E0L's (P4-D398). In the health data zoo, lane HX's route four
-  asks a diagnoses export's SNOMED ids the person question in place of
-  the checklist, so their `code` answer comes a round later and one
-  analyst check more fails (`K-HZ-02`, its bound moved from 100 to 101
-  by the integrator; the orchestrator kept it and the zoo's `keep`
-  answer, and named lane HX3 to restore 100 by offering `code` in route
-  four's first round; Codex's review of the integration reviewed both):
-  answering in two rounds is lane AQ's (P4-D401). Re-measured at AQ's merge, the
-  bound stays 101: the zoo answers one round, and the code question
-  comes in the file its answering run writes (P4-D408).
+  asked a diagnoses export's SNOMED ids the person question in place of
+  the checklist, so their `code` answer came a round later and one
+  analyst check more failed (`K-HZ-02`, its bound moved from 100 to 101
+  at batch 4d; the orchestrator kept it and named lane HX3). CLOSED by
+  lane HX3 (P4-D420): route four's question offers `code` in its first
+  round, the zoo answers it there, and `K-HZ-02`'s analyst failures
+  fall from 118 to 117 (7 twin cells of a code the real never writes,
+  not 132: CODES-1's).
 - **Stated limits given their owners at batch 4e (2026-10-21)** (push
   critic 10's items and the lanes' close reports, the owners the
   orchestrator named; the owner may reverse any). Today's eight float

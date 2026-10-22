@@ -2600,7 +2600,10 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     P4-D401) such a question left blank holds the column as record
     numbers until it is answered, so the person who knows the column is
     something else answers `keep`, which keeps the reading as the blank
-    did before (batch 4d's integration, 2026-10-20).
+    did before (batch 4d's integration, 2026-10-20). Since lane HX3
+    (plan P4-D420) the person question route four puts offers `code`
+    too, so a column the person knows as a code -- the diagnoses
+    export's SNOMED ids -- is answered `code` there, in the one round.
     Returns what was asked -- column (or subject), the answers offered
     and the answer given -- and whether every question was general.
 
