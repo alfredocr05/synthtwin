@@ -1000,53 +1000,45 @@ def _periodic_marks(
 def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
     """Each row's CONTENT HASH, and which rows hold nothing in every column.
 
-    The hash is BLAKE2b (`digest_size=32`, `person=b"synthtwin.row.1"`)
-    over the row's cells taken in the order of their column names, each
-    written as the name's UTF-8 bytes and the cell's text's UTF-8 bytes,
-    each of the two preceded by its own length in bytes as 8 bytes
-    big-endian (4.6b.8). The cells are the reader's own
+    THE CELL-BY-CELL FORM (4.6b.8 as amended by lane CHa's repair 2,
+    Codex's item 4). Each cell is written as the column name's UTF-8
+    bytes and the cell's text's UTF-8 bytes, each of the two preceded by
+    its own length in bytes as 8 bytes big-endian (the length framing of
+    4.6b.8), and hashed alone: BLAKE2b (`digest_size=32`,
+    `person=b"synthtwin.cel.1"`). A row's cell hashes, read as big-endian
+    whole numbers, are summed modulo `2**256`, and the sum's 32 bytes are
+    hashed once more: BLAKE2b (`digest_size=32`,
+    `person=b"synthtwin.row.2"`). The sum is free of column order, as
+    the name order of the first form was. The cells are the reader's own
     (`reading.column_values`), so a CSV and a workbook of one table give
-    one hash. A table held whole (`table.source` None) is walked row by
-    row, one row's framed bytes held at a time, since its columns are
-    held already. A table read in groups of columns is walked column by
-    column in name order and each row's framed bytes are digested once
-    the last name is read; the price there is the framed table held at
-    once (about 1.25 kB a row at 50 columns, MEASURED; plan P4-D418's
-    stated limit, which a row walk from the reader removes).
+    one hash, and the walk takes the table's columns group by group
+    (`reading.column_groups`), each group read once, holding one whole
+    number a row: the first form held a table read in groups as its
+    framed rows at once (about 1.25 kB a row at 50 columns, MEASURED;
+    3.2 GB of payload at 2,000,000 x 50 by Codex's count, over the
+    2.5 GB watchdog by itself).
     """
     names = list(table.column_names)
-    order = sorted((names[place], place) for place in range(len(names)))
     rows = table.n_rows
-    heads: "list[bytes]" = []
-    for name, _place in order:
-        name_bytes = bytes(name, "utf-8")
-        heads += [_length_word(len(name_bytes)) + name_bytes]
     filled = bytearray(rows)
-    hashes: "list[bytes]" = []
-    if table.source is None:
-        columns = [reading.column_values(table, place) for _name, place in order]
-        for row in range(rows):
-            one = bytearray()
-            for at in range(len(columns)):
-                text = columns[at][row]
+    sums = [0] * rows
+    for first, last in reading.column_groups(table):
+        for place in range(first, last):
+            name_bytes = bytes(names[place], "utf-8")
+            head = _length_word(len(name_bytes)) + name_bytes
+            values = reading.column_values(table, place)
+            for row in range(rows):
+                text = values[row]
                 cell = bytes(text, "utf-8")
-                one += heads[at] + _length_word(len(cell)) + cell
-                if not _is_blank(text):
+                digest = hashlib.blake2b(head + _length_word(len(cell)) + cell, digest_size=32, person=b"synthtwin.cel.1").digest()
+                sums[row] += int.from_bytes(digest, "big")
+                if not filled[row] and not _is_blank(text):
                     filled[row] = 1
-            hashes += [hashlib.blake2b(bytes(one), digest_size=32, person=b"synthtwin.row.1").digest()]
-        return hashes, filled
-    framed = [bytearray() for _row in range(rows)]
-    for at in range(len(order)):
-        values = reading.column_values(table, order[at][1])
-        for row in range(rows):
-            text = values[row]
-            cell = bytes(text, "utf-8")
-            framed[row] += heads[at] + _length_word(len(cell)) + cell
-            if not _is_blank(text):
-                filled[row] = 1
+    hashes: "list[bytes]" = []
     for row in range(rows):
-        hashes += [hashlib.blake2b(bytes(framed[row]), digest_size=32, person=b"synthtwin.row.1").digest()]
-        framed[row] = bytearray()
+        total = (sums[row] % (1 << 256)).to_bytes(32, "big")
+        sums[row] = 0
+        hashes += [hashlib.blake2b(total, digest_size=32, person=b"synthtwin.row.2").digest()]
     return hashes, filled
 
 

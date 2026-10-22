@@ -193,6 +193,7 @@ def test_the_ledger_decides_each_case_in_both_forms(tmp_path, monkeypatch, os_na
         # the POSIX form's mode check reads the real file system's answer
         # nowhere here; the mode test below runs it where modes exist.
         monkeypatch.setattr(installation, "_mode_is_private", lambda path, os_name: True)
+        monkeypatch.setattr(installation, "_folder_is_private", lambda path, os_name: True)
     folder = installation.data_folder(
         os_name=os_name,
         environ={"LOCALAPPDATA": str(tmp_path / "local"), "XDG_DATA_HOME": str(tmp_path / "xdg")},
@@ -1207,3 +1208,417 @@ def test_a_rung_cuts_where_its_rank_is_held_and_not_beside_tied_rows():
     distinct = tuple(sorted([(40.0 + 0.05 * at, 1) for at in range(1, 25)] + [(41.5, 1)] + [(43.0 + 0.1 * at, 1) for at in range(30)]))
     assert len({one[0] for one in distinct}) == len(distinct)
     assert 5 in chain.value_run_bands(block, start, ladder, FLOOR, distinct)
+
+
+# -- REPAIR 2: THE COMBINED VERIFY'S ITEMS 1 AND 2, CODEX'S ITEMS 1 TO 13 --
+
+
+def _heap_table(heap: str) -> str:
+    """501 ages all different but a published heap (a mode of twelve rows, or eleven noughts); F on every row of [p75, p90)."""
+    draw = random.Random(5)
+    n_rows = 501
+    distinct = sorted(20 + 0.01 * value for value in draw.sample(range(1, 6000), n_rows - 11))
+    value = 0.0 if heap == "zero" else distinct[3]
+    ages = sorted(distinct + [value] * 11)
+    rows = [[f"{age}", "F" if 0.75 * n_rows <= place < 0.90 * n_rows else draw.choice("FM")] for place, age in enumerate(ages)]
+    draw.shuffle(rows)
+    return _csv(["age", "gender"], rows)
+
+
+@pytest.mark.parametrize("heap", ["mode", "zero"])
+def test_a_one_row_rung_beside_a_published_heap_cuts(tmp_path, heap):
+    """The combined verify's item 1: every reading but a published mode (or nought) holds one row,
+    so n_distinct_values tells a reader every other value is single and a rung one row stands on
+    has a rank the reader holds; each 1 % slice of five rows inside [p75, p90) is then a fixed
+    group, so no key publishes a band of age holding F only. Mutant: the repair 1 rule (a one-row
+    rung cuts only where EVERY reading holds one row)."""
+    table, document, settings, chained = _describe(tmp_path, _heap_table(heap), name=f"heap{heap}")
+    block = document["columns"][0]
+    named = block["mode_count"] if heap == "mode" else block["n_zero"]
+    # The reader's arithmetic: 501 rows, all single but the heap.
+    assert named == (12 if heap == "mode" else 11) and block["n_distinct_values"] == 501 - named + 1
+    for key in range(4):
+        found = chain.describe(table, document, settings, chain.ChainSwitch(f"heap{heap}", bytes([key]) * 32))
+        assert found.statistical is not None
+        assert _no_confined_row(found.statistical, "age"), key
+
+
+def test_a_run_beside_more_listed_values_than_it_reads_is_marked_whole():
+    """The verify's V3: a run holding more than RUN_POINTS_AT_MOST named values is marked whole
+    (its subsets are not walked); ten are walked and leave nothing of 1 to 10 here."""
+    start = chain_rules.starting_bands(_number_block(), (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, [50] * 12, FLOOR)
+    base = [(5.0 + 10 * at, 50) for at in range(9)]
+    for count, expected in ((chain.RUN_POINTS_AT_MOST + 1, {11}), (chain.RUN_POINTS_AT_MOST, set())):
+        values = [90.5 + 0.5 * at for at in range(count)]
+        block = _number_block(tails={"high": {"percent": 98, "rows": 20 * count, "values": values}})
+        readings = tuple(sorted(base + [(value, 20) for value in values]))
+        assert chain.value_run_bands(block, start, ladder, FLOOR, readings) == expected, count
+
+
+def _date_block(**extra: object) -> "dict[str, object]":
+    days = ["2021-01-05", "2021-02-01", "2021-03-01", "2021-04-01", "2021-06-01", "2021-08-01", "2021-10-01", "2021-11-01", "2021-12-01"]
+    block: "dict[str, object]" = {"name": "d", "role": "datetime", "date_percentiles": dict(zip(chain_rules.NINE_RUNGS[0], days))}
+    block.update(extra)
+    return block
+
+
+def test_a_heavy_date_is_a_named_value_of_its_run():
+    """The verify's V4: the band [p25, p50) holds a heavy date's 100 rows and five more; the run
+    less the heavy date is five rows, fixed, so the band is marked. Mutant: heavy dates not read."""
+    readings = (
+        ("2021-01-01", 50), ("2021-01-20", 50), ("2021-02-10", 50), ("2021-03-10", 50),
+        ("2021-04-20 08:00", 60), ("2021-04-20 09:00", 40), ("2021-05-02", 5),
+        ("2021-07-01", 50), ("2021-09-01", 50), ("2021-10-15", 50), ("2021-11-15", 50), ("2021-12-15", 50),
+    )
+    block = _date_block(heavy_dates=[{"date": "2021-04-20", "rows": 100}])
+    start = chain_rules.starting_bands(block, (False, False, False))
+    ladder = chain_rules.merge_ladder("d", start, [50] * len(start.names), FLOOR)
+    assert chain.value_run_bands(block, start, ladder, FLOOR, readings) == {4}
+    assert chain.value_run_bands(_date_block(heavy_dates=[]), start, ladder, FLOOR, readings) == set()
+
+
+def test_a_histogram_edge_splits_a_band():
+    """The verify's V5: the value histogram's edge at 40.625 splits five rows off the band
+    [p40, p50) of 55; the five are a fixed group. Mutant: the histogram drawing no cut."""
+    block = _number_block(percentiles_between={"min": 0.0, "max": 100.0}, value_histogram={"0": 50})
+    start = chain_rules.starting_bands(block, (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, [50] * len(start.names), FLOOR)
+    readings = tuple(sorted([(5.0 + 10 * at, 50) for at in range(10) if at != 4] + [(40.5, 5), (46.0, 50)]))
+    assert chain.value_run_bands(block, start, ladder, FLOOR, readings) == {5}
+    plain = _number_block(percentiles_between={"min": 0.0, "max": 100.0})
+    assert chain.value_run_bands(plain, start, ladder, FLOOR, readings) == set()
+
+
+def test_unparsed_date_cells_of_a_few_rows_mark_their_band():
+    """The verify's V6: five unparsed cells in a date column are an own-fact group of the
+    `other` band. Mutant: `n_unparsed` not read."""
+    block = _date_block(n_unparsed=5)
+    start = chain_rules.starting_bands(block, (True, False, False))
+    ladder = chain_rules.merge_ladder("d", start, [50] * len(start.names), FLOOR)
+    assert chain_rules.small_group_bands(block, start, ladder, FLOOR) == {0}
+    assert chain_rules.small_group_bands(_date_block(n_unparsed=40), start, ladder, FLOOR) == set()
+
+
+def test_bin_groups_whose_division_cannot_be_read_mark_every_value_band():
+    """The verify's V7: a tail block's bin groups with no readable division (no tail percents)
+    place no cut, so every value band is marked. Mutant: such groups marking nothing."""
+    block = _number_block(bin_groups=[{"first": 0, "last": 3, "count": 100}, {"first": 4, "last": 31, "count": 400}])
+    start = chain_rules.starting_bands(block, (False, False, False))
+    ladder = chain_rules.merge_ladder("x", start, [50] * 12, FLOOR)
+    readings = tuple((5.0 + 10 * at, 50) for at in range(10))
+    assert chain.value_run_bands(block, start, ladder, FLOOR, readings) == EVERY_BAND
+    assert chain.value_run_bands(_number_block(), start, ladder, FLOOR, readings) == set()
+
+
+def _zeros_document(tmp_path: pathlib.Path) -> "dict[str, object]":
+    """x holds five noughts (an own-fact group the loader reads from n_zero) beside a binary y."""
+    draw = random.Random(3)
+    rows = [[f"{0 if at < 5 else draw.randint(1, 100)}", draw.choice("ab")] for at in range(600)]
+    _table, document, _settings, chained = _describe(tmp_path, _csv(["x", "y"], rows), name="zeros")
+    assert chained.statistical is not None
+    written = json.loads(json.dumps(document))
+    written["relationships"]["statistical"] = json.loads(json.dumps(chained.statistical))
+    return written
+
+
+def test_the_loader_refuses_a_family_redrawn_to_confine_a_marked_band(tmp_path):
+    """The verify's V1: the loader's RULE W1. The family y | x is redrawn, margins kept, so that
+    the band of x holding its five noughts holds one level of y alone. Mutant: W1 not checked."""
+    document = _zeros_document(tmp_path)
+    chain_check.check(document)
+    statistical = document["relationships"]["statistical"]
+    family = [one for one in statistical["chain"] if one["child"] == "y" and one["parents"]]
+    if not family:
+        family = [one for one in statistical["chain"] if one["child"] == "x" and one["parents"]]
+    assert family
+    table = family[0]["table"]
+    if family[0]["child"] == "y":
+        row = table[0]
+        moved = row[1]
+        row[0], row[1] = row[0] + moved, 0
+        for other in table[1:]:
+            take = min(moved, other[0] - FLOOR)
+            if take > 0:
+                other[0] -= take
+                other[1] += take
+                moved -= take
+            if not moved:
+                break
+    else:
+        moved = table[1][0]
+        table[0][0], table[1][0] = table[0][0] + moved, 0
+        for at in range(1, len(table[0])):
+            take = min(moved, table[0][at] - FLOOR)
+            if take > 0:
+                table[0][at] -= take
+                table[1][at] += take
+                moved -= take
+            if not moved:
+                break
+    assert moved == 0
+    with pytest.raises(errors.ProfileError) as caught:
+        chain_check.check(document)
+    assert "S24" in str(caught.value) and "RULE W1" in str(caught.value)
+
+
+def test_the_loader_refuses_an_anchor_written_false_or_as_a_fraction(tmp_path):
+    """Codex's item 1 on repair 1: `false` and `0.0` compared equal to 0, the margins went unchecked."""
+    document = _switched_document(tmp_path)
+    chain_check.check(document)
+    for written in (False, 0.0):
+        mutated = json.loads(json.dumps(document))
+        anchored = [one for one in mutated["relationships"]["statistical"]["chain"] if one["anchor"] == 0 and one["parents"]]
+        assert anchored
+        anchored[0]["anchor"] = written
+        with pytest.raises(errors.ProfileError) as caught:
+            chain_check.check(mutated)
+        assert "the anchor is the earliest family" in str(caught.value)
+
+
+def test_the_loader_refuses_a_level_left_out_and_a_merged_band_miscounted(tmp_path):
+    """Codex's item 2 on repair 1: a label column's ladder leaving a level out, or printing a
+    total its labels' published counts do not give, was accepted."""
+    document = _switched_document(tmp_path)
+    ladder = document["relationships"]["statistical"]["ladder"]
+    group = [entry for entry in ladder if entry["column"] == "group"][0]
+    assert len(group["l0"]) >= 3
+    left_out = json.loads(json.dumps(document))
+    entry = [one for one in left_out["relationships"]["statistical"]["ladder"] if one["column"] == "group"][0]
+    last = entry["totals"][-1]
+    entry["l0"], entry["totals"] = entry["l0"][:-1], entry["totals"][:-1]
+    entry["totals"][0] += last
+    with pytest.raises(errors.ProfileError) as caught:
+        chain_check.check(left_out)
+    assert "S23" in str(caught.value) and "stands in one L0 band" in str(caught.value)
+    miscounted = json.loads(json.dumps(document))
+    entry = [one for one in miscounted["relationships"]["statistical"]["ladder"] if one["column"] == "group"][0]
+    entry["totals"][0] += 5
+    entry["totals"][1] -= 5
+    with pytest.raises(errors.ProfileError) as caught:
+        chain_check.check(miscounted)
+    assert "S23" in str(caught.value)
+
+
+def test_the_loader_refuses_a_malformed_reference_and_a_computed_column(tmp_path):
+    """Codex's items 8 and 9 on repair 1: a column written as a list raised a raw TypeError, and a
+    column ineligible as computed beside no carried rule was accepted."""
+    document = _switched_document(tmp_path)
+    for change in (
+        lambda st: st["ineligible"].append({"column": [], "reason": "computed"}),
+        lambda st: st["chain"][1]["parents"][0].__setitem__("column", []),
+    ):
+        mutated = json.loads(json.dumps(document))
+        change(mutated["relationships"]["statistical"])
+        with pytest.raises(errors.ProfileError):
+            chain_check.check(mutated)
+    computed = json.loads(json.dumps(document))
+    computed["relationships"]["statistical"]["ineligible"].append({"column": "record", "reason": "computed"})
+    computed["relationships"]["statistical"]["ineligible"] = [
+        entry for entry in computed["relationships"]["statistical"]["ineligible"] if entry["reason"] == "computed"
+    ]
+    with pytest.raises(errors.ProfileError) as caught:
+        chain_check.check(computed)
+    assert "S28" in str(caught.value)
+
+
+def test_a_column_of_unique_keys_is_walked_once():
+    """Codex's item 3 on repair 1: `_repeats` copied its set once a value (12 s at 40,000 keys).
+    Mutant: the copy (about a minute here)."""
+    import time
+
+    values = [f"K{place:07d}" for place in range(100_000)]
+    started = time.perf_counter()
+    assert not chain._repeats(values)
+    assert time.perf_counter() - started < 10
+    assert chain._repeats(values + ["K0000003"])
+
+
+def test_a_row_hash_is_its_cells_hashed_alone_and_summed():
+    """4.6b.8 as amended by repair 2 (Codex's item 4): each cell framed and hashed alone, the
+    row's cell hashes summed modulo 2**256, the sum's 32 bytes hashed once more."""
+    import hashlib
+
+    def cell(name: str, text: str) -> int:
+        data = b""
+        for part in (name.encode("utf-8"), text.encode("utf-8")):
+            data += len(part).to_bytes(8, "big") + part
+        return int.from_bytes(hashlib.blake2b(data, digest_size=32, person=b"synthtwin.cel.1").digest(), "big")
+
+    def row(cells: "list[tuple[str, str]]") -> bytes:
+        total = sum(cell(name, text) for name, text in cells) % (1 << 256)
+        return hashlib.blake2b(total.to_bytes(32, "big"), digest_size=32, person=b"synthtwin.row.2").digest()
+
+    import tempfile
+
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="chain-hash-"))
+    hashes, filled = chain.row_hashes(reading.read_table(str(fixtures.write(folder, "h.csv", "b,a\n1,x\n,\n")), small_cell_floor=FLOOR))
+    assert hashes == [row([("a", "x"), ("b", "1")]), row([("a", ""), ("b", "")])]
+    assert list(filled) == [1, 0]
+
+
+def test_a_table_read_in_groups_is_hashed_in_one_walk_of_its_groups(tmp_path, monkeypatch):
+    """Codex's item 4 on repair 1: the hash asks for each column once, group by group, and holds
+    one whole number a row (the first form held the framed table, and asked in name order)."""
+    rows = [[f"{place}", f"{place % 3}", f"{place % 5}", "y"] for place in range(60)]
+    path = tmp_path / "walk.csv"
+    path.write_text(_csv(["d", "c", "b", "a"], rows), encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    grouped = reading.read_table(str(path), small_cell_floor=FLOOR, in_groups=True)
+    asked: "list[int]" = []
+    original = reading.column_values
+
+    def counting(table, place):
+        asked.extend([place])
+        return original(table, place)
+
+    monkeypatch.setattr(reading, "column_values", counting)
+    chain.row_hashes(grouped)
+    assert asked == [0, 1, 2, 3]
+
+
+def test_a_declared_counted_date_column_keeps_the_chain(tmp_path):
+    """Codex's item 5 on repair 1: Excel serials declared `excel-1900` were read to ISO text, the
+    chain's recount found none of the serials and the whole chain went off."""
+    draw = random.Random(1)
+    rows = [[f"{42005 + place % 120}", f"{draw.randint(18, 90)}", draw.choice("FM")] for place in range(600)]
+    settings = taxonomy.Settings(small_cell_floor=FLOOR, forced_date_counts=(("visit", "excel-1900"),))
+    table = reading.read_table(str(fixtures.write(tmp_path, "visits.csv", _csv(["visit", "age", "sex"], rows))), small_cell_floor=FLOOR)
+    document = profile.build_document(table, settings, [], [], [])
+    assert document["columns"][0]["role"] == "datetime"
+    found = chain.describe(table, document, settings, chain.ChainSwitch("visits", TEST_KEY))
+    assert found.statistical is not None, found.notes
+    assert "visit" in [entry["column"] for entry in found.statistical["ladder"]]
+
+
+def test_a_column_whose_other_counts_are_all_one_is_not_fine():
+    """Codex's item 7 on repair 1: 600 readings of 600 different values fix every count at one,
+    so rule M1 refuses it; one more row beside them leaves the counts open."""
+    rungs = {key: float(at) for at, key in enumerate(chain_rules.NUMBER_RUNGS[0])}
+    block = {"name": "x", "role": "continuous", "percentiles": rungs, "n_present": 600, "n_used_in_statistics": 600, "n_distinct_values": 600, "mode": None, "mode_count": 0, "n_zero": 0}
+    assert not chain_moments.fine(block)
+    block["n_used_in_statistics"] = 601
+    block["n_present"] = 601
+    assert chain_moments.fine(block)
+    heaped = dict(block, n_present=611, n_used_in_statistics=611, n_distinct_values=601, mode=5.0, mode_count=11)
+    assert not chain_moments.fine(heaped)
+
+
+def test_no_shipped_module_imports_the_installation():
+    """Codex's item 10 on repair 1: `cli` imported the installation (and its `secrets`) at the top,
+    so every validate run reached it; it is imported only behind the chain's switch now."""
+    import ast
+
+    tree = ast.parse(pathlib.Path(cli.__file__).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "synthtwin":
+            assert "installation" not in [alias.name for alias in node.names]
+        if isinstance(node, ast.Import):
+            assert "synthtwin.installation" not in [alias.name for alias in node.names]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows keeps no POSIX mode: files read 0o666 and folders 0o777")
+def test_a_data_folder_others_can_change_is_refused_on_posix(tmp_path):
+    """Codex's item 11 on repair 1: an existing folder kept its mode, so another account could swap
+    the ledger. Group or others' write is refused in plain words; the nt form reads no mode."""
+    folder = tmp_path / "data"
+    folder.mkdir()
+    for mode in (0o770, 0o707, 0o720, 0o702):
+        folder.chmod(mode)
+        refused = installation.open_installation(folder, os_name="posix")
+        assert "can be changed by other accounts" in refused.refusal and "chmod 700" in refused.refusal, oct(mode)
+        assert not refused.locked and not (folder / installation.LOCK_FILE).exists()
+    accepted = installation.open_installation(folder, os_name="nt")
+    assert not accepted.refusal
+    installation.release(accepted)
+    folder.chmod(0o755)
+    kept = installation.open_installation(folder, os_name="posix")
+    assert not kept.refusal
+    installation.release(kept)
+
+
+@pytest.mark.parametrize("os_name", ["posix", "nt"])
+def test_a_damaged_key_is_moved_aside_and_made_again(tmp_path, monkeypatch, os_name):
+    """Codex's item 12 on repair 1: the words for a key of 31 bytes sent the person to --new-key,
+    which refused a key file that exists. Now: move it aside, then run with --new-key."""
+    monkeypatch.setattr(installation, "_folder_is_private", lambda path, os_name: True)
+    monkeypatch.setattr(installation, "_mode_is_private", lambda path, os_name: True)
+    folder = tmp_path / "data"
+    opened = installation.open_installation(folder, os_name=os_name)
+    installation.record(opened, installation.Entry("clinic", "c1", installation.fingerprint(opened.key), "d1", True))
+    installation.release(opened)
+    key_file = installation.key_path(folder)
+    key_file.write_bytes(opened.key[:31])
+    damaged = installation.open_installation(folder, os_name=os_name)
+    assert "is damaged" in damaged.refusal and "move the damaged file aside" in damaged.refusal and "--new-key" in damaged.refusal
+    installation.release(damaged)
+    refused = installation.open_installation(folder, new_key=True, os_name=os_name)
+    assert "--new-key makes a new private key only where" in refused.refusal
+    installation.release(refused)
+    key_file.replace(folder / "chain-key.damaged")
+    renewed = installation.open_installation(folder, new_key=True, os_name=os_name)
+    assert not renewed.refusal and len(renewed.key) == 32
+    installation.release(renewed)
+    # With no record beside it, moving it aside is enough.
+    alone = tmp_path / "alone"
+    alone.mkdir()
+    installation.key_path(alone).write_bytes(b"short")
+    words = installation.open_installation(alone, os_name=os_name)
+    assert "is damaged" in words.refusal and "--new-key" not in words.refusal
+    installation.release(words)
+
+
+def test_a_failure_while_the_key_is_written_leaves_no_lock_and_no_key(tmp_path, monkeypatch):
+    """Codex's item 13 on repair 1: a full disk while the first key was written left the lock, and
+    every later run read another run as active."""
+    monkeypatch.setattr(installation, "_folder_is_private", lambda path, os_name: True)
+    folder = tmp_path / "data"
+    original = pathlib.Path.write_bytes
+
+    def full(self, data):
+        if self.name == installation.KEY_FILE:
+            raise OSError(28, "No space left on device")
+        return original(self, data)
+
+    monkeypatch.setattr(pathlib.Path, "write_bytes", full)
+    with pytest.raises(OSError):
+        installation.open_installation(folder, os_name="posix")
+    assert not (folder / installation.LOCK_FILE).exists()
+    assert not installation.key_path(folder).exists()
+    monkeypatch.setattr(pathlib.Path, "write_bytes", original)
+    opened = installation.open_installation(folder, os_name="posix")
+    assert not opened.refusal
+    installation.release(opened)
+
+
+def test_the_questions_file_pair_requests_are_applied_and_kept(tmp_path, monkeypatch, capsys):
+    """Codex's item 6 on repair 1: the entry's `add` and `drop` were read by nothing and written
+    back empty. A pair to drop now shares no family table, a pair to add is offered with the rule
+    weight's raise, an unreadable request is named, and the next file keeps them all."""
+    monkeypatch.chdir(tmp_path)
+    fixtures.write(tmp_path, "clinic.csv", _clinic())
+    data = str(tmp_path / "data")
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=data), capsys)[0] == 0
+    first = json.loads((tmp_path / "clinic-profile.json").read_text(encoding="utf-8"))
+    together = [one for one in first["relationships"]["statistical"]["chain"] if one["parents"]]
+    assert together
+    pair = [together[0]["child"], together[0]["parents"][0]["column"]]
+    questions = json.loads((tmp_path / "clinic-questions.json").read_text(encoding="utf-8"))
+    entry = questions["between_columns"]
+    assert entry["add"] == [] and entry["drop"] == []
+    entry["drop"] = [pair, "age and group"]
+    entry["add"] = [["pressure", "group"]]
+    fixtures.write(tmp_path, "answers.json", json.dumps(questions))
+    capsys.readouterr()
+    code = cli.main(["profile", "clinic.csv", "--answers", "answers.json"], chain=cli.ChainRun(folder=data, replace_description=True))
+    said = capsys.readouterr()
+    assert code == 0, said
+    printed = said.out + said.err
+    assert "1 pair(s) to drop share no family table" in printed and "1 pair(s) to add were offered" in printed
+    assert "could not be read" in printed and "age and group" in printed
+    second = json.loads((tmp_path / "clinic-profile.json").read_text(encoding="utf-8"))
+    for family in second["relationships"]["statistical"]["chain"]:
+        names = [family["child"]] + [parent["column"] for parent in family["parents"]]
+        assert not (family["child"] in pair and len(set(pair) & set(names)) == 2), family
+    again = json.loads((tmp_path / "clinic-questions.json").read_text(encoding="utf-8"))["between_columns"]
+    assert again["drop"] == [pair] and again["add"] == [["pressure", "group"]]

@@ -4256,13 +4256,30 @@ bands outside a run of neighbouring bands that holds all but 1 to
 `f - 1` rows of the census groups it reaches (those rows lie there), and
 marks a run's bands where the groups lying wholly inside it leave 1 to
 `f - 1` of its rows. The
-producer counts each run on the column's own values, so a cut whose
-count the published facts leave open (a rung beside tied values) is
-read as if they fixed it: it marks more than the definition above,
-refuses more and passes no group it names; a loader, holding no row,
-checks the published list above, a subset of the producer's marks.
-`K-S6-08` holds the slice and the remainder as fixtures, each with its
-mutant. (ii) THE TIME-AND-EVENT DETECTOR (inventory row 11): an eligible
+producer counts each run on the column's own values. **Restated
+2026-10-21 (lane CHa's repair 2, plan P4-D418; the combined verify's
+item 1):** a rung is a cut where the published facts fix the rank it
+stands at: a rung no row stands on (the rank its percent sets), and a
+rung exactly one row stands on where every reading other than the
+single values a published count names (the mode, nought, a tail's
+listed values, a clock heap, a date tail's listed values, a heavy
+date) holds one row, since the distinct count then makes every other
+value single (it cuts on both sides of that row). A rung tied rows
+stand on whose tie count no published fact names is no cut, since the
+rows below it and through it are open to a reader; this repair 1
+wording, "a cut whose count the published facts leave open is read as
+if they fixed it", said the opposite of the code and is withdrawn.
+MEASURED by the verify: a 501-row column all different but a mode of
+12 (or eleven noughts), its percentiles p01 to p99 published, put five
+rows of one gender in every 1 % slice of [p75, p90) on 8 of 8 keys
+under the repair 1 rule, which asked every reading to hold one row;
+under this one, none of 8; lane `E0b`'s battery and lane `A0b`'s
+200,000-row table lose nothing more. Cutting at every one-row rung
+instead cost `E0b`'s ST3 37.06 % of its score at 20,000 rows and is
+not adopted. A loader, holding no row, checks the published list
+above, a subset of the producer's marks. `K-S6-08` holds the slice,
+the remainder and the one-row rung beside a heap as fixtures, each
+with its mutant. (ii) THE TIME-AND-EVENT DETECTOR (inventory row 11): an eligible
 `count` or `continuous` column whose name holds a word of time (`time`,
 `days`, `day`, `months`, `month`, `years`, `year`, `weeks`, `week`,
 `duration`, `followup`, `follow`, `fu`, `survival`, `futime`, `tte`,
@@ -5038,6 +5055,21 @@ hash, so a table with one more empty record is the same table to the ledger,
 which refuses it under a second name; measured by lane CHa's skeptic,
 `clinic.csv` with one line of empty cells added had proceeded under a
 new name with no refusal and published a different chain.
+**Amended 2026-10-21 (lane CHa's repair 2, plan P4-D418; Codex's item
+4):** a row's content hash is taken CELL BY CELL. Each cell's framed
+bytes (the column name's and the cell's text's UTF-8 bytes, each
+preceded by its length as 8 bytes big-endian, as above) are hashed
+alone, BLAKE2b (`digest_size=32`, `person=b"synthtwin.cel.1"`); the
+row's cell hashes, read as big-endian whole numbers, are summed modulo
+`2**256`; and the row's content hash is BLAKE2b (`digest_size=32`,
+`person=b"synthtwin.row.2"`) over that sum's 32 bytes. The framing,
+the freedom from column and row order and the reading of parsed cells
+stand as above. The first form needed a row's framed bytes whole, so a
+table read in groups of columns was held as its framed rows at once:
+about 1.25 kB a row at 50 columns (MEASURED), 3.2 GB of payload at
+2,000,000 x 50 by Codex's allocation count, over the 2.5 GB watchdog
+by itself; the cell-by-cell form walks the groups once, holding one
+whole number a row.
 
 **The self-test's sample** (layer `L2b`, lane ST) is chosen by content and
 SORTED by content before anything is generated from it, so a whole-row
