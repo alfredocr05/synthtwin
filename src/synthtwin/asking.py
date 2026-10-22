@@ -3850,6 +3850,16 @@ _PADDED_LIST_FIGURES = 4
 # same column without that cell is held by P4-D401's question.
 _LIST_CELLS_AT_LEAST = 1
 
+# ONE ORDINARY WORD DOES NOT UNDO THE HOLD (the orchestrator's addendum to
+# lane HX4, 2026-10-22 18:23, from Codex's third round on lane ZR-a's
+# page): a list whose values are written as record numbers is held where
+# at most one value in `_LIST_NO_KEY_SHARE` is not, the share route three
+# allows (`_SIGN_PLACEHOLDER_SHARE`). Codex's case -- `R100000` to
+# `R100039` in 40 single cells, 240 pairs and 320 triples, the first cell
+# closing `;OTHER` -- failed "every value holds five figures", no identity
+# route reached it, and a list reading published all 40 record numbers.
+_LIST_NO_KEY_SHARE = _SIGN_PLACEHOLDER_SHARE
+
 # Why a list's values are taken as record numbers, as the question says it.
 _LISTED_WIDE = "wide"
 _LISTED_PADDED = "padded"
@@ -3858,8 +3868,9 @@ _LISTED_PERSONS = "persons"
 _LISTED_KEYS = "keys"
 _LISTED_SAID = {
     _LISTED_WIDE: (
-        "every part is written in letters, figures, hyphens and "
-        "underscores, with a run of five figures or more"
+        "every part but at most one in three is written in letters, "
+        "figures, hyphens and underscores, with a run of five figures or "
+        "more"
     ),
     _LISTED_PADDED: (
         "every part is written in figures alone, some of them four figures "
@@ -4067,9 +4078,11 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
     PLAN P4-D424 (lane HX4). A column whose cells are lists (`_list_values`)
     is taken so where, over every value of every cell:
 
-    * every value is written in the code alphabet with a run of five
-      figures or more (`_a_wide_listed_value`) -- a six-figure record
-      number, one padded to seven, `R` and six figures; or
+    * every value but at most one in `_LIST_NO_KEY_SHARE` is written in
+      the code alphabet with a run of five figures or more
+      (`_a_wide_listed_value`) -- a six-figure record number, one padded
+      to seven, `R` and six figures -- so a sparse word beside them
+      (`OTHER`) does not undo the hold; or
     * an identity route of P4-D401 reaches the values taken as one
       column: the padded route (figures alone, some of four figures or
       more opening with a nought), route two (codes of letters and figures repeating), route
@@ -4122,6 +4135,7 @@ def _listed_on(present: "list[str]", mark: str, values: int) -> str:
     values the cells hold on it (`_list_values`).
     """
     wide = True
+    unwide = 0
     padded = True
     padding = False
     codes = True
@@ -4135,7 +4149,9 @@ def _listed_on(present: "list[str]", mark: str, values: int) -> str:
     for cell in present:
         for value in _list_parts(cell, mark):
             if wide and not _a_wide_listed_value(value):
-                wide = False
+                unwide = unwide + 1
+                if unwide * _LIST_NO_KEY_SHARE > values:
+                    wide = False
             if padded:
                 if not _is_plain_whole_number(value):
                     padded = False

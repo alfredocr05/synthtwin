@@ -933,7 +933,9 @@ def test_the_list_rule_reaches_record_numbers_and_no_short_code() -> None:
     assert asking._listed_record_numbers(_list_cells(codes, ";", 600), "free_text")[1] == "codes"
     mails = [f"pat{one}@mailhost.org" for one in range(40)]
     assert asking._listed_record_numbers(_list_cells(mails, "; ", 600), "free_text")[1] == "persons"
-    keyed = _list_cells(six, ";", 600) + ["UNKNOWN;" + six[0]] * 20
+    # More than a third of the values `UNKNOWN`, fewer than half: no longer
+    # wide, still a key beside its placeholders (route four).
+    keyed = _list_cells(six, ";", 600) + ["UNKNOWN"] * 800
     assert asking._listed_record_numbers(keyed, "free_text")[1] == "keys"
     # NOT REACHED: three-figure codes 101 to 106, of mixed widths 3 and 4,
     # all four figures; grouped thousands and decimal commas; ICD codes
@@ -1255,3 +1257,46 @@ def test_the_list_question_stands_beside_the_dates_question_as_hxs_does(
         assert len([one for one in offered if asking.ANSWER_IDENTIFIER in one]) == 1
         families += [[one for one in offered if asking.ANSWER_IDENTIFIER not in one]]
     assert families[0] == families[1] == [[asking.ANSWER_KEEP, asking.ANSWER_DATES]]
+
+
+# -- the orchestrator's addendum (2026-10-22 18:23): one ordinary word ------
+
+
+def _codex_other_cells() -> "list[str]":
+    """Codex's case from its third round on lane ZR-a's page, exactly as the addendum gives it.
+
+    `R100000` to `R100039`: 40 single cells, 240 cyclic pairs (i, i+s) for s
+    of 1 to 6 and 320 cyclic triples (i, i+s, i+s+1) for s of 1 to 8, the
+    indices modulo 40; the first cell closes `;OTHER`.
+    """
+    keys = [f"R{100000 + one}" for one in range(40)]
+    cells = [keys[one] for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]}" for step in range(1, 7) for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]};{keys[(one + step + 1) % 40]}"
+              for step in range(1, 9) for one in range(40)]
+    cells[0] = cells[0] + ";OTHER"
+    assert len(cells) == _ROWS
+    return cells
+
+
+def test_one_ordinary_word_does_not_undo_the_list_hold(tmp_path: pathlib.Path) -> None:
+    """Codex's case at 600 rows: the list question is put, and 0 of the 40 record numbers published."""
+    cells = _codex_other_cells()
+    assert asking._listed_record_numbers(cells, "long_tail_labels") == (";", "wide")
+    lines = ["ids,value"] + [f"{cell},{place % 7}" for place, cell in enumerate(cells)]
+    code, _document = _profile_rows(tmp_path, "other", lines)
+    assert code == 0
+    asked = json.loads((tmp_path / "other-questions.json").read_text(encoding="utf-8"))["asked"]
+    offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+               for entry in asked if entry["column"] == "ids"]
+    assert offered == [_LIST_ANSWERS]
+    texts = _texts_of(tmp_path, "other")
+    assert [one for one in range(40) if f"{100000 + one}" in texts] == []
+
+
+def test_mutant_every_value_wide_lets_one_word_undo_the_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mutant: every value must be wide (6c566d3c's arm), so `OTHER` leaves the list unasked."""
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 10**9)
+    assert asking._listed_record_numbers(_codex_other_cells(), "long_tail_labels") == ("", "")
