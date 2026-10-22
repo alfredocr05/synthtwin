@@ -7997,6 +7997,16 @@ def _time_grain(
             f"the record's walk read {rows} rows",
             "the block publishes another count of present cells",
         )
+    # REPAIR ROUND 2 (Codex's item 5): the people the walk read are the
+    # people the table's rows name, so no more than its rows; the count
+    # sets the estimate the rung is checked against below.
+    if people > frame.n_rows:
+        raise _broken(
+            "TG1",
+            seat,
+            f"the record's walk read {people} people",
+            f"the table holds {frame.n_rows} rows",
+        )
     if (rung == grains.HELD) != (role == ROLE_IDENTIFIER):
         raise _broken(
             "NF129",

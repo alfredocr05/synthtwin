@@ -63199,7 +63199,39 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 )
             ]
         drawn = drawn + len(inside)
-        columns += [tuple(_inside_the_grain(column, spelled, inside))]
+        left, unwritten = _inside_the_grain(column, spelled, inside)
+        columns += [tuple(left)]
+        grain = column.time_grain
+        if grain is not None:
+            # REPAIR ROUND 2 (Codex's item 4): A GRAINED COLUMN IS MEASURED
+            # AS IT LEAVES, read as `validate` reads it -- a held column's
+            # cells as written, a pooled column's at its rung -- so every
+            # recount below names what the file holds, the G1 floor's
+            # valid dates and the count's moved rows included.
+            seen = (
+                left
+                if grain.rung == grains.HELD
+                else grains.coarse_cells(left, grain, None, frozenset(_hole_spellings(column)))
+            )
+            if not (
+                _counted_member(column, profile)
+                and isinstance(column.facts, contract.DatetimeFacts)
+            ):
+                written = seen
+            spelled = seen
+            if unwritten > 0:
+                notes += [
+                    _deviation(
+                        column.name,
+                        "time_grain",
+                        "every made-up value written as a valid value",
+                        f"{unwritten} made-up values left as made up",
+                        "The column's reading is not one the twin writes, so "
+                        "these cells do not parse as the real column's dates "
+                        "or times do.",
+                    )
+                ]
+        left = []
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
         # is what every measurement below owes (review item
         # P4-G3-R5-F2). THE SWAP AND THE READING ARE NOT THE SAME
@@ -63409,7 +63441,7 @@ def _grain_words(column: contract.ColumnBlock, rows: int) -> int:
 
 def _inside_the_grain(
     column: contract.ColumnBlock, cells: "list[str]", words: "list[int]"
-) -> "list[str]":
+) -> "tuple[list[str], int]":
     """A column's cells as they leave, inside its published grain (method G7.13, plan P4-D417).
 
     POOLED: each cell the description's own machinery wrote is the start
@@ -63421,12 +63453,14 @@ def _inside_the_grain(
     the record's last span or the method's fixed one (`grains.filled`),
     with the word of the row it first stands on, and every row holding
     it takes the same; two made-up values never take one, so the census
-    of repetition the column publishes holds. A cell absent, or that the
-    record cannot write, leaves as it was written.
+    of repetition the column publishes holds. A cell absent leaves as it
+    was written. Returns the cells and how many made-up values the record
+    could not write as a valid value (the generator names them; none on
+    any member this module writes).
     """
     grain = column.time_grain
     if grain is None or len(words) != len(cells):
-        return cells
+        return cells, 0
     holes = _hole_spellings(column)
     found: "list[str]" = []
     if grain.rung != grains.HELD:
@@ -63456,23 +63490,60 @@ def _inside_the_grain(
                 if parsing.parse_datetime(rejoined, grain.reading.member) is not None:
                     drawn = rejoined
             found += [drawn]
-        return found
-    span = grains.held_span(grain)
+        return found, 0
     padded = grains.column_padded(cells, grain.reading, True)
+    # THE PUBLISHED LAYOUTS NO DATE WEARS (repair round 2, the verify's item
+    # 2): a made-up value in a layout the held block names -- `pending`'s
+    # seven letters -- that no valid value of the column's reading can
+    # wear stands for real cells that do not read either; it leaves as
+    # made up, so the layout census and its lengths hold, and every cell
+    # standing for a readable one is still a valid date.
+    facts = column.facts
+    published: "dict[str, bool]" = {}
+    convention = ""
+    if isinstance(facts, contract.IdentifierFacts):
+        convention = _layout_convention(facts)
+        for form in facts.layout_forms:
+            if form != contract.WITHHELD:
+                published[form] = True
+    values: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell not in holes and parsing.folded(cell):
+            values[cell] = True
+    spans = grains.held_spans(grain, len(values))
+    values = {}
     made: "dict[str, str]" = {}
     taken: "dict[str, bool]" = {}
     first_row: "dict[str, int]" = {}
+    unwritten = 0
     for place in range(len(cells)):
         cell = cells[place]
         if cell in holes or not parsing.folded(cell) or cell in made:
             continue
-        valid = grains.filled(cell, grain.reading, words[place], span, padded, taken)
+        first_row[cell] = place
+        if (
+            published
+            and parsing.layout_form(cell, convention) in published
+            and not grains.wears_a_date(cell, grain.reading, padded)
+        ):
+            made[cell] = cell
+            continue
+        # Span by span, deepest first from the one whose capacity holds the
+        # column's count (Codex's item 1); and where none can take it
+        # unrepeated, a repeat in the last: a valid value, never made up.
+        valid: "str | None" = None
+        for span in spans:
+            valid = grains.filled(cell, grain.reading, words[place], span, padded, taken)
+            if valid is not None:
+                break
+        if valid is None:
+            valid = grains.filled(cell, grain.reading, words[place], spans[len(spans) - 1], padded, {})
         if valid is None:
             valid = cell
+            unwritten = unwritten + 1
         else:
             taken[valid] = True
         made[cell] = valid
-        first_row[cell] = place
     # THE HELD BLOCK'S LENGTHS (repair round 1): a made-up value whose
     # length no valid value on its side of the code alphabet wears took
     # another length; where that leaves the column without its longest or
@@ -63485,7 +63556,7 @@ def _inside_the_grain(
         for cell in made:
             if len(cell) != extreme:
                 continue
-            again = grains.filled(cell, grain.reading, words[first_row[cell]], span, padded, taken, True)
+            again = grains.filled(cell, grain.reading, words[first_row[cell]], spans[0], padded, taken, True)
             if again is not None:
                 if made[cell] in taken:
                     del taken[made[cell]]
@@ -63494,7 +63565,7 @@ def _inside_the_grain(
             break
     for cell in cells:
         found += [made[cell] if cell in made else cell]
-    return found
+    return found, unwritten
 
 
 def _filled_to_the_count(
@@ -63529,6 +63600,10 @@ def _filled_to_the_count(
     ladder = facts.date_percentiles
     texts = [text for text in ladder.rungs if text is not None]
     texts += [text for text in (ladder.minimum, ladder.maximum) if text is not None]
+    protected = _count_protections(facts, rung, first, last)
+    if protected is None:
+        return cells
+    kept, fences = protected
     for tail in (facts.low_tail, facts.high_tail):
         if tail is not None:
             texts += [tail.boundary]
@@ -63562,13 +63637,13 @@ def _filled_to_the_count(
             pinned[start] = (min(low, rank), max(high, rank))
     for ordinal, _rows in facts.heavy_dates:
         moment = grains.ordinal_moment(ordinal, facts.resolution)
-        heavy = min(max(grains.start_of(moment, rung), first), last)
-        points += [heavy]
-        if heavy in pinned:
-            del pinned[heavy]
+        points += [min(max(grains.start_of(moment, rung), first), last)]
+    for bucket in kept:
+        if bucket in pinned:
+            del pinned[bucket]
     moved = grains.count_filled(
         buckets, points, (first, last), rung, grain.reading.kind, grain.finest,
-        column.n_distinct, pinned,
+        column.n_distinct, pinned, fences,
     )
     if not moved:
         return cells
@@ -63576,6 +63651,42 @@ def _filled_to_the_count(
         grains.moved_to(cells[place], grain.reading, moved[place]) if place in moved else cells[place]
         for place in range(len(cells))
     ]
+
+
+def _count_protections(
+    facts: contract.DatetimeFacts, rung: str, first: int, last: int
+) -> "tuple[list[int], tuple[int | None, int | None]] | None":
+    """The buckets that give no row and the tails' fences of the count at the rung (G7.13; repair round 2).
+
+    THE TAILS, THE SPAN'S ENDS AND THE HEAVY DATES GIVE NO ROW (Codex's
+    item 2): a bucket a tail names -- its boundary or one of its values
+    --, a heavy date's and the span's first and last are never donors,
+    and no row moves at or beyond a tail's boundary
+    (`grains.count_filled`'s fences), so each tail keeps its rows, its
+    values and its distances. None where a published point does not read.
+    """
+    kept: "list[int]" = [first, last]
+    fences: "list[int | None]" = [None, None]
+    tails = (facts.low_tail, facts.high_tail)
+    for side in range(2):
+        tail = tails[side]
+        if tail is None:
+            continue
+        named = [tail.boundary]
+        for value in tail.values or ():
+            named += [value]
+        for text in named:
+            moment = grains.canonical_moment(text, facts.resolution)
+            if moment is None:
+                return None
+            bucket = min(max(grains.start_of(moment, rung), first), last)
+            kept += [bucket]
+            if text == tail.boundary:
+                fences[side] = bucket
+    for ordinal, _rows in facts.heavy_dates:
+        moment = grains.ordinal_moment(ordinal, facts.resolution)
+        kept += [min(max(grains.start_of(moment, rung), first), last)]
+    return kept, (fences[0], fences[1])
 
 
 def _sequence_start(profile: contract.Profile, column: contract.ColumnBlock) -> int:
@@ -64841,6 +64952,19 @@ def _width_notes(
         "or a length check developed against the twin can behave "
         "differently on the real table.",
     }
+    if column.time_grain is not None:
+        # THE G1 FLOOR OVER A LENGTH (plan P4-D417, repair round 2): a held
+        # column of dates or times writes valid values, and a length the
+        # description withholds the form of may be one no valid value of
+        # the column's reading wears.
+        for key in ("min_length", "max_length"):
+            reasons[key] = (
+                "The twin writes every made-up date or time of this held "
+                "column as a valid one, and no valid one of its reading is "
+                "as long as this length the real column holds in a form the "
+                "description withholds, so a length check developed against "
+                "the twin can behave differently on the real table."
+            )
     return _named_miss(
         column, "min_length", facts.min_length, min(lengths),
         reasons["min_length"],

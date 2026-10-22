@@ -4582,7 +4582,12 @@ def build_document(
             and not declined
         ):
             described = taxonomy.with_time_grain(
-                described_from(grains.coarse_cells(cells, published_grain), None),
+                described_from(
+                    grains.coarse_cells(
+                        cells, published_grain, None, frozenset(described.absent_spellings)
+                    ),
+                    None,
+                ),
                 grains.record(published_grain),
             )
         elif name in withheld_names:
@@ -6083,7 +6088,12 @@ def _grain_walk(
         if cell in memo:
             moments += [memo[cell]]
             continue
-        moment = grains.moment_of(cell, time_reading)
+        # AN ABSENT CELL IS NO MOMENT (repair round 2, Codex's item 3): a
+        # spelling of no value that reads as a date -- one declared with
+        # `--missing-value`, a placeholder day such as `1900-01-01` -- is
+        # kept out of the walk, so it is never coarsened into a present
+        # cell nor counted into a span.
+        moment = None if cell in absent else grains.moment_of(cell, time_reading)
         if moment is not None:
             own = grains.finest_of(cell, time_reading)
             if grains.RANK[own] > grains.RANK[finest]:

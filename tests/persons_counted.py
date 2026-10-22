@@ -275,26 +275,39 @@ def grain_groups(raw: "list[str]", values: "list[str]", people: "list[str]",
     unlisted bucket's: each bucket at the rung is counted (`bucket`). So
     are the cells no date reads, which the block prints as `n_unparsed`
     (`unread`), and each written member a joint column's `resolution_mix`
-    counts (`member`).
+    counts (`member`). Repair round 2 (the verify's items 1 and 3): each
+    readable cell's written shape -- a figure `9`, a letter `a` or `A`,
+    the rest as written, which `datetime_separators` and
+    `date_field_widths` count unions of (`shape`) -- and its UTC offset,
+    which `utc_offsets` prints (`offset`); and every spelling of nobody the
+    package knows is no cell at all, beside the block's own.
     """
     grain = block.get("time_grain")
     if not isinstance(grain, dict) or grain.get("rung") == "held" or not grain.get("spans"):
         return []
     absent = block.get("missing_by_source")
     nobody = {parsing.folded(f"{key}") for key in absent} if isinstance(absent, dict) else set()
+    nobody |= _NOBODY
     buckets: "list[str]" = []
     unread: "list[str]" = []
     members: "list[str]" = []
+    written: "list[str]" = []
+    offsets: "list[str]" = []
     joint = block.get("format") == "iso-mixed"
     for cell, at in zip(raw, values):
         folded = parsing.folded(cell)
-        reads = bool(folded) and _grain_moment(cell, grain, member) is not None
+        reads = folded not in nobody and _grain_moment(cell, grain, member) is not None
         buckets += [at if reads else ""]
         unread += ["x" if folded and folded not in nobody and not reads else ""]
         members += [("datetime" if parsing.parse_datetime(cell, "iso-datetime") is not None else "date")
                     if joint and reads else ""]
+        # (case marked by `u` and `l`, since `held_by` folds the key)
+        written += [re.sub(r"[A-Z]", "u", re.sub(r"[a-z]", "l", re.sub(r"[0-9]", "9", cell))) if reads else ""]
+        offset = re.search(r"[0-9](Z|z|[+-][0-9]{2}:?[0-9]{2})$", cell) if reads else None
+        offsets += [offset.group(1) if offset is not None else ""]
     found: "list[str]" = []
-    for label, keyed in (("bucket", buckets), ("unread", unread), ("member", members)):
+    for label, keyed in (("bucket", buckets), ("unread", unread), ("member", members),
+                         ("shape", written), ("offset", offsets)):
         holders, _rows, _attached = held_by(keyed, people)
         for key, who in sorted(holders.items()):
             if len(who) < FLOOR:
@@ -1130,3 +1143,103 @@ def two_card_table(rows: int) -> str:
         lines += [[f"REC{20000000 + 7 * person:08d}", f"H{5000 + person // 4:04d}", card,
                    f"{draw.uniform(3, 150):.1f}"]]
     return _lines("patient,acct,card,lab", lines)
+
+
+# -- lane PS's repair round 2 (plan P4-D417): the verify's and Codex's shapes --
+
+
+def _day_in(draw: random.Random, first: datetime.date, days: int) -> datetime.date:
+    return first + datetime.timedelta(days=draw.randrange(days))
+
+
+def offset_stamps_table() -> str:
+    """The verify's item 1: 300 patients x 10 stamps to the second, 3 of them writing `+05:30` on every row.
+
+    Every other patient writes `+00:00`, so the offset `+05:30` is three
+    people's: no `utc_offsets` entry may name it.
+    """
+    draw = random.Random(11)
+    lines = []
+    for person in range(300):
+        for _visit in range(10):
+            moment = datetime.datetime(2022, 1, 1) + datetime.timedelta(seconds=draw.randrange(730 * 86400))
+            lines += [[f"P{100000 + person}",
+                       moment.strftime("%Y-%m-%dT%H:%M:%S") + ("+05:30" if person < 3 else "+00:00")]]
+    return _lines("patient,event_ts", lines)
+
+
+def unread_dates_table(pending: int = 12, longer: int = 3) -> str:
+    """The verify's item 2: 200 patients x 10 ISO dates; ``pending`` patients write `pending` once, ``longer`` `NOT DONE YET`.
+
+    Twelve people's `pending` is a published layout no date wears; three
+    people's twelve-letter phrase is a withheld one.
+    """
+    draw = random.Random(11)
+    lines = []
+    for person in range(200):
+        for visit in range(10):
+            cell = _day_in(draw, datetime.date(2022, 1, 1), 730).isoformat()
+            if visit == 0 and person < pending:
+                cell = "pending"
+            elif visit == 0 and pending <= person < pending + longer:
+                cell = "NOT DONE YET"
+            lines += [[f"P{100000 + person}", cell]]
+    return _lines("patient,visit_date", lines)
+
+
+def short_span_table() -> str:
+    """Codex's item 1: 100 patients x 10 rows; one `6/15/2024`, six of `05/01/2024` .. `05/06/2024`, 93 of `06/15/2024`.
+
+    Held: its eight different values against a deepest span of one day.
+    """
+    lines = []
+    for person in range(100):
+        cell = "6/15/2024" if person == 0 else (f"05/0{person}/2024" if person <= 6 else "06/15/2024")
+        lines += [[f"P{person:04d}", cell] for _visit in range(10)]
+    return _lines("patient,seen", lines)
+
+
+def alternate_years_table() -> str:
+    """Codex's item 2: 450 patients x 2 months each, 15 patients a year, every other year from 1980 (months by Random(41))."""
+    draw = random.Random(41)
+    lines = []
+    for person in range(450):
+        year = 1980 + 2 * (person // 15)
+        lines += [[f"P{person:04d}", f"{year}-{draw.randint(1, 12):02d}"] for _visit in range(2)]
+    return _lines("patient,seen", lines)
+
+
+def absent_dates_table(spelling: str) -> str:
+    """Codex's item 3: 200 patients x 3 rows; patients 0-29 write ``spelling``, a spelling of no value that reads as a date."""
+    lines = []
+    for person in range(200):
+        for visit in range(3):
+            day = datetime.date(2022, 1, 1) + datetime.timedelta(days=3 * person + visit)
+            lines += [[f"P{person:04d}", spelling if person < 30 else day.isoformat()]]
+    return _lines("patient,seen", lines)
+
+
+def one_short_cell_table() -> str:
+    """Codex's item 4: 200 patients x 2 ISO dates and one extra cell `x` for the first: held, `min_length` 1."""
+    draw = random.Random(4)
+    lines = [["P0000", "x"]]
+    for person in range(200):
+        lines += [[f"P{person:04d}", _day_in(draw, datetime.date(2022, 1, 1), 700).isoformat()] for _visit in range(2)]
+    return _lines("patient,seen", lines)
+
+
+def nobody_dates_table() -> str:
+    """The verify's item 3: 3 patients write `NULL` on four rows, 2 write `N/A` on two, 20 leave one row blank."""
+    draw = random.Random(11)
+    lines = []
+    for person in range(200):
+        for visit in range(10):
+            cell = _day_in(draw, datetime.date(2022, 1, 1), 730).isoformat()
+            if person < 3 and visit < 4:
+                cell = "NULL"
+            elif 3 <= person < 5 and visit < 2:
+                cell = "N/A"
+            elif 10 <= person < 30 and visit == 9:
+                cell = ""
+            lines += [[f"P{100000 + person}", cell]]
+    return _lines("patient,visit_date", lines)

@@ -1050,9 +1050,17 @@ def coarse_cell(
 
 
 def coarse_cells(
-    cells: "list[str]", grain: Grain, padded: "bool | None" = None
+    cells: "list[str]",
+    grain: Grain,
+    padded: "bool | None" = None,
+    absent: "frozenset[str]" = frozenset(),
 ) -> "list[str]":
-    """Every cell of a column at a grain's rung; a cell that does not read is kept as written."""
+    """Every cell of a column at a grain's rung; a cell that does not read, or is ``absent``, is kept as written.
+
+    ``absent``: the spellings the column reads as no value (repair round 2,
+    Codex's item 3), kept as written even where they read as a date, so
+    an absent cell stays absent.
+    """
     rung, first, last = grain.spans[len(grain.spans) - 1]
     if rung != grain.rung:
         return cells
@@ -1063,7 +1071,7 @@ def coarse_cells(
         if cell in memo:
             found += [memo[cell]]
             continue
-        made = coarse_cell(cell, grain.reading, rung, first, last, shown)
+        made = None if cell in absent else coarse_cell(cell, grain.reading, rung, first, last, shown)
         written = cell if made is None else made
         if len(memo) < 65536:
             memo[cell] = written
@@ -1182,6 +1190,7 @@ def count_filled(
     finest: str,
     target: int,
     pinned: "dict[int, tuple[int, int]] | None" = None,
+    fences: "tuple[int | None, int | None]" = (None, None),
 ) -> "dict[int, int]":
     """Rows moved to empty buckets so the column holds ``target`` different ones (method G7.13).
 
@@ -1199,6 +1208,11 @@ def count_filled(
     its rows, and every census at the rung its counts. Inside each stretch
     donors give fullest first (ties earlier), then the rung below, then
     the rung above, each row to the earliest empty bucket of its key.
+    ``fences`` (repair round 2, Codex's item 2): the buckets of the low
+    and the high tail's boundaries; no stretch at or below the low one, or
+    at or above the high one, moves a row, so a tail keeps its rows, its
+    values and its distances (the caller leaves the tails' buckets and the
+    span's ends out of ``pinned``, so none of them gives a row either).
     Returns the moved rows and their buckets.
 
     Guarantees: a function of its arguments. Raises nothing. No I/O.
@@ -1224,9 +1238,14 @@ def count_filled(
         seen += len(rows_of[bucket])
     ends = sorted({first, last} | {point for point in points if first <= point <= last})
     steps = 4 * len(buckets) + 4096
+    low_fence, high_fence = fences
     for place in range(len(ends) - 1):
         low = ends[place]
         high = ends[place + 1]
+        if (low_fence is not None and high <= low_fence) or (
+            high_fence is not None and low >= high_fence
+        ):
+            continue
         givers: "list[tuple[int, list[int]]]" = []
         for _size, bucket in sorted(
             (-len(rows_of[bucket]), bucket)
@@ -1306,9 +1325,48 @@ def held_span(grain: Grain) -> "tuple[int, int]":
     return first, end
 
 
+def held_spans(grain: Grain, values: int) -> "list[tuple[int, int]]":
+    """Where a held column's made-up values are drawn, in order (the G1 floor; repair round 2).
+
+    THE CAPACITY IS RESOLVED BEFORE ANY CELL IS FILLED (Codex's item 1):
+    the spans the record publishes, deepest first, then the method's fixed
+    span; the chain starts at the first whose days (seconds, where the
+    reading writes a clock) number at least twice ``values``, the made-up
+    values to write, so a span too narrow for the column's count of
+    different values is never asked to hold it. A value its span cannot
+    take is drawn from the next one (`filled`, asked span by span).
+    """
+    chain: "list[tuple[int, int]]" = []
+    for place in range(len(grain.spans) - 1, -1, -1):
+        rung, first, last = grain.spans[place]
+        end = after(last, rung)
+        if grain.reading.kind == CLOCK:
+            end = min(end, _NS_DAY)
+        chain += [(first, end)]
+    chain += [fixed_span(grain.reading.kind)]
+    unit = _NS_DAY if grain.reading.kind in (DATE, COUNTED) else _NS_SECOND
+    for place in range(len(chain)):
+        first, end = chain[place]
+        if (end - first) // unit >= values:
+            return chain[place:]
+    return chain[len(chain) - 1:]
+
+
+def wears_a_date(cell: str, reading: Reading, padded: bool) -> bool:
+    """Whether a held column's made-up cell is in a form some valid value of its reading wears (repair round 2).
+
+    Asked of a made-up cell whose layout the held block PUBLISHES: a form
+    no date, time or count of the column's reading can wear (a word such
+    as `pending`) stands for real cells that do not read either, so the
+    twin writes it as made up, and the layout census holds (verify item 2).
+    """
+    return filled(cell, reading, 0, fixed_span(reading.kind), padded, {}, False, False) is not None
+
+
 def filled(
     cell: str, reading: Reading, word: int, span: "tuple[int, int]",
     padded: bool, taken: "dict[str, bool]", keep_length: bool = False,
+    own: bool = True,
 ) -> "str | None":
     """A made-up cell of a held column written as a VALID value in its own layout (the G1 floor).
 
@@ -1318,7 +1376,8 @@ def filled(
     is written `T`, a zulu letter `Z`, an offset as nought hours. The value
     is drawn uniformly inside ``span`` and stepped forward to the first one
     the layout can write and ``taken`` does not hold. None where none is
-    found, or the member is not one this module writes.
+    found, or the member is not one this module writes. ``own`` false
+    asks the made-up cell's very form alone, never the member's own form.
     """
     first, end = span
     if end <= first:
@@ -1334,7 +1393,7 @@ def filled(
             made = _filled_layout(cell, reading, word, span, taken)
         else:
             made = _filled_fields(cell, reading, word, span, padded, taken, fields)
-    if made is None:
+    if made is None and own:
         made = _filled_own(cell, reading, word, span, taken)
     return made
 
@@ -1463,6 +1522,11 @@ def _own_form(
         clock = f"{parts.hour:02d}:{parts.minute:02d}"
         seconds = f"{clock}:{parts.second:02d}"
         found = [day, f"{day} {clock}", f"{day} {seconds}", f"{day}T{seconds}"]
+        # ...and the day with a two-figure field written with one figure,
+        # where the member reads it so (repair round 2): a held column of
+        # `6/15/2024` keeps a nine-character length as a valid date.
+        for variant in _unpadded_days(day):
+            found += [variant]
     for text in found:
         if size and len(text) != size:
             continue
@@ -1475,6 +1539,24 @@ def _own_form(
         ):
             return text
     return None
+
+
+def _unpadded_days(day: str) -> "list[str]":
+    """A written day with each two-figure field opening with a nought written with one figure, alone and together."""
+    places: "list[int]" = []
+    for start, end, kind in _runs(day):
+        if kind == _DIGIT and end - start == 2 and day[start:start + 1] == "0":
+            places += [start]
+    found: "list[str]" = []
+    for chosen in range(1, 2 ** len(places)):
+        text = ""
+        last = 0
+        for place in range(len(places)):
+            if chosen & (1 << place):
+                text = text + day[last:places[place]]
+                last = places[place] + 1
+        found += [text + day[last:]]
+    return found
 
 
 def _filled_layout(

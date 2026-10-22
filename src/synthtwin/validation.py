@@ -5079,7 +5079,7 @@ def measure(
     # description names a `time_grain` rung is measured at that rung, every
     # check of it -- the redescription and the checks that count the file's
     # own cells -- over its cells written as the starts of their buckets.
-    table = _at_their_grains(table, published_grains(description))
+    table = _at_their_grains(table, published_grains(description), description)
     clocked = _clocks_published_as_numbers(description, table)
     if clocked:
         raise errors.ProfileError(
@@ -5200,7 +5200,9 @@ def measure(
 
 
 def _at_their_grains(
-    table: reading.Table, grained: "dict[str, grains.Grain]"
+    table: reading.Table,
+    grained: "dict[str, grains.Grain]",
+    description: "contract.Profile | None" = None,
 ) -> reading.Table:
     """The checked table with each grained column's cells at its published rung (V14).
 
@@ -5208,18 +5210,35 @@ def _at_their_grains(
     is the same object's. A table read in groups of columns (lane SR) is
     returned as it is: its columns are asked of `reading.column_values`,
     and the redescription reads the grain itself (`profile.build_document`'s
-    ``time_grains``).
+    ``time_grains``). A cell the description reads as no value -- a
+    spelling its block publishes as absent, a blank, a word of the
+    vocabulary or one declared with `--missing-value` -- is kept as
+    written, even where it reads as a date (repair round 2, Codex's item 3).
 
-    Guarantees: a function of the two. Raises nothing. No I/O.
+    Guarantees: a function of the three. Raises nothing. No I/O.
     """
     if not grained or table.source is not None:
         return table
+    settings = settings_for(description) if description is not None else None
+    blocks: "dict[str, contract.ColumnBlock]" = {}
+    for block in description.columns if description is not None else ():
+        blocks[block.name] = block
     columns: "list[list[str]]" = []
     changed = False
     for place in range(len(table.columns)):
         name = table.column_names[place] if place < len(table.column_names) else ""
         if name in grained:
-            columns += [grains.coarse_cells(table.columns[place], grained[name])]
+            cells = table.columns[place]
+            absent: "dict[str, bool]" = {}
+            if name in blocks:
+                for spelling in blocks[name].missing_by_source:
+                    absent[spelling] = True
+            if settings is not None:
+                flags = taxonomy.missing_cells(cells, settings)
+                for row in range(len(cells)):
+                    if flags[row]:
+                        absent[cells[row]] = True
+            columns += [grains.coarse_cells(cells, grained[name], None, frozenset(absent))]
             changed = True
         else:
             columns += [table.columns[place]]

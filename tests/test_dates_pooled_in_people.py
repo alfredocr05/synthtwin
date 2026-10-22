@@ -395,7 +395,7 @@ def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathli
     assert _block(original, "seen")["time_grain"]["rung"] == "month"
     changes = {
         "finer": "TG1", "mismatched": "TG1", "unreached": "TG1", "rows": "TG1", "people": "TG1",
-        "start": "TG1", "held": "NF129", "reading": "NF128",
+        "start": "TG1", "held": "NF129", "reading": "NF128", "population": "TG1",
     }
     for change, rule in changes.items():
         document = json.loads(json.dumps(original))
@@ -411,6 +411,9 @@ def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathli
             grain["rows"] = 1199
         elif change == "people":
             grain["people"] = 200
+        elif change == "population":
+            # Codex's item 5 (repair round 2): more people than the table's rows.
+            grain["people"] = 1000000
         elif change == "held":
             grain["rung"] = grains.HELD
         elif change == "reading":
@@ -913,12 +916,179 @@ def test_the_count_at_the_rung_is_the_oracles() -> None:
                 pinned[point] = (low, draw.randint(low, below[point] + cells.count(point) - 1))
         target = len(held) + draw.randint(1, 12)
         first, last = starts[0], starts[-1]
+        # Repair round 2: a tail's fences, at a published point or none.
+        fences: "tuple[datetime.datetime | None, datetime.datetime | None]" = (None, None)
+        if points and draw.random() < 0.5:
+            fences = (points[0] if draw.random() < 0.7 else None, points[-1] if draw.random() < 0.7 else None)
         product = grains.count_filled(
             [None if cell is None else moment(cell) for cell in cells],
             [moment(point) for point in points], (moment(first), moment(last)), rung, kind,
             finest, target, {moment(point): ranks for point, ranks in pinned.items()},
+            (None if fences[0] is None else moment(fences[0]), None if fences[1] is None else moment(fences[1])),
         )
-        oracle = module.pooled_count_filled(cells, points, first, last, rung, kind, finest, target, pinned)
+        oracle = module.pooled_count_filled(cells, points, first, last, rung, kind, finest, target, pinned, fences)
         assert product == {row: moment(start) for row, start in oracle.items()}, (rung, kind, finest)
         moves += len(product)
     assert moves > 100
+
+
+# -- repair round 2 (the combined verify's items 1 to 4, Codex's items 1 to 5) --
+
+
+def test_an_offset_few_people_write_is_never_printed(tmp_path: pathlib.Path) -> None:
+    """The verify's item 1: three patients' `+05:30` beside 297 patients' `+00:00` is printed nowhere.
+
+    The walk counts each offset in people with the stamps' written shapes
+    (`_grain_walk`'s shaped key); the counter written apart keys each
+    readable cell by its offset and its shape too, so K-S3-65 sees the
+    route (red on `offset_off` either way).
+    """
+    described = _profiled(tmp_path, "offs", persons_counted.offset_stamps_table(), "--identifier", "patient")
+    block = _block(described, "event_ts")
+    assert "+05:30" not in json.dumps(block), block.get("utc_offsets")
+    assert _counted_few(tmp_path, "offs") == 0
+    twin, _real = _generated_and_validated(tmp_path, "offs")
+    assert "event_ts" not in twin, twin
+    assert _parses(_column(tmp_path / "offs-twin.csv", "event_ts"), "%Y-%m-%dT%H:%M:%S%z") == 0
+
+
+def test_a_published_layout_no_date_wears_is_written_as_made_up(tmp_path: pathlib.Path) -> None:
+    """The verify's item 2: twelve people's `pending` beside ISO dates keeps its published layout on the twin.
+
+    The column is held (three people's `NOT DONE YET`); the made-up cells of
+    the layout `&&&&&&&` no date wears stand for real cells that do not
+    read either and leave as made up, every other cell is a valid date, and
+    the one miss left is the longest length, a withheld form's, named in
+    the twin's report as the G1 floor's limit (P4-D417, repair round 2).
+    """
+    described = _profiled(tmp_path, "unread", persons_counted.unread_dates_table(), "--identifier", "patient")
+    block = _block(described, "visit_date")
+    assert block["role"] == "identifier" and block["layout_forms"].get("&&&&&&&") == 12, block["layout_forms"]
+    quiet = io.StringIO()
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        assert cli.main(["generate", f"{tmp_path / 'unread-profile.json'}", "--out-dir", f"{tmp_path}",
+                         "--seed", "0", "--replace"]) == 0
+    cells = _column(tmp_path / "unread-twin.csv", "visit_date")
+    unread = [cell for cell in cells if _parses([cell], "%Y-%m-%d")]
+    assert len(unread) == 12 and all(len(cell) == 7 and cell.isalpha() for cell in unread), unread
+    outcome = validation.measure(contract.load_profile(f"{tmp_path / 'unread-profile.json'}"),
+                                 f"{tmp_path / 'unread-twin.csv'}")
+    missed = sorted({f"{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED})
+    assert missed == ["length.max"], missed
+    assert "max_length" in (tmp_path / "unread-twin-report.txt").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("shape", ("pending", "short"))
+def test_a_length_no_valid_date_wears_is_named_in_the_twins_report(tmp_path: pathlib.Path, shape: str) -> None:
+    """The verify's item 2 (`pending`, three people) and Codex's item 4 (one cell `x`): the report names the length.
+
+    The G1 floor writes valid dates, and no valid ISO date is seven or one
+    character long: `validate` misses `min_length`, and the twin's own
+    report, measured on the cells as they leave, names the same miss.
+    """
+    text = persons_counted.unread_dates_table(3, 0) if shape == "pending" else persons_counted.one_short_cell_table()
+    column = "visit_date" if shape == "pending" else "seen"
+    described = _profiled(tmp_path, shape, text, "--identifier", "patient")
+    assert _block(described, column)["role"] == "identifier"
+    quiet = io.StringIO()
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        assert cli.main(["generate", f"{tmp_path / (shape + '-profile.json')}", "--out-dir", f"{tmp_path}",
+                         "--seed", "0", "--replace"]) == 0
+    assert _parses(_column(tmp_path / f"{shape}-twin.csv", column), "%Y-%m-%d") == 0
+    outcome = validation.measure(contract.load_profile(f"{tmp_path / (shape + '-profile.json')}"),
+                                 f"{tmp_path / (shape + '-twin.csv')}")
+    missed = sorted({f"{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED})
+    assert missed == ["length.min"], missed
+    report = (tmp_path / f"{shape}-twin-report.txt").read_text(encoding="utf-8")
+    assert "min_length" in report and "no valid one of its reading" in " ".join(report.split()), report[-3000:]
+
+
+def test_a_span_too_narrow_for_the_count_never_leaves_a_made_up_cell(tmp_path: pathlib.Path) -> None:
+    """Codex's item 1: eight different held values against a deepest span of one day.
+
+    The capacity is resolved before any cell is filled (`grains.held_spans`):
+    the twin draws from the first published span wide enough, so every
+    cell is a valid date and the count of different values holds.
+    """
+    described = _profiled(tmp_path, "narrow", persons_counted.short_span_table(), "--identifier", "patient")
+    block = _block(described, "seen")
+    assert block["role"] == "identifier" and block["n_distinct"] == 8, block["n_distinct"]
+    assert block["time_grain"]["spans"][-1] == ["day", "2024-06-15", "2024-06-15"], block["time_grain"]
+    twin, _real = _generated_and_validated(tmp_path, "narrow")
+    cells = _column(tmp_path / "narrow-twin.csv", "seen")
+    assert _parses(cells, "%m/%d/%Y") == 0, sorted(set(cells))[:5]
+    assert len(set(cells)) == 8 and "seen" not in twin, (sorted(set(cells)), twin)
+
+
+def test_a_tail_keeps_its_rows_when_the_count_is_filled(tmp_path: pathlib.Path) -> None:
+    """Codex's item 2: the count at the year never moves a row into or out of a tail.
+
+    1980's thirty rows are the low tail (boundary `1982-01`, which the p05
+    rank also holds); at seed 2 the count at the rung once moved a row of
+    1982 into 1981, giving the tail 31 rows and a second value.
+    """
+    described = _profiled(tmp_path, "years", persons_counted.alternate_years_table(), "--identifier", "patient")
+    block = _block(described, "seen")
+    assert block["time_grain"]["rung"] == "year" and block["low_tail"]["rows"] == 30, block["low_tail"]
+    quiet = io.StringIO()
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        assert cli.main(["generate", f"{tmp_path / 'years-profile.json'}", "--out-dir", f"{tmp_path}",
+                         "--seed", "2", "--replace"]) == 0
+    outcome = validation.measure(contract.load_profile(f"{tmp_path / 'years-profile.json'}"),
+                                 f"{tmp_path / 'years-twin.csv'}")
+    missed = sorted({f"{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED})
+    assert missed == [], missed
+
+
+def test_the_counts_protections_are_the_oracles(tmp_path: pathlib.Path) -> None:
+    """Method G7.13, repair round 2: the buckets that give no row and the fences, product against oracle."""
+    from test_oracle_rule_witnesses import ORACLE_MODULE as module
+
+    for stem, text in (("years", persons_counted.alternate_years_table()),
+                       ("visits", _visits(1200, 400, datetime.date(2023, 1, 1), 730, 7))):
+        _profiled(tmp_path, stem, text, "--identifier", "patient")
+        loaded = contract.load_profile(f"{tmp_path / (stem + '-profile.json')}")
+        column = [one for one in loaded.columns if one.name == "seen"][0]
+        block = _block(json.loads((tmp_path / f"{stem}-profile.json").read_text(encoding="utf-8")), "seen")
+        grain = column.time_grain
+        assert grain is not None and isinstance(column.facts, contract.DatetimeFacts)
+        rung, first, last = grain.spans[-1]
+        found = generation._count_protections(column.facts, rung, first, last)
+        assert found is not None
+        kept, fences = found
+
+        def when(moment: int) -> datetime.datetime:
+            return datetime.datetime(1970, 1, 1) + datetime.timedelta(microseconds=moment // 1000)
+
+        oracle_kept, oracle_fences = module.pooled_protections(block, rung, when(first), when(last))
+        assert sorted({when(one) for one in kept}) == oracle_kept, stem
+        assert tuple(None if one is None else when(one) for one in fences) == oracle_fences, stem
+
+
+@pytest.mark.parametrize(("spelling", "extra"), (("2020-06-15", ("--missing-value", "2020-06-15")),
+                                                 ("1900-01-01", ())))
+def test_an_absent_date_stays_absent(tmp_path: pathlib.Path, spelling: str, extra: "tuple[str, ...]") -> None:
+    """Codex's item 3: thirty patients' spelling of no value that reads as a date is never pooled into a present cell.
+
+    The walk reads it as no moment, so it enters no span; the description
+    loads (TG1's rows are the present cells); and `validate` keeps it
+    absent on the real table and on the twin, in the whole-table reading
+    and in the redescription.
+    """
+    described = _profiled(tmp_path, "absent", persons_counted.absent_dates_table(spelling), "--identifier",
+                          "patient", *extra)
+    block = _block(described, "seen")
+    assert block["n_present"] == 510 and block["n_missing"] == 90, (block["n_present"], block["n_missing"])
+    grain = block["time_grain"]
+    assert grain["rung"] != grains.HELD and grain["spans"][0][1] >= "2022", grain
+    twin, real = _generated_and_validated(tmp_path, "absent")
+    assert twin == set() and real == set(), (twin, real)
+    assert _column(tmp_path / "absent-twin.csv", "seen").count(spelling) == 90
+
+
+def test_the_counter_reads_every_spelling_of_nobody(tmp_path: pathlib.Path) -> None:
+    """The verify's item 3: two people's `N/A` beside a pooled date is no unread cell to the counter written apart."""
+    described = _profiled(tmp_path, "nobody", persons_counted.nobody_dates_table(), "--identifier", "patient")
+    assert _block(described, "visit_date")["time_grain"]["rung"] != grains.HELD
+    named = persons_counted.count_files(tmp_path / "nobody.csv", tmp_path)["named"]
+    assert not [one for one in named if "unread" in one], named

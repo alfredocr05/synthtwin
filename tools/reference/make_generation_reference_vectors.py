@@ -55215,7 +55215,44 @@ def _pooled_census_key(start, rung, kind, finest):
     return (start.weekday(), start.day, start.hour * 3600 + start.minute * 60 + start.second)
 
 
-def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target, pinned):
+def _pooled_text_moment(text):
+    """A published point's canonical text (a year, `YYYY-Qn`, a month, a day, a moment) as a `datetime`."""
+    if len(text) == 4:
+        return datetime.datetime(int(text), 1, 1)
+    if len(text) == 7 and text[5] == "Q":
+        return datetime.datetime(int(text[:4]), (int(text[6]) - 1) * 3 + 1, 1)
+    if len(text) == 7:
+        return datetime.datetime(int(text[:4]), int(text[5:7]), 1)
+    return datetime.datetime.fromisoformat(text)
+
+
+def pooled_protections(block, rung, first, last):
+    """Method G7.13 (repair round 2): the buckets that give no row, and the tails' fences, from a block's own JSON.
+
+    The span's first and last bucket, each bucket a tail names (its
+    boundary and its values) and each heavy date's never give a row; a
+    stretch at or below the low tail's boundary, or at or above the high
+    one's, moves none. Returns (sorted buckets, (low fence, high fence)).
+    """
+    def bucket(text):
+        return min(max(pooled_bucket(_pooled_text_moment(text), rung)[0], first), last)
+
+    kept = {first, last}
+    fences = [None, None]
+    for side, key in enumerate(("low_tail", "high_tail")):
+        tail = block.get(key)
+        if not tail:
+            continue
+        fences[side] = bucket(tail["boundary"])
+        kept.add(fences[side])
+        for value in tail.get("values") or ():
+            kept.add(bucket(value))
+    for entry in block.get("heavy_dates") or ():
+        kept.add(bucket(entry["date"]))
+    return sorted(kept), (fences[0], fences[1])
+
+
+def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target, pinned, fences=(None, None)):
     """Method G7.13's count at the rung, from its words, over `datetime` bucket starts.
 
     The twin holds the description's count of different buckets: where its
@@ -55226,7 +55263,8 @@ def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target
     rung just below the stretch (its last ranks, beyond every rank the rung
     is published at), then from the rung just above (its first ranks); each
     row to the earliest empty bucket of its key; until the count is met.
-    Returns {row: new bucket start}.
+    No stretch at or below ``fences``' low tail boundary, or at or above
+    its high one, moves a row (repair round 2). Returns {row: new bucket start}.
     """
     rows_of = {}
     for row, bucket in enumerate(buckets):
@@ -55243,6 +55281,8 @@ def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target
         seen += len(rows_of[bucket])
     ends = sorted({first, last} | {point for point in points if first <= point <= last})
     for low, high in zip(ends, ends[1:]):
+        if (fences[0] is not None and high <= fences[0]) or (fences[1] is not None and low >= fences[1]):
+            continue
         givers = []
         inside = [bucket for bucket in rows_of if low < bucket < high and len(rows_of[bucket]) >= 2]
         for bucket in sorted(inside, key=lambda one: (-len(rows_of[one]), one)):
