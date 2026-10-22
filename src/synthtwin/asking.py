@@ -3809,14 +3809,31 @@ def unanswered_identities(
 # is lane LISTS'; nothing here changes how a column is read.
 
 # The marks a list's values are separated by, tried in this order: a
-# semicolon, a vertical bar, a comma, and spaces (any run of them).
-_LIST_MARKS = (";", "|", ",", " ")
+# semicolon, a vertical bar, a comma, spaces (any run of them), and last
+# ANY of them at once (`_ANY_MARK`). EVERY MARK THAT MAKES A LIST IS
+# JUDGED, and the first that reaches is the one said (lane HX4's repair
+# 1: skeptic 1's item 1 and Codex's item 1). Measured on 6c566d3c, cells
+# whose mark was drawn from `;`, `,` and `|` published 40 of 40 record
+# numbers at 20,000 rows -- the first mark, `;`, left `185380,928534` one
+# value no arm reads -- and space-separated lists of comma-grouped keys
+# (`123,001 123,002`) published `123,001` on 12 rows at 600, the comma
+# judged and the spaces never tried.
+_ANY_MARK = "any"
+_LIST_MARKS = (";", "|", ",", " ", _ANY_MARK)
 _LIST_MARKS_SAID = {
     ";": "a semicolon",
     "|": "a vertical bar",
     ",": "a comma",
     " ": "a space",
+    _ANY_MARK: "semicolons, vertical bars, commas, spaces or tabs",
 }
+# What `_ANY_MARK` splits on: those four marks, and a tab, read as a space.
+_ANY_MARK_CHARACTERS = ";|, \t"
+# A list's own wrapping, taken off before its values are judged (skeptic
+# 1's item 6: `[185380, 928534]` and `'185380', '928534'` read as long
+# tails and published 1 of 40 at 600 rows on 6c566d3c): one pair of
+# square brackets around the cell, and quotes around each value.
+_LIST_QUOTES = "'\""
 # THE PADDED ROUTE READS A LIST'S VALUES FROM FOUR FIGURES UP. Below
 # that, a nought opening a part is a thousands group (`1,034`), the
 # figures after a decimal comma (`12,05`) or a short code (`001`): lane
@@ -3826,8 +3843,12 @@ _LIST_MARKS_SAID = {
 # list.
 _PADDED_LIST_FIGURES = 4
 # How many cells must hold two values or more before a column is a list:
-# one cell is a slip of a keyboard as often as a list.
-_LIST_CELLS_AT_LEAST = 2
+# ONE (lane HX4's repair 1, skeptic 1's item 2). At two, one list cell
+# undid every hold: measured on 6c566d3c, 40 six-figure keys with ONE
+# cell of two read `count`, were asked nothing and published 40 of 40
+# (339 twin cells holding one at 600 rows, 19,999 at 20,000), where the
+# same column without that cell is held by P4-D401's question.
+_LIST_CELLS_AT_LEAST = 1
 
 # Why a list's values are taken as record numbers, as the question says it.
 _LISTED_WIDE = "wide"
@@ -3837,8 +3858,8 @@ _LISTED_PERSONS = "persons"
 _LISTED_KEYS = "keys"
 _LISTED_SAID = {
     _LISTED_WIDE: (
-        "every part is written in letters, figures and hyphens, with a run "
-        "of five figures or more"
+        "every part is written in letters, figures, hyphens and "
+        "underscores, with a run of five figures or more"
     ),
     _LISTED_PADDED: (
         "every part is written in figures alone, some of them four figures "
@@ -3862,19 +3883,119 @@ _LISTED_SAID = {
 def _list_parts(cell: str, mark: str) -> "list[str]":
     """The values of one cell split on `mark`, each trimmed.
 
-    Spaces split on any run of them, so no part is empty; every other
-    mark keeps an empty part, which says the cell is no list.
+    The cell is trimmed and loses one pair of enclosing square brackets,
+    and a mark opening or closing it opens or closes no value (skeptic
+    1's item 3: `185380;928534;` was no list, and the column published 1
+    of 40 at 600 rows on 6c566d3c); each value loses enclosing quotes.
+    Spaces split on any run of them, so no part is empty;
+    `_ANY_MARK` splits on every character of `_ANY_MARK_CHARACTERS`
+    (`_parts_on_any_mark`); every other mark keeps an empty part between
+    two marks, which says the cell is no list.
     """
     if not isinstance(cell, str):
         raise TypeError("a cell to ask about must be text")
     if not isinstance(mark, str):
         raise TypeError("a list's mark must be text")
+    text = parsing.trimmed(cell)
+    if len(text) >= 2 and text[0] == "[" and text[-1] == "]":
+        text = parsing.trimmed(text[1:-1])
+    if mark == _ANY_MARK:
+        return _parts_on_any_mark(text)
+    if mark != " ":
+        text = parsing.trimmed(text.strip(mark))
     parts: "list[str]" = []
-    for piece in cell.split(mark):
-        one = parsing.trimmed(piece)
+    for piece in text.split(mark):
+        one = _unquoted(piece)
         if one or mark != " ":
             parts += [one]
     return parts
+
+
+def _unquoted(piece: str) -> str:
+    """One value of a list, trimmed, without the quotes around it."""
+    if not isinstance(piece, str):
+        raise TypeError("a cell to ask about must be text")
+    one = parsing.trimmed(piece)
+    if one and (one[0] in _LIST_QUOTES or one[-1] in _LIST_QUOTES):
+        return parsing.trimmed(one.strip(_LIST_QUOTES))
+    return one
+
+
+def _parts_on_any_mark(text: str) -> "list[str]":
+    """The values of one trimmed cell split on any mark of `_ANY_MARK_CHARACTERS`.
+
+    `;`, `|` and `,` each stand between two values; spaces and tabs, any
+    run of them, too. Two of the first three with no value between them
+    leave an empty value, `[""]`, which says the cell is no list, as a
+    single mark's empty part says it.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    flat = text.replace(";", ",").replace("|", ",").replace("\t", " ")
+    parts: "list[str]" = []
+    for piece in flat.strip(", ").split(","):
+        found = False
+        for word in piece.split(" "):
+            if not word:
+                continue
+            one = _unquoted(word)
+            if not one:
+                return [""]
+            parts += [one]
+            found = True
+        if not found:
+            return [""]
+    return parts
+
+
+def _marks_mixed(present: "list[str]") -> bool:
+    """Whether a column holds two kinds of `_ANY_MARK_CHARACTERS` or more, or a tab.
+
+    Where it holds one kind alone, `_ANY_MARK` splits every cell as that
+    mark does, and is not judged again (the rule's cost on free text,
+    lane HX4's repair 1).
+    """
+    kinds = 0
+    for character in _ANY_MARK_CHARACTERS:
+        for cell in present:
+            if character in cell:
+                if character == "\t":
+                    return True
+                kinds = kinds + 1
+                break
+        if kinds >= 2:
+            return True
+    return False
+
+
+def _names_nobody_at_a_glance(value: str) -> bool:
+    """Whether a value holds no figure, `@`, point or colon, so `_names_one_person` is false.
+
+    Every layout route three reads needs one of them: a telephone,
+    social security, beneficiary or internet number its figures, an
+    e-mail address its `@`, a web address `://` or `www.`. Told by a few
+    scans of the value rather than the walk through every layout (the
+    rule's cost on free text, lane HX4's repair 1).
+    """
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    for character in _WHAT_NAMES_A_PERSON_HOLDS:
+        if character in value:
+            return False
+    return True
+
+
+_WHAT_NAMES_A_PERSON_HOLDS = "0123456789@.:"
+
+
+def _holds_the_mark(cell: str, mark: str) -> bool:
+    """Whether a cell holds `mark` (for `_ANY_MARK`, any of its characters) anywhere."""
+    if mark != _ANY_MARK:
+        return mark in cell
+    for character in _ANY_MARK_CHARACTERS:
+        if character in cell:
+            return True
+    return False
 
 
 def _a_lettered_word(value: str) -> bool:
@@ -3908,40 +4029,35 @@ def _a_wide_listed_value(value: str) -> bool:
     return False
 
 
-def _list_mark(present: "list[str]") -> "tuple[str, int]":
-    """The mark a column's cells are lists on, and how many values they hold.
+def _list_values(present: "list[str]", mark: str) -> int:
+    """How many values a column's cells hold as lists on `mark`; 0 where they are no list.
 
-    The first of `_LIST_MARKS` that splits at least `_LIST_CELLS_AT_LEAST`
-    cells into two values or more and leaves no value empty; ("", 0)
-    where none does. A cell without the mark is one value.
+    A list where `mark` splits at least `_LIST_CELLS_AT_LEAST` cells into
+    two values or more and leaves no value empty. A cell without the mark
+    is one value.
     """
-    for mark in _LIST_MARKS:
-        several = 0
-        values = 0
-        whole = True
-        for cell in present:
-            if mark not in cell:
-                values = values + 1
-                continue
-            parts = _list_parts(cell, mark)
-            if len(parts) >= 2:
-                several = several + 1
-            for part in parts:
-                if not part:
-                    whole = False
-                    break
-            if not whole:
-                break
-            values = values + len(parts)
-        if whole and several >= _LIST_CELLS_AT_LEAST:
-            return mark, values
-    return "", 0
+    several = 0
+    values = 0
+    for cell in present:
+        if not _holds_the_mark(cell, mark):
+            values = values + 1
+            continue
+        parts = _list_parts(cell, mark)
+        if len(parts) >= 2:
+            several = several + 1
+        for part in parts:
+            if not part:
+                return 0
+        values = values + len(parts)
+    if several >= _LIST_CELLS_AT_LEAST:
+        return values
+    return 0
 
 
 def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]":
     """The mark and the reason a column of lists is taken as record numbers.
 
-    PLAN P4-D424 (lane HX4). A column whose cells are lists (`_list_mark`)
+    PLAN P4-D424 (lane HX4). A column whose cells are lists (`_list_values`)
     is taken so where, over every value of every cell:
 
     * every value is written in the code alphabet with a run of five
@@ -3965,16 +4081,39 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
     No list is read where the column is read as dates or times, or holds
     nothing. Returns ("", "") where the column is not taken so.
 
+    EVERY MARK OF `_LIST_MARKS` THAT MAKES A LIST IS JUDGED, in that
+    order, and the first whose values a reason reaches is returned with
+    it (lane HX4's repair 1): a column whose cells mix their marks, or
+    whose values carry one mark inside them (`123,001 123,002`), is read
+    on the mark that splits it into its values.
+
     Guarantees: accepts the present cells and the column's role; returns
     two words of this module, never a cell. A fixed function of them.
     Raises nothing. No I/O. Each cell is split twice at most per mark,
-    and the second walk stops where no reason can hold any more.
+    and each mark's second walk stops where no reason can hold any more.
     """
     if not present or role in _LISTS_ROLES_EXCLUDED:
         return "", ""
-    mark, values = _list_mark(present)
-    if not mark:
-        return "", ""
+    mixed = _marks_mixed(present)
+    for mark in _LIST_MARKS:
+        if mark == _ANY_MARK and not mixed:
+            # One kind of mark alone splits as that mark does, judged above.
+            continue
+        values = _list_values(present, mark)
+        if not values:
+            continue
+        why = _listed_on(present, mark, values)
+        if why:
+            return mark, why
+    return "", ""
+
+
+def _listed_on(present: "list[str]", mark: str, values: int) -> str:
+    """The reason a column's values, split on `mark`, are taken as record numbers; "" for none.
+
+    `_listed_record_numbers`' walk on one mark: ``values`` is how many
+    values the cells hold on it (`_list_values`).
+    """
     wide = True
     padded = True
     padding = False
@@ -4010,7 +4149,11 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
             # without the walk through every layout: free text is mostly
             # such words.
             lettered = _a_lettered_word(value)
-            if persons and (lettered or not _names_one_person(value)):
+            if persons and (
+                lettered
+                or _names_nobody_at_a_glance(value)
+                or not _names_one_person(value)
+            ):
                 misses = misses + 1
                 if misses * _SIGN_PLACEHOLDER_SHARE > values:
                     persons = False
@@ -4034,15 +4177,15 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
                     else:
                         figures_of[figures] = 1
             if not (wide or padded or codes or persons or keys):
-                return "", ""
+                return ""
     if wide:
-        return mark, _LISTED_WIDE
+        return _LISTED_WIDE
     if padded and padding:
-        return mark, _LISTED_PADDED
+        return _LISTED_PADDED
     if codes and values >= PERSON_ROWS_PER_VALUE * len(different):
-        return mark, _LISTED_CODES
+        return _LISTED_CODES
     if persons:
-        return mark, _LISTED_PERSONS
+        return _LISTED_PERSONS
     if (
         keys
         and len(figures_of) >= 2
@@ -4053,8 +4196,8 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
             if _five_figures_or_more(written):
                 five = five + 1
         if five * 2 > len(figures_of):
-            return mark, _LISTED_KEYS
-    return "", ""
+            return _LISTED_KEYS
+    return ""
 
 
 # The readings no list is looked for in: none at all, dates and times.
@@ -4072,6 +4215,7 @@ def listed_record_number_questions(
     already: "list[str]",
     asked: "list[Question]",
     split: "SplitColumns | None" = None,
+    settled: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """The question put to a column of lists written as record numbers (plan P4-D424).
 
@@ -4082,8 +4226,12 @@ def listed_record_number_questions(
     cell holds several codes or labels or several record numbers. It
     offers `keep`, `code` and `identifier`, `keep` standing, and is put
     only to a column no other question was put to and nothing declares,
-    so no column is asked twice (the person question, the width
-    questions and lane HX3's `code` in route four's round one ask first).
+    so no column is asked a second question offering `identifier` (the
+    person question, the width questions and lane HX3's `code` in route
+    four's round one ask first). ``settled`` names the columns declared
+    otherwise -- a comma before the decimals (Codex's item 3 of lane
+    HX4's review: `--decimal-comma amount` read as measurements was asked
+    this question all the same) -- which are asked nothing either.
 
     Guarantees: accepts what `person_questions` accepts; returns the
     questions in the table's own column order. A fixed function of the
@@ -4105,7 +4253,7 @@ def listed_record_number_questions(
             continue
         name = f"{block['name']}"
         role = f"{block['role']}"
-        if name in already or name in spoken:
+        if name in already or name in spoken or name in settled:
             continue
         if (
             split is not None
@@ -4123,7 +4271,7 @@ def listed_record_number_questions(
             continue
         several = 0
         for cell in present:
-            if len(_list_parts(cell, mark)) >= 2:
+            if _holds_the_mark(cell, mark) and len(_list_parts(cell, mark)) >= 2:
                 several = several + 1
         floor = settings.small_cell_floor
         found += [
@@ -4149,16 +4297,22 @@ def _listed_choices(role: str, floor: int) -> "list[Choice]":
     """The three answers a list of record numbers may take (plan P4-D424).
 
     `keep` first, as the person question puts it: it is what standing
-    still gives, the reading the column already has. `code` reads the
-    column as the checklist's `code` does, and `identifier` as a record
-    number, which publishes no value.
+    still gives, the reading the column already has, and it says what
+    that reading publishes -- a column read as numbers publishes its
+    numbers' statistics, not its values (Codex's item 3 of lane HX4's
+    review: `keep` on a column read as `count` promised values and their
+    counts). `code` reads the column as the checklist's `code` does, and
+    `identifier` as a record number, which publishes no value.
     """
+    kept = _publishes_under(ANSWER_KEEP, role, floor)
+    if role in NUMERIC_ROLES:
+        kept = f"what it publishes now: {_publishes_under(ANSWER_MEASUREMENT, role, floor)}"
     return [
         Choice(
             ANSWER_KEEP,
             "several codes or labels in a cell, and the reading it has now "
             "is right",
-            _publishes_under(ANSWER_KEEP, role, floor),
+            kept,
         ),
         Choice(
             ANSWER_CODE,

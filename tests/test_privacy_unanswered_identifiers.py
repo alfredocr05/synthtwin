@@ -747,24 +747,39 @@ def test_the_contract_quotes_the_sentence_the_product_writes() -> None:
 # cells than the categories ceiling, repeating) and the list question is
 # never put as a second question, except beside a declared person column,
 # where the person question is not put.
+#
+# LANE HX4'S REPAIR 1 adds the shapes that published record numbers on
+# 6c566d3c (`shapes.LISTED`): marks mixed cell by cell, one list cell
+# among single record numbers, a mark closing each list cell, and
+# comma-grouped keys separated by spaces.
 
 _LIST_ANSWERS = [asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]
+# At 20,000 rows the person question reaches these whole cells first; every
+# other register list is put the list question at both sizes.
+_PERSON_FIRST = ("reglist6", "reglist7", "reglistR", "reglisttrail6", "reglistgrouped")
+# ...and these read as free text at 600 rows, which publishes no value: the
+# list question is put, and nothing needs holding.
+_FREE_TEXT_AT_600 = ("reglisttrail6", "reglistgrouped")
 
 
 def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
     assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
-    assert seen["validate_exit"] == 0, seen
+    if kind not in shapes.VALIDATION_LIMITS:
+        assert seen["validate_exit"] == 0, seen
     assert seen["description_values"] == 0, seen
     assert seen["description_fragments"] == 0, seen
     assert seen["twin_cells"] == 0, seen
     assert seen["twin_fragments"] == 0, seen
-    assert seen["role"] == taxonomy.ROLE_IDENTIFIER
+    if rows == _ROWS and kind in _FREE_TEXT_AT_600:
+        assert seen["role"] == taxonomy.ROLE_TEXT
+    else:
+        assert seen["role"] == taxonomy.ROLE_IDENTIFIER
     asked = seen["asked"]
     assert isinstance(asked, list) and len(asked) == 1, "one question, never two"
-    if rows == _ROWS or kind.endswith("_beside"):
-        assert asked == [_LIST_ANSWERS]
-    else:
+    if rows != _ROWS and kind in _PERSON_FIRST:
         assert asked == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    else:
+        assert asked == [_LIST_ANSWERS]
 
 
 @pytest.mark.parametrize("rows", (_ROWS, 20000))
@@ -776,12 +791,13 @@ def test_a_list_of_record_numbers_is_held_until_answered(
     seen = shapes.run(tmp_path, kind, rows)
     _check_list_held(seen, rows, kind)
     if rows == _ROWS:
+        assert "THESE COLUMNS HOLD SEVERAL VALUES IN A CELL" in f"{seen['screen']}"
+    if rows == _ROWS and kind not in _FREE_TEXT_AT_600:
         assert seen["read_as_now"] == [asking.ANSWER_IDENTIFIER]
         assert seen["evidence"] == taxonomy.rendered(
             taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ()
         )
         assert "COLUMNS HELD BACK UNTIL YOU ANSWER" in f"{seen['screen']}"
-        assert "THESE COLUMNS HOLD SEVERAL VALUES IN A CELL" in f"{seen['screen']}"
 
 
 def _listing_off(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -932,9 +948,12 @@ def test_the_list_rule_reaches_record_numbers_and_no_short_code() -> None:
     sums = [f"{draw.randint(1, 9999):,}" for _row in range(600)] + ["12,05", "3,75"]
     icd = _list_cells(["E11.9", "I10", "J45.909", "N18.3"], ";", 600)
     words = [" ".join(draw.choice(["pain", "fever", "cough"]) for _word in range(5)) for _row in range(600)]
-    once = [six[0]] * 599 + [f"{six[0]};{six[1]}"]
-    for cells in (sums, icd, words, once):
+    for cells in (sums, icd, words):
         assert asking._listed_record_numbers(cells, "free_text") == ("", "")
+    # ONE LIST CELL IS A LIST (lane HX4's repair 1, skeptic 1's item 2): at
+    # two cells, this column read `count` and published 40 of 40.
+    once = [six[0]] * 599 + [f"{six[0]};{six[1]}"]
+    assert asking._listed_record_numbers(once, "free_text") == (";", "wide")
     assert asking._listed_record_numbers(_list_cells(six, ";", 600), taxonomy.ROLE_DATETIME) == ("", "")
 
 
@@ -974,3 +993,265 @@ def test_a_list_of_three_figure_codes_is_held_by_the_person_question_alone(
                for entry in asked if entry["column"] == "codes"]
     assert offered == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
     assert _block(document, "codes")["role"] == taxonomy.ROLE_IDENTIFIER
+
+
+# -- lane HX4's repair 1: each escape pinned, each by its mutant -------------
+
+
+def _first_mark_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: only the first mark that makes a list is judged (6c566d3c's rule)."""
+    judged: "list[str]" = []
+    real = asking._listed_on
+
+    def first_only(present: "list[str]", mark: str, values: int) -> str:
+        judged.append(mark)
+        return real(present, mark, values) if len(judged) == 1 else ""
+
+    monkeypatch.setattr(asking, "_listed_on", first_only)
+
+
+def test_mutant_only_the_first_mark_judged_publishes_mixed_lists(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1's item 1: marks drawn from `;`, `,` and `|` published 40 of 40 at 20,000 rows."""
+    _first_mark_only(monkeypatch)
+    seen = shapes.run(tmp_path, "reglistmix6", 20000)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, 20000, "reglistmix6")
+
+
+def _codex_grouped_lines() -> "list[str]":
+    """Codex's item 1, its exact column: space-separated lists of comma-grouped keys."""
+    keys = [f"{123000 + one:,}" for one in range(1, 41)]
+    cells = [first + " " + second for first in keys for second in keys if first != second][:588]
+    cells += [keys[0]] * 12
+    return ["ids,value"] + [f'"{cell}",{place % 7}' for place, cell in enumerate(cells)]
+
+
+def _texts_of(folder: pathlib.Path, name: str) -> str:
+    """The description, its summary and the questions file a run wrote, as one text."""
+    return "".join(
+        (folder / f"{name}-{page}").read_text(encoding="utf-8")
+        for page in ("profile.json", "profile.txt", "questions.json")
+    )
+
+
+def test_codex_grouped_keys_split_by_spaces_are_held(tmp_path: pathlib.Path) -> None:
+    """Codex's item 1: `123,001 123,002` is judged on the spaces too; `123,001` is not published.
+
+    On 6c566d3c the comma was judged first, its parts reached nothing, the
+    spaces were never tried, and the profile published `123,001` on 12 rows.
+    """
+    keys = [f"{123000 + one:,}" for one in range(1, 41)]
+    cells = [first + " " + second for first in keys for second in keys if first != second][:588]
+    assert asking._listed_record_numbers(cells + [keys[0]] * 12, "long_tail_labels") == (" ", "keys")
+    code, document = _profile_rows(tmp_path, "grouped", _codex_grouped_lines())
+    assert code == 0
+    assert _block(document, "ids")["role"] == taxonomy.ROLE_IDENTIFIER
+    texts = _texts_of(tmp_path, "grouped")
+    for key in keys:
+        assert key not in texts and key.replace(",", "") not in texts
+
+
+def test_mutant_only_the_first_mark_judged_publishes_codex_grouped_keys(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant publishes `123,001`, as 6c566d3c did."""
+    _first_mark_only(monkeypatch)
+    code, _document = _profile_rows(tmp_path, "grouped", _codex_grouped_lines())
+    assert code == 0
+    assert "123,001" in _texts_of(tmp_path, "grouped")
+
+
+def test_mutant_two_list_cells_needed_publishes_the_register(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1's item 2: at two cells, one list cell among the keys published 40 of 40."""
+    monkeypatch.setattr(asking, "_LIST_CELLS_AT_LEAST", 2)
+    seen = shapes.run(tmp_path, "reglistonce6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglistonce6")
+
+
+def _list_parts_before(cell: str, mark: str) -> "list[str]":
+    """6c566d3c's split: a mark closing a cell leaves an empty value, so the cell is no list."""
+    parts: "list[str]" = []
+    for piece in cell.split(mark):
+        one = piece.strip()
+        if one or mark != " ":
+            parts += [one]
+    return parts
+
+
+def _trail_lines() -> "tuple[list[str], list[str]]":
+    """Skeptic 1's item 3 at 600 rows: a `;` closes each list cell; the keys and the table."""
+    draw = random.Random(7)
+    keys: "list[str]" = []
+    while len(keys) < 40:
+        one = f"{draw.randint(100000, 999999)}"
+        if one not in keys:
+            keys += [one]
+    cells = _list_cells(keys, ";", _ROWS, seed=1)
+    cells = [cell + ";" if ";" in cell else cell for cell in cells]
+    lines = ["ids,test,value"] + [
+        f"{cell},{('Sodium', 'Potassium', 'Glucose')[place % 3]},{(place * 37) % 140 + 3}.{place % 10}"
+        for place, cell in enumerate(cells)
+    ]
+    return keys, lines
+
+
+def test_a_mark_closing_each_list_cell_is_held(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1's item 3: `185380;928534;` is a list of two; 0 of 40 published at 600 rows."""
+    keys, lines = _trail_lines()
+    assert asking._listed_record_numbers([line.split(",")[0] for line in lines[1:]],
+                                         "long_tail_labels") == (";", "wide")
+    code, document = _profile_rows(tmp_path, "trail", lines)
+    assert code == 0
+    assert _block(document, "ids")["role"] == taxonomy.ROLE_IDENTIFIER
+    texts = _texts_of(tmp_path, "trail")
+    assert [key for key in keys if key in texts] == []
+
+
+def test_mutant_a_closing_mark_left_as_a_value_publishes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant (6c566d3c's split) reads the column as a long tail and publishes a record number."""
+    monkeypatch.setattr(asking, "_list_parts", _list_parts_before)
+    keys, lines = _trail_lines()
+    code, document = _profile_rows(tmp_path, "trail", lines)
+    assert code == 0
+    texts = _texts_of(tmp_path, "trail")
+    assert [key for key in keys if key in texts] != []
+
+
+def test_brackets_quotes_and_tabs_around_a_list_are_taken_off() -> None:
+    """Skeptic 1's item 6: `[185380, 928534]`, `'185380', '928534'` and a tab between are lists.
+
+    Each published 1 of 40 at 600 rows on 6c566d3c. A `+` between values
+    stays lane LISTS' (plan P4-D424).
+    """
+    draw = random.Random(11)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    listed = _list_cells(six, ";", _ROWS)
+    bracketed = ["[" + cell.replace(";", ", ") + "]" for cell in listed]
+    quoted = [", ".join("'" + one + "'" for one in cell.split(";")) for cell in listed]
+    tabbed = [cell.replace(";", "\t") for cell in listed]
+    assert asking._listed_record_numbers(bracketed, "long_tail_labels") == (",", "wide")
+    assert asking._listed_record_numbers(quoted, "long_tail_labels") == (",", "wide")
+    assert asking._listed_record_numbers(tabbed, "long_tail_labels") == (asking._ANY_MARK, "wide")
+    assert asking._listed_record_numbers([cell.replace(";", "+") for cell in listed],
+                                         "long_tail_labels") == ("", "")
+
+
+def test_mutant_quotes_kept_reach_no_quoted_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: quotes left on each value, so the quoted list is not reached."""
+    draw = random.Random(11)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    quoted = [", ".join("'" + one + "'" for one in cell.split(";"))
+              for cell in _list_cells(six, ";", _ROWS)]
+    monkeypatch.setattr(asking, "_LIST_QUOTES", "")
+    assert asking._listed_record_numbers(quoted, "long_tail_labels") == ("", "")
+
+
+def _amounts() -> "list[str]":
+    """Codex's item 3: numbers written with a decimal comma and four decimals."""
+    return ["amount,value"] + [f'"{place % 12 + 1},0{place % 30 + 1:03}",{place % 7}'
+                               for place in range(_ROWS)]
+
+
+def test_a_declared_decimal_comma_is_asked_nothing(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3: `--decimal-comma amount` settles the column; the list question is not put."""
+    code, document = _profile_rows(tmp_path, "amounts", _amounts(), ["--decimal-comma", "amount"])
+    assert code == 0
+    assert _block(document, "amount")["role"] == taxonomy.ROLE_CONTINUOUS
+    asked = json.loads((tmp_path / "amounts-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert [entry for entry in asked if entry["column"] == "amount"] == []
+
+
+def test_mutant_the_declaration_unread_asks_the_list_question(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the declared columns not handed to the list rule, so it asks."""
+    real = asking.listed_record_number_questions
+
+    def unread(*named: object, **said: object) -> "list[asking.Question]":
+        return real(*named[:6])
+
+    monkeypatch.setattr(asking, "listed_record_number_questions", unread)
+    code, _document = _profile_rows(tmp_path, "amounts", _amounts(), ["--decimal-comma", "amount"])
+    assert code == 0
+    asked = json.loads((tmp_path / "amounts-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert [entry["column"] for entry in asked] == ["amount"]
+
+
+def test_keep_says_what_a_column_read_as_numbers_publishes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Codex's item 3: `keep` on a column read as numbers names its statistics, not its values."""
+    for role in asking.NUMERIC_ROLES:
+        kept = asking._listed_choices(role, 11)[0]
+        assert kept.answer == asking.ANSWER_KEEP
+        assert kept.publishes == "what it publishes now: " + asking._publishes_under(
+            asking.ANSWER_MEASUREMENT, role, 11)
+    labels = asking._listed_choices(taxonomy.ROLE_LONG_TAIL, 11)[0]
+    assert labels.publishes == asking._publishes_under(asking.ANSWER_KEEP, taxonomy.ROLE_LONG_TAIL, 11)
+    monkeypatch.setattr(asking, "NUMERIC_ROLES", ())
+    assert asking._listed_choices(taxonomy.ROLE_COUNT, 11)[0].publishes.startswith(
+        "what it publishes now: every value")
+
+
+def _names_every_character(said: str) -> bool:
+    """Whether the wide sentence names each kind of character `parsing.is_code_text` admits."""
+    for character, word in (("A", "letters"), ("7", "figures"), ("-", "hyphens"),
+                            ("_", "underscores")):
+        assert asking.parsing.is_code_text(character)
+        if word not in said:
+            return False
+    return True
+
+
+def test_the_shape_sentence_names_every_character_the_rule_reads() -> None:
+    """Codex's item 4: `R_123456` is reached, and the sentence names underscores."""
+    draw = random.Random(11)
+    keys = [f"R_{draw.randint(100000, 999999)}" for _key in range(40)]
+    assert asking._listed_record_numbers(_list_cells(keys, ";", _ROWS), "long_tail_labels") == (
+        ";", "wide")
+    assert _names_every_character(asking._LISTED_SAID[asking._LISTED_WIDE])
+
+
+def test_mutant_the_sentence_without_underscores_is_seen() -> None:
+    """The mutant: 6c566d3c's sentence, letters, figures and hyphens alone."""
+    assert not _names_every_character(
+        "every part is written in letters, figures and hyphens, with a run "
+        "of five figures or more"
+    )
+
+
+def test_the_list_question_stands_beside_the_dates_question_as_hxs_does(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's item 2, measured: ONE question offering `identifier`; Q6 beside it as beside HX's.
+
+    598 cells of `2024001` to `2024030` and two of `2024001;2024002`: the
+    list question and question Q6 (`keep` or `dates`), as the same column
+    without its list cells is put P4-D401's width question and Q6. Q6
+    asks whether the column holds dates; it holds nothing (P4-D401), and
+    its family is kept apart by the questions file (P4-D408).
+    """
+    plain = ["days,value"] + [f"{2024001 + place % 30},{place % 7}" for place in range(_ROWS)]
+    listed = plain[: _ROWS - 1] + ["2024001;2024002,1", "2024001;2024002,2"]
+    families: "list[list[list[str]]]" = []
+    for name, lines in (("plain", plain), ("listed", listed)):
+        folder = tmp_path / name
+        folder.mkdir()
+        code, document = _profile_rows(folder, name, lines)
+        assert code == 0
+        assert _block(document, "days")["role"] == taxonomy.ROLE_IDENTIFIER
+        asked = json.loads((folder / f"{name}-questions.json").read_text(encoding="utf-8"))["asked"]
+        offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+                   for entry in asked if entry["column"] == "days"]
+        assert len([one for one in offered if asking.ANSWER_IDENTIFIER in one]) == 1
+        families += [[one for one in offered if asking.ANSWER_IDENTIFIER not in one]]
+    assert families[0] == families[1] == [[asking.ANSWER_KEEP, asking.ANSWER_DATES]]

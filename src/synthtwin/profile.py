@@ -4856,7 +4856,7 @@ def questions_of(
         # above reached (plan P4-D424, lane HX4).
         asked = asked + asking.listed_record_number_questions(
             document, columns, settings, already, asked + coded_or_answered,
-            split,
+            split, decimal_commas,
         )
         if with_dates:
             asked = asked + list(dates_seen.questions)
@@ -4914,7 +4914,7 @@ def questions_of(
         # (plan P4-D424): kept apart so the file's order is the same.
         lists = asking.listed_record_number_questions(
             part, cells, settings, already, kept + coded_or_answered + person,
-            split,
+            split, decimal_commas,
         )
         listed_all += lists
         dated_about = list(group_dates.questions) if with_dates else []

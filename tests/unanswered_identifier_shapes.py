@@ -226,7 +226,18 @@ PATIENTS_TEN = 10
 # and six figures (the three forms lane ZR-a's second repair measured), and
 # the six-figure form beside a DECLARED person column of 150 patients (lane
 # HX2). The real values are the record numbers, not the cells.
-LISTED = ("reglist6", "reglist7", "reglistR", "reglist6_beside")
+#
+# ...and the shapes lane HX4's repair 1 closed, each of which published
+# record numbers on 6c566d3c: lists whose mark is drawn from `;`, `,` and
+# `|` cell by cell (`reglistmix6`, `reglistmixR`: 40 of 40 at 20,000 rows,
+# skeptic 1's item 1); ONE list cell among single record numbers
+# (`reglistonce6`, `reglistonceR`: 40 of 40, item 2); a `;` closing each
+# list cell (`reglisttrail6`: 1 of 40 at 600 rows, item 3); and
+# comma-grouped keys separated by spaces (`reglistgrouped`, nine figures;
+# Codex's item 1 measured `123,001` on 12 rows).
+LISTED = ("reglist6", "reglist7", "reglistR", "reglist6_beside",
+          "reglistmix6", "reglistmixR", "reglistonce6", "reglistonceR",
+          "reglisttrail6", "reglistgrouped")
 LIST_KEYS = 40
 # The STATED shapes: a name, a street address and a full birth date on a
 # long table with NO subject column -- the value is the only thing that
@@ -238,7 +249,18 @@ STATED = ("name", "address", "dob")
 # of the generator for a DECLARED record number too (plan P4-D401):
 # `-1` for nobody (CODES-1 part C), a telephone layout opening `+`, and a
 # key written `100001.0` whose twin writes a figure after the point.
-VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "key_point0")
+#
+# ...and `reglistonce6` (lane HX4's repair 1): 599 cells of one six-figure
+# key beside ONE list cell publish `all_whole_numbers` false beside a
+# figures count absorbed to every cell (plan P4-D298), and the twin's
+# search writes whole numbers alone, naming the fact in the twin's report;
+# the same generator limit as `-1`'s, CODES-1 part C's (plan P4-D424).
+# And `reglistgrouped`, read at 600 rows as free text, which publishes no
+# value and is held by nothing: its twin misses `free_text.shape_forms` at
+# exit 3 on the tree before lane HX4 too (measured on 4682d6ad), the forms
+# lane FM's limit STATE names.
+VALIDATION_LIMITS = ("durable", "key_m1_40", "phone_plus", "key_point0", "reglistonce6",
+                     "reglistgrouped")
 
 # What each key shape writes for an unknown patient, and on what share
 # of its rows (`write_table`).
@@ -274,9 +296,36 @@ def _list_key(kind: str, draw: random.Random) -> str:
         # 99,999 to seven figures, a room of 100,000 spellings where a
         # made-up record number meets a real one by chance (plan P4-D424).
         return f"0{draw.randint(100000, 999999)}"
-    if base == "reglistR":
+    if base in ("reglistR", "reglistmixR", "reglistonceR"):
         return f"R{draw.randint(100000, 999999)}"
+    if base == "reglistgrouped":
+        # Nine figures grouped by commas: Codex measured six (`123,001`),
+        # whose room of 900,000 spellings lets a made-up key equal a real
+        # one by chance (7 twin cells at 20,000 rows, plan P4-D424); the
+        # gate holds Codex's own six-figure cells apart.
+        return f"{draw.randint(100000000, 999999999):,}"
     return f"{draw.randint(100000, 999999)}"
+
+
+def _list_cell(kind: str, keys: "list[str]", row: int, draw: random.Random) -> "list[str]":
+    """One row's record numbers of a register list, and the cell they are written in.
+
+    Returned as the record numbers followed by the cell.
+    """
+    base = _base(kind)
+    many = draw.randint(1, 3)
+    if base in ("reglistonce6", "reglistonceR"):
+        many = 2 if row == 0 else 1
+    listed = draw.sample(keys, many)
+    mark = ";"
+    if base in ("reglistmix6", "reglistmixR"):
+        mark = (";", ",", "|")[draw.randrange(3)]
+    elif base == "reglistgrouped":
+        mark = " "
+    cell = mark.join(listed)
+    if base == "reglisttrail6" and many > 1:
+        cell = cell + mark
+    return listed + [cell]
 
 
 def _cell(value: str) -> str:
@@ -323,9 +372,9 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
         if visits:
             who = visits[place][draw.randrange(VISITS_A_PATIENT)]
         if keys:
-            listed = draw.sample(keys, draw.randint(1, 3))
-            who = ";".join(listed)
-            for one in listed:
+            listed = _list_cell(kind, keys, row, draw)
+            who = listed[-1]
+            for one in listed[:-1]:
                 seen[one] = True
         if kind == "mixed" and row == 0:
             who = SHORT_AMONG_LONG
