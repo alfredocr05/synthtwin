@@ -130,7 +130,7 @@ _BEFORE_SHA256 = {
     "sorted_floor_one": "2b9a8ad0672a409a26b9eb4f4260c280348ae0b553f744d78ee050c8fda41b46",
     "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
     "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
-    "texts": "74c05d84bf826a01ac60afd8a89ba87c00dd80990258a4ba53fefe895c1957ed",
+    "texts": "2ac127f20cb24c19a4c3b92b2ebe90049df4dffdf5a5e8a7743c19ba6f65064d",
     "utf16": "dd69f4534646ca603000e5a98d1b76834c78c7b6b45b3757b29cfb21c3d26fde",
     "wide": "edaee2c842fa47c880123a55c7b195416b4a7d63334cf1165be690dfc5f84097",
 }
@@ -741,7 +741,7 @@ def test_a_column_spilled_to_a_temporary_file_is_caught(
             with tempfile.TemporaryFile("w+", encoding="utf-8") as spill:
                 spill.write("\n".join(cells))
         else:
-            with open(elsewhere / "spill.txt", "a", encoding="utf-8") as spill:
+            with open(elsewhere / "spill.txt", "a", encoding="utf-8", newline="\n") as spill:
                 spill.write("\n".join(cells))
         return shipped(cells)
 

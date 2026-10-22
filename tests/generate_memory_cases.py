@@ -395,11 +395,11 @@ def text_table(n_rows: int, seed: int = 20261024) -> bytes:
         "stable", "review", "in", "two", "weeks", "dressing", "changed", "wound",
         "clean", "dry", "advised", "rest",
     )
-    lines = ["note,dx,ward,mrn"]
+    lines = ["note,dx,ward,record"]
     for _row in range(n_rows):
         note = " ".join(draw.choice(words) for _word in range(draw.randint(2, 6)))
         dx = f"{draw.choice('EIJKN')}{draw.randint(10, 99)}.{draw.randint(0, 9)}"
         ward = draw.choice(("north", "south", "east"))
-        record = f"MRN{draw.randint(0, 9999999):07d}"
+        record = f"RC{draw.randint(0, 9999999):07d}"
         lines += [",".join([note, dx, ward, record])]
     return ("\n".join(lines) + "\n").encode("utf-8")
