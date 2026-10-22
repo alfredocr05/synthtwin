@@ -799,9 +799,12 @@ def _h3_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch) -> fl
 # 177, 431 and 435 at 20,000 and 40,000 rows, notes 142 at 4,000; Python 3.13:
 # 402 and 412, 169 and 176, 414 and 419, notes 149 and 141 at 2,000 and 4,000),
 # against 824, 503 and 587 at 20,000 rows and 270 for notes at 4,000 rows on
-# 4682d6ad (Python 3.11), its memos held as here.
+# 4682d6ad (Python 3.11), its memos held as here. LOWERED BY THE LANE'S REPAIR
+# (plan P4-D423) from 470 to 400 for record numbers and stamps: 339.4 and
+# 344.7, 342.0 and 342.9 on Python 3.11, with no folded copy of a label written
+# in capitals and no unit, set or pair a stamp counted.
 @pytest.mark.parametrize("rows", [20_000, 40_000])
-@pytest.mark.parametrize(("shape", "bound"), [("rec", 470), ("num", 200), ("stamp", 470)])
+@pytest.mark.parametrize(("shape", "bound"), [("rec", 400), ("num", 200), ("stamp", 400)])
 def test_a_column_whose_values_all_differ_holds_under_its_bound_a_row(
     shape: str, bound: int, rows: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1278,5 +1281,45 @@ def test_pairs_are_ranked_by_instant_text_and_offset_as_4682d6ad_ranked_them() -
 
 
 # THE SKEPTICS' SHAPES, BOUNDED (lane H3's repair). Measured on the repair's
-# head (Python 3.11, traced bytes a row above the column, memos at 1,024):
-# filled in from the probes below.
+# head, Python 3.11, traced bytes a row above the column, memos at 1,024, at
+# 20,000 / 40,000 / 80,000 rows: `MM/DD/YYYY hh:mm AM` 322.6 / 323.4 / 324.6
+# (732 on 34bb5902), `M/D/YYYY H:MM` 322.7 / 323.4 (604), stamps with offsets
+# 480.7 / 480.9 (620), stamps to the second 342.0 / 342.9 / 342.0 (431 / 435 /
+# 462-465 on 34bb5902: they no longer rise past 40,000 rows).
+@pytest.mark.parametrize("rows", [20_000, 40_000])
+@pytest.mark.parametrize(("shape", "bound"), [("twelve", 380), ("mdy", 380), ("stampoff", 540)])
+def test_the_mixed_table_s_stamp_forms_hold_under_their_bound_a_row(
+    shape: str, bound: int, rows: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    per_row = _h3_repair_traced_a_row(_h3_repair_values(shape, rows), monkeypatch, 1_024)
+    assert per_row < bound, (shape, rows, per_row)
+
+
+# PAST 40,000 ROWS, where 34bb5902's stamps rose 7 % (the statistics
+# skeptic's item 3): stamps to the second and the mixed table's 12-hour
+# form at 80,000 rows, under the bounds of 20,000.
+@pytest.mark.parametrize(("shape", "bound"), [("stamp", 400), ("twelve", 380)])
+def test_stamps_at_eighty_thousand_rows_hold_under_the_bound_of_twenty_thousand(
+    shape: str, bound: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    values = _h3_values(shape, 80_000) if shape == "stamp" else _h3_repair_values(shape, 80_000)
+    per_row = _h3_repair_traced_a_row(values, monkeypatch, 1_024)
+    assert per_row < bound, (shape, per_row)
+
+
+# NOTES THAT BEGIN WITH A CAPITAL, AND NOTES OF A 30,000-WORD VOCABULARY
+# EACH HOLDING A DOSE AND A DATE, in lower case and capitalised (the
+# statistics skeptic's item 1, skeptic 1's item 3), under the 200 of
+# P4-D400's limit (b). THE MEMOS HELD TO A THIRTY-SECOND OF THE ROWS (64 and
+# 128 texts), the share 65,536 texts are of 2,000,000 rows: an affix split
+# of a note is most of the note, and 1,024 of them at 2,000 rows would be
+# counted as half a split a row. Measured, Python 3.11, at 2,000 / 4,000
+# rows: 179.2 / 179.1 (557 to 565 on 34bb5902), the large vocabulary 210.2 at
+# 2,000 rows with memos of 128 and 185.8 at 4,000 (769 and 1,343).
+@pytest.mark.parametrize("rows", [2_000, 4_000])
+@pytest.mark.parametrize("shape", ["notecap", "biglower", "bignote"])
+def test_notes_with_capitals_and_figures_hold_under_two_hundred_bytes_a_row(
+    shape: str, rows: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    per_row = _h3_repair_traced_a_row(_h3_repair_values(shape, rows), monkeypatch, rows // 32)
+    assert per_row < 200, (shape, rows, per_row)

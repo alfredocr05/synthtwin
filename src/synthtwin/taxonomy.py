@@ -23727,11 +23727,11 @@ def affixed_reach(cells: _Cells) -> int:
 
 
 # The bits of a pair key that hold the cell's place, and the bits of the
-# pair's hash kept above them: a place below 2**32 and 58 bits of hash
-# fill three of a whole number's 30-bit digits, the size the hash alone
-# takes.
-_PLACE_BITS = 32
-_HASH_MASK = (1 << 58) - 1
+# pair's hash kept above them: a place below 2**31 and 29 bits of hash fill
+# two of a whole number's 30-bit digits, 32 bytes a key. Pairs whose hashes
+# share those bits share a run and are counted apart (`_pairs_in_run`).
+_PLACE_BITS = 31
+_HASH_MASK = (1 << 29) - 1
 
 
 def _pair_key(split: "tuple[str, str, str]", place: int) -> int:
