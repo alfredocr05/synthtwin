@@ -1483,7 +1483,7 @@ def test_a_declared_counted_date_column_keeps_the_chain(tmp_path):
     draw = random.Random(1)
     rows = [[f"{42005 + place % 120}", f"{draw.randint(18, 90)}", draw.choice("FM")] for place in range(600)]
     settings = taxonomy.Settings(small_cell_floor=FLOOR, forced_date_counts=(("visit", "excel-1900"),))
-    table = reading.read_table(str(fixtures.write(tmp_path, "visits.csv", _csv(["visit", "age", "sex"], rows))), small_cell_floor=FLOOR)
+    table = reading.read_table(str(fixtures.write(tmp_path, "visits.csv", _csv(["visit", "age", "gender"], rows))), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, [], [], [])
     assert document["columns"][0]["role"] == "datetime"
     found = chain.describe(table, document, settings, chain.ChainSwitch("visits", TEST_KEY))
