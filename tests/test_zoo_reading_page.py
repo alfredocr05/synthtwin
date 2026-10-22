@@ -654,7 +654,7 @@ def test_a_register_list_is_never_read_as_a_list_unanswered() -> None:
         "six figures": asking.BECAUSE_FIXED_WIDTH,
         "padded to seven": asking.BECAUSE_PADDED,
     }
-    # The lists of codes the gates hold are no registers ...
+    # The lists of codes each lane's gate holds are no registers ...
     problems = [part for _ in range(600) for part in draw.sample(("E11.9", "I10", "N18.3", "E78.5", "J44.9", "F32.9"), 2)]
     picks = [str(draw.randint(1, 15)) for _ in range(600)]
     for values in (problems, picks):
