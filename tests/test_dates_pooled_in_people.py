@@ -18,12 +18,23 @@ its twin draws each value inside its bucket.
 
 THE GATE: every zoo kind's date column parses on the twin; grains at day,
 month and year; a pooled tail; a mode a few people hold never printed;
-the record's rung the one its facts choose (the loader refuses any other);
+the record's spans a walk its facts allow (the loader refuses any other);
 the product's draw equal to the oracle's (method G7.13); the contract's
 refusals; and, red on their mutants (`wave6/PS/mutants.log`): rows counted
 for people, a point at a grain fewer than eleven people hold, a twin cell
 that does not parse, the grain chosen from failing points, a tail published
 as itself.
+
+REPAIR ROUND 1 (the lane's two skeptics): no count of one to ten people is
+left to subtraction -- a bucket inside the span, the unread cells, a
+written form or offset -- and the walk steps back a rung where the rung it
+reached cannot keep that; the finer span's own buckets and its reach of
+the coarser ends choose the walk; TG1 refusals by their own rule, written
+canonically; the G1 floor for stand-ins no date wears. Each case below is
+red on its one-edit mutant (`wave6/PS/r1/mut_r1.py`, `mutants-r1b.log`):
+rows_for_people, thin_off, unread_off, forms_off, stepped_keeps_finer_spans,
+reach_off, span_of_the_coarser_rung, filler_fallback_off, length_refill_off,
+held_ignores_spans, loader_accepts_any_rung and the build's eight.
 """
 
 from __future__ import annotations

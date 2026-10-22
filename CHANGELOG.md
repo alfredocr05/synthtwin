@@ -31,6 +31,21 @@ measurement attached to its person is held as before (lane PS's
 follow-up); P4-D406's limit (2), a table of ten people or fewer, stays
 open.
 
+**Repair round 1** (the lane's two skeptics). A description at a grain
+no longer leaves a count of one to ten people to subtraction: every
+bucket inside its span holds nobody or eleven people, and so do the
+cells no date reads and every written form and offset of those that do.
+Where the rung the walk reaches cannot keep that, the walk steps back to
+a coarser rung instead of holding the column, with the proof in the
+plan; the walk reads the finer rung's own span, so a 70-minute session
+is described by the hour. A refused grain record names its rule instead
+of raising an error, and a held column whose layouts are all withheld
+now writes valid dates in place of made-up stand-ins. Stated limits with
+owners: the time of day and the weekday of a stamp pooled at the day or
+coarser (a new lane PS2), the pooled tails drawn inside their end bucket
+(PS2), a stamp with UTC offsets publishing no count at its rung (lane
+DST).
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

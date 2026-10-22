@@ -11198,15 +11198,31 @@ ten; two: any value, or ten and more where some made-up cell of the
 column writes that field with one figure), whose cell, written with its
 offset's figures as noughts and its fraction as the moment's own
 figures, reads under the member and is no value an earlier made-up cell
-took; at most 200,000 steps, after which the made-up cell leaves as
-written. A counted member steps by days and writes its member's count
-with the made-up cell's figures after the mark, taken only where it is
-as long as the made-up cell; a layout no run rule writes is filled by
-the layout's own writer, by days (by steps of 3,607 seconds where it has
-a clock), at most 20,000 steps, at the first moment it writes in the
-made-up cell's very form. So the held column keeps every layout,
-every width and the census of repetition its block publishes (two
-made-up values never take one), and every value parses under its member.
+took; at most 4,000 steps. A counted member steps by days and writes its
+member's count with the made-up cell's figures after the mark, taken
+only where it is as long as the made-up cell; a layout no run rule
+writes is filled by the layout's own writer, by days (by steps of 3,607
+seconds where it has a clock), at most 64 steps, at the first moment it
+writes in the made-up cell's very form. THE MEMBER'S OWN FORM (repair
+round 1 of lane PS): a made-up cell none of these fills -- a stand-in of
+a withheld layout (`A-------AZ`), which no date wears -- walks again
+from the same start, by days (by steps of 3,607 seconds where the member
+writes a clock, of 61 of its own steps for a clock time), to the first
+moment no earlier made-up cell took, written in the member's own form
+(`parsing.written_date`, alone or with ` HH:MM`, ` HH:MM:SS` or
+`THH:MM:SS` after it; a layout's writer at each width; a clock's one
+spelling; a count at no figures after the mark) that reads under the
+member (an ISO date column may take an ISO stamp, as its source's
+unread cells were): first one as long as the made-up cell and on its
+side of the code alphabet (`parsing.is_code_text`), then one on its side
+alone, 384 steps each, then any, 20,000 steps. Where the made-up values
+then leave the column without its longest or its shortest made-up
+length, the first made-up value of that length (in the order of the
+rows) walks once more from its own start for one as long as it, whatever
+its side, and takes it in place of its first value. So the held column
+keeps every layout, every width and the census of repetition its block
+publishes (two made-up values never take one) wherever a date can wear
+them, and every value parses under its member.
 
 **What is measured.** The twin's report and its approximations are
 measured on the cells as built (the bytes before this step), exactly as
@@ -11224,8 +11240,8 @@ key.
 drawn across a change of daylight saving can wear an offset not in force
 on its new date (lane DST's limit, as before); a member whose cells this
 method cannot write again -- `days-since-1840` with its contact numbers,
-a layout the day of the year rules -- is held whole, and a made-up cell no
-step of the walk fills leaves as written; a column whose two-figure
+a layout the day of the year rules -- is held whole, and a made-up cell of
+such a member leaves as written; a column whose two-figure
 fields mix padded and unpadded cells writes a field that showed neither
 as padded.
 
