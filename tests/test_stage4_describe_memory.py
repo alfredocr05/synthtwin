@@ -762,7 +762,7 @@ def _h3_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch) -> fl
     (`parsing.SPELLING_MEMO_TEXTS`, `taxonomy.LAYOUT_MEMO_TEXTS`), a fixed few
     megabytes at 2,000,000 rows, where at 20,000 rows they would hold every
     text and be counted a row. Held lower here, the bytes counted are the ones
-    a row adds past them, which is what a column of 2,000,000 rows pays.
+    a row adds past them, which is what a column of 2,000,000 rows holds.
     """
     monkeypatch.setattr(parsing, "SPELLING_MEMO_TEXTS", 1_024)
     monkeypatch.setattr(parsing, "SPELLING_MEMO_NOTED", 128)
@@ -888,7 +888,7 @@ def test_the_moments_and_days_are_the_oracles() -> None:
     for name, pairs in (
         ("stamps", [(cell.replace("T", " "), "") for cell in stamps]),
         ("dates", [(cell, "") for cell in _date_cells(3_000)]),
-        ("dates and midnights", [(cell, "") for cell in mixed]),
+        ("dates beside the day's first second", [(cell, "") for cell in mixed]),
         ("with offsets", [(cell[:19], cell[19:]) for cell in offsets]),
     ):
         for read_at in (taxonomy.READ_AT_LOCAL, taxonomy.READ_AT_UTC):
