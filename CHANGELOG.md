@@ -6,6 +6,37 @@ exists).
 
 ## [Unreleased]
 
+### The zoo-fix stand-ins page: stand-ins, rare values named, few-valued numbers (plan P4-D422, lane ZR-b, 2026-10-22; specified, NOT BUILT)
+
+**A method page, no product code.** Lanes CODES-1, CODES-2, CODES-3 and
+GG own twelve of the health data zoo's failing kinds and write into one
+generator path, one publication and one questions file, so the page in
+`docs/plans/phase-4-columns.md` settles them before any is built. Rule U
+says what "unanswered" means for every name, value and census. Rules A1
+to A3: a form or layout under the floor absorbed into the commonest
+published one, producer and validator alike (the VCF `rs` layouts); a
+floored positional census per published form, counted in people beside a
+subject column, keeping a vocabulary prefix such as `ICD10CM:`; held-back
+numbers paying their own form and width (PCORnet `DX`: `%%%.%` 24 against
+a published 21 today). CODES-1 part C: a held column's twin meets its
+published forms. CODES-2 under the owner's Z1 (B): rare names published
+only through an allowlist, after the owner's question "Could a value of
+this column name a person, a place smaller than a state, a birth date, or
+a record, account or device number?", answered `no`; a column answered
+`code` is held until then, so a five-figure ZIP and a device UDI answered
+`code` publish none of their values (9 of 59 ZIPs and 12 of 49 UDIs
+printed today); short result words by a shape screen; lane HX3's `code`
+offered on code-form long tails in the same question; names beside a
+person column only where the column is not attached to it. GG: a
+few-valued number column writes only its own values, its rare values
+named after the same `no`. Each rule's floor argument, with the chain's
+RULE W1 reading a named level as an own-fact group; the validator's rule
+of each; what moves (no golden; the frozen vectors each lane names); the
+KPIs the four lanes stamp. Measured on 4682d6ad
+(`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
+(53 cases) pins the page's figures and its reading of the product, red on
+each of twelve page mutants.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans
