@@ -6200,6 +6200,25 @@ def _tail_side(
     }
 
 
+def _different_ordinals(ordinals: "list[int]") -> int:
+    """How many different whole numbers `ordinals` holds, `len(set(ordinals))`.
+
+    COUNTED AS RUNS WHERE THEY ARE IN ORDER, as the ordered moments' are
+    (lane H3, plan P4-D423): the set of every ordinal held about a
+    hundred bytes a row while it grew. Out of order, counted by the set.
+
+    Guarantees: returns `len(set(ordinals))`. Raises nothing. No I/O.
+    """
+    for place in range(1, len(ordinals)):
+        if ordinals[place] < ordinals[place - 1]:
+            return len(set(ordinals))
+    runs = 0
+    for place in range(len(ordinals)):
+        if place == 0 or ordinals[place] != ordinals[place - 1]:
+            runs = runs + 1
+    return runs
+
+
 def ordered_tails(
     ordered: "list[str]",
     ordinals: "list[int]",
@@ -6242,7 +6261,7 @@ def ordered_tails(
     if ranks is None:
         return (None, None, None)
     count = len(ordinals)
-    grid = len(set(ordinals))
+    grid = _different_ordinals(ordinals)
     low_rank, high_rank = ranks
     low_distances = [
         ordinals[low_rank] - ordinals[rank] for rank in range(low_rank)
@@ -11288,7 +11307,7 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     if parsing.STYLE_DECIMAL not in styles:
         return {}
     counts: dict[int, int] = {}
-    counted: "list[tuple[_Cell, int, int]]" = []
+    counted = _CountedCells()
     tally = _form_tally(cells)
     absorbing, _taken = _counted_into(styles, tally)
     floor = cells.settings.small_cell_floor
@@ -11308,12 +11327,12 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
         if style == parsing.STYLE_DECIMAL:
             width = fraction_width(cell.numeric_text)
             _added_to(counts, width, 1)
-            counted += [(cell, width, _least_fraction(cell, width))]
+            _counted_add(counted, cell, width, _least_fraction(cell, width))
         elif absorbing == parsing.STYLE_DECIMAL and style not in styles:
             if banded:
                 taken_in += [cell]
             else:
-                counted += [(cell, -1, _least_fraction(cell, 0))]
+                _counted_add(counted, cell, -1, _least_fraction(cell, 0))
     commonest = -1
     for width in sorted(counts):
         if commonest < 0 or counts[width] > counts[commonest]:
@@ -11321,7 +11340,7 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     for cell in taken_in:
         width = max(commonest, _least_fraction(cell, 0))
         _added_to(counts, width, 1)
-        counted += [(cell, width, _least_fraction(cell, width))]
+        _counted_add(counted, cell, width, _least_fraction(cell, width))
     total = styles[parsing.STYLE_DECIMAL]
     band = _width_band(_width_keys(counts), total, floor, counted, cells)
     if band:
@@ -11365,11 +11384,41 @@ def _least_fraction(cell: _Cell, width: int) -> int:
     return _end_figures(value)
 
 
+@dataclasses.dataclass
+class _CountedCells:
+    """Counted cells with their own and least widths, as three lists in row order.
+
+    THREE LISTS, NOT A TRIPLE A CELL (lane H3, plan P4-D423): the width
+    censuses walk every numeric cell of a column, and a triple a cell
+    held about 57 bytes a row while they ran, on a column whose numbers
+    never repeat; the lists hold a reference a cell to the records the
+    tally holds and to small whole numbers. `own` is -1 for a cell a form
+    took in, `least` is unused (empty) where only widths are counted.
+    """
+
+    records: "list[_Cell]" = dataclasses.field(default_factory=list)
+    own: "list[int]" = dataclasses.field(default_factory=list)
+    least: "list[int]" = dataclasses.field(default_factory=list)
+
+
+def _counted_add(counted: _CountedCells, cell: _Cell, own: int, least: int) -> None:
+    """One counted cell with its own and least widths, at the end of the three lists."""
+    counted.records += [cell]
+    counted.own += [own]
+    counted.least += [least]
+
+
+def _width_add(counted: _CountedCells, cell: _Cell, own: int) -> None:
+    """One counted cell with its own width alone, at the end of the two lists it uses."""
+    counted.records += [cell]
+    counted.own += [own]
+
+
 def _width_band(
     tally: "dict[str, int]",
     total: int,
     floor: int,
-    counted: "list[tuple[_Cell, int, int]]",
+    counted: _CountedCells,
     cells: _Cells,
 ) -> "dict[str, int]":
     """One width every counted cell can be written at, where a pool of widths may not stand; `{}` otherwise.
@@ -11396,7 +11445,7 @@ def _width_band(
     any kind.
     """
     line = parsing.census_floor(floor)
-    if total < line or not counted:
+    if total < line or not counted.records:
         return {}
     for key in tally:
         if tally[key] >= line:
@@ -11410,7 +11459,7 @@ def _width_band(
 
 
 def _end_pool_band(
-    total: int, floor: int, counted: "list[tuple[_Cell, int, int]]", cells: _Cells
+    total: int, floor: int, counted: _CountedCells, cells: _Cells
 ) -> "dict[str, int]":
     """One width every counted cell can be written at, where the pool an unwritable end makes could be read as pinned; `{}` otherwise.
 
@@ -11429,13 +11478,12 @@ def _end_pool_band(
     function of the four. Raises nothing. No I/O of any kind.
     """
     line = parsing.census_floor(floor)
-    if total < line or not counted:
+    if total < line or not counted.records:
         return {}
-    spelled: "dict[str, int]" = {}
-    for text in cells.present:
-        spelled[text] = 1
+    # THE COLUMN'S DIFFERENT SPELLINGS ARE THE TALLY'S OWN COUNT of them
+    # (lane H3, plan P4-D423), not a map of every spelling made again.
     least_room = -(-total // (line - 1))
-    if least_room > len(spelled):
+    if least_room > cells.raw_distinct:
         return {}
     room, capacities, groups = _width_bounds(counted, _placed_values(cells), least_room)
     if groups is not None and parsing.census_pools(
@@ -11445,13 +11493,13 @@ def _end_pool_band(
     return {f"{_band_width(counted)}": total}
 
 
-def _band_width(counted: "list[tuple[_Cell, int, int]]") -> int:
+def _band_width(counted: _CountedCells) -> int:
     """The commonest width the cells wrote that can write every one of them, the narrowest on a tie."""
     need = 0
-    for _cell, _own, least in counted:
+    for least in counted.least:
         need = max(need, least)
     written: "dict[int, int]" = {}
-    for _cell, own, _least in counted:
+    for own in counted.own:
         if own >= need:
             _added_to(written, own, 1)
     best = need
@@ -11462,7 +11510,7 @@ def _band_width(counted: "list[tuple[_Cell, int, int]]") -> int:
 
 
 def _width_bounds(
-    counted: "list[tuple[_Cell, int, int]]",
+    counted: _CountedCells,
     placed: "dict[float, bool]",
     least_room: int = 0,
 ) -> "tuple[int, list[int], tuple[tuple[int, int, tuple[int, ...]], ...] | None]":
@@ -11494,7 +11542,7 @@ def _width_bounds(
     spellings: "dict[str, int]" = {}
     lowest = -1
     highest = 0
-    for cell, own, least in counted:
+    for cell, own, least in zip(counted.records, counted.own, counted.least):
         spellings[parsing.trimmed(cell.numeric_text)] = 1
         if lowest < 0 or least < lowest:
             lowest = least
@@ -11504,7 +11552,7 @@ def _width_bounds(
     rows: "dict[float, int]" = {}
     least_of: "dict[float, int]" = {}
     worn: "dict[float, dict[str, int]]" = {}
-    for cell, _own, least in counted:
+    for cell, least in zip(counted.records, counted.least):
         value = cell.value
         if value is None:
             continue
@@ -11536,14 +11584,14 @@ def _width_bounds(
         bounding[value] = True
     grouped = len(bounding)
     if parsing.pool_table_too_large(len(widths), grouped):
-        return (room, [len(counted)] * len(widths), None)
+        return (room, [len(counted.records)] * len(widths), None)
     groups: "list[tuple[int, int, tuple[int, ...]]]" = []
     for value in sorted(bounding):
         reach: "list[int]" = []
         for width in widths:
             reach += [rows[value] if width >= least_of[value] else 0]
         groups += [(rows[value], len(worn[value]), tuple(reach))]
-    return (room, [len(counted)] * len(widths), tuple(groups))
+    return (room, [len(counted.records)] * len(widths), tuple(groups))
 
 
 def _end_figures(value: float) -> int:
@@ -12889,12 +12937,13 @@ def _width_censuses(
     pads: dict[int, int] = {}
     plus_pads: dict[int, int] = {}
     unpadded: dict[int, int] = {}
-    padded_cells: "list[tuple[_Cell, int, int]]" = []
-    plus_cells_padded: "list[tuple[_Cell, int, int]]" = []
+    # THREE LISTS A KIND, NOT A TRIPLE A CELL (`_CountedCells`, lane H3).
+    padded_cells = _CountedCells()
+    plus_cells_padded = _CountedCells()
     band_pads: "list[_Cell]" = []
     # The cells the unpadded part counts, each at its own width, and those
     # a whole-number form took in, at none (`_unpadded_band`).
-    whole_cells: "list[tuple[_Cell, int]]" = []
+    whole_cells = _CountedCells()
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
@@ -12904,24 +12953,24 @@ def _width_censuses(
                 if banded and _is_whole(cell):
                     band_pads += [cell]
                 else:
-                    padded_cells += [(cell, -1, _least_pad(cell, 0))]
+                    _counted_add(padded_cells, cell, -1, _least_pad(cell, 0))
             elif banded and style not in styles and _is_whole(cell):
                 _added_to(unpadded, _least_pad(cell, 1) - 1, 1)
-                whole_cells += [(cell, _least_pad(cell, 1) - 1)]
+                _width_add(whole_cells, cell, _least_pad(cell, 1) - 1)
                 taken = taken - 1
             elif style not in styles and form in POINT_FREE_STYLES:
-                whole_cells += [(cell, -1)]
+                _width_add(whole_cells, cell, -1)
             continue
         width = pad_width(cell.numeric_text)
         if style == parsing.STYLE_LEADING_ZERO:
             _added_to(pads, width, 1)
-            padded_cells += [(cell, width, _least_pad(cell, width))]
+            _counted_add(padded_cells, cell, width, _least_pad(cell, width))
         elif parsing.is_padded(cell.numeric_text):
             _added_to(plus_pads, width, 1)
-            plus_cells_padded += [(cell, width, _least_pad(cell, width))]
+            _counted_add(plus_cells_padded, cell, width, _least_pad(cell, width))
         else:
             _added_to(unpadded, width, 1)
-            whole_cells += [(cell, width)]
+            _width_add(whole_cells, cell, width)
     # 1. THE PLUS ROUTE.
     plus_cells = 0
     for width in plus_pads:
@@ -12939,10 +12988,14 @@ def _width_censuses(
         else:
             _added_to(unpadded, width, plus_pads[width])
     if counted_plus:
-        padded_cells = padded_cells + plus_cells_padded
+        padded_cells = _CountedCells(
+            padded_cells.records + plus_cells_padded.records,
+            padded_cells.own + plus_cells_padded.own,
+            padded_cells.least + plus_cells_padded.least,
+        )
     else:
-        for cell, width, _least in plus_cells_padded:
-            whole_cells += [(cell, width)]
+        for cell, width in zip(plus_cells_padded.records, plus_cells_padded.own):
+            _width_add(whole_cells, cell, width)
     # ...and padded, under a band of the padded form, at the commonest
     # width the padded cells wrote that holds the value, or the narrowest
     # that does.
@@ -12953,7 +13006,7 @@ def _width_censuses(
     for cell in band_pads:
         width = max(written_width, _least_pad(cell, 1))
         _added_to(pads, width, 1)
-        padded_cells += [(cell, width, _least_pad(cell, width))]
+        _counted_add(padded_cells, cell, width, _least_pad(cell, width))
         taken = taken - 1
     # 2 AND 3. EACH PART COUNTED INTO ITS COMMONEST WIDTH AT THE LINE --
     # and a pool of padded widths its own spellings would pin is counted
@@ -12982,7 +13035,7 @@ def _width_censuses(
     unpadded_band = _unpadded_band(whole_cells, unpadded, floor, cells)
     if unpadded_band >= 0:
         absorbed_whole = 0
-        for _cell, width in whole_cells:
+        for width in whole_cells.own:
             if width < 0:
                 absorbed_whole += 1
         total_unpadded = 0
@@ -13049,7 +13102,7 @@ def _width_censuses(
 
 
 def _unpadded_band(
-    counted: "list[tuple[_Cell, int]]",
+    counted: _CountedCells,
     unpadded: "dict[int, int]",
     floor: int,
     cells: _Cells,
@@ -13088,14 +13141,14 @@ def _unpadded_band(
     of the four. Raises nothing. No I/O of any kind.
     """
     line = parsing.census_floor(floor)
-    if len(counted) < line:
+    if len(counted.records) < line:
         return -1
     for width in unpadded:
         if unpadded[width] >= line:
             return -1
     spellings: "dict[str, int]" = {}
     highest = 1
-    for cell, width in counted:
+    for cell, width in zip(counted.records, counted.own):
         spellings[parsing.trimmed(cell.numeric_text)] = 1
         highest = max(highest, width, _least_pad(cell, 1) - 1)
     room = len(spellings)
@@ -13104,7 +13157,7 @@ def _unpadded_band(
     rows: "dict[float, int]" = {}
     worn: "dict[float, dict[str, int]]" = {}
     stands: "dict[float, dict[int, int]]" = {}
-    for cell, width in counted:
+    for cell, width in zip(counted.records, counted.own):
         value = cell.value
         if value is None or value not in placed or not math.isfinite(value):
             continue
@@ -13124,7 +13177,7 @@ def _unpadded_band(
             reach += [rows[value] if width in stands[value] else 0]
         groups += [(rows[value], len(worn[value]), tuple(reach))]
     if parsing.census_pools(
-        len(counted), floor, len(widths), room, [len(counted)] * len(widths),
+        len(counted.records), floor, len(widths), room, [len(counted.records)] * len(widths),
         tuple(groups), False, True,
     ):
         return -1
@@ -13143,7 +13196,7 @@ def _unpadded_band(
             best = width
     if best >= 0:
         return best
-    if parsing.census_pools(len(counted), floor, 0, room):
+    if parsing.census_pools(len(counted.records), floor, 0, room):
         return -1
     return anywhere
 
@@ -15570,6 +15623,37 @@ def _numeric_tails(
     return _numeric_tails_and_causes(cells, details)[0]
 
 
+def _sorted_runs(ordered: "list[float]") -> int:
+    """How many different values a sorted list holds: its runs of equal values.
+
+    Guarantees: `ordered` is sorted; returns what `len(set(ordered))`
+    returns on binary64 values none of which is not-a-number, nought and
+    minus nought one value. Raises nothing. No I/O of any kind.
+    """
+    runs = 0
+    for place in range(len(ordered)):
+        if place == 0 or ordered[place] != ordered[place - 1]:
+            runs = runs + 1
+    return runs
+
+
+def _end_run(ordered: "list[float]", end: int) -> int:
+    """How many values of a sorted list equal the one at `end`, its first or last place.
+
+    Guarantees: what counting the values equal to `ordered[end]` returns,
+    read from that end inward. Raises IndexError on an empty list. No
+    I/O of any kind.
+    """
+    held = ordered[end]
+    step = 1 if end == 0 else -1
+    place = end
+    run = 0
+    while 0 <= place < len(ordered) and ordered[place] == held:
+        run = run + 1
+        place = place + step
+    return run
+
+
 def _numeric_tails_and_causes(
     cells: _Cells, details: "dict[str, object]"
 ) -> "tuple[dict[str, object], dict[str, str]]":
@@ -15658,8 +15742,10 @@ def _numeric_tails_and_causes(
     high = _tail_distances(
         ordered, high_first, high_last, found[high_percent], "high"
     )
-    heaped_low = len([v for v in ordered if v == ordered[0]]) >= units
-    heaped_high = len([v for v in ordered if v == ordered[count - 1]]) >= units
+    # COUNTED UP THE SORTED VALUES, each end's run read off its end and
+    # never a list of the values (lane H3, plan P4-D423).
+    heaped_low = _end_run(ordered, 0) >= units
+    heaped_high = _end_run(ordered, count - 1) >= units
     rungs: "dict[str, float | None]" = {}
     for label, num, den in LADDER:
         held = ladder[label]
@@ -15678,10 +15764,15 @@ def _numeric_tails_and_causes(
     figures = _tail_grid(details, count)
     # THE COLUMN'S OWN DIFFERENT VALUES, counted once for both sides:
     # `tail_may_list` asks whether they are a small fixed set, and that
-    # is a fact about the column and not about either of its ends.
-    distinct_numbers = len(set(ordered))
+    # is a fact about the column and not about either of its ends. THEY
+    # ARE THE RUNS OF THE SORTED VALUES: the set of every value this
+    # counted held about a hundred bytes a row while it grew, on a column
+    # whose numbers never repeat (lane H3, plan P4-D423); binary64
+    # equality is the set's, so the count is the same.
+    distinct_numbers = _sorted_runs(ordered)
     no_negative = cells.n_negative == 0
-    no_positive = len([v for v in ordered if v > 0.0]) == 0
+    # No value above nought is the largest one at or below it.
+    no_positive = not ordered[count - 1] > 0.0
     floor = cells.settings.small_cell_floor
     sides: "dict[str, object]" = {}
     unholdable: "list[str]" = []
@@ -18145,6 +18236,27 @@ def _clock_text(canonical: str) -> str:
     return canonical
 
 
+def _shared_days(days: "list[int]") -> "tuple[int, ...]":
+    """The day numbers as a tuple, every row of one day holding one number.
+
+    ONE NUMBER A DAY, NOT A ROW (lane H3, plan P4-D423): a day number past
+    256 is an object of its own, and a census of a column of stamps that
+    never repeat held one a row, about 32 bytes, beside the tuple; the
+    days themselves repeat. The tuple is equal to the one of the days.
+
+    Guarantees: returns `tuple(days)`, element for element. Raises
+    nothing. No I/O of any kind.
+    """
+    first: "dict[int, int]" = {}
+    for place in range(len(days)):
+        day = days[place]
+        if day in first:
+            days[place] = first[day]
+        else:
+            first[day] = day
+    return tuple(days)
+
+
 def _census_days(
     details: "dict[str, object]",
     pairs: "list[tuple[str, str]]",
@@ -18185,7 +18297,9 @@ def _census_days(
         order = ranked if ranked is not None else _census_ranked(details, pairs)
         if order is None:
             return ()
-        return tuple(calendar_rules.written_day(pairs[place][0]) for place in order)
+        return _shared_days(
+            [calendar_rules.written_day(pairs[place][0]) for place in order]
+        )
     days: "list[int]" = []
     # ONE DAY NUMBER PER WRITTEN DATE (lane S4d, `parsing.SPELLING_MEMO_TEXTS`;
     # past the bound from a date's second sighting, `parsing.SPELLING_MEMO_NOTED`).
@@ -18213,7 +18327,7 @@ def _census_days(
             older = noted
             noted = {}
         days += [day]
-    return tuple(sorted(days))
+    return _shared_days(sorted(days))
 
 
 def _census_moments(
@@ -21658,6 +21772,43 @@ def _datetime_reading(pairs: list[tuple[str, str]]) -> str:
     return READ_AT_UTC
 
 
+def _moments_by_text(
+    pairs: "list[tuple[str, str]]",
+) -> "tuple[list[str], str, str, str, str] | None":
+    """`ordered_moments` of local moments with no offset, read off their sorted texts, or None.
+
+    `ordered_moments` sorts a key a row -- the moment's instant, its text
+    and its offset -- and keeps the texts: about 104 bytes a row while it
+    sorted, on a column of stamps that never repeat. Where no moment
+    carries an offset, the texts sorted as text are that order whenever
+    their instants never fall along it: each text's key is then at or
+    above the one before it (an equal instant is ordered by the text,
+    which is the order already), and texts with equal keys are equal
+    texts, so the sorted texts ARE the sequence the keys sort into. This
+    sorts the texts, asks each one's instant once along them, and answers
+    None -- `ordered_moments` then sorts the keys as before -- where an
+    offset is written, a text has no instant, or an instant falls.
+
+    Guarantees: None, or what `ordered_moments(pairs, reading)` returns
+    for a reading that is not `READ_AT_UTC`. Raises nothing. No I/O.
+    """
+    if not pairs:
+        return None
+    for _canonical, offset in pairs:
+        if offset != "":
+            return None
+    texts = sorted(canonical for canonical, _offset in pairs)
+    previous = -1
+    for place in range(len(texts)):
+        instant = parsing.instant_key(texts[place], "")
+        if instant is None:
+            return None
+        if place > 0 and instant < previous:
+            return None
+        previous = instant
+    return (texts, texts[0], texts[len(texts) - 1], "", "")
+
+
 def ordered_moments(
     pairs: "list[tuple[str, str]]", reading: str
 ) -> "tuple[list[str], str, str, str, str]":
@@ -21680,6 +21831,12 @@ def ordered_moments(
     two wear. Determinism: a function of the two. Raises nothing. No I/O
     of any kind.
     """
+    # THE TEXTS IN THEIR OWN ORDER WHERE THAT IS THE MOMENTS' ORDER (lane
+    # H3, plan P4-D423), with no key a row held while they are sorted.
+    if reading != READ_AT_UTC:
+        by_text = _moments_by_text(pairs)
+        if by_text is not None:
+            return by_text
     keyed: list[tuple[int, str, str]] = []
     unkeyed: list[str] = []
     # ONE KEY PER WRITTEN MOMENT (lane S4d, `parsing.SPELLING_MEMO_TEXTS`): the
@@ -24659,6 +24816,30 @@ def _decision(
     return verdict
 
 
+def _different_sources(sources: "list[str]", cells: _Cells) -> int:
+    """How many different texts a date reading read, `len(set(sources))`.
+
+    WHERE THE READING READ EVERY PRESENT CELL, the very texts in their own
+    order, they are the tally's own spellings and their count is the
+    tally's (lane H3, plan P4-D423): the set of every text this made held
+    about a hundred bytes a row while it grew, beside the reading's pairs,
+    on a column of stamps that never repeat. Any other reading is counted
+    as before.
+
+    Guarantees: returns `len(set(sources))`. Raises nothing. No I/O.
+    """
+    present = cells.present
+    if len(sources) == len(present):
+        same = True
+        for place in range(len(sources)):
+            if sources[place] is not present[place]:
+                same = False
+                break
+        if same:
+            return cells.raw_distinct
+    return len(set(sources))
+
+
 def _decide(
     cells: _Cells,
     forced_identifier: bool,
@@ -25089,7 +25270,7 @@ def _decide(
                 remarks=remarks,
                 details=details,
                 days=_census_days(details, counted, ranked),
-                texts=len(set(sources)),
+                texts=_different_sources(sources, cells),
                 hours=_census_hours(details, counted, ranked),
                 moments=_census_moments(details, counted, ranked, instants),
                 minutes=clock_fields[0],
