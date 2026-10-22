@@ -6761,10 +6761,7 @@ class _Cell:
     text: str
     # The number the cell holds, and None whenever no number was held.
     value: "float | None"
-    # The cell after trimming and case folding: the key the levels, the
-    # binary rule and the categorical rule all count with.
-    folded: str
-    # FOUR SLOTS A RECORD, AND EVERYTHING ELSE READ OFF THEM (lane H3,
+    # THREE SLOTS A RECORD, AND EVERYTHING ELSE READ OFF THEM (lane H3,
     # plan P4-D423). A column whose values never repeat holds one record
     # a row, and the record of ten fields, with the exact triple held
     # beside it, cost about 280 bytes a numeric cell on top of the cell
@@ -6774,9 +6771,11 @@ class _Cell:
     # whether it is whole, the two alphabet tests -- and the declaration
     # it was read under are one entry of `_CELL_FACTS`, a table made once
     # when this module loads, so a record holds a reference where it held
-    # five; the spelling the number rules read and the exact number are
-    # fixed functions of the text and that declaration, read off the
-    # record when asked (the properties below), never held a row. Every
+    # five; the spelling the number rules read, the exact number and the
+    # folded label are fixed functions of the text and that declaration,
+    # read off the record when asked (the properties below), never held a
+    # row (a folded label that differs from the text is held once, by the
+    # tally's count of it). Every
     # answer is the one the record of ten fields held, so every rule
     # reads what it read, and `_classify` is still the one place a cell
     # is classified, once.
@@ -6827,6 +6826,17 @@ class _Cell:
     @property
     def sign(self) -> str:
         return self.facts[1]
+
+    # The cell after trimming and case folding: the key the levels, the
+    # binary rule and the categorical rule all count with. THE CELL'S OWN
+    # TEXT WHERE FOLDING CHANGES NOTHING (lane S4d, plan P4-D390): the
+    # same characters, never a copy beside a cell already folded.
+    @property
+    def folded(self) -> str:
+        folded = parsing.folded(self.text)
+        if folded == self.text:
+            return self.text
+        return folded
 
     @property
     def whole(self) -> str:
@@ -6977,16 +6987,10 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
         else:
             sign = parsing.SIGN_POSITIVE
     trimmed = parsing.trimmed(text)
-    # THE FOLDED LABEL IS THE CELL'S OWN TEXT WHERE FOLDING CHANGES
-    # NOTHING (lane S4d, plan P4-D390): the same characters, held once
-    # rather than copied beside every cell that is already folded.
-    folded = parsing.folded(text)
-    if folded == text:
-        folded = text
+    # The folded label is read off the record when asked (`_Cell.folded`).
     return _Cell(
         text=text,
         value=value,
-        folded=folded,
         facts=_cell_facts(
             kind,
             sign,
@@ -7203,6 +7207,7 @@ def _tally(
     n_rows: int,
     settings: Settings,
     decimal_comma: bool = False,
+    texts: "list[str] | None" = None,
 ) -> _Cells:
     """Count the one classification of each cell, in one pass.
 
@@ -7212,7 +7217,12 @@ def _tally(
     reading the whole column a second time and hoping the second reading
     agrees with the first (review item P1-R6-F10).
     """
-    present: list[str] = []
+    # THE TEXTS THE RECORDS WERE MADE FROM, where the caller hands the very
+    # list `_classify_all` read and no record was taken out since (lane
+    # H3, plan P4-D423): the same texts in the same order, held once
+    # rather than in a second list a row beside the caller's.
+    reuse = texts is not None and len(texts) == len(classified)
+    present: list[str] = texts if texts is not None and reuse else []
     numbers: list[float] = []
     out_of_range = 0
     contradictory = 0
@@ -7233,7 +7243,8 @@ def _tally(
     # `folded_counts` when it is asked for.
     mixed_spellings: "dict[str, dict[str, int] | str]" = {}
     for cell in classified:
-        present += [cell.text]
+        if not reuse:
+            present += [cell.text]
         if cell.kind == parsing.NUMBER:
             if cell.value is not None:
                 numbers += [cell.value]
@@ -24408,6 +24419,7 @@ def _affixed_verdict(
         cells.n_rows,
         cells.settings,
         cells.decimal_comma,
+        affixed.cores,
     )
     n_core_numeric = len(core_cells.numbers)
     # `whole_everywhere` over the CORES, on the same test the numeric
