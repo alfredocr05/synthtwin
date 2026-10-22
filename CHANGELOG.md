@@ -18,13 +18,17 @@ and let go one at a time with its plan, and the twin's text is written
 a piece at a time, never made whole; a workbook twin's cells, classes
 and styles are held the same way. Every twin is the same file, byte for
 byte, as before. On lane B0's two tables of fifty columns generate
-peaks at 258 and 119 MB at 100,000 rows, where it held 489 and 532,
-and at 464 and 259 MB at 500,000, about 0.8 GB projected at 2,000,000
-rows; a workbook twin of 200,000 rows is written at 243 MB. One
-placement hook, `_row_placement`, is where lane CHb's chain generator
-will put a column's cells in rows. The offline scan admits zlib's
-`compress` and `decompress` in the twin's store alone. `K-S4-12`
-records generate's seconds.
+peaks, on Python 3.11, at 156 and 120 MB at 100,000 rows, where it
+held 548 and 609, and at 478 and 361 MB at 500,000: 0.8 to 1.6 GB
+projected at 2,000,000 rows over Python 3.11 and 3.13 and two ways of
+projecting, under the 2.5 GB. A workbook twin's shared strings are
+written a piece at a time too: a twin of lane XW's wide book whose
+record numbers differ on every row is written at 568 MB at 500,000
+rows, 0.8 to 1.0 GB projected at 1,048,576. Generate's seconds do not
+move (`K-S4-12` records them). One placement hook, `_row_placement`,
+is where lane CHb's chain generator will put a column's cells in rows.
+The offline scan admits zlib's `compress` and `decompress` in the
+twin's store alone.
 
 ### The questions file keeps every answer across rounds (2026-10-19)
 
