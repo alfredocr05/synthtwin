@@ -1030,16 +1030,21 @@ def row_hashes(table: reading.Table) -> "tuple[list[bytes], bytearray]":
             for row in range(rows):
                 text = values[row]
                 cell = bytes(text, "utf-8")
-                digest = hashlib.blake2b(head + _length_word(len(cell)) + cell, digest_size=32, person=b"synthtwin.cel.1").digest()
-                sums[row] += int.from_bytes(digest, "big")
+                digest = hashlib.blake2b(head + _length_word(len(cell)) + cell, digest_size=32, person=b"synthtwin.cel.1").hexdigest()
+                sums[row] += int(digest, 16)
                 if not filled[row] and not _is_blank(text):
                     filled[row] = 1
     hashes: "list[bytes]" = []
     for row in range(rows):
-        total = (sums[row] % (1 << 256)).to_bytes(32, "big")
+        total = _bytes32(sums[row] % (1 << 256))
         sums[row] = 0
         hashes += [hashlib.blake2b(total, digest_size=32, person=b"synthtwin.row.2").digest()]
     return hashes, filled
+
+
+def _bytes32(value: int) -> bytes:
+    """A whole number below `2**256` written in 32 bytes, big-endian."""
+    return bytes([(value >> (8 * (31 - at))) & 255 for at in range(32)])
 
 
 def content_hash(hashes: "list[bytes]", filled: "bytearray | None" = None) -> bytes:
@@ -1055,7 +1060,7 @@ def content_hash(hashes: "list[bytes]", filled: "bytearray | None" = None) -> by
         if filled is not None and not filled[row]:
             continue
         total = (total + rules.big_endian(hashes[row])) % (1 << 256)
-    return bytes([(total >> (8 * (31 - at))) & 255 for at in range(32)])
+    return _bytes32(total)
 
 
 def sample_rows(hashes: "list[bytes]", tabled: "list[int]", size: int) -> "list[int]":

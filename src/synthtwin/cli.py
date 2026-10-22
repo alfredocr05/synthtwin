@@ -106,12 +106,6 @@ from synthtwin import asking, dialect, errors, parsing
 from synthtwin import date_counts
 from synthtwin.paths import PathValidationError, validate_local_path
 
-if typing.TYPE_CHECKING:
-    # The chain's installation (its key comes from `secrets`) is imported
-    # only behind the chain's switch, never by a shipped run (Codex's item
-    # 10 on repair 1).
-    from synthtwin import installation
-
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
 
 # THE PARSER'S OWN VOCABULARY, written out here for the reason the module
@@ -3245,8 +3239,11 @@ class _ChainState:
     """One switched run's installation, opened before the table is read, and its pending entry."""
 
     run: ChainRun
-    opened: "installation.Opened"
-    entry: "installation.Entry | None" = None
+    # `installation.Opened` and `installation.Entry`: the installation (its
+    # key comes from `secrets`) is imported only behind the chain's switch,
+    # never by a shipped run (Codex's item 10 on repair 1).
+    opened: "typing.Any"
+    entry: "typing.Any" = None
     statistical: "dict[str, object] | None" = None
     notes: "tuple[str, ...]" = ()
     # The pairs the handed-back questions file asks to add and to drop,
@@ -3352,12 +3349,21 @@ def _requests_line(
         done += [f"{len(taken_drop)} pair(s) to drop share no family table"]
     others = [pair for pair in add + drop if pair not in taken_add and pair not in taken_drop]
     if others:
-        done += ["these name a column the chain does not hold and were left: " + "; ".join(f"{one} and {other}" for one, other in others)]
+        left = ""
+        for one, other in others:
+            left += ("; " if left else "") + f"{one} and {other}"
+        done += ["these name a column the chain does not hold and were left: " + left]
     if unread:
-        done += ["these requests could not be read (a pair is two column names of this table): " + "; ".join(unread)]
+        unread_text = ""
+        for one in unread:
+            unread_text += ("; " if unread_text else "") + one
+        done += ["these requests could not be read (a pair is two column names of this table): " + unread_text]
     if statistical is None:
         done += ["no family table is published for this table"]
-    return "Between columns, from the questions file: " + "; ".join(done) + ". The requests stay in the questions file."
+    said = ""
+    for one in done:
+        said += ("; " if said else "") + one
+    return "Between columns, from the questions file: " + said + ". The requests stay in the questions file."
 
 
 def _chain_line(statistical: "dict[str, object] | None") -> str:

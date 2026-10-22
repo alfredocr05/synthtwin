@@ -39,6 +39,22 @@ blank cells keeps its bands, a row blank in every column no longer makes
 a second table to the record, the key never prints, and the suite and
 Windows failures the lane caused are repaired.
 
+**Repair 2.** A column whose values all differ but for a published mode
+or a heap of noughts no longer lets a five-row percent slice be fixed
+beside another column: before, 8 of 8 keys published such a slice
+confined to one gender on a 501-row table; now none does, at no cost
+on lane E0b's battery or A0b's table (`K-S6-08` holds the case). The
+loader refuses more broken descriptions (a level left out, a merged
+band miscounted, an anchor written as `false`, a column written as a
+list, a computed column with no rule) in plain words. The content hash
+is taken cell by cell, so a table read in groups is no longer held
+whole in memory to hash it (about 3.2 GB at 2,000,000 x 50 before). A
+column of dates written as Excel day numbers keeps the chain. The
+questions file's pairs to add or drop are now read, applied and kept.
+A data folder other accounts can change, a damaged key file and a disk
+full while the key is written each get plain words or clean up after
+themselves, and the installation is imported only behind the switch.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

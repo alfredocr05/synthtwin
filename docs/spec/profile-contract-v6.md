@@ -4473,6 +4473,22 @@ entry goes to `chain-ledger.new` and is moved into place with
 account may read or write is refused on POSIX; on Windows the folder is
 the user's own, and no POSIX mode is read. `tests/test_chain_profile.py`
 runs every case in both forms.
+**Amended 2026-10-21 (lane CHa's repair 2, plan P4-D418; Codex's items
+6, 11, 12 and 13):** a data folder that a group or other account may
+write is refused on POSIX in plain words, since it lets them replace
+the record; a key file that stands but does not hold 32 bytes is
+refused with words to move it aside and run again, with `--new-key`
+where a record stands, so `--new-key` is accepted only where the record
+exists and no key file does (synthtwin still never replaces a key file
+that exists); anything raised after the lock is taken removes the lock,
+and a key half written is removed. The questions file's one entry on the
+chain (`between_columns`) carries the pairs the person asks to `add` and
+to `drop`, each a list of two column names: a pair to drop shares no
+family table (no option places one of its columns as a parent of the
+other); a pair to add takes the rule weight's raise, `w_rule n`, a weight
+only, never forced; a request naming no two eligible columns, or not
+written as two names, is named on the screen; the next questions file
+writes the requests back as read. Nothing waits for them.
 
 **One run at a time, and the entry before the description.** A run
 holds the installation's LOCK, a file it makes in the data folder with
