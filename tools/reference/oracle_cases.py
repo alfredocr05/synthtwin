@@ -533,7 +533,7 @@ def case_search():
 
 
 def _rows_lads(rows, specs):
-    """Ladders of label columns from joint rows `[(values, count)]`; `specs` lists, for each
+    """Each label column's ladder from joint rows `[(values, count)]`; `specs` lists, for each
     column in schema order, `(name, role, levels)`."""
     lads = {}
     for at, (name, role, levels) in enumerate(specs):
@@ -825,7 +825,7 @@ def slope_absent_setup():
             groups[lads[name].row_l0[r]] += [("", None) if cell[0] == "missing" else (str(cell[1]), cell[1])]
         twin[name] = groups
     slopes = {1: ([("X", "0.5000")], "2.0000")}
-    codes = {"X": (F(0), F(100))}
+    codes = {"X": (F(0), F(98))}
     return lads, chain, twin, _words_for(SLOPE_SEED, 2, 100), slopes, codes
 
 

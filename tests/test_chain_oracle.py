@@ -621,20 +621,21 @@ def test_a_slope_parent_s_absent_cells_take_no_term():
     """G16.12 item 11: `X` holds 5 absent cells and the readings 1 to 95,
     its one edge at 46; the absent band (5 rows) joins its one neighbour,
     the readings below 46 (45 rows), an ORDERED band of 50. `Y | X`
-    publishes a slope on `X` (beta 0.5, sigma 2), value codes on 0 to 100.
+    publishes a slope on `X` (beta 0.5, sigma 2), value codes on 0 to 98.
     The walk deals `X`'s 5 absent cells inside the band; their rows'
     reading map is clear, so their term is nought and L = 2 z exactly as
     binary64 rounds it, and the cell's mean reads the 45 readings alone:
-    the codes floor(2.56 x) for x from 1 to 45 sum to 2,628, so the mean
-    is 2628/45 = 292/5 = 58.4, divided once in binary64
-    (0x1.d333333333333p+5); the other cell's 50 codes sum to 9,000, a mean
-    of 180 exactly. MUTANTS: the term read on rows whose map is clear
+    the codes floor(256 x / 98) for x from 1 to 45 sum to 2,681, so the
+    mean is 2681/45, about 59.58, divided once in binary64; the other
+    cell's 50 codes sum to 9,184, a mean of 4592/25 = 183.68, rounded the
+    same way. MUTANTS: the term read on rows whose map is clear
     (the band code read as the mark), and the mean left unrounded."""
     case = FROZEN["chain"]["slope_absent"]
     assert case["x_l0"] == [["missing", ["range", None, "p10"]], [["range", "p10", None]]]
     assert case["x_totals"] == [50, 50] and case["met"]
-    assert case["means"] == {"0": co.b64_hex(co.b64(Fraction(2628, 45))), "1": "0x1.6800000000000p+7"}
-    assert co.b64(Fraction(292, 5)) != Fraction(292, 5)
+    assert sum((256 * x) // 98 for x in range(1, 46)) == 2681 and sum((256 * x) // 98 for x in range(46, 96)) == 9184
+    assert case["means"] == {"0": co.b64_hex(co.b64(Fraction(2681, 45))), "1": co.b64_hex(co.b64(Fraction(4592, 25)))}
+    assert co.b64(Fraction(2681, 45)) != Fraction(2681, 45) and co.b64(Fraction(4592, 25)) != Fraction(4592, 25)
     _, _, _, words, _, _ = oc.slope_absent_setup()
     assert len(case["absent_rows"]) == 5
     for r in case["absent_rows"]:
