@@ -9412,7 +9412,7 @@
    "driver": "tools/measurements/kpi_describe_groups.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "K-S4-09's runs",
-   "evidence": "Recorded on 8a02faa: describe's CPU 303.9 / 767.7 / 1,563.8 / 3,060.5 s on the mixed table, 6,151.6 s projected at 2,000,000 x 50 (1.71 h), and 145.6 / 360.1 / 723.2 s on the Gaussian, 2,867.2 s; 2ab12d9 read 4,774.3 and 3,127.1 s, fitted over other sizes (x1.29). The mixed table is described twice on 8a02faa (a column held by lane HX's rule: 100 column descriptions for 50), its CPU share not measured. Lane SR-A's pyarrow reads a group again 3.3 to 3.5 times faster at 250,000 rows, about 12 % of describe's CPU there (P4-D414, measured paired); to be re-stamped on its head: wave6/SRA/night-sra.sh <head> kpi. Inside the owner's twelve hours.",
+   "evidence": "Recorded on 8a02faa: describe's CPU 303.9 / 767.7 / 1,563.8 / 3,060.5 s on the mixed table, 6,151.6 s projected at 2,000,000 x 50 (1.71 h), and 145.6 / 360.1 / 723.2 s on the Gaussian, 2,867.2 s; 2ab12d9 read 4,774.3 and 3,127.1 s, fitted over other sizes (x1.29). The mixed table is described twice on 8a02faa (a column held by lane HX's rule: 100 column descriptions for 50), its CPU share not measured. Lane SR-A's pyarrow, its line walk included, reads a group again 2.2 to 2.3 times faster at 250,000 rows, about 9 % of describe's CPU there (P4-D414, measured paired); to be re-stamped on its head: wave6/SRA/night-sra.sh <head> kpi. Inside the owner's twelve hours.",
    "value_at": {
     "commit": "8a02faa",
     "date": "2026-10-21",
