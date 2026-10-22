@@ -21,7 +21,8 @@ changed byte is refused there before anything is made. `sh
 scripts/install.sh` and `scripts\install.bat` take no folder and have no
 route over the internet: they take a Python the bundle serves, 3.11 to
 3.14, even beside a newer one, and name Python 3.14 when there is none;
-check every file of the bundle, every line of its lock, and that it
+check every file of the bundle, every line of its lock as pip reads it
+(a comment ending in a backslash hides no line), and that it
 fits this computer's chip, macOS or Linux and its Python's kind and
 holds every library they need, before they change anything (an
 incomplete bundle leaves an earlier install as it was); install with

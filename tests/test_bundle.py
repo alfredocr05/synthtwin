@@ -308,6 +308,10 @@ def test_the_check_refuses_a_bundle_without_one_synthtwin_wheel(tmp_path: pathli
         "otherdep==2.0 --hash=sha256:" + "0" * 64 + " --config-settings x=y",
         "otherdep==2.0 ; sys_platform == 'linux' --no-binary otherdep --hash=sha256:" + "0" * 64,
         "otherdep==2.0 ; extra == 'x' --hash=sha256:" + "0" * 64,
+        # Lane DEP-2's second verify, item 1: a comment line ending in a
+        # backslash never continues for pip, so the line after it is read.
+        "# pinned by uv \\\n--find-links https://example.invalid/wheels",
+        "# x \\\n   # y \\\n--index-url https://example.invalid/simple",
     ],
 )
 def test_the_check_refuses_a_lock_that_could_fetch(tmp_path: pathlib.Path, line: str) -> None:
@@ -791,6 +795,38 @@ def test_install_sh_stops_before_the_environment_when_a_library_is_missing(
     assert _reached_for_network(said) == [], said
     assert "stand-in doctor ran" not in said
     assert kept.exists() and (bundle / ".venv" / "bin" / "synthtwin").exists()
+
+
+@posix_only
+def test_install_sh_stops_at_a_fetching_line_behind_a_comment_ending_in_a_backslash(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Lane DEP-2's second verify, item 1, run for real: pip never continues a
+    comment line, so it reads the find-links after '# pinned by uv \\' and
+    looked in a folder outside the bundle while the check read nothing there."""
+    bundle = _bundle(tmp_path)
+    outside = tmp_path / "outside the bundle"
+    outside.mkdir()
+    other = _wheel(outside, "stubdep", "1.0", {"stubdep/__init__.py": 'WORD = "from outside"\n'})
+    lock = bundle / "requirements-install.lock"
+    text = lock.read_text(encoding="utf-8")
+    text = text.replace(
+        "    --hash=sha256:", "    --hash=sha256:" + _sha256(other) + " \\\n    --hash=sha256:", 1
+    )
+    text = text.replace(
+        "--only-binary :all:\n",
+        "--only-binary :all:\n# pinned by uv \\\n--find-links " + str(outside) + "\n",
+        1,
+    )
+    lock.write_text(text, encoding="utf-8", newline="\n")
+    _resum(bundle)
+    ran = _install(bundle)
+    said = ran.stdout + ran.stderr
+    assert ran.returncode == 1, said
+    assert "the lock names a place to fetch from" in said, said
+    assert "Looking in links" not in said, said
+    assert "stand-in doctor ran" not in said
+    assert not (bundle / ".venv").exists()
 
 
 @posix_only

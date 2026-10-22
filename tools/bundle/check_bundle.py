@@ -521,12 +521,33 @@ def _holds(groups, environment):
     return False
 
 
+_COMMENT = re.compile(r"(^|\s+)#.*$")
+
+
 def _lock_lines(lock_text):
-    """The lock's lines with continuations joined and comments dropped (as pip reads it)."""
-    joined = re.sub(r"\\\r?\n", " ", lock_text)
+    """The lock's lines with continuations joined and comments dropped, as pip reads it.
+
+    pip splits the text into lines first. A line ending in a backslash
+    continues onto the next, its backslashes stripped, unless it is a
+    comment line: a comment line never continues, so the line after it
+    is read on its own (a fetching line behind '# ... \\' is seen).
+    Comments are dropped from each joined line afterwards.
+    """
+    joined = []
+    pending = None
+    for raw in lock_text.splitlines():
+        if raw.endswith("\\") and not _COMMENT.match(raw):
+            pending = (pending or "") + raw.strip("\\")
+            continue
+        if _COMMENT.match(raw):
+            raw = " " + raw
+        joined += [raw if pending is None else pending + raw]
+        pending = None
+    if pending is not None:
+        joined += [pending]
     lines = []
-    for raw in joined.splitlines():
-        line = re.sub(r"(^|\s+)#.*$", "", raw).strip()
+    for raw in joined:
+        line = _COMMENT.sub("", raw).strip()
         if line:
             lines += [line]
     return lines
