@@ -945,8 +945,9 @@ def test_an_offset_few_people_write_is_never_printed(tmp_path: pathlib.Path) -> 
     """
     described = _profiled(tmp_path, "offs", persons_counted.offset_stamps_table(), "--identifier", "patient")
     block = _block(described, "event_ts")
+    # The counter first: on `offset_off` it names the offset by itself.
+    assert _counted_few(tmp_path, "offs") == 0, block.get("utc_offsets")
     assert "+05:30" not in json.dumps(block), block.get("utc_offsets")
-    assert _counted_few(tmp_path, "offs") == 0
     twin, _real = _generated_and_validated(tmp_path, "offs")
     assert "event_ts" not in twin, twin
     assert _parses(_column(tmp_path / "offs-twin.csv", "event_ts"), "%Y-%m-%dT%H:%M:%S%z") == 0

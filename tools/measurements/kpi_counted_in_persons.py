@@ -94,7 +94,11 @@ def count_off() -> "typing.Iterator[None]":
 # exempts its WHOLE table from `twins_failing_validation`, not the named
 # columns alone (lane HX2's combined verify, item 4): a later miss of any
 # other column of these tables is counted apart too, and P4-D406 says so.
-GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-caps-20000")
+# Lane PS's repair round 2 (P4-D417): a held column of dates writes valid
+# dates (the G1 floor), and no valid ISO date is as long as the real
+# column's withheld `NOT DONE YET` or as short as its withheld `pending`.
+GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-caps-20000",
+                    "g-unread-2000", "g-pending-2000")
 
 # THE COVERAGE EACH BATTERY MUST REACH (Codex's review of lane HX2, item
 # 13): the tables with a subject column the run counted, battery by battery.
@@ -102,7 +106,7 @@ GENERATOR_LIMITS = ("z-diagnoses_procedures", "z-patients", "g-caps-2000", "g-ca
 # against its battery's coverage unless it is named below with its reason,
 # and fewer tables than these is `coverage_short` -- never a green run on
 # lost coverage. The catalogue must be on the path.
-EXPECTED_TABLES = {"shapes": 72, "people": 16, "zoo": 19}
+EXPECTED_TABLES = {"shapes": 72, "people": 19, "zoo": 19}
 # The tables a battery may lose, each named with why.
 PERMITTED_NOT_COUNTED: "dict[str, str]" = {
     "p-500-99": "99 declared people, under the population floor: refused by design",
@@ -190,6 +194,12 @@ def _tables(scratch: pathlib.Path) -> "list[tuple[str, pathlib.Path, list[str]]]
         ("spelled-2000", persons_counted.spellings_table(2000), []),
         ("caps-2000", persons_counted.capitals_table(2000), []),
         ("caps-20000", persons_counted.capitals_table(20000), []),
+        # Lane PS's repair round 2 (plan P4-D417): three people's offset beside
+        # a stamp, twelve people's `pending` beside three people's
+        # `NOT DONE YET`, and three people's `pending` alone, beside ISO dates.
+        ("offsets-3000", persons_counted.offset_stamps_table(), ["--identifier", "patient"]),
+        ("unread-2000", persons_counted.unread_dates_table(), ["--identifier", "patient"]),
+        ("pending-2000", persons_counted.unread_dates_table(3, 0), ["--identifier", "patient"]),
     ):
         home = scratch / f"g-{stem}"
         home.mkdir()
