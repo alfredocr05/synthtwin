@@ -26,28 +26,36 @@ WHAT THIS FILE HOLDS IT TO.
    written by 8a02faa3's own assembly, frozen as text in
    `tests/generate_memory_cases.py`; the command's twin must be those
    bytes, on seeded wide, sorted, sparse and differently encoded tables
-   and on the health data zoo's delimited tables. The workbook route is
-   held to lane XW's frozen writer on a held twin. The goldens, the
-   generation reference vectors and lane XW's 31 workbooks have their
-   own tests, unchanged.
+   and on the health data zoo's delimited tables; and on the seeded
+   tables, the twin 8a02faa3 itself wrote, by its sha256, so a byte
+   moved inside a column's own generation is seen too. The arrangement
+   a column at a time is 8a02faa3's on random sparse columns. The
+   workbook route is held to lane XW's frozen writer on a held twin. The
+   goldens, the generation reference vectors and lane XW's 31 workbooks
+   have their own tests, unchanged.
 2. A TRACED BOUND ON THE BYTES HELD A CELL: the held twin costs its
    text and at most a few bytes more a cell; a column held as text
    objects breaks it.
 3. THE WHOLE TABLE IS NEVER TEXT OBJECTS AT ONCE: writing the twin holds
    one block of rows and one piece of text; a writer that makes the
    whole twin first breaks the bound, and so does a generator handing
-   back the twin both ways round.
+   back the twin both ways round; and the command itself writes its
+   twin with every route that makes the twin whole refusing.
 4. NO TEMPORARY FILE: a generate run opens for writing only its two
    outputs' working names and the outputs, in the folder it was told; a
    column spilled to a temporary file is caught.
 """
 
+import builtins
 import gc
+import hashlib
 import io
 import os
 import pathlib
 import tracemalloc
 import typing
+
+import random
 
 import pytest
 
@@ -100,17 +108,96 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 }
 
 
+# THE TWINS 8a02faa3 WROTE, by their sha256 (repair 1, skeptic 1 item 3
+# and the statistics skeptic's item 4). The frozen assembly above takes
+# the columns TODAY's generator makes, so a byte moved inside a column's
+# own generation -- what lane SG's parts 4, 5 and 7 hold differently --
+# would leave it green; these digests would not. Each is the twin
+# 8a02faa3's `synthtwin generate` wrote at seed 7 from the description
+# 8a02faa3's `synthtwin profile` made of the table, measured on Python
+# 3.11.15 (the CI floor) and 3.13 alike (`wave6/SG/repair1/`), and equal
+# to this lane's.
+_BEFORE_SHA256 = {
+    "latin": "c5a78f1a7c2980c4913bfe4e220cd321f70cb28d0305df1898b02ba4519bc09c",
+    "sorted": "e8e29a4957738b708feb0460709b84a8ea8194bc54d5b144c9207cf1b34830cd",
+    "sorted_floor_one": "2b9a8ad0672a409a26b9eb4f4260c280348ae0b553f744d78ee050c8fda41b46",
+    "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
+    "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
+    "utf16": "dd69f4534646ca603000e5a98d1b76834c78c7b6b45b3757b29cfb21c3d26fde",
+    "wide": "edaee2c842fa47c880123a55c7b195416b4a7d63334cf1165be690dfc5f84097",
+}
+
+
 @pytest.mark.parametrize("case", sorted(_TABLES))
 def test_the_command_writes_the_bytes_the_frozen_assembly_writes(
     tmp_path: pathlib.Path, case: str
 ) -> None:
-    """The twin on disk is 8a02faa3's assembly of the same columns, byte for byte."""
+    """The twin on disk is 8a02faa3's assembly of the same columns, and 8a02faa3's twin, byte for byte."""
     name, build, flags = _TABLES[case]
     description = cases.described(tmp_path, name, build(), flags)
     loaded = _loaded(description)
     before = cases.before_bytes(loaded, SEED)
     after = cases.after_bytes(description, SEED)
     assert after == before, case
+    assert hashlib.sha256(after).hexdigest() == _BEFORE_SHA256[case], case
+
+
+def test_every_seeded_table_has_its_digest() -> None:
+    """No seeded table goes without 8a02faa3's digest, and none is pinned that is not run."""
+    assert sorted(_BEFORE_SHA256) == sorted(_TABLES)
+
+
+def _random_columns(draw: random.Random, width: int, n_rows: int) -> "list[tuple[str, ...]]":
+    """Columns mostly empty, some cells a space: records no column fills, givers of one or two cells."""
+    share = draw.choice((0.3, 0.6, 0.85, 0.95, 0.99))
+    holes = ("", " ") if draw.random() < 0.3 else ("",)
+    columns: "list[tuple[str, ...]]" = []
+    for _place in range(width):
+        cells: "list[str]" = []
+        for _row in range(n_rows):
+            if draw.random() < share:
+                cells += [draw.choice(holes)]
+            else:
+                cells += [f"v{draw.randrange(0, 50)}"]
+        columns += [tuple(cells)]
+    return columns
+
+
+@pytest.mark.parametrize("case", ["sorted", "sparse"])
+def test_the_arrangement_a_column_at_a_time_is_the_frozen_arrangement(
+    tmp_path: pathlib.Path, case: str
+) -> None:
+    """`dialect.arranged` against 8a02faa3's own, on random sparse columns (skeptic 1, item 4).
+
+    The sorted form sorts and places empty records; the sparse form
+    places them with no sort. Most columns here are almost all empty, so
+    records no column fills arise in most trials and the cell each is
+    given must come from a record two columns or more fill -- the rule
+    (`filled[source] < 2` in `_given_cells`) the seeded tables above
+    cannot see, since dropping it moved none of their bytes.
+    """
+    name, build, flags = _TABLES[case]
+    loaded = _loaded(cases.described(tmp_path, name, build(), flags))
+    form = loaded.source.dialect
+    n_rows = loaded.n_rows
+    width = len(loaded.columns)
+    needy_trials = 0
+    for trial in range(40):
+        columns = _random_columns(random.Random(trial * 7919 + n_rows), width, n_rows)
+        state = dialect.arranging(form, n_rows, width)
+        for column in columns:
+            dialect.placed_column(state, list(column))
+        if state.placing and any(
+            not state.targets[row] and not state.filled[row] for row in range(n_rows)
+        ):
+            needy_trials = needy_trials + 1
+        made = dialect.arranged(columns, form, n_rows)
+        frozen = cases.AS_BUILT["arranged"]([list(column) for column in columns], form, n_rows)
+        assert [tuple(column) for column in made] == [tuple(column) for column in frozen], (
+            case,
+            trial,
+        )
+    assert needy_trials >= 10, needy_trials
 
 
 def test_the_seeded_tables_reach_every_arrangement(tmp_path: pathlib.Path) -> None:
@@ -390,6 +477,63 @@ def test_a_writer_making_the_whole_twin_first_breaks_the_bound(
     assert peak > bound, (mutant, peak, bound)
 
 
+# THE COMMAND'S OWN ROUTE (repair 1, skeptic 1 item 2): every bound above
+# calls `generate_held` or `twin_csv_pieces` itself, so a command that
+# went back to the whole twin, or made the whole text, kept them green.
+# K-S4-09 measures the command, so the command is held here: the three
+# routes that make the twin whole refuse, and the command must still
+# write its twin.
+
+
+def _refused(*_arguments: object, **_keywords: object) -> typing.NoReturn:
+    raise AssertionError("the command made the twin whole")
+
+
+def _command_route(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> int:
+    """The generate command's exit code with every whole-twin route refusing."""
+    description = cases.described(tmp_path / "in", "wide.csv", cases.wide_table(600, 12))
+    out = tmp_path / "out"
+    out.mkdir()
+    monkeypatch.setattr(generation, "materialised", _refused)
+    monkeypatch.setattr(rendering, "twin_csv", _refused)
+    monkeypatch.setattr(dialect, "twin_text", _refused)
+    try:
+        code = cases.run(
+            ["generate", str(description), "--out-dir", str(out), "--seed", f"{SEED}", "--replace"]
+        )
+    except AssertionError:
+        return -1
+    if code == 0:
+        assert any("-twin." in path.name for path in out.iterdir())
+    return code
+
+
+def test_the_command_never_makes_the_twin_whole(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`synthtwin generate` writes its twin with `materialised`, `twin_csv` and `twin_text` refusing."""
+    assert _command_route(tmp_path, monkeypatch) == 0
+
+
+@pytest.mark.parametrize("mutant", ["whole_twin_both_ways", "text_made_whole"])
+def test_a_command_making_the_twin_whole_is_caught(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, mutant: str
+) -> None:
+    """MUTANTS: the command handed `generate`'s twin both ways round; its text made whole first."""
+    if mutant == "whole_twin_both_ways":
+        shipped = generation.generate_held
+        monkeypatch.setattr(
+            generation,
+            "generate_held",
+            lambda profile, seed: generation.materialised(shipped(profile, seed)),
+        )
+    else:
+        monkeypatch.setattr(
+            rendering, "twin_csv_pieces", lambda twin: iter([rendering.twin_csv(twin)])
+        )
+    assert _command_route(tmp_path, monkeypatch) != 0
+
+
 # -- 4. no temporary file -------------------------------------------------------
 
 _WRITING_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
@@ -398,9 +542,15 @@ _WRITING_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
 def _written_paths(
     monkeypatch: pytest.MonkeyPatch, description: pathlib.Path, out: pathlib.Path
 ) -> "list[pathlib.Path]":
-    """Every path a generate run opens for writing, by either door Python has."""
+    """Every path a generate run opens for writing, by any of the doors Python has.
+
+    `io.open` (which `pathlib` and `tempfile` reach), `os.open`, and the
+    builtin `open`, a binding of its own that patching `io.open` leaves
+    alone (repair 1, skeptic 1 item 5).
+    """
     opened: "list[pathlib.Path]" = []
     real_open = io.open
+    real_builtin_open = builtins.open
     real_os_open = os.open
 
     def watched_open(file: object, mode: str = "r", *args: object, **kwargs: object) -> object:
@@ -408,12 +558,20 @@ def _written_paths(
             opened[len(opened):] = [pathlib.Path(os.fspath(file)).resolve()]
         return real_open(file, mode, *args, **kwargs)  # type: ignore[call-overload]
 
+    def watched_builtin_open(
+        file: object, mode: str = "r", *args: object, **kwargs: object
+    ) -> object:
+        if isinstance(file, (str, os.PathLike)) and any(flag in mode for flag in "wax+"):
+            opened[len(opened):] = [pathlib.Path(os.fspath(file)).resolve()]
+        return real_builtin_open(file, mode, *args, **kwargs)  # type: ignore[call-overload]
+
     def watched_os_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
         if isinstance(path, (str, os.PathLike)) and flags & _WRITING_FLAGS:
             opened[len(opened):] = [pathlib.Path(os.fspath(path)).resolve()]
         return real_os_open(path, flags, *args, **kwargs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(io, "open", watched_open)
+    monkeypatch.setattr(builtins, "open", watched_builtin_open)
     monkeypatch.setattr(os, "open", watched_os_open)
     try:
         code = cases.run(
@@ -440,17 +598,28 @@ def test_a_generate_run_writes_only_its_two_files(
     assert len(left) == 2 and any("-twin." in name for name in left), left
 
 
+@pytest.mark.parametrize("door", ["tempfile", "builtin_open"])
 def test_a_column_spilled_to_a_temporary_file_is_caught(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, door: str
 ) -> None:
-    """MUTANT: each finished column written to a temporary file before it is held."""
+    """MUTANTS: each finished column written to a temporary file before it is held.
+
+    By `tempfile`, and by the builtin `open` on a path of the run's own
+    choosing, which only the builtin's own patch sees (skeptic 1, item 5).
+    """
     import tempfile
 
     shipped = twinstore.held_column
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
 
     def spilled(cells: "list[str]") -> twinstore.HeldColumn:
-        with tempfile.TemporaryFile("w+", encoding="utf-8") as spill:
-            spill.write("\n".join(cells))
+        if door == "tempfile":
+            with tempfile.TemporaryFile("w+", encoding="utf-8") as spill:
+                spill.write("\n".join(cells))
+        else:
+            with open(elsewhere / "spill.txt", "a", encoding="utf-8") as spill:
+                spill.write("\n".join(cells))
         return shipped(cells)
 
     description = cases.described(tmp_path / "in", "wide.csv", cases.wide_table(500, 10))

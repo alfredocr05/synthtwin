@@ -741,7 +741,7 @@ def test_a_step_nesting_too_deep_in_the_other_commands_ends_in_a_sentence(comman
         raise RecursionError("maximum recursion depth exceeded")
 
     if command == "generate":
-        monkeypatch.setattr(generation, "generate", too_deep)
+        monkeypatch.setattr(generation, "generate_held", too_deep)
         argv = ["generate", str(described), "--seed", "0", "--out-dir", str(tmp_path / "twin")]
     else:
         monkeypatch.setattr(validation, "measure", too_deep)
