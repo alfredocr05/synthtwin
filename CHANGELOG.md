@@ -28,9 +28,16 @@ month-year register reads as dates (read unanswered, 9 to 12 real keys and
 98c0fce6: templated notes cover 13.3 % of rows at 20,000 and 24.1 % at
 200,000, and spaced label tails 7.5 to 22.5 %, so the trigger NOTES keeps,
 not the line, holds whole notes out of every description, and the line
-waits on the answer. No product code, golden, vector or KPI moves;
-`tests/test_zoo_reading_page.py` pins the page's computed figures and
-each rule's operative sentence.
+waits on the answer. Repair 2 (the verify and Codex's review): a list of
+three-figure codes, which today's reader takes for grouped thousands, is
+asked before the numeric rule; rare list lengths are pooled with the
+total of their values, so a twin always exists (Gale and Ryser's
+condition); a zone word moves no instant (`CST` names two offsets); a
+clock declaration that does not read holds its column; and a list whose
+values look like record numbers is held until answered, as measured today
+a long tail of such a list publishes two of them. No product code,
+golden, vector or KPI moves; `tests/test_zoo_reading_page.py` pins the
+page's computed figures and each rule's operative sentence.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
