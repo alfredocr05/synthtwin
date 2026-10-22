@@ -35,6 +35,20 @@ red on its one-edit mutant (`wave6/PS/r1/mut_r1.py`, `mutants-r1b.log`):
 rows_for_people, thin_off, unread_off, forms_off, stepped_keeps_finer_spans,
 reach_off, span_of_the_coarser_rung, filler_fallback_off, length_refill_off,
 held_ignores_spans, loader_accepts_any_rung and the build's eight.
+
+REPAIR ROUND 2 (the combined verify and Codex's review): an absent date
+stays absent; a held column draws from the first span wide enough for its
+count; a published layout no date wears stays made up, and a length no
+valid date wears is named in the twin's report; the count at the rung
+never moves a tail's row; TG1 bounds the people by the rows; the offset,
+pinned, and the counter written apart keyed by offset and shape. Red on
+`wave6/PS/r2/mut_r2.py`'s mutants (`mutants-r2.log`): offset_off,
+unread_one_key, population_unbounded, absent_read_as_moment,
+redescription_reads_absent, validator_reads_absent,
+coarse_keeps_absent_off, span_chain_off, published_form_kept_off,
+measured_before_conversion, g1_length_reason_off, fences_off,
+protections_skip_boundary, unpadded_off, counter_nobody_off and
+counter_offset_off, beside the verify's list.
 """
 
 from __future__ import annotations
@@ -1093,3 +1107,21 @@ def test_the_counter_reads_every_spelling_of_nobody(tmp_path: pathlib.Path) -> N
     assert _block(described, "visit_date")["time_grain"]["rung"] != grains.HELD
     named = persons_counted.count_files(tmp_path / "nobody.csv", tmp_path)["named"]
     assert not [one for one in named if "unread" in one], named
+
+
+def test_the_counter_keys_each_cell_by_its_offset(tmp_path: pathlib.Path) -> None:
+    """The verify's item 1, the counter's half: three people's `+05:30` at a pooled rung is named by the counter alone.
+
+    `grain_groups` is handed the offset table as a description at the
+    month would print it (the product holds it, so the counter is asked
+    of the shape directly): it names the offset three people write, and
+    nothing else.
+    """
+    described = _profiled(tmp_path, "offs", persons_counted.offset_stamps_table(), "--identifier", "patient")
+    held = _block(described, "event_ts")["time_grain"]
+    grain = dict(held, rung="month", spans=[["month", "2022-01-01 00:00:00", "2023-12-01 00:00:00"]])
+    rows = list(csv.reader(io.StringIO(persons_counted.offset_stamps_table())))[1:]
+    raw = [row[1] for row in rows]
+    found = persons_counted.grain_groups(raw, [cell[:7] for cell in raw], [row[0] for row in rows],
+                                         {"time_grain": grain, "missing_by_source": {}})
+    assert found == ["offset +05:30"], found
