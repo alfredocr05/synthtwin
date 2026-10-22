@@ -4851,6 +4851,12 @@ def questions_of(
             document, columns, settings, already, asked + coded_or_answered,
             split,
         )
+        # ...and a column of lists written as record numbers no question
+        # above reached (plan P4-D424, lane HX4).
+        asked = asked + asking.listed_record_number_questions(
+            document, columns, settings, already, asked + coded_or_answered,
+            split,
+        )
         if with_dates:
             asked = asked + list(dates_seen.questions)
         return Asked(
@@ -4862,6 +4868,7 @@ def questions_of(
         )
     kept_all: "list[asking.Question]" = []
     person_all: "list[asking.Question]" = []
+    listed_all: "list[asking.Question]" = []
     listed: "list[asking.Question]" = []
     walked_all: "list[asking.DateCodesPending]" = []
     dated_all: "list[asking.DateColumnsSeen]" = []
@@ -4902,10 +4909,17 @@ def questions_of(
             part, cells, settings, already, kept + coded_or_answered, split
         )
         person_all += person
+        # ...after which the whole table's lists are asked, as above
+        # (plan P4-D424): kept apart so the file's order is the same.
+        lists = asking.listed_record_number_questions(
+            part, cells, settings, already, kept + coded_or_answered + person,
+            split,
+        )
+        listed_all += lists
         dated_about = list(group_dates.questions) if with_dates else []
         listed += asking.checklist_for(
             part, cells, settings, already,
-            kept + person + dated_about + coded_about,
+            kept + person + lists + dated_about + coded_about,
             group_codes.answered,
         )
         split = asking.SplitColumns(settings, {}, {})
@@ -4916,7 +4930,7 @@ def questions_of(
         dates_seen = _dates_joined(dated_all)
     if month:
         day_or_month = tuple(found_months)
-    asked = kept_all + person_all
+    asked = kept_all + person_all + listed_all
     if with_dates:
         asked = asked + list(dates_seen.questions)
     return Asked(asked, None, codes_seen, dates_seen, day_or_month, listed)

@@ -283,6 +283,13 @@ BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
 # `--date-count` takes; Enter keeps the numbers. Where the column is also
 # asked as figures all one width, the two are one question.
 BECAUSE_DATE_COUNTS = "inside-a-date-counting-band"
+# SEVERAL VALUES IN A CELL, WRITTEN AS RECORD NUMBERS ARE (plan P4-D424,
+# lane HX4): a column whose cells are lists -- values separated by `;`,
+# `|`, `,` or spaces -- every value of which holds a run of five figures
+# or more, or which an identity route reaches taken as one column
+# (`_listed_record_numbers`). Its question offers `code` and `identifier`
+# beside `keep`, and holds the column until answered (plan P4-D401).
+BECAUSE_LISTED_RECORD_NUMBERS = "several-values-written-as-record-numbers"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -3693,6 +3700,8 @@ HOLDING_REASONS = (
     BECAUSE_PADDED,
     BECAUSE_FIXED_WIDTH,
     BECAUSE_GROUPED_FIXED_WIDTH,
+    # ...and a list of record numbers in one cell (plan P4-D424).
+    BECAUSE_LISTED_RECORD_NUMBERS,
 )
 
 # THE QUESTIONS ABOUT DATES AND TIMES HOLD NOTHING, and nor does a
@@ -3784,6 +3793,356 @@ def unanswered_identities(
         if name in flagged and name not in held:
             held += [name]
     return tuple(held)
+
+
+# A LIST OF RECORD NUMBERS IN ONE CELL IS HELD UNTIL ANSWERED (plan
+# P4-D424, lane HX4; an amendment of P4-D401's stated limits). Measured
+# on 91ee9374 (lane ZR-a's second repair, `probe-where.log`): 600 rows of
+# one to three six-figure record numbers a cell, drawn from 40, read as a
+# long tail and published `185380` on 12 rows and `928534` on 11, with no
+# question put -- whole cells holding `;` are the shape of no identity
+# route, so a list hid its register. A record number is never published,
+# whatever its count (P4-D401), so such a column is asked ONE question
+# about the data -- several codes or labels, or several record numbers? --
+# offering `code` and `identifier` beside `keep`, and is held as P4-D401
+# holds an identifier column while it is open. The list reading itself
+# is lane LISTS'; nothing here changes how a column is read.
+
+# The marks a list's values are separated by, tried in this order: a
+# semicolon, a vertical bar, a comma, and spaces (any run of them).
+_LIST_MARKS = (";", "|", ",", " ")
+_LIST_MARKS_SAID = {
+    ";": "a semicolon",
+    "|": "a vertical bar",
+    ",": "a comma",
+    " ": "a space",
+}
+# How many cells must hold two values or more before a column is a list:
+# one cell is a slip of a keyboard as often as a list.
+_LIST_CELLS_AT_LEAST = 2
+
+# Why a list's values are taken as record numbers, as the question says it.
+_LISTED_WIDE = "wide"
+_LISTED_PADDED = "padded"
+_LISTED_CODES = "codes"
+_LISTED_PERSONS = "persons"
+_LISTED_KEYS = "keys"
+_LISTED_SAID = {
+    _LISTED_WIDE: (
+        "every part is written in letters, figures and hyphens, with a run "
+        "of five figures or more"
+    ),
+    _LISTED_PADDED: (
+        "every part is written in figures alone, some of them with a "
+        "leading zero"
+    ),
+    _LISTED_CODES: (
+        "every part is a code of letters and figures, each standing in two "
+        "parts or more on average"
+    ),
+    _LISTED_PERSONS: (
+        "the parts are written as e-mail addresses or as telephone, social "
+        "security or other numbers that name one person"
+    ),
+    _LISTED_KEYS: (
+        "the parts are whole numbers repeating, most of the different ones "
+        "five figures or more"
+    ),
+}
+
+
+def _list_parts(cell: str, mark: str) -> "list[str]":
+    """The values of one cell split on `mark`, each trimmed.
+
+    Spaces split on any run of them, so no part is empty; every other
+    mark keeps an empty part, which says the cell is no list.
+    """
+    pieces = cell.split() if mark == " " else cell.split(mark)
+    parts: "list[str]" = []
+    for piece in pieces:
+        parts += [parsing.trimmed(piece)]
+    return parts
+
+
+def _a_wide_listed_value(value: str) -> bool:
+    """Whether a value is written in the code alphabet with a run of five figures or more.
+
+    `185380`, `0012345` and `R185380` are; `E11.9`, `101`, `2024-01-05`
+    (runs of four) and `09:15:30` are not. The width is route four's and
+    the data-only route's (`_KEY_FIGURES`, plan P4-D401).
+    """
+    if not parsing.is_code_text(value):
+        return False
+    run = 0
+    for character in value:
+        if "0" <= character <= "9":
+            run = run + 1
+            if run >= _KEY_FIGURES:
+                return True
+        else:
+            run = 0
+    return False
+
+
+def _list_mark(present: "list[str]") -> "tuple[str, int]":
+    """The mark a column's cells are lists on, and how many values they hold.
+
+    The first of `_LIST_MARKS` that splits at least `_LIST_CELLS_AT_LEAST`
+    cells into two values or more and leaves no value empty; ("", 0)
+    where none does. A cell without the mark is one value.
+    """
+    for mark in _LIST_MARKS:
+        several = 0
+        values = 0
+        whole = True
+        for cell in present:
+            if mark != " " and mark not in cell:
+                values = values + 1
+                continue
+            parts = _list_parts(cell, mark)
+            if len(parts) >= 2:
+                several = several + 1
+            for part in parts:
+                if not part:
+                    whole = False
+                    break
+            if not whole:
+                break
+            values = values + len(parts)
+        if whole and several >= _LIST_CELLS_AT_LEAST:
+            return mark, values
+    return "", 0
+
+
+def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]":
+    """The mark and the reason a column of lists is taken as record numbers.
+
+    PLAN P4-D424 (lane HX4). A column whose cells are lists (`_list_mark`)
+    is taken so where, over every value of every cell:
+
+    * every value is written in the code alphabet with a run of five
+      figures or more (`_a_wide_listed_value`) -- a six-figure record
+      number, one padded to seven, `R` and six figures; or
+    * an identity route of P4-D401 reaches the values taken as one
+      column: the padded route (figures alone, some with a leading
+      zero), route two (codes of letters and figures repeating), route
+      three (every value but at most a third names one person) or route
+      four (a key of figures repeating beside fewer than half
+      placeholders), each read as `_names_people` and `why_worth_asking`
+      read them.
+
+    THE FIXED-WIDTH ROUTE BELOW FIVE FIGURES AND ROUTE ONE ARE NOT PUT TO
+    A LIST'S VALUES. Three-figure codes all one width (`101` to `106`) and
+    the words of free text would be held on every table that lists them;
+    five figures is the line P4-D401's data-only route draws, and a list
+    of three-figure codes is held only where the person question reaches
+    its whole cells, as today.
+
+    No list is read where the column is read as dates or times, or holds
+    nothing. Returns ("", "") where the column is not taken so.
+
+    Guarantees: accepts the present cells and the column's role; returns
+    two words of this module, never a cell. A fixed function of them.
+    Raises nothing. No I/O. Each cell is split twice at most per mark,
+    and the second walk stops where no reason can hold any more.
+    """
+    if not present or role in _LISTS_ROLES_EXCLUDED:
+        return "", ""
+    mark, values = _list_mark(present)
+    if not mark:
+        return "", ""
+    wide = True
+    padded = True
+    padding = False
+    codes = True
+    different: "dict[str, int]" = {}
+    persons = True
+    misses = 0
+    keys = True
+    figures_of: "dict[str, int]" = {}
+    key_values = 0
+    placeholders = 0
+    for cell in present:
+        for value in _list_parts(cell, mark):
+            if wide and not _a_wide_listed_value(value):
+                wide = False
+            if padded:
+                if not _is_plain_whole_number(value):
+                    padded = False
+                elif len(value) > 1 and value[0] == "0":
+                    padding = True
+            if codes:
+                if _a_register_of_codes([value]):
+                    folded = parsing.folded(value)
+                    if folded in different:
+                        different[folded] = different[folded] + 1
+                    else:
+                        different[folded] = 1
+                else:
+                    codes = False
+                    different = {}
+            if persons and not _names_one_person(value):
+                misses = misses + 1
+                if misses * _SIGN_PLACEHOLDER_SHARE > values:
+                    persons = False
+            if keys:
+                figures = _key_figures(value)
+                if figures is None:
+                    if _a_key_placeholder(value):
+                        placeholders = placeholders + 1
+                        if placeholders * 2 >= values:
+                            keys = False
+                    else:
+                        keys = False
+                    if not keys:
+                        figures_of = {}
+                else:
+                    key_values = key_values + 1
+                    if figures in figures_of:
+                        figures_of[figures] = figures_of[figures] + 1
+                    else:
+                        figures_of[figures] = 1
+            if not (wide or padded or codes or persons or keys):
+                return "", ""
+    if wide:
+        return mark, _LISTED_WIDE
+    if padded and padding:
+        return mark, _LISTED_PADDED
+    if codes and values >= PERSON_ROWS_PER_VALUE * len(different):
+        return mark, _LISTED_CODES
+    if persons:
+        return mark, _LISTED_PERSONS
+    if (
+        keys
+        and len(figures_of) >= 2
+        and key_values >= PERSON_ROWS_PER_VALUE * len(figures_of)
+    ):
+        five = 0
+        for figures in figures_of:
+            if _five_figures_or_more(figures):
+                five = five + 1
+        if five * 2 > len(figures_of):
+            return mark, _LISTED_KEYS
+    return "", ""
+
+
+# The readings no list is looked for in: none at all, dates and times.
+_LISTS_ROLES_EXCLUDED = (
+    taxonomy.ROLE_EMPTY,
+    taxonomy.ROLE_DATETIME,
+    taxonomy.ROLE_CLOCK,
+)
+
+
+def listed_record_number_questions(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    asked: "list[Question]",
+    split: "SplitColumns | None" = None,
+) -> "list[Question]":
+    """The question put to a column of lists written as record numbers (plan P4-D424).
+
+    ONE QUESTION ABOUT THE DATA (the owner, 2026-10-22: "we will ask
+    about the data, what it is"), worded as lane ZR-a's Q-LIST in its
+    record-number form (plan P4-D419): how many cells hold the mark
+    between two or more parts, how the parts are written, and whether a
+    cell holds several codes or labels or several record numbers. It
+    offers `keep`, `code` and `identifier`, `keep` standing, and is put
+    only to a column no other question was put to and nothing declares,
+    so no column is asked twice (the person question, the width
+    questions and lane HX3's `code` in route four's round one ask first).
+
+    Guarantees: accepts what `person_questions` accepts; returns the
+    questions in the table's own column order. A fixed function of the
+    arguments. Raises nothing. No I/O, and no cell of any column appears
+    in what it returns.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return []
+    spoken: "dict[str, bool]" = {}
+    for question in asked:
+        spoken[question.name] = True
+    found: "list[Question]" = []
+    position = 0
+    for block in blocks:
+        place = position
+        position = position + 1
+        if not isinstance(block, dict) or place >= len(table_columns):
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if name in already or name in spoken:
+            continue
+        if (
+            split is not None
+            and place in split.present
+            and split.cells[place] is table_columns[place]
+            and split.settings == settings
+        ):
+            present = split.present[place]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[place], settings
+            )
+        mark, why = _listed_record_numbers(present, role)
+        if not mark:
+            continue
+        several = 0
+        for cell in present:
+            if len(_list_parts(cell, mark)) >= 2:
+                several = several + 1
+        floor = settings.small_cell_floor
+        found += [
+            Question(
+                name,
+                role,
+                BECAUSE_LISTED_RECORD_NUMBERS,
+                f"{len(present)} values, and "
+                f"{_sayable(several, len(present), floor)} hold "
+                f"{_LIST_MARKS_SAID[mark]} between two or more parts; "
+                f"{_LISTED_SAID[why]}, which is how a list of record "
+                f"numbers is written and also how a list of codes is. Does "
+                f"a cell hold several codes or labels, or several record "
+                f"numbers?",
+                _listed_choices(role, floor),
+                ANSWER_KEEP,
+            )
+        ]
+    return found
+
+
+def _listed_choices(role: str, floor: int) -> "list[Choice]":
+    """The three answers a list of record numbers may take (plan P4-D424).
+
+    `keep` first, as the person question puts it: it is what standing
+    still gives, the reading the column already has. `code` reads the
+    column as the checklist's `code` does, and `identifier` as a record
+    number, which publishes no value.
+    """
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "several codes or labels in a cell, and the reading it has now "
+            "is right",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "several codes of a coding system in a cell, such as diagnoses, "
+            "procedures or medicines, where each value stands for a thing "
+            "and repeats because that thing is recorded on many rows",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "several record numbers in a cell -- of people, visits, "
+            "samples or documents -- which nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
 
 
 # A REGISTER EVERY CELL OF WHICH NAMES ONE PERSON (plan P4-D401, route

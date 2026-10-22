@@ -2354,6 +2354,9 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # text", though both are read as times of day. Its block offers what
     # its own question offers.
     clocks: list[asking.Question] = []
+    # ...AND A COLUMN OF LISTS WRITTEN AS RECORD NUMBERS (plan P4-D424),
+    # which is read as labels or text, and is asked what its values are.
+    records: list[asking.Question] = []
     # -- 3b.R4 (P4-D384): ...AND A COLUMN OF NUMBERS LYING WHERE A COUNTING
     # SYSTEM WRITES DATES (question Q3), which is told what it would gain
     # as dates and the option that reads it so.
@@ -2372,6 +2375,8 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             pointed += [question]
         elif question.reason == asking.BECAUSE_REPEATS_AND_MANY:
             people += [question]
+        elif question.reason == asking.BECAUSE_LISTED_RECORD_NUMBERS:
+            records += [question]
         else:
             numeric += [question]
 
@@ -2511,6 +2516,24 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"subject number or a ward.\n\n"
             f"If any of them names people, run the command again naming "
             f"them:\n  {flags}{_quoting_said(flags)}"
+        ]
+    if records:
+        codes = _joined(
+            [_typed_option("--code", one.name) for one in records], " "
+        )
+        flags = _joined(
+            [_typed_option("--identifier", one.name) for one in records], " "
+        )
+        blocks += [
+            f"THESE COLUMNS HOLD SEVERAL VALUES IN A CELL, WRITTEN AS RECORD "
+            f"NUMBERS ARE.{_listing(records, False)}\n\n"
+            f"Each cell above holds a list, and its values are written the "
+            f"way record numbers are written -- and also the way codes are. "
+            f"Only you know which they are.\n\n"
+            f"If they are codes, run the command again naming them:\n  "
+            f"{codes}{_quoting_said(codes)}\n"
+            f"If they are record numbers, name them so instead:\n  "
+            f"{flags}{_quoting_said(flags)}"
         ]
     # `_joined` rather than `str.join`, for the offline audit's reason:
     # the formatting protocol of whatever is handed to `join` runs, so

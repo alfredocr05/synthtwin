@@ -220,6 +220,14 @@ COUNTED = ("plan2_beside", "record2_beside", "name_open", "address_open",
 VISITS_A_PATIENT = 5
 # The patients of a `_ten` table.
 PATIENTS_TEN = 10
+# REGISTER LISTS (lane HX4, plan P4-D424): one to three record numbers a
+# cell, separated by `;`, drawn from `LIST_KEYS` of them, on each of the
+# 44 patients' rows -- six figures, six figures padded to seven, and `R`
+# and six figures (the three forms lane ZR-a's second repair measured), and
+# the six-figure form beside a DECLARED person column of 150 patients (lane
+# HX2). The real values are the record numbers, not the cells.
+LISTED = ("reglist6", "reglist7", "reglistR", "reglist6_beside")
+LIST_KEYS = 40
 # The STATED shapes: a name, a street address and a full birth date on a
 # long table with NO subject column -- the value is the only thing that
 # says who the rows are, nothing is declared and no person question is
@@ -258,6 +266,19 @@ def _beside(kind: str) -> bool:
             or kind.endswith("_keyzero"))
 
 
+def _list_key(kind: str, draw: random.Random) -> str:
+    """One record number of a register list (`LISTED`)."""
+    base = _base(kind)
+    if base == "reglist7":
+        # Six figures padded to seven. Lane ZR-a's probe padded one to
+        # 99,999 to seven figures, a room of 100,000 spellings where a
+        # made-up record number meets a real one by chance (plan P4-D424).
+        return f"0{draw.randint(100000, 999999)}"
+    if base == "reglistR":
+        return f"R{draw.randint(100000, 999999)}"
+    return f"{draw.randint(100000, 999999)}"
+
+
 def _cell(value: str) -> str:
     """A CSV cell, quoted where it holds the delimiter."""
     return f'"{value}"' if "," in value else value
@@ -273,10 +294,20 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
         patients = PATIENTS_TEN
     people: "list[str]" = []
     visits: "list[list[str]]" = []
+    keys: "list[str]" = []
+    if _base(kind) in LISTED:
+        while len(keys) < LIST_KEYS:
+            one = _list_key(kind, draw)
+            if one not in keys:
+                keys += [one]
     for place in range(patients):
         if _base(kind) == "visit":
             visits += [[f"{draw.randint(2023, 2024)}-{draw.randint(1, 12):02d}-"
                         f"{draw.randint(1, 28):02d}" for _visit in range(VISITS_A_PATIENT)]]
+            people += [f"{place}"]
+            continue
+        if keys:
+            # A register list's cells are drawn row by row, below.
             people += [f"{place}"]
             continue
         one = _patient(kind, place, draw)
@@ -291,13 +322,18 @@ def write_table(folder: pathlib.Path, kind: str, rows: int) -> "tuple[pathlib.Pa
         who = people[place]
         if visits:
             who = visits[place][draw.randrange(VISITS_A_PATIENT)]
+        if keys:
+            listed = draw.sample(keys, draw.randint(1, 3))
+            who = ";".join(listed)
+            for one in listed:
+                seen[one] = True
         if kind == "mixed" and row == 0:
             who = SHORT_AMONG_LONG
         if kind == "email_one_bad" and row == 0:
             who = "not given"
         elif kind in PLACEHOLDERS and draw.random() < PLACEHOLDERS[kind][1]:
             who = PLACEHOLDERS[kind][0]
-        else:
+        elif not keys:
             seen[who] = True
         test = ("Sodium", "Potassium", "Glucose")[draw.randrange(3)]
         value = f"{draw.uniform(3, 150):.1f}"
