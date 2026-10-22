@@ -100,11 +100,17 @@ import pathlib
 import sys
 import typing
 
-from synthtwin import asking, dialect, errors, installation, parsing
+from synthtwin import asking, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module of the package's own that imports `parsing` alone.
 from synthtwin import date_counts
 from synthtwin.paths import PathValidationError, validate_local_path
+
+if typing.TYPE_CHECKING:
+    # The chain's installation (its key comes from `secrets`) is imported
+    # only behind the chain's switch, never by a shipped run (Codex's item
+    # 10 on repair 1).
+    from synthtwin import installation
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
 
@@ -3243,6 +3249,11 @@ class _ChainState:
     entry: "installation.Entry | None" = None
     statistical: "dict[str, object] | None" = None
     notes: "tuple[str, ...]" = ()
+    # The pairs the handed-back questions file asks to add and to drop,
+    # and the requests it could not read (`asking.between_columns_requests`).
+    add: "tuple[tuple[str, str], ...]" = ()
+    drop: "tuple[tuple[str, str], ...]" = ()
+    unread: "tuple[str, ...]" = ()
 
 
 def _chained_description(
@@ -3264,7 +3275,7 @@ def _chained_description(
     the run (its words printed): the caller then writes nothing. The
     private notes stay in `chain_state.notes`; no line names the key.
     """
-    from synthtwin import chain
+    from synthtwin import chain, installation
 
     run = chain_state.run
     name = run.name if run.name is not None else table.stem
@@ -3272,7 +3283,7 @@ def _chained_description(
         read,
         published,
         settings,
-        chain.ChainSwitch(name, chain_state.opened.key, held),
+        chain.ChainSwitch(name, chain_state.opened.key, held, chain_state.add, chain_state.drop),
         list(forced_codes),
         list(forced_measurements),
         list(forced_decimal_commas),
@@ -3314,7 +3325,39 @@ def _chained_description(
         between,
     )
     _say(_chain_line(chained.statistical))
+    if chain_state.add or chain_state.drop or chain_state.unread:
+        _say(_requests_line(chain_state.add, chain_state.drop, chain_state.unread, chained.statistical))
     return with_chain
+
+
+def _requests_line(
+    add: "tuple[tuple[str, str], ...]",
+    drop: "tuple[tuple[str, str], ...]",
+    unread: "tuple[str, ...]",
+    statistical: "dict[str, object] | None",
+) -> str:
+    """The line naming what the questions file asked of the chain and what this run did with it."""
+    eligible: "set[str]" = set()
+    ladder = statistical["ladder"] if isinstance(statistical, dict) else None
+    if isinstance(ladder, list):
+        for entry in ladder:
+            if isinstance(entry, dict) and isinstance(entry["column"], str):
+                eligible |= {entry["column"]}
+    taken_add = [pair for pair in add if pair[0] != pair[1] and pair[0] in eligible and pair[1] in eligible]
+    taken_drop = [pair for pair in drop if pair[0] != pair[1] and pair[0] in eligible and pair[1] in eligible]
+    done: "list[str]" = []
+    if taken_add:
+        done += [f"{len(taken_add)} pair(s) to add were offered to the chain with more weight (never forced)"]
+    if taken_drop:
+        done += [f"{len(taken_drop)} pair(s) to drop share no family table"]
+    others = [pair for pair in add + drop if pair not in taken_add and pair not in taken_drop]
+    if others:
+        done += ["these name a column the chain does not hold and were left: " + "; ".join(f"{one} and {other}" for one, other in others)]
+    if unread:
+        done += ["these requests could not be read (a pair is two column names of this table): " + "; ".join(unread)]
+    if statistical is None:
+        done += ["no family table is published for this table"]
+    return "Between columns, from the questions file: " + "; ".join(done) + ". The requests stay in the questions file."
 
 
 def _chain_line(statistical: "dict[str, object] | None") -> str:
@@ -3413,6 +3456,8 @@ def _run_profile(
             date_columns_given=date_columns_given,
             first_row_typed=first_row_typed,
         )
+    from synthtwin import installation
+
     folder = (
         pathlib.Path(chain.folder)
         if chain.folder is not None
@@ -3654,6 +3699,14 @@ def _run_profile_body(
     if answers_path is not None:
         try:
             handed_back = contract.load_answers(answers_path)
+            # ...and, behind the chain's switch alone, the pairs its entry
+            # asks to add or drop (lane CHa, repair 2, Codex's item 6).
+            if chain_state is not None:
+                (
+                    chain_state.add,
+                    chain_state.drop,
+                    chain_state.unread,
+                ) = asking.between_columns_requests(handed_back)
             # HOW THE RUN THAT WROTE THE FILE READ THE TABLE, before
             # anything typed now takes a kept answer out (plan P4-D408).
             kept_reading = asking.kept_reading(handed_back)
@@ -5271,6 +5324,8 @@ def _run_profile_body(
     # two runs can never both find no entry and both publish (contract
     # 4.6b.4); behind the chain's switch alone.
     if chain_state is not None and chain_state.entry is not None:
+        from synthtwin import installation
+
         installation.record(chain_state.opened, chain_state.entry)
     state = profile.DiskState()
     try:
@@ -5496,6 +5551,11 @@ def _run_profile_body(
                     # ...and, behind the chain's switch alone, its one
                     # entry (lane CHa, plan P4-D418).
                     chain_pairs=_chain_pairs(chain_state),
+                    chain_requests=(
+                        (chain_state.add, chain_state.drop)
+                        if chain_state is not None
+                        else ((), ())
+                    ),
                 )
             ),
             sources=guarded_questions,

@@ -5311,6 +5311,40 @@ BETWEEN_COLUMNS_QUESTION = (
 )
 
 
+def between_columns_requests(
+    document: object,
+) -> "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...], tuple[str, ...]]":
+    """The pairs a handed-back questions file asks the chain to add and to drop, and what it could not read.
+
+    Read from the file's `between_columns` entry (lane CHa, plan P4-D418;
+    repair 2, Codex's item 6: the requests were read by nothing and the
+    next file wrote them back empty). A request is a list of two column
+    names; anything else is returned, as written, among the unread, for
+    the screen to name. Nothing where the entry is absent.
+    """
+    if not isinstance(document, dict) or BETWEEN_COLUMNS not in document:
+        return (), (), ()
+    entry = document[BETWEEN_COLUMNS]
+    if not isinstance(entry, dict):
+        return (), (), (f"{entry}",)
+    found: "list[tuple[tuple[str, str], ...]]" = []
+    unread: "list[str]" = []
+    for word in ("add", "drop"):
+        asked = entry[word] if word in entry else []
+        pairs: "list[tuple[str, str]]" = []
+        if not isinstance(asked, list):
+            unread += [f"{word}: {asked}"]
+            asked = []
+        for one in asked:
+            if isinstance(one, list) and len(one) == 2 and all(isinstance(name, str) for name in one):
+                if (one[0], one[1]) not in pairs:
+                    pairs += [(one[0], one[1])]
+            else:
+                unread += [f"{word}: {one}"]
+        found += [tuple(pairs)]
+    return found[0], found[1], tuple(unread)
+
+
 def questions_document(
     table_name: str,
     asked: "list[Question]",
@@ -5321,6 +5355,7 @@ def questions_document(
     answered_columns: "list[str] | None" = None,
     held_dates: "list[tuple[str, str]] | None" = None,
     chain_pairs: "list[list[str]] | None" = None,
+    chain_requests: "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]" = ((), ()),
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data.
 
@@ -5439,9 +5474,11 @@ def questions_document(
     # waits for it. Absent on every shipped run (`chain_pairs` None), so
     # the file is written as before, byte for byte.
     if chain_pairs is not None:
+        # The requests the handed-back file made are written back as they
+        # were read, never emptied (repair 2, Codex's item 6).
         written[BETWEEN_COLUMNS] = {
-            "add": [],
-            "drop": [],
+            "add": [list(pair) for pair in chain_requests[0]],
+            "drop": [list(pair) for pair in chain_requests[1]],
             "pairs_carried_exactly": [list(pair) for pair in chain_pairs],
             "question": BETWEEN_COLUMNS_QUESTION,
         }

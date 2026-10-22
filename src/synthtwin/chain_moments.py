@@ -149,10 +149,25 @@ def fine(block: "dict[str, object]") -> bool:
     if not isinstance(distinct, int) or distinct <= FINE_READINGS:
         return False
     fixed = 0
-    if isinstance(_get(block, "mode_count"), int) and _get(block, "mode") is not None:
+    named_rows = 0
+    mode_count = _get(block, "mode_count")
+    mode = _get(block, "mode")
+    if isinstance(mode_count, int) and not isinstance(mode_count, bool) and mode is not None:
         fixed += 1
-    if isinstance(_get(block, "n_zero"), int) and _get(block, "n_zero") != 0:
+        named_rows += mode_count
+    n_zero = _get(block, "n_zero")
+    if isinstance(n_zero, int) and not isinstance(n_zero, bool) and n_zero != 0:
         fixed += 1
+        if mode != 0:
+            named_rows += n_zero
+        elif isinstance(mode_count, int) and mode_count == n_zero:
+            fixed -= 1
+    # Where the readings left beside the named ones number exactly the
+    # values left, each of those values holds one row: its count is fixed
+    # (Codex's item 7 on repair 1: 600 readings of 600 different values
+    # were read as fine).
+    if readings_of(block) - named_rows == distinct - fixed:
+        return False
     tails = _get(block, "tails")
     if isinstance(tails, dict):
         for key in tails:

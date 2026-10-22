@@ -1105,11 +1105,15 @@ def test_the_raises_are_the_stated_weights_times_the_rows():
     """Mutants M24 and M36: `w_seed n` a seed's further column and `w_te n` a time-and-event pair."""
     import types
 
-    search = types.SimpleNamespace(pairs=frozenset({("fu", "event"), ("event", "fu")}), seeds=(("a", "b", "c"),), tabled=1000)
+    search = types.SimpleNamespace(pairs=frozenset({("fu", "event"), ("event", "fu")}), seeds=(("a", "b", "c"),), tabled=1000, asked=frozenset())
     assert chain._raise_of(search, "fu", ("event",)) == chain_rules.W_TE * 1000
     assert chain._raise_of(search, "a", ("b",)) == chain_rules.W_SEED * 1000
     assert chain._raise_of(search, "a", ("b", "c")) == 2 * chain_rules.W_SEED * 1000
     assert chain._raise_of(search, "x", ("y",)) == 0
+    # A pair the questions file asks to add takes the rule weight's raise, once a family.
+    search.asked = frozenset({("x", "y"), ("y", "x")})
+    assert chain._raise_of(search, "x", ("y",)) == chain_rules.W_RULE * 1000
+    assert chain._raise_of(search, "y", ("x", "z")) == chain_rules.W_RULE * 1000
 
 
 def test_the_digest_reads_the_chain_itself():

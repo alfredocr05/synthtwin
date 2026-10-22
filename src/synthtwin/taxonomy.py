@@ -29345,8 +29345,8 @@ def spellings_read(
     forced_measurement: bool = False,
     forced_decimal_comma: bool = False,
     stored_as: str = "",
-) -> "dict[str, tuple[str, float | None]]":
-    """Each spelling of one column read as `profile_column` reads it: (kind, number).
+) -> "dict[str, tuple[str, float | None, str]]":
+    """Each spelling of one column read as `profile_column` reads it: (kind, number, text read).
 
     THE CHAIN'S BANDS READ THE CLASSIFIER'S OWN DECISION (contract
     4.6b.2: the range bands count exactly the cells the generation method
@@ -29357,7 +29357,16 @@ def spellings_read(
     spelling, so one spelling reads one way on every row. This hands that
     decision over spelling by spelling: `missing` for a spelling the
     column counts absent, otherwise the cell's kind (`parsing.NUMBER` and
-    its number, or another kind and None).
+    its number, or another kind and None), beside the text the role reads
+    (the spelling itself, or on a column read as COUNTED DATES the ISO
+    text its count names, as `_counts_read_as_dates` wrote it; repair 2
+    of lane CHa, Codex's item 5: a declared `excel-1900` column's serials
+    were missing from this map and turned the whole chain off). The
+    counted spellings' texts are recomputed one spelling at a time from
+    the column's own settled reading and kept only where they give back,
+    row by row, exactly the cells the reading kept; otherwise the
+    spellings stay unread and the chain's recount refuses the column as
+    before.
 
     Guarantees: accepts the column's cells in row order, its name, the
     table's settings and the declarations `profile_column` was given;
@@ -29376,15 +29385,50 @@ def spellings_read(
         forced_decimal_comma=forced_decimal_comma,
         stored_as=stored_as,
     )
-    out: "dict[str, tuple[str, float | None]]" = {}
+    out: "dict[str, tuple[str, float | None, str]]" = {}
     for text, _reason in read.missing:
-        out[text] = ("missing", None)
+        out[text] = ("missing", None, text)
     for cell in read.cells.classified:
         if cell.text not in out:
-            out[cell.text] = (cell.kind, cell.value)
+            out[cell.text] = (cell.kind, cell.value, cell.text)
     for text in read.present:
         if text not in out:
-            out[text] = ("", None)
+            out[text] = ("", None, text)
+    counted = read.counted
+    if counted is None:
+        return out
+    mark = date_counts.COMMA if forced_decimal_comma else date_counts.POINT
+    as_read: "dict[str, str]" = {}
+    for text in values:
+        if text in out or text in as_read:
+            continue
+        written = date_counts.counted(counted.member, text, mark)
+        if written is None:
+            continue
+        numerator, denominator = date_counts.exact_value(written)
+        moment = date_counts.moment_of(counted.member, numerator, denominator, counted.settled)
+        if moment is None or date_counts.placeholder_day_named(moment, counted.settled):
+            continue
+        as_read[text] = date_counts.iso_text(moment, counted.settled, counted.unit)
+    # Kept only where the spellings give back the reading's own cells, row by row.
+    kept: "dict[str, int]" = {}
+    for text in read.present:
+        kept[text] = kept[text] + 1 if text in kept else 1
+    given: "dict[str, int]" = {}
+    for text in values:
+        if text in as_read:
+            one = as_read[text]
+        elif text in out and out[text][0] != "missing":
+            one = text
+        else:
+            continue
+        given[one] = given[one] + 1 if one in given else 1
+    if given != kept:
+        return out
+    for text in as_read:
+        one = as_read[text]
+        if one in out:
+            out[text] = (out[one][0], out[one][1], one)
     return out
 
 

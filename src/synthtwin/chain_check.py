@@ -90,8 +90,14 @@ def check(document: "dict[str, object]") -> None:
     for entry in reasons:
         if not isinstance(entry, dict) or sorted(entry) != ["column", "reason"]:
             raise _broken("S27", "ineligible", "each entry names a column and a reason")
+        if not isinstance(entry["column"], str) or not isinstance(entry["reason"], str):
+            raise _broken("S27", "ineligible", "each entry names a column and a reason in words")
         if entry["column"] not in blocks or entry["reason"] not in chain_rules.INELIGIBLE_REASONS:
             raise _broken("S27", f"{entry['column']}", "a reason of contract 4.6b.1 for a column of this table")
+        if entry["reason"] == "computed":
+            # S28: a `computed` column is named by exactly one carried rule,
+            # and this version carries none (Codex's item 9 on repair 1).
+            raise _broken("S28", f"{entry['column']}", "a column ineligible as computed is named by a carried rule, and this version carries none")
         out_of_ladder = out_of_ladder | {f"{entry['column']}"}
     eligible = [name for name in schema if name not in out_of_ladder]
     published = statistical["ladder"]
@@ -204,10 +210,26 @@ def _ladder_of(
             missing = _get(block, "n_missing")
             if not isinstance(missing, int) or totals[at] != missing - blank_rows:
                 raise _broken("S23", name, "the missing band counts the column's absent cells less the records holding nothing")
-        if start.is_label and len(names[at]) == 1 and isinstance(names[at][0], tuple):
-            for label, count in chain_rules.label_levels(block):
-                if names[at][0] == (label,) and totals[at] != count:
-                    raise _broken("S23", name, "a level's band counts its published count")
+    # Every starting band is in one L0 band, or holds no row by the column's
+    # own counts; on a label column every band totals its members' counts
+    # (Codex's item 2 on repair 1: a level left out, and a merged band
+    # printing more than its labels count, were accepted).
+    known = _starting_counts(block, start, blank_rows)
+    for place in range(len(start.names)):
+        if place in used:
+            continue
+        if (start.value[place] and not start.is_label) or (start.is_label and known[place] is None) or known[place] not in (None, 0):
+            raise _broken("S23", name, "every starting band holding a row stands in one L0 band")
+    if start.is_label:
+        for at in range(len(bands)):
+            counted = 0
+            for place in bands[at]:
+                one = known[place]
+                if one is None:
+                    raise _broken("S23", name, "a label column's band counts are its published counts")
+                counted += one
+            if totals[at] != counted:
+                raise _broken("S23", name, "a band of a label column counts the published counts of what it joins")
     second = chain_rules.union_closure(bands, start.groups[1])
     third = chain_rules.union_closure(bands, start.groups[2])
     if entry["l1"] != chain_rules.bands_of(second, max(second) + 1) or entry["l2"] != chain_rules.bands_of(third, max(third) + 1):
@@ -222,6 +244,53 @@ def _ladder_of(
         ordered,
     )
     return scale, start
+
+
+def _starting_counts(block: "dict[str, object]", start: "chain_rules.Starting", blank_rows: int) -> "list[int | None]":
+    """Each starting band's rows on the tabled rows where the column's own counts fix them, else None."""
+    out: "list[int | None]" = [None] * len(start.names)
+    missing = _get(block, "n_missing")
+    present = _get(block, "n_present")
+    levels = chain_rules.label_levels(block)
+    for place in range(len(start.names)):
+        band = start.names[place]
+        if band == chain_rules.MISSING:
+            out[place] = missing - blank_rows if _whole(missing) and isinstance(missing, int) else None
+        elif not start.is_label and band in (chain_rules.OTHER, chain_rules.LABELS):
+            out[place] = _spread_count(block, band)
+        elif start.is_label and band == chain_rules.POOL:
+            if _whole(present) and isinstance(present, int):
+                out[place] = present - sum(count for _label, count in levels)
+        elif start.is_label and isinstance(band, tuple) and len(band) == 1:
+            for label, count in levels:
+                if band == (label,):
+                    out[place] = count
+    return out
+
+
+def _spread_count(block: "dict[str, object]", band: object) -> "int | None":
+    """An ordered column's `other` or `labels` band's rows where its own counts fix them, else None."""
+    role = f"{_get(block, 'role')}"
+    present = _get(block, "n_present")
+    if not _whole(present) or not isinstance(present, int):
+        return None
+    if role in (chain_rules.ROLE_COUNT, chain_rules.ROLE_CONTINUOUS, chain_rules.ROLE_AFFIXED):
+        used = _get(block, "n_used_in_statistics")
+        if band == chain_rules.LABELS:
+            return 0
+        return present - used if _whole(used) and isinstance(used, int) else None
+    if role == chain_rules.ROLE_COMPOUND:
+        numbers = _get(block, "n_numeric_cells")
+        labelled = _get(block, "n_label_cells")
+        if not _whole(numbers) or not _whole(labelled) or not isinstance(numbers, int) or not isinstance(labelled, int):
+            return None
+        return labelled if band == chain_rules.LABELS else present - numbers - labelled
+    if role in (chain_rules.ROLE_DATETIME, chain_rules.ROLE_CLOCK):
+        unparsed = _get(block, "n_unparsed")
+        if band == chain_rules.LABELS:
+            return 0
+        return unparsed if _whole(unparsed) and isinstance(unparsed, int) else 0
+    return None
 
 
 def _family_of(
@@ -249,7 +318,7 @@ def _family_of(
         raise _broken("S24", child, "a family's parents number at most k_max")
     parents: "list[tuple[str, int]]" = []
     for parent in parents_written:
-        if not isinstance(parent, dict) or sorted(parent) != ["column", "level"] or parent["column"] not in scales:
+        if not isinstance(parent, dict) or sorted(parent) != ["column", "level"] or not isinstance(parent["column"], str) or parent["column"] not in scales:
             raise _broken("S24", child, "each parent is an eligible column with a level")
         parents += [(f"{parent['column']}", _level_of(parent["level"], "S24", child))]
     place_of: "dict[str, int]" = {}
@@ -269,7 +338,9 @@ def _family_of(
             if all(name in held for name, _level in parents):
                 earliest = place
                 break
-        if earliest is None or anchor != earliest:
+        # A whole number, never `false` or `0.0` (Codex's item 1 on repair 1:
+        # either compared equal to 0 and the margins went unchecked).
+        if earliest is None or not _whole(anchor) or anchor != earliest:
             raise _broken("S24", child, "the anchor is the earliest family holding every parent")
         held_levels = dict(chain_rules.members(families[earliest]))
         for name, parent_level in parents:

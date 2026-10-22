@@ -249,8 +249,32 @@ def words_key_open(path: str) -> str:
 def words_new_key_refused() -> str:
     return (
         "--new-key makes a new private key only where this installation has "
-        "described tables before and its key file cannot be read. Run again "
-        "without it."
+        "described tables before and its key file is gone (lost, or moved "
+        "aside because it was damaged). Run again without it."
+    )
+
+
+def words_key_damaged(path: str, described_before: bool) -> str:
+    then = (
+        " with --new-key: each table described before will then be refused "
+        "until you confirm, with --replace-description, that its earlier "
+        "descriptions were never shared."
+        if described_before
+        else "."
+    )
+    return (
+        f"The private key at {path} is damaged: it does not hold the "
+        f"{KEY_BYTES} bytes of a key. Put back a good copy if you have one. "
+        "Otherwise move the damaged file aside (rename it) and run again" + then
+    )
+
+
+def words_folder_open(path: str) -> str:
+    return (
+        f"The data folder at {path} can be changed by other accounts on this "
+        "computer, so the record of earlier descriptions in it could be "
+        "replaced. Make it yours alone (on macOS or Linux: chmod 700 "
+        f"'{path}'), then run again."
     )
 
 
@@ -304,6 +328,13 @@ def _read_ledger(path: pathlib.Path) -> "tuple[Entry, ...] | None":
     return tuple(out)
 
 
+def _folder_is_private(path: pathlib.Path, os_name: str) -> bool:
+    """POSIX: no account but the owner may change the folder. Windows: the user's own local data."""
+    if os_name == "nt":
+        return True
+    return pathlib.Path(path).stat().st_mode & 0o022 == 0
+
+
 def open_installation(
     folder: pathlib.Path,
     new_key: bool = False,
@@ -311,20 +342,39 @@ def open_installation(
 ) -> Opened:
     """Open the data folder before anything is read: take the lock, read the key and the ledger.
 
-    Refuses (an `Opened` whose `refusal` holds the words) where another run
-    holds the lock, where a ledger stands without a readable key (unless
-    `new_key`), where the ledger cannot be read, or where the key file is
-    open to other accounts. Makes the folder and the key where neither key
-    nor ledger exists. `os_name` stands in for `os.name`.
+    Refuses (an `Opened` whose `refusal` holds the words) where the data
+    folder can be changed by other accounts (POSIX), where another run
+    holds the lock, where a ledger stands without a key (unless
+    `new_key`), where the key file is damaged (move it aside, then run
+    again, with `new_key` where a ledger stands), where the ledger cannot
+    be read, or where the key file is open to other accounts. Makes the
+    folder and the key where neither key nor ledger exists. Anything
+    raised after the lock is taken (a full disk while the key is written)
+    removes the lock before it goes on. `os_name` stands in for `os.name`.
     """
     name = os_name if os_name is not None else system_name()
     here = pathlib.Path(folder)
     here.mkdir(mode=0o700, parents=True, exist_ok=True)
+    # An existing folder keeps the mode it had: one other accounts can
+    # change lets them swap the ledger (Codex's item 11 on repair 1).
+    if not _folder_is_private(here, name):
+        return Opened(folder, b"", (), (), words_folder_open(f"{here}"), False)
     lock = pathlib.Path(folder, LOCK_FILE)
     try:
         lock.touch(mode=0o600, exist_ok=False)
     except FileExistsError:
         return Opened(folder, b"", (), (), words_locked(f"{lock}"), False)
+    try:
+        return _opened_under_lock(folder, new_key, name)
+    except BaseException:
+        # Codex's item 13 on repair 1: a failure here left the lock behind.
+        if lock.exists():
+            lock.unlink()
+        raise
+
+
+def _opened_under_lock(folder: pathlib.Path, new_key: bool, name: str) -> Opened:
+    """`open_installation`'s reading of the key and the ledger, the lock held."""
     key_file = pathlib.Path(key_path(folder))
     ledger_file = pathlib.Path(folder, LEDGER_FILE)
     lines: "list[str]" = []
@@ -347,19 +397,23 @@ def open_installation(
         except OSError:
             key = b""
         if len(key) != KEY_BYTES:
-            if has_ledger and not new_key:
-                return Opened(folder, b"", (), (), words_key_missing(f"{key_file}"), True)
-            key = b""
+            # Never overwritten: the person moves it aside (Codex's item 12
+            # on repair 1: the old words sent them to --new-key, which
+            # refused a key file that exists).
+            return Opened(folder, b"", (), (), words_key_damaged(f"{key_file}", has_ledger), True)
     elif has_ledger and not new_key:
         return Opened(folder, b"", (), (), words_key_missing(f"{key_file}"), True)
     if not key:
         key = secrets.token_bytes(KEY_BYTES)
-        if key_file.exists():
-            return Opened(folder, b"", (), (), words_key_missing(f"{key_file}"), True)
         key_file.touch(mode=0o600, exist_ok=False)
-        if name != "nt":
-            key_file.chmod(0o600)
-        key_file.write_bytes(key)
+        try:
+            if name != "nt":
+                key_file.chmod(0o600)
+            key_file.write_bytes(key)
+        except BaseException:
+            # A key half written is no key: the next run makes it again.
+            key_file.unlink()
+            raise
         lines += [words_key_made(f"{key_file}")]
     if has_key and not has_ledger:
         lines += [words_ledger_started(f"{key_file}")]

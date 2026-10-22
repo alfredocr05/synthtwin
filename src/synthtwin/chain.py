@@ -80,12 +80,19 @@ class ChainSwitch:
     `name` is the person's name for the dataset (`--name`, by default the
     input file's name without its extension; 4.6b.4); `key` the
     installation's 32-byte private key (`installation.key_of`). The key is
-    read here and handed to the draw's words alone.
+    read here and handed to the draw's words alone. `add` and `drop` are
+    the pairs the questions file asked for (its `between_columns` entry,
+    repair 2 of lane CHa, Codex's item 6): a pair to add is offered to
+    the draw with the rule weight's raise (`w_rule`, a weight only, never
+    forced); a pair to drop shares no family table (no option places one
+    of its columns as a parent of the other).
     """
 
     name: str
     key: bytes = dataclasses.field(repr=False)
     held: "tuple[str, ...]" = ()
+    add: "tuple[tuple[str, str], ...]" = ()
+    drop: "tuple[tuple[str, str], ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -243,7 +250,7 @@ def _reading_of(
             present += [text]
     if role in (rules.ROLE_COUNT, rules.ROLE_CONTINUOUS, rules.ROLE_COMPOUND):
         for text in present:
-            kind, number = spelled[text]
+            kind, number, _text = spelled[text]
             if kind == parsing.NUMBER and number is not None:
                 out[text] = ("value", float(number))
             elif role == rules.ROLE_COMPOUND:
@@ -278,7 +285,7 @@ def _reading_of(
     if role == rules.ROLE_DATETIME:
         form = _get(block, "format")
         for text in present:
-            parsed = parsing.parse_datetime(text, form) if isinstance(form, str) else None
+            parsed = parsing.parse_datetime(spelled[text][2], form) if isinstance(form, str) else None
             out[text] = ("other", None) if parsed is None else ("value", parsed[0])
         return out
     if role == rules.ROLE_CLOCK:
@@ -687,6 +694,62 @@ def _census_cuts(
     return out
 
 
+def _named_points(block: "dict[str, object]", role: str, form: object, keys: "list[object]") -> "list[tuple[int, int]]":
+    """The runs of readings a published count names one value (or one day) of, each once.
+
+    The named values are the mode, nought, a number tail's listed values,
+    a clock heap, a date or clock tail's listed values, and a heavy date
+    (the whole day). `value_run_bands` reads a run less any of them, a
+    named value of few rows, and whether every other reading is single.
+    """
+    singles: "list[object]" = []
+    if role in rules.NUMBER_ROLES:
+        holder = _number_holder(block)
+        mode_count = _get(holder, "mode_count")
+        if isinstance(mode_count, int) and not isinstance(mode_count, bool) and mode_count > 0:
+            singles += [_number(_get(holder, "mode"))]
+        n_zero = _get(holder, "n_zero")
+        if isinstance(n_zero, int) and not isinstance(n_zero, bool) and n_zero > 0:
+            singles += [0.0]
+        tails = _get(holder, "tails")
+        if isinstance(tails, dict):
+            for name in ("low", "high"):
+                tail_side = _get(tails, name)
+                listed = _get(tail_side, "values") if isinstance(tail_side, dict) else None
+                if isinstance(listed, list):
+                    for one in listed:
+                        singles += [_number(one)]
+    if role == rules.ROLE_CLOCK:
+        heaps = _get(block, "clock_heaps")
+        if isinstance(heaps, list):
+            for heap in heaps:
+                text = _get(heap, "value") if isinstance(heap, dict) else None
+                if isinstance(text, str):
+                    singles += [rules.rung_value(role, text, form)]
+    if role in (rules.ROLE_DATETIME, rules.ROLE_CLOCK):
+        for name in ("low_tail", "high_tail"):
+            tail = _get(block, name)
+            listed = _get(tail, "values") if isinstance(tail, dict) else None
+            if isinstance(listed, list):
+                for one in listed:
+                    singles += [rules.rung_value(role, one, form) if isinstance(one, str) else one]
+    points: "list[tuple[int, int]]" = []
+    for single in singles:
+        run = _run_of(keys, single)
+        if run is not None and run not in points:
+            points += [run]
+    if role == rules.ROLE_DATETIME:
+        heavy = _get(block, "heavy_dates")
+        if isinstance(heavy, list):
+            for entry in heavy:
+                day = _get(entry, "date") if isinstance(entry, dict) else None
+                if isinstance(day, str) and len(day) == 10:
+                    run = (_first_day_after(keys, day, False), _first_day_after(keys, day, True))
+                    if run[0] < run[1] and run not in points:
+                        points += [run]
+    return points
+
+
 def value_run_bands(
     block: "dict[str, object]",
     start: rules.Starting,
@@ -713,15 +776,22 @@ def value_run_bands(
     bands where the groups lying wholly inside it leave 1 to `floor - 1`
     of its rows. The counts are
     read on the column's own values (`readings`, each reading with its
-    rows, ascending), so a cut whose count the published facts leave open
-    is read as if they fixed it: this marks more than 4.6b.3's definition,
-    refuses more, and never passes a group it names (repair 1 of lane CHa,
-    skeptic 1's item 1). A rung tied rows stand on is no cut: the rows
-    below it and through it are open to a reader (the ties' number is not
-    published), and reading it as a cut refused the registry's censor date
-    beside its event date at 5,000 rows on a run whose count no published
-    fact fixes; on a column whose values all differ, a rung one row stands
-    on cuts on both sides of that row.
+    rows, ascending; repair 1 of lane CHa, skeptic 1's item 1). A rung
+    draws a cut where the published facts fix the rank it stands at: a
+    rung no row stands on (the rank its percent sets), and a rung exactly
+    one row stands on where every reading other than the single values a
+    published count names holds one row (the distinct count then tells a
+    reader every other value is single, so the rung's row has a rank the
+    reader holds; it cuts on both sides of that row; repair 2, the
+    verify's item 1, measured: a 501-row column all different but a mode
+    of 12, or eleven noughts, published five-row percent slices confined
+    to one gender on 8 of 8 keys before it). A rung tied rows stand on
+    whose tie count no published fact names is no cut: the rows below it
+    and through it are open to a reader, and reading it as a cut refused
+    the registry's censor date beside its event date at 5,000 rows on a
+    run whose count no published fact fixes. Cutting at every one-row
+    rung instead cost lane E0b's ST3 37.06 % of its score at 20,000 rows
+    (the verify's variant) and is not done.
     """
     role = f"{_get(block, 'role')}"
     if role not in rules.ORDERED_ROLES or not readings or not start.values:
@@ -746,22 +816,33 @@ def value_run_bands(
     for edge in start.values:
         cuts = cuts | {_first_index(keys, edge, 0)}
     rungs = rules.rung_ladder(block)
+    points = _named_points(block, role, form, keys)
+    # Every reading other than the single values a published count names
+    # holds one row: the column's distinct count then tells a reader that
+    # every other value is single (n_distinct_values = rows - mode_count + 1,
+    # or the like for nought, a tail's listed values, a clock heap or a
+    # heavy date), so a rung one row stands on has a rank the reader holds.
+    covered: "set[int]" = set()
+    for pair in points:
+        covered |= set(range(pair[0], pair[1]))
+    rest_single = all(readings[at][1] == 1 for at in range(total) if at not in covered)
     if isinstance(rungs, dict):
         for name in rungs:
             value = rules.rung_value(role, _get(rungs, name), form)
             if value is None:
                 continue
             # A rung no row stands on reads the rank its percent sets, so the
-            # rows below it are a count a reader holds. On a column whose
-            # values all differ, a rung one row stands on holds that row's
-            # count too (its own value printed). Where rows may tie, a rung a
-            # row stands on leaves both counts open: no cut.
+            # rows below it are a count a reader holds. Where every reading
+            # but the named single values holds one row, a rung one row
+            # stands on holds that row's rank too (its own value printed),
+            # so it cuts on both sides of that row. Where rows may tie
+            # unnamed, a rung a row stands on leaves both counts open: no cut.
             below = _first_index(keys, value, 0)
             through = _first_index(keys, value, 1)
             held_at = sums[through] - sums[below]
             if held_at == 0:
                 cuts = cuts | {below}
-            elif held_at == 1 and len(keys) == sums[-1]:
+            elif held_at == 1 and rest_single:
                 cuts = cuts | {below, through}
     marked: "set[int]" = set()
     body = (0, total)
@@ -776,7 +857,6 @@ def value_run_bands(
                 cuts = cuts | {ends[-1]}
         if len(ends) == 2:
             body = (ends[0], ends[1])
-    singles: "list[object]" = []
     if role in rules.NUMBER_ROLES:
         holder = _number_holder(block)
         groups = _get(holder, "bin_groups")
@@ -815,19 +895,6 @@ def value_run_bands(
                 every_bin: "list[object]" = [{"first": at} for at in range(parsing.HISTOGRAM_BINS)]
                 found = _census_cuts(keys, every_bin, span, BIN_HISTOGRAM, low_end, high_end, 1)
                 cuts = cuts | (found or set())
-        mode_count = _get(holder, "mode_count")
-        if isinstance(mode_count, int) and not isinstance(mode_count, bool) and mode_count > 0:
-            singles += [_number(_get(holder, "mode"))]
-        n_zero = _get(holder, "n_zero")
-        if isinstance(n_zero, int) and not isinstance(n_zero, bool) and n_zero > 0:
-            singles += [0.0]
-        if isinstance(tails, dict):
-            for name in ("low", "high"):
-                tail_side = _get(tails, name)
-                listed = _get(tail_side, "values") if isinstance(tail_side, dict) else None
-                if isinstance(listed, list):
-                    for one in listed:
-                        singles += [_number(one)]
     if role == rules.ROLE_CLOCK:
         census = _get(block, "clock_census")
         if isinstance(census, list) and census:
@@ -836,33 +903,6 @@ def value_run_bands(
                 marked = marked | every_value
             else:
                 cuts = cuts | found
-        heaps = _get(block, "clock_heaps")
-        if isinstance(heaps, list):
-            for heap in heaps:
-                text = _get(heap, "value") if isinstance(heap, dict) else None
-                if isinstance(text, str):
-                    singles += [rules.rung_value(role, text, form)]
-    if role in (rules.ROLE_DATETIME, rules.ROLE_CLOCK):
-        for name in ("low_tail", "high_tail"):
-            tail = _get(block, name)
-            listed = _get(tail, "values") if isinstance(tail, dict) else None
-            if isinstance(listed, list):
-                for one in listed:
-                    singles += [rules.rung_value(role, one, form) if isinstance(one, str) else one]
-    points: "list[tuple[int, int]]" = []
-    for single in singles:
-        run = _run_of(keys, single)
-        if run is not None and run not in points:
-            points += [run]
-    if role == rules.ROLE_DATETIME:
-        heavy = _get(block, "heavy_dates")
-        if isinstance(heavy, list):
-            for entry in heavy:
-                day = _get(entry, "date") if isinstance(entry, dict) else None
-                if isinstance(day, str) and len(day) == 10:
-                    run = (_first_day_after(keys, day, False), _first_day_after(keys, day, True))
-                    if run[0] < run[1] and run not in points:
-                        points += [run]
     ordered_cuts = sorted(cuts)
     for at in range(len(ordered_cuts) - 1):
         low = ordered_cuts[at]
@@ -1375,6 +1415,9 @@ class _Search:
     counts: "dict[str, int]"
     scored: "dict[tuple[str, tuple[str, ...], tuple[int, ...]], tuple[bool, fractions.Fraction]]"
     refused: "dict[tuple[str, tuple[str, ...], tuple[int, ...]], bool]"
+    # The questions file's pairs, each in both orders (`ChainSwitch`).
+    asked: "frozenset[tuple[str, str]]" = frozenset()
+    dropped: "frozenset[tuple[str, str]]" = frozenset()
 
 
 def _table_at(search: _Search, child: str, parents: "tuple[str, ...]", base: "tuple[int, ...]", levels: "tuple[int, ...]") -> "tuple[int, ...]":
@@ -1419,6 +1462,10 @@ def _raise_of(search: _Search, child: str, parents: "tuple[str, ...]") -> fracti
     for parent in parents:
         if (child, parent) in search.pairs:
             raised += rules.W_TE * search.tabled
+            break
+    for parent in parents:
+        if (child, parent) in search.asked:
+            raised += rules.W_RULE * search.tabled
             break
     for seed in search.seeds:
         if child in seed:
@@ -1655,6 +1702,8 @@ def _step_options(
         out += [_no_family(search, child)]
         found: "list[tuple[int, tuple[int, ...], tuple[int, ...], int, Option]]" = []
         for subset in sorted(earliest):
+            if any((child, name) in search.dropped for name in subset):
+                continue
             anchor_at = earliest[subset]
             anchor = placed[anchor_at]
             held = dict(rules.members(anchor))
@@ -1695,6 +1744,8 @@ def _root_options(search: _Search, x0: "dict[str, int] | None", room: int) -> "l
         child = names[later]
         for earlier in range(later):
             parent = names[earlier]
+            if (child, parent) in search.dropped:
+                continue
             margins = rules.parent_cells(search.scales, (parent,), None)
             offered = rules.offered_levels(
                 [search.scales[child], search.scales[parent]],
@@ -1788,8 +1839,19 @@ def _repeats(values: "list[str]") -> bool:
             continue
         if text in seen:
             return True
-        seen = seen | {text}
+        # Grown in place: a copy a value made the walk quadratic on a
+        # column of unique keys (Codex's item 3 on repair 1).
+        seen |= {text}
     return False
+
+
+def _requested(pairs: "tuple[tuple[str, str], ...]", eligible: "list[str]") -> "frozenset[tuple[str, str]]":
+    """The questions file's pairs of two different eligible columns, each in both orders."""
+    out: "set[tuple[str, str]]" = set()
+    for one, other in pairs:
+        if one != other and one in eligible and other in eligible:
+            out |= {(one, other), (other, one)}
+    return frozenset(out)
 
 
 def _sequence_places(document: "dict[str, object]") -> "set[int]":
@@ -2033,7 +2095,11 @@ def describe(
     place_of: "dict[str, int]" = {}
     for at in range(len(eligible)):
         place_of[eligible[at]] = at
-    search = _Search(columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts, {}, {})
+    asked = _requested(switch.add, eligible)
+    dropped = _requested(switch.drop, eligible)
+    if asked or dropped:
+        notes += [f"the questions file asked to add {len(asked) // 2} and drop {len(dropped) // 2} pairs of eligible columns"]
+    search = _Search(columns, scales, tuple(eligible), place_of, tabled, floor, pairs, seeds, {}, counts, {}, {}, asked, dropped)
     blank_counts = {name: columns[name].blank for name in eligible}
     x0 = rules.blank_cell(scales, blank_counts)
     room = rules.blank_record_room(document, floor) + rules.outside_cells(document, set(eligible))
