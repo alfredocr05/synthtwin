@@ -6,31 +6,32 @@ exists).
 
 ## [Unreleased]
 
-### A big table's groups are read again by pyarrow's reader, and K-S4-09's rise is measured (2026-10-21)
+### A big table's groups are read again by pyarrow's reader (2026-10-21)
 
 **`synthtwin profile` reads each group of a big table again with
 pyarrow's CSV reader** (plan P4-D414, lane SR-A of the December plan),
-one thread, the group's columns alone, from a path validated beside the
+parsing on one thread (its I/O read-ahead runs on pyarrow's own I/O
+thread), the group's columns alone, from a path validated beside the
 call, with no temporary file. It is never trusted: each walk of the
 reading folds every column's values -- as the survey, the standard reader
 and pandas agreed on them -- to a digest, and pyarrow's reading of a group
 is handed over only where it read as many records and every column folds
 to that digest. Otherwise the group is read by the standard reader, as
 before, and so is every column of a form pyarrow reads otherwise
-(comma-space, short rows, a closing delimiter, an end-of-file mark). A
-file whose size or moment of change moves is refused as changed, on
-either route. No description byte moves: lane S4d's 880 descriptions read
-one column a group equal the merged head's read whole, and the health
-data zoo's 25 tables write the same 150 files and print the same words.
-Describing the mixed table of 250,000 rows in the groups 2,000,000 rows
-are read in took 720.5 CPU seconds against 1,170.9, its peak still in
-describing a column (440.2 MB against 396.5, at the same footprint).
-`K-S4-09`'s projected peak at 2,000,000 x 50 (2,694.2 MB on the merged
-head, against lane SR's 2,204.5) did not rise in the code: at equal sizes
-the merged head peaks lower than lane SR's on Python 3.11 and 3.13, and
-the same night's points fitted over 100,000 to 500,000 rows, as 2,204.5
-was, read 1,608.0 MB. The peak is describing one column whose values all
-differ, lane H3's; `K-S4-09` stays open. pandas keeps its check.
+(comma-space, short rows, a closing delimiter, an end-of-file mark); a
+file pyarrow cannot read, or reads with another record count, is not
+asked of it again. A file whose size or moment of change moves is
+refused as changed, on either route. No description byte moves: lane
+S4d's 880 descriptions read one column a group equal the merged head's
+read whole, and the health data zoo's 25 tables write the same 150 files
+and print the same words. A group is read again 3.3 to 3.5 times faster
+at 250,000 rows (0.33 against 1.10 to 1.18 s), about 12 % of describe's
+CPU there. `K-S4-09` stays open: lane SR's 2,204.5 MB was an
+under-projection from 100,000 to 500,000 rows, and every projection that
+uses the night's 1,000,000-row point gives 2,481 to 2,694 MB at
+2,000,000 x 50. The peak is probably describing one column whose values
+all differ (lane H3's); the lane's night script measures its phase at
+2,000,000 rows. pandas keeps its check.
 
 ### The questions file keeps every answer across rounds (2026-10-19)
 

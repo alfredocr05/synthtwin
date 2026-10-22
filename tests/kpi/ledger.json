@@ -9337,7 +9337,7 @@
    "driver": "tools/measurements/kpi_describe_groups.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "the driver's own two seeded tables, each size written to a temporary folder and described once by synthtwin profile in a process of its own, reading.GROUP_BYTES and reading.WALK_BYTES scaled by the rows over 2,000,000",
-   "evidence": "RED: describe's part is NOT met. On 8a02faa: the mixed table 304.1 / 407.3 / 727.7 / 1,366.1 MB at 100,000 to 1,000,000 rows, 2,694.2 MB projected (2,661.5 at the last doubling's rate) and 19.6 traced bytes a cell, both over their bounds; the Gaussian 2,215.9 MB and 4.5. Not a regression of the code (lane SR-A, P4-D414, measured): at equal sizes 8a02faa peaks lower than lane SR's head 5b8f98f7 on Python 3.11 and 3.13 alike, and 2ab12d9's 2,204.5 MB came from fitting 100,000 to 500,000 rows over 78.1 MB of imports -- the night's own points fitted so read 1,608.0 MB. The peak is describing one column whose values all differ, lane H3's (P4-D400, limit (a)); re-reading groups by pyarrow does not reach it. To be re-stamped on SR-A's head: wave6/SRA/night-sra.sh <head> kpi. OPEN also: generate's (lane SG) and validate's (lane SV) not measured yet.",
+   "evidence": "RED: describe's part is NOT met. On 8a02faa: the mixed table 304.1 / 407.3 / 727.7 / 1,366.1 MB at 100,000 to 1,000,000 rows, 2,694.2 MB projected (2,661.5 at the last doubling's rate) and 19.6 traced bytes a cell, both over their bounds; the Gaussian 4.5 bytes a cell, its 2,215.9 MB a fit and not a projection (x2.55, then x1.04 a doubling), unmeasured at 2,000,000 rows. 2ab12d9's 2,204.5 MB was an under-projection from 100,000 to 500,000 rows (P4-D400): the 1,000,000-row point is 24.5 % over that fit's 1,030.9 MB, and every fit using it gives 2,481 to 2,694 (lane SR-A, P4-D414). The peak is probably describing one column whose values all differ, lane H3's (P4-D400, limit (a)); its phase at 2,000,000 rows is unmeasured. To be re-stamped on SR-A's head: wave6/SRA/night-sra.sh <head> kpi. OPEN also: generate's (lane SG) and validate's (lane SV) not measured yet.",
    "value_at": {
     "commit": "8a02faa",
     "date": "2026-10-21",
@@ -9412,7 +9412,7 @@
    "driver": "tools/measurements/kpi_describe_groups.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "K-S4-09's runs",
-   "evidence": "Recorded on 8a02faa: describe's CPU 303.9 / 767.7 / 1,563.8 / 3,060.5 s on the mixed table, 6,151.6 s projected at 2,000,000 x 50 (1.71 h), and 145.6 / 360.1 / 723.2 s on the Gaussian, 2,867.2 s; 2ab12d9 read 4,774.3 and 3,127.1 s. The mixed table is described twice on 8a02faa (a column held by lane HX's rule), which doubles describe's own share. Lane SR-A's re-reads by pyarrow cut it (P4-D414); to be re-stamped on its head: wave6/SRA/night-sra.sh <head> kpi. Inside the owner's twelve hours.",
+   "evidence": "Recorded on 8a02faa: describe's CPU 303.9 / 767.7 / 1,563.8 / 3,060.5 s on the mixed table, 6,151.6 s projected at 2,000,000 x 50 (1.71 h), and 145.6 / 360.1 / 723.2 s on the Gaussian, 2,867.2 s; 2ab12d9 read 4,774.3 and 3,127.1 s, fitted over other sizes (x1.29). The mixed table is described twice on 8a02faa (a column held by lane HX's rule: 100 column descriptions for 50), its CPU share not measured. Lane SR-A's pyarrow reads a group again 3.3 to 3.5 times faster at 250,000 rows, about 12 % of describe's CPU there (P4-D414, measured paired); to be re-stamped on its head: wave6/SRA/night-sra.sh <head> kpi. Inside the owner's twelve hours.",
    "value_at": {
     "commit": "8a02faa",
     "date": "2026-10-21",
