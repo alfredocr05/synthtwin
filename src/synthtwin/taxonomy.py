@@ -11140,16 +11140,19 @@ def _level_details(
 # -- role-specific blocks ---------------------------------------------
 
 
-def _text_details(cells: _Cells) -> dict[str, object]:
-    """Length and word-count statistics for a column of free text."""
-    # ONE NUMBER A LENGTH, NOT A ROW (lane H3, plan P4-D423): a length
-    # or a count of words is one of few values, and a list of a new
-    # number a row held about 32 bytes a row each, about 64 on a column
-    # of notes that never repeat. The lists are equal to the ones before.
+def _text_measures(present: "list[str]") -> "tuple[list[float], list[float]]":
+    """Each cell's length and word count, one float a different measure shared by every row it measures (lane H3).
+
+    A float a row held 24 bytes a row of free text beside the reference
+    (plan P4-D423): the lists hold a reference a row to one float a
+    different length or count. Guarantees: the two lists, in row order,
+    equal to `[float(len(cell)) ...]` and `[float(parsing.token_count(
+    cell)) ...]`. Raises nothing. No I/O of any kind.
+    """
     first: "dict[int, float]" = {}
     lengths: "list[float]" = []
     words: "list[float]" = []
-    for value in cells.present:
+    for value in present:
         length = len(value)
         if length not in first:
             first[length] = float(length)
@@ -11158,6 +11161,16 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         if count not in first:
             first[count] = float(count)
         words += [first[count]]
+    return lengths, words
+
+
+def _text_details(cells: _Cells) -> dict[str, object]:
+    """Length and word-count statistics for a column of free text."""
+    # ONE NUMBER A LENGTH, NOT A ROW (lane H3, plan P4-D423): a length
+    # or a count of words is one of few values, and a list of a new
+    # number a row held about 32 bytes a row each, about 64 on a column
+    # of notes that never repeat. The lists are equal to the ones before.
+    lengths, words = _text_measures(cells.present)
     return {
         "length": {
             "min": int(min(lengths)),
@@ -15515,6 +15528,18 @@ def _cells_holding(ordered: "list[float]", value: float) -> int:
     return low - first
 
 
+def _none_above_nought(ordered: "list[float]") -> bool:
+    """Whether no value of a sorted list is above nought: its LARGEST value is not (lane H3, plan P4-D423).
+
+    `len([value for value in ordered if value > 0.0]) == 0`, read off the
+    last value instead of a list of every positive one, which held a
+    reference a row on a column of positive numbers. Guarantees:
+    `ordered` is sorted and holds no not-a-number. Raises IndexError on
+    an empty list. No I/O of any kind.
+    """
+    return not ordered[len(ordered) - 1] > 0.0
+
+
 def _tail_parts(
     ordered: "list[float]",
     first: int,
@@ -15903,8 +15928,7 @@ def _numeric_tails_and_causes(
     # equality is the set's, so the count is the same.
     distinct_numbers = _sorted_runs(ordered)
     no_negative = cells.n_negative == 0
-    # No value above nought is the largest one at or below it.
-    no_positive = not ordered[count - 1] > 0.0
+    no_positive = _none_above_nought(ordered)
     floor = cells.settings.small_cell_floor
     sides: "dict[str, object]" = {}
     unholdable: "list[str]" = []
