@@ -32,7 +32,8 @@ the reading in groups by the standard reader alone:
    nothing of pyarrow's (its pool back where it was); a group whose
    values pyarrow would hold more of than `ARROW_GROUP_BYTES` (one note
    on every row, which the standard reader holds once) is not asked of
-   it at all.
+   it at all, nor are columns held at once whose values together are
+   over it (the budget is the sum over the columns held).
 4. A file that changes between two readings is refused on pyarrow's
    route as on the standard reader's, however small the change and
    wherever it is -- a name, a column not asked, the quotes moved, the
@@ -524,6 +525,52 @@ def test_a_group_pyarrow_would_hold_too_much_of_is_read_by_the_standard_reader(
     # The note is held once, as the standard reader holds a text met again.
     notes = reading.column_values(read, 1)
     assert len({id(value) for value in notes}) == 1
+
+
+def test_columns_held_at_once_are_counted_together_against_pyarrows_budget(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two notes of 1,000 characters, each its own group and each under `ARROW_GROUP_BYTES`, together over it: held at once, as profile holds a walk, they are not asked of pyarrow (the budget is the sum over the columns held; the verify of lane SR-A's repair 2, item 1)."""
+    rows = 3_000
+    first = "".join(chr(ord("a") + k % 26) for k in range(1_000))
+    second = "".join(chr(ord("A") + k % 26) for k in range(1_000))
+    table = tmp_path / "two_notes.csv"
+    table.write_text(
+        "id,note,summary,ward\n" + "".join(f"{k},{first},{second},w{k % 9}\n" for k in range(rows)),
+        encoding="utf-8", newline="\n",
+    )
+    whole = reading.read_table(str(table))
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1)
+    budget = 4 << 20
+    monkeypatch.setattr(reading, "ARROW_GROUP_BYTES", budget)
+    read = reading.read_table(str(table), in_groups=True)
+    source = read.source
+    assert source is not None and all(proof.digest >= 0 for proof in source.proofs)
+    assert [list(group) for group in source.groups] == [[0, 1], [1, 2], [2, 3], [3, 4]]
+    each = [source.proofs[place].text_bytes for place in (1, 2)]
+    assert each == [rows * (1_000 + 4)] * 2
+    assert all(size <= budget for size in each) and sum(each) > budget, (each, budget)
+    asked: "list[tuple[tuple[object, ...], int]]" = []
+    real = pyarrow.csv.read_csv
+
+    def watched(path: object, **settings: object) -> object:
+        pool = pyarrow.proxy_memory_pool(pyarrow.default_memory_pool())
+        _KEPT_POOLS.append(pool)
+        found = real(path, memory_pool=pool, **settings)  # type: ignore[arg-type]
+        asked.append((tuple(settings["convert_options"].include_columns), pool.max_memory()))  # type: ignore[attr-defined]
+        return found
+
+    monkeypatch.setattr(reading.pyarrow.csv, "read_csv", watched)
+    reading.hold_columns(read, (1, 2))
+    assert source.held_places == (1, 2)
+    assert asked == [], asked
+    assert [reading.column_values(read, place) for place in (1, 2)] == [whole.columns[1], whole.columns[2]]
+    # The id and the ward together are far under the budget: asked of pyarrow at once.
+    reading.hold_columns(read, (0, 3))
+    assert [reading.column_values(read, place) for place in (0, 3)] == [whole.columns[0], whole.columns[3]]
+    assert [included for included, _most in asked] == [(f"{reading._ARROW_NAMES}0", f"{reading._ARROW_NAMES}3")], asked
+    assert all(most < budget for _included, most in asked), asked
 
 
 def test_what_pyarrow_holds_of_a_value_is_its_utf8_bytes_and_an_offset() -> None:
