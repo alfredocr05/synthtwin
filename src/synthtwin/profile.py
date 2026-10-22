@@ -4815,8 +4815,9 @@ def questions_of(
     question answers (`asking.without_columns_of`); question Q6
     (`asking.date_columns_seen`) where ``dates_already`` is given,
     otherwise ``dates_seen``; the day-or-month question where ``month``
-    says so, otherwise ``day_or_month``; the person question; Q6's
-    questions where ``with_dates`` says so; and the checklist. A table
+    says so, otherwise ``day_or_month``; the person question; the question
+    put to a column of lists written as record numbers (plan P4-D424);
+    Q6's questions where ``with_dates`` says so; and the checklist. A table
     read whole is asked exactly that way. A table read in groups (lane
     SR, plan P4-D400) is asked it ONE GROUP AT A TIME, every step of a
     group asked of the cells split once for that group, and each step's

@@ -3865,12 +3865,27 @@ def _list_parts(cell: str, mark: str) -> "list[str]":
     Spaces split on any run of them, so no part is empty; every other
     mark keeps an empty part, which says the cell is no list.
     """
+    if not isinstance(cell, str):
+        raise TypeError("a cell to ask about must be text")
+    if not isinstance(mark, str):
+        raise TypeError("a list's mark must be text")
     parts: "list[str]" = []
     for piece in cell.split(mark):
         one = parsing.trimmed(piece)
         if one or mark != " ":
             parts += [one]
     return parts
+
+
+def _a_lettered_word(value: str) -> bool:
+    """Whether a value is one word of ASCII letters alone, which names nobody and is no key."""
+    if not isinstance(value, str):
+        raise TypeError("a cell to ask about must be text")
+    # Every character a letter: stripping the letters leaves nothing.
+    return value != "" and value.strip(_ASCII_LETTERS) == ""
+
+
+_ASCII_LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 def _a_wide_listed_value(value: str) -> bool:
@@ -3994,14 +4009,14 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
             # needs a figure, `@`, a point or `://`), and is told so
             # without the walk through every layout: free text is mostly
             # such words.
-            if persons and (value.isalpha() or not _names_one_person(value)):
+            lettered = _a_lettered_word(value)
+            if persons and (lettered or not _names_one_person(value)):
                 misses = misses + 1
                 if misses * _SIGN_PLACEHOLDER_SHARE > values:
                     persons = False
             if keys:
                 # A word of ASCII letters alone is a placeholder and no key,
                 # told without `_key_figures`' walk (the same answer).
-                lettered = value.isascii() and value.isalpha()
                 figures = None if lettered else _key_figures(value)
                 if figures is None:
                     if lettered or _a_key_placeholder(value):
