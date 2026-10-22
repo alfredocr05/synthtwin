@@ -599,13 +599,21 @@ def test_the_draw_s_edges_and_the_moved_target_s_tie():
     tables [[a, 21 - a], [20 - a, a - 1]] hold no nought; the distance
     2 (|a - 10| + |a - 11|) is least, 2, at a = 10 and 11, whose squares
     are both 2; row-major [11, 10, 9, 10] is greater than [10, 11, 10, 9]
-    at the first place: a = 11 (MUTANT: the least)."""
+    at the first place: a = 11 (MUTANT: the least). THE MOVED TARGET's
+    first key: [[20, 0, 10], [0, 20, 10]] against rows [11, 49] and columns
+    [0, 42, 18]: the tables [[0, b, 11 - b], [0, 42 - b, 7 + b]] put b units
+    in the published nought (0, 1), fewest at b = 0, [[0, 0, 11], [0, 42,
+    7]], distance 20 + 1 + 22 + 3 = 46, though b = 1 to 3 reach distance 44
+    (MUTANT: the distance before the noughts, which takes b = 1, the one
+    of those three with fewest noughts)."""
     case = FROZEN["chain"]["draw_edges"]
     assert int(case["edge_word"][:16], 16) == 2 ** 33 and case["edge"] == {"place": 2, "how": "uniform"}
     assert case["tie"]["place"] == 1 and case["tie"]["how"] == "weighted"
     assert case["tie"]["weights"] == ["0x1.0000000000000p+0", "0x1.0000000000000p+0"]
     assert _json(oc.case_draw_edges()) == case
-    assert FROZEN["chain"]["moved_tie"] == {"moved": [[11, 10], [9, 10]], "units_in_noughts": []}
+    assert FROZEN["chain"]["moved_tie"] == {"moved": [[11, 10], [9, 10]], "units_in_noughts": [],
+                                            "noughts_first": {"moved": [[0, 0, 11], [0, 42, 7]], "units_in_noughts": []}}
+    assert _json(oc.case_moved_tie()) == FROZEN["chain"]["moved_tie"]
     assert co.moved_target([[10, 10], [10, 10]], [21, 19], [20, 20])[0] == [[11, 10], [9, 10]]
 
 

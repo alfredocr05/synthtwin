@@ -794,10 +794,12 @@ def case_draw_edges():
 
 
 def case_moved_tie():
-    """G16.6's last tie: two tables equal on noughts, distance and squares; the greater in
-    row-major order is taken."""
+    """G16.6's order: the units in published noughts before the distance, and the last tie,
+    two tables equal on noughts, distance and squares, the greater in row-major order taken."""
     table, named = co.moved_target([[10, 10], [10, 10]], [21, 19], [20, 20])
-    return {"moved": table, "units_in_noughts": [list(x) for x in named]}
+    first, first_named = co.moved_target([[20, 0, 10], [0, 20, 10]], [11, 49], [0, 42, 18])
+    return {"moved": table, "units_in_noughts": [list(x) for x in named],
+            "noughts_first": {"moved": first, "units_in_noughts": [list(x) for x in first_named]}}
 
 
 SLOPE_SEED = 0x51A0E
@@ -1120,6 +1122,10 @@ def moment_cases():
     sums = correlation_sums(duplicate)
     out["duplicate_columns_test_i"] = mo.correlation_allowed(sums[(0, 0)], sums[(1, 0)], sums[(0, 1)],
                                                              sums[(2, 0)], sums[(0, 2)], sums[(1, 1)])
+    edge = correlation_sums([[3, 1, 0], [1, 10, 0], [0, 0, 37]])
+    out["test_i_edge"] = {"sums": [edge[(0, 0)], edge[(1, 0)], edge[(0, 1)], edge[(2, 0)], edge[(0, 2)], edge[(1, 1)]],
+                          "allowed": mo.correlation_allowed(edge[(0, 0)], edge[(1, 0)], edge[(0, 1)],
+                                                            edge[(2, 0)], edge[(0, 2)], edge[(1, 1)])}
     loose = [[4, 4, 3], [4, 3, 4], [3, 4, 4]]
     inst, out["correlation_one_cell"] = _verdict(spec_correlation(33, correlation_sums(loose)))
     out["cf1_against_the_oracle"] = cf1_agreement([22, 40])

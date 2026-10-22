@@ -208,6 +208,20 @@ def test_two_duplicate_columns_are_withheld_by_test_i():
     assert FROZEN["duplicate_columns_test_i"] is False
 
 
+def test_test_i_at_its_boundary():
+    """Test (i) at its edge, r squared between 361/400 and 361/399: the
+    counts [[3, 1, 0], [1, 10, 0], [0, 0, 37]] over codes centred at 1 give
+    n = 52, sums of a and b 33 each, of a squared and b squared 41 each,
+    of a b 40; so cov = 52 * 40 - 33 * 33 = 991 and each variance 52 * 41
+    - 1089 = 1043. 400 * 991**2 = 392,832,400 is not below 361 * 1043**2 =
+    392,713,489: refused (r squared 0.9028, above 0.9025). MUTANT: 399 in
+    place of 400 (391,850,319), which allows it."""
+    case = FROZEN["test_i_edge"]
+    assert case == {"sums": [52, 33, 33, 41, 41, 40], "allowed": False}
+    assert 400 * 991 ** 2 == 392_832_400 and 361 * 1043 ** 2 == 392_713_489 and 399 * 991 ** 2 == 391_850_319
+    assert mo.correlation_allowed(*case["sums"]) is False
+
+
 def test_cf1_and_the_exact_route_agree_on_every_group():
     """CF1 (4.6d.4's closed form) against the route on every cell of 22
     and 23 rows over runs of 1 to 6 codes and every code sum: the same
@@ -314,12 +328,10 @@ def test_the_entries_cap_bounds_the_width_of_a_state():
     plan P4-D421) and one more lies outside (44,040,129). A narrower
     wide instance is decided within both budgets. MUTANT: the entries'
     test removed, which decides the wide instances."""
-    for constraints, entries, inside in ((30, 188743410, False), (7, 44040129, False), (6, 37748682, True)):
-        instance = _wide(20, constraints)
-        assert mo.class_bounds(instance) == (6291450, entries)
-        if not inside:
-            verdict = mo.decide(instance)
-            assert (verdict.inside, verdict.why, verdict.nodes) == (False, "entries", 0)
+    for constraints, entries in ((7, 44040129), (30, 188743410), (6, 37748682)):
+        assert mo.class_bounds(_wide(20, constraints)) == (6291450, entries)
+    verdict = mo.decide(_wide(20, 7))
+    assert (verdict.inside, verdict.why, verdict.nodes) == (False, "entries", 0)
     narrow = _wide(12, 100)
     started = time.perf_counter()
     verdict = mo.decide(narrow)

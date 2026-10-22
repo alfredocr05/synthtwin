@@ -4453,7 +4453,22 @@
      10
     ]
    ],
-   "units_in_noughts": []
+   "units_in_noughts": [],
+   "noughts_first": {
+    "moved": [
+     [
+      0,
+      0,
+      11
+     ],
+     [
+      0,
+      42,
+      7
+     ]
+    ],
+    "units_in_noughts": []
+   }
   },
   "slope_absent": {
    "x_l0": [
@@ -4876,6 +4891,17 @@
    "holds": false
   },
   "duplicate_columns_test_i": false,
+  "test_i_edge": {
+   "sums": [
+    52,
+    33,
+    33,
+    41,
+    41,
+    40
+   ],
+   "allowed": false
+  },
   "correlation_one_cell": {
    "class": "outside",
    "bound": 7802227714650,
