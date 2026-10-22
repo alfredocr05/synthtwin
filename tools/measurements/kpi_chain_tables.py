@@ -13,12 +13,15 @@ Lane CHa's stamp of `K-S6-08` on the fixtures of the design's section 2.7
   0; its mutant, the version 2.2 merge after the draw, must leak
   (`part_c_mutant_leaking` above 0, the case's discrimination);
 - RULE W1'S OWN-FACT SOURCES (repair 1, skeptic 1's item 1): a 1 % slice of
-  six rows between two published rungs of 600 all-different ages, and the
-  one row a clock census leaves of its band [p25, p50); every root option
+  six rows between two published rungs of 600 all-different ages, the
+  one row a clock census leaves of its band [p25, p50), and (repair 2,
+  the combined verify's item 1) the five-row slices of [p75, p90) on 501
+  ages all different but a published mode, or nought; every root option
   the draw can take on each (two columns: the chain is its root pair) is
   read by RULE W1 in full with the true group: `own_fact_confining`, target
   0, over `own_fact_options`; the mutant, the groups read on the column's
-  own values left out, confines (`own_fact_mutant_confining` above 0);
+  own values left out (on the heap fixtures, the single values a published
+  count names left unread), confines (`own_fact_mutant_confining` above 0);
 - THE MIRROR: on `MIRROR_TABLES` tables sampled across the sets, the
   producer's own search reaches exactly the scan's descriptions
   (`mirror_mismatches`, target 0);

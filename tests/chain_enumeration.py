@@ -469,17 +469,38 @@ def _clock_rows() -> "tuple[list[str], list[list[str]], tuple[str, str]]":
     return ["clock", "g"], rows, ("p25", "p50")
 
 
+def _heap_rows(heap: str) -> "tuple[list[str], list[list[str]], tuple[tuple[str, str], ...]]":
+    """501 ages all different but a published heap (a mode of twelve rows, or eleven noughts), gender F
+    on every row of [p75, p90): each 1 % slice there holds five rows (the combined verify's item 1)."""
+    import random
+
+    draw = random.Random(5)
+    distinct = sorted(20 + 0.01 * value for value in draw.sample(range(1, 6000), 490))
+    value = 0.0 if heap == "zero" else distinct[3]
+    ages = sorted(distinct + [value] * 11)
+    rows = [[f"{age}", "F" if 0.75 * 501 <= place < 0.90 * 501 else draw.choice("FM")] for place, age in enumerate(ages)]
+    draw.shuffle(rows)
+    return ["age", "gender"], rows, (("p75", "p80"), ("p80", "p90"))
+
+
 def own_fact_case(name: str, product: bool) -> "dict[str, int]":
     """Every root option the draw can take on one fixture (two columns: the chain is its root
     pair), and how many confine the band holding the fixture's own-fact group to one `L2` band of
     the other column (RULE W1 read in full with the TRUE group). `product` False is the mutant:
-    the groups `chain.value_run_bands` reads on the column's own values left out."""
+    the groups `chain.value_run_bands` reads on the column's own values left out; on the two heap
+    fixtures (repair 2), the single values a published count names left unread, so a rung one
+    row stands on beside the heap draws no cut (repair 1's rule)."""
     import pathlib
     import tempfile
 
     from synthtwin import chain, profile, reading, taxonomy
 
-    header, rows, band_name = _slice_rows() if name == "slice" else _clock_rows()
+    band_names: "tuple[tuple[str, str], ...]"
+    if name.startswith("heap"):
+        header, rows, band_names = _heap_rows(name[4:])
+    else:
+        header, rows, band_name = _slice_rows() if name == "slice" else _clock_rows()
+        band_names = (band_name,)
     folder = pathlib.Path(tempfile.mkdtemp(prefix="chain-own-facts-"))
     path = folder / f"{name}.csv"
     path.write_text(",".join(header) + "\n" + "".join(",".join(row) + "\n" for row in rows), encoding="utf-8", newline="\n")
@@ -489,6 +510,7 @@ def own_fact_case(name: str, product: bool) -> "dict[str, int]":
     seen: "list[object]" = []
     original_options = chain._root_options
     original_runs = chain.value_run_bands
+    original_points = chain._named_points
 
     def recording(search, x0, room):  # type: ignore[no-untyped-def]
         found = original_options(search, x0, room)
@@ -497,12 +519,15 @@ def own_fact_case(name: str, product: bool) -> "dict[str, int]":
 
     try:
         chain._root_options = recording  # type: ignore[assignment]
-        if not product:
+        if not product and name.startswith("heap"):
+            chain._named_points = lambda *arguments: []  # type: ignore[assignment]
+        elif not product:
             chain.value_run_bands = lambda *arguments: set()  # type: ignore[assignment]
         chain.describe(table, document, settings, chain.ChainSwitch(name, bytes(32)))
     finally:
         chain._root_options = original_options  # type: ignore[assignment]
         chain.value_run_bands = original_runs  # type: ignore[assignment]
+        chain._named_points = original_points  # type: ignore[assignment]
         path.unlink()
         folder.rmdir()
     column = header[0]
@@ -513,7 +538,7 @@ def own_fact_case(name: str, product: bool) -> "dict[str, int]":
             continue
         options += 1
         ladder = scales[column]
-        group = [at for at in range(len(ladder.l0)) if any(isinstance(one, tuple) and one == band_name for one in ladder.l0[at])]
+        group = [at for at in range(len(ladder.l0)) if any(isinstance(one, tuple) and one in band_names for one in ladder.l0[at])]
         parent = option.parents[0]  # type: ignore[attr-defined]
         placed = [
             rules.Family(parent, option.levels[1], (), None, tuple(rules.totals_at(scales[parent], option.levels[1]))),  # type: ignore[attr-defined]
@@ -525,9 +550,11 @@ def own_fact_case(name: str, product: bool) -> "dict[str, int]":
 
 
 def own_fact_sources() -> "dict[str, int]":
-    """K-S6-08's two own-fact fixtures, the product and its mutant (no group read on the values)."""
+    """K-S6-08's own-fact fixtures, the product and its mutant: the slice and the clock (no group
+    read on the values), and the one-row rung beside a heap, mode and nought (the named values
+    unread; repair 2)."""
     out = {"own_fact_options": 0, "own_fact_confining": 0, "own_fact_mutant_confining": 0}
-    for name in ("slice", "clock"):
+    for name in ("slice", "clock", "heapmode", "heapzero"):
         found = own_fact_case(name, True)
         mutant = own_fact_case(name, False)
         out["own_fact_options"] += found["options"]
