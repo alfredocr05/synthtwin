@@ -6134,10 +6134,12 @@ def _grain_walk(
                 apart += [()]
             continue
         if cell not in shaped:
-            keys: "tuple[str, ...]" = (f"s{grains.shape_of(cell)}",)
             read = parsing.parse_datetime(cell, time_reading.member) if dated else None
-            if read is not None and read[1]:
-                keys = keys + (f"o{read[1]}",)
+            keys: "tuple[str, ...]" = (
+                (f"s{grains.shape_of(cell)}", f"o{read[1]}")
+                if read is not None and read[1]
+                else (f"s{grains.shape_of(cell)}",)
+            )
             if len(shaped) < 65536:
                 shaped[cell] = keys
             apart += [keys]

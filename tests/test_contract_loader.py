@@ -1019,6 +1019,27 @@ class Mutation:
         return self.names
 
 
+def _with_grain(document: Document, **changes: object) -> None:
+    """A `time_grain` record a loader takes, on the first column of dates, with ``changes`` made to it (plan P4-D417).
+
+    One span by the year, the column's own rows and format: a walk its
+    facts allow. Each change breaks it in one way.
+    """
+    block = [one for one in document["columns"] if one["role"] == "datetime" and "format" in one][0]
+    record: "dict[str, object]" = {
+        "finest": "second",
+        "kind": "stamp",
+        "mark": ".",
+        "people": block["n_present"],
+        "reading": block["format"],
+        "rows": block["n_present"],
+        "rung": "year",
+        "spans": [["year", "2024-01-01 00:00:00", "2024-01-01 00:00:00"]],
+    }
+    record.update(changes)
+    block["time_grain"] = record
+
+
 def battery() -> list[Mutation]:
     """Every rule, with a description that must be refused for it."""
     return [
@@ -3002,6 +3023,26 @@ def battery() -> list[Mutation]:
             "LP2",
             "a prefix whose own layout does not open the census's layout",
             edit("record_code", layout_prefixes={"(column)": "RE"}),
+        ),
+        # TG1, NF128 and NF129 (lane PS, plan P4-D417): a grain record
+        # whose span is no bucket's start, one read under another member
+        # than its block publishes, and `held` on a column of dates.
+        Mutation(
+            "TG1",
+            "a grain record whose span is not the start of a year",
+            lambda document: _with_grain(
+                document, spans=[["year", "2024-02-01 00:00:00", "2024-02-01 00:00:00"]]
+            ),
+        ),
+        Mutation(
+            "NF128",
+            "a grain record reading its cells under another member",
+            lambda document: _with_grain(document, reading="day-first-date"),
+        ),
+        Mutation(
+            "NF129",
+            "a grain record held on a column of dates",
+            lambda document: _with_grain(document, rung="held"),
         ),
         # LP3 (plan P4-D270). A prefix fixes characters of the layout it
         # stands on, so the room left has to carry the column's own

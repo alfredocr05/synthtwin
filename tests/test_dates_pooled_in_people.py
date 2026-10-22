@@ -49,8 +49,9 @@ import random
 
 import pytest
 
-from synthtwin import canonical, cli, contract, errors, generation, grains, validation
+from synthtwin import cli, contract, errors, generation, grains, validation
 
+import fixtures
 import health_zoo
 import persons_counted
 import unanswered_identifier_shapes as shapes
@@ -382,7 +383,7 @@ def test_the_grain_is_chosen_from_published_facts_and_not_from_failing_points(
 def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathlib.Path) -> None:
     """TG1: a description whose grain record its own rows, people and spans do not allow is not loaded.
 
-    Each edit is written in the canonical form (`canonical.serialize`), so
+    Each edit is written in the canonical form (`fixtures.write_profile`), so
     the record's own rule refuses it, by its name, and not the form check
     (the skeptic's item 4); and a refusal is a ProfileError, never a
     KeyError.
@@ -416,12 +417,12 @@ def test_a_record_whose_rung_its_facts_do_not_choose_is_refused(tmp_path: pathli
             grain["reading"] = "month-first-date"
         else:
             grain["spans"][2][1] = "2023-01-02"
-        path.write_text(canonical.serialize(document), encoding="utf-8", newline="\n")
+        fixtures.write_profile(tmp_path, "visits-profile.json", document)
         with pytest.raises(errors.ProfileError) as refused:
             contract.load_profile(f"{path}")
         assert rule in f"{refused.value}", (change, f"{refused.value}")
     # ...and the very document written back loads, so the form check is not what refused.
-    path.write_text(canonical.serialize(original), encoding="utf-8", newline="\n")
+    fixtures.write_profile(tmp_path, "visits-profile.json", original)
     contract.load_profile(f"{path}")
 
 
