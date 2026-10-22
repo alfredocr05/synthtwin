@@ -202,6 +202,48 @@ def test_one_column_s_ladder_through_the_l0_merge():
     assert lad.ordered[0] and lad.codes(2)[:7] == [0] * 7
 
 
+def test_a_date_and_a_clock_are_cut_at_their_nine_interior_rungs():
+    """Contract 4.6b.2: a `datetime` column's `L0` edges are the nine
+    interior rungs `p01` to `p99` of `date_percentiles`, a `time_of_day`
+    column's those of `clock_percentiles`, each on its own ordinal; `L1`
+    `p25`, `p50`, `p75`, `p90`; `L2` `p50` (Codex's item 1 of the
+    landing's review). DATE: ordinals 0 to 2,000, one row each, rungs 20,
+    100, 200, 500, 1,000, 1,500, 1,800, 1,900, 1,980: the bands below 20
+    (20 rows), [20, 100) 80, [100, 200) 100, [200, 500) 300, [500, 1000)
+    500, [1000, 1500) 500, [1500, 1800) 300, [1800, 1900) 100, [1900,
+    1980) 80 and from 1,980 to 2,000 21; every band at least 11, so no
+    merge. L1 cuts at p25 (500), p50, p75 and p90 (1,800): {0..3}, {4},
+    {5}, {6}, {7, 8, 9}; L2 at p50: {0..4}, {5..9}. CLOCK: 60 absent and
+    the seconds 0 to 999, rungs 10, 50, 100, 250, 500, 750, 900, 950, 990:
+    `missing` 60, then 10, 40, 50, 150, 250, 250, 150, 50, 40, 10. The band
+    below p01 (10 rows) joins the neighbour holding fewer rows, [p01,
+    p05) (40) rather than `missing` (60): 50; the band from p99 (10) joins
+    its one neighbour [p95, p99) (40): 50. Totals 60, 50, 50, 150, 250,
+    250, 150, 50, 50; the taken-in sub-bands in L0 bands 1 and 8. MUTANT:
+    the number columns' cuts (the first build's), which read p10 to p90
+    alone: the date's totals 200, 300, 500, 500, 300, 201 and the clock's
+    60, 100, 150, 250, 250, 150, 100."""
+    case = FROZEN["chain"]["temporal_ladders"]
+    date, clock = case["datetime"], case["time_of_day"]
+    assert date["totals"] == [20, 80, 100, 300, 500, 500, 300, 100, 80, 21]
+    assert date["l1"] == [[0, 1, 2, 3], [4], [5], [6], [7, 8, 9]]
+    assert date["l2"] == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+    assert date["l0"][0] == [["range", None, "p01"]] and date["l0"][9] == [["range", "p99", None]]
+    assert clock["totals"] == [60, 50, 50, 150, 250, 250, 150, 50, 50]
+    assert clock["l0"][1] == [["range", None, "p01"], ["range", "p01", "p05"]]
+    assert clock["l0"][8] == [["range", "p95", "p99"], ["range", "p99", None]]
+    assert clock["l1"] == [[0], [1, 2, 3], [4], [5], [6], [7, 8]]
+    assert clock["l2"] == [[0], [1, 2, 3, 4], [5, 6, 7, 8]] and clock["taken_in"] == [1, 8]
+    cells, rungs = oc.date_ladder_cells()
+    assert co.ladder_of("visit_date", "datetime", cells, rungs=rungs).totals == date["totals"]
+    mutant = FROZEN["chain"]["temporal_ladders_mutant_number_cuts"]
+    assert mutant["datetime"]["totals"] == [200, 300, 500, 500, 300, 201]
+    assert mutant["time_of_day"]["totals"] == [60, 100, 150, 250, 250, 150, 100]
+    assert co.ladder_of("visit_date", "count", cells, rungs=rungs).totals == mutant["datetime"]["totals"]
+    with pytest.raises(ValueError):
+        co.ladder_of("visit_date", "date", cells, rungs=rungs)
+
+
 # --- W3, NE and the floor (contract 4.6b.3) -----------------------------------
 
 

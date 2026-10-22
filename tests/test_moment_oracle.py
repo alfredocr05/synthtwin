@@ -31,12 +31,28 @@ CONTRACT = REPOSITORY / "docs" / "spec" / "profile-contract-v6.md"
 PLAN = REPOSITORY / "docs" / "plans" / "phase-4-columns.md"
 
 # The stated time a decision inside the class takes on the reference
-# machine (plan P4-D421 after its repair of 2026-10-22, MEASURED at the
-# widest instances the two caps admit: at most 7.0 seconds and 0.37 GB;
-# 6.4 seconds on the one-cell boundary over two codes); the boundary
-# cases below take under a second, and a test allows that bound before
-# it calls the budget unmet.
+# machine (plan P4-D421 after its repairs of 2026-10-22): MEASURED up to
+# 9.3 seconds and 0.37 GB (an instance reaching both caps: 6 groups of
+# count 11 under 24 constraints, 9,772,308 transitions, 39,089,160
+# entries); MY ARITHMETIC: about 15 seconds and under 1.3 GB at the worst
+# instance the caps admit. The boundary cases below take under a second.
+# A time is a number the machine decides (STATE's rule 9): it is judged
+# only where `kpi_rules.seconds_judged_here` allows a seconds rule (the
+# quiet reference machine) and reported elsewhere; what every runner
+# judges is the budget itself, the transitions and entries spent.
 STATED_SECONDS = 15
+
+
+def _judge_seconds(spent, what):
+    """A time against STATED_SECONDS on the quiet reference machine only (STATE's rule 9)."""
+    import kpi_rules
+
+    judged, why = kpi_rules.seconds_judged_here(kpi_rules.load_ledger())
+    if judged:
+        assert spent < STATED_SECONDS, (what, spent)
+    else:
+        print("%s took %.2f s; the %d s stated time is reported and not judged here: %s"
+              % (what, spent, STATED_SECONDS, why))
 
 
 def _wide(groups, constraints):
@@ -141,12 +157,18 @@ def test_a_small_atom_beside_an_unreachable_code():
 
 def test_clause_c_refuses_a_small_atom_no_cell_holds_whole():
     """`n_zero` 3 over two cells of 22 rows on codes 0 to 2, code sums 30
-    and 40. The second cell's code 1 holds at most 2 rows (V-); the one
-    point zero on it splits the zeros 1 and 2, and no point zero on V- puts
-    all three zeros in either cell, while some point puts a zero in each:
-    (c) refuses. MUTANT: clause (c) dropped, which publishes it."""
+    and 40. Cell A holds `(a0, 30 - 2 a2, a2)` with `a0 = a2 - 8`, cell B
+    `(b0, 40 - 2 b2, b2)` with `b0 = b2 - 18`, so B's code 1 holds `4 - 2
+    b0` rows and `a0 + b0 = 3`: at most 4 (b0 = 0: A = (3, 8, 11), B = (0,
+    4, 18); Codex's item 7 corrected the first build's "at most 2"), below
+    11, so V- = {B's code 1}. The one point zero on it has b0 = 2, so it
+    splits the zeros 1 and 2; no point zero on V- puts all three zeros in
+    either cell (b0 = 0 gives B's code 1 four rows, b0 = 3 no point),
+    while some point puts a zero in each: (c) refuses. MUTANT: clause (c)
+    dropped, which publishes it."""
     instance, verdict = _decide(oc.spec_clause_c())
     assert _keys(instance, verdict.unreachable) == [("B", 1)]
+    assert verdict.largest == [3, 12, 11, 2, 4, 20] and _keys(instance, [4]) == [("B", 1)]
     assert verdict.zero and not verdict.small and not verdict.holds
     assert oc.decide_mutant(instance, "no_c") is True
 
@@ -288,19 +310,83 @@ def test_the_groups_are_counted_before_any_is_listed():
     and no constraint, lies outside with no transition (its transitions
     bound is 3 passes of one value each, 150,003, so only the groups'
     count puts it outside;
-    MUTANT: the count's test removed, which decides it inside). A region
-    whose base cell holds 300 atoms of each of two columns counts 90,000
-    groups from its sizes and is returned with none listed, outside."""
+    MUTANT: the count's test removed, which decides it inside). "At
+    most" holds at equality: 50,000 such groups are inside (the verify's
+    X5, the test read with `>=`, puts them outside). A region whose base
+    cell holds 300 atoms of each of two columns counts 90,000 groups from
+    its sizes and is returned with none listed, outside. The count runs
+    ACROSS base cells: two cells of 200 atoms of each of two columns
+    count 40,000 groups each, 80,000 together, and none is listed (the
+    verify's X4, the largest cell's count read for the sum, lists all
+    80,000 before any bound puts them outside)."""
     many = mo.Instance(list(range(50_001)), [0] * 50_001, [])
     verdict = mo.decide(many)
     assert (verdict.inside, verdict.why, verdict.nodes) == (False, "groups", 0)
     assert mo.class_bounds(many) == (150_003, 0)
+    edge = mo.decide(mo.Instance(list(range(50_000)), [0] * 50_000, []))
+    assert edge.inside and edge.holds and edge.bound == 150_000
     spec = {"floor": 11, "cells": [{"name": "X", "bands": {"c": 0, "d": 0}}],
             "atoms": {"c": [oc._atom(v, 0, v) for v in range(300)], "d": [oc._atom(v, 0, v) for v in range(300)]},
             "margins": [{"cells": [0], "count": 600}], "facts": [], "sums": []}
     unlisted = mo.build_instance(spec)
     assert (unlisted.keys, unlisted.counted) == ([], 90_000)
     assert mo.decide(unlisted).why == "groups"
+    two = {"floor": 11, "cells": [{"name": "X", "bands": {"c": 0, "d": 0}}, {"name": "Y", "bands": {"c": 0, "d": 0}}],
+           "atoms": {"c": [oc._atom(v, 0, v) for v in range(200)], "d": [oc._atom(v, 0, v) for v in range(200)]},
+           "margins": [{"cells": [0], "count": 400}, {"cells": [1], "count": 400}], "facts": [], "sums": []}
+    across = mo.build_instance(two)
+    assert (across.counted, across.keys) == (80_000, [])
+    verdict = mo.decide(across)
+    assert (verdict.inside, verdict.why, verdict.nodes) == (False, "groups", 0)
+
+
+def test_the_setup_is_counted_before_it_is_laid_out():
+    """Rule (2c), Codex's item 3 of the landing's review: 50,000 groups of
+    largest count 0 under 266 constraints `k x0 + (k + 1) x49999 = 0`
+    pass rules (2) and (2b) (150,000 transitions and 39,900,798 entries,
+    Codex's figures), yet each constraint stays open across all 49,999
+    later groups, so the layout would write 266 * 2 + 266 * 49,999 =
+    13,300,266 whole numbers (about 745 MB of plan entries): outside,
+    with nothing laid out and no transition. With 19 such constraints the
+    setup is 19 * 50,001 = 950,019, inside (MEASURED 1.6 seconds and 125
+    MB, plan P4-D421); with 20, 1,000,020, outside. "At most" holds at
+    equality: under a cap set to an instance's own setup it is inside,
+    one less puts it outside. A region whose terms, counted from its
+    sizes, pass SETUP_MAX is returned with none listed: one cell of 200
+    atoms of each of two columns (40,000 groups) with its count and 25
+    published sums over the cell reads 26 * 40,000 = 1,040,000 terms.
+    MUTANTS: the setup's test removed (which lays out the 13,300,266
+    numbers before deciding) or read with `>=`; the terms' count left
+    unread by `build_instance`, which lists the 1,040,000 terms."""
+    groups = 50_000
+
+    def spans(count):
+        held = [([(0, k), (groups - 1, k + 1)], 0, 0) for k in range(1, count + 1)]
+        return mo.Instance(list(range(groups)), [0] * groups, held)
+
+    codex = spans(266)
+    assert mo.setup_size(codex) == 13_300_266
+    verdict = mo.decide(codex)
+    assert (verdict.inside, verdict.why, verdict.nodes, verdict.holds, verdict.bound) == (False, "setup", 0, False, None)
+    inside = spans(19)
+    verdict = mo.decide(inside)
+    assert verdict.inside and verdict.holds and verdict.setup == 950_019
+    assert (verdict.bound, verdict.entries) == (150_000, 2_850_057)
+    assert mo.setup_size(spans(20)) == 1_000_020 and mo.decide(spans(20)).why == "setup"
+    small = oc.spec_reference()
+    instance = mo.build_instance(small)
+    own = mo.setup_size(instance)
+    assert mo.decide(instance, setup_max=own).inside
+    short = mo.decide(instance, setup_max=own - 1)
+    assert (short.inside, short.why, short.nodes) == (False, "setup", 0)
+    spec = {"floor": 11, "cells": [{"name": "X", "bands": {"c": 0, "d": 0}}],
+            "atoms": {"c": [oc._atom(v, 0, v) for v in range(200)], "d": [oc._atom(v, 0, v) for v in range(200)]},
+            "margins": [{"cells": [0], "count": 400}], "facts": [],
+            "sums": [oc._sum(["c"], [1], [0], 100 + p) for p in range(25)]}
+    unlisted = mo.build_instance(spec)
+    assert (unlisted.keys, unlisted.counted, unlisted.counted_terms) == ([], 40_000, 1_040_000)
+    verdict = mo.decide(unlisted)
+    assert (verdict.inside, verdict.why, verdict.nodes) == (False, "setup", 0)
 
 
 def test_the_budget_covers_the_passes_of_clause_c():
@@ -326,8 +412,12 @@ def test_the_entries_cap_bounds_the_width_of_a_state():
     no transition. Its widest version inside both caps holds 6 open
     constraints (37,748,682 entries; MEASURED at 6.97 seconds and 0.37 GB,
     plan P4-D421) and one more lies outside (44,040,129). A narrower
-    wide instance is decided within both budgets. MUTANT: the entries'
-    test removed, which decides the wide instances."""
+    wide instance is decided within both budgets. "At most" holds at
+    equality: the narrower instance under caps set to its own bound and
+    entries is inside, and one transition or one entry less puts it
+    outside, with no transition. MUTANTS: the entries' test removed,
+    which decides the wide instances; either cap read with `>=` (the
+    verify's X9 and X6), which puts the instance at equality outside."""
     for constraints, entries in ((7, 44040129), (30, 188743410), (6, 37748682)):
         assert mo.class_bounds(_wide(20, constraints)) == (6291450, entries)
     verdict = mo.decide(_wide(20, 7))
@@ -336,23 +426,31 @@ def test_the_entries_cap_bounds_the_width_of_a_state():
     started = time.perf_counter()
     verdict = mo.decide(narrow)
     assert verdict.inside and verdict.holds and verdict.nodes <= verdict.bound and verdict.read <= verdict.entries
-    assert time.perf_counter() - started < STATED_SECONDS
+    _judge_seconds(time.perf_counter() - started, "12 groups under 100 open constraints")
+    exact = mo.decide(narrow, nodes_max=verdict.bound, entries_max=verdict.entries)
+    assert exact.inside and exact.holds
+    for kwargs, why in (({"nodes_max": verdict.bound - 1}, "nodes"), ({"entries_max": verdict.entries - 1}, "entries")):
+        short = mo.decide(narrow, **kwargs)
+        assert (short.inside, short.why, short.nodes, short.holds) == (False, why, 0, False)
     with pytest.raises(mo.BudgetSpent):
         mo._solve(narrow, list(narrow.upper), [mo.NODES_MAX, 1000])
 
 
 def test_a_decision_at_the_boundary_meets_its_budget_within_the_stated_time():
     """The largest one-cell instance over 4 codes the class holds (147
-    rows, code sum 220): decided within NODES_MAX transitions and within
-    the stated time; the next one (148 rows) is outside and decided with
-    no transition at all."""
+    rows, code sum 220): decided within NODES_MAX transitions, on every
+    runner, and within the stated time where seconds are judged (the
+    quiet reference machine, STATE's rule 9; Codex's item 6 of the
+    landing's review: a wall clock judged on every runner fails CI on a
+    scheduling pause); the next one (148 rows) is outside and decided
+    with no transition at all."""
     instance = mo.build_instance(mo.one_cell_spec(147, 0, 3, 220))
     started = time.perf_counter()
     verdict = mo.decide(instance)
     elapsed = time.perf_counter() - started
     assert verdict.inside and verdict.nodes <= verdict.bound <= mo.NODES_MAX
     assert verdict.read <= verdict.entries <= mo.ENTRIES_MAX
-    assert elapsed < STATED_SECONDS
+    _judge_seconds(elapsed, "the one-cell boundary over 4 codes")
     beyond = mo.decide(mo.build_instance(mo.one_cell_spec(148, 0, 3, 222)))
     assert not beyond.inside and beyond.nodes == 0
 
@@ -386,14 +484,25 @@ def test_a_two_column_correlation_cell_lies_outside_the_class():
     transitions, so the instance is outside and the option not eligible.
     The bound reads the published sums too: 6 rows, one in each of the
     first six code pairs, bound 1,999,368, inside; 7 rows, bound
-    13,063,896, outside. Under this route no M-a region holding `f` rows
-    or more is inside."""
+    13,063,896, outside. That boundary is the measured SHAPE's, not a
+    bound on M-a regions (Codex's item 5 of the landing's review): a
+    region of `f` rows or more whose rows sit on few code pairs can lie
+    inside. 22 rows over [[0, 1, 0], [7, 14, 0], [0, 0, 0]] bound at
+    2,983,629 transitions and 26,771,742 entries, inside, and test (i)
+    allows the pair; the sums pin every group, so the groups holding 1
+    and 7 rows reach no 11 and lie in V-, no point is zero there, and
+    the witness refuses: decided, not published."""
     instance, verdict = _decide(oc.spec_correlation(33, oc.correlation_sums([[4, 4, 3], [4, 3, 4], [3, 4, 4]])))
     assert not verdict.inside and verdict.bound > 10 ** 12
     six = mo.build_instance(oc.spec_correlation(6, oc.correlation_sums([[1, 1, 1], [1, 1, 1], [0, 0, 0]])))
     seven = mo.build_instance(oc.spec_correlation(7, oc.correlation_sums([[1, 1, 1], [1, 1, 1], [1, 0, 0]])))
     assert (mo.class_bounds(six), mo.class_bounds(seven)) == ((1999368, 20554335), (13063896, 135623850))
     assert mo.decide(six).inside
+    sums = oc.correlation_sums([[0, 1, 0], [7, 14, 0], [0, 0, 0]])
+    few, verdict = _decide(oc.spec_correlation(22, sums))
+    assert (verdict.inside, verdict.bound, verdict.entries) == (True, 2_983_629, 26_771_742)
+    assert mo.correlation_allowed(sums[(0, 0)], sums[(1, 0)], sums[(0, 1)], sums[(2, 0)], sums[(0, 2)], sums[(1, 1)])
+    assert verdict.largest == [0, 1, 0, 7, 14, 0, 0, 0, 0] and not verdict.zero and not verdict.holds
 
 
 def test_an_exhibited_point_is_rechecked_in_whole_numbers():
@@ -407,6 +516,26 @@ def test_an_exhibited_point_is_rechecked_in_whole_numbers():
     broken = list(point)
     broken[0] += 1
     assert not mo.holds_point(instance, broken)
+
+
+def test_a_fixed_coordinate_is_held_on_the_way_forward(monkeypatch):
+    """Codex's item 2 of the landing's review: x + y = 1 with x and y at
+    most 1 and x fixed at 1. The one point is (1, 0). Walked back from
+    layers built without the fixed value, the last group's first state
+    (x's partial sum 0) takes y = 1, and x = 1 then reaches no state: no
+    point, although (1, 0) holds. The forward pass now keeps only the
+    values from each fixed coordinate up, so the walk back finds (1, 0);
+    fixing x at 2 (above its bound) or at 1 with y fixed at 1 gives none.
+    MUTANT: the fixed value applied only on the way back (the first
+    build), which returns None."""
+    instance = mo.Instance(["x", "y"], [1, 1], [([(0, 1), (1, 1)], 1, 1)])
+    assert mo.point_through(instance, fixed={0: 1}) == [1, 0]
+    assert mo.point_through(instance, fixed={1: 1}) == [0, 1]
+    assert mo.point_through(instance, fixed={0: 2}) is None
+    assert mo.point_through(instance, fixed={0: 1, 1: 1}) is None
+    forward = mo._forward
+    monkeypatch.setattr(mo, "_forward", lambda inst, upper, box, lower=None: forward(inst, upper, box))
+    assert mo.point_through(instance, fixed={0: 1}) is None
 
 
 def test_the_presolve_keeps_every_point():

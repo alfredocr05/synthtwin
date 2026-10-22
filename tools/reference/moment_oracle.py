@@ -44,10 +44,15 @@ write and read (each transition's new state, one entry for each
 constraint open after its group, and each state's checks, one for each
 constraint reading the next group) is at most `ENTRIES_MAX`, which
 bounds the time a transition takes and the memory a state holds, since
-both grow with the open constraints; and (3) no node of the region
-publishes a slope (point condition (5) is not linear, so the space this
-module lists would hold more than `Sigma(R, o)`). Outside, `decide`
-returns "outside" without one transition, and the option it would
+both grow with the open constraints; (2c) the whole numbers the route
+lays out before its first pass (one for each term of a constraint, one
+for each group a constraint stays open across: `setup_size`), counted
+before anything is laid out, are at most `SETUP_MAX`, and
+`build_instance` counts its terms from the region's sizes before
+listing any; and (3) no node of the region publishes a slope (point
+condition (5) is not linear, so the space this module lists would hold
+more than `Sigma(R, o)`). Outside, `decide` returns "outside" without
+one transition, and the option it would
 publish is not eligible (contract 4.6d.3 (ii)). Inside, every pass stays
 under both bounds, so the route always finishes within its budget, and
 the verdict is the predicate's own value: a function of the published
@@ -90,6 +95,17 @@ ENTRIES_MAX = 40_000_000
 # outside the class without being listed.
 GROUPS_MAX = 50_000
 
+# The setup budget (Codex's item 3 of the landing's review): the whole
+# numbers the route lays out before its first pass, one for each term of
+# a constraint (its check and its window) and one for each group a
+# constraint stays open across (its place in that group's transition
+# plan). The two caps above bound the passes, not this layout: 50,000
+# groups of largest count 0 under 266 constraints reading the first and
+# the last group pass both caps and lay out 13,299,734 plan entries.
+# Counted before anything is laid out; `build_instance` counts its terms
+# from the region's sizes before listing any.
+SETUP_MAX = 1_000_000
+
 DEFAULT_FLOOR = 11
 
 # The keys a region's spec may hold (`build_instance`); any other is refused.
@@ -114,11 +130,15 @@ class Instance:
     out of `V-`).
     """
 
-    def __init__(self, keys, upper, constraints, small_atoms=(), floor=DEFAULT_FLOOR, slopes=(), counted=None):
+    def __init__(self, keys, upper, constraints, small_atoms=(), floor=DEFAULT_FLOOR, slopes=(), counted=None,
+                 counted_terms=None):
         self.keys = list(keys)
         # The groups counted from the region's sizes: a region past
         # GROUPS_MAX is built with no group listed (`build_instance`).
         self.counted = len(self.keys) if counted is None else int(counted)
+        # The terms counted from the region's sizes where a region past
+        # SETUP_MAX is built with no group listed; None where listed.
+        self.counted_terms = None if counted_terms is None else int(counted_terms)
         # The nodes of the region publishing a slope (rule (3)).
         self.slopes = tuple(slopes)
         self.upper = [int(u) for u in upper]
@@ -187,6 +207,30 @@ def _floor_div(a, b):
     return a // b
 
 
+def setup_size(instance):
+    """The whole numbers `_layout` writes, counted without writing them (rule (2c)).
+
+    One for each term of each constraint (its check and its window) and,
+    for each constraint, one for each group it stays open across, from
+    its first group to its last (its place in those groups' transition
+    plans). One walk over the terms; nothing is held for a term. A region
+    `build_instance` left unlisted carries its terms counted from sizes.
+    """
+    if instance.counted_terms is not None:
+        return instance.counted_terms
+    total = 0
+    for terms, _, _ in instance.constraints:
+        if not terms:
+            continue
+        least = terms[0][0]
+        most = least
+        for g, _ in terms:
+            least = min(least, g)
+            most = max(most, g)
+        total += len(terms) + most - least
+    return total
+
+
 def _layout(instance, upper):
     """The constraints open after each group, and each group's checks.
 
@@ -199,6 +243,9 @@ def _layout(instance, upper):
     first = []
     last = []
     empty_ok = True
+    # Each group's terms, `(constraint, coefficient, low, high)`, with the
+    # window a constraint's partial sum must keep after that group:
+    # [lo - (most the later groups can add), hi - (least they can add)].
     by_group = [[] for _ in range(count)]
     for index, (terms, lo, hi) in enumerate(instance.constraints):
         if not terms:
@@ -210,25 +257,19 @@ def _layout(instance, upper):
         groups = [g for g, _ in terms]
         first += [min(groups)]
         last += [max(groups)]
-        for g, c in terms:
-            by_group[g] += [(index, c)]
-    # The window a constraint's partial sum must keep after group k:
-    # [lo - (most the later groups can add), hi - (least they can add)].
-    remaining = {}
-    for index, (terms, lo, hi) in enumerate(instance.constraints):
         low_rest = 0
         high_rest = 0
         for g, c in sorted(terms, reverse=True):
-            remaining[(index, g)] = (lo - high_rest, hi - low_rest)
+            by_group[g] += [(index, c, lo - high_rest, hi - low_rest)]
             low_rest += min(0, c * upper[g])
             high_rest += max(0, c * upper[g])
     opened = []
     current = set()
     for k in range(count):
-        for index, _ in by_group[k]:
+        for index, _, _, _ in by_group[k]:
             if first[index] == k:
                 current.add(index)
-        for index, _ in by_group[k]:
+        for index, _, _, _ in by_group[k]:
             if last[index] == k:
                 current.discard(index)
         opened += [sorted(current)]
@@ -237,10 +278,9 @@ def _layout(instance, upper):
     for k in range(count):
         after = opened[k]
         where_before = {index: at for at, index in enumerate(before)}
-        touched = {index: c for index, c in by_group[k]}
+        touched = {index: c for index, c, _, _ in by_group[k]}
         checks = []
-        for index, c in by_group[k]:
-            low, high = remaining[(index, k)]
+        for index, c, low, high in by_group[k]:
             checks += [(where_before.get(index, -1), c, low, high)]
         build = []
         for index in after:
@@ -250,9 +290,9 @@ def _layout(instance, upper):
     return opened, plans, empty_ok
 
 
-def _values(state, checks, top):
-    """The values of the next group a state can take, as a range."""
-    low = 0
+def _values(state, checks, top, least=0):
+    """The values of the next group a state can take, as a range (from `least` to `top`)."""
+    low = least
     high = top
     for at, c, window_low, window_high in checks:
         partial = state[at] if at >= 0 else 0
@@ -287,17 +327,25 @@ def _budget():
     return [NODES_MAX, ENTRIES_MAX]
 
 
-def _forward(instance, upper, box):
-    """Every layer of states the first groups reach, or None if a layer empties."""
+def _forward(instance, upper, box, lower=None):
+    """Every layer of states the first groups reach, or None if a layer empties.
+
+    `lower`, where given, holds each group's least value (a fixed
+    coordinate's), applied here so that every state kept is reached by
+    values that keep it (Codex's item 2 of the landing's review: applied
+    only on the way back, a fixed coordinate could find no state its
+    value reaches although a point holds it).
+    """
     opened, plans, empty_ok = _layout(instance, upper)
     if not empty_ok:
         return None, plans
+    lower = lower or [0] * len(upper)
     layers = [{()}]
     for k, (checks, build) in enumerate(plans):
         nxt = set()
         spent = 0
         for state in layers[-1]:
-            span = _values(state, checks, upper[k])
+            span = _values(state, checks, upper[k], lower[k])
             spent += len(span)
             for value in span:
                 nxt.add(_step(state, build, value))
@@ -373,13 +421,14 @@ def point_through(instance, upper=None, fixed=None, box=None):
     existence claim stands on the point exhibited.
     """
     upper = list(instance.upper if upper is None else upper)
+    lower = [0] * len(upper)
     for g, value in (fixed or {}).items():
-        if value > upper[g]:
+        if value < 0 or value > upper[g]:
             return None
         upper[g] = value
-    lower = {g: v for g, v in (fixed or {}).items()}
+        lower[g] = value
     box = box if box is not None else _budget()
-    layers, plans = _forward(instance, upper, box)
+    layers, plans = _forward(instance, upper, box, lower)
     if layers is None:
         return None
     target = next(iter(layers[-1]))
@@ -388,9 +437,7 @@ def point_through(instance, upper=None, fixed=None, box=None):
         checks, build = plans[k]
         found = None
         for state in sorted(layers[k]):
-            for value in _values(state, checks, upper[k]):
-                if value < lower.get(k, 0):
-                    continue
+            for value in _values(state, checks, upper[k], lower[k]):
                 if _step(state, build, value) == target:
                     found = (state, value)
                     break
@@ -506,6 +553,7 @@ class Verdict:
     def __init__(self):
         self.inside = False
         self.why = None
+        self.setup = None
         self.bound = 0
         self.entries = 0
         self.nodes = 0
@@ -535,16 +583,17 @@ class Verdict:
         return out
 
 
-def decide(instance, nodes_max=NODES_MAX, entries_max=ENTRIES_MAX):
+def decide(instance, nodes_max=NODES_MAX, entries_max=ENTRIES_MAX, setup_max=SETUP_MAX):
     """Decide the witness of contract 4.6d.4 on one instance, or say it lies outside.
 
     Returns a `Verdict`. Outside the class (its groups above
-    `GROUPS_MAX`, a slope in the region, its bound above `nodes_max` or
-    its entries above `entries_max`; `why` names the first test it
-    fails) nothing is searched and `holds` is False: the option is not
-    eligible, whatever a search would find. Inside, the verdict is
-    exact: `unreachable` is `V-`; `zero` is clause (b); `small` is
-    clause (c), read over every point; `holds` is all three.
+    `GROUPS_MAX`, a slope in the region, its setup above `setup_max`,
+    its bound above `nodes_max` or its entries above `entries_max`;
+    `why` names the first test it fails) nothing is laid out or
+    searched and `holds` is False: the option is not eligible, whatever
+    a search would find. Inside, the verdict is exact: `unreachable` is
+    `V-`; `zero` is clause (b); `small` is clause (c), read over every
+    point; `holds` is all three.
     """
     verdict = Verdict()
     verdict.why = "groups"
@@ -554,6 +603,12 @@ def decide(instance, nodes_max=NODES_MAX, entries_max=ENTRIES_MAX):
         return verdict
     verdict.why = "slope"
     if instance.slopes:
+        verdict.bound = None
+        verdict.entries = None
+        return verdict
+    verdict.setup = setup_size(instance)
+    verdict.why = "setup"
+    if verdict.setup > setup_max:
         verdict.bound = None
         verdict.entries = None
         return verdict
@@ -643,7 +698,9 @@ def build_instance(spec):
     counted from these sizes BEFORE any is listed (each base cell's
     product, over the region columns, of the atoms its band holds); a
     region counting more than `GROUPS_MAX` is returned with no group
-    listed, and `decide` reads it as outside. Groups are listed cell by
+    listed, and `decide` reads it as outside; so is a region whose
+    constraints' terms, counted from the same sizes (`count_terms`),
+    number more than `SETUP_MAX`. Groups are listed cell by
     cell, each cell's atom vectors in the columns' order, every column's
     atoms in reading order.
     """
@@ -654,14 +711,19 @@ def build_instance(spec):
     columns = sorted(spec["atoms"])
     slopes = tuple(spec.get("slopes") or ())
     counted = 0
+    per_cell = []
     for cell in spec["cells"]:
         product = 1
         for column in columns:
             band = cell["bands"][column]
             product *= sum(1 for a in spec["atoms"][column] if a["band"] == band)
+        per_cell += [product]
         counted += product
     if counted > GROUPS_MAX:
         return Instance([], [], [], (), floor, slopes=slopes, counted=counted)
+    terms = count_terms(spec, columns, per_cell)
+    if terms > SETUP_MAX:
+        return Instance([], [], [], (), floor, slopes=slopes, counted=counted, counted_terms=terms)
     keys = []
     vectors = []
     of_cell = []
@@ -725,6 +787,35 @@ def build_instance(spec):
                 groups = [g for g in range(len(keys)) if vectors[g][position]["name"] == atom["name"]]
                 small += [((column, atom["name"]), groups)]
     return Instance(keys, upper, constraints, small, floor, slopes=slopes, counted=counted)
+
+
+def count_terms(spec, columns, per_cell):
+    """The terms a region's constraints read, from its sizes before any group is listed.
+
+    A published count reads every group of its base cells; an own fact
+    every group whose atom of its column it names (in each base cell, the
+    named atoms in the cell's band times the other columns' atoms in
+    theirs); a published number every group of its base cells (a group
+    whose coefficient is nought is left out once listed, so this counts
+    at least the terms listed).
+    """
+    total = 0
+    for margin in spec["margins"]:
+        total += sum(per_cell[at] for at in margin["cells"])
+    for fact in spec.get("facts", ()):
+        named = set(fact["atoms"])
+        for cell in spec["cells"]:
+            product = 1
+            for column in columns:
+                band = cell["bands"][column]
+                held = [a for a in spec["atoms"][column] if a["band"] == band]
+                if column == fact["column"]:
+                    held = [a for a in held if a["name"] in named]
+                product *= len(held)
+            total += product
+    for published in spec.get("sums", ()):
+        total += sum(per_cell[at] for at in set(published["cells"]))
+    return total
 
 
 def groups_by_sizes(cells_per_member, atoms_per_band):

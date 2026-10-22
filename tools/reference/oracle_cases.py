@@ -100,6 +100,36 @@ def case_ladder_merge():
     return lad.as_dict()
 
 
+TEMPORAL_KEYS = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
+
+
+def date_ladder_cells():
+    """Codex's date case: ordinals 0 to 2,000 (one row each), the nine interior rungs at 20,
+    100, 200, 500, 1,000, 1,500, 1,800, 1,900 and 1,980 on the column's own ordinal."""
+    cells = [("value", F(x)) for x in range(2001)]
+    rungs = dict(zip(TEMPORAL_KEYS, [F(e) for e in (20, 100, 200, 500, 1000, 1500, 1800, 1900, 1980)]))
+    return cells, rungs
+
+
+def clock_ladder_cells():
+    """A clock column of 1,060 rows: 60 absent and the seconds 0 to 999 one row each, its nine
+    interior rungs at 10, 50, 100, 250, 500, 750, 900, 950 and 990 on the clock's ordinal."""
+    cells = [("missing",)] * 60 + [("value", F(x)) for x in range(1000)]
+    rungs = dict(zip(TEMPORAL_KEYS, [F(e) for e in (10, 50, 100, 250, 500, 750, 900, 950, 990)]))
+    return cells, rungs
+
+
+def case_temporal_ladders(role_as_number=False):
+    """A date's and a clock's ladders (contract 4.6b.2: `L0` cut at their nine interior
+    rungs); MUTANT: each read as a number column, cut at the deciles with `p25` and `p75`."""
+    out = {}
+    for name, role, (cells, rungs) in (("visit_date", "datetime", date_ladder_cells()),
+                                        ("visit_clock", "time_of_day", clock_ladder_cells())):
+        lad = co.ladder_of(name, "count" if role_as_number else role, cells, rungs=rungs)
+        out[role] = lad.as_dict()
+    return out
+
+
 def _labels(name, counts):
     cells = []
     for level, count in counts:
@@ -869,6 +899,8 @@ def chain_cases():
     return {
         "stated_exponential": case_stated_exponential(),
         "ladder_merge": case_ladder_merge(),
+        "temporal_ladders": case_temporal_ladders(),
+        "temporal_ladders_mutant_number_cuts": case_temporal_ladders(role_as_number=True),
         "floor36": case_floor36(),
         "floor36_mutant_literal_11": case_floor36(11),
         "p2": case_p2(),
@@ -1131,5 +1163,5 @@ def moment_cases():
     out["cf1_against_the_oracle"] = cf1_agreement([22, 40])
     out["class_boundary"] = [class_boundary(w) for w in (2, 3, 4, 6)]
     out["class"] = {"name": mo.CLASS_NAME, "nodes_max": mo.NODES_MAX, "entries_max": mo.ENTRIES_MAX,
-                    "groups_max": mo.GROUPS_MAX}
+                    "groups_max": mo.GROUPS_MAX, "setup_max": mo.SETUP_MAX}
     return out

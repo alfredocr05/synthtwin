@@ -256,6 +256,13 @@ def choose(word_bytes, scores, tau):
 # --- each column's ladder (contract 4.6b.2) -------------------------------------------
 
 NUMBER_L0 = ("p10", "p20", "p25", "p30", "p40", "p50", "p60", "p70", "p75", "p80", "p90")
+# A date's and a clock's `L0` edges are the nine interior rungs of their
+# eleven-rung ladder (contract 4.6b.2's table; section 5.6), read on the
+# column's own ordinal: `p01` and `p05` below `p10`, `p95` and `p99`
+# above `p90`, and no `p20` to `p80` deciles, which neither ladder has.
+TEMPORAL_L0 = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
+NUMBER_ROLES = ("count", "continuous", "affixed_number", "joined_numbers", "numbers_with_labels")
+TEMPORAL_ROLES = ("datetime", "time_of_day")
 NUMBER_L1 = ("p25", "p50", "p75", "p90")
 NUMBER_L2 = ("p50",)
 SPREAD_ORDER = ("other", "labels", "missing")
@@ -344,10 +351,12 @@ def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, p
     `cells` lists, for each tabled row in row order, `("value", x)` (a
     reading, an exact fraction), `("level", name)` (a published level),
     `("held",)` (a level of the held-back pool), `("missing",)`,
-    `("other",)` or `("labels",)`. Number, date and clock columns pass
-    their published `rungs` (keys `p10` ... `p90`, `p25`, `p75`; a date
-    or clock its interior rungs on its own ordinal, read here under the
-    same keys); label columns (`binary`, `categorical`,
+    `("other",)` or `("labels",)`. Number columns pass their published
+    `rungs` (keys `p10` ... `p90`, `p25`, `p75`: `NUMBER_L0`); a date
+    (`datetime`) or clock (`time_of_day`) column passes the nine interior
+    rungs of its ladder, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`,
+    `p95` and `p99` (`TEMPORAL_L0`), each read on its own ordinal and
+    its cells' readings on the same ordinal; label columns (`binary`, `categorical`,
     `long_tail_labels`, `constant`) pass their published `levels` as
     `(name, count)` in published order. A DERIVED column of a carried
     rule (contract 4.6b.7, role `derived` here) passes the bands of the
@@ -355,6 +364,8 @@ def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, p
     is all three of its levels, so RULE W1 reads it as its coarsest.
     """
     label_role = role in ("binary", "categorical", "long_tail_labels", "constant", "derived")
+    if not label_role and role not in NUMBER_ROLES + TEMPORAL_ROLES:
+        raise ValueError("a role contract 4.6b.2's table does not list: %r" % (role,))
     starting = []
     if label_role:
         for kind in ("missing",):
@@ -368,7 +379,7 @@ def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, p
         for kind in SPREAD_ORDER:
             if any(_cell_kind(c) == kind for c in cells):
                 starting += [kind]
-        edges = _number_edges(rungs, NUMBER_L0)
+        edges = _number_edges(rungs, TEMPORAL_L0 if role in TEMPORAL_ROLES else NUMBER_L0)
         bounds = [None] + [k for k, _ in edges] + [None]
         for i in range(len(bounds) - 1):
             starting += [("range", bounds[i], bounds[i + 1])]
