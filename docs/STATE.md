@@ -515,9 +515,9 @@ cannot get worse unseen.
   column read alone, about 2.7 GB at 2,000,000 rows and about 408 s a
   column at 1,000,000, are lane H3's (the identity walk's column text;
   lane SV's describe-once is the first cut). Lane H3 (P4-D423,
-  2026-10-21) cut them, traced past the memos' bound on Python 3.13:
-  record numbers 807 to 402 bytes a row, stamps 571 to 414, eight
-  figures 502 to 169, 60-word notes 290 to 130.5 (under its 200) and
+  2026-10-21) cut them, traced past the memos' bound on Python 3.11:
+  record numbers 824 to 418 bytes a row, stamps 587 to 431, eight
+  figures 503 to 170, 60-word notes 270 to 142 (under its 200) and
   2.4 times faster; the 100 asked of record numbers and stamps is NOT
   met (a record a cell, a folded label with the tally's maps, cores, a
   stamp's pair and instants), owner of the next cut to be named, and
@@ -547,8 +547,9 @@ cannot get worse unseen.
   describe's peak under 0.6 of the whole table's (0.51 to 0.56 on Python
   3.11, 0.53 to 0.58 on 3.13, macOS; 3.12, 3.14, Linux and Windows
   unmeasured), not SR's "under half": lane H3's (P4-D400), which read
-  0.509 on its head against 0.529 on 4682d6ad (3.13, macOS) and no
-  describe cycle, and keeps the 0.6 bound (P4-D423). A column
+  0.462 on its head against 0.504 on 4682d6ad (3.11; 0.509 against
+  0.529 on 3.13, macOS) and no describe cycle, and keeps the 0.6 bound
+  (P4-D423). A column
   declared as counted dates with no present cell is named nowhere: lane
   ST's notice (P4-D406). What stage 5's result reads for the chain now
   P4-D407 supersedes P4-D394: lane CHv's (P4-D395). In the health data

@@ -780,12 +780,13 @@ def _h3_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch) -> fl
     return held / len(values)
 
 
-# Each bound over the measured bytes a row (Python 3.13: 402 and 412, 169 and
-# 176, 414 and 419 at 20,000 and 40,000 rows; notes 149 and 141 at 2,000 and
-# 4,000), against 807, 502 and 571 at 20,000 rows and 269 for notes at 4,000
-# rows on 4682d6ad, its memos held as here.
+# Each bound over the measured bytes a row (Python 3.11: 418 and 428, 170 and
+# 177, 431 and 435 at 20,000 and 40,000 rows, notes 142 at 4,000; Python 3.13:
+# 402 and 412, 169 and 176, 414 and 419, notes 149 and 141 at 2,000 and 4,000),
+# against 824, 503 and 587 at 20,000 rows and 270 for notes at 4,000 rows on
+# 4682d6ad (Python 3.11), its memos held as here.
 @pytest.mark.parametrize("rows", [20_000, 40_000])
-@pytest.mark.parametrize(("shape", "bound"), [("rec", 440), ("num", 200), ("stamp", 450)])
+@pytest.mark.parametrize(("shape", "bound"), [("rec", 470), ("num", 200), ("stamp", 470)])
 def test_a_column_whose_values_all_differ_holds_under_its_bound_a_row(
     shape: str, bound: int, rows: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:

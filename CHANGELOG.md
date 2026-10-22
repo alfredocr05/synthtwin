@@ -18,9 +18,9 @@ reading's texts, its day numbers and the order of its moments are
 counted off sorted values or the tally's own counts instead of a map, a
 set or an object a row; the width censuses keep three lists instead of a
 triple a cell. Traced bytes a row above the column, past the memos'
-bound as at 2,000,000 rows: record numbers written `V` and nine figures
-807 to 402, eight figures 502 to 169, stamps 571 to 414, notes 290 to
-130.5. The number reader answers a text holding a character no number
+bound as at 2,000,000 rows (Python 3.11): record numbers written `V` and
+nine figures 824 to 418, eight figures 503 to 170, stamps 587 to 431,
+notes 270 to 142. The number reader answers a text holding a character no number
 is written with at once, and a cell is split on a separator by the
 text's own split: a 60-word note column is described 2.4 times faster
 (1,258 to 525 microseconds a note). Every description, summary and twin
