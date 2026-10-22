@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### `synthtwin generate` holds the twin once (2026-10-21)
+
+**Lane SG** (plan P4-D415). Generating a twin held the whole table as
+Python objects twice over, every column's plan for the whole run and
+each column's working set beside them: lane B0 projected about 8 to
+9 GB at 2,000,000 rows by 50 columns, more than three times the
+2.5 GB one process may hold. Each finished column is now held packed
+(2.6 to 2.9 bytes a cell against 6 to 9 bytes of text), made, measured
+and let go one at a time with its plan, and the twin's text is written
+a piece at a time, never made whole; a workbook twin's cells, classes
+and styles are held the same way. Every twin is the same file, byte for
+byte, as before. On lane B0's two tables of fifty columns generate
+peaks at 258 and 119 MB at 100,000 rows, where it held 489 and 532,
+and at 464 and 259 MB at 500,000, about 0.8 GB projected at 2,000,000
+rows; a workbook twin of 200,000 rows is written at 243 MB. One
+placement hook, `_row_placement`, is where lane CHb's chain generator
+will put a column's cells in rows. The offline scan admits zlib's
+`compress` and `decompress` in the twin's store alone. `K-S4-12`
+records generate's seconds.
+
 ### The questions file keeps every answer across rounds (2026-10-19)
 
 **An answer given in one run of the questions file is kept by every later

@@ -135,6 +135,13 @@ calls are held by what they are handed or by where they run:
   written as a stream). The floor holds because they are b075342a's own
   source, which this guard already read at the floor when it was the
   product (skeptic 1 of lane XW, item 1).
+- `tests/generate_memory_cases.py` runs `exec(compile(text, ...))` on
+  its own three string constants, `TWIN_TEXT`, `ARRANGED` and
+  `PLACE_EMPTY_ROWS`: `dialect.twin_text`, `dialect.arranged` and
+  `dialect._place_empty_rows` as 8a02faa3 shipped them, frozen as the
+  oracle of plan P4-D415 (generate holds the twin once). The floor holds
+  because they are 8a02faa3's own source, which this guard already read
+  at the floor when it was the product.
 - `tests/test_stage4_linear_work.py` runs `exec(compile(tree, ...))`
   once, in `_mutated` (plan P4-D385), where `tree` is the syntax tree of
   a shipped function -- `generation._label_content`, read by
@@ -352,6 +359,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/stage4_as_built.py", "exec"): 1,
     ("tests/workbook_stream_cases.py", "compile"): 2,
     ("tests/workbook_stream_cases.py", "exec"): 2,
+    ("tests/generate_memory_cases.py", "compile"): 1,
+    ("tests/generate_memory_cases.py", "exec"): 1,
     ("tests/test_stage4_allocator_walk.py", "compile"): 1,
     ("tests/test_stage4_allocator_walk.py", "exec"): 1,
     ("tests/test_stage4_padded_swap_scale.py", "compile"): 1,

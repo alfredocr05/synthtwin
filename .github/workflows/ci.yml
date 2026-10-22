@@ -795,6 +795,7 @@ jobs:
           wheel required synthtwin/sheetwriting.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
+          wheel required synthtwin/twinstore.py
           wheel required synthtwin/validation.py
           wheel required synthtwin/workbook.py
           wheel required synthtwin/writing.py
@@ -831,6 +832,7 @@ jobs:
           sdist required ROOT/src/synthtwin/sheetwriting.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
+          sdist required ROOT/src/synthtwin/twinstore.py
           sdist required ROOT/src/synthtwin/validation.py
           sdist required ROOT/src/synthtwin/workbook.py
           sdist required ROOT/src/synthtwin/writing.py
