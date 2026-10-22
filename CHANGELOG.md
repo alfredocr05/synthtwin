@@ -14,28 +14,39 @@ generator path, one publication and one questions file, so the page in
 `docs/plans/phase-4-columns.md` settles them before any is built. Rule U
 says what "unanswered" means for every name, value and census. Rules A1
 to A3: a form or layout under the floor absorbed into the commonest
-published one, producer and validator alike (the VCF `rs` layouts); a
-floored positional census per published form, counted in people beside a
-subject column, keeping a vocabulary prefix such as `ICD10CM:`; held-back
-numbers keeping their own form and width (PCORnet `DX`: `%%%.%` 24 against
-a published 21 today). CODES-1 part C: a held column's twin meets its
-published forms. CODES-2 under the owner's Z1 (B): rare names published
-only through an allowlist, after the owner's question "Could a value of
-this column name a person, a place smaller than a state, a birth date, or
-a record, account or device number?", answered `no`; a column answered
-`code` is held until then, so a five-figure ZIP and a device UDI answered
-`code` publish none of their values (9 of 59 ZIPs and 12 of 49 UDIs
-printed today); short result words by a shape screen; lane HX3's `code`
-offered on code-form long tails in the same question; names beside a
-person column only where the column is not attached to it. GG: a
-few-valued number column writes only its own values, its rare values
-named after the same `no`. Each rule's floor argument, with the chain's
-RULE W1 reading a named level as an own-fact group; the validator's rule
-of each; what moves (no golden; the frozen vectors each lane names); the
-KPIs the four lanes stamp. Measured on 4682d6ad
+published one, producer and validator alike (the VCF `rs` layouts); for
+the label class, a floored positional census per published form after
+the Safe Harbor `no`, counted in people beside a subject column, keeping a
+vocabulary prefix such as `ICD10CM:`, its stand-ins stepped through the
+lists, then the characters the published levels wear, then the alphabet
+widened from the last place (the zoo's TNM: 0 of 81 cells out of grammar,
+11 of 11 levels real); held-back numbers keeping their own form and width
+(PCORnet `DX`: `%%%.%` 24 against a published 21 today). CODES-1 part C: a
+held column's twin meets its published forms. CODES-2 under the owner's Z1
+(B): rare names published only through an allowlist, after the owner's
+question "Could a value of this column name a person, a place smaller
+than a state, a birth date, or a record, account or device number?",
+answered `no`; the question put in the first round to every label column
+in one entry, its explanation covering ages over 89, three-figure ZIPs
+and any other number or code given to one person; a column answered
+`code`, and a label column with a figure in every present cell, held
+until then, so a five-figure ZIP, a ZIP+4 and a device UDI publish none of
+their values (9 of 59 ZIPs and 12 of 49 UDIs printed answered `code`
+today, 9 of 363 ZIPs with nothing asked); a column of words such as a
+birth city keeps its common levels unanswered, a stated limit; short
+result words by a shape screen; lane HX3's `code` offered on code-form
+long tails in the same question; names beside a person column only where
+the column is not attached to it. GG: a few-valued number column, after
+the same `no`, writes only its own values, rare ones included;
+unanswered it keeps today's twin, and `yes` holds its ladder, mode and
+tails. Each rule's floor argument, with the chain's RULE W1 reading a
+named level and every printed rare value as an own-fact group; the
+validator's rule of each; what moves (no golden, checked on the
+fixtures; the frozen vectors each lane names); the KPIs the four lanes
+stamp and the kinds each turns. Measured on 4682d6ad
 (`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
-(53 cases) pins the page's figures and its reading of the product, red on
-each of twelve page mutants.
+(122 cases) pins the page's figures and its reading of the product, red on
+each of 58 page mutants after the repair of its two reviews.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
