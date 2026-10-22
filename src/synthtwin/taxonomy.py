@@ -6740,6 +6740,29 @@ class _Cell:
     """
 
     text: str
+    # The number the cell holds, and None whenever no number was held.
+    value: "float | None"
+    # The cell after trimming and case folding: the key the levels, the
+    # binary rule and the categorical rule all count with.
+    folded: str
+    # FOUR SLOTS A RECORD, AND EVERYTHING ELSE READ OFF THEM (lane H3,
+    # plan P4-D423). A column whose values never repeat holds one record
+    # a row, and the record of ten fields, with the exact triple held
+    # beside it, cost about 280 bytes a numeric cell on top of the cell
+    # (112 for the record, 166 for its triple: 2,000,000 different record
+    # numbers held about 0.56 GB of records). The five small answers of
+    # the one classification -- what the cell is numerically, its sign,
+    # whether it is whole, the two alphabet tests -- and the declaration
+    # it was read under are one entry of `_CELL_FACTS`, a table made once
+    # when this module loads, so a record holds a reference where it held
+    # five; the spelling the number rules read and the exact number are
+    # fixed functions of the text and that declaration, read off the
+    # record when asked (the properties below), never held a row. Every
+    # answer is the one the record of ten fields held, so every rule
+    # reads what it read, and `_classify` is still the one place a cell
+    # is classified, once.
+    facts: "_CellFacts"
+
     # THE SPELLING THE NUMBER RULES READ, which is `text` itself on
     # every undeclared column and the swapped spelling on one declared
     # `--decimal-comma` (plan P4-D26). The two are separate fields
@@ -6756,29 +6779,100 @@ class _Cell:
     # column running from 2.89 to 300.23 -- the defect P4-D26 exists to
     # prevent, arriving through the census rather than through the
     # reading.
-    numeric_text: str
+    @property
+    def numeric_text(self) -> str:
+        if self.facts[5]:
+            return parsing.written_with_a_decimal_comma(self.text)
+        return self.text
+
     # One of parsing.NUMBER, NUMBER_OUT_OF_RANGE, NUMBER_CONTRADICTORY,
     # NOT_A_NUMBER.
-    kind: str
-    # The number the cell holds, and None whenever no number was held.
-    value: "float | None"
+    @property
+    def kind(self) -> str:
+        return self.facts[0]
+
     # The same number EXACTLY, as the canonical triple above, and None
     # whenever no number was held. `value` is what the profile publishes
     # and what the statistics are computed from; this is what a declared
     # value is compared with, and what the numeric-sentinel rule decides
     # a candidate's own cells by, because a comparison of rounded values
     # makes one number out of two (review items P1-R7-F3 and P1-R8-F2).
-    exact: "tuple[int, tuple[str, ...], int] | None"
-    sign: str
-    whole: str
-    # The cell after trimming and case folding: the key the levels, the
-    # binary rule and the categorical rule all count with.
-    folded: str
+    # Read off the spelling the number rules read, as `_classify` read
+    # it (lane H3): the same triple, a new tuple each time it is asked.
+    @property
+    def exact(self) -> "tuple[int, tuple[str, ...], int] | None":
+        if self.facts[0] != parsing.NUMBER:
+            return None
+        return parsing.exact_of_accepted_number(self.numeric_text)
+
+    @property
+    def sign(self) -> str:
+        return self.facts[1]
+
+    @property
+    def whole(self) -> str:
+        return self.facts[2]
+
     # Both of these are published as COUNTS on a free-text column, which
     # is what a generator needs to build text of the same shape. Neither
     # decides a role.
-    all_digits: bool
-    code_alphabet: bool
+    @property
+    def all_digits(self) -> bool:
+        return self.facts[3]
+
+    @property
+    def code_alphabet(self) -> bool:
+        return self.facts[4]
+
+
+# What a cell is numerically, its sign, whether it is whole, the two
+# alphabet tests and whether it was read under `--decimal-comma`: one
+# entry of `_CELL_FACTS`, shared by every record that answers the same.
+_CellFacts = tuple[str, str, str, bool, bool, bool]
+_CELL_KINDS = (
+    parsing.NUMBER,
+    parsing.NUMBER_OUT_OF_RANGE,
+    parsing.NUMBER_CONTRADICTORY,
+    parsing.NOT_A_NUMBER,
+)
+_CELL_SIGNS = (
+    parsing.SIGN_NEGATIVE,
+    parsing.SIGN_ZERO,
+    parsing.SIGN_POSITIVE,
+    parsing.SIGN_UNKNOWN,
+)
+_CELL_WHOLES = (parsing.WHOLE_YES, parsing.WHOLE_NO, parsing.WHOLE_UNKNOWN)
+_CELL_TRUTHS = (False, True)
+# EVERY ANSWER A RECORD CAN GIVE, made once when the module loads and
+# never changed: 4 x 4 x 3 x 2 x 2 x 2 entries, each found by its place
+# (`_cell_facts`). A table of constants, not a memory of what was read.
+_CELL_FACTS: "tuple[_CellFacts, ...]" = tuple(
+    (kind, sign, whole, digits, code, comma)
+    for kind in _CELL_KINDS
+    for sign in _CELL_SIGNS
+    for whole in _CELL_WHOLES
+    for digits in _CELL_TRUTHS
+    for code in _CELL_TRUTHS
+    for comma in _CELL_TRUTHS
+)
+
+
+def _cell_facts(
+    kind: str, sign: str, whole: str, digits: bool, code: bool, comma: bool
+) -> _CellFacts:
+    """The one shared entry of `_CELL_FACTS` holding these six answers.
+
+    Guarantees: a function of the six; the entry equals the tuple of
+    them. Raises ValueError on a kind, sign or whole-number answer the
+    classification never gives. No I/O of any kind.
+    """
+    place = _CELL_KINDS.index(kind)
+    place = place * len(_CELL_SIGNS) + _CELL_SIGNS.index(sign)
+    place = place * len(_CELL_WHOLES) + _CELL_WHOLES.index(whole)
+    place = place * 2 + (1 if digits else 0)
+    place = place * 2 + (1 if code else 0)
+    place = place * 2 + (1 if comma else 0)
+    return _CELL_FACTS[place]
 
 
 def _written_negative(text: str) -> bool:
@@ -6838,12 +6932,11 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
     read = parsing.written_with_a_decimal_comma(text) if decimal_comma else text
     kind = parsing.classify_number(read)
     value: float | None = None
-    exact: tuple[int, tuple[str, ...], int] | None = None
     sign = parsing.SIGN_UNKNOWN
     whole = parsing.WHOLE_UNKNOWN
     if kind == parsing.NUMBER:
+        # The exact number is read off the record when asked (`_Cell.exact`).
         value = parsing.parse_number(read)
-        exact = parsing.exact_of_accepted_number(read)
         if value is not None:
             if value < 0.0:
                 sign = parsing.SIGN_NEGATIVE
@@ -6873,15 +6966,16 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
         folded = text
     return _Cell(
         text=text,
-        numeric_text=read,
-        kind=kind,
         value=value,
-        exact=exact,
-        sign=sign,
-        whole=whole,
         folded=folded,
-        all_digits=parsing.is_digit_text(trimmed),
-        code_alphabet=parsing.is_code_text(trimmed),
+        facts=_cell_facts(
+            kind,
+            sign,
+            whole,
+            parsing.is_digit_text(trimmed),
+            parsing.is_code_text(trimmed),
+            decimal_comma,
+        ),
     )
 
 
@@ -7201,6 +7295,17 @@ def _tally(
                 mixed_spellings[label] = {label: before, cell.text: 1}
             else:
                 mixed_spellings[label] = cell.text
+    # HOW MANY DIFFERENT SPELLINGS, COUNTED OFF THE LABELS (lane H3, plan
+    # P4-D423): every spelling folds to one label, a label the map does
+    # not hold or holds as one spelling was written one way, and a label
+    # it holds as a map was written in as many ways as the map has keys.
+    # The set of every spelling this replaced was the column's largest
+    # moment on a column whose values never repeat: about 105 bytes a row
+    # while it grew, beside everything the tally holds.
+    raw_distinct = len(folded_counts)
+    for held_spellings in mixed_spellings.values():
+        if not isinstance(held_spellings, str):
+            raw_distinct = raw_distinct + len(held_spellings) - 1
     return _Cells(
         decimal_comma=decimal_comma,
         classified=classified,
@@ -7219,7 +7324,7 @@ def _tally(
         n_whole_unknown=whole_unknown,
         n_sign_unsettled_numeric=sign_unsettled_numeric,
         n_negative_unrepresentable=negative_unrepresentable,
-        raw_distinct=len(set(present)),
+        raw_distinct=raw_distinct,
         folded_counts=folded_counts,
         spellings_by_folded=mixed_spellings,
         all_digits=all_digits,
@@ -9049,10 +9154,20 @@ def _sentinel_verdicts(
     # sentinel out of its count (review item P1-R8-F2).
     named: list[tuple[int, tuple[str, ...], int]] = []
     occurrences_of: dict[float, int] = {}
+    # A CELL OF A CANDIDATE'S EXACT NUMBER HOLDS THE CANDIDATE'S VALUE,
+    # the candidate being a value binary64 holds exactly, so the exact
+    # number is asked only of the cells holding that value (lane H3, plan
+    # P4-D423: the record reads its exact number off its spelling when
+    # asked, and asking it of every cell three times over cost a reading
+    # a cell a candidate). The cells counted are the same cells.
     for candidate in parsing.NUMERIC_SENTINELS:
         exact = exact_of_number(candidate)
         held = len(
-            [cell for cell in cells.classified if cell.exact == exact]
+            [
+                cell
+                for cell in cells.classified
+                if cell.value == candidate and cell.exact == exact
+            ]
         )
         if held:
             candidates += [candidate]
@@ -9064,7 +9179,7 @@ def _sentinel_verdicts(
     others: list[float] = []
     for cell in cells.classified:
         value = cell.value
-        if value is None or cell.exact in named:
+        if value is None or (value in candidates and cell.exact in named):
             continue
         others += [value]
     for candidate in candidates:
@@ -10552,14 +10667,10 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # the formatting decide the meaning: the same six codes crossed the
     # line into "quantity" and the twin would have published a mean of
     # a performance status.
-    distinct_numbers: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    for cell in numbers:
-        if cell.exact is None:
-            continue
-        seen = 0
-        if cell.exact in distinct_numbers:
-            seen = distinct_numbers[cell.exact]
-        distinct_numbers[cell.exact] = seen + 1
+    # COUNTED OFF THE SORTED VALUES (lane H3, plan P4-D423), the exact
+    # number asked only where a value repeats: the count a map of every
+    # exact number had keys (`_exact_census`).
+    distinct_numbers = _exact_count(numbers)
     settings = cells.settings
     # AND AN ABSOLUTE FLOOR BENEATH THE SHARE, because a share alone
     # says the same six codes are a QUANTITY in a fifty-row column and
@@ -10609,7 +10720,7 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # HOLDS its numbers -- what a re-description does not do is call it
     # the same kind of column, so `synthtwin validate` reports the
     # role's facts as withheld rather than held.
-    if len(distinct_numbers) < line:
+    if distinct_numbers < line:
         return None
     # AND THE HALF ITSELF MUST CLEAR THE LINE, not only its count of
     # different values. The two are the same number on a column whose
@@ -10621,7 +10732,7 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
         return None
     share = _at_most(settings.categorical_share, len(numbers))
     ceiling = min(settings.categorical_ceiling, share)
-    if len(distinct_numbers) <= max(ceiling, settings.categorical_floor):
+    if distinct_numbers <= max(ceiling, settings.categorical_floor):
         return None
     folded_counts: "dict[str, int]" = {}
     for cell in labels:
@@ -13304,6 +13415,83 @@ def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
     return published_counts
 
 
+def _exact_census(
+    records: "list[_Cell]",
+) -> "tuple[list[float], dict[float, dict[tuple[int, tuple[str, ...], int], int]], dict[tuple[int, tuple[str, ...], int], int]]":
+    """The exact numbers `records` hold, counted without a key a cell (lane H3).
+
+    `records` is walked once, or twice where some value is held by more
+    than one cell. Returns the values of the cells that read as numbers,
+    sorted; for each value held by more than one of those cells, how many
+    cells hold each exact number of that value (two exact numbers can
+    round to one binary64 value, and only there is the exact number
+    asked, off the record); and how many cells hold each exact number
+    among the cells that read as numbers but hold no value (none do: the
+    reader refuses a value it cannot hold, but the count does not
+    depend on that). A value held by one cell is one exact number held
+    once.
+
+    THE MAP OF EVERY EXACT NUMBER IS WHAT THIS REPLACES (plan P4-D423):
+    with the exact number read off the record when asked, a map keyed by
+    it held one new triple a different number, about 200 bytes a row on
+    a column whose numbers never repeat; the sorted values are the
+    values the record already holds.
+
+    Guarantees: a function of the records' kinds, values and exact
+    numbers, so of the multiset of their spellings. Raises nothing. No
+    I/O of any kind.
+    """
+    ordered: "list[float]" = []
+    unvalued: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in records:
+        if cell.facts[0] != parsing.NUMBER:
+            continue
+        value = cell.value
+        if value is None:
+            exact = cell.exact
+            if exact is not None:
+                unvalued[exact] = unvalued[exact] + 1 if exact in unvalued else 1
+            continue
+        ordered += [value]
+    ordered.sort()
+    shared: "dict[float, dict[tuple[int, tuple[str, ...], int], int]]" = {}
+    for place in range(1, len(ordered)):
+        if ordered[place] == ordered[place - 1]:
+            shared[ordered[place]] = {}
+    if shared:
+        for cell in records:
+            if cell.facts[0] != parsing.NUMBER:
+                continue
+            value = cell.value
+            if value is None or value not in shared:
+                continue
+            exact = cell.exact
+            if exact is None:
+                continue
+            by_exact = shared[value]
+            by_exact[exact] = by_exact[exact] + 1 if exact in by_exact else 1
+    return ordered, shared, unvalued
+
+
+def _exact_count(records: "list[_Cell]") -> int:
+    """How many different exact numbers the cells of `records` reading as numbers hold.
+
+    The count a map keyed by each such cell's exact number has keys
+    (`_exact_census`). Guarantees: a function of the records. Raises
+    nothing. No I/O of any kind.
+    """
+    ordered, shared, unvalued = _exact_census(records)
+    count = len(unvalued)
+    for place in range(len(ordered)):
+        value = ordered[place]
+        if value in shared:
+            if place == 0 or ordered[place - 1] != value:
+                count = count + len(shared[value])
+            continue
+        count = count + 1
+    return count
+
+
 def _distinct_numbers(cells: _Cells) -> int:
     """How many different NUMBERS this column's numeric cells hold.
 
@@ -13318,14 +13506,9 @@ def _distinct_numbers(cells: _Cells) -> int:
     # calling `exact_of_spelling` here would classify all over again.
     # A test counts how often a numeric column is read that way, and
     # it is right to: the first draft of this asked twice per cell.
-    seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    for cell in cells.classified:
-        if cell.kind != parsing.NUMBER:
-            continue
-        if cell.exact is None:
-            continue
-        seen[cell.exact] = 1
-    return len(seen)
+    # Counted off the sorted values, the exact number asked only where a
+    # value repeats (`_exact_census`, lane H3).
+    return _exact_count(cells.classified)
 
 
 def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
@@ -13353,22 +13536,37 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     may be published. Determinism: the answer depends only on the
     multiset of cells. Raises nothing. No I/O of any kind.
     """
-    counts: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    for cell in cells.classified:
-        if cell.kind != parsing.NUMBER:
-            continue
-        if cell.exact is None or cell.value is None:
-            continue
-        if cell.exact in counts:
-            counts[cell.exact] = counts[cell.exact] + 1
-        else:
-            counts[cell.exact] = 1
-    if not counts:
+    # COUNTED OFF THE SORTED VALUES (lane H3, plan P4-D423), the exact
+    # number asked only where a value repeats (`_exact_census`): a map
+    # keyed by every exact number held one triple a row on a column whose
+    # numbers never repeat. A value held by one cell is an exact number
+    # held once; a repeated value is counted by the exact numbers of its
+    # cells. The cells that read as numbers but hold no value are left
+    # out, as the map left them.
+    ordered, shared, _unvalued = _exact_census(cells.classified)
+    if not ordered:
         return None, 0
     most = 0
-    for key in counts:
-        if counts[key] > most:
-            most = counts[key]
+    for place in range(len(ordered)):
+        if ordered[place] not in shared:
+            most = 1
+            break
+    for by_exact in shared.values():
+        for held in by_exact.values():
+            if held > most:
+                most = held
+    # THE SMALLEST VALUE ANY NUMBER HELD `most` TIMES HOLDS, read up the
+    # sorted values.
+    least: "float | None" = None
+    for place in range(len(ordered)):
+        value = ordered[place]
+        if value in shared:
+            if most in shared[value].values():
+                least = value
+                break
+        elif most == 1:
+            least = value
+            break
     # THE VALUES ARE READ OFF THE CELLS OF THE COMMONEST NUMBERS, in a
     # second walk, rather than held in a map beside the counts (lane S4d,
     # plan P4-D390): on a column whose numbers never repeat that map was
@@ -13378,19 +13576,27 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     # value per exact number, so the walk keeps the first exact number
     # it meets among equal values and then each later cell of that same
     # number, and the published zero carries the sign 66bca69 wrote.
+    # Only a cell holding the smallest such value can be that number's
+    # (lane H3): the walk the earlier writing made over every cell of the
+    # commonest numbers settles on the first cell holding it and then
+    # each later cell of its exact number, and so does this one.
     smallest: "float | None" = None
     chosen: "tuple[int, tuple[str, ...], int] | None" = None
     for cell in cells.classified:
-        if cell.kind != parsing.NUMBER:
-            continue
-        if cell.exact is None or cell.value is None:
-            continue
-        if counts[cell.exact] != most:
+        if cell.facts[0] != parsing.NUMBER:
             continue
         found = cell.value
-        if smallest is None or found < smallest or cell.exact == chosen:
+        if found is None or found != least:
+            continue
+        exact = cell.exact
+        if exact is None:
+            continue
+        if least in shared and shared[least][exact] != most:
+            continue
+        if chosen is None:
+            chosen = exact
+        if exact == chosen:
             smallest = found
-            chosen = cell.exact
     return smallest, most
 
 
@@ -24313,7 +24519,13 @@ def _cores_judged(
     for cell in classified:
         split = _core_of(cell.text, reading.prefix, reading.suffix)
         core = _classify(split) if split is not None else None
-        if core is not None and core.exact in removed:
+        # Only a core holding a withheld candidate's value can hold its
+        # exact number (`_sentinel_verdicts`).
+        if (
+            core is not None
+            and core.value in withheld
+            and core.exact in removed
+        ):
             missing += [(cell.text, parsing.MISSING_NUMERIC_SENTINEL)]
             # THE WHOLE CELL IS THE SPELLING, not the core: what a
             # `missing_by_source` key carries is what the cell held,
@@ -27409,7 +27621,9 @@ def _read_the_column(
             removed = [exact_of_number(candidate) for candidate in withheld]
             kept: list[_Cell] = []
             for cell in classified:
-                if cell.exact in removed:
+                # Only a cell holding a withheld candidate's value can
+                # hold its exact number (`_sentinel_verdicts`).
+                if cell.value in withheld and cell.exact in removed:
                     missing += [
                         (cell.text, parsing.MISSING_NUMERIC_SENTINEL)
                     ]
