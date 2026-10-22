@@ -425,16 +425,16 @@ def test_the_pin_is_derived_from_the_whole_batterys_ceiling() -> None:
         assert sorted(pin) == sorted(PINNED_COLUMNS)
         assert sum(ceiling[0] for ceiling in pin.values()) <= whole[0]
         assert sum(ceiling[1] for ceiling in pin.values()) <= whole[1]
-        # AT MOST, AND NOT EQUAL, WHILE K-P4-06 STANDS ABOVE THE BATTERY
-        # (plan P4-D405's second repair, 2026-10-20): its driver measures
-        # 2,160 pairs, 552 outside and NONE missed on that head, against
-        # the ledger's 579 and 3, and K-P4-06 is the integrator's to
-        # re-stamp; the equality comes back with that stamp.
-        assert sum(ceiling[2] for ceiling in pin.values()) <= whole[2], (
+        # EQUAL AGAIN SINCE BATCH 4F'S RECORDS (2026-10-22): K-P4-06's
+        # ceiling moved to the 552 outside and none missed its driver
+        # measured on d90d16b4 (plan P4-D405's second repair), so the
+        # pinned columns hold every above-count the battery misses, at
+        # both floors, as before that repair held it "at most".
+        assert sum(ceiling[2] for ceiling in pin.values()) == whole[2], (
             "the pin no longer holds every above-count the battery misses: "
             f"{pin} against {whole}"
         )
-    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 579, 3), (
+    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 552, 0), (
         "K-P4-06's ceiling moved; re-derive the pin above, then this line"
     )
 

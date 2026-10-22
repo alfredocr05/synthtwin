@@ -225,15 +225,10 @@ cannot get worse unseen.
   both tails or with a middle half under four days still spread over
   the day.
 - **Cells of three or four numbers** sit at 552 of 2,160 pair agreements
-  outside their window and no above-count missed on batch 4e's head,
-  under the ceiling of 579 and 3 (lane G2T's shared staircase, P4-D405;
-  the ceiling and the pin's equality move in their own commit, the next
-  integrator's), against a target of 550 and 0 (`K-P4-06`). Stage 3
-  moved it twice: the numeric tail took it to 556 and 1, and the listing
-  rule of P4-D346 put it at 579 and 3, because a position whose tail may
-  no longer name its values says its shape instead and every pair
-  agreement of that position moves. The pairing walk is the open cause.
-  Landing 6.
+  outside their window and no above-count missed (lane G2T's shared
+  staircase, P4-D405), the ledger's ceiling since batch 4f's records,
+  against a target of 550 and 0 (`K-P4-06`, whose note keeps how stage 3
+  moved it). The pairing walk is the open cause. Landing 6.
 - **A short list of carried edge cases** fails the twin's own check on
   one shape each: two date-width allocations, one identifier layout, a
   sign band given more slots than it has numbers. The known-miss entry
