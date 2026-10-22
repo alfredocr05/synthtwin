@@ -285,7 +285,10 @@ Imports here stay within the allowlist (plan D6.2 with the Phase 1
 additions in P1-D10): csv, pandas, pathlib, dataclasses, and this
 package's own modules, and pyarrow's CSV reader (lane SR-A of the
 December plan, plan P4-D414: the fast reader of a group of columns read
-again, one thread, the group's columns alone). `pandas.read_csv` and
+again, parsing on one thread, the group's columns alone; pyarrow's own
+I/O read-ahead runs on its I/O thread, one persistent thread measured,
+and no value depends on it, every value being held to the survey's
+digest). `pandas.read_csv` and
 `pyarrow.csv.read_csv` are network-capable -- either would open a URL
 if it were handed one -- and both are fenced, not trusted: the only
 path that reaches them has passed `validate_local_path`, inside the
@@ -3031,8 +3034,10 @@ def _read_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[s
 # plan P4-D414). Reading a group of the big table again with the standard
 # reader parses every record of the file in Python: 6.9 s for one column
 # of 2,000,000 rows of the made-up health table, 7.8 s for six (the
-# library study, lib-study/LIB-scale.md). pyarrow's CSV reader, one
-# thread, asked for the group's columns alone, reads them in 0.8 s. It is
+# library study, lib-study/LIB-scale.md). pyarrow's CSV reader, parsing
+# on one thread (use_threads=False; its I/O read-ahead runs on pyarrow's
+# own I/O thread, one persistent thread measured), asked for the group's
+# columns alone, reads them in 0.8 s. It is
 # never trusted to read as the survey reads: each walk of the reading
 # folds every column's values, as the survey, the standard reader and
 # pandas agreed on them, to a digest (`_arrow_proof`), and pyarrow's
@@ -3055,9 +3060,19 @@ _ARROW_UTF8 = "utf8"
 
 
 def _arrow_skip(form: dialect.Dialect, headed: bool) -> int:
-    """The lines before the first record, as `_standard_records` passes them: the separator line, the preamble, the header and the metadata rows."""
+    """The lines before the first record, as pyarrow's reader counts them: the separator line, the preamble, the header and the metadata rows.
+
+    pyarrow's ``skip_rows`` counts every line to its line break, an
+    empty one too, where the standard reader yields no record for an
+    empty line: so the preamble counts its empty lines here
+    (`dialect.preamble_lines_total`), and a report export with an empty
+    line under its title is read again by pyarrow (skeptic 1 of lane
+    SR-A, item 1). A line pyarrow counts otherwise -- a line break
+    inside quotes above the first record -- makes a reading of another
+    record count or other values, which is never handed over.
+    """
     lead = 1 if form.separator_line else 0
-    lead = lead + dialect.preamble_lines_written(form.preamble)
+    lead = lead + dialect.preamble_lines_total(form.preamble)
     lead = lead + (1 if headed else 0)
     return lead + len(form.header_rows)
 
@@ -3071,7 +3086,8 @@ def _arrow_columns(
 ) -> "tuple[int, list[int], list[list[str]]] | None":
     """pyarrow's reading of the columns at ``places``: its records, each column's digest, and the columns.
 
-    The file is read once, one thread, the columns at ``places`` alone,
+    The file is read once, parsed on one thread (pyarrow's I/O
+    read-ahead runs on its own I/O thread), the columns at ``places`` alone,
     every value as text and none of them missing, under ``proof``'s
     settings, and each column is held as `_read_group` holds it
     (`_held_once`), a piece at a time. None where pyarrow cannot read the
@@ -3199,7 +3215,11 @@ def _arrow_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[
     read as many records as the survey and each column folds to the
     survey's digest -- the same values in the same rows; otherwise None,
     and the standard reader reads the group, holding the file to its
-    first reading as it always does.
+    first reading as it always does. A reading pyarrow cannot make, or
+    one of another record count, is the whole file's, not the group's:
+    no column of the file is asked of pyarrow again (skeptic 1 of lane
+    SR-A, item 1), where a column folding to another digest is its
+    group's alone.
     """
     table_path = pathlib.Path(source.path)
     first = _stat_of(table_path)
@@ -3212,6 +3232,7 @@ def _arrow_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[
     if _stat_of(table_path) != first:
         raise errors.ProfileError(errors.file_changed_while_read(source.shown))
     if found is None or found[0] != source.survey.n_rows:
+        source.proofs = tuple(_NOT_PROVEN for _proof in source.proofs)
         return None
     for at in range(len(places)):
         if found[1][at] != source.proofs[places[at]].digest:

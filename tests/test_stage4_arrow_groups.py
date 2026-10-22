@@ -4,7 +4,8 @@ THE GATE. `synthtwin profile` reads a big table one group of columns at a
 time (lane SR, plan P4-D400), and every group after the first is read
 from the file again. The standard reader took 6.9 s to read one column of
 2,000,000 rows of the made-up health table again; pyarrow's CSV reader,
-one thread, the group's columns alone, 0.8 s (lib-study/LIB-scale.md).
+parsing on one thread (its I/O read-ahead runs on pyarrow's own I/O
+thread), the group's columns alone, 0.8 s (lib-study/LIB-scale.md).
 It is never trusted to read as the survey reads: each walk folds every
 column's values, as the survey, the standard reader and pandas agreed on
 them, to a digest, and pyarrow's reading of a group is handed over only
@@ -25,7 +26,8 @@ the reading in groups by the standard reader alone:
 2. `synthtwin profile` writes the same files and says the same words all
    three ways.
 3. What pyarrow is asked: nothing while the walks are made; then the
-   group's columns alone (the include list), one thread, every value as
+   group's columns alone (the include list), parsing on one thread
+   (use_threads=False), every value as
    text; what is held afterwards: the group's columns as text and
    nothing of pyarrow's (its pool back where it was).
 4. A file that changes between two readings is refused on pyarrow's
@@ -35,6 +37,7 @@ the reading in groups by the standard reader alone:
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import io
 import os
 import pathlib
@@ -163,10 +166,10 @@ def test_adversarial_files_read_or_refused_the_same_three_ways(
     assert proven >= 3, proven
 
 
-def test_a_reading_not_held_to_the_digest_would_hand_over_other_values(
+def test_an_empty_line_above_the_names_is_a_line_pyarrow_skips(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The mutant of the check: pyarrow trusted without its digest reads a blank line above the names as a record."""
+    """An empty line above the names is counted as pyarrow counts it, and handed over; skipped as the standard reader counts lines, pyarrow would read the names as a record (skeptic 1 of lane SR-A, item 1 (a))."""
     path = tmp_path / "lead.csv"
     path.write_text("\na,b\n" + "".join(f"{k},{k * 2}\n" for k in range(30)), encoding="utf-8", newline="\n")
     whole = reading.read_table(str(path))
@@ -176,13 +179,17 @@ def test_a_reading_not_held_to_the_digest_would_hand_over_other_values(
     assert table.source is not None
     proofs = table.source.proofs
     assert all(proof.digest >= 0 for proof in proofs)
+    assert proofs[0].skip == 2
     assert [reading.column_values(table, place) for place in (1, 0)] == [whole.columns[1], whole.columns[0]]
-    # pyarrow read it otherwise, so neither column is asked of it again.
-    assert [proof.digest for proof in table.source.proofs] == [-1, -1]
-    # Read without the digest, under the settings the survey's form gives:
-    found = reading._arrow_columns(str(path), str(path), 2, (0, 1), proofs[0])
+    # pyarrow read it as the survey did, so both columns stay its.
+    assert all(proof.digest >= 0 for proof in table.source.proofs)
+    # Skipping one line fewer, as the standard reader passes lines, pyarrow
+    # reads the names as a record: what the record count refuses.
+    found = reading._arrow_columns(
+        str(path), str(path), 2, (0, 1), dataclasses.replace(proofs[0], skip=1)
+    )
     assert found is not None
-    assert found[0] != whole.n_rows or found[2] != whole.columns
+    assert found[0] == whole.n_rows + 1 and found[2][0][0] == "a"
 
 
 def test_the_digest_holds_pyarrow_to_every_value_of_the_survey(
@@ -243,6 +250,69 @@ def test_a_reading_of_another_record_count_is_not_handed_over(
     monkeypatch.setattr(reading, "_arrow_columns", miscounted)
     assert reading.column_values(read, 1) == whole.columns[1]
     assert read.source is not None and read.source.proofs[1].digest == -1
+
+
+def _clinic_rows(rows: int) -> "list[str]":
+    """A six-column table's names and rows, as a report export writes them under its title."""
+    return ["id,name,val,when,e,f"] + [
+        f"{k},n{k % 7},{k * 1.5},2024-01-{k % 28 + 1:02d},e{k},f{k % 3}" for k in range(rows)
+    ]
+
+
+@pytest.mark.parametrize(
+    "lead",
+    ["Report of the clinic\nPrinted 2024-02-01\n\n", "Report of the clinic\r\n\r\n\r\n", "\nReport of the clinic\n\nPrinted 2024-02-01\n\n"],
+)
+def test_a_report_export_with_empty_lines_under_its_title_is_read_again_by_pyarrow(
+    lead: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """pyarrow counts an empty line above the names as a line to skip: every column of a report export is read again by it (skeptic 1 of lane SR-A, item 1 (a))."""
+    path = tmp_path / "report.csv"
+    ending = "\r\n" if "\r\n" in lead else "\n"
+    path.write_bytes((lead + ending.join(_clinic_rows(40)) + ending).encode("utf-8"))
+    whole, standard, arrow, proven = _three_readings(path, reading.FIRST_ROW_AUTOMATIC, monkeypatch)
+    assert whole[0] == "read", whole
+    assert whole == standard == arrow
+    # Six columns, one a group: the first is held as the reading ends,
+    # the other five read again by pyarrow, every one handed over.
+    assert proven == 5, proven
+
+
+@pytest.mark.parametrize("otherwise", ["a line break inside a quoted name", "another record count"])
+def test_a_file_pyarrow_reads_otherwise_as_a_whole_is_asked_of_it_once(
+    otherwise: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """pyarrow cannot read the file, or reads another record count: no other group of it is asked of pyarrow (skeptic 1 of lane SR-A, item 1 (b))."""
+    path = tmp_path / "t.csv"
+    if otherwise == "a line break inside a quoted name":
+        path.write_bytes(("\n".join(['id,"long\nname",v,w'] + [f"{k},{k % 2},{k % 3},{k}" for k in range(40)]) + "\n").encode())
+    else:
+        path.write_bytes(("\n".join(_clinic_rows(40)) + "\n").encode())
+        real = reading._arrow_columns
+
+        def miscounted(*arguments: object) -> object:
+            found = real(*arguments)  # type: ignore[arg-type]
+            assert found is not None
+            return found[0] + 1, found[1], found[2]
+
+        monkeypatch.setattr(reading, "_arrow_columns", miscounted)
+    whole = reading.read_table(str(path))
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1)
+    read = reading.read_table(str(path), in_groups=True)
+    assert read.source is not None and all(proof.digest >= 0 for proof in read.source.proofs)
+    asked: "list[object]" = []
+    real_read = pyarrow.csv.read_csv
+
+    def watched(table: object, **settings: object) -> object:
+        asked.append(table)
+        return real_read(table, **settings)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading.pyarrow.csv, "read_csv", watched)
+    width = len(whole.columns)
+    assert [reading.column_values(read, place) for place in range(width)] == whole.columns
+    assert len(asked) == 1, (otherwise, len(asked))
+    assert all(proof.digest == -1 for proof in read.source.proofs)
 
 
 # -- 2. synthtwin profile -------------------------------------------------
