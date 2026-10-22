@@ -652,7 +652,7 @@ def test_a_change_outside_the_group_is_refused_on_pyarrows_route(
     assert reading.column_values(read, 1)[5] == "10"
     seen = table.stat()
     if change == "a name":
-        changed = text.replace("age,b,c\n", "sex,b,c\n")
+        changed = text.replace("age,b,c\n", "bed,b,c\n")
     elif change == "a value of a column not asked":
         changed = text.replace("\n9,18,x9\n", "\n8,18,x9\n")
     else:
