@@ -315,7 +315,10 @@ def test_a_held_column_writes_valid_dates_from_its_spans(tmp_path: pathlib.Path)
     loaded = contract.load_profile(f"{tmp_path / 'visits-profile.json'}")
     record = [one for one in loaded.columns if one.name == "seen"][0].time_grain
     assert record is not None and record.spans
-    first, end = grains.held_span(record)
+    # The record's own last span, read apart from `grains.held_span`.
+    rung, first, last = record.spans[-1]
+    end = grains.after(last, rung)
+    assert grains.span_text(first, grains.DATE)[:4] == "2041" and grains.span_text(last, grains.DATE)[:4] == "2045"
     twin, _real = _generated_and_validated(tmp_path, "visits")
     assert twin == set()
     cells = _column(tmp_path / "visits-twin.csv", "seen")
