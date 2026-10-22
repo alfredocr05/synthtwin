@@ -14,7 +14,8 @@ as a long tail and published two of them on 11 rows or more, with no
 question put (lane ZR-a's measurement). A column whose cells are lists --
 values separated by `;`, `|`, `,`, spaces or any of them at once, in at
 least one cell, brackets, quotes and closing marks taken off, every mark
-judged -- every value of which holds a run of five figures or more, or
+judged -- every value of which, but at most one in three, holds a run of
+five figures or more, or
 which the padded route or routes two to four of the person rule reach
 taken over its values, is now put one question about the data: do its
 cells hold several codes or labels, or several record numbers? It offers
