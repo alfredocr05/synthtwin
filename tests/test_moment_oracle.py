@@ -431,9 +431,15 @@ def test_the_settings_name_the_class_and_the_decision_records_it():
     contract = " ".join(CONTRACT.read_text(encoding="utf-8").split())
     plan = " ".join(PLAN.read_text(encoding="utf-8").split())
     assert '`witness`: `"cf1"` until lane CHo\'s decision names the oracle\'s class.' in contract
-    assert "AMENDED 2026-10-21 (plan P4-D421)" in contract
+    assert "AMENDED 2026-10-21 (plan P4-D421, revised by its repair of 2026-10-22)" in contract
     assert '`witness` is `"cho1"`' in contract
+    amendment = contract[contract.index("AMENDED 2026-10-21 (plan P4-D421"):]
+    for words in ("at most 50,000", "10,000,000 transitions", "at 40,000,000", "publishes a slope",
+                  "at most 7.0 seconds and 0.37 GB", "115 of the 287 analysis results"):
+        assert words in amendment, words
     assert "## Decision P4-D421" in plan
     decision = plan[plan.index("## Decision P4-D421"):]
-    for words in ("NODES_MAX", "10,000,000", "50,000", "0 of lane `A0b`'s 287 analysis results", "8,949"):
+    for words in ("NODES_MAX", "10,000,000", "ENTRIES_MAX", "40,000,000", "50,000", "8,949",
+                  "115 of 287 analysis results at 200,000 rows", "no part of that reading",
+                  "NARROWER space than 4.6d.4's", "Repair round 1 (2026-10-22)"):
         assert words in decision, words

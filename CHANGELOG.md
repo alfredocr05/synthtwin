@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### Between columns: the exact oracle, and the class its route decides (2026-10-21)
+### Between columns: the exact oracle, and the class its route decides (2026-10-21, repaired 2026-10-22)
 
 **Lane CHo (plan P4-D421); tools and tests only, no product code.** An
 independent oracle of stage 6's between-columns pages, written from
@@ -18,15 +18,19 @@ moved target, a computed column) and `tools/reference/moment_oracle.py`,
 the exact route that decides the moment witness's clauses (a) to (c).
 Its cases are frozen in `tests/reference/chain-oracle-vectors.json`,
 each beside its mutant, and `tests/test_chain_oracle.py` and
-`tests/test_moment_oracle.py` check them. Contract 4.6d.10's `witness`
-setting now names the route's class, `cho1`: at most 50,000 groups and
-10,000,000 transitions, read from published sizes before any search, no
-slope; decided in at most 8.6 seconds at the bound, and equal to the
-closed form `CF1` on all 8,949 cells of 22 to 40 rows. MEASURED, it
-decides none of the regions the measured chains form (each joins every
-number column), so under the owner's strict-proof ruling the moment
-layer publishes 0 of lane `A0b`'s 287 analysis results beyond the
-chain's own: the loss the page's stated limit 3 foresaw, now measured.
+`tests/test_moment_oracle.py` check them, RULE W1 across the chain,
+through a derived family and member by member among them. Contract
+4.6d.10's `witness` setting now names the route's class, `cho1`: at most
+50,000 groups, 10,000,000 transitions and 40,000,000 entries written and
+read, all read from published sizes before any search, and no slope;
+MEASURED at most 7.0 seconds and 0.37 GB at the widest instances it
+admits, and equal to the closed form `CF1` on all 8,949 cells of 22 to
+40 rows. MEASURED, it decides none of the regions the measured chains
+form (each joins every number column), so under the owner's
+strict-proof ruling the layer publishes no moment and, by ruling R12,
+no slope: 115 of lane `A0b`'s 287 analysis results at 200,000 rows on
+lane `A0c`'s seeded chain, against 202 polished and 213 for a fresh
+sample, the loss the page's stated limit 3 foresaw, now measured.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
