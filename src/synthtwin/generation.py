@@ -27392,6 +27392,10 @@ class _WeekdayPass:
         default_factory=dict
     )
     gap_sizes: "dict[tuple[int, int], int]" = dataclasses.field(default_factory=dict)
+    # How many units the indexes in `indexes` hold, under the one key
+    # nought (plan P4-D415, `_weekday_indexes_bounded`); the pass itself
+    # is frozen, so the count is kept where it can change.
+    indexed_units: "dict[int, int]" = dataclasses.field(default_factory=dict)
     # Each day's day-of-month bin less one, filled as it is asked (landing
     # 3b.3): the bin of the `"month_day"` rule is a calendar reckoning the
     # pass asks millions of times on a large column.
@@ -27466,7 +27470,7 @@ class _WeekdayIndex:
 
     first: int
     last: int
-    units: "dict[tuple[int, _WeekdayKind], list[int]]"
+    units: "dict[tuple[int, _WeekdayKind], tuple[int, ...]]"
 
 
 def _weekday_group(state: _WeekdayPass, ordinal: int) -> int:
@@ -27543,7 +27547,7 @@ def _weekday_tally(counts: "dict[int, int]", key: int, step: int) -> None:
         counts[key] = step
 
 
-def _weekday_first_from(values: "list[int]", target: int) -> int:
+def _weekday_first_from(values: "list[int] | tuple[int, ...]", target: int) -> int:
     """The first place in an ascending list holding `target` or more (its
     length where none does), by halving."""
     low, high = 0, len(values)
@@ -28024,7 +28028,11 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
     gap is walked, as every gap was before the index, each walk asking
     400 units each side at most; the answer is the same either way."""
     if (low, high) in state.indexes:
-        return state.indexes[(low, high)]
+        found = state.indexes[(low, high)]
+        # The gap asked last stands last (`_weekday_indexes_bounded`).
+        del state.indexes[(low, high)]
+        state.indexes[(low, high)] = found
+        return found
     first = low // state.unit
     last = high // state.unit
     size = state.gap_sizes[(low, high)] if (low, high) in state.gap_sizes else 0
@@ -28045,9 +28053,58 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
                 found += [unit]
             else:
                 units[key] = [unit]
-        index = _WeekdayIndex(first, last, units)
+        # HELD AS TUPLES (plan P4-D415, lane SG): every search reads a key's
+        # units and never adds one, and on a pass that keeps the day each
+        # key holds a unit or two, so a list's spare room was a third of it.
+        index = _WeekdayIndex(first, last, {key: tuple(units[key]) for key in units})
+        _weekday_tally(state.indexed_units, 0, _weekday_index_size(index))
     state.indexes[(low, high)] = index
+    _weekday_indexes_bounded(state)
     return index
+
+
+# HOW MANY UNITS THE GAPS' INDEXES HOLD AT ONCE (plan P4-D415, lane SG).
+# Kept for the whole of steps 5 and 6, a pass of 20,000 stamps held its
+# indexes at about 450 bytes a row, 900 MB at 2,000,000 rows; past this
+# many units the gaps asked longest ago are let go, and a gap asked again
+# is indexed again (`_weekday_indexes_bounded`). About 13 MB of indexes.
+_WEEKDAY_INDEX_UNITS_HELD = 65_536
+
+
+def _weekday_index_size(index: _WeekdayIndex) -> int:
+    """How many units a gap's index holds."""
+    total = 0
+    for key in index.units:
+        total = total + len(index.units[key])
+    return total
+
+
+def _weekday_indexes_bounded(state: _WeekdayPass) -> None:
+    """Let the gaps asked longest ago go while the indexes hold more than
+    `_WEEKDAY_INDEX_UNITS_HELD` units, the gap asked last always kept.
+
+    NOTHING A STEP ASKS CHANGES (plan P4-D415, lane SG). An index is a
+    function of its gap's two ends and of what the pass was built with --
+    the unit, the holes, the bins and their groups, the kinds -- and of how
+    many movable ranks its gap holds, which `_bins_settled` counts before
+    any step searches and never again; none of them changes once the pass
+    is built. So a gap indexed again is the index let go, unit for unit,
+    or None again where it was None, and every search finds what it found.
+    Raises nothing. No I/O of any kind.
+    """
+    while (
+        0 in state.indexed_units
+        and state.indexed_units[0] > _WEEKDAY_INDEX_UNITS_HELD
+        and len(state.indexes) > 1
+    ):
+        oldest = (0, 0)
+        for spot in state.indexes:
+            oldest = spot
+            break
+        found = state.indexes[oldest]
+        del state.indexes[oldest]
+        if found is not None:
+            _weekday_tally(state.indexed_units, 0, -_weekday_index_size(found))
 
 
 def _weekday_window(state: _WeekdayPass, rank: int) -> "tuple[int, int, int, int]":
@@ -28059,6 +28116,24 @@ def _weekday_window(state: _WeekdayPass, rank: int) -> "tuple[int, int, int, int
     first = max(unit - _WEEKDAY_REACH, -((place - state.lows[rank]) // state.unit))
     last = min(unit + _WEEKDAY_REACH, (state.highs[rank] - place) // state.unit)
     return unit, place, first, last
+
+
+def _weekday_indexes_let_go(state: _WeekdayPass) -> None:
+    """Forget every gap's index the pass has built (plan P4-D415, lane SG).
+
+    THE INDEXES ARE HELD FOR STEPS 5 AND 6 ALONE, and a pass of moments
+    held them -- a list a unit and a key a group and kind -- at about 500
+    bytes a row of a column of 20,000 stamps, beside the filing step 8.3
+    then makes. Nothing is lost by letting them go: an index is a function
+    of its gap's two ends and of what the pass was built with, read once
+    every gap's size is counted (`_bins_settled` counts them before any
+    step searches), so one built again is the index let go, unit for unit,
+    and no step after steps 5 and 6 asks for one. Raises nothing. No I/O.
+    """
+    for spot in [spot for spot in state.indexes]:
+        del state.indexes[spot]
+    for key in [key for key in state.indexed_units]:
+        del state.indexed_units[key]
 
 
 def _weekday_run_target(
@@ -28868,7 +28943,26 @@ class _WeekdayAsked:
 
     cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]"
     kinds: "dict[_WeekdayKind, list[tuple[int, int, _WeekdayKind]]]"
-    asked: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[tuple[int, int], ...]]]"
+    asked: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[int, ...]]]"
+
+
+# EACH GROUP A MOVE REACHES, AS ONE SMALL WHOLE NUMBER (plan P4-D415, lane
+# SG). Step 8.3 keeps, for every cell's group it asked, each group its
+# mover's move reaches and what that move adds there (`_weekday_take`: one
+# or nought); kept as a pair of numbers a group, the asked filing of a
+# column of 20,000 moments held about 700 bytes a row, more than its
+# column's cells. The pair is kept as `taking * 2 + gained` instead, a
+# number below 256 that Python keeps once for the whole run, in the same
+# order: `_reach_code` makes it and `_reach_of` reads it back, so every
+# round reads the same pairs in the same order as before.
+def _reach_code(taking: int, gained: int) -> int:
+    """A group a move reaches and what it adds there (one or nought), as one number."""
+    return taking * 2 + gained
+
+
+def _reach_of(code: int) -> "tuple[int, int]":
+    """The group and the gain `_reach_code` made one number of."""
+    return code // 2, code % 2
 
 
 def _weekday_asked_of(
@@ -29013,37 +29107,41 @@ def _weekday_cycle(
     """
     groups = max(state.where) + 1
     longest = groups if groups <= _WEEKDAY_CYCLE_GROUPS else _WEEKDAY_CYCLE_LONGEST
-    give: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
-    movers: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
-    take: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[tuple[int, int], ...]]" = {}
+    # EVERY ANSWER OF THIS ROUND, (mover, give, each group the move reaches),
+    # by cell and giving group: kept's filing itself where it is given, so
+    # an answer kept from an earlier round is read where it stands rather
+    # than copied into a dictionary of its own each round (plan P4-D415,
+    # lane SG: three such copies held 180 bytes a row of 20,000 stamps).
+    answers: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[int, ...]]]" = (
+        kept.asked if kept is not None else {}
+    )
     for key in sorted(cells):
         members = cells[key]
         for giving in range(groups):
             if giving not in members or not members[giving]:
                 continue
-            if kept is not None and (key, giving) in kept.asked:
-                movers[(key, giving)], give[(key, giving)], take[(key, giving)] = kept.asked[(key, giving)]
+            if (key, giving) in answers:
                 continue
             # The group's MOVER, the rank its moves take: give and take are
             # both asked of it, so the gain is what that move makes.
             mover = _weekday_mover(state, members[giving])
-            movers[(key, giving)] = mover
-            give[(key, giving)] = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
-            reaches: "list[tuple[int, int]]" = []
+            give = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
+            reaches: "list[int]" = []
             for taking in range(groups):
                 gained = _weekday_take(state, key, taking, mover)
                 if gained is not None:
-                    reaches += [(taking, gained)]
-            take[(key, giving)] = tuple(reaches)
-            if kept is not None:
-                kept.asked[(key, giving)] = (mover, give[(key, giving)], take[(key, giving)])
+                    reaches += [_reach_code(taking, gained)]
+            answers[(key, giving)] = (mover, give, tuple(reaches))
     best: "dict[tuple[int, int], tuple[int, tuple[int, int, _WeekdayKind]]]" = {}
     for key in sorted(cells):
+        members = cells[key]
         for giving in range(groups):
-            if (key, giving) not in give:
+            if giving not in members or not members[giving]:
                 continue
-            for taking, gained in take[(key, giving)]:
-                gain = give[(key, giving)] + gained
+            _mover, give, taken = answers[(key, giving)]
+            for code in taken:
+                taking, gained = _reach_of(code)
+                gain = give + gained
                 if (giving, taking) not in best or gain > best[(giving, taking)][0]:
                     best[(giving, taking)] = (gain, key)
     chosen: "dict[str, tuple[tuple[int, int, int], tuple[int, ...]]]" = {}
@@ -29072,7 +29170,7 @@ def _weekday_cycle(
         giving = path[place]
         taking = path[(place + 1) % len(path)]
         key = best[(giving, taking)][1]
-        moves += [(key, giving, taking, movers[(key, giving)])]
+        moves += [(key, giving, taking, answers[(key, giving)][0])]
     return moves
 
 
@@ -29238,10 +29336,10 @@ def _weekday_chained(
                 if (key, giving) in kept.asked or not cells[key][giving]:
                     continue
                 mover = _weekday_mover(state, cells[key][giving])
-                reaches: "list[tuple[int, int]]" = []
+                reaches: "list[int]" = []
                 for taking in range(groups):
                     if taking != giving and _weekday_take(state, key, taking, mover) is not None:
-                        reaches += [(taking, 0)]
+                        reaches += [_reach_code(taking, 0)]
                 kept.asked[(key, giving)] = (mover, 0, tuple(reaches))
         link: "dict[tuple[int, int], tuple[int, int, _WeekdayKind]]" = {}
         asked: "dict[tuple[int, int], int]" = {}
@@ -29250,7 +29348,8 @@ def _weekday_chained(
                 if not cells[key][giving]:
                     continue
                 linked, _give, places = kept.asked[(key, giving)]
-                for taking, _gained in places:
+                for code in places:
+                    taking, _gained = _reach_of(code)
                     if taking == giving or (giving, taking) in link:
                         continue
                     link[(giving, taking)] = key
@@ -30387,6 +30486,10 @@ def _bins_settled(
         _weekday_singles_moved(
             state, everything, have, target, _WEEKDAY_LEFTOVER_ROUNDS, True
         )
+    # Steps 5 and 6 are done, and with them every search through a gap's
+    # index (`_weekday_run_target`, `_weekday_single_target`): let the
+    # indexes go before the steps that file every rank again (plan P4-D415).
+    _weekday_indexes_let_go(state)
     if have != target:
         _weekday_chained(state, everything, have, target)
     # -- step 7c, the escape of a moment to an end day (3b.D2, P4-D367)
@@ -63056,14 +63159,30 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     arranging = dialect.arranging(
         profile.source.dialect, profile.n_rows, len(plan.columns)
     )
+    # EACH COLUMN'S PLAN LET GO ONCE ITS COLUMN IS DONE (plan P4-D415, lane
+    # SG). Every plan is made before the first column, and a plan holds
+    # what its column's values are drawn from -- a column of numbers its
+    # strata, a column of dates its gaps -- about 170 bytes a row over lane
+    # B0's mixed table, held to the end of the run: here each is handed
+    # over once, and nothing of it outlives its column but its outcome.
+    plans: "list[_ColumnPlan | None]" = [each for each in plan.columns]
+    plan = GenerationPlan((), plan.words_planned)
     finished: "list[twinstore.HeldColumn]" = []
     outcomes: list[ColumnOutcome] = []
     deviations: list[Deviation] = []
     approximated: list[Approximation] = []
     remarked: "list[Remark]" = []
     drawn = 0
-    for step in range(len(plan.columns)):
-        each = plan.columns[step]
+    for step in range(len(plans)):
+        handed = plans[step]
+        plans[step] = None
+        if handed is None:
+            raise errors.ProfileError(
+                "synthtwin internal check: a column's plan was asked for twice. "
+                "This means a mistake in synthtwin; please report it. Nothing "
+                "has been written."
+            )
+        each = handed
         column = each.column
         words: list[int] = []
         if each.content_words > 0:
@@ -63368,6 +63487,7 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         written = []
         spelled = []
         measured = []
+        halves = ([], [])
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
