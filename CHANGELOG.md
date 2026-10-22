@@ -6,6 +6,38 @@ exists).
 
 ## [Unreleased]
 
+### A big table's groups are read again by pyarrow's reader (2026-10-21)
+
+**`synthtwin profile` reads each group of a big table again with
+pyarrow's CSV reader** (plan P4-D414, lane SR-A of the December plan),
+parsing on one thread (its I/O read-ahead runs on pyarrow's own I/O
+thread), the group's columns alone, from a path validated beside the
+call, with no temporary file. It is never trusted: each walk of the
+reading folds every column's values -- as the survey, the standard reader
+and pandas agreed on them -- to a digest, and pyarrow's reading of a group
+is handed over only where it read as many records and every column folds
+to that digest. Otherwise the group is read by the standard reader, as
+before, and so is every column of a form pyarrow reads otherwise
+(comma-space, short rows, a closing delimiter, an end-of-file mark); a
+file pyarrow cannot read, or reads with another record count, is not
+asked of it again. A file changed anywhere -- a name, a column not
+asked, the way it is written, the size and the moment kept -- or gone is
+refused as changed on either route: once pyarrow's reading matches, the
+whole file is read a line at a time against its first reading. A group
+whose values pyarrow would hold more than 256 MiB of (one long note on
+every row, which the standard reader holds once) is read by the standard
+reader. No description byte moves: lane
+S4d's 880 descriptions read one column a group equal the merged head's
+read whole, and the health data zoo's 25 tables write the same 150 files
+and print the same words. A group is read again 2.2 to 2.3 times faster
+at 250,000 rows, that line walk included (0.43 to 0.44 against 0.98 s), about
+9 % of describe's CPU there. `K-S4-09` stays open: lane SR's 2,204.5 MB was an
+under-projection from 100,000 to 500,000 rows, and every projection that
+uses the night's 1,000,000-row point gives 2,481 to 2,694 MB at
+2,000,000 x 50. The peak is probably describing one column whose values
+all differ (lane H3's); the lane's night script measures its phase at
+2,000,000 rows. pandas keeps its check.
+
 ### The offline bundle is the only way synthtwin is installed (2026-10-21)
 
 **synthtwin installs from one offline bundle per kind of computer, with

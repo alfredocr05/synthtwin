@@ -283,9 +283,15 @@ IMPORTS
 
 Imports here stay within the allowlist (plan D6.2 with the Phase 1
 additions in P1-D10): csv, pandas, pathlib, dataclasses, and this
-package's own modules. `pandas.read_csv` is network-capable -- it would
-open a URL if it were handed one -- and it is fenced, not trusted: the
-only path that reaches it has passed `validate_local_path`, inside the
+package's own modules, and pyarrow's CSV reader (lane SR-A of the
+December plan, plan P4-D414: the fast reader of a group of columns read
+again, parsing on one thread, the group's columns alone; pyarrow's own
+I/O read-ahead runs on its I/O thread, one persistent thread measured,
+and no value depends on it, every value being held to the survey's
+digest). `pandas.read_csv` and
+`pyarrow.csv.read_csv` are network-capable -- either would open a URL
+if it were handed one -- and both are fenced, not trusted: the only
+path that reaches them has passed `validate_local_path`, inside the
 same function as the call, which rejects URL forms lexically before any
 filesystem call (P1-D2.1, and SECURITY.md states it in the same terms).
 
@@ -306,6 +312,7 @@ import pathlib
 import typing
 
 import pandas
+import pyarrow.csv
 
 from synthtwin import dialect, errors, parsing, taxonomy, workbook
 from synthtwin.paths import validate_local_path
@@ -2670,6 +2677,17 @@ GROUP_BYTES = 256 * 1024 * 1024
 # their width, held four columns of notes at once).
 WALK_BYTES = 768 * 1024 * 1024
 
+# How many bytes pyarrow's reading of a group read again may hold, at
+# most (lane SR-A, plan P4-D414, Codex's review item 2): pyarrow holds
+# every row's value of the group in UTF-8 with four bytes of offset
+# beside it (`_ArrowProof.text_bytes`), where the standard reader holds
+# a text met again once (`_held_once`). A group whose values come to
+# more -- a column of its own larger than a group, or one note repeated
+# on every row, 4,096 bytes a row of which the standard reader holds one
+# -- is read again by the standard reader. As much as one group may
+# hold; tests lower it.
+ARROW_GROUP_BYTES = 256 * 1024 * 1024
+
 # What one cell costs beside its text, held as a column: its place in
 # the column's list (8 bytes) and its quoting flag in the survey (1).
 # Its text costs what `dialect.Survey.cell_bytes` measures, its own
@@ -2748,6 +2766,34 @@ class _Facts:
     changed_at: int
 
 
+@dataclasses.dataclass(frozen=True)
+class _ArrowProof:
+    """Under what settings pyarrow's reader may read one column of a table read in groups again, and what it must find (lane SR-A, plan P4-D414).
+
+    ``digest`` folds the column's values in row order as the walk held
+    them -- the values the survey, the standard reader and pandas agreed
+    on -- (`_DIGEST_STEP` over each value's hash): pyarrow's reading of
+    the column is handed over only where it folds to the same digest over
+    the same records. -1 where pyarrow is not asked, or where its reading
+    was once not the survey's, and the column is read again by the
+    standard reader. ``skip``, ``delimiter``, ``backslash`` and ``codec``
+    are the settings it is read under. ``text_bytes`` is what pyarrow's
+    reading of the column holds: each value's UTF-8 bytes and four bytes
+    of offset beside it, every row's own copy (`ARROW_GROUP_BYTES`).
+    """
+
+    digest: int
+    skip: int = 0
+    delimiter: str = ","
+    backslash: bool = False
+    codec: str = ""
+    text_bytes: int = 0
+
+
+# A column pyarrow's reader is not held to (`_ArrowProof`).
+_NOT_PROVEN = _ArrowProof(digest=-1)
+
+
 @dataclasses.dataclass
 class ColumnSource:
     """Where `column_values` finds a table read in groups of columns.
@@ -2759,7 +2805,10 @@ class ColumnSource:
     ``groups`` are the groups and ``walks`` the runs of groups a walk
     holds, each from its first column to the one past its last; and
     ``held`` holds the columns at ``held_places``, in that order -- the
-    only cells of the table held at all.
+    only cells of the table held at all. ``proofs`` holds, a column a
+    proof, what pyarrow's reader was held to when the column's walk was
+    read (`_ArrowProof`; lane SR-A, plan P4-D414), or nothing where it
+    was not.
     """
 
     path: str
@@ -2771,6 +2820,7 @@ class ColumnSource:
     held_places: "tuple[int, ...]"
     held: "list[list[str]]"
     walks: "tuple[tuple[int, int], ...]" = ()
+    proofs: "tuple[_ArrowProof, ...]" = ()
 
 
 def column_values(table: Table, place: int) -> "list[str]":
@@ -2890,30 +2940,92 @@ def _hold(source: ColumnSource, places: "tuple[int, ...]") -> None:
     source.held_places = places
 
 
+@dataclasses.dataclass
+class _Spellings:
+    """The texts one column holds once, read again (`_held_once`)."""
+
+    spelled: "dict[str, str]"
+    noted: "dict[str, str]"
+    older: "dict[str, str]"
+    shared: int = 0
+
+
+def _spellings() -> _Spellings:
+    """An empty `_Spellings`, a column's before its first value."""
+    return _Spellings(spelled={}, noted={}, older={})
+
+
+def _held_once(memo: _Spellings, value: str) -> str:
+    """``value``, or the text equal to it the column already holds, by the survey's own rule.
+
+    A text met again in a column is held once (lane S4d, plan P4-D390;
+    `parsing.memo_takes`, `parsing.memo_notes`): up to
+    `parsing.SPELLING_MEMO_TEXTS` texts a column, and past them a text met
+    again from its second sighting, so a text repeated late in a column
+    is shared as the survey shares it (Codex's review of lane SR, item
+    1). Both readings of a group again, the standard reader's and
+    pyarrow's, hold their texts through here, so a group read either way
+    holds the same objects in the same places.
+    """
+    if value in memo.spelled:
+        memo.shared = memo.shared + 1
+        return memo.spelled[value]
+    if value in memo.noted or value in memo.older:
+        # Met again past the bound: taken now, its first text.
+        if value in memo.noted:
+            value = memo.noted[value]
+        else:
+            value = memo.older[value]
+        memo.spelled[value] = value
+        memo.shared = memo.shared + 1
+        return value
+    if parsing.memo_takes(len(memo.spelled), memo.shared):
+        memo.spelled[value] = value
+    elif parsing.memo_notes(len(memo.noted)):
+        memo.noted[value] = value
+    else:
+        memo.older = memo.noted
+        memo.noted = {}
+    return value
+
+
 def _read_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[str]]":
     """The columns at ``places`` of a table read in groups, read from its file again.
+
+    BY PYARROW'S READER WHERE IT READS THEM AS THE SURVEY DID (lane
+    SR-A, plan P4-D414): where every column of the group has its
+    `_ArrowProof` under one set of settings, and their values come to
+    no more than pyarrow may hold (`ARROW_GROUP_BYTES`), the group is
+    read by `_arrow_group`, and handed over where pyarrow read the
+    survey's values; where it did not, its columns are not asked of
+    pyarrow again and the group is read by the standard reader, as
+    follows.
 
     The records are the standard reader's, as `_standard_records` places
     them -- the records the reading's check held equal to the survey's
     value by value -- and the file is the one first read, which is
     checked once it has been read (`_unchanged`). A text met again in a
-    column is held once, by the survey's own rule (lane S4d, plan
-    P4-D390; `parsing.memo_takes`, `parsing.memo_notes`): up to
-    `parsing.SPELLING_MEMO_TEXTS` texts a column, and past them a text
-    met again from its second sighting, so a text repeated late in a
-    column is shared as the survey shares it (Codex's review of lane SR,
-    item 1). A record that is no longer where the first reading found it
-    -- shorter, or no longer read as the same records at all -- is the
-    file changed, and refused so (Codex's review of lane SR, item 5).
+    column is held once, by the survey's own rule (`_held_once`). A
+    record that is no longer where the first reading found it --
+    shorter, or no longer read as the same records at all -- is the file
+    changed, and refused so (Codex's review of lane SR, item 5).
     """
+    if (
+        _proven_alike(source.proofs, places)
+        and _arrow_bytes(source.proofs, places) <= ARROW_GROUP_BYTES
+    ):
+        found = _arrow_group(source, places)
+        if found is not None:
+            return found
+        source.proofs = tuple(
+            _NOT_PROVEN if place in places else source.proofs[place]
+            for place in range(len(source.proofs))
+        )
     table_path = pathlib.Path(source.path)
     run = _Pass()
     width = len(places)
     held: "list[list[str]]" = [[] for _place in range(width)]
-    spelled: "list[dict[str, str]]" = [{} for _place in range(width)]
-    shared: "list[int]" = [0 for _place in range(width)]
-    noted: "list[dict[str, str]]" = [{} for _place in range(width)]
-    older: "list[dict[str, str]]" = [{} for _place in range(width)]
+    memos = [_spellings() for _place in range(width)]
     previous_limit = csv.field_size_limit()
     try:
         csv.field_size_limit(FIELD_SIZE_LIMIT)
@@ -2926,26 +3038,7 @@ def _read_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[s
                 if kind != _RECORD_DATA:
                     continue
                 for at in range(width):
-                    value = cells[places[at]]
-                    if value in spelled[at]:
-                        value = spelled[at][value]
-                        shared[at] = shared[at] + 1
-                    elif value in noted[at] or value in older[at]:
-                        # Met again past the bound: taken now, its first text.
-                        if value in noted[at]:
-                            value = noted[at][value]
-                        else:
-                            value = older[at][value]
-                        spelled[at][value] = value
-                        shared[at] = shared[at] + 1
-                    elif parsing.memo_takes(len(spelled[at]), shared[at]):
-                        spelled[at][value] = value
-                    elif parsing.memo_notes(len(noted[at])):
-                        noted[at][value] = value
-                    else:
-                        older[at] = noted[at]
-                        noted[at] = {}
-                    held[at] += [value]
+                    held[at] += [_held_once(memos[at], cells[places[at]])]
         except (OSError, UnicodeDecodeError, IndexError, csv.Error) as error:
             raise errors.ProfileError(
                 errors.file_changed_while_read(source.shown)
@@ -2956,11 +3049,288 @@ def _read_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[s
     return held
 
 
+# THE FAST READER OF A GROUP READ AGAIN (lane SR-A of the December plan,
+# plan P4-D414). Reading a group of the big table again with the standard
+# reader parses every record of the file in Python: 6.9 s for one column
+# of 2,000,000 rows of the made-up health table, 7.8 s for six (the
+# library study, lib-study/LIB-scale.md). pyarrow's CSV reader, parsing
+# on one thread (use_threads=False; its I/O read-ahead runs on pyarrow's
+# own I/O thread, one persistent thread measured), asked for the group's
+# columns alone, reads them in 0.8 s. It is
+# never trusted to read as the survey reads: each walk of the reading
+# folds every column's values, as the survey, the standard reader and
+# pandas agreed on them, to a digest (`_arrow_proof`), and pyarrow's
+# reading of a group is handed over only where it read as many records
+# and every column folds to the survey's digest -- the same values in the
+# same rows -- and the whole file, its names, its other columns and the
+# way it is written, is then read a line at a time to the digest of its
+# first reading, as the standard reader's reading of a group is (Codex's
+# review of lane SR-A, item 1). Otherwise the group is read again by the
+# standard reader, as before, and so is every column of a form pyarrow
+# is not asked of -- a file written comma-space, with short rows, a
+# closing delimiter or an end-of-file mark -- and every group whose
+# values would make pyarrow hold more than `ARROW_GROUP_BYTES`. Nothing
+# of pyarrow's is read or held while the walks
+# are made. The columns' names are made here (`_ARROW_NAMES`),
+# never read from the file, so a header of blank or repeated names
+# names nothing twice.
+_ARROW_NAMES = "column "
+
+# The offset pyarrow's string array keeps beside each value (`ARROW_GROUP_BYTES`).
+_ARROW_OFFSET_BYTES = 4
+
+# The codec pyarrow's reader reads without decoding through Python's
+# codecs, its own UTF-8, as Python names it and as pyarrow does. Every
+# other codec is handed over as Python names it.
+_PYTHON_UTF8 = "utf-8"
+_ARROW_UTF8 = "utf8"
+
+
+def _arrow_skip(form: dialect.Dialect, headed: bool) -> int:
+    """The lines before the first record, as pyarrow's reader counts them: the separator line, the preamble, the header and the metadata rows.
+
+    pyarrow's ``skip_rows`` counts every line to its line break, an
+    empty one too, where the standard reader yields no record for an
+    empty line: so the preamble counts its empty lines here
+    (`dialect.preamble_lines_total`), and a report export with an empty
+    line under its title is read again by pyarrow (skeptic 1 of lane
+    SR-A, item 1). A line pyarrow counts otherwise -- a line break
+    inside quotes above the first record -- makes a reading of another
+    record count or other values, which is never handed over.
+    """
+    lead = 1 if form.separator_line else 0
+    lead = lead + dialect.preamble_lines_total(form.preamble)
+    lead = lead + (1 if headed else 0)
+    return lead + len(form.header_rows)
+
+
+def _arrow_columns(
+    raw_path: str,
+    shown: str,
+    width: int,
+    places: "tuple[int, ...]",
+    proof: _ArrowProof,
+) -> "tuple[int, list[int], list[list[str]]] | None":
+    """pyarrow's reading of the columns at ``places``: its records, each column's digest, and the columns.
+
+    The file is read once, parsed on one thread (pyarrow's I/O
+    read-ahead runs on its own I/O thread), the columns at ``places`` alone,
+    every value as text and none of them missing, under ``proof``'s
+    settings, and each column is held as `_read_group` holds it
+    (`_held_once`), a piece at a time. None where pyarrow cannot read the
+    file so. The path is validated again here, immediately before the
+    call.
+    """
+    validated = validate_local_path(raw_path, purpose="input")
+    file_path = pathlib.Path(validated)
+    names = [f"{_ARROW_NAMES}{place}" for place in range(width)]
+    wanted = [names[place] for place in places]
+    try:
+        found = pyarrow.csv.read_csv(
+            file_path,
+            read_options=pyarrow.csv.ReadOptions(
+                use_threads=False,
+                column_names=names,
+                skip_rows=proof.skip,
+                encoding=_ARROW_UTF8 if proof.codec == _PYTHON_UTF8 else proof.codec,
+            ),
+            parse_options=pyarrow.csv.ParseOptions(
+                delimiter=proof.delimiter,
+                quote_char='"',
+                double_quote=not proof.backslash,
+                escape_char="\\" if proof.backslash else False,
+                newlines_in_values=True,
+                ignore_empty_lines=True,
+            ),
+            convert_options=pyarrow.csv.ConvertOptions(
+                include_columns=wanted,
+                column_types={name: "string" for name in wanted},
+                strings_can_be_null=False,
+                quoted_strings_can_be_null=False,
+                check_utf8=True,
+            ),
+        )
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.out_of_memory(shown, _file_size(file_path))
+        ) from error
+    except Exception:
+        # pyarrow cannot read the file under these settings: the
+        # standard reader reads it.
+        return None
+    rows = int(found.num_rows)
+    digests: "list[int]" = []
+    columns: "list[list[str]]" = []
+    for at in range(len(places)):
+        column = found.column(at)
+        memo = _spellings()
+        held: "list[str]" = []
+        digest = 0
+        for piece in range(int(column.num_chunks)):
+            values = column.chunk(piece).to_pylist()
+            for value in values:
+                digest = (digest * _DIGEST_STEP + hash(value)) % _DIGEST_MODULUS
+                held += [_held_once(memo, value)]
+            values = []
+        digests += [digest]
+        columns += [held]
+    return rows, digests, columns
+
+
+def _arrow_proof(
+    facts: _Facts,
+    surveyed: dialect.Survey,
+    headed: bool,
+    columns: "list[list[str]]",
+    start: int,
+    end: int,
+) -> "list[_ArrowProof]":
+    """What pyarrow's reader must find in the columns ``start`` to ``end`` read again: each column's settings and digest, or `_NOT_PROVEN`.
+
+    Asked of a walk the standard reader and pandas have checked, of the
+    values the walk holds; nothing is read. A form pyarrow's reader is
+    known to read otherwise -- comma-space, short rows, a closing
+    delimiter, an end-of-file mark, a delimiter of more than one
+    character -- is not asked at all; every other column's values are
+    folded to the digest pyarrow's reading must match (`_arrow_group`),
+    and their bytes as pyarrow would hold them are counted
+    (`_ArrowProof.text_bytes`).
+    """
+    form = surveyed.form
+    if (
+        len(form.delimiter) != 1
+        or form.delimiter in ('"', "\n", "\r")
+        or form.initial_space
+        or form.short_rows
+        or form.rows_trailing_delimiter
+        or form.header_trailing_delimiter
+        or form.end_of_file_mark
+    ):
+        return [_NOT_PROVEN for _place in range(start, end)]
+    settings = _ArrowProof(
+        digest=0,
+        skip=_arrow_skip(form, headed),
+        delimiter=form.delimiter,
+        backslash=form.escape == dialect.ESCAPE_BACKSLASH,
+        codec=facts.codec,
+    )
+    proofs: "list[_ArrowProof]" = []
+    for place in range(start, end):
+        digest = 0
+        text_bytes = 0
+        for value in columns[place]:
+            digest = (digest * _DIGEST_STEP + hash(value)) % _DIGEST_MODULUS
+            text_bytes = text_bytes + _arrow_text_bytes(value)
+        proofs += [dataclasses.replace(settings, digest=digest, text_bytes=text_bytes)]
+    return proofs
+
+
+def _arrow_text_bytes(value: str) -> int:
+    """What pyarrow's string array holds of one value: its UTF-8 bytes and the offset beside it."""
+    if not isinstance(value, str):
+        raise TypeError("synthtwin internal check: a cell that is not text")
+    if value.isascii():
+        return len(value) + _ARROW_OFFSET_BYTES
+    size = _ARROW_OFFSET_BYTES
+    for character in value:
+        point = ord(character)
+        if point < 0x80:
+            size = size + 1
+        elif point < 0x800:
+            size = size + 2
+        elif point < 0x10000:
+            size = size + 3
+        else:
+            size = size + 4
+    return size
+
+
+def _settings_of(proof: _ArrowProof) -> _ArrowProof:
+    """``proof``'s settings alone: what it must find and what it holds set aside."""
+    return dataclasses.replace(proof, digest=0, text_bytes=0)
+
+
+def _proven_alike(proofs: "tuple[_ArrowProof, ...]", places: "tuple[int, ...]") -> bool:
+    """Whether every column at ``places`` has its proof, all under one set of settings."""
+    if not places or len(proofs) <= max(places):
+        return False
+    first = proofs[places[0]]
+    for place in places:
+        proof = proofs[place]
+        if proof.digest < 0 or _settings_of(proof) != _settings_of(first):
+            return False
+    return True
+
+
+def _arrow_bytes(proofs: "tuple[_ArrowProof, ...]", places: "tuple[int, ...]") -> int:
+    """What pyarrow's reading of the columns at ``places`` would hold (`ARROW_GROUP_BYTES`)."""
+    return sum(proofs[place].text_bytes for place in places)
+
+
+def _arrow_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[str]] | None":
+    """The columns at ``places`` read again by pyarrow's reader, under their settings (`_ArrowProof`), or None where it did not read them as the survey did.
+
+    The file is the one first read: its size and the moment it last
+    changed are asked before and after, and either moved -- or the file
+    gone, or no longer open to this person -- is the file changed,
+    refused so (Codex's review of lane SR-A, item 3). pyarrow's reading
+    is handed over only where it read as many records as the survey and
+    each column folds to the survey's digest -- the same values in the
+    same rows -- and the whole file is then read a line at a time to the
+    count and digest of its first reading, its names, the columns not
+    asked and the way it is written with them, as the standard reader's
+    reading of a group holds it (`_unchanged`; Codex's review of lane
+    SR-A, item 1: a name changed, the size and the moment kept, is the
+    file changed). What is handed over is the survey's values whatever
+    pyarrow read, by the digest; what the line walk holds is that the
+    file is still the one first read. Otherwise None, and the standard
+    reader reads the group, holding the file to its first reading as it
+    always does. A reading pyarrow cannot make, or one of another record
+    count, is the whole file's, not the group's: no column of the file is
+    asked of pyarrow again (skeptic 1 of lane SR-A, item 1), where a
+    column folding to another digest is its group's alone.
+    """
+    table_path = pathlib.Path(source.path)
+    first = _stat_or_changed(table_path, source.shown)
+    if first != (source.facts.file_bytes, source.facts.changed_at):
+        raise errors.ProfileError(errors.file_changed_while_read(source.shown))
+    found = _arrow_columns(
+        source.path, source.shown, len(source.proofs), places,
+        source.proofs[places[0]],
+    )
+    if _stat_or_changed(table_path, source.shown) != first:
+        raise errors.ProfileError(errors.file_changed_while_read(source.shown))
+    if found is None or found[0] != source.survey.n_rows:
+        source.proofs = tuple(_NOT_PROVEN for _proof in source.proofs)
+        return None
+    for at in range(len(places)):
+        if found[1][at] != source.proofs[places[at]].digest:
+            return None
+    run = _Pass()
+    try:
+        for _line in _text_lines(table_path, source.facts, run):
+            pass
+    except (OSError, UnicodeDecodeError) as error:
+        raise errors.ProfileError(
+            errors.file_changed_while_read(source.shown)
+        ) from error
+    _unchanged(table_path, source.facts, run, source.shown)
+    return found[2]
+
+
 def _stat_of(table_path: pathlib.Path) -> "tuple[int, int]":
     """The file's size in bytes and the moment it last changed, in nanoseconds."""
     file_path = pathlib.Path(table_path)
     seen = file_path.stat()
     return int(seen.st_size), int(seen.st_mtime_ns)
+
+
+def _stat_or_changed(table_path: pathlib.Path, shown: str) -> "tuple[int, int]":
+    """`_stat_of`, a file gone or no longer open to this person refused as the file changed."""
+    try:
+        return _stat_of(table_path)
+    except OSError as error:
+        raise errors.ProfileError(errors.file_changed_while_read(shown)) from error
 
 
 def _opened_lines(
@@ -3212,7 +3582,7 @@ def _unchanged(
         not run.done
         or run.lines != facts.lines
         or run.digest != facts.digest
-        or _stat_of(table_path) != (facts.file_bytes, facts.changed_at)
+        or _stat_or_changed(table_path, shown) != (facts.file_bytes, facts.changed_at)
     ):
         raise errors.ProfileError(errors.file_changed_while_read(shown))
 
@@ -3225,7 +3595,7 @@ def _still_the_same(table_path: pathlib.Path, facts: _Facts, shown: str) -> None
     refused as the readers' difference, and a file changed otherwise is
     refused here.
     """
-    if _stat_of(table_path) != (facts.file_bytes, facts.changed_at):
+    if _stat_or_changed(table_path, shown) != (facts.file_bytes, facts.changed_at):
         raise errors.ProfileError(errors.file_changed_while_read(shown))
 
 
@@ -3338,6 +3708,7 @@ class _Swept:
     record_rules: "list[int]"
     names_shown: "list[bool]"
     walks: "tuple[tuple[int, int], ...]" = ()
+    proofs: "tuple[_ArrowProof, ...]" = ()
 
 
 def runs_under(costs: "list[int]", budget: int) -> "tuple[tuple[int, int], ...]":
@@ -3430,6 +3801,7 @@ def _walk_the_groups(
     asked_of_the_first_row = headed and first_row == FIRST_ROW_AUTOMATIC
     differences: "list[tuple[int, int, int]]" = []
     refused: "list[tuple[tuple[int, int], errors.ProfileError]]" = []
+    proofs: "list[_ArrowProof]" = [_NOT_PROVEN for _place in range(width)]
     held: "list[list[str]]" = []
     held_places: "tuple[int, ...]" = ()
     last: "_Reading | None" = None
@@ -3455,6 +3827,18 @@ def _walk_the_groups(
             _still_the_same(table_path, facts, shown)
             if refusal is not None:
                 refused += [refusal]
+        # WHAT PYARROW'S READER MUST FIND (lane SR-A, plan P4-D414): on a
+        # walk both checks passed, each column's values as the walk holds
+        # them folded to a digest, which a reading of its group by
+        # pyarrow must match to be handed over (`_read_group`). Nothing
+        # is read for it. A file some check refuses is refused, never
+        # read again, and is not asked.
+        if not differences and not refused and reading.n_rows:
+            proven = _arrow_proof(
+                facts, surveyed, headed, reading.columns, start, end,
+            )
+            for place in range(start, end):
+                proofs[place] = proven[place - start]
         for place in range(start, end):
             forms[place] = surveyed.form.columns[place]
             holds[place] = surveyed.quoting_holds[place]
@@ -3521,6 +3905,7 @@ def _walk_the_groups(
         record_rules=record_rules,
         names_shown=names_shown,
         walks=walks,
+        proofs=tuple(proofs),
     )
 
 
@@ -3702,6 +4087,7 @@ def _read_in_groups(
             held_places=swept.held_places,
             held=held,
             walks=swept.walks,
+            proofs=swept.proofs,
         ),
     )
 

@@ -839,6 +839,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # `K-HZ-01` restamped on the records' own commit with its clause,
     # 737,181 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
+    # 717,000 from 716,000, ON LANE SR-A'S BRANCH (2026-10-21; the batch
+    # integrator sets the batch's cap, the orchestrator's call D15):
+    # K-S4-09 and K-S4-11 re-stamped from the night window of 2026-10-21
+    # on 8a02faa, whose run measures the mixed table at four sizes and
+    # three seeds, their evidence naming what the measured rise was,
+    # 716,477 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
     # set once, the least round figure the merged ledger fits under: lane
     # AQ's `K-S3-66` kept by id (its branch raised its own cap to 631,000,
@@ -1277,7 +1284,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 741_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 742_000  # INTERIM at batch 4f's merges; set once at its records
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

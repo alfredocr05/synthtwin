@@ -3565,15 +3565,69 @@ def test_the_pyarrow_reader_on_an_unvalidated_path_goes_red(tmp_path):
 def test_a_pyarrow_table_answers_to_no_method(tmp_path):
     """Bypass class: a table the reader returned, converted or written on.
 
-    A pyarrow table carries `to_pandas`, conversions and writers; until
-    the adopting lane enters each name it reads, nothing is permitted.
+    A pyarrow table carries `to_pandas`, conversions and writers; the
+    adopting lane (SR-A, plan P4-D414) entered the names it reads one by
+    one, `column` and `num_rows` on the table, and every other name of
+    it is refused.
     """
     code = _PYARROW_READER.replace(
         "    return pyarrow.csv.read_csv(",
         "    table = pyarrow.csv.read_csv(",
     ) + "    return table.to_pandas()\n"
     violations = _scan_in(tmp_path, "reading", code)
-    _assert_red(violations, "a value produced by pyarrow")
+    _assert_red(violations, "the table pyarrow.csv.read_csv returned")
+
+
+# Lane SR-A (plan P4-D414): the five names of pyarrow's table, its
+# columns and their pieces the group reader reads, as reading.py
+# writes them.
+_PYARROW_TABLE_READ = _PYARROW_READER.replace(
+    "    return pyarrow.csv.read_csv(",
+    "    table = pyarrow.csv.read_csv(",
+) + (
+    "    rows = int(table.num_rows)\n"
+    "    column = table.column(0)\n"
+    "    values = []\n"
+    "    for piece in range(int(column.num_chunks)):\n"
+    "        values += column.chunk(piece).to_pylist()\n"
+    "    return rows, values\n"
+)
+
+
+def test_the_pyarrow_table_names_sr_a_reads_scan_clean(tmp_path):
+    """The five names lane SR-A entered, each its own surface, read in zone R."""
+    code = _PYARROW_TABLE_READ
+    violations = _scan_in(tmp_path, "reading", code)
+    assert violations == [], violations
+
+
+def test_each_other_name_of_the_pyarrow_table_goes_red(tmp_path):
+    """Bypass class: a name beside the five, on the table, a column or a piece.
+
+    One mutation a surface and more: the table's schema and its writer,
+    a column's conversion to numpy and its cast, a piece's buffers and
+    its conversion to pandas -- each refused by its surface's own words.
+    """
+    code = _PYARROW_TABLE_READ
+    for old, new, needle in (
+        ("int(table.num_rows)", "int(len(table.schema))", "the table pyarrow.csv.read_csv returned"),
+        ("table.column(0)", "table.to_batches()", "the table pyarrow.csv.read_csv returned"),
+        ("int(column.num_chunks)", "len(column.to_numpy())", "a column of the table pyarrow.csv.read_csv returned"),
+        ("column.chunk(piece)", "column.cast('large_string')", "a column of the table pyarrow.csv.read_csv returned"),
+        (".to_pylist()", ".buffers()", "a piece of a column of the table pyarrow.csv.read_csv returned"),
+        (".to_pylist()", ".to_pandas()", "a piece of a column of the table pyarrow.csv.read_csv returned"),
+    ):
+        mutated = code.replace(old, new)
+        assert mutated != code, old
+        violations = _scan_in(tmp_path / str(abs(hash(old + new))), "reading", mutated)
+        _assert_red(violations, needle)
+
+
+def test_the_pyarrow_table_names_outside_zone_r_go_red(tmp_path):
+    """Bypass class: the same five names read in a module outside zone R."""
+    code = _PYARROW_TABLE_READ
+    violations = _scan_in(tmp_path, "generation", code)
+    _assert_red(violations, "pyarrow")
 
 
 def test_the_rest_of_pyarrow_goes_red(tmp_path):
