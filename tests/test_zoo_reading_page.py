@@ -28,6 +28,11 @@ rule 8 against rule 9t's durations, two missing codes said alike, the
 register list the identity routes reach, and the two-numbers question's
 hold over a month-year register and the answers it offers. Since
 repair 3: grouped amounts heaped on round steps, which the page asks.
+Since repair 4 (Codex's second round): a `DateKey`'s codes read for
+that column alone, a declared list read before the numeric rule, the
+twin's list meeting every published count it is said to meet (and the
+count it cannot, withdrawn), a missing-code answer acted on only for
+its own table, and LV1 accepting the 110-row description.
 
 WHAT IS NOT HERE. No lane's code exists, so nothing here says a twin
 meets anything. The functions below are the page's rules written once
@@ -36,6 +41,7 @@ its gate holds the cases.
 """
 import collections
 import csv
+import hashlib
 import inspect
 import io
 import itertools
@@ -80,7 +86,7 @@ def test_the_page_stands_once_and_its_decision_follows_it() -> None:
 
 
 ORDER = (
-    "0:", "0b:", "0c:", "0d:", "2:", "3, 4:", "5:", "5c:", "6:", "8 asked before 7",
+    "0:", "0b:", "0c:", "0l:", "0d:", "2:", "3, 4:", "5:", "5c:", "6:", "8 asked before 7",
     "7:", "7b:", "8:", "9:", "9t:", "9l:", "9b:", "9c:", "10:",
 )
 
@@ -136,8 +142,9 @@ OPERATIVE = {
     ),
     "the ICD points justify the code condition": "THE ICD POINTS JUSTIFY THE CODE CONDITION, NOT THE QUARTER",
     "the size-free alternative is struck": "is REFUTED and struck",
-    "LV1 binds every count to the floor": (
-        "LV1, each count above is 0 or at least the floor, `suppressed_value_cells` excepted (ruling 2)"
+    "LV1 binds every count to the floor but ruling 2's pools": (
+        "LV1, each count above is 0 or at least the floor, EXCEPT ruling 2's pools, each of which may be 1 to 10 as"
+        " invariant B4 lets a label column's `suppressed_levels` and `suppressed_rows` be"
     ),
     "Q-ID reaches only free text": "only a column today's reader leaves `free_text` (no rule from 2 to 9c claims it)",
     "Q-UNIT asks about the data": (
@@ -186,7 +193,7 @@ OPERATIVE = {
     "the grouped number or the list is asked before rule 6": (
         "Q-COMMA-3 is put with `several-values` among its answers before rule 6 claims the column"
     ),
-    "rule 8 yields to the durations at both places": "rule 8 declines at place 10 and at place 13 alike",
+    "rule 8 yields to the durations at both places": "rule 8 declines at place 11 and at place 14 alike",
     "a few hours past 23 stay a clock": "(3) as clock times by rule 8 where one to ten cells hold an hour past 23",
     "rule 0c reads a template": (
         "a column every present cell of which fits one template of rule 9t's closed list is read in that template"
@@ -204,7 +211,7 @@ OPERATIVE = {
     "a declared list needs no varying length": "Declared, conditions (1) and (4) bind and (2) and (3) do not",
     "missing codes said alike are named by place": "each is named by its place among them on the number line",
     "an answer never binds to another value": (
-        "a round where that number differs asks again, never binding an answer to another value"
+        "a later run acts on it only where the table it reads has the same digest"
     ),
     "J4, J7 and J8 read conditionally": "J4, J7 and J8 are read conditionally",
     "the conditional J7 and J8": "J7 reads \"`part_agreements` is empty\" and J8 \"`part_above` is empty\"",
@@ -216,7 +223,9 @@ OPERATIVE = {
         "A mistaken declaration whose values all lie on the grid -- 300 rows of keys `0001` to `0040` declared"
         " `--clock-figures` -- is read as declared"
     ),
-    "DateKey's codes are the missing answer": "its negative codes taken as the date-codes question's `missing` (P4-D381)",
+    "DateKey's codes are read locally": (
+        "its negative codes read as that column's own codes for a date unknown, LOCALLY TO THAT COLUMN"
+    ),
     "no impossible date": "TR's gate keeps \"no impossible date written\"",
     "a fraction clock keeps the hold": "under rule I that question keeps its hold over the new clock reading",
     # The verify of repair 2: its items 1 and 2, and the 17 sentences its mutants W1 to W17 bent.
@@ -231,7 +240,10 @@ OPERATIVE = {
     ),
     "W1 LV10": "LV10, `pooled_length_cells` <= `pooled_length_values`, and no value's cells exceed `n_listed`",
     "W2 the proof's most even split": "the pooled cells' lengths are its most even split of `pooled_length_values`",
-    "W3 the proof's one-cell stand-ins": "the held-back values are written as stand-ins of one cell each",
+    "W3 the proof's stand-ins": (
+        "the held-back values are written as exactly `suppressed_values` stand-ins sharing"
+        " `suppressed_value_occurrences` as evenly as they can"
+    ),
     "W4 Q-LIST offers code and identifier": (
         "`keep` (labels), `several-values`; where the values look like record numbers, `code` and `identifier` too"
     ),
@@ -262,6 +274,37 @@ OPERATIVE = {
     "W17 the durations gate case": (
         "(4) 1,189 durations under a day beside eleven `48:15` read as durations, and clock times with three"
         " `25:10` read as clock times (gate), exact."
+    ),
+    # Codex's second round, item by item (repair 4).
+    "R4-1 nothing is declared for the table": (
+        "nothing is declared for the table -- `--missing-value` is not set and no cell of another column moves"
+    ),
+    "R4-1 missing is the person's answer only": "and is taken only as the person's answer",
+    "R4-2 rule 0l before every reader": (
+        "**Rule 0l, a declared list, stands before every reader of numbers, dates and clocks**"
+    ),
+    "R4-2 the answered list goes to rule 0l": (
+        "answered `several-values`, the column's name stands in `settings.forced_lists` and rule 0l reads it as a"
+        " list at place 4"
+    ),
+    "R4-3 what the twin meets exactly": (
+        "Read back, the twin meets EXACTLY: every published value's cells, `suppressed_values` and"
+        " `suppressed_value_occurrences`"
+    ),
+    "R4-3 the lengths as a window": "It meets the lengths as a WINDOW",
+    "R4-3 the cells count withdrawn": "is WITHDRAWN:",
+    "R4-3 validate checks the pool": (
+        "`suppressed_values` and `suppressed_value_occurrences` -- the twin's values outside `values`, and their"
+        " cells summed -- within theirs"
+    ),
+    "R4-4 the digest kept beside the answer": (
+        "beside the SHA-256 digest of the table's bytes as the run that asked it read them (`table_sha256`)"
+    ),
+    "R4-4 a changed table is asked again": (
+        "Where the digest differs the question is put again as a new question with its unanswered default"
+    ),
+    "R4-5 LV11 B4's band": (
+        "LV11, B4's band: `suppressed_values` <= `suppressed_value_occurrences` <= `suppressed_values` x (floor - 1)"
     ),
 }
 
@@ -885,3 +928,268 @@ def test_two_missing_codes_said_alike_are_told_apart_by_place() -> None:
     later = [cell for cell in cells if cell != "-88"]
     assert _asked_missing(later) == ["-77"]
     assert (said["-77"][0], 1, 1) not in keys.values()
+
+
+# CODEX'S SECOND ROUND (repair 4). Each case below is the one Codex
+# wrote, computed; each page sentence it rests on is pinned in OPERATIVE.
+
+
+def _read_with_codes(table: "dict[str, list[str]]", codes: "set[str]", column: "str | None") -> "dict[str, list[str]]":
+    """The cells each column keeps once `codes` are read as missing: in `column` alone, or table-wide where None."""
+    return {
+        name: [cell for cell in cells if cell not in codes] if column in (None, name) else list(cells)
+        for name, cells in table.items()
+    }
+
+
+def test_a_datekeys_codes_are_read_for_that_column_alone() -> None:
+    """Item 1: inferred `-1` and `-2` beside compact dates never become the table-wide `--missing-value`."""
+    keys = [f"{year}{month:02d}{day:02d}" for year in (2019, 2020) for month in range(1, 13) for day in range(1, 29)][:568]
+    keys += ["-1"] * 16 + ["-2"] * 16
+    scores = [str(value) for value in (-2, -1, 0, 1, 2) for _ in range(120)]
+    table = {"visit_key": keys, "change_score": scores}
+    assert len(keys) == len(scores) == 600
+    local = _read_with_codes(table, {"-1", "-2"}, "visit_key")
+    assert len(local["visit_key"]) == 568 and local["change_score"] == scores
+    assert sum(int(score) for score in local["change_score"]) == 0
+    wide = _read_with_codes(table, {"-1", "-2"}, None)
+    kept = [int(score) for score in wide["change_score"]]
+    assert len(kept) == 360 and sum(kept) / len(kept) == 1.0
+    page = _flat(_page())
+    assert "the score keeps 360 values, mean 1.0, 240 real scores taken out" in page
+    assert "So the inferred reading is local, and the score keeps all 600 values." in page
+    assert "`inferred_date_codes` (TR," in page
+
+
+def _first_reading(cells: "list[str]", declared_list: bool) -> "tuple[str, list[list[str]]]":
+    """The page's order, walked over the rules a comma column meets: rule 0l, then rule 6."""
+    page = _page()
+    table = page[page.index("| place | rule |"):]
+    table = table[: table.index("\n\n")]
+    for line in table.split("\n")[2:]:
+        rule = line.strip("|").split("|")[1].strip()
+        if rule.startswith("0l:") and declared_list and _a_declared_list(cells, ","):
+            return "listed_values", [cell.split(",") for cell in cells]
+        if rule.startswith("6:"):
+            grouped = [parsing._without_group_separators(cell) for cell in cells]
+            if all(value.isdigit() for value in grouped):
+                return "count", [[value] for value in grouped]
+    return "neither", []
+
+
+def test_an_answered_list_is_read_before_rule_6() -> None:
+    """Item 2: the 35 lists of `101` to `106`, answered `several-values`, read `101,102,103` as three values."""
+    lists = [",".join(str(code) for code in pick) for size in (2, 3) for pick in itertools.combinations(range(101, 107), size)]
+    cells = [lists[index % 35] for index in range(600)]
+    role, read = _first_reading(cells, declared_list=True)
+    assert role == "listed_values"
+    assert read[cells.index("101,102,103")] == ["101", "102", "103"]
+    role, read = _first_reading(cells, declared_list=False)
+    assert role == "count" and read[cells.index("101,102,103")] == ["101102103"]
+    for later in ("2:", "3, 4:", "5:", "5c:", "6:"):
+        assert ORDER.index("0l:") < ORDER.index(later), later
+
+
+def _describe_list(cells: "list[frozenset[str]]", floor: int = 11) -> "dict[str, object]":
+    """ZR.3 (b)'s counts of a list column: what the description publishes."""
+    lengths = collections.Counter(len(cell) for cell in cells)
+    counts = collections.Counter(value for cell in cells for value in cell)
+    held = [rows for rows in counts.values() if rows < floor]
+    return {
+        "n_listed": len(cells),
+        "values": {value: rows for value, rows in counts.items() if rows >= floor},
+        "suppressed_values": len(held),
+        "suppressed_value_occurrences": sum(held),
+        "list_lengths": {length: rows for length, rows in lengths.items() if rows >= floor},
+        "pooled_length_cells": sum(rows for rows in lengths.values() if rows < floor),
+        "pooled_length_values": sum(length * rows for length, rows in lengths.items() if rows < floor),
+    }
+
+
+def _list_invariants(description: "dict[str, object]", floor: int = 11) -> "list[str]":
+    """LV1, LV2, LV3, LV9, LV10 and LV11 as ZR.3 writes them; the names of those broken."""
+    values = description["values"]
+    lengths = description["list_lengths"]
+    assert isinstance(values, dict) and isinstance(lengths, dict)
+    listed = description["n_listed"]
+    pool = ("suppressed_values", "suppressed_value_occurrences", "pooled_length_cells", "pooled_length_values")
+    counts = [rows for rows in values.values()] + [rows for rows in lengths.values()]
+    counts += [description[key] for key in description if key not in pool and isinstance(description[key], int)]
+    broken = []
+    if any(0 < count < floor for count in counts):
+        broken += ["LV1"]
+    held = description["suppressed_value_occurrences"]
+    pooled_cells = description["pooled_length_cells"]
+    pooled_values = description["pooled_length_values"]
+    suppressed = description["suppressed_values"]
+    assert isinstance(listed, int) and isinstance(held, int) and isinstance(suppressed, int)
+    assert isinstance(pooled_cells, int) and isinstance(pooled_values, int)
+    if sum(values.values()) + held < listed:
+        broken += ["LV2"]
+    if sum(lengths.values()) + pooled_cells != listed:
+        broken += ["LV3"]
+    if sum(length * rows for length, rows in lengths.items()) + pooled_values != sum(values.values()) + held:
+        broken += ["LV9"]
+    if pooled_cells > pooled_values or any(rows > listed for rows in values.values()):
+        broken += ["LV10"]
+    if not suppressed <= held <= suppressed * (floor - 1):
+        broken += ["LV11"]
+    return broken
+
+
+def _even(total: int, parts: int) -> "list[int]":
+    low, extra = divmod(total, parts)
+    return [low + 1] * extra + [low] * (parts - extra)
+
+
+def _twin_list(description: "dict[str, object]") -> "list[frozenset[str]]":
+    """ZR.3 (b)'s construction: evened pooled lengths, even stand-ins, Ryser's fill (most room first)."""
+    lengths = description["list_lengths"]
+    values = description["values"]
+    assert isinstance(lengths, dict) and isinstance(values, dict)
+    room = [length for length, rows in sorted(lengths.items()) for _ in range(rows)]
+    pooled_cells = description["pooled_length_cells"]
+    suppressed = description["suppressed_values"]
+    assert isinstance(pooled_cells, int) and isinstance(suppressed, int)
+    if pooled_cells:
+        pooled_values = description["pooled_length_values"]
+        assert isinstance(pooled_values, int)
+        room += _even(pooled_values, pooled_cells)
+    columns = sorted(values.items(), key=lambda item: (-item[1], item[0]))
+    if suppressed:
+        occurrences = description["suppressed_value_occurrences"]
+        assert isinstance(occurrences, int)
+        columns += [(f"stand-in {index}", rows) for index, rows in enumerate(_even(occurrences, suppressed))]
+    cells: "list[frozenset[str]]" = [frozenset() for _ in room]
+    left = list(room)
+    for value, rows in sorted(columns, key=lambda item: -item[1]):
+        chosen = sorted(range(len(left)), key=lambda index: (-left[index], index))[:rows]
+        assert len(chosen) == rows and all(left[index] > 0 for index in chosen), value
+        for index in chosen:
+            cells[index] = cells[index] | {value}
+            left[index] -= 1
+    assert not any(left)
+    return cells
+
+
+def _meets(real: "dict[str, object]", twin: "dict[str, object]") -> None:
+    """What ZR.3 says the twin meets: exactly, and the lengths as a window."""
+    for key in ("n_listed", "values", "suppressed_values", "suppressed_value_occurrences"):
+        assert twin[key] == real[key], key
+    real_lengths, twin_lengths = real["list_lengths"], twin["list_lengths"]
+    window = real["pooled_length_cells"]
+    assert isinstance(real_lengths, dict) and isinstance(twin_lengths, dict) and isinstance(window, int)
+    for length, rows in real_lengths.items():
+        assert rows <= twin_lengths.get(length, 0) <= rows + window, length
+    others = sum(rows for length, rows in twin_lengths.items() if length not in real_lengths)
+    assert others + twin["pooled_length_cells"] <= window
+
+
+def test_the_twins_list_meets_every_count_the_page_says_it_meets() -> None:
+    """Item 3: Codex's 166 cells, the 110-row case and 300 small tables, each read back off the twin."""
+    pairs = [frozenset((f"X{index}", f"Y{index}")) for index in range(11)]
+    codex = [frozenset("AB")] * 100 + [frozenset("AC")] * 11 + [pair for pair in pairs for _ in range(5)]
+    real = _describe_list(codex)
+    assert real["values"] == {"A": 111, "B": 100, "C": 11} and real["list_lengths"] == {2: 166}
+    assert (real["suppressed_values"], real["suppressed_value_occurrences"]) == (22, 110)
+    twin = _twin_list(real)
+    _meets(real, _describe_list(twin))
+    assert sorted(collections.Counter(v for cell in twin for v in cell if v.startswith("stand-in")).values()) == [5] * 22
+    # Repair 2's construction, one stand-in an occurrence: 110 values held, not 22.
+    published = real["values"]
+    assert isinstance(published, dict)
+    numbered = itertools.count()
+    one_cell = [frozenset(value if value in published else f"one {next(numbered)}" for value in cell) for cell in codex]
+    assert _describe_list(one_cell)["suppressed_values"] == 110
+    labels = "ABCDEFGHIJ"
+    ring = [frozenset((labels[index], labels[(index + step) % 10])) for step in (1, 2) for index in range(10)]
+    hundred_ten = _describe_list([pair for pair in ring for _ in range(5)] + [frozenset(labels)] * 10)
+    _meets(hundred_ten, _describe_list(_twin_list(hundred_ten)))
+    draw = random.Random(20261022)
+    for _ in range(300):
+        vocabulary = [f"v{index}" for index in range(draw.randint(3, 30))]
+        table = []
+        for _ in range(draw.randint(20, 200)):
+            size = min(len(vocabulary), 1 + int(draw.expovariate(0.6)))
+            weights = [1.0 / (rank + 1) for rank in range(len(vocabulary))]
+            picked: "set[str]" = set()
+            while len(picked) < size:
+                picked |= {draw.choices(vocabulary, weights)[0]}
+            table += [frozenset(picked)]
+        real = _describe_list(table)
+        _meets(real, _describe_list(_twin_list(real)))
+    page = _flat(_page())
+    assert "the twin writes 22 stand-ins on five cells each" in page
+
+
+def test_the_cells_holding_a_held_value_cannot_always_be_met() -> None:
+    """Item 3: why `suppressed_value_cells` is withdrawn, the twelve cells the page writes."""
+    cells = [frozenset(f"h{index}" for index in range(10))] + [frozenset("PR")] * 10 + [frozenset("PRS")]
+    real = _describe_list(cells)
+    assert real["values"] == {"P": 11, "R": 11} and real["list_lengths"] == {}
+    assert (real["suppressed_values"], real["suppressed_value_occurrences"]) == (11, 11)
+    assert (real["pooled_length_cells"], real["pooled_length_values"]) == (12, 33)
+    holding = sum(1 for cell in cells if cell - {"P", "R"})
+    assert holding == 2
+    evened = sorted(_even(33, 12), reverse=True)
+    assert evened == [3] * 9 + [2] * 3 and sum(evened[:holding]) < 11
+    page = _flat(_page())
+    assert "33 values evened to nine cells of 3 and three of 2, and no two of them hold eleven values" in page
+    assert "| `suppressed_value_cells` |" not in _page()
+
+
+def test_lv1_accepts_the_110_row_description_and_every_described_table() -> None:
+    """Item 5: ruling 2's four pool counts may be 1 to 10; every description the page's rules write is valid."""
+    labels = "ABCDEFGHIJ"
+    ring = [frozenset((labels[index], labels[(index + step) % 10])) for step in (1, 2) for index in range(10)]
+    description = _describe_list([pair for pair in ring for _ in range(5)] + [frozenset(labels)] * 10)
+    assert description["pooled_length_cells"] == 10 and description["pooled_length_values"] == 100
+    assert _list_invariants(description) == []
+    codex = _describe_list(
+        [frozenset("AB")] * 100 + [frozenset("AC")] * 11
+        + [frozenset((f"X{index}", f"Y{index}")) for index in range(11) for _ in range(5)]
+    )
+    assert _list_invariants(codex) == []
+    draw = random.Random(20261022)
+    for _ in range(200):
+        vocabulary = [f"v{index}" for index in range(draw.randint(3, 20))]
+        table = [frozenset(draw.sample(vocabulary, min(len(vocabulary), 1 + int(draw.expovariate(0.7))))) for _ in range(draw.randint(20, 150))]
+        assert _list_invariants(_describe_list(table)) == []
+    # A count outside the pools of 1 to 10 is still refused, and so is a
+    # pool outside B4's band: three held-back values on two cells, or on 31.
+    published = description["values"]
+    assert isinstance(published, dict)
+    assert "LV1" in _list_invariants({**description, "values": {**published, "Z": 4}})
+    assert "LV11" in _list_invariants({**codex, "suppressed_values": 3, "suppressed_value_occurrences": 2})
+    assert "LV11" in _list_invariants({**codex, "suppressed_values": 3, "suppressed_value_occurrences": 31})
+    assert "LV11" not in _list_invariants({**codex, "suppressed_values": 3, "suppressed_value_occurrences": 30})
+
+
+def _q_missing_acts_on(kept: "dict[str, object]", data: bytes, cells: "list[str]") -> "str | None":
+    """ZR.2: the value a kept Q-MISSING answer is acted on for, or None where the question is put again."""
+    if kept["table_sha256"] != hashlib.sha256(data).hexdigest():
+        return None
+    alike = sorted(
+        (value for value in _asked_missing(cells) if asking._code_written(value) == kept["written"]),
+        key=float,
+    )
+    if len(alike) != kept["of"]:
+        return None
+    return alike[int(str(kept["place"])) - 1]
+
+
+def _as_bytes(cells: "list[str]") -> bytes:
+    return ("score\n" + "".join(cell + "\n" for cell in cells)).encode("utf-8")
+
+
+def test_a_missing_answer_is_acted_on_only_for_its_own_table() -> None:
+    """Item 4: `-66` exported in place of `-88` keeps shape, place and count; the digest tells them apart."""
+    first = [str(value) for value in range(1, 6) for _ in range(100)] + ["-88"] * 50 + ["-77"] * 50
+    later = [str(value) for value in range(1, 6) for _ in range(100)] + ["-66"] * 50 + ["-77"] * 50
+    written = asking._code_written("-88")
+    assert asking._code_written("-66") == asking._code_written("-77") == written
+    lower = {"written": written, "place": 1, "of": 2, "answer": "missing", "table_sha256": hashlib.sha256(_as_bytes(first)).hexdigest()}
+    assert _q_missing_acts_on(lower, _as_bytes(first), first) == "-88"
+    # Shape, place and count alone would take `-77`, answered `real-value`.
+    assert sorted(_asked_missing(later), key=float)[0] == "-77"
+    assert _q_missing_acts_on(lower, _as_bytes(later), later) is None

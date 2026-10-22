@@ -38,7 +38,15 @@ values look like record numbers is held until answered, as measured today
 a long tail of such a list publishes two of them. Repair 3 (the verify
 of repair 2): fees heaped on round steps are asked as a list may be,
 and a clock with a few hours past 23 is read as durations only on the
-answer or the declaration. No product code,
+answer or the declaration. Repair 4 (Codex's second round): the codes
+`-1` and `-2` beside compact dates are read for that column alone, as
+the table-wide declaration took 240 of a change score's 600 values; a
+declared list is read before the numeric rule; the twin's list writes
+as many stand-ins as values were held back, so its description
+publishes the same counts again, and the count of cells holding one,
+which no construction is proven to meet, is withdrawn; a missing-code
+answer is acted on only for the table it was given for; and the
+list role's pool counts may be 1 to 10, as a label column's are. No product code,
 golden, vector or KPI moves; `tests/test_zoo_reading_page.py` pins the
 page's computed figures and each rule's operative sentence.
 
