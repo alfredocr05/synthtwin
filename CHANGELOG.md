@@ -6,29 +6,42 @@ exists).
 
 ## [Unreleased]
 
-### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21)
+### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21, repaired 2026-10-22)
 
-**Describing a column whose values never repeat holds about half what it
-did, and a column of 60-word notes under 200 bytes a row** (plan
-P4-D423, answering P4-D400's stated limits (a) and (b)). A cell's record
-holds three slots and reads its exact number, its spelling for the
-number rules and its folded label off them when asked; exact numbers,
-the mode, a column's different spellings, the tails' runs, a date
-reading's texts, its day numbers and the order of its moments are
-counted off sorted values or the tally's own counts instead of a map, a
-set or an object a row; the width censuses keep three lists instead of a
-triple a cell. Traced bytes a row above the column, past the memos'
-bound as at 2,000,000 rows (Python 3.11): record numbers written `V` and
-nine figures 824 to 418, eight figures 503 to 170, stamps 587 to 431,
-notes 270 to 142. The number reader answers a text holding a character no number
-is written with at once, and a cell is split on a separator by the
-text's own split: a 60-word note column is described 2.4 times faster
-(1,258 to 525 microseconds a note). Every description, summary and twin
-is the same bytes: lane SR's 880-description battery read whole and one
-column a group, the health data zoo, and the lane's own shapes against
-4682d6ad's digests. The goal of 100 bytes a row for record numbers and
-stamps is not met (stated limit 1 of P4-D423); the 2,000,000-row
-points are the orchestrator's night window (`wave6/H3/night-h3.sh`).
+**Describing a column whose values never repeat, or free text, holds
+fewer objects a row** (plan P4-D423 and its repair round 1, answering
+P4-D400's stated limits (a) and (b)). A cell's record holds three slots;
+exact numbers, the mode, different spellings, tail runs, a date reading's
+texts, days and moment order are counted off sorted values or the tally's
+counts; the width censuses keep three lists. The repair keys each label
+by its first spelling (no folded copy of a label written in capitals),
+counts a slashed stamp column's one written clock by hour, figures and
+face (no halves, parts or pair a stamp), counts the weekday census's
+units along the ascending instants, ranks stamps with offsets by one
+whole number a pair, and stops the affix reading once a column proposes
+more pairs than any reading can stand on. Traced bytes a row above the
+column, past the memos' bound as at 2,000,000 rows (Python 3.11, 20,000
+rows): record numbers written `V` and nine figures 824 on 4682d6ad, 418
+on the build, 339 now; stamps to the second 587, 431, 342 (and 342 at
+80,000 rows); the K-S4-09 table's `check_at`, `MM/DD/YYYY hh:mm AM`, 775
+on the build, 337 now, and its `order_at` 627 to 337; stamps with offsets
+620 to 481; eight figures 503 to 170. Notes (2,000 and 4,000 rows): the
+gate's lower-case 60-word notes 138 to 148, notes beginning with a capital
+179 (565 on the build), notes of a 30,000-word vocabulary each holding a
+dose and a date 182 to 184 (769 to 1,343), all under 200; about 1.0 ms a
+note untraced (0.6 for the large vocabulary) against 1.4 to 1.7 on
+4682d6ad. The mixed table's traced peak at 20,000 rows is its reading's,
+unmoved; its heaviest describe is now a clock column, 370 bytes a row,
+where `check_at` held 821 on 4682d6ad. A declared person column's extra
+memory, measured, is the date questions' walk of the table, not the
+subject keys (22 bytes a row): named for lane SR-A. Every description,
+summary and twin is the same bytes: lane SR's 880-description battery
+read whole and one column a group, the health data zoo, skeptic 1's 144
+adversarial descriptions with generate and validate, and the lane's
+digests. The 100 bytes a row asked of record numbers and stamps is not
+met (stated limit 1); the 2,000,000-row points are the night window's
+(`wave6/H3/night-h3.sh`, steps `big` and `person`; resident, against the
+2,500 MB watchdog).
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
