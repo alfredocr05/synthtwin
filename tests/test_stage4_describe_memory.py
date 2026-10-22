@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import datetime
 import gc
+import hashlib
 import json
 import math
 import pathlib
@@ -717,3 +718,244 @@ def test_the_survey_shares_its_texts_on_lines_closed_by_a_trailing_delimiter(tmp
     assert table.columns[1][:3] == ["south", "north", "north"]
     assert _objects(table.columns[0]) == 50
     assert _objects(table.columns[1]) == 2
+
+
+# -- lane H3: a column whose values all differ, and free text (plan P4-D423) -----
+#
+# Measured first on 4682d6ad, by line (`planning-notes/work-2026-10/wave6/H3/`):
+# describing one column of 20,000 different record numbers written `V` and nine
+# figures held 935 traced bytes a row above its cells, eight figures 502, stamps
+# to the second 584 and 60-word notes 290: a record of ten fields a cell (112
+# bytes) with its exact number (166), a second record a core, the set of every
+# spelling the tally made (105), a triple a cell in the width censuses, a pair,
+# a key and a day number a stamp, a map of every note. Each now holds what its
+# description publishes and the next decision reads, in fewer objects; the
+# answers are the oracles' (`stage4_as_built`), and every description of the
+# lane's shapes is 4682d6ad's bytes.
+
+_H3_WORDS = ["pain", "stable", "denies", "fever", "chest", "follow", "up", "noted",
+             "history", "of", "mild", "acute", "no", "change", "plan", "continue"]
+
+
+def _h3_values(shape: str, rows: int) -> "list[str]":
+    """Made-up columns whose values all differ: record numbers, eight figures, stamps, 60-word notes."""
+    draw = random.Random(11)
+    base = datetime.datetime(2019, 1, 1)
+    made: "list[str]" = []
+    for row in range(rows):
+        if shape == "rec":
+            made += [f"V{(row * 2654435761) % 10 ** 9:09d}"]
+        elif shape == "num":
+            made += [f"{(row * 48271 + 12345) % 10 ** 8:08d}"]
+        elif shape == "stamp":
+            moment = base + datetime.timedelta(seconds=row * 97 + draw.randrange(97))
+            made += [moment.strftime("%Y-%m-%dT%H:%M:%S")]
+        else:
+            made += [" ".join(draw.choice(_H3_WORDS) for _ in range(60))]
+    return made
+
+
+def _h3_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch) -> float:
+    """The most `tracemalloc` sees held above the column's own cells while it is described, a row.
+
+    THE MEMOS HELD TO 1,024 TEXTS: each holds at most 65,536 texts a column
+    (`parsing.SPELLING_MEMO_TEXTS`, `taxonomy.LAYOUT_MEMO_TEXTS`), a fixed few
+    megabytes at 2,000,000 rows, where at 20,000 rows they would hold every
+    text and be counted a row. Held lower here, the bytes counted are the ones
+    a row adds past them, which is what a column of 2,000,000 rows pays.
+    """
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_TEXTS", 1_024)
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_NOTED", 128)
+    monkeypatch.setattr(taxonomy, "LAYOUT_MEMO_TEXTS", 1_024)
+    taxonomy.profile_column("warm", 1, values[:200], 200, _SETTINGS)
+    gc.collect()
+    tracemalloc.start()
+    try:
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        taxonomy.profile_column("column", 1, values, len(values), _SETTINGS)
+        held = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        tracemalloc.stop()
+    return held / len(values)
+
+
+# Each bound over the measured bytes a row (Python 3.13: 402 and 412, 169 and
+# 176, 414 and 419 at 20,000 and 40,000 rows; notes 149 and 141 at 2,000 and
+# 4,000), against 807, 502 and 571 at 20,000 rows and 269 for notes at 4,000
+# rows on 4682d6ad, its memos held as here.
+@pytest.mark.parametrize("rows", [20_000, 40_000])
+@pytest.mark.parametrize(("shape", "bound"), [("rec", 440), ("num", 200), ("stamp", 450)])
+def test_a_column_whose_values_all_differ_holds_under_its_bound_a_row(
+    shape: str, bound: int, rows: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    per_row = _h3_traced_a_row(_h3_values(shape, rows), monkeypatch)
+    assert per_row < bound, (shape, rows, per_row)
+
+
+# THE NOTES AT 2,000 AND 4,000 ROWS, not 20,000 and 40,000: `tracemalloc` makes
+# describing free text about ten times slower (0.53 ms a 60-word note without
+# it, about 5 with it), and 60,000 traced notes are five minutes of one test;
+# the bytes a row are the same past the memos (148.7 at 2,000 rows, 140.6 at
+# 4,000, 130.5 at 20,000, measured).
+@pytest.mark.parametrize("rows", [2_000, 4_000])
+def test_a_column_of_sixty_word_notes_holds_under_two_hundred_bytes_a_row(
+    rows: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    per_row = _h3_traced_a_row(_h3_values("note", rows), monkeypatch)
+    assert per_row < 200, (rows, per_row)
+
+
+def _h3_texts() -> "list[str]":
+    draw = random.Random(17)
+    alphabet = list("0123456789.+-eE() ,'") + ["−", "’", " ", " ", " ", "\t", "x", "V", "T", "%", "$", "_"]
+    made = ["42", "-42", "+42", "0", "-0", "0.0", "(0)", "3.5", "-3.5", "(1,234.50)", "1,234,567.89", "  7  ", "1e5", "0e5",
+            "1e999", "-1e999", "(1e999)", "1e-999", "-1e-999", "(-5)", "(+5)", "(-a)", "abc", "12mg", "V000123", "Yes", " no",
+            "2019-01-01T10:00:00", "1,5", "-1,5", "1.234,5", "−6.09", "1,483.65-", "0.10000000000000000001"]
+    for _ in range(3_000):
+        made += ["".join(draw.choice(alphabet) for _ in range(draw.randint(1, 10)))]
+    return made
+
+
+def test_a_record_answers_every_field_the_record_of_ten_fields_held() -> None:
+    """Three slots and a shared entry of answers: every field reads what 4682d6ad's record held, on any text."""
+    built, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.RECORD_OF_TEN, "_classify")
+    fields = ("text", "numeric_text", "kind", "value", "exact", "sign", "whole", "folded", "all_digits", "code_alphabet")
+    for comma in (False, True):
+        for text in _h3_texts():
+            now = taxonomy._classify(text, comma)
+            before = built(text, comma)  # type: ignore[operator]
+            for field in fields:
+                assert getattr(now, field) == getattr(before, field), (text, comma, field)
+            if now.value is not None:
+                assert math.copysign(1.0, now.value) == math.copysign(1.0, getattr(before, "value")), text
+            assert now == taxonomy._classify(text, comma) and hash(now) == hash(taxonomy._classify(text, comma))
+    assert taxonomy._classify("1000001").folded is taxonomy._classify("1000001").text
+    assert len(taxonomy._CELL_FACTS) == 4 * 4 * 3 * 2 * 2 * 2
+
+
+def _h3_number_columns() -> "dict[str, list[str]]":
+    draw = random.Random(23)
+    near = ["0.1", "0.10000000000000000001", "0.1000000000000000000000001", "0.3", "0.30000000000000000002"]
+    return {
+        "all different": [f"{(k * 48271 + 12345) % 10 ** 8:08d}" for k in range(5_000)],
+        "near numbers": [draw.choice(near + [f"{draw.randint(1, 40)}"]) for _ in range(3_000)],
+        "zeros plus last": ["-0"] * 30 + [f"{1 + k % 40}" for k in range(200)] + ["0"] * 15,
+        "zeros minus last": ["0"] * 30 + [f"{1 + k % 40}" for k in range(200)] + ["-0"] * 15,
+        "ties": [draw.choice(["7", "8", "7.0", "8.00", "9", "10"]) for _ in range(3_000)],
+        "tied near": ["0.1"] * 20 + ["0.10000000000000000001"] * 20 + ["0.2"] * 20,
+        "stand-ins": [draw.choice(["-999", "-999.0", "9999", "-999.00000000000001", f"{draw.gauss(80, 10):.2f}"]) for _ in range(3_000)],
+        "words and numbers": [draw.choice(["n/a", "x", f"{draw.randint(1, 9)}", "1e999"]) for _ in range(2_000)],
+        "no numbers": ["a", "b", "c"] * 50,
+    }
+
+
+def test_the_exact_numbers_are_counted_as_the_map_of_every_exact_number_counted() -> None:
+    """`_distinct_numbers` and `_mode_of` count off the sorted values what 4682d6ad's map keyed by each exact number counted."""
+    distinct, names = stage4_as_built.compiled(taxonomy, stage4_as_built.EXACT_MAPS, "_distinct_numbers")
+    mode = names["_mode_of"]
+    for name, cells in _h3_number_columns().items():
+        for comma in (False, True):
+            tallied = taxonomy._tally(taxonomy._classify_all(cells, comma), len(cells), _SETTINGS, comma)
+            assert taxonomy._distinct_numbers(tallied) == distinct(tallied), (name, comma)  # type: ignore[operator]
+            now, before = taxonomy._mode_of(tallied), mode(tallied)
+            assert now == before, (name, comma)
+            if now[0] is not None:
+                assert math.copysign(1.0, now[0]) == math.copysign(1.0, before[0]), (name, comma)
+            assert taxonomy._exact_count(tallied.classified) == distinct(tallied), (name, comma)  # type: ignore[operator]
+            assert tallied.raw_distinct == len(set(tallied.present)), (name, comma)
+
+
+def test_the_tally_s_counts_are_the_counts_of_every_spelling() -> None:
+    """The different spellings and the shape of repetition are read off the tally's maps, as every spelling counted them."""
+    shapes = dict(_tally_shapes())
+    shapes["notes"] = _h3_values("note", 300) + _h3_values("note", 100)
+    shapes["records"] = _h3_values("rec", 2_000)
+    for name, cells in shapes.items():
+        tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), _SETTINGS)
+        assert tallied.raw_distinct == len(set(cells)), name
+        assert taxonomy._spellings_by_occurrences(tallied) == taxonomy._n_distinct_by_occurrences(cells), name
+
+
+def test_the_moments_and_days_are_the_oracles() -> None:
+    """Moments ordered by their sorted texts, and days held one number a day, are 4682d6ad's sequences."""
+    keyed, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.MOMENTS_KEYED, "ordered_moments")
+    by_row, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.DAYS_A_ROW, "_census_days")
+    draw = random.Random(29)
+    stamps = _h3_values("stamp", 3_000)
+    mixed = [draw.choice(["2024-01-05", "2024-01-05 00:00:00", "2024-01-05 09:15:00", "2023-12-31 23:59:59"]) for _ in range(500)]
+    offsets = [cell[:19].replace("T", " ") + cell[19:] for cell in _date_cells(2_000, offsets=True)]
+    for name, pairs in (
+        ("stamps", [(cell.replace("T", " "), "") for cell in stamps]),
+        ("dates", [(cell, "") for cell in _date_cells(3_000)]),
+        ("dates and midnights", [(cell, "") for cell in mixed]),
+        ("with offsets", [(cell[:19], cell[19:]) for cell in offsets]),
+    ):
+        for read_at in (taxonomy.READ_AT_LOCAL, taxonomy.READ_AT_UTC):
+            assert taxonomy.ordered_moments(pairs, read_at) == keyed(pairs, read_at), (name, read_at)  # type: ignore[operator]
+        details = {"resolution": taxonomy.RESOLUTION_DATETIME, "datetimes_read_at": taxonomy.READ_AT_LOCAL, "format": "iso-datetime", "all_at_midnight": False}
+        days = taxonomy._census_days(details, pairs)
+        assert days == by_row(details, pairs), name  # type: ignore[operator]
+        assert _objects(days) <= len({day for day in days}), name
+    ordinals = [3, 3, 5, 9, 9, 9, 12]
+    assert taxonomy._different_ordinals(ordinals) == 4 and taxonomy._different_ordinals([5, 3, 3]) == 2
+    assert taxonomy._sorted_runs([-0.0, 0.0, 1.0, 1.0, 2.5]) == len({-0.0, 0.0, 1.0, 2.5})
+    assert taxonomy._end_run([1.0, 1.0, 2.0], 0) == 2 and taxonomy._end_run([1.0, 2.0, 2.0, 2.0], 3) == 3
+
+
+def test_a_text_no_number_is_written_with_is_answered_as_its_reading_answered(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The alphabet's answer is the reading's: every text read with the shortcut and without it answers alike."""
+    texts = _h3_texts() + _h3_values("note", 50)
+    shortcut = [(parsing.classify_number(text), parsing.parse_number(text), parsing.number_out_of_range(text)) for text in texts]
+    monkeypatch.setattr(parsing, "_outside_number_alphabet", lambda body: False)
+    walked = [(parsing.classify_number(text), parsing.parse_number(text), parsing.number_out_of_range(text)) for text in texts]
+    assert shortcut == walked
+    split, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.SPLIT_A_CHARACTER_AT_A_TIME, "splits_into_numbers")
+    for text in texts + ["120/80", "1:1.5", "1::2", ":::", "3 / 4 / 5", "12-12-"]:
+        for separator in ("/", ":", "::", " / ", "-", "e"):
+            assert taxonomy.splits_into_numbers(text, separator) == split(text, separator), (text, separator)  # type: ignore[operator]
+
+
+# Each digest is 4682d6ad's (`planning-notes/work-2026-10/wave6/H3/digests.py`).
+_H3_DIGESTS = {
+    "11": "47d047c1d0cee5d3d8316bcc1dc04fc428a5e3b25bbf9b549ebd20d400df4b44",
+    "1": "c31157a791e551698c671cf7bd74a9e4877ee04b76816224726ea3d4485d7d48",
+    "11-groups": "47d047c1d0cee5d3d8316bcc1dc04fc428a5e3b25bbf9b549ebd20d400df4b44",
+}
+
+
+def _h3_document_digest(folder: pathlib.Path, floor: int, grouped: bool, monkeypatch: pytest.MonkeyPatch) -> str:
+    draw = random.Random(37)
+    rows = 1_500
+    columns = {
+        "rec": _h3_values("rec", rows),
+        "num": _h3_values("num", rows),
+        "stamp": _h3_values("stamp", rows),
+        "note": _h3_values("note", rows),
+        "zeros": [draw.choice(["0", "-0", "0.0", "-0.0", "1", "2", "3"]) for _ in range(rows)],
+        "near": [draw.choice(["0.1", "0.10000000000000000001", "0.3", "0.30000000000000000002", f"{draw.randint(1, 40)}"]) for _ in range(rows)],
+        "stand_ins": [draw.choice(["-999", "-999.0", "9999", f"{draw.gauss(80, 10):.2f}", f"{draw.gauss(80, 10):.2f}"]) for _ in range(rows)],
+        "padded": [draw.choice([f"{draw.randint(0, 999):04d}", f"+{draw.randint(0, 99):03d}", f"{draw.randint(1, 99999)}"]) for _ in range(rows)],
+        "decimals": [f"{draw.randint(0, 99)}.{draw.randint(0, 10 ** draw.randint(1, 6) - 1)}" for _ in range(rows)],
+        "affixed": [draw.choice(["-999 mg", f"{draw.randint(1, 900)} mg", f"{draw.randint(1, 900)}.5 mg"]) for _ in range(rows)],
+        "label": [draw.choice(["Yes", "yes", "YES", " no", "No", "maybe"]) for _ in range(rows)],
+    }
+    names = sorted(columns)
+    text = ",".join(names) + "\n" + "".join(",".join(columns[name][row] for name in names) + "\n" for row in range(rows))
+    path = fixtures.write(folder, "lane-h3.csv", text)
+    if grouped:
+        monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    settings = taxonomy.Settings(small_cell_floor=floor)
+    table = reading.read_table(str(path), small_cell_floor=floor, in_groups=grouped)
+    document = profile.build_document(table, settings, [], ["num"])
+    # The description names no path, so its text is the same on every machine.
+    written = json.dumps(document, sort_keys=True)
+    return hashlib.sha256(written.encode("utf-8")).hexdigest()
+
+
+@pytest.mark.parametrize("case", sorted(_H3_DIGESTS))
+def test_every_description_of_the_lane_s_shapes_is_the_bytes_4682d6ad_wrote(
+    case: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    floor = int(case.split("-")[0])
+    assert _h3_document_digest(tmp_path, floor, case.endswith("groups"), monkeypatch) == _H3_DIGESTS[case]

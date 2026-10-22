@@ -35,6 +35,16 @@ nothing reads the product's source to build them:
 `READ_THE_COLUMN`, `taxonomy._read_the_column` with its level pass as
 668f276 shipped it, stood here too until plan P4-D390 deleted that pass.
 
+- `RECORD_OF_TEN`, `EXACT_MAPS`, `MOMENTS_KEYED`, `DAYS_A_ROW` and
+  `SPLIT_A_CHARACTER_AT_A_TIME` are, as 4682d6ad shipped them, the
+  record of ten fields `taxonomy._classify` built, `_distinct_numbers`
+  and `_mode_of` over a map keyed by every exact number,
+  `ordered_moments` keying every moment, `_census_days` holding a day
+  number a row and `splits_into_numbers` building each part a
+  character at a time: the oracles of lane H3
+  (`tests/test_stage4_describe_memory.py`, plan P4-D423), whose answers
+  the product's must be wherever both answer.
+
 Each is compiled into a copy of its module's own names, so the helpers
 it does not define are today's, and the tests that use it require a
 change of meaning made to the product function to break the
@@ -1379,4 +1389,468 @@ def _tally(
         all_digits=all_digits,
         code_alphabet=code_alphabet,
     )
+'''
+
+
+RECORD_OF_TEN = r'''
+@dataclasses.dataclass(frozen=True, slots=True)
+class _Cell:
+    """One present cell, decided once and never read from the text again.
+
+    This is the record STRUCTURAL RULE A is about. It is built by
+    `_classify`, once per cell, and it is frozen: what a cell is
+    numerically, the number it parsed to, that same number exactly, its
+    sign, whether it is a whole number, and the lexical facts the role
+    rules ask about.
+
+    It carried two more lexical facts until review item P1-R6-F8 --
+    whether the cell was one word, and whether it held a letter -- and
+    they existed for one purpose: guessing which all-different columns
+    were record numbers. That guess is withdrawn, so the facts that fed
+    it are gone rather than left lying about for a later rule to pick
+    up again.
+
+    Everything below consults this record. Round 5's code asked the
+    parser three separate questions per cell -- classify, sign,
+    whole-number -- and the last two classified the cell again from its
+    text, so "classified exactly once" was a comment rather than a
+    property of the code (review item P1-R6-F10).
+    """
+
+    text: str
+    # THE SPELLING THE NUMBER RULES READ, which is `text` itself on
+    # every undeclared column and the swapped spelling on one declared
+    # `--decimal-comma` (plan P4-D26). The two are separate fields
+    # because they answer different questions and a single field got
+    # one of them wrong: `text` is what the FILE holds, and the label
+    # roles publish it, so a declaration about numbers must never
+    # rewrite a level, a code or a note; this is how the NUMBER is
+    # written, and every census of numeric spelling reads it.
+    #
+    # Reading the censuses off `text` on a declared column made the
+    # twin lose the fraction altogether. `1,5` carries no point, so its
+    # style counted as `plain`, the whole column published `plain` and
+    # `integer_valued: false` together, and the twin wrote `222` for a
+    # column running from 2.89 to 300.23 -- the defect P4-D26 exists to
+    # prevent, arriving through the census rather than through the
+    # reading.
+    numeric_text: str
+    # One of parsing.NUMBER, NUMBER_OUT_OF_RANGE, NUMBER_CONTRADICTORY,
+    # NOT_A_NUMBER.
+    kind: str
+    # The number the cell holds, and None whenever no number was held.
+    value: "float | None"
+    # The same number EXACTLY, as the canonical triple above, and None
+    # whenever no number was held. `value` is what the profile publishes
+    # and what the statistics are computed from; this is what a declared
+    # value is compared with, and what the numeric-sentinel rule decides
+    # a candidate's own cells by, because a comparison of rounded values
+    # makes one number out of two (review items P1-R7-F3 and P1-R8-F2).
+    exact: "tuple[int, tuple[str, ...], int] | None"
+    sign: str
+    whole: str
+    # The cell after trimming and case folding: the key the levels, the
+    # binary rule and the categorical rule all count with.
+    folded: str
+    # Both of these are published as COUNTS on a free-text column, which
+    # is what a generator needs to build text of the same shape. Neither
+    # decides a role.
+    all_digits: bool
+    code_alphabet: bool
+
+
+def _classify(text: str, decimal_comma: bool = False) -> _Cell:
+    """Classify one present cell, once, into the record every rule reads.
+
+    ``decimal_comma`` says this column was DECLARED as writing its
+    numbers with a comma for the point (plan P4-D26). Only the NUMERIC
+    reading is taken from the swapped text; `text`, `folded` and the
+    two alphabet tests keep the cell exactly as the file wrote it,
+    because a declaration about numbers must not rewrite a level, a
+    code or a note. Undeclared columns pass `False` and nothing about
+    them moves.
+
+    The parser is asked what the cell is exactly once. Everything else
+    is derived from that answer:
+
+    * a cell this format can hold has its sign and its whole-number
+      status settled by the NUMBER it parsed to -- a parsed zero is
+      exactly a cell whose digits are all zeros, because a value that
+      collapses to zero from something larger is refused by the reader
+      and comes back as out-of-range instead -- and it carries the exact
+      number its spelling denotes beside the rounded one, so that a
+      declared value is compared with the number and not with a rounding
+      of it;
+    * a cell too large or too small to hold has no value to read, so its
+      whole-number status comes from which end of the range it fell off
+      (too large is whole, too small lies strictly between zero and one)
+      and its sign from the notation;
+    * contradictory notation and ordinary text settle neither, and
+      "unknown" is a real answer here, never guessed at.
+
+    Guarantees: accepts text; returns a frozen `_Cell`; raises TypeError
+    if handed anything that is not a string instance. The record depends
+    on the text and nothing else. No I/O of any kind.
+    """
+    # THE TEXT THE NUMBER RULES READ, which is the cell itself on every
+    # undeclared column and the swapped spelling on a declared one.
+    read = parsing.written_with_a_decimal_comma(text) if decimal_comma else text
+    kind = parsing.classify_number(read)
+    value: float | None = None
+    exact: tuple[int, tuple[str, ...], int] | None = None
+    sign = parsing.SIGN_UNKNOWN
+    whole = parsing.WHOLE_UNKNOWN
+    if kind == parsing.NUMBER:
+        value = parsing.parse_number(read)
+        exact = parsing.exact_of_accepted_number(read)
+        if value is not None:
+            if value < 0.0:
+                sign = parsing.SIGN_NEGATIVE
+            elif value == 0.0:
+                sign = parsing.SIGN_ZERO
+            else:
+                sign = parsing.SIGN_POSITIVE
+            if parsing.is_whole_number(value):
+                whole = parsing.WHOLE_YES
+            else:
+                whole = parsing.WHOLE_NO
+    elif kind == parsing.NUMBER_OUT_OF_RANGE:
+        if parsing.overflowed(read):
+            whole = parsing.WHOLE_YES
+        else:
+            whole = parsing.WHOLE_NO
+        if _written_negative(read):
+            sign = parsing.SIGN_NEGATIVE
+        else:
+            sign = parsing.SIGN_POSITIVE
+    trimmed = parsing.trimmed(text)
+    # THE FOLDED LABEL IS THE CELL'S OWN TEXT WHERE FOLDING CHANGES
+    # NOTHING (lane S4d, plan P4-D390): the same characters, held once
+    # rather than copied beside every cell that is already folded.
+    folded = parsing.folded(text)
+    if folded == text:
+        folded = text
+    return _Cell(
+        text=text,
+        numeric_text=read,
+        kind=kind,
+        value=value,
+        exact=exact,
+        sign=sign,
+        whole=whole,
+        folded=folded,
+        all_digits=parsing.is_digit_text(trimmed),
+        code_alphabet=parsing.is_code_text(trimmed),
+    )
+'''
+
+
+EXACT_MAPS = r'''
+def _distinct_numbers(cells: _Cells) -> int:
+    """How many different NUMBERS this column's numeric cells hold.
+
+    Guarantees: accepts a tally of one column; returns a count of at
+    least zero, never more than the count of different spellings.
+    Determinism: the answer depends only on the multiset of cells.
+    Raises nothing. No I/O of any kind.
+    """
+    # READ OFF THE RECORD, never asked of the text again. Every cell
+    # already carries the exact number it denotes -- `_classify`
+    # computed it once, which is structural rule A's whole point -- so
+    # calling `exact_of_spelling` here would classify all over again.
+    # A test counts how often a numeric column is read that way, and
+    # it is right to: the first draft of this asked twice per cell.
+    seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if cell.exact is None:
+            continue
+        seen[cell.exact] = 1
+    return len(seen)
+
+
+def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
+    """The number this column held most often, and how many cells held it.
+
+    THE VALUE IS AN IDENTITY QUESTION AND THE ANSWER IS THE EXACT ONE.
+    Cells are grouped by the canonical triple each already carries --
+    the same key `_distinct_numbers` counts with, and the same one the
+    declared-value and sentinel rules compare by -- so two spellings of
+    one number are one value here, and two numbers that round to one
+    binary64 are two. Grouping by the rounded `value` would make one
+    mode out of two different numbers.
+
+    THE TIE RULE IS THE SMALLEST, and it is written down rather than
+    left to whatever a mapping iterates in. Where several numbers share
+    the largest count the smallest of them is the mode: it is
+    deterministic, it names no value the ladder does not already
+    publish one of, and it gives an independent implementer one answer
+    (plan P4-D4.11).
+
+    Guarantees: accepts a tally of one column; returns the mode's own
+    published value and its count, or `(None, 0)` where the column
+    holds no number at all. The floor is NOT applied here -- this
+    answers what the column held, and `_numeric_details` decides what
+    may be published. Determinism: the answer depends only on the
+    multiset of cells. Raises nothing. No I/O of any kind.
+    """
+    counts: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if cell.exact is None or cell.value is None:
+            continue
+        if cell.exact in counts:
+            counts[cell.exact] = counts[cell.exact] + 1
+        else:
+            counts[cell.exact] = 1
+    if not counts:
+        return None, 0
+    most = 0
+    for key in counts:
+        if counts[key] > most:
+            most = counts[key]
+    # THE VALUES ARE READ OFF THE CELLS OF THE COMMONEST NUMBERS, in a
+    # second walk, rather than held in a map beside the counts (lane S4d,
+    # plan P4-D390): on a column whose numbers never repeat that map was
+    # one entry a row. Every cell of one exact number holds one value
+    # but exact zero's, which is 0.0 or -0.0 as the cell wrote it ("0",
+    # "-0"), and the two compare equal: the map kept the LAST cell's
+    # value per exact number, so the walk keeps the first exact number
+    # it meets among equal values and then each later cell of that same
+    # number, and the published zero carries the sign 66bca69 wrote.
+    smallest: "float | None" = None
+    chosen: "tuple[int, tuple[str, ...], int] | None" = None
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if cell.exact is None or cell.value is None:
+            continue
+        if counts[cell.exact] != most:
+            continue
+        found = cell.value
+        if smallest is None or found < smallest or cell.exact == chosen:
+            smallest = found
+            chosen = cell.exact
+    return smallest, most
+'''
+
+
+MOMENTS_KEYED = r'''
+def ordered_moments(
+    pairs: "list[tuple[str, str]]", reading: str
+) -> "tuple[list[str], str, str, str, str]":
+    """These parsed moments in the order a description publishes them.
+
+    THE ONE STATEMENT OF THE ORDER AND OF ITS TIE RULE (plan P4-D255).
+    The cells are ordered by the INSTANT each names -- not by its local
+    text, which sorted two offsets the wrong way round (review item
+    P1-R1-F9) -- then by the text published for it, then by the offset
+    it wears. So where several cells share an end's instant, the offset
+    published for that end is the LARGEST of theirs at the latest and
+    the SMALLEST at the earliest, and that is a rule the generator has
+    to meet rather than guess at: `generation._endpoint_offset_notes`
+    recounts the twin through this same function, and
+    `generation._endpoint_tie_offsets` holds every tied rank to it.
+
+    Guarantees: accepts the parsed (canonical, offset) pairs -- at least
+    one -- and the clock they are published on; returns the canonical
+    texts in order, the first and last of them, and the offsets those
+    two wear. Determinism: a function of the two. Raises nothing. No I/O
+    of any kind.
+    """
+    keyed: list[tuple[int, str, str]] = []
+    unkeyed: list[str] = []
+    # ONE KEY PER WRITTEN MOMENT (lane S4d, `parsing.SPELLING_MEMO_TEXTS`): the
+    # rows that write one moment share its key, a moment met again past
+    # the bound from its second sighting (`parsing.SPELLING_MEMO_NOTED`).
+    known: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    noted: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    older: "dict[tuple[str, str], tuple[int, str, str]]" = {}
+    answered = 0
+    for canonical, offset in pairs:
+        moment = (canonical, offset)
+        if moment in known:
+            answered = answered + 1
+            keyed += [known[moment]]
+            continue
+        if moment in noted or moment in older:
+            entry = noted[moment] if moment in noted else older[moment]
+            known[moment] = entry
+            answered = answered + 1
+            keyed += [entry]
+            continue
+        instant = parsing.instant_key(canonical, offset)
+        shown = canonical
+        if reading == READ_AT_UTC:
+            # ...AND A CONVERSION THE CALENDAR CANNOT SPELL IS CLAMPED TO
+            # ITS EDGE, never left as the LOCAL text (`parsing.utc_moment`,
+            # the dates pass of the stage-3 review, item 7). The sequence
+            # this function returns is compared as plain text by
+            # everything that reads it, so one local text among the
+            # instants made the order and the texts disagree and published
+            # a tail whose own loader refused it. -- 3b.7 repair (item 5):
+            # spelled from the key just computed (`_utc_text_of`), the same
+            # text, so each pair is keyed once.
+            at_utc = (
+                _utc_text_of(canonical, instant, offset)
+                if instant is not None
+                else parsing.utc_moment(canonical, offset)
+            )
+            if at_utc is not None:
+                shown = at_utc
+        if instant is None:
+            unkeyed += [shown]
+        else:
+            entry = (instant, shown, offset)
+            if parsing.memo_takes(len(known), answered):
+                known[moment] = entry
+            elif parsing.memo_notes(len(noted)):
+                noted[moment] = entry
+            else:
+                older = noted
+                noted = {}
+            keyed += [entry]
+    if keyed:
+        ordered = sorted(keyed)
+        canonical_order = [entry[1] for entry in ordered]
+        return (
+            canonical_order,
+            ordered[0][1],
+            ordered[len(ordered) - 1][1],
+            ordered[0][2],
+            ordered[len(ordered) - 1][2],
+        )
+    canonical_order = sorted(unkeyed)
+    return (
+        canonical_order,
+        canonical_order[0],
+        canonical_order[len(canonical_order) - 1],
+        "",
+        "",
+    )
+'''
+
+
+DAYS_A_ROW = r'''
+def _census_days(
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    ranked: "list[int] | None" = None,
+) -> "tuple[int, ...]":
+    """The day of every parsed (canonical, offset) pair, ascending, where
+    a weekday census may stand: a column of whole dates or of moments
+    (landing 3b.1, plan P4-D355; moments since landing 3b.D2, plan
+    P4-D367, whose instants `_census_moments` gives beside; every clock
+    and member since landing 3b.7). Empty elsewhere.
+
+    Each is the day the cell is WRITTEN on (`calendar_rules.written_day`),
+    never its instant's: a sixtieth second, `23:59:60`, is its own day's
+    (Codex's review of landing 3b.D2, item 1). Ascending, they are also
+    the written days of the cells in the order of their instants, ties
+    broken by the written day -- the order the tails cut -- since a cell's
+    instant lies from its written day's first second to the next day's
+    first, so a later instant is never on an earlier written day.
+
+    ON EACH CELL'S OWN CLOCK (landing 3b.7, plan P4-D378): on a column of
+    two offsets or of the joint member (`_on_own_clocks`) the days are the
+    written days IN RANK ORDER (`_census_ranked`), which on such a column
+    need not ascend -- `23:30-06:00` is written a day before the
+    `05:00+05:30` its instant follows -- so the tails' rows cut them where
+    they cut the column. Every other column is counted as before.
+
+    Guarantees: accepts the published details, the parsed pairs and their
+    ranking where the caller has it; returns the days. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    if not calendar_rules.census_scope(
+        calendar_rules.SCOPE_DAYS,
+        str(details["resolution"]),
+        details["all_at_midnight"] is True,
+    ):
+        return ()
+    if _on_own_clocks(details):
+        order = ranked if ranked is not None else _census_ranked(details, pairs)
+        if order is None:
+            return ()
+        return tuple(calendar_rules.written_day(pairs[place][0]) for place in order)
+    days: "list[int]" = []
+    # ONE DAY NUMBER PER WRITTEN DATE (lane S4d, `parsing.SPELLING_MEMO_TEXTS`;
+    # past the bound from a date's second sighting, `parsing.SPELLING_MEMO_NOTED`).
+    known: "dict[str, int]" = {}
+    noted: "dict[str, int]" = {}
+    older: "dict[str, int]" = {}
+    answered = 0
+    for canonical, _offset in pairs:
+        if canonical in known:
+            answered = answered + 1
+            days += [known[canonical]]
+            continue
+        if canonical in noted or canonical in older:
+            day = noted[canonical] if canonical in noted else older[canonical]
+            known[canonical] = day
+            answered = answered + 1
+            days += [day]
+            continue
+        day = calendar_rules.written_day(canonical)
+        if parsing.memo_takes(len(known), answered):
+            known[canonical] = day
+        elif parsing.memo_notes(len(noted)):
+            noted[canonical] = day
+        else:
+            older = noted
+            noted = {}
+        days += [day]
+    return tuple(sorted(days))
+'''
+
+
+SPLIT_A_CHARACTER_AT_A_TIME = r'''
+def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
+    """The parts of one cell under one separator, or None.
+
+    ``separator`` is the WHOLE separator, mark and any spaces around
+    it, so `120 / 80` splits on `" / "` and its twin is written back
+    the same way (plan P4-D24).
+
+    A part may carry a decimal point, which an I:E ratio of `1:1.5`
+    needs and which the first build of this role refused, sending the
+    column to free text where it published nothing. **This function was
+    called `splits_into_wholes` until 2026-08-26**, and the name was
+    the origin of a false sentence on six surfaces: a reader who
+    trusted it wrote "whole numbers" into the profile, the front page,
+    the changelog and the contract, of a reading that accepts `1:1.5`.
+
+    The type gate is the offline audit's: it accepts no method call on
+    a value it cannot trace, and a cell arrives here from a list this
+    function did not build.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell must be text")
+    if not separator:
+        return None
+    parts: "list[str]" = []
+    current = ""
+    at = 0
+    while at < len(text):
+        matched = True
+        for step in range(len(separator)):
+            if at + step >= len(text) or text[at + step] != separator[step]:
+                matched = False
+                break
+        if matched:
+            parts += [current]
+            current = ""
+            at = at + len(separator)
+            continue
+        current = current + text[at]
+        at = at + 1
+    parts += [current]
+    if len(parts) < 2:
+        return None
+    for part in parts:
+        if not _reads_as_one_number(part):
+            return None
+    return parts
 '''
