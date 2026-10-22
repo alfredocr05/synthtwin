@@ -21,7 +21,12 @@ what the two golden fixtures hold, the golden `note` out of NOTES'
 reach among them; which of the eight questions hold; the classifier
 docstring's own list of rules; and the holding questions of plan P4-D401
 and the role lists the page's rule I reads, from `synthtwin.asking`
-itself.
+itself. Since repair 2: the grouped number told from a list of
+three-figure codes, the joint pooling of list lengths with the
+Gale-Ryser condition it keeps, the declared list of a fixed length,
+rule 8 against rule 9t's durations, two missing codes said alike, the
+register list the identity routes reach, and the two-numbers question's
+hold over a month-year register and the answers it offers.
 
 WHAT IS NOT HERE. No lane's code exists, so nothing here says a twin
 meets anything. The functions below are the page's rules written once
@@ -32,6 +37,7 @@ import collections
 import csv
 import inspect
 import io
+import itertools
 import math
 import pathlib
 import random
@@ -145,6 +151,73 @@ OPERATIVE = {
     "every KPI column is marked": "**zoo** (a column of `tests/health_zoo.py` at 98c0fce6), **E0c**",
     "UN-2's stale OWNERS line": "UN-2's line on `us_unit_vitals` is STALE",
     "the two lists UN-1a restates": "These are the two lists the first lane that edits the order (UN-1a) restates whole",
+    # The verify of repair 1: rule I's restatements, each pinned where it stands.
+    "order row 8: 5c only on the answer": (
+        "5c: NEW: clock times written as figures, only on the answer `clock-figures` or `--clock-figures`"
+    ),
+    "order row 7: rule 5 only once answered": "on a column an identity question holds, only once answered (rule I)",
+    "the month-year answer keeps the hold": (
+        "beside the answers it offers today (`keep`, `code` and `identifier`, and `joined` where the column is"
+        " read as free text), and holds as it does today."
+    ),
+    "ZR.4: nothing before the answer": (
+        "On a column an identity question holds, nothing before the answer `dates` or `clock-figures`"
+    ),
+    "ZR.9: read only once answered": "is read as clock times or dates only once answered",
+    "rule 9b's line waits on the answer": (
+        "and only while path (iii)'s question about that column is not answered \"no\""
+    ),
+    "the register's gate case": (
+        "TR's gate holds that register with 0 published values unanswered, and `K-S3-64` gains it"
+    ),
+    "a list cannot hide a register": (
+        "A list column is put the identity routes over its whole cells AND over its values, so a list cannot"
+        " hide a register"
+    ),
+    "a register list is not inferred": (
+        "So rule 9l is NOT inferred where every value of the would-be list holds five figures or more"
+    ),
+    "the register list's gate case": (
+        "LISTS' gate holds that register list (40 record numbers `R` and six figures) with 0 published values"
+        " unanswered, and `K-S3-64` gains it"
+    ),
+    # Codex's review of repair 1, item by item.
+    "the grouped number or the list is asked before rule 6": (
+        "Q-COMMA-3 is put with `several-values` among its answers before rule 6 claims the column"
+    ),
+    "rule 8 yields to the durations at both places": "rule 8 declines at place 10 and at place 13 alike",
+    "a few hours past 23 stay a clock": "(3) as clock times by rule 8 where one to ten cells hold an hour past 23",
+    "rule 0c reads a template": (
+        "a column every present cell of which fits one template of rule 9t's closed list is read in that template"
+    ),
+    "the joint total of lengths and values": (
+        "LV9, THE JOINT TOTAL: each published length times its cells, summed, plus `pooled_length_values`,"
+        " equals the cells of `values` summed plus `suppressed_value_occurrences`"
+    ),
+    "a rare length joins the pool": "a length held by fewer cells is not named, and its cells join the pool below",
+    "a zone word is no offset": "A zone word is read as the cell's spelling and never as an offset",
+    "a declined clock declaration holds": (
+        "where a column declared or answered `clock-figures` fails either, the declaration reads nothing and"
+        " the column is held on every table"
+    ),
+    "a declared list needs no varying length": "Declared, conditions (1) and (4) bind and (2) and (3) do not",
+    "missing codes said alike are named by place": "each is named by its place among them on the number line",
+    "an answer never binds to another value": (
+        "a round where that number differs asks again, never binding an answer to another value"
+    ),
+    "J4, J7 and J8 read conditionally": "J4, J7 and J8 are read conditionally",
+    "the conditional J7 and J8": "J7 reads \"`part_agreements` is empty\" and J8 \"`part_above` is empty\"",
+    "the template keys are absent": "ABSENT from a column read by a separator",
+    "J13 all or none": (
+        "J13, `template_literals`, `hole_bases` and `in_smallest_unit` are all three absent or all three present"
+    ),
+    "an on-grid mistaken declaration is read": (
+        "A mistaken declaration whose values all lie on the grid -- 300 rows of keys `0001` to `0040` declared"
+        " `--clock-figures` -- is read as declared"
+    ),
+    "DateKey's codes are the missing answer": "its negative codes taken as the date-codes question's `missing` (P4-D381)",
+    "no impossible date": "TR's gate keeps \"no impossible date written\"",
+    "a fraction clock keeps the hold": "under rule I that question keeps its hold over the new clock reading",
 }
 
 
@@ -166,7 +239,7 @@ def _questions() -> "dict[str, list[str]]":
 
 
 def test_the_questions_that_hold_are_the_identity_ones() -> None:
-    """Q-ID and Q-CLOCK on whole figures hold (rule I); the other six hold nothing."""
+    """Q-ID, Q-CLOCK on whole figures and Q-LIST on record-number values hold (rule I); the other five hold nothing."""
     rows = _questions()
     assert sorted(rows) == sorted((
         "Q-ID", "Q-COMMA-3", "Q-COMMA-DD", "Q-COMMA-PICKS", "Q-UNIT", "Q-MISSING", "Q-LIST", "Q-CLOCK",
@@ -175,7 +248,8 @@ def test_the_questions_that_hold_are_the_identity_ones() -> None:
     assert holds["Q-ID"].startswith("yes (P4-D401, one more holding shape")
     assert holds["Q-CLOCK"].startswith("yes on whole figures: today's reader always puts the padded question")
     assert "its hold stands until answered" in holds["Q-CLOCK"]
-    for question in ("Q-COMMA-3", "Q-COMMA-DD", "Q-COMMA-PICKS", "Q-UNIT", "Q-MISSING", "Q-LIST"):
+    assert holds["Q-LIST"].startswith("yes where the values hold five figures or more or reach an identity route")
+    for question in ("Q-COMMA-3", "Q-COMMA-DD", "Q-COMMA-PICKS", "Q-UNIT", "Q-MISSING"):
         assert holds[question].startswith("no"), question
 
 
@@ -437,6 +511,7 @@ def test_the_golden_fixtures_hold_none_of_the_shapes_the_new_readings_take() -> 
             assert not all(_on_the_grid(cell) for cell in cells), name
             assert _a_list(cells) is None, name
             assert not any(re.fullmatch(r"-?\d+,\d+", cell) for cell in cells), name
+            assert not _grouped_or_listed(cells), name
             assert not _far_or_listed(cells), name
             assert not _uid_asked(cells), name
 
@@ -526,3 +601,231 @@ def test_contract_c6_1_lists_fourteen_of_its_fifteen_roles() -> None:
     listed = text[start: text.index("Fourteen roles in thirteen rules", start)]
     assert "`numbers_with_labels`" not in listed
     assert "`joined_numbers`" in listed and "`free_text`" in listed
+
+
+def test_the_two_numbers_question_holds_the_register_and_offers_what_the_page_says() -> None:
+    """Rule A's register is held by the two-numbers question, whose answers today `dates` joins (ZR.2)."""
+    register = [f"{(index % 180) % 12 + 1}/{2010 + (index % 180) // 12}" for index in range(600)]
+    assert len(set(register)) == 180
+    assert asking.why_joined_is_worth_asking(register) == asking.BECAUSE_JOINED
+    assert asking.BECAUSE_JOINED in asking.HOLDING_REASONS
+    joined = [choice.answer for choice in asking._joined_choices(taxonomy.ROLE_JOINED, 11)]
+    text = [choice.answer for choice in asking._joined_choices(taxonomy.ROLE_TEXT, 11)]
+    clock = [choice.answer for choice in asking._joined_choices(taxonomy.ROLE_CLOCK, 11)]
+    assert joined == [asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]
+    assert text == [asking.ANSWER_KEEP, asking.ANSWER_JOINED, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]
+    # A clock read from its values (landing T1) is offered `joined`, "a
+    # duration", which rule 8's third case reads in rule 9t's template.
+    assert clock[0] == asking.ANSWER_KEEP and asking.ANSWER_JOINED in clock
+    # A clock with a fraction is put the two-numbers question today, and
+    # rule I keeps that question over TR (d)'s reading.
+    fraction = [f"{7 + index % 12:02d}:{index % 60:02d}:{(7 * index) % 60:02d}.{index % 1000:03d}" for index in range(600)]
+    assert asking.why_joined_is_worth_asking(fraction) == asking.BECAUSE_JOINED
+
+
+def _register_values(values: "list[str]") -> bool:
+    """Rule I's guard on a would-be list: every value in five figures or more, or a holding route reaches them."""
+    if all(sum(1 for character in value if character.isdigit()) >= 5 for value in values):
+        return True
+    return asking.why_worth_asking(values) in asking.HOLDING_REASONS
+
+
+def test_a_register_list_is_never_read_as_a_list_unanswered() -> None:
+    """The verify of repair 1, item 1: a list cannot hide a register, measured on three register lists."""
+    draw = random.Random(20261021)
+    registers = {
+        "R and six figures": [f"R{draw.randint(100000, 999999)}" for _ in range(40)],
+        "six figures": [str(draw.randint(100000, 999999)) for _ in range(40)],
+        "padded to seven": [f"{draw.randint(1, 99999):07d}" for _ in range(40)],
+    }
+    routes = {}
+    for name, keys in registers.items():
+        cells = [";".join(draw.sample(keys, draw.randint(1, 3))) for _ in range(600)]
+        values = [part for cell in cells for part in cell.split(";")]
+        # Rule 9l's conditions 1 to 4 hold: unguarded, the list reading
+        # would publish every record number on its cells.
+        assert _a_list(cells) == ";", name
+        assert _register_values(values), name
+        # No route reaches the whole cells today.
+        assert asking.why_worth_asking(cells) is None, name
+        routes[name] = asking.why_worth_asking(values)
+    assert routes == {
+        "R and six figures": None,
+        "six figures": asking.BECAUSE_FIXED_WIDTH,
+        "padded to seven": asking.BECAUSE_PADDED,
+    }
+    # The lists of codes the gates hold are no registers ...
+    problems = [part for _ in range(600) for part in draw.sample(("E11.9", "I10", "N18.3", "E78.5", "J44.9", "F32.9"), 2)]
+    picks = [str(draw.randint(1, 15)) for _ in range(600)]
+    for values in (problems, picks):
+        assert not _register_values(values)
+    # ... but three-figure codes all one width reach the fixed-width
+    # question, as a column of them alone does today (P4-D401's accepted
+    # price), so a list of them is held until answered.
+    codes = [str(draw.randint(101, 106)) for _ in range(600)]
+    assert asking.why_worth_asking(codes) == asking.BECAUSE_FIXED_WIDTH and _register_values(codes)
+    page = _flat(_page())
+    assert "Three-figure codes all one width (`101` to `106`) reach the fixed-width question" in page
+
+
+GROUPED = re.compile(r"\d{1,3}(?:,\d{3})+")
+
+
+def _grouped_or_listed(cells: "list[str]") -> bool:
+    """Rule P: the grouped number or the list, Q-COMMA-3 offering `several-values` before rule 6."""
+    commas = [cell for cell in cells if "," in cell]
+    if not commas or any("." in cell for cell in cells):
+        return False
+    if not all(GROUPED.fullmatch(cell) for cell in commas):
+        return False
+    split = [cell.split(",") for cell in cells]
+    if any(len(set(parts)) < len(parts) for parts in split):
+        return False
+    if sum(1 for parts in split if len(parts) >= 2) < parsing.census_floor(11):
+        return False
+    values = {part for parts in split for part in parts}
+    ceiling = taxonomy.categories_ceiling(len(cells), taxonomy.Settings())
+    return "" not in values and len(values) <= ceiling and len(values) < len(set(cells))
+
+
+def test_a_list_of_three_figure_codes_is_asked_before_rule_6_and_grouped_amounts_are_not() -> None:
+    """Codex's item 1: rule 6 reads `101,102,103` as one number; the comparison holds genuine grouped numbers."""
+    assert parsing._without_group_separators("101,102") == "101102"
+    assert parsing._without_group_separators("101,102,103") == "101102103"
+    lists = [",".join(str(code) for code in pick) for size in (2, 3) for pick in itertools.combinations(range(101, 107), size)]
+    assert len(lists) == 35
+    codes = [lists[index % 35] for index in range(600)]
+    assert _grouped_or_listed(codes) and _a_list(codes) == ","
+    draw = random.Random(20261021)
+    amounts = [f"{int(10 ** draw.uniform(3, 6.7)):,}" for _ in range(600)]
+    assert all(GROUPED.fullmatch(cell) for cell in amounts if "," in cell)
+    assert not _grouped_or_listed(amounts)
+    rounds = ("1,000", "2,500", "5,000", "10,000", "25,000", "100,000", "250,000", "1,000,000", "1,500,000")
+    round_amounts = [draw.choice(rounds) for _ in range(600)]
+    assert not _grouped_or_listed(round_amounts)
+    # Without the million that writes `000` twice, condition (3) still fails them.
+    assert not _grouped_or_listed([cell for cell in round_amounts if cell != "1,000,000"])
+    page = _flat(_page())
+    assert "round amounts from `1,000` to `1,500,000` write as many different groups as different cells" in page
+
+
+def _a_declared_list(cells: "list[str]", mark: str) -> bool:
+    """Rule 9l under `--list` or `several-values`: conditions (1) and (4) alone."""
+    parts = [[part.strip() for part in cell.split(mark)] for cell in cells]
+    several = [split for split in parts if len(split) >= 2]
+    values = {parsing.folded(part) for split in parts for part in split}
+    return len(several) >= parsing.census_floor(11) and "" not in values
+
+
+def test_a_declared_list_of_one_length_is_read() -> None:
+    """Codex's item 6: all 66 pairs of twelve codes are not inferred, and are read once declared."""
+    pairs = [",".join(str(code) for code in pick) for pick in itertools.combinations(range(1, 13), 2)]
+    assert len(pairs) == 66
+    cells = [pairs[index % 66] for index in range(600)]
+    assert _a_list(cells) is None
+    assert _a_declared_list(cells, ",")
+
+
+def _gale_ryser(lengths: "list[int]", counts: "list[int]") -> bool:
+    """Whether a 0-1 table of cells by values has these row and column sums (Gale 1957, Ryser 1957)."""
+    if sum(lengths) != sum(counts):
+        return False
+    ordered = sorted(counts, reverse=True)
+    for size in range(1, len(ordered) + 1):
+        if sum(ordered[:size]) > sum(min(length, size) for length in lengths):
+            return False
+    return True
+
+
+def _the_twins_pair(cells: "list[frozenset[str]]", floor: int = 11) -> "tuple[list[int], list[int], dict[str, int]]":
+    """ZR.3 (b): the lengths and values a twin writes from the jointly pooled description."""
+    lengths = collections.Counter(len(cell) for cell in cells)
+    counts = collections.Counter(value for cell in cells for value in cell)
+    published = {length: rows for length, rows in lengths.items() if rows >= floor}
+    pooled_cells = sum(rows for rows in lengths.values() if rows < floor)
+    pooled_values = sum(length * rows for length, rows in lengths.items() if rows < floor)
+    shown = [rows for rows in counts.values() if rows >= floor]
+    held = sum(rows for rows in counts.values() if rows < floor)
+    # LV9, the joint total.
+    assert sum(length * rows for length, rows in published.items()) + pooled_values == sum(shown) + held
+    twin = [length for length, rows in published.items() for _ in range(rows)]
+    if pooled_cells:
+        low, extra = divmod(pooled_values, pooled_cells)
+        twin += [low + 1] * extra + [low] * (pooled_cells - extra)
+    facts = {"pooled_length_cells": pooled_cells, "pooled_length_values": pooled_values}
+    return twin, shown + [1] * held, facts
+
+
+def test_list_lengths_pooled_jointly_always_admit_a_twin() -> None:
+    """Codex's item 3: pooled alone the lengths contradict the values; pooled jointly a twin always exists."""
+    labels = "ABCDEFGHIJ"
+    pairs = [frozenset((labels[index], labels[(index + step) % 10])) for step in (1, 2) for index in range(10)]
+    assert len(set(pairs)) == 20
+    cells = [pair for pair in pairs for _ in range(5)] + [frozenset(labels)] * 10
+    counts = collections.Counter(value for cell in cells for value in cell)
+    assert len(cells) == 110 and set(counts.values()) == {30} and sum(counts.values()) == 300
+    # Pooled alone: the rare length 10 joins length 2.
+    assert collections.Counter(len(cell) for cell in cells) == {2: 100, 10: 10}
+    alone = [2] * 110
+    assert sum(alone) == 220 and not _gale_ryser(alone, list(counts.values()))
+    twin, values, facts = _the_twins_pair(cells)
+    assert facts == {"pooled_length_cells": 10, "pooled_length_values": 100}
+    assert sorted(twin) == [2] * 100 + [10] * 10 and _gale_ryser(twin, values)
+    # The proof's two steps, over many small tables: the real pair is a
+    # table, so the twin's pair is one too.
+    draw = random.Random(20261021)
+    for _ in range(300):
+        vocabulary = [f"v{index}" for index in range(draw.randint(3, 14))]
+        table = []
+        for _ in range(draw.randint(20, 140)):
+            size = min(len(vocabulary), 1 + int(draw.expovariate(0.7)))
+            table += [frozenset(draw.sample(vocabulary, size))]
+        real_lengths = [len(cell) for cell in table]
+        real_counts = list(collections.Counter(value for cell in table for value in cell).values())
+        assert _gale_ryser(real_lengths, real_counts)
+        twin, values, _ = _the_twins_pair(table)
+        assert _gale_ryser(twin, values)
+    page = _flat(_page())
+    assert "200 + 100 = 300 = 10 x 30 + 0" in page and "220 places for 300 values" in page
+
+
+def _clock_or_durations(cells: "list[str]") -> str:
+    """Rule 8 against rule 9t's `#:##` template: which reads a column of `#:##` cells."""
+    found = [re.fullmatch(r"(\d+):([0-5]\d)", cell) for cell in cells]
+    if not all(found):
+        return "neither"
+    past = sum(1 for match in found if match is not None and int(match.group(1)) > 23)
+    return "durations" if past >= parsing.census_floor(11) else "clock"
+
+
+def test_rule_8_yields_the_durations_only_where_the_floors_cells_pass_a_day() -> None:
+    """Codex's item 2: eleven `48:15` beside 1,189 shorter durations are durations; three `25:10` are errors."""
+    draw = random.Random(20261021)
+    under = [f"{minutes // 60}:{minutes % 60:02d}" for minutes in draw.sample(range(1440), 1189)]
+    assert len(set(under)) == 1189
+    assert _clock_or_durations(under + ["48:15"] * 11) == "durations"
+    assert _clock_or_durations(under + ["48:15"] * 10) == "clock"
+    clocks = [f"{draw.randrange(24):02d}:{draw.randrange(60):02d}" for _ in range(597)]
+    assert _clock_or_durations(clocks + ["25:10"] * 3) == "clock"
+    assert _clock_or_durations(clocks) == "clock"
+    # The durations column is rule 9t's template, and the two-numbers
+    # question it is put holds (rule I), as it holds `48:15` today.
+    assert _a_template(under + ["48:15"] * 11)
+    assert asking.why_joined_is_worth_asking(under + ["48:15"] * 11) == asking.BECAUSE_JOINED
+
+
+def test_two_missing_codes_said_alike_are_told_apart_by_place() -> None:
+    """Codex's item 7: `-77` and `-88` on 50 rows each are said alike; their place names them, and binds them."""
+    cells = [str(value) for value in range(1, 6) for _ in range(100)] + ["-77"] * 50 + ["-88"] * 50
+    asked = _asked_missing(cells)
+    assert asked == ["-77", "-88"]
+    said = {value: (asking._code_written(value), cells.count(value)) for value in asked}
+    assert said["-77"] == said["-88"]
+    alike = sorted(asked, key=float)
+    keys = {value: (said[value][0], alike.index(value) + 1, len(alike)) for value in asked}
+    assert keys["-88"] != keys["-77"] and keys["-88"][1] == 1
+    # A later round where one of them is gone: the place shifts, the count
+    # with it, and no answer binds to another value.
+    later = [cell for cell in cells if cell != "-88"]
+    assert _asked_missing(later) == ["-77"]
+    assert (said["-77"][0], 1, 1) not in keys.values()
