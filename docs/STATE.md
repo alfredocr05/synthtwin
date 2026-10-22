@@ -577,7 +577,8 @@ cannot get worse unseen.
   where up to 40 were (`K-S3-64`). Still so: a list whose values no route
   reaches (names, ICD codes with points) or split by another mark (`+`,
   `^`, `~`), and a held `;` or `|` list written in the twin without its
-  mark (5 of 600 cells keep one), lane LISTS'; codes `101` to `106` in
+  mark (11 of 600 twin cells keep one where 398
+  real cells hold one), lane LISTS'; codes `101` to `106` in
   lists are held at 600 rows by the person question alone and published
   as categories at 20,000, as before; a made-up record number equal to a
   real one by chance in any room (2 to 7 twin cells at 20,000 rows on the
