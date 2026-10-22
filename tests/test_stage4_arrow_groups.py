@@ -29,9 +29,15 @@ the reading in groups by the standard reader alone:
    group's columns alone (the include list), parsing on one thread
    (use_threads=False), every value as
    text; what is held afterwards: the group's columns as text and
-   nothing of pyarrow's (its pool back where it was).
+   nothing of pyarrow's (its pool back where it was); a group whose
+   values pyarrow would hold more of than `ARROW_GROUP_BYTES` (one note
+   on every row, which the standard reader holds once) is not asked of
+   it at all.
 4. A file that changes between two readings is refused on pyarrow's
-   route as on the standard reader's, however small the change.
+   route as on the standard reader's, however small the change and
+   wherever it is -- a name, a column not asked, the quotes moved, the
+   size and the moment kept -- and so is a file removed, renamed or
+   closed to the person before a group is read again.
 """
 
 from __future__ import annotations
@@ -51,6 +57,11 @@ import pytest
 
 from synthtwin import errors, reading
 from test_stage4_describe_groups import _ALPHABET, _SHAPES, _as_read, _profiled, _table_of_every_question
+
+
+# Each pool a test hands pyarrow's reader, kept for the life of the
+# process: a pool freed while a buffer it allocated lives crashes it.
+_KEPT_POOLS: "list[object]" = []
 
 
 def _no_arrow(
@@ -278,6 +289,28 @@ def test_a_report_export_with_empty_lines_under_its_title_is_read_again_by_pyarr
     assert proven == 5, proven
 
 
+@pytest.mark.parametrize(
+    "shape",
+    ["an empty line at the end", "an empty line at the end, CRLF", "an empty line among the records"],
+)
+def test_an_empty_line_the_standard_reader_passes_is_one_pyarrow_passes(
+    shape: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty line after or among the records, as an export often ends: every column read again is handed over (the verify of lane SR-A's repair 1, item 1: read as a record, every column would go back to the standard reader)."""
+    ending = "\r\n" if "CRLF" in shape else "\n"
+    lines = ["id,name,val,when"] + [f"{k},n{k % 7},{k * 3},2024-01-{k % 28 + 1:02d}" for k in range(40)]
+    if shape == "an empty line among the records":
+        lines = lines[:21] + [""] + lines[21:]
+    path = tmp_path / "ending.csv"
+    path.write_bytes((ending.join(lines) + ending + ("" if shape == "an empty line among the records" else ending)).encode("utf-8"))
+    whole, standard, arrow, proven = _three_readings(path, reading.FIRST_ROW_AUTOMATIC, monkeypatch)
+    assert whole[0] == "read", whole
+    assert whole == standard == arrow
+    # Four columns, one a group: the first is held as the reading ends,
+    # the other three read again by pyarrow, every one handed over.
+    assert proven == 3, (shape, proven)
+
+
 @pytest.mark.parametrize("otherwise", ["a line break inside a quoted name", "another record count"])
 def test_a_file_pyarrow_reads_otherwise_as_a_whole_is_asked_of_it_once(
     otherwise: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
@@ -453,6 +486,52 @@ def test_a_group_read_through_pyarrow_holds_the_group_and_nothing_of_pyarrow(
     assert pool.bytes_allocated() <= allocated, (pool.bytes_allocated(), allocated)
 
 
+def test_a_group_pyarrow_would_hold_too_much_of_is_read_by_the_standard_reader(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One note of 4,096 characters on every row: the standard reader holds it once, pyarrow would hold every row's copy, so that group is not asked of pyarrow and nothing pyarrow allocates while reading the others comes near it (Codex's review of lane SR-A, item 2)."""
+    rows = 3_000
+    note = "".join(chr(ord("a") + k % 26) for k in range(4_096))
+    table = tmp_path / "notes.csv"
+    table.write_text(
+        "id,note,ward\n" + "".join(f"{k},{note},w{k % 9}\n" for k in range(rows)),
+        encoding="utf-8", newline="\n",
+    )
+    whole = reading.read_table(str(table))
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1)
+    monkeypatch.setattr(reading, "ARROW_GROUP_BYTES", 1 << 20)
+    read = reading.read_table(str(table), in_groups=True)
+    assert read.source is not None and all(proof.digest >= 0 for proof in read.source.proofs)
+    # What pyarrow would hold of the note: every row's 4,096 bytes and its offset.
+    assert read.source.proofs[1].text_bytes == rows * (4_096 + 4)
+    asked: "list[tuple[tuple[object, ...], int]]" = []
+    real = pyarrow.csv.read_csv
+
+    def watched(path: object, **settings: object) -> object:
+        pool = pyarrow.proxy_memory_pool(pyarrow.default_memory_pool())
+        _KEPT_POOLS.append(pool)
+        found = real(path, memory_pool=pool, **settings)  # type: ignore[arg-type]
+        asked.append((tuple(settings["convert_options"].include_columns), pool.max_memory()))  # type: ignore[attr-defined]
+        return found
+
+    monkeypatch.setattr(reading.pyarrow.csv, "read_csv", watched)
+    assert [reading.column_values(read, place) for place in (2, 1, 0)] == [whole.columns[2], whole.columns[1], whole.columns[0]]
+    assert [included for included, _most in asked] == [(f"{reading._ARROW_NAMES}2",), (f"{reading._ARROW_NAMES}0",)], asked
+    # The note's copies alone are 12.3 MB; what pyarrow held at its most
+    # reading the ward or the id is a small part of that.
+    assert all(most < 4 << 20 for _included, most in asked), asked
+    # The note is held once, as the standard reader holds a text met again.
+    notes = reading.column_values(read, 1)
+    assert len({id(value) for value in notes}) == 1
+
+
+def test_what_pyarrow_holds_of_a_value_is_its_utf8_bytes_and_an_offset() -> None:
+    """The bytes counted against `ARROW_GROUP_BYTES`, a value of any script: what pyarrow's string array holds of it."""
+    for value in ["", "abc", "\u00e9t\u00e9", "\u65e5\u672c", "\U0001f600x", "a\u07ff\u0800\uffff\U00010000"]:
+        assert reading._arrow_text_bytes(value) == len(value.encode("utf-8")) + 4, value
+
+
 def test_a_text_met_again_is_held_once_through_pyarrow_as_through_the_standard_reader(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -513,6 +592,118 @@ def test_a_file_that_changes_between_readings_is_refused_on_pyarrows_route(
         reading.column_values(read, 2)
     assert f"{refused.value}" == errors.file_changed_while_read(str(table))
     assert (2,) in taken or change in ("the moment it changed", "a row more")
+
+
+@pytest.mark.parametrize("change", ["the moment it changed", "a byte more"])
+def test_a_file_whose_size_or_moment_moved_is_refused_before_pyarrow_reads_it(
+    change: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The size and the moment are asked before pyarrow opens the file: a file that moved is refused unread by it."""
+    table = tmp_path / "t.csv"
+    table.write_text("a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(60)), encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=True)
+    asked: "list[object]" = []
+    real = pyarrow.csv.read_csv
+
+    def watched(path: object, **settings: object) -> object:
+        asked.append(path)
+        return real(path, **settings)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading.pyarrow.csv, "read_csv", watched)
+    assert reading.column_values(read, 1)[5] == "10"
+    assert len(asked) == 1
+    seen = table.stat()
+    if change == "a byte more":
+        with table.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write("\n")
+        os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns))
+    else:
+        os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns + 1_000_000_000))
+    with pytest.raises(errors.ProfileError) as refused:
+        reading.column_values(read, 2)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+    assert len(asked) == 1, asked
+
+
+@pytest.mark.parametrize("change", ["a name", "a value of a column not asked", "the quotes moved"])
+def test_a_change_outside_the_group_is_refused_on_pyarrows_route(
+    change: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The size and the moment kept, the group's own values unchanged: pyarrow reads the survey's values, and the whole file read a line at a time is not the one first read (Codex's review of lane SR-A, item 1)."""
+    table = tmp_path / "t.csv"
+    text = "age,b,c\n" + "".join(
+        (f'"{k}",{k * 2},x{k}\n' if k == 7 else f"{k},{k * 2},x{k}\n") for k in range(60)
+    )
+    table.write_text(text, encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=True)
+    assert read.source is not None and all(proof.digest >= 0 for proof in read.source.proofs)
+    handed: "list[bool]" = []
+    real = reading._arrow_columns
+
+    def compared(*arguments: object) -> object:
+        found = real(*arguments)  # type: ignore[arg-type]
+        assert found is not None and read.source is not None
+        handed.append(found[1] == [read.source.proofs[place].digest for place in arguments[3]])  # type: ignore[attr-defined]
+        return found
+
+    monkeypatch.setattr(reading, "_arrow_columns", compared)
+    assert reading.column_values(read, 1)[5] == "10"
+    seen = table.stat()
+    if change == "a name":
+        changed = text.replace("age,b,c\n", "sex,b,c\n")
+    elif change == "a value of a column not asked":
+        changed = text.replace("\n9,18,x9\n", "\n8,18,x9\n")
+    else:
+        changed = text.replace('"7",14,x7\n', '7,"14",x7\n')
+    assert changed != text and len(changed) == len(text)
+    table.write_text(changed, encoding="utf-8", newline="\n")
+    os.utime(table, ns=(seen.st_atime_ns, seen.st_mtime_ns))
+    assert table.stat().st_size == seen.st_size
+    with pytest.raises(errors.ProfileError) as refused:
+        reading.column_values(read, 2)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+    # pyarrow read column c as the survey did: the line walk refused it.
+    assert handed == [True, True], handed
+
+
+@pytest.mark.parametrize("gone", ["removed", "renamed", "no longer open to this person"])
+def test_a_file_gone_before_a_group_is_read_again_is_refused_on_pyarrows_route(
+    gone: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The file removed, renamed or closed to this person after the reading: the changed-file refusal, never a traceback (Codex's review of lane SR-A, item 3)."""
+    if gone == "no longer open to this person" and (os.name == "nt" or os.geteuid() == 0):
+        pytest.skip("a folder's permissions close nothing on Windows or to the superuser")
+    folder = tmp_path / "in"
+    folder.mkdir()
+    table = folder / "t.csv"
+    table.write_text("a,b,c\n" + "".join(f"{k},{k * 2},x{k}\n" for k in range(60)), encoding="utf-8", newline="\n")
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    read = reading.read_table(str(table), in_groups=True)
+    assert read.source is not None and all(proof.digest >= 0 for proof in read.source.proofs)
+    taken: "list[tuple[int, ...]]" = []
+    route = reading._arrow_group
+
+    def counted(source: reading.ColumnSource, places: "tuple[int, ...]") -> "list[list[str]] | None":
+        taken.append(places)
+        return route(source, places)
+
+    monkeypatch.setattr(reading, "_arrow_group", counted)
+    assert reading.column_values(read, 1)[5] == "10"
+    if gone == "removed":
+        table.unlink()
+    elif gone == "renamed":
+        table.rename(folder / "moved.csv")
+    else:
+        folder.chmod(0)
+    try:
+        with pytest.raises(errors.ProfileError) as refused:
+            reading.column_values(read, 2)
+    finally:
+        folder.chmod(0o755)
+    assert f"{refused.value}" == errors.file_changed_while_read(str(table))
+    assert taken == [(1,), (2,)], taken
 
 
 def test_the_whole_route_is_unchanged_where_the_file_fits_one_group(tmp_path: pathlib.Path) -> None:
