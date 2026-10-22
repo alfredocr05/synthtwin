@@ -6,6 +6,30 @@ exists).
 
 ## [Unreleased]
 
+### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21)
+
+**Describing a column whose values never repeat holds about half what it
+did, and a column of 60-word notes under 200 bytes a row** (plan
+P4-D423, answering P4-D400's stated limits (a) and (b)). A cell's record
+holds three slots and reads its exact number, its spelling for the
+number rules and its folded label off them when asked; exact numbers,
+the mode, a column's different spellings, the tails' runs, a date
+reading's texts, its day numbers and the order of its moments are
+counted off sorted values or the tally's own counts instead of a map, a
+set or an object a row; the width censuses keep three lists instead of a
+triple a cell. Traced bytes a row above the column, past the memos'
+bound as at 2,000,000 rows: record numbers written `V` and nine figures
+807 to 402, eight figures 502 to 169, stamps 571 to 414, notes 290 to
+130.5. The number reader answers a text holding a character no number
+is written with at once, and a cell is split on a separator by the
+text's own split: a 60-word note column is described 2.4 times faster
+(1,258 to 525 microseconds a note). Every description, summary and twin
+is the same bytes: lane SR's 880-description battery read whole and one
+column a group, the health data zoo, and the lane's own shapes against
+4682d6ad's digests. The goal of 100 bytes a row for record numbers and
+stamps is not met (stated limit 1 of P4-D423); the 2,000,000-row
+points are the orchestrator's night window (`wave6/H3/night-h3.sh`).
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans
