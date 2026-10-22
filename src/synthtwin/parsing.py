@@ -3680,6 +3680,36 @@ def written_with_a_decimal_comma(text: str) -> str:
     return out
 
 
+# EVERY CHARACTER A NUMBER THIS READER ACCEPTS CAN BE WRITTEN WITH, but
+# the spaces `str.strip` trims (lane H3, plan P4-D423): the figures, the
+# point, the signs and the minus sign, the exponent's letters, the
+# accounting brackets and the marks between thousands. Every reading
+# below ends in `_plain_number_shape`, which takes figures, points,
+# signs and exponents alone, after taking off the spaces at the ends,
+# the brackets, the minus sign written first and the group marks; so a
+# text holding any other character is no number of any kind, and is
+# answered so without the reading, which walked a 60-word note a
+# character at a time several times over.
+_NUMBER_ALPHABET = frozenset("0123456789.+-eE()" + MINUS_SIGN) | frozenset(GROUP_MARKS)
+
+
+def _outside_number_alphabet(body: str) -> bool:
+    """Whether `body` holds a character no accepted number can be written with.
+
+    Guarantees: True only where `classify_number` answers NOT_A_NUMBER,
+    `parse_number` None and `number_out_of_range` False for the same
+    text; a space of any kind (what `trimmed` takes off) is never
+    counted against it. Raises TypeError if handed anything that is not
+    a string instance. No I/O of any kind.
+    """
+    if not isinstance(body, str):
+        raise TypeError(_NOT_TEXT)
+    for character in set(body) - _NUMBER_ALPHABET:
+        if trimmed(character) != "":
+            return True
+    return False
+
+
 def parse_number(text: str) -> "float | None":
     """Read ``text`` as a number, or return None if it is not one.
 
@@ -3700,6 +3730,8 @@ def parse_number(text: str) -> "float | None":
         raise TypeError(_NOT_TEXT)
     body = text.strip()
     if not body:
+        return None
+    if _outside_number_alphabet(body):
         return None
     negative_parentheses = False
     if body[0] == "(" and body[len(body) - 1] == ")":
@@ -3980,6 +4012,8 @@ def classify_number(text: str) -> str:
     body = text.strip()
     if not body:
         return NOT_A_NUMBER
+    if _outside_number_alphabet(body):
+        return NOT_A_NUMBER
     if body[0] == "(" and body[len(body) - 1] == ")":
         inner = _minus_written_first(trimmed(body[1 : len(body) - 1]))
         if inner and (inner[0] == "+" or inner[0] == "-"):
@@ -4011,6 +4045,8 @@ def number_out_of_range(text: str) -> bool:
         raise TypeError(_NOT_TEXT)
     body = text.strip()
     if not body:
+        return False
+    if _outside_number_alphabet(body):
         return False
     if body[0] == "(" and body[len(body) - 1] == ")":
         body = _minus_written_first(trimmed(body[1 : len(body) - 1]))

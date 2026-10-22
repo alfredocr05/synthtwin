@@ -6872,6 +6872,10 @@ _CELL_SIGNS = (
 )
 _CELL_WHOLES = (parsing.WHOLE_YES, parsing.WHOLE_NO, parsing.WHOLE_UNKNOWN)
 _CELL_TRUTHS = (False, True)
+# Each answer's place in its own list, for `_cell_facts`.
+_CELL_KIND_PLACES = {kind: place for place, kind in enumerate(_CELL_KINDS)}
+_CELL_SIGN_PLACES = {sign: place for place, sign in enumerate(_CELL_SIGNS)}
+_CELL_WHOLE_PLACES = {whole: place for place, whole in enumerate(_CELL_WHOLES)}
 # EVERY ANSWER A RECORD CAN GIVE, made once when the module loads and
 # never changed: 4 x 4 x 3 x 2 x 2 x 2 entries, each found by its place
 # (`_cell_facts`). A table of constants, not a memory of what was read.
@@ -6892,12 +6896,12 @@ def _cell_facts(
     """The one shared entry of `_CELL_FACTS` holding these six answers.
 
     Guarantees: a function of the six; the entry equals the tuple of
-    them. Raises ValueError on a kind, sign or whole-number answer the
+    them. Raises KeyError on a kind, sign or whole-number answer the
     classification never gives. No I/O of any kind.
     """
-    place = _CELL_KINDS.index(kind)
-    place = place * len(_CELL_SIGNS) + _CELL_SIGNS.index(sign)
-    place = place * len(_CELL_WHOLES) + _CELL_WHOLES.index(whole)
+    place = _CELL_KIND_PLACES[kind]
+    place = place * len(_CELL_SIGNS) + _CELL_SIGN_PLACES[sign]
+    place = place * len(_CELL_WHOLES) + _CELL_WHOLE_PLACES[whole]
     place = place * 2 + (1 if digits else 0)
     place = place * 2 + (1 if code else 0)
     place = place * 2 + (1 if comma else 0)
@@ -7333,7 +7337,8 @@ def _tally(
     # moment on a column whose values never repeat: about 105 bytes a row
     # while it grew, beside everything the tally holds.
     raw_distinct = len(folded_counts)
-    for held_spellings in mixed_spellings.values():
+    for mixed_label in mixed_spellings:
+        held_spellings = mixed_spellings[mixed_label]
         if not isinstance(held_spellings, str):
             raw_distinct = raw_distinct + len(held_spellings) - 1
     return _Cells(
@@ -13515,19 +13520,19 @@ def _exact_census(
     numbers, so of the multiset of their spellings. Raises nothing. No
     I/O of any kind.
     """
-    ordered: "list[float]" = []
+    ordered: "list[float]" = sorted(
+        cell.value
+        for cell in records
+        if cell.facts[0] == parsing.NUMBER and cell.value is not None
+    )
     unvalued: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    for cell in records:
-        if cell.facts[0] != parsing.NUMBER:
-            continue
-        value = cell.value
-        if value is None:
+    if len(ordered) < len(records):
+        for cell in records:
+            if cell.facts[0] != parsing.NUMBER or cell.value is not None:
+                continue
             exact = cell.exact
             if exact is not None:
                 unvalued[exact] = unvalued[exact] + 1 if exact in unvalued else 1
-            continue
-        ordered += [value]
-    ordered.sort()
     shared: "dict[float, dict[tuple[int, tuple[str, ...], int], int]]" = {}
     for place in range(1, len(ordered)):
         if ordered[place] == ordered[place - 1]:
@@ -13625,17 +13630,19 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
         if ordered[place] not in shared:
             most = 1
             break
-    for by_exact in shared.values():
-        for held in by_exact.values():
-            if held > most:
-                most = held
+    for shared_value in shared:
+        by_exact = shared[shared_value]
+        for exact_held in by_exact:
+            if by_exact[exact_held] > most:
+                most = by_exact[exact_held]
     # THE SMALLEST VALUE ANY NUMBER HELD `most` TIMES HOLDS, read up the
     # sorted values.
     least: "float | None" = None
     for place in range(len(ordered)):
         value = ordered[place]
         if value in shared:
-            if most in shared[value].values():
+            by_exact = shared[value]
+            if any(by_exact[exact_held] == most for exact_held in by_exact):
                 least = value
                 break
         elif most == 1:
@@ -22438,25 +22445,16 @@ def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
     """
     if not isinstance(text, str):
         raise TypeError("a cell must be text")
+    if not isinstance(separator, str):
+        raise TypeError("a separator must be text")
     if not separator:
         return None
-    parts: "list[str]" = []
-    current = ""
-    at = 0
-    while at < len(text):
-        matched = True
-        for step in range(len(separator)):
-            if at + step >= len(text) or text[at + step] != separator[step]:
-                matched = False
-                break
-        if matched:
-            parts += [current]
-            current = ""
-            at = at + len(separator)
-            continue
-        current = current + text[at]
-        at = at + 1
-    parts += [current]
+    # THE PARTS BETWEEN THE SEPARATOR'S OCCURRENCES, read left to right
+    # and never overlapping, which is what `str.split` cuts (lane H3, plan
+    # P4-D423): the walk this replaces built each part a character at a
+    # time, a new text a character, about a quarter of a millisecond a
+    # 60-word note for each of three separators.
+    parts = text.split(separator)
     if len(parts) < 2:
         return None
     for part in parts:
