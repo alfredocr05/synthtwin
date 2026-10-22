@@ -33,7 +33,6 @@ the reviewer can read exactly which sentences moved.
 SEALED: "dict[str, tuple[str, ...]]" = {
     "docs/STATE.md": (
         "01f6c7a5b7764a25",
-        "02e905c0144aa145",
         "04b371240fcd7be0",
         "074cac5da34ba50f",
         "07c45df103722d24",
@@ -82,6 +81,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "d48464d26d1e3e5a",
         "d8adb997d5a4b07d",
         "da66183ed43e8a72",
+        "db621e7ce6632fdb",
         "ddbd763efd7143fa",
         "e228e11be7143d66",
         "e3b795e98b3e3bd3",

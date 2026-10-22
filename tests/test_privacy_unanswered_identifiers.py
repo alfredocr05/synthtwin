@@ -1012,15 +1012,43 @@ def _first_mark_only(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(asking, "_listed_on", first_only)
 
 
-def test_mutant_only_the_first_mark_judged_publishes_mixed_lists(
+def test_mutant_6c566d3cs_rule_publishes_mixed_lists(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Skeptic 1's item 1: marks drawn from `;`, `,` and `|` published 40 of 40 at 20,000 rows."""
+    """Skeptic 1's item 1: marks drawn from `;`, `,` and `|` published 40 of 40 at 20,000 rows.
+
+    The mutant is 6c566d3c's rule whole: only the first mark judged, every
+    value wide. Either repair alone holds this shape (the share of the
+    addendum reads its other marks' cells as the third that is no key), so
+    each is pinned apart too: the first mark alone below, every value
+    wide by Codex's case of the addendum.
+    """
     _first_mark_only(monkeypatch)
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 10**9)
     seen = shapes.run(tmp_path, "reglistmix6", 20000)
     assert seen["description_values"] > 0 and seen["twin_cells"] > 0
     with pytest.raises(AssertionError):
         _check_list_held(seen, 20000, "reglistmix6")
+
+
+def _mostly_on_commas() -> "list[str]":
+    """Six-figure lists, one cell in ten on `;` and the rest on `,`."""
+    draw = random.Random(13)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    return [(";" if place % 10 == 0 else ",").join(draw.sample(six, draw.randint(1, 3)))
+            for place in range(_ROWS)]
+
+
+def test_a_list_mostly_on_a_later_mark_is_judged_on_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every mark is judged: on `;` most values are `185380,928534` and no key; on `,` they are keys.
+
+    The mutant judges the first mark that makes a list alone (6c566d3c),
+    and the column is not reached.
+    """
+    cells = _mostly_on_commas()
+    assert asking._listed_record_numbers(cells, "long_tail_labels") == (",", "wide")
+    _first_mark_only(monkeypatch)
+    assert asking._listed_record_numbers(cells, "long_tail_labels") == ("", "")
 
 
 def _codex_grouped_lines() -> "list[str]":
