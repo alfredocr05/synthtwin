@@ -11022,10 +11022,22 @@ def _level_details(
 
 def _text_details(cells: _Cells) -> dict[str, object]:
     """Length and word-count statistics for a column of free text."""
-    lengths = [float(length) for length in _lengths(cells.present)]
-    words = [
-        float(parsing.token_count(value)) for value in cells.present
-    ]
+    # ONE NUMBER A LENGTH, NOT A ROW (lane H3, plan P4-D423): a length
+    # or a count of words is one of few values, and a list of a new
+    # number a row held about 32 bytes a row each, about 64 on a column
+    # of notes that never repeat. The lists are equal to the ones before.
+    first: "dict[int, float]" = {}
+    lengths: "list[float]" = []
+    words: "list[float]" = []
+    for value in cells.present:
+        length = len(value)
+        if length not in first:
+            first[length] = float(length)
+        lengths += [first[length]]
+        count = parsing.token_count(value)
+        if count not in first:
+            first[count] = float(count)
+        words += [first[count]]
     return {
         "length": {
             "min": int(min(lengths)),
@@ -11054,9 +11066,7 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         # and exactly what it does and does not disclose; it is the same
         # field, built by the same function, as the one a declared
         # record-number column has carried since review item P1-R8-F4.
-        "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-            cells.present
-        ),
+        "n_distinct_by_occurrences": _spellings_by_occurrences(cells),
     }
 
 
@@ -21800,6 +21810,9 @@ def _moments_by_text(
     texts = sorted(canonical for canonical, _offset in pairs)
     previous = -1
     for place in range(len(texts)):
+        # Equal texts stand together once sorted, and hold one instant.
+        if place > 0 and texts[place] == texts[place - 1]:
+            continue
         instant = parsing.instant_key(texts[place], "")
         if instant is None:
             return None
@@ -25076,9 +25089,7 @@ def _decide(
                     # column publishes no value either, so its shape of
                     # repetition is otherwise unrecorded, and two columns
                     # with different ones would be one description.
-                    "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-                        cells.present
-                    ),
+                    "n_distinct_by_occurrences": _spellings_by_occurrences(cells),
                 },
                 notes=notes,
                 remarks=remarks,
@@ -26270,6 +26281,32 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
     return _multiplicity_map([counts[value] for value in sorted(counts)])
 
 
+def _spellings_by_occurrences(cells: _Cells) -> dict[str, int]:
+    """`_n_distinct_by_occurrences(cells.present)`, read off the tally's maps.
+
+    EVERY SPELLING'S ROWS ARE COUNTED ALREADY (lane H3, plan P4-D423): a
+    label the tally holds as written one way was written in that one
+    spelling on all its rows, and a label it holds as a map of spellings
+    counts each. The map of every spelling this replaces held about 40
+    bytes a row while it was built, and its sorted keys and counts 16
+    more, on a column of notes that never repeat. The sizes are the same
+    multiset, and `_multiplicity_map` counts them in no order.
+
+    Guarantees: equal to `_n_distinct_by_occurrences(cells.present)` on
+    a tally made by `_tally`. Raises nothing. No I/O of any kind.
+    """
+    sizes: "list[int]" = []
+    mixed = cells.spellings_by_folded
+    for label in cells.folded_counts:
+        held = mixed[label] if label in mixed else label
+        if isinstance(held, str):
+            sizes += [cells.folded_counts[label]]
+        else:
+            for spelling in held:
+                sizes += [held[spelling]]
+    return _multiplicity_map(sizes)
+
+
 def _multiplicity_map(sizes: list[int]) -> dict[str, int]:
     """How many of these groups have one member, two members, and so on.
 
@@ -26389,9 +26426,7 @@ def _identifier_verdict(
             # that repeat, and the one this block did not carry (review
             # item P1-R8-F4). Its key form and what it discloses are in
             # `_n_distinct_by_occurrences`.
-            "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-                cells.present
-            ),
+            "n_distinct_by_occurrences": _spellings_by_occurrences(cells),
         },
         notes=notes,
         remarks=remarks,
