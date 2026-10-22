@@ -195,7 +195,7 @@
     1
    ]
   },
-  "temporal_ladders": {
+  "temporal_ladder": {
    "datetime": {
     "column": "visit_date",
     "l0": [
@@ -452,7 +452,7 @@
     ]
    }
   },
-  "temporal_ladders_mutant_number_cuts": {
+  "temporal_ladder_mutant_number_cuts": {
    "datetime": {
     "column": "visit_date",
     "l0": [

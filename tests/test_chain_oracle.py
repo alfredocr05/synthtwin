@@ -223,7 +223,7 @@ def test_a_date_and_a_clock_are_cut_at_their_nine_interior_rungs():
     the number columns' cuts (the first build's), which read p10 to p90
     alone: the date's totals 200, 300, 500, 500, 300, 201 and the clock's
     60, 100, 150, 250, 250, 150, 100."""
-    case = FROZEN["chain"]["temporal_ladders"]
+    case = FROZEN["chain"]["temporal_ladder"]
     date, clock = case["datetime"], case["time_of_day"]
     assert date["totals"] == [20, 80, 100, 300, 500, 500, 300, 100, 80, 21]
     assert date["l1"] == [[0, 1, 2, 3], [4], [5], [6], [7, 8, 9]]
@@ -236,7 +236,7 @@ def test_a_date_and_a_clock_are_cut_at_their_nine_interior_rungs():
     assert clock["l2"] == [[0], [1, 2, 3, 4], [5, 6, 7, 8]] and clock["taken_in"] == [1, 8]
     cells, rungs = oc.date_ladder_cells()
     assert co.ladder_of("visit_date", "datetime", cells, rungs=rungs).totals == date["totals"]
-    mutant = FROZEN["chain"]["temporal_ladders_mutant_number_cuts"]
+    mutant = FROZEN["chain"]["temporal_ladder_mutant_number_cuts"]
     assert mutant["datetime"]["totals"] == [200, 300, 500, 500, 300, 201]
     assert mutant["time_of_day"]["totals"] == [60, 100, 150, 250, 250, 150, 100]
     assert co.ladder_of("visit_date", "count", cells, rungs=rungs).totals == mutant["datetime"]["totals"]

@@ -119,8 +119,8 @@ def clock_ladder_cells():
     return cells, rungs
 
 
-def case_temporal_ladders(role_as_number=False):
-    """A date's and a clock's ladders (contract 4.6b.2: `L0` cut at their nine interior
+def case_temporal_ladder(role_as_number=False):
+    """A date's ladder and a clock's (contract 4.6b.2: `L0` cut at their nine interior
     rungs); MUTANT: each read as a number column, cut at the deciles with `p25` and `p75`."""
     out = {}
     for name, role, (cells, rungs) in (("visit_date", "datetime", date_ladder_cells()),
@@ -1017,8 +1017,8 @@ def chain_cases():
     return {
         "stated_exponential": case_stated_exponential(),
         "ladder_merge": case_ladder_merge(),
-        "temporal_ladders": case_temporal_ladders(),
-        "temporal_ladders_mutant_number_cuts": case_temporal_ladders(role_as_number=True),
+        "temporal_ladder": case_temporal_ladder(),
+        "temporal_ladder_mutant_number_cuts": case_temporal_ladder(role_as_number=True),
         "floor36": case_floor36(),
         "floor36_mutant_literal_11": case_floor36(11),
         "p2": case_p2(),
