@@ -63374,7 +63374,9 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                 )
             ]
         drawn = drawn + len(places)
-        order = _arrangement(places, profile.n_rows)
+        order = _row_placement(
+            step, profile, content, _arrangement(places, profile.n_rows), finished
+        )
         places = []
         written = [content[order[place]] for place in range(profile.n_rows)]
         content = []
@@ -63647,6 +63649,38 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         form=profile.source.dialect,
         held_columns=tuple(finished),
     )
+
+
+def _row_placement(
+    step: int,
+    profile: contract.Profile,
+    content: "list[str]",
+    drawn: "list[int]",
+    finished: "list[twinstore.HeldColumn]",
+) -> "list[int]":
+    """THE PLACEMENT HOOK (plan P4-D415, lane SG): which of a column's cells
+    stands on each row -- ``order[row]`` is the place in ``content`` of the
+    cell row ``row`` holds.
+
+    Called once a column, in column order, between the column's own
+    values (``content``: its present cells as built, then its absent
+    ones) and everything that measures or holds it; ``drawn`` is the
+    arrangement its placement words drew (method G3.4c) and ``finished``
+    the columns already done, held (`twinstore`), each readable a block
+    at a time and never needed whole. Today it hands back the drawn
+    arrangement and reads nothing else, which is every twin's bytes. It
+    is the one seam where a generator of relations between columns (lane
+    CHb of the December plan; the between-columns chain of plan P4-D407)
+    puts a column's cells in rows by what the earlier columns hold: it
+    may hand back any arrangement of ``0 .. n_rows - 1``, reads the
+    earlier columns only through `twinstore`, and draws no word of its
+    own, so the one random stream stays as method G3 writes it.
+
+    Guarantees: returns a list of ``profile.n_rows`` places, each once.
+    Raises nothing. No I/O of any kind.
+    """
+    del step, content, finished
+    return drawn
 
 
 def materialised(twin: Twin) -> Twin:

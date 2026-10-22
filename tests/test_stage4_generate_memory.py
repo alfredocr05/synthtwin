@@ -612,3 +612,52 @@ def test_a_recount_is_the_count_it_replaces() -> None:
         len({parsing.folded(cell) for cell in present}),
     )
     assert generation._recounted(cells, holes) == expected
+
+
+# -- 6. the one placement hook ---------------------------------------------
+
+
+def test_the_placement_hook_is_asked_once_a_column_and_moves_nothing(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`_row_placement` is asked once a column, in column order, with a drawn arrangement, and hands it back."""
+    description = cases.described(tmp_path, "wide.csv", cases.wide_table(400, 8))
+    before = cases.after_bytes(description, SEED)
+    asked: "list[tuple[int, int, int]]" = []
+    shipped = generation._row_placement
+
+    def watched(
+        step: int,
+        profile: contract.Profile,
+        content: "list[str]",
+        drawn: "list[int]",
+        finished: "list[twinstore.HeldColumn]",
+    ) -> "list[int]":
+        assert sorted(drawn) == list(range(profile.n_rows))
+        asked[len(asked):] = [(step, len(finished), len(content))]
+        placed = shipped(step, profile, content, drawn, finished)
+        assert placed is drawn
+        return placed
+
+    monkeypatch.setattr(generation, "_row_placement", watched)
+    after = cases.after_bytes(description, SEED)
+    assert after == before
+    loaded = _loaded(description)
+    assert [(step, done) for step, done, _size in asked] == [
+        (step, step) for step in range(len(loaded.columns))
+    ]
+    assert all(size == loaded.n_rows for _step, _done, size in asked)
+
+
+def test_an_arrangement_the_hook_hands_back_is_the_one_written(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTANT: a hook putting each column's cells in reverse moves the twin -- the hook is where rows are placed."""
+    description = cases.described(tmp_path, "wide.csv", cases.wide_table(400, 8))
+    before = cases.after_bytes(description, SEED)
+    monkeypatch.setattr(
+        generation,
+        "_row_placement",
+        lambda step, profile, content, drawn, finished: drawn[::-1],
+    )
+    assert cases.after_bytes(description, SEED) != before
