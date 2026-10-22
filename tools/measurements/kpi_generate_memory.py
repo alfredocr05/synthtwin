@@ -28,7 +28,16 @@ peak resident memory (`ru_maxrss`) and, with --trace, the most bytes
 of fifty columns -- a held twin of lane XW's seeded wide workbook, its
 records repeated in turn (`tests/workbook_stream_cases.stretched`'s
 rule) -- by `sheetwriting.workbook_stream` and
-`writing.write_workbook_file`, and prints its seconds and peak.
+`writing.write_workbook_file`, and prints its seconds, its peak and the
+shared strings the package holds. REPEATED, BUT AS DISTINCT AS A REAL
+TWIN (repair 1 of lane SG, the statistics skeptic's item 1): a column
+whose 300 cells are all but distinct (nine in ten or more) and written
+as text, which a real twin of ROWS rows writes as about ROWS different
+shared strings, gets the round of its repetition after each cell from
+the second round on, so its shared strings grow with the rows as the
+real twin's do (five such columns here: about 5.0 new shared strings a
+row, where the real twin of 10,000 rows makes 5.0); the other columns
+are repeated as they are.
 
 `--kpi` measures, each run in a process of its own, one at a time:
 
@@ -143,17 +152,42 @@ def run(description: str, out: pathlib.Path, trace: bool) -> "dict[str, object]"
 
 def workbook(n_rows: int) -> "dict[str, object]":
     """A held workbook twin of ``n_rows`` rows of fifty columns written; its seconds and memory."""
+    import xml.etree.ElementTree as tree
+    import zipfile
+
     import workbook_stream_cases as cases
     from synthtwin import generation, sheetwriting, twinstore, writing
+
+    def shared(path: pathlib.Path) -> "set[str]":
+        """The texts of a written package's shared-string table."""
+        with zipfile.ZipFile(path) as package:
+            root = tree.fromstring(package.read("xl/sharedStrings.xml"))
+        return {"".join(item.itertext()) for item in root}
 
     with tempfile.TemporaryDirectory() as folder:
         base = pathlib.Path(folder)
         described = cases.describe_book(base / "wide", "wide", cases.wide_book(300))
         small = generation.generate_held(described, 0)
+        writing.write_workbook_file(
+            base / "small.xlsx", sheetwriting.workbook_stream(described, small)
+        )
+        written_as_shared = shared(base / "small.xlsx")
         held: "list[twinstore.HeldColumn]" = []
+        widened: "list[str]" = []
         for index in range(generation.twin_width(small)):
             column = generation.twin_column(small, index)
-            held += [twinstore.held_column([column[row % small.n_rows] for row in range(n_rows)])]
+            texts = sum(1 for cell in column if cell and cell in written_as_shared)
+            distinct = len(set(column)) >= 0.9 * len(column) and texts >= 0.9 * len(column)
+            if distinct:
+                widened += [small.names[index]]
+            cells: "list[str]" = []
+            for row in range(n_rows):
+                cell = column[row % small.n_rows]
+                if distinct and row >= small.n_rows:
+                    cell = cell + f"{row // small.n_rows}"
+                cells += [cell]
+            held += [twinstore.held_column(cells)]
+            cells = []
         twin = generation.Twin(
             names=small.names,
             write_header=small.write_header,
@@ -175,9 +209,15 @@ def workbook(n_rows: int) -> "dict[str, object]":
         sheet = [size for name, size, _pieces in parts if name.startswith("xl/worksheets/")]
         writing.write_workbook_file(base / "twin.xlsx", parts)
         ended = time.perf_counter()
+        with zipfile.ZipFile(base / "twin.xlsx") as package:
+            with package.open("xl/sharedStrings.xml") as member:
+                opening = member.read(400).decode("utf-8", "replace")
+        unique = opening.split('uniqueCount="')[1].split('"')[0]
         return {
             "rows": n_rows,
             "columns": len(twin.names),
+            "columns_distinct_a_row": widened,
+            "shared_strings": int(unique),
             "sheet_bytes": sheet[0],
             "file_bytes": (base / "twin.xlsx").stat().st_size,
             "seconds_parts": round(prepared - began, 2),

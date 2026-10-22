@@ -590,7 +590,12 @@ def _wears_edge_space(text: str) -> bool:
 
 
 def _shared_strings_part(items: "list[str]") -> str:
-    """The shared-string table, preserving every space a cell's text has."""
+    """The shared-string table, preserving every space a cell's text has.
+
+    The package writes it in pieces (`_shared_strings_pieces`, plan
+    P4-D415); this one text is what those pieces join to, kept as their
+    reference and for lane XW's frozen writer (`tests/workbook_stream_cases.py`).
+    """
     text = _DECLARATION + (
         f'<sst xmlns="{_MAIN}" count="{len(items)}" '
         f'uniqueCount="{len(items)}">'
@@ -603,6 +608,47 @@ def _shared_strings_part(items: "list[str]") -> str:
         text = text + f"<si><t>{shown}</t></si>"
     text = text + "</sst>"
     return text
+
+
+# How many of the table's texts one piece of the streamed table holds
+# (`_shared_strings_pieces`): enough that a piece costs little beside
+# its texts, few enough that a piece is a few kilobytes.
+_SHARED_STRINGS_A_PIECE = 256
+
+
+def _shared_strings_pieces(items: "list[str]") -> "typing.Iterator[str]":
+    """`_shared_strings_part`'s text in pieces, never made whole (plan P4-D415).
+
+    THE TABLE IS WRITTEN AS A STREAM, as the sheet is (repair 1 of lane
+    SG, the statistics skeptic's item 1). A twin of 1,048,576 rows whose
+    columns write a different text on every row holds millions of
+    shared strings, and the table made as one text was held whole from
+    the moment the package was put together to the end of the write,
+    with a copy of it as bytes while its size was counted and another
+    while it was written: lane XW's wide book, five of its columns a
+    new text on every row as a real twin's are, grew by 119 MB from
+    100,000 to 200,000 rows with the table made whole and by 57 MB with
+    it streamed (Python 3.11, resident peak). The same elements
+    are made in the same order, `_SHARED_STRINGS_A_PIECE` texts a piece,
+    so the pieces joined are `_shared_strings_part`'s text, character
+    for character. Raises TypeError where an item is not text, as
+    `_shared_strings_part` does. No I/O of any kind.
+    """
+    yield _DECLARATION + (
+        f'<sst xmlns="{_MAIN}" count="{len(items)}" '
+        f'uniqueCount="{len(items)}">'
+    )
+    for start in range(0, len(items), _SHARED_STRINGS_A_PIECE):
+        piece = ""
+        for index in range(start, min(start + _SHARED_STRINGS_A_PIECE, len(items))):
+            item = items[index]
+            shown = _escaped(item)
+            if _wears_edge_space(item):
+                piece = piece + f'<si><t xml:space="preserve">{shown}</t></si>'
+                continue
+            piece = piece + f"<si><t>{shown}</t></si>"
+        yield piece
+    yield "</sst>"
 
 
 def _cell(reference: str, kind: str, value: str, style: int) -> str:
@@ -2095,11 +2141,21 @@ def _package(
         ),
         ("xl/_rels/workbook.xml.rels", _workbook_rels_part(len(sheet_names))),
         ("xl/styles.xml", _styles_part(tuple(codes))),
-        ("xl/sharedStrings.xml", _shared_strings_part(items)),
     ]
     members: "list[tuple[str, int, typing.Iterable[str]]]" = []
     for name, text in texts:
         members += [(name, _bytes_of((text,)), (text,))]
+    # The shared-string table in pieces, counted once and made again as
+    # the zip writer takes it (`_shared_strings_pieces`): every sheet's
+    # first pass has given its texts their places by now, and the second
+    # passes, written after it, add none (`_places_already_taken`).
+    members += [
+        (
+            "xl/sharedStrings.xml",
+            _bytes_of(_shared_strings_pieces(items)),
+            _shared_strings_pieces(items),
+        )
+    ]
     for part in parts:
         members += [part]
     if table:

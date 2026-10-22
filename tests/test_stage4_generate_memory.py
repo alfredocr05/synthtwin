@@ -69,7 +69,9 @@ from synthtwin import (
     errors,
     generation,
     rendering,
+    sheetwriting,
     twinstore,
+    writing,
 )
 
 SEED = 7
@@ -288,6 +290,121 @@ def test_a_held_workbook_twin_is_the_frozen_writers_file(tmp_path: pathlib.Path)
         )
         new = books.streamed_file(tmp_path / stem / "held.xlsx", described, held)
         assert books.package_differences(old, new) == [], stem
+
+
+# -- the workbook's shared strings written as a stream ----------------------
+#
+# Repair 1 (the statistics skeptic's item 1): a real twin writes a new
+# text on every row of a column of record numbers, so its shared-string
+# table grows with the rows; made as one text it was held from the
+# package's making to the end of the write, with a copy as bytes while
+# its size was counted. `_shared_strings_pieces` makes it a piece at a
+# time, the pieces joined being `_shared_strings_part`'s text.
+
+_SHARED_AWKWARD = [
+    "",
+    "plain",
+    " leading",
+    "trailing ",
+    "a & b < c > d",
+    'quote " and \' apostrophe',
+    "line\nbreak",
+    "Montréal",
+    "😀",
+]
+
+
+@pytest.mark.parametrize("count", [0, 1, 255, 256, 257, 700])
+def test_the_shared_strings_in_pieces_are_the_one_text(count: int) -> None:
+    """The streamed table joined is `_shared_strings_part`'s text, at every piece boundary."""
+    items = [_SHARED_AWKWARD[index % len(_SHARED_AWKWARD)] + f"{index}" for index in range(count)]
+    pieces = list(sheetwriting._shared_strings_pieces(items))
+    assert "".join(pieces) == sheetwriting._shared_strings_part(items)
+    a_piece = sheetwriting._SHARED_STRINGS_A_PIECE
+    assert len(pieces) == 2 + (count + a_piece - 1) // a_piece
+
+
+def _distinct_book(folder: pathlib.Path, n_rows: int) -> "tuple[contract.Profile, generation.Twin]":
+    """A held workbook twin of ``n_rows`` rows whose first column writes a new text on every row.
+
+    Lane XW's seeded wide book at two columns -- record numbers with
+    leading zeros, written as text, and a category -- described at 300
+    rows, its twin repeated in turn with the round of the repetition
+    after each record number, as `tools/measurements/kpi_generate_memory.py`
+    makes its stand-in as distinct as a real twin.
+    """
+    described = books.describe_book(folder, "codes", books.wide_book(300, 2))
+    small = generation.generate_held(described, 0)
+    held: "list[twinstore.HeldColumn]" = []
+    for index in range(generation.twin_width(small)):
+        column = generation.twin_column(small, index)
+        cells: "list[str]" = []
+        for row in range(n_rows):
+            cell = column[row % small.n_rows]
+            if index == 0 and row >= small.n_rows:
+                cell = cell + f"{row // small.n_rows}"
+            cells += [cell]
+        held += [twinstore.held_column(cells)]
+    twin = generation.Twin(
+        names=small.names,
+        write_header=small.write_header,
+        n_rows=n_rows,
+        columns=(),
+        rows=(),
+        outcomes=(),
+        deviations=(),
+        approximations=(),
+        remarks=(),
+        words_drawn=0,
+        seed=small.seed,
+        held_columns=tuple(held),
+    )
+    return described, twin
+
+
+def _traced_package_write(folder: pathlib.Path) -> "tuple[int, int]":
+    """(the most `tracemalloc` saw held above the write's start, the shared-string table's bytes)."""
+    described, twin = _distinct_book(folder, 60000)
+    parts = sheetwriting.workbook_stream(described, twin)
+    table = [size for name, size, _pieces in parts if name == "xl/sharedStrings.xml"]
+    gc.collect()
+    tracemalloc.start()
+    try:
+        began = tracemalloc.get_traced_memory()[0]
+        writing.write_workbook_file(folder / "twin.xlsx", parts)
+        peak = tracemalloc.get_traced_memory()[1] - began
+    finally:
+        tracemalloc.stop()
+    return peak, table[0]
+
+
+def test_the_shared_strings_are_written_a_piece_at_a_time(tmp_path: pathlib.Path) -> None:
+    """Writing the package holds less than half the shared-string table, never all of it."""
+    peak, table = _traced_package_write(tmp_path)
+    assert table > 1_000_000, table
+    assert peak < table // 2, (peak, table)
+
+
+def test_a_shared_string_table_made_whole_breaks_the_bound(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTANT: the table made as one text, as before, and written whole."""
+    monkeypatch.setattr(
+        sheetwriting,
+        "_shared_strings_pieces",
+        lambda items: iter([sheetwriting._shared_strings_part(items)]),
+    )
+    peak, table = _traced_package_write(tmp_path)
+    assert peak >= table // 2, (peak, table)
+
+
+def test_a_distinct_workbook_twin_is_the_frozen_writers_file(tmp_path: pathlib.Path) -> None:
+    """The streamed table's package, with thousands of shared strings, is lane XW's frozen writer's file."""
+    described, twin = _distinct_book(tmp_path, 3000)
+    whole = generation.materialised(twin)
+    old = books.as_built_file(tmp_path / "as-built.xlsx", books.as_built_members(described, whole))
+    new = books.streamed_file(tmp_path / "held.xlsx", described, twin)
+    assert books.package_differences(old, new) == []
 
 
 # -- the store itself -------------------------------------------------------
