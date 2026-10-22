@@ -122,6 +122,11 @@ def test_the_stated_exponential_is_the_page_s_and_not_libm_s():
     E(745): t = 745 * LOG2E is about 1074.82, j = 1074, p(r) about
     2**-0.82 = 0.566, and ldexp(0.566, -1074) rounds to one least
     subnormal, 2**-1074. E(2500): j is about 3606 > 1074, so exactly 0.
+    E(1491/2): t is about 1075.53, j = 1075 > 1074, so exactly 0, as the
+    page's cut-off says. (A cut-off at 1075 gives 0 there too, and at
+    every gap with j = 1075: `p(r)` lies in (1/2, 1], so `p(r) 2**-1075`
+    is at most half the least subnormal and rounds to 0, a tie going to
+    the even 0; that mutant is equivalent, MEASURED in the lane's repair.)
     MUTANT (a float in a decision): the libm exponential differs from the
     stated one in the last bits at gaps 1/2, 2 and 10 (0x1.368b2fc6f960ap-1
     against the stated 0x1.368b2fc6f9604p-1 at 1/2), so a weight read
@@ -130,7 +135,8 @@ def test_the_stated_exponential_is_the_page_s_and_not_libm_s():
     assert case["values"][0] == "0x1.0000000000000p+0"
     assert co.stated_exponential(745) == Fraction(2) ** -1074
     assert case["values"][5] == "0x0.0000000000001p-1022"
-    assert case["values"][6] == "0x0.0p+0"
+    assert case["values"][6] == "0x0.0p+0" and case["values"][7] == "0x0.0p+0"
+    assert case["gaps"][7] == "1491/2" and co.b64_floor(co.b64_mul(co.b64(Fraction(1491, 2)), co.LOG2E)) == 1075
     libm_half = co.from_hex("0x1.368b2fc6f960ap-1")
     assert co.stated_exponential(Fraction(1, 2)) != libm_half
     assert case["values"][1] == "0x1.368b2fc6f9604p-1"
@@ -320,7 +326,9 @@ def test_the_walk_on_forty_rows_meets_every_table():
     first row's hidden score: its three words' twelve 16-bit pieces are
     45873, 7653, 39829, 21507, 40908, 49335, 60596, 10208, 34942, 2811,
     57422 and 7961, summing to 379045, so z = (379045 - 393210) / 65536 =
-    -14165/65536, exact. MUTANTS: rows sorted by row number instead of L
+    -14165/65536, exact. The slope family's latent orders `L` are frozen
+    bit for bit, so a cell mean left unrounded (G16.2: "an exact integer
+    sum divided once in binary64") moves them. MUTANTS: rows sorted by row number instead of L
     (39, 39 and 40 rows of X, Y and Z change cells), and the spread band
     placed after the ordered ones (37 rows of Z change cells): both move
     the frozen cells while the tables stay met."""
@@ -447,23 +455,291 @@ def test_a_whole_search_for_the_test_key():
     assert other != case["steps"][0]["word"]
 
 
+# --- RULE W1 in full (contract 4.6b.3, 4.6b.9 (c), 4.6b.10) ---------------------------------
+
+
+def test_w1_reads_a_confinement_across_the_chain_both_ways():
+    """`A` (a1 60, a2 40), `B | A` = [[30, 0, 30], [20, 20, 0]], `C | B` =
+    [[0, 50], [0, 20], [15, 15]] on 100 rows; `B`'s `L2` is b1 against
+    {b2, b3}. `A`'s group in a2: `B | A` admits b1 and b2 beside it (two
+    `L2` bands: passes), and `C | B`'s rows b1 and b2 read c2 alone, so
+    `C` is confined to c2 by noughts in ANOTHER family: W1 fails on `C`.
+    `C`'s group in c1: only row b3 of `C | B` reads c1, so `B` is b3 (one
+    `L2` band) and, through `B | A`'s column b3, `A` is a1: W1 fails on
+    `A` and on `B`. MUTANTS: the support without its downward pass misses
+    (A, C); without its upward pass, (C, A)."""
+    case = FROZEN["chain"]["w1_across"]
+    assert case["tables"] == [[[60, 40]], [[30, 0, 30], [20, 20, 0]], [[0, 50], [0, 20], [15, 15]]]
+    assert case["failures"] == [["A", 1, "C", [1]], ["C", 0, "A", [0]], ["C", 0, "B", [1]]]
+    assert case["admitted"]["A1"] == {"A": [1], "B": [0, 1], "C": [1]}
+    assert case["admitted"]["C0"] == {"A": [0], "B": [2], "C": [0]}
+    assert _json(oc.case_w1_across()) == case
+
+
+def test_w1_reads_a_derived_family_codex_s_item_2():
+    """Codex's item 2 of 2026-10-19 (contract 4.6b.3, a `K-S6-08`
+    fixture): `{D | A}` = [[0, 45], [0, 15], [20, 20]] is placed at its
+    rule's step; the root pair `(B, A)` then places `A | B` = [[20, 0,
+    40], [25, 15, 0]], whose child `A` already stands in `{D | A}`. `B`'s
+    group in b2: `A` is a1 or a2 beside it (two `L2` bands of `A`, a1
+    against {a2, a3}: passes), and `{D | A}`'s rows a1 and a2 read d2
+    alone, so `D`, read at its one level as its coarsest, is confined:
+    W1 refuses the option. The pair (B, D) holds neither the step's child
+    nor its parent's own family: the junction tree joins `{D | A}` to
+    `A | B`, the family `A` is the child of (edges [0, 2] and [2, 1]).
+    MUTANT: the withdrawn shortcut, W1 read only on the pairs holding the
+    step's child, which finds no failure and makes it eligible."""
+    case = FROZEN["chain"]["w1_derived"]
+    assert case["option_table"] == [[20, 0, 40], [25, 15, 0]] and case["derived_table"] == [[0, 45], [0, 15], [20, 20]]
+    assert case["edges"] == [[0, 2], [2, 1]]
+    assert (case["eligible"], case["why"], case["failures"]) == (False, "W1", [["B", 1, "D", [1]]])
+    assert _json(oc.case_w1_derived()) == case
+    mutant = FROZEN["chain"]["w1_derived_mutant_step_pairs_only"]
+    assert (mutant["eligible"], mutant["why"]) == (True, "eligible")
+
+
+def test_w1_reads_member_by_member():
+    """4.6b.9 (c)'s second case: `A` and `B | A` = [[30, 20], [25, 25]]
+    placed, the option `X | A, B` = [[15, 15], [0, 20], [12, 13], [0,
+    25]] (rows (a1, b1), (a1, b2), (a2, b1), (a2, b2)). `X`'s group in x1:
+    its column holds two non-zero cells, (a1, b1) and (a2, b1), which
+    differ in `A` and agree in `B`, so `B` is b1 beside it: W1 refuses on
+    `B` (A passes). MUTANT: the design's own clause (two non-zero cells
+    beside the group's band), which passes it."""
+    case = FROZEN["chain"]["w1_member"]
+    assert case["option_table"] == [[15, 15], [0, 20], [12, 13], [0, 25]]
+    assert (case["eligible"], case["why"], case["failures"]) == (False, "W1", [["X", 0, "B", [0]]])
+    assert _json(oc.case_w1_member()) == case
+    assert FROZEN["chain"]["w1_member_mutant_design_clause"]["eligible"] is True
+
+
+# --- the boundaries the page states ------------------------------------------------------------
+
+
+def test_the_floor_ne_and_w3_at_their_boundaries():
+    """THE FLOOR at f = 11: a cell of 10 refused, of 11 or 0 kept (MUTANT:
+    the test at f - 1). NE, a root pair of binary columns on 300 rows,
+    child (30, 270): beside parent (120, 180) the least expected count is
+    30 * 120 / 300 = 12 = f + 1, offered at L0; beside (110, 190) it is 11
+    = f, and binary columns cannot coarsen, so not offered (MUTANT: NE at
+    f, which offers it). NE ON A PARENTS' CELL OF TOTAL 0: `C | A, B` on
+    1,000 rows with `B | A` = [[200, 200, 200], [0, 150, 250]]; the cell
+    (a2, b1) holds 0, its expected count 0 < 12, so the member whose
+    smallest total is smallest, `B` (200 against 400 and 500), coarsens
+    to `L2` (b3 against {b1, b2}), where the cells are 200, 400, 250, 150
+    and the least expected is 500 * 150 / 1000 = 75: offered at (A L0, B
+    L2, C L0) (MUTANT: NE skipping cells of total 0, which offers L0).
+    W3 AT EQUALITY: X (22, 40, 38, 100), Y (30, 170) on 200 rows: X's 22
+    meets 11 * 2 = 22 and holds; Y's 30 is below 11 * 4 = 44 and fails
+    alone, and a binary Y cannot coarsen, so not offered (MUTANT: W3
+    failing at equality coarsens X to L2, (100, 100), where both hold and
+    NE holds, 30 * 100 >= 12 * 200: offered). W3'S CHOICE: X (15, 85,
+    100) and Y (25, 75, 100) both fail 33; the smaller smallest total, X,
+    coarsens to L2 (100, 100), where Y's 25 meets 22: offered at (X L2, Y
+    L0), NE 25 * 100 >= 2400 (MUTANT: the larger, Y, coarsens first and
+    ends at (L2, L2))."""
+    chain = FROZEN["chain"]
+    assert chain["floor_edge"] == {"ten": False, "eleven": True, "nought": True}
+    assert chain["ne_edge"] == {"twelve": {"P": 0, "C": 0}, "eleven": None}
+    assert chain["ne_zero_cell"] == {"anchor_table": [[200, 200, 200], [0, 150, 250]],
+                                     "offered": {"A": 0, "B": 2, "C": 0}}
+    assert chain["w3_equality"] == {"offered": None}
+    assert chain["w3_choice"] == {"offered": {"X": 2, "Y": 0}}
+    for name, build in (("floor_edge", oc.case_floor_edge), ("ne_edge", oc.case_ne_edge),
+                        ("ne_zero_cell", oc.case_ne_zero_cell), ("w3_equality", oc.case_w3_equality),
+                        ("w3_choice", oc.case_w3_choice)):
+        assert _json(build()) == chain[name], name
+
+
+def test_the_merge_s_tie_and_the_score_s_empty_row():
+    """THE MERGE: bands of 20, 20, 5, 20, ... (225 rows): the band of 5
+    joins the neighbour holding fewer rows, a tie of 20 and 20, so the
+    EARLIER: totals 20, 25, 20, ..., the taken-in sub-band in L0 band 1
+    (MUTANT: ties to the later, 20, 20, 25). THE SCORE: [[30, 10, 0], [0,
+    0, 0], [10, 25, 5]] reads `df` over the rows whose totals are not
+    nought, (2 - 1)(3 - 1) = 2, so u = 150/7 - 2 = 136/7 as without the
+    empty row (MUTANT: df over every row, 4, u = 122/7)."""
+    assert FROZEN["chain"]["merge_tie"] == {"totals": [20, 25] + [20] * 9, "taken_in": [1]}
+    assert _json(oc.case_merge_tie()) == FROZEN["chain"]["merge_tie"]
+    assert FROZEN["chain"]["score_empty_row"]["u"] == "136/7"
+    assert co.score([[30, 10, 0], [0, 0, 0], [10, 25, 5]]) == Fraction(136, 7)
+
+
+def test_we_refuses_codex_s_133_rows():
+    """Contract 4.6b.3's own case: 133 rows, 33 records holding nothing
+    published as 11, 11 and 11 (none as nought, so Z = 0, and P = 0),
+    100 tabled rows over A, B and C, each one level or blank. AB = [[22,
+    22], [28, 28]] and C | B = [[22, 28], [22, 28]]; no row is blank in all
+    three, and 6 read A and C recorded beside a blank B. x0 is the cell
+    blank in all three; b(x0) is the least published count holding it:
+    22 for (A, B) (its cell (blank, blank)), 11 for (A, C) ([[11, 33],
+    [33, 23]]), 22 for (B, C); each is above Z + P = 0, so RULE WE
+    refuses every root pair and only "no family" is eligible (MUTANT: no
+    RULE WE, which makes all 27 root options eligible)."""
+    case = FROZEN["chain"]["we133"]
+    assert case["totals"] == {"A": [44, 56], "B": [50, 50], "C": [44, 56]}
+    assert [(p["pair"], p["table"], p["b_x0"], p["eligible"], p["why"]) for p in case["pairs"]] == [
+        (["A", "B"], [[22, 22], [28, 28]], 22, False, "WE"),
+        (["A", "C"], [[11, 33], [33, 23]], 11, False, "WE"),
+        (["B", "C"], [[22, 28], [22, 28]], 22, False, "WE")]
+    assert case["eligible_options"] == 1
+    assert FROZEN["chain"]["we133_mutant_no_we"]["eligible_options"] == 28
+    assert _json(oc.case_we133()) == case
+
+
+def test_the_draw_s_edges_and_the_moved_target_s_tie():
+    """THE UNIFORM SHARE at its edge: U1 = 2**33 has its top 30 bits clear
+    (U1 >> 34 = 0, though U1 >> 33 = 1), so the share is uniform and
+    places (2**63 * 4) >> 64 = 2 (MUTANT: 31 bits, which weighs it). THE
+    WEIGHTED CHOICE's tie: two equal scores weigh 1 and 1, running sums 1
+    and 2; U2 = 2**63 gives U2 >> 11 = 2**52, a share of 1/2, threshold
+    1/2 * 2 = 1; the first running sum ABOVE 1 is the second: place 1
+    (MUTANT: at or above, place 0). THE MOVED TARGET's last tie:
+    [[10, 10], [10, 10]] against rows [21, 19] and columns [20, 20]: the
+    tables [[a, 21 - a], [20 - a, a - 1]] hold no nought; the distance
+    2 (|a - 10| + |a - 11|) is least, 2, at a = 10 and 11, whose squares
+    are both 2; row-major [11, 10, 9, 10] is greater than [10, 11, 10, 9]
+    at the first place: a = 11 (MUTANT: the least)."""
+    case = FROZEN["chain"]["draw_edges"]
+    assert int(case["edge_word"][:16], 16) == 2 ** 33 and case["edge"] == {"place": 2, "how": "uniform"}
+    assert case["tie"]["place"] == 1 and case["tie"]["how"] == "weighted"
+    assert case["tie"]["weights"] == ["0x1.0000000000000p+0", "0x1.0000000000000p+0"]
+    assert _json(oc.case_draw_edges()) == case
+    assert FROZEN["chain"]["moved_tie"] == {"moved": [[11, 10], [9, 10]], "units_in_noughts": []}
+    assert co.moved_target([[10, 10], [10, 10]], [21, 19], [20, 20])[0] == [[11, 10], [9, 10]]
+
+
+def test_a_slope_parent_s_absent_cells_take_no_term():
+    """G16.12 item 11: `X` holds 5 absent cells and the readings 1 to 95,
+    its one edge at 46; the absent band (5 rows) joins its one neighbour,
+    the readings below 46 (45 rows), an ORDERED band of 50. `Y | X`
+    publishes a slope on `X` (beta 0.5, sigma 2), value codes on 0 to 100.
+    The walk deals `X`'s 5 absent cells inside the band; their rows'
+    reading map is clear, so their term is nought and L = 2 z exactly as
+    binary64 rounds it, and the cell's mean reads the 45 readings alone:
+    the codes floor(2.56 x) for x from 1 to 45 sum to 2,628, so the mean
+    is 2628/45 = 292/5 = 58.4, divided once in binary64
+    (0x1.d333333333333p+5); the other cell's 50 codes sum to 9,000, a mean
+    of 180 exactly. MUTANTS: the term read on rows whose map is clear
+    (the band code read as the mark), and the mean left unrounded."""
+    case = FROZEN["chain"]["slope_absent"]
+    assert case["x_l0"] == [["missing", ["range", None, "p10"]], [["range", "p10", None]]]
+    assert case["x_totals"] == [50, 50] and case["met"]
+    assert case["means"] == {"0": co.b64_hex(co.b64(Fraction(2628, 45))), "1": "0x1.6800000000000p+7"}
+    assert co.b64(Fraction(292, 5)) != Fraction(292, 5)
+    _, _, _, words, _, _ = oc.slope_absent_setup()
+    assert len(case["absent_rows"]) == 5
+    for r in case["absent_rows"]:
+        expected = co.b64(co.b64_mul(co.published_decimal("2.0000"), co.hidden_score(words[1][r])))
+        assert case["latent"][r] == co.b64_hex(expected)
+    assert _json(oc.case_slope_absent()) == case
+
+
+def test_a_step_s_candidates_in_option_order():
+    """A later step's candidates for `D` beside `A`, `B | A` and `C | A`
+    (four binary columns on 2,000 rows, every cell 125, so every candidate
+    is offered): ordered by the anchor's place in the chain, then by the
+    parents' places in schema order compared as lists: (A) at 0; (A, B)
+    and (B) at 1; (A, C) and (C) at 2. MUTANT: the parents' places first,
+    which reads (A), (A, B), (A, C), (B), (C)."""
+    assert FROZEN["chain"]["step_order"]["candidates"] == [
+        [["A"], 0], [["A", "B"], 1], [["B"], 1], [["A", "C"], 2], [["C"], 2]]
+    assert _json(oc.case_step_order()) == FROZEN["chain"]["step_order"]
+
+
 # --- the product against the oracle -------------------------------------------------------
+
+
+LABEL_ROLES = ("binary", "categorical", "long_tail_labels", "constant")
+NUMBER_ROLES = ("count", "continuous")
+
+
+def _published_rungs(block):
+    """A number column's published rungs by key (`percentiles` and `percentiles_between`), nulls left out."""
+    rungs = dict(block.get("percentiles") or {})
+    rungs.update(block.get("percentiles_between") or {})
+    return {key: Fraction(value) for key, value in rungs.items() if value is not None}
+
+
+def _oracle_ladder(name, block, raw, floor, position):
+    """The oracle's ladder of one column from its published block and the table's cells:
+    a label column's published `levels` (each `{label, count}`, a cell outside them in the
+    held-back pool), a number column's published rungs; another role is not read here."""
+    role = block["role"]
+    if role in LABEL_ROLES:
+        levels = [(entry["label"], entry["count"]) for entry in block["levels"]]
+        published = {label for label, _ in levels}
+        cells = [("missing",) if v == "" else (("level", v) if v in published else ("held",)) for v in raw]
+        return co.ladder_of(name, role, cells, levels=levels, floor=floor, position=position)
+    if role in NUMBER_ROLES:
+        cells = [("missing",) if v == "" else ("value", Fraction(v)) for v in raw]
+        return co.ladder_of(name, role, cells, rungs=_published_rungs(block), floor=floor, position=position)
+    pytest.fail("the oracle reads no ladder for role %r (column %s)" % (role, name))
+
+
+def _pair_of(entry):
+    return tuple(entry["columns"]) if isinstance(entry, dict) else tuple(entry)
+
+
+def _second_code(x, rungs, lo_key, hi_key):
+    """Contract 4.6d.1's second code on the rungs' probability scale, in exact fractions."""
+    lo, hi = rungs[lo_key], rungs[hi_key]
+    by_value = {}
+    for key, value in rungs.items():
+        if lo <= value <= hi:
+            by_value[value] = by_value.get(value, []) + [Fraction(int(key[1:]), 100)]
+    points = sorted(by_value)
+    middle = {v: (min(by_value[v]) + max(by_value[v])) / 2 for v in points}
+    position = middle[points[0]] if x <= points[0] else middle[points[-1]]
+    for j in range(len(points) - 1):
+        if x == points[j]:
+            position = middle[points[j]]
+        elif points[j] < x < points[j + 1]:
+            step = (x - points[j]) / (points[j + 1] - points[j])
+            position = max(by_value[points[j]]) + step * (min(by_value[points[j + 1]]) - max(by_value[points[j]]))
+    p_lo, p_hi = Fraction(int(lo_key[1:]), 100), Fraction(int(hi_key[1:]), 100)
+    q = 256 * (position - p_lo) / (p_hi - p_lo)
+    return min(255, max(0, q.numerator // q.denominator))
 
 
 def test_the_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
     """Runs `synthtwin profile` on a seeded neutral table and compares what
-    it publishes in `relationships.statistical` with the oracle: each
-    `ladder` entry's totals with the oracle's L0 totals from the table's
-    cells at the published rungs, and each `chain[].table` with the
-    oracle's complete table at the published levels (S25). SKIPPED while
-    the product publishes no `relationships.statistical` (contract
-    4.6b: lane CHa's `ladder`, `chain`, `procedure`, `rules`, `words`,
-    `not_carried`, `ineligible`, `withheld`; 4.6d: `moments.codes` and
-    `moments.regions`), which invariant S12 holds `null` until the
-    landing that ships stage 6."""
+    it publishes in `relationships.statistical` with the oracle, as the
+    page defines each object (contract 4.6b.2, 4.6b.5, 4.6b.8, 4.6d.2):
+    - `ladder`: each column's `L0` totals, `l1` and `l2` from the table's
+      cells, a label column read at its published role and `levels`, a
+      number column at its published rungs;
+    - `chain`: each family's complete table at its published levels, its
+      anchor (the earliest family holding every parent), the floor on
+      every cell, and RULE W1 on the placed chain with every sub-band an
+      `L0` merge took in as an own-fact group (the producer's other
+      own-fact groups are read from the column's facts, which the oracle
+      does not list);
+    - `words` and `not_carried`: each candidate pair's structural word,
+      `exact` where one placed family holds both and `implied` otherwise
+      (`pinned` where a correlation is published and no family holds
+      both), `not_carried` the pairs reading `implied`; `ineligible`:
+      every column of the table either in `ladder` or named once there;
+    - `moments`: `witness` naming the oracle's class `cho1` (plan
+      P4-D421); each published region outside the class's tests (1) and
+      (3) is a failure (a node of the region publishing a slope; the
+      base cells counted from the members' published bands above
+      GROUPS_MAX); every published sum recomputed exactly from the
+      table, on the linear or the second code. The witness's verdict
+      itself is not compared here: rebuilding the joint space's atoms
+      from the published description (pieces holding a POSSIBLE reading,
+      each rung's count of readings below it as the rungs bound it,
+      4.6d.1 and 4.6d.4) is the producer's construction, which this
+      oracle does not hold (plan P4-D421, a stated remainder).
+    SKIPPED while the product publishes no `relationships.statistical`
+    (contract 4.6b: lane CHa's `ladder`, `chain`, `procedure`, `rules`,
+    `words`, `not_carried`, `ineligible`, `withheld`; 4.6d:
+    `moments.codes` and `moments.regions`), which invariant S12 holds
+    `null` until the landing that ships stage 6."""
     sys.path.insert(0, str(REPOSITORY / "src"))
     from synthtwin.cli import main
 
+    mo = _load("moment_oracle")
     for name in ("HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME"):
         monkeypatch.setenv(name, str(tmp_path / "home"))
     rows = ["age,ward,score"]
@@ -479,20 +755,89 @@ def test_the_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
             "the product publishes no relationships.statistical yet (lane CHa's ladder, chain, "
             "procedure, rules, words, not_carried, ineligible, withheld; moments.codes, moments.regions)"
         )
+    floor = described["settings"]["small_cell_floor"]
+    names = rows[0].split(",")
     columns = {c["name"]: c for c in described["columns"]}
-    values = {name: [line.split(",")[at] for line in rows[1:]] for at, name in enumerate(rows[0].split(","))}
+    values = {name: [line.split(",")[at] for line in rows[1:]] for at, name in enumerate(names)}
     lads = {}
     for entry in statistical["ladder"]:
         name = entry["column"]
-        block = columns[name]
-        rungs = dict(block.get("percentiles") or {})
-        rungs.update(block.get("percentiles_between") or {})
-        cells = [("value", Fraction(v)) for v in values[name]]
-        lads[name] = co.ladder_of(name, "count", cells, rungs={k: v for k, v in rungs.items() if v is not None},
-                                  floor=described["settings"]["small_cell_floor"])
-        assert lads[name].totals == entry["totals"], name
-    for family in statistical["chain"]:
+        lads[name] = _oracle_ladder(name, columns[name], values[name], floor, names.index(name))
+        assert (lads[name].totals, lads[name].l1, lads[name].l2) == (entry["totals"], entry["l1"], entry["l2"]), name
+    named = [entry["column"] for entry in statistical["ineligible"]]
+    assert sorted(named + list(lads)) == sorted(names) and len(set(named)) == len(named)
+    chain = []
+    for at, family in enumerate(statistical["chain"]):
         parents = [(p["column"], int(p["level"][1])) for p in family["parents"]]
-        expected = co.table_of(lads, family["child"], int(family["level"][1]), parents) if parents else None
-        if expected is not None:
-            assert family["table"] == expected, family["child"]
+        level = int(family["level"][1])
+        expected = co.table_of(lads, family["child"], level, parents) if parents else [lads[family["child"]].band_totals(level)]
+        assert family["table"] == expected, family["child"]
+        holding = [i for i, f in enumerate(chain) if all(p in f.members() for p, _ in parents)]
+        assert family["anchor"] == (holding[0] if parents and holding else None), family["child"]
+        chain += [co.Family(family["child"], level, parents, family["anchor"], family["table"])]
+    assert all(co.floor_holds(f.table, floor) for f in chain)
+    groups = [(c, band) for c in sorted(lads) for band in lads[c].taken_in]
+    assert co.w1_holds(chain, lads, groups)[0]
+    moments = statistical.get("moments") or {}
+    correlated = set()
+    for region in moments.get("regions") or []:
+        for total in region["sums"]:
+            if total["class"] == "correlation":
+                correlated.add(tuple(total["columns"]))
+    eligible = [n for n in names if n in lads]
+    words = []
+    for i, a in enumerate(eligible):
+        for b in eligible[i + 1:]:
+            together = any(a in f.members() and b in f.members() for f in chain)
+            words += [{"columns": [a, b], "word": "exact" if together else ("pinned" if (a, b) in correlated else "implied")}]
+    assert [(_pair_of(w), w["word"]) for w in statistical["words"]] == [(_pair_of(w), w["word"]) for w in words]
+    assert sorted(_pair_of(e) for e in statistical["not_carried"]) == sorted(
+        _pair_of(w) for w in words if w["word"] == "implied")
+    if not moments:
+        return
+    assert moments["procedure"]["witness"] == mo.CLASS_NAME
+    codes = {entry["column"]: entry for entry in moments["codes"]}
+    for region in moments["regions"]:
+        held = [chain[i] for i in region["families"]]
+        assert not any(statistical["chain"][i].get("slopes") for i in region["families"]), region["columns"]
+        finest = {}
+        for family in held:
+            for member, lv in zip(family.members(), family.levels()):
+                finest[member] = min(lv, finest.get(member, 2))
+        for column in region["columns"]:
+            finest[column] = 0
+        cells = 1
+        for member, lv in finest.items():
+            cells *= len(lads[member].bands(lv))
+        assert cells <= mo.GROUPS_MAX, region["columns"]
+        for total in region["sums"]:
+            rungs = {c: _published_rungs(columns[c]) for c in total["columns"]}
+
+            def code(c, x, kind):
+                entry = codes[c]
+                if kind == "S":
+                    return _second_code(x, rungs[c], entry["lo"], entry["hi"])
+                return co.value_code(x, rungs[c][entry["lo"]], rungs[c][entry["hi"]])
+
+            chosen = []
+            for r in range(len(rows) - 1):
+                readings = [values[c][r] for c in total["columns"]]
+                if any(v == "" for v in readings):
+                    continue
+                if total["class"] == "band" and lads[total["columns"][0]].row_l0[r] != total["band"]:
+                    continue
+                if total["family"] is not None:
+                    family = chain[total["family"]]
+                    where = [lads[m].codes(lv)[r] for m, lv in zip(family.members(), family.levels())]
+                    if where[:len(total["cell"])] != list(total["cell"]):
+                        continue
+                chosen += [r]
+            value = 0
+            for r in chosen:
+                term = 1
+                for c, kind, power in zip(total["columns"], total["codes"], total["powers"]):
+                    x = Fraction(values[c][r])
+                    centre = code(c, rungs[c][codes[c]["p50"]], kind) if total["class"] == "correlation" else 0
+                    term *= (code(c, x, kind) - centre) ** power
+                value += term
+            assert total["value"] == value, total

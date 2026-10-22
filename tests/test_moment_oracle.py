@@ -30,12 +30,25 @@ VECTORS = REPOSITORY / "tests" / "reference" / "chain-oracle-vectors.json"
 CONTRACT = REPOSITORY / "docs" / "spec" / "profile-contract-v6.md"
 PLAN = REPOSITORY / "docs" / "plans" / "phase-4-columns.md"
 
-# The stated time a decision at the class's bound takes on the reference
-# machine (plan P4-D421, MEASURED: 8.6 seconds at most there, on a cell
-# of 1,666,665 rows over two codes); the boundary case below took 0.7
-# seconds, and a test allows twenty times that before it calls the
-# budget unmet.
+# The stated time a decision inside the class takes on the reference
+# machine (plan P4-D421 after its repair of 2026-10-22, MEASURED at the
+# widest instances the two caps admit: at most 7.0 seconds and 0.37 GB;
+# 6.4 seconds on the one-cell boundary over two codes); the boundary
+# cases below take under a second, and a test allows that bound before
+# it calls the budget unmet.
 STATED_SECONDS = 15
+
+
+def _wide(groups, constraints):
+    """Skeptic 1's wide instance (wave6/CHo-sk1-work/probe_width.py): `groups` groups of
+    largest count 1, `constraints` constraints each reading every group with distinct
+    coefficients and an open window, so every state is new and holds one partial sum for
+    each constraint."""
+    held = []
+    for d in range(constraints):
+        terms = [(g, (2 ** g) * (d + 1) + 1000003 * d) for g in range(groups)]
+        held += [(terms, 0, sum(c for _, c in terms))]
+    return mo.Instance(list(range(groups)), [1] * groups, held)
 
 
 def _load(name):
@@ -210,20 +223,110 @@ def test_cf1_and_the_exact_route_agree_on_every_group():
 
 def test_the_class_rule_reads_sizes_before_any_search():
     """`cho1`: an instance is inside where its groups number at most
-    GROUPS_MAX (50,000) and the bound `class_bound` reads from its sizes
-    (each group's largest count, each constraint's coefficients and total)
-    is at most NODES_MAX (10,000,000) transitions. On one cell of N rows
-    over w codes the boundary is N = 1,666,665 at w = 2, 1,289 at w = 3,
-    147 at w = 4 and 81 at w = 6: the instance one row larger lies
-    outside. A cell of 22 rows over all 256 codes is outside."""
+    GROUPS_MAX (50,000), no node of its region publishes a slope, the
+    bound `class_bounds` reads from its sizes (each group's largest count,
+    each constraint's coefficients and total) on the transitions is at
+    most NODES_MAX (10,000,000), and its bound on the entries the passes
+    write and read is at most ENTRIES_MAX (40,000,000). On one cell of N
+    rows over w codes the boundary is N = 1,666,665 at w = 2, 1,289 at
+    w = 3, 147 at w = 4 and 81 at w = 6, set by the transitions (each
+    reads about 15,000,000 to 20,000,000 entries): the instance one row
+    larger lies outside. A cell of 22 rows over all 256 codes is
+    outside."""
     expected = {2: (1666665, 1666666), 3: (1289, 1290), 4: (147, 148), 6: (81, 82)}
     for entry in FROZEN["class_boundary"]:
         inside, outside = expected[entry["width"]]
         assert entry["inside"][0] == inside and entry["outside"][0] == outside
         assert entry["inside"][2] <= mo.NODES_MAX < entry["outside"][2]
-    assert (mo.CLASS_NAME, mo.NODES_MAX, mo.GROUPS_MAX) == ("cho1", 10_000_000, 50_000)
+        assert entry["inside"][3] <= mo.ENTRIES_MAX
+    assert (mo.CLASS_NAME, mo.NODES_MAX, mo.ENTRIES_MAX, mo.GROUPS_MAX) == ("cho1", 10_000_000, 40_000_000, 50_000)
     wide = mo.build_instance(mo.one_cell_spec(22, 0, 255, 22 * 127))
     assert mo.class_bound(wide) > mo.NODES_MAX and not mo.decide(wide).inside
+
+
+def test_a_region_publishing_a_slope_lies_outside():
+    """Rule (3): a slope is point condition (5), which is not linear, so
+    the space the route lists without it holds more than `Sigma(R, o)`.
+    Codex's reference case, decided inside and holding, lies outside
+    once a node of its region publishes a slope: no transition is made
+    and the option is not eligible. MUTANT: `build_instance` leaving the
+    `slopes` key unread (skeptic 1's probe_slope.py: inside, holds), red
+    here. A fact the route does not read is refused, never left out in
+    silence: a spec naming its slopes under another key raises."""
+    plain = mo.decide(mo.build_instance(oc.spec_reference()))
+    assert plain.inside and plain.holds
+    spec = oc.spec_reference()
+    spec["slopes"] = ["c | THE TABLE"]
+    instance = mo.build_instance(spec)
+    assert instance.slopes == ("c | THE TABLE",)
+    verdict = mo.decide(instance)
+    assert (verdict.inside, verdict.why, verdict.nodes, verdict.holds) == (False, "slope", 0, False)
+    assert FROZEN["reference_with_a_slope"]["class"] == "outside" and FROZEN["reference_with_a_slope"]["why"] == "slope"
+    assert mo.in_class_by_sizes([2], [[3]]) and not mo.in_class_by_sizes([2], [[3]], slopes=True)
+    other = oc.spec_reference()
+    other["nodes_with_slopes"] = ["c"]
+    with pytest.raises(ValueError):
+        mo.build_instance(other)
+
+
+def test_the_groups_are_counted_before_any_is_listed():
+    """Rule (1): an instance of 50,001 groups, each of largest count 0
+    and no constraint, lies outside with no transition (its transitions
+    bound is 3 passes of one value each, 150,003, so only the groups'
+    count puts it outside;
+    MUTANT: the count's test removed, which decides it inside). A region
+    whose base cell holds 300 atoms of each of two columns counts 90,000
+    groups from its sizes and is returned with none listed, outside."""
+    many = mo.Instance(list(range(50_001)), [0] * 50_001, [])
+    verdict = mo.decide(many)
+    assert (verdict.inside, verdict.why, verdict.nodes) == (False, "groups", 0)
+    assert mo.class_bounds(many) == (150_003, 0)
+    spec = {"floor": 11, "cells": [{"name": "X", "bands": {"c": 0, "d": 0}}],
+            "atoms": {"c": [oc._atom(v, 0, v) for v in range(300)], "d": [oc._atom(v, 0, v) for v in range(300)]},
+            "margins": [{"cells": [0], "count": 600}], "facts": [], "sums": []}
+    unlisted = mo.build_instance(spec)
+    assert (unlisted.keys, unlisted.counted) == ([], 90_000)
+    assert mo.decide(unlisted).why == "groups"
+
+
+def test_the_budget_covers_the_passes_of_clause_c():
+    """`class_bounds` counts the forward and backward pass, one pass for
+    clause (b) and one for each group holding a small atom, (c)'s: on
+    exception (i)'s case two small atoms each in two groups, so 3 + 4 = 7
+    passes, each bounded by the first. MUTANT: the bound read as 3 passes
+    (clause (c) left out), which leaves (c)'s passes outside the budget."""
+    instance = mo.build_instance(oc.spec_two_small_atoms())
+    one, entries = mo.pass_bounds(instance)
+    assert sum(len(groups) for _, groups in instance.small_atoms) == 4
+    assert mo.class_bounds(instance) == (one * 7, entries * 7)
+    verdict = mo.decide(instance)
+    assert verdict.inside and verdict.nodes <= verdict.bound and verdict.read <= verdict.entries
+
+
+def test_the_entries_cap_bounds_the_width_of_a_state():
+    """Rule (2b): the transitions alone bound neither the time nor the
+    memory, since a transition writes one entry for each constraint open
+    after its group. Skeptic 1's instance of 20 groups under 30 open
+    constraints (6,291,450 transitions, inside rule (2); MEASURED there
+    at 36.65 seconds and 1.31 GB) reads 188,743,410 entries: outside, with
+    no transition. Its widest version inside both caps holds 6 open
+    constraints (37,748,682 entries; MEASURED at 6.97 seconds and 0.37 GB,
+    plan P4-D421) and one more lies outside (44,040,129). A narrower
+    wide instance is decided within both budgets. MUTANT: the entries'
+    test removed, which decides the wide instances."""
+    for constraints, entries, inside in ((30, 188743410, False), (7, 44040129, False), (6, 37748682, True)):
+        instance = _wide(20, constraints)
+        assert mo.class_bounds(instance) == (6291450, entries)
+        if not inside:
+            verdict = mo.decide(instance)
+            assert (verdict.inside, verdict.why, verdict.nodes) == (False, "entries", 0)
+    narrow = _wide(12, 100)
+    started = time.perf_counter()
+    verdict = mo.decide(narrow)
+    assert verdict.inside and verdict.holds and verdict.nodes <= verdict.bound and verdict.read <= verdict.entries
+    assert time.perf_counter() - started < STATED_SECONDS
+    with pytest.raises(mo.BudgetSpent):
+        mo._solve(narrow, list(narrow.upper), [mo.NODES_MAX, 1000])
 
 
 def test_a_decision_at_the_boundary_meets_its_budget_within_the_stated_time():
@@ -236,6 +339,7 @@ def test_a_decision_at_the_boundary_meets_its_budget_within_the_stated_time():
     verdict = mo.decide(instance)
     elapsed = time.perf_counter() - started
     assert verdict.inside and verdict.nodes <= verdict.bound <= mo.NODES_MAX
+    assert verdict.read <= verdict.entries <= mo.ENTRIES_MAX
     assert elapsed < STATED_SECONDS
     beyond = mo.decide(mo.build_instance(mo.one_cell_spec(148, 0, 3, 222)))
     assert not beyond.inside and beyond.nodes == 0
@@ -251,14 +355,14 @@ def test_an_instance_outside_the_class_is_never_decided(monkeypatch):
     rather than run on."""
     instance = mo.build_instance(oc.spec_reference())
     verdict = mo.decide(instance, nodes_max=1000)
-    assert not verdict.inside and verdict.nodes == 0 and not verdict.holds
-    monkeypatch.setattr(mo, "class_bound", lambda _instance: 0)
-    monkeypatch.setattr(mo, "_spend", lambda _box, _amount: None)
+    assert not verdict.inside and verdict.nodes == 0 and not verdict.holds and verdict.why == "nodes"
+    monkeypatch.setattr(mo, "class_bounds", lambda _instance: (0, 0))
+    monkeypatch.setattr(mo, "_spend", lambda _box, _transitions, _entries: None)
     ignored = mo.decide(instance, nodes_max=1000)
     assert ignored.inside and ignored.holds
     monkeypatch.undo()
     with pytest.raises(mo.BudgetSpent):
-        mo._solve(instance, list(instance.upper), [10])
+        mo._solve(instance, list(instance.upper), [10, mo.ENTRIES_MAX])
 
 
 def test_a_two_column_correlation_cell_lies_outside_the_class():
@@ -276,7 +380,7 @@ def test_a_two_column_correlation_cell_lies_outside_the_class():
     assert not verdict.inside and verdict.bound > 10 ** 12
     six = mo.build_instance(oc.spec_correlation(6, oc.correlation_sums([[1, 1, 1], [1, 1, 1], [0, 0, 0]])))
     seven = mo.build_instance(oc.spec_correlation(7, oc.correlation_sums([[1, 1, 1], [1, 1, 1], [1, 0, 0]])))
-    assert (mo.class_bound(six), mo.class_bound(seven)) == (1999368, 13063896)
+    assert (mo.class_bounds(six), mo.class_bounds(seven)) == ((1999368, 20554335), (13063896, 135623850))
     assert mo.decide(six).inside
 
 

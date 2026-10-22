@@ -32,16 +32,26 @@ finite set of states, made in integer steps, which is what contract
 through the layers, and `point_through` exhibits one, re-checked against
 every constraint in whole numbers.
 
-THE CLASS (`CLASS_NAME`), decided before any search. `class_bound`
-computes, from the instance's sizes alone (each group's largest count,
-each constraint's coefficients and its published total: published cell
-counts, codes and published sums, so inventory class (b)), an upper
-bound on the transitions every pass of `decide` can make. An instance
-whose bound exceeds `NODES_MAX` is OUTSIDE the class: `decide` returns
-"outside" without one transition, and the option it would publish is not
-eligible (contract 4.6d.3 (ii)). Inside, every pass stays under the
-bound, so the route always finishes within its node budget, and the
-verdict is the predicate's own value: a function of the published facts.
+THE CLASS (`CLASS_NAME`), decided before any search, on published
+sizes alone (each group's largest count, each constraint's coefficients
+and its published total: published cell counts, codes and published
+sums, so inventory class (b)). An instance lies inside where (1) its
+groups, counted from the region's sizes before any group is listed,
+number at most `GROUPS_MAX`; (2) the bound `class_bounds` reads on the
+transitions every pass of `decide` can make together is at most
+`NODES_MAX`; (2b) the bound it reads on the whole numbers those passes
+write and read (each transition's new state, one entry for each
+constraint open after its group, and each state's checks, one for each
+constraint reading the next group) is at most `ENTRIES_MAX`, which
+bounds the time a transition takes and the memory a state holds, since
+both grow with the open constraints; and (3) no node of the region
+publishes a slope (point condition (5) is not linear, so the space this
+module lists would hold more than `Sigma(R, o)`). Outside, `decide`
+returns "outside" without one transition, and the option it would
+publish is not eligible (contract 4.6d.3 (ii)). Inside, every pass stays
+under both bounds, so the route always finishes within its budget, and
+the verdict is the predicate's own value: a function of the published
+facts.
 
 WHAT IT NEVER DOES. No float decides anything here: every division is a
 floor or a ceiling of whole numbers or an exact fraction, and the
@@ -62,12 +72,18 @@ CLASS_NAME = "cho1"
 
 # The node budget: the largest number of transitions (a state and one
 # value of the next group) the class lets every pass of one decision
-# make together. Chosen from the measured cost of a transition (plan
-# P4-D421: at most about 1.2 microseconds on the reference machine under
-# Python 3.11) and from the states a pass holds, at most its forward
-# transitions: a decision at the bound takes seconds and holds well
-# under one gigabyte.
+# make together. A transition's cost grows with the constraints open
+# after its group, so the transitions alone bound neither the time nor
+# the memory (lane CHo's skeptic, 2026-10-21: 20 binary groups under 30
+# open constraints, inside a bound on transitions alone, took 36.65
+# seconds and 1.31 GB); ENTRIES_MAX bounds both. The time and the peak
+# the two caps admit are MEASURED at the widest instances they admit
+# (plan P4-D421, its repair of 2026-10-22).
 NODES_MAX = 10_000_000
+
+# The entry budget: the whole numbers every pass of one decision writes
+# into new states and reads in its checks, together.
+ENTRIES_MAX = 40_000_000
 
 # A first test on sizes alone, before any instance is built: a region
 # whose groups (base cells times atom vectors) exceed this count is
@@ -75,6 +91,9 @@ NODES_MAX = 10_000_000
 GROUPS_MAX = 50_000
 
 DEFAULT_FLOOR = 11
+
+# The keys a region's spec may hold (`build_instance`); any other is refused.
+SPEC_KEYS = ("floor", "cells", "atoms", "margins", "facts", "sums", "slopes")
 
 
 class BudgetSpent(Exception):
@@ -95,8 +114,13 @@ class Instance:
     out of `V-`).
     """
 
-    def __init__(self, keys, upper, constraints, small_atoms=(), floor=DEFAULT_FLOOR):
+    def __init__(self, keys, upper, constraints, small_atoms=(), floor=DEFAULT_FLOOR, slopes=(), counted=None):
         self.keys = list(keys)
+        # The groups counted from the region's sizes: a region past
+        # GROUPS_MAX is built with no group listed (`build_instance`).
+        self.counted = len(self.keys) if counted is None else int(counted)
+        # The nodes of the region publishing a slope (rule (3)).
+        self.slopes = tuple(slopes)
         self.upper = [int(u) for u in upper]
         self.original = []
         for terms, lo, hi in constraints:
@@ -251,10 +275,16 @@ def _step(state, build, value):
     return tuple(out)
 
 
-def _spend(box, amount):
-    box[0] -= amount
-    if box[0] < 0:
+def _spend(box, transitions, entries):
+    box[0] -= transitions
+    box[1] -= entries
+    if box[0] < 0 or box[1] < 0:
         raise BudgetSpent("the node budget was spent")
+
+
+def _budget():
+    """A fresh budget: transitions left, entries left."""
+    return [NODES_MAX, ENTRIES_MAX]
 
 
 def _forward(instance, upper, box):
@@ -271,7 +301,7 @@ def _forward(instance, upper, box):
             spent += len(span)
             for value in span:
                 nxt.add(_step(state, build, value))
-        _spend(box, spent)
+        _spend(box, spent, len(layers[-1]) * len(checks) + spent * len(build))
         if not nxt:
             return None, plans
         layers += [nxt]
@@ -298,7 +328,7 @@ def _solve(instance, upper, box):
                     keep.add(state)
                     if value > best:
                         best = value
-        _spend(box, spent)
+        _spend(box, spent, len(layers[k]) * len(checks) + spent * len(build))
         largest[k] = best
         good = keep
     return largest
@@ -311,7 +341,7 @@ def feasible_values(instance, upper=None, box=None):
     into a completing state uses; the mutants of the test file read it.
     """
     upper = list(instance.upper if upper is None else upper)
-    box = box if box is not None else [NODES_MAX]
+    box = box if box is not None else _budget()
     layers, plans = _forward(instance, upper, box)
     if layers is None:
         return None
@@ -348,7 +378,7 @@ def point_through(instance, upper=None, fixed=None, box=None):
             return None
         upper[g] = value
     lower = {g: v for g, v in (fixed or {}).items()}
-    box = box if box is not None else [NODES_MAX]
+    box = box if box is not None else _budget()
     layers, plans = _forward(instance, upper, box)
     if layers is None:
         return None
@@ -388,7 +418,12 @@ def holds_point(instance, point):
 
 
 def pass_bound(instance, upper=None):
-    """An upper bound on the transitions of one pass, from sizes alone.
+    """An upper bound on the transitions of one pass, from sizes alone (`pass_bounds`' first)."""
+    return pass_bounds(instance, upper)[0]
+
+
+def pass_bounds(instance, upper=None):
+    """Upper bounds on one pass's transitions and on the entries it writes and reads, from sizes alone.
 
     After group `k` the states are tuples of the open constraints'
     partial sums. Each partial sum is a multiple of the gcd of the
@@ -397,12 +432,16 @@ def pass_bound(instance, upper=None):
     product of those counts; and at most the states before times the
     values group `k` can take (one where `k` closes an equation). The
     pass makes at most the states before each group times its values.
+    Each state before group `k` reads one check for each constraint
+    reading `k`, and each transition writes one entry for each
+    constraint open after `k`: the ENTRIES, bounded the same way.
+    Returns `(transitions, entries)`.
     """
     upper = instance.upper if upper is None else upper
     count = len(upper)
     opened, plans, empty_ok = _layout(instance, upper)
     if not empty_ok:
-        return 0
+        return 0, 0
     # For each constraint, running sums over its groups in order: the
     # least and most its first terms can add, and the gcd of the
     # coefficients of the terms that can be above nought.
@@ -418,14 +457,16 @@ def pass_bound(instance, upper=None):
             gcds += [math.gcd(gcds[-1], abs(c)) if upper[g] > 0 else gcds[-1]]
         info += [(groups, lows, highs, gcds, lo, hi)]
     total = 0
+    entries = 0
     states = 1
     for k in range(count):
-        checks, _ = plans[k]
+        checks, build = plans[k]
         width = upper[k] + 1
         for _, c, window_low, window_high in checks:
             width = min(width, _floor_div(window_high - window_low, abs(c)) + 1)
         width = max(width, 0)
         total += states * width
+        entries += states * len(checks) + states * width * len(build)
         product = 1
         for index in opened[k]:
             groups, lows, highs, gcds, lo, hi = info[index]
@@ -438,20 +479,25 @@ def pass_bound(instance, upper=None):
             divisor = gcds[j] or 1
             product *= _floor_div(high, divisor) - _ceil_div(low, divisor) + 1
         states = min(product, states * width)
-    return total
+    return total, entries
 
 
 def class_bound(instance):
-    """The transitions every pass of `decide` can make together, bounded from sizes.
+    """The transitions every pass of `decide` can make together, bounded from sizes (`class_bounds`' first)."""
+    return class_bounds(instance)[0]
+
+
+def class_bounds(instance):
+    """The transitions and the entries every pass of `decide` can make together, bounded from sizes.
 
     The full pass forward and backward, one pass for clause (b), and one
     for each group holding a small atom (clause (c)). Zeroing groups only
     narrows every window and every value range, so each later pass is
     bounded by the first.
     """
-    one = pass_bound(instance)
+    one, entries = pass_bounds(instance)
     asked = sum(len(groups) for _, groups in instance.small_atoms)
-    return one * (3 + asked)
+    return one * (3 + asked), entries * (3 + asked)
 
 
 class Verdict:
@@ -459,8 +505,11 @@ class Verdict:
 
     def __init__(self):
         self.inside = False
+        self.why = None
         self.bound = 0
+        self.entries = 0
         self.nodes = 0
+        self.read = 0
         self.empty = False
         self.largest = None
         self.unreachable = []
@@ -472,8 +521,11 @@ class Verdict:
         out = {
             "class": CLASS_NAME if self.inside else "outside",
             "bound": self.bound,
+            "entries": self.entries,
             "nodes": self.nodes,
         }
+        if not self.inside:
+            out["why"] = self.why
         if self.inside:
             out["empty"] = self.empty
             out["v_minus"] = [instance.keys[k] for k in self.unreachable]
@@ -483,24 +535,38 @@ class Verdict:
         return out
 
 
-def decide(instance, nodes_max=NODES_MAX):
+def decide(instance, nodes_max=NODES_MAX, entries_max=ENTRIES_MAX):
     """Decide the witness of contract 4.6d.4 on one instance, or say it lies outside.
 
-    Returns a `Verdict`. Outside the class (its bound above `nodes_max`)
-    nothing is searched and `holds` is False: the option is not
+    Returns a `Verdict`. Outside the class (its groups above
+    `GROUPS_MAX`, a slope in the region, its bound above `nodes_max` or
+    its entries above `entries_max`; `why` names the first test it
+    fails) nothing is searched and `holds` is False: the option is not
     eligible, whatever a search would find. Inside, the verdict is
     exact: `unreachable` is `V-`; `zero` is clause (b); `small` is
     clause (c), read over every point; `holds` is all three.
     """
     verdict = Verdict()
-    if len(instance.keys) > GROUPS_MAX:
+    verdict.why = "groups"
+    if instance.counted > GROUPS_MAX:
         verdict.bound = None
+        verdict.entries = None
         return verdict
-    verdict.bound = class_bound(instance)
+    verdict.why = "slope"
+    if instance.slopes:
+        verdict.bound = None
+        verdict.entries = None
+        return verdict
+    verdict.bound, verdict.entries = class_bounds(instance)
+    verdict.why = "nodes"
     if verdict.bound > nodes_max:
         return verdict
+    verdict.why = "entries"
+    if verdict.entries > entries_max:
+        return verdict
+    verdict.why = None
     verdict.inside = True
-    box = [verdict.bound]
+    box = [verdict.bound, verdict.entries]
     upper = list(instance.upper)
     largest = _solve(instance, upper, box)
     if largest is None:
@@ -508,6 +574,7 @@ def decide(instance, nodes_max=NODES_MAX):
         verdict.zero = False
         verdict.small = False
         verdict.nodes = verdict.bound - box[0]
+        verdict.read = verdict.entries - box[1]
         return verdict
     verdict.largest = largest
     f = instance.floor
@@ -539,6 +606,7 @@ def decide(instance, nodes_max=NODES_MAX):
     verdict.small = small_ok
     verdict.holds = bool(verdict.zero and small_ok)
     verdict.nodes = verdict.bound - box[0]
+    verdict.read = verdict.entries - box[1]
     return verdict
 
 
@@ -563,12 +631,37 @@ def build_instance(spec):
     - `sums`: each published number, `{"columns", "codes", "powers",
       "centres", "cells", "value"}`: the sum over the listed base cells'
       rows holding a reading of every listed column of the product of
-      each column's code less its centre, raised to its power.
-    Groups are listed cell by cell, each cell's atom vectors in the
-    columns' order, every column's atoms in reading order.
+      each column's code less its centre, raised to its power;
+    - `slopes`: the nodes of the region that publish a slope (contract
+      4.6b.6), each named as the spec's reader names it; empty or absent
+      where none does. A slope is point condition (5), which is not
+      linear, so a region holding one lies outside the class (rule (3)):
+      the space listed here, without it, would hold more points than
+      `Sigma(R, o)`, and an existence claim read on it could be false.
+    A key outside these is refused (ValueError): a published fact the
+    route does not read is never left out in silence. The groups are
+    counted from these sizes BEFORE any is listed (each base cell's
+    product, over the region columns, of the atoms its band holds); a
+    region counting more than `GROUPS_MAX` is returned with no group
+    listed, and `decide` reads it as outside. Groups are listed cell by
+    cell, each cell's atom vectors in the columns' order, every column's
+    atoms in reading order.
     """
+    unread = sorted(set(spec) - set(SPEC_KEYS))
+    if unread:
+        raise ValueError("a published fact the route does not read: %s" % ", ".join(unread))
     floor = spec.get("floor", DEFAULT_FLOOR)
     columns = sorted(spec["atoms"])
+    slopes = tuple(spec.get("slopes") or ())
+    counted = 0
+    for cell in spec["cells"]:
+        product = 1
+        for column in columns:
+            band = cell["bands"][column]
+            product *= sum(1 for a in spec["atoms"][column] if a["band"] == band)
+        counted += product
+    if counted > GROUPS_MAX:
+        return Instance([], [], [], (), floor, slopes=slopes, counted=counted)
     keys = []
     vectors = []
     of_cell = []
@@ -631,7 +724,7 @@ def build_instance(spec):
             if atom.get("small"):
                 groups = [g for g in range(len(keys)) if vectors[g][position]["name"] == atom["name"]]
                 small += [((column, atom["name"]), groups)]
-    return Instance(keys, upper, constraints, small, floor)
+    return Instance(keys, upper, constraints, small, floor, slopes=slopes, counted=counted)
 
 
 def groups_by_sizes(cells_per_member, atoms_per_band):
@@ -653,9 +746,9 @@ def groups_by_sizes(cells_per_member, atoms_per_band):
     return count
 
 
-def in_class_by_sizes(cells_per_member, atoms_per_band):
-    """The first test of the class, on sizes alone, before any instance is built."""
-    return groups_by_sizes(cells_per_member, atoms_per_band) <= GROUPS_MAX
+def in_class_by_sizes(cells_per_member, atoms_per_band, slopes=False):
+    """The class's tests (1) and (3), on sizes alone, before any instance is built."""
+    return groups_by_sizes(cells_per_member, atoms_per_band) <= GROUPS_MAX and not slopes
 
 
 # --- the closed form CF1 of contract 4.6d.4, for the comparison --------

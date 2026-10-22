@@ -60,7 +60,7 @@ def _number_rungs(edges):
 
 def case_stated_exponential():
     """RULE W5's stated exponential on fixed gaps, and the choice on fixed words."""
-    gaps = [F(0), F(1, 2), F(1), F(2), F(10), F(745), F(2500)]
+    gaps = [F(0), F(1, 2), F(1), F(2), F(10), F(745), F(2500), F(1491, 2)]
     values = [co.stated_exponential(g) for g in gaps]
     word = co.word(TEST_KEY, "visits", "place", 3, ["age", "sbp", "stage"])
     scores = [F(0), F(41, 2), F(20), F(3)]
@@ -277,9 +277,11 @@ def walk40_setup():
 
 def case_walk40(sort_by_row=False, spread_after=False):
     lads, chain, twin, words, slopes, codes = walk40_setup()
+    trace = {}
     index, lists, dealt = co.walk_rows(chain, lads, twin, words, slopes=slopes, codes=codes,
-                                  sort_by_row=sort_by_row, spread_after=spread_after)
+                                       sort_by_row=sort_by_row, spread_after=spread_after, trace=trace)
     out = {
+        "latent_z": [co.b64_hex(x) for x in trace[2]["latent"]],
         "families": [fam.as_dict() for fam in chain],
         "dealt": dealt,
         "met": [d == fam.table for d, fam in zip(dealt, chain)],
@@ -527,6 +529,340 @@ def case_search():
     return {"chain": [fam.as_dict() for fam in chain], "steps": out_steps}
 
 
+# --- RULE W1 in full: across the chain, through a derived family, member by member --------
+
+
+def _rows_lads(rows, specs):
+    """Ladders of label columns from joint rows `[(values, count)]`; `specs` lists, for each
+    column in schema order, `(name, role, levels)`."""
+    lads = {}
+    for at, (name, role, levels) in enumerate(specs):
+        cells = []
+        for values, count in rows:
+            cells += [("level", values[at])] * count
+        lads[name] = co.ladder_of(name, role, cells, levels=levels, position=at)
+    return lads
+
+
+def w1_across_setup():
+    """`A`, `B | A`, `C | B` on 100 rows; `A`'s group in band `a2`, `C`'s in band `c1`."""
+    rows = [(("a1", "b1", "c2"), 30), (("a1", "b3", "c1"), 15), (("a1", "b3", "c2"), 15),
+            (("a2", "b1", "c2"), 20), (("a2", "b2", "c2"), 20)]
+    lads = _rows_lads(rows, [("A", "binary", [("a1", 60), ("a2", 40)]),
+                             ("B", "categorical", [("b1", 50), ("b2", 20), ("b3", 30)]),
+                             ("C", "binary", [("c1", 15), ("c2", 85)])])
+    chain = [co.Family("A", 0, [], None, [lads["A"].band_totals(0)]),
+             co.Family("B", 0, [("A", 0)], 0, co.table_of(lads, "B", 0, [("A", 0)])),
+             co.Family("C", 0, [("B", 0)], 1, co.table_of(lads, "C", 0, [("B", 0)]))]
+    return lads, chain, [("A", 1), ("C", 0)]
+
+
+def case_w1_across():
+    """RULE W1 read across the chain: a published nought in ANOTHER family confines a band
+    (both directions along the chain)."""
+    lads, chain, groups = w1_across_setup()
+    holds, failures = co.w1_holds(chain, lads, groups)
+    admitted = {"%s%d" % g: {c: sorted(b) for c, b in sorted(co.support(chain, lads, {g[0]: {g[1]}}).items())}
+                for g in groups}
+    return {"tables": [fam.table for fam in chain], "holds": holds, "failures": [list(f) for f in failures],
+            "admitted": admitted}
+
+
+def w1_derived_setup():
+    """Codex's item 2 of 2026-10-19: a derived family `{D | A}` placed at its rule's step,
+    then the root pair `B`, `A | B`: the step's child `A` already stands in a placed family."""
+    rows = [(("b1", "a1", "d2"), 20), (("b1", "a3", "d1"), 20), (("b1", "a3", "d2"), 20),
+            (("b2", "a1", "d2"), 25), (("b2", "a2", "d2"), 15)]
+    lads = _rows_lads(rows, [("B", "binary", [("b1", 60), ("b2", 40)]),
+                             ("A", "categorical", [("a1", 45), ("a2", 15), ("a3", 40)]),
+                             ("D", "derived", [("d1", 20), ("d2", 80)])])
+    derived = co.Family("D", 0, [("A", 0)], None, co.table_of(lads, "D", 0, [("A", 0)]))
+    option = {"kind": "root", "parent": "B", "child": "A", "levels": {"B": 0, "A": 0}}
+    return lads, [derived], option
+
+
+def w1_step_pairs_only(lads, groups):
+    """The MUTANT the page withdraws (4.6b.3): W1 read only on the pairs holding the step's
+    child, the first build's shortcut "adding a family never narrows an earlier support"."""
+    def check(placed):
+        child = placed[-1].child
+        _, failures = co.w1_holds(placed, lads, groups)
+        return not [f for f in failures if child in (f[0], f[2])]
+    return check
+
+
+def case_w1_derived(w1=None):
+    """The root pair `(B, A)` beside `{D | A}`: `B`'s group in band `b2` confines `D` through
+    `A`, a pair holding neither the step's child nor its parent's family alone."""
+    lads, chain, option = w1_derived_setup()
+    setting = co.Setting("w1derived", TEST_KEY, own_groups=[("B", 1)])
+    ok, why = co.eligible(setting, chain, option, lads, 100, w1=w1)
+    placed = co._placed(chain, option, lads)
+    holds, failures = co.w1_holds(placed, lads, [("B", 1)])
+    return {"derived_table": chain[0].table, "option_table": placed[-1].table, "edges": co.tree_edges(placed),
+            "eligible": ok, "why": why, "failures": [list(f) for f in failures]}
+
+
+def w1_member_setup():
+    """`A`, `B | A`, then the option `X | A, B` on 100 rows; `X`'s group in band `x1`."""
+    rows = [(("a1", "b1", "x1"), 15), (("a1", "b1", "x2"), 15), (("a1", "b2", "x2"), 20),
+            (("a2", "b1", "x1"), 12), (("a2", "b1", "x2"), 13), (("a2", "b2", "x2"), 25)]
+    lads = _rows_lads(rows, [("A", "binary", [("a1", 50), ("a2", 50)]),
+                             ("B", "binary", [("b1", 55), ("b2", 45)]),
+                             ("X", "binary", [("x1", 27), ("x2", 73)])])
+    chain = [co.Family("A", 0, [], None, [lads["A"].band_totals(0)]),
+             co.Family("B", 0, [("A", 0)], 0, co.table_of(lads, "B", 0, [("A", 0)]))]
+    option = {"kind": "family", "child": "X", "parents": ["A", "B"], "anchor": 1, "levels": {"A": 0, "B": 0, "X": 0}}
+    return lads, chain, option
+
+
+def design_clause(lads, groups):
+    """The MUTANT of 4.6b.9 (c)'s cases: the design's own clause, two non-zero cells beside
+    the group's band in each placed family's table holding its column, read on joint cells."""
+    def check(placed):
+        levels_at = {f.child: f.level for f in placed}
+        for column, band in groups:
+            if column not in levels_at:
+                continue
+            for family in placed:
+                members = family.members()
+                if column not in members:
+                    continue
+                at = members.index(column)
+                level = family.levels()[at]
+                beta = lads[column].coarsen(level)[lads[column].coarsen(levels_at[column])[band]]
+                sizes = [len(lads[c].bands(lv)) for c, lv in zip(members, family.levels())]
+                beside = 0
+                for row, cells in enumerate(family.table):
+                    rest = row
+                    coords = []
+                    for size in reversed(sizes[:-1]):
+                        coords += [rest % size]
+                        rest //= size
+                    coords = list(reversed(coords))
+                    for j, count in enumerate(cells):
+                        if (coords + [j])[at] == beta and count > 0:
+                            beside += 1
+                if beside < 2:
+                    return False
+        return True
+    return check
+
+
+def case_w1_member(design=False):
+    """RULE W1 member by member: the option's column `x1` holds two non-zero cells that differ
+    in `A` and agree in `B`, so `B` is confined beside `X`'s group."""
+    lads, chain, option = w1_member_setup()
+    setting = co.Setting("w1member", TEST_KEY, own_groups=[("X", 0)])
+    w1 = design_clause(lads, [("X", 0)]) if design else None
+    ok, why = co.eligible(setting, chain, option, lads, 100, w1=w1)
+    placed = co._placed(chain, option, lads)
+    holds, failures = co.w1_holds(placed, lads, [("X", 0)])
+    return {"option_table": placed[-1].table, "eligible": ok, "why": why, "failures": [list(f) for f in failures]}
+
+
+# --- the boundaries the page states (the floor, NE, W3, the merge, the score, WE) -----------
+
+
+def case_floor_edge():
+    """The floor at `f` = 11: a cell of 10 refused, of 11 and of 0 kept."""
+    return {"ten": co.floor_holds([[10, 30]]), "eleven": co.floor_holds([[11, 29]]), "nought": co.floor_holds([[0, 40]])}
+
+
+def _binary_pair(parent_totals, child_totals):
+    lads = {"P": co.ladder_of("P", "binary", _labels("P", [("p1", parent_totals[0]), ("p2", parent_totals[1])]),
+                              levels=[("p1", parent_totals[0]), ("p2", parent_totals[1])], position=0),
+            "C": co.ladder_of("C", "binary", _labels("C", [("c1", child_totals[0]), ("c2", child_totals[1])]),
+                              levels=[("c1", child_totals[0]), ("c2", child_totals[1])], position=1)}
+    return lads
+
+
+def case_ne_edge():
+    """RULE NE at its boundary, a root pair on 300 rows: least expected count exactly `f + 1`
+    (offered) against exactly `f` (not offered)."""
+    out = {}
+    for label, parent in (("twelve", (120, 180)), ("eleven", (110, 190))):
+        lads = _binary_pair(parent, (30, 270))
+        out[label] = co.offered_levels(lads, "C", [("P", 0)], None, 300)
+    return out
+
+
+def case_w3_equality():
+    """RULE W3 at equality: `X`'s smallest total 22 against `f` times `Y`'s 2 bands holds;
+    `Y` fails alone, cannot coarsen past `L2`, and the candidate is not offered."""
+    lads = {"X": co.ladder_of("X", "categorical", _labels("X", [("x1", 22), ("x2", 40), ("x3", 38), ("x4", 100)]),
+                              levels=[("x1", 22), ("x2", 40), ("x3", 38), ("x4", 100)], position=0),
+            "Y": co.ladder_of("Y", "binary", _labels("Y", [("y1", 30), ("y2", 170)]),
+                              levels=[("y1", 30), ("y2", 170)], position=1)}
+    return {"offered": co.offered_levels(lads, "Y", [("X", 0)], None, 200)}
+
+
+def case_w3_choice():
+    """RULE W3's choice: of the failing members, the one whose smallest band total is
+    smallest goes coarser."""
+    lads = {"X": co.ladder_of("X", "categorical", _labels("X", [("x1", 15), ("x2", 85), ("x3", 100)]),
+                              levels=[("x1", 15), ("x2", 85), ("x3", 100)], position=0),
+            "Y": co.ladder_of("Y", "categorical", _labels("Y", [("y1", 25), ("y2", 75), ("y3", 100)]),
+                              levels=[("y1", 25), ("y2", 75), ("y3", 100)], position=1)}
+    return {"offered": co.offered_levels(lads, "Y", [("X", 0)], None, 200)}
+
+
+def case_ne_zero_cell():
+    """RULE NE read literally on a parents' cell of total 0: its expected count is 0, below
+    `f + 1`, so the candidate coarsens until the cell is gone."""
+    rows = [(("a1", "b1", "c1"), 100), (("a1", "b1", "c2"), 100), (("a1", "b2", "c1"), 100),
+            (("a1", "b2", "c2"), 100), (("a1", "b3", "c1"), 100), (("a1", "b3", "c2"), 100),
+            (("a2", "b2", "c1"), 75), (("a2", "b2", "c2"), 75), (("a2", "b3", "c1"), 125), (("a2", "b3", "c2"), 125)]
+    lads = _rows_lads(rows, [("A", "binary", [("a1", 600), ("a2", 400)]),
+                             ("B", "categorical", [("b1", 200), ("b2", 350), ("b3", 450)]),
+                             ("C", "binary", [("c1", 500), ("c2", 500)])])
+    anchor = co.Family("B", 0, [("A", 0)], 0, co.table_of(lads, "B", 0, [("A", 0)]))
+    return {"anchor_table": anchor.table,
+            "offered": co.offered_levels(lads, "C", [("A", 0), ("B", 0)], anchor, 1000)}
+
+
+def merge_tie_cells():
+    cells = []
+    for start, count in ((10, 20), (100, 20), (200, 5), (250, 20), (300, 20), (400, 20), (500, 20),
+                         (600, 20), (700, 20), (750, 20), (800, 20), (900, 20)):
+        cells += [("value", F(start + i)) for i in range(count)]
+    return cells, _number_rungs([100, 200, 250, 300, 400, 500, 600, 700, 750, 800, 900])
+
+
+def case_merge_tie():
+    """The `L0` merge's tie: a band of 5 between two of 20 joins the EARLIER neighbour."""
+    cells, rungs = merge_tie_cells()
+    lad = co.ladder_of("tie", "count", cells, rungs=rungs)
+    return {"totals": lad.totals, "taken_in": lad.taken_in}
+
+
+def case_score_empty_row():
+    """The score's `df` over the rows and columns whose totals are not nought."""
+    table = [[30, 10, 0], [0, 0, 0], [10, 25, 5]]
+    return {"table": table, "u": _fraction_text(co.score(table))}
+
+
+def we133_rows():
+    """Codex's 133 rows of contract 4.6b.3's RULE WE: 33 records holding nothing (11 leading, 11
+    interior, 11 trailing, so `Z` = 0) and 100 tabled rows over `A`, `B`, `C`, each one level
+    or blank; no row is blank in all three, and 6 read `A` and `C` recorded beside a blank `B`."""
+    return [((None, None, "c"), 22), (("a", None, None), 22), (("a", None, "c"), 6),
+            ((None, "b", None), 11), ((None, "b", "c"), 11), (("a", "b", None), 11), (("a", "b", "c"), 17)]
+
+
+def case_we133(we=True):
+    """RULE WE on Codex's 133 rows: every root pair is refused (`b(x0)` above `Z + P` = 0)."""
+    rows = we133_rows()
+    lads = {}
+    for at, name in enumerate(("A", "B", "C")):
+        cells = []
+        for values, count in rows:
+            cells += [("missing",) if values[at] is None else ("level", values[at])] * count
+        present = sum(count for values, count in rows if values[at] is not None)
+        lads[name] = co.ladder_of(name, "categorical", cells, levels=[(name.lower(), present)], position=at)
+    blank = {"A": 0, "B": 0, "C": 0}
+    setting = co.Setting("we133", TEST_KEY, we={"blank": blank, "z": 0, "p": 0} if we else None)
+    out = {"totals": {c: lads[c].totals for c in ("A", "B", "C")}, "pairs": []}
+    for option, _ in co.root_options(setting, lads, 100):
+        if option["kind"] != "root" or any(option["levels"][c] for c in option["levels"]):
+            continue
+        a, b = option["parent"], option["child"]
+        placed = co._placed([], option, lads)
+        ok, why = co.eligible(setting, [], option, lads, 100)
+        out["pairs"] += [{"pair": [a, b], "table": placed[-1].table, "b_x0": co.cell_bound(placed, lads, blank, 100),
+                          "eligible": ok, "why": why}]
+    kept = [option for option, _ in co.root_options(setting, lads, 100)
+            if co.eligible(setting, [], option, lads, 100)[0]]
+    out["eligible_options"] = len(kept)
+    return out
+
+
+# --- the draw's and the moved target's ties, and the slope's reading map (G16.2, G16.6) -------
+
+
+def case_draw_edges():
+    """The uniform share's edge (U1 = 2**33: top 30 bits clear) and the weighted choice's
+    tie (a running sum exactly at the threshold)."""
+    scores = [F(0), F(41, 2), F(20), F(3)]
+    edge = (1 << 33).to_bytes(8, "big") + (1 << 63).to_bytes(8, "big")
+    tie = (1 << 40).to_bytes(8, "big") + (1 << 63).to_bytes(8, "big")
+    place, how, _ = co.choose(edge, scores, F(2))
+    tie_place, tie_how, weights = co.choose(tie, [F(0), F(0)], F(2))
+    return {"edge_word": edge.hex(), "edge": {"place": place, "how": how},
+            "tie_word": tie.hex(), "tie": {"place": tie_place, "how": tie_how,
+                                           "weights": [co.b64_hex(w) for w in weights]}}
+
+
+def case_moved_tie():
+    """G16.6's last tie: two tables equal on noughts, distance and squares; the greater in
+    row-major order is taken."""
+    table, named = co.moved_target([[10, 10], [10, 10]], [21, 19], [20, 20])
+    return {"moved": table, "units_in_noughts": [list(x) for x in named]}
+
+
+SLOPE_SEED = 0x51A0E
+
+
+def slope_absent_setup():
+    """G16.12 item 11: a slope parent `X` whose 5 absent cells the `L0` merge joins with 45
+    readings below its one edge into one ORDERED band; `Y | X` publishes a slope on `X`."""
+    xs = [None] * 5 + list(range(1, 96))
+    ys = [60, 70, 80, 90, 150] + [2 * x + (7 * x) % 5 for x in range(1, 96)]
+    rungs = _number_rungs([46] * 11)
+    cells = {"X": [("missing",) if x is None else ("value", F(x)) for x in xs],
+             "Y": [("value", F(y)) for y in ys]}
+    y_rungs = _number_rungs([100] * 11)
+    lads = {"X": co.ladder_of("X", "count", cells["X"], rungs=rungs, position=0),
+            "Y": co.ladder_of("Y", "count", cells["Y"], rungs=y_rungs, position=1)}
+    chain = [co.Family("X", 0, [], None, [lads["X"].band_totals(0)]),
+             co.Family("Y", 0, [("X", 0)], 0, co.table_of(lads, "Y", 0, [("X", 0)]))]
+    twin = {}
+    for name in ("X", "Y"):
+        groups = [[] for _ in lads[name].l0]
+        for r, cell in enumerate(cells[name]):
+            groups[lads[name].row_l0[r]] += [("", None) if cell[0] == "missing" else (str(cell[1]), cell[1])]
+        twin[name] = groups
+    slopes = {1: ([("X", "0.5000")], "2.0000")}
+    codes = {"X": (F(0), F(100))}
+    return lads, chain, twin, _words_for(SLOPE_SEED, 2, 100), slopes, codes
+
+
+def case_slope_absent():
+    lads, chain, twin, words, slopes, codes = slope_absent_setup()
+    trace = {}
+    index, lists, dealt = co.walk_rows(chain, lads, twin, words, slopes=slopes, codes=codes, trace=trace)
+    absent = [r for r in range(100) if lists["X"][index["X"][r]][1] is None]
+    return {"x_l0": lads["X"].as_dict()["l0"], "x_totals": lads["X"].totals, "table": chain[1].table,
+            "met": dealt == [fam.table for fam in chain], "absent_rows": absent,
+            "means": {str(c): co.b64_hex(m) for c, m in sorted(trace[1]["means"]["X"].items())},
+            "latent": [co.b64_hex(x) for x in trace[1]["latent"]]}
+
+
+# --- a later step's option order (contract 4.6b.3) ----------------------------------------
+
+
+def case_step_order():
+    """A step's candidates in option order: by the anchor's place in the chain, then by the
+    parents' places in schema order; four binary columns on 2,000 rows, each cell 125."""
+    rows = []
+    for r in range(16):
+        rows += [((("a%d" % (r % 2)), ("b%d" % ((r // 2) % 2)), ("c%d" % ((r // 4) % 2)), ("d%d" % ((r // 8) % 2))), 125)]
+    lads = _rows_lads(rows, [(name, "binary", [(name.lower() + "0", 1000), (name.lower() + "1", 1000)])
+                             for name in ("A", "B", "C", "D")])
+    chain = [co.Family("A", 0, [], None, [lads["A"].band_totals(0)]),
+             co.Family("B", 0, [("A", 0)], 0, co.table_of(lads, "B", 0, [("A", 0)])),
+             co.Family("C", 0, [("A", 0)], 0, co.table_of(lads, "C", 0, [("A", 0)]))]
+    setting = co.Setting("order", TEST_KEY)
+    seen = []
+    for option, _ in co.step_options(setting, lads, chain, 2000):
+        if option["kind"] != "family":
+            continue
+        key = [option["parents"], option["anchor"]]
+        if key not in seen:
+            seen += [key]
+    return {"candidates": seen}
+
+
 def chain_cases():
     return {
         "stated_exponential": case_stated_exponential(),
@@ -553,6 +889,24 @@ def chain_cases():
         "implied_pair": case_implied_pair(),
         "score": case_score(),
         "search": case_search(),
+        "w1_across": case_w1_across(),
+        "w1_derived": case_w1_derived(),
+        "w1_derived_mutant_step_pairs_only": case_w1_derived(w1=w1_step_pairs_only(w1_derived_setup()[0], [("B", 1)])),
+        "w1_member": case_w1_member(),
+        "w1_member_mutant_design_clause": case_w1_member(design=True),
+        "floor_edge": case_floor_edge(),
+        "ne_edge": case_ne_edge(),
+        "ne_zero_cell": case_ne_zero_cell(),
+        "w3_equality": case_w3_equality(),
+        "w3_choice": case_w3_choice(),
+        "merge_tie": case_merge_tie(),
+        "score_empty_row": case_score_empty_row(),
+        "we133": case_we133(),
+        "we133_mutant_no_we": case_we133(we=False),
+        "draw_edges": case_draw_edges(),
+        "moved_tie": case_moved_tie(),
+        "slope_absent": case_slope_absent(),
+        "step_order": case_step_order(),
     }
 
 
@@ -724,9 +1078,12 @@ def class_boundary(width):
     The cell's code sum is the middle of its range; the bound grows with
     the rows, so the boundary is found by doubling and halving.
     """
-    def bound(rows):
+    def bounds(rows):
         total = rows * (width - 1) // 2
-        return mo.class_bound(mo.build_instance(mo.one_cell_spec(rows, 0, width - 1, total)))
+        return mo.class_bounds(mo.build_instance(mo.one_cell_spec(rows, 0, width - 1, total)))
+
+    def bound(rows):
+        return bounds(rows)[0]
 
     low = 22
     high = 44
@@ -738,14 +1095,17 @@ def class_boundary(width):
             low = middle
         else:
             high = middle
-    return {"width": width, "inside": [low, low * (width - 1) // 2, bound(low)],
-            "outside": [high, high * (width - 1) // 2, bound(high)]}
+    return {"width": width, "inside": [low, low * (width - 1) // 2] + list(bounds(low)),
+            "outside": [high, high * (width - 1) // 2] + list(bounds(high))}
 
 
 def moment_cases():
     out = {}
     inst, out["reference"] = _verdict(spec_reference())
     out["reference_mutant_old_query"] = decide_mutant(inst, "old_query")
+    sloped = spec_reference()
+    sloped["slopes"] = ["c | THE TABLE"]
+    inst, out["reference_with_a_slope"] = _verdict(sloped)
     inst, out["small_atom"] = _verdict(spec_small_atom())
     inst, out["clause_c"] = _verdict(spec_clause_c())
     out["clause_c_mutant_no_c"] = decide_mutant(inst, "no_c")
@@ -764,5 +1124,6 @@ def moment_cases():
     inst, out["correlation_one_cell"] = _verdict(spec_correlation(33, correlation_sums(loose)))
     out["cf1_against_the_oracle"] = cf1_agreement([22, 40])
     out["class_boundary"] = [class_boundary(w) for w in (2, 3, 4, 6)]
-    out["class"] = {"name": mo.CLASS_NAME, "nodes_max": mo.NODES_MAX, "groups_max": mo.GROUPS_MAX}
+    out["class"] = {"name": mo.CLASS_NAME, "nodes_max": mo.NODES_MAX, "entries_max": mo.ENTRIES_MAX,
+                    "groups_max": mo.GROUPS_MAX}
     return out

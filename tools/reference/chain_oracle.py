@@ -349,9 +349,12 @@ def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, p
     or clock its interior rungs on its own ordinal, read here under the
     same keys); label columns (`binary`, `categorical`,
     `long_tail_labels`, `constant`) pass their published `levels` as
-    `(name, count)` in published order.
+    `(name, count)` in published order. A DERIVED column of a carried
+    rule (contract 4.6b.7, role `derived` here) passes the bands of the
+    ONE level its family `{D | A}` publishes as its `levels`; that level
+    is all three of its levels, so RULE W1 reads it as its coarsest.
     """
-    label_role = role in ("binary", "categorical", "long_tail_labels", "constant")
+    label_role = role in ("binary", "categorical", "long_tail_labels", "constant", "derived")
     starting = []
     if label_role:
         for kind in ("missing",):
@@ -460,7 +463,7 @@ def ladder_of(name, role, cells, rungs=None, levels=None, floor=DEFAULT_FLOOR, p
         totals[b] += 1
     taken_in = sorted({where[g[0]] for g, _ in taken})
     ordered = [any(isinstance(s, tuple) for s in band) for band in l0]
-    if role in ("binary", "constant"):
+    if role in ("binary", "constant", "derived"):
         l1 = [[i] for i in range(len(l0))]
         l2 = [[i] for i in range(len(l0))]
     elif label_role:
@@ -704,14 +707,62 @@ def _allowed(family, lads, levels_at):
     return members, out
 
 
+def tree_edges(chain):
+    """The junction tree's edges: each family joined to its anchor, and a family with
+    parents and no anchor (a derived family `{D | A}` of a carried rule, placed at its
+    rule's step before `A`'s own family, contract 4.6b.7) joined to the family each
+    parent is the child of, once that family is placed. Each column's families stay
+    connected, so the two passes of `support` are exact."""
+    child_of = {}
+    for i, family in enumerate(chain):
+        child_of.setdefault(family.child, i)
+    edges = []
+    for i, family in enumerate(chain):
+        if family.anchor is not None:
+            edges += [(i, family.anchor)]
+        else:
+            for parent, _ in family.parents:
+                j = child_of.get(parent)
+                if j is not None and j != i:
+                    edges += [(i, j)]
+    return edges
+
+
+def _tree_order(count, edges):
+    """Each family's place in a walk of the tree from its component's first family:
+    the order, and each family's neighbour toward that first family."""
+    neighbours = {i: [] for i in range(count)}
+    for a, b in edges:
+        neighbours[a] += [b]
+        neighbours[b] += [a]
+    order = []
+    toward = {}
+    for start in range(count):
+        if start in toward:
+            continue
+        toward[start] = None
+        queue = [start]
+        at = 0
+        while at < len(queue):
+            u = queue[at]
+            at += 1
+            order += [u]
+            for v in sorted(neighbours[u]):
+                if v not in toward:
+                    toward[v] = u
+                    queue += [v]
+    return order, toward
+
+
 def support(chain, lads, fixed=None):
     """The chain-level band combinations no published nought rules out, column by column.
 
-    Families form a junction tree (each family joined to its anchor), so
-    passing true and false up the tree and back down leaves, in each
-    family, exactly the member tuples some full assignment extends
-    (contract 4.6b.3's RULE W1, 4.6b.9 (c)). `fixed` restricts columns
-    to sets of chain-level bands. Returns each column's admitted bands.
+    Families form a junction tree (`tree_edges`: each family joined to
+    its anchor, a derived family to its parent's own family), so passing
+    true and false up the tree and back down leaves, in each family,
+    exactly the member tuples some full assignment extends (contract
+    4.6b.3's RULE W1, 4.6b.9 (c)). `fixed` restricts columns to sets of
+    chain-level bands. Returns each column's admitted bands.
     """
     fixed = fixed or {}
     levels_at = {f.child: f.level for f in chain}
@@ -720,30 +771,23 @@ def support(chain, lads, fixed=None):
         members, out = _allowed(family, lads, levels_at)
         out = {t for t in out if all(t[i] in fixed[c] for i, c in enumerate(members) if c in fixed)}
         allowed += [(members, out)]
-    # Upward: each family's allowed tuples narrowed by its children's messages.
-    children = {i: [] for i in range(len(chain))}
-    for i, family in enumerate(chain):
-        if family.anchor is not None:
-            children[family.anchor] += [i]
-    order = list(range(len(chain)))
+    order, toward = _tree_order(len(chain), tree_edges(chain))
+
+    def narrowed(target, source):
+        tm, tout = allowed[target]
+        sm, sout = allowed[source]
+        sep = [c for c in tm if c in sm]
+        message = {tuple(t[sm.index(c)] for c in sep) for t in sout}
+        return (tm, {t for t in tout if tuple(t[tm.index(c)] for c in sep) in message})
+
+    # Upward: each family's allowed tuples narrowed by the messages of the families beyond it.
     for i in reversed(order):
-        members, out = allowed[i]
-        for j in children[i]:
-            sep = [c for c, _ in chain[j].parents]
-            jm, jout = allowed[j]
-            message = {tuple(t[jm.index(c)] for c in sep) for t in jout}
-            out = {t for t in out if tuple(t[members.index(c)] for c in sep) in message}
-        allowed[i] = (members, out)
-    # Downward: each family narrowed by its anchor's.
+        if toward[i] is not None:
+            allowed[toward[i]] = narrowed(toward[i], i)
+    # Downward: each family narrowed by the family toward its component's first.
     for i in order:
-        family = chain[i]
-        if family.anchor is None:
-            continue
-        sep = [c for c, _ in family.parents]
-        am, aout = allowed[family.anchor]
-        message = {tuple(t[am.index(c)] for c in sep) for t in aout}
-        members, out = allowed[i]
-        allowed[i] = (members, {t for t in out if tuple(t[members.index(c)] for c in sep) in message})
+        if toward[i] is not None:
+            allowed[i] = narrowed(i, toward[i])
     roots_empty = any(not out for members, out in allowed)
     admitted = {}
     for members, out in allowed:
@@ -1149,7 +1193,7 @@ def _spread_positions(g, t):
 
 
 def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
-         sort_by_row=False, spread_after=False):
+              sort_by_row=False, spread_after=False, trace=None):
     """Method G16.2 on given words: each arranged row's cell of each eligible column.
 
     `lads` maps each column to its PUBLISHED ladder (band structure and totals);
@@ -1162,6 +1206,9 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
     `targets[f]` replaces family `f`'s published table (a moved target).
     The two keyword mutants are G16.12's: rows sorted by row number
     instead of `L`, and the spread bands placed after the ordered ones.
+    `trace`, where a dict, receives for each family index its rows'
+    latent orders `L` and each slope parent's cell means (exact
+    binary64 values as fractions).
     Returns `{column: [cell index of each row]}`, the cell lists, and each
     family's table as dealt.
     """
@@ -1193,10 +1240,10 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
         target = targets.get(fi, fam.table)
         z = [hidden_score(words[fi][r]) for r in range(n)]
         latent = list(z)
+        means = {}
         if fi in slopes and slopes[fi] is not None and lad.ordered and any(lad.ordered):
             parent_terms, sigma_text = slopes[fi]
             sigma = published_decimal(sigma_text)
-            means = {}
             for p, beta_text in parent_terms:
                 sums = {}
                 for r in range(n):
@@ -1216,6 +1263,8 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
                         term = b64_mul(beta, b64_sub(code, means[p][cell_of[r]]))
                     acc = term if acc is None else b64_add(acc, term)
                 latent[r] = b64_add(acc, b64_mul(sigma, z[r]))
+        if trace is not None:
+            trace[fi] = {"latent": latent, "means": means}
         sort_key = (lambda r: r) if sort_by_row else (lambda r: (latent[r], r))
         band_of = [None] * n
         ordered_band = [any(isinstance(s, tuple) for b in members for s in lad.l0[b]) for members in bands]
