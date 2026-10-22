@@ -12,21 +12,25 @@ exists).
 whose cells hold one to three record numbers separated by `;` was read
 as a long tail and published two of them on 11 rows or more, with no
 question put (lane ZR-a's measurement). A column whose cells are lists --
-values separated by `;`, `|`, `,` or spaces in at least two cells --
-every value of which holds a run of five figures or more, or which the
-padded route or routes two to four of the person rule reach taken over
-its values, is now put one question about the data: do its cells hold
-several codes or labels, or several record numbers? It offers `keep`,
-`code` and `identifier`, and is put only where no other question was.
-Until answered, the column is held as an unanswered identifier column
-is: no value published, made-up values in the twin. `keep` and `code`
-read it as before, byte for byte; `identifier` keeps it held; the
-questions file keeps the answer. On the three measured forms and one
-beside a declared person column, 0 record numbers are published and 0
-twin cells hold one at 600 and 20,000 rows, where 2, 2, 2 and 1 were
-published at 600 rows. A list of three-figure codes is left to the
-person question, as before. No column of lane S4d's description battery
-or of the health data zoo is reached. `K-S3-64` gains the four shapes.
+values separated by `;`, `|`, `,`, spaces or any of them at once, in at
+least one cell, brackets, quotes and closing marks taken off, every mark
+judged -- every value of which holds a run of five figures or more, or
+which the padded route or routes two to four of the person rule reach
+taken over its values, is now put one question about the data: do its
+cells hold several codes or labels, or several record numbers? It offers
+`keep`, `code` and `identifier`, and is put only where no question
+offering `identifier` was and nothing, a decimal comma included, is
+declared. Until answered, the column is held as an unanswered identifier
+column is: no value published, made-up values in the twin. `keep` and
+`code` read it as before, byte for byte; `identifier` keeps it held; the
+questions file keeps the answer. On ten measured shapes -- among them the
+marks mixed cell by cell, one list cell among single record numbers, a
+closing mark and space-separated grouped keys, which the review of the
+build found publishing up to 40 of 40 -- 0 record numbers are published
+and 0 twin cells hold one at 600 and 20,000 rows. A list of three-figure
+codes is left to the person question, as before. No column of lane S4d's
+description battery or of the health data zoo is reached. `K-S3-64`
+gains the ten shapes.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
