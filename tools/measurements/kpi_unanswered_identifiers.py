@@ -11,7 +11,10 @@ and counts what is real:
   lane HX2's count in people holds (`COUNTED`, plan P4-D406: a plan and
   an account number beside a declared person column, and a name, a
   street address and a birth date beside a patient key whose person
-  question is open): real values written whole, or as a number, in the
+  question is open), and the register lists (`LISTED`, plan P4-D424: one
+  to three record numbers a cell, six figures, six padded to seven, `R` and
+  six figures, and the first beside a declared person column): real values
+  written whole, or as a number, in the
   description, its summary, the questions file or the screen, fragments
   of them anywhere there, twin cells holding a real value and fragments
   inside twin cells. Target 0 each. And the twins of those shapes that
@@ -48,7 +51,7 @@ stated = {"stated_description_values": 0, "stated_twin_cells": 0}
 lines = []
 with tempfile.TemporaryDirectory() as scratch:
     for rows in SIZES:
-        for kind in shapes.HELD + shapes.BESIDE + shapes.COUNTED + shapes.STATED:
+        for kind in shapes.HELD + shapes.BESIDE + shapes.COUNTED + shapes.LISTED + shapes.STATED:
             folder = pathlib.Path(scratch) / f"{kind}-{rows}"
             folder.mkdir()
             seen = shapes.run(folder, kind, rows)
@@ -73,7 +76,7 @@ for line in lines:
     print(line)
 value = dict(held)
 value.update(stated)
-held_shapes = len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED)
+held_shapes = len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED) + len(shapes.LISTED)
 value["shapes"] = len(SIZES) * (held_shapes + len(shapes.STATED))
 kpi_rules.emit("K-S3-64", value, f"{len(SIZES)} sizes x {held_shapes} held and "
                f"{len(shapes.STATED)} stated shapes")

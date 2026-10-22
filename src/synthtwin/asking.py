@@ -3817,6 +3817,14 @@ _LIST_MARKS_SAID = {
     ",": "a comma",
     " ": "a space",
 }
+# THE PADDED ROUTE READS A LIST'S VALUES FROM FOUR FIGURES UP. Below
+# that, a nought opening a part is a thousands group (`1,034`), the
+# figures after a decimal comma (`12,05`) or a short code (`001`): lane
+# S4d's battery's `comma_settled_decimal` was reached by the padded route
+# on its parts until this line (`census-a235cb8f.log`), and three-figure
+# codes are the fixed-width route's price P4-D401 does not carry into a
+# list.
+_PADDED_LIST_FIGURES = 4
 # How many cells must hold two values or more before a column is a list:
 # one cell is a slip of a keyboard as often as a list.
 _LIST_CELLS_AT_LEAST = 2
@@ -3833,8 +3841,8 @@ _LISTED_SAID = {
         "of five figures or more"
     ),
     _LISTED_PADDED: (
-        "every part is written in figures alone, some of them with a "
-        "leading zero"
+        "every part is written in figures alone, some of them four figures "
+        "or more with a leading zero"
     ),
     _LISTED_CODES: (
         "every part is a code of letters and figures, each standing in two "
@@ -3857,10 +3865,11 @@ def _list_parts(cell: str, mark: str) -> "list[str]":
     Spaces split on any run of them, so no part is empty; every other
     mark keeps an empty part, which says the cell is no list.
     """
-    pieces = cell.split() if mark == " " else cell.split(mark)
     parts: "list[str]" = []
-    for piece in pieces:
-        parts += [parsing.trimmed(piece)]
+    for piece in cell.split(mark):
+        one = parsing.trimmed(piece)
+        if one or mark != " ":
+            parts += [one]
     return parts
 
 
@@ -3896,7 +3905,7 @@ def _list_mark(present: "list[str]") -> "tuple[str, int]":
         values = 0
         whole = True
         for cell in present:
-            if mark != " " and mark not in cell:
+            if mark not in cell:
                 values = values + 1
                 continue
             parts = _list_parts(cell, mark)
@@ -3924,8 +3933,8 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
       figures or more (`_a_wide_listed_value`) -- a six-figure record
       number, one padded to seven, `R` and six figures; or
     * an identity route of P4-D401 reaches the values taken as one
-      column: the padded route (figures alone, some with a leading
-      zero), route two (codes of letters and figures repeating), route
+      column: the padded route (figures alone, some of four figures or
+      more opening with a nought), route two (codes of letters and figures repeating), route
       three (every value but at most a third names one person) or route
       four (a key of figures repeating beside fewer than half
       placeholders), each read as `_names_people` and `why_worth_asking`
@@ -3969,7 +3978,7 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
             if padded:
                 if not _is_plain_whole_number(value):
                     padded = False
-                elif len(value) > 1 and value[0] == "0":
+                elif len(value) >= _PADDED_LIST_FIGURES and value[0] == "0":
                     padding = True
             if codes:
                 if _a_register_of_codes([value]):
@@ -3981,14 +3990,21 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
                 else:
                     codes = False
                     different = {}
-            if persons and not _names_one_person(value):
+            # A word of letters alone names nobody (`_names_one_person`
+            # needs a figure, `@`, a point or `://`), and is told so
+            # without the walk through every layout: free text is mostly
+            # such words.
+            if persons and (value.isalpha() or not _names_one_person(value)):
                 misses = misses + 1
                 if misses * _SIGN_PLACEHOLDER_SHARE > values:
                     persons = False
             if keys:
-                figures = _key_figures(value)
+                # A word of ASCII letters alone is a placeholder and no key,
+                # told without `_key_figures`' walk (the same answer).
+                lettered = value.isascii() and value.isalpha()
+                figures = None if lettered else _key_figures(value)
                 if figures is None:
-                    if _a_key_placeholder(value):
+                    if lettered or _a_key_placeholder(value):
                         placeholders = placeholders + 1
                         if placeholders * 2 >= values:
                             keys = False
@@ -4018,8 +4034,8 @@ def _listed_record_numbers(present: "list[str]", role: str) -> "tuple[str, str]"
         and key_values >= PERSON_ROWS_PER_VALUE * len(figures_of)
     ):
         five = 0
-        for figures in figures_of:
-            if _five_figures_or_more(figures):
+        for written in figures_of:
+            if _five_figures_or_more(written):
                 five = five + 1
         if five * 2 > len(figures_of):
             return mark, _LISTED_KEYS

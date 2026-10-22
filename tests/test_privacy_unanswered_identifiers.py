@@ -734,3 +734,243 @@ def test_the_contract_quotes_the_sentence_the_product_writes() -> None:
     quoted = entry[entry.index("\n\n> ") + len("\n\n> "):]
     said = taxonomy.rendered(taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ())
     assert quoted[: quoted.index("\n")] == said
+
+
+# -- a list of record numbers in one cell (plan P4-D424, lane HX4) ----------
+#
+# Measured on 91ee9374 by lane ZR-a's second repair (`probe-where.log`):
+# one to three six-figure record numbers a cell, drawn from 40, read as a
+# long tail, published two record numbers as levels and asked nothing.
+# Here each form is held at 600 and 20,000 rows: at 600 rows by the list
+# question, which offers `code` and `identifier` beside `keep`; at 20,000
+# rows the person question reaches the whole cells first (more different
+# cells than the categories ceiling, repeating) and the list question is
+# never put as a second question, except beside a declared person column,
+# where the person question is not put.
+
+_LIST_ANSWERS = [asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]
+
+
+def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
+    assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
+    assert seen["validate_exit"] == 0, seen
+    assert seen["description_values"] == 0, seen
+    assert seen["description_fragments"] == 0, seen
+    assert seen["twin_cells"] == 0, seen
+    assert seen["twin_fragments"] == 0, seen
+    assert seen["role"] == taxonomy.ROLE_IDENTIFIER
+    asked = seen["asked"]
+    assert isinstance(asked, list) and len(asked) == 1, "one question, never two"
+    if rows == _ROWS or kind.endswith("_beside"):
+        assert asked == [_LIST_ANSWERS]
+    else:
+        assert asked == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+
+
+@pytest.mark.parametrize("rows", (_ROWS, 20000))
+@pytest.mark.parametrize("kind", shapes.LISTED)
+def test_a_list_of_record_numbers_is_held_until_answered(
+    tmp_path: pathlib.Path, kind: str, rows: int
+) -> None:
+    """0 of the 40 record numbers published, 0 twin cells holding one; one question."""
+    seen = shapes.run(tmp_path, kind, rows)
+    _check_list_held(seen, rows, kind)
+    if rows == _ROWS:
+        assert seen["read_as_now"] == [asking.ANSWER_IDENTIFIER]
+        assert seen["evidence"] == taxonomy.rendered(
+            taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ()
+        )
+        assert "COLUMNS HELD BACK UNTIL YOU ANSWER" in f"{seen['screen']}"
+        assert "THESE COLUMNS HOLD SEVERAL VALUES IN A CELL" in f"{seen['screen']}"
+
+
+def _listing_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tree before lane HX4: no list is asked about."""
+    monkeypatch.setattr(
+        asking, "listed_record_number_questions", lambda *named, **said: []
+    )
+
+
+def test_mutant_the_list_rule_off_publishes_record_numbers(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the rule off, the six-figure form publishes record numbers (2 at 600 rows)."""
+    _listing_off(monkeypatch)
+    seen = shapes.run(tmp_path, "reglist6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglist6")
+
+
+def _answered_list(
+    folder: pathlib.Path, answer: str, questions: "pathlib.Path | None" = None
+) -> "tuple[int, pathlib.Path]":
+    """Answer reglist6's question in the file a run wrote (or hand `questions` back), into a folder of its own."""
+    source = questions or folder / "reglist6_long-questions.json"
+    document = json.loads(source.read_text(encoding="utf-8"))
+    if questions is None:
+        for entry in document["asked"]:
+            if entry["column"] == "reglist6":
+                entry["your_answer"] = answer
+    answers = folder / f"answers-{answer}.json"
+    answers.write_text(json.dumps(document), encoding="utf-8", newline="\n")
+    out = folder / f"answered-{answer}"
+    out.mkdir()
+    with shapes.nobody_at_the_keyboard():
+        code = cli.main(["profile", f"{folder / 'reglist6_long.csv'}", "--out-dir",
+                         f"{out}", "--answers", f"{answers}"])
+    return code, out
+
+
+def _described_before(
+    folder: pathlib.Path, name: str, typed: "list[str]", monkeypatch: pytest.MonkeyPatch
+) -> pathlib.Path:
+    """The same table described with the list rule off (today's tree), `typed` on the command line."""
+    out = folder / name
+    out.mkdir()
+    with monkeypatch.context() as patched:
+        _listing_off(patched)
+        with shapes.nobody_at_the_keyboard():
+            assert cli.main(["profile", f"{folder / 'reglist6_long.csv'}", "--out-dir",
+                             f"{out}"] + typed) == 0
+    return out
+
+
+@pytest.mark.parametrize(
+    ("answer", "typed"),
+    [
+        (asking.ANSWER_KEEP, []),
+        (asking.ANSWER_CODE, ["--code", "reglist6"]),
+        (asking.ANSWER_IDENTIFIER, ["--identifier", "reglist6"]),
+    ],
+)
+def test_each_answer_to_the_list_question_gives_todays_bytes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, answer: str, typed: "list[str]"
+) -> None:
+    """`keep` and `code` read the list as today; `identifier` keeps it held.
+
+    Each answered description and summary are byte for byte today's tree's
+    with nothing typed (`keep`), `--code` typed (`code`) or `--identifier`
+    typed (`identifier`, which publishes no value).
+    """
+    shapes.run(tmp_path, "reglist6", _ROWS)
+    code, out = _answered_list(tmp_path, answer)
+    assert code == 0
+    before = _described_before(tmp_path, f"before-{answer}", typed, monkeypatch)
+    for page in ("reglist6_long-profile.json", "reglist6_long-profile.txt"):
+        assert (out / page).read_bytes() == (before / page).read_bytes(), page
+    block = _block(json.loads((out / "reglist6_long-profile.json").read_text(encoding="utf-8")),
+                   "reglist6")
+    if answer == asking.ANSWER_IDENTIFIER:
+        assert block["role"] == taxonomy.ROLE_IDENTIFIER
+    else:
+        assert block["role"] != taxonomy.ROLE_IDENTIFIER
+
+
+def _code_kept(folder: pathlib.Path) -> None:
+    """Answered `code`, then the file that run wrote handed back blank: still read as codes."""
+    shapes.run(folder, "reglist6", _ROWS)
+    code, out = _answered_list(folder, asking.ANSWER_CODE)
+    assert code == 0
+    code, again = _answered_list(folder, "again", out / "reglist6_long-questions.json")
+    assert code == 0
+    document = json.loads((again / "reglist6_long-profile.json").read_text(encoding="utf-8"))
+    settings = document["settings"]
+    assert isinstance(settings, dict)
+    assert settings["forced_codes"] == ["reglist6"], "the answer was lost"
+    assert _block(document, "reglist6")["role"] != taxonomy.ROLE_IDENTIFIER
+
+
+def test_the_list_answer_is_kept_in_the_questions_file(tmp_path: pathlib.Path) -> None:
+    """The questions file keeps the answer (plan P4-D408): a second round reads it again."""
+    _code_kept(tmp_path)
+
+
+def test_mutant_the_list_answer_lost_is_seen(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the file a run writes keeps no earlier answer, so the list is held again."""
+    monkeypatch.setattr(asking, "answered_before", lambda given: [])
+    with pytest.raises(AssertionError, match="the answer was lost"):
+        _code_kept(tmp_path)
+
+
+def _list_cells(values: "list[str]", mark: str, rows: int, seed: int = 7) -> "list[str]":
+    draw = random.Random(seed)
+    return [mark.join(draw.sample(values, draw.randint(1, 3))) for _row in range(rows)]
+
+
+def test_the_list_rule_reaches_record_numbers_and_no_short_code() -> None:
+    """The three forms on every mark, the identity routes on values; short codes, sums and words not."""
+    draw = random.Random(11)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    for mark in (";", "|", ",", " "):
+        assert asking._listed_record_numbers(_list_cells(six, mark, 600), "free_text") == (
+            mark, "wide")
+    seven = [f"0{one}" for one in six]
+    lettered = [f"R{one}" for one in six]
+    for keys in (seven, lettered):
+        assert asking._listed_record_numbers(_list_cells(keys, ";", 600), "long_tail_labels")[1] == "wide"
+    padded = [f"0{draw.randint(100, 999)}" for _key in range(40)]
+    assert asking._listed_record_numbers(_list_cells(padded, "|", 600), "free_text")[1] == "padded"
+    codes = [f"A{draw.randint(10, 99)}B" for _key in range(30)]
+    assert asking._listed_record_numbers(_list_cells(codes, ";", 600), "free_text")[1] == "codes"
+    mails = [f"pat{one}@mailhost.org" for one in range(40)]
+    assert asking._listed_record_numbers(_list_cells(mails, "; ", 600), "free_text")[1] == "persons"
+    keyed = _list_cells(six, ";", 600) + ["UNKNOWN;" + six[0]] * 20
+    assert asking._listed_record_numbers(keyed, "free_text")[1] == "keys"
+    # NOT REACHED: three-figure codes 101 to 106, of mixed widths 3 and 4,
+    # all four figures; grouped thousands and decimal commas; ICD codes
+    # with points; free text; one cell of two values; a list read as dates.
+    short = [f"{one}" for one in range(101, 107)]
+    mixed = [f"{draw.choice([draw.randint(100, 999), draw.randint(1000, 9999)])}" for _key in range(20)]
+    four = [f"{draw.randint(1000, 9999)}" for _key in range(20)]
+    for values in (short, mixed, four):
+        for mark in (";", ","):
+            for rows in (_ROWS, 20000):
+                assert asking._listed_record_numbers(_list_cells(values, mark, rows), "categorical") == ("", "")
+    sums = [f"{draw.randint(1, 9999):,}" for _row in range(600)] + ["12,05", "3,75"]
+    icd = _list_cells(["E11.9", "I10", "J45.909", "N18.3"], ";", 600)
+    words = [" ".join(draw.choice(["pain", "fever", "cough"]) for _word in range(5)) for _row in range(600)]
+    once = [six[0]] * 599 + [f"{six[0]};{six[1]}"]
+    for cells in (sums, icd, words, once):
+        assert asking._listed_record_numbers(cells, "free_text") == ("", "")
+    assert asking._listed_record_numbers(_list_cells(six, ";", 600), taxonomy.ROLE_DATETIME) == ("", "")
+
+
+def test_mutant_the_five_figure_bound_ignored_reaches_short_codes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mutant: a run of one figure taken as wide, so a list of three- and four-figure codes is held."""
+    draw = random.Random(11)
+    mixed = [f"{draw.choice([draw.randint(100, 999), draw.randint(1000, 9999)])}" for _key in range(20)]
+    cells = _list_cells(mixed, ";", _ROWS)
+    assert asking._listed_record_numbers(cells, "categorical") == ("", "")
+    monkeypatch.setattr(asking, "_KEY_FIGURES", 1)
+    assert asking._listed_record_numbers(cells, "categorical") == (";", "wide")
+
+
+def test_a_list_of_three_figure_codes_is_held_by_the_person_question_alone(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codes 101 to 106, one to three a cell, are not this rule's: what holds them is today's.
+
+    At 600 rows the person question reaches the whole cells (more different
+    cells than the categories ceiling of 60, repeating), offering `keep` and
+    `identifier` as today, and the list question is not put. At 20,000 rows
+    nothing holds them: 156 combinations under the ceiling of 1,000 read as
+    categories, published as today (the rule's own reading is asserted in
+    `test_the_list_rule_reaches_record_numbers_and_no_short_code`).
+    """
+    cells = _list_cells([f"{one}" for one in range(101, 107)], ";", _ROWS)
+    draw = random.Random(3)
+    lines = ["codes,value"] + [f"{cell},{draw.uniform(1, 9):.1f}" for cell in cells]
+    code, document = _profile_rows(tmp_path, "codes_long", lines)
+    assert code == 0
+    asked = json.loads(
+        (tmp_path / "codes_long-questions.json").read_text(encoding="utf-8")
+    )["asked"]
+    offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+               for entry in asked if entry["column"] == "codes"]
+    assert offered == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    assert _block(document, "codes")["role"] == taxonomy.ROLE_IDENTIFIER
