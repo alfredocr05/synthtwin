@@ -16478,6 +16478,12 @@ recounted the same way, and each convention whose count the twin does not
 hold is named -- those counts are spread over the values and held only at
 the floor, so without the note a different count passed unsaid.
 
+**AND ONE MORE IN LANE PS** (plan P4-D417): `time_grain`, named where a
+held column's made-up values are left as made up because its reading is
+one G7.13 does not write. Repair round 2 of the lane added the note to
+the generator and not here, and the whole suite of its third round
+turned this guard red, which is what it is for.
+
 * `all_at_midnight`
 * `all_whole_numbers`
 * `date_field_widths`
@@ -16523,6 +16529,7 @@ the floor, so without the note a different count passed unsaid.
 * `subsecond_digits`
 * `suppressed_levels`
 * `thousands_marks`
+* `time_grain`
 * `utc_offsets`
 * `words`
 * `levels -> shape_form_cells`
