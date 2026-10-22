@@ -38,6 +38,7 @@ import math
 import pathlib
 import random
 import tracemalloc
+import types
 import weakref
 
 import pytest
@@ -108,7 +109,11 @@ def test_a_folded_label_that_folding_leaves_as_written_is_the_cell_s_own_text() 
 
 
 def _tally_as_built() -> object:
-    built, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.TALLY, "_tally")
+    built, names = stage4_as_built.compiled(taxonomy, stage4_as_built.TALLY, "_tally")
+    # 66bca69's record of the tally, its fields as that commit named them
+    # (`folded_counts`, `spellings_by_folded`; lane H3's repair renamed
+    # them when it keyed the labels by their first spellings).
+    names["_Cells"] = types.SimpleNamespace
     return built
 
 
@@ -132,21 +137,30 @@ def test_every_label_s_spellings_are_the_map_66bca69_held() -> None:
         classified = taxonomy._classify_all(cells)
         now = taxonomy._tally(classified, len(cells), _SETTINGS)
         before = as_built(classified, len(cells), _SETTINGS)  # type: ignore[operator]
-        assert list(now.folded_counts) == list(before.folded_counts), name
-        assert now.folded_counts == before.folded_counts, name
+        # Keyed by each label's first spelling since lane H3's repair (plan
+        # P4-D423): the maps keyed by label are `_label_maps`'s, the same
+        # key for key and in order, and each first spelling's are its label's.
+        counts, mixed_now = taxonomy._label_maps(now)
+        assert list(counts) == list(before.folded_counts), name
+        assert counts == before.folded_counts, name
         for label in before.folded_counts:
-            answered = taxonomy._label_spellings(now.folded_counts, now.spellings_by_folded, label)
+            answered = taxonomy._label_spellings(counts, mixed_now, label)
             assert list(answered.items()) == list(before.spellings_by_folded[label].items()), (name, label)
         mixed = {label for label in before.spellings_by_folded if list(before.spellings_by_folded[label]) != [label]}
-        assert set(now.spellings_by_folded) == mixed, name
+        assert set(mixed_now) == mixed, name
+        for first in now.label_counts:
+            label = parsing.folded(first)
+            assert list(taxonomy._rep_spellings(now, first).items()) == list(before.spellings_by_folded[label].items())
+            assert list(before.spellings_by_folded[label])[0] == first, (name, first)
+        assert len(now.label_spellings) == sum(1 for label in before.spellings_by_folded if len(before.spellings_by_folded[label]) > 1)
 
 
 def test_a_column_of_plain_labels_holds_no_map_of_spellings() -> None:
     """66bca69 held one map per label: 100,000 maps on 100,000 different numbers."""
     cells = [f"{k}" for k in range(100_000)]
     tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), _SETTINGS)
-    assert tallied.spellings_by_folded == {}
-    assert len(tallied.folded_counts) == 100_000
+    assert tallied.label_spellings == {}
+    assert len(tallied.label_counts) == 100_000
 
 
 def _mode_bytes_per_row(cells: "list[str]") -> "tuple[tuple[float | None, int], float]":
@@ -555,8 +569,8 @@ def test_past_the_bound_a_text_met_again_shares_one_record(case: str) -> None:
     assert _objects(classified) == len(set(cells)), case
     assert [one.text for one in classified[bound - 3 : bound + 40]] == cells[bound - 3 : bound + 40]
     tallied = taxonomy._tally(classified, len(cells), _SETTINGS)
-    assert tallied.spellings_by_folded == {}
-    assert tallied.folded_counts[_AGAIN] == cells.count(_AGAIN)
+    assert tallied.label_spellings == {}
+    assert tallied.label_counts[_AGAIN] == cells.count(_AGAIN)
 
 
 @pytest.mark.parametrize("case", _CASES)
