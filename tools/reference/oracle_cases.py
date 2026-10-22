@@ -895,6 +895,124 @@ def case_step_order():
     return {"candidates": seen}
 
 
+
+# --- G16.12 items 8, 9, 9b, 10 and 12 (Codex's item 4 of the landing's review) -----------
+
+
+def case_cell_index(width=None):
+    """G16.12 item 8: the cell index read back, at 3 bytes and at 4 (MUTANT `width` 3: every
+    index packed in 3 bytes whatever the column holds)."""
+    out = {}
+    for label, cells, indices in (("three", 16_777_215, [0, 1, 255, 65_536, 16_777_214]),
+                                  ("four", 20_000_000, [0, 16_777_215, 16_777_216, 19_999_999])):
+        data = co.pack_indices(indices, cells, width)
+        out[label] = {"cells": cells, "indices": indices, "bytes": bytes(data).hex(),
+                      "read_back": co.unpack_indices(data, cells, width)}
+    return out
+
+
+def case_stray_rows(eligible_gives=False):
+    """G16.12 item 9: a stray row given a cell by an ineligible column (`X`, beside the
+    eligible `A` and `Y`), and one with no ineligible giver, which stays and is named
+    (MUTANT: an eligible column's cell moved)."""
+    columns = ["A", "X", "Y"]
+    givers = columns if eligible_gives else None
+    out = {}
+    for label, rows in (("giver", [["4", "x1", "8"], ["", "", ""], ["6", "x2", "2"]]),
+                        ("no_giver", [["4", "", "8"], ["", "", ""], ["", "x2", ""]])):
+        table, exchanges, stayed = co.stray_rows(rows, columns, eligible={"A", "Y"}, rule_named=set(), givers=givers)
+        moved_eligible = sum(1 for r in range(len(rows)) for j in (0, 2) if table[r][j] != rows[r][j])
+        out[label] = {"rows": table, "exchanges": [list(e) for e in exchanges], "stayed": stayed,
+                      "eligible_cells_moved": moved_eligible}
+    return out
+
+
+def case_stray_beside_a_computed_column(computed_gives=False):
+    """G16.12 item 9b: `B` computed as `A + D` (`D` derived, no column of the table), one
+    stray row. Without another column the computed column gives no cell and the row stays,
+    named; beside `C`, a column no rule computes or reads, the row takes `C`'s cell (MUTANT:
+    the computed column giving its cell, which breaks `B = A + D` on 2 rows)."""
+    d = [F(2), None, F(1)]
+    out = {}
+    for label, columns, rows in (("alone", ["A", "B"], [["3", "5"], ["", ""], ["6", "7"]]),
+                                 ("beside_c", ["A", "B", "C"], [["3", "5", "c1"], ["", "", ""], ["6", "7", "c2"]])):
+        givers = [c for c in columns if c != "A"] if computed_gives else None
+        table, exchanges, stayed = co.stray_rows(rows, columns, eligible={"A"}, rule_named={"A", "B"}, givers=givers)
+        a = [F(r[0]) if r[0] != "" else None for r in table]
+        b = [F(r[1]) if r[1] != "" else None for r in table]
+        breaking = sum(1 for x, y in zip(co.computed_column(a, d), b) if x != y)
+        out[label] = {"rows": table, "exchanges": [list(e) for e in exchanges], "stayed": stayed,
+                      "rows_breaking_b_eq_a_plus_d": breaking}
+    return out
+
+
+def joint_move_rows():
+    """G16.0's case: `AB` [[60, 40], [40, 60]], `C | AB` [[60, 0], [0, 40], [0, 40], [60,
+    0]], `D | AC` [[30, 30], [20, 20], [30, 30], [20, 20]] on 200 rows."""
+    return [(("a0", "b0", "c0", "d0"), 30), (("a0", "b0", "c0", "d1"), 30),
+            (("a0", "b1", "c1", "d0"), 20), (("a0", "b1", "c1", "d1"), 20),
+            (("a1", "b0", "c1", "d0"), 20), (("a1", "b0", "c1", "d1"), 20),
+            (("a1", "b1", "c0", "d0"), 30), (("a1", "b1", "c0", "d1"), 30)]
+
+
+def case_joint_move(members_test=False):
+    """G16.12 item 10: `B`'s totals made [80, 120] in the twin, so `AB` moves, then `C | AB`,
+    and `D | AC` takes its moved target by G16.0's test on the parent cells, every target
+    met (MUTANT: the first build's test on members' totals alone, which leaves `D | AC` no
+    table to deal)."""
+    lads = _rows_lads(joint_move_rows(), [("A", "binary", [("a0", 100), ("a1", 100)]),
+                                          ("B", "binary", [("b0", 100), ("b1", 100)]),
+                                          ("C", "binary", [("c0", 120), ("c1", 80)]),
+                                          ("D", "binary", [("d0", 100), ("d1", 100)])])
+    chain = [co.Family("A", 0, [], None, [lads["A"].band_totals(0)]),
+             co.Family("B", 0, [("A", 0)], 0, co.table_of(lads, "B", 0, [("A", 0)])),
+             co.Family("C", 0, [("A", 0), ("B", 0)], 1, co.table_of(lads, "C", 0, [("A", 0), ("B", 0)])),
+             co.Family("D", 0, [("A", 0), ("C", 0)], 2, co.table_of(lads, "D", 0, [("A", 0), ("C", 0)]))]
+    twin = {"A": [[("a0", 0)] * 100, [("a1", 1)] * 100], "B": [[("b0", 0)] * 80, [("b1", 1)] * 120],
+            "C": [[("c0", 0)] * 120, [("c1", 1)] * 80], "D": [[("d0", 0)] * 100, [("d1", 1)] * 100]}
+    moved = {}
+    index, lists, dealt = co.walk_rows(chain, lads, twin, _words_for(0x10AB, 4, 200), moved=moved,
+                                       members_test=members_test)
+    out_moved = {}
+    for fi, entry in sorted(moved.items()):
+        if entry[0] == "undealable":
+            out_moved[str(fi)] = {"undealable": True, "row_totals": entry[1], "parent_counts": entry[2]}
+        else:
+            out_moved[str(fi)] = {"table": entry[0], "units_in_noughts": [list(x) for x in entry[1]]}
+    targets = [moved[fi][0] if fi in moved else fam.table for fi, fam in enumerate(chain)]
+    texts = {c: [lists[c][index[c][r]][0] for r in range(200)] for c in ("A", "C")}
+    joint = [sum(1 for r in range(200) if (texts["A"][r], texts["C"][r]) == (a, c))
+             for a in ("a0", "a1") for c in ("c0", "c1")]
+    return {"published": [fam.table for fam in chain], "moved": out_moved, "dealt": dealt,
+            "families_dealt": len(dealt), "met": len(dealt) == 4 and dealt == targets, "ac_joint": joint}
+
+
+def case_rules_only(section_runs=True):
+    """G16.12 item 12: a RULES-ONLY description, one eligible column `A` (36 readings 1 to 36,
+    4 absent) beside a computed `B = A + D` and its derived family `{D | A}` at `A`'s `L2`:
+    `A` dealt alone in its one cell, `D` dealt as `A`'s child, `B` written (MUTANT: the
+    section not running, which writes no `B`)."""
+    a_values = [None] * 4 + list(range(1, 37))
+    a_cells = [("missing",) if v is None else ("value", F(v)) for v in a_values]
+    d_names = ["missing"] * 4 + ["short"] * 12 + ["long"] * 6 + ["short"] * 8 + ["long"] * 10
+    d_cells = [("missing",) if v == "missing" else ("level", v) for v in d_names]
+    lads = {"A": co.ladder_of("A", "count", a_cells, rungs=_rungs_of(range(1, 37)), floor=1, position=0),
+            "D": co.ladder_of("D", "derived", d_cells, levels=[("short", 20), ("long", 16)], floor=1, position=1)}
+    chain = [co.Family("A", 0, [], None, [lads["A"].band_totals(0)]),
+             co.Family("D", 0, [("A", 2)], 0, co.table_of(lads, "D", 0, [("A", 2)]))]
+    twin = {"A": _twin_groups(lads["A"], a_cells),
+            "D": [[("", None)] * 4, [("1", F(1))] * 20, [("7", F(7))] * 16]}
+    index, lists, dealt = co.walk_rows(chain, lads, twin, _words_for(0x12C0, 2, 40))
+    a = [lists["A"][index["A"][r]][1] for r in range(40)]
+    d = [lists["D"][index["D"][r]][1] for r in range(40)]
+    b = co.computed_column(a, d) if section_runs else [None] * 40
+    return {"d_table": chain[1].table, "dealt": dealt, "met": dealt == [fam.table for fam in chain],
+            "b": [None if x is None else _fraction_text(x) for x in b],
+            "b_written": sum(1 for x in b if x is not None),
+            "rows_breaking_a_le_b": sum(1 for x, y in zip(a, b) if x is not None and y is not None and y < x),
+            "d_beside_an_absent_a": sum(1 for x, y in zip(a, d) if x is None and y is not None)}
+
+
 def chain_cases():
     return {
         "stated_exponential": case_stated_exponential(),
@@ -941,6 +1059,16 @@ def chain_cases():
         "moved_tie": case_moved_tie(),
         "slope_absent": case_slope_absent(),
         "step_order": case_step_order(),
+        "cell_index": case_cell_index(),
+        "cell_index_mutant_three_bytes": case_cell_index(width=3),
+        "stray_rows": case_stray_rows(),
+        "stray_rows_mutant_eligible_gives": case_stray_rows(eligible_gives=True),
+        "stray_computed": case_stray_beside_a_computed_column(),
+        "stray_computed_mutant_computed_gives": case_stray_beside_a_computed_column(computed_gives=True),
+        "joint_move": case_joint_move(),
+        "joint_move_mutant_members_test": case_joint_move(members_test=True),
+        "rules_only": case_rules_only(),
+        "rules_only_mutant_section_off": case_rules_only(section_runs=False),
     }
 
 

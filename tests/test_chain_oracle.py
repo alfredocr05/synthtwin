@@ -698,6 +698,131 @@ def test_a_step_s_candidates_in_option_order():
     assert _json(oc.case_step_order()) == FROZEN["chain"]["step_order"]
 
 
+# --- G16.12 items 8, 9, 9b, 10 and 12 (Codex's item 4 of the landing's review) ---------------
+
+
+def test_the_cell_index_reads_back_at_three_bytes_and_at_four():
+    """G16.12 item 8; G16.2 step 4: an index is 3 bytes a row, 4 where the
+    column holds more than 16,777,215 cells (the byte order is the
+    oracle's own reading, little-endian). At 16,777,215 cells, 3 bytes:
+    16,777,214 is fe ff ff. At 20,000,000 cells, 4 bytes: 16,777,216 is
+    00 00 00 01 and 19,999,999 = 0x01312cff is ff 2c 31 01; every index
+    reads back. MUTANT: 3 bytes whatever the column holds, which reads
+    16,777,216 back as 0 and 19,999,999 as 19,999,999 - 2**24 =
+    3,222,783."""
+    case = FROZEN["chain"]["cell_index"]
+    assert case["three"]["bytes"] == "000000010000ff0000000001feffff"
+    assert case["four"]["bytes"] == "00000000ffffff0000000001ff2c3101"
+    for part in ("three", "four"):
+        assert case[part]["read_back"] == case[part]["indices"]
+    assert (co.index_width(16_777_215), co.index_width(16_777_216)) == (3, 4)
+    mutant = FROZEN["chain"]["cell_index_mutant_three_bytes"]["four"]["read_back"]
+    assert mutant == [0, 16_777_215, 0, 3_222_783]
+    assert _json(oc.case_cell_index()) == case
+
+
+def test_a_stray_row_takes_a_cell_only_from_an_ineligible_column():
+    """G16.12 item 9; G16.5 and G2.1 step 2's second walk. `A` and `Y`
+    eligible, `X` ineligible and named by no rule. (i) Rows (4, x1, 8),
+    nothing, (6, x2, 2): the stray row 1 takes a cell in the first column
+    that may give and has a giver, `X`; its giver is the first row holding
+    `X` and two or more cells, row 0: rows (4, -, 8), (-, x1, -), (6, x2,
+    2), no eligible cell moved. (ii) Rows (4, -, 8), nothing, (-, x2, -):
+    `X`'s one holder holds one cell, so no column may give and row 1
+    stays holding nothing, named. MUTANT: an eligible column giving (the
+    held page's fix, withdrawn), which moves `A`'s 4 from row 0 into row 1
+    in both, two eligible cells off their rows each time."""
+    case = FROZEN["chain"]["stray_rows"]
+    assert case["giver"] == {"rows": [["4", "", "8"], ["", "x1", ""], ["6", "x2", "2"]],
+                             "exchanges": [[1, "X", 0]], "stayed": [], "eligible_cells_moved": 0}
+    assert case["no_giver"]["stayed"] == [1] and case["no_giver"]["exchanges"] == []
+    mutant = FROZEN["chain"]["stray_rows_mutant_eligible_gives"]
+    assert [mutant[p]["eligible_cells_moved"] for p in ("giver", "no_giver")] == [2, 2]
+    assert mutant["no_giver"]["exchanges"] == [[1, "A", 0]]
+    assert _json(oc.case_stray_rows()) == case
+
+
+def test_a_stray_row_beside_a_computed_column():
+    """G16.12 item 9b: `B` computed as `A + D` (`D` 2, absent, 1 on the
+    three rows), `A` eligible, and a stray row 1. (i) Columns `A`, `B`:
+    `B` is computed and `A` eligible, so no column may give and the row
+    stays, named; `B = A + D` holds on every row. (ii) Beside `C`, which
+    no rule computes or reads: the row takes `C`'s c1 from row 0, and
+    `B = A + D` still holds on every row. MUTANT: the computed column
+    giving its cell (B's 5 moves from row 0 to row 1), which breaks `B = A
+    + D` on 2 rows: row 0 holds `A` and `D` without `B`, row 1 `B` without
+    `A`."""
+    case = FROZEN["chain"]["stray_computed"]
+    assert (case["alone"]["stayed"], case["alone"]["rows_breaking_b_eq_a_plus_d"]) == ([1], 0)
+    assert case["beside_c"]["exchanges"] == [[1, "C", 0]] and case["beside_c"]["rows_breaking_b_eq_a_plus_d"] == 0
+    mutant = FROZEN["chain"]["stray_computed_mutant_computed_gives"]
+    assert [mutant[p]["rows_breaking_b_eq_a_plus_d"] for p in ("alone", "beside_c")] == [2, 2]
+    assert _json(oc.case_stray_beside_a_computed_column()) == case
+
+
+def test_a_moved_parent_count_moves_a_later_family_by_its_parent_cells():
+    """G16.12 item 10; G16.0's target test, read on the parent cells. `AB`
+    [[60, 40], [40, 60]] with `B`'s twin totals [80, 120]: the tables
+    [[x, 100 - x], [80 - x, 20 + x]] are 2|x - 60| + 2|40 - x| off,
+    smallest (40) for x in 40 to 60, and the squares 2 (x - 60)**2 + 2
+    (40 - x)**2 are smallest at x = 50: [[50, 50], [30, 70]]. `C | AB`
+    [[60, 0], [0, 40], [0, 40], [60, 0]] against the cells (50, 50, 30, 70)
+    and C's totals (120, 80): [[50, 0], [0, 50], [0, 30], [70, 0]], no
+    unit in a nought. `A` keeps (100, 100) and `C` (120, 80), but `AC`'s
+    cells go from 60, 40, 60, 40 to 50, 50, 70, 30, so `D | AC` [[30, 30],
+    [20, 20], [30, 30], [20, 20]] moves: each row r splits as (x, r - x),
+    10 off at best, the 40 reached with x summing to 100, and the squares
+    smallest at x = r / 2: [[25, 25], [25, 25], [35, 35], [15, 15]]. The
+    walk meets every target, the moved ones included. MUTANT: the first
+    build's test on each member's totals alone, which finds A, C and D
+    unchanged and keeps `D | AC`'s published table, whose row totals (60,
+    40, 60, 40) the parent cells (50, 50, 70, 30) cannot hold: no table to
+    deal, and the walk stops before `D`."""
+    case = FROZEN["chain"]["joint_move"]
+    assert case["moved"] == {"1": {"table": [[50, 50], [30, 70]], "units_in_noughts": []},
+                             "2": {"table": [[50, 0], [0, 50], [0, 30], [70, 0]], "units_in_noughts": []},
+                             "3": {"table": [[25, 25], [25, 25], [35, 35], [15, 15]], "units_in_noughts": []}}
+    assert case["met"] and case["families_dealt"] == 4 and case["ac_joint"] == [50, 50, 70, 30]
+    mutant = FROZEN["chain"]["joint_move_mutant_members_test"]
+    assert mutant["moved"]["3"] == {"undealable": True, "row_totals": [60, 40, 60, 40], "parent_counts": [50, 50, 70, 30]}
+    assert mutant["families_dealt"] == 3 and not mutant["met"]
+    assert _json(oc.case_joint_move()) == case
+
+
+def test_the_moved_table_by_rows_equals_the_enumeration():
+    """G16.6's order read row by row (`moved_target`) against every table
+    enumerated (`moved_target_by_enumeration`) on the frozen cases and on
+    small tables of 2 to 3 rows and 2 to 3 columns: the same table and the
+    same units named."""
+    cases = [([[50, 0], [0, 50]], [60, 40], [40, 60]), ([[10, 10], [10, 10]], [21, 19], [20, 20]),
+             ([[20, 0, 10], [0, 20, 10]], [11, 49], [0, 42, 18]), ([[60, 40], [40, 60]], [100, 100], [80, 120])]
+    for seed in range(40):
+        rows = [(seed * 7 + 3 * i) % 9 + 1 for i in range(2 + seed % 2)]
+        width = 2 + (seed // 2) % 2
+        columns = [sum(rows) // width] * width
+        columns[0] += sum(rows) - sum(columns)
+        published = [[(seed + i * width + j) % 4 for j in range(width)] for i in range(len(rows))]
+        cases += [(published, rows, columns)]
+    for published, rows, columns in cases:
+        assert co.moved_target(published, rows, columns) == co.moved_target_by_enumeration(published, rows, columns)
+
+
+def test_a_rules_only_description_deals_a_alone_and_writes_b():
+    """G16.12 item 12; G16.10's RULES-ONLY branch. `A`: 4 absent and the
+    readings 1 to 36; `{D | A}` at `A`'s L2 (`missing`, below p50 = 19,
+    from 19): [[4, 0, 0], [0, 12, 6], [0, 8, 10]], `D` 1 on its `short`
+    band and 7 on `long`. `A` is dealt alone in its one cell, `D` as its
+    child, every target met; `B = A + D` is written on the 36 rows where
+    both hold a reading and absent on the 4 where `A` is (no reading of
+    `D` stands beside an absent `A`), so `B >= A` on every row. MUTANT: the
+    section not running, which writes no `B`."""
+    case = FROZEN["chain"]["rules_only"]
+    assert case["d_table"] == [[4, 0, 0], [0, 12, 6], [0, 8, 10]] and case["met"]
+    assert (case["b_written"], case["rows_breaking_a_le_b"], case["d_beside_an_absent_a"]) == (36, 0, 0)
+    assert FROZEN["chain"]["rules_only_mutant_section_off"]["b_written"] == 0
+    assert _json(oc.case_rules_only()) == case
+
+
 # --- the product against the oracle -------------------------------------------------------
 
 

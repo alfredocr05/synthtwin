@@ -1203,8 +1203,49 @@ def _spread_positions(g, t):
     return [((2 * q + 1) * g) // (2 * t) for q in range(t)]
 
 
+def family_target(fam, sizes, cell_of, child_totals, members_test=False, moved=None, fi=None):
+    """G16.0's target of a family: its published table where the twin's count of each of its
+    parent cells, as the families before it placed them, equals the table's row total there
+    and the child's band totals at its level equal its column totals; otherwise its moved
+    table (G16.6), recorded in `moved[fi]` as `(table, units in published noughts)`.
+
+    MUTANT `members_test`: the first build's test, each MEMBER's band totals alone against
+    the table's margins, which a move upstream can leave equal while the joint counts of
+    the parents change (Codex's item 5 of 2026-10-19, G16.12 item 10). Where that test keeps
+    a published table whose row totals the parent cells do not hold, no table can be dealt:
+    None is returned.
+    """
+    published = fam.table
+    counts = [0] * len(published)
+    for c in cell_of:
+        counts[c] += 1
+    columns = [sum(col) for col in zip(*published)]
+    if members_test:
+        same = columns == list(child_totals)
+        for j in range(len(sizes)):
+            stride = 1
+            for size in sizes[j + 1:]:
+                stride *= size
+            twin = [0] * sizes[j]
+            table = [0] * sizes[j]
+            for cell, row in enumerate(published):
+                twin[(cell // stride) % sizes[j]] += counts[cell]
+                table[(cell // stride) % sizes[j]] += sum(row)
+            same = same and twin == table
+        if same:
+            if [sum(row) for row in published] != counts:
+                return None
+            return published
+    elif not needs_move(published, counts, child_totals):
+        return published
+    table, named = moved_target(published, counts, child_totals)
+    if moved is not None:
+        moved[fi] = (table, named)
+    return table
+
+
 def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
-              sort_by_row=False, spread_after=False, trace=None):
+              sort_by_row=False, spread_after=False, trace=None, moved=None, members_test=False):
     """Method G16.2 on given words: each arranged row's cell of each eligible column.
 
     `lads` maps each column to its PUBLISHED ladder (band structure and totals);
@@ -1214,7 +1255,13 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
     `words[f]` lists three words for each arranged row of family `f`;
     `slopes[f]` is None or `([(parent, beta text)], sigma text)`;
     `codes[column]` is `(lo, hi)` for a FINE column's value code;
-    `targets[f]` replaces family `f`'s published table (a moved target).
+    `targets[f]` replaces family `f`'s target as the caller gives it;
+    every other family takes G16.0's target (`family_target`): its
+    published table where the twin's parent cells and the child's band
+    totals meet it, else its moved table, recorded in `moved[f]` where
+    `moved` is a dict (and `("undealable", row totals, parent counts)`
+    where the mutant `members_test` keeps a table the cells cannot hold,
+    the walk then stopping before that family).
     The two keyword mutants are G16.12's: rows sorted by row number
     instead of `L`, and the spread bands placed after the ordered ones.
     `trace`, where a dict, receives for each family index its rows'
@@ -1248,7 +1295,16 @@ def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
             for (p, lv), size, mapping in zip(fam.parents, sizes, to_family):
                 cell = cell * size + mapping[band_code[p][r]]
             cell_of[r] = cell
-        target = targets.get(fi, fam.table)
+        if fi in targets:
+            target = targets[fi]
+        else:
+            child_totals = [sum(len(cells[child][b]) for b in members) for members in bands]
+            target = family_target(fam, sizes, cell_of, child_totals, members_test, moved, fi)
+            if target is None:
+                if moved is not None:
+                    moved[fi] = ("undealable", [sum(row) for row in fam.table],
+                                 [cell_of.count(c) for c in range(len(fam.table))])
+                return index, cell_list, dealt
         z = [hidden_score(words[fi][r]) for r in range(n)]
         latent = list(z)
         means = {}
@@ -1392,10 +1448,11 @@ def _tables_with(rows, columns):
     return list(fill(0, 0, [[0] * c for _ in range(r)], list(rows), list(columns)))
 
 
-def moved_target(published, rows, columns):
-    """G16.6's moved table, by enumeration: fewest units in published noughts, then the
-    smallest total distance, then the smallest sum of squares, then the greatest in
-    row-major order. Returns `(table, units_in_noughts)` with each `(row, column, units)`.
+def moved_target_by_enumeration(published, rows, columns):
+    """G16.6's moved table, by enumerating every table: fewest units in published noughts,
+    then the smallest total distance, then the smallest sum of squares, then the greatest
+    in row-major order. Returns `(table, units_in_noughts)` with each `(row, column,
+    units)`. Kept beside `moved_target` as its check on small cases.
     """
     best = None
     best_key = None
@@ -1409,6 +1466,62 @@ def moved_target(published, rows, columns):
             best, best_key = table, key
     named = [(i, j, best[i][j]) for i in range(len(rows)) for j in range(len(columns)) if published[i][j] == 0 and best[i][j] > 0]
     return best, named
+
+
+def _compositions(total, bounds):
+    """Every split of `total` into `len(bounds)` whole parts, part `j` at most `bounds[j]`."""
+    if len(bounds) == 1:
+        if total <= bounds[0]:
+            yield (total,)
+        return
+    rest = sum(bounds[1:])
+    for first in range(max(0, total - rest), min(total, bounds[0]) + 1):
+        for tail in _compositions(total - first, bounds[1:]):
+            yield (first,) + tail
+
+
+def moved_target(published, rows, columns):
+    """G16.6's moved table, exactly, row by row: fewest units in published noughts, then the
+    smallest total distance, then the smallest sum of squares, then the greatest in
+    row-major order. Returns `(table, units_in_noughts)` with each `(row, column, units)`.
+
+    The three costs are sums over the cells, so the best table from row `i` on, given the
+    column totals left, is the best first row joined to the best table after it: one
+    table per (row, totals left), each compared on (costs, then its cells read in
+    row-major order, greatest first). The same table as `moved_target_by_enumeration`
+    (the test file checks both on small cases), in time the enumeration cannot reach on
+    the joint-count case of G16.12 item 10.
+    """
+    if sum(rows) != sum(columns):
+        raise ValueError("the row and column totals of a moved table differ")
+    count = len(rows)
+    memo = {}
+
+    def best(i, left):
+        if i == count:
+            return ((0, 0, 0), ()) if not any(left) else None
+        if (i, left) in memo:
+            return memo[(i, left)]
+        found = None
+        for row in _compositions(rows[i], left):
+            after = best(i + 1, tuple(x - y for x, y in zip(left, row)))
+            if after is None:
+                continue
+            noughts = sum(x for x, p in zip(row, published[i]) if p == 0)
+            distance = sum(abs(x - p) for x, p in zip(row, published[i]))
+            squares = sum((x - p) ** 2 for x, p in zip(row, published[i]))
+            cost = (noughts + after[0][0], distance + after[0][1], squares + after[0][2])
+            cells = row + after[1]
+            if found is None or cost < found[0] or (cost == found[0] and cells > found[1]):
+                found = (cost, cells)
+        memo[(i, left)] = found
+        return found
+
+    _, cells = best(0, tuple(columns))
+    width = len(columns)
+    table = [list(cells[i * width:(i + 1) * width]) for i in range(count)]
+    named = [(i, j, table[i][j]) for i in range(count) for j in range(width) if published[i][j] == 0 and table[i][j] > 0]
+    return table, named
 
 
 def needs_move(published, parent_counts, child_totals):
@@ -1428,3 +1541,81 @@ def computed_column(a_readings, d_readings):
     for a, d in zip(a_readings, d_readings):
         out += [None if a is None or d is None else F(a) + F(d)]
     return out
+
+
+# --- the cell index (method G16.2 step 4, G16.10) ------------------------------------
+
+
+def index_width(cell_count):
+    """Bytes a row's cell index takes: 3, or 4 where the column holds more than 16,777,215 cells."""
+    return 4 if cell_count > 16_777_215 else 3
+
+
+def pack_indices(indices, cell_count, width=None):
+    """The rows' cell indices as G16.2 step 4 stores them, `index_width` bytes a row.
+
+    The page fixes the width, not the byte order; the oracle reads the
+    bytes little-endian (its own reading, stated in plan P4-D421). `width`
+    overrides the page's width (the mutant: 3 bytes a row whatever the
+    column holds, each index then kept modulo 2**24).
+    """
+    width = index_width(cell_count) if width is None else width
+    out = bytearray()
+    for i in indices:
+        if not 0 <= i < cell_count:
+            raise ValueError("a cell index outside the column's cell list")
+        out += (i % (1 << (8 * width))).to_bytes(width, "little")
+    return out
+
+
+def unpack_indices(data, cell_count, width=None):
+    """The cell indices read back from `pack_indices`' bytes."""
+    width = index_width(cell_count) if width is None else width
+    return [int.from_bytes(bytes(data[k:k + width]), "little") for k in range(0, len(data), width)]
+
+
+# --- stray rows (method G16.5, G2.1 step 2's second walk) -----------------------------
+
+
+def stray_rows(rows, columns, eligible, rule_named, sequence=None, targets=(), givers=None):
+    """G16.5's stray rows: a row (not a target) holding nothing in every column takes one cell
+    back by G2.1 step 2's second walk, its GIVERS taken only from the ineligible columns no
+    carried rule computes or reads, never the row-sequence column.
+
+    `rows` lists each row's cells as text (`""` holds nothing); `eligible` the eligible
+    columns; `rule_named` every column a `rules` entry names as `computed`, `inputs` or
+    `carrier`. For each such row in row order, in the first column in column order that
+    has a giver (the first row in row order, not a target, holding something in that
+    column and something in two or more columns at that moment), the giver's cell is
+    exchanged into it; where no column has one, the row stays holding nothing and is
+    named. `givers`, where given, replaces the columns that may give (the mutants: an
+    eligible column's cell moved; a computed column giving its cell). Returns `(rows
+    after, exchanges as (row, column, giver), rows left holding nothing)`.
+    """
+    if givers is None:
+        givers = [c for c in columns if c not in eligible and c not in rule_named and c != sequence]
+    allowed = [j for j, name in enumerate(columns) if name in givers]
+    table = [list(r) for r in rows]
+    exchanges = []
+    stayed = []
+    for r in range(len(table)):
+        if r in targets or any(cell != "" for cell in table[r]):
+            continue
+        done = False
+        for j in allowed:
+            giver = None
+            for g in range(len(table)):
+                if g in targets or table[g][j] == "":
+                    continue
+                if sum(1 for cell in table[g] if cell != "") >= 2:
+                    giver = g
+                    break
+            if giver is None:
+                continue
+            table[r][j], table[giver][j] = table[giver][j], table[r][j]
+            exchanges += [(r, columns[j], giver)]
+            done = True
+            break
+        if not done:
+            stayed += [r]
+    return table, exchanges, stayed
