@@ -1148,7 +1148,7 @@ def _spread_positions(g, t):
     return [((2 * q + 1) * g) // (2 * t) for q in range(t)]
 
 
-def walk(chain, lads, cells, words, slopes=None, codes=None, targets=None,
+def walk_rows(chain, lads, cells, words, slopes=None, codes=None, targets=None,
          sort_by_row=False, spread_after=False):
     """Method G16.2 on given words: each arranged row's cell of each eligible column.
 

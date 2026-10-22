@@ -277,7 +277,7 @@ def walk40_setup():
 
 def case_walk40(sort_by_row=False, spread_after=False):
     lads, chain, twin, words, slopes, codes = walk40_setup()
-    index, lists, dealt = co.walk(chain, lads, twin, words, slopes=slopes, codes=codes,
+    index, lists, dealt = co.walk_rows(chain, lads, twin, words, slopes=slopes, codes=codes,
                                   sort_by_row=sort_by_row, spread_after=spread_after)
     out = {
         "families": [fam.as_dict() for fam in chain],
@@ -359,7 +359,7 @@ def case_empty_and_absent():
             "B": _twin_groups(lads["B"], b_cells, ("b1", "b2")),
             "C": _twin_groups(lads["C"], c_cells, ("c1", "c2"))}
     n = len(a_cells)
-    index, lists, dealt = co.walk(chain, lads, twin, _words_for(0xE0C1, 3, n))
+    index, lists, dealt = co.walk_rows(chain, lads, twin, _words_for(0xE0C1, 3, n))
     out_rows = [[lists[c][index[c][r]][0] for c in ("A", "B", "C")] for r in range(n)]
     return {"c_l0": lads["C"].as_dict()["l0"], "table": chain[2].table, "dealt": dealt[2],
             "met": dealt == [fam.table for fam in chain],
@@ -381,7 +381,7 @@ def case_label_child():
             "C": _twin_groups(lads["C"], c_cells, ("x", "y"))}
     n = len(a_cells)
     by_family = _words_for(0x1ABE1, 2, n)
-    index, lists, dealt = co.walk(chain, lads, twin, by_family)
+    index, lists, dealt = co.walk_rows(chain, lads, twin, by_family)
     scores = [co.hidden_score(by_family[1][r]) for r in range(n)]
     return {"table": chain[1].table, "dealt": dealt[1], "met": dealt[1] == chain[1].table,
             "rows": [[lists[c][index[c][r]][0] for c in ("A", "C")] for r in range(n)],
@@ -407,7 +407,7 @@ def case_rule_word(as_one=False):
     twin = {"A": _twin_groups(lads["A"], a_cells, ("adm", "dis")),
             "C": _twin_groups(lads["C"], c_cells, ("pre", "post"))}
     n = len(a_cells)
-    index, lists, dealt = co.walk(chain, lads, twin, _words_for(0x30E0, 2, n), targets={1: target})
+    index, lists, dealt = co.walk_rows(chain, lads, twin, _words_for(0x30E0, 2, n), targets={1: target})
     rows_out = [[lists[c][index[c][r]][0] for c in ("A", "C")] for r in range(n)]
     broken = sum(1 for a, c in rows_out if a == "adm" and c == "post")
     return {"table": table, "dealt": dealt[1], "rows_breaking_the_word": broken}
@@ -456,7 +456,7 @@ def case_derived_family(totals_alone=False):
         chain = [co.Family("A", 0, [], None, [la.band_totals(0)]), co.Family("D", 0, [("A", 0)], 0, table)]
     twin = {"A": _twin_groups(la, a_cells, ("low", "high")), "D": _twin_groups(ld, d_cells, ("short", "long"))}
     n = len(a_cells)
-    index, lists, dealt = co.walk(chain, lads, twin, _words_for(0xDE41, 2, n))
+    index, lists, dealt = co.walk_rows(chain, lads, twin, _words_for(0xDE41, 2, n))
     rows_out = [[lists[c][index[c][r]][0] for c in ("A", "D")] for r in range(n)]
     beside_absent = sum(1 for a_text, d_text in rows_out if a_text == "" and d_text != "")
     return {"table": table, "readings_of_d_beside_an_absent_a": beside_absent}

@@ -603,7 +603,17 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # environment it hands its child. What it loads is a committed file under
 # tools/, which this guard reads directly, so the floor holds for it as it
 # does for the other thirty-nine.
-FILES_LOADED_AS_MODULES = 40
+#
+# 44 WITH LANE CHo (plan P4-D421, its repair of 2026-10-22): the exact
+# oracle of the between-columns pages loads its own files by path, four
+# calls, each loading a committed file under tools/reference/, which this
+# guard reads directly: `tools/reference/oracle_cases.py` loads
+# `chain_oracle.py` and `moment_oracle.py` beside it;
+# `tools/reference/make_chain_oracle_vectors.py` loads `oracle_cases.py`
+# beside it; `tests/test_chain_oracle.py` and `tests/test_moment_oracle.py`
+# each load the files of tools/reference/ they check. So the floor holds
+# for them as it does for the other forty.
+FILES_LOADED_AS_MODULES = 44
 
 
 def _files() -> "list[pathlib.Path]":
