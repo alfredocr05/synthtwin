@@ -1186,7 +1186,7 @@ def test_the_rules_reading_labels_answer_as_they_read_folded_labels() -> None:
     shapes["notes with capitals"] = _h3_repair_values("notecap", 300)
     shapes["record numbers"] = _h3_values("rec", 500)
     shapes["clocks beside rare words"] = [draw.choice(["07:00", "15:00", "19:00", "23:00"]) for _ in range(600)] + ["UNK", "Unk", "n/a", "N/A"] * 3
-    shapes["levels and numbers"] = [draw.choice(["Yes", "yes", "NO", "12", "12.0", "7", "maybe", "MAYBE"]) for _ in range(800)]
+    shapes["levels and numbers"] = [draw.choice(["Yes", "yes", "NO", "12", "12.0", "7", "maybe", "MAYBE", "1E3", "1e3", " 12"]) for _ in range(800)]
     for name, cells in shapes.items():
         for floor in (1, 2, 11):
             settings = taxonomy.Settings(small_cell_floor=floor)
