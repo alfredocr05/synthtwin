@@ -3975,3 +3975,49 @@ whose distance prints `undefined` and outside.
 the file's rows, one byte a row and column; the witness on the file's
 own description is the profile's (contract 4.6d.4) and is priced with
 it. Lane CHv measures the whole check under `K-S6-15`.
+
+## V14. Dates and times read at their published grain (lane PS, plan P4-D417)
+
+**V14.1 The grain is read, never chosen.** A column whose block carries
+`time_grain` at a rung (contract NF128, TG1) was described from its
+cells written as the starts of their buckets, the tails pooled into the
+record's last span. The validator measures such a column AT THAT RUNG:
+right after the checked file is read, each of the column's present cells
+that reads under the record's reading is written, in its own form, as
+the start of its bucket at the record's rung, a cell before the first
+bucket of the record's last span as that bucket and one after its last
+as that one (`grains.coarse_cells`, the profiler's own function), and
+every check of the column -- the redescription of V2 and the checks of
+V3 that count the file's own cells, the tails, the censuses and the
+dates that stand out -- reads those cells. A cell that does not read is
+measured as written, and so is a cell the description reads as no
+value -- a spelling its block publishes among `missing_by_source`, a
+blank, a word of the vocabulary or one declared with `--missing-value`
+--, even where it reads as a date (repair round 2 of lane PS, Codex's
+item 3: thirty patients' declared `2020-06-15`, and `1900-01-01`, were
+pooled into present cells), and so is every spelling the column's own
+reading of its cells as written takes as no value (repair round 3, the
+second verify's item 1: three patients' undeclared `1900-01-01`, nine
+rows, too few for the block to name, were pooled into the first bucket
+and the real table missed its presence, its tails and `n_not_numeric`
+at exit 3). To read them, the redescription of V2 is handed the cells
+as written and writes them at the grain itself, keeping as written the
+spellings its own reading takes as no value (`profile.build_document`'s
+``absent_read``), and the description over the split (V2.4) and the
+checks of V3 then read the cells written so by those spellings too.
+Nothing is decided: the rung and the ends are the
+record's, so the validator never counts anybody.
+
+**V14.2 What it buys.** The real table checked against the description
+made from it meets every obligation of a pooled column, as it meets
+every other; a twin, whose cells were drawn inside the buckets its
+built cells named (method G7.13), is measured on those buckets, so it
+meets the description exactly where the twin as built met it. A column
+held with the rung `held` (contract NF129) is a record number like every
+held column and is measured as one: its filled cells keep its layouts,
+its widths and its census of repetition.
+
+**V14.3 Stated limit.** A table read in groups of columns (lane SR) is
+measured at the grain through the redescription alone
+(`profile.build_document`'s ``time_grains``); the checks that count the
+file's own cells read its cells as written.

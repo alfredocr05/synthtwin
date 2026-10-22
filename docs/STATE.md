@@ -569,6 +569,33 @@ cannot get worse unseen.
   `profile.build_document` keeping each repeating subject column's keyed
   cells for the whole describe (about 2,000,000 strings at 2,000,000
   rows) and `K-S4-09` with a person column, unmeasured (P4-D400).
+- **Dates and times beside a person column, pooled in people (lane PS,
+  2026-10-21, P4-D417).** The dates part of the batch 4e limit above is
+  closed: such a column is described at a coarser grain chosen by its
+  published facts alone, or held with a twin of valid dates in its own
+  layouts; the zoo passes 20 of 40 kinds at 600 rows and 28 at 20,000
+  rows again, every check that parses a date or a time holding. Still
+  so, each with its owner: a stamp of a few evenly filled hours misses
+  its count of different values and its count at midnight (`wearables`
+  at 20,000 rows: 32 of 39 hours, 1,208 rows at midnight against 515),
+  lane PS's follow-up; a measurement attached to its person (`labs`'
+  `viral_load` at 20,000 rows) is held whole with made-up numbers in
+  its layouts, lane PS's follow-up; a table of ten people or fewer whose
+  person question is open still publishes per rows (P4-D406's limit
+  (2)), the orchestrator's to decide. Since the lane's repair round 1
+  (P4-D417 (a) to (f)), no count of one to ten people is left to
+  subtraction and the walk steps back a rung instead of holding; still
+  so: the time of day and the weekday of a stamp pooled at the day or
+  coarser are not described (admit hour TVD 0.37 at 200,000 rows), and
+  the pooled tails are drawn inside their end bucket (635 rows on one
+  day against 80), a new lane PS2; a stamp with UTC offsets publishes no
+  count at its rung, lane DST. Since repair round 2 (P4-D417), absent
+  date spellings stay absent and a held twin never leaves a made-up cell
+  where a valid date exists; still so: a held column's length no valid
+  date has is missed and named (three people's `pending`: `min_length` 7
+  against 10), and a birth date beside about four people a year is held
+  with no span and drawn from 2000 to 2029 (lane PS2: a rung of five or
+  ten years).
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Lane L1
   (P4-D390, P4-D384, `K-S3-61`) writes made-up figure codes at the

@@ -2080,10 +2080,11 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 121 forms and 127 argument positions.
+**The census.** The table holds 123 forms and 127 argument positions.
 Of those, 91 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
-other kind. Lane HX (plan P4-D401) added the one form NF125 and no
+other kind. Lane PS (plan P4-D417) added the two forms NF128 and NF129
+and no position. Lane HX (plan P4-D401) added the one form NF125 and no
 position. Lane J2 (plan P4-D391) added the two forms NF121 and NF122
 and no position, and its Codex review the two forms NF123 and NF124 and
 no position. The minute and second censuses (landing 3b.4, plan P4-D372)
@@ -2146,7 +2147,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 127 of them exactly as the form table
-is closed over the 121 forms. A position nobody bound is a number a
+is closed over the 123 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3749,7 +3750,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 121 in section 4.5.1 |
+| NG14 | the form is one of the 123 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -10045,6 +10046,16 @@ and then, always:
 
 > you said this column writes its dates as counts, but its cells did not read as such dates, and a number that counts a date is that date all the same, so it is described as record numbers and none of its values is published
 
+**NF128. `evidence_pooled_in_people` — dates and times pooled in people** — arity 0 (lane PS, plan P4-D417). The detection evidence of a column of dates, stamps, clock times or counted dates, on a table with a subject column, that NF126 would hold and that is DESCRIBED AT A GRAIN instead: each present cell that reads under the column's member is written, in its own form, as the start of its bucket at the record's rung -- 1 January, a quarter's or a month's first day, midnight, 00, 04, 08, 12, 16 or 20 hours, the hour, the minute or the second -- the cells before the first bucket of the record's last span counted in that bucket and those after its last in that one (the TAILS POOLED) -- a cell the column reads as no value is no moment and stays absent, even where its spelling reads as a date (a declared `--missing-value`, a placeholder day: repair round 2 of lane PS) --, and that column of cells described by the rules of its role (6.6, the clock role, or 6.1 and 6.2 where the buckets leave one value or two), every point it publishes counted in people as NF126 counts and held by the floor's number of people or more. AND NO COUNT IT LEAVES TO SUBTRACTION EITHER (repair round 1 of lane PS, 2026-10-21): every bucket strictly inside the record's last span that holds a row holds the floor's number of people under every subject column that counts in people -- at a rung coarser than the cells' own, the heavy dates list every bucket of eleven rows and more and the count of different values names the rest, so the present rows less every listed count would be the one unlisted bucket's -- the cells that read as no moment hold nobody or the floor's number of people (`n_unparsed`), and so does every written shape and every offset of the cells that read (the censuses of how a date is written -- `resolution_mix`, `datetime_separators`, `date_field_widths`, `utc_offsets` and the others -- count unions of them). Where the description at the rung the walk reached breaks one of these, the walk STEPS BACK a rung, the record keeping its spans down to that rung and no finer, until one serves; where none does, the column is NF129's. Its block carries `time_grain` (TG1) at a rung. A published date or clock time of such a block names its bucket, never a day or an instant of the table: `2023-02-01` at the rung `month` is February 2023. The twin draws each value inside its bucket at the column's own precision and writes it in the cell's own form (method G7.13); the validator reads the grain (the validation method's clause `V14`), so the table it was written from meets every obligation of the block.
+
+> this table has several rows a person, so this column's dates and times are published only at the coarser grain its `time_grain` names, where every value published is held by at least the smallest group size of people: each value here is the start of its year, quarter, month, day, block of hours, hour, minute or second, the values before the first such span or after the last are counted in those two, and the twin writes a value inside each span, in your column's own form
+
+**NF129. `remark_held_dates_are_valid` — a held column of dates or times writes valid ones** — arity 0 (lane PS, plan P4-D417; the G1 floor). A remark of a column NF126 holds whose own reading was of dates, stamps, clock times or counted dates and that no grain serves -- its walk found no span at its ladder's top, or the description at every rung from the one the walk reached to the top would still publish, or leave to subtraction, a count one to ten people hold (NF128). Its block is NF126's and carries `time_grain` at the rung `held` (TG1): the spans its walk passed (none on a clock), so its twin writes VALID values in each of its own layouts -- days that exist, clock times inside the day, the fraction's own figures, counts from the member's own epoch, offsets of nought figures -- drawn inside the deepest of those spans wide enough for its published count of different values, measured at its finest written detail, or inside the method's fixed span, 1 January 2000 to 31 December 2029 (a clock: its whole day), widened by whole decades until it holds twice that count (repair round 3 of lane PS), never from the table; a made-up value in a layout the block publishes that no value of the member wears (a word such as `pending`) stays as made up, as the real cells it stands for do not read either (repair round 2 of lane PS); a made-up value no date wears -- a stand-in of a withheld layout -- is written in the member's own form, at its length and on its side of the code alphabet where a date can wear both; two made-up values never take one value, so the census of repetition the block publishes holds (method G7.13).
+
+> this column holds dates or times, so its twin writes real ones in the column's own layouts -- days that exist and clock times inside the day -- drawn inside the last span its `time_grain` names, or from 2000 to 2029 where it names none (to a later year, by whole decades, where the column holds more different values than those years leave room for), never from your table, so code that reads the column as dates runs on the twin
+
+**TG1. The key `time_grain` -- the grain a column was pooled at, chosen by its own published facts** (lane PS, plan P4-D417). The ONE key a column block carries only where it says something (5.1's exception): on a block NF128 or NF129 describes, and on no other, so every description without such a column is the one written before. An object of eight keys: `rung`, one of `year`, `quarter`, `month`, `day`, `four hours`, `hour`, `minute`, `second`, or `held` on a record-number block and on no other role; `finest`, the column's own precision, a rung; `kind`, `date`, `stamp`, `clock` or `counted`; `reading`, the date member (a member of 6.6 or a layout), the clock form or the counting system its cells read under, the block's own `format` or `clock_form` where it publishes one; `mark`, a count's decimal mark; `rows`, the block's own `n_present`; `people`, the people the subject columns name (the fewest, under several: the population the description counts), never more than the table's rows (repair round 2 of lane PS, Codex's item 5); and `spans`, a list of `[rung, first, last]`, the starts of the first and the last bucket at that rung that the floor's number of people hold under every subject column that counts in people, written `YYYY-MM-DD`, `YYYY-MM-DD HH:MM:SS` or `HH:MM:SS`, first at most last. The ladder runs, coarsest first, `year`, `quarter`, `month`, `day` for dates; on to `hour`, `minute`, `second` for stamps; `four hours`, `hour`, `minute`, `second` for clock times; down to `finest`. THE SPANS ARE A WALK THE RECORD'S OWN FACTS ALLOW, and a loader refuses any other: the spans are the walk's, one a rung from the top, and each finer span REACHES both ends of the one before (its first bucket inside the coarser first, its last inside the coarser last) and holds at most the buckets the whole square root of `rows` times `people` -- an estimate of the visits, between the people and the rows -- covers at twice the floor a bucket (`grains.estimate`, `grains.walk_holds`); a pooled record's rung is its last span's, and a held one's spans stop where its walk stopped. WHERE THE WALK STOPPED IS NOT RECORDED (repair round 1 of lane PS): it goes no finer where the finer rung has no span, its span reaches no end or holds too many buckets, or the description there would publish or leave to subtraction a count one to ten people hold (NF128's STEP BACK), and the record says none of these -- so a record stopping above where its spans would let it go is the step back, and loads. So the grain is a function of published facts and of one fact more, that the column is not described finer, which fixes no count of one to ten people (plan P4-D417, its proof). Each span's ends are points of the description, counted in people as every point is.
+
 **Question Q3, "number or date?"** (landing R4, plan P4-D384). A column of numbers is asked whether it holds dates written as counts where one of three rules holds over its present cells, each system's set-aside numbers taken out first (6.6.2, dates written as counts) and the rest at least nine tenths of the present cells and at least eleven, with text cells standing to the date role's own line: `inside-a-band` -- at most one in a hundred of the rest (one at least) lies outside where the system writes 1 January 1990 to 31 December 2050, and the whole figures of those inside are all one width; counts of a system of days that are not whole write four figures after the point or more, or fifteen significant figures, as a spreadsheet's date-times do and a salary in cents does not; and a column read as `days-since-1840` writes no contact number on at least half of the rest, as Epic's first contact of a day does and a charge in cents does not; `at-midnight` -- the rest are whole counts of a system finer than the day, every one at midnight UTC, at least eleven different, inside 1900 to 2050 but for one in a hundred, more than half of them a year or more from the system's first day, and not every one a whole thousand days from it -- a length of stay kept as whole days of seconds names days of 1970, and whole days of milliseconds read as seconds stand every thousand days; `fixed-width-days` -- the rest, strays outside the band among them, are written in figures alone, all one width of at least five, so the column is one the fixed-width question asks already, set-aside numbers aside, and a system counting days reads them inside 1900 to 2050 but for one in a hundred (the second review of landing R4, item 4: letting the strays stand at another width asked five-figure record numbers with half a percent six-figure on 37 of 40 draws). The systems OFFERED are every system counting in the unit of one a rule held for whose band from 1900 to 2050 holds the column on the same terms, so a column of SAS days from 1985 is offered the 1960 system beside the 1970 one -- and, on a column some count of which is not whole, only a system whose declaration would keep every figure the column writes (6.6.2, dates written as counts; NF115): Unix seconds written with tenths, or four figures of a day of moments off the whole minute, are offered none and not asked, since every answer would be refused (the review of landing R4, item 2). Each rule is taken to its end -- its numbers, its text and the systems it would offer -- before the next is tried, and the first that offers one is the one NF113 names (the Codex review of landing R4, item 6: Unix counts at midnight crossing from nine figures to ten held the band's numbers, failed its text, and were asked nothing); `at-midnight` asks integrality and midnight of a count reduced, so `315532800.0` is midnight (item 5); and a column some cell of which writes an ISO date is not asked (item 1). A column under `--date-count` is not asked. The person answers in the questions file or with `--date-count NAME SYSTEM`; the answer is recorded under `settings.forced_date_counts`. Limits are stated, not repaired: a date kept at LOCAL midnight comes back as instants at the zone's offset and is not asked by `at-midnight`; a column whose counts cross a power of ten inside the band -- SAS seconds of 1987 to 1991 -- is two widths, and is not asked by `inside-a-band`; a column of spreadsheet date-times every one of which falls on a quarter of a day writes one or two figures and is not asked; and a length of time of a year or more kept as whole days of seconds or of milliseconds -- an age, a follow-up, a survival time -- reads as a date and is asked, Enter keeping it as numbers; so are identifiers of one width with half a percent one figure shorter (`inside-a-band` lets a stray of another width stand outside the band, so that a century slip -- Excel's 2016 keyed as 1916, four figures -- silences no question), a salary in the band of Epic's days a third of it in cents, and five-figure codes whose "none" is `0` (`inside-a-band`) or `-1` (`fixed-width-days`): the second review of landing R4, item 4, each pinned in `tests/counted_dates.py`'s `STATED`. A count written with more figures than the rest, one in a hundred at most, is a stray, held to its own last figure (6.6.2, dates written as counts), and silences nothing.
 
 ## 5. The column block
@@ -10059,7 +10070,10 @@ There are **twenty-two** universal keys. Every one is present in every
 column block of every role, on every run, including when its content is
 zero or empty. This format has no optional keys, on purpose: a key that
 appears only sometimes is a key a consumer comes to guess about, and the
-guess is what fails silently.
+guess is what fails silently. ONE EXCEPTION, written down: `time_grain`
+(TG1, plan P4-D417), present only on a column described at a grain or
+held with the record its twin writes valid dates from, so that every
+description holding neither is byte for byte the one written before it.
 
 | key | JSON type | range / permitted values | meaning | disposition |
 |---|---|---|---|---|
@@ -19214,7 +19228,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 121 the note grammar enumerates |
+| NG14 | for every form: one of the 123 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -20537,7 +20551,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 121 closed forms: 127 argument positions, of which 91 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 123 closed forms: 127 argument positions, of which 91 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -21601,7 +21615,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 121 forms
+### 14.8 The note grammar — 123 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 127 argument positions: 91 whole numbers, 14 package words, 17
@@ -21781,6 +21795,8 @@ nested forms, 5 bound affix strings.
 | NG125 | `evidence_unanswered_identity` | 0 |
 | NG126 | `evidence_held_in_people` | 0 |
 | NG127 | `evidence_counted_dates_held` | 0 |
+| NG128 | `evidence_pooled_in_people` | 0 |
+| NG129 | `remark_held_dates_are_valid` | 0 |
 
 **The twenty-one words of dates written as counts** (landing R4, plan
 P4-D384) are package words too: the twelve systems of 6.6.2, each at

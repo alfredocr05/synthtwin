@@ -95,7 +95,7 @@ import pathlib
 from synthtwin import calendar_clock, calendar_rules, canonical, dialect, errors, parsing
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module that imports `parsing` alone.
-from synthtwin import date_counts
+from synthtwin import date_counts, grains
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -2404,6 +2404,24 @@ INVARIANTS = {
         "from at least the column's different values plus the smallest "
         "group size, once the prefix's own characters are fixed"
     ),
+    # -- lane PS (plan P4-D417): the grain a column of dates or times was
+    # pooled at, and the record a held one keeps.
+    "TG1": (
+        "a column's time grain is a walk its own published facts allow: "
+        "its rows are the column's present cells, its spans run one a "
+        "rung from the ladder's top, each a pair of bucket starts, and "
+        "each finer span reaches both ends of the one before and holds "
+        "few enough buckets for the visits its rows and people estimate"
+    ),
+    "NF128": (
+        "a column described at a grain reads its cells under the date "
+        "member or clock form the block itself publishes"
+    ),
+    "NF129": (
+        "a time grain is held on a held record-number column and on no "
+        "other, and a held record-number column of dates or times keeps "
+        "the grain its twin writes valid values from"
+    ),
 }
 
 
@@ -3600,6 +3618,13 @@ class ColumnBlock:
     detection_evidence: str
     remarks: "tuple[str, ...]"
     facts: ColumnFacts
+    # THE GRAIN (plan P4-D417, contract NF128 and NF129): how a column of
+    # dates or times beside a person column was pooled in people -- the
+    # rung its cells were written at, the reading, the rows its walk read
+    # and the spans it passed -- or, rung `held`,
+    # how a held one's twin writes valid values. None on every other
+    # column, whose block carries no `time_grain` key.
+    time_grain: "grains.Grain | None" = None
 
 
 # -- the two halves of a compound column, as columns ------------------
@@ -7742,6 +7767,20 @@ def _column(
     name = _filled_text(mapping["name"], "name", seat)
     where = f"in the block for the column named '{name}'"
     role, statistical, quality, structural = _axes(mapping, where, frame)
+    # THE ONE KEY A BLOCK MAY CARRY BESIDE ITS ROLE'S (plan P4-D417): a
+    # column described at a grain, or held with the record its twin
+    # writes valid dates from. Read apart, so the key rule below still
+    # refuses every other key the role does not name.
+    grain_value: object = None
+    if "time_grain" in mapping:
+        if role not in GRAIN_ROLES:
+            raise _unknown("time_grain", where)
+        grain_value = mapping["time_grain"]
+        kept: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "time_grain":
+                kept[key] = mapping[key]
+        mapping = kept
     role_keys = _role_keys(role)
     if "percentiles" in role_keys:
         role_keys = _numeric_key_set(mapping, role_keys)
@@ -7909,7 +7948,113 @@ def _column(
         detection_evidence=evidence,
         remarks=tuple(remarks),
         facts=facts,
+        time_grain=(
+            None
+            if grain_value is None
+            else _time_grain(grain_value, where, role, mapping, frame)
+        ),
     )
+
+
+# THE ROLES A BLOCK CARRYING `time_grain` MAY TAKE (plan P4-D417): the two
+# of dates and clock times, the two every column of one or two values
+# takes first, and a held record number.
+GRAIN_ROLES = (ROLE_DATETIME, ROLE_CLOCK, "constant", "binary", ROLE_IDENTIFIER)
+GRAIN_KEYS = ("finest", "kind", "mark", "people", "reading", "rung", "rows", "spans")
+
+
+def _time_grain(
+    value: object,
+    where: str,
+    role: str,
+    mapping: "dict[str, object]",
+    frame: "_Frame",
+) -> "grains.Grain":
+    """A block's `time_grain` record, checked in full (contract NF128, NF129 and TG1).
+
+    The rung is `held` on a held record number and on no other role; the
+    reading is one this description's own readers know, and the date
+    member or clock form the block itself publishes where it publishes
+    one; each span is a pair of bucket starts at its own rung, first at
+    most last; and the rung is the one the record's own published facts
+    choose (`grains.walk_holds`, TG1): a description cannot carry a
+    grain chosen any other way.
+    """
+    seat = f"{where}, in its `time_grain`"
+    block = _mapping(value, "time_grain", where)
+    _keys(block, seat, GRAIN_KEYS, "every `time_grain` record")
+    kind = _one_of(block["kind"], "kind", seat, grains.KINDS)
+    rung = _one_of(block["rung"], "rung", seat, grains.RUNGS + (grains.HELD,))
+    finest = _one_of(block["finest"], "finest", seat, grains.RUNGS)
+    reading_text = _filled_text(block["reading"], "reading", seat)
+    mark = _one_of(block["mark"], "mark", seat, date_counts.MARKS)
+    rows = _whole(block["rows"], "rows", seat, 0)
+    people = _whole(block["people"], "people", seat, 0)
+    if "n_present" in mapping and mapping["n_present"] != rows:
+        raise _broken(
+            "TG1",
+            seat,
+            f"the record's walk read {rows} rows",
+            "the block publishes another count of present cells",
+        )
+    # REPAIR ROUND 2 (Codex's item 5): the people the walk read are the
+    # people the table's rows name, so no more than its rows; the count
+    # sets the estimate the rung is checked against below.
+    if people > frame.n_rows:
+        raise _broken(
+            "TG1",
+            seat,
+            f"the record's walk read {people} people",
+            f"the table holds {frame.n_rows} rows",
+        )
+    if (rung == grains.HELD) != (role == ROLE_IDENTIFIER):
+        raise _broken(
+            "NF129",
+            seat,
+            f"the rung is '{rung}'",
+            f"the column's type path is '{role}'",
+        )
+    known = (
+        reading_text in parsing.CLOCK_FORMS
+        if kind == grains.CLOCK
+        else reading_text in date_counts.MEMBERS
+        if kind == grains.COUNTED
+        else reading_text in parsing.DATE_FORMATS or parsing.is_layout_name(reading_text)
+    )
+    if not known:
+        raise _out_of_range("reading", seat, f"'{reading_text}'", f"a reading of a {kind}")
+    for key, kinds in (("format", (grains.DATE, grains.STAMP)), ("clock_form", (grains.CLOCK,))):
+        if kind in kinds and key in mapping and mapping[key] != reading_text:
+            raise _broken(
+                "NF128",
+                seat,
+                f"the record reads its cells as '{reading_text}'",
+                f"the block publishes `{key}` as something else",
+            )
+    spans: "list[tuple[str, int, int]]" = []
+    place = 0
+    for entry in _listing(block["spans"], "spans", seat):
+        listed = _listing(entry, f"spans[{place}]", seat)
+        if len(listed) != 3:
+            raise _broken("TG1", seat, f"span {place + 1} holds {len(listed)} entries", "a span is a rung and two starts")
+        span_rung = _one_of(listed[0], f"spans[{place}][0]", seat, grains.RUNGS)
+        first = grains.span_moment(_text(listed[1], f"spans[{place}][1]", seat), kind)
+        last = grains.span_moment(_text(listed[2], f"spans[{place}][2]", seat), kind)
+        if first is None or last is None:
+            raise _out_of_range(f"spans[{place}]", seat, "a start", "the start of a bucket, written as the record writes one")
+        spans += [(span_rung, first, last)]
+        place = place + 1
+    grain = grains.Grain(
+        rung, grains.Reading(kind, reading_text, mark), rows, tuple(spans), finest, people
+    )
+    if not grains.walk_holds(grain, frame.floor):
+        raise _broken(
+            "TG1",
+            seat,
+            f"the record names the rung '{rung}'",
+            "its own published facts -- the rows, the people and the spans -- choose another",
+        )
+    return grain
 
 
 def _numbers_share(folded: int, counts: "tuple[int, ...]") -> int:

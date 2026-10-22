@@ -62,6 +62,8 @@ import re
 
 from synthtwin import cli
 
+import persons_counted
+
 PATIENTS = 44
 PATIENTS_BESIDE = 150
 SEED = 20261016
@@ -507,7 +509,32 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     questions = json.loads(texts[f"{kind}_long-questions.json"])
     asked = [entry for entry in questions["asked"] if entry["column"] == kind]
     cells = _csv_column(folder / f"{kind}_long-twin.csv", 1 if beside else 0)
-    counted = count_real(real, list(texts.values()) + [screen.getvalue()], cells)
+    written = cells
+    # A COLUMN OF DATES DESCRIBED AT A GRAIN OR HELD WITH VALID DATES (plan
+    # P4-D417): its published points are the STARTS of buckets the floor's
+    # number of people hold, and its twin's cells are draws inside them or
+    # inside the method's fixed span, never values of the table (method
+    # G7.13). A real date that is itself a bucket's start stands in the
+    # description as that bucket, and a twin's date equal to a real one by
+    # chance is no value written as itself: both are counted apart.
+    grain = block.get("time_grain")
+    drawn = 0
+    starts: "list[str]" = []
+    if isinstance(grain, dict):
+        named = persons_counted.bucket_names(grain)
+        at_the_grain = persons_counted.at_the_grain(real, block)
+        starts = [
+            value for value, start in zip(real, at_the_grain)
+            if (value == start and grain["rung"] != "held") or value in named
+        ]
+        counted_cells = count_real(real, [], cells)
+        drawn = counted_cells["twin_cells"]
+        cells = []
+    counted = count_real(
+        [value for value in real if value not in starts],
+        list(texts.values()) + [screen.getvalue()],
+        cells,
+    )
     seen: "dict[str, object]" = {
         "profile_exit": profiled,
         "generate_exit": generated,
@@ -520,7 +547,9 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         "asked": [[c["answer"] for c in entry["answers_you_can_give"]] for entry in asked],
         "read_as_now": [entry["read_as_now"] for entry in asked],
         "screen": screen.getvalue(),
-        "twin_sample": sorted(set(cells))[:3],
+        "twin_sample": sorted(set(written))[:3],
+        "twin_cells_drawn": drawn,
+        "bucket_starts_published": len(starts),
     }
     seen.update(counted)
     return seen

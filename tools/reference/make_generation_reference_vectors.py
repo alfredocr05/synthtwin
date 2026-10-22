@@ -55103,6 +55103,218 @@ def shared_clock_document():
     }
 
 
+# ---------------------------------------------------------------------------
+# Method section G7.13 (lane PS, plan P4-D417): a column pooled in people is
+# written as the starts of its buckets, and each present cell leaves drawn
+# inside its bucket at its own precision, with its row's word. Written from
+# the method's words with `datetime`, for the forms it names here: ISO dates
+# and stamps (a space or `T`, to the minute or the second), padded US and
+# day-first dates, padded 24-hour clocks, and Excel's 1900 serials of whole
+# days. `tests/test_dates_pooled_in_people.py` holds the product to it.
+
+_POOLED_FIXED = {"second": 1, "minute": 60, "hour": 3600, "four hours": 14400, "day": 86400}
+
+
+def pooled_bucket(moment, rung):
+    """The start of ``moment``'s bucket at ``rung`` and the start of the next, as `datetime`s."""
+    if rung == "year":
+        start = datetime.datetime(moment.year, 1, 1)
+        return start, datetime.datetime(moment.year + 1, 1, 1)
+    if rung in ("quarter", "month"):
+        step = 3 if rung == "quarter" else 1
+        month = (moment.month - 1) // step * step + 1
+        start = datetime.datetime(moment.year, month, 1)
+        months = moment.year * 12 + month - 1 + step
+        return start, datetime.datetime(months // 12, months % 12 + 1, 1)
+    size = _POOLED_FIXED[rung]
+    midnight = datetime.datetime(moment.year, moment.month, moment.day)
+    seconds = int((moment - midnight).total_seconds()) // size * size
+    start = midnight + datetime.timedelta(seconds=seconds)
+    return start, start + datetime.timedelta(seconds=size)
+
+
+_POOLED_FORMS = {
+    "iso-date": (re.compile(r"^(\d{4})-(\d{2})-(\d{2})$"), "%Y-%m-%d"),
+    "month-first-date": (re.compile(r"^(\d{2})/(\d{2})/(\d{4})$"), "%m/%d/%Y"),
+    "day-first-date": (re.compile(r"^(\d{2})/(\d{2})/(\d{4})$"), "%d/%m/%Y"),
+}
+_POOLED_STAMP = re.compile(r"^(\d{4})-(\d{2})-(\d{2})([ T])(\d{2}):(\d{2})(?::(\d{2}))?$")
+_POOLED_CLOCK = re.compile(r"^(\d{2}):(\d{2})(?::(\d{2}))?$")
+_EXCEL_EPOCH = datetime.datetime(1899, 12, 30)
+
+
+def pooled_drawn_inside(cell, reading, rung, word):
+    """One cell drawn inside its bucket at its own precision (G7.13), or the cell as written."""
+    if reading in _POOLED_FORMS:
+        pattern, form = _POOLED_FORMS[reading]
+        if not pattern.match(cell):
+            return cell
+        moment = datetime.datetime.strptime(cell, form)
+        start, end = pooled_bucket(moment, rung)
+        count = (end - start).days
+        if count <= 1:
+            return cell
+        return (start + datetime.timedelta(days=bounded(word, count))).strftime(form)
+    if reading == "iso-datetime":
+        found = _POOLED_STAMP.match(cell)
+        if not found:
+            return cell
+        with_seconds = found.group(7) is not None
+        moment = datetime.datetime(
+            int(found.group(1)), int(found.group(2)), int(found.group(3)),
+            int(found.group(5)), int(found.group(6)),
+            int(found.group(7)) if with_seconds else 0,
+        )
+        start, end = pooled_bucket(moment, rung)
+        unit = 1 if with_seconds else 60
+        count = int((end - start).total_seconds()) // unit
+        if count <= 1:
+            return cell
+        made = start + datetime.timedelta(seconds=bounded(word, count) * unit)
+        text = made.strftime("%Y-%m-%d") + found.group(4) + made.strftime("%H:%M")
+        return text + (made.strftime(":%S") if with_seconds else "")
+    if reading in ("hh-mm", "hh-mm-ss"):
+        found = _POOLED_CLOCK.match(cell)
+        if not found or (found.group(3) is not None) != (reading == "hh-mm-ss"):
+            return cell
+        seconds = int(found.group(1)) * 3600 + int(found.group(2)) * 60 + int(found.group(3) or 0)
+        moment = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=seconds)
+        start, end = pooled_bucket(moment, rung)
+        end = min(end, datetime.datetime(2000, 1, 2))
+        unit = 1 if reading == "hh-mm-ss" else 60
+        count = int((end - start).total_seconds()) // unit
+        if count <= 1:
+            return cell
+        made = start + datetime.timedelta(seconds=bounded(word, count) * unit)
+        return made.strftime("%H:%M:%S" if reading == "hh-mm-ss" else "%H:%M")
+    if reading == "excel-1900":
+        if not re.match(r"^\d+$", cell) or int(cell) <= 60:
+            return cell
+        moment = _EXCEL_EPOCH + datetime.timedelta(days=int(cell))
+        start, end = pooled_bucket(moment, rung)
+        count = (end - start).days
+        if count <= 1:
+            return cell
+        return f"{(start - _EXCEL_EPOCH).days + bounded(word, count)}"
+    return cell
+
+
+def _pooled_next(start, rung):
+    """The start of the bucket after ``start`` at ``rung``."""
+    return pooled_bucket(start, rung)[1]
+
+
+def _pooled_census_key(start, rung, kind, finest):
+    """What a census at the rung reads of a bucket start; None where no row may move (G7.13)."""
+    if kind == "clock":
+        return None
+    if finest in ("year", "quarter", "month"):
+        return ()
+    if rung in ("year", "quarter", "month"):
+        return (start.weekday(),)
+    return (start.weekday(), start.day, start.hour * 3600 + start.minute * 60 + start.second)
+
+
+def _pooled_text_moment(text):
+    """A published point's canonical text (a year, `YYYY-Qn`, a month, a day, a moment) as a `datetime`."""
+    if len(text) == 4:
+        return datetime.datetime(int(text), 1, 1)
+    if len(text) == 7 and text[5] == "Q":
+        return datetime.datetime(int(text[:4]), (int(text[6]) - 1) * 3 + 1, 1)
+    if len(text) == 7:
+        return datetime.datetime(int(text[:4]), int(text[5:7]), 1)
+    return datetime.datetime.fromisoformat(text)
+
+
+def pooled_protections(block, rung, first, last):
+    """Method G7.13 (repair round 2): the buckets that give no row, and the tails' fences, from a block's own JSON.
+
+    The span's first and last bucket, each bucket a tail names (its
+    boundary and its values) and each heavy date's never give a row; a
+    stretch at or below the low tail's boundary, or at or above the high
+    one's, moves none. Returns (sorted buckets, (low fence, high fence)).
+    """
+    def bucket(text):
+        return min(max(pooled_bucket(_pooled_text_moment(text), rung)[0], first), last)
+
+    kept = {first, last}
+    fences = [None, None]
+    for side, key in enumerate(("low_tail", "high_tail")):
+        tail = block.get(key)
+        if not tail:
+            continue
+        fences[side] = bucket(tail["boundary"])
+        kept.add(fences[side])
+        for value in tail.get("values") or ():
+            kept.add(bucket(value))
+    for entry in block.get("heavy_dates") or ():
+        kept.add(bucket(entry["date"]))
+    return sorted(kept), (fences[0], fences[1])
+
+
+def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target, pinned, fences=(None, None)):
+    """Method G7.13's count at the rung, from its words, over `datetime` bucket starts.
+
+    The twin holds the description's count of different buckets: where its
+    built cells hold fewer, rows move to EMPTY buckets lying between the
+    same two published points (or the span's ends) and reading the same
+    census key; first from a bucket no point names that holds two rows or
+    more (fullest first, ties earlier; its last rows first), then from the
+    rung just below the stretch (its last ranks, beyond every rank the rung
+    is published at), then from the rung just above (its first ranks); each
+    row to the earliest empty bucket of its key; until the count is met.
+    No stretch at or below ``fences``' low tail boundary, or at or above
+    its high one, moves a row (repair round 2). Returns {row: new bucket start}.
+    """
+    rows_of = {}
+    for row, bucket in enumerate(buckets):
+        if bucket is not None:
+            rows_of.setdefault(bucket, []).append(row)
+    need = target - len(rows_of)
+    moved = {}
+    if need <= 0 or first > last:
+        return moved
+    below = {}
+    seen = 0
+    for bucket in sorted(rows_of):
+        below[bucket] = seen
+        seen += len(rows_of[bucket])
+    ends = sorted({first, last} | {point for point in points if first <= point <= last})
+    for low, high in zip(ends, ends[1:]):
+        if (fences[0] is not None and high <= fences[0]) or (fences[1] is not None and low >= fences[1]):
+            continue
+        givers = []
+        inside = [bucket for bucket in rows_of if low < bucket < high and len(rows_of[bucket]) >= 2]
+        for bucket in sorted(inside, key=lambda one: (-len(rows_of[one]), one)):
+            givers.append((bucket, list(reversed(rows_of[bucket][1:]))))
+        if low in pinned and low in rows_of:
+            rows = rows_of[low]
+            spare = min(len(rows) - 1, below[low] + len(rows) - 1 - pinned[low][1])
+            givers.append((low, list(reversed(rows))[: max(spare, 0)]))
+        if high in pinned and high in rows_of:
+            rows = rows_of[high]
+            spare = min(len(rows) - 1, pinned[high][0] - below[high])
+            givers.append((high, rows[: max(spare, 0)]))
+        empties = {}
+        start = _pooled_next(low, rung)
+        while start < high:
+            if start not in rows_of:
+                key = _pooled_census_key(start, rung, kind, finest)
+                if key is not None:
+                    empties.setdefault(key, []).append(start)
+            start = _pooled_next(start, rung)
+        for bucket, rows in givers:
+            free = empties.get(_pooled_census_key(bucket, rung, kind, finest), [])
+            for row in rows:
+                if need <= 0 or not free:
+                    break
+                moved[row] = free.pop(0)
+                need -= 1
+            if need <= 0:
+                return moved
+    return moved
+
+
 def main(argv=None, part=None):
     """Write the vectors to the path given by --out.
 

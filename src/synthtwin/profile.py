@@ -53,6 +53,7 @@ from synthtwin import (
     date_counts,
     dialect,
     errors,
+    grains,
     parsing,
     reading,
     taxonomy,
@@ -980,6 +981,11 @@ _COUNTED_PART = "a-name-of-this-table-or-a-counting-system"
 # fifteen or seventeen, or nothing; and a contact number of a
 # `days-since-1840` column as its figures are written, or `(none)`.
 _COUNT_MARK = "a-decimal-mark-of-a-count"
+# ONE PART OF A SPAN OF A `time_grain` RECORD (plan P4-D417): the rung it
+# stands at, a word of `grains.RUNGS`, or the start of a bucket at that
+# rung, a canonical moment or a clock time -- the first and the last bucket
+# the floor's number of people hold, which the record exists to publish.
+_GRAIN_SPAN_PART = "a-rung-or-the-start-of-a-bucket"
 _COUNT_SIGNIFICANT = "fifteen-or-seventeen-significant-figures-or-nothing"
 _CONTACT_WORD = "a-contact-number-in-figures-or-none"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
@@ -1815,6 +1821,20 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # ...and the key the second cut reserved (plan P4-D386), which landing
     # R4 fills on a column of counted dates and leaves `null` on every
     # other: how the column writes its counts (`date_counts.CountForm`).
+    # THE GRAIN A COLUMN OF DATES OR TIMES WAS POOLED AT (plan P4-D417,
+    # contract NF128, NF129 and TG1): its rung, the column's precision, its kind,
+    # how its cells read, the rows its walk read and the spans it passed.
+    ("columns", _EACH, "time_grain"): _OBJECT,
+    ("columns", _EACH, "time_grain", "rung"): _WORD,
+    ("columns", _EACH, "time_grain", "finest"): _WORD,
+    ("columns", _EACH, "time_grain", "kind"): _WORD,
+    ("columns", _EACH, "time_grain", "reading"): _WORD,
+    ("columns", _EACH, "time_grain", "mark"): _COUNT_MARK,
+    ("columns", _EACH, "time_grain", "rows"): _COUNT,
+    ("columns", _EACH, "time_grain", "people"): _COUNT,
+    ("columns", _EACH, "time_grain", "spans"): _ARRAY,
+    ("columns", _EACH, "time_grain", "spans", _EACH): _ARRAY,
+    ("columns", _EACH, "time_grain", "spans", _EACH, _EACH): _GRAIN_SPAN_PART,
     ("columns", _EACH, "count_form"): _MAYBE_OBJECT,
     ("columns", _EACH, "count_form", "places"): _COUNT,
     ("columns", _EACH, "count_form", "trimmed"): _FLAG,
@@ -2128,6 +2148,14 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # ...and the unit a tail is counted in (stage 3, contract DT4), a
     # closed list read from the one place it is written.
     ("columns", _EACH, "tail_unit"): parsing.TAIL_UNITS,
+    # The words of a `time_grain` record (plan P4-D417), each read from the
+    # one place it is written.
+    ("columns", _EACH, "time_grain", "rung"): grains.RUNGS + (grains.HELD,),
+    ("columns", _EACH, "time_grain", "finest"): grains.RUNGS,
+    ("columns", _EACH, "time_grain", "kind"): grains.KINDS,
+    ("columns", _EACH, "time_grain", "reading"): (
+        parsing.DATE_FORMATS + parsing.CLOCK_FORMS + date_counts.MEMBERS
+    ),
     ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
     # ...and a slashed stamp's words, which name its written clock beside
     # its one space (landing T1).
@@ -2865,6 +2893,8 @@ def _leaf_is_published(
         return value in context.names or value in date_counts.MEMBERS
     if kind == _COUNT_MARK:
         return isinstance(value, str) and value in date_counts.MARKS
+    if kind == _GRAIN_SPAN_PART:
+        return isinstance(value, str) and (value in grains.RUNGS or _is_moment(value))
     if kind == _COUNT_SIGNIFICANT:
         return value is None or (
             not isinstance(value, bool) and isinstance(value, int) and value in (15, 17)
@@ -2987,6 +3017,9 @@ def _places_are_published(places: "list[object]", floor: int) -> bool:
 _LAYOUT_WORD_PATHS = (
     ("columns", _EACH, "format"),
     ("columns", _EACH, "resolution_mix", _KEY_OF),
+    # ...and the reading of a `time_grain` record (plan P4-D417), which
+    # names the column's own date member.
+    ("columns", _EACH, "time_grain", "reading"),
 )
 
 
@@ -4175,6 +4208,8 @@ def build_document(
     unanswered: "list[str] | None" = None,
     subjects: "list[str] | None" = None,
     counted_in_subjects: "list[str] | None" = None,
+    time_grains: "dict[str, grains.Grain] | None" = None,
+    absent_read: "dict[str, tuple[str, ...]] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4269,6 +4304,20 @@ def build_document(
       every column as before, byte for byte. ``counted_in_subjects``,
       where given, is a list this call extends with the name of each
       column whose description that count changed, for the screen.
+    - A column of dates, stamps, clock times or counted dates that the
+      count in people would hold is described at a coarser calendar grain
+      instead where one serves (plan P4-D417, `_grain_walk`): its cells
+      written as the starts of their buckets, the record `time_grain`
+      beside them; and where none serves it is held with that record,
+      rung `held`, so its twin writes valid dates and times.
+      ``time_grains`` names the grains a description published (the
+      validator's): each such column's cells are described at its rung,
+      the tails pooled into its published ends, and nothing is decided.
+      ``absent_read``, where given, receives for each such column the
+      spellings its own reading of the cells as written took as no value
+      (``absent_spellings``), the ones its cells kept as written: the
+      validator measures the file's own cells with the same (repair round
+      3 of lane PS, the second verify's item 1).
     - A column a person declared as counted dates whose cells did not
       read as such dates is held as a record number on EVERY table, with
       or without ``subjects`` (`taxonomy.as_counted_dates_held`, contract
@@ -4515,7 +4564,41 @@ def build_document(
             and name not in described_identifiers
             and _counted_dates_declined(settings, name, described)
         )
-        if name in withheld_names:
+        cell_reading = _CellReading(
+            taxonomy.counted_member(
+                taxonomy.counted_for_the_column(settings, name)
+            )
+            if described.role == taxonomy.ROLE_DATETIME
+            else "",
+            name in declared_commas,
+        )
+        # THE GRAIN A DESCRIPTION PUBLISHED IS READ, NEVER DECIDED (plan
+        # P4-D417): the validator describes a checked file's cells at the
+        # rung its description named, the tails pooled into its ends.
+        published_grain = (
+            time_grains[name]
+            if time_grains is not None and name in time_grains
+            else None
+        )
+        held_dates: "grains.Grain | None" = None
+        if (
+            published_grain is not None
+            and published_grain.rung != grains.HELD
+            and name not in withheld_names
+            and not declined
+        ):
+            if absent_read is not None:
+                absent_read[name] = described.absent_spellings
+            described = taxonomy.with_time_grain(
+                described_from(
+                    grains.coarse_cells(
+                        cells, published_grain, None, frozenset(described.absent_spellings)
+                    ),
+                    None,
+                ),
+                grains.record(published_grain),
+            )
+        elif name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
         elif declined or (
             counting
@@ -4526,36 +4609,89 @@ def build_document(
                 counting,
                 settings.small_cell_floor,
                 counting_enough,
-                _CellReading(
-                    taxonomy.counted_member(
-                        taxonomy.counted_for_the_column(settings, name)
-                    )
-                    if described.role == taxonomy.ROLE_DATETIME
-                    else "",
-                    name in declared_commas,
-                ),
+                cell_reading,
             )
         ):
-            described_identifiers += [name]
-            held_in_people += [name]
-            fresh = described_from(cells, None, True)
-            if counting:
-                fresh = _layouts_in_subjects(
-                    fresh,
+            # DATES AND TIMES POOLED IN PEOPLE (plan P4-D417): described at
+            # the grain their published facts choose where every point it
+            # publishes holds the floor in people, else held with the
+            # record their twin writes valid values from.
+            pooled: "taxonomy.ColumnProfile | None" = None
+            time_reading = (
+                None
+                if declined
+                else _time_reading(described, settings, name, declared_commas)
+            )
+            if time_reading is not None:
+                walked = _grain_walk(
                     cells,
+                    described.n_present,
+                    time_reading,
                     counting,
                     counting_enough,
                     settings.small_cell_floor,
+                    frozenset(described.absent_spellings),
                 )
-            real_census = _census_of(fresh)
-            if declined:
-                # Named on the screen and in the questions file as a
-                # declaration that did not reach, not as a count in people.
-                described = taxonomy.as_counted_dates_held(fresh)
+                held_dates = _held_record(walked.grain)
+                spans = walked.grain.spans
+                # THE STEP BACK (plan P4-D417, repair round 1): from the
+                # rung the walk reached up to the top, the first rung whose
+                # description publishes no count one to ten people hold.
+                place = len(spans) if walked.grain.rung != grains.HELD else 0
+                while place > 0 and pooled is None and not walked.unread_thin:
+                    place = place - 1
+                    if walked.thin[spans[place][0]]:
+                        continue
+                    coarse = _cells_at(cells, walked, spans[place])
+                    if coarse is None:
+                        continue
+                    candidate = described_from(coarse, None)
+                    if candidate.role in _GRAIN_ROLES and not _counted_in_subjects(
+                        candidate,
+                        coarse,
+                        counting,
+                        settings.small_cell_floor,
+                        counting_enough,
+                        cell_reading,
+                    ):
+                        pooled = taxonomy.with_time_grain(
+                            candidate,
+                            grains.record(
+                                dataclasses.replace(
+                                    walked.grain,
+                                    rung=spans[place][0],
+                                    spans=spans[: place + 1],
+                                )
+                            ),
+                        )
+                    coarse = None
+            if pooled is not None:
+                described = pooled
             else:
-                described = taxonomy.as_held_in_people(fresh)
-                if counted_in_subjects is not None:
-                    counted_in_subjects += [name]
+                described_identifiers += [name]
+                held_in_people += [name]
+                fresh = described_from(cells, None, True)
+                if counting:
+                    fresh = _layouts_in_subjects(
+                        fresh,
+                        cells,
+                        counting,
+                        counting_enough,
+                        settings.small_cell_floor,
+                    )
+                real_census = _census_of(fresh)
+                if declined:
+                    # Named on the screen and in the questions file as a
+                    # declaration that did not reach, not as a count in people.
+                    described = taxonomy.as_counted_dates_held(fresh)
+                else:
+                    described = taxonomy.as_held_in_people(fresh)
+                    if held_dates is not None:
+                        described = taxonomy.with_held_dates(
+                            described, grains.record(held_dates)
+                        )
+                    if counted_in_subjects is not None:
+                        counted_in_subjects += [name]
         if (
             name in subject_names
             and name not in withheld_names
@@ -5860,6 +5996,287 @@ def _counted_in_subjects(
             if held.rows >= floor and _plainly(key, plain):
                 return True
     return False
+
+
+# THE ROLES A COLUMN DESCRIBED AT A GRAIN MAY TAKE (plan P4-D417): its own,
+# or, where the grain leaves one or two different values, the constant and
+# binary roles every column of one or two values takes first.
+_GRAIN_ROLES = (
+    taxonomy.ROLE_DATETIME,
+    taxonomy.ROLE_CLOCK,
+    "constant",
+    "binary",
+)
+
+
+def _time_reading(
+    described: taxonomy.ColumnProfile,
+    settings: taxonomy.Settings,
+    name: str,
+    commas: "list[str]",
+) -> "grains.Reading | None":
+    """How a column of dates, stamps, clock times or counted dates reads its cells, or None."""
+    details = described.details
+    if described.role == taxonomy.ROLE_CLOCK:
+        form = details["clock_form"] if "clock_form" in details else None
+        if isinstance(form, str) and form in parsing.CLOCK_FORMS:
+            return grains.Reading(grains.CLOCK, form)
+        return None
+    if described.role != taxonomy.ROLE_DATETIME:
+        return None
+    member = taxonomy.counted_member(taxonomy.counted_for_the_column(settings, name))
+    if member:
+        return grains.Reading(
+            grains.COUNTED,
+            member,
+            date_counts.COMMA if name in commas else date_counts.POINT,
+        )
+    shown = details["format"] if "format" in details else None
+    if not isinstance(shown, str):
+        return None
+    return grains.Reading(grains.STAMP, shown)
+
+
+@dataclasses.dataclass(frozen=True)
+class _Walked:
+    """What `_grain_walk` found of one column: its record, and what the step back reads.
+
+    ``grain`` is the record at the rung the walk reached (or `held`, where
+    the top rung has no span or a subject column of few people tells its
+    people apart); ``thin`` names, for every rung, whether some bucket
+    inside that rung's span holds one to `floor` - 1 people under some
+    subject column; ``unread_thin`` whether the cells that read as no
+    moment, or a written shape or offset of those that do, are held so.
+    """
+
+    grain: grains.Grain
+    moments: "list[int | None]"
+    thin: "dict[str, bool]"
+    unread_thin: bool
+    padded: bool
+
+
+def _grain_walk(
+    cells: "list[str]",
+    present: int,
+    time_reading: grains.Reading,
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+    absent: "frozenset[str]" = frozenset(),
+) -> _Walked:
+    """The walk of a column of dates or times down its ladder (plan P4-D417).
+
+    Each present cell is read as its moment; the column's finest rung is
+    the finest any cell writes; the walk reads ``present``, the block's
+    `n_present`, published on every column, and the people the subject
+    columns name, the description's population. At every rung of its
+    ladder the ENDS are the first and the last bucket held by `floor`
+    different subjects or more under every subject column that counts in
+    people (`_holding`, the one count), and `grains.ladder_walk` chooses
+    the rung the walk reaches from the spans and the estimate. A rung is
+    THIN where a bucket strictly inside its span holds one to `floor` - 1
+    people under some subject column (the description there would name a
+    bucket whose count one to ten people hold, by subtraction where it is
+    not printed: the skeptic's item 1), and the cells that read as no
+    moment (present, not an absent spelling) are counted as one value,
+    each written shape apart, beside every written shape and offset of
+    the cells that read (the skeptic's items 1 and 2: `n_unparsed`,
+    `resolution_mix` and every census of how a date is written count
+    unions of them, at every rung alike). A subject column of fewer than
+    `floor` values counts the column only where it is attached to it and
+    tells its people apart (plan P4-D406), and then no bucket can reach
+    the floor: the column is held.
+    """
+    moments: "list[int | None]" = []
+    memo: "dict[str, int | None]" = {}
+    finest = grains.YEAR
+    kind_reading = time_reading
+    for cell in cells:
+        if cell in memo:
+            moments += [memo[cell]]
+            continue
+        # AN ABSENT CELL IS NO MOMENT (repair round 2, Codex's item 3): a
+        # spelling of no value that reads as a date -- one declared with
+        # `--missing-value`, a placeholder day such as `1900-01-01` -- is
+        # kept out of the walk, so it is never coarsened into a present
+        # cell nor counted into a span.
+        moment = None if cell in absent else grains.moment_of(cell, time_reading)
+        if moment is not None:
+            own = grains.finest_of(cell, time_reading)
+            if grains.RANK[own] > grains.RANK[finest]:
+                finest = own
+        if len(memo) < 65536:
+            memo[cell] = moment
+        moments += [moment]
+    memo = {}
+    if time_reading.kind == grains.CLOCK and grains.RANK[finest] < grains.RANK[grains.MINUTE]:
+        finest = grains.MINUTE
+    if time_reading.kind == grains.STAMP and grains.RANK[finest] <= grains.RANK[grains.DAY]:
+        kind_reading = grains.Reading(grains.DATE, time_reading.member, time_reading.mark)
+    for place in range(len(subject_cells)):
+        if not enough[place] and _attached(cells, subject_cells[place]) and (
+            _names_its_people(cells, subject_cells[place])
+        ):
+            return _Walked(
+                grains.Grain(grains.HELD, kind_reading, present, (), finest, 0),
+                moments, {}, True, True,
+            )
+    # THE PEOPLE THE SUBJECT COLUMNS NAME, the fewest under several: the
+    # population the description counts, which the walk reads beside the
+    # rows (`grains.estimate`).
+    people = 0
+    for place in range(len(subject_cells)):
+        if not enough[place]:
+            continue
+        named: "dict[str, bool]" = {}
+        for key in subject_cells[place]:
+            named[key] = True
+        if people == 0 or len(named) < people:
+            people = len(named)
+    # THE CELLS THAT READ AS NO MOMENT, AND EVERY WRITTEN FORM OF THOSE THAT
+    # DO: counts the description at every rung publishes the same --
+    # `n_unparsed`, `resolution_mix`, `datetime_separators`,
+    # `date_field_widths`, `utc_offsets` and the other censuses of how a
+    # date is written, each a union of written shapes (a figure `9`, a
+    # letter `a` or `A`) or of offsets, which a cell keeps at every rung.
+    dated = time_reading.kind in (grains.DATE, grains.STAMP)
+    apart: "list[tuple[str, ...]]" = []
+    shaped: "dict[str, tuple[str, ...]]" = {}
+    for place in range(len(cells)):
+        cell = cells[place]
+        if moments[place] is None:
+            if parsing.folded(cell) and cell not in absent:
+                apart += [("u", f"u{grains.shape_of(cell)}")]
+            else:
+                apart += [()]
+            continue
+        if cell not in shaped:
+            read = parsing.parse_datetime(cell, time_reading.member) if dated else None
+            keys: "tuple[str, ...]" = (
+                (f"s{grains.shape_of(cell)}", f"o{read[1]}")
+                if read is not None and read[1]
+                else (f"s{grains.shape_of(cell)}",)
+            )
+            if len(shaped) < 65536:
+                shaped[cell] = keys
+            apart += [keys]
+        else:
+            apart += [shaped[cell]]
+    shaped = {}
+    unread_thin = _any_thin(apart, subject_cells, enough, floor)
+    apart = []
+    rungs = grains.ladder(kind_reading.kind, finest)
+    ends: "dict[str, tuple[int, int] | None]" = {}
+    thin: "dict[str, bool]" = {}
+    for rung in rungs:
+        keyed: "list[tuple[str, ...]]" = []
+        starts: "dict[str, int]" = {}
+        for moment in moments:
+            if moment is None:
+                keyed += [()]
+                continue
+            start = grains.start_of(moment, rung)
+            key = f"{start}"
+            starts[key] = start
+            keyed += [(key,)]
+        passing: "dict[str, bool] | None" = None
+        for place in range(len(subject_cells)):
+            if not enough[place]:
+                continue
+            counted = _holding(keyed, subject_cells[place], floor)
+            held: "dict[str, bool]" = {}
+            for key in counted:
+                if len(counted[key].holders) >= floor and (passing is None or key in passing):
+                    held[key] = True
+            passing = held
+        found: "tuple[int, int] | None" = None
+        for key in passing if passing is not None else {}:
+            start = starts[key]
+            if found is None:
+                found = (start, start)
+            else:
+                found = (min(found[0], start), max(found[1], start))
+        ends[rung] = found
+        # Every bucket strictly inside the span that some row holds is
+        # held by the floor under every subject column, or the rung is thin.
+        thin[rung] = found is None or any(
+            found[0] < starts[key] < found[1]
+            and (passing is None or key not in passing)
+            for key in starts
+        )
+    rung, spans = grains.ladder_walk(
+        grains.estimate(present, people), floor, finest, kind_reading.kind, ends
+    )
+    return _Walked(
+        grains.Grain(rung, kind_reading, present, spans, finest, people),
+        moments,
+        thin,
+        unread_thin,
+        grains.column_padded(cells, kind_reading) if rung != grains.HELD else True,
+    )
+
+
+def _any_thin(
+    keyed: "list[tuple[str, ...]]",
+    subject_cells: "list[list[str]]",
+    enough: "list[bool]",
+    floor: int,
+) -> bool:
+    """Whether some key is held by one to `floor` - 1 subjects under a subject column that counts in people."""
+    for place in range(len(subject_cells)):
+        if not enough[place]:
+            continue
+        counted = _holding(keyed, subject_cells[place], floor)
+        for key in counted:
+            if 0 < len(counted[key].holders) < floor:
+                return True
+    return False
+
+
+def _cells_at(
+    cells: "list[str]", walked: _Walked, span: "tuple[str, int, int]"
+) -> "list[str] | None":
+    """Every cell written as the start of its bucket at ``span``'s rung, the tails pooled into its ends.
+
+    A cell that reads as no moment is kept as written; None where a cell
+    that reads cannot be written at the rung in its own form.
+    """
+    rung, first, last = span
+    reading = walked.grain.reading
+    coarse: "list[str]" = []
+    written: "dict[str, str | None]" = {}
+    for place in range(len(cells)):
+        cell = cells[place]
+        if walked.moments[place] is None:
+            coarse += [cell]
+            continue
+        if cell in written:
+            made = written[cell]
+        else:
+            made = grains.coarse_cell(cell, reading, rung, first, last, walked.padded)
+            if len(written) < 65536:
+                written[cell] = made
+        if made is None:
+            return None
+        coarse += [made]
+    return coarse
+
+
+def _held_record(grain: grains.Grain) -> grains.Grain:
+    """The record a held column of dates or times publishes (plan P4-D417, NF129).
+
+    Rung `held`, the spans its walk passed -- each end a bucket the floor's
+    number of people hold -- and none for a clock: a clock's day is
+    bounded, so beside the held block's count of different values a span
+    could leave one bucket outside it that must hold someone, so its twin
+    draws from the whole day.
+    """
+    return dataclasses.replace(
+        grain,
+        rung=grains.HELD,
+        spans=() if grain.reading.kind == grains.CLOCK else grain.spans,
+    )
 
 
 def _layouts_in_subjects(

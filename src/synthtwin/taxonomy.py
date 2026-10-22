@@ -763,6 +763,12 @@ EVIDENCE_HELD_IN_PEOPLE = "evidence_held_in_people"
 # column is held on every table, one row a person or several, and is
 # described as record numbers.
 EVIDENCE_COUNTED_DATES_HELD = "evidence_counted_dates_held"
+# ...and the one a column of dates, stamps, clock times or counted dates
+# takes where the table has several rows a person and it is described at a
+# coarser calendar grain instead of being held (plan P4-D417, contract
+# NF128): each value it publishes is the start of a span the smallest group
+# size of people hold, named by its `time_grain` record.
+EVIDENCE_POOLED_IN_PEOPLE = "evidence_pooled_in_people"
 
 # Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
@@ -1120,6 +1126,10 @@ REMARK_READ_AS_COUNTED_DATES = "remark_read_as_counted_dates"
 # its cells did not read as dates, that the declaration decided nothing.
 REMARK_DATES_WRITTEN_AS_COUNTS = "remark_dates_written_as_counts"
 REMARK_COUNTED_DATES_NOT_READ = "remark_counted_dates_not_read"
+# A COLUMN OF DATES OR TIMES HELD IN PEOPLE (plan P4-D417, contract NF129):
+# its twin writes real dates and times in the column's own layouts, so code
+# that reads the column as dates runs on the twin (the G1 floor).
+REMARK_HELD_DATES_ARE_VALID = "remark_held_dates_are_valid"
 
 # EVERY form, with how many arguments it takes. This mapping is the
 # enumeration: a name that is not a key here is not a form, and `note`
@@ -1154,6 +1164,7 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_UNANSWERED_IDENTITY: 0,
     EVIDENCE_HELD_IN_PEOPLE: 0,
     EVIDENCE_COUNTED_DATES_HELD: 0,
+    EVIDENCE_POOLED_IN_PEOPLE: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
     # THE LINE, and nothing else (contract NF60). One argument, and it
@@ -1335,6 +1346,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_READ_AS_COUNTED_DATES: 3,
     REMARK_DATES_WRITTEN_AS_COUNTS: 1,
     REMARK_COUNTED_DATES_NOT_READ: 1,
+    REMARK_HELD_DATES_ARE_VALID: 0,
 }
 
 # The same names as a sorted tuple, for a reader and for the tests that
@@ -2555,6 +2567,16 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"the same way -- all as counts in one spelling, or all as text "
             f"-- and name it again"
         )
+    if form == REMARK_HELD_DATES_ARE_VALID:
+        return (
+            "this column holds dates or times, so its twin writes real ones "
+            "in the column's own layouts -- days that exist and clock times "
+            "inside the day -- drawn inside the last span its `time_grain` "
+            "names, or from 2000 to 2029 where it names none (to a later "
+            "year, by whole decades, where the column holds more different "
+            "values than those years leave room for), never from your "
+            "table, so code that reads the column as dates runs on the twin"
+        )
     if form == NOTE_SMALL_POPULATION:
         # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
         # SAYS SO (review of 2026-09-23, finding 6). The size above is
@@ -2684,6 +2706,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "cells did not read as such dates, and a number that counts a "
             "date is that date all the same, so it is described as record "
             "numbers and none of its values is published"
+        )
+    if form == EVIDENCE_POOLED_IN_PEOPLE:
+        return (
+            "this table has several rows a person, so this column's dates "
+            "and times are published only at the coarser grain its "
+            "`time_grain` names, where every value published is held by at "
+            "least the smallest group size of people: each value here is the "
+            "start of its year, quarter, month, day, block of hours, hour, "
+            "minute or second, the values before the first such span or "
+            "after the last are counted in those two, and the twin writes a "
+            "value inside each span, in your column's own form"
         )
     if form == EVIDENCE_UNANSWERED_IDENTITY:
         return (
@@ -26076,6 +26109,50 @@ def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
     return dataclasses.replace(
         held, detection_evidence=note(EVIDENCE_HELD_IN_PEOPLE)
     )
+
+
+def with_time_grain(column: ColumnProfile, grain: "dict[str, object]") -> ColumnProfile:
+    """A column described at a coarser calendar grain (plan P4-D417, contract NF128).
+
+    The column was described from its cells written as the starts of their
+    buckets (`grains.coarse_cells`); it keeps that description, takes the
+    record of its grain as `time_grain` and the evidence that says so.
+
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        details[key] = column.details[key]
+    details["time_grain"] = grain
+    return dataclasses.replace(
+        column,
+        details=details,
+        detection_evidence=note(EVIDENCE_POOLED_IN_PEOPLE),
+    )
+
+
+def with_held_dates(column: ColumnProfile, grain: "dict[str, object]") -> ColumnProfile:
+    """A held column of dates or times whose twin writes valid ones (plan P4-D417, NF129).
+
+    The column is held as plan P4-D406 holds it, a record number; it takes
+    the record of how its cells are read and the spans its walk published,
+    rung `held`, as `time_grain`, and the remark that says its twin writes
+    real dates and times in its layouts. A column whose role is not
+    `identifier` (one with no present cell) is returned unchanged.
+
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER:
+        return column
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        details[key] = column.details[key]
+    details["time_grain"] = grain
+    remarks: "list[Note]" = []
+    for remark in column.remarks:
+        remarks += [remark]
+    remarks += [note(REMARK_HELD_DATES_ARE_VALID)]
+    return dataclasses.replace(column, details=details, remarks=remarks)
 
 
 def as_counted_dates_held(column: ColumnProfile) -> ColumnProfile:

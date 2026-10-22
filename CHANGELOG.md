@@ -6,6 +6,73 @@ exists).
 
 ## [Unreleased]
 
+### Dates and times beside a person column pooled in people at a coarser grain, and a held one's twin written in valid dates (lane PS, 2026-10-21)
+
+**Lane PS** (plan P4-D417; contract NF128, NF129 and TG1; method G7.13;
+validation V14). Where counting in people (P4-D406) would hold a column
+of dates, stamps, clock times or counted dates beside a person column,
+the column is now described at a coarser calendar grain -- year,
+quarter, month, day, then hour, minute and second; a clock by blocks of
+four hours first -- with its tails pooled into the first and last bucket
+the floor's number of people hold, every point still counted in people.
+The grain is chosen by published facts alone (the present rows, the
+people and the spans), never by which finer points fail; the plan
+writes the proof. Where no grain serves, the column is held and its
+twin now writes valid dates and times in the column's own layouts,
+never made-up figures, so code that parses the column runs on the twin.
+The health data zoo passes 20 of 40 kinds at 600 rows again (14 at
+batch 4e) and 28 at 20,000 rows (24); every check that parses a date
+or a time beside a person column holds at both sizes. `K-HZ-01` and
+`K-HZ-02` are restamped and their bounds moved back; `K-S3-65` stays 0.
+A table with no subject column is described byte for byte as before.
+Stated limits: a stamp of a few evenly filled hours misses its count of
+different values (`wearables` at 20,000 rows, lane PS's follow-up); a
+measurement attached to its person is held as before (lane PS's
+follow-up); P4-D406's limit (2), a table of ten people or fewer, stays
+open.
+
+**Repair round 1** (the lane's two skeptics). A description at a grain
+no longer leaves a count of one to ten people to subtraction: every
+bucket inside its span holds nobody or eleven people, and so do the
+cells no date reads and every written form and offset of those that do.
+Where the rung the walk reaches cannot keep that, the walk steps back to
+a coarser rung instead of holding the column, with the proof in the
+plan; the walk reads the finer rung's own span, so a 70-minute session
+is described by the hour. A refused grain record names its rule instead
+of raising an error, and a held column whose layouts are all withheld
+now writes valid dates in place of made-up stand-ins. Stated limits with
+owners: the time of day and the weekday of a stamp pooled at the day or
+coarser (a new lane PS2), the pooled tails drawn inside their end bucket
+(PS2), a stamp with UTC offsets publishing no count at its rung (lane
+DST).
+
+**Repair round 2** (the combined verify and Codex's review). A spelling
+of no value that reads as a date -- one declared with `--missing-value`,
+or `1900-01-01` -- stays absent: before, it was pooled into a present
+date and the description could not be loaded. A held column's twin
+draws from the first published span wide enough for its different
+values, so it never leaves a made-up cell where a valid date exists, and
+a published layout no date wears (a word such as `pending`) stays as the
+real cells are. Filling the count of different values never moves a row
+into or out of a tail; the twin's report is measured on the cells it
+writes; a description naming more people than rows is refused. Stated
+limits with owners: a held column's length that no valid date has (three
+people's `pending`) is missed and named in the twin's report; a birth
+date beside few people a year is drawn from the method's fixed span
+(lane PS2).
+
+**Repair round 3** (the second verify). A date standing in for nobody
+that too few people write for the description to name it (three
+patients' `1900-01-01`) now stays absent when `synthtwin validate`
+checks the real table, which before missed its presence and its tails
+against its own description. A held column with more different values
+than the months (or days) of 2000 to 2029 can hold -- 530 birth months
+written `%Y-%m` -- draws from a span widened by whole decades until it
+has room for twice that count, measured at the column's finest written
+detail, so the twin keeps every value different and every cell valid.
+The twin's report names no deviation for a spelling of no value that
+reads as a date.
+
 ### Route four's person question offers `code` in its first round (2026-10-21)
 
 **A key of figures the person question asks can be answered `code` at

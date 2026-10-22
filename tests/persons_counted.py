@@ -64,7 +64,7 @@ _COUNTS = ("count", "rows", "n_", "share", "width", "length",
            "position", "ceiling", "distance", "std", "mean", "skew",
            "kurtosis", "digits", "suppressed", "first", "last", "bins")
 # Entries that publish no value of the column at all.
-_NOTHING = ("missing", "withheld", "occurrences", "widths")
+_NOTHING = ("missing", "withheld", "occurrences", "widths", "time_grain")
 # The points along a range and the tails' boundaries.
 _RUNGS = ("percentiles", "percentiles_between", "date_percentiles",
             "clock_percentiles", "boundary")
@@ -151,6 +151,168 @@ def _counted_day(text: str, member: str) -> "str | None":
     if member in _EPOCHS:
         return (_EPOCHS[member] + datetime.timedelta(days=whole)).isoformat()
     return None
+
+
+# THE GRAIN A BLOCK PUBLISHES (plan P4-D417), read apart from `grains`: each
+# value floored to the start of its bucket by `datetime`, written as the
+# canonical text the block's points are written in.
+_RUNG_ORDER = ("year", "quarter", "month", "day", "four hours", "hour", "minute", "second")
+
+
+def _grain_moment(value: str, grain: "dict[str, object]", member: str) -> "datetime.datetime | None":
+    kind = grain["kind"]
+    reading = f"{grain['reading']}"
+    if kind == "clock":
+        found = _clock(value)
+        if found is None:
+            return None
+        return datetime.datetime(2000, 1, 1) + datetime.timedelta(
+            minutes=found[0], seconds=max(found[1], 0))
+    if kind == "counted":
+        day = _counted_day(value, member or reading)
+        return None if day is None else datetime.datetime.fromisoformat(day)
+    read = parsing.parse_datetime(value, reading)
+    if read is None:
+        return None
+    text = read[0]
+    if len(text) == 7 and text[4:6].upper() == "-Q":
+        return datetime.datetime(int(text[:4]), (int(text[6]) - 1) * 3 + 1, 1)
+    if len(text) == 7:
+        return datetime.datetime(int(text[:4]), int(text[5:7]), 1)
+    return datetime.datetime.fromisoformat(text)
+
+
+def _grain_floor(moment: "datetime.datetime", rung: str) -> "datetime.datetime":
+    if rung == "year":
+        return datetime.datetime(moment.year, 1, 1)
+    if rung == "quarter":
+        return datetime.datetime(moment.year, (moment.month - 1) // 3 * 3 + 1, 1)
+    if rung == "month":
+        return datetime.datetime(moment.year, moment.month, 1)
+    if rung == "day":
+        return datetime.datetime(moment.year, moment.month, moment.day)
+    if rung == "four hours":
+        return moment.replace(hour=moment.hour // 4 * 4, minute=0, second=0, microsecond=0)
+    if rung == "hour":
+        return moment.replace(minute=0, second=0, microsecond=0)
+    if rung == "minute":
+        return moment.replace(second=0, microsecond=0)
+    return moment.replace(microsecond=0)
+
+
+def _grain_text(moment: "datetime.datetime", grain: "dict[str, object]", block: "dict[str, object]") -> str:
+    if grain["kind"] == "clock":
+        with_seconds = "-ss" in f"{block.get('clock_form', '')}" or "-ss" in f"{grain['reading']}"
+        return moment.strftime("%H:%M:%S" if with_seconds else "%H:%M")
+    if grain["kind"] == "stamp" or moment.time() != datetime.time(0):
+        return moment.strftime("%Y-%m-%d %H:%M:%S")
+    return moment.strftime("%Y-%m-%d")
+
+
+def bucket_names(grain: "dict[str, object]") -> "set[str]":
+    """The bucket starts a `time_grain` record's spans print: each names its bucket, never a day."""
+    found: "set[str]" = set()
+    for _rung, first, last in grain.get("spans", []):
+        found |= {f"{first}", f"{last}", f"{first}"[:10], f"{last}"[:10]}
+    return found
+
+
+def spans_few(values: "list[str]", people: "list[str]", block: "dict[str, object]",
+              member: str = "") -> "list[str]":
+    """The spans of a block's `time_grain` whose first or last bucket one to ten people hold."""
+    grain = block.get("time_grain")
+    if not isinstance(grain, dict):
+        return []
+    clock = grain["kind"] == "clock"
+    found: "list[str]" = []
+    for rung, first_text, last_text in grain.get("spans", []):
+        holders: "dict[str, set[str]]" = {}
+        for value, person in zip(values, people):
+            moment = _grain_moment(value, grain, member) if parsing.folded(value) else None
+            if moment is None:
+                continue
+            start = _grain_floor(moment, rung)
+            text = start.strftime("%H:%M:%S") if clock else (
+                start.strftime("%Y-%m-%d %H:%M:%S") if len(f"{first_text}") > 10 else start.strftime("%Y-%m-%d"))
+            holders.setdefault(text, set()).add(person)
+        for end in (first_text, last_text):
+            if len(holders.get(f"{end}", set())) < FLOOR:
+                found += [f"span {rung} {end}"]
+    return found
+
+
+def at_the_grain(values: "list[str]", block: "dict[str, object]", member: str = "") -> "list[str]":
+    """A column's values as the points of its block's grain name them, or as they are."""
+    grain = block.get("time_grain")
+    if not isinstance(grain, dict) or grain.get("rung") == "held" or not grain.get("spans"):
+        return values
+    rung, first_text, last_text = grain["spans"][-1]
+    clock = grain["kind"] == "clock"
+    first = (datetime.datetime(2000, 1, 1) + (datetime.datetime.strptime(first_text, "%H:%M:%S")
+             - datetime.datetime(1900, 1, 1))) if clock else datetime.datetime.fromisoformat(first_text)
+    last = (datetime.datetime(2000, 1, 1) + (datetime.datetime.strptime(last_text, "%H:%M:%S")
+            - datetime.datetime(1900, 1, 1))) if clock else datetime.datetime.fromisoformat(last_text)
+    found: "list[str]" = []
+    for value in values:
+        moment = _grain_moment(value, grain, member) if parsing.folded(value) else None
+        if moment is None:
+            found += [value]
+            continue
+        start = min(max(_grain_floor(moment, rung), first), last)
+        found += [_grain_text(start, grain, block)]
+    return found
+
+
+def grain_groups(raw: "list[str]", values: "list[str]", people: "list[str]",
+                 block: "dict[str, object]", member: str = "") -> "list[str]":
+    """The counts a description at a grain prints or leaves to subtraction that one to ten people hold.
+
+    Repair round 1 of lane PS (its skeptic's items 1 and 2). At a rung
+    coarser than the cells' own, every bucket the heavy dates do not list
+    holds ten rows or fewer, and the count of different values says
+    which buckets inside the span hold anyone, so the present rows less
+    every listed count, the tails and the unread cells is the one
+    unlisted bucket's: each bucket at the rung is counted (`bucket`). So
+    are the cells no date reads, which the block prints as `n_unparsed`
+    (`unread`), and each written member a joint column's `resolution_mix`
+    counts (`member`). Repair round 2 (the verify's items 1 and 3): each
+    readable cell's written shape -- a figure `9`, a letter `a` or `A`,
+    the rest as written, which `datetime_separators` and
+    `date_field_widths` count unions of (`shape`) -- and its UTC offset,
+    which `utc_offsets` prints (`offset`); and every spelling of nobody the
+    package knows is no cell at all, beside the block's own.
+    """
+    grain = block.get("time_grain")
+    if not isinstance(grain, dict) or grain.get("rung") == "held" or not grain.get("spans"):
+        return []
+    absent = block.get("missing_by_source")
+    nobody = {parsing.folded(f"{key}") for key in absent} if isinstance(absent, dict) else set()
+    nobody |= _NOBODY
+    buckets: "list[str]" = []
+    unread: "list[str]" = []
+    members: "list[str]" = []
+    written: "list[str]" = []
+    offsets: "list[str]" = []
+    joint = block.get("format") == "iso-mixed"
+    for cell, at in zip(raw, values):
+        folded = parsing.folded(cell)
+        reads = folded not in nobody and _grain_moment(cell, grain, member) is not None
+        buckets += [at if reads else ""]
+        unread += ["x" if folded and folded not in nobody and not reads else ""]
+        members += [("datetime" if parsing.parse_datetime(cell, "iso-datetime") is not None else "date")
+                    if joint and reads else ""]
+        # (case marked by `u` and `l`, since `held_by` folds the key)
+        written += [re.sub(r"[A-Z]", "u", re.sub(r"[a-z]", "l", re.sub(r"[0-9]", "9", cell))) if reads else ""]
+        offset = re.search(r"[0-9](Z|z|[+-][0-9]{2}:?[0-9]{2})$", cell) if reads else None
+        offsets += [offset.group(1) if offset is not None else ""]
+    found: "list[str]" = []
+    for label, keyed in (("bucket", buckets), ("unread", unread), ("member", members),
+                         ("shape", written), ("offset", offsets)):
+        holders, _rows, _attached = held_by(keyed, people)
+        for key, who in sorted(holders.items()):
+            if len(who) < FLOOR:
+                found += [f"{label} {key}"]
+    return found
 
 
 def is_published(value: str, block: "dict[str, object]",
@@ -402,6 +564,11 @@ def count(names: "list[str]", columns: "list[list[str]]",
         if not others:
             continue
         block = blocks[name]
+        # A COLUMN DESCRIBED AT A GRAIN (plan P4-D417): each of its values
+        # is counted as the start of its bucket, the tails pooled into the
+        # record's ends -- what each published point names.
+        raw = values
+        values = at_the_grain(values, block, members.get(name, ""))
         how = (members.get(name, ""), name in commas)
         prefixes = _prefixes(block)
         dated = block.get("role") in ("datetime", "time_of_day")
@@ -452,6 +619,13 @@ def count(names: "list[str]", columns: "list[list[str]]",
                 pool_holders, _rows, _attached = held_by(pool, people)
                 if "x" in pool_holders and len(pool_holders["x"]) < FLOOR:
                     groups.add("layout pool")
+            # THE SPANS A `time_grain` RECORD PUBLISHES (plan P4-D417): each
+            # end a bucket eleven people hold, under every subject column.
+            if enough:
+                for span in spans_few(raw, people, block, members.get(name, "")):
+                    groups.add(span)
+                for group in grain_groups(raw, values, people, block, members.get(name, "")):
+                    groups.add(group)
             if not enough or not statistics:
                 continue
             for label, cells in (("remainder", remainder), ("present", values)):
@@ -969,3 +1143,138 @@ def two_card_table(rows: int) -> str:
         lines += [[f"REC{20000000 + 7 * person:08d}", f"H{5000 + person // 4:04d}", card,
                    f"{draw.uniform(3, 150):.1f}"]]
     return _lines("patient,acct,card,lab", lines)
+
+
+# -- lane PS's repair round 2 (plan P4-D417): the verify's and Codex's shapes --
+
+
+def _day_in(draw: random.Random, first: datetime.date, days: int) -> datetime.date:
+    return first + datetime.timedelta(days=draw.randrange(days))
+
+
+def offset_stamps_table() -> str:
+    """The verify's item 1: 300 patients x 10 stamps to the second, 3 of them writing `+05:30` on every row.
+
+    Every other patient writes `+00:00`, so the offset `+05:30` is three
+    people's: no `utc_offsets` entry may name it.
+    """
+    draw = random.Random(11)
+    lines = []
+    for person in range(300):
+        for _visit in range(10):
+            moment = datetime.datetime(2022, 1, 1) + datetime.timedelta(seconds=draw.randrange(730 * 86400))
+            lines += [[f"P{100000 + person}",
+                       moment.strftime("%Y-%m-%dT%H:%M:%S") + ("+05:30" if person < 3 else "+00:00")]]
+    return _lines("patient,event_ts", lines)
+
+
+def unread_dates_table(pending: int = 12, longer: int = 3) -> str:
+    """The verify's item 2: 200 patients x 10 ISO dates; ``pending`` patients write `pending` once, ``longer`` `NOT DONE YET`.
+
+    Twelve people's `pending` is a published layout no date wears; three
+    people's twelve-letter phrase is a withheld one.
+    """
+    draw = random.Random(11)
+    lines = []
+    for person in range(200):
+        for visit in range(10):
+            cell = _day_in(draw, datetime.date(2022, 1, 1), 730).isoformat()
+            if visit == 0 and person < pending:
+                cell = "pending"
+            elif visit == 0 and pending <= person < pending + longer:
+                cell = "NOT DONE YET"
+            lines += [[f"P{100000 + person}", cell]]
+    return _lines("patient,visit_date", lines)
+
+
+def short_span_table() -> str:
+    """Codex's item 1: 100 patients x 10 rows; one `6/15/2024`, six of `05/01/2024` .. `05/06/2024`, 93 of `06/15/2024`.
+
+    Held: its eight different values against a deepest span of one day.
+    """
+    lines = []
+    for person in range(100):
+        cell = "6/15/2024" if person == 0 else (f"05/0{person}/2024" if person <= 6 else "06/15/2024")
+        lines += [[f"P{person:04d}", cell] for _visit in range(10)]
+    return _lines("patient,seen", lines)
+
+
+def alternate_years_table() -> str:
+    """Codex's item 2: 450 patients x 2 months each, 15 patients a year, every other year from 1980 (months by Random(41))."""
+    draw = random.Random(41)
+    lines = []
+    for person in range(450):
+        year = 1980 + 2 * (person // 15)
+        lines += [[f"P{person:04d}", f"{year}-{draw.randint(1, 12):02d}"] for _visit in range(2)]
+    return _lines("patient,seen", lines)
+
+
+def absent_dates_table(spelling: str, people: int = 30) -> str:
+    """Codex's item 3: 200 patients x 3 rows; patients 0 to ``people`` - 1 write ``spelling``, a spelling of no value that reads as a date.
+
+    Three people (the second verify's item 1, its shape `c3d`) are too few
+    for the description to name the spelling among ``missing_by_source``.
+    """
+    lines = []
+    for person in range(200):
+        for visit in range(3):
+            day = datetime.date(2022, 1, 1) + datetime.timedelta(days=3 * person + visit)
+            lines += [[f"P{person:04d}", spelling if person < people else day.isoformat()]]
+    return _lines("patient,seen", lines)
+
+
+def one_short_cell_table() -> str:
+    """Codex's item 4: 200 patients x 2 ISO dates and one extra cell `x` for the first: held, `min_length` 1."""
+    draw = random.Random(4)
+    lines = [["P0000", "x"]]
+    for person in range(200):
+        lines += [[f"P{person:04d}", _day_in(draw, datetime.date(2022, 1, 1), 700).isoformat()] for _visit in range(2)]
+    return _lines("patient,seen", lines)
+
+
+def nobody_dates_table() -> str:
+    """The verify's item 3: 3 patients write `NULL` on four rows, 2 write `N/A` on two, 20 leave one row blank."""
+    draw = random.Random(11)
+    lines = []
+    for person in range(200):
+        for visit in range(10):
+            cell = _day_in(draw, datetime.date(2022, 1, 1), 730).isoformat()
+            if person < 3 and visit < 4:
+                cell = "NULL"
+            elif 3 <= person < 5 and visit < 2:
+                cell = "N/A"
+            elif 10 <= person < 30 and visit == 9:
+                cell = ""
+            lines += [[f"P{100000 + person}", cell]]
+    return _lines("patient,visit_date", lines)
+
+
+def birth_months_table() -> str:
+    """The second verify's item 2 (its shape `rep4`): 720 patients x 3 visits, nine born each year from 1920 to 1999.
+
+    Each patient's birth month is written `%Y-%m` (a month by Random(6)) on
+    every row beside a visit date: held with no span, 530 different months
+    against the 360 of the method's unwidened fixed span.
+    """
+    draw = random.Random(6)
+    lines = []
+    for person in range(720):
+        born = f"{1920 + person // 9}-{draw.randint(1, 12):02d}"
+        for _visit in range(3):
+            lines += [[f"P{person:04d}", born, _day_in(draw, datetime.date(2022, 1, 1), 700).isoformat()]]
+    return _lines("patient,birth_month,visit_date", lines)
+
+
+def one_birth_month_a_year_table() -> str:
+    """The second verify's item 2 (its shape `rep2`): 600 patients x 2 rows, one born each year from 1450 to 2049.
+
+    Each patient's birth month is written `%Y-%m` (a month by Random(4)):
+    held with no span, 600 different months, exactly the months of 2000 to
+    2049.
+    """
+    draw = random.Random(4)
+    lines = []
+    for person in range(600):
+        born = f"{1450 + person}-{draw.randint(1, 12):02d}"
+        lines += [[f"P{person:04d}", born] for _visit in range(2)]
+    return _lines("patient,born", lines)
