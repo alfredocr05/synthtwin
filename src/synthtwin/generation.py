@@ -63667,7 +63667,12 @@ def _row_placement(
     ones) and everything that measures or holds it; ``drawn`` is the
     arrangement its placement words drew (method G3.4c) and ``finished``
     the columns already done, held (`twinstore`), each readable a block
-    at a time and never needed whole. Today it hands back the drawn
+    at a time and never needed whole. A held column's cells already stand
+    off the all-empty records (`dialect.placed_column`), and the rows are
+    not yet sorted (`dialect.arranged_columns`, once every column is
+    done), so its row ``r`` is this column's row ``r`` but on a record a
+    form publishes as all-empty, which this column's cells leave too once
+    the hook has placed them. Today it hands back the drawn
     arrangement and reads nothing else, which is every twin's bytes. It
     is the one seam where a generator of relations between columns (lane
     CHb of the December plan; the between-columns chain of plan P4-D407)
@@ -66723,16 +66728,17 @@ def _numeric_approximations(
     (`_ColumnPlan.withdrawn`) and the bound is widened to its widest
     stratum too (`_report_widest`), so it holds of whichever was written.
     """
+    # ONE LIST, THE SORTED ONE (plan P4-D415, lane SG): the values are read
+    # and filtered as they are taken, so no list of the read values and
+    # none of the kept ones stands beside the sorted list.
     values = sorted(
-        [
-            value
-            for value in [
-                parsing.parse_number(cell)
-                for cell in _present_of(written, _hole_spellings(column))
-                if parsing.classify_number(cell) == parsing.NUMBER
-            ]
-            if value is not None
-        ]
+        value
+        for value in (
+            parsing.parse_number(cell)
+            for cell in _present_of(written, _hole_spellings(column))
+            if parsing.classify_number(cell) == parsing.NUMBER
+        )
+        if value is not None
     )
     held = len(values)
     rungs = _merged_rungs(facts)
