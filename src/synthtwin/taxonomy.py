@@ -2572,7 +2572,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "this column holds dates or times, so its twin writes real ones "
             "in the column's own layouts -- days that exist and clock times "
             "inside the day -- drawn inside the last span its `time_grain` "
-            "names, or from 2000 to 2029 where it names none, never from your "
+            "names, or from 2000 to 2029 where it names none (to a later "
+            "year, by whole decades, where the column holds more different "
+            "values than those years leave room for), never from your "
             "table, so code that reads the column as dates runs on the twin"
         )
     if form == NOTE_SMALL_POPULATION:

@@ -63510,7 +63510,10 @@ def _inside_the_grain(
     for cell in cells:
         if cell not in holes and parsing.folded(cell):
             values[cell] = True
-    spans = grains.held_spans(grain, len(values))
+    # THE SPANS HOLD THE PUBLISHED COUNT (repair round 3): a function of
+    # the description alone, the made-up values' own count where the block
+    # names none.
+    spans = grains.held_spans(grain, column.n_distinct if column.n_distinct > 0 else len(values))
     values = {}
     made: "dict[str, str]" = {}
     taken: "dict[str, bool]" = {}

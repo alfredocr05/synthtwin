@@ -11182,13 +11182,24 @@ oracle's `pooled_count_filled` holds the product to it.
 record's, deepest first, each from its first bucket's start to the start
 after its last bucket (a clock's never past its day), and then the
 method's FIXED SPAN, 1 January 2000 to 31 December 2029 (a clock: its
-whole day) -- never the table. THE CAPACITY IS RESOLVED FIRST (repair
-round 2 of lane PS, Codex's item 1): the walk below starts in the first
-of them whose days (seconds, where the reading writes a clock) number at
-least the column's different made-up cells, and a made-up cell that span
-cannot take walks the next, and so on; where none can take it unrepeated
-it takes a value an earlier made-up cell took in the last (a valid value,
-the count of different values then named short), and only a member this
+whole day) -- never the table -- WIDENED BY WHOLE DECADES (repair round
+3 of lane PS, the second verify's item 2), its last year 2039, 2049 and
+so on, never past 9999, until its buckets at the column's finest written
+detail (the record's `finest`: a month for `%Y-%m`) number at least
+twice the column's published count of different values (`n_distinct`;
+the made-up cells' own count where the block names none) -- room for the
+walk of at most 4,000 steps below to find a value no earlier made-up
+value took (a span exactly as wide left 600 birth months 582 and 583
+different at seeds 0 and 1). THE CAPACITY IS RESOLVED FIRST (repair
+round 2 of lane PS, Codex's item 1; measured at the finest written
+detail since repair round 3, where it was days): the walk below starts
+in the first of them whose buckets at the record's `finest` number at
+least that count, and a made-up cell that span cannot take walks the
+next, and so on; where none can take it unrepeated it takes a value an
+earlier made-up cell took in the last (a valid value, the count of
+different values then named short: reached by no description the
+profiler writes once the fixed span is widened, and kept as the floor's
+last guard), and only a member this
 step does not write leaves a made-up cell as made up, named in the
 twin's report (eight different values against a deepest span of one day
 had left 875 of 1,000 cells as stand-ins). The DIFFERENT made-up cells of

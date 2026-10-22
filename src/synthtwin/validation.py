@@ -5079,7 +5079,14 @@ def measure(
     # description names a `time_grain` rung is measured at that rung, every
     # check of it -- the redescription and the checks that count the file's
     # own cells -- over its cells written as the starts of their buckets.
-    table = _at_their_grains(table, published_grains(description), description)
+    # The redescription is handed the cells as written and writes them at
+    # the grain itself, keeping as written each cell its own reading takes
+    # as no value; every later check reads the cells it wrote so, by the
+    # same spellings (repair round 3 of lane PS, the second verify's item
+    # 1: three patients' undeclared `1900-01-01` were pooled into a
+    # present cell before any reading saw them).
+    time_grains = published_grains(description)
+    absent_read: "dict[str, tuple[str, ...]]" = {}
     clocked = _clocks_published_as_numbers(description, table)
     if clocked:
         raise errors.ProfileError(
@@ -5133,8 +5140,10 @@ def measure(
             counted_units=counted_units(description),
             # -- P4-D417: a column of dates or times described at the grain
             # its description published, the tails pooled into its ends.
-            time_grains=published_grains(description),
+            time_grains=time_grains,
+            absent_read=absent_read,
         )
+        table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
             table,
             settings_over_the_split(description),
@@ -5154,7 +5163,7 @@ def measure(
             # -- 3b.R4 (P4-D384): a column of counted dates read at the
             # precision its description published.
             counted_units=counted_units(description),
-            time_grains=published_grains(description),
+            time_grains=time_grains,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -5203,6 +5212,7 @@ def _at_their_grains(
     table: reading.Table,
     grained: "dict[str, grains.Grain]",
     description: "contract.Profile | None" = None,
+    absent_read: "dict[str, tuple[str, ...]] | None" = None,
 ) -> reading.Table:
     """The checked table with each grained column's cells at its published rung (V14).
 
@@ -5213,9 +5223,14 @@ def _at_their_grains(
     ``time_grains``). A cell the description reads as no value -- a
     spelling its block publishes as absent, a blank, a word of the
     vocabulary or one declared with `--missing-value` -- is kept as
-    written, even where it reads as a date (repair round 2, Codex's item 3).
+    written, even where it reads as a date (repair round 2, Codex's item 3),
+    and so is every spelling the column's own reading of the cells as
+    written took as no value (``absent_read``, filled by the
+    redescription: `profile.build_document`'s ``absent_spellings``), such
+    as a date standing in for nobody that too few people write for its
+    block to name it (repair round 3, the second verify's item 1).
 
-    Guarantees: a function of the three. Raises nothing. No I/O.
+    Guarantees: a function of the four. Raises nothing. No I/O.
     """
     if not grained or table.source is not None:
         return table
@@ -5232,6 +5247,9 @@ def _at_their_grains(
             absent: "dict[str, bool]" = {}
             if name in blocks:
                 for spelling in blocks[name].missing_by_source:
+                    absent[spelling] = True
+            if absent_read is not None and name in absent_read:
+                for spelling in absent_read[name]:
                     absent[spelling] = True
             if settings is not None:
                 flags = taxonomy.missing_cells(cells, settings)

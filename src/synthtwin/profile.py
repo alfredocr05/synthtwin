@@ -4209,6 +4209,7 @@ def build_document(
     subjects: "list[str] | None" = None,
     counted_in_subjects: "list[str] | None" = None,
     time_grains: "dict[str, grains.Grain] | None" = None,
+    absent_read: "dict[str, tuple[str, ...]] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4312,6 +4313,11 @@ def build_document(
       ``time_grains`` names the grains a description published (the
       validator's): each such column's cells are described at its rung,
       the tails pooled into its published ends, and nothing is decided.
+      ``absent_read``, where given, receives for each such column the
+      spellings its own reading of the cells as written took as no value
+      (``absent_spellings``), the ones its cells kept as written: the
+      validator measures the file's own cells with the same (repair round
+      3 of lane PS, the second verify's item 1).
     - A column a person declared as counted dates whose cells did not
       read as such dates is held as a record number on EVERY table, with
       or without ``subjects`` (`taxonomy.as_counted_dates_held`, contract
@@ -4581,6 +4587,8 @@ def build_document(
             and name not in withheld_names
             and not declined
         ):
+            if absent_read is not None:
+                absent_read[name] = described.absent_spellings
             described = taxonomy.with_time_grain(
                 described_from(
                     grains.coarse_cells(

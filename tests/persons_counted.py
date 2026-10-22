@@ -1209,13 +1209,17 @@ def alternate_years_table() -> str:
     return _lines("patient,seen", lines)
 
 
-def absent_dates_table(spelling: str) -> str:
-    """Codex's item 3: 200 patients x 3 rows; patients 0-29 write ``spelling``, a spelling of no value that reads as a date."""
+def absent_dates_table(spelling: str, people: int = 30) -> str:
+    """Codex's item 3: 200 patients x 3 rows; patients 0 to ``people`` - 1 write ``spelling``, a spelling of no value that reads as a date.
+
+    Three people (the second verify's item 1, its shape `c3d`) are too few
+    for the description to name the spelling among ``missing_by_source``.
+    """
     lines = []
     for person in range(200):
         for visit in range(3):
             day = datetime.date(2022, 1, 1) + datetime.timedelta(days=3 * person + visit)
-            lines += [[f"P{person:04d}", spelling if person < 30 else day.isoformat()]]
+            lines += [[f"P{person:04d}", spelling if person < people else day.isoformat()]]
     return _lines("patient,seen", lines)
 
 
@@ -1243,3 +1247,34 @@ def nobody_dates_table() -> str:
                 cell = ""
             lines += [[f"P{100000 + person}", cell]]
     return _lines("patient,visit_date", lines)
+
+
+def birth_months_table() -> str:
+    """The second verify's item 2 (its shape `rep4`): 720 patients x 3 visits, nine born each year from 1920 to 1999.
+
+    Each patient's birth month is written `%Y-%m` (a month by Random(6)) on
+    every row beside a visit date: held with no span, 530 different months
+    against the 360 of the method's unwidened fixed span.
+    """
+    draw = random.Random(6)
+    lines = []
+    for person in range(720):
+        born = f"{1920 + person // 9}-{draw.randint(1, 12):02d}"
+        for _visit in range(3):
+            lines += [[f"P{person:04d}", born, _day_in(draw, datetime.date(2022, 1, 1), 700).isoformat()]]
+    return _lines("patient,birth_month,visit_date", lines)
+
+
+def one_birth_month_a_year_table() -> str:
+    """The second verify's item 2 (its shape `rep2`): 600 patients x 2 rows, one born each year from 1450 to 2049.
+
+    Each patient's birth month is written `%Y-%m` (a month by Random(4)):
+    held with no span, 600 different months, exactly the months of 2000 to
+    2049.
+    """
+    draw = random.Random(4)
+    lines = []
+    for person in range(600):
+        born = f"{1450 + person}-{draw.randint(1, 12):02d}"
+        lines += [[f"P{person:04d}", born] for _visit in range(2)]
+    return _lines("patient,born", lines)

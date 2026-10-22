@@ -3995,7 +3995,17 @@ value -- a spelling its block publishes among `missing_by_source`, a
 blank, a word of the vocabulary or one declared with `--missing-value`
 --, even where it reads as a date (repair round 2 of lane PS, Codex's
 item 3: thirty patients' declared `2020-06-15`, and `1900-01-01`, were
-pooled into present cells). Nothing is decided: the rung and the ends are the
+pooled into present cells), and so is every spelling the column's own
+reading of its cells as written takes as no value (repair round 3, the
+second verify's item 1: three patients' undeclared `1900-01-01`, nine
+rows, too few for the block to name, were pooled into the first bucket
+and the real table missed its presence, its tails and `n_not_numeric`
+at exit 3). To read them, the redescription of V2 is handed the cells
+as written and writes them at the grain itself, keeping as written the
+spellings its own reading takes as no value (`profile.build_document`'s
+``absent_read``), and the description over the split (V2.4) and the
+checks of V3 then read the cells written so by those spellings too.
+Nothing is decided: the rung and the ends are the
 record's, so the validator never counts anybody.
 
 **V14.2 What it buys.** The real table checked against the description

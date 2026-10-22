@@ -49,12 +49,24 @@ coarse_keeps_absent_off, span_chain_off, published_form_kept_off,
 measured_before_conversion, g1_length_reason_off, fences_off,
 protections_skip_boundary, unpadded_off, counter_nobody_off and
 counter_offset_off, beside the verify's list.
+
+REPAIR ROUND 3 (the second verify): a date for nobody that three people
+write stays absent in the validator; a held column's spans hold its
+published count, measured at its finest written detail, the fixed span
+widened by whole decades; the repeat in the last span pinned; the twin's
+report on an absent date names no deviation. Red on
+`wave6/PS/r3/mut_r3.py`'s mutants (`mutants-r3.log`, `mutants-r3b.log`):
+absent_read_dropped, validator_absent_read_off,
+redescription_reads_coarse, repeat_off, fixed_unwidened,
+capacity_in_days, room_of_one, count_from_the_cells and
+gen_recount_holes_off.
 """
 
 from __future__ import annotations
 
 import contextlib
 import csv
+import dataclasses
 import datetime
 import io
 import json
@@ -1088,7 +1100,10 @@ def test_an_absent_date_stays_absent(tmp_path: pathlib.Path, spelling: str, extr
     The walk reads it as no moment, so it enters no span; the description
     loads (TG1's rows are the present cells); and `validate` keeps it
     absent on the real table and on the twin, in the whole-table reading
-    and in the redescription.
+    and in the redescription. The twin's own report, which recounts the
+    column at its rung as it leaves, names no deviation of it either (the
+    second verify's item 3: a recount that read the spelling as a present
+    date named `n_not_numeric` and the 25th and 75th percentiles).
     """
     described = _profiled(tmp_path, "absent", persons_counted.absent_dates_table(spelling), "--identifier",
                           "patient", *extra)
@@ -1099,6 +1114,91 @@ def test_an_absent_date_stays_absent(tmp_path: pathlib.Path, spelling: str, extr
     twin, real = _generated_and_validated(tmp_path, "absent")
     assert twin == set() and real == set(), (twin, real)
     assert _column(tmp_path / "absent-twin.csv", "seen").count(spelling) == 90
+    made = generation.generate(contract.load_profile(f"{tmp_path / 'absent-profile.json'}"), 0)
+    named = [f"{one.fact}" for one in made.deviations if one.column == "seen"]
+    assert named == [], named
+
+
+def _validated_exit(folder: pathlib.Path, stem: str, checked: pathlib.Path) -> int:
+    """`synthtwin validate`'s exit code on ``checked`` against the stem's description."""
+    quiet = io.StringIO()
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        return cli.main(["validate", f"{folder / (stem + '-profile.json')}", "--out-dir", f"{folder}",
+                         "--replace", "--twin", f"{checked}"])
+
+
+def test_a_date_for_nobody_three_people_write_stays_absent(tmp_path: pathlib.Path) -> None:
+    """The second verify's item 1 (Codex's item 3, its shape `c3d`): an undeclared `1900-01-01` three patients write.
+
+    The column's own reading takes the nine cells as no value, and three
+    people are too few for its block to name the spelling: the validator
+    keeps as written every cell that reading takes as absent (the
+    redescription handed the cells as written, `profile.build_document`'s
+    ``absent_read``), so both the real table and the twin pass. Before,
+    the cells were pooled into the first bucket and the real table
+    missed its presence, its tails and `n_not_numeric` at exit 3.
+    """
+    described = _profiled(tmp_path, "few", persons_counted.absent_dates_table("1900-01-01", 3), "--identifier",
+                          "patient")
+    block = _block(described, "seen")
+    assert block["n_present"] == 591 and block["n_missing"] == 9, (block["n_present"], block["n_missing"])
+    assert "1900-01-01" not in block["missing_by_source"], block["missing_by_source"]
+    assert block["time_grain"]["rung"] != grains.HELD, block["time_grain"]
+    quiet = io.StringIO()
+    with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+        assert cli.main(["generate", f"{tmp_path / 'few-profile.json'}", "--out-dir", f"{tmp_path}",
+                         "--seed", "0", "--replace"]) == 0
+    assert _validated_exit(tmp_path, "few", tmp_path / "few.csv") == 0
+    assert _validated_exit(tmp_path, "few", tmp_path / "few-twin.csv") == 0
+
+
+@pytest.mark.parametrize(("shape", "name", "count"), (("rep4", "birth_month", 530), ("rep2", "born", 600)))
+def test_a_held_month_column_holds_its_count_in_the_widened_span(
+    tmp_path: pathlib.Path, shape: str, name: str, count: int
+) -> None:
+    """The second verify's item 2 (its shapes `rep4` and `rep2`): 530 and 600 birth months, held with no span.
+
+    The capacity is measured in the layout's finest written detail (months
+    for `%Y-%m`, `grains.held_spans`) and the fixed span widened by whole
+    decades from 2000 to twice the published count (`grains.fixed_span_holding`):
+    every twin cell is a valid month and the twin holds every one. Before,
+    the 360 months of 2000 to 2029 left `rep4`'s 530 at 360 (n_distinct,
+    `_by_occurrences` and `_folded` missed at exit 3); a span of exactly
+    `rep2`'s 600 months left 582 (room of one).
+    """
+    table = persons_counted.birth_months_table() if shape == "rep4" else persons_counted.one_birth_month_a_year_table()
+    described = _profiled(tmp_path, shape, table, "--identifier", "patient")
+    block = _block(described, name)
+    assert block["time_grain"]["rung"] == grains.HELD and block["time_grain"]["spans"] == [], block["time_grain"]
+    assert block["n_distinct"] == count and block["time_grain"]["finest"] == "month", block["n_distinct"]
+    twin, _real = _generated_and_validated(tmp_path, shape)
+    cells = _column(tmp_path / f"{shape}-twin.csv", name)
+    assert _parses(cells, "%Y-%m") == 0, sorted(set(cells))[:5]
+    assert len(set(cells)) == count and name not in twin, (len(set(cells)), twin)
+    assert _validated_exit(tmp_path, shape, tmp_path / f"{shape}-twin.csv") == 0
+
+
+def test_a_value_no_span_can_take_unrepeated_repeats_a_valid_one(tmp_path: pathlib.Path) -> None:
+    """The G1 floor's last step (the second verify's item 2): a made-up value no span takes unrepeated.
+
+    The birth-month column's block, its count set below its 530 made-up
+    values (as no description the walk writes publishes), gives spans of
+    2000 to 2029 alone: 360 months for 530 values. Each value the walk
+    cannot take unrepeated repeats a valid month in the last span; none
+    is left as made up. Without the repeat the cells no walk placed stayed
+    stand-ins.
+    """
+    _profiled(tmp_path, "born", persons_counted.birth_months_table(), "--identifier", "patient")
+    loaded = contract.load_profile(f"{tmp_path / 'born-profile.json'}")
+    column = [one for one in loaded.columns if one.name == "birth_month"][0]
+    short = dataclasses.replace(column, n_distinct=10)
+    assert grains.held_spans(short.time_grain, 10) == [grains.fixed_span(grains.DATE)]  # type: ignore[arg-type]
+    cells = _column(tmp_path / "born.csv", "birth_month")
+    draw = random.Random(0)
+    words = [draw.getrandbits(64) for _cell in cells]
+    found, unwritten = generation._inside_the_grain(short, cells, words)
+    assert unwritten == 0 and _parses(found, "%Y-%m") == 0, (unwritten, sorted(set(found))[:5])
+    assert len(set(found)) <= 360 < len(set(cells)), (len(set(found)), len(set(cells)))
 
 
 def test_the_counter_reads_every_spelling_of_nobody(tmp_path: pathlib.Path) -> None:

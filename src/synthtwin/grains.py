@@ -112,9 +112,16 @@ ROWS_A_BUCKET = 2
 
 # THE FIXED SPAN the G1 floor draws from where nothing is published under
 # the floor in people: 1 January 2000 to 31 December 2029, the method's own
-# span, never the table's.
+# span, never the table's -- widened by whole decades, never past 9999,
+# where its buckets at the column's finest written detail are fewer than
+# `FIXED_ROOM` times the column's published count of different values
+# (`fixed_span_holding`): room for the walk of at most `_FIELD_STEPS`
+# steps to find a value no earlier made-up value took.
 FIXED_FIRST = (2000, 1, 1)
 FIXED_LAST = (2029, 12, 31)
+FIXED_WIDENING_YEARS = 10
+FIXED_LAST_YEAR = 9999
+FIXED_ROOM = 2
 
 _NS_SECOND = date_counts.SECOND
 _NS_MINUTE = date_counts.MINUTE
@@ -1325,16 +1332,43 @@ def held_span(grain: Grain) -> "tuple[int, int]":
     return first, end
 
 
+def fixed_span_holding(kind: str, finest: str, values: int) -> "tuple[int, int]":
+    """The method's fixed span, widened to hold ``values`` buckets at ``finest`` (the G1 floor; repair round 3).
+
+    From 1 January 2000, its last year 2029 moved on by whole decades
+    (`FIXED_WIDENING_YEARS`) while its buckets at ``finest`` -- the
+    column's finest written detail, a month for `%Y-%m` -- are fewer than
+    `FIXED_ROOM` times ``values``, and never past `FIXED_LAST_YEAR`. The
+    room is the walk's: a span exactly as wide as the count left 600
+    different birth months 582 and 583 at seeds 0 and 1, the last free
+    months more than `_FIELD_STEPS` days from where their walks began. A
+    clock's span is its day. A function of the three, so of the
+    description alone.
+    """
+    first, end = fixed_span(kind)
+    if kind == CLOCK:
+        return first, end
+    year = FIXED_LAST[0] + 1
+    while buckets_between(first, end, finest) < FIXED_ROOM * values and year < FIXED_LAST_YEAR + 1:
+        year = min(year + FIXED_WIDENING_YEARS, FIXED_LAST_YEAR + 1)
+        end = parsing.days_from_civil(year, 1, 1) * _NS_DAY
+    return first, end
+
+
 def held_spans(grain: Grain, values: int) -> "list[tuple[int, int]]":
-    """Where a held column's made-up values are drawn, in order (the G1 floor; repair round 2).
+    """Where a held column's made-up values are drawn, in order (the G1 floor; repair rounds 2 and 3).
 
     THE CAPACITY IS RESOLVED BEFORE ANY CELL IS FILLED (Codex's item 1):
     the spans the record publishes, deepest first, then the method's fixed
-    span; the chain starts at the first whose days (seconds, where the
-    reading writes a clock) number at least twice ``values``, the made-up
-    values to write, so a span too narrow for the column's count of
-    different values is never asked to hold it. A value its span cannot
-    take is drawn from the next one (`filled`, asked span by span).
+    span; the chain starts at the first whose buckets at the column's
+    finest written detail (``grain.finest``: months for `%Y-%m`, days for
+    a date, seconds for a stamp to the second) number at least ``values``,
+    the column's published count of different values, so a span too
+    narrow for that count is never asked to hold it. The fixed span is
+    widened by whole decades until it holds twice them (`fixed_span_holding`;
+    repair round 3, the second verify's item 2: 530 birth months against
+    the 360 months of 2000 to 2029 had repeated values). A value its span
+    cannot take is drawn from the next one (`filled`, asked span by span).
     """
     chain: "list[tuple[int, int]]" = []
     for place in range(len(grain.spans) - 1, -1, -1):
@@ -1343,11 +1377,10 @@ def held_spans(grain: Grain, values: int) -> "list[tuple[int, int]]":
         if grain.reading.kind == CLOCK:
             end = min(end, _NS_DAY)
         chain += [(first, end)]
-    chain += [fixed_span(grain.reading.kind)]
-    unit = _NS_DAY if grain.reading.kind in (DATE, COUNTED) else _NS_SECOND
+    chain += [fixed_span_holding(grain.reading.kind, grain.finest, values)]
     for place in range(len(chain)):
         first, end = chain[place]
-        if (end - first) // unit >= values:
+        if buckets_between(first, end, grain.finest) >= values:
             return chain[place:]
     return chain[len(chain) - 1:]
 
