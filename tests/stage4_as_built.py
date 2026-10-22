@@ -44,6 +44,13 @@ nothing reads the product's source to build them:
   character at a time: the oracles of lane H3
   (`tests/test_stage4_describe_memory.py`, plan P4-D423), whose answers
   the product's must be wherever both answer.
+- `AFFIX_PAIRS`, `STAMP_CLOCK` and `LABEL_READERS` are, as 4682d6ad
+  shipped them, the affix reading's pair walk and reach over a map of
+  every pair, the slashed stamps' one written clock over a tuple of
+  halves, parts and pairs a stamp, and four rules reading the tally's
+  labels by their folded text: the oracles of lane H3's repair (the
+  same file and plan), asked of a tally carrying `taxonomy._label_maps`'s
+  two maps under their old names.
 
 Each is compiled into a copy of its module's own names, so the helpers
 it does not define are today's, and the tests that use it require a
@@ -1853,4 +1860,768 @@ def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
         if not _reads_as_one_number(part):
             return None
     return parts
+'''
+
+
+# -- lane H3's repair (plan P4-D423): 4682d6ad's own functions, frozen as text --
+#
+# `AFFIX_PAIRS` is the affix reading's pair walk and its reach as 4682d6ad
+# shipped them, a map of every pair; `STAMP_CLOCK` the slashed stamps' one
+# written clock, a tuple of halves, parts and pairs a stamp; `LABEL_READERS`
+# four rules that read the tally's labels by their folded text
+# (`folded_counts`, `spellings_by_folded`), asked of a tally that carries the
+# maps `taxonomy._label_maps` gives.
+
+
+AFFIX_PAIRS = r'''
+def _affixed_before_the_address_test(
+    cells: _Cells, forced_measurement: bool = False
+) -> "_Affixed | None":
+    """The one affix pair this column wears, address or not.
+
+    Every rule of the role except the address decline. Two callers ask
+    it and each applies that last rule for itself, which is what keeps
+    the reading and the reason for refusing it one computation.
+
+    Guarantees:
+
+    - Determinism: every cell is split by `affixed_split`, which is a
+      function of the cell alone, and the winning pair is chosen by
+      count with ties broken by the pair's own text. Nothing here reads
+      a clock or a random source, and no dictionary order reaches the
+      result.
+    - The test, and both halves are the contract's: at least the
+      parse-line COUNT of present cells wear ONE pair, and that pair's
+      cell count is at least `small_cell_floor`. Both are counts and
+      neither is a compared share, so no rounding of a division decides
+      a role.
+    - The floor is read HERE, at detection, deliberately. The pair is
+      PUBLISHED, so being able to publish a floor-clearing spelling is
+      constitutive of the role: a column that could not publish one
+      under the recorded settings takes the next rule instead of taking
+      this one and then withholding the thing that makes it this role.
+    - A column whose cells wear more than one pair past the line's
+      slack returns None -- a recorded decline, not a partial reading.
+      Publishing a distribution over the `$` cells of a column that
+      also holds `EUR` cells would describe part of a column and drop
+      the rest.
+    """
+    present = cells.present
+    if not present:
+        return None
+    settings = cells.settings
+    needed = _needed(settings.minimum_parse_rate, len(present))
+    # PASS ONE: which pair. Only cells whose core is a number this
+    # format can hold propose a pair, because the role exists to
+    # describe a distribution and a pair proposed by cells holding no
+    # number would describe none.
+    proposing: "dict[tuple[str, str], int]" = {}
+    for text in present:
+        split = _split_once(cells, text)
+        if split is None:
+            # THE BARE PAIR IS A MEMBER OF THE VOCABULARY (plan
+            # P4-D36), proposed by a cell that reads as a number
+            # wearing nothing at all. A laboratory column of `13.5`,
+            # `4.2 H` and `9.8 L` wears three wrappers and one of them
+            # is empty; without it the two flagged thirds could never
+            # reach the line between them and the column was described
+            # as free text.
+            #
+            # IT CANNOT SWALLOW A PLAIN NUMERIC COLUMN, because rule 6
+            # is asked first: a column most of whose cells are bare
+            # numbers is a column of numbers and never reaches here.
+            if _reads_as_a_number(
+                parsing.trimmed(text), cells.decimal_comma
+            ):
+                key = ("", "")
+                proposing[key] = (
+                    proposing[key] + 1 if key in proposing else 1
+                )
+            continue
+        prefix, core, suffix = split
+        key = (prefix, suffix)
+        if key in proposing:
+            proposing[key] = proposing[key] + 1
+        else:
+            proposing[key] = 1
+    if not proposing:
+        return None
+    # WHICH PAIRS ARE PUBLISHABLE (plan P4-D36). A pair worn by fewer
+    # cells than the smallest group size cannot be published, so its
+    # cells are STRAGGLERS -- the population the parse line already
+    # tolerates and the straggler construction already writes. That is
+    # what keeps this rule from needing a held-back pool of its own.
+    #
+    # Walked over SORTED keys throughout, so nothing here depends on
+    # the order a dictionary happened to fill.
+    speaking: "list[tuple[str, str]]" = []
+    for key in sorted(proposing):
+        if proposing[key] >= settings.small_cell_floor:
+            speaking += [key]
+    if not speaking:
+        return None
+    # EVERY WRAPPER OF A SET STANDS APART FROM THE NUMBER (plan
+    # P4-D36), and this guard is what keeps a set of CODE SCHEMES and
+    # a set of markers from being read as a quantity.
+    #
+    # A LETTER WRITTEN FLUSH AGAINST A NUMBER IS NOT A UNIT. A unit or
+    # an annotation is either separated from the number -- `13.5 H`,
+    # `70 kg` -- or is a mark that is no letter at all -- `$98`, `45%`.
+    # Two shapes were read as quantities without this and neither is
+    # one: a diagnosis column of `E10.0`, `I11.2`, `J44.9` published a
+    # LADDER over its code numbers, and a column of a hundred ages
+    # beside twenty `refused3` markers put the marker's own digit into
+    # the ladder with them.
+    #
+    # ASKING IT OF EVERY WRAPPER RATHER THAN OF ONE is what the second
+    # of those settled: the bare wrapper stands apart by itself, so a
+    # column of numbers beside ANY flush marker would have been
+    # admitted on the numbers' own account.
+    #
+    # THE PRICE, and it is small: a column of `$98` beside `EUR99` --
+    # a currency written flush -- is not read as a quantity. It was
+    # free text before this landing and stays that way, so nothing is
+    # lost that anybody had.
+    #
+    # ASKED OF A SET ONLY. A column wearing ONE wrapper is read exactly
+    # as it was, so `D0140` is still whatever it was before.
+    if len(speaking) > 1:
+        # SOME CELL OF THIS COLUMN IS A PLAIN NUMBER, which is what
+        # lets a flag be written flush against the digits (review round
+        # 1, item 6). See `_stands_apart`: the front of the number is
+        # where a code scheme puts its letter, and the back is where an
+        # abnormal flag puts one -- but only a column that holds
+        # unwrapped numbers is a column of numbers with annotations.
+        # A LETTER FLUSH BEHIND THE DIGITS IS AMBIGUOUS AND THE PERSON
+        # SETTLES IT (review round 3, item 2). Round 1 relaxed this
+        # where the vocabulary held the bare wrapper, on the ground
+        # that a column holding unwrapped numbers is a column of
+        # numbers with annotations; round 2 then found a register of
+        # procedure codes wearing exactly that shape, and round 3 found
+        # that the width test written to separate them does neither
+        # job. Measured, both ways:
+        #
+        #   100 bare two-digit readings beside 50 ending `H` and 50
+        #   ending `L` -- an ordinary laboratory column -- was REFUSED,
+        #   because its cores are all two digits;
+        #
+        #   50 bare four-digit codes beside 50 five-digit ones and 100
+        #   ending `F` -- a register whose leading zeros a spreadsheet
+        #   ate -- was ADMITTED, because its bare cores are of two
+        #   widths.
+        #
+        # Nothing in the text tells a flagged measurement from a code
+        # register: both are figures with a letter behind them. So the
+        # question goes to whoever holds the table, which is this
+        # project's own answer where a guess is not confident, and
+        # `--measurement` is the flag that carries it. Undeclared, such
+        # a column is what it was before this landing.
+        for key in speaking:
+            if not _stands_apart(key[0], key[1], forced_measurement):
+                return None
+        # AND EVERY WRAPPER OF A SET IS ONE WORD (plan P4-D36). A unit
+        # or an annotation is a word -- `H`, `kg`, `months`, `EUR`,
+        # `$` -- and a sentence is not. A column of `free comment
+        # number 03 written out` beside its upper-case variants
+        # proposes two wrappers of four words each; both clear the
+        # floor, and the column published a LADDER over what is a
+        # sequence number inside prose.
+        #
+        # ASKED OF A SET ONLY, so a column wearing ONE wrapper is read
+        # exactly as it was: `note 3 of the batch` was this role
+        # before this landing and still is.
+        for key in speaking:
+            if not _one_word(key[0]) or not _one_word(key[1]):
+                return None
+    # A SET OF WRAPPERS MAY NOT DIFFER BY ITS DIGITS (plan P4-D36),
+    # and this guard was written against a false reading the set rule
+    # created. A column of feet and inches, `4'5"`, `5'11"` proposes one pair per
+    # inches value -- prefix nothing, suffix `'5"` -- and a dozen of
+    # them clear the floor and the ceiling together. The column then
+    # published a ladder over the FEET of some cells and the inches of
+    # others: a description saying something false, where before it
+    # said nothing at all.
+    #
+    # A WRAPPER IS SHARED TEXT. Where a column wears ONE, it may carry
+    # digits -- `mL/min/1.73m2` is a real unit and this rule read it
+    # before -- so the guard is asked only of a SET, where a digit is
+    # the mark of a split that cut through a number.
+    if len(speaking) > 1:
+        for key in speaking:
+            for side in key:
+                for mark in side:
+                    if mark in "0123456789":
+                        return None
+    # THE SET IS A VOCABULARY AND NOT PROSE, on the categorical rule's
+    # own ceiling. A column proposing dozens of different pairs is a
+    # column of text that happens to hold digits, and describing it as
+    # a quantity in many wrappers would be describing something else.
+    if len(speaking) > _categorical_ceiling(cells):
+        return None
+    # THE DETECTION LINE is over the cells wearing a PUBLISHABLE pair,
+    # together. The contract's test is that at least the parse-line
+    # count of present cells are affixed numbers; before plan P4-D36 it
+    # asked that of ONE pair, so a laboratory column of `13.5`,
+    # `4.2 H` and `9.8 L` -- where no pair carries a third of the
+    # column -- reached no rule at all and was described as free text.
+    covered = 0
+    for key in speaking:
+        covered = covered + proposing[key]
+    if covered < needed:
+        return None
+    # THE COMMONEST PAIR IS THE ONE THE BLOCK NAMES, ties broken by the
+    # pair's own text so two implementations pick the same one.
+    pair = speaking[0]
+    best = 0
+    for key in speaking:
+        if proposing[key] > best:
+            pair = key
+            best = proposing[key]
+    if len(speaking) > 1:
+        # AND EVERY WRAPPER'S CELLS ARE WRITTEN THE WAY THE COMMONEST
+        # WRAPPER'S ARE (plan P4-D36). A unit or a flag does not change
+        # how a value is SPELLED: a column of `13.5`, `4.2 H` and
+        # `9.8 L` writes one figure after the point whichever wrapper a
+        # cell wears. A NOUN in front of an index does: a column of 240
+        # readings written to one figure beside sixty `note 3` cells
+        # proposes two wrappers that both stand apart and are both one
+        # word, and reading it as a quantity puts the notes' own
+        # sequence numbers into the ladder with the readings.
+        #
+        # THE TEST IS AN OVERLAP AND NOT AN IDENTITY, because a real
+        # flagged column may carry a whole value beside its fractional
+        # ones: each wrapper's cells must share at least one fraction
+        # width with the commonest wrapper's.
+        if not _written_alike(present, speaking, pair, cells):
+            return None
+
+    # PASS TWO: which cells WEAR it. This is a different population and
+    # a larger one, and keeping them apart is the whole of C6-7. A
+    # column of `5 mg`, `7 mg` and `many mg` wears the pair three
+    # times: `n_affixed` is 3 and one core is not numeric at all. The
+    # first pass alone would have said 2, and the three non-holdable
+    # core classes would have been unreachable -- no producer could
+    # ever have written `n_core_not_numeric` above zero.
+    prefix, suffix = pair
+    cores: "list[str]" = []
+    wrappers: "list[tuple[str, str]]" = []
+    counts: "dict[tuple[str, str], int]" = {}
+    for text in present:
+        trimmed = parsing.trimmed(text)
+        chosen = _pair_worn(trimmed, speaking, cells.decimal_comma)
+        if chosen is None:
+            continue
+        core = trimmed[
+            len(chosen[0]) : len(trimmed) - len(chosen[1])
+        ]
+        if not core:
+            # `mg` on its own wears no pair: it IS the suffix, with
+            # nothing between the two sides for a number to be.
+            continue
+        cores += [core]
+        # ...AND WHICH WRAPPER IT WORE (plan P4-D37), kept beside it so
+        # the blocks below can be read one wrapper at a time.
+        wrappers += [chosen]
+        counts[chosen] = counts[chosen] + 1 if chosen in counts else 1
+    # A WRAPPER IS FILTERED ON WHAT WEARS IT, NOT ON WHAT PROPOSED IT
+    # (found while building plan P4-D37). `speaking` holds the wrappers
+    # that cleared the floor at PROPOSAL -- pass one, over the cells
+    # that read as a number wearing them -- and the count published is
+    # the count that WEARS them, which is a different population and
+    # can be far smaller. A column of `$1` to `$99` beside eleven cells
+    # spelled `1` and one spelled `7`, with `1` DECLARED a hole,
+    # proposes the bare wrapper twelve times and is worn by it ONCE:
+    # the eleven holes are not present cells. The bare wrapper was
+    # published with the count 1, which is a group of one named in a
+    # description under a floor of eleven.
+    #
+    # So the floor is applied again here, where the published count
+    # exists, and a wrapper that fails it is not published at all: its
+    # cells become STRAGGLERS, which is the population this role
+    # already has and already writes.
+    kept: "dict[tuple[str, str], int]" = {}
+    for key in counts:
+        if key == pair or counts[key] >= settings.small_cell_floor:
+            kept[key] = counts[key]
+    if len(kept) != len(counts):
+        held: "list[str]" = []
+        wearing: "list[tuple[str, str]]" = []
+        for place in range(len(cores)):
+            if wrappers[place] in kept:
+                held += [cores[place]]
+                wearing += [wrappers[place]]
+        cores = held
+        wrappers = wearing
+        counts = kept
+    n_affixed = len(cores)
+    # THE COMMONEST WRAPPER IS CHOSEN FROM WHAT WEARS IT, and it was
+    # chosen from what PROPOSED it (review round 5, item 1). The
+    # proposal pass counts cells that read as a NUMBER wearing a
+    # wrapper; the wear pass counts every cell that wears it, cores
+    # that are no number included, and the two orders can differ. AF17
+    # then refused what this function had just written: a hundred
+    # distinct ` kg` numerals beside ninety-eight ` aa` numerals and
+    # two `many aa` cells proposes ` kg` as commonest and WEARS both a
+    # hundred times, so the loader's tie rule wants ` aa` -- and
+    # `synthtwin profile` wrote a file `synthtwin generate` refused,
+    # which is the defect amendment A-P3-11 exists to keep closed.
+    #
+    # THE TIE RULE IS THE LOADER'S, character for character: most cells
+    # first, and where two wrappers wear the same number of cells the
+    # pair that sorts first.
+    for key in sorted(counts):
+        if counts[key] > counts[pair] or (
+            counts[key] == counts[pair] and key < pair
+        ):
+            pair = key
+    prefix, suffix = pair
+    variants: "list[tuple[str, str, int]]" = []
+    for key in sorted(counts):
+        if key == pair:
+            continue
+        variants += [(key[0], key[1], counts[key])]
+    # The floor is read HERE, at detection, deliberately: the pair is
+    # PUBLISHED, so being able to publish a floor-clearing spelling is
+    # constitutive of the role.
+    if n_affixed < settings.small_cell_floor:
+        return None
+    if pair not in counts:
+        return None
+    return _Affixed(
+        prefix=prefix,
+        suffix=suffix,
+        variants=variants,
+        cores=cores,
+        wrappers=wrappers,
+        n_affixed=n_affixed,
+    )
+
+def affixed_reach(cells: _Cells) -> int:
+    """How many present cells the BEST affix reading accounted for.
+
+    The count the winning pair reached, whether or not it cleared the
+    detection line -- so a column that declined can still say how far
+    this reading got. Zero where no cell proposed a pair at all.
+
+    A COLUMN THAT PUBLISHES NOTHING OWES ITS OWNER THE REASON, and the
+    reason is a set of counts (contract C6-5). The competing-readings
+    remark already names how much of the column read as numbers and how
+    much as dates; without this one it stayed silent about the reading
+    that came closest on a column of prices, which is the reading its
+    owner would recognize.
+
+    Guarantees: accepts a tally of one column; returns a count of its
+    present cells. No spelling of the column travels out through it.
+    Determinism: a function of the cells alone. Raises nothing. No I/O
+    of any kind.
+    """
+    proposing: "dict[tuple[str, str], int]" = {}
+    for text in cells.present:
+        split = _split_once(cells, text)
+        if split is None:
+            continue
+        prefix, _core, suffix = split
+        key = (prefix, suffix)
+        if key in proposing:
+            proposing[key] = proposing[key] + 1
+            continue
+        proposing[key] = 1
+    best = 0
+    for key in sorted(proposing):
+        if proposing[key] > best:
+            best = proposing[key]
+    return best
+'''
+
+
+STAMP_CLOCK = r'''
+def _on_the_written_clock(
+    present: "list[str]", parsed: "list[bool]", settings: Settings
+) -> "list[bool]":
+    """Which of the cells one stamp reading parsed its one written clock keeps.
+
+    The cells on another face are dropped, as `_stamp_clocks` drops them
+    once the reading is chosen (`_stamp_clock_places`, one rule).
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    places = [place for place in range(len(present)) if parsed[place]]
+    kept, _clock = _stamp_clock_places(
+        [present[place] for place in places], settings
+    )
+    found = [False for _cell in present]
+    for index, _cell in kept:
+        found[places[index]] = True
+    return found
+
+def _stamp_clock_places(
+    sources: "list[str]", settings: Settings
+) -> "tuple[list[tuple[int, str]], _StampClock]":
+    """Which stamps a column's one written clock keeps, and how each is written (landing T1).
+
+    THE STYLE MOST CELLS WROTE (`parsing.clock_style_of_cells`), on the
+    12-hour face where the column is declared one. A cell on another face
+    is dropped -- counted unread by the caller, as the clock role counts
+    it -- and a cell whose hour shows the other width is kept and
+    REWRITTEN in the column's, its date half untouched, so no published
+    fact tells it apart (plan P4-D250's rule, owner ruling 6 of
+    2026-09-17). A column every cell of which writes today's two-figure
+    24-hour clock comes back exactly as it went in. The width is the one
+    that rewrites no cell into a value the person declared missing
+    (`_width_clear_of_absences`, the T1 review's item 1).
+
+    ONE RULE, TWO CALLERS: `_stamp_clocks` holds a reading's cells to it,
+    and `_slashed_evidence` counts each reading of a slashed pair under
+    it, so the reading that wins the comparison is the one that keeps
+    the most cells on its face (the T1 review's item 3).
+
+    Guarantees: accepts the cells a stamp member parsed and the settings;
+    returns each kept cell's place among them with the cell as written,
+    in order, and the clock. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    halves: "list[tuple[str, str]]" = []
+    read: "list[tuple[int, int, int, bool, int, str, bool]]" = []
+    plain = True
+    for value in sources:
+        day, clock = parsing.stamp_halves(value)
+        parts = parsing.clock_parts(clock)
+        # Every cell here parsed under a stamp member, whose clock half
+        # this reader read; a face no style has keeps the types honest.
+        if parts is None:
+            parts = (0, 0, 0, False, 2, "?", False)
+        if parts[5] or (parts[4] != 2 and parts[0] < 10):
+            plain = False
+        halves += [(day, clock)]
+        read += [parts]
+    if plain and not reads_twelve_hours(settings):
+        return (
+            [(place, sources[place]) for place in range(len(sources))],
+            _StampClock(),
+        )
+    style = parsing.clock_style_of_cells(read, reads_twelve_hours(settings))
+    style, absent = _width_clear_of_absences(
+        style,
+        [(halves[place][1], read[place]) for place in range(len(sources))],
+        [halves[place][0] for place in range(len(sources))],
+        settings,
+    )
+    face = parsing.clock_face(style)
+    kept: "list[tuple[int, str]]" = []
+    other_faces = False
+    widths_in = False
+    for place in range(len(sources)):
+        parts = read[place]
+        second = parsing.clock_second(parts, face)
+        if second is None:
+            other_faces = True
+            continue
+        day, clock = halves[place]
+        spelled = parsing.written_clock(second, parts[3], style)
+        cell = sources[place]
+        if spelled != clock:
+            cell = f"{day}{spelled}"
+            if cell in absent:
+                # Both widths spell a declared absence: counted unread.
+                continue
+            widths_in = True
+        kept += [(place, cell)]
+    return kept, _StampClock(style, other_faces, widths_in)
+
+def _stamp_clocks(
+    good: "list[tuple[str, str]]", sources: "list[str]", settings: Settings
+) -> "tuple[list[tuple[str, str]], list[str], _StampClock]":
+    """A column of stamps held to its one written clock (landing T1).
+
+    `_stamp_clock_places` says which cells stay and how each is written;
+    each kept pair's canonical text is put on the column's face.
+
+    Guarantees: accepts the parsed pairs, their cells and the settings;
+    returns the pairs and cells kept, in order, and the clock.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    places, clock = _stamp_clock_places(sources, settings)
+    if clock.style == parsing.DEFAULT_CLOCK_STYLE and len(places) == len(sources):
+        unchanged = True
+        for place, cell in places:
+            if cell != sources[place]:
+                unchanged = False
+                break
+        if unchanged:
+            return good, sources, clock
+    kept: "list[tuple[str, str]]" = []
+    written: "list[str]" = []
+    for place, cell in places:
+        canonical, offset = good[place]
+        kept += [(parsing.stamp_canonical(canonical, clock.style), offset)]
+        written += [cell]
+    return kept, written, clock
+'''
+
+
+LABEL_READERS = r'''
+def _published_distinct(cells: _Cells) -> int:
+    """How many different spellings a label column's own block says it holds.
+
+    THE COUNT DERIVED FROM THE PROTECTED SPELLINGS AND NOT FROM THE RAW
+    ONES (plan P4-D276, the repair of the extra review round of
+    2026-09-18). `n_distinct` counted the column's different cells
+    exactly, and a published level's `variants` census counts the
+    spellings the floor let it name -- so the difference between them
+    counted the spellings the absorption took away, and while the
+    absorption reached one-row spellings alone that difference WAS a
+    count of one. **Measured** at a floor of eleven on 490 `F`, 500 `M`
+    and one `f`: the block published `variants {"F": 491}` and
+    `{"M": 500}`, no withheld spelling anywhere, and `n_distinct 3` --
+    three spellings, two of them named, and the one left over is the row
+    that wrote `f`.
+
+    So the count is taken over the spellings the block SPEAKS OF: for
+    every level the floor publishes, the spellings that survive
+    `_absorb_lone_spellings`, and for every level the floor holds back,
+    its own spellings, which no key of this block names and which no
+    reader can subtract a published census from.
+
+    Guarantees: accepts the column's tally; returns a count between the
+    number of folded identities and `raw_distinct`. Determinism: a fixed
+    function of the tally, walked in sorted order. Raises nothing. No I/O
+    of any kind.
+    """
+    counted = 0
+    for label in sorted(cells.folded_counts):
+        spellings = _label_spellings(
+            cells.folded_counts, cells.spellings_by_folded, label
+        )
+        if cells.folded_counts[label] >= cells.settings.small_cell_floor:
+            spellings = _absorb_lone_spellings(spellings, cells.settings)
+        for _spelling in sorted(spellings):
+            counted = counted + 1
+    return counted
+
+def _a_level_is_below_the_floor(cells: _Cells) -> bool:
+    """Whether any folded value of this column covers fewer rows than the floor.
+
+    Asked by the clock rule for cells a workbook stores as clock times
+    (plan P4-D382): a level the floor would hold back is one the twin
+    could only write as made-up text. At a floor of one there can be no
+    such level, so the answer there is always no. It is also the cheap
+    gate in front of `_read_the_column`'s clock pass (plan P4-D373),
+    whose route counts out only levels below the floor.
+
+    Guarantees: accepts the tally; returns a bool. Determinism: a fixed
+    function of the tally and its settings. Raises nothing. No I/O.
+    """
+    floor = cells.settings.small_cell_floor
+    if floor <= 1:
+        return False
+    counts = cells.folded_counts
+    for label in sorted(counts):
+        if counts[label] < floor:
+            return True
+    return False
+
+def _rare_beside_clocks(
+    cells: _Cells,
+    classified: "list[_Cell]",
+    n_rows: int,
+    settings: Settings,
+    decimal_comma: bool,
+) -> "tuple[str, ...]":
+    """The rare words a column of clock times holds, or nothing (P4-D373).
+
+    The folded values below the floor no spelling of which a clock reader
+    takes, where they hold at most one present cell in
+    `RARE_WORDS_BESIDE_CLOCKS` and the column without exactly their cells
+    has a clock reading (`_clock_reading`); nothing otherwise, and nothing
+    where there are none. The clock pass counts these cells missing and
+    lets every rule read the column again (`_read_the_column`), where
+    every rule then reads it as clock times (`_read_as_clock_times`, the
+    second repair round). It is
+    asked of every first reading as labels or free text, not only where
+    a level is counted out (the repair round of landing 3b.5):
+    a column of `7:30 AM` beside 0.6 % `UNK` and 0.3 % `99:99` was free
+    text at 300 and 1,000 rows, and its twin wrote every cell `group-N`.
+
+    THE CELLS NO CLOCK READER TAKES ARE COUNTED FIRST, and the count
+    stops as soon as they are more than the column could hold and still
+    clear the clock line once its rare words were counted out -- so a
+    column of words is answered after a few of its spellings, however
+    many it has, and only a column almost all times is read further.
+
+    Guarantees: a function of the arguments, in sorted order. Raises
+    nothing. No I/O of any kind.
+    """
+    present = len(cells.present)
+    if not present:
+        return ()
+    rate = settings.minimum_parse_rate
+    allowed = present - clock_line(
+        rate, present - present // RARE_WORDS_BESIDE_CLOCKS
+    )
+    unread = 0
+    for folded in cells.folded_counts:
+        spellings = _label_spellings(
+            cells.folded_counts, cells.spellings_by_folded, folded
+        )
+        for spelling in spellings:
+            if parsing.clock_parts(spelling) is None:
+                unread = unread + spellings[spelling]
+                if unread > allowed:
+                    return ()
+    floor = settings.small_cell_floor
+    rare: "dict[str, bool]" = {}
+    counted = 0
+    for folded in sorted(cells.folded_counts):
+        if cells.folded_counts[folded] >= floor:
+            continue
+        spellings = _label_spellings(
+            cells.folded_counts, cells.spellings_by_folded, folded
+        )
+        if any(parsing.clock_parts(spelling) is not None for spelling in spellings):
+            continue
+        rare[folded] = True
+        counted = counted + cells.folded_counts[folded]
+    if not rare or counted * RARE_WORDS_BESIDE_CLOCKS > present:
+        return ()
+    # THE CELLS LEFT MUST CLEAR THE CLOCK LINE before any is tallied again.
+    if present - unread < clock_line(rate, present - counted):
+        return ()
+    kept = [cell for cell in classified if cell.folded not in rare]
+    if not kept:
+        return ()
+    reduced = _tally(kept, n_rows, settings, decimal_comma)
+    if _clock_reading(reduced) is None:
+        return ()
+    return tuple(sorted(rare))
+
+def _floor_clearing_non_numeric(cells: _Cells) -> "tuple[str, ...]":
+    """Folded spellings that repeat often enough to name and hold no number.
+
+    "Often enough to name" is the publication floor and not a rule of
+    this remark's own: a spelling the floor would hold back is a
+    spelling the advice may not describe, so the two lines are the same
+    line. "Holds no number" is asked of the CELLS rather than of the
+    folded key, because the key is a trimmed and case-folded string and
+    asking it a second time would be a second reading of a cell this
+    module reads once.
+
+    TWO THINGS ARE NARROWER THAN THE FLOOR, and both are here so the
+    contract's own sentence is TRUE of the column it is written on.
+    NF29's clause 9 says the covered cells "are written one of a few
+    ways that repeat often enough to name", and neither half of that
+    survives the floor alone:
+
+    * **A spelling has to REPEAT**, which at a floor of one it need
+      not (amendment A-P4-37 lowered the default floor to 1, four
+      amendments after A-P4-1 wrote this trigger against it; plan
+      P4-D316 returned it to 11). Without
+      this, a column of a hundred numbers beside a hundred ALL
+      DIFFERENT words would have every word counted as a "way that
+      repeats", and the sentence would call a hundred one-off
+      spellings a few repeated ones.
+    * **There have to be A FEW WAYS**, which is the categorical
+      ceiling -- this document's own line for "a small set of values in
+      this column", computed and not invented. Without it a column
+      whose gaps wear fifty different spellings is told they are "a
+      few".
+
+    Both narrow the advice rather than widening it, so no column gains
+    a sentence by them; some columns that would have been told
+    something loosely true are told nothing, which is the direction an
+    advisory remark should err in.
+
+    Guarantees: accepts the tally of one column; returns the folded
+    identities in sorted order, which is the order every walk over them
+    is taken in, and returns none at all where there are more of them
+    than the ceiling admits. Raises nothing. No I/O of any kind.
+    """
+    # A MAPPING RATHER THAN A SET, and the offline audit is why: a set
+    # is filled by a METHOD CALL on a value that audit cannot trace to
+    # an allowlisted API, and no method call on an untraced value is
+    # accepted. Subscript assignment is what `_tally` above builds its
+    # own folded map with, for the same reason.
+    numeric_somewhere: "dict[str, bool]" = {}
+    for cell in cells.classified:
+        if cell.kind != parsing.NOT_A_NUMBER:
+            numeric_somewhere[cell.folded] = True
+    floor = cells.settings.small_cell_floor
+    if floor < 2:
+        floor = 2
+    found = tuple(
+        folded
+        for folded in sorted(cells.folded_counts)
+        if cells.folded_counts[folded] >= floor
+        and folded not in numeric_somewhere
+    )
+    if len(found) > _categorical_ceiling(cells):
+        return ()
+    return found
+'''
+
+
+CENSUS_RANKED = r'''
+def _census_ranked(
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    instants: "list[int] | None" = None,
+) -> "list[int] | None":
+    """The places of the parsed pairs in the order the description RANKS
+    them, on a column counted on its cells' own clocks (`_on_own_clocks`;
+    landing 3b.7, plan P4-D378), or None elsewhere and where a pair names
+    no instant.
+
+    RANK BY THE INSTANT, COUNT BY THE TEXT. The order is `ordered_moments`'
+    one tie rule (plan P4-D255): the instant each pair names, then the text
+    published for it -- its conversion to the shared clock where the column
+    is published there -- then its offset. The published tails' rows then
+    cut this order exactly where they cut the column: sorting the written
+    texts instead put two cells of one instant under two offsets apart,
+    and every census would have counted a body the tails do not leave. A
+    bare date of the joint member names its midnight with no offset, as
+    `ordered_moments` ranks it. Each census then counts a cell at the day,
+    hour, minute and second its own text is WRITTEN at (`_census_days`,
+    `_census_hours`, `_census_clock_fields`).
+
+    Computed once a column and handed to every census (the 3b.7 design
+    skeptic's minor 7: one instant key a pair, about 2.5 seconds a million
+    pairs). Guarantees: accepts the published details and the parsed
+    pairs; returns a permutation of their places or None. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+
+    ONE INSTANT KEY A PAIR (the repair of landing 3b.7, skeptic 1's item
+    5): the conversion to the shared clock is spelled from the key already
+    computed (`_utc_text_of`), and where the caller hands ``instants`` it is
+    filled, in rank order, with each pair's instant on the clock
+    `_census_moments` reads, so that census computes none of its own. Three
+    keys a pair before: `parsing.instant_key` ran 1,000,002 times in one
+    describe of 200,000 pairs, against 400,000 before the landing.
+    """
+    if not _on_own_clocks(details):
+        return None
+    if details["resolution"] not in (RESOLUTION_DATE, RESOLUTION_DATETIME):
+        return None
+    shared = details["datetimes_read_at"] == READ_AT_UTC
+    keyed: "list[tuple[int, str, str, int]]" = []
+    place = 0
+    for canonical, offset in pairs:
+        instant = parsing.instant_key(canonical, offset)
+        if instant is None:
+            return None
+        shown = canonical
+        if shared:
+            at_utc = _utc_text_of(canonical, instant, offset)
+            if at_utc is not None:
+                shown = at_utc
+        keyed += [(instant, shown, offset, place)]
+        place = place + 1
+    ordered = sorted(keyed)
+    if instants is not None:
+        for instant, _shown, offset, at in ordered:
+            if shared or offset == "":
+                instants += [instant]
+                continue
+            # On the column's own clock `_census_moments` reads the wall
+            # clock, with no offset: the one pair a second key is asked of.
+            local = parsing.instant_key(pairs[at][0], "")
+            instants += [instant if local is None else local]
+    return [entry[3] for entry in ordered]
 '''

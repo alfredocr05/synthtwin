@@ -30,6 +30,7 @@ the census reading's release, by a weak reference; and the bytes
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import gc
 import hashlib
@@ -46,7 +47,7 @@ import pytest
 import fixtures
 import kpi_shapes
 import stage4_as_built
-from synthtwin import asking, cli, parsing, profile, reading, taxonomy
+from synthtwin import asking, calendar_rules, cli, parsing, profile, reading, taxonomy
 
 _SETTINGS = taxonomy.Settings()
 
@@ -974,3 +975,308 @@ def test_every_description_of_the_lane_s_shapes_is_the_bytes_4682d6ad_wrote(
 ) -> None:
     floor = int(case.split("-")[0])
     assert _h3_document_digest(tmp_path, floor, case.endswith("groups"), monkeypatch) == _H3_DIGESTS[case]
+
+
+# -- lane H3's repair (plan P4-D423): the skeptics' shapes and their oracles -----
+#
+# Measured on 34bb5902 by the lane's two skeptics (wave6/H3-sk1.md, H3-stat.md):
+# the K-S4-09 table's own stamps -- `MM/DD/YYYY hh:mm AM` (`check_at`, its
+# binding column) and `M/D/YYYY H:MM` (`order_at`) -- held 732 and 604 traced
+# bytes a row, through the slashed stamps' one written clock (a tuple of halves,
+# parts and pairs a stamp); stamps with offsets 620; notes that begin with a
+# capital 565, and notes of a large vocabulary holding a dose and a date 1,343,
+# through a folded copy of every label and a map of every affix pair. Each now
+# counts what its description publishes; every answer is 4682d6ad's oracles'.
+
+
+def _h3_repair_values(shape: str, rows: int) -> "list[str]":
+    """The skeptics' shapes: the mixed table's two slashed stamp forms, stamps with offsets, and three kinds of note."""
+    draw = random.Random(11)
+    base = datetime.datetime(2019, 1, 1)
+    made: "list[str]" = []
+    vocabulary: "list[str]" = []
+    weights: "list[float]" = []
+    if shape in ("biglower", "bignote"):
+        vocabulary = sorted(
+            {"".join(draw.choice("abcdefghijklmnoprstuvwy") for _ in range(draw.randint(3, 11))) for _ in range(30_000)}
+        )
+        weights = [1.0 / (rank + 1) for rank in range(len(vocabulary))]
+    for _row in range(rows):
+        if shape in ("twelve", "mdy", "stampoff"):
+            at = base + datetime.timedelta(seconds=_row * 97 + draw.randrange(97))
+            if shape == "twelve":
+                hour = at.hour % 12 or 12
+                made += [f"{at.month:02d}/{at.day:02d}/{at.year} {hour:02d}:{at.minute:02d} {'AM' if at.hour < 12 else 'PM'}"]
+            elif shape == "mdy":
+                made += [f"{at.month}/{at.day}/{at.year} {at.hour}:{at.minute:02d}"]
+            else:
+                made += [at.strftime("%Y-%m-%dT%H:%M:%S") + draw.choice(["Z", "+01:00", "-05:00"])]
+        elif shape == "notecap":
+            made += [" ".join(draw.choice(_H3_WORDS) for _ in range(60)).capitalize()]
+        else:
+            words = draw.choices(vocabulary, weights, k=60)
+            words[draw.randrange(60)] = f"{draw.randint(1, 400)}mg"
+            words[draw.randrange(60)] = f"{draw.randint(1, 12)}/{draw.randint(1, 28)}/2024"
+            note = " ".join(words)
+            made += [note.capitalize() if shape == "bignote" else note]
+    return made
+
+
+def _h3_repair_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch, memo: int) -> float:
+    """`_h3_traced_a_row` with the memos held to ``memo`` texts (and their note to an eighth of it)."""
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_TEXTS", memo)
+    monkeypatch.setattr(parsing, "SPELLING_MEMO_NOTED", max(8, memo // 8))
+    monkeypatch.setattr(taxonomy, "LAYOUT_MEMO_TEXTS", memo)
+    taxonomy.profile_column("warm", 1, values[:200], 200, _SETTINGS)
+    gc.collect()
+    tracemalloc.start()
+    try:
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        taxonomy.profile_column("column", 1, values, len(values), _SETTINGS)
+        held = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        tracemalloc.stop()
+    return held / len(values)
+
+
+def _h3_stamp_columns() -> "dict[str, tuple[list[str], tuple[str, ...]]]":
+    """Slashed stamps on every face and width the one written clock reads, each with the declared absences it is asked under."""
+    draw = random.Random(31)
+    base = datetime.datetime(2021, 6, 1)
+    moments = [base + datetime.timedelta(minutes=row * 37 + draw.randrange(37)) for row in range(900)]
+
+    def marked(moment: datetime.datetime, two: bool, marks: "tuple[str, str]" = ("AM", "PM"), space: str = " ") -> str:
+        hour = moment.hour % 12 or 12
+        shown = f"{hour:02d}" if two else f"{hour}"
+        return f"{moment.month:02d}/{moment.day:02d}/{moment.year} {shown}:{moment.minute:02d}{space}{marks[0] if moment.hour < 12 else marks[1]}"
+
+    def plain(moment: datetime.datetime, two: bool, seconds: bool = False) -> str:
+        shown = f"{moment.hour:02d}" if two else f"{moment.hour}"
+        tail = f":{moment.second:02d}" if seconds else ""
+        return f"{moment.month}/{moment.day}/{moment.year} {shown}:{moment.minute:02d}{tail}"
+
+    early = datetime.datetime(2021, 6, 1, 1, 5)
+    widths = [marked(early, False)] + [marked(moment, draw.random() < 0.8) for moment in moments]
+    unmarked = [plain(early, False)] + [plain(moment, draw.random() < 0.7) for moment in moments]
+    return {
+        "marked": ([marked(moment, True) for moment in moments], ()),
+        "marked one figure": ([marked(moment, False) for moment in moments], ()),
+        "marked widths": (widths, ()),
+        "marked widths, the rewrite absent": (widths, (marked(early, True),)),
+        "marked widths, both widths absent": (widths, (marked(early, True), marked(early, False))),
+        "lower and dotted faces": ([marked(moment, True, draw.choice([("AM", "PM"), ("am", "pm"), ("a.m.", "p.m.")]), draw.choice([" ", ""])) for moment in moments], ()),
+        "unmarked": ([plain(moment, False) for moment in moments], ()),
+        "unmarked padded": ([plain(moment, True) for moment in moments], ()),
+        "unmarked widths": (unmarked, ()),
+        "unmarked widths, the rewrite absent": (unmarked, (plain(early, True),)),
+        "unmarked seconds": ([plain(moment, draw.random() < 0.5, True) for moment in moments], ()),
+        "faces mixed": ([draw.choice([marked(moment, True), plain(moment, True)]) for moment in moments], ()),
+    }
+
+
+def test_the_one_written_clock_of_slashed_stamps_is_4682d6ad_s() -> None:
+    """Counted by hour, figures and face, the clock keeps and writes every stamp as 4682d6ad's halves and parts a stamp did."""
+    _built, names = stage4_as_built.compiled(taxonomy, stage4_as_built.STAMP_CLOCK, "_stamp_clocks")
+    twelve = taxonomy.Settings(forced_twelve_hour_clocks=(taxonomy.TWELVE_HOUR_HERE,))
+    for name, (cells, absent) in _h3_stamp_columns().items():
+        for settings in (_SETTINGS, twelve):
+            settings = dataclasses.replace(settings, declared_missing_values=absent)
+            for member in parsing.SLASHED_STAMPS:
+                parsed = [parsing.parse_datetime(cell, member) is not None for cell in cells]
+                now = taxonomy._on_the_written_clock(cells, list(parsed), settings)
+                assert now == names["_on_the_written_clock"](cells, list(parsed), settings), (name, member)  # type: ignore[operator]
+                good = [pair for pair in (parsing.parse_datetime(cell, member) for cell in cells) if pair is not None]
+                sources = [cell for cell in cells if parsing.parse_datetime(cell, member) is not None]
+                kept = taxonomy._stamp_clocks(good, sources, settings)
+                assert kept == names["_stamp_clocks"](good, sources, settings), (name, member)  # type: ignore[operator]
+
+
+def test_the_clock_style_of_a_census_is_the_style_of_every_clock() -> None:
+    """`_clock_style_of_census` is `parsing.clock_style_of_cells` of the clocks the census counts."""
+    draw = random.Random(43)
+    faces = list(parsing.CLOCK_FACES) + ["?"]
+    for _case in range(400):
+        read = []
+        for _cell in range(draw.randint(0, 40)):
+            face = draw.choice(faces)
+            hour = draw.randint(0, 23) if not face else draw.randint(1, 12)
+            read += [(hour, draw.randint(0, 59), draw.randint(0, 59), draw.random() < 0.5, draw.choice([1, 2]), face, draw.random() < 0.5)]
+        census: "dict[tuple[int, int, str], int]" = {}
+        for parts in read:
+            key = (parts[0], parts[4], parts[5])
+            census[key] = census.get(key, 0) + 1
+        for twelve_hour in (False, True):
+            assert taxonomy._clock_style_of_census(census, twelve_hour) == parsing.clock_style_of_cells(read, twelve_hour)
+
+
+def test_written_units_are_counted_along_the_instants_as_the_set_counts_them() -> None:
+    """`_different_units` and `_few_units` answer as the set of every unit and `calendar_rules.few_units` do, in order or not."""
+    draw = random.Random(47)
+    for _case in range(120):
+        instants = sorted(draw.randrange(0, 86_400 * 400) for _ in range(draw.randint(1, 400)))
+        if draw.random() < 0.3:
+            instants = [instant - instant % 86_400 for instant in instants]
+        body = [instant // 86_400 for instant in instants]
+        if draw.random() < 0.2:
+            draw.shuffle(instants)
+        groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 2)
+        for step in (1, 60, 86_400):
+            assert taxonomy._different_units(tuple(instants), step) == len({instant // step for instant in instants})
+            if groups:
+                expected = calendar_rules.few_units(groups, body, [instant // step for instant in instants])
+                assert taxonomy._few_units(groups, body, tuple(instants), step) == expected
+
+
+def _h3_affix_columns() -> "dict[str, list[str]]":
+    draw = random.Random(53)
+    notes = _h3_repair_values("bignote", 300)
+    return {
+        "notes with a dose and a date": notes,
+        "notes in lower case": _h3_repair_values("biglower", 300),
+        "units": [f"{draw.randint(1, 900)} {draw.choice(['mg', 'mg', 'mg', 'MG'])}" for _ in range(400)],
+        "flagged": [draw.choice([f"{draw.randint(10, 99)}.{draw.randint(0, 9)}", f"{draw.randint(1, 9)}.{draw.randint(0, 9)} H", f"{draw.randint(1, 9)}.{draw.randint(0, 9)} L"]) for _ in range(400)],
+        "feet and inches": [f"{draw.randint(4, 6)}'{draw.randint(0, 11)}\"" for _ in range(400)],
+        "money": [draw.choice([f"${draw.randint(1, 99)}", f"EUR{draw.randint(1, 99)}"]) for _ in range(400)],
+        "noun beside readings": [draw.choice([f"{draw.randint(1, 9)}.{draw.randint(0, 9)}", f"note {draw.randint(1, 9)}"]) for _ in range(400)],
+        "prose": [f"free comment number {draw.randint(0, 99):02d} written out" if draw.random() < 0.5 else f"FREE COMMENT NUMBER {draw.randint(0, 99):02d} WRITTEN OUT" for _ in range(400)],
+        "addresses": [f"user{draw.randint(1, 50)}@example.org" for _ in range(300)],
+        "notes repeated": notes[:100] * 3,
+        "a reading beside a few stragglers": [f"{draw.randint(1, 900)} mg" for _ in range(396)] + [f"odd {k} unit" for k in range(4)],
+        "near the line": [f"{draw.randint(1, 900)} mg" for _ in range(394)] + [f"x{k} y" for k in range(6)],
+    }
+
+
+@pytest.mark.parametrize("mask", [None, 3])
+def test_the_affix_reading_and_its_reach_are_4682d6ad_s(mask: "int | None", monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bounded by the pairs a reading can stand on, and counted off one number a cell, the pair walk answers as its map did.
+
+    ``mask`` 3 keeps two bits of each pair's hash, so most cells share a run
+    with cells of other pairs, and every run is counted again exactly.
+    """
+    _built, names = stage4_as_built.compiled(taxonomy, stage4_as_built.AFFIX_PAIRS, "affixed_reach")
+    if mask is not None:
+        monkeypatch.setattr(taxonomy, "_HASH_MASK", mask)
+    for name, cells in _h3_affix_columns().items():
+        for floor in (1, 11):
+            settings = taxonomy.Settings(small_cell_floor=floor)
+            tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), settings)
+            for forced in (False, True):
+                now = taxonomy._affixed_before_the_address_test(tallied, forced)
+                assert now == names["_affixed_before_the_address_test"](tallied, forced), (name, floor, forced)  # type: ignore[operator]
+            assert taxonomy.affixed_reach(tallied) == names["affixed_reach"](tallied), (name, floor)  # type: ignore[operator]
+
+
+def _as_4682d6ad_tally(cells: "taxonomy._Cells") -> object:
+    """The tally with 4682d6ad's two maps keyed by folded label, under their old names, beside every field it holds."""
+    counts, mixed = taxonomy._label_maps(cells)
+    fields = {field.name: getattr(cells, field.name) for field in dataclasses.fields(cells)}
+    return types.SimpleNamespace(**fields, folded_counts=counts, spellings_by_folded=mixed)
+
+
+def test_the_rules_reading_labels_answer_as_they_read_folded_labels() -> None:
+    """Asked of the first spellings, four rules answer as 4682d6ad's asked of the folded labels."""
+    _built, names = stage4_as_built.compiled(taxonomy, stage4_as_built.LABEL_READERS, "_published_distinct")
+    draw = random.Random(59)
+    shapes = dict(_tally_shapes())
+    shapes["notes"] = _h3_values("note", 200) + _h3_values("note", 50)
+    shapes["notes with capitals"] = _h3_repair_values("notecap", 300)
+    shapes["record numbers"] = _h3_values("rec", 500)
+    shapes["clocks beside rare words"] = [draw.choice(["07:00", "15:00", "19:00", "23:00"]) for _ in range(600)] + ["UNK", "Unk", "n/a", "N/A"] * 3
+    shapes["levels and numbers"] = [draw.choice(["Yes", "yes", "NO", "12", "12.0", "7", "maybe", "MAYBE"]) for _ in range(800)]
+    for name, cells in shapes.items():
+        for floor in (1, 2, 11):
+            settings = taxonomy.Settings(small_cell_floor=floor)
+            classified = taxonomy._classify_all(cells)
+            tallied = taxonomy._tally(classified, len(cells), settings)
+            old = _as_4682d6ad_tally(tallied)
+            for rule in ("_published_distinct", "_a_level_is_below_the_floor", "_floor_clearing_non_numeric"):
+                assert getattr(taxonomy, rule)(tallied) == names[rule](old), (name, floor, rule)  # type: ignore[operator]
+            now = taxonomy._rare_beside_clocks(tallied, classified, len(cells), settings, False)
+            assert now == names["_rare_beside_clocks"](old, classified, len(cells), settings, False), (name, floor)  # type: ignore[operator]
+
+
+def test_labels_whose_hashes_share_a_key_are_told_apart() -> None:
+    """With two bits of each folded label's hash kept, the tally is 66bca69's, label for label."""
+    as_built = _tally_as_built()
+    shapes = dict(_tally_shapes())
+    shapes["capitals"] = [f"Word{k % 700}" for k in range(1_400)] + [f"WORD{k}" for k in range(300)]
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(taxonomy, "_REFOLD_MASK", 3)
+        for name, cells in shapes.items():
+            classified = taxonomy._classify_all(cells)
+            now = taxonomy._tally(classified, len(cells), _SETTINGS)
+            before = as_built(classified, len(cells), _SETTINGS)  # type: ignore[operator]
+            counts, mixed = taxonomy._label_maps(now)
+            assert list(counts.items()) == list(before.folded_counts.items()), name
+            for label in before.folded_counts:
+                answered = taxonomy._label_spellings(counts, mixed, label)
+                assert list(answered.items()) == list(before.spellings_by_folded[label].items()), (name, label)
+            assert now.raw_distinct == before.raw_distinct, name
+
+
+def test_folding_a_folded_label_leaves_it_as_it_is() -> None:
+    """The tally finds a label's own first spelling by the label (`_tally`): a folded text folds to itself."""
+    texts = [chr(point) for point in range(0x110000) if not 0xD800 <= point <= 0xDFFF]
+    for text in texts + [" " + text + "x " for text in texts[::97]]:
+        label = parsing.folded(text)
+        assert parsing.folded(label) == label, repr(text)
+
+
+def test_the_rewrites_no_battery_reaches_answer_as_their_oracles() -> None:
+    """Skeptic 1's item 4: each guard of a rewrite asked where it decides, beside the oracle it stands for."""
+    # Out of order, the ordinals are counted by the set, not by their runs.
+    assert taxonomy._different_ordinals([3, 5, 3]) == 2 == len({3, 5, 3})
+    # The tally's own count stands only for the very texts in their order.
+    cells = ["a", "b", "c"]
+    tallied = taxonomy._tally(taxonomy._classify_all(cells), 3, _SETTINGS)
+    assert taxonomy._different_sources(tallied.present[:2], tallied) == 2
+    assert taxonomy._different_sources(["x", "x", "x"], tallied) == 1
+    assert taxonomy._different_sources(tallied.present, tallied) == 3
+    # Texts whose instants fall along their order are ordered by instant.
+    keyed, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.MOMENTS_KEYED, "ordered_moments")
+    falling = [("2024-01-05 10:59:99", ""), ("2024-01-05 10:60:00", ""), ("2024-01-05 10:59:99", "")]
+    assert taxonomy._moments_by_text(falling) is None
+    for read_at in (taxonomy.READ_AT_LOCAL, taxonomy.READ_AT_UTC):
+        assert taxonomy.ordered_moments(falling, read_at) == keyed(falling, read_at)  # type: ignore[operator]
+    assert taxonomy.ordered_moments(falling, taxonomy.READ_AT_LOCAL)[0][0] == "2024-01-05 10:60:00"
+    # No value above nought is read off the largest, whatever the smallest is.
+    for ordered in ([-3.0, -1.0, 2.0], [-3.0, 0.0], [-2.0, -1.0], [1.0], [-0.0, 0.0], [-5.0, 0.0, 0.0, 7.5]):
+        assert taxonomy._none_above_nought(ordered) == (len([value for value in ordered if value > 0.0]) == 0), ordered
+    # The texts handed to the tally stand only where they are the records' own.
+    classified = taxonomy._classify_all(["1", "2", "3"])
+    assert taxonomy._tally(classified[:2], 2, _SETTINGS, texts=["1", "2", "3"]).present == ["1", "2"]
+    # One float a different length and word count, shared by its rows.
+    notes = _h3_values("note", 500) + ["a b", "a b c", "abc"] * 50
+    lengths, words = taxonomy._text_measures(notes)
+    assert lengths == [float(len(note)) for note in notes]
+    assert words == [float(parsing.token_count(note)) for note in notes]
+    assert _objects(lengths) == len(set(lengths)) and _objects(words) == len(set(words))
+
+
+def test_pairs_are_ranked_by_instant_text_and_offset_as_4682d6ad_ranked_them() -> None:
+    """One whole number a pair ranks as the tuple of instant, published text, offset and place did, every tie included."""
+    built, _names = stage4_as_built.compiled(taxonomy, stage4_as_built.CENSUS_RANKED, "_census_ranked")
+    draw = random.Random(61)
+    base = datetime.datetime(2019, 3, 30, 22, 0)
+    offsets = ["", "Z", "+01:00", "-05:00", "+05:30", "+00:00"]
+    pairs: "list[tuple[str, str]]" = []
+    for _row in range(3_000):
+        moment = base + datetime.timedelta(minutes=draw.randrange(0, 600, 30))
+        canonical = moment.strftime("%Y-%m-%d %H:%M:%S") if draw.random() < 0.9 else moment.strftime("%Y-%m-%d")
+        pairs += [(canonical, draw.choice(offsets))]
+    pairs += [("0001-01-01 00:00:00", "+01:00"), ("9999-12-31 23:59:59", "-05:00"), ("1969-12-31 23:00:00", "")]
+    for read_at in (taxonomy.READ_AT_UTC, taxonomy.READ_AT_LOCAL):
+        for form in ("iso-datetime", taxonomy.FORMAT_ISO_MIXED):
+            for resolution in (taxonomy.RESOLUTION_DATETIME, taxonomy.RESOLUTION_DATE):
+                details = {"datetimes_read_at": read_at, "format": form, "resolution": resolution}
+                now: "list[int]" = []
+                before: "list[int]" = []
+                assert taxonomy._census_ranked(details, pairs, now) == built(details, pairs, before), (read_at, form)  # type: ignore[operator]
+                assert now == before, (read_at, form)
+    assert taxonomy._census_ranked({"datetimes_read_at": taxonomy.READ_AT_UTC, "format": "x", "resolution": taxonomy.RESOLUTION_DATETIME}, [("2024-01-05 10:00:00", ""), ("not a moment", "")]) is None
+
+
+# THE SKEPTICS' SHAPES, BOUNDED (lane H3's repair). Measured on the repair's
+# head (Python 3.11, traced bytes a row above the column, memos at 1,024):
+# filled in from the probes below.

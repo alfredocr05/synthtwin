@@ -18485,22 +18485,45 @@ def _census_ranked(
     if details["resolution"] not in (RESOLUTION_DATE, RESOLUTION_DATETIME):
         return None
     shared = details["datetimes_read_at"] == READ_AT_UTC
-    keyed: "list[tuple[int, str, str, int]]" = []
-    place = 0
-    for canonical, offset in pairs:
-        instant = parsing.instant_key(canonical, offset)
+    # ONE WHOLE NUMBER A PAIR, ITS INSTANT ABOVE ITS PLACE (lane H3's
+    # repair, plan P4-D423): sorted, they rank the pairs by instant and
+    # then by place, and only the pairs of one instant are ranked again by
+    # the text published for them and their offset, as the tuple of all
+    # four ranked them -- the place breaks every tie last in both. The
+    # tuple a pair, the published text a pair and the place a pair this
+    # held were about 200 bytes a row of a column of stamps with offsets.
+    packed: "list[int]" = []
+    for place in range(len(pairs)):
+        instant = parsing.instant_key(pairs[place][0], pairs[place][1])
         if instant is None:
             return None
-        shown = canonical
-        if shared:
-            at_utc = _utc_text_of(canonical, instant, offset)
-            if at_utc is not None:
-                shown = at_utc
-        keyed += [(instant, shown, offset, place)]
-        place = place + 1
-    ordered = sorted(keyed)
-    if instants is not None:
-        for instant, _shown, offset, at in ordered:
+        packed += [((instant + _RANK_BIAS) << _RANK_PLACE_BITS) | place]
+    packed = sorted(packed)
+    mask = (1 << _RANK_PLACE_BITS) - 1
+    ranked: "list[int]" = []
+    start = 0
+    while start < len(packed):
+        key = packed[start] >> _RANK_PLACE_BITS
+        stop = start + 1
+        while stop < len(packed) and packed[stop] >> _RANK_PLACE_BITS == key:
+            stop = stop + 1
+        instant = key - _RANK_BIAS
+        tied: "list[tuple[str, str, int]]" = []
+        for rank in range(start, stop):
+            at = packed[rank] & mask
+            canonical, offset = pairs[at]
+            shown = canonical
+            if shared and stop - start > 1:
+                at_utc = _utc_text_of(canonical, instant, offset)
+                if at_utc is not None:
+                    shown = at_utc
+            tied += [(shown, offset, at)]
+        if stop - start > 1:
+            tied = sorted(tied)
+        for _shown, offset, at in tied:
+            ranked += [at]
+            if instants is None:
+                continue
             if shared or offset == "":
                 instants += [instant]
                 continue
@@ -18508,7 +18531,15 @@ def _census_ranked(
             # clock, with no offset: the one pair a second key is asked of.
             local = parsing.instant_key(pairs[at][0], "")
             instants += [instant if local is None else local]
-    return [entry[3] for entry in ordered]
+        start = stop
+    return ranked
+
+
+# The whole numbers `_census_ranked` sorts the pairs by: an instant moved
+# above nought by the bias (every instant a canonical text of the years 1
+# to 9999 names is within it), then the pair's place in 32 bits.
+_RANK_BIAS = 1 << 40
+_RANK_PLACE_BITS = 32
 
 
 def _utc_text_of(canonical: str, instant: int, offset: str) -> "str | None":
