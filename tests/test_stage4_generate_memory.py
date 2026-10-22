@@ -105,6 +105,7 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
     "sparse_floor_one": ("sparse.csv", lambda: cases.sparse_table(300), ("--smallest-group", "1")),
     "latin": ("latin.csv", lambda: _LATIN, ()),
     "utf16": ("utf16.csv", lambda: _UTF16, ()),
+    "texts": ("texts.csv", lambda: cases.text_table(600), ()),
 }
 
 
@@ -116,13 +117,18 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # 8a02faa3's `synthtwin generate` wrote at seed 7 from the description
 # 8a02faa3's `synthtwin profile` made of the table, measured on Python
 # 3.11.15 (the CI floor) and 3.13 alike (`wave6/SG/repair1/`), and equal
-# to this lane's.
+# to this lane's. The text table is the one whose columns take their
+# cells from the column's plan: a plan's cells reversed moves none of
+# the other six. A later landing that moves one of these twins ON
+# PURPOSE (a description or a generation method changed) re-measures
+# its digest from its own base and says so, as for the goldens.
 _BEFORE_SHA256 = {
     "latin": "c5a78f1a7c2980c4913bfe4e220cd321f70cb28d0305df1898b02ba4519bc09c",
     "sorted": "e8e29a4957738b708feb0460709b84a8ea8194bc54d5b144c9207cf1b34830cd",
     "sorted_floor_one": "2b9a8ad0672a409a26b9eb4f4260c280348ae0b553f744d78ee050c8fda41b46",
     "sparse": "829f54e6618b56cd54b38be8f1fedc660a4fa6c4f55037969ee802aa622b7e3e",
     "sparse_floor_one": "d32dc86c471fa47d5a7d68a8118ae7c2871540f18b7adf2fbcd170f830725b27",
+    "texts": "74c05d84bf826a01ac60afd8a89ba87c00dd80990258a4ba53fefe895c1957ed",
     "utf16": "dd69f4534646ca603000e5a98d1b76834c78c7b6b45b3757b29cfb21c3d26fde",
     "wide": "edaee2c842fa47c880123a55c7b195416b4a7d63334cf1165be690dfc5f84097",
 }
