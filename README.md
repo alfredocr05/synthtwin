@@ -583,10 +583,11 @@ run, whether or not anything else went wrong.
   describes each column on its own, and the twin therefore carries no
   cross-column structure at all; how columns move together arrives in a
   later phase (Phase 5).
-- **[planned]** PyPI publication - with signed, reproducible, attested
-  releases. Phase 3 named it that phase's earliest-possible deliverable
-  and Phase 3 closed on 2026-08-19 without it, so no phase carries it
-  now: it is release engineering, waiting on its own checklist in
+- **[planned]** The release: signed, reproducible, attested offline
+  bundles, one per kind of computer, which CI already builds and tests
+  (plan P4-D416). It is never published on PyPI: the owner decided on
+  2026-10-20 that the offline bundle is the only way synthtwin is
+  installed. It waits on its own checklist in
   `docs/plans/phase-3-product.md` and on the owner's go decision.
 
 ## The security architecture, in plain language
@@ -736,42 +737,66 @@ seed, so byte-stability is promised only across identical inputs.
 
 ## Before you start
 
-synthtwin runs on Python 3.11 or later, on a Mac, on Windows or on
-Linux. You need nothing else installed first: the install script below
-fetches everything else. To see which Python a computer has (Ubuntu
-22.04's own Python is 3.10, which is too old):
+synthtwin runs on Python 3.11, 3.12, 3.13 or 3.14 -- not yet on 3.15 or
+later -- on a Mac with an Apple chip (M1 or later) running macOS 12
+(Monterey) or later, on Windows on a 64-bit Intel or AMD computer, or on
+Linux on a 64-bit Intel or AMD computer whose system library is glibc
+(Ubuntu, Debian, Fedora, Red Hat and most others; not Alpine). A Mac
+with an Intel chip, and
+a Windows or Linux computer with an Arm processor, have no bundle yet;
+the install script says so in plain words. You need nothing else
+installed first: the bundle below holds everything else. To see which
+Python a computer has (Ubuntu 22.04's own Python is 3.10, which is too
+old):
 
 **On a Mac.** Open Terminal (Applications, then Utilities) and type
-`python3 --version`. If it prints `Python 3.11` or a later number, you
-are ready. If it prints an older number, or a window offers to install
-"command line developer tools", go to python.org, choose Downloads, and
-download the newest Python 3 installer for macOS. Open the file you
-downloaded and follow its steps. Then close Terminal, open it again and
-type `python3 --version` once more.
+`python3 --version`. If it prints `Python 3.11`, `3.12`, `3.13` or
+`3.14`, you are ready. If it prints another number, or a window offers
+to install "command line developer tools", go to python.org, choose
+Downloads, then the newest Python 3.14 release, and download its
+installer for macOS. Open the file you downloaded and follow its steps.
+Then close Terminal, open it again and type `python3.14 --version`: it
+should print `Python 3.14`. The install script finds it even when a
+newer Python is there too.
 
 **On Windows.** Open Command Prompt (type `cmd` in the Start menu) and
-type `python --version`. If it prints `Python 3.11` or a later number,
-you are ready. If it prints an older number, says the command is not
-recognized, or opens the Microsoft Store, go to python.org, choose
-Downloads, and download the newest Python 3 installer for Windows. Run
-it and, on its first screen, tick "Add python.exe to PATH" before you
-choose "Install Now". Then close Command Prompt and open a new one.
+type `python --version`. If it prints `Python 3.11`, `3.12`, `3.13` or
+`3.14`, you are ready. If it prints another number, says the command is
+not recognized, or opens the Microsoft Store, go to python.org, choose
+Downloads, then the newest Python 3.14 release, and download its
+"Windows installer (64-bit)". Run it and, on its first screen, tick
+"Add python.exe to PATH" before you choose "Install Now". Then close
+Command Prompt, open a new one and type `py -3.14 --version`: it should
+print `Python 3.14`.
 
 **On Linux.** Type `python3 --version` in a terminal. On Debian and
 Ubuntu the private environment the script makes needs one more package,
 which the person who looks after the computer can add with
 `sudo apt install python3-venv`.
 
-**Then get the synthtwin folder.** Either download it -- on
-https://github.com/alfredocr05/synthtwin choose "Code", then "Download
-ZIP", and unzip it -- or, if you use git, type
-`git clone https://github.com/alfredocr05/synthtwin`.
+**Then get the synthtwin bundle for your computer.** synthtwin is
+installed from one file and nothing else: an offline bundle, one per
+kind of computer -- `synthtwin-<version>-macos_arm64.zip` for a Mac with
+Apple silicon, `synthtwin-<version>-win_amd64.zip` for Windows,
+`synthtwin-<version>-linux_x86_64.zip` for Linux. It holds every library
+synthtwin needs for Python 3.11 to 3.14, each pinned to an exact version
+and checked by its hash, the install script and a plain-words guide,
+`INSTALL.txt`. Unzip it: it holds one folder of the same name, and you
+install from that folder. It is never published on PyPI (the owner's
+decision of 2026-10-20, plan P4-D416). **[planned]** The bundles are
+built and tested by CI on every change, with the network denied, and
+are handed out with the first release. Until then a person with access
+to the repository's CI can take one from a CI run: on the run's page,
+under Artifacts, `synthtwin-bundle-<platform>` holds the zip for 5 days
+after the run. GitHub hands it over zipped once more, so unzip twice:
+first the download, then the `synthtwin-<version>-<platform>.zip`
+inside it. A copy of this repository is not a bundle: the install
+script run in it says so and sends you here.
 
 ## Installing
 
-synthtwin is **not on PyPI** yet. It installs with one command, typed in
-the synthtwin folder (`cd` into it first; a downloaded ZIP unzips to a
-folder named `synthtwin-main`).
+It installs with one command, typed in the bundle's folder (`cd` into
+it first; `INSTALL.txt` in the bundle says how, step by step).
 
 On a Mac or Linux:
 
@@ -785,22 +810,29 @@ On Windows, in Command Prompt:
 scripts\install.bat
 ```
 
-The script finds Python 3.11 or later, makes a fresh private environment
-named `.venv` inside the synthtwin folder so nothing else on the computer
+The script takes no folder and needs no internet. It finds a Python the
+bundle serves, 3.11 to 3.14 -- the one you type first (`python3` or
+`python`), then each of those versions by its own name, newest first,
+so a Python 3.15 beside a 3.14 takes the 3.14, and only the usual
+Python from python.org, not its free-threaded build -- and says in plain
+words which Python to install if there is none; checks every file of the
+bundle against the bundle's `SHA256SUMS`, every library against the
+hashes `requirements-install.lock` pins, and that the bundle was made
+for this computer -- its system, its chip and, on a Mac, its macOS
+version -- and this Python, and that it holds every library this
+computer needs, before it changes anything; makes a fresh private environment named
+`.venv` inside the bundle's folder so nothing else on the computer
 changes (an earlier one there is replaced, so every file in it is
 checked again, and a package you installed into it yourself must be
-installed again afterwards), installs the four libraries synthtwin
-needs -- numpy, pandas, pyarrow and scipy -- from `requirements-install.lock` with
-the hash of every file checked (`--require-hashes`), installs synthtwin
-from the folder, and ends by running `synthtwin doctor` (below). It
-needs the internet once, for those locked files and for the packaging
-tool pip uses to install the folder. It is a `.bat` file on Windows, not
-a PowerShell script, because many managed computers refuse to run
-PowerShell scripts.
+installed again afterwards); installs the four libraries synthtwin
+needs -- numpy, pandas, pyarrow and scipy -- and synthtwin itself from
+the bundle and nothing else; and ends by running `synthtwin doctor`
+(below). It is a `.bat` file on Windows, not a PowerShell script,
+because many managed computers refuse to run PowerShell scripts.
 
 After the script, in the same window, and each time you open a new
 terminal window to use synthtwin, switch its private environment on
-first, in the synthtwin folder:
+first, in the bundle's folder:
 
 ```
 source .venv/bin/activate
@@ -817,7 +849,9 @@ On Windows, synthtwin writes the commands it prints for PowerShell. In
 Command Prompt, type a path it shows between single quotes between
 double quotes instead: where it printed
 `synthtwin generate 'C:\Users\Ana Maria\clinic-profile.json'`, type
-`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"`.
+`synthtwin generate "C:\Users\Ana Maria\clinic-profile.json"`. Where two
+single quotes stand together inside such a name, type one: where it
+printed `'Crohn''s disease'`, type `"Crohn's disease"`.
 
 ### Checking the computer: `synthtwin doctor`
 
@@ -838,43 +872,15 @@ PROBLEM says what to do next. The output folder is the one
 `--out-dir` names, else the table's folder, else the current folder; the
 check writes a small test file there and removes it at once.
 
-### With no internet at all, every file checked by hash
+### What the install does, every file checked by hash
 
-**The offline bundle [planned].** synthtwin is to ship, for each
-platform, one file holding every library it needs for Python 3.11 to
-3.14, each pinned to an exact version and checked by its hash, with the
-install script inside it: unzip it and run the script, on a computer
-with no network at all (plan P4-D409; the bundle is built and tested by
-CI, network denied, before a release carries it). Until a release
-carries one, the same locked files are collected by hand as follows.
-
-On a machine that must install everything by hash, and that may have no
-network at all, the procedure has two parts. The first needs a machine
-that does have network access, the same system and the same Python
-version as the locked-down one (pip fetches the files for the machine it
-runs on); the second does not.
-
-**On a connected machine**, in the synthtwin folder, collect the exact
-files, verifying every hash as they arrive, then copy the whole
-synthtwin folder across, the `wheelhouse` folder inside it:
-
-```
-pip download --require-hashes --only-binary=:all: \
-    --dest wheelhouse -r requirements-install.lock
-```
-
-Put the synthtwin wheel (`synthtwin-<version>-py3-none-any.whl`, from a
-release) into that same folder.
-
-**On the locked-down machine**, in the synthtwin folder, install from
-the `wheelhouse` folder and nothing else, with the install script given
-that folder:
-
-```
-sh scripts/install.sh wheelhouse
-```
-
-On Windows that is `scripts\install.bat wheelhouse`. The script runs
+The bundle is made for a computer with no network at all. Its folder
+holds `wheelhouse/` (every library file for Python 3.11 to 3.14 on that
+kind of computer, and the synthtwin file itself),
+`requirements-install.lock`, `scripts/`, `INSTALL.txt`, `LICENSE`,
+`THIRD-PARTY-NOTICES.txt` (the libraries' own licences, gathered when
+the bundle was built) and `SHA256SUMS`, the SHA-256 of every other file.
+`scripts/check_bundle.py` checks them all first. The script then runs
 exactly these two pip commands inside its private environment, which
 you can also type yourself, then `synthtwin doctor`. It runs them with
 this computer's own pip settings set aside (`--isolated`, and
@@ -890,19 +896,14 @@ pip install --no-index --no-deps wheelhouse/synthtwin-<version>-py3-none-any.whl
 
 Both pip commands are barred from the network by `--no-index`, and the
 first checks every hash. `--no-deps` on the second is what keeps the
-verified versions in place.
+verified versions in place. When a file is missing, pip stops, and so
+does the script: there is no way round the bundle.
 
-Do **not** substitute `pip install .` from a source folder for the
-second command. It runs a build backend that pip fetches from the
-network, `requirements-install.lock` does not pin that backend, and on a
-machine with no network it simply fails. CI runs exactly the two pip
-commands above on every build, against the wheel produced inside a
-container with no network, and runs the install script itself, from such
-a wheel folder, on Ubuntu, Windows and macOS.
-
-From Phase 3's visibility flip onward the repository is public and
-these commands work for anyone, with no account and no authentication;
-the hash-verified procedure itself is the same either way.
+CI builds the bundle on each kind of computer's own runner, from the
+lock with every hash checked, and installs it on a clean runner of each
+under each Python, with the network denied, before it runs the golden
+tests on what it installed -- the twin's bytes against the committed
+reference vectors (plan P4-D416).
 
 Running `synthtwin` with no arguments prints the version and what the
 tool can do today.

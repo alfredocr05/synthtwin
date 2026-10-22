@@ -690,6 +690,26 @@ attribute absent from it is not allowed at all:
   objmode, config, jit -- is reachable, and llvmlite is forbidden
   outright. numba's settings by environment variable are lane MPn's
   to close (P4-D409 part 4 (vi)).
+* THE FLOAT POWERS (plan P4-D409 parts 2 and 3 (f); entered by lane
+  DEP-2, plan P4-D416; _FLOAT_POWERS). No standard requires `pow` to
+  round correctly, and the measuring Mac's does not: `x ** 0.5` differs
+  from math.sqrt on 2,672 of 2,000,000 random doubles, `x ** 2` from
+  `x * x` on 2,609 of 2,000,000, by one last bit each. So in every
+  module of zones G, D, R and W, a `**` is a violation when a float
+  literal stands in either operand (other than an exact power of two:
+  the literal 2 or 2.0 raised to a whole-number literal, P4-D409 part
+  3 (e)) or when a computed base is raised to a whole-number literal of
+  2 or more -- on a float that is the platform's pow, where `x * x`
+  rounds alike everywhere -- unless the site is entered in
+  _FLOAT_POWERS by its module, its function and its text, with its
+  audit. Today's eight are entered there as P4-D409's named exceptions
+  and stated limit, each to be rewritten in operations every computer
+  rounds alike (math.sqrt, `x * x`, repeated multiplication as
+  validation._tail_pow does, a written constant), a method change
+  under A-P4-59; one more site, an integer square, is entered as
+  exact. The tests hold every entry to a site of the real source, so
+  the table never outlives the code. What the syntax cannot show -- a power of a
+  name that holds a float, raised to a name -- is AGENTS.md's check.
 * Accepted built-ins: sorted, min, and max (key SLOT); map and
   filter (the function argument SLOT); the two-argument form of iter
   (the callable argument SLOT); print (file SLOT -- print invokes
@@ -875,6 +895,202 @@ _ZONE_NAMES: "dict[str, str]" = {
     _ZONE_R: "zone R (reading the person's file)",
     _ZONE_W: "zone W (writing the twin's file)",
 }
+
+
+# THE FLOAT POWERS (plan P4-D409 parts 2 and 3 (f); lane DEP-2, plan
+# P4-D416). Each site is keyed by its module, the dotted name of the
+# function it sits in ("" at module level) and its text as ast.unparse
+# writes it; the value is its audit. The first eight are the named
+# exceptions and stated limit of P4-D409 part 3 (f): each reaches the
+# platform's pow on a float, measured on one Mac only (part 2), until
+# it is rewritten in operations every computer rounds alike, a method
+# change under A-P4-59 whose moved goldens and vectors are named.
+_FLOAT_POWER_MEASURED_SQRT = (
+    "x ** 0.5 differs from math.sqrt(x) on 2,672 of 2,000,000 random "
+    "doubles on the measuring Mac, by one last bit (P4-D409 part 2); "
+    "to be written math.sqrt"
+)
+_FLOAT_POWERS: "dict[tuple[str, str, str], str]" = {
+    (
+        "synthtwin.generation",
+        "_repaired_pairing._away",
+        "(spread[first] * spread[second]) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.generation",
+        "_repaired_pairing._conforming",
+        "(spread[first] * spread[second]) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.generation",
+        "_repaired_pairing._owed",
+        "(spread[first] * spread[second]) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.generation",
+        "",
+        "10.0 ** (-parsing.RANK_AGREEMENT_PLACES)",
+    ): (
+        "the pair walk's margin; 10.0 ** -4 agreed with the correctly "
+        "rounded value on the measuring Mac (P4-D409 part 2), still the "
+        "platform's pow; to be written as a constant"
+    ),
+    (
+        "synthtwin.parsing",
+        "rank_agreement",
+        "(spread_left * spread_right) ** 0.5",
+    ): _FLOAT_POWER_MEASURED_SQRT,
+    (
+        "synthtwin.calendar_clock",
+        "lattice_crowded",
+        "(1.0 - 1.0 / room) ** parsed",
+    ): (
+        "the calendar's power differs from the correctly rounded one on 58 "
+        "of 50,000 pairs on the measuring Mac (P4-D409 part 2); to be "
+        "written as repeated multiplication, as validation._tail_pow does"
+    ),
+    (
+        "synthtwin.calendar_clock",
+        "lattice_crowded",
+        "(1.0 - 1.0 / points) ** parsed",
+    ): (
+        "the calendar's power differs from the correctly rounded one on 58 "
+        "of 50,000 pairs on the measuring Mac (P4-D409 part 2); to be "
+        "written as repeated multiplication, as validation._tail_pow does"
+    ),
+    (
+        "synthtwin.calendar_rules",
+        "_per_freedom",
+        "(observed[index] - expected) ** 2",
+    ): (
+        "a float squared: x ** 2 differs from x * x on 2,609 of 2,000,000 "
+        "random doubles on the measuring Mac (P4-D409 part 2); to be "
+        "written x * x"
+    ),
+}
+
+# Powers the rule reads as float powers that are exact: Python integers
+# raised to a whole number, which Python computes exactly.
+_EXACT_POWERS: "dict[tuple[str, str, str], str]" = {
+    (
+        "synthtwin.validation",
+        "_tail_power",
+        "(found + 2) ** 2",
+    ): (
+        "found is a Python integer the loop counts up from 0, so the square "
+        "is an exact integer (G7.3b's comparison, taken exactly)"
+    ),
+}
+
+_POWER_ZONES = frozenset({_ZONE_G, _ZONE_D, _ZONE_R, _ZONE_W})
+
+
+def _is_whole_literal(node: ast.AST) -> bool:
+    """An int literal, or a negated one (bool excluded)."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        node = node.operand
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
+    )
+
+
+def _whole_literal_value(node: ast.AST) -> int:
+    """The value of a node _is_whole_literal accepts: 2, -2 or +2."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        inner = _whole_literal_value(node.operand)
+        return -inner if isinstance(node.op, ast.USub) else inner
+    assert isinstance(node, ast.Constant) and isinstance(node.value, int)
+    return node.value
+
+
+def _holds_float_literal(node: ast.AST) -> bool:
+    return any(
+        isinstance(inner, ast.Constant) and isinstance(inner.value, float)
+        for inner in ast.walk(node)
+    )
+
+
+def _float_power_reason(base: ast.AST, exponent: ast.AST) -> "str | None":
+    """Why a `base ** exponent` may reach the platform's pow, or None.
+
+    An exact power of two -- the literal 2 or 2.0 raised to a whole
+    number literal -- is no float power (P4-D409 part 3 (e)). Otherwise a
+    float literal in either operand makes it one, and so does a computed
+    base raised to any whole-number literal but 0 and 1, a negative one
+    included (`x ** -2`; lane DEP-2's skeptic, item 8), which on a float
+    is the platform's pow where `x * x` or `1.0 / (x * x)` rounds alike
+    everywhere.
+    """
+    if (
+        isinstance(base, ast.Constant)
+        and type(base.value) in (int, float)
+        and base.value == 2
+        and _is_whole_literal(exponent)
+    ):
+        return None
+    if _holds_float_literal(base) or _holds_float_literal(exponent):
+        return "a float literal stands in it"
+    if (
+        not isinstance(base, ast.Constant)
+        and _is_whole_literal(exponent)
+        and _whole_literal_value(exponent) not in (0, 1)
+    ):
+        return "a computed base is raised to a whole number"
+    return None
+
+
+def _float_power_violations(
+    tree: ast.Module, module_name: str, zone: str
+) -> "list[tuple[int, str]]":
+    """The float-power rule (P4-D409 part 3 (f); lane DEP-2, P4-D416).
+
+    Every `**` of a zone G, D, R or W module that _float_power_reason
+    reads as a float power is a violation unless _FLOAT_POWERS or
+    _EXACT_POWERS enters its site. tests/test_offline_scan.py holds the
+    two tables to the code: each entry's site is found in the real
+    source and is red without its entry.
+    """
+    if zone not in _POWER_ZONES:
+        return []
+    found: "list[tuple[int, str]]" = []
+    walking: "list[tuple[ast.AST, str]]" = [(tree, "")]
+    while walking:
+        node, where = walking.pop()
+        for child in ast.iter_child_nodes(node):
+            inside = where
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                inside = child.name if not where else where + "." + child.name
+            walking += [(child, inside)]
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+            base, exponent = node.left, node.right
+        elif isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Pow):
+            base, exponent = node.target, node.value
+        else:
+            continue
+        reason = _float_power_reason(base, exponent)
+        if reason is None:
+            continue
+        key = (module_name, where, ast.unparse(node))
+        if key in _FLOAT_POWERS or key in _EXACT_POWERS:
+            continue
+        found += [
+            (
+                getattr(node, "lineno", 1),
+                "raises to a power where " + reason + " ('" + key[2] + "' in "
+                + (where or "the module's body") + "): on a float `**` is "
+                "the platform's pow, which no standard requires to round "
+                "correctly, so the same description could give different "
+                "bytes on two computers (plan P4-D409 parts 2 and 3 (f)). "
+                "Write it in operations every computer rounds alike -- "
+                "math.sqrt for ** 0.5, x * x for ** 2, repeated "
+                "multiplication for a whole power, a written constant for "
+                "a literal -- or, for an integer power, enter its site in "
+                "_EXACT_POWERS with its audit.",
+            )
+        ]
+    return found
 
 
 def _zone_message(dotted: str, prefix: str, zone: str) -> str:
@@ -6068,6 +6284,7 @@ def scan_source(
             for decorator in statement.decorator_list:
                 checker.top_level_decorator_calls.add(id(decorator))
     checker.visit(tree)
+    checker.violations += _float_power_violations(tree, module_name, zone)
     return sorted(checker.violations)
 
 

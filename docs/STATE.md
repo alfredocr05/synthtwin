@@ -500,10 +500,12 @@ cannot get worse unseen.
   naming the style miss: the forms lane FM's (P4-D403).
 - **Stated limits given their owners at batch 4d (2026-10-20)** (the
   orchestrator's namings of 2026-10-19 and 2026-10-20, written at the
-  batch's integration; the owner may reverse any). The clone install
-  fetches pip's build backend unpinned, and the install scripts run on
-  Windows and macOS only in CI: lane DEP's, whose offline bundle pins
-  everything and from which CI installs. Free memory cannot be read
+  batch's integration; the owner may reverse any). The clone install,
+  which fetched pip's build backend unpinned, is gone: the offline
+  bundle is the only install (lane DEP-2, P4-D416), and the install
+  scripts run on Windows and macOS only in CI, where `bundle-test`
+  installs each platform's bundle with the network denied (by pip's own
+  options there, by the kernel on Linux). Free memory cannot be read
   without native code, so `doctor` weighs total memory: the terminal
   track's lane TT (both P4-D397). The register's peak growing about
   245 MB a million rows, and a text whose sightings past the bound are

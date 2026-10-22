@@ -603,7 +603,14 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # environment it hands its child. What it loads is a committed file under
 # tools/, which this guard reads directly, so the floor holds for it as it
 # does for the other thirty-nine.
-FILES_LOADED_AS_MODULES = 40
+#
+# 41 AT THE INTEGRATION OF BATCH 4F (2026-10-22), which merged lane DEP-2's
+# own 40 (plan P4-D416) with batch 4e's 40: `tests/test_bundle.py` loads
+# the bundle's builder and its check, `tools/bundle/build_bundle.py` and
+# `tools/bundle/check_bundle.py`, through one call. What it loads are
+# committed files under tools/, which this guard reads directly, so the
+# floor holds for them as it does for the other forty.
+FILES_LOADED_AS_MODULES = 41
 
 
 def _files() -> "list[pathlib.Path]":

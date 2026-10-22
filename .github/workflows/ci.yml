@@ -207,42 +207,39 @@ jobs:
         # project build hook ever executes is the build job's
         # --network none container.
         run: python -m pip install --no-index --no-deps dist/*.whl
-      - name: Install from a wheel folder with the install script, then run doctor
-        # Plan P4-D397 (lane TI, K-S8-04): the scripts a person runs,
-        # scripts/install.sh on Ubuntu and macOS and scripts\install.bat
-        # on Windows, run here as README's "Installing" gives them for a
-        # machine with no internet. The folder is filled the way README
-        # says -- `pip download --require-hashes` from
-        # requirements-install.lock, plus the wheel the build job made in
-        # its no-network container -- and the script installs from it
-        # with --no-index --find-links --require-hashes, then with
+      - name: Install from a wheel folder with the install script, made into a bundle, then run doctor
+        # Plans P4-D397 (lane TI, K-S8-04) and P4-D416 (lane DEP-2): the
+        # scripts a person runs, scripts/install.sh on Ubuntu and macOS and
+        # scripts\install.bat on Windows, run here on a bundle as the
+        # bundle-build job makes one -- tools/bundle/build_bundle.py over
+        # the wheels `pip download --require-hashes` fetches from
+        # requirements-install.lock for this cell's system and Python, plus
+        # the wheel the build job made in its no-network container -- with
+        # no argument: each script checks SHA256SUMS first, installs with
+        # --isolated --no-index --find-links --require-hashes, then with
         # --no-index --no-deps, and ends by running `synthtwin doctor`,
-        # whose exit code fails this step. Once a cell, on the first
-        # shard, for every platform and Python of the matrix. The scripts
-        # and the lock are copied into a folder of their own first, so the
-        # private environment is made outside this checkout (the suite
-        # below never walks it) and the install is proved to need nothing
-        # of the source tree but those three files. That folder's name
-        # holds a space, as a Windows user folder or a OneDrive folder
-        # often does, so every path the scripts build is quoted where it
-        # counts (lane TI's repair).
+        # whose exit code fails this step. Once a cell, on the first shard,
+        # for every platform and Python of the matrix. The bundle is made
+        # outside this checkout (the suite below never walks it), in a
+        # folder whose name holds a space, as a Windows user folder or a
+        # OneDrive folder often does, so every path the scripts build is
+        # quoted where it counts (lane TI's repair).
         if: matrix.shard == 1
         run: |
           WHEELS="$RUNNER_TEMP/install-wheels"
           FRESH="$RUNNER_TEMP/fresh install"
           python -m pip download --require-hashes --only-binary=:all: \
             --dest "$WHEELS" -r requirements-install.lock
-          cp dist/*.whl "$WHEELS/"
-          mkdir -p "$FRESH/scripts"
-          cp scripts/install.sh scripts/install.bat "$FRESH/scripts/"
-          cp requirements-install.lock "$FRESH/"
-          cd "$FRESH"
+          python tools/bundle/build_bundle.py --wheelhouse "$WHEELS" \
+            --synthtwin-wheel dist/*.whl --platform "ci-$RUNNER_OS" --out "$FRESH"
+          BUNDLE="$(python -c "import os, pathlib; print(next(pathlib.Path(os.environ['RUNNER_TEMP'], 'fresh install').glob('synthtwin-*')))")"
+          cd "$BUNDLE"
           if [ "$RUNNER_OS" = "Windows" ]; then
-            MSYS_NO_PATHCONV=1 cmd.exe /d /c "scripts\\install.bat $(cygpath -w "$WHEELS")"
+            MSYS_NO_PATHCONV=1 cmd.exe /d /c "scripts\\install.bat"
             test -f .venv/Scripts/synthtwin.exe
             .venv/Scripts/python.exe -m synthtwin --version
           else
-            sh scripts/install.sh "$WHEELS"
+            sh scripts/install.sh
             test -x .venv/bin/synthtwin
             .venv/bin/python -m synthtwin --version
           fi
@@ -1588,6 +1585,366 @@ jobs:
           echo "shard ${{ matrix.shard }} of $SHARD_COUNT: $(wc -l < shard-files.txt) test files"
           python -m pytest $(cat shard-files.txt)
 
+  bundle-build:
+    # THE OFFLINE BUNDLE, THE ONLY WAY SYNTHTWIN IS INSTALLED (plan
+    # P4-D416, lane DEP-2; the owner's D3 of 2026-10-20; plan P4-D409
+    # part 7). One bundle per platform, built on that platform's own
+    # runner: `pip download` evaluates the lock's markers for the
+    # machine it runs on, so a cross-download would drop Windows' tzdata.
+    # Every Python the tests matrix proves (3.11 to 3.14, plan P4-D410)
+    # downloads its wheels of requirements-install.lock with every hash
+    # checked and binary wheels only; tools/bundle/build_bundle.py then
+    # refuses any file that is not a wheel the lock pins by its SHA-256,
+    # adds the synthtwin wheel the build job made in its no-network
+    # container, the install scripts and their check, INSTALL.txt,
+    # THIRD-PARTY-NOTICES.txt gathered from the wheels' own metadata
+    # (never committed: the decontamination scanner matches lines of the
+    # libraries' licence texts, and wheels are binary files) and
+    # SHA256SUMS over every file. The zip, synthtwin-<version>-<platform>.zip
+    # as README names it, goes to bundle-test as this run's artifact and
+    # nowhere else: nothing is published. On macOS the wheels are the
+    # ones macOS 12 takes (pip download --platform macosx_12_0_arm64),
+    # not the macOS 14 wheels pip would pick for the runner itself, so
+    # the bundle serves every Mac with an Apple chip on macOS 12 or later
+    # and bundle-test proves those wheels' bytes (lane DEP-2's skeptic,
+    # item 3); a wheel needing a newer macOS stops the job.
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux_x86_64
+          - os: windows-latest
+            platform: win_amd64
+          - os: macos-latest
+            platform: macos_arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py311
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py312
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py313
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py314
+        with:
+          python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        run: |
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
+      - name: Download the wheel built inside the no-network container
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: synthtwin-wheel
+          path: dist
+      - name: Download every Python's wheels, hash-checked, wheels only
+        env:
+          PY311: ${{ steps.py311.outputs.python-path }}
+          PY312: ${{ steps.py312.outputs.python-path }}
+          PY313: ${{ steps.py313.outputs.python-path }}
+          PY314: ${{ steps.py314.outputs.python-path }}
+        run: |
+          for PY in "$PY311" "$PY312" "$PY313" "$PY314"; do
+            if [ "$RUNNER_OS" = "macOS" ]; then
+              VERSION="$("$PY" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+              "$PY" -m pip download --require-hashes --only-binary=:all: \
+                --platform macosx_12_0_arm64 --implementation cp \
+                --python-version "$VERSION" --abi "cp${VERSION/./}" \
+                --dest "$RUNNER_TEMP/wheelhouse" -r requirements-install.lock
+            else
+              "$PY" -m pip download --require-hashes --only-binary=:all: \
+                --dest "$RUNNER_TEMP/wheelhouse" -r requirements-install.lock
+            fi
+          done
+          if ls "$RUNNER_TEMP/wheelhouse" | grep -E 'macosx_(1[3-9]|[2-9][0-9])_'; then
+            echo "A wheel above needs a macOS newer than 12; the bundle serves macOS 12 and later."
+            exit 1
+          fi
+      - name: Assemble the bundle (every file hashed, notices gathered)
+        run: |
+          python tools/bundle/build_bundle.py \
+            --wheelhouse "$RUNNER_TEMP/wheelhouse" \
+            --synthtwin-wheel dist/synthtwin-*.whl \
+            --platform "${{ matrix.platform }}" \
+            --out "$RUNNER_TEMP/bundle" \
+            --zip-into "$RUNNER_TEMP/zipped"
+      - name: Check the bundle with every Python it serves
+        env:
+          PY311: ${{ steps.py311.outputs.python-path }}
+          PY312: ${{ steps.py312.outputs.python-path }}
+          PY313: ${{ steps.py313.outputs.python-path }}
+          PY314: ${{ steps.py314.outputs.python-path }}
+        run: |
+          BUNDLE="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'bundle').glob('synthtwin-*')))")"
+          for PY in "$PY311" "$PY312" "$PY313" "$PY314"; do
+            "$PY" -I "$BUNDLE/scripts/check_bundle.py" "$BUNDLE"
+          done
+          du -sh "$BUNDLE"
+      - name: Hand the bundle to bundle-test (this run's artifact only)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: synthtwin-bundle-${{ matrix.platform }}
+          path: ${{ runner.temp }}/zipped/synthtwin-*-${{ matrix.platform }}.zip
+          if-no-files-found: error
+          retention-days: 5
+
+  bundle-test:
+    # THE BUNDLE INSTALLED AS A PERSON INSTALLS IT, THE NETWORK DENIED
+    # (plan P4-D416). On a clean runner of each platform, under each
+    # Python 3.11 to 3.14: unzip the bundle into a folder whose name
+    # holds a space, deny the network, run the install script with no
+    # argument (it checks SHA256SUMS, then pip installs with --isolated
+    # --no-index --require-hashes, then runs `synthtwin doctor`), then
+    # profile, generate and validate an invented table and run the
+    # golden tests -- the twin's bytes against the committed reference
+    # vectors -- on the installed synthtwin. On Linux the network is
+    # denied by the kernel (a network namespace with no interface but
+    # its own loopback); on macOS and Windows by pip's own --no-index and
+    # --isolated with every proxy pointed at a closed port, and the step
+    # proves each denial before it installs. pytest itself, which the
+    # bundle does not carry, is fetched hash-checked from the
+    # development lock BEFORE the network is denied, into a folder of
+    # its own; the bundle's environment stays the bundle's.
+    needs: bundle-build
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        system:
+          - os: ubuntu-latest
+            platform: linux_x86_64
+          - os: windows-latest
+            platform: win_amd64
+          - os: macos-latest
+            platform: macos_arm64
+    runs-on: ${{ matrix.system.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Download this platform's bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: synthtwin-bundle-${{ matrix.system.platform }}
+          path: ${{ runner.temp }}/zipped
+      - name: Fetch pytest for the golden tests, hash-checked, outside the bundle
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python - <<'SCRIPT'
+          import pathlib
+          import re
+
+          wanted = {"pytest", "iniconfig", "packaging", "pluggy", "pygments", "colorama"}
+          text = pathlib.Path("requirements-dev.lock").read_text(encoding="utf-8")
+          kept = [
+              block
+              for block in re.findall(r"^[a-z0-9_.-]+==(?:[^\n]*\\\n)*[^\n]*", text, re.M)
+              if block.split("==", 1)[0] in wanted
+          ]
+          assert {block.split("==", 1)[0] for block in kept} == wanted, kept
+          pathlib.Path("pytest-only.txt").write_text("\n".join(kept) + "\n", encoding="utf-8")
+          SCRIPT
+          python -m pip install --require-hashes --only-binary=:all: --no-deps \
+            --target "$RUNNER_TEMP/pytest-only" -r pytest-only.txt
+      - name: Unzip the bundle into a folder whose name holds a space
+        run: |
+          python - <<'SCRIPT'
+          import os
+          import pathlib
+          import zipfile
+
+          temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          (archive,) = sorted((temp / "zipped").glob("*.zip"))
+          with zipfile.ZipFile(archive) as opened:
+              opened.extractall(temp / "clean bundle")
+          SCRIPT
+      - name: Deny the network, prove it denied, install, run doctor
+        env:
+          PYTHON_CELL: ${{ matrix.python-version }}
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
+          else
+            offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 \
+              ALL_PROXY=http://127.0.0.1:9 http_proxy=http://127.0.0.1:9 \
+              https_proxy=http://127.0.0.1:9 NO_PROXY= no_proxy= "$@"; }
+          fi
+          offline python -I -c "
+          import sys, urllib.request
+          try:
+              urllib.request.urlopen('https://pypi.org/simple/', timeout=20)
+          except OSError as error:
+              print('the network is denied here:', type(error).__name__)
+          else:
+              sys.exit('pypi.org was reached: the network is NOT denied')
+          "
+          BUNDLE="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'clean bundle').glob('synthtwin-*')))")"
+          cd "$BUNDLE"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export MSYS_NO_PATHCONV=1
+            offline cmd.exe /d /c "scripts\\install.bat" 2>&1 | tee install.log
+            status=${PIPESTATUS[0]}
+            test -f .venv/Scripts/synthtwin.exe
+          else
+            offline sh scripts/install.sh 2>&1 | tee install.log
+            status=${PIPESTATUS[0]}
+            test -x .venv/bin/synthtwin
+          fi
+          test "$status" -eq 0
+          if grep -E "Downloading|Looking in indexes|Looking in links: http|Retrying|Could not fetch URL|ProxyError|NewConnectionError|Failed to establish|pypi.org|files.pythonhosted.org" install.log; then
+            echo "pip reached for the network during the install; the bundle must be enough."
+            exit 1
+          fi
+          python -I - "$PYTHON_CELL" <<'SCRIPT'
+          import pathlib
+          import re
+          import sys
+
+          said = pathlib.Path("install.log").read_text(encoding="utf-8", errors="replace")
+          used = re.findall(r"^using .* (\d+\.\d+)\.\d+", said, re.M)
+          print("the install used Python", used, "in the cell of", sys.argv[1])
+          if used != [sys.argv[1]]:
+              sys.exit("The script installed with another Python than this cell's.")
+          SCRIPT
+      - name: A bundle with one changed byte is refused before anything is made
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
+          else
+            offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 "$@"; }
+          fi
+          BUNDLE="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'clean bundle').glob('synthtwin-*')))")"
+          CHANGED="$RUNNER_TEMP/changed bundle/$(basename "$BUNDLE")"
+          python - "$BUNDLE" "$CHANGED" <<'SCRIPT'
+          import pathlib
+          import shutil
+          import sys
+
+          source, target = (pathlib.Path(name) for name in sys.argv[1:])
+          shutil.copytree(source, target, ignore=shutil.ignore_patterns(".venv", "install.log"))
+          wheel = sorted(
+              path for path in (target / "wheelhouse").glob("*.whl")
+              if not path.name.startswith("synthtwin-")
+          )[0]
+          data = bytearray(wheel.read_bytes())
+          data[len(data) // 2] ^= 1
+          wheel.write_bytes(bytes(data))
+          print("changed one byte of", wheel.name)
+          SCRIPT
+          cd "$CHANGED"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export MSYS_NO_PATHCONV=1
+            if offline cmd.exe /d /c "scripts\\install.bat" > refused.log 2>&1; then
+              cat refused.log
+              echo "install.bat installed a bundle with a changed file."
+              exit 1
+            fi
+          else
+            if offline sh scripts/install.sh > refused.log 2>&1; then
+              cat refused.log
+              echo "install.sh installed a bundle with a changed file."
+              exit 1
+            fi
+          fi
+          cat refused.log
+          grep -q "does not match its hash in SHA256SUMS" refused.log
+          test ! -e .venv
+      - name: Profile, generate and validate an invented table, network denied
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
+          else
+            offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 "$@"; }
+          fi
+          BUNDLE="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'clean bundle').glob('synthtwin-*')))")"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ST="$BUNDLE/.venv/Scripts/synthtwin.exe"
+          else
+            ST="$BUNDLE/.venv/bin/synthtwin"
+          fi
+          WORK="$RUNNER_TEMP/invented table"
+          mkdir -p "$WORK"
+          python tools/bundle/invented_table.py "$WORK/table.csv"
+          offline "$ST" profile "$WORK/table.csv"
+          offline "$ST" generate "$WORK/table-profile.json" --seed 7
+          offline "$ST" validate "$WORK/table-profile.json" --twin "$WORK/table-twin.csv"
+      - name: Run the golden tests on the installed synthtwin, network denied
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+              "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "$@"; }
+          else
+            offline() { env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 "$@"; }
+          fi
+          BUNDLE="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'clean bundle').glob('synthtwin-*')))")"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            BPY="$BUNDLE/.venv/Scripts/python.exe"
+          else
+            BPY="$BUNDLE/.venv/bin/python"
+          fi
+          "$BPY" -c "import synthtwin, sys; print(synthtwin.__file__); sys.exit(0 if '.venv' in synthtwin.__file__ else 1)"
+          offline env "PYTHONPATH=$RUNNER_TEMP/pytest-only" "$BPY" -m pytest -p no:cacheprovider \
+            tests/test_twin_golden.py tests/test_generation_reference.py \
+            tests/test_numeric_reference.py
+
+  numba-vectors:
+    # THE NUMBA VECTOR JOB (plan P4-D409 part 4, the owner's "Yes,
+    # gated" of 2026-10-19; plan P4-D416). A whole multi-pass schedule
+    # of the polish runs compiled by numba AND as plain Python on every
+    # system and Python of the matrix, and one differing byte fails the
+    # gate: lane MPn's kernel is not adopted while any does, and the
+    # plain-Python polish stays the oracle and the fallback. Until MPn
+    # writes synthtwin.polish_kernel the job runs the stand-in schedule
+    # of tests/test_numba_vectors.py and its bound cases; once the kernel
+    # exists, the file refuses to pass without the kernel's own cases.
+    # numba comes from the development lock (no Intel-Mac wheel, so no
+    # Intel runner here); SYNTHTWIN_REQUIRE_NUMBA makes its absence a
+    # failure rather than a skip.
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Validate the requirement files before pip runs (text only)
+        run: |
+          python tools/supply_chain/validate_lock.py
+      - name: Install locked dev tools (frozen)
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: Download the wheel built inside the no-network container
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: synthtwin-wheel
+          path: dist
+      - name: Install the wheel (no index, no deps, no build hooks)
+        run: python -m pip install --no-index --no-deps dist/*.whl
+      - name: Run the polish schedule under numba and under plain Python
+        env:
+          SYNTHTWIN_REQUIRE_NUMBA: "1"
+        run: python -m pytest -p no:cacheprovider tests/test_numba_vectors.py
+
   gate:
     # Plan D9 / D14: the single aggregate status context, the required
     # context under the branch ruleset applied at Phase 3's visibility
@@ -1606,6 +1963,9 @@ jobs:
         provenance,
         sensitive-paths,
         minimums,
+        bundle-build,
+        bundle-test,
+        numba-vectors,
       ]
     if: always()
     runs-on: ubuntu-latest
@@ -1634,6 +1994,12 @@ jobs:
               "provenance",
               "sensitive-paths",
               "minimums",
+              # The offline bundle, built on each platform and installed
+              # with the network denied (plan P4-D416), and the numba
+              # vector job lane MPn's kernel is adopted on (P4-D409 part 4).
+              "bundle-build",
+              "bundle-test",
+              "numba-vectors",
           ]
           needs = json.loads(os.environ["NEEDS_JSON"])
           bad = []

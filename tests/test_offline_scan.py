@@ -4447,3 +4447,113 @@ def test_the_real_generation_path_is_the_one_the_loader_reaches(tmp_path):
         assert outside not in path, (outside, sorted(path))
     assert _SCANNER._zone_of("synthtwin.reading", path) == "R"
     assert _SCANNER._zone_of("synthtwin.profile", path) == "D"
+
+
+# -- the float powers (plan P4-D409 part 3 (f); lane DEP-2, plan P4-D416) --
+
+
+def _power_sites():
+    """Every entered site of the two power tables, with its module's source."""
+    keys = sorted(set(_SCANNER._FLOAT_POWERS) | set(_SCANNER._EXACT_POWERS))
+    sources = {}
+    for module, _, _ in keys:
+        relative = module.split(".", 1)[1].replace(".", "/") + ".py"
+        sources[module] = (SRC_TREE / relative).read_text(encoding="utf-8")
+    return keys, sources
+
+
+def test_the_eight_float_powers_are_entered_with_their_audit():
+    """P4-D409 part 3 (f)'s eight, each by site, each with part 2's measurement."""
+    entered = _SCANNER._FLOAT_POWERS
+    assert len(entered) == 8
+    assert sorted({module for module, _, _ in entered}) == [
+        "synthtwin.calendar_clock",
+        "synthtwin.calendar_rules",
+        "synthtwin.generation",
+        "synthtwin.parsing",
+    ]
+    for key, audit in entered.items():
+        assert "P4-D409 part 2" in audit and "measuring Mac" in audit, key
+    assert len(_SCANNER._EXACT_POWERS) == 1
+
+
+@pytest.mark.parametrize(
+    "key",
+    sorted(set(_SCANNER._FLOAT_POWERS) | set(_SCANNER._EXACT_POWERS)),
+    ids=lambda key: key[0].split(".")[-1] + ":" + (key[1] or "module") + ":" + key[2],
+)
+def test_each_entered_power_is_red_without_its_entry(key, monkeypatch):
+    """Mutation: the table without one entry turns that site red in the real source."""
+    keys, sources = _power_sites()
+    module = key[0]
+    zone = _SCANNER._ZONE_G
+    clean = _SCANNER._float_power_violations(ast.parse(sources[module]), module, zone)
+    assert clean == [], clean
+    table = "_FLOAT_POWERS" if key in _SCANNER._FLOAT_POWERS else "_EXACT_POWERS"
+    without = dict(getattr(_SCANNER, table))
+    del without[key]
+    monkeypatch.setattr(_SCANNER, table, without)
+    found = _SCANNER._float_power_violations(ast.parse(sources[module]), module, zone)
+    assert len(found) == 1 and key[2] in found[0][1], found
+    assert "platform's pow" in found[0][1]
+    line = sources[module].splitlines()[found[0][0] - 1]
+    assert key[2].split(" ** ")[-1].strip("()") in line
+
+
+def test_every_entered_power_has_its_site_in_the_real_source():
+    """The tables never outlive the code: each entry names a `**` its module holds."""
+    keys, sources = _power_sites()
+    for module, where, text in keys:
+        tree = ast.parse(sources[module])
+        sites = set()
+        walking = [(tree, "")]
+        while walking:
+            node, inside = walking.pop()
+            for child in ast.iter_child_nodes(node):
+                named = inside
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    named = child.name if not inside else inside + "." + child.name
+                walking += [(child, named)]
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+                sites.add((inside, ast.unparse(node)))
+        assert (where, text) in sites, (module, where, text)
+    rewritten = sources["synthtwin.calendar_rules"].replace(
+        "(observed[index] - expected) ** 2",
+        "(observed[index] - expected) * (observed[index] - expected)",
+    )
+    assert rewritten != sources["synthtwin.calendar_rules"]
+    assert "(observed[index] - expected) ** 2" not in rewritten
+
+
+@pytest.mark.parametrize(
+    "line, red",
+    [
+        ("y = x ** 0.5", True),
+        ("y = 10.0 ** -4", True),
+        ("y = (x - 1.0) ** n", True),
+        ("y = x ** 2", True),
+        ("y = (a - b) ** 3", True),
+        ("y = x ** -2", True),
+        ("y = x ** -1", True),
+        ("y = x ** +3", True),
+        ("y = x ** 1", False),
+        ("y = x ** 0", False),
+        ("y = x ** -0", False),
+        ("x **= 0.5", True),
+        ("y = 2.0 ** 52", False),
+        ("y = 2.0 ** -50", False),
+        ("y = 2 ** 63", False),
+        ("y = 10 ** places", False),
+        ("y = size ** length", False),
+        ("y = x * x", False),
+    ],
+)
+def test_the_float_power_rule_reads_the_operands(tmp_path, line, red):
+    """A new float power anywhere in a byte-deciding zone is red; exact ones are not."""
+    code = "def f(x, n, a, b, places, size, length):\n    " + line + "\n    return x\n"
+    violations = _SCANNER.scan_source(code, module_name="synthtwin.sample", zone="G")
+    powers = [message for _, message in violations if "platform's pow" in message]
+    assert bool(powers) is red, violations
+    for zone, judged in (("D", red), ("R", red), ("W", red), ("P", False)):
+        found = _SCANNER._float_power_violations(ast.parse(code), "synthtwin.sample", zone)
+        assert bool(found) is judged, (zone, found)
