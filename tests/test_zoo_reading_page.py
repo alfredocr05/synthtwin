@@ -26,7 +26,8 @@ three-figure codes, the joint pooling of list lengths with the
 Gale-Ryser condition it keeps, the declared list of a fixed length,
 rule 8 against rule 9t's durations, two missing codes said alike, the
 register list the identity routes reach, and the two-numbers question's
-hold over a month-year register and the answers it offers.
+hold over a month-year register and the answers it offers. Since
+repair 3: grouped amounts heaped on round steps, which the page asks.
 
 WHAT IS NOT HERE. No lane's code exists, so nothing here says a twin
 meets anything. The functions below are the page's rules written once
@@ -218,6 +219,50 @@ OPERATIVE = {
     "DateKey's codes are the missing answer": "its negative codes taken as the date-codes question's `missing` (P4-D381)",
     "no impossible date": "TR's gate keeps \"no impossible date written\"",
     "a fraction clock keeps the hold": "under rule I that question keeps its hold over the new clock reading",
+    # The verify of repair 2: its items 1 and 2, and the 17 sentences its mutants W1 to W17 bent.
+    "heaped round amounts are asked": (
+        "Amounts heaped on a few round steps meet the conditions and are put Q-COMMA-3 with `several-values`"
+        " among its answers"
+    ),
+    "rule 8's case (3) reads durations only on the answer or the declaration": (
+        "where today's reader puts it the two-numbers question (landing T1: hours written without a leading zero)"
+        " offers `joined`, \"a duration\", and answered `joined`, or declared `--measurement` where no question is"
+        " put (hours written with one), the column is read by rule 0c in rule 9t's template, every cell read"
+    ),
+    "W1 LV10": "LV10, `pooled_length_cells` <= `pooled_length_values`, and no value's cells exceed `n_listed`",
+    "W2 the proof's most even split": "the pooled cells' lengths are its most even split of `pooled_length_values`",
+    "W3 the proof's one-cell stand-ins": "the held-back values are written as stand-ins of one cell each",
+    "W4 Q-LIST offers code and identifier": (
+        "`keep` (labels), `several-values`; where the values look like record numbers, `code` and `identifier` too"
+    ),
+    "W5 Q-COMMA-3 offers several-values": "`several-values` (where the groups read as a list), ",
+    "W6 an instant moved only by a written offset": "an instant is moved only by an offset the cell writes",
+    "W7 validate reads forced_lists": "; a column named in `forced_lists` read as a list whatever its lengths |",
+    "W8 the floor's cells past 23": (
+        "where at least the floor's present cells (`parsing.census_floor`) hold an hour past 23"
+    ),
+    "W9 ZR.9's register list publishes nothing": (
+        "publishes nothing until Q-LIST is answered (rule I; the price of one general question, owner LISTS)"
+    ),
+    "W10 no cell holds one group twice": (
+        " with no cell holding one group twice -- a list names each choice once, and `1,000,000` writes `000` twice --"
+    ),
+    "W11 ZR.4's declined clock is held": (
+        "A column declared or answered `clock-figures` whose cells do not read is held, never published as plain"
+        " numbers"
+    ),
+    "W12 the 110-row gate case": "; the 110-row case of ZR.3 meeting LV9 (gate), exact.",
+    "W13 Q-COMMA-3's unanswered default": (
+        "unanswered, today's reading stands (rule 6's numbers, or the hold of an identity question that holds the"
+        " column)"
+    ),
+    "W14 UTC and GMT keep today's reading": "and `UTC` and `GMT` keep today's reading",
+    "W15 the 66-pairs gate case": "all 66 pairs of twelve codes read as a list once answered `several-values` (gate); ",
+    "W16 the -77/-88 gate case": "; `-77` and `-88` alike asked as the lower and the higher of two (gate)",
+    "W17 the durations gate case": (
+        "(4) 1,189 durations under a day beside eleven `48:15` read as durations, and clock times with three"
+        " `25:10` read as clock times (gate), exact."
+    ),
 }
 
 
@@ -614,8 +659,9 @@ def test_the_two_numbers_question_holds_the_register_and_offers_what_the_page_sa
     clock = [choice.answer for choice in asking._joined_choices(taxonomy.ROLE_CLOCK, 11)]
     assert joined == [asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]
     assert text == [asking.ANSWER_KEEP, asking.ANSWER_JOINED, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]
-    # A clock read from its values (landing T1) is offered `joined`, "a
-    # duration", which rule 8's third case reads in rule 9t's template.
+    # A clock read from its values (landing T1: hours written without a
+    # leading zero) is offered `joined`, "a duration", which rule 8's
+    # third case reads in rule 9t's template.
     assert clock[0] == asking.ANSWER_KEEP and asking.ANSWER_JOINED in clock
     # A clock with a fraction is put the two-numbers question today, and
     # rule I keeps that question over TR (d)'s reading.
@@ -689,7 +735,7 @@ def _grouped_or_listed(cells: "list[str]") -> bool:
 
 
 def test_a_list_of_three_figure_codes_is_asked_before_rule_6_and_grouped_amounts_are_not() -> None:
-    """Codex's item 1: rule 6 reads `101,102,103` as one number; the comparison holds genuine grouped numbers."""
+    """Codex's item 1: rule 6 reads `101,102,103` as one number; spread grouped amounts are not asked, heaped ones are."""
     assert parsing._without_group_separators("101,102") == "101102"
     assert parsing._without_group_separators("101,102,103") == "101102103"
     lists = [",".join(str(code) for code in pick) for size in (2, 3) for pick in itertools.combinations(range(101, 107), size)]
@@ -707,6 +753,16 @@ def test_a_list_of_three_figure_codes_is_asked_before_rule_6_and_grouped_amounts
     assert not _grouped_or_listed([cell for cell in round_amounts if cell != "1,000,000"])
     page = _flat(_page())
     assert "round amounts from `1,000` to `1,500,000` write as many different groups as different cells" in page
+    # The verify of repair 2, item 1: amounts heaped on round steps meet
+    # the conditions, so the page says they are asked.
+    fees = [f"{500 * (2 + index % 59):,}" for index in range(600)]
+    assert len(set(fees)) == 59 and len({part for cell in fees for part in cell.split(",")}) == 32
+    assert _grouped_or_listed(fees)
+    steps = [f"{250 * (4 + index % 37):,}" for index in range(600)]
+    assert len(set(steps)) == 37 and len({part for cell in steps for part in cell.split(",")}) == 14
+    assert _grouped_or_listed(steps)
+    assert "600 fees in steps of 500 from 1,000 to 30,000 write 32 groups over 59 cells" in page
+    assert "600 fees in steps of 250 from 1,000 to 10,000 write 14 groups over 37 cells" in page
 
 
 def _a_declared_list(cells: "list[str]", mark: str) -> bool:

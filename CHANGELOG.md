@@ -35,7 +35,10 @@ total of their values, so a twin always exists (Gale and Ryser's
 condition); a zone word moves no instant (`CST` names two offsets); a
 clock declaration that does not read holds its column; and a list whose
 values look like record numbers is held until answered, as measured today
-a long tail of such a list publishes two of them. No product code,
+a long tail of such a list publishes two of them. Repair 3 (the verify
+of repair 2): fees heaped on round steps are asked as a list may be,
+and a clock with a few hours past 23 is read as durations only on the
+answer or the declaration. No product code,
 golden, vector or KPI moves; `tests/test_zoo_reading_page.py` pins the
 page's computed figures and each rule's operative sentence.
 
