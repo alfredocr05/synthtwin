@@ -61,6 +61,18 @@ people's `pending`) is missed and named in the twin's report; a birth
 date beside few people a year is drawn from the method's fixed span
 (lane PS2).
 
+**Repair round 3** (the second verify). A date standing in for nobody
+that too few people write for the description to name it (three
+patients' `1900-01-01`) now stays absent when `synthtwin validate`
+checks the real table, which before missed its presence and its tails
+against its own description. A held column with more different values
+than the months (or days) of 2000 to 2029 can hold -- 530 birth months
+written `%Y-%m` -- draws from a span widened by whole decades until it
+has room for twice that count, measured at the column's finest written
+detail, so the twin keeps every value different and every cell valid.
+The twin's report names no deviation for a spelling of no value that
+reads as a date.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans
