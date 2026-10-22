@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### A column of lists written as record numbers is held until answered (lane HX4, 2026-10-22)
+
+**Lane HX4** (plan P4-D424, amending P4-D401's stated limits). A column
+whose cells hold one to three record numbers separated by `;` was read
+as a long tail and published two of them on 11 rows or more, with no
+question put (lane ZR-a's measurement). A column whose cells are lists --
+values separated by `;`, `|`, `,` or spaces in at least two cells --
+every value of which holds a run of five figures or more, or which the
+padded route or routes two to four of the person rule reach taken over
+its values, is now put one question about the data: do its cells hold
+several codes or labels, or several record numbers? It offers `keep`,
+`code` and `identifier`, and is put only where no other question was.
+Until answered, the column is held as an unanswered identifier column
+is: no value published, made-up values in the twin. `keep` and `code`
+read it as before, byte for byte; `identifier` keeps it held; the
+questions file keeps the answer. On the three measured forms and one
+beside a declared person column, 0 record numbers are published and 0
+twin cells hold one at 600 and 20,000 rows, where 2, 2, 2 and 1 were
+published at 600 rows. A list of three-figure codes is left to the
+person question, as before. No column of lane S4d's description battery
+or of the health data zoo is reached. `K-S3-64` gains the four shapes.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans
