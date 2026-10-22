@@ -1243,6 +1243,74 @@ def test_a_one_row_rung_beside_a_published_heap_cuts(tmp_path, heap):
         assert _no_confined_row(found.statistical, "age"), key
 
 
+def _one_row_rungs(block: "dict[str, object]", read: "chain._Read") -> "list[str]":
+    """The published rungs exactly one row stands on, read on the column's own readings."""
+    role = f"{block['role']}"
+    held = {one[0]: one[1] for one in read.readings}
+    rungs = chain_rules.rung_ladder(block) or {}
+    out: "list[str]" = []
+    for name in rungs:
+        value = chain_rules.rung_value(role, rungs[name], block.get("clock_form"))
+        if value is not None and held.get(value) == 1:
+            out += [name]
+    return out
+
+
+def test_a_one_row_rung_beside_a_mode_and_a_smaller_heap_of_noughts_cuts(tmp_path):
+    """The second verify's item 1 (a): 501 ages all different but a mode of 15 rows and eleven
+    noughts (11 <= n_zero < mode_count, so the mode alone does not name nought). Every other value
+    is single, so each rung one row stands on cuts on both sides of its row and band 5's one-row
+    slice is a fixed group: every value band is marked. Mutant: nought not named (band 5 missed)."""
+    draw = random.Random(5)
+    n_rows = 501
+    distinct = sorted(20 + 0.01 * value for value in draw.sample(range(1, 6000), n_rows - 25))
+    ages = sorted(distinct + [distinct[3]] * 14 + [0.0] * 11)
+    rows = [[f"{age}", "F" if 0.75 * n_rows <= place < 0.90 * n_rows else draw.choice("FM")] for place, age in enumerate(ages)]
+    draw.shuffle(rows)
+    table, document, settings, block, read, ladder = _value_runs(tmp_path, _csv(["age", "gender"], rows), "noughts", "age")
+    # The reader's arithmetic: 501 rows, all single but the mode and the noughts.
+    assert block["mode"] != 0 and 11 <= block["n_zero"] < block["mode_count"]
+    assert block["n_distinct_values"] == n_rows - block["mode_count"] - block["n_zero"] + 2
+    assert _one_row_rungs(block, read)
+    marked = chain.value_run_bands(block, read.start, ladder, FLOOR, read.readings)
+    assert 5 in marked
+    assert marked == {at for at in range(len(ladder.l0)) if ladder.ordered[at]}
+
+
+def test_a_one_row_rung_beside_a_published_clock_heap_cuts(tmp_path):
+    """The second verify's item 1 (b): 400 clock readings each at its own minute beside one
+    published heap of 40 at 08:00. Every reading but the heap holds one row, so a rung one row
+    stands on cuts on both sides of its row, a slice of one row, and every value band is marked.
+    Mutant: the clock heaps not named (bands 2 and 7 missed)."""
+    draw = random.Random(3)
+    minutes = draw.sample([minute for minute in range(1440) if minute != 480], 400)
+    rows = [[f"{minute // 60:02d}:{minute % 60:02d}"] for minute in minutes] + [["08:00"]] * 40
+    table, document, settings, block, read, ladder = _value_runs(tmp_path, _csv(["clock"], rows), "heaped", "clock")
+    assert block["clock_heaps"] == [{"value": "08:00", "count": 40}]
+    assert sorted(one[1] for one in read.readings)[-2:] == [1, 40]
+    assert _one_row_rungs(block, read)
+    marked = chain.value_run_bands(block, read.start, ladder, FLOOR, read.readings)
+    assert marked == {at for at in range(len(ladder.l0)) if ladder.ordered[at]}
+
+
+def test_a_one_row_rung_beside_a_listed_date_tail_value_cuts(tmp_path):
+    """The second verify's item 1 (c): 400 dates each on its own day beside one late day of 30
+    rows the high tail lists. Every reading but the listed value holds one row, so a rung one row
+    stands on cuts on both sides of its row, a slice of one row, and every value band is marked.
+    Mutant: a date tail's listed values not named (bands 1 to 6 missed)."""
+    import datetime
+
+    draw = random.Random(4)
+    days = draw.sample(range(3000), 400)
+    rows = [[(datetime.date(2015, 1, 1) + datetime.timedelta(days=day)).isoformat()] for day in days] + [["2024-06-30"]] * 30
+    table, document, settings, block, read, ladder = _value_runs(tmp_path, _csv(["d"], rows), "tailed", "d")
+    assert block["high_tail"]["values"] == ["2024-06-30"] and block["heavy_dates"] == []
+    assert sorted(one[1] for one in read.readings)[-2:] == [1, 30]
+    assert _one_row_rungs(block, read)
+    marked = chain.value_run_bands(block, read.start, ladder, FLOOR, read.readings)
+    assert marked == {at for at in range(len(ladder.l0)) if ladder.ordered[at]}
+
+
 def test_a_run_beside_more_listed_values_than_it_reads_is_marked_whole():
     """The verify's V3: a run holding more than RUN_POINTS_AT_MOST named values is marked whole
     (its subsets are not walked); ten are walked and leave nothing of 1 to 10 here."""
@@ -1504,6 +1572,15 @@ def test_a_column_whose_other_counts_are_all_one_is_not_fine():
     assert not chain_moments.fine(heaped)
 
 
+def test_a_column_whose_mode_is_nought_and_other_counts_one_is_not_fine():
+    """The second verify's item 2 (X10): 600 readings, twelve noughts as the mode and the other
+    588 single (589 different values). The mode and nought are one named value, counted once, so
+    the 588 single counts are fixed and rule M1 refuses it. Mutant: nought as the mode counted twice."""
+    rungs = {key: float(at) for at, key in enumerate(chain_rules.NUMBER_RUNGS[0])}
+    block = {"name": "x", "role": "continuous", "percentiles": rungs, "n_present": 600, "n_used_in_statistics": 600, "n_distinct_values": 589, "mode": 0.0, "mode_count": 12, "n_zero": 12}
+    assert not chain_moments.fine(block)
+
+
 def test_no_shipped_module_imports_the_installation():
     """Codex's item 10 on repair 1: `cli` imported the installation (and its `secrets`) at the top,
     so every validate run reached it; it is imported only behind the chain's switch now."""
@@ -1622,3 +1699,26 @@ def test_the_questions_file_pair_requests_are_applied_and_kept(tmp_path, monkeyp
         assert not (family["child"] in pair and len(set(pair) & set(names)) == 2), family
     again = json.loads((tmp_path / "clinic-questions.json").read_text(encoding="utf-8"))["between_columns"]
     assert again["drop"] == [pair] and again["add"] == [["pressure", "group"]]
+
+
+def test_a_questions_file_holding_only_unreadable_pair_requests_is_named(tmp_path, monkeypatch, capsys):
+    """The second verify's item 2 (X11): the `between_columns` entry holds malformed requests
+    alone (a pair of one name, a bare word); the screen still names them as not read. Mutant: the
+    line printed only where a readable pair is asked."""
+    monkeypatch.chdir(tmp_path)
+    fixtures.write(tmp_path, "clinic.csv", _clinic())
+    data = str(tmp_path / "data")
+    assert _profile(tmp_path, "clinic.csv", cli.ChainRun(folder=data), capsys)[0] == 0
+    questions = json.loads((tmp_path / "clinic-questions.json").read_text(encoding="utf-8"))
+    entry = questions["between_columns"]
+    entry["add"] = [["age"]]
+    entry["drop"] = ["group"]
+    fixtures.write(tmp_path, "answers.json", json.dumps(questions))
+    capsys.readouterr()
+    code = cli.main(["profile", "clinic.csv", "--answers", "answers.json"], chain=cli.ChainRun(folder=data, replace_description=True))
+    said = capsys.readouterr()
+    assert code == 0, said
+    printed = said.out + said.err
+    assert "these requests could not be read" in printed, printed
+    assert "add: ['age']" in printed and "drop: group" in printed, printed
+    assert "pair(s) to add" not in printed and "pair(s) to drop" not in printed
