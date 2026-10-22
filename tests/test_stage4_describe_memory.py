@@ -128,6 +128,7 @@ def _tally_shapes() -> "dict[str, list[str]]":
         "first not then plain": ["ABC", "abc", "abc", "Abc"],
         "codes": [draw.choice(["A1", "a1", "B12", "b12"]) for _ in range(2_000)],
         "one each": [f"Word{k}" for k in range(500)] + [f"word{k}" for k in range(500)],
+        "one way otherwise": [f"V{k:06d}" for k in range(300)] + ["ABC"] * 3,
     }
 
 
@@ -1060,14 +1061,15 @@ def _h3_stamp_columns() -> "dict[str, tuple[list[str], tuple[str, ...]]]":
         return f"{moment.month}/{moment.day}/{moment.year} {shown}:{moment.minute:02d}{tail}"
 
     early = datetime.datetime(2021, 6, 1, 1, 5)
-    widths = [marked(early, False)] + [marked(moment, draw.random() < 0.8) for moment in moments]
+    later = datetime.datetime(2021, 6, 2, 2, 10)
+    widths = [marked(early, False), marked(later, True)] + [marked(moment, draw.random() < 0.8) for moment in moments]
     unmarked = [plain(early, False)] + [plain(moment, draw.random() < 0.7) for moment in moments]
     return {
         "marked": ([marked(moment, True) for moment in moments], ()),
         "marked one figure": ([marked(moment, False) for moment in moments], ()),
         "marked widths": (widths, ()),
         "marked widths, the rewrite absent": (widths, (marked(early, True),)),
-        "marked widths, both widths absent": (widths, (marked(early, True), marked(early, False))),
+        "marked widths, both widths absent": (widths, (marked(early, True), marked(later, False))),
         "lower and dotted faces": ([marked(moment, True, draw.choice([("AM", "PM"), ("am", "pm"), ("a.m.", "p.m.")]), draw.choice([" ", ""])) for moment in moments], ()),
         "unmarked": ([plain(moment, False) for moment in moments], ()),
         "unmarked padded": ([plain(moment, True) for moment in moments], ()),
@@ -1131,6 +1133,30 @@ def test_written_units_are_counted_along_the_instants_as_the_set_counts_them() -
                 assert taxonomy._few_units(groups, body, tuple(instants), step) == expected
 
 
+def test_written_units_out_of_order_are_counted_as_the_set_counts_them_and_none_is_held() -> None:
+    """Units met again after another are one unit (the run count alone counts them again); no list of them is made."""
+    body = [day for day in range(14) for _row in range(20)]
+    instants = [day * 86_400 + 3_600 * (place % 2) for place, day in enumerate(body)]
+    groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 2)
+    assert groups
+    expected = calendar_rules.few_units(groups, body, list(instants))
+    assert taxonomy._few_units(groups, body, tuple(instants), 1) == expected is True
+    ascending = tuple(sorted(range(0, 40_000 * 61, 61)))
+    days = [instant // 86_400 for instant in ascending]
+    groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(days), 2)
+    gc.collect()
+    tracemalloc.start()
+    try:
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        taxonomy._few_units(groups, days, ascending, 60)
+        taxonomy._different_units(ascending, 60)
+        held = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        tracemalloc.stop()
+    assert held < 2 * len(ascending), held
+
+
 def _h3_affix_columns() -> "dict[str, list[str]]":
     draw = random.Random(53)
     notes = _h3_repair_values("bignote", 300)
@@ -1148,6 +1174,38 @@ def _h3_affix_columns() -> "dict[str, list[str]]":
         "a reading beside a few stragglers": [f"{draw.randint(1, 900)} mg" for _ in range(396)] + [f"odd {k} unit" for k in range(4)],
         "near the line": [f"{draw.randint(1, 900)} mg" for _ in range(394)] + [f"x{k} y" for k in range(6)],
     }
+
+
+def _h3_affix_on_the_line() -> "list[str]":
+    """1,000 cells proposing exactly as many pairs as a reading can stand on, and the reading standing, at a floor of 2.
+
+    The categorical ceiling's 100 one-word units, each worn by 9 or 10
+    cells, cover the parse line's 990 cells exactly, and the 10 cells left
+    wear a pair each: 110 pairs, the most `_affixed_before_the_address_test`
+    walks on with.
+    """
+    units = [f"u{chr(97 + k // 26)}{chr(97 + k % 26)}" for k in range(100)]
+    cells: "list[str]" = []
+    for place, unit in enumerate(units):
+        for row in range(10 if place < 90 else 9):
+            cells += [f"{row * 7 + place} {unit}"]
+    for k in range(10):
+        cells += [f"{k + 1} zq{chr(97 + k)}"]
+    return cells
+
+
+def test_the_affix_reading_stands_on_exactly_as_many_pairs_as_its_rules_allow() -> None:
+    """At the bound's own line the reading stands, as 4682d6ad's map read it: the bound is no tighter than the rules."""
+    _built, names = stage4_as_built.compiled(taxonomy, stage4_as_built.AFFIX_PAIRS, "affixed_reach")
+    cells = _h3_affix_on_the_line()
+    settings = taxonomy.Settings(small_cell_floor=2)
+    tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), settings)
+    assert taxonomy._categorical_ceiling(tallied) == 100
+    now = taxonomy._affixed_before_the_address_test(tallied)
+    assert now is not None
+    assert now == names["_affixed_before_the_address_test"](tallied)  # type: ignore[operator]
+    one_more = taxonomy._tally(taxonomy._classify_all(cells + ["11 zqz"]), len(cells) + 1, settings)
+    assert taxonomy._affixed_before_the_address_test(one_more) == names["_affixed_before_the_address_test"](one_more)  # type: ignore[operator]
 
 
 @pytest.mark.parametrize("mask", [None, 3])
@@ -1187,6 +1245,7 @@ def test_the_rules_reading_labels_answer_as_they_read_folded_labels() -> None:
     shapes["record numbers"] = _h3_values("rec", 500)
     shapes["clocks beside rare words"] = [draw.choice(["07:00", "15:00", "19:00", "23:00"]) for _ in range(600)] + ["UNK", "Unk", "n/a", "N/A"] * 3
     shapes["levels and numbers"] = [draw.choice(["Yes", "yes", "NO", "12", "12.0", "7", "maybe", "MAYBE", "1E3", "1e3", " 12"]) for _ in range(800)]
+    shapes["numbers written only in capitals"] = ["1E3"] * 40 + ["2E3"] * 40 + ["maybe"] * 40
     for name, cells in shapes.items():
         for floor in (1, 2, 11):
             settings = taxonomy.Settings(small_cell_floor=floor)
