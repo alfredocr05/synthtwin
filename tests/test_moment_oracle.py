@@ -556,19 +556,28 @@ def test_the_presolve_keeps_every_point():
 def test_the_settings_name_the_class_and_the_decision_records_it():
     """Contract 4.6d.10's `witness` setting, amended by a dated sentence,
     names `"cho1"`; plan P4-D421 records the class, its rule, its measured
-    times and its reach."""
+    times and its reach. The repairs' corrections stand and the withdrawn
+    claims do not return: the time is the measured 9.3 seconds, not "at
+    most 7.0" (the verify's item 1), and M-a's boundary is its shape's,
+    not "no M-a region holding `f` rows" (Codex's item 5)."""
     contract = " ".join(CONTRACT.read_text(encoding="utf-8").split())
     plan = " ".join(PLAN.read_text(encoding="utf-8").split())
     assert '`witness`: `"cf1"` until lane CHo\'s decision names the oracle\'s class.' in contract
-    assert "AMENDED 2026-10-21 (plan P4-D421, revised by its repair of 2026-10-22)" in contract
+    assert "AMENDED 2026-10-21 (plan P4-D421, revised by its repairs of 2026-10-22)" in contract
     assert '`witness` is `"cho1"`' in contract
     amendment = contract[contract.index("AMENDED 2026-10-21 (plan P4-D421"):]
-    for words in ("at most 50,000", "10,000,000 transitions", "at 40,000,000", "publishes a slope",
-                  "at most 7.0 seconds and 0.37 GB", "115 of the 287 analysis results"):
+    for words in ("at most 50,000", "10,000,000 transitions", "at 40,000,000", "number at most 1,000,000",
+                  "publishes a slope", "up to 9.3 seconds and 0.37 GB", "9,772,308 transitions, 39,089,160 entries",
+                  "about 15 seconds and under 1.3 GB", "`correlation` joins the list with `\"cho1\"`",
+                  "115 of the 287 analysis results"):
         assert words in amendment, words
+    assert "at most 7.0 seconds" not in amendment and "no M-a region holding `f` rows" not in amendment
     assert "## Decision P4-D421" in plan
     decision = plan[plan.index("## Decision P4-D421"):]
     for words in ("NODES_MAX", "10,000,000", "ENTRIES_MAX", "40,000,000", "50,000", "8,949",
                   "115 of 287 analysis results at 200,000 rows", "no part of that reading",
-                  "NARROWER space than 4.6d.4's", "Repair round 1 (2026-10-22)"):
+                  "NARROWER space than 4.6d.4's", "Repair round 1 (2026-10-22)", "Repair round 2 (2026-10-22)",
+                  "`SETUP_MAX` = 1,000,000", "9.28 seconds and 0.30 GB", "under 1.3 GB",
+                  "a boundary of that shape only", "items 8, 9, 9b, 10 and 12"):
         assert words in decision, words
+    assert "no M-a region holding `f` rows is inside" not in decision

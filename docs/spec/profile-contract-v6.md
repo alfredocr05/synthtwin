@@ -9449,7 +9449,7 @@ amended by a dated sentence in plan P4-D413 on the measurement named):
 - `second_code`: `true`, on the rungs' probability scale (4.6d.1, the
   kit's code);
 - `witness`: `"cf1"` until lane CHo's decision names the oracle's class.
-  AMENDED 2026-10-21 (plan P4-D421, revised by its repair of 2026-10-22):
+  AMENDED 2026-10-21 (plan P4-D421, revised by its repairs of 2026-10-22):
   `witness` is `"cho1"`, the class of lane CHo's exact route
   (`tools/reference/moment_oracle.py`, a layered count of the joint
   space's groups in Python integers). An instance, the region's joint
@@ -9461,22 +9461,34 @@ amended by a dated sentence in plan P4-D413 on the measurement named):
   10,000,000 transitions; (2b) the same sizes bound the whole numbers its
   passes write and read (one for each constraint open after a group, a
   transition; one for each constraint reading the next group, a state)
-  at 40,000,000; and (3) no node of the region publishes a slope (point
-  condition (5) is not linear). Inside, the route decides clauses (a)
-  to (c) exactly within that budget: MEASURED on the reference machine
-  under Python 3.11, at most 7.0 seconds and 0.37 GB at the widest
-  instances the caps admit (the transitions' cap reached in 1.6 seconds;
-  6.4 seconds on the one-cell boundary over two codes), and on every
-  cell of 22 to 40 rows over runs of up to six codes it gives `CF1`'s
-  verdict on every group (8,949 cells). Its reach, MEASURED: no region
+  at 40,000,000; (2c) the whole numbers it lays out before its first
+  pass (one for each term of a published count, fact or number, one for
+  each group a constraint stays open across), counted before anything
+  is laid out, number at most 1,000,000, its terms counted from the
+  region's sizes before any group is listed; and (3) no node of the
+  region publishes a slope (point condition (5) is not linear). Inside,
+  the route decides clauses (a) to (c) exactly within that budget:
+  MEASURED on the reference machine under Python 3.11 up to 9.3 seconds
+  and 0.37 GB (an instance reaching both caps: 6 groups of count 11
+  under 24 constraints, 9,772,308 transitions, 39,089,160 entries), and
+  1.6 to 3.0 seconds and 0.13 to 0.31 GB at instances reaching (2c)'s
+  cap; MY ARITHMETIC: about 15 seconds and under 1.3 GB at the worst
+  instance the caps admit; and on every cell of 22 to 40 rows over runs
+  of up to six codes it gives `CF1`'s verdict on every group (8,949
+  cells). Its reach, MEASURED: no region
   the chains of lanes `A0b` (2,000 to 200,000 rows) and `E0b` (ST1,
   20,000 rows) form lies inside, each joining every FINE column and at
   least 2 to the power of its 17 to 49 members in base cells, beside,
   at 2,000 rows only, a region of one FINE column and three members
   whose column alone bounds at 10 to the 11 transitions; a few base
   cells of a few rows can lie inside, a FINE column standing alone in
-  a family of its own only where it holds few readings, and no M-a
-  region holding `f` rows, so `correlation` stays off. With `"cho1"`
+  a family of its own only where it holds few readings. An M-a region
+  lies inside only on few rows or few code pairs (one cell over 3 x 3
+  codes holding one row in each of its first code pairs: 6 rows inside,
+  7 outside; 22 rows on three code pairs: inside, its witness refused),
+  and none the measured chains form does, so by the `classes` setting's
+  own words `correlation` joins the list with `"cho1"`, and on the
+  measured chains it publishes nothing. With `"cho1"`
   the layer publishes no moment and, by ruling R12, no slope: MEASURED
   on lane `A0c`'s seeded chain, 115 of the 287 analysis results of lane
   `A0b`'s table at 200,000 rows and 134 of 280 at 50,000, against 134
