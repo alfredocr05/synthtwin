@@ -3064,20 +3064,42 @@ def _recounted(
     # re-description: the collision was detected, the recount was
     # unchanged, and the presence lines below -- which need both --
     # stayed silent while the quality report named the loss.
-    present = [
+    #
+    # COUNTED WITHOUT A COPY OF THE COLUMN (plan P4-D415, lane SG): the
+    # present cells are counted as they are met and only the different ones
+    # kept, and the folded spellings are made of those, which is the same
+    # set as made of every present cell; a folded spelling equal to its cell
+    # is that cell, kept rather than made again. On a column where every
+    # value differs this held a list of the column, a set of it and a new
+    # text a cell beside it -- about 150 bytes a row.
+    present = 0
+    different = {
         cell
         for cell in cells
         if cell != "" and not _wears_any_published_hole(
             cell, holes, decimal_comma
         )
-    ]
-    folded = {parsing.folded(cell) for cell in present}
+    }
+    for cell in cells:
+        if cell != "" and cell in different:
+            present = present + 1
+    folded = {_folded_or_itself(cell) for cell in different}
     return (
-        len(present),
-        len(cells) - len(present),
-        len(set(present)),
+        present,
+        len(cells) - present,
+        len(different),
         len(folded),
     )
+
+
+def _folded_or_itself(cell: str) -> str:
+    """A cell's folded spelling (`parsing.folded`), the cell itself where
+    folding leaves it as it is (plan P4-D415): the same text either way,
+    so a tally keyed by folded spellings keeps no second copy of a cell
+    folding leaves alone -- a number, a code in one case -- about 50 bytes
+    a different value."""
+    made = parsing.folded(cell)
+    return cell if made == cell else made
 
 
 # -- the ladder (method G5.3) -----------------------------------------
@@ -3971,6 +3993,13 @@ def _snaps_away(
     return (read < 0.0) != (value < 0.0)
 
 
+def _members_of(found: "int | list[int]") -> "list[int]":
+    """The cells of one value of `_width_places`: one place, or a list of them."""
+    if isinstance(found, int):
+        return [found]
+    return found
+
+
 def _width_places(
     widths: "dict[str, int]",
     styles: "list[str]",
@@ -4062,16 +4091,24 @@ def _width_places(
     # bought with another, which is the trade this method refuses
     # everywhere else. A real column's cells wear one width per value
     # because that is what a person writing them does.
-    groups: dict[float, list[int]] = {}
+    #
+    # A VALUE OF ONE CELL HOLDS THAT CELL'S PLACE ITSELF (plan P4-D415, lane
+    # SG): on a column of measurements nearly every value is one cell, and
+    # a list a value held about 90 bytes a row; `_members_of` reads either.
+    groups: "dict[float, int | list[int]]" = {}
     order: list[tuple[int, float]] = []
     for index in range(len(styles)):
         if styles[index] != "decimal" or index in served:
             continue
         value = holds[index]
         if value in groups:
-            groups[value] += [index]
+            grouped = groups[value]
+            if isinstance(grouped, int):
+                groups[value] = [grouped, index]
+            else:
+                grouped += [index]
             continue
-        groups[value] = [index]
+        groups[value] = index
         order += [(-_fraction_need(value), value)]
     # HOW MANY CELLS EACH VALUE HOLDS IN ALL, not just how many of them
     # the style step made decimal. A snap moves the VALUE, so snapping
@@ -4095,7 +4132,7 @@ def _width_places(
         if places[index] >= 0:
             landed[_snapped_to(holds[index], places[index])] = 1
     for _need, value in sorted(order):
-        members = groups[value]
+        members = _members_of(groups[value])
         alone = everywhere[value] == len(members)
         need = _fraction_need(value)
         whole = None
@@ -20757,7 +20794,7 @@ def _number_cells(
     # where the spellings cannot supply it -- the source shows four can.
     alone = _pool_alone_of(facts)
     seven = len(parsing.GROUP_MARKS)
-    spelled = {seven: len(set(parsing.folded(text) for text in base))}
+    spelled = {seven: len({_folded_or_itself(text) for text in base})}
     if alone > 0 and spelled[seven] > wanted:
         for count in range(2, seven):
             trial, _trial_notes = _mark_places(
@@ -20766,7 +20803,7 @@ def _number_cells(
             texts = _written_cells(
                 facts, holds, styles, widths, pads, trial, notations, plussed
             )
-            spelled[count] = len(set(parsing.folded(text) for text in texts))
+            spelled[count] = len({_folded_or_itself(text) for text in texts})
         most = _pool_mark_count(alone, floor, wanted, spelled)
         marks, mark_notes = _mark_places(
             column, facts, groupable, floor, holds, most
@@ -20783,7 +20820,7 @@ def _number_cells(
     # grouping rows by this column.
     settled: dict[str, int] = {}
     for spelling in base:
-        settled[parsing.folded(spelling)] = 1
+        settled[_folded_or_itself(spelling)] = 1
     owed = max(0, wanted - len(settled))
     # ...AND BEFORE ANY ZERO IS SPENT, THE SIGN IS (plan P4-D145). A cell
     # at a named field width cannot spend a zero, so a column of offsets
@@ -20984,7 +21021,7 @@ def _identity_walk(
                 )
             reached[key] = order
             owed = owed - 1
-        identities[parsing.folded(spelling)] = 1
+        identities[_folded_or_itself(spelling)] = 1
         spellings[spelling] = 1
         written[index] = spelling
     return written
@@ -28028,11 +28065,11 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
     gap is walked, as every gap was before the index, each walk asking
     400 units each side at most; the answer is the same either way."""
     if (low, high) in state.indexes:
-        found = state.indexes[(low, high)]
+        cached = state.indexes[(low, high)]
         # The gap asked last stands last (`_weekday_indexes_bounded`).
         del state.indexes[(low, high)]
-        state.indexes[(low, high)] = found
-        return found
+        state.indexes[(low, high)] = cached
+        return cached
     first = low // state.unit
     last = high // state.unit
     size = state.gap_sizes[(low, high)] if (low, high) in state.gap_sizes else 0
@@ -39652,7 +39689,7 @@ def _kind_notes(
     found: dict[str, int] = {}
     for cell in content:
         if cell:
-            found[parsing.folded(cell)] = 1
+            found[_folded_or_itself(cell)] = 1
     if len(found) >= 3:
         return []
     return [
@@ -42601,6 +42638,81 @@ def _nearest_day_of_kind(
         away = away + 1
 
 
+@dataclasses.dataclass(frozen=True)
+class _OptionRadix:
+    """How `_distinct_reached`'s merge options are written as one number.
+
+    An option is five whole numbers -- the distance moved, the run's
+    length, its first rank, the instant offered and the rank offering it
+    (-1 for none) -- and the merges take them in the order of those
+    tuples. Each part, shifted to start at nought (`low`, the least
+    instant any rank or gap holds; one for the offering rank), is a digit
+    below its base, and the five digits are one number written in mixed
+    radix, most significant first: two numbers so written compare as
+    their tuples do, part by part, because every digit is below its base.
+    """
+
+    low: int
+    instants: int
+    ranks: int
+
+
+def _option_radix(
+    moved: "list[int]", lows: "list[int]", highs: "list[int]"
+) -> _OptionRadix:
+    """The bases of a pass's options: every instant from the least to the
+    greatest any rank stands on or any gap reaches, and every rank."""
+    if not moved:
+        return _OptionRadix(0, 1, 1)
+    low = min(moved)
+    high = max(moved)
+    if lows:
+        low = min(low, min(lows))
+    if highs:
+        high = max(high, max(highs))
+    return _OptionRadix(low, high - low + 1, len(moved) + 1)
+
+
+def _option_packed(
+    radix: _OptionRadix, distance: int, size: int, first: int, target: int, other: int
+) -> int:
+    """One merge option as one whole number (`_OptionRadix`).
+
+    Raises the internal check where a part is not below its base, which
+    would order the options as their tuples never were."""
+    digits = (
+        (distance, radix.instants),
+        (size, radix.ranks),
+        (first, radix.ranks),
+        (target - radix.low, radix.instants),
+        (other + 1, radix.ranks),
+    )
+    packed = 0
+    for digit, base in digits:
+        if digit < 0 or digit >= base:
+            raise errors.ProfileError(
+                "synthtwin internal check: a merge option of a column of "
+                "dates fell outside the bases it is written in. This means "
+                "a mistake in synthtwin; please report it. Nothing has been "
+                "written."
+            )
+        packed = packed * base + digit
+    return packed
+
+
+def _option_read(radix: _OptionRadix, packed: int) -> "tuple[int, int, int, int, int]":
+    """The five parts `_option_packed` wrote, as the option's tuple."""
+    other = packed % radix.ranks - 1
+    packed = packed // radix.ranks
+    target = packed % radix.instants + radix.low
+    packed = packed // radix.instants
+    first = packed % radix.ranks
+    packed = packed // radix.ranks
+    size = packed % radix.ranks
+    distance = packed // radix.ranks
+    return (distance, size, first, target, other)
+
+
 def _distinct_reached(
     facts: contract.DatetimeFacts,
     moved: "list[int]",
@@ -42657,7 +42769,13 @@ def _distinct_reached(
         # last being -1 for the held unit that is no rank neighbour. A
         # neighbour's instant is read again when the option's turn comes,
         # because an earlier merge of the same round may have moved it.
-        options: "list[tuple[int, int, int, int, int]]" = []
+        #
+        # EACH OPTION HELD AS ONE WHOLE NUMBER (plan P4-D415, lane SG): the
+        # five parts written in order in mixed radix (`_OptionRadix`), so the
+        # numbers sort as the five-part tuples did and read back as them. A
+        # tuple an option held about 280 bytes a row of 20,000 stamps.
+        options: "list[int]" = []
+        radix = _option_radix(moved, lows, highs)
         # WHICH INSTANT EACH HELD UNIT STANDS ON, so a run can be merged
         # onto a unit that is not its rank neighbour (plan P4-D258).
         spot: "dict[int, int]" = {}
@@ -42695,7 +42813,8 @@ def _distinct_reached(
                         continue
                     reached[target] = True
                     options += [
-                        (
+                        _option_packed(
+                            radix,
                             abs(target - moved[first]),
                             last - first + 1,
                             first,
@@ -42720,7 +42839,8 @@ def _distinct_reached(
                 )
                 if other_unit is not None and other_unit not in reached:
                     options += [
-                        (
+                        _option_packed(
+                            radix,
                             abs(other_unit - moved[first]),
                             last - first + 1,
                             first,
@@ -42729,9 +42849,10 @@ def _distinct_reached(
                         )
                     ]
             first = last + 1
-        for option in sorted(options):
+        for packed in sorted(options):
             if count == wanted:
                 break
+            option = _option_read(radix, packed)
             first = option[2]
             size = option[1]
             own = moved[first] // unit
@@ -53978,7 +54099,7 @@ def _identifier_shortfall(
         if shortest == 0 or len(spelling) < shortest:
             shortest = len(spelling)
         longest = max(longest, len(spelling))
-        identities[parsing.folded(spelling)] = 1
+        identities[_folded_or_itself(spelling)] = 1
     missed: list[str] = []
     owed = [
         ("n_numeric", classes[_CLASS_NUMBER], column.n_numeric),
@@ -54066,9 +54187,7 @@ def _laid_identifiers(
     carriers = (_moved_to(order, pinned[0]), _moved_to(order, pinned[1]))
     kinds = [_CLASSES[cell // width] for cell in cells]
     bands = [_BANDS[cell - (cell // width) * width] for cell in cells]
-    families = [
-        f"{kinds[index]}/{bands[index]}" for index in range(total)
-    ]
+    families = _families_named(kinds, bands)
     asks = _letter_asks(families, folded)
     windows = _length_windows(
         total,
@@ -56655,7 +56774,7 @@ def _levels_past_the_line(
     for index, spelling in enumerate(spellings):
         if index >= len(groups):
             break
-        key = parsing.folded(spelling)
+        key = _folded_or_itself(spelling)
         # Indexed behind an `in` test rather than `.get`: the offline
         # audit refuses a method call on a value it cannot trace, and
         # this module reads every one of its own tallies this way.
@@ -57483,6 +57602,24 @@ def _breaks_a_prefix(
     return bool(prefix) and candidate[: len(prefix)] != prefix
 
 
+def _families_named(kinds: "list[str]", bands: "list[str]") -> "list[str]":
+    """Each value's family, its class and band joined by a slash (G9.3).
+
+    ONE TEXT A FAMILY (plan P4-D415, lane SG): a column has a few dozen
+    families at most, so each family's text is made once and every value
+    of it holds that text, where a text a value held about 60 bytes a row
+    of a column of record numbers or free text. The same texts, equal for
+    equal families, as before."""
+    named: "dict[tuple[str, str], str]" = {}
+    families: "list[str]" = []
+    for index in range(len(kinds)):
+        key = (kinds[index], bands[index])
+        if key not in named:
+            named[key] = f"{kinds[index]}/{bands[index]}"
+        families += [named[key]]
+    return families
+
+
 def _length_windows(
     total: int,
     shortest: int,
@@ -57502,9 +57639,11 @@ def _length_windows(
     ``pinned`` is False where the two ends are the same length, or where
     the column has no second value to pin.
     """
-    windows: list[tuple[int, int | None]] = [
-        (shortest, longest) for _each in range(total)
-    ]
+    # ONE WINDOW FOR EVERY VALUE THAT TAKES ANY LENGTH (plan P4-D415, lane
+    # SG): the same pair, kept once rather than made again a value, as only
+    # the carriers' windows are replaced below.
+    window: "tuple[int, int | None]" = (shortest, longest)
+    windows: list[tuple[int, int | None]] = [window for _each in range(total)]
     if total >= 1:
         windows[carriers[0]] = (shortest, shortest)
     if total >= 2 and pinned and longest is not None:
@@ -57816,7 +57955,7 @@ def _parent_freed(
             freeing[2][(lengths[place], lengths[place])] = True
             freeing[2][walk[5][place]] = True
         for place in range(folded):
-            identity[parsing.folded(spellings[place])] = place
+            identity[_folded_or_itself(spellings[place])] = place
             if place not in kept[0] or place in kept[3]:
                 continue
             if place == kept[2][0] or place == kept[2][1]:
@@ -57884,7 +58023,7 @@ def _parent_freed(
                 carried[before] = left
         carried[place] = sizes[place] + sizes[index]
         del identity[parsing.folded(old)]
-        identity[parsing.folded(new)] = place
+        identity[_folded_or_itself(new)] = place
         _parent_lettered(found[0], found[1], place, families[place], new, freeing[2])
         return flip
     return None
@@ -58254,10 +58393,9 @@ def _text_cells(
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
     spellings: list[str] = []
-    families = [
-        f"{_CLASSES[kinds[index]]}/{_BANDS[bands[index]]}"
-        for index in range(total)
-    ]
+    families = _families_named(
+        [_CLASSES[kind] for kind in kinds], [_BANDS[band] for band in bands]
+    )
     windows = _length_windows(
         total,
         facts.length.minimum,
