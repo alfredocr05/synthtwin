@@ -3935,7 +3935,7 @@ def _parts_on_any_mark(text: str) -> "list[str]":
     parts: "list[str]" = []
     for piece in flat.strip(", ").split(","):
         found = False
-        for word in piece.split(" "):
+        for word in _spaced_words(piece):
             if not word:
                 continue
             one = _unquoted(word)
@@ -3986,6 +3986,13 @@ def _names_nobody_at_a_glance(value: str) -> bool:
 
 
 _WHAT_NAMES_A_PERSON_HOLDS = "0123456789@.:"
+
+
+def _spaced_words(piece: str) -> "list[str]":
+    """A piece of a cell split on each single space, empty words kept."""
+    if not isinstance(piece, str):
+        raise TypeError("a cell to ask about must be text")
+    return piece.split(" ")
 
 
 def _holds_the_mark(cell: str, mark: str) -> bool:
