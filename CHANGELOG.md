@@ -46,6 +46,21 @@ coarser (a new lane PS2), the pooled tails drawn inside their end bucket
 (PS2), a stamp with UTC offsets publishing no count at its rung (lane
 DST).
 
+**Repair round 2** (the combined verify and Codex's review). A spelling
+of no value that reads as a date -- one declared with `--missing-value`,
+or `1900-01-01` -- stays absent: before, it was pooled into a present
+date and the description could not be loaded. A held column's twin
+draws from the first published span wide enough for its different
+values, so it never leaves a made-up cell where a valid date exists, and
+a published layout no date wears (a word such as `pending`) stays as the
+real cells are. Filling the count of different values never moves a row
+into or out of a tail; the twin's report is measured on the cells it
+writes; a description naming more people than rows is refused. Stated
+limits with owners: a held column's length that no valid date has (three
+people's `pending`) is missed and named in the twin's report; a birth
+date beside few people a year is drawn from the method's fixed span
+(lane PS2).
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

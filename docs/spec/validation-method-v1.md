@@ -3990,7 +3990,12 @@ as that one (`grains.coarse_cells`, the profiler's own function), and
 every check of the column -- the redescription of V2 and the checks of
 V3 that count the file's own cells, the tails, the censuses and the
 dates that stand out -- reads those cells. A cell that does not read is
-measured as written. Nothing is decided: the rung and the ends are the
+measured as written, and so is a cell the description reads as no
+value -- a spelling its block publishes among `missing_by_source`, a
+blank, a word of the vocabulary or one declared with `--missing-value`
+--, even where it reads as a date (repair round 2 of lane PS, Codex's
+item 3: thirty patients' declared `2020-06-15`, and `1900-01-01`, were
+pooled into present cells). Nothing is decided: the rung and the ends are the
 record's, so the validator never counts anybody.
 
 **V14.2 What it buys.** The real table checked against the description

@@ -11168,17 +11168,30 @@ giving its last rows first; then the rung just below the stretch, giving
 its last rows while every rank it is published at (taxonomy's rank
 `((n - 1) * num) // den` over the present rows) stays inside it; then the
 rung just above, giving its first rows on the same terms. A bucket a heavy
-date, a tail or a span's end names gives none. Each row goes to the
+date, a tail (its boundary or one of its values) or a span's end names
+gives none, and no stretch at or below the low tail's boundary, or at or
+above the high tail's, moves a row (repair round 2 of lane PS, Codex's
+item 2: a boundary the p05 rank also held once gave a row of 1982 to
+1981, a tail of 31 rows against 30). Each row goes to the
 earliest empty bucket of its key, until the count is met or no move is
 left. So every published point keeps its rank, every tail and heavy date
 its rows and every census at the rung its counts; no word is drawn. The
 oracle's `pooled_count_filled` holds the product to it.
 
-**A held column (rung `held`): the G1 floor.** The span is the record's
-last span, from its first bucket's start to the start after its last
-bucket (a clock's never past its day), or, where the record publishes
-none, the method's FIXED SPAN, 1 January 2000 to 31 December 2029 (a
-clock: its whole day) -- never the table. The DIFFERENT made-up cells of
+**A held column (rung `held`): the G1 floor.** The spans are the
+record's, deepest first, each from its first bucket's start to the start
+after its last bucket (a clock's never past its day), and then the
+method's FIXED SPAN, 1 January 2000 to 31 December 2029 (a clock: its
+whole day) -- never the table. THE CAPACITY IS RESOLVED FIRST (repair
+round 2 of lane PS, Codex's item 1): the walk below starts in the first
+of them whose days (seconds, where the reading writes a clock) number at
+least the column's different made-up cells, and a made-up cell that span
+cannot take walks the next, and so on; where none can take it unrepeated
+it takes a value an earlier made-up cell took in the last (a valid value,
+the count of different values then named short), and only a member this
+step does not write leaves a made-up cell as made up, named in the
+twin's report (eight different values against a deepest span of one day
+had left 875 of 1,000 cells as stand-ins). The DIFFERENT made-up cells of
 the column (G9), in the order of the rows each first stands on, each take
 one value, and every row holding that made-up cell writes it. A made-up
 cell's runs are read by the member's own order from its layout alone:
@@ -11210,7 +11223,9 @@ from the same start, by days (by steps of 3,607 seconds where the member
 writes a clock, of 61 of its own steps for a clock time), to the first
 moment no earlier made-up cell took, written in the member's own form
 (`parsing.written_date`, alone or with ` HH:MM`, ` HH:MM:SS` or
-`THH:MM:SS` after it; a layout's writer at each width; a clock's one
+`THH:MM:SS` after it, and the date with each two-figure field opening
+with a nought written with one figure, alone and together -- repair
+round 2; a layout's writer at each width; a clock's one
 spelling; a count at no figures after the mark) that reads under the
 member (an ISO date column may take an ISO stamp, as its source's
 unread cells were): first one as long as the made-up cell and on its
@@ -11222,13 +11237,25 @@ rows) walks once more from its own start for one as long as it, whatever
 its side, and takes it in place of its first value. So the held column
 keeps every layout, every width and the census of repetition its block
 publishes (two made-up values never take one) wherever a date can wear
-them, and every value parses under its member.
+them, and every value parses under its member. A PUBLISHED LAYOUT NO
+DATE WEARS (repair round 2, the combined verify's item 2): a made-up
+cell whose layout the held block names (not its withheld pool) and that
+no value of the member can wear in that very form (`grains.wears_a_date`:
+the field and layout walks over the fixed span find none) -- twelve
+people's `pending` beside ISO dates -- stands for real cells that do not
+read either, and leaves as made up, so the layout census and its lengths
+hold. A length the block withholds the form of and no valid value of the
+member wears (three people's `pending`, seven characters; one cell `x`)
+is the G1 floor's price: the twin misses that `min_length` or
+`max_length` and its report says why.
 
 **What is measured.** The twin's report and its approximations are
-measured on the cells as built (the bytes before this step), exactly as
-the validator, which reads the grain (validation V14), measures them; a
-held column's are the record-number block's, which its filled cells meet
-as its made-up ones did. The oracle (`tools/reference/
+measured on the cells AS THEY LEAVE, read as the validator reads them
+(validation V14; repair round 2 of lane PS, Codex's item 4): a pooled
+column's at its rung (`grains.coarse_cells`), so a row the count at the
+rung moved is counted where it went, and a held column's as written, so
+a length its valid dates do not keep is named (before, the report read
+the made-up cells and named none). The oracle (`tools/reference/
 make_generation_reference_vectors.py`, `pooled_drawn_inside`) writes the
 pooled draw from these words for ISO dates and stamps, padded US and
 day-first dates, padded 24-hour clocks and Excel's whole serials, and
