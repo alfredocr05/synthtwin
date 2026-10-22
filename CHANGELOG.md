@@ -17,7 +17,7 @@ to A3: a form or layout under the floor absorbed into the commonest
 published one, producer and validator alike (the VCF `rs` layouts); a
 floored positional census per published form, counted in people beside a
 subject column, keeping a vocabulary prefix such as `ICD10CM:`; held-back
-numbers paying their own form and width (PCORnet `DX`: `%%%.%` 24 against
+numbers keeping their own form and width (PCORnet `DX`: `%%%.%` 24 against
 a published 21 today). CODES-1 part C: a held column's twin meets its
 published forms. CODES-2 under the owner's Z1 (B): rare names published
 only through an allowlist, after the owner's question "Could a value of

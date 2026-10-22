@@ -265,15 +265,15 @@ def test_the_golden_region_holds_back_outlying_and_note_names_nothing(tmp_path: 
 
 def test_a_lone_held_back_level_prints_its_own_row_count(tmp_path: pathlib.Path) -> None:
     draw = random.Random(7)
-    lines = ["sex,unit,value"]
+    lines = ["gender,unit,value"]
     for k in range(600):
-        sex = "X" if k < 4 else ("F" if draw.random() < 0.5 else "M")
+        gender = "X" if k < 4 else ("F" if draw.random() < 0.5 else "M")
         unit = "U" if k == 10 else ("A" if draw.random() < 0.5 else "B")
-        lines += [f"{sex},{unit},{draw.gauss(50, 10):.1f}"]
+        lines += [f"{gender},{unit},{draw.gauss(50, 10):.1f}"]
     document = _profiled(tmp_path, "lone.csv", "\n".join(lines) + "\n")
-    sex = _column(document, "sex")
+    gender = _column(document, "gender")
     unit = _column(document, "unit")
-    assert (sex["suppressed_levels"], sex["suppressed_rows"]) == (1, 4)
+    assert (gender["suppressed_levels"], gender["suppressed_rows"]) == (1, 4)
     assert (unit["suppressed_levels"], unit["suppressed_rows"]) == (1, 1)
     assert "a lone `U` prints `suppressed_rows 1`, measured again on this base" in _flat(_page())
 
