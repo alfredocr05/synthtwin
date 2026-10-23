@@ -3963,9 +3963,15 @@ def _parts_on_any_mark(text: str) -> "list[str]":
     """
     if not isinstance(text, str):
         raise TypeError("a cell to ask about must be text")
-    flat = text.replace(";", ",").replace("|", ",")
-    for character in _READ_AS_SPACE:
-        flat = flat.replace(character, " ")
+    # Each character of `_READ_AS_SPACE`, one by one.
+    flat = (
+        text.replace(";", ",")
+        .replace("|", ",")
+        .replace("\t", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .replace("\u00a0", " ")
+    )
     parts: "list[str]" = []
     for piece in flat.strip(", ").split(","):
         found = False
@@ -4366,24 +4372,26 @@ def listed_record_number_questions(
         # How the cells are written as lists: two parts or more on the
         # mark, and (lane HX4's repair 2) one part in brackets or quotes
         # or beside the mark.
-        written: "list[str]" = []
+        written = ""
         if several:
-            written += [
+            written = (
                 f"{_sayable(several, len(present), floor)} hold "
                 f"{_LIST_MARKS_SAID[mark]} between two or more parts"
-            ]
+            )
         if single:
-            written += [
-                f"{_sayable(single, len(present), floor)} hold one part in "
-                f"brackets or quotes or beside {_LIST_MARKS_SAID[mark]}"
-            ]
+            if written:
+                written = f"{written}, and "
+            written = (
+                f"{written}{_sayable(single, len(present), floor)} hold one "
+                f"part in brackets or quotes or beside {_LIST_MARKS_SAID[mark]}"
+            )
         found += [
             Question(
                 name,
                 role,
                 BECAUSE_LISTED_RECORD_NUMBERS,
                 f"{len(present)} values, and "
-                f"{', and '.join(written)}; "
+                f"{written}; "
                 f"{_LISTED_SAID[why]}, which is how a list of record "
                 f"numbers is written and also how a list of codes is. Does "
                 f"a cell hold several codes or labels, or several record "
