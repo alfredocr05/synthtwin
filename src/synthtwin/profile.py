@@ -4699,7 +4699,7 @@ def population_census_of(
     `population_and_rows_census_of`'s answer less the rows that hold a
     value, which that function says how it works out.
     """
-    people, counted, _rows, readings = population_and_rows_census_of(
+    people, counted, _merged, _rows, readings = population_and_rows_census_of(
         table, settings, declared, codes, measurements, decimal_commas,
         stored_as,
     )
@@ -4714,11 +4714,13 @@ def population_and_rows_census_of(
     measurements: "list[str]",
     decimal_commas: "list[str]",
     stored_as: "tuple[str, ...]",
-) -> "tuple[tuple[str, ...], int, int, tuple[taxonomy.HeldReading, ...]]":
+) -> "tuple[tuple[str, ...], int, int, int, tuple[taxonomy.HeldReading, ...]]":
     """`taxonomy.population_and_rows_census` of this table (plan P4-D425).
 
-    The person columns, how many people, how many rows hold a value
-    (the command's table floor asks both), and the readings kept.
+    The person columns, how many people, how many people with each
+    person's spellings merged (`parsing.subject_key`: the count the
+    command's table floor asks), how many rows hold a value (the floor
+    asks it too), and the readings kept.
 
     A table read whole is handed over whole. A table read in groups
     (lane SR, plan P4-D400) is counted ONE COLUMN AT A TIME, every
@@ -4784,9 +4786,13 @@ def population_and_rows_census_of(
         if holding[row]:
             counted = counted + 1
     if joined is None:
-        return (), counted, counted, ()
+        return (), counted, counted, counted, ()
     return (
-        tuple(people), taxonomy.people_counted(joined, holding), counted, ()
+        tuple(people),
+        taxonomy.people_counted(joined, holding),
+        taxonomy.people_counted_merged(joined, holding),
+        counted,
+        (),
     )
 
 
@@ -5291,27 +5297,8 @@ def subject_keys(
 
 
 def _subject_key(cell: str) -> str:
-    """One subject cell's merged form (`subject_keys`)."""
-    kept = ""
-    zeros = False
-    started = False
-    for character in parsing.folded(cell):
-        if "0" <= character <= "9":
-            if started or character != "0":
-                kept = kept + character
-                started = True
-            else:
-                zeros = True
-            continue
-        if zeros and not started:
-            kept = kept + "0"
-        zeros = False
-        started = False
-        if "a" <= character <= "z" or character > "\x7f":
-            kept = kept + character
-    if zeros and not started:
-        kept = kept + "0"
-    return kept
+    """One subject cell's merged form (`subject_keys`; `parsing.subject_key`)."""
+    return parsing.subject_key(cell)
 
 
 def _holding(

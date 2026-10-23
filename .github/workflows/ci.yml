@@ -1020,7 +1020,7 @@ jobs:
           # clean machine. The table is a battery of roles, not a twin
           # anybody analyses, so it is then described through the
           # installed package's own entry point with the internal
-          # `table_floor` keyword off, which no command line reaches.
+          # `small_tables_refused` keyword off, which no command line reaches.
           set +e
           "$RUNNER_TEMP/fresh-env/bin/synthtwin" profile "$DEMO/table.csv" \
             --identifier record_code
@@ -1030,7 +1030,7 @@ jobs:
             echo "The installed command did not refuse a table under the table floor (exit $refused)."
             exit 1
           fi
-          "$RUNNER_TEMP/fresh-env/bin/python" -c 'import sys; from synthtwin import cli; sys.exit(cli.main(sys.argv[1:], table_floor=False))' \
+          "$RUNNER_TEMP/fresh-env/bin/python" -c 'import sys; from synthtwin import cli; sys.exit(cli.main(sys.argv[1:], small_tables_refused=False))' \
             profile "$DEMO/table.csv" --identifier record_code
           "$RUNNER_TEMP/fresh-env/bin/python" - <<'CHECK'
           import json

@@ -58,7 +58,7 @@ def _quiet(argv: "list[str]") -> int:
     sink = io.StringIO()
     with shapes.nobody_at_the_keyboard():
         with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-            return cli.main(argv, table_floor=False)
+            return cli.main(argv, small_tables_refused=False)
 
 
 @contextlib.contextmanager

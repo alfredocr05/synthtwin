@@ -841,7 +841,7 @@ def test_importing_the_command_module_starts_no_reader(
     # The module's own objects are put back afterwards (plan P4-D425):
     # a reload makes a new `main`, and a test module that imported the
     # old one by name would then hold a function whose internal
-    # `table_floor` default the suite's conftest no longer reaches.
+    # `small_tables_refused` default the suite's conftest no longer reaches.
     kept = dict(vars(cli))
     try:
         importlib.reload(cli)

@@ -648,8 +648,8 @@ def is_an_installed_package(package: pathlib.Path) -> bool:
     return any(part in INSTALL_FOLDERS for part in package.parts)
 
 
-def the_table_floor_off() -> None:
-    """Make `cli.main`'s internal `table_floor` default False in this driver's process.
+def the_small_table_refusal_off() -> None:
+    """Make `cli.main`'s internal `small_tables_refused` default False in this driver's process.
 
     Plan P4-D425: `synthtwin profile` refuses a table under the owner's
     table floor (20,000 rows that hold a value, or 1,000 people where a
@@ -664,15 +664,15 @@ def the_table_floor_off() -> None:
     from synthtwin import cli
 
     defaults = cli.main.__kwdefaults__
-    if defaults is not None and "table_floor" in defaults:
-        defaults["table_floor"] = False
+    if defaults is not None and "small_tables_refused" in defaults:
+        defaults["small_tables_refused"] = False
 
 
 def guard_this_tree() -> str:
     """Print where synthtwin was imported from, and refuse unless it is THIS TREE'S CODE.
 
     It also turns the table floor off for the driver's process
-    (`the_table_floor_off`, plan P4-D425): every driver calls this first.
+    (`the_small_table_refusal_off`, plan P4-D425): every driver calls this first.
 
     A driver measured against an installed copy of another checkout
     reports a confident number about the wrong code; that has voided
@@ -709,7 +709,7 @@ def guard_this_tree() -> str:
 
     here = pathlib.Path(synthtwin.__file__).resolve()
     print(f"synthtwin imported from {here}", flush=True)
-    the_table_floor_off()
+    the_small_table_refusal_off()
     source = (REPO_ROOT / "src").resolve()
     if source in here.parents:
         return str(here)

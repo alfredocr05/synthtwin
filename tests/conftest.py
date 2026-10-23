@@ -52,23 +52,28 @@ socket.create_connection = _blocked  # type: ignore[assignment]
 # repeats, under `parsing.TABLE_PEOPLE_FLOOR` people -- the owner's rule
 # of 2026-10-22 -- and the suite runs the command on hundreds of small
 # tables whose checks are about reading, roles and publication, not size.
-# `cli.main` takes an INTERNAL keyword, `table_floor`, which no
+# `cli.main` takes an INTERNAL keyword, `small_tables_refused`, which no
 # command-line option sets; this fixture makes False its default for
 # every test, on the function object itself, so a test that imported
 # `main` by name gets the same default as one that calls `cli.main`. A
-# test of the floor passes `table_floor=True` (tests/test_table_floor.py),
+# test of the floor passes `small_tables_refused=True` (tests/test_table_floor.py),
 # and a run in a fresh interpreter -- the installed command -- has the
 # floor on, which that file checks too. The measurement drivers run
 # outside pytest and pass the keyword themselves.
 import pytest  # noqa: E402
+from collections.abc import Iterator  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
-def _the_table_floor_off_for_in_process_runs(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def _the_small_table_refusal_off_in_process_runs() -> "Iterator[None]":
+    # Its OWN MonkeyPatch, never the test's `monkeypatch`: a test that
+    # calls `monkeypatch.undo()` part way (46 calls in tests/) would
+    # otherwise undo this default too and turn the refusal back on for
+    # the rest of that test (skeptic 1 of lane POP, item 1 (b)).
     from synthtwin import cli
 
     defaults = cli.main.__kwdefaults__
-    assert defaults is not None and "table_floor" in defaults
-    monkeypatch.setitem(defaults, "table_floor", False)
+    assert defaults is not None and "small_tables_refused" in defaults
+    with pytest.MonkeyPatch.context() as own:
+        own.setitem(defaults, "small_tables_refused", False)
+        yield
