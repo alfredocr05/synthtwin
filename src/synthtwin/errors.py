@@ -1403,6 +1403,82 @@ def floor_not_positive(given: str) -> str:
     )
 
 
+def floor_under_the_minimum(given: str) -> str:
+    """Message for `--smallest-group` typed under the floor of 11.
+
+    THE OWNER'S FLOOR OF 11 IS A MINIMUM (plan P4-D426, the owner's
+    answer of 2026-10-23): the option may raise the floor, never lower
+    it, so that every file a run writes keeps decision D7's promise --
+    the twin may be shared freely because no group small enough to
+    point at one person is named in it. The command is refused before
+    anything is read or written, with code 2, as every other unusable
+    option is. ``given`` is the number as typed, already shown through
+    the display boundary. Nothing of any table reaches it.
+    """
+    return (
+        f"The smallest group size can be raised but not lowered: {given} "
+        f"was given, and the least it can be is "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}. synthtwin names no group "
+        f"smaller than {parsing.DEFAULT_SMALL_CELL_FLOOR} in what it "
+        f"writes, so that the twin and the files beside it never name a "
+        f"group small enough to point at one person. Nothing was read or "
+        f"written. Give a whole number of "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR} or more -- for example "
+        f"--smallest-group 20 leaves out every group of fewer than 20 -- "
+        f"or leave the option out to use "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}."
+    )
+
+
+def floor_not_a_whole_number(given: str) -> str:
+    """Message for `--smallest-group` followed by something not a number.
+
+    It was argparse's own line ("invalid int value") until plan P4-D426,
+    which copied the text as typed past the display boundary and named
+    no next step. ``given`` is the text as typed, already shown through
+    the display boundary; nothing of any table reaches it.
+    """
+    return (
+        f"The smallest group size must be a whole number written in "
+        f"figures, but {given} was given. Nothing was read or written. "
+        f"Give a whole number of {parsing.DEFAULT_SMALL_CELL_FLOOR} or "
+        f"more, or leave the option out to use "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}."
+    )
+
+
+def description_floor_under_the_minimum(
+    shown: str, floor: int, building: bool
+) -> str:
+    """Message for a description written under a floor lowered below 11.
+
+    A description written by a version before plan P4-D426 may record a
+    smallest group size under 11, which `--smallest-group` allowed then.
+    HIPAA FIRST, the plan's decision: `generate` will not build a twin
+    from it, because the twin would hold every group it names, however
+    small, and the owner's decision D7 lets a twin be shared freely; and
+    `validate` will not check a file against it, because its report
+    would quote those groups and the checked file's own counts at that
+    size. Both are refused before anything is written. ``shown`` is the
+    description's path through the display boundary, ``floor`` the size
+    it records, ``building`` True for `generate`. Nothing of the table
+    reaches it beyond that number.
+    """
+    refused = "build a twin from it" if building else "check a file against it"
+    return (
+        f"{shown} was written with the smallest group size lowered to "
+        f"{floor}, which an earlier version of synthtwin allowed and this "
+        f"one does not: it names groups smaller than "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}, small enough to point at one "
+        f"person, so synthtwin will not {refused}. Nothing was written. "
+        f"Describe the table again with  synthtwin profile  (the smallest "
+        f"group size is then {parsing.DEFAULT_SMALL_CELL_FLOOR}, or the "
+        f"larger number you give) and use the new description; delete "
+        f"this description and every file made from it before any of "
+        f"them goes anywhere."
+    )
+
+
 def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     """Message for a table with too few rows, or too few people, to describe.
 
