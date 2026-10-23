@@ -18,9 +18,10 @@ published one, producer and validator alike (the VCF `rs` layouts); for
 the label class, a floored positional census per published form after
 the Safe Harbor `no`, counted in people beside a subject column, keeping a
 vocabulary prefix such as `ICD10CM:`, its stand-ins stepped through the
-lists, then the characters the published levels wear, then the alphabet
-widened from the last place (the zoo's TNM: 0 of 81 cells out of grammar,
-11 of 11 levels real); held-back numbers keeping their own form and width
+lists in balanced order, then the characters the published levels wear,
+then the alphabet widened from the last place (the zoo's TNM: 0 of 81
+cells out of grammar, 11 of 11 levels real), and unanswered reading no
+held-back cell; held-back numbers keeping their own form and width
 (PCORnet `DX`: `%%%.%` 24 against a published 21 today). CODES-1 part C: a
 held column's twin meets its published forms. CODES-2 under the owner's Z1
 (B): rare names published only through an allowlist, after the owner's
@@ -30,11 +31,18 @@ answered `no`; the question put in the first round to every label column
 in one entry, its explanation covering ages over 89, three-figure ZIPs
 and any other number or code given to one person; a column answered
 `code`, and a label column with a figure in every present cell, held
-until then, so a five-figure ZIP, a ZIP+4 and a device UDI publish none of
-their values (9 of 59 ZIPs and 12 of 49 UDIs printed answered `code`
-today, 9 of 363 ZIPs with nothing asked); a column of words such as a
-birth city keeps its common levels unanswered, a stated limit; short
-result words by a shape screen; lane HX3's `code` offered on code-form
+until then, and on every other label column each level holding a figure
+pooled until then, so a five-figure ZIP, a ZIP+4 and a device UDI publish
+none of their values, one `UNKNOWN` cell beside them included (9 of 59
+ZIPs and 12 of 49 UDIs printed answered `code` today, 9 of 363 ZIPs with
+nothing asked, 6 beside one word cell); `yes` acted on at once, `no`
+waiting for every identity question of the table; a column of words such
+as a birth city keeps its common word levels unanswered, a stated limit;
+the Safe Harbor top-code, a number column within 0 to 125 holding a value
+above 89 read with those values as 90 until its question is answered
+(three ages over 89 printed today at 2,000 rows); short result words by
+a shape screen that refuses every word holding a letter and a figure;
+named levels' sizes allocated jointly with the published form debts; lane HX3's `code` offered on code-form
 long tails in the same question; names beside a person column only where
 the column is not attached to it. GG: a few-valued number column, after
 the same `no`, writes only its own values, rare ones included;
@@ -45,8 +53,9 @@ validator's rule of each; what moves (no golden, checked on the
 fixtures; the frozen vectors each lane names); the KPIs the four lanes
 stamp and the kinds each turns. Measured on 4682d6ad
 (`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
-(122 cases) pins the page's figures and its reading of the product, red on
-each of 58 page mutants after the repair of its two reviews.
+(165 cases) pins the page's figures and its reading of the product, red on
+each of 99 page mutants after the second repair, on the combined review
+and the one outside review.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 

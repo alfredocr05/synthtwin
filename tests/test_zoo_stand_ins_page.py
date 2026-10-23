@@ -39,6 +39,7 @@ gate holds the cases.
 import collections
 import contextlib
 import csv
+import inspect
 import io
 import itertools
 import json
@@ -106,17 +107,32 @@ def test_the_page_stands_once_and_its_decision_follows_it() -> None:
 OPERATIVE = {
     "U": "A column is UNANSWERED for this page where",
     "U-table": "also (c) where any question of the table offering `identifier` is open, on any column",
-    "U-reach": "**And for every NAME (ZS.3), every RARE VALUE (ZS.4) and every positional census beyond a form's "
-    "constant marks (A2)**, also (c)",
+    "U-reach": "**And for every NAME (ZS.3), every RARE VALUE (ZS.4) and every positional census (A2)**, also (c)",
+    "U-stand-ins": "no stand-in made of a character read from its held-back cells: its stand-ins read only what the "
+    "description prints -- the form's own marks, the characters its published levels wear, ruling 1's published "
+    "prefix -- and the alphabet (A2)",
     "A1": "is not published apart: its cells are counted in the column's commonest published form or layout, "
     "and the twin writes them there. The producer and the validator absorb alike",
+    "A1-none": "has no destination, and A1 moves nothing on it: the `(withheld)` entry stays as today, with its total, "
+    "and the twin writes its cells as today's held-pool writer does",
+    "A1-clock": "On a column whose stand-ins G8.3's clock line reads as clock times (plans P4-D373 and P4-D393) nothing "
+    "moves: the clock and stamp fills keep priority and their bytes.",
     "A1-people": "that fewer than the floor's cells wear -- fewer than the floor's different subjects beside a "
     "subject column -- is not published apart",
     "A2": "the description lists at each place the characters at least the floor's cells hold there -- at least "
     "the floor's different subjects beside a subject column (P4-D406) -- and publishes no count",
     "A2-after-no": "and it does so only once the column's Safe Harbor question is answered `no` and rule U clears (ZS.1)",
-    "A2-unanswered": "Unanswered, it lists at each place only the character every cell of the form holds there, "
-    "published levels included",
+    "A2-unanswered": "Unanswered, it lists nothing and reads no held-back cell: its stand-ins read only what the "
+    "description prints",
+    "A2-empty-place": "A place whose list is empty where no published level wears the form takes the form's alphabet "
+    "at that place from stage (1) on",
+    "A2-balanced": "while a listed character at some place holds fewer than the floor's stand-in cells (the floor's "
+    "different subjects beside a subject column), the next stand-in takes at each place the listed character with the "
+    "fewest stand-in cells so far",
+    "A2-validate": "every listed character at each place held by at least the floor's cells of that form outside the "
+    "published levels -- the floor's different subjects beside a subject column -- in the real file and the twin alike",
+    "A2-H-rows": "H is read in rows beside a subject column too, the stricter reading.",
+    "A2-W1": "A2 adds no own-fact group to RULE W1's list.",
     "A2-forced": "neither does a form with a place whose list is empty while its held-back cells H exceed (a-1)(f-1)",
     "A2-stages": "(1) each place's list, a place with an empty list taking the characters the form's published levels "
     "wear there; (2) each place's list together with the characters the form's published levels wear there; (3) the "
@@ -149,20 +165,44 @@ OPERATIVE = {
     "path-iii-hold": "Unanswered, a label column every present cell of which holds a figure -- a ZIP, a ZIP+4, a "
     "postcode, a record, account or device number, a code -- is held as path (i) holds a column (P4-D401's held "
     "block), whatever its levels",
-    "acted-on": "it is acted on only once rule U (c) clears",
-    "blank": "on path (i) and on a label column with a figure in every present cell, the column held (above)",
+    "acted-on": "**`yes` is acted on at once**: it only withholds, so no other open question can delay it; `no`, which "
+    "widens what is published, is acted on only once rule U (c) clears",
+    "blank": "on path (i) and on a label column with a figure in every present cell, the column held (above); on any "
+    "other label column, its word levels only, every level holding a figure pooled, no name",
+    "path-iii-levels": "and on every other label column the hold is read LEVEL BY LEVEL: no level that holds a figure is "
+    "published while the question is open -- it is pooled with the held-back levels",
+    "majority-not": "A majority reading (held where half the present cells or more hold a figure) is NOT adopted: "
+    "enough filler words still defeat it.",
+    "names-joint": "The twin allocates the held-back sizes jointly, before any split",
+    "names-reserve": "together with a reservation of at least one cell for each unnamed level",
+    "names-validate": "each published form's count met with the named and unnamed levels' cells inside it",
+    "top-code": "while that question is open every value above 89 is read as 90 for the whole description",
+    "top-code-asked": "it is put the Safe Harbor question whatever its count of values",
+    "top-code-validate": "no twin cell above 90; the real file, read with every value above 89 as 90, meets the description",
+    "top-code-answers": "`no` lifts it (today's description, GG where its class holds); `yes` holds the column "
+    "(P4-D401's held block)",
+    "top-code-twin": "the twin writes the column so read, never a value above 90",
+    "GG-a-waits": "**GG (a) waits for `no`**, though every value it would add clears the floor",
+    "no-figure-run": "a constant run of figures is kept on no `yes` column, bracketed or not",
+    "NP-ratio": "one value a subject, at most one repeated row in ten differing",
     "yes": "no value of this column is published, and the twin writes made-up values in its layouts",
     "no": "never the rows that hold them; where only one value is named, how many rows hold it can be read",
     "code-offer": "offer HX3's `code`, in HX3's words and with its declaration, between `keep` and `identifier`",
     "NP": "a held-back name is published only where its column is NOT ATTACHED to that subject",
     "NP-attached": "A name in an ATTACHED column (an ancestry or a birth city beside each patient's rows) is a value "
     "one to ten subjects hold whatever its rows and is not published",
-    "GG": "the twin writes exactly those values -- never a value inside a published empty gap",
+    "GG": "the twin's present cells take exactly those values -- never a value inside a published empty gap",
+    "GG-99": "never a value inside a published empty gap, never `-99` re-spelled `-99.0`, never a level dropped",
+    "GG-blanks": "its blank cells keeping the column's published missing share, as today",
+    "GG-validate": "every present twin cell a listed value; every listed value present; the blank cells within the "
+    "column's published missing window",
+    "GG-scale-limit": "Likewise a scale with a missing code left unanswered loses a level and writes values in the "
+    "published gap",
     "GG-class": "whose values are NOT every whole number from the least to the greatest each held by at least the "
     "floor's rows",
     "GG-no": "**GG acts only after `no` to the Safe Harbor question**",
-    "GG-b": "`few_values` lists every value, the rare ones included, without counts, and the twin writes exactly "
-    "those values",
+    "GG-b": "`few_values` lists every value, the rare ones included, without counts, and the twin's present cells "
+    "take exactly those values",
     "GG-unanswered": "**Unanswered**, a column of the class keeps today's description and twin byte for byte",
     "GG-yes": "**`yes`** holds the column's ladder, mode and tail values (P4-D401's held block)",
     "GG-NP": "Beside a subject column, rule NP applies to the rare values as to names.",
@@ -178,7 +218,9 @@ OPERATIVE = {
     "tests-move": "the 20 lines in 13 test files that count the questions asked (`len(asked)`) and the 18 test files "
     "that declare `--code`",
     "words-limit": "A column of WORDS of a Safe Harbor class -- a city, a name -- whose Safe Harbor question is "
-    "unanswered publishes its common levels as today",
+    "unanswered publishes its common word levels as today, and only its word levels, every level holding a figure pooled",
+    "zoo-yes": "`yes` for `zip5` and `zip4`, the two path (i) columns of places, for `immunizations.udi`, a device number",
+    "udi-reread": "\"a UDI column answered `yes` writes no real UDI, in its published layouts\"",
     "loinc": "`labs`' `codes loinc` (today under CODES-1's `loinc` line) moves likewise",
     "unowned": "So `diagnoses`' checks `levels icd10_dotted`, `levels icd10_plain`, `codes icd10_dotted` and "
     "`codes icd10_plain` have no owner that can turn them",
@@ -197,13 +239,19 @@ def test_each_rule_keeps_its_operative_sentence(rule: str) -> None:
     assert _flat(OPERATIVE[rule]) in _flat(_page()), rule
 
 
-def _stand_ins(cells: "list[str]", census_of: "dict[str, list[str]]", widen: bool) -> "list[str]":
+def _stand_ins(
+    cells: "list[str]", census_of: "dict[str, list[str]]", widen: bool, balanced: bool = True,
+) -> "list[str]":
     """Rule A2's stand-ins, one a held-back level, commonest first.
 
     widen=True is the page as repaired: (1) each place's list, an empty list taking the characters the
-    form's published levels wear there; (2) each list with those characters; (3) the places widened to
-    the form's alphabet one at a time from the last. widen=False is the page as first written: the lists,
-    an empty list taking the alphabet, then the alphabet at every place.
+    form's published levels wear there, or the form's alphabet where no published level wears the form;
+    (2) each list with those characters; (3) the places widened to the form's alphabet one at a time from
+    the last. balanced=True walks stage (1) in balanced order while a listed character holds fewer than
+    the floor's stand-in cells: at each place the listed character with the fewest cells so far, the
+    stage's order where that combination is taken. widen=False is the page as first written: the lists,
+    an empty list taking the alphabet, then the alphabet at every place. An empty `census_of` is A2
+    unanswered: nothing listed, nothing read from the held-back cells.
     """
     tally = collections.Counter(cells)
     published = {value for value, n in tally.items() if n >= FLOOR}
@@ -215,6 +263,7 @@ def _stand_ins(cells: "list[str]", census_of: "dict[str, list[str]]", widen: boo
 
     used = set(published)
     iterators: "dict[tuple[str, str], object]" = {}
+    support: "dict[tuple[str, int], collections.Counter[str]]" = collections.defaultdict(collections.Counter)
     written = []
     for value in held:
         form = _form(value)
@@ -231,7 +280,14 @@ def _stand_ins(cells: "list[str]", census_of: "dict[str, list[str]]", widen: boo
             stages = [("1", [list(lists[place]) or alphabet(form, place) for place in range(len(form))]),
                       ("a", [alphabet(form, place) for place in range(len(form))])]
         found = ""
-        for name, choices in stages:
+        short = any(support[(form, place)][mark] < FLOOR for place in range(len(form)) for mark in lists[place])
+        if widen and balanced and short:
+            pick = "".join(
+                min(first[place], key=lambda mark: (support[(form, place)][mark], first[place].index(mark)))
+                for place in range(len(form))
+            )
+            found = "" if pick in used else pick
+        for name, choices in stages if not found else []:
             walk = iterators.setdefault((form, name), itertools.product(*choices))
             for combination in walk:  # type: ignore[attr-defined]
                 if "".join(combination) not in used:
@@ -241,6 +297,8 @@ def _stand_ins(cells: "list[str]", census_of: "dict[str, list[str]]", widen: boo
                 break
         used |= {found}
         written += [found] * tally[value]
+        for place, mark in enumerate(found):
+            support[(form, place)][mark] += tally[value]
     return written
 
 
@@ -365,7 +423,7 @@ def test_the_kinds_table_holds_the_twelve_kinds_once_each() -> None:
     named = re.findall(r"^\| ([^|]+) \|", table, flags=re.MULTILINE)
     kinds = [kind.strip("` ") for cell in named for kind in cell.split(",") if kind.strip("` ") not in ("kind", "---")]
     assert sorted(kinds) == sorted(TWELVE)
-    assert "Best case 22 of 40 kinds; 18 without rule NP." in _flat(page)
+    assert "Best case 22 of 40 kinds; 18 without rule NP; 21 if the `udi` check is not re-read." in _flat(page)
 
 
 def test_pcornet_dx_held_back_cells_are_the_label_level_and_seven_number_levels() -> None:
@@ -491,8 +549,8 @@ SCREEN = {
     "and no clock shape (a two-figure hour 00 to 23, a colon and minutes 00 to 59, with or without seconds or a "
     "marker; a titer, `1:` and figures, is not one)": lambda word: bool(re.search(r"(?<!\d)(?:[01]\d|2[0-3]):[0-5]\d", word)),
     "(5) no dotted quad": lambda word: bool(re.search(r"\d{1,3}(?:\.\d{1,3}){3}", word)),
-    "(6) no letter in a word that holds three figures or more": lambda word: any(
-        any(mark.isalpha() for mark in part) and sum(mark.isdigit() for mark in part) >= 3 for part in [word]),
+    "(6) no word holding both a letter and a figure": lambda word: any(mark.isalpha() for mark in word) and any(
+        mark.isdigit() for mark in word),
     "(7) no single letter followed by a point": lambda word: bool(re.search(r"(?<![A-Za-z])[A-Za-z]\.", word)),
 }
 """Path (ii)'s shape screen, one refusal a clause of the page's own list, the clause as the page writes it."""
@@ -507,6 +565,7 @@ REFUSED = (
     "Called to J. Smith RN at 14:32", "555-1234", "123-45-6789", "02139-1234", "02139",
     "a.b@c.org", "2024-01-05", "01/05/2024", "10.0.0.12", "http://x.org", "www.example",
     "14:32", "REC 0012345", "(319) 555-0100", "REC 4521", "E1234", "K1A 0B1", "J.S.", "J. Smith",
+    "SN12", "SW1A 1AA",
 )
 PASSED = ("TNP", "HI", "LO", "1:40", "1:1280", "N/A", ".", "Not done", ">60", "<0.5", "QNS")
 
@@ -536,7 +595,7 @@ ONLY_THIS_CLAUSE = {
     "(4) no date shape": "1/2/24",
     "and no clock shape (a two-figure hour 00 to 23, a colon and minutes 00 to 59, with or without seconds or a "
     "marker; a titer, `1:` and figures, is not one)": "14:32",
-    "(6) no letter in a word that holds three figures or more": "REC 4521",
+    "(6) no word holding both a letter and a figure": "SN12",
     "(7) no single letter followed by a point": "J.S.",
 }
 
@@ -553,8 +612,12 @@ def test_the_screens_residual_is_the_one_the_page_names() -> None:
     assert _passes_screen("Smith") and _passes_screen("John Smith") and _passes_screen("JS")
     assert not _passes_screen("pH 7.35") and not _passes_screen("10E3/uL")
     page = _flat(_page())
+    assert _passes_screen("ABCD") and not _passes_screen("SN12") and not _passes_screen("SW1A 1AA")
+    assert _passes_screen("SN12", without="(6) no word holding both a letter and a figure")
+    assert _passes_screen("SW1A 1AA", without="(6) no word holding both a letter and a figure")
     assert ("A lone one- or two-word name typed into a measurement column (`Smith`, `John Smith`, initials without "
-            "points such as `JS`) cannot be told from a result word by its shape") in page
+            "points such as `JS`), or a serial written in letters alone, cannot be told from a result word by its "
+            "shape") in page
     assert "a result word such as `pH 7.35` or `10E3/uL` is refused too" in page
 
 
@@ -653,3 +716,253 @@ def test_rule_u_reads_the_holding_questions_p4_d401_names() -> None:
         "the point-between-thousands question, the checklist of columns read as numbers",
     ):
         assert named in page, named
+
+
+# The second repair (2026-10-22): the combined review of 0ebcdd08 and the one outside review.
+
+
+def _figure_levels(levels: "list[str]") -> "list[str]":
+    """Path (iii) read level by level: the published levels holding a figure, pooled while the question is open."""
+    return [level for level in levels if any(mark.isdigit() for mark in level)]
+
+
+@pytest.mark.parametrize("token, times", [("UNKNOWN", 1), ("HOMELESS", 3), ("FOREIGN", 2)])
+def test_one_word_cell_defeats_the_column_wise_hold_and_not_the_level_wise_one(
+    token: str, times: int, tmp_path: pathlib.Path,
+) -> None:
+    """The combined review's `zipword` shapes: today 6 real ZIPs print and nothing is asked."""
+    draw = random.Random(11)
+    zips = [f"0{2100 + 7 * k:04d}" for k in range(70)]
+    weights = [1.0 / (k + 1) ** 1.1 for k in range(70)]
+    lines = ["pid,zip"]
+    for k in range(600):
+        code = draw.choices(zips, weights)[0]
+        cell = f"{code}-{draw.randint(1000, 9999)}" if k % 2 else code
+        lines += [f"P{k:06d},{token if k < times else cell}"]
+    document = _profiled(tmp_path, "zipword.csv", "\n".join(lines) + "\n")
+    column = _column(document, "zip")
+    assert (column["role"], column.get("n_missing")) == ("long_tail_labels", 0)
+    printed = [f"{level['label']}" for level in column.get("levels") or []]
+    assert len([label for label in printed if re.fullmatch(r"\d{5}", label)]) == 6
+    asked = json.loads((tmp_path / "zipword-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    assert not _held_while_unanswered([line.split(",")[1] for line in lines[1:]])
+    assert [level for level in printed if level not in _figure_levels(printed)] == []
+    page = _flat(_page())
+    assert "6 real five-figure ZIPs print with their counts (`02100`, `02107`, `02114`, `02121`, ...)" in page
+    assert "`K-S3-64`'s held shapes `zipword`" in page
+
+
+def test_the_level_wise_hold_leaves_word_levels_and_its_price_is_named() -> None:
+    assert _figure_levels(["Boston", "Hà Nội", "spo2", "q6h", "1"]) == ["spo2", "q6h", "1"]
+    assert _figure_levels(["DEM|LANG:F", "UNKNOWN"]) == []
+    page = _flat(_page())
+    assert "The level-by-level reading adds" in page and "5 columns and 15 levels, unanswered" in page
+    assert "the majority reading would add 2 columns and 17 levels" in page
+
+
+PLACEHOLDER = re.compile(r"-9+(\.0+)?")
+
+
+def _top_coded(cells: "list[str]") -> bool:
+    """The Safe Harbor top-code's reach: present values (all-nines placeholders aside) within 0..125, one above 89."""
+    values: "list[float]" = []
+    for cell in (cell.strip() for cell in cells):
+        if not cell or PLACEHOLDER.fullmatch(cell):
+            continue
+        try:
+            values += [float(cell)]
+        except ValueError:
+            return False
+    return bool(values) and min(values) >= 0 and max(values) <= 125 and max(values) > 89
+
+
+def _printed_values(column: "dict") -> "set[float]":
+    printed = set(((column.get("tails") or {}).get("high") or {}).get("values") or [])
+    printed |= {value for value in (column.get("percentiles") or {}).values() if value is not None}
+    return printed | ({column["mode"]} if column.get("mode") is not None else set())
+
+
+def test_ages_over_89_print_today_and_the_top_code_reaches_them(tmp_path: pathlib.Path) -> None:
+    """The combined review's `ages2000` shape: nobody answering, three ages over 89 print and nothing is asked."""
+    draw = random.Random(7)
+    ages = [min(104, max(18, int(draw.gauss(70, 14)))) for _ in range(2000)]
+    lines = ["pid,age"] + [f"P{k:06d},{age}" for k, age in enumerate(ages)]
+    document = _profiled(tmp_path, "ages2000.csv", "\n".join(lines) + "\n")
+    age = _column(document, "age")
+    assert (age["role"], age.get("n_distinct")) == ("count", 75)
+    assert sorted(value for value in _printed_values(age) if value > 89) == [93.0, 103.0, 104.0]
+    asked = json.loads((tmp_path / "ages2000-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert _top_coded([f"{value}" for value in ages])
+    read = ["pid,age"] + [f"P{k:06d},{min(age, 90)}" for k, age in enumerate(ages)]
+    top = _column(_profiled(tmp_path, "ages2000top.csv", "\n".join(read) + "\n"), "age")
+    assert max(_printed_values(top)) == 90.0
+    page = _flat(_page())
+    assert "it prints the high tail `values [103.0, 104.0]` and the rung 93, three ages over 89" in page
+    assert "Under the top-code the `ages2000` shape prints 0 values above 89" in page
+
+
+def test_the_top_codes_reach_spares_the_golden_reading_and_names_its_limits() -> None:
+    rows = list(csv.DictReader(io.StringIO(fixtures.every_role_table())))
+    assert not _top_coded([row["reading"] for row in rows])  # -999 to 394: the goldens keep their bytes
+    assert not _top_coded([row["visits"] for row in rows])
+    assert _top_coded([f"{value}" for value in range(50, 121)])  # a pulse: a false alarm, asked once
+    assert _top_coded(["-99", "45", "91"]) and _top_coded(["-99.0", "88.5", "92.25"])
+    assert not _top_coded(["45", "91", "130"]) and not _top_coded(["-1", "45", "91"])
+    assert "one column, `vitals.pulse` (50 to 120, 71 values; today it prints 103, 113, 117, 119 and 120)" in _flat(_page())
+
+
+def test_rule_np_reads_the_products_attachment_ratio() -> None:
+    from synthtwin import profile
+
+    assert profile.ATTACHED_DIFFERENT_AT_MOST == 10
+    assert "different * ATTACHED_DIFFERENT_AT_MOST <= again" in inspect.getsource(profile._attached)
+    subjects = [f"S{k}" for k in range(10)] * 2
+    first = [f"v{k}" for k in range(10)]
+    assert profile._attached(first + first[:9] + ["other"], subjects)  # one repeated row in ten differs
+    assert not profile._attached(first + first[:8] + ["other", "else"], subjects)  # two in ten
+    assert "(P4-D406's test: one value a subject, at most one repeated row in ten differing)" in _flat(_page())
+
+
+def _constant_marks(cells: "list[str]") -> "dict[str, list[str]]":
+    """The rule the second repair withdrew: unanswered, the characters every cell of a form holds."""
+    by_form: "dict[str, list[str]]" = collections.defaultdict(list)
+    for cell in cells:
+        by_form[_form(cell)] += [cell]
+    return {
+        form: [held[0][place] if len({cell[place] for cell in held}) == 1 else "" for place in range(len(form))]
+        for form, held in by_form.items()
+    }
+
+
+def test_a2_unanswered_reads_no_held_back_cell() -> None:
+    """The outside review's item 1: the form's constant characters rebuilt the real held-back levels."""
+    cells = ["UNASSIGNED"] * 584 + ["ZX-A"] * 8 + ["ZX-B"] * 8
+    withdrawn = _stand_ins(cells, {"@@-@": _constant_marks(cells)["@@-@"]}, widen=True)
+    repaired = _stand_ins(cells, {}, widen=True)
+    assert sorted(set(withdrawn) - {"UNASSIGNED"}) == ["ZX-A", "ZX-B"]
+    assert sorted(set(repaired) - {"UNASSIGNED"}) == ["AA-A", "AA-B"]
+    assert ("584 cells `UNASSIGNED` beside `ZX-A` and `ZX-B` on 8 cells each are written `AA-A` and `AA-B`"
+            in _flat(_page()))
+
+
+def test_a2_stage_one_takes_the_alphabet_where_no_published_level_wears_the_form() -> None:
+    """The outside review's item 6: the page and this file's helper now read the same rule."""
+    cells = [f"{letter}-Z" for letter in "ABCDEFGHIJKL" for _ in range(2)] + ["OPEN"] * 76
+    tally = collections.Counter(cells)
+    census = _census([(value, "") for value in cells if tally[value] < FLOOR], FLOOR, in_people=False)
+    assert census == {"@-@": ["", "-", "Z"]}
+    assert _stand_ins(cells, census, widen=True)[0] == "A-Z"
+    assert "the census lists nothing, `-` and `Z`, and stage (1) writes `A-Z` first" in _flat(_page())
+
+
+def _support(written: "list[str]", places: int) -> "list[collections.Counter[str]]":
+    return [collections.Counter(cell[place] for cell in written) for place in range(places)]
+
+
+def test_a2_balanced_walk_keeps_the_censuss_floor_in_the_twin() -> None:
+    """The outside review's item 5: 61 levels of `@%@` on 4 cells each; the stage's own order puts `Y` on 4."""
+    cells: "list[str]" = []
+    for k, (figure, letter) in enumerate(itertools.product("01234", "ABCDEFGHIJKL")):
+        cells += [("X" if k % 2 == 0 else "Y") + figure + letter] * 4
+    cells += ["Y0A"] * 4
+    tally = collections.Counter(cells)
+    assert (len(tally), len(cells)) == (61, 244)
+    census = _census([(value, "") for value in cells if tally[value] < FLOOR], FLOOR, in_people=False)
+    assert census == {"@%@": ["XY", "01234", "ABCDEFGHIJKL"]}
+    plain = _stand_ins(cells, census, widen=True, balanced=False)
+    walked = _stand_ins(cells, census, widen=True)
+    assert [cell[0] for cell in dict.fromkeys(plain)][:61] == ["X"] * 60 + ["Y"]
+    assert _support(plain, 3)[0]["Y"] == 4
+    listed = [(place, mark) for place, marks in enumerate(census["@%@"]) for mark in marks]
+    assert min(_support(walked, 3)[place][mark] for place, mark in listed) == 16
+    page = _flat(_page())
+    assert "the stage's own order writes 60 `X` levels before the first `Y`, `Y` on 4 cells against the census's 11" in page
+    assert "the balanced order puts every listed character on 16 cells or more" in page
+
+
+def _joint_sizes(debts: "dict[str, int]", named: "dict[str, str]", unnamed: "list[str]") -> "dict[str, int]":
+    """The names' joint allocation: each level 1..f-1, each form's debt met, a cell reserved per unnamed level.
+
+    `named` maps a named level to its form; `unnamed` holds the form each unnamed level is reserved in.
+    What remains of a form's debt goes to its named levels by an even split, past f-1 to its unnamed ones.
+    """
+    sizes = {level: 1 for level in named} | {f"unnamed-{k}": 1 for k in range(len(unnamed))}
+    for form, debt in sorted(debts.items()):
+        members = sorted(level for level, worn in named.items() if worn == form)
+        spare = [f"unnamed-{k}" for k, worn in enumerate(unnamed) if worn == form]
+        remains = debt - len(members) - len(spare)
+        assert remains >= 0, form
+        share, extra = divmod(remains, len(members)) if members else (0, 0)
+        for place, level in enumerate(members):
+            sizes[level] += share + (1 if place < extra else 0)
+        overflow = sum(max(0, sizes[level] - (FLOOR - 1)) for level in members) + (0 if members else remains)
+        for level in members:
+            sizes[level] = min(sizes[level], FLOOR - 1)
+        for level in spare:
+            moved = min(overflow, FLOOR - 1 - sizes[level])
+            sizes[level] += moved
+            overflow -= moved
+        assert overflow == 0, form
+    return sizes
+
+
+def test_named_levels_share_the_form_debts_not_the_pool() -> None:
+    """The outside review's item 4: `AA` 39, `B-B` 39, `CC` 1, `DD` 1, `E-E` 10, `F-F` 10, the rare four named."""
+    cells = ["AA"] * 39 + ["B-B"] * 39 + ["CC"] + ["DD"] + ["E-E"] * 10 + ["F-F"] * 10
+    forms = collections.Counter(_form(cell) for cell in cells)
+    assert forms == {"@@": 41, "@-@": 59}
+    named = {"CC": "@@", "DD": "@@", "E-E": "@-@", "F-F": "@-@"}
+    debts = {"@@": 41 - 39, "@-@": 59 - 39}
+    readings = set()
+    for extra in itertools.combinations(sorted(named), 2):  # the even split of the pooled 22: 6, 6, 5 and 5, seeded
+        split = {level: 5 + (level in extra) for level in named}
+        readings |= {39 + split["E-E"] + split["F-F"]}
+    assert readings == {49, 50, 51}
+    joint = _joint_sizes(debts, named, [])
+    assert joint == {"CC": 1, "DD": 1, "E-E": 10, "F-F": 10}
+    assert 39 + joint["E-E"] + joint["F-F"] == forms["@-@"]
+    reserved = _joint_sizes({"@@": 15}, {"QQ": "@@"}, ["@@"])
+    assert reserved == {"QQ": 10, "unnamed-0": 5}  # the whole pool to the name would leave the unnamed level none
+    page = _flat(_page())
+    assert "so form `@-@` reads 49 to 51 against its published 59" in page
+    assert "the joint allocation gives `E-E` and `F-F` the 20 cells `@-@` owes and `CC` and `DD` the 2 `@@` owes" in page
+
+
+def _absorbed(census: "dict[str, int]") -> "dict[str, int]":
+    """Rule A1: forms under the floor counted in the commonest published one; none published, nothing moves."""
+    published = {form: n for form, n in census.items() if form != "(withheld)" and n >= FLOOR}
+    if not published:
+        return dict(census)
+    top = max(published, key=lambda form: (published[form], form))
+    return published | {top: published[top] + sum(n for form, n in census.items() if form not in published)}
+
+
+def test_a1_absorbs_into_a_published_layout_and_moves_nothing_where_none_is_published() -> None:
+    row_43 = {"&&%%%%%%%%": 58, "&&%%%%%%%%%": 533, "(withheld)": 9}
+    assert _absorbed(row_43) == {"&&%%%%%%%%%": 542, "&&%%%%%%%%": 58}
+    ten_layouts = {"(withheld)": 100}  # 100 values in ten layouts of ten cells each, none published
+    assert _absorbed(ten_layouts) == {"(withheld)": 100}
+    assert 'A column none of whose forms or layouts is published' in _flat(_page())
+
+
+def test_ggs_membership_reads_present_cells_and_keeps_the_blanks() -> None:
+    """The outside review's item 8: `1` on 200 rows, `3` on 200 and 200 blanks, after `no`."""
+    few_values = {"1", "3"}
+    twin = ["1"] * 200 + ["3"] * 200 + [""] * 200
+    assert all(cell in few_values for cell in twin if cell)
+    assert not all(cell in few_values for cell in twin)  # "every twin cell" would fail the column's own blanks
+    assert "(a column of `1` on 200 rows, `3` on 200 and 200 blanks keeps its 200 blanks)" in _flat(_page())
+
+
+def test_the_zoo_knows_its_udi_as_a_code_and_answers_it_yes() -> None:
+    """The combined review's item 3: answered `no`, the zoo's own answer would publish its 20 GS1 UDIs."""
+    table = next(table for table in health_zoo.TABLES if table.name == "immunizations")
+    assert table.knows["udi"] == "code"
+    pattern = re.compile(r"\(01\)\d{14}\(17\)\d{6}\(10\)[A-Z0-9]+")
+    assert pattern.fullmatch("(01)69944697887698(17)252216(10)LOT862")
+    assert not pattern.fullmatch("(37)69944697887698(52)252216(84)LOT862")  # every figure drawn, as `yes` writes
+    page = _flat(_page())
+    assert "answered `no` it would publish the 20 GS1 UDIs it prints today" in page
+    assert "| `immunizations_providers` | CODES-2's names (`npi`) beside a repeating person column, and `udi` answered `yes`" in page
