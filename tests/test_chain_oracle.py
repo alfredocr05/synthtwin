@@ -1017,3 +1017,47 @@ def test_the_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
                     term *= (code(c, x, kind) - centre) ** power
                 value += term
             assert total["value"] == value, total
+
+
+def test_the_switched_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
+    """The test above, run with lane CHa's switch handed in (batch 4g's
+    integration, 2026-10-23, where lanes CHa and CHo first met).
+
+    The test above calls `main(["profile", table])`, which never turns
+    the chain on (invariant S12), so it skips. The switch alone is not
+    enough either: the trial table's `ward` (w0, w1, w2) is held by lane
+    HX's open identifier question, and the chain publishes nothing beside
+    a held column that repeats (lane CHa, plan P4-D418). So here round
+    one runs with the switch off and writes the questions file, `ward` is
+    answered `keep` (not a person), and round two runs with `--answers`
+    and the switch on; the test above then reads round two's
+    description, every comparison unchanged. It MUST NOT SKIP: a
+    switched run that publishes no chain fails here. MUTANTS (run at the
+    integration): the product's ladder totals moved by one row, and its
+    structural words all `implied`, each red."""
+    sys.path.insert(0, str(REPOSITORY / "src"))
+    from synthtwin import cli
+
+    real = cli.main
+    published = []
+
+    def switched(argv=None, chain=None):
+        table = pathlib.Path(argv[1])
+        assert real(list(argv)) == 0
+        questions = table.with_name(table.stem + "-questions.json")
+        asked = json.loads(questions.read_text(encoding="utf-8"))
+        for entry in asked["asked"]:
+            if entry["column"] == "ward":
+                entry["your_answer"] = "keep"
+        questions.write_text(json.dumps(asked, indent=1) + "\n", encoding="utf-8", newline="\n")
+        code = real(list(argv) + ["--answers", str(questions)], chain=cli.ChainRun(folder=str(tmp_path / "data")))
+        described = json.loads(table.with_name(table.stem + "-profile.json").read_text(encoding="utf-8"))
+        published.append(described["relationships"]["statistical"])
+        return code
+
+    monkeypatch.setattr(cli, "main", switched)
+    try:
+        test_the_product_s_chain_against_the_oracle(tmp_path, monkeypatch)
+    except pytest.skip.Exception as skipped:
+        pytest.fail(f"the switched product published no chain: {skipped}")
+    assert len(published) == 1 and published[0] is not None and published[0]["chain"]
