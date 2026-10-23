@@ -1443,30 +1443,45 @@ def test_mutant_a_line_break_read_as_no_mark_reaches_nothing(monkeypatch: pytest
         assert asking._listed_record_numbers(_broken(between), "long_tail_labels") == ("", "")
 
 
-# The orchestrator's addendum 2 (2026-10-22 21:32), from lane ZR-a's verify 3:
-# Codex's 600-row construction on keys the padded route and route two reach,
-# `;OTHER` closing the first cell; the reason each is reached by.
-_ROUTE_KEYS = (("R{}", 1000, "codes"), ("AB{}", 100, "codes"), ("0{}", 100, "padded"))
+# The orchestrator's addenda 2 (2026-10-22 21:32, from lane ZR-a's verify 3)
+# and 3 (2026-10-23 07:20, from its close 4): Codex's construction on keys
+# the wide arm, route two and the padded route reach, pure and with `;OTHER`
+# closing the first cell, at 600 AND 20,000 rows (the 600 cells repeating
+# in order). At 20,000 rows today's product (98c0fce6) published 40 of 40
+# keys of every shape as whole-cell categorical levels, and 5cd84df6 those
+# of the three `;OTHER` shapes below five figures; the reason each is
+# reached by.
+_ROUTE_KEYS = (("R{}", 100000, "wide"), ("R{}", 1000, "codes"), ("AB{}", 100, "codes"),
+               ("0{}", 100, "padded"))
 
 
-def _codex_route_cells(form: str, first: int) -> "tuple[list[str], list[str]]":
+def _codex_route_cells(form: str, first: int, rows: int, other: bool) -> "tuple[list[str], list[str]]":
     """The keys and Codex's cells: 40 singles, 240 cyclic pairs s = 1..6, 320 cyclic triples s = 1..8."""
     keys = [form.format(first + one) for one in range(40)]
     cells = [keys[one] for one in range(40)]
     cells += [f"{keys[one]};{keys[(one + step) % 40]}" for step in range(1, 7) for one in range(40)]
     cells += [f"{keys[one]};{keys[(one + step) % 40]};{keys[(one + step + 1) % 40]}"
               for step in range(1, 9) for one in range(40)]
-    cells[0] = cells[0] + ";OTHER"
     assert len(cells) == _ROWS
+    cells = [cells[place % _ROWS] for place in range(rows)]
+    if other:
+        cells[0] = cells[0] + ";OTHER"
     return keys, cells
 
 
+def _keys_found(keys: "list[str]", text: str) -> "list[str]":
+    """The keys standing in a text as a whole token (not inside a longer run of letters and figures)."""
+    return [key for key in keys if re.search(rf"(?<![0-9A-Za-z]){key}(?![0-9A-Za-z])", text)]
+
+
+@pytest.mark.parametrize("rows", (_ROWS, 20000))
+@pytest.mark.parametrize("other", (False, True))
 @pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS)
-def test_one_word_does_not_undo_the_padded_route_or_route_two(
-    tmp_path: pathlib.Path, form: str, first: int, why: str
+def test_one_word_undoes_no_route_of_the_list_hold(
+    tmp_path: pathlib.Path, form: str, first: int, why: str, other: bool, rows: int
 ) -> None:
-    """`R1000`, `AB100` and `0100` lists with `;OTHER`: the list question is put, 0 keys published."""
-    keys, cells = _codex_route_cells(form, first)
+    """Every key form, pure or with `;OTHER`: the list question is put, 0 keys in any file or twin cell."""
+    keys, cells = _codex_route_cells(form, first, rows, other)
     assert asking._listed_record_numbers(cells, "free_text") == (";", why)
     lines = ["ids,value"] + [f"{cell},{place % 7}" for place, cell in enumerate(cells)]
     code, _document = _profile_rows(tmp_path, "route", lines)
@@ -1475,15 +1490,39 @@ def test_one_word_does_not_undo_the_padded_route_or_route_two(
     offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
                for entry in asked if entry["column"] == "ids"]
     assert offered == [_LIST_ANSWERS]
-    texts = _texts_of(tmp_path, "route")
-    assert [key for key in keys if re.search(rf"(?<![0-9A-Za-z]){key}(?![0-9A-Za-z])", texts)] == []
+    assert _keys_found(keys, _texts_of(tmp_path, "route")) == []
+    with shapes.nobody_at_the_keyboard():
+        assert cli.main(["generate", f"{tmp_path / 'route-profile.json'}", "--out-dir",
+                         f"{tmp_path}", "--seed", "0", "--replace"]) == 0
+    twin = (tmp_path / "route-twin.csv").read_text(encoding="utf-8")
+    assert _keys_found(keys, twin) == []
 
 
+@pytest.mark.parametrize("other", (False, True))
 @pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS)
 def test_mutant_all_or_nothing_routes_let_one_word_undo_the_hold(
-    monkeypatch: pytest.MonkeyPatch, form: str, first: int, why: str
+    monkeypatch: pytest.MonkeyPatch, form: str, first: int, why: str, other: bool
 ) -> None:
-    """The mutant: the padded route and route two all-or-nothing (5cd84df6), so `;OTHER` reaches nothing."""
-    _keys, cells = _codex_route_cells(form, first)
+    """The mutant: every route all-or-nothing (5cd84df6's routes, every value wide), so `;OTHER` reaches nothing.
+
+    Pure, the mutant still reaches each shape: the word is what it lets undo the hold.
+    """
     monkeypatch.setattr(asking, "_LIST_ROUTE_SHARE", 10**9)
-    assert asking._listed_record_numbers(cells, "free_text") == ("", "")
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 10**9)
+    for rows in (_ROWS, 20000):
+        _keys, cells = _codex_route_cells(form, first, rows, other)
+        found = asking._listed_record_numbers(cells, "free_text")
+        assert found == (("", "") if other else (";", why)), (rows, found)
+
+
+@pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS[1:])
+def test_mutant_all_or_nothing_routes_publish_every_key_at_20000_rows(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, form: str, first: int, why: str
+) -> None:
+    """The mutant at the owner's floor size: `;OTHER` read as categories, the keys published (40 of 40 on 5cd84df6)."""
+    monkeypatch.setattr(asking, "_LIST_ROUTE_SHARE", 10**9)
+    keys, cells = _codex_route_cells(form, first, 20000, True)
+    lines = ["ids,value"] + [f"{cell},{place % 7}" for place, cell in enumerate(cells)]
+    code, _document = _profile_rows(tmp_path, "route", lines)
+    assert code == 0
+    assert _keys_found(keys, _texts_of(tmp_path, "route")) != []
