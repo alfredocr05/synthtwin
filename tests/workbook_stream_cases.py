@@ -783,7 +783,12 @@ _POOLS: "tuple[tuple[str, tuple[str, ...]], ...]" = (
 
 
 def sheet_arguments(n_rows: int, width: int = 50) -> tuple:
-    """`_sheet_pieces`'s arguments for a sheet of ``n_rows`` rows of ``width`` columns."""
+    """`_sheet_pieces`'s arguments for a sheet of ``n_rows`` rows of ``width`` columns.
+
+    The columns are held as `_sheet_pieces` reads them since plan P4-D415
+    (`sheetwriting.held_sheet_columns`): the cells by `twinstore`, the
+    classes and the styles a byte a cell.
+    """
     names = tuple(f"column_{index:02d}" for index in range(width))
     cells: "list[tuple[str, ...]]" = []
     classes: "list[tuple[str, ...]]" = []
@@ -793,9 +798,12 @@ def sheet_arguments(n_rows: int, width: int = 50) -> tuple:
         cells += [tuple(pool[(row * 7 + index) % len(pool)] for row in range(n_rows))]
         classes += [(kind,) * n_rows]
         styles += [((index % 3),) * n_rows]
+    held_cells, held_classes, held_styles = sheetwriting.held_sheet_columns(
+        cells, classes, styles
+    )
     items: "list[str]" = []
     places: "dict[str, int]" = {}
     return (
-        names, cells, classes, styles, n_rows, True, 3, 0, {}, 0, 0, 1, True, False,
-        items, places,
+        names, held_cells, held_classes, held_styles, n_rows, True, 3, 0, {}, 0, 0, 1,
+        True, False, items, places,
     )

@@ -66,7 +66,7 @@ package's own `errors` and `parsing`, neither of which reaches a file.
 import dataclasses
 import typing
 
-from synthtwin import errors, parsing
+from synthtwin import errors, parsing, twinstore
 
 # -- the vocabularies --------------------------------------------------
 
@@ -3106,17 +3106,28 @@ def closings_in_turn(form: Dialect, n_rows: int) -> "list[bool]":
     takes the last run's closing (plan P4-D387, lane R6). One walk over
     the runs, so the work is the rows plus the runs.
     """
+    return [closed for closed in _closings_walked(form, n_rows)]
+
+
+def _closings_walked(form: Dialect, n_rows: int) -> "typing.Iterator[bool]":
+    """`closings_in_turn`, a record at a time, never held (repair 2 of lane SG)."""
     if not form.rows_trailing_delimiter:
-        return [False for _row in range(n_rows)]
+        for _row in range(n_rows):
+            yield False
+        return
     if not form.rows_closing_runs:
-        return [form.rows_closing_quoted for _row in range(n_rows)]
-    found: "list[bool]" = []
+        for _row in range(n_rows):
+            yield form.rows_closing_quoted
+        return
+    given = 0
     last = False
     for run in form.rows_closing_runs:
         last = run.ending == CLOSING_QUOTED
-        found += [last for _line in range(min(run.lines, n_rows - len(found)))]
-    found += [last for _row in range(n_rows - len(found))]
-    return found
+        for _line in range(min(run.lines, n_rows - given)):
+            yield last
+            given = given + 1
+    for _row in range(n_rows - given):
+        yield last
 
 
 DOCUMENT_KEYS = (
@@ -6353,18 +6364,28 @@ def spread_places(spread: BlankSpread) -> "tuple[BlankPlace, ...]":
     records, so a file with one blank line after each of its records --
     double spacing -- is written exactly as it was.
     """
-    places: list[BlankPlace] = []
+    return tuple([place for place in _spread_places_in_turn(spread)])
+
+
+def _spread_places_in_turn(spread: BlankSpread) -> "typing.Iterator[BlankPlace]":
+    """`spread_places`, one place at a time and in order, never all at once
+    (repair 2 of lane SG: a double-spaced file has a place a record)."""
     span = spread.last - spread.first
+    after = spread.first
+    lines = 0
     for index in range(spread.lines):
-        after = spread.first
+        at = spread.first
         if spread.lines > 1:
-            after = spread.first + (index * span) // (spread.lines - 1)
-        last = len(places) - 1
-        if last >= 0 and places[last].after == after:
-            places[last] = BlankPlace(after=after, lines=places[last].lines + 1, text=spread.text)
-        else:
-            places += [BlankPlace(after=after, lines=1, text=spread.text)]
-    return tuple(places)
+            at = spread.first + (index * span) // (spread.lines - 1)
+        if lines and at == after:
+            lines = lines + 1
+            continue
+        if lines:
+            yield BlankPlace(after=after, lines=lines, text=spread.text)
+        after = at
+        lines = 1
+    if lines:
+        yield BlankPlace(after=after, lines=lines, text=spread.text)
 
 
 def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
@@ -6376,16 +6397,32 @@ def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
     file, the next free line where that one is taken. Every ending is
     written on exactly as many lines as the census says.
     """
+    if not census:
+        return []
+    marks, most = _spread_ending_marks(census)
+    return [census[most if mark == _COMMONEST_ENDING else mark].ending for mark in marks]
+
+
+# The mark of a line the commonest ending ends (`_spread_ending_marks`).
+_COMMONEST_ENDING = 255
+
+
+def _spread_ending_marks(census: "tuple[EndingRun, ...]") -> "tuple[bytearray, int]":
+    """`spread_endings` held as one byte a line (repair 2 of lane SG).
+
+    Returns (marks, most): ``marks[line]`` is the place in ``census`` of
+    the rarer ending that line takes, or `_COMMONEST_ENDING` where the
+    commonest, ``census[most]``, ends it; the rule is `spread_endings`'s,
+    step for step, a line taken being one whose mark is not
+    `_COMMONEST_ENDING`. Raises nothing. No I/O of any kind.
+    """
     total = 0
     most = 0
     for index in range(len(census)):
         total = total + census[index].lines
         if census[index].lines > census[most].lines:
             most = index
-    if not census:
-        return []
-    endings = [census[most].ending for _line in range(total)]
-    taken = [False for _line in range(total)]
+    marks = bytearray([_COMMONEST_ENDING]) * max(total, 0)
     low = 0
     for index in range(len(census)):
         if index == most:
@@ -6395,16 +6432,15 @@ def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
         for step in range(count):
             target = ((2 * step + 1) * total) // (2 * count)
             at = max(target, cursor)
-            while at < total and taken[at]:
+            while at < total and marks[at] != _COMMONEST_ENDING:
                 at = at + 1
             if at >= total:
-                while low < total and taken[low]:
+                while low < total and marks[low] != _COMMONEST_ENDING:
                     low = low + 1
                 at = low
-            taken[at] = True
-            endings[at] = census[index].ending
+            marks[at] = index
             cursor = at + 1
-    return endings
+    return marks, most
 
 
 def _refuse_a_quoted_empty_against_closing(
@@ -6837,6 +6873,163 @@ def twin_text(
     - Errors raised: none.
     - Boundary: nothing is read and nothing is written.
 
+    It is `twin_pieces` joined, so the text and the pieces cannot differ
+    (plan P4-D415).
+    """
+    return "".join(twin_pieces(names, rows, write_header, form, len(rows)))
+
+
+# How many lines one piece of `twin_pieces` holds at most.
+_LINES_A_PIECE = 256
+
+
+def _blank_lines_total(form: Dialect) -> int:
+    """How many blank lines the form writes, every place once."""
+    if form.blank_lines_spread is not None:
+        return max(form.blank_lines_spread.lines, 0)
+    total = 0
+    for place in form.blank_lines:
+        total = total + place.lines
+    return total
+
+
+def _blank_places_in_turn(form: Dialect) -> "typing.Iterator[BlankPlace]":
+    """The form's blank places in file order, one at a time (`spread_places`
+    for counted blank lines, made as they are asked)."""
+    if form.blank_lines_spread is not None:
+        for place in _spread_places_in_turn(form.blank_lines_spread):
+            yield place
+        return
+    for place in form.blank_lines:
+        yield place
+
+
+def _endings_in_turn(form: Dialect) -> "typing.Iterator[str]":
+    """Each line's ending from the form's runs, in file order, as the lines ask.
+
+    The counted endings where the form has them (`spread_endings`, held
+    as one byte a line), otherwise the published runs a line at a time;
+    a line past them asks for none (`_line_ended`).
+    """
+    census = form.line_endings_spread
+    if census:
+        marks, most = _spread_ending_marks(census)
+        for mark in marks:
+            yield ENDING_TEXT[census[most if mark == _COMMONEST_ENDING else mark].ending]
+        return
+    for run in form.line_endings:
+        text = ENDING_TEXT[run.ending]
+        for _line in range(run.lines):
+            yield text
+
+
+def _lines_above_total(write_header: bool, form: Dialect) -> int:
+    """How many lines stand above the first data record."""
+    total = preamble_lines_total(form.preamble) + len(form.header_rows)
+    if form.separator_line:
+        total = total + 1
+    if write_header:
+        total = total + 1
+    return total
+
+
+def _lines_above(
+    names: "tuple[str, ...]", write_header: bool, form: Dialect
+) -> "typing.Iterator[str]":
+    """The lines above the data, without their endings, one at a time: the
+    separator hint, the preamble, the header and the metadata rows."""
+    if form.separator_line:
+        yield "sep=" + form.delimiter
+    for before in form.preamble:
+        line = preamble_line(before)
+        for _line in range(before.lines):
+            yield line
+    if write_header:
+        yield header_line(names, form)
+    for row in form.header_rows:
+        alone = len(row) == 1
+        parts = [
+            written_field(cell, form.header_rows_quoting, form, alone)
+            for cell in row
+        ]
+        yield _joined(parts, form)
+
+
+def _ended_lines(
+    names: "tuple[str, ...]",
+    rows: "typing.Iterable[tuple[str, ...]]",
+    write_header: bool,
+    form: Dialect,
+    n_rows: int,
+) -> "typing.Iterator[str]":
+    """Every line of the twin with its ending, in file order, one at a time.
+
+    The form's schedules -- the endings, the blank places, the records'
+    closings -- are walked as the lines ask for them, never laid out a
+    line or a record at a time beforehand (repair 2 of lane SG, the Codex
+    review's item 2: a double-spaced file laid its blank places out one
+    object a record, about 160 bytes a record before the first piece);
+    only counted endings are held, at a byte a line (`_endings_in_turn`).
+    """
+    lines_total = _lines_above_total(write_header, form) + n_rows + _blank_lines_total(form)
+    endings = _endings_in_turn(form)
+    at = 0
+    for line in _lines_above(names, write_header, form):
+        yield _line_ended(line, at, lines_total, next(endings, None), form)
+        at = at + 1
+    # Each record closed as the source closed it (plan P4-D387, lane R6).
+    closings = _closings_walked(form, n_rows)
+    places = _blank_places_in_turn(form)
+    place = next(places, None)
+    index = 0
+    for cells in rows:
+        while place is not None and place.after == index:
+            for _line in range(place.lines):
+                yield _line_ended(place.text, at, lines_total, next(endings, None), form)
+                at = at + 1
+            place = next(places, None)
+        if index >= n_rows:
+            raise TypeError("internal check: a twin held more rows than it said")
+        written = data_line(cells, form)
+        if next(closings, False):
+            written = written + _closing_quotes(form)
+        yield _line_ended(written, at, lines_total, next(endings, None), form)
+        at = at + 1
+        index = index + 1
+    if index != n_rows:
+        raise TypeError("internal check: a twin held fewer rows than it said")
+    while place is not None:
+        for _line in range(place.lines):
+            yield _line_ended(place.text, at, lines_total, next(endings, None), form)
+            at = at + 1
+        place = next(places, None)
+
+
+def twin_pieces(
+    names: "tuple[str, ...]",
+    rows: "typing.Iterable[tuple[str, ...]]",
+    write_header: bool,
+    form: Dialect,
+    n_rows: int,
+) -> "typing.Iterator[str]":
+    """The twin in its source's written form, as pieces of text (plan P4-D415).
+
+    Guarantees:
+
+    - Inputs: the column names, the ``n_rows`` rows in their final order,
+      taken one at a time and never held, whether a header is written,
+      and the form.
+    - What comes back: pieces whose text, joined in order, is the twin's
+      whole text: each line with its ending, a piece at most
+      `_LINES_A_PIECE` lines -- of the preamble, of data or blank -- so
+      the whole text is never made.
+    - Determinism: a fixed function of the inputs, on every platform; the
+      line endings are written into the text, so the caller writes it
+      without translating any.
+    - Errors raised: TypeError where the rows are not ``n_rows`` of them,
+      a defect in the caller.
+    - Boundary: nothing is read and nothing is written.
+
     The lines are written in file order: the separator hint, the
     preamble, the header, the metadata rows, then the data records with
     the blank lines standing where the form places them. Each line takes
@@ -6844,58 +7037,42 @@ def twin_text(
     source's last line had none. A byte-order mark leads where the form
     has one, and the end-of-file mark follows where it has one.
     """
-    lines: list[str] = []
-    if form.separator_line:
-        lines += ["sep=" + form.delimiter]
-    for before in form.preamble:
-        for _line in range(before.lines):
-            lines += [preamble_line(before)]
-    if write_header:
-        lines += [header_line(names, form)]
-    for row in form.header_rows:
-        alone = len(row) == 1
-        parts = [
-            written_field(cell, form.header_rows_quoting, form, alone)
-            for cell in row
-        ]
-        lines += [_joined(parts, form)]
-    blank_places = form.blank_lines
-    if form.blank_lines_spread is not None:
-        blank_places = spread_places(form.blank_lines_spread)
-    blank_at = 0
-    # Each record closed as the source closed it (plan P4-D387, lane R6).
-    quoted_closings = closings_in_turn(form, len(rows))
-    for index in range(len(rows)):
-        while blank_at < len(blank_places) and blank_places[blank_at].after == index:
-            place = blank_places[blank_at]
-            for _line in range(place.lines):
-                lines += [place.text]
-            blank_at = blank_at + 1
-        written = data_line(rows[index], form)
-        if quoted_closings[index]:
-            written = written + _closing_quotes(form)
-        lines += [written]
-    while blank_at < len(blank_places):
-        place = blank_places[blank_at]
-        for _line in range(place.lines):
-            lines += [place.text]
-        blank_at = blank_at + 1
-    endings: list[str] = []
-    for run in form.line_endings:
-        for _line in range(run.lines):
-            endings += [ENDING_TEXT[run.ending]]
-    if form.line_endings_spread:
-        endings = [ENDING_TEXT[word] for word in spread_endings(form.line_endings_spread)]
-    text = _MARK if form.byte_order_mark else ""
-    for index in range(len(lines)):
-        text = text + lines[index]
-        if index < len(endings):
-            text = text + endings[index]
-        elif index < len(lines) - 1 or form.final_line_ending:
-            text = text + _LF
+    piece: list[str] = []
+    if form.byte_order_mark:
+        piece += [_MARK]
+    held = 0
+    for line in _ended_lines(names, rows, write_header, form, n_rows):
+        piece += [line]
+        held = held + 1
+        if held >= _LINES_A_PIECE:
+            yield "".join(_pieces_held(piece))
+            piece = []
+            held = 0
     if form.end_of_file_mark:
-        text = text + _END_OF_FILE
-    return text
+        piece += [_END_OF_FILE]
+    if piece:
+        yield "".join(_pieces_held(piece))
+
+
+def _pieces_held(piece: "list[str]") -> "list[str]":
+    """The lines of one piece, as a list of their own (the offline scan's rule for a join)."""
+    return [line for line in piece]
+
+
+def _line_ended(
+    line: str, at: int, lines_total: int, ending: "str | None", form: Dialect
+) -> str:
+    """Line number ``at`` of ``lines_total`` with the ending the form gives it.
+
+    ``ending`` is the next ending of the form's runs while one is left
+    (`_endings_in_turn`); past them a line feed, except on the last line
+    where the source's last line had no ending.
+    """
+    if ending is not None:
+        return line + ending
+    if at < lines_total - 1 or form.final_line_ending:
+        return line + _LF
+    return line
 
 
 # -- arranging a twin's rows -------------------------------------------
@@ -6926,33 +7103,238 @@ def arranged(
       moved.
     - Determinism: no random draw; a fixed function of the inputs.
     - Errors raised: none.
+
+    THE SAME ARRANGEMENT A COLUMN AT A TIME (plan P4-D415, lane SG). The
+    generator arranges the twin it holds compactly with `arranging`,
+    `placed_column` and `arranged_columns`, one column at a time; this
+    is those three over columns given whole, so the two cannot differ.
     """
     width = len(columns)
     if not width or not n_rows:
         return columns
-    grid = [list(column) for column in columns]
-    order = form.row_order
-    empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    state = arranging(form, n_rows, width)
+    kept: "list[twinstore.HeldColumn]" = []
+    for column in columns:
+        kept += [twinstore.held_column(placed_column(state, list(column)))]
+    return [
+        tuple(twinstore.column_cells(column))
+        for column in arranged_columns(state, kept)
+    ]
+
+
+@dataclasses.dataclass(frozen=True)
+class Arranging:
+    """Where a twin's rows are going, gathered a column at a time (plan P4-D415).
+
+    `placing` says whether the form's all-empty records are placed at all
+    (a table of two columns or more whose form publishes such records,
+    or names no sorted column); `targets` is every record's answer to
+    whether it is one of them (`_empty_targets`); `filled` counts, for
+    every record, the columns holding something there once each column
+    has had its own cells moved off the targets (`placed_column`).
+    """
+
+    form: Dialect
+    n_rows: int
+    width: int
+    placing: bool
+    targets: "list[bool]"
+    filled: "list[int]"
+
+
+def arranging(form: Dialect, n_rows: int, width: int) -> Arranging:
+    """The arrangement of a twin of ``width`` columns and ``n_rows`` rows, before any column.
+
+    Guarantees: a fixed function of the form and the two counts; raises
+    nothing; no I/O of any kind.
+    """
+    empties = (
+        form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    )
+    placing = bool(
+        width and n_rows and width >= 2 and (empties or not form.row_order.column)
+    )
     targets = [False for _row in range(n_rows)]
-    if width >= 2 and (empties or not order.column):
-        _place_empty_rows(grid, form, n_rows)
+    filled: "list[int]" = []
+    if placing:
         targets = _empty_targets(form, n_rows)
+        filled = [0 for _row in range(n_rows)]
+    return Arranging(form, n_rows, width, placing, targets, filled)
+
+
+def placed_column(state: Arranging, cells: "list[str]") -> "list[str]":
+    """One finished column with its cells moved off the all-empty records.
+
+    The first half of placing the all-empty records, which asks nothing
+    of any other column: every target record's cell holding something is exchanged, in
+    row order, for the next cell of the same column holding nothing on a
+    record that is not a target. The column's cells holding something are
+    then counted into `state.filled`, record by record. ``cells`` is
+    changed in place and handed back. Where the form places no records,
+    nothing moves and nothing is counted.
+
+    Guarantees: moves cells only within the column; raises nothing; no
+    I/O of any kind.
+    """
+    if not state.placing:
+        return cells
+    targets = state.targets
+    n_rows = state.n_rows
+    if len(cells) != n_rows:
+        raise TypeError("internal check: a twin column was not the table's length")
+    donor = 0
+    for row in range(n_rows):
+        if not targets[row] or _holds_nothing(cells[row]):
+            continue
+        while donor < n_rows and (
+            targets[donor] or not _holds_nothing(cells[donor])
+        ):
+            donor = donor + 1
+        if donor >= n_rows:
+            break
+        cells[row], cells[donor] = cells[donor], cells[row]
+        donor = donor + 1
+    filled = state.filled
+    for row in range(n_rows):
+        if not _holds_nothing(cells[row]):
+            filled[row] = filled[row] + 1
+    return cells
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeldCells:
+    """One held column read and changed a cell at a time (`_given_cells`).
+
+    `block` is the block `cells` holds, -1 before any; `changed` holds
+    every cell written since, by row, read before the block.
+    """
+
+    column: "twinstore.HeldColumn"
+    block: "list[int]"
+    cells: "list[list[str]]"
+    changed: "dict[int, str]"
+
+
+def _cell_at(reading: _HeldCells, row: int) -> str:
+    """The cell of a held column at ``row``, as `_given_cells` has left it."""
+    if row in reading.changed:
+        return reading.changed[row]
+    block = row // twinstore.BLOCK_ROWS
+    if reading.block[0] != block:
+        reading.cells[0] = twinstore.column_block(reading.column, block)
+        reading.block[0] = block
+    return reading.cells[0][row - block * twinstore.BLOCK_ROWS]
+
+
+def _given_cells(
+    state: Arranging, columns: "list[twinstore.HeldColumn]"
+) -> "list[twinstore.HeldColumn]":
+    """The second half of placing the all-empty records, over held columns.
+
+    Every record that is not a target and that no column fills is given
+    one cell, in row order: the first column, in column order, whose next
+    cell (from where that column's last gift stood) holds something on a
+    record that is not a target and that two columns or more fill, gives
+    that cell, and takes the record's empty cell back in its place. The
+    records needing a cell are known before the first gift, because a
+    gift empties no record. Where none needs one, nothing is read.
+
+    Guarantees: every exchange is made in row order and column order as
+    written above; raises nothing; no I/O of any kind.
+    """
+    n_rows = state.n_rows
+    targets = state.targets
+    filled = state.filled
+    needy = [row for row in range(n_rows) if not targets[row] and not filled[row]]
+    if not needy:
+        return columns
+    width = len(columns)
+    readings = [_HeldCells(column, [-1], [[]], {}) for column in columns]
+    giver = [0 for _place in range(width)]
+    for row in needy:
+        for place in range(width):
+            reading = readings[place]
+            source = giver[place]
+            while source < n_rows and (
+                targets[source]
+                or _holds_nothing(_cell_at(reading, source))
+                or filled[source] < 2
+            ):
+                source = source + 1
+            giver[place] = source
+            if source >= n_rows:
+                continue
+            given = _cell_at(reading, source)
+            emptied = _cell_at(reading, row)
+            reading.changed[row] = given
+            reading.changed[source] = emptied
+            filled[row] = filled[row] + 1
+            filled[source] = filled[source] - 1
+            break
+    made: "list[twinstore.HeldColumn]" = []
+    for reading in readings:
+        if not reading.changed:
+            made += [reading.column]
+            continue
+        cells = twinstore.column_cells(reading.column)
+        for row in sorted(reading.changed):
+            cells[row] = reading.changed[row]
+        made += [twinstore.held_column(cells)]
+    return made
+
+
+def arranged_columns(
+    state: Arranging, columns: "list[twinstore.HeldColumn]"
+) -> "list[twinstore.HeldColumn]":
+    """The held columns, every one through `placed_column`, with the rows placed.
+
+    What is left of `arranged` once each column has been placed on its
+    own: the records no column fills are given a cell (`_given_cells`),
+    the rows that are not all-empty records are sorted by the form's sort
+    column, whole rows moving together, and a row-sequence column is
+    written in place last. One column is text objects at a time.
+
+    Guarantees: the columns `arranged` gives for the same cells; raises
+    nothing; no I/O of any kind.
+    """
+    form = state.form
+    n_rows = state.n_rows
+    width = len(columns)
+    if not width or not n_rows:
+        return columns
+    made = columns
+    if state.placing:
+        made = _given_cells(state, made)
+    targets = state.targets
+    order = form.row_order
     if order.column and order.column <= width:
         # The records holding nothing stay where they were placed, and
         # the others are sorted into the rows around them.
         free = [row for row in range(n_rows) if not targets[row]]
-        key = grid[order.column - 1]
+        key = twinstore.column_cells(made[order.column - 1])
         placed = _permutation([key[row] for row in free], order, len(free))
+        key = []
+        sorted_columns: "list[twinstore.HeldColumn]" = []
         for place in range(width):
-            column = grid[place]
+            column = twinstore.column_cells(made[place])
             moved = list(column)
             for index in range(len(free)):
                 moved[free[index]] = column[free[placed[index]]]
-            grid[place] = moved
+            column = []
+            sorted_columns += [twinstore.held_column(moved)]
+            moved = []
+        made = sorted_columns
+    sequenced: "list[twinstore.HeldColumn]" = []
     for index in range(width):
         if index < len(form.columns) and form.columns[index].sequence_start >= 0:
-            grid[index] = sequence_cells(form.columns[index].sequence_start, n_rows)
-    return [tuple(column) for column in grid]
+            sequenced += [
+                twinstore.held_column(
+                    sequence_cells(form.columns[index].sequence_start, n_rows)
+                )
+            ]
+        else:
+            sequenced += [made[index]]
+    return sequenced
 
 
 def _permutation(keys: "list[str]", order: RowOrder, n_rows: int) -> "list[int]":
@@ -7009,55 +7391,3 @@ def _empty_targets(form: Dialect, n_rows: int) -> "list[bool]":
         targets[row] = True
     return targets
 
-
-def _place_empty_rows(grid: "list[list[str]]", form: Dialect, n_rows: int) -> None:
-    """Swap cells within columns so exactly the target rows are all empty.
-
-    First every target row is emptied: a cell holding something is
-    exchanged for an empty cell of the same column from a row that is not
-    a target. Then every other row left with nothing in it is given a
-    cell: a cell holding something is exchanged into it from a row that
-    keeps something else. Both walks are linear in the cells they touch.
-    """
-    width = len(grid)
-    targets = _empty_targets(form, n_rows)
-    for place in range(width):
-        column = grid[place]
-        donor = 0
-        for row in range(n_rows):
-            if not targets[row] or _holds_nothing(column[row]):
-                continue
-            while donor < n_rows and (
-                targets[donor] or not _holds_nothing(column[donor])
-            ):
-                donor = donor + 1
-            if donor >= n_rows:
-                break
-            column[row], column[donor] = column[donor], column[row]
-            donor = donor + 1
-    filled = [0 for _row in range(n_rows)]
-    for place in range(width):
-        column = grid[place]
-        for row in range(n_rows):
-            if not _holds_nothing(column[row]):
-                filled[row] = filled[row] + 1
-    giver = [0 for _place in range(width)]
-    for row in range(n_rows):
-        if targets[row] or filled[row]:
-            continue
-        for place in range(width):
-            column = grid[place]
-            source = giver[place]
-            while source < n_rows and (
-                targets[source]
-                or _holds_nothing(column[source])
-                or filled[source] < 2
-            ):
-                source = source + 1
-            giver[place] = source
-            if source >= n_rows:
-                continue
-            column[row], column[source] = column[source], column[row]
-            filled[row] = filled[row] + 1
-            filled[source] = filled[source] - 1
-            break

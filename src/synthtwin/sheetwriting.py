@@ -37,7 +37,7 @@ as a limit rather than claiming past it.
 
 import typing
 
-from synthtwin import contract, dialect, generation
+from synthtwin import contract, dialect, generation, twinstore
 
 # THE ONE MOMENT EVERY MEMBER CARRIES. A zip member ordinarily records
 # when it was written, which would make the same twin different bytes on
@@ -184,6 +184,17 @@ _NOTHING_CLASSES = (
     dialect.SHEET_CELL_EMPTY,
 )
 _VALUE_CLASSES = dialect.SHEET_VALUE_CLASSES
+
+# EACH CELL'S CLASS HELD AS ONE BYTE (plan P4-D415, lane SG): its place in
+# `dialect.SHEET_CELL_CLASSES`. A column's classes were a tuple of text
+# objects, eight bytes a cell to point at a class name, beside the
+# styles' eight and the cells' own; at 1,048,576 rows of fifty columns
+# the package's per-cell tuples alone passed the 1.9 GB guard.
+_CLASS_CODES: "dict[str, int]" = {
+    dialect.SHEET_CELL_CLASSES[code]: code
+    for code in range(len(dialect.SHEET_CELL_CLASSES))
+}
+_NOTHING_CODES = frozenset(_CLASS_CODES[kind] for kind in _NOTHING_CLASSES)
 
 
 def _wanted(census: "dict[str, int | None]", kind: str) -> int:
@@ -579,7 +590,12 @@ def _wears_edge_space(text: str) -> bool:
 
 
 def _shared_strings_part(items: "list[str]") -> str:
-    """The shared-string table, preserving every space a cell's text has."""
+    """The shared-string table, preserving every space a cell's text has.
+
+    The package writes it in pieces (`_shared_strings_pieces`, plan
+    P4-D415); this one text is what those pieces join to, kept as their
+    reference and for lane XW's frozen writer (`tests/workbook_stream_cases.py`).
+    """
     text = _DECLARATION + (
         f'<sst xmlns="{_MAIN}" count="{len(items)}" '
         f'uniqueCount="{len(items)}">'
@@ -592,6 +608,47 @@ def _shared_strings_part(items: "list[str]") -> str:
         text = text + f"<si><t>{shown}</t></si>"
     text = text + "</sst>"
     return text
+
+
+# How many of the table's texts one piece of the streamed table holds
+# (`_shared_strings_pieces`): enough that a piece costs little beside
+# its texts, few enough that a piece is a few kilobytes.
+_SHARED_STRINGS_A_PIECE = 256
+
+
+def _shared_strings_pieces(items: "list[str]") -> "typing.Iterator[str]":
+    """`_shared_strings_part`'s text in pieces, never made whole (plan P4-D415).
+
+    THE TABLE IS WRITTEN AS A STREAM, as the sheet is (repair 1 of lane
+    SG, the statistics skeptic's item 1). A twin of 1,048,576 rows whose
+    columns write a different text on every row holds millions of
+    shared strings, and the table made as one text was held whole from
+    the moment the package was put together to the end of the write,
+    with a copy of it as bytes while its size was counted and another
+    while it was written: lane XW's wide book, five of its columns a
+    new text on every row as a real twin's are, grew by 119 MB from
+    100,000 to 200,000 rows with the table made whole and by 57 MB with
+    it streamed (Python 3.11, resident peak). The same elements
+    are made in the same order, `_SHARED_STRINGS_A_PIECE` texts a piece,
+    so the pieces joined are `_shared_strings_part`'s text, character
+    for character. Raises TypeError where an item is not text, as
+    `_shared_strings_part` does. No I/O of any kind.
+    """
+    yield _DECLARATION + (
+        f'<sst xmlns="{_MAIN}" count="{len(items)}" '
+        f'uniqueCount="{len(items)}">'
+    )
+    for start in range(0, len(items), _SHARED_STRINGS_A_PIECE):
+        piece = ""
+        for index in range(start, min(start + _SHARED_STRINGS_A_PIECE, len(items))):
+            item = items[index]
+            shown = _escaped(item)
+            if _wears_edge_space(item):
+                piece = piece + f'<si><t xml:space="preserve">{shown}</t></si>'
+                continue
+            piece = piece + f"<si><t>{shown}</t></si>"
+        yield piece
+    yield "</sst>"
 
 
 def _cell(reference: str, kind: str, value: str, style: int) -> str:
@@ -949,11 +1006,168 @@ def _aligned_for_empty_records(
     return (out_classes, out_cells, out_tags)
 
 
-def _sheet_part(
-    names: "tuple[str, ...]",
+def _class_codes(kinds: "tuple[str, ...]") -> bytes:
+    """A column's cell classes as one byte a cell (`_CLASS_CODES`; plan P4-D415).
+
+    Raises TypeError for a class `dialect.SHEET_CELL_CLASSES` does not
+    name, a defect in synthtwin. No I/O of any kind.
+    """
+    found: "list[int]" = []
+    for kind in kinds:
+        if kind not in _CLASS_CODES:
+            raise TypeError("internal check: a workbook cell had no class")
+        found += [_CLASS_CODES[kind]]
+    return bytes(found)
+
+
+def _class_names(codes: bytes) -> "tuple[str, ...]":
+    """A column's cell classes back from their bytes (`_class_codes`)."""
+    return tuple([dialect.SHEET_CELL_CLASSES[code] for code in codes])
+
+
+def _styles_held(row_styles: "list[int]") -> "bytes | tuple[int, ...]":
+    """A column's styles as one byte a cell, or as numbers where one passes 255.
+
+    Indexed, either gives the style number of the row (plan P4-D415).
+    """
+    for style in row_styles:
+        if style < 0 or style > 255:
+            return tuple(row_styles)
+    return bytes(row_styles)
+
+
+def _held_tags(dated: "tuple[str, ...]") -> "twinstore.HeldColumn | None":
+    """The kind of date each cell held, compactly; None where no cell held one."""
+    for tag in dated:
+        if tag:
+            return twinstore.held_column(list(dated))
+    return None
+
+
+def _tags_of(tags: "twinstore.HeldColumn | None", n_rows: int) -> "tuple[str, ...]":
+    """The kinds of date `_held_tags` holds, as a tuple of ``n_rows`` texts."""
+    if tags is None:
+        return ("",) * n_rows
+    return tuple(twinstore.column_cells(tags))
+
+
+def held_sheet_columns(
     cells: "list[tuple[str, ...]]",
     classes: "list[tuple[str, ...]]",
     styles: "list[tuple[int, ...]]",
+) -> "tuple[list[twinstore.HeldColumn], list[bytes], list[bytes | tuple[int, ...]]]":
+    """A sheet's cells, classes and styles, a tuple a column, held as `_sheet_pieces` reads them.
+
+    The cells held by `twinstore`, the classes a byte a cell
+    (`_class_codes`), the styles a byte a cell where every one fits
+    (`_styles_held`); plan P4-D415. Raises TypeError for a class no
+    workbook cell takes. No I/O of any kind.
+    """
+    held_cells = [twinstore.held_column(list(column)) for column in cells]
+    held_classes = [_class_codes(column) for column in classes]
+    held_styles = [_styles_held(list(column)) for column in styles]
+    return held_cells, held_classes, held_styles
+
+
+def _aligned_held(
+    classes: "list[bytes]",
+    cells: "list[twinstore.HeldColumn]",
+    tags: "list[twinstore.HeldColumn | None]",
+    n_rows: int,
+    wanted: int,
+) -> "tuple[list[bytes], list[twinstore.HeldColumn], list[twinstore.HeldColumn | None]]":
+    """`_aligned_for_empty_records` over held columns, a column at a time (plan P4-D415).
+
+    The same permutation within each column, made on the same rows:
+    every column's cells holding nothing are moved onto the first
+    ``wanted`` rows, or as many as the column with the fewest such cells
+    allows, each by exchange with the next such cell below them, its
+    class, its value and its kind of date moving together. A column
+    nothing moves in is handed back as it came.
+
+    Guarantees: the columns `_aligned_for_empty_records` gives for the
+    same cells; raises nothing; no I/O of any kind.
+    """
+    if wanted <= 0 or not classes:
+        return (classes, cells, tags)
+    room = n_rows
+    for column in classes:
+        spare = 0
+        for code in column:
+            if code in _NOTHING_CODES:
+                spare = spare + 1
+        if spare < room:
+            room = spare
+    if room < wanted:
+        wanted = room
+    if wanted <= 0:
+        return (classes, cells, tags)
+    out_classes: "list[bytes]" = []
+    out_cells: "list[twinstore.HeldColumn]" = []
+    out_tags: "list[twinstore.HeldColumn | None]" = []
+    for index in range(len(classes)):
+        kinds = bytearray(classes[index])
+        spare_rows: "list[int]" = []
+        for row in range(len(kinds)):
+            if row >= wanted and kinds[row] in _NOTHING_CODES:
+                spare_rows += [row]
+        moves: "list[tuple[int, int]]" = []
+        at = 0
+        for row in range(wanted):
+            if row < len(kinds) and kinds[row] in _NOTHING_CODES:
+                continue
+            if at >= len(spare_rows):
+                break
+            other = spare_rows[at]
+            at = at + 1
+            kinds[row], kinds[other] = kinds[other], kinds[row]
+            moves += [(row, other)]
+        out_classes += [bytes(kinds)]
+        if not moves:
+            out_cells += [cells[index]]
+            out_tags += [tags[index]]
+            continue
+        values = twinstore.column_cells(cells[index])
+        marks = list(_tags_of(tags[index], len(values)))
+        for row, other in moves:
+            values[row], values[other] = values[other], values[row]
+            marks[row], marks[other] = marks[other], marks[row]
+        out_cells += [twinstore.held_column(values)]
+        out_tags += [_held_tags(tuple(marks))]
+    return (out_classes, out_cells, out_tags)
+
+
+def _empty_row_places_held(
+    classes: "list[bytes]", n_rows: int, wanted: int
+) -> "dict[int, bool]":
+    """`_empty_row_places` over classes held a byte a cell (plan P4-D415).
+
+    The same rows, in the same order: each row where every column's cell
+    holds nothing, until the published count is met.
+    """
+    places: "dict[int, bool]" = {}
+    if wanted <= 0:
+        return places
+    left = wanted
+    for row in range(n_rows):
+        if left <= 0:
+            break
+        holding = False
+        for column in classes:
+            if row < len(column) and column[row] not in _NOTHING_CODES:
+                holding = True
+                break
+        if not holding:
+            places[row] = True
+            left = left - 1
+    return places
+
+
+def _sheet_part(
+    names: "tuple[str, ...]",
+    cells: "list[twinstore.HeldColumn]",
+    classes: "list[bytes]",
+    styles: "list[bytes | tuple[int, ...]]",
     n_rows: int,
     write_header: bool,
     header_style: int,
@@ -992,9 +1206,9 @@ def _sheet_part(
 
 def _sheet_pieces(
     names: "tuple[str, ...]",
-    cells: "list[tuple[str, ...]]",
-    classes: "list[tuple[str, ...]]",
-    styles: "list[tuple[int, ...]]",
+    cells: "list[twinstore.HeldColumn]",
+    classes: "list[bytes]",
+    styles: "list[bytes | tuple[int, ...]]",
     n_rows: int,
     write_header: bool,
     header_style: int,
@@ -1019,6 +1233,13 @@ def _sheet_pieces(
     made, character for character, and what is held at once is one
     row. `_place_of` is asked in the same order too, which
     is what keeps the shared-string table the same.
+
+    THE COLUMNS ARE HELD COMPACTLY (plan P4-D415, lane SG): each column's
+    cells by `twinstore`, its classes a byte a cell (`_class_codes`) and
+    its styles a byte a cell where every one fits (`_styles_held`;
+    `held_sheet_columns` makes all three from tuples). The rows are read
+    a `twinstore.BLOCK_ROWS` block at a time, one block of every column
+    held as text at once.
     """
     width = len(names)
     empty_place = _place_of(items, places, "")
@@ -1077,8 +1298,17 @@ def _sheet_pieces(
             line = line + _cell(reference, "", "", 0)
         yield f'<row r="{number}">' + line + "</row>"
 
+    texts: "list[list[str]]" = []
     for row in range(n_rows):
         number = number + 1
+        at = row % twinstore.BLOCK_ROWS
+        if at == 0:
+            # The next block of every column; the last one goes first.
+            texts = []
+            texts = [
+                twinstore.column_block(column, row // twinstore.BLOCK_ROWS)
+                for column in cells
+            ]
         if row in empty_places:
             # A record holding nothing: the row is written with no cells
             # at all, which is what every reader reads as an empty record.
@@ -1086,7 +1316,7 @@ def _sheet_pieces(
             continue
         line = ""
         for index in range(width):
-            kind = classes[index][row]
+            kind = dialect.SHEET_CELL_CLASSES[classes[index][row]]
             if kind == dialect.SHEET_CELL_ABSENT:
                 continue
             reference = column_reference(index + 1) + f"{number}"
@@ -1097,7 +1327,7 @@ def _sheet_pieces(
             if kind == dialect.SHEET_CELL_EMPTY:
                 line = line + _cell(reference, "s", f"{empty_place}", style)
                 continue
-            value = _cleaned(cells[index][row])
+            value = _cleaned(texts[index][at])
             if kind == dialect.SHEET_CELL_ERROR:
                 line = line + _cell(reference, "e", value, style)
                 continue
@@ -1731,9 +1961,14 @@ def _package(
     # format standing first so that an unstyled cell is still right.
     codes: "list[str]" = ["General"]
     style_of: "dict[str, int]" = {"General": 0}
-    classes: "list[tuple[str, ...]]" = []
-    cells: "list[tuple[str, ...]]" = []
-    dates: "list[tuple[str, ...]]" = []
+    # EVERY COLUMN HELD COMPACTLY (plan P4-D415, lane SG): the cells by
+    # `twinstore` -- the twin's own held column where the workbook writes
+    # the cells as they are -- the classes a byte a cell and the kinds of
+    # date a column held, compactly or not at all; one column is text
+    # objects at a time.
+    classes: "list[bytes]" = []
+    cells: "list[twinstore.HeldColumn]" = []
+    dates: "list[twinstore.HeldColumn | None]" = []
     epoch_1904 = form.date_system == dialect.SHEET_DATE_SYSTEM_1904
     # THE STORAGE CLASS IS ALLOCATED BEFORE THE CONVERSION, AND SETTLED
     # AFTER IT (plan P4-D284). The first pass asks the census which
@@ -1743,7 +1978,8 @@ def _package(
     # settles the classes over the cells as they will be written.
     for index in range(width):
         column = form.columns[index]
-        written = tuple(twin.columns[index])
+        given = generation.twin_column(twin, index)
+        written = given
         stores_dates = _stores_dates(column)
         if stores_dates:
             told: "frozenset[str]" = frozenset()
@@ -1757,10 +1993,13 @@ def _package(
             column, written, epoch_1904, held if stores_dates else (),
         )
         own = _clocks_as_day_fractions(column, own)
-        cells += [own]
-        dates += [dated]
+        if twin.held_columns is not None and own == given:
+            cells += [twin.held_columns[index]]
+        else:
+            cells += [twinstore.held_column(list(own))]
+        dates += [_held_tags(dated)]
         classes += [
-            cell_classes(column.cell_classes, own, column.value_class)
+            _class_codes(cell_classes(column.cell_classes, own, column.value_class))
         ]
 
     items: "list[str]" = []
@@ -1773,21 +2012,21 @@ def _package(
     wanted_empty = 0
     if form.empty_rows_inside is not None:
         wanted_empty = form.empty_rows_inside
-    classes, cells, dates = _aligned_for_empty_records(
-        classes, cells, n_rows, wanted_empty, dates
+    classes, cells, dates = _aligned_held(
+        classes, cells, dates, n_rows, wanted_empty
     )
-    empty_places = _empty_row_places(classes, n_rows, wanted_empty)
+    empty_places = _empty_row_places_held(classes, n_rows, wanted_empty)
 
     # ONE STYLE PER CELL, worked out after the cells have settled: a
     # column may hold a mixture of format kinds and the census publishes
     # a count for each, so the style is a fact about the cell and not
     # about the column.
-    styles: "list[tuple[int, ...]]" = []
+    styles: "list[bytes | tuple[int, ...]]" = []
     for index in range(width):
         column = form.columns[index]
         kinds = cell_format_kinds(
-            column.format_kinds, classes[index], column.format_code,
-            dates[index],
+            column.format_kinds, _class_names(classes[index]), column.format_code,
+            _tags_of(dates[index], n_rows),
         )
         row_styles: "list[int]" = []
         for row in range(len(kinds)):
@@ -1799,7 +2038,7 @@ def _package(
             if not isinstance(found, int):
                 raise TypeError("internal check: a style was not a number")
             row_styles += [found]
-        styles += [tuple(row_styles)]
+        styles += [_styles_held(row_styles)]
     table = form.defined_table
 
     published_names: "list[str | None]" = []
@@ -1902,11 +2141,21 @@ def _package(
         ),
         ("xl/_rels/workbook.xml.rels", _workbook_rels_part(len(sheet_names))),
         ("xl/styles.xml", _styles_part(tuple(codes))),
-        ("xl/sharedStrings.xml", _shared_strings_part(items)),
     ]
     members: "list[tuple[str, int, typing.Iterable[str]]]" = []
     for name, text in texts:
         members += [(name, _bytes_of((text,)), (text,))]
+    # The shared-string table in pieces, counted once and made again as
+    # the zip writer takes it (`_shared_strings_pieces`): every sheet's
+    # first pass has given its texts their places by now, and the second
+    # passes, written after it, add none (`_places_already_taken`).
+    members += [
+        (
+            "xl/sharedStrings.xml",
+            _bytes_of(_shared_strings_pieces(items)),
+            _shared_strings_pieces(items),
+        )
+    ]
     for part in parts:
         members += [part]
     if table:

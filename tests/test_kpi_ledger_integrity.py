@@ -815,6 +815,17 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 760,000 from 754,000, AT THE INTEGRATION OF BATCH 4H (2026-10-23),
+    # the orchestrator's recorded call D15 (the owner may veto), set once
+    # for the batch, the least round figure the merged ledger and the
+    # batch's records fit under: lane HX4's `K-S3-64` stamp with its note
+    # clause (no raise on its branch: 740,776 bytes under its base's
+    # 741,000) and lane SG's `K-S4-12` with its note clause and the
+    # generate part of `K-S4-09`'s evidence (its branch raised its own cap
+    # to 720,000, below), every entry kept by id and the note merged clause
+    # by clause, 757,959 bytes as merged. A MEASUREMENT IS NEVER TRIMMED TO
+    # FIT.
+    #
     # 754,000 from 745,000, AT THE INTEGRATION OF BATCH 4G (2026-10-23),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger fits under:
@@ -874,6 +885,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # on 8a02faa, whose run measures the mixed table at four sizes and
     # three seeds, their evidence naming what the measured rise was,
     # 716,477 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
+    # 720,000 from 716,000 ON LANE SG'S BRANCH (plan P4-D415, 2026-10-22):
+    # its `K-S4-12` with its note clause and the named generate part in
+    # `K-S4-09`'s evidence, 719,382 bytes; its repair 1 restates both on
+    # the floor's figures, the prose shortened, 719,916 bytes; its repair
+    # 2 gives `K-S4-12` the CPU pairs against 8a02faa3, the prose
+    # shortened again, 719,985 bytes; the integrator sets the cap for the
+    # batch. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
     # set once, the least round figure the merged ledger fits under: lane
@@ -1318,7 +1337,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-08 new, the chain's
     # tables part, with its note clause. The batch integrator settles this
     # beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 754_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 760_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

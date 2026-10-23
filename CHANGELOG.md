@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### `synthtwin generate` holds the twin once (2026-10-21)
+
+**Lane SG** (plan P4-D415). Generating a twin held the whole table as
+Python objects twice over, every column's plan for the whole run and
+each column's working set beside them: lane B0 projected about 8 to
+9 GB at 2,000,000 rows by 50 columns, more than three times the
+2.5 GB one process may hold. Each finished column is now held packed
+(2.6 to 2.9 bytes a cell against 6 to 9 bytes of text), made, measured
+and let go one at a time with its plan, and the twin's text is written
+a piece at a time, never made whole; a workbook twin's cells, classes
+and styles are held the same way. Every twin is the same file, byte for
+byte, as before. On lane B0's two tables of fifty columns generate
+peaks, on Python 3.11, at 156 and 120 MB at 100,000 rows, where it
+held 548 and 609, and at 478 and 361 MB at 500,000: 0.8 to 1.6 GB
+projected at 2,000,000 rows over Python 3.11 and 3.13 and two ways of
+projecting, under the 2.5 GB. A workbook twin's shared strings are
+written a piece at a time too: a twin of lane XW's wide book whose
+record numbers differ on every row is written at 568 MB at 500,000
+rows, 0.8 to 1.0 GB projected at 1,048,576. A double-spaced file, or
+one whose line endings are mixed, is written a piece at a time as well,
+and the twin's report counts the cells a spreadsheet reads as formulas
+in every column, one holding the character U+0000 included. Generate's
+seconds are recorded (`K-S4-12`): about as before at 100,000 rows, and
+18 to 27 % more CPU at 150,000 and 250,000 rows in one day's pairs,
+which the night's pairs settle. One placement hook, `_row_placement`,
+is where lane CHb's chain generator will put a column's cells in rows.
+The offline scan admits zlib's `compress` and `decompress` in the
+twin's store alone.
+
 ### A column of lists written as record numbers is held until answered (lane HX4, 2026-10-22)
 
 **Lane HX4** (plan P4-D424, amending P4-D401's stated limits). A column

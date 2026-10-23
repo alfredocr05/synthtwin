@@ -413,6 +413,96 @@ def test_the_zip_member_writer_does_not_reach_the_reader(tmp_path):
     _assert_red(violations, "calls the method 'write' on a value this audit cannot trace")
 
 
+def _handle_writer_module(body, module="writing"):
+    """A module opening the validated output target for text, then ``body`` (plan P4-D415)."""
+    lines = [
+        "import pathlib",
+        "",
+        "from synthtwin.paths import validate_local_path",
+        "",
+        "",
+        'def save(target: str, pieces: "list[str]") -> None:',
+        '    validated = validate_local_path(f"{target}", purpose="output file")',
+        "    destination = pathlib.Path(validated)",
+        '    with destination.open("w", encoding="utf-8", newline="") as handle:',
+    ]
+    lines += ["        " + line for line in textwrap.dedent(body).strip().splitlines()]
+    lines += [""]
+    return {
+        "synthtwin/__init__.py": "",
+        "synthtwin/paths.py": _PATHS_MODULE,
+        "synthtwin/" + module + ".py": "\n".join(lines),
+    }
+
+
+def test_the_output_handle_writes_a_piece_at_a_time_and_stays_clean(tmp_path):
+    """Plan P4-D415: the twin's text written through the handle on the
+    validated output target, a piece at a time, in `writing`."""
+    violations = _scan_package(
+        tmp_path,
+        _handle_writer_module(
+            """
+            for piece in pieces:
+                handle.write(piece)
+            handle.close()
+            """
+        ),
+    )
+    assert violations == [], "\n".join(violations)
+
+
+def test_an_unenumerated_output_handle_method_goes_red(tmp_path):
+    """Bypass class: a method of the output handle that is not write or close.
+
+    `read` would read the twin back, `seek` and `truncate` move within it,
+    `writelines` takes any iterable: write and close are the whole list.
+    """
+    for method in ("read", "seek", "truncate", "writelines", "flush"):
+        violations = _scan_package(
+            tmp_path / method, _handle_writer_module(f"handle.{method}()")
+        )
+        _assert_red(violations, "on the output handle")
+
+
+def test_the_output_handle_takes_one_text_and_nothing_by_name(tmp_path):
+    """Bypass class: write with two arguments, by name or expanded; close with one."""
+    for index, body in enumerate(
+        (
+            "handle.write(pieces[0], pieces[1])",
+            "handle.write(s=pieces[0])",
+            "handle.write(*pieces)",
+            "handle.close(pieces)",
+        )
+    ):
+        violations = _scan_package(tmp_path / f"form{index}", _handle_writer_module(body))
+        _assert_red(violations, "on the output handle")
+
+
+def test_an_attribute_of_the_output_handle_goes_red(tmp_path):
+    """Bypass class: an attribute of the handle, `buffer` first, none admitted."""
+    for name in ("buffer", "name", "encoding"):
+        violations = _scan_package(
+            tmp_path / name, _handle_writer_module(f"return handle.{name}")
+        )
+        _assert_red(violations, "attribute '" + name + "' of the output handle")
+
+
+def test_the_output_handle_writes_in_writing_alone(tmp_path):
+    """Bypass class: the same handle written from the generator or the reader."""
+    for module in ("generation", "reading", "rendering"):
+        violations = _scan_package(
+            tmp_path / module,
+            _handle_writer_module(
+                """
+                for piece in pieces:
+                    handle.write(piece)
+                """,
+                module,
+            ),
+        )
+        _assert_red(violations, "on the output handle")
+
+
 def test_a_neighbouring_expat_attribute_goes_red(tmp_path):
     """Bypass class: an expat name the workbook admission did not admit."""
     violations = _scan_code(
@@ -4611,3 +4701,47 @@ def test_the_float_power_rule_reads_the_operands(tmp_path, line, red):
     for zone, judged in (("D", red), ("R", red), ("W", red), ("P", False)):
         found = _SCANNER._float_power_violations(ast.parse(code), "synthtwin.sample", zone)
         assert bool(found) is judged, (zone, found)
+
+
+# -- lane SG (plan P4-D415): zlib, in the twin's store alone ----------------
+
+_TWIN_STORE_PACKING = textwrap.dedent(
+    """
+    import zlib
+
+
+    def packed(raw):
+        return zlib.compress(raw, 1)
+
+
+    def unpacked(held):
+        return zlib.decompress(held)
+    """
+)
+
+
+def test_the_twin_store_packing_its_blocks_scans_clean(tmp_path):
+    """zlib's compress and decompress in synthtwin.twinstore, on the generation path."""
+    violations = _scan_in(
+        tmp_path,
+        "twinstore",
+        _TWIN_STORE_PACKING,
+        {"synthtwin/generation.py": "from synthtwin import twinstore\n"},
+    )
+    assert violations == [], violations
+
+
+def test_zlib_outside_the_twin_store_goes_red(tmp_path):
+    """Bypass class: zlib named from a module its admission does not hold."""
+    violations = _scan_in(tmp_path, "generation", _TWIN_STORE_PACKING)
+    _assert_red(violations, "admitted for synthtwin.twinstore only")
+    violations = _scan_in(tmp_path / "from", "writing", "from zlib import decompress\n")
+    _assert_red(violations, "admitted for synthtwin.twinstore only")
+
+
+def test_a_neighbouring_zlib_name_goes_red_in_the_twin_store(tmp_path):
+    """The admission is an enumeration: a streaming packer or a checksum is still refused."""
+    for name in ("compressobj", "decompressobj", "crc32"):
+        code = _TWIN_STORE_PACKING.replace("zlib.compress(raw, 1)", "zlib." + name + "(raw)")
+        violations = _scan_in(tmp_path / name, "twinstore", code)
+        _assert_red(violations, "zlib." + name)

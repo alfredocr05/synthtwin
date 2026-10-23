@@ -141,7 +141,7 @@ structure arrives in a later phase (Phase 5).
 import dataclasses
 import math
 import typing
-from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy
+from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy, twinstore
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts, grains
 
@@ -712,6 +712,12 @@ class Twin:
     # (module `dialect`). None only for a twin built by hand, which is
     # written in the ordinary form.
     form: "dialect.Dialect | None" = None
+    # THE TWIN HELD ONCE (plan P4-D415, lane SG): its finished columns
+    # held compactly (`twinstore`), where `generate_held` built it, and then
+    # `columns` and `rows` are empty; None where the cells are in
+    # `columns` and `rows`. Read a twin of either kind through
+    # `twin_width`, `twin_column`, `twin_column_blocks` and `twin_rows`.
+    held_columns: "tuple[twinstore.HeldColumn, ...] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -825,6 +831,14 @@ class _ColumnPlan:
     # (`date_counts.hole_words`), as ISO words: an absent spelling of this
     # column to every pass of G7, and no rank stands on one (G7.10).
     counted_holes: "tuple[str, ...]" = ()
+    # THE FINISHED VALUES HELD ONCE (plan P4-D415, lane SG). Every plan is
+    # made before the first column, so the values of the roles that make
+    # them up were held as text objects for the whole run, every such
+    # column at once: `plan_generation` holds them here compactly
+    # (`twinstore`) and leaves `cells` empty, and `_plan_cells` reads
+    # either. None for a plan whose `cells` hold the values, as a plan
+    # built by hand does.
+    held_cells: "twinstore.HeldColumn | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3050,20 +3064,42 @@ def _recounted(
     # re-description: the collision was detected, the recount was
     # unchanged, and the presence lines below -- which need both --
     # stayed silent while the quality report named the loss.
-    present = [
+    #
+    # COUNTED WITHOUT A COPY OF THE COLUMN (plan P4-D415, lane SG): the
+    # present cells are counted as they are met and only the different ones
+    # kept, and the folded spellings are made of those, which is the same
+    # set as made of every present cell; a folded spelling equal to its cell
+    # is that cell, kept rather than made again. On a column where every
+    # value differs this held a list of the column, a set of it and a new
+    # text a cell beside it -- about 150 bytes a row.
+    present = 0
+    different = {
         cell
         for cell in cells
         if cell != "" and not _wears_any_published_hole(
             cell, holes, decimal_comma
         )
-    ]
-    folded = {parsing.folded(cell) for cell in present}
+    }
+    for cell in cells:
+        if cell != "" and cell in different:
+            present = present + 1
+    folded = {_folded_or_itself(cell) for cell in different}
     return (
-        len(present),
-        len(cells) - len(present),
-        len(set(present)),
+        present,
+        len(cells) - present,
+        len(different),
         len(folded),
     )
+
+
+def _folded_or_itself(cell: str) -> str:
+    """A cell's folded spelling (`parsing.folded`), the cell itself where
+    folding leaves it as it is (plan P4-D415): the same text either way,
+    so a tally keyed by folded spellings keeps no second copy of a cell
+    folding leaves alone -- a number, a code in one case -- about 50 bytes
+    a different value."""
+    made = parsing.folded(cell)
+    return cell if made == cell else made
 
 
 # -- the ladder (method G5.3) -----------------------------------------
@@ -3957,6 +3993,13 @@ def _snaps_away(
     return (read < 0.0) != (value < 0.0)
 
 
+def _members_of(found: "int | list[int]") -> "list[int]":
+    """The cells of one value of `_width_places`: one place, or a list of them."""
+    if isinstance(found, int):
+        return [found]
+    return found
+
+
 def _width_places(
     widths: "dict[str, int]",
     styles: "list[str]",
@@ -4048,16 +4091,24 @@ def _width_places(
     # bought with another, which is the trade this method refuses
     # everywhere else. A real column's cells wear one width per value
     # because that is what a person writing them does.
-    groups: dict[float, list[int]] = {}
+    #
+    # A VALUE OF ONE CELL HOLDS THAT CELL'S PLACE ITSELF (plan P4-D415, lane
+    # SG): on a column of measurements nearly every value is one cell, and
+    # a list a value held about 90 bytes a row; `_members_of` reads either.
+    groups: "dict[float, int | list[int]]" = {}
     order: list[tuple[int, float]] = []
     for index in range(len(styles)):
         if styles[index] != "decimal" or index in served:
             continue
         value = holds[index]
         if value in groups:
-            groups[value] += [index]
+            grouped = groups[value]
+            if isinstance(grouped, int):
+                groups[value] = [grouped, index]
+            else:
+                grouped += [index]
             continue
-        groups[value] = [index]
+        groups[value] = index
         order += [(-_fraction_need(value), value)]
     # HOW MANY CELLS EACH VALUE HOLDS IN ALL, not just how many of them
     # the style step made decimal. A snap moves the VALUE, so snapping
@@ -4081,7 +4132,7 @@ def _width_places(
         if places[index] >= 0:
             landed[_snapped_to(holds[index], places[index])] = 1
     for _need, value in sorted(order):
-        members = groups[value]
+        members = _members_of(groups[value])
         alone = everywhere[value] == len(members)
         need = _fraction_need(value)
         whole = None
@@ -20794,7 +20845,7 @@ def _number_cells(
     # where the spellings cannot supply it -- the source shows four can.
     alone = _pool_alone_of(facts)
     seven = len(parsing.GROUP_MARKS)
-    spelled = {seven: len(set(parsing.folded(text) for text in base))}
+    spelled = {seven: len({_folded_or_itself(text) for text in base})}
     if alone > 0 and spelled[seven] > wanted:
         for count in range(2, seven):
             trial, _trial_notes = _mark_places(
@@ -20803,7 +20854,7 @@ def _number_cells(
             texts = _written_cells(
                 facts, holds, styles, widths, pads, trial, notations, plussed
             )
-            spelled[count] = len(set(parsing.folded(text) for text in texts))
+            spelled[count] = len({_folded_or_itself(text) for text in texts})
         most = _pool_mark_count(alone, floor, wanted, spelled)
         marks, mark_notes = _mark_places(
             column, facts, groupable, floor, holds, most
@@ -20820,7 +20871,7 @@ def _number_cells(
     # grouping rows by this column.
     settled: dict[str, int] = {}
     for spelling in base:
-        settled[parsing.folded(spelling)] = 1
+        settled[_folded_or_itself(spelling)] = 1
     owed = max(0, wanted - len(settled))
     # ...AND BEFORE ANY ZERO IS SPENT, THE SIGN IS (plan P4-D145). A cell
     # at a named field width cannot spend a zero, so a column of offsets
@@ -21021,7 +21072,7 @@ def _identity_walk(
                 )
             reached[key] = order
             owed = owed - 1
-        identities[parsing.folded(spelling)] = 1
+        identities[_folded_or_itself(spelling)] = 1
         spellings[spelling] = 1
         written[index] = spelling
     return written
@@ -27429,6 +27480,10 @@ class _WeekdayPass:
         default_factory=dict
     )
     gap_sizes: "dict[tuple[int, int], int]" = dataclasses.field(default_factory=dict)
+    # How many units the indexes in `indexes` hold, under the one key
+    # nought (plan P4-D415, `_weekday_indexes_bounded`); the pass itself
+    # is frozen, so the count is kept where it can change.
+    indexed_units: "dict[int, int]" = dataclasses.field(default_factory=dict)
     # Each day's day-of-month bin less one, filled as it is asked (landing
     # 3b.3): the bin of the `"month_day"` rule is a calendar reckoning the
     # pass asks millions of times on a large column.
@@ -27503,7 +27558,7 @@ class _WeekdayIndex:
 
     first: int
     last: int
-    units: "dict[tuple[int, _WeekdayKind], list[int]]"
+    units: "dict[tuple[int, _WeekdayKind], tuple[int, ...]]"
 
 
 def _weekday_group(state: _WeekdayPass, ordinal: int) -> int:
@@ -27580,7 +27635,7 @@ def _weekday_tally(counts: "dict[int, int]", key: int, step: int) -> None:
         counts[key] = step
 
 
-def _weekday_first_from(values: "list[int]", target: int) -> int:
+def _weekday_first_from(values: "list[int] | tuple[int, ...]", target: int) -> int:
     """The first place in an ascending list holding `target` or more (its
     length where none does), by halving."""
     low, high = 0, len(values)
@@ -28059,9 +28114,21 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
     ranks 801 minutes apart, on a gap of minutes kept by the day, built
     102,528, and a million ranks could build 801 million. Past both the
     gap is walked, as every gap was before the index, each walk asking
-    400 units each side at most; the answer is the same either way."""
+    400 units each side at most; the answer is the same either way.
+
+    AND NEVER ONE OF MORE UNITS THAN ALL THE INDEXES MAY HOLD (repair 2
+    of lane SG, the Codex review's item 3): `_weekday_indexes_bounded`
+    always keeps the gap asked last, so an index larger than
+    `_WEEKDAY_INDEX_UNITS_HELD` was held whatever the bound said (25,000
+    movable ranks across 100,000 minutes built one of 100,000 units, 32.8
+    MB, and a larger gap more). Such a gap is walked instead, before
+    anything is built; the answer is the same."""
     if (low, high) in state.indexes:
-        return state.indexes[(low, high)]
+        cached = state.indexes[(low, high)]
+        # The gap asked last stands last (`_weekday_indexes_bounded`).
+        del state.indexes[(low, high)]
+        state.indexes[(low, high)] = cached
+        return cached
     first = low // state.unit
     last = high // state.unit
     size = state.gap_sizes[(low, high)] if (low, high) in state.gap_sizes else 0
@@ -28070,6 +28137,7 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
         size > 0
         and last - first + 1 <= size * (2 * _WEEKDAY_REACH + 1)
         and last - first + 1 <= max(2 * _WEEKDAY_REACH + 1, size * _WEEKDAY_INDEX_PER_RANK)
+        and last - first + 1 <= _WEEKDAY_INDEX_UNITS_HELD
     ):
         units: "dict[tuple[int, _WeekdayKind], list[int]]" = {}
         for unit in range(first, last + 1):
@@ -28082,9 +28150,58 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
                 found += [unit]
             else:
                 units[key] = [unit]
-        index = _WeekdayIndex(first, last, units)
+        # HELD AS TUPLES (plan P4-D415, lane SG): every search reads a key's
+        # units and never adds one, and on a pass that keeps the day each
+        # key holds a unit or two, so a list's spare room was a third of it.
+        index = _WeekdayIndex(first, last, {key: tuple(units[key]) for key in units})
+        _weekday_tally(state.indexed_units, 0, _weekday_index_size(index))
     state.indexes[(low, high)] = index
+    _weekday_indexes_bounded(state)
     return index
+
+
+# HOW MANY UNITS THE GAPS' INDEXES HOLD AT ONCE (plan P4-D415, lane SG).
+# Kept for the whole of steps 5 and 6, a pass of 20,000 stamps held its
+# indexes at about 450 bytes a row, 900 MB at 2,000,000 rows; past this
+# many units the gaps asked longest ago are let go, and a gap asked again
+# is indexed again (`_weekday_indexes_bounded`). About 13 MB of indexes.
+_WEEKDAY_INDEX_UNITS_HELD = 65_536
+
+
+def _weekday_index_size(index: _WeekdayIndex) -> int:
+    """How many units a gap's index holds."""
+    total = 0
+    for key in index.units:
+        total = total + len(index.units[key])
+    return total
+
+
+def _weekday_indexes_bounded(state: _WeekdayPass) -> None:
+    """Let the gaps asked longest ago go while the indexes hold more than
+    `_WEEKDAY_INDEX_UNITS_HELD` units, the gap asked last always kept.
+
+    NOTHING A STEP ASKS CHANGES (plan P4-D415, lane SG). An index is a
+    function of its gap's two ends and of what the pass was built with --
+    the unit, the holes, the bins and their groups, the kinds -- and of how
+    many movable ranks its gap holds, which `_bins_settled` counts before
+    any step searches and never again; none of them changes once the pass
+    is built. So a gap indexed again is the index let go, unit for unit,
+    or None again where it was None, and every search finds what it found.
+    Raises nothing. No I/O of any kind.
+    """
+    while (
+        0 in state.indexed_units
+        and state.indexed_units[0] > _WEEKDAY_INDEX_UNITS_HELD
+        and len(state.indexes) > 1
+    ):
+        oldest = (0, 0)
+        for spot in state.indexes:
+            oldest = spot
+            break
+        found = state.indexes[oldest]
+        del state.indexes[oldest]
+        if found is not None:
+            _weekday_tally(state.indexed_units, 0, -_weekday_index_size(found))
 
 
 def _weekday_window(state: _WeekdayPass, rank: int) -> "tuple[int, int, int, int]":
@@ -28096,6 +28213,24 @@ def _weekday_window(state: _WeekdayPass, rank: int) -> "tuple[int, int, int, int
     first = max(unit - _WEEKDAY_REACH, -((place - state.lows[rank]) // state.unit))
     last = min(unit + _WEEKDAY_REACH, (state.highs[rank] - place) // state.unit)
     return unit, place, first, last
+
+
+def _weekday_indexes_let_go(state: _WeekdayPass) -> None:
+    """Forget every gap's index the pass has built (plan P4-D415, lane SG).
+
+    THE INDEXES ARE HELD FOR STEPS 5 AND 6 ALONE, and a pass of moments
+    held them -- a list a unit and a key a group and kind -- at about 500
+    bytes a row of a column of 20,000 stamps, beside the filing step 8.3
+    then makes. Nothing is lost by letting them go: an index is a function
+    of its gap's two ends and of what the pass was built with, read once
+    every gap's size is counted (`_bins_settled` counts them before any
+    step searches), so one built again is the index let go, unit for unit,
+    and no step after steps 5 and 6 asks for one. Raises nothing. No I/O.
+    """
+    for spot in [spot for spot in state.indexes]:
+        del state.indexes[spot]
+    for key in [key for key in state.indexed_units]:
+        del state.indexed_units[key]
 
 
 def _weekday_run_target(
@@ -28905,7 +29040,26 @@ class _WeekdayAsked:
 
     cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]"
     kinds: "dict[_WeekdayKind, list[tuple[int, int, _WeekdayKind]]]"
-    asked: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[tuple[int, int], ...]]]"
+    asked: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[int, ...]]]"
+
+
+# EACH GROUP A MOVE REACHES, AS ONE SMALL WHOLE NUMBER (plan P4-D415, lane
+# SG). Step 8.3 keeps, for every cell's group it asked, each group its
+# mover's move reaches and what that move adds there (`_weekday_take`: one
+# or nought); kept as a pair of numbers a group, the asked filing of a
+# column of 20,000 moments held about 700 bytes a row, more than its
+# column's cells. The pair is kept as `taking * 2 + gained` instead, a
+# number below 256 that Python keeps once for the whole run, in the same
+# order: `_reach_code` makes it and `_reach_of` reads it back, so every
+# round reads the same pairs in the same order as before.
+def _reach_code(taking: int, gained: int) -> int:
+    """A group a move reaches and what it adds there (one or nought), as one number."""
+    return taking * 2 + gained
+
+
+def _reach_of(code: int) -> "tuple[int, int]":
+    """The group and the gain `_reach_code` made one number of."""
+    return code // 2, code % 2
 
 
 def _weekday_asked_of(
@@ -29050,37 +29204,41 @@ def _weekday_cycle(
     """
     groups = max(state.where) + 1
     longest = groups if groups <= _WEEKDAY_CYCLE_GROUPS else _WEEKDAY_CYCLE_LONGEST
-    give: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
-    movers: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
-    take: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[tuple[int, int], ...]]" = {}
+    # EVERY ANSWER OF THIS ROUND, (mover, give, each group the move reaches),
+    # by cell and giving group: kept's filing itself where it is given, so
+    # an answer kept from an earlier round is read where it stands rather
+    # than copied into a dictionary of its own each round (plan P4-D415,
+    # lane SG: three such copies held 180 bytes a row of 20,000 stamps).
+    answers: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[int, ...]]]" = (
+        kept.asked if kept is not None else {}
+    )
     for key in sorted(cells):
         members = cells[key]
         for giving in range(groups):
             if giving not in members or not members[giving]:
                 continue
-            if kept is not None and (key, giving) in kept.asked:
-                movers[(key, giving)], give[(key, giving)], take[(key, giving)] = kept.asked[(key, giving)]
+            if (key, giving) in answers:
                 continue
             # The group's MOVER, the rank its moves take: give and take are
             # both asked of it, so the gain is what that move makes.
             mover = _weekday_mover(state, members[giving])
-            movers[(key, giving)] = mover
-            give[(key, giving)] = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
-            reaches: "list[tuple[int, int]]" = []
+            give = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
+            reaches: "list[int]" = []
             for taking in range(groups):
                 gained = _weekday_take(state, key, taking, mover)
                 if gained is not None:
-                    reaches += [(taking, gained)]
-            take[(key, giving)] = tuple(reaches)
-            if kept is not None:
-                kept.asked[(key, giving)] = (mover, give[(key, giving)], take[(key, giving)])
+                    reaches += [_reach_code(taking, gained)]
+            answers[(key, giving)] = (mover, give, tuple(reaches))
     best: "dict[tuple[int, int], tuple[int, tuple[int, int, _WeekdayKind]]]" = {}
     for key in sorted(cells):
+        members = cells[key]
         for giving in range(groups):
-            if (key, giving) not in give:
+            if giving not in members or not members[giving]:
                 continue
-            for taking, gained in take[(key, giving)]:
-                gain = give[(key, giving)] + gained
+            _mover, give, taken = answers[(key, giving)]
+            for code in taken:
+                taking, gained = _reach_of(code)
+                gain = give + gained
                 if (giving, taking) not in best or gain > best[(giving, taking)][0]:
                     best[(giving, taking)] = (gain, key)
     chosen: "dict[str, tuple[tuple[int, int, int], tuple[int, ...]]]" = {}
@@ -29109,7 +29267,7 @@ def _weekday_cycle(
         giving = path[place]
         taking = path[(place + 1) % len(path)]
         key = best[(giving, taking)][1]
-        moves += [(key, giving, taking, movers[(key, giving)])]
+        moves += [(key, giving, taking, answers[(key, giving)][0])]
     return moves
 
 
@@ -29275,10 +29433,10 @@ def _weekday_chained(
                 if (key, giving) in kept.asked or not cells[key][giving]:
                     continue
                 mover = _weekday_mover(state, cells[key][giving])
-                reaches: "list[tuple[int, int]]" = []
+                reaches: "list[int]" = []
                 for taking in range(groups):
                     if taking != giving and _weekday_take(state, key, taking, mover) is not None:
-                        reaches += [(taking, 0)]
+                        reaches += [_reach_code(taking, 0)]
                 kept.asked[(key, giving)] = (mover, 0, tuple(reaches))
         link: "dict[tuple[int, int], tuple[int, int, _WeekdayKind]]" = {}
         asked: "dict[tuple[int, int], int]" = {}
@@ -29287,7 +29445,8 @@ def _weekday_chained(
                 if not cells[key][giving]:
                     continue
                 linked, _give, places = kept.asked[(key, giving)]
-                for taking, _gained in places:
+                for code in places:
+                    taking, _gained = _reach_of(code)
                     if taking == giving or (giving, taking) in link:
                         continue
                     link[(giving, taking)] = key
@@ -30424,6 +30583,10 @@ def _bins_settled(
         _weekday_singles_moved(
             state, everything, have, target, _WEEKDAY_LEFTOVER_ROUNDS, True
         )
+    # Steps 5 and 6 are done, and with them every search through a gap's
+    # index (`_weekday_run_target`, `_weekday_single_target`): let the
+    # indexes go before the steps that file every rank again (plan P4-D415).
+    _weekday_indexes_let_go(state)
     if have != target:
         _weekday_chained(state, everything, have, target)
     # -- step 7c, the escape of a moment to an end day (3b.D2, P4-D367)
@@ -39586,7 +39749,7 @@ def _kind_notes(
     found: dict[str, int] = {}
     for cell in content:
         if cell:
-            found[parsing.folded(cell)] = 1
+            found[_folded_or_itself(cell)] = 1
     if len(found) >= 3:
         return []
     return [
@@ -42535,6 +42698,81 @@ def _nearest_day_of_kind(
         away = away + 1
 
 
+@dataclasses.dataclass(frozen=True)
+class _OptionRadix:
+    """How `_distinct_reached`'s merge options are written as one number.
+
+    An option is five whole numbers -- the distance moved, the run's
+    length, its first rank, the instant offered and the rank offering it
+    (-1 for none) -- and the merges take them in the order of those
+    tuples. Each part, shifted to start at nought (`low`, the least
+    instant any rank or gap holds; one for the offering rank), is a digit
+    below its base, and the five digits are one number written in mixed
+    radix, most significant first: two numbers so written compare as
+    their tuples do, part by part, because every digit is below its base.
+    """
+
+    low: int
+    instants: int
+    ranks: int
+
+
+def _option_radix(
+    moved: "list[int]", lows: "list[int]", highs: "list[int]"
+) -> _OptionRadix:
+    """The bases of a pass's options: every instant from the least to the
+    greatest any rank stands on or any gap reaches, and every rank."""
+    if not moved:
+        return _OptionRadix(0, 1, 1)
+    low = min(moved)
+    high = max(moved)
+    if lows:
+        low = min(low, min(lows))
+    if highs:
+        high = max(high, max(highs))
+    return _OptionRadix(low, high - low + 1, len(moved) + 1)
+
+
+def _option_packed(
+    radix: _OptionRadix, distance: int, size: int, first: int, target: int, other: int
+) -> int:
+    """One merge option as one whole number (`_OptionRadix`).
+
+    Raises the internal check where a part is not below its base, which
+    would order the options as their tuples never were."""
+    digits = (
+        (distance, radix.instants),
+        (size, radix.ranks),
+        (first, radix.ranks),
+        (target - radix.low, radix.instants),
+        (other + 1, radix.ranks),
+    )
+    packed = 0
+    for digit, base in digits:
+        if digit < 0 or digit >= base:
+            raise errors.ProfileError(
+                "synthtwin internal check: a merge option of a column of "
+                "dates fell outside the bases it is written in. This means "
+                "a mistake in synthtwin; please report it. Nothing has been "
+                "written."
+            )
+        packed = packed * base + digit
+    return packed
+
+
+def _option_read(radix: _OptionRadix, packed: int) -> "tuple[int, int, int, int, int]":
+    """The five parts `_option_packed` wrote, as the option's tuple."""
+    other = packed % radix.ranks - 1
+    packed = packed // radix.ranks
+    target = packed % radix.instants + radix.low
+    packed = packed // radix.instants
+    first = packed % radix.ranks
+    packed = packed // radix.ranks
+    size = packed % radix.ranks
+    distance = packed // radix.ranks
+    return (distance, size, first, target, other)
+
+
 def _distinct_reached(
     facts: contract.DatetimeFacts,
     moved: "list[int]",
@@ -42591,7 +42829,13 @@ def _distinct_reached(
         # last being -1 for the held unit that is no rank neighbour. A
         # neighbour's instant is read again when the option's turn comes,
         # because an earlier merge of the same round may have moved it.
-        options: "list[tuple[int, int, int, int, int]]" = []
+        #
+        # EACH OPTION HELD AS ONE WHOLE NUMBER (plan P4-D415, lane SG): the
+        # five parts written in order in mixed radix (`_OptionRadix`), so the
+        # numbers sort as the five-part tuples did and read back as them. A
+        # tuple an option held about 280 bytes a row of 20,000 stamps.
+        options: "list[int]" = []
+        radix = _option_radix(moved, lows, highs)
         # WHICH INSTANT EACH HELD UNIT STANDS ON, so a run can be merged
         # onto a unit that is not its rank neighbour (plan P4-D258).
         spot: "dict[int, int]" = {}
@@ -42629,7 +42873,8 @@ def _distinct_reached(
                         continue
                     reached[target] = True
                     options += [
-                        (
+                        _option_packed(
+                            radix,
                             abs(target - moved[first]),
                             last - first + 1,
                             first,
@@ -42654,7 +42899,8 @@ def _distinct_reached(
                 )
                 if other_unit is not None and other_unit not in reached:
                     options += [
-                        (
+                        _option_packed(
+                            radix,
                             abs(other_unit - moved[first]),
                             last - first + 1,
                             first,
@@ -42663,9 +42909,10 @@ def _distinct_reached(
                         )
                     ]
             first = last + 1
-        for option in sorted(options):
+        for packed in sorted(options):
             if count == wanted:
                 break
+            option = _option_read(radix, packed)
             first = option[2]
             size = option[1]
             own = moved[first] // unit
@@ -53912,7 +54159,7 @@ def _identifier_shortfall(
         if shortest == 0 or len(spelling) < shortest:
             shortest = len(spelling)
         longest = max(longest, len(spelling))
-        identities[parsing.folded(spelling)] = 1
+        identities[_folded_or_itself(spelling)] = 1
     missed: list[str] = []
     owed = [
         ("n_numeric", classes[_CLASS_NUMBER], column.n_numeric),
@@ -54000,9 +54247,7 @@ def _laid_identifiers(
     carriers = (_moved_to(order, pinned[0]), _moved_to(order, pinned[1]))
     kinds = [_CLASSES[cell // width] for cell in cells]
     bands = [_BANDS[cell - (cell // width) * width] for cell in cells]
-    families = [
-        f"{kinds[index]}/{bands[index]}" for index in range(total)
-    ]
+    families = _families_named(kinds, bands)
     asks = _letter_asks(families, folded)
     windows = _length_windows(
         total,
@@ -56589,7 +56834,7 @@ def _levels_past_the_line(
     for index, spelling in enumerate(spellings):
         if index >= len(groups):
             break
-        key = parsing.folded(spelling)
+        key = _folded_or_itself(spelling)
         # Indexed behind an `in` test rather than `.get`: the offline
         # audit refuses a method call on a value it cannot trace, and
         # this module reads every one of its own tallies this way.
@@ -57417,6 +57662,24 @@ def _breaks_a_prefix(
     return bool(prefix) and candidate[: len(prefix)] != prefix
 
 
+def _families_named(kinds: "list[str]", bands: "list[str]") -> "list[str]":
+    """Each value's family, its class and band joined by a slash (G9.3).
+
+    ONE TEXT A FAMILY (plan P4-D415, lane SG): a column has a few dozen
+    families at most, so each family's text is made once and every value
+    of it holds that text, where a text a value held about 60 bytes a row
+    of a column of record numbers or free text. The same texts, equal for
+    equal families, as before."""
+    named: "dict[tuple[str, str], str]" = {}
+    families: "list[str]" = []
+    for index in range(len(kinds)):
+        key = (kinds[index], bands[index])
+        if key not in named:
+            named[key] = f"{kinds[index]}/{bands[index]}"
+        families += [named[key]]
+    return families
+
+
 def _length_windows(
     total: int,
     shortest: int,
@@ -57436,9 +57699,11 @@ def _length_windows(
     ``pinned`` is False where the two ends are the same length, or where
     the column has no second value to pin.
     """
-    windows: list[tuple[int, int | None]] = [
-        (shortest, longest) for _each in range(total)
-    ]
+    # ONE WINDOW FOR EVERY VALUE THAT TAKES ANY LENGTH (plan P4-D415, lane
+    # SG): the same pair, kept once rather than made again a value, as only
+    # the carriers' windows are replaced below.
+    window: "tuple[int, int | None]" = (shortest, longest)
+    windows: list[tuple[int, int | None]] = [window for _each in range(total)]
     if total >= 1:
         windows[carriers[0]] = (shortest, shortest)
     if total >= 2 and pinned and longest is not None:
@@ -57750,7 +58015,7 @@ def _parent_freed(
             freeing[2][(lengths[place], lengths[place])] = True
             freeing[2][walk[5][place]] = True
         for place in range(folded):
-            identity[parsing.folded(spellings[place])] = place
+            identity[_folded_or_itself(spellings[place])] = place
             if place not in kept[0] or place in kept[3]:
                 continue
             if place == kept[2][0] or place == kept[2][1]:
@@ -57818,7 +58083,7 @@ def _parent_freed(
                 carried[before] = left
         carried[place] = sizes[place] + sizes[index]
         del identity[parsing.folded(old)]
-        identity[parsing.folded(new)] = place
+        identity[_folded_or_itself(new)] = place
         _parent_lettered(found[0], found[1], place, families[place], new, freeing[2])
         return flip
     return None
@@ -58188,10 +58453,9 @@ def _text_cells(
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
     spellings: list[str] = []
-    families = [
-        f"{_CLASSES[kinds[index]]}/{_BANDS[bands[index]]}"
-        for index in range(total)
-    ]
+    families = _families_named(
+        [_CLASSES[kind] for kind in kinds], [_BANDS[band] for band in bands]
+    )
     windows = _length_windows(
         total,
         facts.length.minimum,
@@ -62631,7 +62895,7 @@ def _plan_column(
         content_words=content,
         placement_words=placement,
         layout=layout,
-        cells=tuple(cells),
+        cells=(),
         notes=tuple(notes),
         remarks=tuple(remarks),
         carriers=carriers,
@@ -62641,7 +62905,19 @@ def _plan_column(
         code_declared=code_declared,
         withdrawn=tuple(withdrawn),
         counted_holes=counted_holes,
+        held_cells=twinstore.held_column(cells) if cells else None,
     )
+
+
+def _plan_cells(plan: "_ColumnPlan") -> "list[str]":
+    """The finished values a column's plan carries, as a new list (plan P4-D415).
+
+    Read from `held_cells` where the plan holds them there, else from
+    `cells`; the same values either way. Raises nothing. No I/O.
+    """
+    if plan.held_cells is not None:
+        return twinstore.column_cells(plan.held_cells)
+    return [cell for cell in plan.cells]
 
 
 def _block_plan(
@@ -62993,7 +63269,7 @@ def _content_of(
     if column.quality_state == "empty":
         return [], []
     if column.quality_state == "unrepresentable":
-        return [cell for cell in plan.cells], []
+        return _plan_cells(plan), []
     kind = column.statistical_type
     if kind == "constant" or kind == "binary" or kind == "categorical":
         return _label_content(plan, short)
@@ -63017,14 +63293,26 @@ def _content_of(
     if kind == "datetime":
         return _datetime_content(plan, words)
     if kind == "code":
-        return [cell for cell in plan.cells], []
+        return _plan_cells(plan), []
     if kind == "text":
-        return [cell for cell in plan.cells], []
+        return _plan_cells(plan), []
     raise _wrong_facts(column.name)
 
 
 def generate(profile: contract.Profile, seed: int) -> Twin:
     """Build the whole twin table from the description and the seed.
+
+    The twin `generate_held` builds, with its cells handed back both ways
+    round as text objects (`materialised`): every column a tuple of its
+    cells and every row a tuple of the same objects. Its guarantees are
+    `generate_held`'s. For a twin small enough to hold that way; the
+    command line builds the held twin and writes it from there.
+    """
+    return materialised(generate_held(profile, seed))
+
+
+def generate_held(profile: contract.Profile, seed: int) -> Twin:
+    """Build the whole twin table from the description and the seed, held once.
 
     Guarantees:
 
@@ -63050,10 +63338,20 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
       reachable from here (method G1). Nothing is written: this function
       hands back values, and the command decides what becomes of them.
 
-    What comes back is the twin's cells both ways round, the header the
-    description asks for, and one outcome per column recounted from the
-    cells themselves, carrying every deviation measured against the fact
-    it missed.
+    What comes back is the twin's cells, the header the description
+    asks for, and one outcome per column recounted from the cells
+    themselves, carrying every deviation measured against the fact it
+    missed.
+
+    THE TWIN IS HELD ONCE (plan P4-D415, lane SG). Each column is made,
+    measured and moved off the all-empty records on its own, then held
+    compactly (`twinstore.held_column`: its cells' own bytes and one byte
+    more), and the next column starts with nothing of the last one left
+    but that; the rows are then placed a column at a time
+    (`dialect.arranged_columns`). So the finished cells are never Python
+    objects all at once, `columns` and `rows` are empty and
+    `held_columns` holds the twin. The cells are those `generate` hands
+    back, byte for byte.
     """
     if isinstance(seed, bool) or not isinstance(seed, int):
         raise errors.ProfileError(_seed_out_of_range(0))
@@ -63061,14 +63359,33 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         raise errors.ProfileError(_seed_out_of_range(seed))
     plan = plan_generation(profile)
     generator = numpy.random.default_rng(seed)
-    columns: list[tuple[str, ...]] = []
+    arranging = dialect.arranging(
+        profile.source.dialect, profile.n_rows, len(plan.columns)
+    )
+    # EACH COLUMN'S PLAN LET GO ONCE ITS COLUMN IS DONE (plan P4-D415, lane
+    # SG). Every plan is made before the first column, and a plan holds
+    # what its column's values are drawn from -- a column of numbers its
+    # strata, a column of dates its gaps -- about 170 bytes a row over lane
+    # B0's mixed table, held to the end of the run: here each is handed
+    # over once, and nothing of it outlives its column but its outcome.
+    plans: "list[_ColumnPlan | None]" = [each for each in plan.columns]
+    plan = GenerationPlan((), plan.words_planned)
+    finished: "list[twinstore.HeldColumn]" = []
     outcomes: list[ColumnOutcome] = []
     deviations: list[Deviation] = []
     approximated: list[Approximation] = []
     remarked: "list[Remark]" = []
     drawn = 0
-    for step in range(len(plan.columns)):
-        each = plan.columns[step]
+    for step in range(len(plans)):
+        handed = plans[step]
+        plans[step] = None
+        if handed is None:
+            raise errors.ProfileError(
+                "synthtwin internal check: a column's plan was asked for twice. "
+                "This means a mistake in synthtwin; please report it. Nothing "
+                "has been written."
+            )
+        each = handed
         column = each.column
         words: list[int] = []
         if each.content_words > 0:
@@ -63093,6 +63410,8 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 f"{column.n_present}. This means a mistake in synthtwin; "
                 f"please report it. Nothing has been written."
             )
+        # Every word is in the column's values now; none is held longer.
+        words = []
         # WHICH CELLS THE NUMERIC MACHINERY WROTE, counted before the
         # absent cells join them: every present cell of a plain numeric
         # role, and the numeric half of a column of numbers and labels,
@@ -63120,8 +63439,12 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 )
             ]
         drawn = drawn + len(places)
-        order = _arrangement(places, profile.n_rows)
+        order = _row_placement(
+            step, profile, content, _arrangement(places, profile.n_rows), finished
+        )
+        places = []
         written = [content[order[place]] for place in range(profile.n_rows)]
+        content = []
         # THE ROW SEQUENCE IS WRITTEN, NOT DRAWN (owner ruling 2026-09-15,
         # plan P4-D86). A column the description names as the row
         # sequence -- pandas' 0, 1, 2 or R's 1, 2, 3 -- holds exactly
@@ -63200,7 +63523,10 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             ]
         drawn = drawn + len(inside)
         left, unwritten = _inside_the_grain(column, spelled, inside)
-        columns += [tuple(left)]
+        # THE CELLS AS THEY LEAVE are the ones the column is held as
+        # (batch 4h: lane PS's grain beside lane SG's held twin, plan
+        # P4-D415): `spelled` is what the column is measured in below.
+        leaving = left
         grain = column.time_grain
         if grain is not None:
             # REPAIR ROUND 2 (Codex's item 4): A GRAINED COLUMN IS MEASURED
@@ -63232,6 +63558,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                     )
                 ]
         left = []
+        order = []
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
         # is what every measurement below owes (review item
         # P4-G3-R5-F2). THE SWAP AND THE READING ARE NOT THE SAME
@@ -63409,21 +63736,30 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 remarks=each.remarks + tuple(spread) + tuple(joint),
             )
         ]
+        # THE COLUMN IS DONE, AND HELD (plan P4-D415): moved off the
+        # all-empty records, which asks nothing of any other column, then
+        # held as its cells' bytes; what built and measured it goes now,
+        # before the next column's words are drawn.
+        finished += [
+            twinstore.held_column(dialect.placed_column(arranging, list(leaving)))
+        ]
+        leaving = []
+        written = []
+        spelled = []
+        measured = []
+        halves = ([], [])
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
     # one column for the empty records, so nothing measured above moves.
-    columns = dialect.arranged(columns, profile.source.dialect, profile.n_rows)
-    rows = [
-        tuple([columns[place][row] for place in range(len(columns))])
-        for row in range(profile.n_rows)
-    ]
+    # One column at a time (plan P4-D415).
+    finished = dialect.arranged_columns(arranging, finished)
     return Twin(
         names=tuple([column.name for column in profile.columns]),
         write_header=profile.source.header_source == "file",
         n_rows=profile.n_rows,
-        columns=tuple(columns),
-        rows=tuple(rows),
+        columns=(),
+        rows=(),
         outcomes=tuple(outcomes),
         deviations=tuple(deviations),
         approximations=tuple(approximated),
@@ -63431,6 +63767,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         words_drawn=drawn,
         seed=seed,
         form=profile.source.dialect,
+        held_columns=tuple(finished),
     )
 
 
@@ -63690,6 +64027,135 @@ def _count_protections(
         moment = grains.ordinal_moment(ordinal, facts.resolution)
         kept += [min(max(grains.start_of(moment, rung), first), last)]
     return kept, (fences[0], fences[1])
+
+
+def _row_placement(
+    step: int,
+    profile: contract.Profile,
+    content: "list[str]",
+    drawn: "list[int]",
+    finished: "list[twinstore.HeldColumn]",
+) -> "list[int]":
+    """THE PLACEMENT HOOK (plan P4-D415, lane SG): which of a column's cells
+    stands on each row -- ``order[row]`` is the place in ``content`` of the
+    cell row ``row`` holds.
+
+    Called once a column, in column order, between the column's own
+    values (``content``: its present cells as built, then its absent
+    ones) and everything that measures or holds it; ``drawn`` is the
+    arrangement its placement words drew (method G3.4c) and ``finished``
+    the columns already done, held (`twinstore`), each readable a block
+    at a time and never needed whole. A held column's cells already stand
+    off the all-empty records (`dialect.placed_column`), and the rows are
+    not yet sorted (`dialect.arranged_columns`, once every column is
+    done), so its row ``r`` is this column's row ``r`` but on a record a
+    form publishes as all-empty, which this column's cells leave too once
+    the hook has placed them. Today it hands back the drawn
+    arrangement and reads nothing else, which is every twin's bytes. It
+    is the one seam where a generator of relations between columns (lane
+    CHb of the December plan; the between-columns chain of plan P4-D407)
+    puts a column's cells in rows by what the earlier columns hold: it
+    may hand back any arrangement of ``0 .. n_rows - 1``, reads the
+    earlier columns only through `twinstore`, and draws no word of its
+    own, so the one random stream stays as method G3 writes it.
+
+    Guarantees: returns a list of ``profile.n_rows`` places, each once.
+    Raises nothing. No I/O of any kind.
+    """
+    del step, content, finished
+    return drawn
+
+
+def materialised(twin: Twin) -> Twin:
+    """A held twin with its cells handed back both ways round (plan P4-D415).
+
+    Guarantees: accepts any twin; where `held_columns` is None it is
+    returned as it is, and otherwise the same twin with every column a
+    tuple of its cells, every row a tuple of the same objects and
+    `held_columns` None -- the twin `generate` has always handed back.
+    The whole twin becomes text objects, so this is for a twin small
+    enough to hold that way. Raises nothing. No I/O of any kind.
+    """
+    found = twin.held_columns
+    if found is None:
+        return twin
+    columns = tuple([tuple(twinstore.column_cells(column)) for column in found])
+    rows = [
+        tuple([columns[place][row] for place in range(len(columns))])
+        for row in range(twin.n_rows)
+    ]
+    return dataclasses.replace(
+        twin, columns=columns, rows=tuple(rows), held_columns=None
+    )
+
+
+def twin_width(twin: Twin) -> int:
+    """How many columns a twin has, held or not (plan P4-D415)."""
+    if twin.held_columns is not None:
+        return len(twin.held_columns)
+    return len(twin.columns)
+
+
+def twin_column(twin: Twin, index: int) -> "tuple[str, ...]":
+    """Column ``index`` of a twin, held or not, as a tuple of its cells.
+
+    One column becomes text objects; never ask it of every column at
+    once of a large twin. Raises IndexError for a column the twin does
+    not have. No I/O of any kind.
+    """
+    if twin.held_columns is not None:
+        return tuple(twinstore.column_cells(twin.held_columns[index]))
+    return twin.columns[index]
+
+
+def twin_column_blocks(twin: Twin, index: int) -> "typing.Iterator[list[str]]":
+    """Column ``index`` of a twin, a block of its cells at a time, in row order.
+
+    The blocks joined are the column's cells (`twin_column`); a held
+    column is read one `twinstore.BLOCK_ROWS` block at a time, so a walk over
+    one column holds one block. No I/O of any kind.
+
+    BOTH WAYS A COLUMN IS HELD (repair 2, the Codex review's item 1): the
+    blocks are counted from the column's cells, not from its packed
+    blocks, because a column where a cell holds U+0000 is held as its
+    cells and has no packed block (`twinstore.held_column`); counted from
+    the packed blocks, none of its cells was read, and the report found
+    no cell beginning as a formula does in it.
+    """
+    if twin.held_columns is not None:
+        column = twin.held_columns[index]
+        for block in range(twinstore.blocks_of(column.count)):
+            yield twinstore.column_block(column, block)
+        return
+    yield list(twin.columns[index])
+
+
+def twin_rows(twin: Twin) -> "typing.Iterator[tuple[str, ...]]":
+    """The rows of a twin, held or not, one at a time and in row order.
+
+    A held twin is read a block of rows at a time: one block of every
+    column becomes text objects, its rows are handed out, and the next
+    block is read, so the whole twin is never text objects at once.
+    Guarantees: exactly `n_rows` rows, each the tuple of its cells in
+    column order, the same cells `materialised` puts in `rows`. Raises
+    nothing. No I/O of any kind.
+    """
+    found = twin.held_columns
+    if found is None:
+        for given in twin.rows:
+            yield given
+        return
+    width = len(found)
+    if not width:
+        for _row in range(twin.n_rows):
+            yield ()
+        return
+    for block in range(twinstore.blocks_of(twin.n_rows)):
+        cells = [twinstore.column_block(column, block) for column in found]
+        for row in range(len(cells[0])):
+            yield tuple([cells[place][row] for place in range(width)])
+        # Let this block go before the next is read, so one block is held.
+        cells = []
 
 
 def _sequence_start(profile: contract.Profile, column: contract.ColumnBlock) -> int:
@@ -66660,16 +67126,17 @@ def _numeric_approximations(
     (`_ColumnPlan.withdrawn`) and the bound is widened to its widest
     stratum too (`_report_widest`), so it holds of whichever was written.
     """
+    # ONE LIST, THE SORTED ONE (plan P4-D415, lane SG): the values are read
+    # and filtered as they are taken, so no list of the read values and
+    # none of the kept ones stands beside the sorted list.
     values = sorted(
-        [
-            value
-            for value in [
-                parsing.parse_number(cell)
-                for cell in _present_of(written, _hole_spellings(column))
-                if parsing.classify_number(cell) == parsing.NUMBER
-            ]
-            if value is not None
-        ]
+        value
+        for value in (
+            parsing.parse_number(cell)
+            for cell in _present_of(written, _hole_spellings(column))
+            if parsing.classify_number(cell) == parsing.NUMBER
+        )
+        if value is not None
     )
     held = len(values)
     rungs = _merged_rungs(facts)

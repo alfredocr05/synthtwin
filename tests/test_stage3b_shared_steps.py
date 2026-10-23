@@ -1692,19 +1692,35 @@ def _minutes_apart(ranks: int, apart: int) -> dict:
     }
 
 
-def test_the_index_holds_few_units_for_each_rank() -> None:
+def test_the_index_holds_few_units_for_each_rank(monkeypatch: pytest.MonkeyPatch) -> None:
     """Steps 5 and 6's index holds no more units than one rank's walk asks, 801, or four for each
     movable rank, and the pass's kinds one for each day it asks (the Codex review, item 5). On the
     review's state -- 128 ranks 801 minutes apart, a gap of 102,528 minutes kept by the day -- the
     index held every one of its 102,528 units and a kind for each, 801 a rank; now it is not
     built, and the gap is walked. The same at the review's 64 ranks and at 1,280; and where the
     ranks stand three minutes apart the index is still built, three units a rank. The census
-    holds in each, one value moved and no other."""
+    holds in each, one value moved and no other.
+
+    THE INDEXES ARE READ AS THEY ARE BUILT (lane SG, plan P4-D415): the pass lets them go once
+    steps 5 and 6 are done (`generation._weekday_indexes_let_go`), so what `_bins_settled` leaves
+    in `state.indexes` is empty either way; every index `_weekday_index` hands out is counted
+    instead, each once."""
+    shipped = generation._weekday_index
     for ranks, apart, built in ((128, 801, False), (64, 801, False), (1280, 801, False), (1000, 3, True)):
         case = _minutes_apart(ranks, apart)
         state = _state(case)
+        handed: "dict[int, object]" = {}
+
+        def watched(state: object, low: int, high: int) -> object:
+            found = shipped(state, low, high)  # type: ignore[arg-type]
+            if found is not None:
+                handed[id(found)] = found
+            return found
+
+        monkeypatch.setattr(generation, "_weekday_index", watched)
         generation._bins_settled(state, list(case["counts"]), 0, ranks - 1, list(case["pinned"]), ranks)
-        indexes = [index for index in state.indexes.values() if index is not None]
+        monkeypatch.undo()
+        indexes = [index for index in handed.values() if isinstance(index, generation._WeekdayIndex)]
         units = sum(len(found) for index in indexes for found in index.units.values())
         assert units <= max(801, 4 * ranks), (ranks, units)
         assert (units == ranks * apart) if built else (units == 0), (ranks, units)

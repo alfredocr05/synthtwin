@@ -593,6 +593,35 @@ attribute absent from it is not allowed at all:
   or a value this package's own code returned -- because the writer
   runs the iteration and text protocols of every row and every cell it
   is given.
+  THE HANDLE WRITTEN A PIECE AT A TIME (plan P4-D415, lane SG): in
+  synthtwin.writing alone, the output handle itself answers to write,
+  with one positional argument, and close, with none, and to nothing
+  else, no attribute either. Capability audit: the handle is the text
+  file pathlib.Path.open returns on the transaction's own validated
+  output target (the origin above, which nothing else can carry); its
+  write encodes the text it is handed in the handle's own encoding and
+  appends it to that one file, and refuses anything that is not text
+  with TypeError, running no protocol of its argument; close flushes and
+  closes that file. Neither opens another path, starts a program or
+  reaches a network. The twin is written this way so that its text is
+  never made whole: a table of 2,000,000 rows by 50 columns is about a
+  gigabyte of text.
+* zlib (plan P4-D415, lane SG), in the module synthtwin.twinstore
+  ALONE (_MODULE_SCOPED_ADMISSIONS), zone G: compress and decompress.
+  Capability audit: both are pure functions of the bytes they are
+  handed (and compress of a level, a whole number): they read no file,
+  open no stream, start no process and take no callable; compressobj,
+  decompressobj and the checksums are not reachable. The held twin
+  packs each block of a finished column's cells with compress and
+  unpacks it with decompress before any cell is read. WHY IT CANNOT
+  DECIDE A BYTE: DEFLATE is lossless -- decompress(compress(raw, level))
+  is raw, byte for byte, for every raw, at every level and in every
+  zlib version -- and what compress writes, which does differ between
+  zlib versions, never leaves the process: it is held in memory and
+  read back only through decompress. A twin byte therefore depends on
+  the cells handed in and on nothing zlib chooses. The admission buys
+  memory: the twin's text at 2,000,000 rows by 50 columns, about 0.9 GB
+  as bytes, is held in about 0.3 GB.
 * math (Phase 1 extension E2, revised at round 1): fsum, frexp,
   isfinite, ldexp, sqrt. Every one is a pure numeric function of
   numbers; none takes a callable, none performs I/O, and each is a
@@ -834,6 +863,12 @@ _CHAIN_MODULES = (
     _INSTALLATION,
 )
 
+# `zlib` belongs to the module that holds the twin's finished columns
+# (plan P4-D415, lane SG): it packs each block of a column's cells and
+# unpacks it before any cell is read, and nothing it writes leaves the
+# process. Nowhere else may a module pack or unpack.
+_TWIN_STORE = "synthtwin.twinstore"
+
 _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
     "xml.parsers.expat": frozenset({"synthtwin.workbook"}),
@@ -843,6 +878,7 @@ _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "fractions": frozenset(_CHAIN_MODULES),
     "hashlib": frozenset(_CHAIN_MODULES),
     "secrets": frozenset({_INSTALLATION}),
+    "zlib": frozenset({_TWIN_STORE}),
 }
 
 # The need each scoped admission was argued from, in the words its
@@ -866,6 +902,10 @@ _SCOPED_ADMISSION_NEEDS: "dict[str, str]" = {
     "secrets": (
         "making the installation's private key once (contract 4.6b.4, "
         "plan P4-D418)"
+    ),
+    "zlib": (
+        "holding the twin's finished columns packed in memory, unpacked "
+        "before any cell is read (plan P4-D415)"
     ),
 }
 
@@ -1293,6 +1333,9 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "fractions": frozenset({"Fraction"}),
     "hashlib": frozenset({"blake2b"}),
     "secrets": frozenset({"token_bytes"}),
+    # Lane SG (plan P4-D415): the held twin's blocks packed and unpacked,
+    # in synthtwin.twinstore alone (_MODULE_SCOPED_ADMISSIONS).
+    "zlib": frozenset({"compress", "decompress"}),
     # Extension E7. The key is the TWO-COMPONENT module path, which is
     # the shape os.path already uses here: it makes numpy.random the
     # module the one-attribute-step rule counts from, so
@@ -1694,6 +1737,15 @@ _NUMBER = ("number", "")
 # target". It starts at .open() on a validated path and nowhere else,
 # so it cannot be manufactured from a caller-supplied object (E9).
 _LOCALHANDLE = ("localhandle", "")
+
+# THE HANDLE WRITTEN A PIECE AT A TIME (plan P4-D415, lane SG): the two
+# methods the output handle answers to, with how many positional
+# arguments each takes, and the one module where it answers to them.
+# `writing` writes the twin's text through the handle a piece at a time
+# so the text is never made whole; everywhere else the handle answers
+# to nothing, as before.
+_LOCALHANDLE_METHODS: "dict[str, int]" = {"close": 0, "write": 1}
+_LOCALHANDLE_WRITERS = frozenset({"synthtwin.writing"})
 
 # Origin kinds a value may carry and still be read, stored, or returned
 # without a message of its own. Every kind this audit records belongs
@@ -2435,6 +2487,28 @@ def _unknown_call_message(name: str) -> str:
         "the source, and a possibility once recorded is never "
         "discarded, so Phase 0 synthtwin source must call every "
         "function by its written-out name."
+    )
+
+
+def _localhandle_message(method: str) -> str:
+    return (
+        "calls the method '" + method + "' on the output handle opened on "
+        "the validated output target. Only synthtwin.writing writes "
+        "through it, with write(text) and close(), and nothing else of "
+        "it is reachable (plan P4-D415): any other method, an argument "
+        "by name or expanded, or the same calls in another module, could "
+        "read the file back, move within it or write it from code that "
+        "writes nothing."
+    )
+
+
+def _localhandle_attribute_message(name: str) -> str:
+    return (
+        "reads the attribute '" + name + "' of the output handle opened "
+        "on the validated output target. The handle answers to write(text) "
+        "and close() in synthtwin.writing and to no attribute anywhere "
+        "(plan P4-D415): its buffer would write past the text it is "
+        "handed, and nothing else of it is needed to write a file."
     )
 
 
@@ -4434,7 +4508,7 @@ class _Checker(ast.NodeVisitor):
             if name in {"argparse", "csv", "dataclasses", "json", "math",
                         "pandas", "pathlib", "typing", "sys", "os",
                         "zipfile", "numba", "fractions", "hashlib",
-                        "secrets"}:
+                        "secrets", "zlib"}:
                 self._bind(bound_name, ("module", name))
                 if report:
                     self._check_admitted_import(node, name)
@@ -4495,7 +4569,7 @@ class _Checker(ast.NodeVisitor):
     def _check_admitted_import(self, node: ast.AST, name: str) -> None:
         """An admitted library import, held to its scope and its zones.
 
-        A scoped admission (zipfile, expat, numba) is refused at the
+        A scoped admission (zipfile, expat, numba, zlib) is refused at the
         import itself outside the modules that hold it: importing numba
         alone loads its compiler. And a module of the generation path,
         or one of the twin's writers that root it, may not even import a
@@ -4737,6 +4811,13 @@ class _Checker(ast.NodeVisitor):
             # A method call; the method rule governs it.
             return False
         for kind, origin in sorted(self._trust_origins(node.value)):
+            if kind == "localhandle":
+                # The output handle answers to two methods and no
+                # attribute at all (plan P4-D415): its `buffer` would
+                # write bytes past the text rule, its `name` reads back
+                # where it is.
+                self._flag(node, _localhandle_attribute_message(node.attr))
+                return True
             if kind != "instance":
                 continue
             key = _surface_key(origin)
@@ -5069,6 +5150,19 @@ class _Checker(ast.NodeVisitor):
         method = func.attr
         receiver = self._trust_origins(func.value)
         kinds = {kind for kind, _origin in receiver}
+        if kinds == {"localhandle"}:
+            # The output handle (plan P4-D415): write and close, in
+            # `writing` alone, each with its own count of positional
+            # arguments and nothing by name or expanded.
+            if (
+                method not in _LOCALHANDLE_METHODS
+                or self.module_name not in _LOCALHANDLE_WRITERS
+                or node.keywords
+                or len(node.args) != _LOCALHANDLE_METHODS[method]
+                or any(isinstance(value, ast.Starred) for value in node.args)
+            ):
+                self._flag(node, _localhandle_message(method))
+            return
         if kinds <= {"module", "api", "instance", "localpath"}:
             for kind, origin in sorted(receiver):
                 if kind != "instance":

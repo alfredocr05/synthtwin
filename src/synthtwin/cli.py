@@ -5859,7 +5859,10 @@ def _run_generate(
             )
             return 1
 
-    twin = generation.generate(loaded, seed)
+    # THE TWIN IS HELD ONCE (plan P4-D415, lane SG): its columns held
+    # compactly, never the whole table as Python objects, and its text
+    # written from them a piece at a time, never made whole.
+    twin = generation.generate_held(loaded, seed)
     # The twin's bytes are NOT put through the display boundary. That
     # boundary is for text a person reads, and a cell that reached it
     # would arrive in the twin as the escape rather than as the value --
@@ -5884,13 +5887,18 @@ def _run_generate(
     # describes a delimited file's bytes and there are none here.
     twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
     twin_members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None
-    twin_text = ""
+    twin_stream: "typing.Iterable[str] | None" = None
     if packaged:
         twin_members = sheetwriting.workbook_stream(loaded, twin)
     else:
-        written = rendering.twin_csv(twin)
+        # EVERY PIECE IS ASKED BEFORE ANYTHING IS SHOWN OR WRITTEN, and
+        # then made again for the write (plan P4-D415). Each of the
+        # twin's codecs encodes a character at a time and a piece ends
+        # with a line, so a text that encodes whole encodes piece by
+        # piece and the other way round; the text is never made whole.
         try:
-            written.encode(twin_codec)
+            for piece in rendering.twin_csv_pieces(twin):
+                bytes(piece, twin_codec)
         except UnicodeEncodeError:
             _warn(
                 errors.twin_not_writable_in_encoding(
@@ -5898,7 +5906,7 @@ def _run_generate(
                 )
             )
             return 1
-        twin_text = written
+        twin_stream = rendering.twin_csv_pieces(twin)
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
     _say(report_text)
@@ -5932,7 +5940,7 @@ def _run_generate(
         left_behind = writing.write_both_files(
             twin_path,
             report_path,
-            twin_text,
+            "",
             report_text,
             table_path=pathlib.Path(source),
             state=state,
@@ -5940,6 +5948,7 @@ def _run_generate(
             first_encoding=twin_codec,
             first_newline="",
             first_members=twin_members,
+            first_stream=twin_stream,
         )
     except BaseException:
         if state.sentence:
