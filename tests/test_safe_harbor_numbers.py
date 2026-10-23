@@ -26,16 +26,18 @@ THE RULE (lane ZR-b's page, ZS.1 and ZS.3, as the addenda correct it;
 `taxonomy.safe_harbor_reach`). The reach is judged on the BULK of a
 column's present cells, in every role that prints a value: words, the
 column's missing values, placeholders written as nines alone, one-figure
-negatives (every negative for ZIPs) and any value outside the reach that
-the floor's rows repeat are set aside whatever their share, and at least
-two in three of the cells that remain must be in the reach. AGES: within
-0 to 125, one of 90 or more, a unit word after the number read with it,
-at most half of them written with a leading zero; while the Safe Harbor
+negatives (every negative for ZIPs) and up to three values outside the
+reach that the floor's rows repeat are set aside whatever their share (a
+measurement's tail past the reach is many values and stays). AGES: the
+cells that remain within 0 to 125 but for fewer than the floor's rows or
+one in twenty, one of 90 or more, a unit word after the number read with
+it, at most half of them written with a leading zero; while the Safe Harbor
 question is open every value from 90 to 125 is read as 90 for the whole
 description (`top_coded`), in the column's own form (`+90`, `90 years`),
 the twin writes none above 90, and validate reads the checked file under
-the same top-code. ZIPS: whole numbers of four or five figures, padded,
-signed or not, or ZIP+4 forms; the column is held whole until `no`.
+the same top-code. ZIPS: at least two in three of the cells that remain
+whole numbers of four or five figures, padded, signed or not, or ZIP+4
+forms; the column is held whole until `no`.
 Where a question offering `identifier` is already put to the column, that
 question holds it and no second one is added.
 
