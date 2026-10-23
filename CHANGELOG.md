@@ -9,23 +9,28 @@ exists).
 ### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23)
 
 **The health data zoo's identifier rows 19, 42 and 43, and push critic
-13's MAJOR 5.** A column read as free text whose every cell is a DICOM UID,
-every value different, is put Q-ID -- one more shape of HX's question
-(`keep`, `code`, `identifier`), never a second question -- and held until
-answered; declared, the arcs every cell shares are its prefix and its twin
-writes no arc led by a nought. A declared record number publishing
-`all_whole_numbers true` (Cerner's `31000000.00`) writes `0` after the
-point. A declared record number publishing a `(column)` prefix (VCF's
-`rs`) counts the cells of its rare layouts in its commonest layout, the
-validator reading the measured file alike (rule A1). Route two of the
-person rule sets aside up to a third of ordinary words beside lettered
-keys, and route four asks padded keys beside them, so `R1000`, `AB100` or
-`0100` keys beside one `OTHER` publish 0 of 40 at 600 and 20,000 rows
-where af69aaef published 40 of 40. New `K-HZ-04`: 1,799 identifier cells
-out of pattern on af69aaef, 0 now. The zoo's analyst failures fall from 104
-to 101 at 600 rows. No golden moves; the pinned C6-142 limit closes (800 of
-800 `P` cells in pattern). Gate: `tests/test_zoo_identifiers.py`. The
-ledger's cap is 757,000.
+13's MAJOR 5.** A column whose every cell, words aside, is a DICOM UID --
+every value different, or repeating with an arc of five figures or more
+-- is put Q-ID, one more shape of HX's question (`keep`, `code`,
+`identifier`), never a second question, and held until answered.
+Declared, it publishes its organisation's root (cut before the first arc
+of five figures or more, the arc after `1.2.840.` aside: no study, series
+or scanner serial is named), its twin writes no arc led by a nought, and
+the validator checks the grammar. A declared record number publishing
+`all_whole_numbers true` (Cerner's `31000000.00`, grouped too) writes `0`
+after the point, and such a layout is named only where its figures before
+the point leave room. A declared record number of one opening and
+figures (VCF's `rs`, UID roots) counts the cells of its unnamed or
+room-refused layouts in its commonest layout, built on its published
+census (rule A1). Route two of the person rule and route four's padded
+arm set aside up to a third of any word or placeholder beside keys, and
+a whole record number ending in noughts after a point is read as its
+figures, so `R1000`, `AB100` or `0100` keys beside `OTHER`, `Not known.`,
+`-1` or `N.K.`, and `31000000.00` unanswered, publish 0 values at 600 and
+20,000 rows. New `K-HZ-04`: 1,799 identifier cells out of pattern on
+af69aaef, 0 now. No golden moves; the pinned C6-142 limit closes and
+P4-D406's stated limit 8 closes for `.0` by turns. Gate:
+`tests/test_zoo_identifiers.py`. The ledger's cap is 757,000.
 
 ### Batch 4g's records: the chain met by its oracle, the six time entries stamped, owners for every stated limit, a shorter STATE (2026-10-23)
 

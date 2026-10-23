@@ -10196,11 +10196,11 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "three tables at 600 rows: the zoo's imaging (seed 20261016) and the zoo critic's Cerner and VCF shapes (seeds 4252 and 4250)",
-   "evidence": "Q-ID puts HX's question to the UID column and the zoo answers identifier, so the root every cell shares is published and no arc is led by a nought; a declared record number publishing all_whole_numbers true writes 0 after the point; a declared prefixed record number counts its rare layouts in its commonest one (rule A1). tests/test_zoo_identifiers.py holds each at 600 and 20,000 rows with its mutants.",
+   "evidence": "Q-ID puts HX's question to the UID column and the zoo answers identifier, so the organisation's root is published (cut before the first arc of five figures or more) and no arc is led by a nought; a declared record number publishing all_whole_numbers true writes 0 after the point; a declared prefixed record number counts its rare layouts in its commonest one (rule A1). tests/test_zoo_identifiers.py holds each at 600 and 20,000 rows with its mutants.",
    "value_at": {
-    "commit": "901f059",
+    "commit": "a0c7c828",
     "date": "2026-10-23",
-    "measured_by": "tools/measurements/kpi_run.py --only K-HZ-04 --print-values over lane CODES-3's 901f059d (its final source) under floor311 (Python 3.11.15) with a metadata-only dist-info, at a one-minute load of 19.2 beside other lanes' runs (a count, so nothing machine-kind was judged)",
+    "measured_by": "tools/measurements/kpi_run.py --only K-HZ-04 --print-values over lane CODES-3's a0c7c828 (its repair round 1's final source) under floor311 (Python 3.11.15) with a metadata-only dist-info, beside other lanes' runs (a count, so nothing machine-kind was judged)",
     "value": {
      "cells_out_of_pattern": 0,
      "encntr_id_cells_out_of_pattern": 0,
