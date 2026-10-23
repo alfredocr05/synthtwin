@@ -610,7 +610,23 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # `tools/bundle/check_bundle.py`, through one call. What it loads are
 # committed files under tools/, which this guard reads directly, so the
 # floor holds for them as it does for the other forty.
-FILES_LOADED_AS_MODULES = 41
+#
+# 44 ON LANE CHo'S BRANCH (plan P4-D421, its repair of 2026-10-22): the exact
+# oracle of the between-columns pages loads its own files by path, four
+# calls, each loading a committed file under tools/reference/, which this
+# guard reads directly: `tools/reference/oracle_cases.py` loads
+# `chain_oracle.py` and `moment_oracle.py` beside it;
+# `tools/reference/make_chain_oracle_vectors.py` loads `oracle_cases.py`
+# beside it; `tests/test_chain_oracle.py` and `tests/test_moment_oracle.py`
+# each load the files of tools/reference/ they check. So the floor holds
+# for them as it does for the other forty.
+#
+# 45 AT THE INTEGRATION OF BATCH 4G (2026-10-23), which merged lane CHo's
+# own 44 above (its 40 and four calls) with batch 4f's 41: every call
+# recounted on the merged tree, each loading a committed file of tests/ or
+# tools/, which this guard reads directly, so the floor holds for them as
+# it does for the other forty-four.
+FILES_LOADED_AS_MODULES = 45
 
 
 def _files() -> "list[pathlib.Path]":

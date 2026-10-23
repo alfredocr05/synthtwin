@@ -6,6 +6,36 @@ exists).
 
 ## [Unreleased]
 
+### Between columns: the exact oracle, and the class its route decides (2026-10-21, repaired twice 2026-10-22)
+
+**Lane CHo (plan P4-D421); tools and tests only, no product code.** An
+independent oracle of stage 6's between-columns pages, written from
+contract sections 4.6b and 4.6d and method G16 alone, in Python integers
+and exact fractions, binary64 emulated where a page asks for it:
+`tools/reference/chain_oracle.py` (each column's three levels, a date
+and a clock cut at their nine interior rungs, family tables, the score,
+RULES W3, NE, W1 and WE, the keyed draw, the walk with each family's
+target taken on its parent cells, the moved target, a computed column,
+the cell index, stray rows) and `tools/reference/moment_oracle.py`,
+the exact route that decides the moment witness's clauses (a) to (c).
+Its cases are frozen in `tests/reference/chain-oracle-vectors.json`,
+each beside its mutant, and `tests/test_chain_oracle.py` and
+`tests/test_moment_oracle.py` check them, RULE W1 across the chain,
+through a derived family and member by member among them. Contract
+4.6d.10's `witness` setting now names the route's class, `cho1`: at most
+50,000 groups, 10,000,000 transitions, 40,000,000 entries written and
+read and 1,000,000 whole numbers laid out before the first pass, all
+read from published sizes before any search, and no slope; MEASURED up
+to 9.3 seconds and 0.37 GB (an instance reaching both caps: 6 groups of
+count 11 under 24 constraints, 9,772,308 transitions, 39,089,160
+entries), MY ARITHMETIC about 15 seconds and under 1.3 GB at the worst
+instance the caps admit, and equal to the closed form `CF1` on all
+8,949 cells of 22 to 40 rows. MEASURED, it decides none of the regions
+the measured chains form (each joins every number column), so under the owner's
+strict-proof ruling the layer publishes no moment and, by ruling R12,
+no slope: 115 of lane `A0b`'s 287 analysis results at 200,000 rows on
+lane `A0c`'s seeded chain, against 202 polished and 213 for a fresh
+sample, the loss the page's stated limit 3 foresaw, now measured.
 ### Lane CHa: the chain's profile side, built behind a switch no user reaches (2026-10-21)
 
 **The first code of the broad between-columns program** (plan P4-D418,
