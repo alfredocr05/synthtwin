@@ -33,7 +33,9 @@ a cell in a wrapping and a record number beside a word in every cell,
 which the reviews found publishing up to 40 of 40 -- 0 record numbers
 are published and 0 twin cells hold one at 600 and 20,000 rows. A list
 of three-figure codes is left to the person question, as before; a list
-split by `/`, `.` or `;;` is lane LISTS'. A column of five-figure whole
+split by `/`, `.` or `;;` is lane LISTS'. Keys such as `R1000`,
+`AB100` or `0100` in lists with one word beside them, which 20,000 rows
+published whole, are held too. A column of five-figure whole
 numbers with one cell `a;b` is held until answered, the price. No column
 of lane S4d's description battery or of the health data zoo is reached.
 `K-S3-64` gains the fourteen shapes.
