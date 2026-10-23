@@ -50,15 +50,18 @@ it (three ages over 89 printed today at 2,000 rows; `95` printed at
 20,000 rows as a `binary` and a `constant` level, beside `130` and
 beside `999`, `-1` or `888` x 7,000, 90 to 104 beside 8,000 `-1`, and
 `max` 104.99 on ages written ` years` once the person question is
-answered `keep`), and a label column of such numbers read with its
-levels above 89 pooled into one written as 90 (the levels `90 years` to
-`104 years`, and `95` beside `UNK` x 7,000, printed today); the five-figure hold, such a column at least two thirds
-of whose whole numbers have four or five figures, one of five, held whole
-until `no`, so ZIPs that lost their leading zeros are held too (9 real
-ZIPs printed today beside one `UNKNOWN` cell, 4 of 4 for
-`[2100, 2107, 52240, 52247]`); both live in today's product and built now
-by lane SH (P4-D427), whose gate holds Codex's four cases and the
-third verify's five shapes; short result
+answered `keep`), and a label column of such numbers, every word set
+aside whatever its share, read with its levels above 89 pooled into one
+written as 90 (the levels `90 years` to `104 years`, and `95` beside
+`UNK` x 7,000 or beside 800 different words, printed today); the five-figure hold, such a column at least two thirds
+of whose whole numbers have four or five figures, one of five, its words
+and placeholders (all-nines, and any value of other than four or five
+figures that the floor's rows repeat) set aside whatever their share,
+held whole until `no`, so ZIPs that lost their leading zeros are held too
+(9 real ZIPs printed today beside one `UNKNOWN` cell, 4 of 4 for
+`[2100, 2107, 52240, 52247]`, 40 of 40 padded ZIPs beside `-99` x 7,000); both live in today's product and built now
+by lane SH (P4-D427), whose gate holds Codex's four cases, the
+third verify's five shapes and the fourth verify's four; short result
 words by a shape screen that refuses every word holding a letter and a
 figure, a word holding a figure (`#4521`) named only after `no`, lone
 names its named residual;
@@ -73,10 +76,10 @@ validator's rule of each; what moves (no golden, checked on the
 fixtures; the frozen vectors each lane names); the KPIs the four lanes
 stamp and the kinds each turns. Measured on 4682d6ad
 (`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
-(262 cases) pins the page's figures and its reading of the product, red on
-each of 213 page mutants after close 3, on the combined review, the one
-outside review, the second and third verifies and Codex's second outside
-round.
+(287 cases) pins the page's figures and its reading of the product, red on
+each of 271 page mutants after close 4, on the combined review, the one
+outside review, the second, third and fourth verifies and Codex's second
+outside round.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
