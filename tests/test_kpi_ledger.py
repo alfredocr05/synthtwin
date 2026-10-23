@@ -2336,3 +2336,25 @@ def test_k_hz_02(record_property, health_zoo_small: "dict") -> None:
     _kpi(record_property, "K-HZ-02", value, partial=not whole)
     if not whole:
         crosscheck.part_not_measured(HEALTH_ZOO_WORKBOOK_PART)
+
+
+def test_k_hz_04(record_property, tmp_path: pathlib.Path) -> None:
+    """The zoo's identifier cells out of pattern at 600 rows (lane CODES-3, plan P4-D428).
+
+    The zoo's DICOM UIDs, the zoo plan's Cerner record numbers written as
+    decimals and its flattened VCF's rsIDs, each answered with the zoo's
+    general facts, generated and validated; `tests/test_zoo_identifiers.py`
+    owns the measure (`zoo_identifier_cells_out_of_pattern`) and the gate.
+    """
+    import test_zoo_identifiers
+
+    measured = test_zoo_identifiers.zoo_identifier_cells_out_of_pattern(tmp_path, 600)
+    value = {
+        "uid_cells_out_of_pattern": measured["study_uid"],
+        "encntr_id_cells_out_of_pattern": measured["ENCNTR_ID"],
+        "person_id_cells_out_of_pattern": measured["PERSON_ID"],
+        "rsid_cells_out_of_pattern": measured["ID"],
+        "cells_out_of_pattern": measured["total"],
+        "twins_failing_validation": measured["twins_failing_validation"],
+    }
+    _kpi(record_property, "K-HZ-04", value)

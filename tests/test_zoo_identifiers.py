@@ -82,7 +82,11 @@ def uid_rows(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
 
 
 def cerner_rows(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
-    """A Cerner Millennium CCL export (zoo plan row 42): record numbers written as decimals."""
+    """A Cerner Millennium CCL export (zoo plan row 42): record numbers written as decimals.
+
+    The zoo critic's own shape (wave6/ZOO/PLAN-v2-work/probe_shapes.py,
+    `cerner`), draw for draw, so K-HZ-04's baseline is the plan's.
+    """
     draw = random.Random(seed)
     rows: "list[list[str]]" = []
     for index in range(n):
@@ -91,27 +95,42 @@ def cerner_rows(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
             f"{31000000 + index}.00",
             f"{15000000 + draw.randint(0, 149)}.00",
             moment.strftime("%d-%b-%Y %H:%M:%S").upper(),
-            _pick(draw, (("Positive", 20.0), ("Negative", 70.0), ("Indeterminate", 10.0))),
+            _pick(draw, (("309308", 40.0), ("309309", 30.0), ("309310", 20.0),
+                         ("2555137051", 9.0), ("19962820", 1.0))),
+            _pick(draw, (("Positive", 20.0), ("Negative", 70.0), ("Indeterminate", 8.0),
+                         ("See Comment", 2.0))),
         ]]
-    return ["ENCNTR_ID", "PERSON_ID", "REG_DT_TM", "RESULT_VAL"], rows
+    return ["ENCNTR_ID", "PERSON_ID", "REG_DT_TM", "ENCNTR_TYPE_CD", "RESULT_VAL"], rows
 
 
-_CHROMOSOMES = tuple((f"chr{place}", 30.0 - place) for place in range(1, 23))
+_CHROMOSOMES = tuple(
+    (f"chr{name}", weight)
+    for name, weight in [(f"{place}", 30.0 - place) for place in range(1, 23)]
+    + [("X", 6.0), ("Y", 1.0), ("M", 0.5)]
+)
 
 
 def vcf_rows(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
-    """A flattened VCF (zoo plan row 43): rsIDs of `rs` and four to nine figures."""
+    """A flattened VCF (zoo plan row 43): rsIDs of `rs` and four to nine figures.
+
+    The zoo critic's own shape (probe_shapes.py, `vcf`), draw for draw.
+    """
     draw = random.Random(seed)
     rows: "list[list[str]]" = []
     for _index in range(n):
         reference = draw.choice("ACGT")
+        other = draw.choice([base for base in "ACGT" if base != reference] + [reference + draw.choice("ACGT")])
         rows += [[
             _pick(draw, _CHROMOSOMES),
+            f"{draw.randint(10_000, 240_000_000)}",
             f"rs{draw.randint(1000, 999_999_999)}",
             reference,
+            other,
             f"{draw.uniform(20, 3000):.2f}",
+            _pick(draw, (("0/1", 45.0), ("1/1", 20.0), ("0/0", 15.0), ("0|1", 10.0),
+                         ("1|0", 8.0), ("./.", 2.0))),
         ]]
-    return ["CHROM", "ID", "REF", "QUAL"], rows
+    return ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "GT"], rows
 
 
 PLAIN_KEYS = {
@@ -360,3 +379,65 @@ def test_d_codes_and_scales_beside_words_are_not_asked() -> None:
         beside = ["Unknown"] * 120 + cells[120:]
         assert not asking._keys_beside_words(beside), name
         assert not asking._a_key_of_figures_repeating(beside), name
+
+
+# -- K-HZ-04: the zoo's identifier cells out of pattern ------------------
+
+
+def _zoo_reader(path: pathlib.Path) -> "dict[str, object]":
+    import pandas
+
+    return {"inferred": pandas.read_csv(path), "text": pandas.read_csv(path, dtype=str),
+            "raw": pandas.read_csv(path, dtype=str, keep_default_na=False)}
+
+
+def zoo_identifier_cells_out_of_pattern(folder: pathlib.Path, n: int) -> "dict[str, int]":
+    """K-HZ-04 (plan P4-D428): twin cells out of pattern, each table answered with the zoo's general facts.
+
+    The zoo's own `imaging` export (its `study_uid` against the UID grammar
+    and the real root), and the zoo plan's Cerner export (rows 42: its
+    `ENCNTR_ID` and `PERSON_ID` against `\\d+\\.00`) and flattened VCF
+    (row 43: its `ID` against `rs\\d+`), each run through
+    `health_zoo.run_table` -- profiled, answered as the person holding the
+    table would (`identifier` where the question offers it), generated
+    and validated. A cell is out of pattern where it is present and fails
+    its column's pattern; a table whose twin was not written counts every
+    real cell. Also returned: how many of the three twins validate at exit
+    other than 0. On af69aaef: 600, 595, 595, 9 and two.
+    """
+    import health_zoo
+
+    tables = (
+        (next(table for table in health_zoo.TABLES if table.name == "imaging"), 20261016,
+         {"study_uid": lambda cell: UID.fullmatch(cell) is not None and cell.startswith(ROOT)}),
+        (health_zoo.Table(
+            "cerner_ccl", ".csv", cerner_rows, health_zoo.csv_bytes,
+            {"cerner_ccl": tuple(cerner_rows(1, 0)[0])},
+            {"ENCNTR_ID": "identifier", "PERSON_ID": "identifier"}, _zoo_reader, ()), 4252,
+         {"ENCNTR_ID": lambda cell: re.fullmatch(r"\d+\.00", cell) is not None,
+          "PERSON_ID": lambda cell: re.fullmatch(r"\d+\.00", cell) is not None}),
+        (health_zoo.Table(
+            "vcf_flat", ".csv", vcf_rows, health_zoo.csv_bytes,
+            {"vcf_flat": tuple(vcf_rows(1, 0)[0])}, {"ID": "identifier"}, _zoo_reader, ()), 4250,
+         {"ID": lambda cell: re.fullmatch(r"rs\d+", cell) is not None}),
+    )
+    found: "dict[str, int]" = {}
+    failing = 0
+    for table, seed, patterns in tables:
+        place = folder / table.name
+        result = health_zoo.run_table(table, place, n, seed)
+        if result["steps"].get("validate", {}).get("exit") != 0:
+            failing += 1
+        twin = place / f"{table.name}-twin.csv"
+        source = place / f"{table.name}.csv"
+        with open(twin if twin.is_file() else source, encoding="utf-8", newline="") as handle:
+            rows = list(csv.reader(handle))
+        for column, fits in patterns.items():
+            at = rows[0].index(column)
+            cells = [row[at] for row in rows[1:] if row[at]]
+            found[column] = (
+                sum(1 for cell in cells if not fits(cell)) if twin.is_file() else len(cells)
+            )
+    found["total"] = sum(found.values())
+    found["twins_failing_validation"] = failing
+    return found

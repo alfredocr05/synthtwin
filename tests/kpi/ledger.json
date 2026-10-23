@@ -10173,6 +10173,38 @@
    }
   },
   {
+   "id": "K-HZ-04",
+   "phase_stage": "The health data zoo's identifiers, lane CODES-3 of the zoo-fix track (plan P4-D428; TRACKED T3)",
+   "category": "STATS",
+   "headline": false,
+   "name": "The zoo's identifier cells out of pattern: DICOM UIDs, decimal record numbers and rsIDs",
+   "status": "GREEN",
+   "rule": "machine-free, at 600 rows, each table run through tests/health_zoo.py's run_table (profiled scripted, answered with the zoo's general facts, generated at seed 0, validated): the zoo's imaging.study_uid against the UID grammar [012](\\.(0|[1-9]\\d*))+ and its real root, the zoo plan's Cerner export (row 42) ENCNTR_ID and PERSON_ID against \\d+\\.00, and its flattened VCF (row 43) ID against rs\\d+ (tests/test_zoo_identifiers.py, zoo_identifier_cells_out_of_pattern): no twin cell out of its column's pattern and no one of the three twins failing its own validation; on af69aaef 600, 595, 595 and 9 cells (1,799) and two twins at exit 3 (595, 596 and 9 on 68dae22f, the plan's baseline)",
+   "rule_kind": "exact",
+   "expected": {
+    "uid_cells_out_of_pattern": 0,
+    "encntr_id_cells_out_of_pattern": 0,
+    "person_id_cells_out_of_pattern": 0,
+    "rsid_cells_out_of_pattern": 0,
+    "cells_out_of_pattern": 0,
+    "twins_failing_validation": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_hz_04",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "three tables at 600 rows: the zoo's imaging (seed 20261016) and the zoo critic's Cerner and VCF shapes (seeds 4252 and 4250)",
+   "evidence": "Q-ID puts HX's question to the UID column and the zoo answers identifier, so the root every cell shares is published and no arc is led by a nought; a declared record number publishing all_whole_numbers true writes 0 after the point; a declared prefixed record number counts its rare layouts in its commonest one (rule A1). tests/test_zoo_identifiers.py holds each at 600 and 20,000 rows with its mutants.",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-23",
+    "measured_by": "PENDING",
+    "value": {}
+   }
+  },
+  {
    "id": "K-BC-01",
    "phase_stage": "The broad between-columns program (plan P4-D398), measured now as a baseline",
    "category": "STATS",
