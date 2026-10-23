@@ -54269,7 +54269,7 @@ def _templated_facts(
     places after the point (`26819742.82`), so 595 of 600 twin cells were
     no whole number and validate missed `type.all_whole_numbers`. Where
     the description says every value is a whole number, a layout of
-    figures, one point and figures (`_whole_places`) is written with
+    figures, one point and figures (`parsing.whole_places_layout`) is written with
     `0` at every place after the point: the source's constant figures,
     never drawn.
 
@@ -54294,39 +54294,15 @@ def _templated_facts(
         if prefix:
             written = prefix + layout[len(prefix):]
         if whole_places:
-            written = _whole_places(written)
+            written = parsing.whole_places_layout(written)
         templated[written] = facts.layout_forms[layout]
     return dataclasses.replace(facts, layout_forms=templated)
 
 
-def _whole_places(layout: str) -> str:
-    """A layout of figures, one point and figures, with `0` after the point (P4-D428).
-
-    Every other layout is returned as it is. Only the figure marks `%`
-    and the zero fill `!` may stand before the point, and only `%` after
-    it, so a layout with a letter, a sign or a second mark is untouched.
-    """
-    point = -1
-    for place in range(len(layout)):
-        mark = layout[place]
-        if mark == ".":
-            if point >= 0:
-                return layout
-            point = place
-        elif mark == parsing.LAYOUT_LEADING_ZERO:
-            if point >= 0:
-                return layout
-        elif mark != parsing.LAYOUT_DIGIT:
-            return layout
-    if point < 1 or point == len(layout) - 1:
-        return layout
-    return layout[: point + 1] + "0" * (len(layout) - point - 1)
-
-
 def _any_whole_places(census: "dict[str, int]") -> bool:
-    """Whether any layout of a census is one `_whole_places` writes with noughts."""
+    """Whether any layout of a census is one `parsing.whole_places_layout` writes with noughts."""
     for layout in sorted(census):
-        if layout != contract.WITHHELD and _whole_places(layout) != layout:
+        if layout != contract.WITHHELD and parsing.whole_places_layout(layout) != layout:
             return True
     return False
 
@@ -54342,7 +54318,7 @@ def _wears_template(candidate: str, template: str, convention: str) -> bool:
 
     ...AND EVERY FIGURE (lane CODES-3, plan P4-D428): a figure stands in
     a template only as a UID's published root (`parsing.uid_root`) or a
-    whole number's nought after the point (`_whole_places`), and no
+    whole number's nought after the point (`parsing.whole_places_layout`), and no
     layout holds one, so on every other template this adds nothing.
     """
     if parsing.layout_form(candidate, convention) != parsing.prefix_layout(

@@ -276,13 +276,13 @@ BECAUSE_POINT_THOUSANDS = "three-figures-after-the-point"
 # route that found it. `asking._names_people` holds both routes.
 BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
 # QUESTION Q-ID OF THE ZOO-FIX READING PAGE (plan P4-D419's ZR.2; lane
-# CODES-3, plan P4-D428): a column today's reader leaves free text whose
-# every present cell is a DICOM UID with two points or more
-# (`parsing.is_a_uid`), every value different. One more shape of HX's
-# question about figures (plan P4-D401), never a second question: it
-# offers `keep`, `code` and `identifier`, and holds the column as record
+# CODES-3, plan P4-D428): a column whose every present cell, words aside,
+# is a DICOM UID with two points or more (`parsing.is_a_uid`), on any
+# reading but dates and clock times (`_a_column_of_uids`). One more shape
+# of HX's question about figures (plan P4-D401), never a second question:
+# it offers `keep`, `code` and `identifier`, and holds the column as record
 # numbers until it is answered.
-BECAUSE_FIGURES_JOINED_BY_POINTS = "whole-numbers-joined-by-points-every-value-different"
+BECAUSE_FIGURES_JOINED_BY_POINTS = "whole-numbers-joined-by-points"
 # QUESTION Q3, "NUMBER OR DATE?" (landing R4, plan P4-D384): a column of
 # numbers whose values lie where a counting system writes dates -- Excel's
 # serials, SAS's and Stata's days and seconds, Unix seconds -- read as
@@ -1546,8 +1546,10 @@ def questions_and_splits_for(
             asked += [dates]
             position = position + 1
             continue
-        # -- Q-ID (lane CODES-3, plan P4-D428): a column of DICOM UIDs.
-        if role == taxonomy.ROLE_TEXT and _uids_every_one_different(present):
+        # -- Q-ID (lane CODES-3, plan P4-D428): a column of DICOM UIDs, on
+        # any reading -- free text, labels, a number with words -- that is
+        # not a date or a clock time (skeptic 1, items 4 and 9).
+        if role not in _READ_AS_DATES_OR_TIMES and _a_column_of_uids(present):
             asked += [
                 Question(
                     name,
@@ -1602,6 +1604,23 @@ def questions_and_splits_for(
                 reason = why_worth_asking(beside)
                 shaped = beside
                 signs = len(present) - len(beside)
+        # ...AND A WHOLE NUMBER EXPORTED AS A DECIMAL (lane CODES-3, plan
+        # P4-D428; skeptic 1, item 3): `31000000.00`, the same noughts after
+        # the point on every cell, is read as its bare figures, so the
+        # fixed-width or padded question its figures raise is put and the
+        # column held, as the same numbers written without the point are
+        # (measured: read as a count, asked nothing, 598 of 600 real
+        # encounter numbers in the twin and 19,998 of 20,000).
+        noughts = ""
+        if reason is None and role in NUMERIC_ROLES:
+            bare = _without_nought_places(present)
+            if bare and why_worth_asking(bare) in (BECAUSE_FIXED_WIDTH, BECAUSE_PADDED):
+                reason = why_worth_asking(bare)
+                shaped = bare
+                noughts = (
+                    "; each is written with the same noughts after a point, "
+                    "set aside here"
+                )
         if reason == BECAUSE_POINT_THOUSANDS and name in decimal_commas:
             reason = None
         # -- 3b.R4 (P4-D384): QUESTION Q3, where the description's own
@@ -1651,7 +1670,8 @@ def questions_and_splits_for(
                         reason, shaped, settings.small_cell_floor, mark,
                         remainder,
                     )
-                    + _signs_said(signs, len(present), settings.small_cell_floor),
+                    + _signs_said(signs, len(present), settings.small_cell_floor)
+                    + noughts,
                     choices,
                     taken,
                 )
@@ -1691,6 +1711,30 @@ def _a_width_placeholder(value: str) -> bool:
     return True
 
 
+def _without_nought_places(present: "list[str]") -> "list[str]":
+    """Every cell's figures before the point, where each is a whole number written
+    with the same noughts after one point (`31000000.00`); [] otherwise (P4-D428).
+
+    A fixed function of the cells. Raises nothing. No I/O.
+    """
+    bare: "list[str]" = []
+    places = -1
+    for value in present:
+        point = value.find(".")
+        if point < 1:
+            return []
+        after = value[point + 1:]
+        if not after or after != "0" * len(after):
+            return []
+        if places >= 0 and len(after) != places:
+            return []
+        places = len(after)
+        if not _is_plain_whole_number(value[:point]):
+            return []
+        bare += [value[:point]]
+    return bare
+
+
 def _beside_sign_placeholders(present: "list[str]") -> "list[str]":
     """The cells left once the placeholders a key writes are set aside.
 
@@ -1714,23 +1758,75 @@ def _beside_sign_placeholders(present: "list[str]") -> "list[str]":
     return rest
 
 
-def _uids_every_one_different(present: "list[str]") -> bool:
-    """Q-ID's trigger (plan P4-D428): every present cell a DICOM UID, every one different.
+def _uid_cells(present: "list[str]") -> "list[str]":
+    """The cells of a column Q-ID reads as UIDs, words aside; [] where it reads none.
 
-    `parsing.is_a_uid`: the grammar `[012](\\.(0|[1-9]\\d*))+` with two
-    points or more. Over the battery's fixture columns of figures and
-    marks with nearly every value different -- `pressure` (figures and
-    `/`) and `amount` (figures and one point) -- neither holds a cell of
-    the grammar (plan P4-D419's ZR.2). A fixed function of the cells.
-    Raises nothing. No I/O, and no cell reaches what it returns.
+    Up to one present cell in three holding no figure at all (`UNKNOWN`,
+    `Not known.`, `-`) is set aside, as route two of the person rule sets
+    such words aside (skeptic 1 of lane CODES-3, item 9: one `UNKNOWN`
+    made 599 UIDs a number with words, and nothing was asked); every
+    other cell must be a UID (`parsing.is_a_uid`). A fixed function of
+    the cells. Raises nothing. No I/O.
     """
-    if not present:
+    uids: "list[str]" = []
+    aside = 0
+    for value in present:
+        if _holds_no_figure(value):
+            aside = aside + 1
+            continue
+        if not parsing.is_a_uid(value):
+            return []
+        uids += [value]
+    if aside * _WORDS_BESIDE_KEYS_SHARE > len(present):
+        return []
+    return uids
+
+
+def _a_column_of_uids(present: "list[str]") -> bool:
+    """Q-ID's trigger (plan P4-D428): UIDs, every one different or each naming an item.
+
+    The column's cells, words aside (`_uid_cells`), are DICOM UIDs with
+    two points or more: the grammar `[012](\\.(0|[1-9]\\d*))+`. Where
+    every one is different it is asked as the zoo's study UID was. Where
+    they REPEAT -- a study or series UID on the rows of each of its images
+    (skeptic 1, item 4: 30 series UIDs published as labels at 600 rows,
+    1,000 at 20,000, the twin writing real ones on every row) -- it is
+    asked where every different value holds an arc of five figures or
+    more, the serial number, timestamp or random number a UID names one
+    item by, which no version number (`2.1.0`) or section number holds.
+    Over the battery's columns of figures and marks with nearly every
+    value different -- `pressure` (figures and `/`) and `amount` (figures
+    and one point) -- no cell is of the grammar (plan P4-D419's ZR.2). A
+    fixed function of the cells. Raises nothing. No I/O, and no cell
+    reaches what it returns.
+    """
+    uids = _uid_cells(present)
+    if not uids:
         return False
     seen: "dict[str, bool]" = {}
-    for value in present:
-        if value in seen or not parsing.is_a_uid(value):
-            return False
+    for value in uids:
         seen[value] = True
+    if len(seen) == len(uids):
+        return True
+    for value in seen:
+        if not _an_arc_naming_an_item(value):
+            return False
+    return True
+
+
+def _an_arc_naming_an_item(uid: str) -> bool:
+    """Whether a UID holds an arc of five figures or more (plan P4-D428)."""
+    for arc in uid.split("."):
+        if len(arc) >= _KEY_FIGURES:
+            return True
+    return False
+
+
+def _holds_no_figure(value: str) -> bool:
+    """Whether a cell holds no figure at all: a word, a mark, words and marks."""
+    for character in value:
+        if "0" <= character <= "9":
+            return False
     return True
 
 
@@ -2392,9 +2488,15 @@ def _shape_of(
     if reason == BECAUSE_FIGURES_JOINED_BY_POINTS:
         # Q-ID's words (plan P4-D419's ZR.2): the shape, and a made-up
         # example that is no cell (plan P4-D428).
+        uids = _uid_cells(present)
+        if len(set(uids)) == len(uids):
+            return (
+                "every value is different, and written as whole numbers "
+                "joined by points, as the made-up 1.2.840.1 is"
+            )
         return (
-            "every value is different, and written as whole numbers joined "
-            "by points, as the made-up 1.2.840.1 is"
+            "every value is written as whole numbers joined by points, as "
+            "the made-up 1.2.840.1 is, and the values repeat on several rows"
         )
     if reason == BECAUSE_PADDED:
         padded = 0
@@ -3425,30 +3527,32 @@ def _names_people_past_route_four(
 # them made it a column of labels publishing all 40 keys with their
 # counts (measured on af69aaef: 40 of 40 keys and 599 twin cells at 600
 # rows, 40 and 19,999 at 20,000). So up to one present cell in three may
-# be words of letters alone, set aside, where every other cell is a KEY:
-# one to three letters and then three figures or more, nothing else.
-# Narrower than route two's code on purpose: a scale `A1` to `A9`, an
-# ICD-10 `E11` or `E11.9`, a stage `pT1c` and a lab code are no such
-# key, so a column of them beside words is not asked (measured over the
-# description batteries and the health data zoo, plan P4-D428).
+# be SET ASIDE (`_set_aside_beside_keys`: any cell holding no figure --
+# `OTHER`, `Not known.`, `Other (specify)`, `?` -- and the placeholders a
+# key writes for nobody, `-1` to `-999`, a lone `0`, nines alone; skeptic
+# 1, item 2: `Not known.`, `-1`, `0` and `Other (specify)` published all
+# 40 keys while only words of letters were set aside), where every other
+# cell is a KEY: one to three letters and then three figures or more,
+# nothing else. Narrower than route two's code on purpose: a scale `A1`
+# to `A9`, an ICD-10 `E11` or `E11.9`, a stage `pT1c` and a lab code are
+# no such key, so a column of them beside words is not asked (measured
+# over the description batteries and the health data zoo, plan P4-D428).
 _WORDS_BESIDE_KEYS_SHARE = 3
 _KEY_LETTERS_AT_MOST = 3
 _KEY_FIGURES_AT_LEAST = 3
 
 
-def _an_ordinary_word(value: str) -> bool:
-    """Whether a cell is words of letters alone, single spaces between them."""
-    if not value or value[0] == " " or value[len(value) - 1] == " ":
-        return False
-    before = ""
-    for character in value:
-        if character == " ":
-            if before == " ":
-                return False
-        elif not (("a" <= character <= "z") or ("A" <= character <= "Z")):
-            return False
-        before = character
-    return True
+def _set_aside_beside_keys(value: str) -> bool:
+    """Whether a cell beside keys is a word or a placeholder, set aside (P4-D428).
+
+    A cell holding no figure (`_holds_no_figure`); a minus sign and one to
+    three figures; a lone `0`; or nines alone (`_a_width_placeholder`).
+    """
+    if _holds_no_figure(value) or _a_width_placeholder(value):
+        return True
+    return (
+        value[:1] == "-" and 2 <= len(value) <= 4 and _is_plain_whole_number(value[1:])
+    )
 
 
 def _a_lettered_key(value: str) -> bool:
@@ -3465,16 +3569,16 @@ def _a_lettered_key(value: str) -> bool:
 
 
 def _keys_beside_words(present: "list[str]") -> bool:
-    """Route two beside words (plan P4-D428): keys repeating, at most a third words.
+    """Route two beside words (plan P4-D428): keys repeating, at most a third set aside.
 
-    Every present cell a lettered key (`_a_lettered_key`) or ordinary
-    words (`_an_ordinary_word`); one word cell at least, and at most one
+    Every present cell a lettered key (`_a_lettered_key`) or set aside
+    (`_set_aside_beside_keys`); one set aside at least, and at most one
     present cell in three; the keys repeat, `PERSON_ROWS_PER_VALUE` rows a
     different key on average, routes one and two's first condition read
     over the keys. A column of keys alone is route two's already. A fixed
     function of the cells. Raises nothing. No I/O.
     """
-    words = 0
+    aside = 0
     keys: "dict[str, bool]" = {}
     counted = 0
     for value in present:
@@ -3482,10 +3586,10 @@ def _keys_beside_words(present: "list[str]") -> bool:
             keys[parsing.folded(value)] = True
             counted = counted + 1
             continue
-        if not _an_ordinary_word(value):
+        if not _set_aside_beside_keys(value):
             return False
-        words = words + 1
-    if words == 0 or not keys or words * _WORDS_BESIDE_KEYS_SHARE > len(present):
+        aside = aside + 1
+    if aside == 0 or not keys or aside * _WORDS_BESIDE_KEYS_SHARE > len(present):
         return False
     return counted >= PERSON_ROWS_PER_VALUE * len(keys)
 
@@ -3604,6 +3708,9 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
     fixed function of them. Raises nothing. No I/O, and no cell reaches
     anything it returns.
     """
+    if _padded_beside_words(present):
+        # ...and padded keys beside words (plan P4-D428).
+        return True
     keys: "dict[str, int]" = {}
     present_keys = 0
     placeholders = 0
@@ -3627,9 +3734,7 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
     for figures in keys:
         if _five_figures_or_more(figures):
             wide = wide + 1
-    return wide * 2 > len(keys) or _padded_beside_words(
-        keys, placeholders, len(present)
-    )
+    return wide * 2 > len(keys)
 
 
 # ...AND A PADDED KEY BELOW FIVE FIGURES BESIDE WORDS (lane CODES-3, plan
@@ -3637,26 +3742,37 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
 # is held by the padded question while every cell is figures; one `OTHER`
 # made the column a count and 20 % of them labels, asked nothing, and
 # the labels published all 40 keys (measured on af69aaef: 40 of 40 and
-# 16,000 twin cells at 20,000 rows). So route four also asks where its
-# placeholders are at most one present cell in three, one at least, and
-# every key is figures alone of one width, four or more, more than half
-# of them led by a nought: the padded question's own signal, which no
-# measurement is written with. A column of such keys alone stays the
-# padded question's, as before.
+# 16,000 twin cells at 20,000 rows). So route four also asks where up to
+# one present cell in three, one at least, is set aside as route two's
+# arm sets it aside (`_set_aside_beside_keys`: `NOT KNOWN`, `Unknown.`,
+# `N.K.` and a lone `0` among them, skeptic 1's item 2), and every other
+# cell is figures alone of one width, four or more, repeating, more than
+# half of the different keys led by a nought: the padded question's own
+# signal, which no measurement is written with. A column of such keys
+# alone stays the padded question's, as before.
 _PADDED_KEY_WIDTH = 4
 
 
-def _padded_beside_words(
-    keys: "dict[str, int]", placeholders: int, population: int
-) -> bool:
+def _padded_beside_words(present: "list[str]") -> bool:
     """Route four's padded arm (plan P4-D428); see the note above."""
-    if placeholders == 0 or placeholders * _WORDS_BESIDE_KEYS_SHARE > population:
+    keys: "dict[str, bool]" = {}
+    counted = 0
+    aside = 0
+    for value in present:
+        if _set_aside_beside_keys(value):
+            aside = aside + 1
+            continue
+        if not _is_plain_whole_number(value):
+            return False
+        keys[value] = True
+        counted = counted + 1
+    if aside == 0 or aside * _WORDS_BESIDE_KEYS_SHARE > len(present):
+        return False
+    if len(keys) < 2 or counted < PERSON_ROWS_PER_VALUE * len(keys):
         return False
     widths: "dict[int, bool]" = {}
     led = 0
     for figures in keys:
-        if not _is_plain_whole_number(figures):
-            return False
         widths[len(figures)] = True
         if figures[0] == "0":
             led = led + 1

@@ -325,14 +325,18 @@ def test_item3_the_source_meets_the_form_its_producer_published(
     assert isinstance(block, dict)
     if _declined(block):
         # DECLINED, THE COLUMN IS HELD (plan P4-D406, NF127): its twin
-        # writes made-up figures in the column's layouts, a figure after
-        # the point where the source wrote `.0` or an exponent of whole
-        # counts, so a column of whole counts misses `type.all_whole_numbers`
-        # -- the identifier generator's stated limit (a key exported as
-        # `100001.0`, lane CODES-1 part C; P4-D406 stated limit 8) -- and
-        # nothing else. Red once it is met.
+        # writes made-up figures in the column's layouts. Where the source
+        # wrote `.0` after whole counts, the layout of figures, one point
+        # and figures writes `0` after the point (plan P4-D428, lane
+        # CODES-3, closing P4-D406's stated limit 8), so nothing is missed;
+        # an exponent of whole counts still writes a figure where the
+        # source wrote none, so a column of whole counts misses
+        # `type.all_whole_numbers` -- the identifier generator's stated
+        # limit, lane CODES-1 part C -- and nothing else.
         whole = block["all_whole_numbers"] is True
-        assert missed == (["type.all_whole_numbers"] if whole else []), missed
+        layouts = block.get("layout_forms") or {}
+        noughts = any(parsing.whole_places_layout(one) != one for one in layouts)
+        assert missed == (["type.all_whole_numbers"] if whole and not noughts else []), missed
         return
     # PUBLISHED, only as dates (lane HX2's close verify, item 2): read as
     # a count or a number, the column would publish those dates as plain

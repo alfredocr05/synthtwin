@@ -2936,10 +2936,11 @@ PREFIX_OF_THE_COLUMN = "(column)"
 # shares; rule 1 of `literal_prefix` stops a prefix before its first
 # figure, which no UID root survives (row 19 of the zoo plan: the twin
 # lost the root on 600 of 600 cells). So a column EVERY present cell of
-# which is a UID with two points or more publishes the arcs every cell
-# shares, cut back to its last point, as its prefix, and nothing else
-# changes: a column holding one cell that is not such a UID publishes
-# what it published before.
+# which is a UID with two points or more publishes the organisation's
+# root its cells share (`uid_root`) as its `(column)` prefix -- read over
+# the WHOLE column only, never over the cells of one layout (Codex's
+# review, item 2) -- and nothing else changes: a column holding one cell
+# that is not such a UID publishes what it published before.
 
 
 def _arc_unled(arc: str) -> bool:
@@ -3001,13 +3002,14 @@ def is_a_uid_root(text: str) -> bool:
 def uid_root(values: "list[str]") -> str:
     """The root every one of ``values`` opens with, where every one is a UID; else "".
 
-    THE ARCS EVERY CELL SHARES, WHOLE (plan P4-D428). The longest opening
-    every value shares is cut back to its last point, so no arc is ever
-    published in part -- `literal_prefix`'s rule 3, no half a run, read
-    for figures -- and every value goes on after it (rule 2), since a UID
-    ends in a figure. Where every value is a UID (`is_a_uid`) and that
-    opening is a root of two arcs or more (`is_a_uid_root`), it is the
-    answer; otherwise "".
+    THE ORGANISATION'S ROOT THE CELLS SHARE (plan P4-D428). The longest
+    opening every value shares is cut back to its last point, so no arc is
+    ever published in part -- `literal_prefix`'s rule 3, no half a run,
+    read for figures -- and then before its first arc that could be a
+    serial number, a timestamp or a random number
+    (`_root_of_the_organisation`), so no study, series or device is named.
+    Where every value is a UID (`is_a_uid`) and what is left is a root of
+    two arcs or more (`is_a_uid_root`), it is the answer; otherwise "".
 
     Guarantees: a fixed function of the list. Raises TypeError for
     anything that is not a list of strings. No I/O.
@@ -3041,10 +3043,108 @@ def uid_root(values: "list[str]") -> str:
             cut = place
     if cut < 0:
         return ""
-    common = common[: cut + 1]
+    common = _root_of_the_organisation(common[: cut + 1])
     if not is_a_uid_root(common) or len(common) >= LAYOUT_FORM_LIMIT:
         return ""
     return common
+
+
+# THE ROOT ENDS BEFORE THE FIRST ARC THAT COULD NAME A STUDY, A SERIES, A
+# DEVICE OR A MOMENT (skeptic 1 of lane CODES-3, item 1, a HIPAA blocker;
+# the orchestrator's ruling of 2026-10-23 16:56). The arcs every cell
+# shares are the root only while one organisation made them: SOP UIDs of
+# one series share the series UID, and published whole it named the series
+# and the twin then wrote 278 of 600 real SOP UIDs. A registered root and
+# its product arcs are short; a serial number, a timestamp or a random
+# number is five figures or more. So the root is cut at the last point
+# before the first arc of FIVE figures or more, except the one
+# organisation arc that directly follows the ANSI branch `1.2.840.` (GE's
+# 113619, the DICOM standard's 10008): GE's `1.2.840.113619.2.55.3.` and
+# dcmtk's `1.2.276.0.` stand, and Siemens' `1.3.12.2.1107.5.2.32.35162.`
+# is cut to `1.3.12.2.1107.5.2.32.` (35162 is a scanner serial).
+_ROOT_ARC_FIGURES_AT_MOST = 4
+_ANSI_BRANCH = ("1", "2", "840")
+
+
+def _root_of_the_organisation(root: str) -> str:
+    """A UID root cut before its first arc that could be a serial (P4-D428)."""
+    arcs = root[: len(root) - 1].split(".") if root.endswith(".") else []
+    kept = ""
+    for place, arc in enumerate(arcs):
+        organisation = place == len(_ANSI_BRANCH) and tuple(arcs[:place]) == _ANSI_BRANCH
+        if len(arc) > _ROOT_ARC_FIGURES_AT_MOST and not organisation:
+            break
+        kept = kept + arc + "."
+    return kept
+
+
+def uid_room(tail: str) -> int:
+    """How many tails a UID's layout after its root can spell, no arc led by a nought.
+
+    THE ROOM THE TWIN HAS (Codex's review of lane CODES-3, item 1). Under
+    a published UID root the twin refuses every filling with an arc led
+    by a nought (`uid_unled`), so `%%%` spells 900 arcs and not a
+    thousand: an arc of one figure ten, of w figures nine times ten to
+    the w - 1. A tail holding a mark other than figures and points
+    answers `layout_room`. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(tail, str):
+        raise TypeError(_NOT_TEXT)
+    room = 1
+    width = 0
+    for mark in tail + ".":
+        if mark == ".":
+            room = room * (10 if width <= 1 else 9 * 10 ** (width - 1))
+            width = 0
+            continue
+        if mark != LAYOUT_DIGIT:
+            return layout_room(tail)
+        width = width + 1
+    return room
+
+
+# A RECORD NUMBER WRITTEN AS A DECIMAL (lane CODES-3, plan P4-D428): a
+# layout of figures, marks between thousands, one point and figures --
+# Cerner's `%%%%%%%%.%%`, `%%,%%%,%%%.%%` grouped -- whose cells are all
+# whole is written with `0` at every place after the point, so it spells
+# only as many cells as the figures before the point.
+_GROUP_MARKS = ","
+
+
+def whole_places_layout(layout: str) -> str:
+    """A layout of figures, one point and figures, with `0` after the point (P4-D428).
+
+    Only the figure marks `%`, the zero fill `!` and a mark between
+    thousands may stand before the point, and only `%` after it; every
+    other layout is returned as it is. Raises TypeError for a non-string.
+    No I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    point = -1
+    for place in range(len(layout)):
+        mark = layout[place]
+        if mark == ".":
+            if point >= 0:
+                return layout
+            point = place
+        elif mark == LAYOUT_LEADING_ZERO or mark in _GROUP_MARKS:
+            if point >= 0:
+                return layout
+        elif mark != LAYOUT_DIGIT:
+            return layout
+    if point < 1 or point == len(layout) - 1 or layout[point - 1] != LAYOUT_DIGIT:
+        return layout
+    return layout[: point + 1] + "0" * (len(layout) - point - 1)
+
+
+def whole_places_room(layout: str) -> int:
+    """How many cells a whole-places layout spells: the room before its point."""
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    if whole_places_layout(layout) == layout:
+        return layout_room(layout)
+    return layout_room(layout[: layout.find(".")])
 
 
 def uid_unled(text: str) -> bool:
@@ -3116,11 +3216,6 @@ def literal_prefix(values: "list[str]", convention: str) -> str:
         raise TypeError(_NOT_TEXT)
     if convention not in LAYOUT_CONVENTIONS or not values:
         return ""
-    # A COLUMN OF DICOM UIDS KEEPS ITS ROOT (lane CODES-3, plan P4-D428):
-    # `uid_root`, the one prefix of figures this function writes.
-    root = uid_root(values)
-    if root:
-        return root
     common = ""
     shortest = -1
     first = True
@@ -3513,6 +3608,9 @@ def prefix_room(layout: str, prefix: str, convention: str) -> int:
     opening = prefix_layout(prefix, convention)
     if layout[: len(opening)] != opening:
         return layout_room(layout)
+    if is_a_uid_root(prefix):
+        # ...and under a UID root, no arc led by a nought (P4-D428).
+        return uid_room(layout[len(opening):])
     return layout_room(layout[len(opening):])
 
 

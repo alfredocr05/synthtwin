@@ -22046,21 +22046,44 @@ def _identifier_checks(
     present = [cell for cell in cells if parsing.trimmed(cell)]
     census = taxonomy.layout_census(present, floor, len(set(present)))
     # RULE A1, READ AS IT WAS WRITTEN (lane CODES-3, plan P4-D428): a
-    # description publishing a `(column)` prefix and no `(withheld)` pool
-    # counted the cells of its rare layouts in its commonest one
-    # (`taxonomy.with_layout_pool_absorbed`), so the measured file's
-    # cells are counted so too, and its shortest and longest lengths are
-    # read off the layouts they are counted in. On every other column
-    # nothing here moves.
+    # description publishing a `(column)` prefix, no `(withheld)` pool and
+    # named layouts counting every present cell (`taxonomy.
+    # a1_census_is_absorbed`) counted the cells of its other layouts in its
+    # commonest one (`taxonomy.with_layout_pool_absorbed`). So a measured
+    # cell is counted in the commonest published layout where its own
+    # layout is one the producer would have moved: one the recount does
+    # not name (under the line, too small a supply), or one whose room the
+    # published prefix takes below the line (LP3). A layout the recount
+    # names and the room rule keeps is counted as itself, so floor's worth
+    # of cells moved to a shorter layout still misses; the shortest and
+    # longest lengths are read off the layouts the cells are counted in.
+    # A census that left cells to subtraction -- an older description, its
+    # short layout too small a supply to name -- is read as it was
+    # written (Codex's review of lane CODES-3, item 5).
     absorbed_lengths: "dict[str, int]" = {}
-    if (
-        taxonomy.absorbs_its_layout_pool({"layout_prefixes": facts.layout_prefixes})
-        and contract.WITHHELD not in facts.layout_forms
-    ):
-        absorbed = taxonomy.absorbed_layout_census(census, present)
-        if absorbed is not None:
-            census = absorbed[0]
-            absorbed_lengths = {"min_length": absorbed[1], "max_length": absorbed[2]}
+    into = taxonomy.a1_census_is_absorbed(
+        facts.layout_forms, facts.layout_prefixes, column.n_present
+    )
+    if into:
+        convention = parsing.layout_convention(present)
+        prefix = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+        distinct = len(set(present))
+        named = [layout for layout in sorted(facts.layout_forms)]
+        for layout in sorted(census):
+            if (
+                layout != contract.WITHHELD
+                and layout not in facts.layout_forms
+                and parsing.prefix_leaves_room(
+                    layout, prefix, convention, distinct, floor
+                )
+            ):
+                named += [layout]
+        absorbed = taxonomy.absorbed_layout_census(named, present, convention, into)
+        census = {}
+        for layout in sorted(absorbed[0]):
+            if absorbed[0][layout]:
+                census[layout] = absorbed[0][layout]
+        absorbed_lengths = {"min_length": absorbed[1], "max_length": absorbed[2]}
     for field, published, subcheck in (
         ("min_length", facts.min_length, "length.min"),
         ("max_length", facts.max_length, "length.max"),
@@ -22118,6 +22141,7 @@ def _identifier_checks(
         floor, "layout_forms",
     )
     checks = checks + _prefix_checks(name, facts, present)
+    checks = checks + _uid_grammar_checks(name, facts, present)
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         # REPORT-ONLY in this corner, listed rather than checked (owner
         # decision 6; review item P3-V1-F4).
@@ -22181,6 +22205,41 @@ def _prefix_checks(
             )
         ]
     return checks
+
+
+def _uid_grammar_checks(
+    name: str, facts: contract.IdentifierFacts, present: "list[str]"
+) -> "list[Check]":
+    """A column publishing a UID root: every present cell a UID (plan P4-D428).
+
+    THE GRAMMAR IS AN OBLIGATION (Codex's review of lane CODES-3, item 6).
+    A `(column)` prefix that is a DICOM UID's root (`parsing.is_a_uid_root`)
+    says every present cell is a UID of two points or more under the
+    grammar `[012](\\.(0|[1-9]\\d*))+` (`parsing.is_a_uid`): a cell whose
+    arc is led by a nought misses it, though its layout, prefix and
+    lengths all hold. Every other description gets no such check, and its
+    report no line. Nothing of the file is printed.
+    """
+    prefixes = facts.layout_prefixes
+    if parsing.PREFIX_OF_THE_COLUMN not in prefixes or not parsing.is_a_uid_root(
+        prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    ):
+        return []
+    outside = 0
+    for cell in present:
+        if not parsing.is_a_uid(cell):
+            outside = outside + 1
+    return [
+        _silent(
+            name,
+            "identifier.layout_prefixes",
+            "uid.grammar",
+            "every present cell is a UID, no arc led by a nought, as the "
+            "root the description publishes says",
+            outside == 0,
+            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+        )
+    ]
 
 
 def _unrepresentable_checks(

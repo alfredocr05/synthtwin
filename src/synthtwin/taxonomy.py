@@ -11541,6 +11541,12 @@ def layout_census(
     """
     convention = parsing.layout_convention(present)
     counts: dict[str, int] = {}
+    # A LAYOUT WORN ONLY BY WHOLE NUMBERS WRITTEN AS DECIMALS (`31000000.00`)
+    # spells only as many cells as its figures before the point, since the
+    # twin writes `0` after it (`parsing.whole_places_layout`; Codex's
+    # review of lane CODES-3, item 1: `00.00` to `99.00` left `%%.%%` a
+    # hundred cells, and the twin wrote all one hundred real ones).
+    noughts: dict[str, bool] = {}
     deepest = 0
     for value in present:
         layout = parsing.layout_form(value, convention)
@@ -11551,6 +11557,11 @@ def layout_census(
             # small group.
             continue
         deepest = max(deepest, parsing.layout_fill(layout))
+        if parsing.whole_places_layout(layout) != layout:
+            after = value[value.find(".") + 1:]
+            noughts[layout] = (noughts[layout] if layout in noughts else True) and (
+                after == "0" * len(after)
+            )
         if layout in counts:
             counts[layout] = counts[layout] + 1
             continue
@@ -11577,6 +11588,10 @@ def layout_census(
     census: dict[str, int] = {}
     for layout in sorted(counts):
         if parsing.layout_supply(layout) < room_needed:
+            continue
+        if layout in noughts and noughts[layout] and (
+            parsing.whole_places_room(layout) < room_needed
+        ):
             continue
         if counts[layout] >= line:
             census[layout] = counts[layout]
@@ -11838,7 +11853,7 @@ def _layout_prefixes(
     named = [layout for layout in sorted(layouts) if layout != SUPPRESSED_LABEL]
     if not named:
         return {}
-    whole = parsing.literal_prefix(cells.present, convention)
+    whole = column_prefix(cells.present, convention)
     if (
         whole
         and parsing.prefix_nameable(present, present, floor)
@@ -11866,6 +11881,19 @@ def _layout_prefixes(
         ) and _prefix_keeps_the_room(cells, [layout], prefix, convention):
             found[layout] = prefix
     return found
+
+
+def column_prefix(present: "list[str]", convention: str) -> str:
+    """The literal opening every present cell shares: a UID root or letters (P4-D428).
+
+    A column EVERY present cell of which is a DICOM UID opens with its
+    organisation's root (`parsing.uid_root`), the one prefix of figures;
+    read over the whole column and never over one layout's cells (Codex's
+    review of lane CODES-3, item 2: 200 cells `1.2.10000` to `1.2.10199`
+    beside eleven `1.2.` published `1.2.` for one layout, a whole cell of
+    the table). Otherwise `parsing.literal_prefix`. No I/O.
+    """
+    return parsing.uid_root(present) or parsing.literal_prefix(present, convention)
 
 
 def _prefix_keeps_the_room(
@@ -26090,72 +26118,110 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     )
 
 
+def _a1_tail_fits(tail: str, uid: bool) -> bool:
+    """Whether a cell's text after the column's prefix is one rule A1 may move.
+
+    Figures alone, or under a UID root figures and points: text with no
+    case and no mark that `n_code_alphabet` or `n_all_digits` could read
+    otherwise than every cell of the commonest layout (Codex's review of
+    lane CODES-3, item 4).
+    """
+    if not tail:
+        return False
+    for character in tail:
+        if "0" <= character <= "9" or (uid and character == "."):
+            continue
+        return False
+    return True
+
+
+def _figures_for_marks(layout: str) -> str:
+    """A layout with a nought written for every figure mark, `%` and `!`."""
+    written = ""
+    for mark in layout:
+        if mark == parsing.LAYOUT_DIGIT or mark == parsing.LAYOUT_LEADING_ZERO:
+            written = written + "0"
+        else:
+            written = written + mark
+    return written
+
+
 def absorbed_layout_census(
-    census: "dict[str, int]", present: "list[str]"
-) -> "tuple[dict[str, int], int, int] | None":
-    """A layout census with its pooled cells moved into its commonest named layout.
+    named: "list[str]",
+    present: "list[str]",
+    convention: str,
+    into: str = "",
+) -> "tuple[dict[str, int], int, int, int]":
+    """A census of ``named`` layouts with every other cell counted in the commonest.
 
     RULE A1 OF THE ZOO-FIX STAND-INS PAGE, ON A PREFIXED RECORD NUMBER
     (plan P4-D422's ZS.2, ruling 6 of the owner; lane CODES-3, plan
-    P4-D428). A cell that wears a layout and is counted in no named one
-    -- its layout too rare to name, or of too small a supply, the
-    `(withheld)` pool whether or not it was written -- is counted in the
-    commonest named layout (the earliest in sorted order on a tie), and
-    `(withheld)` goes. A cell of a deep zero fill counted under a
-    shallower named layout stays there (`parsing.layout_shallower`), and a
-    cell with no layout at all stays counted nowhere, as
-    `layout_census` counts it.
+    P4-D428). A present cell wearing one of ``named`` -- a deep zero fill
+    counted under a shallower one named (`parsing.layout_shallower`) -- is
+    counted there; every other cell with a layout is counted in ``into``,
+    or where that is "" in the named layout its own cells make commonest
+    (the earliest in sorted order on a tie). A cell with no layout is
+    counted nowhere, as `layout_census` counts it.
 
-    Returned with the shortest and longest lengths read the same way: a
-    cell moved counts at its new layout's length (one mark a character,
-    so a layout is as long as every cell wearing it), every other cell at
-    its own. None where nothing moves: no named layout, or no cell
-    pooled.
-
-    Guarantees: a fixed function of the census and the present cells.
-    Raises nothing. No I/O.
+    Returned: the census, the shortest and longest lengths read the same
+    way (a cell moved counts at its new layout's length, one mark a
+    character), and how many cells moved. Guarantees: a fixed function
+    of the arguments. Raises nothing. No I/O.
     """
-    named: dict[str, int] = {}
-    for layout in sorted(census):
-        if layout != SUPPRESSED_LABEL:
-            named[layout] = census[layout]
-    if not named:
-        return None
-    commonest = ""
+    counts: "dict[str, int]" = {}
     for layout in sorted(named):
-        if not commonest or named[layout] > named[commonest]:
-            commonest = layout
-    convention = parsing.layout_convention(present)
-    pool = 0
+        counts[layout] = 0
+    moved = 0
     lengths: "list[int]" = []
     for value in present:
         layout = parsing.layout_form(value, convention)
-        while layout and layout not in named and parsing.layout_fill(layout) >= 2:
+        while layout and layout not in counts and parsing.layout_fill(layout) >= 2:
             layout = parsing.layout_shallower(layout)
-        if layout and layout not in named:
-            pool = pool + 1
-            lengths += [len(commonest)]
-            continue
-        lengths += [len(value)]
-    if pool == 0:
-        return None
-    named[commonest] = named[commonest] + pool
-    return named, min(lengths), max(lengths)
+        if layout in counts:
+            counts[layout] = counts[layout] + 1
+            lengths += [len(value)]
+        elif layout:
+            moved = moved + 1
+        else:
+            lengths += [len(value)]
+    commonest = into
+    if not commonest:
+        for layout in sorted(counts):
+            if not commonest or counts[layout] > counts[commonest]:
+                commonest = layout
+    if commonest and moved:
+        before = counts[commonest] if commonest in counts else 0
+        counts[commonest] = before + moved
+        lengths += [len(commonest)]
+    if not lengths:
+        return counts, 0, 0, moved
+    return counts, min(lengths), max(lengths), moved
 
 
-def absorbs_its_layout_pool(details: "dict[str, object]") -> bool:
-    """Whether a record number's block is one rule A1 absorbs (plan P4-D428).
+def a1_census_is_absorbed(
+    layouts: "dict[str, int]", prefixes: "dict[str, str]", n_present: int
+) -> str:
+    """The layout a description's rule A1 counted moved cells in, or "" (P4-D428).
 
-    A block publishing a prefix every cell opens with, `(column)`: the
-    prefixed record numbers of several lengths (row 43 of the zoo plan,
-    VCF `rs` and four to nine figures), whose pool the twin wrote with
-    `-` fillers, one cell without its prefix. A block publishing no
-    prefix -- a record number of no common opening, or one held until its
-    question is answered (P4-D401), whose prefix is never published --
-    keeps today's `(withheld)` pool and bytes.
+    A description of rule A1 publishes a `(column)` prefix, no
+    `(withheld)` pool, and named layouts counting EVERY present cell: a
+    census that left cells to subtraction -- an older description whose
+    short layout was too small a supply to name (Codex's review of lane
+    CODES-3, item 5) -- is not one, and is read as it was written. The
+    answer is the commonest named layout (the earliest in sorted order on
+    a tie), which the validator counts a measured file's other cells in.
     """
-    prefixes = details["layout_prefixes"] if "layout_prefixes" in details else None
-    return isinstance(prefixes, dict) and parsing.PREFIX_OF_THE_COLUMN in prefixes
+    if parsing.PREFIX_OF_THE_COLUMN not in prefixes or SUPPRESSED_LABEL in layouts:
+        return ""
+    total = 0
+    commonest = ""
+    for layout in sorted(layouts):
+        total = total + layouts[layout]
+        if not commonest or layouts[layout] > layouts[commonest]:
+            commonest = layout
+    if not commonest or total != n_present:
+        return ""
+    return commonest
 
 
 def with_layout_pool_absorbed(
@@ -26163,66 +26229,105 @@ def with_layout_pool_absorbed(
 ) -> ColumnProfile:
     """A declared record number's block under rule A1 (plan P4-D428).
 
-    Where `absorbs_its_layout_pool` reads the block and
-    `absorbed_layout_census` moves cells, the census is the absorbed one
-    and the shortest and longest lengths are read as it reads them: the
-    twin writes the pool's cells in the commonest layout, so no length
-    only the pool held is owed, and none is printed. ``cells`` is the
-    column's cells; the present ones are those holding text that is not a
-    spelling the column read as missing.
+    THE COLUMN'S PREFIX, WRITTEN ON EVERY CELL. A declared record number
+    whose present cells share a literal opening (`column_prefix`: letters,
+    or a UID's root) is described with that `(column)` prefix wherever
+    some named layout keeps the room rule beside it (LP3,
+    `parsing.prefix_leaves_room`, read through `parsing.prefix_room`): a
+    cell of any other layout -- the `(withheld)` pool, a layout too small
+    a supply to name, one a person-count floor took back (Codex's review,
+    item 3), one whose room the prefix would take below the line (skeptic
+    1, items 5 and 7: instance numbers 1 to 600 under one root, rsIDs of
+    four figures among 20,000) -- is counted in the commonest layout that
+    keeps it (`absorbed_layout_census`), and the shortest and longest
+    lengths are read so. Built on the census the description PUBLISHES,
+    never a recount, so no decision a floor took is undone.
 
-    THE CENSUS ABSORBED IS THE RECOUNT'S, read by `layout_census` as the
-    validator reads the measured file, and it stands only where C6-131b's
-    whole-census rule (`_no_complement_of_one`) leaves it whole: a census
-    that rule took a layout from to keep one row from being named is the
-    recount's with the pool written in, and a census that would leave one
-    cell's complement after absorbing is not absorbed (the description is
-    then today's). The validator reads the measured file with the same
-    absorption (`validation._identifier_checks`), so the real table meets
-    the census it was described with. Every other column is returned
-    unchanged.
+    ONLY WHERE EVERY OBLIGATION STAYS TRUE (Codex's review, item 4): every
+    moved cell, and the commonest layout, is the prefix and then figures
+    alone -- or, under a UID root, figures and points -- so no case, no
+    alphabet count and no folded identity reads otherwise; no present cell
+    is without a layout; and C6-131b's whole-census rule leaves the
+    census whole. Every other column is returned unchanged, today's
+    description. The validator reads the measured file alike
+    (`a1_census_is_absorbed`, `validation._identifier_checks`).
 
     Guarantees: a fixed function of the arguments. Raises nothing. No I/O.
     """
-    if column.role != ROLE_IDENTIFIER or not absorbs_its_layout_pool(
-        column.details
-    ):
+    if column.role != ROLE_IDENTIFIER:
+        return column
+    forms = (
+        column.details["layout_forms"] if "layout_forms" in column.details else None
+    )
+    old_prefixes = (
+        column.details["layout_prefixes"]
+        if "layout_prefixes" in column.details
+        else None
+    )
+    if not isinstance(forms, dict) or not isinstance(old_prefixes, dict):
         return column
     absent: "dict[str, bool]" = {}
     for spelling in column.absent_spellings:
         absent[spelling] = True
     present = [
-        value
-        for value in cells
-        if parsing.trimmed(value) and value not in absent
+        value for value in cells if parsing.trimmed(value) and value not in absent
     ]
-    recounted = layout_census(present, floor, len(set(present)))
-    absorbed = absorbed_layout_census(recounted, present)
-    if absorbed is None:
+    if not present or len(present) != column.n_present:
         return column
-    census = absorbed[0]
+    convention = parsing.layout_convention(present)
+    whole = column_prefix(present, convention)
+    if not whole or not parsing.prefix_nameable(len(present), len(present), floor):
+        return column
+    uid = parsing.is_a_uid_root(whole)
+    opening = parsing.prefix_layout(whole, convention)
+    distinct = len(set(present))
+    kept: "list[str]" = []
+    for layout in sorted(forms):
+        if (
+            layout != SUPPRESSED_LABEL
+            and layout[: len(opening)] == opening
+            and _a1_tail_fits(_figures_for_marks(layout[len(opening):]), uid)
+            and parsing.prefix_leaves_room(layout, whole, convention, distinct, floor)
+        ):
+            kept += [layout]
+    if not kept:
+        return column
+    census, shortest, longest, moved = absorbed_layout_census(kept, present, convention)
+    for value in present:
+        if not parsing.layout_form(value, convention) or not _a1_tail_fits(
+            value[len(whole):], uid
+        ):
+            return column
+    published: "dict[str, int]" = {}
+    for layout in sorted(forms):
+        published[layout] = forms[layout]
+    if moved == 0 and census == published and old_prefixes == {
+        parsing.PREFIX_OF_THE_COLUMN: whole
+    }:
+        return column
     code_alphabet = (
         column.details["n_code_alphabet"] if "n_code_alphabet" in column.details else 0
     )
     all_digits = column.details["n_all_digits"] if "n_all_digits" in column.details else 0
     if not isinstance(code_alphabet, int) or not isinstance(all_digits, int):
         return column
-    plain = parsing.layout_convention(present) == parsing.LAYOUT_PLAIN
+    plain = convention == parsing.LAYOUT_PLAIN
     totals = [
         (code_alphabet, _LAYOUT_CODE_MARKS),
         (all_digits if plain else 0, _LAYOUT_FIGURE_MARKS),
     ]
-    named: dict[str, int] = {}
-    for layout in sorted(census):
-        named[layout] = census[layout]
-    if _no_complement_of_one(named, 0, False, floor, totals, column.n_present) != census:
+    if _no_complement_of_one(census, 0, False, floor, totals, column.n_present) != census:
+        return column
+    written = {parsing.PREFIX_OF_THE_COLUMN: whole}
+    if not a1_census_is_absorbed(census, written, column.n_present):
         return column
     details: dict[str, object] = {}
     for key in sorted(column.details):
         details[key] = column.details[key]
     details["layout_forms"] = census
-    details["min_length"] = absorbed[1]
-    details["max_length"] = absorbed[2]
+    details["layout_prefixes"] = written
+    details["min_length"] = shortest
+    details["max_length"] = longest
     return dataclasses.replace(column, details=details)
 
 

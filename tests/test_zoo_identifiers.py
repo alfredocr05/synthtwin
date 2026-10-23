@@ -51,6 +51,7 @@ import pytest
 
 from synthtwin import asking, cli, parsing
 
+import fixtures
 import unanswered_identifier_shapes as shapes
 
 UID = re.compile(r"[012](\.(0|[1-9]\d*))+")
@@ -142,15 +143,17 @@ PLAIN_KEYS = {
 WORD_SHARES = (("pure", 0), ("one", -1), ("third", 3))
 
 
-def plain_rows(form: str, share: int, n: int) -> "tuple[list[str], list[list[str]]]":
-    """One key a cell of `PLAIN_KEYS[form]`, beside a test name and a value; `OTHER` as `share` says."""
+def plain_rows(
+    form: str, share: int, n: int, word: str = "OTHER"
+) -> "tuple[list[str], list[list[str]]]":
+    """One key a cell of `PLAIN_KEYS[form]`, beside a test name and a value; ``word`` as `share` says."""
     draw = random.Random(20261023)
     keys = PLAIN_KEYS[form]
     words = 0 if share == 0 else 1 if share < 0 else n // share
     rows: "list[list[str]]" = []
     for index in range(n):
         rows += [[
-            "OTHER" if index < words else keys[index % len(keys)],
+            word if index < words else keys[index % len(keys)],
             draw.choice(("Sodium", "Potassium", "Glucose")),
             f"{draw.uniform(3, 150):.1f}",
         ]]
@@ -173,8 +176,13 @@ def run(
     rows: "list[list[str]]",
     column: str,
     declared: "tuple[str, ...]" = (),
+    validate: bool = True,
 ) -> "dict[str, object]":
-    """Profile (nobody at the keyboard), generate at seed 0 and validate; what one column came to."""
+    """Profile (nobody at the keyboard), generate at seed 0 and validate; what one column came to.
+
+    ``validate`` False leaves the twin unchecked (its exit reads -1): the
+    cases that ask only what is published and what the twin writes.
+    """
     path = _write(folder, header, rows)
     typed: "list[str]" = []
     for name in declared:
@@ -186,8 +194,11 @@ def run(
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             generated = cli.main(["generate", f"{folder / 't-profile.json'}", "--out-dir",
                                   f"{folder}", "--seed", "0", "--replace"])
-            validated = cli.main(["validate", f"{folder / 't-profile.json'}", "--twin",
-                                  f"{folder / 't-twin.csv'}", "--out-dir", f"{folder}", "--replace"])
+            validated = -1
+            if validate:
+                validated = cli.main(["validate", f"{folder / 't-profile.json'}", "--twin",
+                                      f"{folder / 't-twin.csv'}", "--out-dir", f"{folder}",
+                                      "--replace"])
     texts = [(folder / name).read_text(encoding="utf-8")
              for name in ("t-profile.json", "t-profile.txt", "t-questions.json")]
     texts += [screen.getvalue()]
@@ -257,25 +268,156 @@ def test_q_id_is_hx_s_question_put_once_and_holds_until_answered(tmp_path: pathl
     assert counted["description_values"] == 0 and counted["twin_cells"] == 0
 
 
-def test_q_id_reaches_no_column_but_uids_every_one_different() -> None:
+def test_q_id_reaches_no_column_but_a_column_of_uids() -> None:
     """Q-ID's trigger, and the columns it must not reach (ZR.2's goldens, figures and marks).
 
-    Mutant: the trigger reading a cell of figures and points without the
-    grammar (`parsing.is_a_uid` answering True for any text): `1.25`-style
-    numbers and `120/80` pressures would be asked.
+    Different UIDs are asked; repeating ones where every value holds an
+    arc of five figures or more (a study, series or instance number); a
+    third of words aside (skeptic 1, items 4 and 9). Mutants: the trigger
+    reading a cell of figures and points without the grammar
+    (`parsing.is_a_uid` answering True for any text: `1.25`-style numbers
+    and `120/80` pressures asked); `_an_arc_naming_an_item` answering True
+    (version numbers `2.1.0` repeating asked).
     """
     uids = [f"1.2.840.{place}.{place + 7}" for place in range(1, 200)]
-    assert asking._uids_every_one_different(uids)
-    assert not asking._uids_every_one_different(uids + [uids[0]])
-    assert not asking._uids_every_one_different([f"{place}.{place % 7}5" for place in range(200)])
-    assert not asking._uids_every_one_different([f"{100 + place}/{60 + place % 30}" for place in range(200)])
-    assert not asking._uids_every_one_different([f"1.02.{place}" for place in range(200)])
-    assert not asking._uids_every_one_different([f"3.2.{place}" for place in range(200)])
-    assert not asking._uids_every_one_different([f"1.{place}" for place in range(200)])
+    assert asking._a_column_of_uids(uids)
+    assert not asking._a_column_of_uids(uids + [uids[0]])
+    assert not asking._a_column_of_uids([f"{place}.{place % 7}5" for place in range(200)])
+    assert not asking._a_column_of_uids([f"{100 + place}/{60 + place % 30}" for place in range(200)])
+    assert not asking._a_column_of_uids([f"1.02.{place}" for place in range(200)])
+    assert not asking._a_column_of_uids([f"3.2.{place}" for place in range(200)])
+    assert not asking._a_column_of_uids([f"1.{place}" for place in range(200)])
+    assert not asking._a_column_of_uids(["2.1.0", "2.0.1", "3.0.2"] * 100)
+    series = [f"{ROOT}604688119.868.1599999999.{place // 20 + 1}" for place in range(600)]
+    assert asking._a_column_of_uids(series)
+    assert asking._a_column_of_uids(["UNKNOWN"] + uids)
+    assert asking._a_column_of_uids(["Not known."] * 66 + uids)
+    assert not asking._a_column_of_uids(["UNKNOWN"] * 100 + uids)
     assert parsing.is_a_uid_root("1.2.840.113619.") and not parsing.is_a_uid_root("1.2.840")
     assert not parsing.is_a_literal_prefix("12.") and not parsing.is_a_literal_prefix("P00")
     assert parsing.uid_root(uids) == "1.2.840."
     assert parsing.uid_root(uids + ["REC1"]) == ""
+
+
+# THE ROOT ENDS BEFORE THE FIRST ARC THAT COULD NAME A STUDY, A SERIES, A
+# DEVICE OR A MOMENT (skeptic 1, item 1; the orchestrator's ruling of
+# 2026-10-23 16:56): cut at the last point before the first arc of five
+# figures or more, the organisation arc after `1.2.840.` aside.
+SERIES = f"{ROOT}604688119.868.1599999999.123"
+STUDY = f"{ROOT}604688119.868.1599999999"
+SIEMENS = "1.3.12.2.1107.5.2.32.35162."
+
+
+def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() -> None:
+    """The ruling's cut on its four named roots. Mutant: `_root_of_the_organisation`
+    returning the shared arcs whole (the series and study UIDs published)."""
+    assert parsing.uid_root([f"{SERIES}.{place}" for place in range(1, 50)]) == ROOT
+    assert parsing.uid_root([f"{STUDY}.{place % 20 + 1}.{place}" for place in range(1, 50)]) == ROOT
+    assert parsing.uid_root([f"{SIEMENS}{place}.1" for place in range(1, 50)]) == "1.3.12.2.1107.5.2.32."
+    assert parsing.uid_root([f"1.2.276.0.7230010.3.1.4.{place}" for place in range(1, 50)]) == "1.2.276.0."
+    assert parsing.uid_root([f"1.2.840.10008.5.1.4.1.1.{place}" for place in range(1, 50)]) == "1.2.840.10008.5.1.4.1.1."
+
+
+def _uid_table(cells: "list[str]") -> "tuple[list[str], list[list[str]]]":
+    draw = random.Random(len(cells))
+    return ["uid", "modality"], [[cell, draw.choice(("CT", "MR", "CR"))] for cell in cells]
+
+
+@pytest.mark.parametrize("n", SIZES)
+@pytest.mark.parametrize("shape", ["sop", "study"])
+def test_a_declared_root_is_the_organisation_s_and_the_twin_writes_no_real_uid(
+    tmp_path: pathlib.Path, n: int, shape: str
+) -> None:
+    """Skeptic 1, item 1: SOP UIDs of one series, instances of one study, declared.
+
+    The published root is GE's, never the series or study UID; no real
+    UID in any file or the twin; every cell under the root and the grammar.
+    Mutant "all shared arcs" (`_root_of_the_organisation` returning its
+    root whole): the series UID published, 278 real SOP UIDs in the twin.
+    """
+    cells = [f"{SERIES}.{k + 1}" if shape == "sop" else f"{STUDY}.{k % 20 + 1}.{k // 20 + 1}"
+             for k in range(n)]
+    header, rows = _uid_table(cells)
+    seen = run(tmp_path / shape, header, rows, "uid", declared=("uid",))
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    assert seen["block"]["layout_prefixes"] == {"(column)": ROOT}
+    for text in seen["texts"]:
+        assert STUDY not in text
+    assert not set(seen["cells"]) & set(cells)
+    assert sum(1 for cell in seen["cells"] if UID.fullmatch(cell) is None) == 0
+    assert sum(1 for cell in seen["cells"] if not cell.startswith(ROOT)) == 0
+
+
+def test_a_siemens_root_is_cut_before_the_scanner_serial(tmp_path: pathlib.Path) -> None:
+    """The ruling's Siemens case at 600 rows: `35162` is a scanner serial, never published."""
+    draw = random.Random(35162)
+    cells = [f"{SIEMENS}{draw.randint(10**8, 10**9 - 1)}.{draw.randint(1, 999)}.{1600000000 + k}"
+             for k in range(600)]
+    header, rows = _uid_table(cells)
+    seen = run(tmp_path / "siemens", header, rows, "uid", declared=("uid",))
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    assert seen["block"]["layout_prefixes"] == {"(column)": "1.3.12.2.1107.5.2.32."}
+    for text in seen["texts"]:
+        assert "35162" not in text
+
+
+@pytest.mark.parametrize("n", SIZES)
+@pytest.mark.parametrize("shape", ["short_tail", "sop_series"])
+def test_a_declared_uid_of_several_tail_lengths_keeps_its_root(
+    tmp_path: pathlib.Path, n: int, shape: str
+) -> None:
+    """Skeptic 1, items 5 and 10: instance numbers 1..N under one root, declared.
+
+    The layouts whose room the root would take below the line are counted
+    in the commonest one that keeps it (rule A1 widened), so every twin
+    cell carries the root and passes the grammar, validate at exit 0.
+    Mutant: A1 kept to a published `(column)` prefix (the root lost on the
+    layouts the room rule refuses: 99 cells off the root at 600 rows).
+    """
+    cells = [f"{ROOT}{k + 1}" if shape == "short_tail" else f"{SERIES}.{k + 1}" for k in range(n)]
+    header, rows = _uid_table(cells)
+    seen = run(tmp_path / shape, header, rows, "uid", declared=("uid",))
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    assert seen["block"]["layout_prefixes"] == {"(column)": ROOT}
+    assert sum(seen["block"]["layout_forms"].values()) == n
+    assert sum(1 for cell in seen["cells"] if UID.fullmatch(cell) is None) == 0
+    assert sum(1 for cell in seen["cells"] if not cell.startswith(ROOT)) == 0
+
+
+@pytest.mark.parametrize("n", SIZES)
+@pytest.mark.parametrize("every", [20, 40])
+def test_repeating_uids_are_put_q_id_and_held(tmp_path: pathlib.Path, n: int, every: int) -> None:
+    """Skeptic 1, item 4: a series UID on the rows of its images, read as labels, is held.
+
+    Q-ID put once, the column held, 0 real UIDs in any file or the twin.
+    Mutant: Q-ID's trigger asking every value different (the labels print
+    30 series UIDs at 600 rows and the twin writes them on every row).
+    """
+    cells = [f"{STUDY}.{k // every + 1}" if every == 20
+             else f"{ROOT}{604688119 + (k // every) * 7919}.868.{1600000000 + k // every}"
+             for k in range(n)]
+    header, rows = _uid_table(cells)
+    seen = run(tmp_path / f"rep{every}", header, rows, "uid", validate=False)
+    assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
+    assert seen["held"] is True
+    counted = shapes.count_real(sorted(set(cells)), seen["texts"], seen["cells"])
+    assert counted["description_values"] == 0 and counted["twin_cells"] == 0, counted
+
+
+def test_uids_beside_one_word_are_put_q_id_and_held(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1, item 9: UIDs beside one `UNKNOWN` (a number with words) are put Q-ID.
+
+    Mutant: `_uid_cells` setting no word aside (no question; the twin
+    leads arcs with noughts under the number-with-words reading).
+    """
+    draw = random.Random(9)
+    cells = ["UNKNOWN"] + [f"{ROOT}{draw.randint(10**8, 10**9 - 1)}.{1600000000 + k}" for k in range(599)]
+    header, rows = _uid_table(cells)
+    seen = run(tmp_path / "word", header, rows, "uid", validate=False)
+    assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
+    assert seen["held"] is True
+    counted = shapes.count_real(cells[1:], seen["texts"], seen["cells"])
+    assert counted["description_values"] == 0 and counted["twin_cells"] == 0, counted
 
 
 # -- (b) float record numbers --------------------------------------------
@@ -295,6 +437,72 @@ def test_b_a_whole_record_number_writes_its_noughts(tmp_path: pathlib.Path, n: i
         assert seen["block"]["all_whole_numbers"] is True
         assert seen["block"]["layout_forms"] == {"%%%%%%%%.%%": n}
         assert sum(1 for cell in seen["cells"] if re.fullmatch(r"\d+\.00", cell) is None) == 0
+
+
+@pytest.mark.parametrize("n", SIZES)
+@pytest.mark.parametrize("places", [".00", ".0"])
+def test_b_whole_record_numbers_written_as_decimals_are_held_unanswered(
+    tmp_path: pathlib.Path, n: int, places: str
+) -> None:
+    """Skeptic 1, item 3: `31000000.00` (and `.0`), nobody at the keyboard, is held.
+
+    Read as its bare figures, the fixed-width question is put once and the
+    column held, as the same numbers written without the point are: 0 real
+    values in any file or the twin. Mutant: `_without_nought_places`
+    answering [] (read as a count, its mean and percentiles published, 598
+    of 600 real encounter numbers in the twin).
+    """
+    cells = [f"{31000000 + k}{places}" for k in range(n)]
+    draw = random.Random(3)
+    rows = [[cell, draw.choice(("Sodium", "Glucose"))] for cell in cells]
+    seen = run(tmp_path / "enc", ["ENCNTR_ID", "test"], rows, "ENCNTR_ID", validate=False)
+    assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
+    assert seen["held"] is True
+    counted = shapes.count_real(cells, seen["texts"], seen["cells"])
+    assert counted["description_values"] == 0 and counted["twin_cells"] == 0, counted
+
+
+def test_b_grouped_and_partly_decimal_record_numbers(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1, items 8 and 12 (X4), at 600 rows.
+
+    `31,000,000.00` declared writes its noughts after the point (the
+    group mark allowed before it; mutant: `parsing._GROUP_MARKS` empty, 595
+    cells bad). Record numbers whose places are not all noughts publish
+    `all_whole_numbers false`, and the twin draws them (mutant X4: the
+    noughts written without `all_whole_numbers`, every cell `.00`).
+    """
+    grouped = [f"{31000000 + k:,}.00" for k in range(600)]
+    rows = [[cell, "x"] for cell in grouped]
+    seen = run(tmp_path / "grouped", ["ID", "other"], rows, "ID", declared=("ID",))
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    assert sum(1 for cell in seen["cells"] if re.fullmatch(r"\d{1,3}(,\d{3})*\.00", cell) is None) == 0
+    draw = random.Random(4)
+    decimals = [f"{draw.randint(10**7, 10**8 - 1)}.{draw.randint(10, 99)}" for _row in range(600)]
+    seen = run(tmp_path / "decimals", ["ID", "other"], [[cell, "x"] for cell in decimals], "ID",
+               declared=("ID",))
+    assert seen["block"]["all_whole_numbers"] is False
+    assert sum(1 for cell in seen["cells"] if cell.endswith(".00")) < 60
+
+
+def test_b_a_whole_places_layout_spells_only_its_figures_before_the_point(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's item 1 (b): `00.00` to `99.00` declared is no hundred-cell layout.
+
+    Writing noughts after the point leaves `%%.%%` a hundred cells, so the
+    layout is not named (`taxonomy.layout_census` counts the room before
+    the point) and the twin writes fewer than all hundred real values.
+    Mutant: the census's whole-places room removed (`%%.%%` named, the
+    twin writing all 100 real values).
+    """
+    assert parsing.whole_places_layout("%%,%%%,%%%.%%") == "%%,%%%,%%%.00"
+    assert parsing.whole_places_layout("@%%.%%") == "@%%.%%"
+    assert parsing.whole_places_room("%%.%%") == 100
+    cells = [f"{k % 100:02d}.00" for k in range(600)]
+    seen = run(tmp_path / "hundred", ["ID", "other"], [[cell, "x"] for cell in cells], "ID",
+               declared=("ID",))
+    assert "%%.%%" not in seen["block"]["layout_forms"]
+    assert len(set(seen["cells"]) & set(cells)) < 100
 
 
 # -- (c) prefixed ids of several lengths ---------------------------------
@@ -323,12 +531,188 @@ def test_c_a_prefixed_id_s_rare_layouts_are_counted_in_its_commonest(tmp_path: p
     real = tmp_path / "vcf" / "t.csv"
     (tmp_path / "real").mkdir()
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        cli.main(["validate", f"{tmp_path / 'vcf' / 't-profile.json'}", "--twin", f"{real}",
-                  "--out-dir", f"{tmp_path / 'real'}", "--replace"])
+        checked = cli.main(["validate", f"{tmp_path / 'vcf' / 't-profile.json'}", "--twin",
+                            f"{real}", "--out-dir", f"{tmp_path / 'real'}", "--replace"])
+    assert checked in (0, 3), checked
     report = (tmp_path / "real" / "t-quality.txt").read_text(encoding="utf-8")
     missed = [line for line in report.splitlines() if line.rstrip().endswith("MISSED")]
     for line in missed:
         assert "layout" not in line and "prefix" not in line and "length" not in line, line
+
+
+def _rs_mix(n: int, unique: bool) -> "list[str]":
+    """rsIDs of four to nine figures, the rare widths clearing the floor at 20,000 rows (skeptic 1, item 7)."""
+    draw = random.Random(11)
+    used: "set[int]" = set()
+    cells: "list[str]" = []
+    for _row in range(n):
+        width = draw.choice([4] * 3 + [5] * 3 + [6] * 4 + [8] * 400 + [9] * 590)
+        value = draw.randint(10 ** (width - 1), 10 ** width - 1)
+        while unique and value in used:
+            value = draw.randint(10 ** (width - 1), 10 ** width - 1)
+        used.add(value)
+        cells += [f"rs{value}"]
+    return cells
+
+
+def test_c_rare_widths_that_clear_the_floor_keep_the_prefix_at_20000(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Skeptic 1, item 7: rsIDs of four figures (room 10^4 beside 20,000 values) keep `rs`.
+
+    The layout whose room the prefix would take below the line is counted
+    in the commonest one (rule A1 widened). Every twin cell `rs` and
+    figures. Mutant: A1 kept to a published `(column)` prefix (60 cells
+    without `rs`). (Three values repeated make the declared column the
+    table's person column, `cli._population_of`, whose census is counted
+    in people: plan P4-D428 names that line and its owner.)
+    """
+    cells = _rs_mix(20_000, True)
+    seen = run(tmp_path / "rs", ["ID", "other"], [[cell, "x"] for cell in cells], "ID",
+               declared=("ID",))
+    assert seen["block"]["layout_prefixes"] == {"(column)": "rs"}
+    assert sum(seen["block"]["layout_forms"].values()) == 20_000
+    assert sum(1 for cell in seen["cells"] if re.fullmatch(r"rs\d+", cell) is None) == 0
+
+
+def test_c_the_pool_goes_into_the_commonest_layout_and_no_other(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1, item 12 (X5): the 8-figure layout's count is its own cells', exactly.
+
+    Mutant: A1 counting the pool in the RAREST named layout.
+    """
+    header, rows = vcf_rows(600, 43)
+    seen = run(tmp_path / "vcf", header, rows, "ID", declared=("ID",), validate=False)
+    forms = seen["block"]["layout_forms"]
+    eight = sum(1 for row in rows if re.fullmatch(r"rs\d{8}", row[2]))
+    nine = sum(1 for row in rows if re.fullmatch(r"rs\d{9}", row[2]))
+    assert forms["&&%%%%%%%%"] == eight
+    assert forms["&&%%%%%%%%%"] == 600 - eight > nine
+
+
+def _validated(folder: pathlib.Path, document: "dict[str, object]", cells: "list[str]") -> str:
+    """A description validated against a file of ``cells``: the quality report's MISSED lines."""
+    folder.mkdir(parents=True, exist_ok=True)
+    fixtures.write_profile(folder, "d-profile.json", document)
+    _write(folder, ["ID", "other"], [[cell, "x"] for cell in cells])
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        checked = cli.main(["validate", f"{folder / 'd-profile.json'}", "--twin", f"{folder / 't.csv'}",
+                            "--out-dir", f"{folder}", "--replace"])
+    assert checked in (0, 3), checked
+    report = (folder / "t-quality.txt").read_text(encoding="utf-8")
+    return "\n".join(line for line in report.splitlines() if line.rstrip().endswith("MISSED"))
+
+
+def test_c_an_older_description_is_read_as_it_was_written(tmp_path: pathlib.Path) -> None:
+    """Codex's item 5 and skeptic 1's X9: a census that left cells to subtraction is no A1.
+
+    `P10000` to `P10789` beside `P0` to `P9`, its short layout too small a
+    supply to name: the description publishes `@%%%%%: 790`, the prefix
+    and the true shortest length 2. Validated against its own source,
+    nothing is MISSED. Mutant: the validator absorbing wherever no pool
+    is written (length.min 6 against 2, the census 800 against 790).
+    """
+    cells = [f"P{10000 + k}" for k in range(790)] + [f"P{k}" for k in range(10)]
+    seen = run(tmp_path / "made", ["ID", "other"], [[cell, "x"] for cell in cells], "ID",
+               declared=("ID",), validate=False)
+    document = json.loads(seen["texts"][0])
+    block = [one for one in document["columns"] if one["name"] == "ID"][0]
+    block["layout_forms"] = {"@%%%%%": 790}
+    block["layout_prefixes"] = {"(column)": "P"}
+    block["min_length"] = 2
+    block["max_length"] = 6
+    assert _validated(tmp_path / "older", document, cells) == ""
+
+
+def test_c_a1_leaves_a_layout_the_person_floor_took_back(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3: a layout nine people wear stays unnamed after A1.
+
+    100 people, six rows each, the person column declared beside a
+    distinct record number: 70 people `P` and five figures, 20 six
+    figures, nine seven figures, the last five five-figure ids and one of
+    eight. The seven-figure layout, worn by nine people, is never
+    published. Mutant: A1 recounting the rows (`@%%%%%%%: 54` republished).
+    """
+    rows: "list[list[str]]" = []
+    serial = 0
+    for person in range(100):
+        for visit in range(6):
+            serial += 1
+            width = 5 if person < 70 else 6 if person < 90 else 7 if person < 99 else (8 if visit == 5 else 5)
+            rows += [[f"S{person:03d}", f"P{10 ** (width - 1) + serial}", "x"]]
+    folder = tmp_path / "people"
+    path = _write(folder, ["person", "ID", "other"], rows)
+    with shapes.nobody_at_the_keyboard():
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            profiled = cli.main(["profile", f"{path}", "--out-dir", f"{folder}", "--replace",
+                                 "--identifier", "person", "--identifier", "ID"])
+    assert profiled == 0
+    document = json.loads((folder / "t-profile.json").read_text(encoding="utf-8"))
+    block = [one for one in document["columns"] if one["name"] == "ID"][0]
+    assert "@%%%%%%%" not in block["layout_forms"]
+
+
+@pytest.mark.parametrize("shape", ["case", "marks"])
+def test_c_a1_moves_no_cell_whose_obligations_would_conflict(tmp_path: pathlib.Path, shape: str) -> None:
+    """Codex's item 4: A1 moves only the prefix and figures, so every obligation stays true.
+
+    590 `REC-A10000`.. beside ten `REC-a10000`.. (folded identities), and
+    580 `P` and five figures beside ten `P.1000`.. and ten `P:1000`..
+    (alphabet counts): no cell is moved and the description is today's,
+    its pool kept (the pool writer's fillers are CODES-1 part C's stated
+    limit). Mutant: `_a1_tail_fits` answering True (600 upper-case cells
+    beside 590 folded identities, a layout deviation all checks report
+    HELD).
+    """
+    if shape == "case":
+        cells = [f"REC-A{10000 + k}" for k in range(590)] + [f"REC-a{10000 + k}" for k in range(10)]
+    else:
+        cells = ([f"P{10000 + k}" for k in range(580)] + [f"P.{1000 + k}" for k in range(10)]
+                 + [f"P:{1000 + k}" for k in range(10)])
+    seen = run(tmp_path / shape, ["ID", "other"], [[cell, "x"] for cell in cells], "ID",
+               declared=("ID",), validate=False)
+    assert seen["exits"][:2] == (0, 0), seen["exits"]
+    forms = seen["block"]["layout_forms"]
+    assert sum(forms.values()) < 600 or "(withheld)" in forms, forms
+
+
+def test_c_a_uid_root_stands_only_over_a_column_of_uids(tmp_path: pathlib.Path) -> None:
+    """Codex's items 1 (a) and 2: no numeric prefix but over a whole column of UIDs, and room counted unled.
+
+    200 `1.2.10000`.. beside eleven `1.2.` publish no prefix (the cells of
+    one layout are no column of UIDs); `1.2.100` to `1.2.999`, 900
+    different, leave `1.2.%%%` 900 tails, not a thousand, so no root is
+    published and the twin writes fewer than all 900 real values.
+    Mutants: the per-layout prefix reading a UID root; `parsing.uid_room`
+    counting a thousand.
+    """
+    cells = [f"1.2.{10000 + k % 200}" for k in range(589)] + ["1.2."] * 11
+    seen = run(tmp_path / "mixed", ["ID", "other"], [[cell, "x"] for cell in cells], "ID",
+               declared=("ID",), validate=False)
+    assert seen["block"]["layout_prefixes"] == {}
+    cells = [f"1.2.{100 + k % 900}" for k in range(1800)]
+    seen = run(tmp_path / "nine", ["ID", "other"], [[cell, "x"] for cell in cells], "ID",
+               declared=("ID",), validate=False)
+    assert seen["block"]["layout_prefixes"] == {}
+    assert len(set(seen["cells"]) & set(cells)) < 900
+    assert parsing.uid_room("%%%") == 900 and parsing.uid_room("%.%%") == 900
+
+
+def test_c_the_validator_reads_the_uid_grammar(tmp_path: pathlib.Path) -> None:
+    """Codex's item 6: cells whose arc is led by a nought miss the published root's grammar.
+
+    800 UIDs `1.2.840.{1000+i}.{2000+i}` described; checked against cells
+    whose first variable arc is `i` in four figures, every one led by a
+    nought: `uid.grammar` MISSED, though layout, prefix and lengths hold.
+    The source itself misses nothing of the grammar. Mutant:
+    `validation._uid_grammar_checks` returning [].
+    """
+    cells = [f"1.2.840.{1000 + k}.{2000 + k}" for k in range(800)]
+    seen = run(tmp_path / "made", ["ID", "other"], [[cell, "x"] for cell in cells], "ID",
+               declared=("ID",), validate=False)
+    document = json.loads(seen["texts"][0])
+    assert "uid.grammar" not in _validated(tmp_path / "real", document, cells)
+    led = [f"1.2.840.{k:04d}.{2000 + k}" for k in range(800)]
+    assert "uid.grammar" in _validated(tmp_path / "led", document, led)
 
 
 # -- (d) plain keys below five figures, beside one ordinary word ---------
@@ -349,6 +733,41 @@ def test_d_plain_keys_beside_a_word_are_held_with_the_question_put(
     header, rows = plain_rows(form, dict(WORD_SHARES)[share], n)
     seen = run(tmp_path / f"{form}-{share}".lower(), header, rows, "key")
     assert seen["exits"][0] == 0 and seen["exits"][1] == 0
+    assert seen["held"] is True
+    assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
+    counted = shapes.count_real(PLAIN_KEYS[form], seen["texts"][:3], seen["cells"])
+    assert counted["description_values"] == 0, counted
+    assert counted["twin_cells"] == 0, counted
+
+
+# THE EIGHT WORDS SKEPTIC 1 MEASURED (item 2): placeholders and words with
+# spaces or marks beside the keys, each publishing every key on the
+# head it reviewed. (form, word, share)
+MEASURED_WORDS = (
+    ("R", "Not known.", -1),
+    ("R", "-1", -1),
+    ("R", "0", -1),
+    ("R", "Other (specify)", -1),
+    ("AB", "-1", 5),
+    ("PAD", "NOT KNOWN", -1),
+    ("PAD", "Unknown.", -1),
+    ("PAD", "N.K.", -1),
+)
+
+
+@pytest.mark.parametrize("n", SIZES)
+@pytest.mark.parametrize("case", range(len(MEASURED_WORDS)))
+def test_d_keys_beside_any_word_or_placeholder_are_held(
+    tmp_path: pathlib.Path, n: int, case: int
+) -> None:
+    """Skeptic 1, item 2: 0 keys in any file and the twin, the question put once.
+
+    Mutant: `_set_aside_beside_keys` setting aside words of letters alone
+    (each of the eight publishes its keys as labels or percentiles).
+    """
+    form, word, share = MEASURED_WORDS[case]
+    header, rows = plain_rows(form, share, n, word)
+    seen = run(tmp_path / f"w{case}", header, rows, "key", validate=False)
     assert seen["held"] is True
     assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
     counted = shapes.count_real(PLAIN_KEYS[form], seen["texts"][:3], seen["cells"])
