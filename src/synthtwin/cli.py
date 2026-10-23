@@ -2318,13 +2318,33 @@ def _clock_notice(clocks: "list[asking.Question]", listing: str) -> str:
     return said
 
 
-def _assumptions_notice(questions: "list[asking.Question]") -> str:
+def _people_floor_said() -> str:
+    """The sentence beside an open person question where the table floor is on.
+
+    Plan P4-D425: an open question never refuses a table, and the
+    people half of the table floor applies once the column is answered
+    as one that names people. One sentence, said by both notices.
+    """
+    return (
+        f"Once a column is answered as one that names people, the table "
+        f"floor counts those people too: a table in which one person has "
+        f"several rows needs at least {parsing.TABLE_PEOPLE_FLOOR:,} "
+        f"people, beside {parsing.TABLE_ROW_FLOOR:,} rows that hold a "
+        f"value, or synthtwin refuses it and writes nothing. An "
+        f"unanswered question does not refuse the table."
+    )
+
+
+def _assumptions_notice(
+    questions: "list[asking.Question]", table_floor: bool = False
+) -> str:
     """What is printed where there is nobody to ask.
 
     The person chose the tool; they did not choose to be guessed at.
     This says what was assumed and the exact words that correct it, so
     a scripted run is one rerun away from right rather than silently
-    wrong.
+    wrong. ``table_floor`` adds, to the person question's block, when the
+    table floor's people half applies (plan P4-D425).
     """
     # THE SENTENCE IS PER REASON, BECAUSE ONE SENTENCE WAS FALSE OF
     # HALF THE COLUMNS IT REACHED (landing L16). This said every column
@@ -2500,6 +2520,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         flags = _joined(
             [_typed_option("--identifier", one.name) for one in people], " "
         )
+        floor_said = f" {_people_floor_said()}" if table_floor else ""
         blocks += [
             f"THESE COLUMNS MIGHT NAME THE PEOPLE YOUR ROWS ARE ABOUT."
             f"{_listing(people, False)}\n\n"
@@ -2508,7 +2529,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"visit rather than one person, that count is larger than "
             f"the number of people in the table, and synthtwin cannot "
             f"tell which it is: a column whose values repeat can be a "
-            f"subject number or a ward.\n\n"
+            f"subject number or a ward.{floor_said}\n\n"
             f"If any of them names people, run the command again naming "
             f"them:\n  {flags}{_quoting_said(flags)}"
         ]
@@ -3140,17 +3161,7 @@ def _counted_in_rows_notice(names: "list[str]", table_floor: bool = False) -> st
     the names are the table's own column names and are published in
     the description like every other. Raises nothing, opens no file.
     """
-    floor_said = ""
-    if table_floor:
-        floor_said = (
-            f" Once a column is answered as one that names people, the "
-            f"table floor counts those people too: a table in which one "
-            f"person has several rows needs at least "
-            f"{parsing.TABLE_PEOPLE_FLOOR:,} people, beside "
-            f"{parsing.TABLE_ROW_FLOOR:,} rows that hold a value, or "
-            f"synthtwin refuses it and writes nothing. An unanswered "
-            f"question does not refuse the table."
-        )
+    floor_said = f" {_people_floor_said()}" if table_floor else ""
     return (
         f"\nHOW THIS RUN COUNTED YOUR TABLE\n"
         f"No column that names PEOPLE has been declared, so this "
@@ -4675,7 +4686,7 @@ def _run_profile(
                         )
             answered = True
         else:
-            _say(f"\n{_assumptions_notice(asked_about)}\n")
+            _say(f"\n{_assumptions_notice(asked_about, table_floor)}\n")
             # THAT NOTICE ALREADY SAYS THE POPULATION WAS COUNTED IN
             # ROWS, in its own block, so the sentence below is not said
             # a second time (plan P4-D340). One fact, one place, on the
