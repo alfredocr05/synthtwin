@@ -26158,23 +26158,57 @@ def with_held_dates(column: ColumnProfile, grain: "dict[str, object]") -> Column
 # THE SAFE HARBOR TOP-CODE (plan P4-D427; 45 CFR 164.514(b)(2)(i)(C);
 # lane ZR-b's page, ZS.1). An age over 89 is an element of a birth date
 # under the Safe Harbor method, and a number column whose present numbers
-# lie within 0 to 125 and include one above 89 may be an age: measured on
-# b85200be, 20,000 ages from 18 to 103 published `max` 103, `p99` 99,
+# lie within 0 to 125 and include an age over 89 may be an age: measured
+# on b85200be, 20,000 ages from 18 to 103 published `max` 103, `p99` 99,
 # `p98` 94 and the high tail's values 99 to 103. While the column's Safe
-# Harbor question is open, every value above 89 is read as 90 for the
-# whole description -- its rungs, mode, tails, bins, mean and spread are
-# those of the column so read -- and its block says so with `top_coded`.
-# All-nines placeholders of EITHER sign (`-9`, `-99`, `-999`, `999`,
-# `9999`: a missing age is written `999` as often as `-9`) are set aside
-# from the reach, at most one present cell in three as P4-D401 sets aside
-# a key's placeholders (ZR-b's verify 2, item 2: one `999` cell turned the
-# reach off and 93, 103 and 104 printed), and are kept as written: they
-# are codes, not ages.
+# Harbor question is open, every age over 89 -- every value of 90 or
+# more, since an age is counted in whole years and 89.5 is an age of 89 --
+# is read as 90 for the whole description: its rungs, mode, tails, bins,
+# mean and spread are those of the column so read, and its block says so
+# with `top_coded`. All-nines placeholders of EITHER sign (`-9`, `-99`,
+# `-999`, `999`, `9999`: a missing age is written `999` as often as `-9`)
+# are set aside from the reach, at most one present cell in three as
+# P4-D401 sets aside a key's placeholders (ZR-b's verify 2, item 2: one
+# `999` cell turned the reach off and 93, 103 and 104 printed), and are
+# kept as written: they are codes, not ages. A number written with a
+# leading zero (`0100`, `07`) is a code's spelling and never an age's, so
+# a column holding one is not reached (measured: a site code `0100` on
+# every row was read as the constant 90).
 TOP_CODE = 90
 TOP_CODE_LAST_AGE = 89
 TOP_CODE_REACH_CEILING = 125
 TOP_CODE_ROLES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_COMPOUND)
 _TOP_CODE_PLACEHOLDER_SHARE = 3
+_NOT_TEXT_HERE = "a cell must be text"
+
+
+def _figures_alone(text: str) -> bool:
+    """Whether a text is one figure or more and nothing else, read one character at a time."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if not text:
+        return False
+    for character in text:
+        if not "0" <= character <= "9":
+            return False
+    return True
+
+
+def _at_the_point(number_text: str) -> "tuple[str, str]":
+    """A plain number's whole part and its fraction's figures (empty where it has no point)."""
+    if not isinstance(number_text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    whole = ""
+    fraction = ""
+    seen = False
+    for character in number_text:
+        if character == "." and not seen:
+            seen = True
+        elif seen:
+            fraction = fraction + character
+        else:
+            whole = whole + character
+    return whole, fraction
 
 
 def _plain_number_text(text: str, comma: bool) -> str:
@@ -26183,7 +26217,7 @@ def _plain_number_text(text: str, comma: bool) -> str:
     A sign, figures with at most one decimal mark, and an exponent; the
     mark is the comma on a column declared to write one (plan P4-D26).
     Spaces around it are taken off. Guarantees: a fixed function of the
-    two. Raises nothing. No I/O.
+    two. Raises TypeError for a cell that is not text. No I/O.
     """
     written = parsing.trimmed(text)
     mark = "," if comma else "."
@@ -26206,7 +26240,7 @@ def _plain_number_text(text: str, comma: bool) -> str:
             exponent = written[place + 1:]
             if exponent[:1] in ("-", "+"):
                 exponent = exponent[1:]
-            if not exponent or not exponent.isascii() or not exponent.isdigit():
+            if not _figures_alone(exponent):
                 return ""
             return body + "e" + written[place + 1:]
         else:
@@ -26220,13 +26254,13 @@ def _an_all_nines_placeholder(number_text: str) -> bool:
 
     `-9`, `-99`, `-999`, `999`, `9999` and the like, and the same with
     a point and zeros after it; `9` and `99` are ages. A fixed function
-    of the text. Raises nothing. No I/O.
+    of the text. Raises TypeError for one that is not text. No I/O.
     """
     figures = number_text
     negative = figures[:1] == "-"
     if figures[:1] in ("-", "+"):
         figures = figures[1:]
-    whole, _point, fraction = figures.partition(".")
+    whole, fraction = _at_the_point(figures)
     if not whole or "e" in figures:
         return False
     for character in fraction:
@@ -26238,10 +26272,19 @@ def _an_all_nines_placeholder(number_text: str) -> bool:
     return negative or len(whole) >= 3
 
 
+def _padded_number(number_text: str) -> bool:
+    """Whether a plain number is written with a leading zero before another figure."""
+    figures = number_text
+    if figures[:1] in ("-", "+"):
+        figures = figures[1:]
+    whole, _fraction = _at_the_point(figures)
+    return len(whole) >= 2 and whole[0] == "0"
+
+
 def _top_coded_text(number_text: str, comma: bool) -> str:
     """The top-code written as the cell wrote its number: 90 with as many decimals."""
-    _whole, point, fraction = number_text.partition(".")
-    if not point or "e" in number_text:
+    _whole, fraction = _at_the_point(number_text)
+    if not fraction or "e" in number_text:
         return f"{TOP_CODE}"
     return f"{TOP_CODE}{',' if comma else '.'}{'0' * len(fraction)}"
 
@@ -26249,17 +26292,18 @@ def _top_coded_text(number_text: str, comma: bool) -> str:
 def top_coded_cells(
     cells: "list[str]", comma: bool = False, forced: bool = False
 ) -> "list[str] | None":
-    """A number column's cells with every value above 89 written 90, where the top-code reaches.
+    """A number column's cells with every age over 89 written 90, where the top-code reaches.
 
     Plan P4-D427 (ZS.1). The top-code reaches a column whose present
     numbers, its all-nines placeholders aside (at most one present cell
-    in three), lie within 0 to 125 and include one above 89; words and
-    blanks are left as they are (the labels of a column of numbers and
-    labels, its missing marks). ``forced`` takes the reach as given --
-    the validator's, for a column its description publishes as
-    `top_coded` -- so a checked file is read under the same top-code.
-    None where the top-code does not reach. Guarantees: a fixed function
-    of the three, the cells in their own order. Raises nothing. No I/O.
+    in three), lie within 0 to 125, are written with no leading zero and
+    include one of 90 or more; words and blanks are left as they are (the
+    labels of a column of numbers and labels, its missing marks).
+    ``forced`` takes the reach as given -- the validator's, for a column
+    its description publishes as `top_coded` -- so a checked file is read
+    under the same top-code. None where the top-code does not reach.
+    Guarantees: a fixed function of the three, the cells in their own
+    order. Raises TypeError for a cell that is not text. No I/O.
     """
     present = 0
     placeholders = 0
@@ -26277,9 +26321,14 @@ def top_coded_cells(
             placeholders += 1
             continue
         value = float(number_text)
-        if not math.isfinite(value) or value < 0 or value > TOP_CODE_REACH_CEILING:
+        if (
+            not math.isfinite(value)
+            or value < 0
+            or value > TOP_CODE_REACH_CEILING
+            or _padded_number(number_text)
+        ):
             inside = False
-        elif value > TOP_CODE_LAST_AGE:
+        elif value >= TOP_CODE:
             above = True
     if placeholders * _TOP_CODE_PLACEHOLDER_SHARE > present:
         # More than one cell in three: not set aside, so outside the reach.
@@ -26292,7 +26341,7 @@ def top_coded_cells(
         if (
             number_text
             and not _an_all_nines_placeholder(number_text)
-            and float(number_text) > TOP_CODE_LAST_AGE
+            and float(number_text) >= TOP_CODE
         ):
             written += [_top_coded_text(number_text, comma)]
         else:
@@ -26301,31 +26350,55 @@ def top_coded_cells(
 
 
 def at_most_the_top_code(cells: "list[str]") -> "list[str]":
-    """A twin's cells with every number above 90 written 90 (plan P4-D427, ZS.1).
+    """A twin's cells with every number above 90 written at or below 90 (plan P4-D427, ZS.1).
 
-    The twin of a `top_coded` column writes no value above 89 but the
-    top-code itself: a derived end one step past a rung the description
-    does not publish would otherwise write 91. The cells are in point
-    form, as the generator writes them before any comma is put back; an
-    all-nines placeholder is kept as written. Guarantees: a fixed
-    function of the cells, in their order. Raises nothing. No I/O.
+    The twin of a `top_coded` column writes no age over 89 but the
+    top-code itself: a tail drawn past a rung the description does not
+    publish would otherwise write 91. Each such cell takes the largest
+    value from 90 down, above 89, at its own decimals, that no other cell
+    of the column holds -- so the column keeps its count of different
+    values, which a tail of made-up values above 90 all written 90 would
+    lose -- and 90 itself where none is free (a whole number always: 90
+    reads "90 or more"). The cells are in point form, as the generator
+    writes them before any comma is put back; an all-nines placeholder is
+    kept as written. Guarantees: a fixed function of the cells, in their
+    order. Raises TypeError for a cell that is not text. No I/O.
     """
+    held: "dict[float, bool]" = {}
+    for cell in cells:
+        number_text = _plain_number_text(cell, False)
+        if number_text and not _an_all_nines_placeholder(number_text):
+            value = float(number_text)
+            if value <= TOP_CODE:
+                held[round(value, 9)] = True
     written: "list[str]" = []
     for cell in cells:
         number_text = _plain_number_text(cell, False)
         if (
-            number_text
-            and not _an_all_nines_placeholder(number_text)
-            and float(number_text) > TOP_CODE
+            not number_text
+            or _an_all_nines_placeholder(number_text)
+            or float(number_text) <= TOP_CODE
         ):
-            written += [_top_coded_text(number_text, False)]
-        else:
             written += [cell]
+            continue
+        _whole, fraction = _at_the_point(number_text)
+        places = 0 if "e" in number_text else len(fraction)
+        unit = 10 ** places
+        chosen = ""
+        step = 0
+        while TOP_CODE * unit - step > TOP_CODE_LAST_AGE * unit:
+            value = (TOP_CODE * unit - step) / unit
+            if round(value, 9) not in held:
+                held[round(value, 9)] = True
+                chosen = f"{value:.{places}f}"
+                break
+            step += 1
+        written += [chosen if chosen else _top_coded_text(number_text, False)]
     return written
 
 
 def with_top_code(column: ColumnProfile) -> ColumnProfile:
-    """A column described with every value above 89 read as 90 (plan P4-D427, ZS.1).
+    """A column described with every age over 89 read as 90 (plan P4-D427, ZS.1).
 
     It keeps the description its top-coded cells gave and takes the key
     `top_coded`, 90, which says that 90 reads "90 or more". Guarantees:
@@ -26338,6 +26411,17 @@ def with_top_code(column: ColumnProfile) -> ColumnProfile:
     return dataclasses.replace(column, details=details)
 
 
+def without_top_code(column: ColumnProfile) -> ColumnProfile:
+    """A column without the key `top_coded`: one held as a record number publishes no value."""
+    if "top_coded" not in column.details:
+        return column
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        if key != "top_coded":
+            details[key] = column.details[key]
+    return dataclasses.replace(column, details=details)
+
+
 # A FIVE-FIGURE NUMBER COLUMN BESIDE A FEW WORDS (plan P4-D427; ZR-b's
 # verify 2, item 1). Five-figure ZIP codes alone are held by P4-D401's
 # questions; one `UNKNOWN` cell, or three `HOMELESS`, silenced them, the
@@ -26345,21 +26429,22 @@ def with_top_code(column: ColumnProfile) -> ColumnProfile:
 # holds nothing, and 9 or 10 real ZIPs printed as rungs and mode. As the
 # orchestrator's rulings for lane HX4 (2026-10-22 18:23 and 21:32) set
 # sparse tokens aside, the words here are set aside -- and a key's
-# placeholders, a minus sign and one figure or a lone `0` -- at most one
-# present cell in three.
+# placeholders, a minus sign and one figure or a lone `0` -- at least one
+# and at most one present cell in three. A column of five figures alone
+# raises P4-D401's own questions, as before.
 FIVE_FIGURES = 5
 _FIVE_FIGURES_WORD_SHARE = 3
 
 
 def _five_figures_whole(text: str) -> bool:
     """Whether a cell is five figures, padded or not, with nothing or zeros after a point."""
-    whole, point, fraction = text.partition(".")
-    if len(whole) != FIVE_FIGURES or not whole.isascii() or not whole.isdigit():
+    whole, fraction = _at_the_point(text)
+    if len(whole) != FIVE_FIGURES or not _figures_alone(whole):
         return False
     for character in fraction:
         if character != "0":
             return False
-    return not point or bool(fraction)
+    return len(whole) == len(text) or bool(fraction)
 
 
 def _set_aside_beside_five_figures(text: str) -> bool:
@@ -26373,13 +26458,13 @@ def _set_aside_beside_five_figures(text: str) -> bool:
 
 
 def five_figures_beside_words(cells: "list[str]") -> bool:
-    """Whether every present whole number has five figures, a few words aside (plan P4-D427).
+    """Whether every present whole number has five figures beside a few words (plan P4-D427).
 
     True where at least one present cell is five figures, padded or not,
-    and every other present cell is set aside -- a word, a minus sign and
-    one figure, or a lone `0` -- and those are at most one present cell
-    in three. Guarantees: a fixed function of the cells. Raises nothing.
-    No I/O.
+    every other present cell is set aside -- a word, a minus sign and one
+    figure, or a lone `0` -- and those are at least one and at most one
+    present cell in three. Guarantees: a fixed function of the cells.
+    Raises TypeError for a cell that is not text. No I/O.
     """
     present = 0
     five = 0
@@ -26395,7 +26480,7 @@ def five_figures_beside_words(cells: "list[str]") -> bool:
             aside += 1
         else:
             return False
-    return five > 0 and aside * _FIVE_FIGURES_WORD_SHARE <= present
+    return five > 0 and aside > 0 and aside * _FIVE_FIGURES_WORD_SHARE <= present
 
 
 def as_counted_dates_held(column: ColumnProfile) -> ColumnProfile:

@@ -47,13 +47,8 @@ from synthtwin import asking, cli, taxonomy
 
 import unanswered_identifier_shapes as shapes
 
-# Validation limits of the held block (plan P4-D427, stated): at 20,000
-# rows a column of five-figure numbers beside ONE word is published with
-# `all_whole_numbers` false beside every cell counted in figures (the
-# census line absorbs the one), and the held generator writes whole
-# numbers only, so the twin misses that one fact (exit 3); owner CODES-1
-# part C, as the held shapes' `shapes.VALIDATION_LIMITS` are.
-_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown")
+# The held block's validation limit at 20,000 rows (plan P4-D427, stated).
+_HELD_LIMITS_AT_20000 = shapes.SAFE_HARBOR_HELD_LIMITS_AT_20000
 
 
 def _check(seen: "dict[str, object]", kind: str, rows: int) -> None:
@@ -152,7 +147,11 @@ def test_the_top_code_keeps_the_decimals_and_the_comma() -> None:
     assert taxonomy.top_coded_cells(["45.5", "93.25", "70"]) == ["45.5", "90.00", "70"]
     assert taxonomy.top_coded_cells(["45,5", "93,25"], comma=True) == ["45,5", "90,00"]
     assert taxonomy.at_most_the_top_code(["91", "90.5", "88", "999", "x"]) == [
-        "90", "90.0", "88", "999", "x"
+        "90", "89.9", "88", "999", "x"
+    ]
+    # ...the count of different values kept where a free one lies above 89.
+    assert taxonomy.at_most_the_top_code(["90.0", "90.4", "90.7", "92", "89.9"]) == [
+        "90.0", "89.8", "89.7", "90", "89.9"
     ]
 
 
@@ -162,7 +161,7 @@ def test_the_top_code_keeps_the_decimals_and_the_comma() -> None:
         (["02100"] * 20 + ["UNKNOWN"], True),
         (["52240"] * 20 + ["HOMELESS"] * 3, True),
         (["52240.0"] * 20 + ["-1", "0"], True),
-        (["52240"] * 20, True),
+        (["52240"] * 20, False),  # five figures alone: P4-D401's own questions
         (["52240"] * 4 + ["UNKNOWN"] * 3, False),  # more than a third set aside
         (["52240"] * 20 + ["2100"], False),  # four figures
         (["52240"] * 20 + ["5224a"], False),

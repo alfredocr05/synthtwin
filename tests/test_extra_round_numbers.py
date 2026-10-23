@@ -524,9 +524,11 @@ def test_a_pooled_style_census_admits_its_own_source(
     `styles.remainder` because the clause asked for canonical plain
     cells, and the canonical twin passed.
     """
+    # Two hundred upward, above the Safe Harbor top-code's reach of 0 to
+    # 125 (plan P4-D427), which would read 100 to 119 as the age 90.
     cells = (
-        [f"+{step}.00" for step in range(100, 110)]
-        + [f"{step}e0" for step in range(110, 120)]
+        [f"+{step}.00" for step in range(200, 210)]
+        + [f"{step}e0" for step in range(210, 220)]
     )
     block, _written, twin_exit, real_exit = _round_trip(
         tmp_path / "pooled-styles", cells, ("--smallest-group", "11")
@@ -883,8 +885,9 @@ def test_a_band_that_excludes_no_file_is_withheld_and_not_held(
     assert validation._window_between((0, 0), 0, 0, 20, 20) is None
     # A band that starts above nought is untouched, and can still fail.
     assert validation._window_between((30, 30), 55, 30, 50, 55) is False
-    cells = ["+%d.00" % step for step in range(100, 110)]
-    cells += ["%de0" % step for step in range(110, 120)]
+    # Above the Safe Harbor top-code's reach (plan P4-D427), as above.
+    cells = ["+%d.00" % step for step in range(200, 210)]
+    cells += ["%de0" % step for step in range(210, 220)]
     block, _written, twin_exit, real_exit = _round_trip(
         tmp_path / "pooled", cells, ("--smallest-group", "11")
     )

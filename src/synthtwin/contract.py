@@ -7777,11 +7777,13 @@ def _column(
     # refuses every other key the role does not name.
     grain_value: object = None
     # ...AND THE SAFE HARBOR TOP-CODE (plan P4-D427, lane ZR-b's ZS.1): a
-    # number column described with every value above 89 read as 90 says
-    # so with `top_coded`, the number 90 and nothing else. Read apart too.
+    # number column described with every age over 89 read as 90 says so
+    # with `top_coded`, the number 90 and nothing else, whatever role the
+    # column so read took (a constant 90, a few values) but a record
+    # number's, which publishes no value. Read apart too.
     top_coded = 0
     if "top_coded" in mapping:
-        if role not in TOP_CODE_ROLES:
+        if role == ROLE_IDENTIFIER:
             raise _unknown("top_coded", where)
         if mapping["top_coded"] != TOP_CODE or isinstance(mapping["top_coded"], bool):
             raise _out_of_range(
@@ -7979,9 +7981,8 @@ def _column(
 
 
 # THE SAFE HARBOR TOP-CODE (plan P4-D427): the number a block carrying
-# `top_coded` names, and the roles it may take (`taxonomy.TOP_CODE_ROLES`).
+# `top_coded` names.
 TOP_CODE = 90
-TOP_CODE_ROLES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_COMPOUND)
 
 
 # THE ROLES A BLOCK CARRYING `time_grain` MAY TAKE (plan P4-D417): the two

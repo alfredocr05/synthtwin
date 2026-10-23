@@ -17,6 +17,16 @@ and counts what is real:
   inside twin cells. Target 0 each. And the twins of those shapes that
   fail their own validation, but for the generator's stated limits
   (`VALIDATION_LIMITS`): target 0.
+- over lane SH's Safe Harbor number shapes (plan P4-D427,
+  `SAFE_HARBOR_NUMBERS`: five-figure ZIP codes beside `UNKNOWN` once or
+  `HOMELESS` three times, with and without a leading zero, and ages
+  above 89, plain and beside `999` once or twenty times or `-9`), counted
+  the same way into the same keys -- an age above 90 counted as published
+  where an output of the table carries it more often than the same output
+  of the table with every value above 89 written 90, an output that
+  differs counted as a fragment, a twin cell above 90 as a real cell --
+  and twins failing validation, the real age tables' own validation
+  among them, but the held block's named limit at 20,000 rows. Target 0.
 - over the STATED shapes (a name, a street address, a full birth date on
   a long table with no subject column, so no people to count in; plan
   P4-D406 item (a)): real values in the description and twin cells
@@ -69,11 +79,33 @@ with tempfile.TemporaryDirectory() as scratch:
             else:
                 stated["stated_description_values"] += int(seen["description_values"])
                 stated["stated_twin_cells"] += int(seen["twin_cells"])
+        # LANE SH'S SAFE HARBOR NUMBER SHAPES (plan P4-D427).
+        for kind in shapes.SAFE_HARBOR_NUMBERS:
+            folder = pathlib.Path(scratch) / f"{kind}-{rows}"
+            folder.mkdir()
+            seen = shapes.run_safe_harbor(folder, kind, rows)
+            if seen["profile_exit"] != 0 or seen["generate_exit"] != 0:
+                raise SystemExit(f"{kind} at {rows} rows: profile {seen['profile_exit']}, "
+                                 f"generate {seen['generate_exit']}")
+            lines += [f"{kind:8s} {rows:6d} rows: role {seen['role']}, "
+                      f"{seen['description_values']} of {seen['different']} real values in the "
+                      f"outputs, {seen['description_fragments']} outputs differing, "
+                      f"{seen['twin_cells']} twin cells real, validate {seen['validate_exit']}, "
+                      f"the real table {seen['validate_real_exit']}"]
+            for key in held:
+                if key != "twins_failing_validation":
+                    held[key] = held[key] + int(seen[key])
+            limited = rows >= 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_20000
+            if seen["validate_exit"] != 0 and not limited:
+                held["twins_failing_validation"] += 1
+            if kind in shapes.AGES and seen["validate_real_exit"] != 0:
+                held["twins_failing_validation"] += 1
 for line in lines:
     print(line)
 value = dict(held)
 value.update(stated)
-held_shapes = len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED)
+held_shapes = (len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED)
+               + len(shapes.SAFE_HARBOR_NUMBERS))
 value["shapes"] = len(SIZES) * (held_shapes + len(shapes.STATED))
 kpi_rules.emit("K-S3-64", value, f"{len(SIZES)} sizes x {held_shapes} held and "
                f"{len(shapes.STATED)} stated shapes")

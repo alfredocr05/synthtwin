@@ -500,7 +500,11 @@ def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: 
     # same point -- read with the point between thousands these cells
     # are tens of thousands, and read as decimals they are under a
     # hundred.
-    assert column["percentiles"]["max"] is None
+    # ...and read so they lie within 0 to 125 with values of 90 or more,
+    # so the Safe Harbor top-code (plan P4-D427) reads those as 90, which
+    # many rows hold: `max` is that 90, the top-code's own number.
+    assert column["top_coded"] == 90
+    assert column["percentiles"]["max"] == 90.0
     assert column["percentiles"]["p50"] < 100
     # ANSWERED IN THE FILE, the column is read with a point between thousands.
     entry["your_answer"] = "decimal_comma"

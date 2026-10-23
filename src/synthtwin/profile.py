@@ -4761,6 +4761,10 @@ def build_document(
         # ...and the walk's own name lets go of the column it described,
         # so no column of one group outlives it while the next is read.
         cells = []
+        # A column held as a record number publishes no value, so it says
+        # nothing of a top-code either (plan P4-D427).
+        if described.role == taxonomy.ROLE_IDENTIFIER:
+            described = taxonomy.without_top_code(described)
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:

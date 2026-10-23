@@ -584,6 +584,13 @@ _ZIP_WORD = {"zip5word_unknown": ("UNKNOWN", 1, True),
 _AGE_PLACEHOLDER = {"ages": ("", 0, 0.0), "ages999": ("999", 1, 0.0),
                     "ages999x20": ("999", 20, 0.0), "ages-9": ("-9", 0, 0.02)}
 AGE_TOP_CODE = 90
+# Validation limits of the held block (plan P4-D427, stated): at 20,000
+# rows a column of five-figure numbers beside ONE word is published with
+# `all_whole_numbers` false beside every cell counted in figures (the
+# census line absorbs the one), and the held generator writes whole
+# numbers only, so the twin misses that one fact (exit 3); owner CODES-1
+# part C, as `VALIDATION_LIMITS` are.
+SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown")
 
 
 def write_safe_harbor_table(

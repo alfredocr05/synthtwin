@@ -480,7 +480,9 @@ def test_the_twin_table_carries_no_trace_of_the_notice(
     read = reading.read_table(
         f"{table}", "auto", small_cell_floor=settings.small_cell_floor
     )
-    plain = profile.build_document(read, settings, [])
+    # ...described as the command describes it, the Safe Harbor top-code
+    # included (plan P4-D427): its ages of 90 or more are read as 90.
+    plain = profile.build_document(read, settings, [], top_code=True)
     notes = plain["publication_notes"]
     assert isinstance(notes, list)
     assert not [note for note in notes if note["column"] == ""]
