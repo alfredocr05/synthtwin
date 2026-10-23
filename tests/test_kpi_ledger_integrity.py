@@ -823,8 +823,11 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 741,000) and lane SG's `K-S4-12` with its note clause and the
     # generate part of `K-S4-09`'s evidence (its branch raised its own cap
     # to 720,000, below), every entry kept by id and the note merged clause
-    # by clause, 757,959 bytes as merged. A MEASUREMENT IS NEVER TRIMMED TO
-    # FIT.
+    # by clause, 757,959 bytes as merged; then the records: `K-S3-64`
+    # stamped from its re-run on the merged head, `K-S4-12`'s evidence
+    # given its load and its pairs' sources, and what ran beside the night
+    # window's six time entries named in their stamps and in the note,
+    # 759,465 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 754,000 from 745,000, AT THE INTEGRATION OF BATCH 4G (2026-10-23),
     # the orchestrator's recorded call D15 (the owner may veto), set once

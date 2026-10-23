@@ -68,7 +68,9 @@ nothing, and the samples that must report are 3.12 and 3.14 spellings.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the floor's cells while this file says nothing about it.
-The tree holds FORTY-SIX such calls (lane H1's padded-swap scale test
+The tree holds SEVENTY-NINE such calls (counted at batch 4h's merge of
+lane SG, 2026-10-23, its `tests/generate_memory_cases.py` adding two:
+the figure below had stood stale since 2026-10-16; lane H1's padded-swap scale test
 adds two, 2026-10-16; lane TI's `python -m synthtwin`
 test adds one, 2026-10-15; counted again at the merge of
 landing R4 into the integrated tree, 2026-10-12: its twenty-sixth
@@ -82,7 +84,7 @@ having stood one short since the fifteenth vectors file's route arrived
 and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a forty-seventh cannot arrive unread.
+holds the tree to that list, so an eightieth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:

@@ -6,6 +6,50 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
+
+**Records of batch 4h**, which merged lanes HX4 and SG (plans P4-D424 and
+P4-D415). The register lists of the exposure found on 2026-10-23 -- keys
+`R100000`, `R1000`, `AB100` and padded `0100` in singles, pairs and
+triples, pure and with one `;OTHER` -- are put the list question and
+publish 0 of 40 keys in any file, with 0 twin cells holding one, at 600
+and 20,000 rows on the merged head; ages over 89 and the ZIP holds stay
+open with lane SH, beside the exposures found later that day
+(placeholder shares, ages in label roles, four-figure ZIPs, binary and
+constant roles). Against the batch's base `af69aaef`, every file the
+three commands write is the same, byte for byte, on lane SG's seeded
+wide tables at 600 to 20,000 rows and two seeds and on the health data
+zoo at 600 rows: 247 files, 43 of them twins. Two seams in lane SG's
+gate: its sorted table's twin had been moved on purpose by lane G2T's
+merge (P4-D405), so that digest is measured again on the batch's base;
+and beside its identifier candidates the mixed table's dates are now
+pooled by lanes HX2 and PS, so the gap-index cases read its date and
+stamp columns alone. Lane ZR-a's page test now pins lane HX4's list
+question among the holding questions, as the page's rule I says.
+`K-S3-64` is run again on the merged head and stamped there.
+`tests/test_chain_oracle.py`'s switched test writes the oracle's test key
+into the installation, so RULE W5's draw is the same on every run and a
+run publishing no chain still fails (Codex's review of batch 4g). The
+records name what really ran beside the night window's six time entries
+on 2026-10-23 (a pytest over a whole tests folder; the PASS verdicts
+stand), `K-S4-12`'s evidence its load and its pairs' sources, P4-D421's
+and STATE's measured chain yield (115 of 287 estimates at 200,000 rows,
+no moment and no slope) with the moment comparison never yet run (lanes
+MPp and CHb), P4-D418's owners (RULE ONE_BAND lane CHa2, `w_te` lane
+A0b's 200,000-row leg, the several-rows-a-subject question lanes MG, GR
+and ST, the row hash's independent check lane CHb), ZR.9's keys under
+five figures (lanes LISTS and CODES-3: a plain column of `R1000` or
+`AB100` keys, held while pure, publishes all 40 beside one word cell,
+measured on the batch's base and on the merged head), and correct the
+batch 4g entry's oracle wording. The ledger's byte cap is set once for the batch.
+
+OWED, NOT DONE HERE: lane SG's night measurements (`night-sg.sh` a and c
+and `night-sg-e.sh` in night 1024, b and d in the windows after;
+`K-S4-12` and `K-S4-09`'s generate part stamped from them); lane SG's
+gate cases `sorted_floor_one` and `sparse_floor_one`, which pass
+`--smallest-group 1`, moved to lane MIN's internal setting when MIN
+merges, their digests measured again from their own base.
+
 ### `synthtwin generate` holds the twin once (2026-10-21)
 
 **Lane SG** (plan P4-D415). Generating a twin held the whole table as
@@ -77,9 +121,12 @@ product for the first time: handed the chain's switch alone it still
 skips, because the trial table's `ward` is held by lane HX's open
 identifier question and no chain is published beside a held column that
 repeats, so a second test answers `ward` `keep` in a second round with
-the switch on; each column's bands, the family tables, their anchors,
-the floor, RULE W1 and the structural words equal the oracle's, and the
-test fails rather than skips when no chain is published. With the switch
+the switch on; each column's bands, the family tables, their anchors
+and the structural words equal the oracle's, the floor holds, and RULE
+W1 holds on the oracle's reading over the merge's sub-bands (the
+producer's other own-fact groups are not listed; corrected at batch
+4h's records), and the test fails rather than skips when no chain is
+published. With the switch
 off, lane SR's 880 descriptions and every golden are byte for byte batch
 4f's. The six time entries (`K-P3-12`, `K-S1-01`, `K-S1-05`, `K-S1-06`,
 `K-S1-07`, `K-2B-38`) are stamped from the orchestrator's night window
@@ -108,7 +155,9 @@ OWED, NOT DONE HERE: `K-S4-09` and `K-S4-11` re-stamped on lane SR-A's
 merged code in a night window (`wave6/SRA/night-sra.sh <head> kpi`), and
 lane H3's person-column run; the wall-time assertion of
 `tests/test_stage4_counted_in_persons.py::test_a_raised_floor_asks_a_set_of_subjects`
-watched on CI's first run.
+watched on CI's first run; and lane HX2's stated limit (2), a table of
+ten people or fewer whose person question is open still publishing per
+rows, the orchestrator's to decide (listed at batch 4h's records).
 
 ### The zoo-fix reading page: where each new reading stands in the classifier, the questions it adds, what it may publish (lane ZR-a, plan P4-D419, 2026-10-21; NOT BUILT)
 
@@ -197,7 +246,11 @@ the measured chains form (each joins every number column), so under the owner's
 strict-proof ruling the layer publishes no moment and, by ruling R12,
 no slope: 115 of lane `A0b`'s 287 analysis results at 200,000 rows on
 lane `A0c`'s seeded chain, against 202 polished and 213 for a fresh
-sample, the loss the page's stated limit 3 foresaw, now measured.
+sample, the loss the page's stated limit 3 foresaw, now measured. By
+the `classes` setting's own words `correlation` joins the list with
+`cho1` (contract 4.6d.10), and on the measured chains it publishes
+nothing either (written in at batch 4h's records).
+
 ### Lane CHa: the chain's profile side, built behind a switch no user reaches (2026-10-21)
 
 **The first code of the broad between-columns program** (plan P4-D418,

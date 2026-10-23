@@ -17,6 +17,7 @@ no `relationships.statistical`.
 import ast
 import importlib.util
 import json
+import os
 import pathlib
 import sys
 from fractions import Fraction
@@ -1034,10 +1035,28 @@ def test_the_switched_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
     description, every comparison unchanged. It MUST NOT SKIP: a
     switched run that publishes no chain fails here. MUTANTS (run at the
     integration): the product's ladder totals moved by one row, and its
-    structural words all `implied`, each red."""
+    structural words all `implied`, each red.
+
+    THE INSTALLATION'S KEY IS THE ORACLE'S TEST KEY (batch 4h's records;
+    Codex's review of batch 4g, its one Medium): written into the data
+    folder before the run, so RULE W5's keyed draw is the same on every
+    run. A fresh random key may legitimately draw "no family" (about
+    7.75e-8 a run; Codex's key (28477484).to_bytes(32, "big") does),
+    which this test would read as a failure; with the fixed key the
+    intended chain is drawn, and a switched run publishing none still
+    fails. No draw is ever retried."""
     sys.path.insert(0, str(REPOSITORY / "src"))
     from synthtwin import cli
 
+    data = tmp_path / "data"
+    data.mkdir(mode=0o700)
+    if os.name != "nt":
+        data.chmod(0o700)
+    key_file = data / "chain-key"
+    key_file.touch(mode=0o600)
+    if os.name != "nt":
+        key_file.chmod(0o600)
+    key_file.write_bytes(oc.TEST_KEY)
     real = cli.main
     published = []
 
