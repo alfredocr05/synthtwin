@@ -3161,17 +3161,19 @@ def _withheld_notice(names: "tuple[str, ...]") -> str:
 def _safe_harbor_notice(names: "tuple[str, ...]", held: bool) -> str:
     """What the screen says of the columns the Safe Harbor question is put to.
 
-    Plan P4-D427. ``held``: columns of five-figure numbers beside a few
-    words, held back whole; otherwise number columns whose values above
-    89 are read as 90. The sentence names the way back, which is
+    Plan P4-D427. ``held``: columns of numbers of four or five figures,
+    as ZIP codes are written, or of ages that cannot be read as 90,
+    held back whole; otherwise columns whose values above 89 are read as
+    90. The sentence names the way back, which is
     answering the question in the questions file. Guarantees: a fixed
     function of the two. Raises nothing, opens no file.
     """
     if held:
         said = (
-            f"{_joined(list(names), ' and ')} hold five-figure numbers, as ZIP "
-            f"codes are written, so this description publishes none of their "
-            f"values and the twin writes made-up record numbers there"
+            f"{_joined(list(names), ' and ')} may hold ZIP codes (whole "
+            f"numbers of four or five figures) or ages over 89, so this "
+            f"description publishes none of their values and the twin writes "
+            f"made-up record numbers there"
         )
     else:
         said = (
@@ -3445,6 +3447,10 @@ def _run_profile(
     # ...and the columns read as five-figure numbers beside a few words,
     # as the latest description found them (plan P4-D427).
     five_figures: "list[str]" = []
+    # ...and the columns of ages whose top-code would make some of their
+    # cells missing (90 is one of their missing values), held whole
+    # instead (plan P4-D427).
+    ages_held: "list[str]" = []
     # ...and the column names the file's answers use, with the columns
     # those answers name, set against the names this run reads (plan
     # P4-D408).
@@ -3554,6 +3560,12 @@ def _run_profile(
             # ...and the columns answered `dates` (landing R2c), or `keep`.
             + list(written.date_columns)
             + list(written.date_columns_kept)
+            # ...and the columns answered `no` or `yes` to the Safe Harbor
+            # question (plan P4-D427; Codex's review of lane SH, item 7):
+            # an answer beside a correction of the reading is refused, as
+            # every other answer naming a column is, never dropped.
+            + list(written.safe_harbor_no)
+            + list(written.safe_harbor_yes)
             # ...and every column an earlier run's answer kept (plan
             # P4-D408): its name is the name under the reading that run
             # took, which an answer changing the reading moves.
@@ -4289,6 +4301,7 @@ def _run_profile(
         top_code=True,
         safe_harbor_no=safe_harbor_no,
         five_figures=five_figures,
+        ages_held=ages_held,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -4625,6 +4638,7 @@ def _run_profile(
                 census_readings = ()
                 counted_in_people = []
                 five_figures = []
+                ages_held = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -4642,6 +4656,7 @@ def _run_profile(
                     top_code=True,
                     safe_harbor_no=safe_harbor_no,
                     five_figures=five_figures,
+                    ages_held=ages_held,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -4830,12 +4845,18 @@ def _run_profile(
                 and question.name not in candidates
             ):
                 candidates += [question.name]
-    # A COLUMN OF FIVE-FIGURE NUMBERS BESIDE A FEW WORDS IS HELD WHOLE
-    # until its Safe Harbor question is answered `no` (plan P4-D427; ZR-b's
-    # verify 2, item 1): five-figure ZIP codes beside one `UNKNOWN` cell, or
-    # three `HOMELESS`, were read as a count and printed 9 or 10 real ZIPs.
-    # Held whoever is at the keyboard, since that question is put in the
-    # questions file; a declaration is an answer, as above. It is no
+    # A COLUMN OF ZIP-SHAPED NUMBERS IS HELD WHOLE until its Safe Harbor
+    # question is answered `no` (plan P4-D427; ZR-b's verifies 2 to 6, the
+    # orchestrator's LANE SH addenda): whole numbers of four or five
+    # figures, ZIP codes with their leading zero or without it, in any
+    # role, beside words and placeholders of any share -- one `UNKNOWN`
+    # cell, three `HOMELESS`, `-99` on a third of the rows -- were read as
+    # a count, binary, constant or labels with nothing asked and printed
+    # every real ZIP. Held whoever is at the keyboard, since that question
+    # is put in the questions file; a declaration is an answer, as above,
+    # and so is `yes` (Codex's review of lane SH, item 8: the column then
+    # stays held and the question is not put again). A column of ages
+    # whose top-code would make cells missing is held so too. It is no
     # subject the other columns are counted in: it names a place.
     declared_five = (
         forced_identifiers
@@ -4849,8 +4870,13 @@ def _run_profile(
         + safe_harbor_no
     )
     five_held: "list[str]" = []
-    for name in five_figures:
-        if name not in declared_five and name not in withheld and name not in five_held:
+    for name in five_figures + ages_held:
+        if (
+            (name not in declared_five or name in ages_held)
+            and name not in safe_harbor_yes
+            and name not in withheld
+            and name not in five_held
+        ):
             five_held += [name]
     # ...and a column answered `yes` to that question is held so for good,
     # the run asking nothing more of it (plan P4-D427).
@@ -5236,7 +5262,11 @@ def _run_profile(
     # no question above names the column; such a column leaves the
     # checklist, since it raised a question of its own.
     harbor_asked = asking.safe_harbor_questions(
-        published, tuple(five_held), asked_about
+        published,
+        tuple(five_held),
+        asked_about,
+        tuple(ages_held),
+        tuple(safe_harbor_no + safe_harbor_yes),
     )
     if harbor_asked:
         asked_about = asked_about + harbor_asked

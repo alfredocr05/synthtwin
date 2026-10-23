@@ -5105,7 +5105,9 @@ def measure(
         # every value above 89 as 90, the real file as the twin, by every
         # check below -- so the real table meets the description it made.
         top_coded = _top_coded_here(description, table)
-        table = _top_coded_table(table, top_coded, declared_commas)
+        table = _top_coded_table(
+            table, top_coded, declared_commas, declared_spellings(description)
+        )
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -5285,30 +5287,46 @@ def _top_coded_here(
 
 
 def _top_coded_table(
-    table: reading.Table, top_coded: "tuple[str, ...]", commas: "list[str]"
+    table: reading.Table,
+    top_coded: "tuple[str, ...]",
+    commas: "list[str]",
+    declared: "tuple[str, ...]" = (),
 ) -> reading.Table:
-    """The checked table with each top-coded column's values above 89 read as 90 (P4-D427).
+    """The checked table with each top-coded column's values from 90 to 125 read as 90 (P4-D427).
 
-    A table read in groups of columns (lane SR) is returned as it is: the
-    redescription reads the top-code itself (`profile.build_document`'s
-    ``top_coded_only``). Guarantees: a function of the three. Raises
-    nothing. No I/O.
+    A cell that reads as no value -- blank, a built-in spelling of "no
+    value", or one the description declared (``declared``) -- keeps its
+    spelling, as the redescription keeps it (Codex's review of lane SH,
+    item 1). A table read in groups of columns (lane SR) is returned as
+    it is: the redescription reads the top-code itself
+    (`profile.build_document`'s ``top_coded_only``). Guarantees: a
+    function of the four. Raises nothing. No I/O.
     """
     if not top_coded or table.source is not None:
         return table
+    named: "dict[str, bool]" = {}
+    for spelling in declared:
+        named[parsing.trimmed(spelling)] = True
     columns: "list[list[str]]" = []
     changed = False
     for place in range(len(table.columns)):
         name = table.column_names[place] if place < len(table.column_names) else ""
-        coded = (
-            taxonomy.top_coded_cells(table.columns[place], name in commas, True)
-            if name in top_coded
-            else None
-        )
-        if coded is None:
+        if name not in top_coded:
             columns += [table.columns[place]]
             continue
-        columns += [coded]
+        absent: "dict[str, bool]" = {}
+        for cell in table.columns[place]:
+            if cell not in absent and (
+                not parsing.trimmed(cell)
+                or parsing.is_missing_text(cell)
+                or parsing.trimmed(cell) in named
+            ):
+                absent[cell] = True
+        columns += [
+            taxonomy.top_coded_cells(
+                table.columns[place], name in commas, frozenset(absent)
+            )
+        ]
         changed = True
     if not changed:
         return table

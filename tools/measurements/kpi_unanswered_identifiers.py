@@ -18,15 +18,21 @@ and counts what is real:
   fail their own validation, but for the generator's stated limits
   (`VALIDATION_LIMITS`): target 0.
 - over lane SH's Safe Harbor number shapes (plan P4-D427,
-  `SAFE_HARBOR_NUMBERS`: five-figure ZIP codes beside `UNKNOWN` once or
-  `HOMELESS` three times, with and without a leading zero, and ages
-  above 89, plain and beside `999` once or twenty times or `-9`), counted
-  the same way into the same keys -- an age above 90 counted as published
-  where an output of the table carries it more often than the same output
-  of the table with every value above 89 written 90, an output that
-  differs counted as a fragment, a twin cell above 90 as a real cell --
-  and twins failing validation, the real age tables' own validation
-  among them, but the held block's named limit at 20,000 rows. Target 0.
+  `SAFE_HARBOR_NUMBERS`: ZIP codes of four or five figures in every role,
+  beside words and placeholders of any share, signed or beside ZIP+4
+  cells, and ages above 89 in every role, beside an outlier, placeholders
+  or words of any share, written with a unit word or a plus sign, or
+  beside an open person question), counted the same way into the same
+  keys -- an age above 90 counted as published where an output of the
+  table carries it more often than the same output of the table with
+  every age from 90 to 125 written 90, an output that differs counted as
+  a fragment, a twin cell above 90 as a real cell, and a held twin's
+  made-up value equal to a real ZIP by chance counted apart (the same
+  table with every ZIP written as another twins it too) -- and twins
+  failing validation, the real age tables' own validation among them
+  (a held block's real table but for the census of repetition every held
+  block's real table misses), but the held block's named limit at
+  20,000 rows. Target 0.
 - over the STATED shapes (a name, a street address, a full birth date on
   a long table with no subject column, so no people to count in; plan
   P4-D406 item (a)): real values in the description and twin cells
@@ -39,6 +45,7 @@ minutes on the reference machine.
 """
 
 import pathlib
+import re
 import sys
 import tempfile
 
@@ -91,14 +98,22 @@ with tempfile.TemporaryDirectory() as scratch:
                       f"{seen['description_values']} of {seen['different']} real values in the "
                       f"outputs, {seen['description_fragments']} outputs differing, "
                       f"{seen['twin_cells']} twin cells real, validate {seen['validate_exit']}, "
-                      f"the real table {seen['validate_real_exit']}"]
+                      f"the real table {seen['validate_real_exit']}, "
+                      f"{seen.get('twin_cells_by_chance', 0)} made-up twin cells equal "
+                      f"to a real ZIP by chance"]
             for key in held:
                 if key != "twins_failing_validation":
                     held[key] = held[key] + int(seen[key])
-            limited = rows >= 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_20000
+            limited = (rows >= 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_20000) or (
+                rows < 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_600)
             if seen["validate_exit"] != 0 and not limited:
                 held["twins_failing_validation"] += 1
-            if kind in shapes.AGES and seen["validate_real_exit"] != 0:
+            missed = set(re.findall(r"^\s+(\S+) \[[^\]]+\]: MISSED",
+                                    f"{seen['real_quality']}", re.M))
+            if kind in shapes.AGES and seen["validate_real_exit"] != 0 and not (
+                seen["role"] == "identifier"
+                and missed <= {"distinct.n_distinct_by_occurrences"}
+            ):
                 held["twins_failing_validation"] += 1
 for line in lines:
     print(line)

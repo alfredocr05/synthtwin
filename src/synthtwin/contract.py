@@ -7777,14 +7777,13 @@ def _column(
     # refuses every other key the role does not name.
     grain_value: object = None
     # ...AND THE SAFE HARBOR TOP-CODE (plan P4-D427, lane ZR-b's ZS.1): a
-    # number column described with every age over 89 read as 90 says so
-    # with `top_coded`, the number 90 and nothing else, whatever role the
-    # column so read took (a constant 90, a few values) but a record
-    # number's, which publishes no value. Read apart too.
+    # column described with every age over 89 read as 90 says so with
+    # `top_coded`, the number 90 and nothing else, whatever role the
+    # column so read took (a constant 90, a few values, labels such as
+    # `90 years`, or a record number held from those cells, whose twin
+    # and validator read it the same way). Read apart too.
     top_coded = 0
     if "top_coded" in mapping:
-        if role == ROLE_IDENTIFIER:
-            raise _unknown("top_coded", where)
         if mapping["top_coded"] != TOP_CODE or isinstance(mapping["top_coded"], bool):
             raise _out_of_range(
                 "top_coded", where, "another value", f"the number {TOP_CODE}"

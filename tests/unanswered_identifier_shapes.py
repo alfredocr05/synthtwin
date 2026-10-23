@@ -555,75 +555,266 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     return seen
 
 
-# THE SAFE HARBOR NUMBER SHAPES (lane SH, plan P4-D427), each a column read
-# as numbers beside a unique row key `pid`, nobody answering.
+# THE SAFE HARBOR NUMBER SHAPES (lane SH, plan P4-D427), each a column of
+# ZIP codes or ages beside a row key `pid` (unique but in `age_person`),
+# nobody answering.
 #
-# FIVE-FIGURE ZIP CODES BESIDE A FEW WORDS (`ZIP_WORDS`; ZR-b's verify 2,
-# item 1): 70 ZIP codes drawn with weights 1/(k+1)^1.1, with a leading zero
-# (`02100`...) or without (`52240`...), beside `UNKNOWN` once or `HOMELESS`
-# three times. Measured on b85200be at 600 rows: read as a count, 38 or 39
-# real ZIPs printed and 406 to 411 twin cells real; 44 and over 13,000 at
-# 20,000. Counted by `count_real`, as every held shape is.
+# ZIP CODES (`ZIPS`), counted by `count_real` as every held shape is:
+# - ZR-b's verify 2, item 1 (`zip5word*`): 70 ZIP codes drawn with weights
+#   1/(k+1)^1.1, with a leading zero (`02100`...) or without (`52240`...),
+#   beside `UNKNOWN` once or `HOMELESS` three times. Measured on b85200be
+#   at 600 rows: read as a count, 38 or 39 real ZIPs printed; 44 at 20,000.
+# - the orchestrator's LANE SH addenda 1 (1) and (3), 3 (1), 4 and 5, and
+#   skeptic 1 of lane SH, items 4 and 8, each measured LIVE at 20,000 rows
+#   on b85200be or 28e5d2f5: every role (`zip_binary`, `zip_constant`,
+#   `zip4_binary`, `zip4_constant`), ZIPs that lost their leading zero
+#   beside five-figure ones (`zip_mixed`), placeholders of any share
+#   (`zip_pad_minus99`, `zip_mixed_minus99`, `zip4_minus9999`,
+#   `zip4_999999`), the unknown-ZIP code 99999 (`zip4_99999`,
+#   `zip4_99999x11`), words of any share in a label role
+#   (`zip_pad_unknown`, `zip_pad_unknown35`, `zip_mixed_unknown`,
+#   `zip4_99999_unknown`), ZIP+4 cells (`zip_plus4`), and Codex's
+#   plus-signed ZIPs (`zip_plus_sign`).
+# - the orchestrator's LANE SH ADDENDUM 6 (the hold follows the offer):
+#   60 ten-figure account numbers repeating, beside a nine-figure one on
+#   every 150th row (`acct_date_count`), put the date-count question
+#   alone -- two widths, so no fixed-width question -- which held nothing
+#   before (lane HX held that question only beside the width question);
+#   no ZIP and no age, so only that question's hold reaches it.
 #
-# AGES (`AGES`; 45 CFR 164.514(b)(2)(i)(C)): ages 18 to 89 with 3 % drawn
-# from 90 to 103 (the orchestrator's probe of 2026-10-23), plain, beside
-# `999` once or twenty times, or beside `-9` on 2 % of rows. Measured on
-# b85200be at 20,000 rows: `max` 103, the high tail's values 99 to 103.
-# Counted by `run_ages`: what every output of the table carries beside
-# the same outputs of the table with every value above 89 written 90.
+# AGES (`AGES`; 45 CFR 164.514(b)(2)(i)(C)), counted by `run_safe_harbor`
+# against the same table with every age from 90 to 125 written 90:
+# - ages 18 to 89 with 3 % drawn from 90 to 103 (the orchestrator's probe
+#   of 2026-10-23), plain, beside `999` once or twenty times, or beside
+#   `-9` on 2 % of rows (`ages`, `ages999`, `ages999x20`, `ages-9`);
+# - the addenda 1 (1) and (2), 2 (1) and (2) and 3 (2): every role
+#   (`age_binary`, `age_constant`), an outlier (`age_outlier`,
+#   `age_126`), placeholders of any share (`age_999share`,
+#   `age_minus1share`, `age_888`, `age_gauss_minus1`), ages in a label
+#   role (`age_years`, `age_unk`, `age_words800`, `age_years_words`);
+# - skeptic 1 of lane SH, items 9 and 12: ages beside an open person
+#   question, each value above 89 held by at least eleven people at
+#   20,000 rows (`age_person`), and a plus sign on every fiftieth age
+#   (`age_plus`).
 ZIP_WORDS = ("zip5word_unknown", "zip5word_homeless", "zip5word52_unknown",
              "zip5word52_homeless")
-AGES = ("ages", "ages999", "ages999x20", "ages-9")
-SAFE_HARBOR_NUMBERS = ZIP_WORDS + AGES
-# word, how many cells hold it, whether the ZIPs carry a leading zero
-_ZIP_WORD = {"zip5word_unknown": ("UNKNOWN", 1, True),
-             "zip5word_homeless": ("HOMELESS", 3, True),
-             "zip5word52_unknown": ("UNKNOWN", 1, False),
-             "zip5word52_homeless": ("HOMELESS", 3, False)}
-# placeholder, how many cells hold it, the share of rows that hold it
-_AGE_PLACEHOLDER = {"ages": ("", 0, 0.0), "ages999": ("999", 1, 0.0),
-                    "ages999x20": ("999", 20, 0.0), "ages-9": ("-9", 0, 0.02)}
+ZIPS = ZIP_WORDS + (
+    "zip_binary", "zip_constant", "zip_mixed", "zip_pad_minus99",
+    "zip_mixed_minus99", "zip4_99999", "zip4_99999x11", "zip_plus4",
+    "zip_plus_sign", "zip4_binary", "zip4_constant", "zip_pad_unknown",
+    "zip_pad_unknown35", "zip_mixed_unknown", "zip4_99999_unknown",
+    "zip4_minus9999", "zip4_999999", "acct_date_count",
+)
+AGES = (
+    "ages", "ages999", "ages999x20", "ages-9", "age_binary", "age_constant",
+    "age_outlier", "age_126", "age_999share", "age_minus1share", "age_888",
+    "age_gauss_minus1", "age_years", "age_unk", "age_words800",
+    "age_years_words", "age_person", "age_plus",
+)
+SAFE_HARBOR_NUMBERS = ZIPS + AGES
 AGE_TOP_CODE = 90
+AGE_CEILING = 125
 # Validation limits of the held block (plan P4-D427, stated): at 20,000
-# rows a column of five-figure numbers beside ONE word is published with
+# rows a column of ZIP-shaped numbers beside ONE word is published with
 # `all_whole_numbers` false beside every cell counted in figures (the
 # census line absorbs the one), and the held generator writes whole
 # numbers only, so the twin misses that one fact (exit 3); owner CODES-1
 # part C, as `VALIDATION_LIMITS` are.
 SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown")
+# ...and at 600 rows ZIP codes beside twenty ZIP+4 cells are held by
+# P4-D401's person question, whose held twin writes the ZIP+4 layout and
+# too few cells of the five-figure one (`forms.published.%%%%%`): the
+# same exit 3 on b85200be, before this lane (wave6/SH/r1/base-zip4.log);
+# owner CODES-1 part C, as above.
+SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4",)
+
+def _an_age(draw: random.Random) -> int:
+    """18 to 89, or 90 to 103 for 3 % of draws."""
+    return draw.choice(range(90, 104)) if draw.random() < 0.03 else draw.randint(18, 89)
 
 
-def write_safe_harbor_table(
-    folder: pathlib.Path, kind: str, rows: int, top_coded: bool = False
-) -> "tuple[pathlib.Path, list[str]]":
-    """A Safe Harbor number table as a CSV file; its path and the real values to look for.
+def _word(place: int) -> str:
+    """A word of letters alone, different for each place: `wab`, `wac`..."""
+    letters = ""
+    left = place
+    for _ in range(3):
+        letters = chr(ord("a") + left % 26) + letters
+        left = left // 26
+    return "w" + letters
 
-    For ZIPs, the different ZIP codes written; for ages, the different
-    ages above 90 written (an age of 90 is the top-code itself). With
-    ``top_coded``, every age above 89 is written 90 -- the table the
-    top-code reads.
-    """
-    draw = random.Random(SEED + len(kind))
+
+def _shares(rows: int, *parts: float) -> "list[int]":
+    """Rows split by shares, the last part taking what is left."""
+    counts = [int(rows * part) for part in parts[:-1]]
+    return counts + [rows - sum(counts)]
+
+
+def _zip_cells(kind: str, rows: int, draw: random.Random) -> "tuple[list[str], list[str]]":
+    """A ZIP shape's cells, and the real ZIP codes among them."""
+    padded = [f"0{2100 + 7 * k:04d}" for k in range(40)]
+    four = [f"{2100 + 7 * k}" for k in range(40)]
+    mixed = ["2100", "2107", "52240", "52247"]
     cells: "list[str]" = []
-    if kind in _ZIP_WORD:
-        word, times, lead = _ZIP_WORD[kind]
+    if kind in ("zip5word_unknown", "zip5word_homeless", "zip5word52_unknown",
+                "zip5word52_homeless", "zip_plus4"):
+        word, times = {"zip5word_unknown": ("UNKNOWN", 1), "zip5word_homeless": ("HOMELESS", 3),
+                       "zip5word52_unknown": ("UNKNOWN", 1),
+                       "zip5word52_homeless": ("HOMELESS", 3),
+                       "zip_plus4": ("UNKNOWN", 1)}[kind]
+        lead = kind in ("zip5word_unknown", "zip5word_homeless")
         zips = [f"0{2100 + 7 * k:04d}" if lead else f"{52240 + 7 * k}" for k in range(70)]
         weights = [1.0 / (k + 1) ** 1.1 for k in range(70)]
         for row in range(rows):
             cells += [word if row < times else draw.choices(zips, weights)[0]]
+        if kind == "zip_plus4":
+            for row in range(1, 21):
+                cells[row] = f"{zips[row % 7]}-{1000 + row}"
         real = sorted({cell for cell in cells if cell != word})
+        return cells, real
+    if kind == "acct_date_count":
+        accounts = [f"{1400000000 + draw.randrange(10 ** 8)}" for _ in range(60)]
+        cells = [f"{123400000 + row}" if row % 150 == 0 else accounts[row % 60]
+                 for row in range(rows)]
+    elif kind == "zip_plus_sign":
+        cells = ["UNKNOWN" if row < 3 else f"+{52200 + row % 80}" for row in range(rows)]
+    elif kind == "zip_binary":
+        cells = ["02100" if row % 2 else "02107" for row in range(rows)]
+    elif kind == "zip_constant":
+        cells = ["02100"] * rows
+    elif kind == "zip4_binary":
+        cells = ["2100" if row % 2 else "2107" for row in range(rows)]
+    elif kind == "zip4_constant":
+        cells = ["2100"] * rows
+    elif kind == "zip_mixed":
+        cells = [mixed[row % 4] for row in range(rows)]
     else:
-        placeholder, times, share = _AGE_PLACEHOLDER[kind]
+        base, word, share = {
+            "zip_pad_minus99": (padded, "-99", 0.35),
+            "zip_mixed_minus99": (mixed, "-99", 0.35),
+            "zip4_99999": (four, "99999", 0.05),
+            "zip4_99999x11": (four, "99999", 11 / rows),
+            "zip_pad_unknown": (padded, "UNKNOWN", 0.05),
+            "zip_pad_unknown35": (padded, "UNKNOWN", 0.35),
+            "zip_mixed_unknown": (mixed, "UNKNOWN", 0.05),
+            "zip4_99999_unknown": (four, "99999", 0.05),
+            "zip4_minus9999": (four, "-9999", 0.05),
+            "zip4_999999": (four, "999999", 0.05),
+        }[kind]
+        zips_rows, word_rows = _shares(rows, 1 - share, share)
+        if kind == "zip4_99999_unknown":
+            zips_rows, word_rows, other_rows = _shares(rows, 0.9, 0.05, 0.05)
+            cells = ([base[row % len(base)] for row in range(zips_rows)]
+                     + [word] * word_rows + ["UNKNOWN"] * other_rows)
+        else:
+            cells = [base[row % len(base)] for row in range(zips_rows)] + [word] * word_rows
+        draw.shuffle(cells)
+    placeholders = ("UNKNOWN", "HOMELESS", "-99", "-9999", "999999", "99999")
+    real = sorted({cell for cell in cells if cell not in placeholders})
+    if kind == "zip4_99999x11" or kind == "zip4_99999":
+        real = sorted({cell for cell in cells if cell != "99999"})
+    return cells, real
+
+
+def _age_cells(kind: str, rows: int, draw: random.Random) -> "list[str | tuple[int, str]]":
+    """An age shape's cells: a text kept as written, or an age and its form."""
+    cells: "list[str | tuple[int, str]]" = []
+    if kind in ("ages", "ages999", "ages999x20", "ages-9"):
+        placeholder, times, share = {"ages": ("", 0, 0.0), "ages999": ("999", 1, 0.0),
+                                     "ages999x20": ("999", 20, 0.0),
+                                     "ages-9": ("-9", 0, 0.02)}[kind]
         for row in range(rows):
-            age = (draw.choice(range(90, 104)) if draw.random() < 0.03
-                   else draw.randint(18, 89))
+            age = _an_age(draw)
             if row < times or (share and draw.random() < share):
                 cells += [placeholder]
             else:
-                cells += [f"{min(age, AGE_TOP_CODE) if top_coded else age}"]
-        real = sorted({cell for cell in cells
-                       if cell.isdigit() and AGE_TOP_CODE < int(cell) <= 125})
-    lines = [f"pid,{kind}"] + [f"P{row:06d},{cell}" for row, cell in enumerate(cells)]
+                cells += [(age, "{}")]
+        return cells
+    if kind == "age_plus":
+        return [(_an_age(draw), "+{}" if row % 50 == 0 else "{}") for row in range(rows)]
+    if kind == "age_person":
+        for row in range(rows):
+            if row % 2 == 0:
+                age = _an_age(draw)
+            cells += [(age, "{}")]
+        return cells
+    if kind == "age_binary":
+        return [(60, "{}") if row % 2 else (95, "{}") for row in range(rows)]
+    if kind == "age_constant":
+        return [(95, "{}")] * rows
+    if kind == "age_outlier":
+        half = rows // 2
+        cells = [(60, "{}")] * half + [(95, "{}")] * (rows - half - 1) + ["130"]
+    elif kind == "age_126":
+        cells = [(_an_age(draw), "{}") for _ in range(rows - 1)] + ["126"]
+    elif kind in ("age_999share", "age_minus1share", "age_888", "age_unk"):
+        word = {"age_999share": "999", "age_minus1share": "-1", "age_888": "888",
+                "age_unk": "UNK"}[kind]
+        low, high, rest = _shares(rows, 0.325, 0.325, 0.35)
+        cells = [(60, "{}")] * low + [(95, "{}")] * high + [word] * rest
+    elif kind == "age_gauss_minus1":
+        ages, rest = _shares(rows, 0.6, 0.4)
+        cells = [(min(104, max(18, round(draw.gauss(70, 14)))), "{}") for _ in range(ages)]
+        cells += ["-1"] * rest
+    elif kind == "age_years":
+        cells = [(draw.randint(18, 104), "{} years") for _ in range(rows)]
+    elif kind == "age_words800":
+        low, high, rest = _shares(rows, 0.3, 0.3, 0.4)
+        cells = [(60, "{}")] * low + [(95, "{}")] * high
+        cells += [_word(place // 10) for place in range(rest)]
+    elif kind == "age_years_words":
+        ages, rest = _shares(rows, 0.65, 0.35)
+        cells = [(draw.randint(18, 104), "{} years") for _ in range(ages)]
+        cells += [_word(place // 10) for place in range(rest)]
+    draw.shuffle(cells)
+    return cells
+
+
+def _written_age(cell: "str | tuple[int, str]", top_coded: bool) -> str:
+    """One age cell as the table writes it, or as the top-code reads it."""
+    if isinstance(cell, str):
+        return cell
+    age, form = cell
+    if top_coded and AGE_TOP_CODE <= age <= AGE_CEILING:
+        age = AGE_TOP_CODE
+    return form.format(age)
+
+
+def _decoy(value: str) -> str:
+    """A ZIP written as another: each figure but a leading `0` moved by five, the form kept."""
+    moved = ""
+    for place, character in enumerate(value):
+        if "0" <= character <= "9" and not (place == 0 and character == "0"):
+            moved += f"{(int(character) + 5) % 10}"
+        else:
+            moved += character
+    return moved
+
+
+def write_safe_harbor_table(
+    folder: pathlib.Path, kind: str, rows: int, top_coded: bool = False, decoy: bool = False
+) -> "tuple[pathlib.Path, list[str]]":
+    """A Safe Harbor number table as a CSV file; its path and the real values to look for.
+
+    For ZIPs, the different ZIP codes written; for ages, the different
+    ages above 90, to 125, written (an age of 90 is the top-code itself).
+    With ``top_coded``, every age from 90 to 125 is written 90 in its own
+    form -- the table the top-code reads. With ``decoy``, every ZIP is
+    written as another of the same form (`_decoy`), placeholders kept.
+    """
+    draw = random.Random(SEED + len(kind))
+    if kind in ZIPS:
+        written, real = _zip_cells(kind, rows, draw)
+        if decoy:
+            named = set(real)
+            written = [_decoy(cell) if cell in named else cell for cell in written]
+    else:
+        cells = _age_cells(kind, rows, draw)
+        written = [_written_age(cell, top_coded) for cell in cells]
+        real = sorted({f"{cell[0]}" for cell in cells
+                       if not isinstance(cell, str) and AGE_TOP_CODE < cell[0] <= AGE_CEILING})
+    keys = [f"P{row // 2:06d}" if kind == "age_person" else f"P{row:06d}"
+            for row in range(rows)]
+    lines = [f"pid,{kind}"] + [f"{key},{cell}" for key, cell in zip(keys, written)]
     path = folder / f"{kind}_long.csv"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     return path, real
@@ -667,16 +858,26 @@ def _profiled(folder: pathlib.Path, table: pathlib.Path, kind: str) -> "dict[str
             "twin": _csv_column(folder / f"{kind}_long-twin.csv", 1)}
 
 
+def _twin_ages_over(twin: "list[str]") -> int:
+    """How many twin cells hold a number above 90, to 125, a unit word after it or not."""
+    over = 0
+    for cell in twin:
+        found = re.fullmatch(r"\s*\+?([0-9]+(?:\.[0-9]+)?)(?:\s*[A-Za-z]+)?\s*", f"{cell}")
+        if found is not None and AGE_TOP_CODE < float(found.group(1)) <= AGE_CEILING:
+            over += 1
+    return over
+
+
 def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     """One Safe Harbor number shape profiled unanswered, generated and validated.
 
     ZIPs are counted as every held shape is (`count_real`). Ages are
-    counted against the same table with every value above 89 written 90,
-    profiled in a folder of its own: an age above 90 counts as published
-    where it stands in an output of the table more often than in the
-    same output of that table (so a `100` of the page's own words is no
-    age), the outputs that differ are counted as fragments, and twin cells
-    above 90 as real cells.
+    counted against the same table with every age from 90 to 125 written
+    90, profiled in a folder of its own: an age above 90 counts as
+    published where it stands in an output of the table more often than
+    in the same output of that table (so a `100` of the page's own words
+    is no age), the outputs that differ are counted as fragments, and
+    twin cells above 90 as real cells.
     """
     table, real = write_safe_harbor_table(folder, kind, rows)
     seen = _profiled(folder, table, kind)
@@ -697,10 +898,30 @@ def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, ob
         "asked": [[c["answer"] for c in entry["answers_you_can_give"]] for entry in asked],
         "read_as_now": [entry["read_as_now"] for entry in asked],
         "screen": texts["screen"],
+        "summary": texts[f"{kind}_long-profile.txt"],
+        "real_quality": texts["real-quality"],
     }
-    if kind in ZIP_WORDS:
+    if kind in ZIPS:
         published = [texts[name] for name in texts if name != "real-quality"]
-        found.update(count_real(real, published, [f"{cell}" for cell in twin]))
+        cells = [f"{cell}" for cell in twin]
+        counted = count_real(real, published, cells)
+        found.update(counted)
+        if counted["twin_cells"]:
+            # A MADE-UP VALUE EQUAL TO A REAL ONE BY CHANCE. A held column's
+            # twin writes made-up record numbers spread over its layout's
+            # whole range, drawn from the description alone; where one lands
+            # on a real ZIP (Codex's `+52200` to `+52279` fill 80 of the
+            # thousand numbers where one made-up value falls), the same
+            # table with every ZIP written as another twins the same value:
+            # such a value is counted apart, as a date bucket's start is.
+            decoy_folder = folder / "decoy"
+            decoy_folder.mkdir()
+            decoy_table, _same = write_safe_harbor_table(decoy_folder, kind, rows, decoy=True)
+            decoy_twin = set(f"{cell}" for cell in _profiled(decoy_folder, decoy_table, kind)["twin"])  # type: ignore[arg-type]
+            again = count_real(real, [], [cell for cell in cells if cell not in decoy_twin])
+            found["twin_cells_by_chance"] = counted["twin_cells"] - again["twin_cells"]
+            found["twin_cells"] = again["twin_cells"]
+            found["twin_fragments"] = again["twin_fragments"]
         return found
     control_folder = folder / "top-coded"
     control_folder.mkdir()
@@ -712,14 +933,7 @@ def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, ob
               if any(_number_tokens(value, texts[name]) > _number_tokens(value, control_texts[name])
                      for name in texts)]
     differing = [name for name in texts if texts[name] != control_texts[name]]
-    over = 0
-    for cell in twin:
-        try:
-            number = float(f"{cell}")
-        except ValueError:
-            continue
-        if AGE_TOP_CODE < number <= 125:
-            over += 1
     found.update({"description_values": len(leaked), "description_fragments": len(differing),
-                  "twin_cells": over, "twin_fragments": 0, "differing": differing})
+                  "twin_cells": _twin_ages_over([f"{cell}" for cell in twin]),
+                  "twin_fragments": 0, "differing": differing})
     return found

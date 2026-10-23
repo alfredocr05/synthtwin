@@ -11986,16 +11986,24 @@ read back as free text, `axes.role` and `axes.statistical_type` MISSED;
 ### G7.14 The Safe Harbor top-code: no value above 90
 
 Lane SH (plan P4-D427; contract TC1). A column whose block carries
-`top_coded` was described with every value above 89 read as 90, so 90
-stands for "90 or more" and every published fact is one of the column so
-read. Its twin is drawn as any column of its role is, and then, before
+`top_coded` was described with every value from 90 to 125 read as 90, so
+90 stands for "90 or more" and every published fact is one of the column
+so read. Its twin is drawn as any column of its role is, and then, before
 anything measures the column, every cell that reads as a number above 90
-is written 90 in its own decimals (`taxonomy.at_most_the_top_code`): a
-derived end one step past a rung the description does not publish would
-otherwise write 91 (plan P4-D405's stated reach). An all-nines placeholder
-(`999`) is kept as written. No word is drawn, so no later column moves.
-The oracle has no function for this step, and no vector holds a
-`top_coded` block, so no vector moves (as G7.13's held fill).
+and at most 125 (a unit word after it or not) is written at or below 90
+(`taxonomy.at_most_the_top_code`): a derived end one step past a rung the
+description does not publish would otherwise write 91 or 99 (plan
+P4-D405's stated reach). EACH DIFFERENT VALUE takes one value -- every cell
+of it the same one, so the column keeps how many cells each value holds
+(Codex's review of lane SH, item 3) -- the largest from 90 down, at the
+cell's own decimals (chosen at six places at most, the finer figures
+written as zeros, so the search steps once per value already taken and
+ends: item 4 of the same review), above 89 or no lower than the column's
+least value, that no other cell holds; 90 itself where none is free. The
+cell's spaces, plus sign and unit word are kept, and a value above 125 is
+no age and is kept. No word is drawn, so no later column moves. The
+oracle has no function for this step, and no vector holds a `top_coded`
+block, so no vector moves (as G7.13's held fill).
 
 ## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 
