@@ -400,8 +400,7 @@ def test_repeating_uids_are_put_q_id_and_held(tmp_path: pathlib.Path, n: int, ev
     seen = run(tmp_path / f"rep{every}", header, rows, "uid", validate=False)
     assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
     assert seen["held"] is True
-    counted = shapes.count_real(sorted(set(cells)), seen["texts"], seen["cells"])
-    assert counted["description_values"] == 0 and counted["twin_cells"] == 0, counted
+    assert _found_linear(sorted(set(cells)), seen["texts"], seen["cells"]) == (0, 0)
 
 
 def test_uids_beside_one_word_are_put_q_id_and_held(tmp_path: pathlib.Path) -> None:
@@ -458,8 +457,32 @@ def test_b_whole_record_numbers_written_as_decimals_are_held_unanswered(
     seen = run(tmp_path / "enc", ["ENCNTR_ID", "test"], rows, "ENCNTR_ID", validate=False)
     assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
     assert seen["held"] is True
-    counted = shapes.count_real(cells, seen["texts"], seen["cells"])
-    assert counted["description_values"] == 0 and counted["twin_cells"] == 0, counted
+    assert _found_linear(cells, seen["texts"], seen["cells"], decimals=True) == (0, 0)
+
+
+def _found_linear(
+    real: "list[str]", texts: "list[str]", cells: "list[str]", decimals: bool = False
+) -> "tuple[int, int]":
+    """Real values found in the texts, and twin cells equal to one, in time linear in the cells.
+
+    A value counts as found where its text stands in a text; a record
+    number written as a decimal (``decimals``) also where its figures
+    before the point stand as a run of figures with none against them,
+    and a twin cell counts where its figures before the point are a real
+    value's (`shapes.count_real`'s readings: its pairwise search over
+    20,000 twin cells and 20,000 values runs for hours).
+    """
+    joined = "\n".join(texts)
+    runs: "set[str]" = set()
+    if decimals:
+        runs = set(re.findall(r"(?<![0-9.])[0-9]+(?![0-9])", joined))
+    found = sum(
+        1 for value in real
+        if value in joined or (decimals and value.split(".")[0] in runs)
+    )
+    keys = {value.split(".")[0] if decimals else value for value in real}
+    equal = sum(1 for cell in cells if (cell.split(".")[0] if decimals else cell) in keys)
+    return found, equal
 
 
 def test_b_grouped_and_partly_decimal_record_numbers(tmp_path: pathlib.Path) -> None:
