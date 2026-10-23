@@ -281,10 +281,39 @@ OPERATIVE = {
     "alarm is a column of four-figure years beside `99999` (one question).",
     "five-figure-limit-four": "and so is one whose zeros were ALL lost beside the unknown-ZIP code `99999` (counted as a "
     "five-figure value, never set aside: the LANE SH ADDENDUM 4); one whose zeros were ALL lost, every value of four "
-    "figures (`9999` included), is held by P4-D401's fixed-width question instead, until answered; one whose zeros were "
-    "ALL lost beside any other placeholder or a word (`999`, `-99` or `-1` x 1,000, `UNKNOWN` x 1,000 or once) is "
-    "reached by neither and prints its ZIPs today, 40 of 40 at 20,000 rows (`wave6/ZRb/r7/r7-probe.log`), a live "
-    "exposure (owner CODES-2, which measures all three).",
+    "figures (`9999` included) on three different values or more, is held by P4-D401's fixed-width question instead, "
+    "until answered (3, 5 and 40 such ZIPs read `identifier`, 0 printed);",
+    "zs10-one-or-two": "one whose zeros were ALL lost on one or two values is not: `2100` x 10,000 beside `2107` x "
+    "10,000 reads `binary` and prints 2 real ZIPs, and `2100` x 20,000 reads `constant` and prints 1, at 20,000 rows "
+    "today with nothing asked (`wave6/ZRb-verify6.md` item 1), reached by neither the hold (no value of five figures) "
+    "nor that question, a live exposure (owner lane SH, its LANE SH ADDENDUM, case (1), and ADDENDUM 5, case (1): the "
+    "ZIP hold in every role);",
+    "zs10-other-placeholders": "one whose zeros were ALL lost beside any other placeholder or a word (`999`, `-99` or "
+    "`-1` x 1,000, `UNKNOWN` x 1,000 or once) is reached by neither and prints its ZIPs today, 40 of 40 at 20,000 rows "
+    "(`wave6/ZRb/r7/r7-probe.log`), a live exposure (owner CODES-2, which measures all three);",
+    "zs10-unknown-path-iii": "beside `UNKNOWN` x 1,000 it reads `categorical`, a label column that path (iii)'s "
+    "level-by-level hold (CODES-2) takes, every level holding a figure pooled until `no`, and that lane SH now holds "
+    "whole until `no` (its LANE SH ADDENDUM 5, case (2): a label column whose levels, words and placeholders set aside "
+    "whatever their share, are whole numbers of four or five figures).",
+    "zs1-one-or-two": "Nor does that question hold a column of one or two four-figure values (`wave6/ZRb-verify6.md` "
+    "item 1 and `wave6/ZRb-verify6-work/v6-probe-guard.log`, this base, 20,000 rows, nobody answering): `2100` x 10,000 "
+    "beside `2107` x 10,000 reads `binary` and prints 2 real ZIPs, and `2100` x 20,000 reads `constant` and prints 1, "
+    "nothing asked, while 3, 5 and 40 such ZIPs read `identifier` with the question put; this page's hold, needing a "
+    "value of five figures, reaches neither, and lane SH holds both in the product (its LANE SH ADDENDUM 5, case (1); "
+    "ZS.10: a live exposure, owner lane SH).",
+    "sh-addendum-5": "Its LANE SH ADDENDUM 5 (2026-10-23 12:29) takes the ZIP hold to every role, as the age reach goes: "
+    "it adds the sixth verify's `V6-1` and `V6-2` at 0 ZIPs in any file, the question put -- four-figure ZIPs read "
+    "`binary` (`2100`/`2107` x 10,000) or `constant` (`2100` x 20,000); ZIPs read `categorical` beside a word share (40 "
+    "padded ZIPs beside `UNKNOWN` x 1,000 or x 7,000, `[2100, 2107, 52240, 52247]` x 4,750 beside `UNKNOWN` x 1,000, "
+    "four-figure ZIPs beside `99999` x 1,000 and `UNKNOWN` x 1,000); and four-figure ZIPs beside `-9999` or `999999` x "
+    "1,000 -- a label column whose levels, words and placeholders set aside whatever their share, are whole numbers of "
+    "four or five figures held whole until `no`.",
+    "sh-gate-wider": "The two rules above are written to that gate, case for case, save ADDENDUM 5's: this page's "
+    "five-figure hold, needing a value of five figures in a number role, reaches neither `V6-1` nor the four-figure ZIPs "
+    "beside `-9999` or `999999` (ZS.10: live exposures until SH lands), and `V6-2`'s `categorical` shapes are path "
+    "(iii)'s (CODES-2); SH's gate is wider there than this page, and this page's test computes the cases it states.",
+    "point-9-verify-6": "The sixth verify's `V6-1` and `V6-2` are SH's gate too (the LANE SH ADDENDUM 5: the ZIP hold in "
+    "every role, `binary`, `constant` and the label roles among them), wider than this page's five-figure hold (ZS.10).",
     "sh-addendum-4": "Its LANE SH ADDENDUM 4 (2026-10-23 11:16) corrects its ADDENDUM 3's case (1): an all-nines value "
     "of four or five figures (`9999`, `99999`) is not set aside and counts toward \"one at least of five\", and it adds "
     "the fifth verify's shape `V5-1` at 0 ZIPs in any file, the question put: 40 four-figure ZIPs (`2100` to `2373`) on "
@@ -1931,8 +1960,66 @@ def test_close_5_is_recorded_in_the_decision() -> None:
             "still sets aside all-nines of other widths, negative placeholders and any value of other than four or five "
             "figures that the floor's rows repeat, whatever their share; the shape `V5-1` added to `zipwidth` and SH's "
             "gate") in decision
-    assert ("ZS.10's sentence on ZIPs that lost all their zeros corrected to what holds, the column beside any other "
-            "placeholder or a word named a live exposure (40 of 40 printed today; owner CODES-2)") in decision
+    assert ("ZS.10's sentence on ZIPs that lost all their zeros rewritten, the column beside any other placeholder or a "
+            "word named a live exposure (40 of 40 printed today; owner CODES-2), though it still said the fixed-width "
+            "question held every column of four figures alone, true from three different values only (close 6 narrows "
+            "it).") in decision
+    close_5 = decision[decision.index("**Close 5 (2026-10-23).**"):decision.index("**Close 6 (2026-10-23).**")]
+    assert "corrected to what holds" not in close_5  # the sixth verify: close 5 claimed more than held
     assert ("Its price, modelled on the cells: no zoo, fixture or analyst column; four-figure years beside `99999` one "
             "question.") in decision
     assert decision.index("**Close 4 (2026-10-23).**") < decision.index("**Close 5 (2026-10-23).**")
+
+
+# Close 6 (2026-10-23): the sixth verify (`wave6/ZRb-verify6.md`), its option (a), the orchestrator's choice: ZS.10
+# claims the fixed-width question's hold from three different values only; one or two values print today, owner SH.
+
+FOUR_FIGURES_FEW = {
+    "binary": (["2100"] * 10000 + ["2107"] * 10000, "binary", 2),
+    "constant": (["2100"] * 20000, "constant", 1),
+    "three": ([FOUR_FIGURE_ZIPS[k % 3] for k in range(20000)], "identifier", 3),
+}
+
+
+@pytest.mark.parametrize("case", sorted(FOUR_FIGURES_FEW))
+def test_four_figure_zips_of_one_or_two_values_print_today_and_three_are_asked(
+    case: str, tmp_path: pathlib.Path,
+) -> None:
+    """`V6-1`: at 20,000 rows, nobody answering, four-figure ZIPs of one or two values read `binary` or `constant`,
+    nothing is asked and they print; from three values the column reads `identifier`, the fixed-width question is put
+    and none print. The page's five-figure hold reaches none of them (no value of five figures)."""
+    cells, role, kinds = FOUR_FIGURES_FEW[case]
+    assert len(cells) == 20000 and len(set(cells)) == kinds
+    column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
+    assert column["role"] == role
+    shown = {value.split(".")[0] for value in _printed(column)}
+    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
+    put = [entry for entry in asked if entry.get("column") == "zip"]
+    assert not _zip_reach(cells)
+    if role == "identifier":
+        assert put and not set(cells) & shown
+    else:
+        assert role in _reach_roles() and not put and set(cells) <= shown, set(cells) - shown
+    page = _flat(_page())
+    assert ("every value of four figures (`9999` included), is held by P4-D401's fixed-width question instead"
+            not in page)  # the claim the sixth verify found false of one or two values
+
+
+def test_close_6_is_recorded_in_the_decision() -> None:
+    text = _flat(PLAN.read_text(encoding="utf-8"))
+    decision = text[text.index(DECISION_HEADING):]
+    assert ("**Close 6 (2026-10-23).** On the sixth verify (`wave6/ZRb-verify6.md`), its option (a), the orchestrator's "
+            "choice, with the orchestrator's LANE SH ADDENDUM 5 (12:29)") in decision
+    assert ("ZS.10 now claims that question's hold from three different values only (3, 5 and 40 read `identifier`, 0 "
+            "printed) and names the `binary` and `constant` columns a live exposure, owner lane SH (its LANE SH "
+            "ADDENDUM, case (1), and ADDENDUM 5, case (1)); close 5's \"corrected to what holds\" withdrawn; ZS.10's "
+            "sentence on four-figure ZIPs beside `UNKNOWN` x 1,000 now says path (iii) (CODES-2) takes that label "
+            "column and lane SH holds it now (ADDENDUM 5, case (2)); ADDENDUM 5 recorded in ZS.1, ZS.9 point 9 and "
+            "\"What is written\". No rule of the page moves, so nothing is priced.") in decision
+    assert ("`2100`/`2107` x 10,000 reads `binary` and prints 2 real ZIPs, and `2100` x 20,000 reads `constant` and "
+            "prints 1, nothing asked") in decision
+    assert ("held whole until `no`; lane SH's hold goes into every role (its LANE SH ADDENDUM 5: four-figure ZIPs read "
+            "`binary` or `constant`, and a label column whose levels, words and placeholders set aside, are whole "
+            "numbers of four or five figures), the first a live exposure on this page until SH lands, the second path "
+            "(iii)'s (ZS.10).") in decision
+    assert decision.index("**Close 5 (2026-10-23).**") < decision.index("**Close 6 (2026-10-23).**")
