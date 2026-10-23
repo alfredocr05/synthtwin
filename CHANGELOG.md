@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### No twin of a small table: the owner's table floor (2026-10-22)
+
+**`synthtwin profile` refuses, writing nothing, a table with fewer than
+20,000 rows that hold a value, or one in which a declared or answered
+person column repeats but fewer than 1,000 people appear** (lane POP,
+plan P4-D425, amending P4-D341; the owner, 2026-10-22: "we don't make
+twins of small tables"). The message gives both minimum sizes, the
+table's own rows and people, why -- below them too few counts reach the
+floor of 11 people for an analysis to stand on the twin, and small
+groups raise disclosure risk -- and what to do: describe the whole
+extract, or combine sites or years. A column the questions file only
+asks about never refuses a table; the screen says the people floor
+applies once it is answered. No option turns the floor off: `cli.main`
+takes an internal `table_floor` keyword that the suite's helpers and the
+measurement drivers use for their small tables, so the earlier 100-row
+floor and its notice under 1,000 are reached only there. No byte written
+for a table at or above the floor changes, and the library applies no
+floor. CI's demonstration checks the installed command refuses its
+240-row table.
+
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
 **Records of batch 4e**, which merged lanes MG, MPOL, G2T and HX2 (plans

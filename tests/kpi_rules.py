@@ -648,8 +648,31 @@ def is_an_installed_package(package: pathlib.Path) -> bool:
     return any(part in INSTALL_FOLDERS for part in package.parts)
 
 
+def the_table_floor_off() -> None:
+    """Make `cli.main`'s internal `table_floor` default False in this driver's process.
+
+    Plan P4-D425: `synthtwin profile` refuses a table under the owner's
+    table floor (20,000 rows that hold a value, or 1,000 people where a
+    person column repeats), and the drivers measure tables of every size
+    the way they did before it -- through test modules that call `main`
+    as well as through their own calls. So the default is moved on the
+    function object itself, as the suite's conftest moves it for every
+    test; no command line reaches it. Lane E0c re-defines the zoo at or
+    above the floor. Raises nothing; imports `synthtwin.cli`, which
+    imports no reader.
+    """
+    from synthtwin import cli
+
+    defaults = cli.main.__kwdefaults__
+    if defaults is not None and "table_floor" in defaults:
+        defaults["table_floor"] = False
+
+
 def guard_this_tree() -> str:
     """Print where synthtwin was imported from, and refuse unless it is THIS TREE'S CODE.
+
+    It also turns the table floor off for the driver's process
+    (`the_table_floor_off`, plan P4-D425): every driver calls this first.
 
     A driver measured against an installed copy of another checkout
     reports a confident number about the wrong code; that has voided
@@ -686,6 +709,7 @@ def guard_this_tree() -> str:
 
     here = pathlib.Path(synthtwin.__file__).resolve()
     print(f"synthtwin imported from {here}", flush=True)
+    the_table_floor_off()
     source = (REPO_ROOT / "src").resolve()
     if source in here.parents:
         return str(here)

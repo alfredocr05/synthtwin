@@ -171,8 +171,10 @@ though it existed:
   label with the count 100, so the twin holds it in all 100 rows, and
   each of those rows is a row the real table has. Nothing was copied;
   the arithmetic left no other answer. The example is stated at 100
-  rows because that is the smallest table `synthtwin profile` will
-  describe: under that it refuses and writes nothing (plan P4-D341).
+  rows because it is the shortest true example; `synthtwin profile`
+  refuses any table under 20,000 rows that hold a value, or under 1,000
+  people where one person has several rows, and writes nothing (plan
+  P4-D425, amending P4-D341).
   The categorical form of this claim is retired everywhere, and a test
   asserts its absence on every public surface.
 - synthtwin is not a formal privacy mechanism, claims no

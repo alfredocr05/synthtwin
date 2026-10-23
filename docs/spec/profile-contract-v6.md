@@ -1315,7 +1315,7 @@ claim.
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 | how different a column's values have to be before synthtwin SAYS SO. It decides no role: nothing decides the identifier role but the person who owns the table |
 | `kept_values` | object | exactly the five keys below | the declaration record for `--keep-value` |
 | `long_tail_minimum_level` | integer | exactly `11` | the long-tail detection line, recorded on the document's own face |
-| `person_columns` | array of strings | names of columns of this table, in rising order, each of them once, every one of them also in `forced_identifiers` (S8b); possibly empty | WHICH DECLARED COLUMNS NAME THE PEOPLE THE ROWS BELONG TO (plan P4-D340). It is NOT a declaration and nobody types it: it is DERIVED from the columns named with `--identifier` and the cells of the table — those with some folded present value standing on two or more rows. An identifier different on every present row names a ROW and never a person, so it is not here; several that repeat are all here, and rows sharing a folded value of ANY of them are one person, with rows holding a value of none of them counted as ONE unknown person between them. Empty means the table's population was counted in ROWS. What it governs today is the command's population floor (P4-D341) and nothing in this document: every count a description publishes is still a count of ROWS, and a later version counts the disclosure floor in people by this key |
+| `person_columns` | array of strings | names of columns of this table, in rising order, each of them once, every one of them also in `forced_identifiers` (S8b); possibly empty | WHICH DECLARED COLUMNS NAME THE PEOPLE THE ROWS BELONG TO (plan P4-D340). It is NOT a declaration and nobody types it: it is DERIVED from the columns named with `--identifier` and the cells of the table — those with some folded present value standing on two or more rows. An identifier different on every present row names a ROW and never a person, so it is not here; several that repeat are all here, and rows sharing a folded value of ANY of them are one person, with rows holding a value of none of them counted as ONE unknown person between them. Empty means the table's population was counted in ROWS. What it governs today is the command's population floor (P4-D341), the people half of its table floor (P4-D425: under 1,000 people refused where it is not empty) and nothing in this document: every count a description publishes is still a count of ROWS, and a later version counts the disclosure floor in people by this key |
 | `minimum_parse_rate` | number | 0.0 ≤ x ≤ 1.0 | THE line for the numeric roles and for the datetime role, and the only one: at least this share of the present values must read as numbers this format can hold before the column is described as numbers, and at least this share must parse under one date format before it is described as dates. Applied as a COUNT, never as a compared share, so no rounding of a division decides a role |
 | `near_threshold_slack` | integer | ≥ 0 | a column is reported as borderline when this many values, or fewer, separate it from a different reading. Counting values rather than comparing shares keeps the report meaningful at the ends of the scale |
 | `sentinel_minimum_share` | number | 0.0 ≤ x ≤ 1.0 | the share of present cells a stand-in candidate must reach to count as frequent |
@@ -2466,7 +2466,14 @@ Nothing in this document decides WHEN it is written: which populations
 carry it is the command's rule (plan P4-D341), applied once where the
 table is read, and a loader accepts a conforming document with it or
 without it at any row count. What this clause fixes is its grammar and
-its place.
+its place. Since the owner's table floor (plan P4-D425, 2026-10-22)
+`synthtwin profile` refuses, writing nothing, a table under 20,000 rows
+that hold a value or, where `settings.person_columns` is not empty,
+under 1,000 people; so the command a person types never writes this
+note, which only a run with `cli.main`'s internal `table_floor` off --
+the suite's helpers and the measurement drivers -- still writes. The
+floor is the command's too: no key of this document carries it, and a
+loader accepts a conforming document of any size.
 
 ---
 

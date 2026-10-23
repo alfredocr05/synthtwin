@@ -356,9 +356,11 @@ Stated here so that no reader has to discover them independently:
   rows whose one label is shared by all 100 publishes that label with
   the count 100, so the twin writes it in all 100 rows, and each of
   those rows is a row the real table has. It is stated at 100 rows
-  because that is the smallest table `synthtwin profile` describes at
-  all -- under 100 it refuses and writes nothing -- and the same
-  applies to any column whose published facts pin it completely. Two
+  because it is the shortest true example -- `synthtwin profile` now
+  refuses any table under 20,000 rows that hold a value, or under 1,000
+  people where one person has several rows, and writes nothing (plan
+  P4-D425) -- and the same applies to any column whose published facts
+  pin it completely. Two
   consequences follow and are stated rather than left to be worked out.
   synthtwin offers **no formal privacy guarantee** and claims no
   differential-privacy property; statistical disclosure is out of scope,

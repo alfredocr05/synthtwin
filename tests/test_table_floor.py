@@ -48,7 +48,7 @@ def _rows_table(folder: pathlib.Path, rows: int, blank_rows: int = 0) -> pathlib
 
 def _people_table(folder: pathlib.Path, people: int, rows: int = ROWS) -> pathlib.Path:
     """``rows`` rows over ``people`` people, every person on several rows."""
-    lines = ["patient,age"]
+    lines = ["patient,reading"]
     lines += [f"P{index % people:05d},{20 + index % 60}" for index in range(rows)]
     return _write(folder, lines)
 
