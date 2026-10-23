@@ -1904,6 +1904,7 @@ def _answers_given(
     delimiter: str,
     day_first: bool,
     month_first: bool,
+    safe_harbor_no: "tuple[str, ...]" = (),
 ) -> "asking.Given":
     """Every answer this run acts on, as `asking.answered_before` writes it.
 
@@ -1938,6 +1939,7 @@ def _answers_given(
         date_columns=tuple(date_columns),
         date_columns_kept=tuple(dates_kept),
         identities_kept=identities_kept,
+        safe_harbor_no=safe_harbor_no,
         missing_dates=tuple(
             (name, code_shapes[name] if name in code_shapes else "")
             for name in missing_dates
@@ -3154,6 +3156,35 @@ def _withheld_notice(names: "tuple[str, ...]") -> str:
     )
 
 
+def _safe_harbor_notice(names: "tuple[str, ...]", held: bool) -> str:
+    """What the screen says of the columns the Safe Harbor question is put to.
+
+    Plan P4-D427. ``held``: columns of five-figure numbers beside a few
+    words, held back whole; otherwise number columns whose values above
+    89 are read as 90. The sentence names the way back, which is
+    answering the question in the questions file. Guarantees: a fixed
+    function of the two. Raises nothing, opens no file.
+    """
+    if held:
+        said = (
+            f"{_joined(list(names), ' and ')} hold five-figure numbers, as ZIP "
+            f"codes are written, so this description publishes none of their "
+            f"values and the twin writes made-up record numbers there"
+        )
+    else:
+        said = (
+            f"{_joined(list(names), ' and ')} may hold ages, and an age over "
+            f"89 is part of a birth date, so this description reads every "
+            f"value above 89 as 90 (\"90 or more\") and the twin writes none "
+            f"above 90"
+        )
+    return (
+        f"\nTHE SAFE HARBOR QUESTION\n"
+        f"{said}. Answer 'no' or 'yes' to the question about them in the "
+        f"questions file, and run the command again with --answers."
+    )
+
+
 def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
     """What the screen says of the columns whose values were counted in people.
 
@@ -3404,6 +3435,13 @@ def _run_profile(
     # (plan P4-D408).
     carried_answers: "tuple[tuple[str, str, str], ...]" = ()
     identities_kept_answered: "tuple[str, ...]" = ()
+    # ...and the columns the file answered `no` to the Safe Harbor
+    # question (plan P4-D427): read without the top-code, or no longer
+    # held for their five figures.
+    safe_harbor_no: "list[str]" = []
+    # ...and the columns read as five-figure numbers beside a few words,
+    # as the latest description found them (plan P4-D427).
+    five_figures: "list[str]" = []
     # ...and the column names the file's answers use, with the columns
     # those answers name, set against the names this run reads (plan
     # P4-D408).
@@ -3641,6 +3679,8 @@ def _run_profile(
             identities_kept_answered = written.identities_kept_answered
             names_by_answer += named_columns
             names_by_answer += list(identities_kept_answered)
+            safe_harbor_no = list(written.safe_harbor_no)
+            names_by_answer += safe_harbor_no
         carried_answers = written.carried
         if written.metadata_rows_answered:
             metadata_answer = (
@@ -4037,6 +4077,7 @@ def _run_profile(
                 answered_missing_dates, answered_real_values,
                 answered_code_shapes, first_row, metadata_answer,
                 declared_delimiter, day_first, answered_month_first,
+                tuple(safe_harbor_no),
             ),
         )
         if not_kept:
@@ -4239,6 +4280,10 @@ def _run_profile(
         # -- P4-D406: every value counted in the declared people too.
         subjects=list(person_columns),
         counted_in_subjects=counted_in_people,
+        # -- P4-D427: the Safe Harbor top-code, but where answered `no`,
+        # and the five-figure columns beside a few words, named.
+        safe_harbor_no=safe_harbor_no,
+        five_figures=five_figures,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -4574,6 +4619,7 @@ def _run_profile(
                 census_box = [census_readings if read.source is None else ()]
                 census_readings = ()
                 counted_in_people = []
+                five_figures = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -4588,6 +4634,8 @@ def _run_profile(
                     stored_as=storage,
                     subjects=list(person_columns),
                     counted_in_subjects=counted_in_people,
+                    safe_harbor_no=safe_harbor_no,
+                    five_figures=five_figures,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -4776,10 +4824,34 @@ def _run_profile(
                 and question.name not in candidates
             ):
                 candidates += [question.name]
+    # A COLUMN OF FIVE-FIGURE NUMBERS BESIDE A FEW WORDS IS HELD WHOLE
+    # until its Safe Harbor question is answered `no` (plan P4-D427; ZR-b's
+    # verify 2, item 1): five-figure ZIP codes beside one `UNKNOWN` cell, or
+    # three `HOMELESS`, were read as a count and printed 9 or 10 real ZIPs.
+    # Held whoever is at the keyboard, since that question is put in the
+    # questions file; a declaration is an answer, as above. It is no
+    # subject the other columns are counted in: it names a place.
+    declared_five = (
+        forced_identifiers
+        + forced_codes
+        + forced_measurements
+        + list(forced_decimal_commas)
+        + list(twelve_hours)
+        + list(date_columns)
+        + sorted(counted)
+        + list(identities_kept)
+        + safe_harbor_no
+    )
+    five_held: "list[str]" = []
+    for name in five_figures:
+        if name not in declared_five and name not in withheld and name not in five_held:
+            five_held += [name]
     published = document
-    if withheld or candidates:
+    if withheld or candidates or five_held:
         if withheld:
             _warn(_withheld_notice(withheld))
+        if five_held:
+            _warn(_safe_harbor_notice(tuple(five_held), True))
         # ...and every column held so -- the candidates of the open
         # person question, and a key held by another identity question,
         # such as a patient number of figures padded with zeros that the
@@ -4799,9 +4871,10 @@ def _run_profile(
             forced_delimiter=declared_delimiter,
             table_notes=population_notes,
             stored_as=storage,
-            unanswered=list(withheld),
+            unanswered=list(withheld) + five_held,
             subjects=list(person_columns) + list(withheld) + candidates,
             counted_in_subjects=counted_in_people,
+            safe_harbor_no=safe_harbor_no,
         )
     if counted_in_people:
         named_once: "list[str]" = []
@@ -5139,6 +5212,26 @@ def _run_profile(
         also=codes_seen.century,
         dated=dates_seen.century,
     )
+    # ...AND THE SAFE HARBOR QUESTION (plan P4-D427), one to each column the
+    # top-code reaches and each column of five-figure numbers held, where
+    # no question above names the column; such a column leaves the
+    # checklist, since it raised a question of its own.
+    harbor_asked = asking.safe_harbor_questions(
+        published, tuple(five_held), asked_about
+    )
+    if harbor_asked:
+        asked_about = asked_about + harbor_asked
+        harbored = [question.name for question in harbor_asked]
+        listed_about = [
+            question for question in listed_about if question.name not in harbored
+        ]
+        top_coded_names = [
+            question.name
+            for question in harbor_asked
+            if question.reason == asking.BECAUSE_SAFE_HARBOR_AGES
+        ]
+        if top_coded_names:
+            _warn(_safe_harbor_notice(tuple(top_coded_names), False))
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a
     # permitted local path, so the locality gate cannot catch it: what
@@ -5174,7 +5267,7 @@ def _run_profile(
                     _shown(pathlib.Path(table).name),
                     # -- P4-D401: a column held back is read as record
                     # numbers until answered, and its entry says so.
-                    asking.held_back(asked_about, withheld),
+                    asking.held_back(asked_about, withheld + tuple(five_held)),
                     listed_about,
                     asking.file_questions(
                         surveyed is not None
@@ -5222,7 +5315,7 @@ def _run_profile(
                             answered_missing_dates, answered_real_values,
                             kept_code_shapes, first_row,
                             metadata_answer, declared_delimiter, day_first,
-                            answered_month_first,
+                            answered_month_first, tuple(safe_harbor_no),
                         )
                     ),
                     # ...with the names those answers use (P4-D408).

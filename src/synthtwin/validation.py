@@ -5100,6 +5100,12 @@ def measure(
         described_pairs = _described_pairs_here(description, table)
         kept_days = _kept_placeholders_here(description, table)
         judged_here = _judged_candidates_here(description, table)
+        # THE SAFE HARBOR TOP-CODE (plan P4-D427, validation of ZS.6): a
+        # column its description publishes as `top_coded` is read with
+        # every value above 89 as 90, the real file as the twin, by every
+        # check below -- so the real table meets the description it made.
+        top_coded = _top_coded_here(description, table)
+        table = _top_coded_table(table, top_coded, declared_commas)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -5142,6 +5148,7 @@ def measure(
             # its description published, the tails pooled into its ends.
             time_grains=time_grains,
             absent_read=absent_read,
+            top_coded_only=top_coded,
         )
         table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
@@ -5164,6 +5171,7 @@ def measure(
             # precision its description published.
             counted_units=counted_units(description),
             time_grains=time_grains,
+            top_coded_only=top_coded,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -5260,6 +5268,48 @@ def _at_their_grains(
             changed = True
         else:
             columns += [table.columns[place]]
+    if not changed:
+        return table
+    return dataclasses.replace(table, columns=columns)
+
+
+def _top_coded_here(
+    description: contract.Profile, table: reading.Table
+) -> "tuple[str, ...]":
+    """The columns the description publishes as `top_coded` that the file carries (P4-D427)."""
+    found: "list[str]" = []
+    for block in description.columns:
+        if block.top_coded and block.name in table.column_names:
+            found += [block.name]
+    return tuple(found)
+
+
+def _top_coded_table(
+    table: reading.Table, top_coded: "tuple[str, ...]", commas: "list[str]"
+) -> reading.Table:
+    """The checked table with each top-coded column's values above 89 read as 90 (P4-D427).
+
+    A table read in groups of columns (lane SR) is returned as it is: the
+    redescription reads the top-code itself (`profile.build_document`'s
+    ``top_coded_only``). Guarantees: a function of the three. Raises
+    nothing. No I/O.
+    """
+    if not top_coded or table.source is not None:
+        return table
+    columns: "list[list[str]]" = []
+    changed = False
+    for place in range(len(table.columns)):
+        name = table.column_names[place] if place < len(table.column_names) else ""
+        coded = (
+            taxonomy.top_coded_cells(table.columns[place], name in commas, True)
+            if name in top_coded
+            else None
+        )
+        if coded is None:
+            columns += [table.columns[place]]
+            continue
+        columns += [coded]
+        changed = True
     if not changed:
         return table
     return dataclasses.replace(table, columns=columns)

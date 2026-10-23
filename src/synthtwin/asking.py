@@ -3851,6 +3851,143 @@ def unanswered_identities(
     return tuple(held)
 
 
+# THE SAFE HARBOR QUESTION (plan P4-D427; the owner's Z1 sentence of
+# 2026-10-16, verbatim in plan-dec/OWNER-ANSWERS.md; lane ZR-b's page,
+# ZS.3). ONE question, about the data and never the analysis, put in the
+# questions file to a number column the Safe Harbor top-code reaches and
+# to a column of five-figure numbers beside a few words, wherever no
+# other question is put to that column (HX3's `code` in round one is the
+# model: one entry, which lane CODES-2 extends to label columns). Its two
+# answers are `no` and `yes`; `yes` is `--identifier` (P4-D401's held
+# block), `no` lifts the top-code or the hold. Unanswered, a column the
+# top-code reaches reads every value above 89 as 90, and a column of
+# five-figure numbers is held whole.
+BECAUSE_SAFE_HARBOR_AGES = "numbers-from-0-to-125-some-above-89"
+BECAUSE_SAFE_HARBOR_FIVE_FIGURES = "five-figure-numbers-beside-a-few-words"
+SAFE_HARBOR_REASONS = (BECAUSE_SAFE_HARBOR_AGES, BECAUSE_SAFE_HARBOR_FIVE_FIGURES)
+ANSWER_SAFE_HARBOR_NO = "no"
+ANSWER_SAFE_HARBOR_YES = "yes"
+# What a column the top-code reaches is read as while its question is open.
+SAFE_HARBOR_TOP_CODED = "top-coded"
+# What each class of the question covers, in the words of 45 CFR
+# 164.514(b)(2)(i) (lane ZR-b's ZS.3). No value of the table is in it.
+SAFE_HARBOR_CLASSES = (
+    "In the words of the HIPAA Safe Harbor rule (45 CFR 164.514(b)(2)(i)): "
+    "a person is a patient or a patient's relative, employer or household "
+    "member, by name, initials or any mark; a place smaller than a state is "
+    "a street address, city, county, precinct, or a ZIP code, or its first "
+    "three figures where that area holds 20,000 people or fewer (a postcode "
+    "of another country likewise); a birth date includes any date of a "
+    "person other than its year, and an age over 89 years, or any date that "
+    "shows one; the numbers include medical record, health-plan, account, "
+    "certificate or licence, vehicle, device and serial numbers, telephone, "
+    "fax and social security numbers, e-mail, web and internet addresses, "
+    "and any other number or code given to one person. A clinician's "
+    "provider number names a provider, not the patient."
+)
+_SAFE_HARBOR_NO_MEANS = (
+    "no: every value is a category or a code of things -- a diagnosis, a "
+    "procedure, a medicine, a result, a unit, a ward -- so the description "
+    "may name values few rows hold, never the rows that hold them; where "
+    "only one value is named, how many rows hold it can be read"
+)
+_SAFE_HARBOR_YES_MEANS = (
+    "yes, or not sure: no value of this column is published, and the twin "
+    "writes made-up values in its layouts"
+)
+
+
+def safe_harbor_sentence(name: str) -> str:
+    """The owner's Z1 question about one column, word for word (plan P4-D427)."""
+    return (
+        f"Could a value of '{name}' name a person, a place smaller than a "
+        f"state, a birth date, or a record, account or device number?"
+    )
+
+
+def _safe_harbor_question(name: str, role: str, reason: str) -> Question:
+    """The Safe Harbor question put to one column (plan P4-D427)."""
+    if reason == BECAUSE_SAFE_HARBOR_AGES:
+        seen = (
+            f"every number is between 0 and {taxonomy.TOP_CODE_REACH_CEILING} "
+            f"and some are above {taxonomy.TOP_CODE_LAST_AGE}, as ages are "
+            f"written, and an age over {taxonomy.TOP_CODE_LAST_AGE} is part of "
+            f"a birth date; until this question is answered every value above "
+            f"{taxonomy.TOP_CODE_LAST_AGE} is read as {taxonomy.TOP_CODE} "
+            f"(\"{taxonomy.TOP_CODE} or more\") in the description, its "
+            f"summary and the twin, and placeholders written as nines alone "
+            f"are kept as written"
+        )
+        unanswered = SAFE_HARBOR_TOP_CODED
+        lifted = (
+            f"the column as it is read without the top-code: its points, mode "
+            f"and tails, values above {taxonomy.TOP_CODE_LAST_AGE} among them"
+        )
+    else:
+        seen = (
+            f"every whole number is written with {taxonomy.FIVE_FIGURES} "
+            f"figures, as ZIP codes are, beside a few words; until this "
+            f"question is answered the column is held back: it is described "
+            f"as record numbers and none of its values is published"
+        )
+        unanswered = ANSWER_SAFE_HARBOR_YES
+        lifted = "what its reading publishes: for numbers, their points, mode and tails"
+    return Question(
+        name,
+        role,
+        reason,
+        f"{seen}. {safe_harbor_sentence(name)} {SAFE_HARBOR_CLASSES}",
+        [
+            Choice(ANSWER_SAFE_HARBOR_NO, _SAFE_HARBOR_NO_MEANS, lifted),
+            Choice(
+                ANSWER_SAFE_HARBOR_YES,
+                _SAFE_HARBOR_YES_MEANS,
+                "no value of the column: it is held as a record number is",
+            ),
+        ],
+        unanswered,
+    )
+
+
+def safe_harbor_questions(
+    document: "dict[str, object]",
+    held: "tuple[str, ...]",
+    asked: "list[Question]",
+) -> "list[Question]":
+    """The Safe Harbor questions a run puts, in the table's own column order.
+
+    Plan P4-D427. One to each column the description publishes as
+    `top_coded`, and to each column of five-figure numbers beside a few
+    words in ``held``, WHERE NO QUESTION IN ``asked`` NAMES THE COLUMN:
+    one question a column, never a second (an open question offering
+    `identifier` holds such a column meanwhile). Guarantees: a fixed
+    function of the three. Raises nothing. No I/O.
+    """
+    named: "dict[str, bool]" = {}
+    for question in asked:
+        named[question.name] = True
+    blocks = document["columns"]
+    found: "list[Question]" = []
+    if not isinstance(blocks, list):
+        return found
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        name = f"{block['name']}"
+        if name in named:
+            continue
+        role = f"{block['role']}"
+        if "top_coded" in block:
+            found += [_safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_AGES)]
+            named[name] = True
+        elif name in held:
+            found += [
+                _safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_FIVE_FIGURES)
+            ]
+            named[name] = True
+    return found
+
+
 # A REGISTER EVERY CELL OF WHICH NAMES ONE PERSON (plan P4-D401, route
 # three of the person rule). An e-mail address, a United States
 # telephone number and a social security number name one person
@@ -5612,6 +5749,10 @@ class Answers:
     # for such a column is not replaced by it, as it is by an answer to
     # the question of a point between thousands, which decides both.
     decimal_commas_alone: "tuple[str, ...]" = ()
+    # ...AND THE COLUMNS ANSWERED `no` TO THE SAFE HARBOR QUESTION (plan
+    # P4-D427): read without the top-code, or no longer held for their
+    # five figures. `yes` is `--identifier`, among ``identifiers``.
+    safe_harbor_no: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -5841,6 +5982,7 @@ def answers_in(document: object, shown: str) -> Answers:
     identities_kept_answered: "list[str]" = []
     carried: "list[tuple[str, str, str]]" = []
     decimal_commas_alone: "list[str]" = []
+    safe_harbor_no: "list[str]" = []
     # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
     # against every later one before any is acted on (plan P4-D408).
     entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
@@ -5955,6 +6097,12 @@ def answers_in(document: object, shown: str) -> Answers:
             # carried so the question is not put again. Measured on
             # 45191fa: the run reading that answer asked Q6 once more.
             date_columns_kept += [name]
+        elif written == ANSWER_SAFE_HARBOR_YES:
+            # The Safe Harbor question answered `yes` (plan P4-D427): the
+            # column is a record number, P4-D401's held block.
+            identifiers += [name]
+        elif written == ANSWER_SAFE_HARBOR_NO:
+            safe_harbor_no += [name]
         elif written == ANSWER_KEEP and ANSWER_IDENTIFIER in offered:
             # ...and a question offering `identifier` answered `keep`
             # (plan P4-D401): nothing declared, and the column's values
@@ -6002,6 +6150,7 @@ def answers_in(document: object, shown: str) -> Answers:
         identities_kept_answered=tuple(identities_kept_answered),
         carried=tuple(carried),
         decimal_commas_alone=tuple(decimal_commas_alone),
+        safe_harbor_no=tuple(safe_harbor_no),
     )
 
 
@@ -6071,6 +6220,9 @@ _FAMILY_FIRST_ROW = "first-row"
 _FAMILY_METADATA = "metadata"
 _FAMILY_DELIMITER = "delimiter"
 _FAMILY_DAY_ORDER = "day-order"
+# The Safe Harbor question (plan P4-D427), a family of its own: whether a
+# value of the column could name a person, beside what the column holds.
+_FAMILY_SAFE_HARBOR = "safe-harbor"
 _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_KIND: (
         ANSWER_KEEP, ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT,
@@ -6092,6 +6244,7 @@ _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_METADATA: (ANSWER_DATA, ANSWER_METADATA_ROWS),
     _FAMILY_DELIMITER: ("comma", "semicolon", "tab", "vertical-bar"),
     _FAMILY_DAY_ORDER: (ANSWER_MONTH_FIRST, ANSWER_DAY_FIRST),
+    _FAMILY_SAFE_HARBOR: (ANSWER_SAFE_HARBOR_NO, ANSWER_SAFE_HARBOR_YES),
 }
 # The subject a question about the whole file is filed under, which is
 # the `column` its entry names.
@@ -6123,6 +6276,8 @@ _KEPT_MEANS: "dict[str, str]" = {
     ANSWER_METADATA_ROWS: "the two rows under the column names describe them",
     ANSWER_MONTH_FIRST: "the month comes first in the dates",
     ANSWER_DAY_FIRST: "the day comes first in the dates",
+    ANSWER_SAFE_HARBOR_NO: "no value of the column could name a person (the Safe Harbor question)",
+    ANSWER_SAFE_HARBOR_YES: "a value of the column could name a person: record numbers",
 }
 # ...and `keep` where it takes a declaration of how numbers are written
 # back, which is not the reading a column keeps.
@@ -6182,6 +6337,7 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
         _FAMILY_KIND, _FAMILY_GRAMMAR, _FAMILY_CLOCK, _FAMILY_COUNTED,
         _FAMILY_DATE_CODES, _FAMILY_CENTURY, _FAMILY_DATES, _FAMILY_FIRST_ROW,
         _FAMILY_METADATA, _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
+        _FAMILY_SAFE_HARBOR,
     ):
         if answer in _FAMILY_WORDS[family]:
             return family
@@ -6450,6 +6606,8 @@ class Given:
     date_columns: "tuple[str, ...]" = ()
     date_columns_kept: "tuple[str, ...]" = ()
     identities_kept: "tuple[str, ...]" = ()
+    # The columns answered `no` to the Safe Harbor question (plan P4-D427).
+    safe_harbor_no: "tuple[str, ...]" = ()
     # `(column, what the question saw)`: the run reading the answer
     # finds the codes again by those words.
     missing_dates: "tuple[tuple[str, str], ...]" = ()
@@ -6573,6 +6731,7 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     for name in given.centuries_kept:
         if name not in centuries:
             centuries[name] = ANSWER_CENTURY_POSIX
+    harbored: "dict[str, bool]" = {name: True for name in given.safe_harbor_no}
     dated: "dict[str, str]" = {name: ANSWER_DATES for name in given.date_columns}
     for name in given.date_columns_kept:
         if name not in dated:
@@ -6586,6 +6745,7 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     others: "dict[str, bool]" = {}
     for table in (
         kinds, commas, kept_identity, clocks, counted, coded, centuries, dated,
+        harbored,
     ):
         for name in table:
             if name not in named:
@@ -6615,6 +6775,10 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             ]
         if name in dated:
             found += [_kept_entry(name, dated[name], _FAMILY_DATES, "")]
+        if name in harbored:
+            found += [
+                _kept_entry(name, ANSWER_SAFE_HARBOR_NO, _FAMILY_SAFE_HARBOR, "")
+            ]
     return found
 
 
@@ -6654,6 +6818,14 @@ def answers_not_kept(
         if not family or (name, family, said) in written:
             continue
         if said == ANSWER_KEEP and family == _FAMILY_KIND and name in declared:
+            continue
+        # ...and a kept `yes` to the Safe Harbor question is kept by the
+        # `identifier` it declares (plan P4-D427).
+        if (
+            said == ANSWER_SAFE_HARBOR_YES
+            and family == _FAMILY_SAFE_HARBOR
+            and name in declared
+        ):
             continue
         if name not in dropped:
             dropped += [name]

@@ -3625,6 +3625,10 @@ class ColumnBlock:
     # how a held one's twin writes valid values. None on every other
     # column, whose block carries no `time_grain` key.
     time_grain: "grains.Grain | None" = None
+    # THE SAFE HARBOR TOP-CODE (plan P4-D427): 90 where every value above
+    # 89 was read as 90, the twin writing none above it; 0 elsewhere,
+    # whose block carries no `top_coded` key.
+    top_coded: int = 0
 
 
 # -- the two halves of a compound column, as columns ------------------
@@ -7772,6 +7776,23 @@ def _column(
     # writes valid dates from. Read apart, so the key rule below still
     # refuses every other key the role does not name.
     grain_value: object = None
+    # ...AND THE SAFE HARBOR TOP-CODE (plan P4-D427, lane ZR-b's ZS.1): a
+    # number column described with every value above 89 read as 90 says
+    # so with `top_coded`, the number 90 and nothing else. Read apart too.
+    top_coded = 0
+    if "top_coded" in mapping:
+        if role not in TOP_CODE_ROLES:
+            raise _unknown("top_coded", where)
+        if mapping["top_coded"] != TOP_CODE or isinstance(mapping["top_coded"], bool):
+            raise _out_of_range(
+                "top_coded", where, "another value", f"the number {TOP_CODE}"
+            )
+        top_coded = TOP_CODE
+        kept_top: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "top_coded":
+                kept_top[key] = mapping[key]
+        mapping = kept_top
     if "time_grain" in mapping:
         if role not in GRAIN_ROLES:
             raise _unknown("time_grain", where)
@@ -7953,7 +7974,14 @@ def _column(
             if grain_value is None
             else _time_grain(grain_value, where, role, mapping, frame)
         ),
+        top_coded=top_coded,
     )
+
+
+# THE SAFE HARBOR TOP-CODE (plan P4-D427): the number a block carrying
+# `top_coded` names, and the roles it may take (`taxonomy.TOP_CODE_ROLES`).
+TOP_CODE = 90
+TOP_CODE_ROLES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_COMPOUND)
 
 
 # THE ROLES A BLOCK CARRYING `time_grain` MAY TAKE (plan P4-D417): the two

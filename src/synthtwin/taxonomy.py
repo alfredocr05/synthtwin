@@ -26155,6 +26155,249 @@ def with_held_dates(column: ColumnProfile, grain: "dict[str, object]") -> Column
     return dataclasses.replace(column, details=details, remarks=remarks)
 
 
+# THE SAFE HARBOR TOP-CODE (plan P4-D427; 45 CFR 164.514(b)(2)(i)(C);
+# lane ZR-b's page, ZS.1). An age over 89 is an element of a birth date
+# under the Safe Harbor method, and a number column whose present numbers
+# lie within 0 to 125 and include one above 89 may be an age: measured on
+# b85200be, 20,000 ages from 18 to 103 published `max` 103, `p99` 99,
+# `p98` 94 and the high tail's values 99 to 103. While the column's Safe
+# Harbor question is open, every value above 89 is read as 90 for the
+# whole description -- its rungs, mode, tails, bins, mean and spread are
+# those of the column so read -- and its block says so with `top_coded`.
+# All-nines placeholders of EITHER sign (`-9`, `-99`, `-999`, `999`,
+# `9999`: a missing age is written `999` as often as `-9`) are set aside
+# from the reach, at most one present cell in three as P4-D401 sets aside
+# a key's placeholders (ZR-b's verify 2, item 2: one `999` cell turned the
+# reach off and 93, 103 and 104 printed), and are kept as written: they
+# are codes, not ages.
+TOP_CODE = 90
+TOP_CODE_LAST_AGE = 89
+TOP_CODE_REACH_CEILING = 125
+TOP_CODE_ROLES = (ROLE_COUNT, ROLE_CONTINUOUS, ROLE_COMPOUND)
+_TOP_CODE_PLACEHOLDER_SHARE = 3
+
+
+def _plain_number_text(text: str, comma: bool) -> str:
+    """A cell written as one plain number, in point form; empty where it is not one.
+
+    A sign, figures with at most one decimal mark, and an exponent; the
+    mark is the comma on a column declared to write one (plan P4-D26).
+    Spaces around it are taken off. Guarantees: a fixed function of the
+    two. Raises nothing. No I/O.
+    """
+    written = parsing.trimmed(text)
+    mark = "," if comma else "."
+    body = ""
+    figures = 0
+    marks = 0
+    place = 0
+    if written[:1] in ("-", "+"):
+        body = written[:1]
+        place = 1
+    while place < len(written):
+        character = written[place]
+        if "0" <= character <= "9":
+            figures += 1
+            body = body + character
+        elif character == mark and marks == 0:
+            marks += 1
+            body = body + "."
+        elif character in ("e", "E") and figures > 0:
+            exponent = written[place + 1:]
+            if exponent[:1] in ("-", "+"):
+                exponent = exponent[1:]
+            if not exponent or not exponent.isascii() or not exponent.isdigit():
+                return ""
+            return body + "e" + written[place + 1:]
+        else:
+            return ""
+        place += 1
+    return body if figures > 0 else ""
+
+
+def _an_all_nines_placeholder(number_text: str) -> bool:
+    """Whether a plain number is nines alone, of either sign, outside 0 to 125.
+
+    `-9`, `-99`, `-999`, `999`, `9999` and the like, and the same with
+    a point and zeros after it; `9` and `99` are ages. A fixed function
+    of the text. Raises nothing. No I/O.
+    """
+    figures = number_text
+    negative = figures[:1] == "-"
+    if figures[:1] in ("-", "+"):
+        figures = figures[1:]
+    whole, _point, fraction = figures.partition(".")
+    if not whole or "e" in figures:
+        return False
+    for character in fraction:
+        if character != "0":
+            return False
+    for character in whole:
+        if character != "9":
+            return False
+    return negative or len(whole) >= 3
+
+
+def _top_coded_text(number_text: str, comma: bool) -> str:
+    """The top-code written as the cell wrote its number: 90 with as many decimals."""
+    _whole, point, fraction = number_text.partition(".")
+    if not point or "e" in number_text:
+        return f"{TOP_CODE}"
+    return f"{TOP_CODE}{',' if comma else '.'}{'0' * len(fraction)}"
+
+
+def top_coded_cells(
+    cells: "list[str]", comma: bool = False, forced: bool = False
+) -> "list[str] | None":
+    """A number column's cells with every value above 89 written 90, where the top-code reaches.
+
+    Plan P4-D427 (ZS.1). The top-code reaches a column whose present
+    numbers, its all-nines placeholders aside (at most one present cell
+    in three), lie within 0 to 125 and include one above 89; words and
+    blanks are left as they are (the labels of a column of numbers and
+    labels, its missing marks). ``forced`` takes the reach as given --
+    the validator's, for a column its description publishes as
+    `top_coded` -- so a checked file is read under the same top-code.
+    None where the top-code does not reach. Guarantees: a fixed function
+    of the three, the cells in their own order. Raises nothing. No I/O.
+    """
+    present = 0
+    placeholders = 0
+    numbers: "list[str]" = []
+    above = False
+    inside = True
+    for cell in cells:
+        number_text = _plain_number_text(cell, comma)
+        numbers += [number_text]
+        if parsing.trimmed(cell):
+            present += 1
+        if not number_text:
+            continue
+        if _an_all_nines_placeholder(number_text):
+            placeholders += 1
+            continue
+        value = float(number_text)
+        if not math.isfinite(value) or value < 0 or value > TOP_CODE_REACH_CEILING:
+            inside = False
+        elif value > TOP_CODE_LAST_AGE:
+            above = True
+    if placeholders * _TOP_CODE_PLACEHOLDER_SHARE > present:
+        # More than one cell in three: not set aside, so outside the reach.
+        inside = False
+    if not forced and not (inside and above):
+        return None
+    written: "list[str]" = []
+    for place, cell in enumerate(cells):
+        number_text = numbers[place]
+        if (
+            number_text
+            and not _an_all_nines_placeholder(number_text)
+            and float(number_text) > TOP_CODE_LAST_AGE
+        ):
+            written += [_top_coded_text(number_text, comma)]
+        else:
+            written += [cell]
+    return written
+
+
+def at_most_the_top_code(cells: "list[str]") -> "list[str]":
+    """A twin's cells with every number above 90 written 90 (plan P4-D427, ZS.1).
+
+    The twin of a `top_coded` column writes no value above 89 but the
+    top-code itself: a derived end one step past a rung the description
+    does not publish would otherwise write 91. The cells are in point
+    form, as the generator writes them before any comma is put back; an
+    all-nines placeholder is kept as written. Guarantees: a fixed
+    function of the cells, in their order. Raises nothing. No I/O.
+    """
+    written: "list[str]" = []
+    for cell in cells:
+        number_text = _plain_number_text(cell, False)
+        if (
+            number_text
+            and not _an_all_nines_placeholder(number_text)
+            and float(number_text) > TOP_CODE
+        ):
+            written += [_top_coded_text(number_text, False)]
+        else:
+            written += [cell]
+    return written
+
+
+def with_top_code(column: ColumnProfile) -> ColumnProfile:
+    """A column described with every value above 89 read as 90 (plan P4-D427, ZS.1).
+
+    It keeps the description its top-coded cells gave and takes the key
+    `top_coded`, 90, which says that 90 reads "90 or more". Guarantees:
+    a fixed function of the argument. Raises nothing. No I/O.
+    """
+    details: "dict[str, object]" = {}
+    for key in column.details:
+        details[key] = column.details[key]
+    details["top_coded"] = TOP_CODE
+    return dataclasses.replace(column, details=details)
+
+
+# A FIVE-FIGURE NUMBER COLUMN BESIDE A FEW WORDS (plan P4-D427; ZR-b's
+# verify 2, item 1). Five-figure ZIP codes alone are held by P4-D401's
+# questions; one `UNKNOWN` cell, or three `HOMELESS`, silenced them, the
+# column was read as a count with nothing asked or with a question that
+# holds nothing, and 9 or 10 real ZIPs printed as rungs and mode. As the
+# orchestrator's rulings for lane HX4 (2026-10-22 18:23 and 21:32) set
+# sparse tokens aside, the words here are set aside -- and a key's
+# placeholders, a minus sign and one figure or a lone `0` -- at most one
+# present cell in three.
+FIVE_FIGURES = 5
+_FIVE_FIGURES_WORD_SHARE = 3
+
+
+def _five_figures_whole(text: str) -> bool:
+    """Whether a cell is five figures, padded or not, with nothing or zeros after a point."""
+    whole, point, fraction = text.partition(".")
+    if len(whole) != FIVE_FIGURES or not whole.isascii() or not whole.isdigit():
+        return False
+    for character in fraction:
+        if character != "0":
+            return False
+    return not point or bool(fraction)
+
+
+def _set_aside_beside_five_figures(text: str) -> bool:
+    """A word (no figure in it), a minus sign and one figure, or a lone `0`."""
+    if text == "0" or (len(text) == 2 and text[0] == "-" and "0" <= text[1] <= "9"):
+        return True
+    for character in text:
+        if "0" <= character <= "9":
+            return False
+    return True
+
+
+def five_figures_beside_words(cells: "list[str]") -> bool:
+    """Whether every present whole number has five figures, a few words aside (plan P4-D427).
+
+    True where at least one present cell is five figures, padded or not,
+    and every other present cell is set aside -- a word, a minus sign and
+    one figure, or a lone `0` -- and those are at most one present cell
+    in three. Guarantees: a fixed function of the cells. Raises nothing.
+    No I/O.
+    """
+    present = 0
+    five = 0
+    aside = 0
+    for cell in cells:
+        written = parsing.trimmed(cell)
+        if not written:
+            continue
+        present += 1
+        if _five_figures_whole(written):
+            five += 1
+        elif _set_aside_beside_five_figures(written):
+            aside += 1
+        else:
+            return False
+    return five > 0 and aside * _FIVE_FIGURES_WORD_SHARE <= present
+
+
 def as_counted_dates_held(column: ColumnProfile) -> ColumnProfile:
     """A record-number description, for counted dates not read as dates (plan P4-D406).
 

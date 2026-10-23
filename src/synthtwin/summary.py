@@ -1163,6 +1163,14 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             f"missing: {_count_of(column['n_missing'])}"
         ),
     ]
+    # THE SAFE HARBOR TOP-CODE (plan P4-D427), said where it was applied.
+    if "top_coded" in column:
+        lines += [
+            f"    ages over 89: every value above 89 is read as "
+            f"{_count_of(column['top_coded'])} (\"90 or more\") here and in "
+            f"the twin, until the Safe Harbor question about this column is "
+            f"answered in the questions file"
+        ]
     spellings = _missing_spelling_words(column, floor)
     if spellings:
         lines += [f"    counted as missing: {_listed(spellings)}"]
