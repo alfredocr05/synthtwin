@@ -19,21 +19,29 @@ WHAT WAS MEASURED (the health data zoo's plan, wave6/ZOO/PLAN.md rows 19, 42 and
     while every cell is a key, and ONE ordinary word published all 40 keys
     as labels (40 of 40 and 599 twin cells at 600 rows, 19,999 at 20,000).
 
-THE RULE (plan P4-D428). (a) Q-ID, one more shape of HX's question about
-figures (plan P4-D401; ZR.2 of P4-D419), puts `keep`, `code` and
-`identifier` to a free-text column every cell of which is a UID with two
-points or more, every value different, and holds it until answered;
-declared, the arcs every cell shares are published as its prefix (owner
-ruling 1) and the twin writes no arc led by a nought. (b) A declared record
-number publishing `all_whole_numbers true` writes `0` at every place after
-the point. (c) Rule A1 (P4-D422's ZS.2): a declared record number
-publishing a `(column)` prefix counts its pooled cells in its commonest
+THE RULE (plan P4-D428, with its repair round 1). (a) Q-ID, one more shape
+of HX's question about figures (plan P4-D401; ZR.2 of P4-D419), puts
+`keep`, `code` and `identifier` to a column every cell of which, a third of
+words aside, is a UID with two points or more -- every value different, or
+repeating with an arc of five figures or more -- and holds it until
+answered; declared, its organisation's root is published as its prefix
+(owner ruling 1; cut before the first arc of five figures or more, the
+orchestrator's ruling of 2026-10-23), the twin writes no arc led by a
+nought and the validator checks the grammar. (b) A declared record number
+publishing `all_whole_numbers true` writes `0` at every place after the
+point, and such a layout is named only where its figures before the point
+leave room; unanswered, the same noughts on every cell are read as the
+bare figures. (c) Rule A1 (P4-D422's ZS.2): a declared record number of one
+opening and figures counts every cell of a layout its published census
+does not name, or whose room the opening would take, in its commonest
 layout, producer and validator alike. (d) Route two of the person rule sets
-aside up to one present cell in three written as ordinary words beside
-lettered keys, and route four asks padded keys of one width beside them.
+aside up to one present cell in three holding no figure, or a placeholder
+for nobody, beside lettered keys, and route four asks padded keys of one
+width beside them.
 
 Each case runs the product's own command line, nobody at the keyboard, and
-each is red on the mutant its docstring names (wave6/CODES-3/mutants.log).
+each is red on the mutant its docstring names (wave6/CODES-3/mutants.log,
+and repair1/mutants-r1.log).
 """
 
 from __future__ import annotations
@@ -426,8 +434,8 @@ def test_uids_beside_one_word_are_put_q_id_and_held(tmp_path: pathlib.Path) -> N
 def test_b_a_whole_record_number_writes_its_noughts(tmp_path: pathlib.Path, n: int) -> None:
     """(b): declared, every twin cell `\\d+\\.00`, `all_whole_numbers` met, validate at exit 0.
 
-    Mutant: `generation._whole_places` returning the layout unchanged (the
-    places after the point drawn: 595 of 600 cells bad, exit 3).
+    Mutant: `parsing.whole_places_layout` returning the layout unchanged
+    (the places after the point drawn: 595 of 600 cells bad, exit 3).
     """
     header, rows = cerner_rows(n, 42)
     for column in ("ENCNTR_ID", "PERSON_ID"):
@@ -447,7 +455,7 @@ def test_b_whole_record_numbers_written_as_decimals_are_held_unanswered(
 
     Read as its bare figures, the fixed-width question is put once and the
     column held, as the same numbers written without the point are: 0 real
-    values in any file or the twin. Mutant: `_without_nought_places`
+    values in any file, and in the twin none beyond chance. Mutant: `_without_nought_places`
     answering [] (read as a count, its mean and percentiles published, 598
     of 600 real encounter numbers in the twin).
     """
@@ -457,7 +465,10 @@ def test_b_whole_record_numbers_written_as_decimals_are_held_unanswered(
     seen = run(tmp_path / "enc", ["ENCNTR_ID", "test"], rows, "ENCNTR_ID", validate=False)
     assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
     assert seen["held"] is True
-    assert _found_linear(cells, seen["texts"], seen["cells"], decimals=True) == (0, 0)
+    found, equal = _found_linear(cells, seen["texts"], seen["cells"], decimals=True)
+    # Made-up eight-figure numbers equal a real one only by chance: about
+    # n x n / 9 x 10^7 cells, 4 at 20,000 rows (stated limit (4)).
+    assert found == 0 and equal <= n // 1000, (found, equal)
 
 
 def _found_linear(
@@ -535,10 +546,9 @@ def test_b_a_whole_places_layout_spells_only_its_figures_before_the_point(
 def test_c_a_prefixed_id_s_rare_layouts_are_counted_in_its_commonest(tmp_path: pathlib.Path, n: int) -> None:
     """(c): declared, no `(withheld)` pool, every twin cell `rs` and figures, validate at exit 0.
 
-    Mutants: `taxonomy.absorbs_its_layout_pool` answering False (the pool
-    kept and written `rs----1`, one cell without its prefix: exit 3 at 600
-    rows); the validator's absorption removed (the real file misses its
-    own census).
+    Mutants: rule A1 off in the producer (the pool kept and written
+    `rs----1`, one cell without its prefix: exit 3 at 600 rows); the
+    validator's absorption removed (the real file misses its own census).
     """
     header, rows = vcf_rows(n, 43)
     seen = run(tmp_path / "vcf", header, rows, "ID", declared=("ID",))

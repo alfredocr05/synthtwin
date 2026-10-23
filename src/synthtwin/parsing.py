@@ -3068,6 +3068,8 @@ _ANSI_BRANCH = ("1", "2", "840")
 
 def _root_of_the_organisation(root: str) -> str:
     """A UID root cut before its first arc that could be a serial (P4-D428)."""
+    if not isinstance(root, str):
+        raise TypeError(_NOT_TEXT)
     arcs = root[: len(root) - 1].split(".") if root.endswith(".") else []
     kept = ""
     for place, arc in enumerate(arcs):
@@ -3136,6 +3138,26 @@ def whole_places_layout(layout: str) -> str:
     if point < 1 or point == len(layout) - 1 or layout[point - 1] != LAYOUT_DIGIT:
         return layout
     return layout[: point + 1] + "0" * (len(layout) - point - 1)
+
+
+def noughts_after_the_point(text: str) -> bool:
+    """Whether a text holds one point or more and only noughts after its last one (P4-D428).
+
+    `31000000.00` and `100.0` do; `31000000`, `12.50` and `12.` do not.
+    Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    point = -1
+    for place in range(len(text)):
+        if text[place] == ".":
+            point = place
+    if point < 0 or point == len(text) - 1:
+        return False
+    for character in text[point + 1:]:
+        if character != "0":
+            return False
+    return True
 
 
 def whole_places_room(layout: str) -> int:

@@ -1720,17 +1720,19 @@ def _without_nought_places(present: "list[str]") -> "list[str]":
     bare: "list[str]" = []
     places = -1
     for value in present:
-        point = value.find(".")
-        if point < 1:
+        if not parsing.noughts_after_the_point(value):
             return []
-        after = value[point + 1:]
-        if not after or after != "0" * len(after):
+        point = 0
+        while value[point] != ".":
+            point = point + 1
+        if point < 1 or not _is_plain_whole_number(value[:point]):
             return []
-        if places >= 0 and len(after) != places:
+        for character in value[point + 1:]:
+            if character != "0":
+                return []
+        if places >= 0 and len(value) - point - 1 != places:
             return []
-        places = len(after)
-        if not _is_plain_whole_number(value[:point]):
-            return []
+        places = len(value) - point - 1
         bare += [value[:point]]
     return bare
 
@@ -1816,6 +1818,8 @@ def _a_column_of_uids(present: "list[str]") -> bool:
 
 def _an_arc_naming_an_item(uid: str) -> bool:
     """Whether a UID holds an arc of five figures or more (plan P4-D428)."""
+    if not isinstance(uid, str):
+        raise TypeError("a cell to ask about must be text")
     for arc in uid.split("."):
         if len(arc) >= _KEY_FIGURES:
             return True

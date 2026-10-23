@@ -11558,10 +11558,9 @@ def layout_census(
             continue
         deepest = max(deepest, parsing.layout_fill(layout))
         if parsing.whole_places_layout(layout) != layout:
-            after = value[value.find(".") + 1:]
-            noughts[layout] = (noughts[layout] if layout in noughts else True) and (
-                after == "0" * len(after)
-            )
+            noughts[layout] = (
+                noughts[layout] if layout in noughts else True
+            ) and parsing.noughts_after_the_point(value)
         if layout in counts:
             counts[layout] = counts[layout] + 1
             continue
