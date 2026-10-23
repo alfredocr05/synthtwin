@@ -316,3 +316,42 @@ def test_the_installed_command_has_the_floor_on(tmp_path: pathlib.Path) -> None:
     assert done.returncode == 1, done.stderr
     assert "below its floor" in done.stderr
     assert _written(tmp_path / "fresh") == ["clinic.csv"]
+
+
+# -- the census --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("declared", [[], ["p"]])
+def test_the_rows_holding_a_value_are_counted_alike_whole_and_in_groups(
+    declared: "list[str]", tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The floor's row count, read whole and a column group at a time (lane SR).
+
+    420 lines, 60 of them holding nothing in any cell, 18 naming nobody:
+    360 rows hold a value however the table is read, with a person
+    column declared or not.
+    """
+    from synthtwin import profile, reading, taxonomy
+
+    table = tmp_path / "people.csv"
+    lines = ["p,x"]
+    for row in range(420):
+        if row % 7 == 0:
+            lines += [","]
+            continue
+        lines += [f"{'' if row % 23 == 0 else f'P{row // 3:04d}'},{row % 5}"]
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    settings = taxonomy.Settings()
+    whole = profile.population_and_rows_census_of(
+        reading.read_table(str(table)), settings, declared, [], [], [], ()
+    )
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    grouped = profile.population_and_rows_census_of(
+        reading.read_table(str(table), in_groups=True), settings, declared, [], [], [], ()
+    )
+    assert whole[2] == grouped[2] == 360
+    assert whole[:2] == grouped[:2]
+    if declared:
+        assert whole[0] == ("p",) and whole[1] < 360
+    else:
+        assert whole[1] == 360
