@@ -178,6 +178,8 @@ OPERATIVE = {
     "names-validate": "each published form's count met with the named and unnamed levels' cells inside it",
     "top-code": "while that question is open every value above 89 is read as 90 for the whole description",
     "top-code-asked": "it is put the Safe Harbor question whatever its count of values",
+    "top-code-reach": "or the number part of `numbers_with_labels`; whole numbers or not) whose present numbers, "
+    "negative all-nines placeholders aside",
     "top-code-validate": "no twin cell above 90; the real file, read with every value above 89 as 90, meets the description",
     "top-code-answers": "`no` lifts it (today's description, GG where its class holds); `yes` holds the column "
     "(P4-D401's held block)",
@@ -636,6 +638,8 @@ def test_the_golden_region_holds_back_outlying_and_note_names_nothing(tmp_path: 
     for column in document["columns"]:
         assert "(withheld)" not in json.dumps(column.get("shape_forms", {}))
         assert "(withheld)" not in json.dumps(column.get("layout_forms", {}))
+    published = [f"{level['label']}" for name in ("region", "note") for level in _column(document, name).get("levels") or []]
+    assert published and not _figure_levels(published)  # path (iii)'s level-wise hold pools no golden level
     assert "`region` holds back `outlying` (7 of 240)" in _flat(_page())
 
 
