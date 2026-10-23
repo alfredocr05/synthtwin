@@ -3945,6 +3945,22 @@ contradictory, cells without the affixes) and `labels` (on
   stopped being an edge) is a group of rows whose count the column's
   published facts bound inside 1 to `f - 1`: RULE W1 (4.6b.3) treats it
   as an own-fact group.
+- **Amended 2026-10-21 (lane CHa, plan P4-D418): the merge's order,
+  which the text above leaves open, fixed as built.** A value band
+  holding no row joins the value band above it (the one below it at the
+  top), its upper edge ceasing to be an edge. Then, while some band holds
+  1 to `f - 1` rows: on a number, date or clock column the EARLIEST such
+  band in band order is joined with its neighbour holding fewer rows,
+  ties to the earlier neighbour; on a label column the two smallest
+  bands, ties to the earlier in band order, the joined band standing at
+  the earlier's place and every band between the two kept where it was
+  (repair 1: the first build dropped them, so a binary column of 425 and
+  375 rows with one blank cell kept one band of 376 and left the chain,
+  MEASURED by lane CHa's skeptic). `L1` and `L2` are each
+  starting band's band of that level joined wherever one `L0` band spans
+  two (on a label column an `L0` band joining a level of the ten
+  commonest with another joins their `L1` bands). Every choice is a fact
+  of one column (plan P4-D363), and `tests/test_chain_profile.py` pins it.
 
 **These four facts are what the generator's band-totals interface (lane
 BTp's `cells_by_band`, plan P4-D404) assumes, stated here as obligations
@@ -4199,6 +4215,85 @@ choice tells the reader that a losing candidate scored lower, which is a
 fact about a table nobody publishes (the design review's third attack,
 items B1 and B2; plan P4-D407).
 
+**Amended 2026-10-21 (lane CHa, plan P4-D418): what the producer reads
+where this section leaves a reading open.** (i) THE OWN-FACT GROUPS of
+RULE W1 are read from the column's published block conservatively: a
+reading's count fixed by `mode_count` or `n_zero` marks the band holding
+it; a published heap, a histogram bin of 1 to `f - 1` rows, a tail of 1
+to `f - 1` rows or the readings of a column of at most six different
+values mark every value band; a missing spelling, a level's spelling or
+an unread kind of cell counted 1 to `f - 1` marks its spread or level
+band; and every merged `L0` band holds the sub-band it took in. Marking
+more refuses more and passes no leak. **Restated 2026-10-21 by lane
+CHa's repair 1 (its skeptic's item 1, a blocker, and its statistics
+skeptic's item 1), naming two sources the list above missed and reading
+tail values by their rows.** Every published fact of one ordered column
+that splits its values is a CUT: each published rung (`percentiles`,
+`percentiles_between`, a date's or clock's nine), each `L0` edge, a
+date's or clock's tail boundary, and each edge where a census of value
+ranges changes group (`bin_groups` over the tail block's division
+between its two boundary rungs, `value_histogram` over the published
+ends, `clock_census` over its ten-minute bins). The values between two
+neighbouring cuts form a RUN, whose count is a difference of counts a
+reader can put together. A run of 1 to `f - 1` rows is an own-fact
+group: the PERCENTILE SLICE (at 600 all-different values each 1 % slice
+between two published rungs holds exactly six rows, so a decile confined
+to one level of another column fixed "slice and level" at six on every
+table of the preimage, MEASURED on 8 of 8 keys) and the CENSUS REMAINDER
+(a band's total less the census groups wholly inside it: a clock band of
+149 rows beside groups of 148 fixed one row, published as a zero beside
+`g` on 6 of 6 keys, MEASURED). A run less any of the single values a
+published count names inside it (the mode, nought, a clock heap, a heavy
+date, a tail's listed value) is one too, and so is such a value counted
+1 to `f - 1`. A TAIL'S LISTED VALUE is an own-fact group only where its
+rows are 1 to `f - 1`: a tail listing one value of at least `f` rows (a
+follow-up capped at the study's end) names a group of at least `f`, and
+the first build's "each published tail value marks its band" refused the
+time-and-event pair on every administratively censored table (29 to 57 %
+of the chain's score lost on lane `E0b`'s cohort, registry and curve
+tables, MEASURED by lane CHa's statistics skeptic). A PERIODIC census
+(days of the week or month, hours, minutes, seconds) marks the body's
+bands outside a run of neighbouring bands that holds all but 1 to
+`f - 1` rows of the census groups it reaches (those rows lie there), and
+marks a run's bands where the groups lying wholly inside it leave 1 to
+`f - 1` of its rows. The
+producer counts each run on the column's own values. **Restated
+2026-10-21 (lane CHa's repair 2, plan P4-D418; the combined verify's
+item 1):** a rung is a cut where the published facts fix the rank it
+stands at: a rung no row stands on (the rank its percent sets), and a
+rung exactly one row stands on where every reading other than the
+single values a published count names (the mode, nought, a tail's
+listed values, a clock heap, a date tail's listed values, a heavy
+date) holds one row, since the distinct count then makes every other
+value single (it cuts on both sides of that row). A rung tied rows
+stand on whose tie count no published fact names is no cut, since the
+rows below it and through it are open to a reader; this repair 1
+wording, "a cut whose count the published facts leave open is read as
+if they fixed it", said the opposite of the code and is withdrawn.
+MEASURED by the verify: a 501-row column all different but a mode of
+12 (or eleven noughts), its percentiles p01 to p99 published, put five
+rows of one gender in every 1 % slice of [p75, p90) on 8 of 8 keys
+under the repair 1 rule, which asked every reading to hold one row;
+under this one, none of 8; lane `E0b`'s battery and lane `A0b`'s
+200,000-row table lose nothing more. Cutting at every one-row rung
+instead cost `E0b`'s ST3 37.06 % of its score at 20,000 rows and is
+not adopted. A loader, holding no row, checks the published list
+above, a subset of the producer's marks. `K-S6-08` holds the slice,
+the remainder and the one-row rung beside a heap as fixtures, each
+with its mutant. (ii) THE TIME-AND-EVENT DETECTOR (inventory row 11): an eligible
+`count` or `continuous` column whose name holds a word of time (`time`,
+`days`, `day`, `months`, `month`, `years`, `year`, `weeks`, `week`,
+`duration`, `followup`, `follow`, `fu`, `survival`, `futime`, `tte`,
+`length`, `stay`) beside an eligible `binary` column whose name holds a
+word of an event (`event`, `status`, `died`, `death`, `dead`,
+`deceased`, `censor`, `censored`, `outcome`, `relapse`, `failure`,
+`mortality`, `readmit`, `readmitted`, `recurrence`), a name's words
+being its runs of letters and figures, in lower case; it raises weights
+only. (iii) "The levels, finest first" in OPTION ORDER compares the
+option's levels written child first and then each parent's in the
+parents' order, entry by entry; the root step lists "no family", then
+its pairs by the child's place, the parent's place and those levels.
+
 **The weights.** Among a step's eligible options, in OPTION ORDER (a
 step of kind `place`: by the child's place in schema order, "no family"
 first, then by the anchor's place in chain order, the parents' places
@@ -4365,6 +4460,37 @@ twin, a log or either report (inventory row 33):
   can; or, if no description made on this installation was ever shared,
   move it aside and run again."
 
+**Amended 2026-10-21 (lane CHa, plan P4-D418): the folder and the lock
+as built.** The DATA FOLDER is `$XDG_DATA_HOME/synthtwin` where that is
+set, else `~/Library/Application Support/synthtwin` on macOS and
+`~/.local/share/synthtwin` elsewhere on POSIX, and
+`%LOCALAPPDATA%\synthtwin` on Windows (`~\AppData\Local\synthtwin`
+where it is unset); it holds `chain-key`, `chain-ledger` (JSON, with no ending: a private
+record, never among the files a run leaves beside the twin) and, during
+a run, `chain-profile.lock`. The lock is made with `pathlib.Path.touch(...,
+exist_ok=False)`, which is `os.open` with `O_CREAT | O_EXCL`; the ledger
+entry goes to `chain-ledger.new` and is moved into place with
+`pathlib.Path.replace` (`os.replace`). A key file that a group or other
+account may read or write is refused on POSIX; on Windows the folder is
+the user's own, and no POSIX mode is read. `tests/test_chain_profile.py`
+runs every case in both forms.
+**Amended 2026-10-21 (lane CHa's repair 2, plan P4-D418; Codex's items
+6, 11, 12 and 13):** a data folder that a group or other account may
+write is refused on POSIX in plain words, since it lets them replace
+the record; a key file that stands but does not hold 32 bytes is
+refused with words to move it aside and run again, with `--new-key`
+where a record stands, so `--new-key` is accepted only where the record
+exists and no key file does (synthtwin still never replaces a key file
+that exists); anything raised after the lock is taken removes the lock,
+and a key half written is removed. The questions file's one entry on the
+chain (`between_columns`) carries the pairs the person asks to `add` and
+to `drop`, each a list of two column names: a pair to drop shares no
+family table (no option places one of its columns as a parent of the
+other); a pair to add takes the rule weight's raise, `w_rule n`, a weight
+only, never forced; a request naming no two eligible columns, or not
+written as two names, is named on the screen; the next questions file
+writes the requests back as read. Nothing waits for them.
+
 **One run at a time, and the entry before the description.** A run
 holds the installation's LOCK, a file it makes in the data folder with
 `os.open` and the flags `O_CREAT | O_EXCL` (standard library, the same
@@ -4397,6 +4523,20 @@ a column renamed, added or dropped, since the hash reads cells keyed by
 column name (stated limit 2).
 
 #### 4.6b.5 The chain and its tables (O2, O3)
+
+**Amended 2026-10-21 (lane CHa, plan P4-D418): where the producer
+publishes no chain.** `statistical` is also `null` (a) where a declared
+person column repeats a value (`settings.person_columns` not empty), or
+a column held by an open question offering `identifier`, or declared
+an identifier, repeats one: the table may hold several rows per person,
+which this section's proof does not cover (lane MG's page); nothing
+waits, the description is written without a chain until the question
+is answered; and (b) where a column's recount, cell by cell, disagrees
+with its own published counts (the range bands against `K`, `missing`
+against `n_missing`, a level against its count): the producer's own
+check that 4.6b.2's obligations hold. Each publishes nothing between
+columns, which the base product's description already is, so no proof
+moves; the private notes say which.
 
 **The tabled rows.** Every table of this section counts the TABLED ROWS:
 every row of the table except the records holding nothing that a
@@ -4926,7 +5066,27 @@ number, modulo `2**256`: free of row order, of column order and of the
 file's form, since it reads parsed cells keyed by column name (lane CHa
 specifies "parsed" for each form, with a test that a CSV and a workbook
 of one table give one hash). It is used only as the ledger's index
-(4.6b.4).
+(4.6b.4). **Amended 2026-10-21 (lane CHa's repair 1, plan P4-D418):** a
+row whose cells all hold nothing is left out of the table's content
+hash, so a table with one more empty record is the same table to the ledger,
+which refuses it under a second name; measured by lane CHa's skeptic,
+`clinic.csv` with one line of empty cells added had proceeded under a
+new name with no refusal and published a different chain.
+**Amended 2026-10-21 (lane CHa's repair 2, plan P4-D418; Codex's item
+4):** a row's content hash is taken CELL BY CELL. Each cell's framed
+bytes (the column name's and the cell's text's UTF-8 bytes, each
+preceded by its length as 8 bytes big-endian, as above) are hashed
+alone, BLAKE2b (`digest_size=32`, `person=b"synthtwin.cel.1"`); the
+row's cell hashes, read as big-endian whole numbers, are summed modulo
+`2**256`; and the row's content hash is BLAKE2b (`digest_size=32`,
+`person=b"synthtwin.row.2"`) over that sum's 32 bytes. The framing,
+the freedom from column and row order and the reading of parsed cells
+stand as above. The first form needed a row's framed bytes whole, so a
+table read in groups of columns was held as its framed rows at once:
+about 1.25 kB a row at 50 columns (MEASURED), 3.2 GB of payload at
+2,000,000 x 50 by Codex's allocation count, over the 2.5 GB watchdog
+by itself; the cell-by-cell form walks the groups once, holding one
+whole number a row.
 
 **The self-test's sample** (layer `L2b`, lane ST) is chosen by content and
 SORTED by content before anything is generated from it, so a whole-row
@@ -5595,7 +5755,8 @@ own published facts, and RULE WE's from the published counts, and
 finds every placed family eligible: which
 options are eligible is a function of the description (inventory rows 3
 to 5a), so the loader can check it. `statistical` is `null` only where
-the root step drew "no family" and no rule is carried; a chain whose
+the root step drew "no family" and no rule is carried, or where 4.6b.5's
+amendment of 2026-10-21 withholds the chain (lane CHa, plan P4-D418); a chain whose
 every family has no parent stands only beside a carried rule (the
 RULES-ONLY description, 4.6b.3), each eligible column then at `L0`, in
 schema order.
@@ -5778,9 +5939,9 @@ written as a fraction and read on the scale of the score (4.6b.3).
 | `L0`'s cut (`l0_cut`) | `deciles` at every size | FIXED up to 50,000 rows: every fifth percentile scored 366 against 387 at 20,000 rows and 137 against 136 at 50,000 (`A0a`'s setting 10). Above 50,000 rows the design's 100,000-row probe favoured every fifth percentile, 166 against 153 of 279, not on every seed; FIXED there too, every fifth percentile OFF (amended 2026-10-20): at 200,000 rows x 50 columns lane `A0b`'s leg `X5c`, polished, scored every fifth percentile 168 of 287 against the deciles' 188 |
 | placed cuts | off | FIXED (`A0a`'s setting 2; inventory row 13) |
 | `w_seed`, the triple screen's seeds | `"1/20"`, ON (amended 2026-10-20) | ON, by lanes `A0b` and `A0c` at 200,000 rows x 50 columns (one table and one seed; the chain at `k` = 3 with three levels, the deciles and the time-and-event pair first, polished by classes M-a and M-b with the second code at `P` = 4; greedy, without the draw, as above). `A0b`, the screen's 10 seeds on its coarse codes at 0.05 a seed: the three-way xor came back exactly (-3.416 against a real -3.416; -0.017 without seeds) and blood pressure's age-by-group interaction went from 0.036 to 0.206 of a real 0.296, at no pooled cost (186 of 287 with seeds, 188 without). `A0c`, the screen ranking triples twice (4.6b.3: its 10 over all triples on the finer codes and its 3 inside the few-level class, offered at the same 0.05): pooled 202 of 287 (a fresh sample 213, the design's every-pair swap candidate `A2` 215), the logistic models 30 of 38 (a fresh sample 25, `A2` 32), diabetes x current smoker -1.334 against a real -1.442 (1.0 SE, inside its yardstick; 13.3 SE off without its seed), intensive care x old age -0.489 against -0.732 (3.4 SE; 13.5 without), the xor exact. PRIVACY UNCHANGED (MEASURED in every twin of `A0c`): every published family cell 0 or at least 11 (14,740 cells at 200,000 rows, the smallest 11), 0 family cells off after the walk and the polish, the diabetes x smoking x death table's smallest cell 109; the floor judges every family table as before, and the screen adds only which columns sit together, through the draw. THE PRICE: below about 20,000 rows the smallest cell of such an interaction table reaches the floor (about 27 rows at 50,000 and 11 at 20,000, lane `A0c`'s arithmetic), so the floor coarsens or refuses the triple and the interaction is given up, never privacy; and a weight far above 1/20 reorders the chain and costs estimates elsewhere (at 1.0, 173 to 180 of 287; with the few-level seeds alone at 1.0 the offered columns were placed ahead of age, which left the death column's family). OWED: `K-BC-02` re-measured on W5's keyed draw (in the kits 0.05 acted with no draw; lane CHa's battery run); the screen's ranks on the self-test's sample of 4.6b.8 (20,000 rows below 1,000,000), since `A0c` read every row (lane CHa). The history: `A0a` measured seeds costing least squares (347 and 127 against 393 and 140, polished, at 20,000 and 50,000 rows); `A0b`'s early 50-column measurement (2026-10-19) had the seedless chain losing every interaction built into the test table that a fresh sample and `A2` keep (diabetes x current smoker 0.06 against a fresh sample's -1.76; the pure three-way -0.02 against -3.47; an age-by-group interaction in blood pressure 0.02 against 0.30) and question 9's trigger firing at 50,000 x 50 (`A2` ahead by 17.0 points on least squares and 26.5 on logistic models); the library study of 2026-10-19 (MEASURED, greedy, at 50,000 and 200,000 rows) offered the screen's seeds as weights: the three-way xor went from 85.90 and 173.88 SE off to 0.00, while diabetes x current smoker, which the screen ranks 187 to 190 of 19,600 triples on its coarse codes (the top two levels and a pool), stayed off (4.95 to 13.20 SE) and came back (0.00) only when its triple was offered. Seeds enter only as a weight raise, so turning them on changes no proof. A number's slope on another number changing with a yes/no column (blood pressure and a laboratory value on age by group) stays off with the screen's seeds and with M-d (28 to 30 and 43 to 47 SE at 200,000 rows; M-d in the polish 18.0 against 19.7 SE at 50,000 rows): lane MPOL's, with the two carriers of 4.6b.3 (the number's family holding the other number at a finer band with the yes/no column took blood pressure to 0.275 of 0.296, 6.6 SE, when its triple was offered) |
-| `w_te`, the time-and-event raise | `"1"`, ON (amended 2026-10-20; was `"0"`: no measured effect) | KEPT as lane `A0b` measured it, the time-and-event pair first: at 200,000 rows x 50 columns its chain `t1` (the pair offered first, the event its parent) scored 188 of 287 against `t0`'s 182 (no raise), polished, and every 200,000-row figure of this table was measured on `t1`. On that table the pair is NOT already the strongest option: `t0`'s root is blood pressure's two columns, scoring 0.756 `n`, the pair 0.046 `n`; a raise of `1 n` puts the pair first there, as `t1` did (JUDGEMENT on that one table; the value is PROVISIONAL until lane CHa's battery run measures it under the draw). The root pair's orientation stays schema order (on that table the follow-up time is the parent, where `t1` made the event the parent; `A0a`'s panel below found orientation alone moving only the walk). The history: `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables, so `A0a`'s panel measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first, which `A0b`'s 50-column table is |
-| `w_rule`, the inferred rule's raise | `"1/20"` | PROVISIONAL: never measured (the design's raise of `10 tau` was not measured either, and on the scale of the score it would vanish). Lane CHa's battery run measures it |
-| `tau` | two, provisionally | PROVISIONAL: ruling R5 holds it until it is measured at 50 columns, and no leg of `A0b` measures it. Every figure above was measured greedily; at 5,000 rows, the suite tier of `K-S6-01` (ii), the last steps' scores shrink to about 6 to 27, where `tau` = 2 gives "no family" a real share of each step (the statistics review's arithmetic). Lane CHa's battery run measures the chain under the draw, at `tau` = 2 and with RULE W1 as read here, at 5,000 and 20,000 rows, before the stage-6 gate; a change is a measured amendment |
+| `w_te`, the time-and-event raise | `"1"`, ON (amended 2026-10-20; was `"0"`: no measured effect) | KEPT as lane `A0b` measured it, the time-and-event pair first: at 200,000 rows x 50 columns its chain `t1` (the pair offered first, the event its parent) scored 188 of 287 against `t0`'s 182 (no raise), polished, and every 200,000-row figure of this table was measured on `t1`. On that table the pair is NOT already the strongest option: `t0`'s root is blood pressure's two columns, scoring 0.756 `n`, the pair 0.046 `n`; a raise of `1 n` puts the pair first there, as `t1` did (JUDGEMENT on that one table; the value is PROVISIONAL until lane CHa's battery run measures it under the draw). The root pair's orientation stays schema order (on that table the follow-up time is the parent, where `t1` made the event the parent; `A0a`'s panel below found orientation alone moving only the walk). The history: `A0a`'s setting 4 raised no score: it placed the time-and-event pair as the root, the event its parent. On every table of its panel that pair was already the strongest option, by about three times (`X2 - df` of 9,962 to 9,986 at 20,000 rows against 3,234 to 3,408 for the next; 24,665 against 7,705 to 7,860 at 50,000), and its two chains t0 and t1 differ only in the root pair's orientation, every other family, parent and level being the same: the battery's 75 against 56 at 50,000 rows, and the reverse at 20,000, are differences between two walks of one set of tables, so `A0a`'s panel measures that orientation, not this raise. A raise is set only by a measurement on a table where the pair is not already first, which `A0b`'s 50-column table is. MEASURED UNDER THE PRODUCT'S DRAW 2026-10-21 (lane CHa's statistics skeptic, the product's search on that table, each step's best option, supported estimates inside their yardstick), `w_te` 1 against 0: 152 against 157 of 258 at 5,000 rows (inside the draw's spread of 11), 160 against 177 of 273 at 20,000 (keyed draws 156 to 163 against 176 to 177), 131 against 118 of 287 at 200,000. The sign changes with the table's size. At tau 2 a raise of `1 n` acts as a FORCE: the raised steps took a weight share of 0.998 to 1.0, so the detector, pairing `died` and `readmit` (both on the event list) with `fu`, placed `died` under the follow-up and its death rates by age and gender fell to 6 of 17 estimates against 13 of 17 at 0; raising the one pair (`fu`, `event`) alone did not repair 20,000 rows (159; draws 154 to 163) and gained 13 at 5,000 (165). PROVISIONAL, with an owner: the orchestrator rules on all three sizes before the stage-6 gate, after a 200,000-row leg of the one-pair detector and of the detector without the outcome words (`died`, `death`, `mortality`, `readmit`, `readmitted`, `outcome`), which lane CHa's night script names |
+| `w_rule`, the inferred rule's raise | `"1/20"` | PROVISIONAL: never measured (the design's raise of `10 tau` was not measured either, and on the scale of the score it would vanish). Lane CHa carries no rule (the rule step is lane MR's), so lane MR's leg measures it (re-owned 2026-10-21, lane CHa's repair 1) |
+| `tau` | two, provisionally | PROVISIONAL: ruling R5 holds it until it is measured at 50 columns, and no leg of `A0b` measures it. Every figure above was measured greedily; at 5,000 rows, the suite tier of `K-S6-01` (ii), the last steps' scores shrink to about 6 to 27, where `tau` = 2 gives "no family" a real share of each step (the statistics review's arithmetic). Lane CHa's battery run measures the chain under the draw, at `tau` = 2 and with RULE W1 as read here, at 5,000 and 20,000 rows, before the stage-6 gate; a change is a measured amendment. MEASURED 2026-10-21 (lane CHa's statistics skeptic, the product's own search on `A0b`'s 50-column table, supported estimates inside their yardstick): the keyed draw at `tau` = 2 against the same search taking each step's best option, 152.8 (mean of five keys) against 152 of 258 at 5,000 rows, 160.0 against 160 of 273 at 20,000 and 131 against 131 of 287 at 200,000; the draw departs from the best option at 3 to 9 of about 48 steps, mostly among level variants of equal score, and never drew "no family". Two points is ruling R5's condition for moving `tau`; it is not met at any size, so `tau` stays 2 |
 | `selftest_sample` | 20,000 below 1,000,000 tabled rows, 200,000 from there | PROVISIONAL, lane ST's: 100,000 at 2,000,000 rows is the lever behind the hours on the oldest Python synthtwin runs on, 3.11 from lane DEP-1 (plan P4-D407). The sample holds exactly that many rows, or every row of a smaller table, chosen by content and occurrence (4.6b.8). It is never published, so its size moves no proof |
 | the polish (lane MPOL's) | classes M-a and M-b cell means, with the second code on skewed fine columns, at `P` = 4 proposals a fine cell at every size, PROVISIONAL | recorded here for MPOL's page, which fixes them (`A0a`'s settings 5 to 8: M-d off, spreads off; section 4.6d's settings, generation G17): lane `A0b` measured `P` = 2 at 172 of 287 supported estimates against 188 at `P` = 4 at 200,000 rows x 50 columns, so no smaller `P` is taken at any size; lane MPp measures 2, 4 and 8 at 1,000,000 rows (aligned to section 4.6d's measured text at batch 4e's integration, 2026-10-21) |
 

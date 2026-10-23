@@ -776,6 +776,10 @@ jobs:
           wheel required synthtwin/calendar_clock.py
           wheel required synthtwin/calendar_rules.py
           wheel required synthtwin/canonical.py
+          wheel required synthtwin/chain.py
+          wheel required synthtwin/chain_check.py
+          wheel required synthtwin/chain_moments.py
+          wheel required synthtwin/chain_rules.py
           wheel required synthtwin/cli.py
           wheel required synthtwin/contract.py
           wheel required synthtwin/date_counts.py
@@ -784,6 +788,7 @@ jobs:
           wheel required synthtwin/asking.py
           wheel required synthtwin/generation.py
           wheel required synthtwin/grains.py
+          wheel required synthtwin/installation.py
           wheel required synthtwin/parsing.py
           wheel required synthtwin/paths.py
           wheel required synthtwin/profile.py
@@ -813,6 +818,10 @@ jobs:
           sdist required ROOT/src/synthtwin/calendar_clock.py
           sdist required ROOT/src/synthtwin/calendar_rules.py
           sdist required ROOT/src/synthtwin/canonical.py
+          sdist required ROOT/src/synthtwin/chain.py
+          sdist required ROOT/src/synthtwin/chain_check.py
+          sdist required ROOT/src/synthtwin/chain_moments.py
+          sdist required ROOT/src/synthtwin/chain_rules.py
           sdist required ROOT/src/synthtwin/cli.py
           sdist required ROOT/src/synthtwin/contract.py
           sdist required ROOT/src/synthtwin/date_counts.py
@@ -821,6 +830,7 @@ jobs:
           sdist required ROOT/src/synthtwin/asking.py
           sdist required ROOT/src/synthtwin/generation.py
           sdist required ROOT/src/synthtwin/grains.py
+          sdist required ROOT/src/synthtwin/installation.py
           sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/paths.py
           sdist required ROOT/src/synthtwin/profile.py

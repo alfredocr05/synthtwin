@@ -6,6 +6,54 @@ exists).
 
 ## [Unreleased]
 
+### Lane CHa: the chain's profile side, built behind a switch no user reaches (2026-10-21)
+
+**The first code of the broad between-columns program** (plan P4-D418,
+contract 4.6b). Behind a switch that only a caller can turn on (a
+parameter of the entry point and of `chain.describe`, no command-line
+option), `synthtwin profile` now cuts each column
+into three nested levels of bands, counts every pair's and family's
+table on all rows, draws the chain with the installation's private key
+(rule W5, keyed by the key, the table's name and the step), refuses by
+RULE W1 every option that would confine a small group of another column,
+offers the triple screen's seeds and time-and-event pairs as weights
+only, computes the moment layer's inputs without publishing them, keeps
+the key and a private record of each table's name beside it, and loads a
+description carrying the chain under invariants S23 to S28. No shipped
+description, summary or twin moves: S12 stands. `K-S6-08`'s tables part
+is new and green: no description the draw can publish fixes or bounds a
+count of 1 to 10 over 3,154,474 tables. Measured on A0b's 50-column
+table: 106 s and 217 MB at 20,000 rows, 725 s and 582 MB at 200,000.
+Points for the orchestrator: columns of few values whose median is
+their lowest value are left out (`one_band`), and `w_te` 1 cost
+estimates at 20,000 rows.
+
+**Repair 1.** RULE W1 now finds a column's small groups on its own
+values: a slice of six rows between two published percentiles, or the
+one row a clock census leaves of a band, is refused beside a column it
+would confine, and `K-S6-08` holds both cases. A follow-up capped at the
+study's end keeps its pair with the event: W1 now costs nothing on lane
+E0b's battery and A0b's table, except the registry at 5,000 rows, where a
+real group of 9 censor dates is confined. A label column with a few
+blank cells keeps its bands, a row blank in every column no longer makes
+a second table to the record, the key never prints, and the suite and
+Windows failures the lane caused are repaired.
+
+**Repair 2.** A column whose values all differ but for a published mode
+or a heap of noughts no longer lets a five-row percent slice be fixed
+beside another column: before, 8 of 8 keys published such a slice
+confined to one gender on a 501-row table; now none does, at no cost
+on lane E0b's battery or A0b's table (`K-S6-08` holds the case). The
+loader refuses more broken descriptions (a level left out, a merged
+band miscounted, an anchor written as `false`, a column written as a
+list, a computed column with no rule) in plain words. The content hash
+is taken cell by cell, so a table read in groups is no longer held
+whole in memory to hash it (about 3.2 GB at 2,000,000 x 50 before). A
+column of dates written as Excel day numbers keeps the chain. The
+questions file's pairs to add or drop are now read, applied and kept.
+A data folder other accounts can change, a damaged key file and a disk
+full while the key is written each get plain words or clean up after
+themselves, and the installation is imported only behind the switch.
 ### Batch 4f's records: the zoo measured on the merged code, `K-P4-06`'s ceiling, a shorter STATE (2026-10-22)
 
 **Records of batch 4f**, which merged lanes DEP-2, SR-A, HX3 and PS

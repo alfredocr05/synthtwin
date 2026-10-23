@@ -3214,6 +3214,199 @@ def _small_population_notice(spoken: str, person_columns: str) -> str:
     )
 
 
+@dataclasses.dataclass(frozen=True)
+class ChainRun:
+    """The chain's switch for one `synthtwin profile` run (lane CHa, plan P4-D418; NOT IN FORCE).
+
+    No command-line option sets it: `main` never passes one, so every
+    shipped run describes, summarizes and writes exactly as before
+    (invariant S12). The tools and the tests hand it to `_run_profile`.
+    `name` is the table's name (4.6b.4's `--name`; None reads the input
+    file's name without its extension); `folder` the installation's data
+    folder (None: the platform's own, `installation.data_folder`);
+    `replace_description` and `new_key` are 4.6b.4's
+    `--replace-description` and `--new-key`.
+    """
+
+    name: "str | None" = None
+    folder: "str | None" = None
+    replace_description: bool = False
+    new_key: bool = False
+
+
+@dataclasses.dataclass
+class _ChainState:
+    """One switched run's installation, opened before the table is read, and its pending entry."""
+
+    run: ChainRun
+    # `installation.Opened` and `installation.Entry`: the installation (its
+    # key comes from `secrets`) is imported only behind the chain's switch,
+    # never by a shipped run (Codex's item 10 on repair 1).
+    opened: "typing.Any"
+    entry: "typing.Any" = None
+    statistical: "dict[str, object] | None" = None
+    notes: "tuple[str, ...]" = ()
+    # The pairs the handed-back questions file asks to add and to drop,
+    # and the requests it could not read (`asking.between_columns_requests`).
+    add: "tuple[tuple[str, str], ...]" = ()
+    drop: "tuple[tuple[str, str], ...]" = ()
+    unread: "tuple[str, ...]" = ()
+
+
+def _chained_description(
+    chain_state: _ChainState,
+    table: pathlib.Path,
+    read: "typing.Any",
+    published: "dict[str, object]",
+    settings: "typing.Any",
+    held: "tuple[str, ...]",
+    forced_codes: "list[str]",
+    forced_measurements: "list[str]",
+    forced_decimal_commas: "list[str]",
+    storage: "tuple[str, ...]",
+) -> "dict[str, object]":
+    """The description with its chain, the ledger's decision on it, and the one line on the screen.
+
+    Sets `chain_state.entry` to the ledger entry this run will write
+    before its description, or leaves it None where the ledger refuses
+    the run (its words printed): the caller then writes nothing. The
+    private notes stay in `chain_state.notes`; no line names the key.
+    """
+    from synthtwin import chain, installation
+
+    run = chain_state.run
+    name = run.name if run.name is not None else table.stem
+    chained = chain.describe(
+        read,
+        published,
+        settings,
+        chain.ChainSwitch(name, chain_state.opened.key, held, chain_state.add, chain_state.drop),
+        list(forced_codes),
+        list(forced_measurements),
+        list(forced_decimal_commas),
+        storage,
+    )
+    relationships = published["relationships"]
+    if not isinstance(relationships, dict):
+        return published
+    with_chain: "dict[str, object]" = {}
+    for key in published:
+        with_chain[key] = published[key]
+    block: "dict[str, object]" = {}
+    for key in relationships:
+        block[key] = relationships[key]
+    block["statistical"] = chained.statistical
+    with_chain["relationships"] = block
+    digest = installation.description_digest(with_chain)
+    between = installation.publishes_between(with_chain)
+    decision = installation.decide(
+        chain_state.opened,
+        name,
+        chained.content,
+        digest,
+        between,
+        run.replace_description,
+    )
+    chain_state.notes = chained.notes
+    chain_state.statistical = chained.statistical
+    if decision.verdict == installation.REFUSE:
+        _warn(decision.words)
+        return with_chain
+    if decision.verdict == installation.WARN:
+        _warn(decision.words)
+    chain_state.entry = installation.Entry(
+        name,
+        chained.content,
+        installation.fingerprint(chain_state.opened.key),
+        digest,
+        between,
+    )
+    _say(_chain_line(chained.statistical))
+    if chain_state.add or chain_state.drop or chain_state.unread:
+        _say(_requests_line(chain_state.add, chain_state.drop, chain_state.unread, chained.statistical))
+    return with_chain
+
+
+def _requests_line(
+    add: "tuple[tuple[str, str], ...]",
+    drop: "tuple[tuple[str, str], ...]",
+    unread: "tuple[str, ...]",
+    statistical: "dict[str, object] | None",
+) -> str:
+    """The line naming what the questions file asked of the chain and what this run did with it."""
+    eligible: "set[str]" = set()
+    ladder = statistical["ladder"] if isinstance(statistical, dict) else None
+    if isinstance(ladder, list):
+        for entry in ladder:
+            if isinstance(entry, dict) and isinstance(entry["column"], str):
+                eligible |= {entry["column"]}
+    taken_add = [pair for pair in add if pair[0] != pair[1] and pair[0] in eligible and pair[1] in eligible]
+    taken_drop = [pair for pair in drop if pair[0] != pair[1] and pair[0] in eligible and pair[1] in eligible]
+    done: "list[str]" = []
+    if taken_add:
+        done += [f"{len(taken_add)} pair(s) to add were offered to the chain with more weight (never forced)"]
+    if taken_drop:
+        done += [f"{len(taken_drop)} pair(s) to drop share no family table"]
+    others = [pair for pair in add + drop if pair not in taken_add and pair not in taken_drop]
+    if others:
+        left = ""
+        for one, other in others:
+            left += ("; " if left else "") + f"{one} and {other}"
+        done += ["these name a column the chain does not hold and were left: " + left]
+    if unread:
+        unread_text = ""
+        for one in unread:
+            unread_text += ("; " if unread_text else "") + one
+        done += ["these requests could not be read (a pair is two column names of this table): " + unread_text]
+    if statistical is None:
+        done += ["no family table is published for this table"]
+    said = ""
+    for one in done:
+        said += ("; " if said else "") + one
+    return "Between columns, from the questions file: " + said + ". The requests stay in the questions file."
+
+
+def _chain_line(statistical: "dict[str, object] | None") -> str:
+    """The one line on the screen about the chain: how many pairs share a family table."""
+    if statistical is None:
+        return (
+            "\nBetween columns: no family table is published for this table; "
+            "every pair of columns is carried as the twin's columns on their own."
+        )
+    words = statistical["words"]
+    exact = 0
+    total = 0
+    if isinstance(words, list):
+        for entry in words:
+            if isinstance(entry, dict) and "word" in entry:
+                total += 1
+                if entry["word"] == "exact":
+                    exact += 1
+    return (
+        f"\nBetween columns: {exact} of the {total} pairs of eligible columns "
+        "share a family table and are carried exactly; the others are carried "
+        "as the chain implies. The questions file names the pairs, and a pair "
+        "to add or drop can be named there; nothing waits for it."
+    )
+
+
+def _chain_pairs(chain_state: "_ChainState | None") -> "list[list[str]] | None":
+    """The pairs a switched run carries exactly, for the questions file's one entry; None unswitched."""
+    if chain_state is None:
+        return None
+    exact: "list[list[str]]" = []
+    statistical = chain_state.statistical
+    if isinstance(statistical, dict):
+        words = statistical["words"]
+        if isinstance(words, list):
+            for entry in words:
+                if isinstance(entry, dict) and entry["word"] == "exact":
+                    columns = entry["columns"]
+                    if isinstance(columns, list):
+                        exact += [[f"{one}" for one in columns]]
+    return exact
+
+
 def _run_profile(
     table: str,
     out_dir: "str | None",
@@ -3236,6 +3429,104 @@ def _run_profile(
     centuries_given: "list[str] | None" = None,
     date_columns_given: "list[str] | None" = None,
     first_row_typed: bool = False,
+    chain: "ChainRun | None" = None,
+) -> int:
+    """Do the work of `synthtwin profile`; return the exit code (`_run_profile_body`).
+
+    With the chain's switch (`chain`, which no command-line option sets),
+    the installation's data folder is opened and locked BEFORE the table
+    is read (contract 4.6b.4: a ledger without its key is refused before
+    anything is read), and the lock is released however the run ends.
+    """
+    if chain is None:
+        return _run_profile_body(
+            table=table,
+            out_dir=out_dir,
+            smallest_group=smallest_group,
+            floor_chosen=floor_chosen,
+            forced_identifiers=forced_identifiers,
+            forced_codes=forced_codes,
+            forced_measurements=forced_measurements,
+            forced_decimal_commas=forced_decimal_commas,
+            answers_path=answers_path,
+            kept_values=kept_values,
+            missing_values=missing_values,
+            first_row=first_row,
+            day_first=day_first,
+            sheet=sheet,
+            metadata_rows_given=metadata_rows_given,
+            delimiter_given=delimiter_given,
+            date_counts_given=date_counts_given,
+            forced_twelve_hours=forced_twelve_hours,
+            centuries_given=centuries_given,
+            date_columns_given=date_columns_given,
+            first_row_typed=first_row_typed,
+        )
+    from synthtwin import installation
+
+    folder = (
+        pathlib.Path(chain.folder)
+        if chain.folder is not None
+        else installation.data_folder()
+    )
+    opened = installation.open_installation(folder, new_key=chain.new_key)
+    try:
+        if opened.refusal:
+            _warn(opened.refusal)
+            return 2
+        for line in opened.lines:
+            _say(line)
+        return _run_profile_body(
+            table=table,
+            out_dir=out_dir,
+            smallest_group=smallest_group,
+            floor_chosen=floor_chosen,
+            forced_identifiers=forced_identifiers,
+            forced_codes=forced_codes,
+            forced_measurements=forced_measurements,
+            forced_decimal_commas=forced_decimal_commas,
+            answers_path=answers_path,
+            kept_values=kept_values,
+            missing_values=missing_values,
+            first_row=first_row,
+            day_first=day_first,
+            sheet=sheet,
+            metadata_rows_given=metadata_rows_given,
+            delimiter_given=delimiter_given,
+            date_counts_given=date_counts_given,
+            forced_twelve_hours=forced_twelve_hours,
+            centuries_given=centuries_given,
+            date_columns_given=date_columns_given,
+            first_row_typed=first_row_typed,
+            chain_state=_ChainState(chain, opened),
+        )
+    finally:
+        installation.release(opened)
+
+
+def _run_profile_body(
+    table: str,
+    out_dir: "str | None",
+    smallest_group: int,
+    floor_chosen: bool,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
+    forced_decimal_commas: list[str],
+    answers_path: "str | None",
+    kept_values: list[str],
+    missing_values: list[str],
+    first_row: str,
+    day_first: bool,
+    sheet: str = "",
+    metadata_rows_given: str = "",
+    delimiter_given: str = "",
+    date_counts_given: "list[list[str]] | None" = None,
+    forced_twelve_hours: "list[str] | None" = None,
+    centuries_given: "list[str] | None" = None,
+    date_columns_given: "list[str] | None" = None,
+    first_row_typed: bool = False,
+    chain_state: "_ChainState | None" = None,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -3414,6 +3705,14 @@ def _run_profile(
     if answers_path is not None:
         try:
             handed_back = contract.load_answers(answers_path)
+            # ...and, behind the chain's switch alone, the pairs its entry
+            # asks to add or drop (lane CHa, repair 2, Codex's item 6).
+            if chain_state is not None:
+                (
+                    chain_state.add,
+                    chain_state.drop,
+                    chain_state.unread,
+                ) = asking.between_columns_requests(handed_back)
             # HOW THE RUN THAT WROTE THE FILE READ THE TABLE, before
             # anything typed now takes a kept answer out (plan P4-D408).
             kept_reading = asking.kept_reading(handed_back)
@@ -4814,6 +5113,24 @@ def _run_profile(
             )
         )
 
+    # THE CHAIN BETWEEN COLUMNS, behind its switch (lane CHa, plan
+    # P4-D418; contract 4.6b, NOT IN FORCE): no shipped run reaches this.
+    if chain_state is not None:
+        published = _chained_description(
+            chain_state,
+            pathlib.Path(table),
+            read,
+            published,
+            settings,
+            tuple(withheld) + tuple(candidates),
+            forced_codes,
+            forced_measurements,
+            forced_decimal_commas,
+            storage,
+        )
+        if chain_state.entry is None:
+            return 1
+
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
     # cannot differ, and the file on disk carries the same guarantee the
@@ -5009,6 +5326,13 @@ def _run_profile(
     # recognizes it and still gives its own advice. Both halves are
     # needed: one says what they are holding, the other says why it
     # stopped (review item P1-R7-F1).
+    # THE LEDGER'S ENTRY IS WRITTEN FIRST, the description after it, so
+    # two runs can never both find no entry and both publish (contract
+    # 4.6b.4); behind the chain's switch alone.
+    if chain_state is not None and chain_state.entry is not None:
+        from synthtwin import installation
+
+        installation.record(chain_state.opened, chain_state.entry)
     state = profile.DiskState()
     try:
         left_behind = profile.write_both_files(
@@ -5230,6 +5554,14 @@ def _run_profile(
                     # ...and each column declared as counted dates that
                     # did not read so, held on every table (P4-D406).
                     held_dates=_held_counted_dates(document, counted),
+                    # ...and, behind the chain's switch alone, its one
+                    # entry (lane CHa, plan P4-D418).
+                    chain_pairs=_chain_pairs(chain_state),
+                    chain_requests=(
+                        (chain_state.add, chain_state.drop)
+                        if chain_state is not None
+                        else ((), ())
+                    ),
                 )
             ),
             sources=guarded_questions,
@@ -6398,8 +6730,13 @@ def _teaching_profile(table: "str | None", out_dir: "str | None" = None) -> str:
     )
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: "list[str] | None" = None, chain: "ChainRun | None" = None) -> int:
     """Run the `synthtwin` command.
+
+    `chain` is the chain's switch (lane CHa, plan P4-D418; contract 4.6b,
+    NOT IN FORCE): the console entry point never passes it, so a person
+    typing `synthtwin` cannot turn it on; the tools and the tests hand it
+    in, and it reaches the `profile` command alone.
 
     Guarantees:
 
@@ -6547,6 +6884,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.centuries,
             options.date_columns,
             options.first_row_typed,
+            chain=chain,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin
