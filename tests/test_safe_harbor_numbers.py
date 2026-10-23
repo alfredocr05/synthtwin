@@ -181,8 +181,19 @@ _WORDS = [f"w{chr(97 + place % 26)}{chr(97 + place // 26)}" for place in range(8
         # THE PROFILER'S OWN GRAMMAR (Codex's review, item 5).
         ([f"{18 + place % 72}" for place in range(499)] + ["95"] + ["99,000e-3"] * 100,
          taxonomy.SAFE_HARBOR_AGES),
-        # ...and the bulk: more than one remaining cell in three outside.
+        # ...and the bulk: more than the floor's rows and one remaining
+        # cell in twenty outside.
         ([f"{age}" for age in range(18, 104)] + [f"{200 + place}" for place in range(50)], ""),
+        # A MEASUREMENT'S TAIL PAST 125 IS NO PLACEHOLDER (measured on
+        # 4282f7ee: setting every repeated value aside top-coded the
+        # analyst tables' glucose, sbp, crp and follow-up days): systolic
+        # pressures from 95 to 139, each on 20 rows, two in three within
+        # 0 to 125, stay out of the reach...
+        ([f"{95 + place % 45}" for place in range(900)], ""),
+        # ...while three placeholders on the floor's rows are set aside,
+        # and a few typing slips (one remaining cell in twenty) stand.
+        (_ages() * 5 + ["777"] * 100 + ["888"] * 100 + ["555"] * 100, taxonomy.SAFE_HARBOR_AGES),
+        (_ages() * 5 + [f"{300 + place}" for place in range(21)], taxonomy.SAFE_HARBOR_AGES),
         # ZIPS (addenda 1 (3), 3 (1), 4 and 5; skeptic 1, item 8; Codex,
         # item 6): four figures beside five, placeholders of any share,
         # 99999 a ZIP, ZIP+4 cells, a plus sign, words of any share.

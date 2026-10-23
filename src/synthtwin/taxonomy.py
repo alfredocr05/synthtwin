@@ -26184,9 +26184,13 @@ def with_held_dates(column: ColumnProfile, grain: "dict[str, object]") -> Column
 # `-9`, `-99`, `999`, `9999`; for ZIPs, every width but four and five,
 # where `9999` and `99999` are ZIPs: addendum 4), one-figure negatives
 # (`-1`) for ages and every negative for ZIPs, and any single value
-# outside the reach that at least the floor's rows repeat. Of the cells
-# that remain, at least two in three must be in the reach: so a lone
-# outlier, a few odd forms or a ZIP+4 cell keep it. EVERY ROLE THAT
+# outside the reach that at least the floor's rows repeat, three such
+# values at most (a measurement's tail past the reach is many values and
+# stays). Of the cells that remain, ages must be within 0 to 125 but for
+# a few strays (fewer than the floor's rows, or at most one in twenty:
+# a lone outlier, a few typing slips, never a systolic pressure's tail),
+# and ZIPs at least two in three of four or five figures: so a lone
+# outlier, a few odd forms or a ZIP+4 cell keep the reach. EVERY ROLE THAT
 # PRINTS A VALUE is reached (addenda 1 (1), 2 (2) and 5): binary,
 # constant, count, continuous, labels and their number parts -- `95
 # years` is a number and a unit word. A column most of whose numbers
@@ -26207,6 +26211,14 @@ ZIP_WIDTHS = (4, 5)
 # those in the reach is at least `_BULK_TAKEN` times those that remain.
 _BULK_PARTS = 3
 _BULK_TAKEN = 2
+# The ages' strays: of the cells that remain, at most one in twenty (or
+# fewer than the floor's rows) outside 0 to 125 -- a lone outlier, a few
+# typing slips -- where a measurement's tail past 125 is more (a systolic
+# pressure's, a glucose's).
+_STRAY_PARTS = 20
+# The placeholders set aside whatever their share, at most: `777`, `888`
+# and one more beside the nines and one-figure negatives already aside.
+_PLACEHOLDERS_AT_MOST = 3
 # The decimal places a twin's value below the top-code is chosen at, at
 # most: finer figures are written as zeros (Codex's review of lane SH,
 # item 4: a search at twenty places did not end).
@@ -26410,11 +26422,13 @@ def safe_harbor_reach(
 
     ``absent``: the spellings the column was read as holding no value,
     set aside; ``floor``: the rows a value outside the reach must hold
-    to be set aside as a placeholder whatever its share. Ages: at least
-    two in three of the cells that remain within 0 to 125, one of 90 or
-    more among them, and at most half of them written with a leading
-    zero. ZIPs: at least two in three of the cells that remain whole
-    numbers of four or five figures or ZIP+4 forms. Guarantees: a fixed
+    to be set aside as a placeholder whatever its share (three such
+    values at most, `_placeholder_rows`). Ages: the cells that remain
+    within 0 to 125 but for fewer than ``floor`` or at most one in
+    twenty, one of 90 or more among them, and at most half of them
+    written with a leading zero. ZIPs: at least two in three of the
+    cells that remain whole numbers of four or five figures or ZIP+4
+    forms. Guarantees: a fixed
     function of the four. Raises TypeError for a cell that is not text.
     No I/O.
     """
@@ -26456,22 +26470,45 @@ def safe_harbor_reach(
         elif postal == _ZIP_OUTSIDE:
             zip_outside[value] = (zip_outside[value] if value in zip_outside else 0) + 1
     repeat = max(floor, 1)
-    for value in age_outside:
-        if age_outside[value] >= repeat:
-            age_aside += age_outside[value]
-    for value in zip_outside:
-        if zip_outside[value] >= repeat:
-            zip_aside += zip_outside[value]
+    age_aside += _placeholder_rows(age_outside, repeat)
+    zip_aside += _placeholder_rows(zip_outside, repeat)
+    # Of the age cells that remain, those outside 0 to 125 (or holding a
+    # figure but no number) are strays: fewer than the floor's rows, or
+    # at most one in `_STRAY_PARTS`.
+    strays = present - age_aside - age_in
     if (
         age_in > 0
         and age_above
-        and _BULK_PARTS * age_in >= _BULK_TAKEN * (present - age_aside)
+        and (strays < repeat or _STRAY_PARTS * strays <= present - age_aside)
         and 2 * age_padded <= age_in
     ):
         return SAFE_HARBOR_AGES
     if zip_in > 0 and _BULK_PARTS * zip_in >= _BULK_TAKEN * (present - zip_aside):
         return SAFE_HARBOR_ZIPS
     return ""
+
+
+def _placeholder_rows(outside: "dict[float, int]", repeat: int) -> int:
+    """The rows of a column's placeholders among its values outside a reach (plan P4-D427).
+
+    A placeholder is ONE value standing for "not known": of the values
+    outside the reach that at least ``repeat`` rows hold, the
+    `_PLACEHOLDERS_AT_MOST` most held (the larger value first among
+    equals) -- `888` beside ages on a third of the rows, `-99` beside
+    ZIP codes. A measurement's own tail -- systolic pressures from 126
+    to 200, each held by the floor's rows at 20,000 rows -- is many such
+    values, and stays (measured on 4282f7ee: setting every one aside
+    top-coded the analyst tables' glucose, sbp, crp and follow-up days).
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    held = sorted(
+        ((outside[value], value) for value in outside if outside[value] >= repeat),
+        reverse=True,
+    )
+    rows = 0
+    for count, _value in held[:_PLACEHOLDERS_AT_MOST]:
+        rows += count
+    return rows
 
 
 def _top_coded_text(read: SafeHarborNumber, comma: bool) -> str:
