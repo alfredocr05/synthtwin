@@ -48,8 +48,8 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 13,275 collected (batch 4e: lanes MG, MPOL, G2T and HX2 merged on batch 4d, which held 13,086; counted by `pytest --collect-only` under Python 3.11 and 3.13 alike and placed by `tools/ci/shards.py --of 5 --prove`, 328 files, every file in exactly one shard). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 12,377, on `68dae22f` (batch 4b), the five shards took 22.9 to 29.8 minutes each, 127.2 minutes summed, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
-| KPIs | `tests/kpi/ledger.json`: 245 KPIs over phases 0-4, stages 1, 2, 2b, 3, 3b and 4, the terminal, the health data zoo and the broad between-columns program, 35 of them headlines under a cap of 35 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H; and from 31 by the orchestrator's recorded call D15 of the December plan, plan P4-D397, for the terminal's `K-S8-01`, from 32 by the same call D15, plan P4-D399, for the health data zoo's `K-HZ-01`, and from 33 by the same call D15, plan P4-D398, for the analyst battery's `K-BC-01` and `K-BC-02`, the owner may veto any); 199 green, 30 open, 16 limits the owner accepted, as the merged ledger of batch 4e reads. Of the 30 open, as each one's `target_stage` reads: 24 have the stage or lane that owns the whole (`K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-44` lane S4bc2, its one census miss, `K-S4-09` the scale gate, lanes SR, SG and SV, then SX, its describe part OPEN-WORSE on 8a02faa3 under Python 3.11 and lanes SR-A's (P4-D414) and H3's, `K-S8-01` the terminal's lanes TT and TS, `K-HZ-01` and `K-HZ-02` the lanes each zoo failure names, lane G2T2 since batch 4e's records for the one 20,000-row failure that had none (lanes G2T and SV from 2026-10-19 until then), and lanes PS and MG since batch 4e for what lane HX2's count in people costs, and `K-BC-01` to `K-BC-13` the broad between-columns program's checkpoint 4); 1 is owned in part (`K-2B-47`: stage 3 owns the carried fidelity items, lane RT2 the date remainder, 9 missed checks against its bound of 6, and its residue of 2026-09-19, the identifier-layout misses, has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak), lane HX's `K-S3-64`, no real identifier published while its question is open, lane AQ's `K-S3-66`, the questions file keeping every answer across rounds, and lane HX2's `K-S3-65`, every value published beside a person column counted in people; stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-08`, `K-S4-15`, lane H1's `K-S4-16` and `K-S4-17`, lane H2's `K-S4-18` and `K-S4-19`, lane SR's `K-S4-09` and `K-S4-11`, lane XW's `K-S4-22` and lane G2T's `K-S4-20` and `K-S4-21` (`K-S4-10` and `K-S4-12` to `K-S4-14` reserved by the December plan), `K-S4-03` a headline in `K-2B-14`'s place; the terminal's (stage 8's ids, lane TI) `K-S8-01`, a headline, and `K-S8-04`; the health data zoo's (lane E0a) `K-HZ-01`, a headline, `K-HZ-02` and `K-HZ-03`; the broad between-columns program's (lane E0b's analyst battery) `K-BC-01` and `K-BC-02`, headlines, and `K-BC-03` to `K-BC-13`. `K-HZ-02`'s analyst bound moved from 100 to 101 at batch 4d's integration, which the orchestrator kept, naming lane HX3 to restore 100: lane HX's route four asks the zoo's SNOMED ids the person question in place of the checklist, whose `code` comes a round later; the zoo answers one round. At batch 4e's integration `K-HZ-01` and `K-HZ-02` moved again, to what lane HX2's count in people costs the zoo, every failure owned (14 of 40 kinds passing at 600 rows, 23 of the delimited exports' at 20,000), KEPT by the orchestrator, 2026-10-21 (HIPAA first: the floor counted in people); lane PS (P4-D417) owns the held dates and times, the valid-layout floor first. `K-2B-42`, the oracle's independence, is bounded since batch 4c by the share of its scored functions that sit close to shipped code, at most 0.363: a changed policy, not its count restated (the orchestrator's rulings on push critic 8 and Codex's merge review; P4-D299). The count of 176 was set over 371 scored; 0.363 is 176 of 485, a later stamp chosen as the reference, rounded up; at today's 873 scored the share allows up to 316 close functions where the count allowed 176, an allowance accepted and named. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
+| suite | 13,553 collected (batch 4f: lanes DEP-2, SR-A, HX3 and PS merged on batch 4e, which held 13,275; counted by `pytest --collect-only` under Python 3.11 and 3.13 alike and placed by `tools/ci/shards.py --of 5 --prove`, 332 files, every file in exactly one shard). One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 12,377, on `68dae22f` (batch 4b), the five shards took 22.9 to 29.8 minutes each, 127.2 minutes summed, beside other lanes' runs. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| KPIs | `tests/kpi/ledger.json`: 245 KPIs over phases 0-4, stages 1, 2, 2b, 3, 3b and 4, the terminal, the health data zoo and the broad between-columns program, 35 of them headlines under a cap of 35 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H; and from 31 by the orchestrator's recorded call D15 of the December plan, plan P4-D397, for the terminal's `K-S8-01`, from 32 by the same call D15, plan P4-D399, for the health data zoo's `K-HZ-01`, and from 33 by the same call D15, plan P4-D398, for the analyst battery's `K-BC-01` and `K-BC-02`, the owner may veto any); 199 green, 30 open, 16 limits the owner accepted, as the merged ledger of batch 4f reads. Of the 30 open, as each one's `target_stage` reads: 24 have the stage or lane that owns the whole (`K-P4-06` and `K-S6-01` stage 6, `K-P4-22` stage 3, `K-P4-23` the carried reference vectors, `K-S1-06` and `K-S4-04` stage 4, `K-S3-44` lane S4bc2, its one census miss, `K-S4-09` the scale gate, lanes SR, SG and SV, then SX, its describe part OPEN-WORSE on 8a02faa3 under Python 3.11, to be re-stamped on lane SR-A's merged code (P4-D414), the keyed subject cells and the person-column run lane H3's, `K-S8-01` the terminal's lanes TT and TS, `K-HZ-01` and `K-HZ-02` the lanes each zoo failure names, lane G2T2 since batch 4e's records for the one 20,000-row failure that had none (lanes G2T and SV from 2026-10-19 until then), and lane MG for the person census lane HX2's count in people pools, and `K-BC-01` to `K-BC-13` the broad between-columns program's checkpoint 4); 1 is owned in part (`K-2B-47`: stage 3 owns the carried fidelity items, lane RT2 the date remainder, 9 missed checks against its bound of 6, and its residue of 2026-09-19, the identifier-layout misses, has no stage set); 5 have none set (`K-2B-28`, `K-2B-49`, `K-S3-12`, `K-S3-22`, `K-S3-50`). Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak), lane HX's `K-S3-64`, no real identifier published while its question is open, lane AQ's `K-S3-66`, the questions file keeping every answer across rounds, and lane HX2's `K-S3-65`, every value published beside a person column counted in people; stage 3b's `K-S3-30` to `K-S3-32` and `K-S3-34` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-08`, `K-S4-15`, lane H1's `K-S4-16` and `K-S4-17`, lane H2's `K-S4-18` and `K-S4-19`, lane SR's `K-S4-09` and `K-S4-11`, lane XW's `K-S4-22` and lane G2T's `K-S4-20` and `K-S4-21` (`K-S4-10` and `K-S4-12` to `K-S4-14` reserved by the December plan), `K-S4-03` a headline in `K-2B-14`'s place; the terminal's (stage 8's ids, lane TI) `K-S8-01`, a headline, and `K-S8-04`; the health data zoo's (lane E0a) `K-HZ-01`, a headline, `K-HZ-02` and `K-HZ-03`; the broad between-columns program's (lane E0b's analyst battery) `K-BC-01` and `K-BC-02`, headlines, and `K-BC-03` to `K-BC-13`. `K-HZ-01` and `K-HZ-02` are re-measured on batch 4f's merged code (lanes HX3 and PS): 20 of 40 kinds passing at 600 rows and 28 of 40 at 20,000, 104 analyst checks failing, every failure owned (101 at batch 4d; 118 under lane HX2's count in people at batch 4e, KEPT by the orchestrator; lane HX3 gave the SNOMED ids their `code` in round one, lane PS pooled the held dates and times in people). `K-2B-42`, the oracle's independence, is bounded since batch 4c by the share of its scored functions that sit close to shipped code, at most 0.363: a changed policy, not its count restated (the orchestrator's rulings on push critic 8 and Codex's merge review; P4-D299). The count of 176 was set over 371 scored; 0.363 is 176 of 485, a later stamp chosen as the reference, rounded up; at today's 873 scored the share allows up to 316 close functions where the count allowed 176, an allowance accepted and named. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request: Python 3.11 to 3.14 on Ubuntu and Windows and 3.14 on macOS, and the minimums job on 3.11 against the declared floors (lane DEP-1, merged 2026-10-20 at batch 4d, P4-D410, on lane MDEP's dependency page, P4-D409: Python 3.11 and later, the four runtime libraries numpy, pandas, pyarrow and scipy held to their byte-identity zones; until then five Pythons from 3.10). **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
@@ -65,14 +65,14 @@ Weeks are elapsed from 2026-09-12 and assume one builder.
 | 1 | **DONE 2026-09-13. The list idiom and the heap merge.** Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical; `tests/test_no_quadratic_list_growth.py` turns red on the idiom, and KPIs `K-S1-02`, `K-S1-03` and `K-S1-07` hold the growth ratios | done |
 | 2 | **DONE 2026-09-14. The three silent defects.** A grouped number keeps its mark, a moment keeps its separator, a date at midnight stays at midnight | MET: `tests/test_stage2_round_trip.py`, 19 shapes, every stage-2 fact returned. KPIs `K-S2-*` | done |
 | 2b | **DONE 2026-09-19. The twin writes each column as the source wrote it.** Numbers keep their distribution and every common spelling; dates their own format; labels, text and missing values their spellings; record numbers and codes their layout; the file its dialect; Excel in and out. Every published count asks one floor rule. Owner rulings of 2026-09-17 built. Three review rounds closed | MET: the KPI ledger's `K-2B-*` entries, green or at their recorded ceiling, and the whole suite green | done |
-| 3 | **DONE 2026-09-23. The extremes, and the population floor.** Its review round closed 2026-09-24. Built as FIVE landings on five branches from one base — 3.1 the default floor of 11 and the floor holes, 3.2 the population floor and the person rule, 3.3 the numeric tail, 3.4 the date and clock tails, 3.5 the sentences — and integrated last. No numeric, date or clock column publishes either end now; a table under 100 is refused and one under 1,000 carries a notice it cannot turn off; no sentence carries a count a key withholds. **Lane HX, merged 2026-10-20 (batch 4d):** a column whose question offers `identifier` and is unanswered publishes no value, and the twin writes made-up record numbers there, until it is answered (`K-S3-64`; P4-D401). **Lane AQ, merged 2026-10-20 (batch 4d):** the questions file keeps every answer across rounds, so the same answers given in one round or in several write the same description, summary, questions file and twin, and a run that would drop a kept answer, or read the table another way than the run that wrote the file, refuses and writes nothing (`K-S3-66`; P4-D408). **Lane HX2, merged 2026-10-21 (batch 4e):** on a table of several rows a person, every value published beside a declared or candidate person column is counted in people, and a column holding a value one to ten people hold is held whole, the twin writing made-up values there, except the rungs and tail boundaries of a measurement or code column not attached to its subject, which are still judged in rows (the orchestrator's ruling of 2026-10-19, item 2: on `K-S3-14`'s repeated-measures table a score still publishes two rungs, each on 11 rows of 10 people; the limit below); a column declared as counted dates whose cells did not read so is held on every table (`K-S3-65`; P4-D406) | MET: `tests/test_stage3_gate.py` (`K-S3-13`) and `K-S3-01` to `K-S3-15`, and `K-P3-03` and `K-2B-05` reached their targets on the way | done |
+| 3 | **DONE 2026-09-23. The extremes, and the population floor.** Its review round closed 2026-09-24. Built as FIVE landings on five branches from one base — 3.1 the default floor of 11 and the floor holes, 3.2 the population floor and the person rule, 3.3 the numeric tail, 3.4 the date and clock tails, 3.5 the sentences — and integrated last. No numeric, date or clock column publishes either end now; a table under 100 is refused and one under 1,000 carries a notice it cannot turn off; no sentence carries a count a key withholds. **Lane HX, merged 2026-10-20 (batch 4d):** a column whose question offers `identifier` and is unanswered publishes no value, and the twin writes made-up record numbers there, until it is answered (`K-S3-64`; P4-D401). **Lane AQ, merged 2026-10-20 (batch 4d):** the questions file keeps every answer across rounds, so the same answers given in one round or in several write the same description, summary, questions file and twin, and a run that would drop a kept answer, or read the table another way than the run that wrote the file, refuses and writes nothing (`K-S3-66`; P4-D408). **Lane HX2, merged 2026-10-21 (batch 4e):** on a table of several rows a person, every value published beside a declared or candidate person column is counted in people, and a column holding a value one to ten people hold is held whole, the twin writing made-up values there, except the rungs and tail boundaries of a measurement or code column not attached to its subject, which are still judged in rows (the orchestrator's ruling of 2026-10-19, item 2: on `K-S3-14`'s repeated-measures table a score still publishes two rungs, each on 11 rows of 10 people; the limit below); a column declared as counted dates whose cells did not read so is held on every table (`K-S3-65`; P4-D406). **Lane HX3, merged 2026-10-22 (batch 4f):** route four's person question offers `code` in its first round, so a code column the person knows is answered there (`K-S3-66`, `K-HZ-02`; P4-D420). **Lane PS, merged 2026-10-22 (batch 4f):** dates and times beside a person column are described at a coarser grain their published facts choose, counted in people, and a held one's twin writes valid dates in its own layouts (`K-HZ-01`, `K-S3-65`; P4-D417) | MET: `tests/test_stage3_gate.py` (`K-S3-13`) and `K-S3-01` to `K-S3-15`, and `K-P3-03` and `K-2B-05` reached their targets on the way | done |
 | 3b | **Dates keep their calendar shape.** Weekday, time of day, heaps and schedules, each a new published fact that must meet stage 3's floor. **3b.0 landed 2026-09-28**: on the gate's 11 filled ranges of days, seconds and moments the twin comes back with as many different ones -- the same ones where each tail's derived end is the real end, and where one stands a unit past it that unit in place of a real one inside (4 of the 11, plan P4-D358); over small filled columns about three in ten come back with fewer, MISSED (known limits) -- and every rank of a merged run stays inside its gap except where no placement inside the gaps meets the published count of different values (plan P4-D354, `K-S3-30`, `K-S3-39`). **3b.1 landed 2026-09-27**: a column of whole dates publishes its weekday census (plan P4-D355), and its twin meets it -- admissions' weekend share 14.7 per cent real against 14.8 twin where it was 28.5; since 3b.D1 the full-fill certificate is gone and a census is withheld only where a group holds fewer than three different dates, fewer than seven and a half a group on average, or no room beside a published hole (plan P4-D365, `K-S3-35`). **In on the integration branch since 2026-10-02:** 3b.K, the base every landing builds on (P4-D364); 3b.D1; 3b.G1, every tail publishes its pair and a date or clock tail ends at its pair's reach (P4-D375); 3b.T1, Excel's hour and the 12-hour clock read and written back (P4-D370); 3b.R0, numbers written in full (P4-D380); 3b.R1, the day-or-month and date-code questions (P4-D381); 3b.R3, workbook cells read as stored (P4-D382); D0, one weekday pass for every census of bins (P4-D366); T2 (3b.2-H), the hour census on moments (P4-D371); C1 (3b.5), clock columns with their census, heaps, step and codes (P4-D373); G3, the count pass's paid merge keeping its book (P4-D376); G2, the tail pair's wider cell (P4-D377); R2a, dates no member reads written back as written (P4-D383); R2K, the second key cut (P4-D386); D1b, the weekday census withheld where the count leaves too little room (P4-D388); G4, the subtraction guard dropped (P4-D390); the route-2 correction (P4-D390, P4-D373); D2, the weekday census on timestamp columns (P4-D367); R4, numbers that are dates, read as dates and written back as the same counts (P4-D384); R5, a trailing delimiter on one side read as the table's (P4-D387); J, the weekday and the hour of a moment met together (P4-D379); D3, the day-of-month census (P4-D368); R2b and R2c, the clock half and partial dates of the layout reader with Q6 (P4-D383); D4s, the count pass splitting the two tails' ranks first (P4-D369 part one); D4 (3b.6), dates that stand out, each listed date at its exact count (P4-D369, `K-S3-45` to `K-S3-47`); 3b.7, the shared clock and the joint member, each census counted on the clock a value is written on (P4-D378, `K-S3-53`); L1, codes and tables written as the source wrote them (P4-D390, P4-D384, `K-S3-61`); T3 (3b.4), the minutes and seconds of a timestamp counted and met with the hour (P4-D372, `K-S3-41`, `K-S3-42`), merged through lane J2, which meets them beside the weekday census on moments (P4-D391, `K-S3-62`); C2 (3b.5's second step), the minute of the hour on clock-only columns (P4-D374, `K-S3-48`, `K-S3-49`); merged 2026-10-15 (batch 4a), J3, repeated grids of timestamps meeting their counts (P4-D391), R6, a trailing delimiter closed `""` read and written back as the source closed it (P4-D387), and L2, a clock's form holding the one space before its marker (P4-D392); and, merged 2026-10-16 (batch 4b), L3, a stamp's form holding the space between its date and its clock (P4-D393). **The gate is met for the weekday on date columns** (`tests/test_stage3b_gate.py`, `K-S3-31`, `K-S3-32`): weekend share and weekday come back and no weekday count stands below the floor; time of day has landed on moments (3b.2-H) and on clock columns with their heaps (C1), its minutes and seconds on moments (T3 through J2) and its minute on clock columns (C2), and the dates that stand out on date columns (D4); the 3b finish test is met at 254f6419 (both gate files green; `K-S3-31`, `K-S3-38` and `K-S3-42` PASS, `K-S3-41` accepted-held); schedules remain | weekend share, hour of day and heaps come back; no calendar count below the floor | 6 |
-| 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value. **Under way.** Before batch 4a: a large table's reading memory, three paths grown with the rows, the packing walk bounded and G5.5's sign repairs (P4-D387, P4-D389; `K-S4-02` to `K-S4-05`). **Lane S4b-num, merged 2026-10-15 (batch 4a):** the dense tail's push, the identity walk, G4's decimal codes and a register's quality report grow with the rows, every twin the same bytes (494 s to 13.7 s generating 100,000 dense-tail rows; 803 s to 32.6 s for 1,000,000 rows of decimal codes; P4-D377, P4-D387, P4-D390). **Lane S4c, merged 2026-10-15 (batch 4a):** `validate` prints and writes its report in pieces (798 MB at 997,770 register rows where it held 1,317; `K-S4-06`), and a dense tail's twin meets its published mean distance (G6.6.8 rule 4, `K-S4-07`; P4-D390, P4-D377). **Lane S4d, merged 2026-10-16 (batch 4b):** `describe` holds one answer per spelling, every description the same bytes (the 2,990,700-row register in 780 MB where it took 2,389; `K-S4-08`; P4-D390); lane S4b-num's work counts have their own KPI since then (`K-S4-15`, the orchestrator's decision; `K-S4-09` to `K-S4-14` are reserved by the December plan). **Lanes H1 and H2, merged 2026-10-19 (batch 4c):** padded code and record-number columns generate in linear time (`K-S4-16`, `K-S4-17`; P4-D402), and the packing walk reads the counts of one margin together, so a column of signed changes no longer stalls `generate` (`K-S4-18`, `K-S4-19`; P4-D403). **Lanes SR and XW, merged 2026-10-20 (batch 4d):** `synthtwin profile` reads and describes a big table one group of columns at a time, every description the same bytes (`K-S4-09` open, its describe part worse on 8a02faa3 under Python 3.11, lanes SR-A's (P4-D414) and H3's; `K-S4-11`; P4-D400), and the workbook twin is written as a stream, the same file byte for byte (`K-S4-22`; P4-D411). **Lane G2T, merged 2026-10-21 (batch 4e):** a number tail meets its own description on big tables -- the shared staircase, rule 4 on a crowded end and the windows it draws -- and the twin writes nothing past the published range (`K-S4-20`, `K-S4-21`; P4-D405). Open: `K-S1-06`, `K-S4-04`, lane S4b's calendar half, `validate` describing the file again (lane SV) and the number tails held by a width or the pair's reach, which keep the pushed staircase (lane G2T2; G2's dense tail at 1,000,000 rows closed by lane G2T, P4-D405, `K-S4-21`) | two million rows by fifty columns, end to end, under an hour (`K-S1-06`) | 8 |
+| 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value. **Under way.** Before batch 4a: a large table's reading memory, three paths grown with the rows, the packing walk bounded and G5.5's sign repairs (P4-D387, P4-D389; `K-S4-02` to `K-S4-05`). **Lane S4b-num, merged 2026-10-15 (batch 4a):** the dense tail's push, the identity walk, G4's decimal codes and a register's quality report grow with the rows, every twin the same bytes (494 s to 13.7 s generating 100,000 dense-tail rows; 803 s to 32.6 s for 1,000,000 rows of decimal codes; P4-D377, P4-D387, P4-D390). **Lane S4c, merged 2026-10-15 (batch 4a):** `validate` prints and writes its report in pieces (798 MB at 997,770 register rows where it held 1,317; `K-S4-06`), and a dense tail's twin meets its published mean distance (G6.6.8 rule 4, `K-S4-07`; P4-D390, P4-D377). **Lane S4d, merged 2026-10-16 (batch 4b):** `describe` holds one answer per spelling, every description the same bytes (the 2,990,700-row register in 780 MB where it took 2,389; `K-S4-08`; P4-D390); lane S4b-num's work counts have their own KPI since then (`K-S4-15`, the orchestrator's decision; `K-S4-09` to `K-S4-14` are reserved by the December plan). **Lanes H1 and H2, merged 2026-10-19 (batch 4c):** padded code and record-number columns generate in linear time (`K-S4-16`, `K-S4-17`; P4-D402), and the packing walk reads the counts of one margin together, so a column of signed changes no longer stalls `generate` (`K-S4-18`, `K-S4-19`; P4-D403). **Lanes SR and XW, merged 2026-10-20 (batch 4d):** `synthtwin profile` reads and describes a big table one group of columns at a time, every description the same bytes (`K-S4-09` open, its describe part worse on 8a02faa3 under Python 3.11, lanes SR-A's (P4-D414) and H3's; `K-S4-11`; P4-D400), and the workbook twin is written as a stream, the same file byte for byte (`K-S4-22`; P4-D411). **Lane G2T, merged 2026-10-21 (batch 4e):** a number tail meets its own description on big tables -- the shared staircase, rule 4 on a crowded end and the windows it draws -- and the twin writes nothing past the published range (`K-S4-20`, `K-S4-21`; P4-D405). **Lane SR-A, merged 2026-10-22 (batch 4f):** a big table's group is read again by pyarrow's CSV reader and handed over only where a digest proves it the standard reader's reading, every description the same bytes (P4-D414). Open: `K-S1-06`, `K-S4-04`, lane S4b's calendar half, `validate` describing the file again (lane SV) and the number tails held by a width or the pair's reach, which keep the pushed staircase (lane G2T2; G2's dense tail at 1,000,000 rows closed by lane G2T, P4-D405, `K-S4-21`) | two million rows by fifty columns, end to end, under an hour (`K-S1-06`) | 8 |
 | 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them. **Its method is written, before any code (lane M5, merged 2026-10-19, batch 4c; P4-D395):** one result per run, its misses ranked once, an entry point that prints nothing | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
 | 6 | **Cross-column: the chain of floored family tables** (P4-D407, which supersedes P4-D394's pairwise rank correlation over cut indicators), with the patient layer and the moments beside it. **Inherits:** today a rank correlation of 0.747 comes back 0.027 (`K-S6-01`), and the pairing walk of three- and four-number cells (`K-P4-06`). **Measured and written before its code (batch 4d, merged 2026-10-20):** lane E0b's analyst battery, what an analysis of the twin gives back against a fresh sample and a shuffled twin (`K-BC-01` to `K-BC-13`, two headlines; P4-D398), lane BTp's layer L0, each eligible column meeting its band totals (P4-D404), and lane MBC's chain, the between-columns method with its settings (P4-D407). **Written before its code (batch 4e, merged 2026-10-21):** lane MG's patient page, several rows per patient with the visit trend and the derived parents first (P4-D412), and lane MPOL's moment page, numbers read finer than the bands under a proof, with ruling R12's amendment of the chain's slopes (P4-D413) | every marginal unchanged; a known odds ratio comes back; the report names what it carries per relationship | 21 |
 | 7 | **Higher-order structure.** Design pending measurement (four prototypes scored as this page was written) | a known three-way interaction comes back with the right sign, or the limit declared per relationship | 25 |
 | 7b | **Higher-order structure, chosen.** A declared model plus one cross-tabulation for the outcome; the cross-column floor is ABOVE one, which is what lifts the reviewer's veto | a known three-way comes back at the real table's own estimate; no published cell names one subject | 25 |
-| 8 | **The screen: DROPPED on 2026-10-15** (the owner: no screen; synthtwin runs in the terminal, with easy instructions and commands). The bundled toolkit, its scripting engine stripped, is not built. **The terminal takes stage 8's ids (the orchestrator's recorded call D15 of the December plan; the owner may veto it). Lane TI, merged 2026-10-16 (batch 4b):** one install command per system keeping the hash-checked offline install, `python -m synthtwin`, `synthtwin doctor`, and `profile` naming the next command (P4-D397; `K-S8-01`, a headline, open toward lanes TT and TS; `K-S8-04`) | the screen's gate went with it; the terminal's is `K-S8-01`'s, from a folder to a validated twin by the commands it prints | 33 |
+| 8 | **The screen: DROPPED on 2026-10-15** (the owner: no screen; synthtwin runs in the terminal, with easy instructions and commands). The bundled toolkit, its scripting engine stripped, is not built. **The terminal takes stage 8's ids (the orchestrator's recorded call D15 of the December plan; the owner may veto it). Lane TI, merged 2026-10-16 (batch 4b):** one install command per system keeping the hash-checked offline install, `python -m synthtwin`, `synthtwin doctor`, and `profile` naming the next command (P4-D397; `K-S8-01`, a headline, open toward lanes TT and TS; `K-S8-04`). **Lane DEP-2, merged 2026-10-22 (batch 4f):** the hash-checked offline bundle, one zip a platform that CI builds and installs with the network denied, is the only install (P4-D416; the owner's D3: no PyPI) | the screen's gate went with it; the terminal's is `K-S8-01`'s, from a folder to a validated twin by the commands it prints | 33 |
 
 **Eight months, one builder.** The estimate is deliberately not
 optimistic: every estimate in the 2026-09-12 review came back from its
@@ -196,28 +196,16 @@ Each item is an OPEN entry in the KPI ledger, held at a ceiling so it
 cannot get worse unseen.
 
 - ~~**The description still names individuals.**~~ **CLOSED by landing
-  3, 2026-09-23.** No numeric, date or clock column publishes either
-  end, and the default smallest group is 11, so nothing a floor of one
-  used to name is named: `K-P4-22` reads 147 published levels of one row
-  AT A FLOOR OF ONE and 0 at the default, and `K-S3-11` walks 105 cases
-  of the tail battery without one published value, summary line or
-  report line equal to an outermost value of the real column. Its one
-  stated residual, `edge_pinned`, which plan P4-D346 closed, is open
-  again by choice since plan P4-D375 publishes every pair: `K-S3-11`
-  records 14 edge-pinned and 8 pinned tails of its 105 cases, whose
-  pairs give a reader back that tail's own outer values -- accepted
-  under the owner's principle of 2026-10-01, never another column, and
-  never which row except on a table sorted by that column, whose
-  description publishes the order (`row_order`). A floor lowered to one
-  still names what it always named, which is what lowering it asks for.
+  3, 2026-09-23** (`K-P4-22`, `K-S3-11`). Its residual is open again by
+  choice since plan P4-D375 publishes every pair: `K-S3-11` records 14
+  edge-pinned and 8 pinned tails of its 105 cases, whose pairs give a
+  reader back that tail's own outer values -- accepted under the owner's
+  principle of 2026-10-01, never another column, and never which row
+  except on a table sorted by that column (`row_order`).
 - ~~**Spread too wide on normal-shaped columns.**~~ **CLOSED by landing
-  3, 2026-09-23.** There is no published extreme to draw a straight line
-  to: the outer rows are read through the shape fitted to their two
-  published moments. `K-P3-03` is GREEN — nothing missed at 5,000 or at
-  20,000 rows and the twin's spread 0.04 to 0.20 per cent from the
-  published one at 5,000 rows and 0.09 to 0.16 at 20,000, against 1.1 to
-  3.8 per cent before and 10 of 20 columns missing their own spread
-  check at 20,000 rows.
+  3, 2026-09-23.** `K-P3-03` is GREEN: the twin's spread 0.04 to 0.20
+  per cent from the published one at 5,000 rows and 0.09 to 0.16 at
+  20,000.
 - **Relationships between columns are not carried.** Landing 6. The moment page written for it (plan P4-D413) states its own limits before any code: a refusal's residual under ruling R3; "own facts" as rulings R9 and R11 read them (a union that splits one column's small group across two regions counts that group's rows, 1 to 3 rows measured, while inside one region the witness refuses the measured cases where that reading would publish a count of two columns, exactly 3 rows and 1 to 9 rows); every published moment needs a proof (ruling R10), so none stands beside a slope the chain publishes outside its regions; the witness December can decide publishes almost nothing on the measured 50-column table (one region of 20 number columns and 38 of 50 families, every number column in a family where a slope may stand), the main fidelity risk before the stage-6 gate: 127 of 287 estimates for the chain without seeds or moments, 188 polished and 202 seeded and polished are reference measurements only, the seeded chain without moments is unmeasured, and the yield with the witness on is unmeasured until lane CHo's exact solver decides those regions; and no average or correlation of a repeated measurement in December. Under ruling R12 (2026-10-20) the chain's slopes are published only inside a publishing region of the moment page, so while its GATE stays closed no chain slope is published in December, on any table (P4-D413, contract 4.6d.10's limit 6; what it costs in estimates is unmeasured, lanes MPp and CHa).
 - **Time of day inside timestamps:** a column of moments on its own
   clock publishes its hour census and its twin meets it (P4-D371,
@@ -294,12 +282,7 @@ cannot get worse unseen.
   ending inside the real one) and fifteen Mondays at 36 stay long (each
   tail rebuilt on at least 15 days), each a strict xfail naming its
   cause; the workbook date system moves the rules only where a column's
-  first value is the system's first day, not built. A date whose other
-  spelling is declared missing, alone in a tail's stratum, now trades
-  that spelling (step 8; P4-D369's integration paragraph): the 30 of 90
-  battery twins that missed presence, holes, the tail and the ladder
-  miss nothing.
-  A clock column's cells of the other hour width on
+  first value is the system's first day, not built. A clock column's cells of the other hour width on
   an absent place nothing present stands on are written in the column's
   width, owed to lane C2 (P4-D373, strict xfail), as are route 1's 198
   blank cells over 2 columns, to be removed under the corrected route-2
@@ -327,19 +310,13 @@ cannot get worse unseen.
   asked at floors 11 and 36; at a floor of 36 at 300 and 1,000 rows
   `UNK` stands on 11 and 25 cells, under the census line its question
   would print, and it is not put (strict xfail; ACCEPTED by the
-  orchestrator, 2026-10-13); and dates mixing offsets that missed
-  `n_at_midnight` (4 of 600) hold it since landing 3b.7 (P4-D378).
+  orchestrator, 2026-10-13).
 - **Stated limits added 2026-10-13 (the fifth push's critic), each with
-  its owner** (the orchestrator's rulings of that day). D3's two strict
-  xfails, quarter ends and six Mays at 10,000 rows (P4-D368), pass since
-  lane D4 merged with batch 3b part 1 and are xfails no longer. The day
+  its owner** (the orchestrator's rulings of that day). The day
   pass at 67 per cent of generating against a budget of half at 40,000
   rows (`K-S3-44`) is lane S4b's. An all-different column mixing 800 ISO
-  datetimes with 200 ISO dates, which came back 881 of 1,000 different
-  (95,463 of 100,000) while `validate` exited 0, comes back 1,000 of
-  1,000 since landing 3b.7 (P4-D378) at seeds 0 to 2 and floors 11 and
-  36 (measured at batch 3b part 2c); the same mix with a bare date on
-  every day of its span comes back 999 of 1,000 at floor 11 and 998 at
+  datetimes with 200 ISO dates, a bare date on every day of its span,
+  comes back 999 of 1,000 at floor 11 and 998 at
   floor 36, seeds 0 to 2, inside G12.5's envelope, every check met and
   the shortfall said in the twin's report, ACCEPTED (the orchestrator's
   rulings of 2026-10-15 on the sixth push's critic, the owner may
@@ -352,12 +329,7 @@ cannot get worse unseen.
   older fault (b), the leap-second columns' count of different values
   and count at midnight (P4-D379), and a local dial column just after
   midnight (00:00 to 00:08, written 12:mm) missing `n_distinct`, are
-  lane J2's. Fixed on this push's repair (P4-D383): R2c's stepped
-  partial cells left the column's range silently (years 1984 to 2063 for
-  a source's 1900 to 1979 beside dates of 2024) and now step inside the
-  full dates' span first, then before it (1945 to 2024; where the
-  source's partial dates lay is published nowhere); and Q6 answered
-  `keep` is no longer put again.
+  lane J2's.
 - **The calendar on the shared clock and the joint member** (landing
   3b.7, P4-D378, 2026-10-13). The weekday, day-of-month and hour
   censuses stand on columns of two offsets and of dates beside moments,
@@ -486,11 +458,7 @@ cannot get worse unseen.
   mean, which `validate` misses, is lane G2T2's since batch 4e's
   records: `validate` measures the twin's held-back numbers exactly as
   `generate` wrote them, kept to one figure before the point, their mean
-  just under its window (`tests/health_zoo.py`'s OWNERS); answering the
-  questions file in two rounds loses the first round's answers, an
-  identifier answer among them: lane AQ's, built on lane HX's head, a
-  privacy matter under HX's hold rule (both P4-D399); closed by lane AQ,
-  merged at batch 4d (P4-D408). A column of signed changes whose style
+  just under its window (`tests/health_zoo.py`'s OWNERS). A column of signed changes whose style
   question has no answer keeps the cell walk's styles, the recount
   naming the style miss: the forms lane FM's (P4-D403).
 - **Stated limits given their owners at batch 4d (2026-10-20)** (the
@@ -514,20 +482,13 @@ cannot get worse unseen.
   lane SV's describe-once is the first cut); workbooks at scale, refused
   past `workbook.MAXIMUM_CELLS`, are lane XL's. `analyst_kit.chi2_sf`
   stops at 500 terms, 0.7 % off at 69,295 degrees of freedom and p 0.5:
-  lane E0L's (P4-D398). In the health data zoo, lane HX's route four
-  asked a diagnoses export's SNOMED ids the person question in place of
-  the checklist, so their `code` answer came a round later and one
-  analyst check more failed (`K-HZ-02`, its bound moved from 100 to 101
-  at batch 4d; the orchestrator kept it and named lane HX3). CLOSED by
-  lane HX3 (P4-D420): route four's question offers `code` in its first
-  round, the zoo answers it there, and `K-HZ-02`'s analyst failures
-  fall from 118 to 117 (7 twin cells of a code the real never writes,
-  not 132: CODES-1's).
+  lane E0L's (P4-D398). The zoo's SNOMED ids answered `code` a round
+  late: CLOSED by lane HX3 (P4-D420); their twin's codes the real never
+  writes (2 codes on 14 cells at 600 rows on batch 4f's merge) stay
+  CODES-1's.
 - **Stated limits given their owners at batch 4e (2026-10-21)** (push
   critic 10's items and the lanes' close reports, the owners the
-  orchestrator named; the owner may reverse any). Today's eight float
-  powers in zone-G modules, which lane DEP-1 merged without entering in
-  the scanner (P4-D409 part 3 (f)): lane DEP-2's. A column a
+  orchestrator named; the owner may reverse any). A column a
   point-between-thousands answer declared, asked again under
   `read_as_now: measurement`: CODES-1 part C's; a questions file whose
   kept reading entry and name list are both deleted or both edited
@@ -538,38 +499,38 @@ cannot get worse unseen.
   declared as counted dates with no present cell is named nowhere: lane
   ST's notice (P4-D406). What stage 5's result reads for the chain now
   P4-D407 supersedes P4-D394: lane CHv's (P4-D395). In the health data
-  zoo, lane HX2's count in people holds thirteen date and time columns
-  beside a person column, pools two person censuses and holds two code
-  columns whole: 14 of 40 kinds pass where 20 did (23 of the delimited
-  exports' kinds at 20,000 rows where 28), `K-HZ-01` and `K-HZ-02` at
-  the measured bounds, KEPT by the orchestrator, 2026-10-21 (HIPAA
-  first: the floor counted in people); lane PS (P4-D417) owns the held
-  dates and times, the valid-layout floor first; the census in subject
-  bands is lane MG's. Lane HX2's stated limits (P4-D406): (1) the pages
+  zoo, lane HX2's count in people pools two person censuses (the census
+  in subject bands is lane MG's) and holds two code columns whole; its
+  held dates and times are lane PS's, merged at batch 4f (below). Lane HX2's stated limits (P4-D406): (1) the pages
   that explain the floor still say a value one person holds is published
   with the count of their rows, an overstatement beside a person column,
   where it is held: lane MG's; (2) a table of ten people or fewer whose
   person question is open counts the columns not attached to its
-  candidate (visit dates, measurements) in rows: lane PS's; (3) a held
-  date or time column's twin writes figures in the date's layout
-  (`4191-54-63`, `77:21`) that code parsing it as dates cannot read, the
-  G1 break behind the PS ruling: lane PS's; (4) the identifier generator
+  candidate (visit dates, measurements) in rows: the orchestrator's to
+  decide since lane PS (P4-D417); (3) a held date or time column's twin
+  writing figures no date parser reads (`4191-54-63`, `77:21`): CLOSED
+  by lane PS (P4-D417); (4) the identifier generator
   misses published forms on held twins (`GENERATOR_LIMITS` in the
   `K-S3-65` driver; a held count written two ways missing
   `type.all_whole_numbers`): CODES-1 part C's. `K-S4-09`, re-measured on
   8a02faa3 under Python 3.11 in the night window of 2026-10-21, is
   OPEN-WORSE: the mixed describe peak projects to 2,694.2 MB at
   2,000,000 x 50, 19.6 traced bytes a cell against 17.7 (`K-S4-11`
-  passes, 6,151.6 s): lane SR-A's (P4-D414), which also owns
-  `profile.build_document` keeping each repeating subject column's keyed
-  cells for the whole describe (about 2,000,000 strings at 2,000,000
-  rows) and `K-S4-09` with a person column, unmeasured (P4-D400).
+  passes, 6,151.6 s): lane SR-A (P4-D414, merged at batch 4f) reads a
+  group again with pyarrow, its re-stamp on the merged code a night
+  window's. `profile.build_document` keeping each repeating subject
+  column's keyed cells for the whole describe (about 2,000,000 strings
+  at 2,000,000 rows), and `K-S4-09` with a person column, are lane H3's
+  (the orchestrator's addendum of 2026-10-22: on H3's build head the
+  2,000,000 x 50 describe with a declared person column was stopped by
+  its guard at 2,400 MB).
 - **Dates and times beside a person column, pooled in people (lane PS,
   2026-10-21, P4-D417).** The dates part of the batch 4e limit above is
   closed: such a column is described at a coarser grain chosen by its
   published facts alone, or held with a twin of valid dates in its own
   layouts; the zoo passes 20 of 40 kinds at 600 rows and 28 at 20,000
-  rows again, every check that parses a date or a time holding. Still
+  rows again, on batch 4f's merged code too, every check that parses a
+  date or a time holding. Still
   so, each with its owner: a stamp of a few evenly filled hours misses
   its count of different values and its count at midnight (`wearables`
   at 20,000 rows: 32 of 39 hours, 1,208 rows at midnight against 515),
@@ -647,23 +608,8 @@ cannot get worse unseen.
   silent (plans P4-D352, P4-D356).
 - **The largest tables** are measured to about 1,000,000 rows on
   identifiers (P4-D389); the end-to-end 2M x 50 run is `K-S1-06`.
-  Landing 4. Lane S4b-num (2026-10-14) brought four of lane S4b's
-  costs, on the shapes named here, to work that grows with the rows,
-  every twin the same bytes: the dense tail's push (494 s to 13.7 s at
-  100,000 rows, 207 s at 1,000,000), the identity walk (501,501
-  spellings asked to 1,001 at 100,000 rows of the Codex column), G4's
-  decimal codes (803 s to 32.6 s at 1,000,000 rows) and a register's
-  quality report (50,000 consecutive codes validate in 59.5 s, 997,770
-  rows in 123.5 s) (P4-D377, P4-D387, P4-D390). Lane S4c
-  (2026-10-14): `validate` prints and writes its report in pieces,
-  798 MB at 997,770 rows of a register where it held 1,317 and
-  2,000 MB at 2,990,700 (P4-D390), and a dense tail's twin meets its
-  published mean distance (G6.6.8 rule 4, P4-D377). Lane S4d
-  (2026-10-15): `describe` holds one answer per spelling (past 65,536
-  different texts, from a text's second sighting within 8,192 new
-  ones), every description the same bytes -- those 2,990,700 rows in 780 MB where it
-  took 2,389, 4,983,120 in 1,270 MB, and `validate` of them in 1,662 MB
-  (P4-D390). Left: a column whose values never repeat still holds a
+  Landing 4 (stage 4's row names what lanes S4b-num, S4c and S4d
+  brought). Left: a column whose values never repeat still holds a
   record a row (G2's dense tail: 2,287 MB at 3,000,000 rows, past the
   2 GB rule), reading holds the file's bytes and decoded text beside
   the table (both lane SR's, which reads and describes in groups of
@@ -745,14 +691,9 @@ cannot get worse unseen.
   names and addresses owned by CODES-2's allowlist, birth dates by
   CODES-1 part C.
 - **Dates published as plain numbers when a declared date count is
-  declined: CLOSED by lane HX2** (plan P4-D406, contract NF127; merged
-  in batch 4e). A column a person declared as counted dates whose cells
-  did not read as such dates (`42.345` for an Excel day) is held on
-  every table, one row a person or several: it publishes none of its
-  values, the twin writes made-up values there, and the screen, the
-  summary and the questions file's `held` section name it. Before, it
-  was described as a count publishing its mean (42470.275), p05 to p95
-  and the tail bounds (lane AQ's close verify, P4-D408).
+  declined: CLOSED by lane HX2** (plan P4-D406, contract NF127): such a
+  column is held on every table and named in the screen, the summary
+  and the questions file's `held` section.
 - **A record-number key written beside `-1` gets a twin that misses its
   published forms** (validate exit 3), declared or held until answered:
   on 68dae22f a declared key of 1,200 rows wrote fewer than 11 of its

@@ -815,6 +815,18 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 745,000 from 741,000, AT THE INTEGRATION OF BATCH 4F (2026-10-22),
+    # the orchestrator's recorded call D15 (the owner may veto), set once
+    # for the batch, the least round figure the merged ledger fits under:
+    # lane SR-A's `K-S4-09` and `K-S4-11` evidence beside batch 4e's (its
+    # branch raised its own cap to 717,000, below), lane HX3's `K-S3-66`
+    # and `K-HZ-02` clauses (no raise of its own), lane PS's `K-HZ-01`,
+    # `K-HZ-02` and `K-S3-65` notes (738,500 on its branch, below), lane
+    # DEP-2 adding no entry, every entry kept by id and the note merged
+    # clause by clause; then `K-P4-06`'s ceiling commit and `K-HZ-01` and
+    # `K-HZ-02` restamped from a real run on the merged code with their
+    # notes, 744,640 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 741,000 from 737,500, AT BATCH 4E'S RECORDS (2026-10-21; push critic
     # 11's MINOR 6), raised once, the least round figure the ledger fits
     # under: `K-S4-09` and `K-S4-11` stamped from the night window of
@@ -1289,7 +1301,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 744_000  # INTERIM at batch 4f's merges; set once at its records
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 745_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

@@ -2828,8 +2828,9 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                     "published forms: the identifier generator's limit, lane CODES-1 part C "
                     "(P4-D406's stated limit 4)", covers("miss icd10_dotted")),
         ("CODES-1", "a held-back code is written outside its pattern or as a number-class stand-in "
-                    "('486' as '99.9'), and a SNOMED id answered 'code' loses values 11 or more rows "
-                    "hold", covers(
+                    "('486' as '99.9'), and a SNOMED id answered 'code' in round one (lane HX3, plan "
+                    "P4-D420) keeps the values 11 or more rows hold but writes codes the real never "
+                    "writes (2 codes on 14 twin cells at 600 rows, batch 4f's merge)", covers(
             "ICD-10-CM with the dot", "ICD-10-CM without the dot", "ICD-9-CM",
             "SNOMED CT ids are 6 to 18 figures", "present-on-admission flags",
             columns=("icd10_dotted", "icd10_plain", "icd9", "snomed_id", "poa"))),

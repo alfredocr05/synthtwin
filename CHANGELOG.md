@@ -6,6 +6,30 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4f's records: the zoo measured on the merged code, `K-P4-06`'s ceiling, a shorter STATE (2026-10-22)
+
+**Records of batch 4f**, which merged lanes DEP-2, SR-A, HX3 and PS
+(plans P4-D416, P4-D414, P4-D420 and P4-D417). `K-HZ-01` and `K-HZ-02`
+are measured on the merged code by a real run and never taken from
+either lane: 20 of 40 kinds pass at 600 rows and 28 of 40 at 20,000,
+and 104 analyst checks fail on the twins where lane PS's head read 105
+and lane HX3's 117 on its own base, every failure owned. `K-P4-06`'s
+ceiling moves to the 552 outside and none missed that batch 4e's head
+measured, and the pin's derivation is an equality again. The zoo's
+diagnoses owner line says what the SNOMED ids still miss since lane HX3:
+codes the real never writes, their levels kept. The ledger's byte cap
+is set once for the batch. STATE drops passages its plan decisions and
+ledger notes carry -- closed items and done landings' histories --
+keeping every owner and stated limit, and names the four landings.
+
+OWED, NOT DONE HERE: the six time entries (`K-P3-12`, `K-S1-01`,
+`K-S1-05`, `K-S1-06`, `K-S1-07`, `K-2B-38`) re-timed under floor311 in a
+quiet night window, and the wall-time assertion of
+`tests/test_stage4_counted_in_persons.py::test_a_raised_floor_asks_a_set_of_subjects`
+watched on CI's first run: the orchestrator's (night 1023 and the push);
+`K-S4-09` and `K-S4-11` re-stamped on lane SR-A's merged code in a night
+window.
+
 ### Dates and times beside a person column pooled in people at a coarser grain, and a held one's twin written in valid dates (lane PS, 2026-10-21)
 
 **Lane PS** (plan P4-D417; contract NF128, NF129 and TG1; method G7.13;
