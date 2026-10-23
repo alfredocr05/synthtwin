@@ -1,14 +1,16 @@
 # The runtime closure a user installs (plan D5, hash-pinned install
-# path). This file holds ONLY what synthtwin needs to run: the
-# development and build tooling lives in requirements-dev.in.
+# path; the offline bundle of plan P4-D409 is built from its lock). This
+# file holds ONLY what synthtwin needs to run: the development and build
+# tooling lives in requirements-dev.in.
 #
 # The floors here must match the ones declared in pyproject.toml, and the
 # ROOTS here must match them too: a package this file names is a package
-# an institutional install puts on somebody's machine, whatever pandas
-# happens to depend on. numpy left this list at Phase 1 review round 3
-# for exactly that reason and returns at Phase 2 (plan P2-D8), now that
-# the generator requires it by name rather than through pandas.
-# tests/test_dependencies.py fails if either drifts.
+# an institutional install puts on somebody's machine, whatever another
+# library happens to depend on. The four roots and the zone each may run
+# in are argued in pyproject.toml's comment (plans P1-D2, P2-D8, P4-D409,
+# P4-D410). tests/test_dependencies.py fails if either drifts.
 --only-binary :all:
-numpy>=1.24.0
-pandas>=2.1.0
+numpy>=2.4.6
+pyarrow>=26.0.0
+scipy>=1.17.1
+pandas>=3.0.6

@@ -330,7 +330,15 @@ def test_an_ordinary_run_says_nothing_about_working_files(
     )
     assert "tidy up by hand" not in captured.err
     assert "tidy up by hand" not in captured.out
-    assert captured.err == "", "an ordinary run has nothing to caution about"
+    # WHAT AN ORDINARY RUN HAS NOTHING TO SAY ABOUT IS ITS OWN WORKING
+    # FILES, and that is what is asserted (plan P4-D341). It read
+    # `captured.err == ""`, which is a claim about every notice the
+    # command has rather than about this one: the table here is in the
+    # population band, so the run says how large it is -- on purpose,
+    # and on every page it writes. The caution this test exists for is
+    # named instead.
+    assert "could not be removed" not in captured.err, captured.err
+    assert "working file" not in captured.err, captured.err
 
 
 def _assert_the_caution_shows_the_control(told: str) -> None:
@@ -503,7 +511,10 @@ def test_a_web_address_is_refused_before_anything_is_opened(
 def test_a_malformed_table_is_a_sentence_not_a_traceback(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    table = _table(tmp_path, "a,b,c\n1,2,3\n4,5\n")
+    # Short by more than its empty cells: a full row that ends empty
+    # beside a short one is a file no rule of the written form accounts
+    # for (plan P4-D86), so it is still refused.
+    table = _table(tmp_path, "a,b,c\n1,2,3\n4,5\n6,7,\n")
     assert main(["profile", str(table)]) == 1
     error = capsys.readouterr().err
     assert "row 2 has 2" in error

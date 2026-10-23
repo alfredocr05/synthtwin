@@ -1,6 +1,6 @@
 # synthtwin — where the project stands
 
-*Written 2026-08-18; updated 2026-08-20, on branch `phase-4-plan` (pull request #4, CI green).*
+*Written 2026-08-18; updated 2026-09-14, on branch `phase-5-relationships`. Phase 4 reopened on 2026-09-12, and the work is at stage 2 of the plan of record in `docs/STATE.md`.*
 *Version `0.1.0.dev0` — not yet released.*
 
 This is a plain-language status document. It says what synthtwin is, what
@@ -19,6 +19,9 @@ each column behaving like yours.
 
 You develop your analysis against the twin, freely and quickly. Then you
 run the finished code on the real table, inside your safe environment.
+That code is meant to run unchanged there, and nothing here guarantees
+that it will: a step that depends on more than the description
+publishes can succeed on the twin and fail on your table.
 
 ---
 
@@ -30,8 +33,8 @@ run the finished code on the real table, inside your safe environment.
 | **1** | the profiler — read a table, write the description | **done** |
 | **2** | the generator — build the twin from the description alone | **done** |
 | **3** | the whole product through one command, plus the checker | **product done; closed 2026-08-19 without its release** |
-| **4** | every column type, rare categories, missing-data patterns | **closed 2026-09-11**, with sixty-six register entries carried to Phase 5 by name rather than built |
-| **5** | relationships between columns | **next — this is the one that matters most for statistics** |
+| **4** | every column type, rare categories, missing-data patterns | closed 2026-09-11; **reopened 2026-09-12**, because silent within-column defects were still live. It is being finished under the plan of record in `docs/STATE.md` |
+| **5** | relationships between columns | **after Phase 4 — this is the one that matters most for statistics** |
 | **6** | a hardened offline build for institutional machines | not started |
 | **7** | **a screen, so none of this needs a terminal** | not started |
 
@@ -114,22 +117,38 @@ Then open `your-table-twin.csv` and develop against it. Read
 `your-table-twin-report.txt` — it tells you, per column, what the twin
 reproduces exactly and what it only approximates.
 
+**How small a table synthtwin will describe.** Fewer than 100 and
+`profile` refuses and writes nothing: every count a description
+publishes is a count of ROWS over the population it was taken from, and
+below a hundred those counts describe the individuals in your table
+rather than a population. From 100 to 999 it describes the table and
+says so, on the screen and on every page it writes, in a sentence you
+cannot turn off. The twin's own table carries no trace of that notice,
+so code you write against the twin runs exactly as it ran before. Where
+you name a column with `--identifier` and its values repeat, the hundred
+is counted in PEOPLE rather than in rows -- so the two floors are
+counted in different units, and `--smallest-group` is the one that
+counts rows: twelve visits of one patient are twelve of them.
+
 Useful options:
 
 - `--seed 7` — same description and seed always give the same twin
 - `--missing-value -999` — "in my table, `-999` means missing"
 - `--keep-value -999` — "no, `-999` is real data here"
 - `--code procedure_code` — "this column is a coding system": every code
-  is kept exactly as written, with how many rows carried it, and no
-  average is published over it
+  that at least the smallest group of rows share is kept exactly as
+  written, with how many rows carried it; rarer codes are counted
+  together, and no average is published over it
 - `--identifier record_id` — "this column is a record number": nothing
-  of it is published at all
+  of it is published at all, and where its values REPEAT it is also how
+  synthtwin counts the people your rows are about
 - `--answers my-table-questions.json` — the questions file from an
   earlier run, with your answers written in. Each answer becomes the
   declaration it stands for, so you can settle a whole table's columns
   by editing one file instead of remembering flags
-- `--smallest-group 11` — the privacy floor; groups smaller than this are
-  not named in the description
+- `--smallest-group 11` — the privacy floor, and 11 is the default;
+  groups smaller than this are not named in the description. A smaller
+  number is allowed, and the run warns you before it writes anything
 
 **If you name a word with `--missing-value` or `--keep-value`, that word
 is written into the description.** The tool tells you so before it writes
@@ -160,8 +179,8 @@ blood pressure in the twin is noise. If your table holds several rows per
 subject, the twin gets every column right and describes a subject who
 does not exist.
 
-**Your code will run. Numbers from a multi-column analysis mean nothing
-about your real data.** That is Phase 5, and it has not started.
+**Your code is meant to run, and nothing guarantees it. Numbers from a
+multi-column analysis mean nothing about your real data.** That is Phase 5, and it has not started.
 
 **Also true:** the twin is not a formal privacy mechanism and claims no
 differential-privacy property. Numbers computed on it are not scientific
@@ -259,5 +278,5 @@ its own**, and nothing about how two of them move together.
 
 - `CLAUDE.md` — the charter: the principles and the honest limits
 - `docs/plans/phase-3-product.md` — the Phase 3 plan and every amendment
-- `docs/spec/profile-contract-v5.md` — what a description may contain
+- `docs/spec/profile-contract-v6.md` — what a description may contain
 - `CHANGELOG.md` — what changed, in order

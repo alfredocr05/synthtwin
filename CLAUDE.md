@@ -67,9 +67,16 @@ from, not a promise that no twin row can equal a real one.
    require reading source, and every message written for a human.
 3. **Secure by architecture, fully offline.** The product code contains
    no construct that initiates network I/O, no subprocess execution, no
-   native-code calls, no dynamic code loading; it accepts only local
-   filesystem paths and is fully functional air-gapped. This is enforced
-   by the layered checks in the Phase 0 plan (D6), not merely promised.
+   native-code call of its own (no ctypes, no cffi), and no dynamic code
+   loading or code generated at run time - except the one audited
+   module, the polish kernel, which numba compiles in memory from that
+   module's own source under the CI gate of plan P4-D409 part 4. The
+   libraries' own compiled code enters only under the dependency
+   protocol below, pinned by exact version and hash in the offline
+   bundle. The product accepts only local filesystem paths and is fully
+   functional air-gapped. This is enforced by the layered checks in the
+   Phase 0 plan (D6) and the offline scanner's zones and argument rules
+   (P4-D409, P4-D410), not merely promised.
 4. **Decontaminated.** No trace of the private prototype study's
    vocabulary, enforced by the hashed decontamination manifest in
    `tools/decontamination` and the process in the Phase 0 plan. Do not
@@ -159,13 +166,15 @@ though it existed:
   seed. That says where the twin's values come from. It does not say
   that no twin row can equal a real one, and any wording that says so is
   a defect in this repository, not a nuance. Allocating published counts
-  exactly can force a twin row to match a real one: an 11-row
-  single-column table whose one label clears the disclosure floor
-  publishes that label with the count 11, so the twin holds it in all 11
-  rows, and each of those rows is a row the real table has. Nothing was
-  copied; the arithmetic left no other answer. The categorical form of
-  this claim is retired everywhere, and a test asserts its absence on
-  every public surface.
+  exactly can force a twin row to match a real one: a single-column
+  table of 100 rows whose one label is shared by all 100 publishes that
+  label with the count 100, so the twin holds it in all 100 rows, and
+  each of those rows is a row the real table has. Nothing was copied;
+  the arithmetic left no other answer. The example is stated at 100
+  rows because that is the smallest table `synthtwin profile` will
+  describe: under that it refuses and writes nothing (plan P4-D341).
+  The categorical form of this claim is retired everywhere, and a test
+  asserts its absence on every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
   All six files a full run leaves behind - the profile, the
@@ -189,9 +198,10 @@ though it existed:
   table never has to leave the environment that already holds it and
   never has to reach an assistant. What it does NOT buy is a finding
   about anybody's obligations. The six files above carry facts
-  computed from real data, and at the default floor of one a column
-  whose role publishes values names every one of them with the rows
-  that held it, while the roles that publish none still publish counts
+  computed from real data, and at the default floor of eleven a column
+  whose role publishes values names every value eleven or more rows
+  held, with how many did - at a floor lowered to one, every one of
+  them - while the roles that publish none still publish counts
   and shapes measured from real cells - so whether a privacy rule, an
   institution's own rules, or a study's approval is satisfied is a
   question for the people who set
@@ -201,6 +211,23 @@ though it existed:
   obligation is a defect and not a shorthand, and the seventh family of
   the claim inventory in `tests/test_claim_inventory.py` turns the
   suite red on it.
+- A reader can rebuild some or all of a column's OWN values from its
+  description on the shapes the KPI ledger names - from a tail's own
+  published pair, which can give back that tail's outer values
+  (`K-S3-18`; since plan P4-D375, under the owner's principle of
+  2026-10-01, every pair binary64 holds is published), through the exact
+  skew and kurtosis beside a published tail pair (`K-S3-17`), by
+  subtraction from the exact mean and spread beside a published pair
+  or a tail that lists its values (`K-S3-21`, `K-S3-23`), and from the
+  whole description where the count of different values, the mode's
+  count, the sign counts and the rungs pin the column (`K-S3-24`) -
+  but never anything about another column, and never which row holds
+  one except on a table sorted by that column, whose description
+  publishes the order (`row_order`), so row k holds the k-th value; the
+  owner accepted each of these limits on 2026-09-25 and 2026-09-26,
+  `K-S3-23` and `K-S3-24` on a question that said "never which row
+  holds them", and, told of the sorted table on 2026-09-30, answered
+  "Yes, it stands".
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated
@@ -235,8 +262,8 @@ though it existed:
   inherit the planner's own defects and synthtwin's own random number
   generator is out of its reach. It does NOT follow that no random
   source is in the process, and this brief said otherwise for a while
-  and was wrong: the validator reads a file, so it loads pandas, so it
-  loads `numpy.random`. What is enforced is that no synthtwin module on
+  and was wrong: the validator reads a file, so it loads the reader's
+  libraries, and pandas alone loads `numpy.random`. What is enforced is that no synthtwin module on
   the validate path imports a random source and that a validate run
   draws from none (plan amendment A-P3-4). No debugging convenience,
   test helper, or one-time exception crosses any of those lines, ever.
@@ -245,6 +272,35 @@ though it existed:
   iteration wherever randomness is consumed; output column order a
   fixed function of the schema. Same profile, seed, version, and locked
   environment produce the same bytes on the same platform (plan D12).
+  Across platforms, equality is a tested result of the CI matrix's
+  reference vectors - Ubuntu and Windows under Python 3.11 to 3.14,
+  macOS under Python 3.14 - and is never promised beyond the cells it
+  tests. THE ZONES (plan P4-D409 part 2, enforced by the
+  offline scanner, P4-D410): every product module is in one zone. In
+  zone G, generation, nothing but Python integers, numpy integer
+  arrays, elementwise + - * / and sqrt in a fixed order and the one
+  seeded `integers` stream decide a byte of the twin - no float
+  reduction, transcendental, BLAS or LAPACK, scipy, threaded kernel or
+  numba setting beyond the audited kernel's. In zone D, description and
+  shared report, a published byte comes only from integer-exact
+  arithmetic, `math.fsum` or an order written out, and a solver only
+  searches: whatever it exhibits is re-checked in Python integers.
+  Platform floats (library fits, solver tolerances) live in zone P, the
+  private report, the self-test and the tests, and decide nothing
+  generated or published. Zone R reads the person's file with a library
+  only beside the standard-library reading it is compared with, and
+  zone W writes with the standard library.
+- **The dependency protocol.** A library enters only by a plan decision
+  that measures it better than what it replaces (the owner, 2026-10-19:
+  any offline Python library is allowed and must be used where it is
+  better; no AI service), names the zones it may run in, pins it
+  exactly and by hash in the three locks and the offline bundle, and
+  enters each name the product uses in the offline scanner one at a
+  time, with its capability audit and a mutation case red without it
+  (plan P4-D409 part 7). Its floor is repeated in every requirement
+  file, and `tests/test_dependencies.py` fails on any drift and on any
+  library outside the set the plan adopted. Test-only libraries stay in
+  the development lock; `src` never imports them.
 - **Built-in validation.** The tool measures its own output and reports
   the result plainly. A check that cannot fail is a defect; a passing
   report must mean what it says.
@@ -273,7 +329,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 5.** Each entry below carries its own
+**The current phase is Phase 4, reopened 2026-09-12.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -282,7 +338,7 @@ running.
   guarantee. *Complete*; see `docs/plans/phase-0-public-skeleton.md`.
 - **Phase 1 - the profiler:** read a local table, emit the profile;
   first runtime dependencies enter under the reviewed dependency
-  protocol. *Complete*; see `docs/plans/phase-1-profiler.md`.
+  protocol (written down under "Rules of the road" since plan P4-D410). *Complete*; see `docs/plans/phase-1-profiler.md`.
 - **Phase 2 - the generator:** build the twin from the profile alone;
   the public method specification and frozen reference vectors were a
   blocking deliverable here. *Complete - closed by owner decision
@@ -313,9 +369,13 @@ running.
   is UNMET and named**: the reference vectors for the width pass and
   the empty-bin pass were not written, so those two branches are
   pinned by tests rather than by a frozen case with a mutant.
+  *Reopened by owner decision 2026-09-12*, because silent defects
+  inside its own charter were still live: the ordered landings in
+  `docs/STATE.md`, the plan of record, repair them before Phase 5
+  starts.
 - **Phase 5 - relationships and fidelity depth:** cross-column
-  structure and the quality report at full strength. *Current, and not
-  started* - this is the phase the twin's one-column-wide bound waits
+  structure and the quality report at full strength. *Next, and not
+  started: it waits on reopened Phase 4* - this is the phase the twin's one-column-wide bound waits
   on, and it inherits sixty-six carried register entries from Phase 4,
   grouped by what a reader would do about them in that plan's closure
   section. Nothing in this brief's "what the twin carries today" may

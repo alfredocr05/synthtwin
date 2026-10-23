@@ -17,7 +17,7 @@ rather than a property somebody noticed:
 - the role sits last but one, so every rule that reads a column better
   still claims it first -- a column of clock times with a repeated time
   is a column of clock times;
-- it publishes the five shared label keys and NOT `level_ceiling`,
+- it publishes the four shared label keys and NOT `level_ceiling`,
   whose invariant a long tail breaks by definition; the ceiling it
   passed is in its evidence sentence instead;
 - the loader refuses a document claiming the role with no level that
@@ -55,7 +55,7 @@ def _described(
         folder, "thing.csv", fixtures.single_column_table("thing", values)
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )
@@ -197,8 +197,8 @@ def test_it_publishes_the_four_label_keys_and_not_the_ceiling() -> None:
     for key in (
         "levels",
         "suppressed_levels",
+        "suppressed_numbers",
         "suppressed_rows",
-        "suppressed_level_counts",
     ):
         assert key in block
     assert "level_ceiling" not in block
@@ -250,7 +250,11 @@ def test_a_document_claiming_the_role_without_a_covering_level() -> None:
     ]
     block["suppressed_levels"] = 220
     block["suppressed_rows"] = 220
-    block["suppressed_level_counts"] = [1] * 220
+    # ...AND THE SCALE OF THE HELD-BACK NUMBERS (contract 6.3.3, plan
+    # P4-D301), which a block claiming a label role carries like the
+    # four keys above. This column's values are words, so it is the
+    # state that says nothing.
+    block["suppressed_numbers"] = {"n_cells": 0, "mean": None}
     # The free-text keys go with the role that carried them: the
     # format has no optional keys, so a block claiming this role
     # carries the four label keys and nothing else its role does not
@@ -383,8 +387,20 @@ def test_the_page_names_a_long_tail_among_the_label_columns() -> None:
     page = summary.render(document, "")
     assert "Real labels you will see in the profile" in page
     at = page.index("Real labels you will see in the profile")
-    tail = page[at : at + 400]
-    assert "thing" in tail
+    # THE BLOCK, NOT A CHARACTER COUNT. This read `page[at : at + 400]`,
+    # and the length of the heading it reads under is nobody's contract:
+    # the review of 2026-09-23 lengthened that paragraph by three lines --
+    # the count beside a named spelling is a FOLDED count and the page now
+    # says so -- and a 400-character window stopped reaching the list of
+    # column names the heading introduces. The block ends where every
+    # block of this summary ends, at a blank line, so that is what is read
+    # and a later sentence cannot break this test by being written.
+    ends = page.find("\n\n", at)
+    tail = page[at:] if ends == -1 else page[at:ends]
+    assert "thing" in tail, (
+        "the summary's label heading no longer names the column it is "
+        f"about, inside its own block:\n{tail}"
+    )
 
 
 def test_the_page_names_the_shared_text_of_an_affixed_column() -> None:

@@ -9,7 +9,11 @@ the twin carries, what it only approximates, and what it does not carry
 at all. `synthtwin validate <profile>` reads that profile and one CSV
 file, measures the file against it, and writes the quality report: which
 obligations the file met, which it missed, and which no CSV could ever
-evidence either way.
+evidence either way. One more word, `synthtwin doctor`, is no step of a
+run: it checks this computer before the first one -- Python, the four
+libraries it needs (numpy, pandas, pyarrow and scipy, each with its
+version), the output folder, the memory against a named table's size --
+and reads no table (plans P4-D397 and P4-D410).
 
 Zero-code use is the requirement (charter principle 2): each command
 works with one path and nothing else. Everything else is an option with
@@ -51,12 +55,13 @@ would cross both of those lines at once.
 
 One consequence of that rule looks like an oversight and is not. The
 parser's own vocabulary -- the three choices for `--first-row`, the
-default smallest group -- is written out below as constants instead of
-being read off `reading` and `taxonomy`, because the parser is built
-BEFORE any command word has been read: it may not start the reader, and
-`taxonomy` belongs to the `profile` branch. The suite checks each
-constant against the module that owns the value, so the two cannot
-drift apart in silence.
+default smallest group -- is held below as constants instead of being
+read off `reading` and `taxonomy`, because the parser is built BEFORE
+any command word has been read: it may not start the reader, and
+`taxonomy` belongs to the `profile` branch. The default smallest group
+is read from `parsing`, where it is written once for every module; the
+suite checks each constant against the module that owns the value, so
+the two cannot drift apart in silence.
 
 THE DISPLAY BOUNDARY. A path or a value can carry an escape sequence,
 and a terminal obeys one instead of printing it: a path containing the
@@ -93,8 +98,12 @@ import importlib.metadata
 import os
 import pathlib
 import sys
+import typing
 
-from synthtwin import asking, errors, parsing
+from synthtwin import asking, dialect, errors, parsing
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
+# module of the package's own that imports `parsing` alone.
+from synthtwin import date_counts
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -104,20 +113,23 @@ _REPO_URL = "https://github.com/alfredocr05/synthtwin"
 # been read, so it may not start the table reader (plan P2-D1) and may
 # not reach into the `profile` branch's taxonomy. Each of these is the
 # same value the module that owns it holds, and the suite compares them
-# so a change in one place cannot pass unnoticed in the other.
+# so a change in one place cannot pass unnoticed in the other. The
+# smallest group is not written out: it is read from
+# `parsing.DEFAULT_SMALL_CELL_FLOOR`, the one place its default is
+# written (plan P4-D316), which this module imports already.
 _FIRST_ROW_AUTOMATIC = "auto"
 _FIRST_ROW_NAMES = "names"
 _FIRST_ROW_DATA = "data"
-_SMALLEST_GROUP = 1
+_SMALLEST_GROUP = parsing.DEFAULT_SMALL_CELL_FLOOR
 
 # THE LINE UNDER WHICH A NAMED GROUP CAN POINT AT ONE PERSON, mirrored
 # here from `_NOTICE_LINE` for the reason
 # `_SMALLEST_GROUP` is mirrored: the command line is built before any
 # command word is read (plan P2-D1), and the suite compares the two so
-# they cannot drift. It is NOT the default and stopped being it on
-# 2026-08-25 (plan A-P4-37): the default is what a run writes when
-# nobody asks, and this is a fact about people that did not move when
-# the default did.
+# they cannot drift. It is the same number as the default again since
+# 2026-09-22 (plan P4-D316), but it is a different fact: the default is
+# what a run writes when nobody asks, and this is a fact about people
+# that does not move when the default does.
 _NOTICE_LINE = 11
 
 # THE HELP FOR `--missing-value`, HELD AS A CONSTANT BECAUSE IT IS A
@@ -139,8 +151,8 @@ _MISSING_VALUE_HELP = (
     "described. READ THIS BEFORE YOU TYPE A WORD HERE: the word "
     "itself is written into the description, spelled exactly as "
     "your table spells it, in the block describing each column "
-    "where enough rows hold it -- and by default one row is "
-    "enough -- and that "
+    "where enough rows hold it -- by default at least "
+    f"{_SMALLEST_GROUP} -- and that "
     "column publishes any values at all -- so a diagnosis, a "
     "code or an identifier named here travels in the description "
     "and in the summary beside it. Below that many rows the "
@@ -155,10 +167,16 @@ _MISSING_VALUE_HELP = (
     "not about the columns. May be given more than once"
 )
 
-# The three commands, as the words a person types.
+# The three commands of a run, as the words a person types.
 _PROFILE = "profile"
 _GENERATE = "generate"
 _VALIDATE = "validate"
+# ...and the check of this computer before a first run (plan P4-D397).
+# It reads no table and makes nothing a run is built from, so it is not
+# a step of the run: the install scripts end by running it, and a person
+# runs it again with their table's path to weigh its size against this
+# computer's memory before `profile` reads it.
+_DOCTOR = "doctor"
 
 # THE SEED'S ACCEPTED SPELLING AND RANGE (plan P2-D8). synthtwin states
 # its own range rather than passing whatever was typed to the library
@@ -177,6 +195,10 @@ _SEED_CEILING = "18446744073709551615"
 # '-profile.json' and '-profile.txt'.
 _PROFILE_MARK = "-profile"
 _TWIN_SUFFIX = "-twin.csv"
+# THE TWIN OF A WORKBOOK IS A WORKBOOK (plan P4-D79), so it is named
+# like one. A person whose table arrived as `clinic.xlsx` gets
+# `clinic-twin.xlsx`, which opens in the program their table came from.
+_WORKBOOK_TWIN_SUFFIX = "-twin.xlsx"
 _REPORT_SUFFIX = "-twin-report.txt"
 
 # And the one file `validate` writes -- added to the name of the file it
@@ -223,9 +245,12 @@ more, not a code that only ever appears beside one region, not two
 columns left empty in the same rows. Every row is built on its own too,
 and the description never says what one row of your table is, so a table
 holding several rows per person yields a twin that behaves differently
-from your table under anything that groups rows. Your analysis code
-RUNS on the twin, which is what the twin is for; a number it computes
-from two columns of the twin means nothing about your table.
+from your table under anything that groups rows. Analysis code you
+develop on the twin is meant to run unchanged on your table, and nothing
+here guarantees that it will: a step that depends on more than the
+description publishes, such as a cut into quartiles, can succeed on the
+twin and fail on your table. A number it computes from two columns of
+the twin means nothing about your table.
 Cross-column structure arrives in a later version of synthtwin.
 
 What that does and does not promise about your rows. The generator is
@@ -233,10 +258,11 @@ never handed your table, does not open one, and samples or copies no row
 of it. That says where the twin's values come from. It does not say that
 no row of the twin can equal a row of yours: the description publishes
 exact counts, and meeting them exactly can force a twin row to match a
-real one. A table of eleven rows with one column, whose single label all
-eleven rows share, publishes that label with the count eleven -- so the
-twin writes it in all eleven of its rows. synthtwin offers no formal
-privacy guarantee.
+real one. A table of 100 rows with one column, whose single label all
+100 rows share, publishes that label with the count 100 -- so the twin
+writes it in all 100 of its rows. 100 rows is the smallest table
+synthtwin describes: under that, `synthtwin profile` refuses and writes
+nothing. synthtwin offers no formal privacy guarantee.
 
 All six files -- the profile, the plain-language summary beside it, the
 questions file, the twin, the twin's report and the quality report --
@@ -282,6 +308,10 @@ _HELP_EPILOG = """examples:
       and write other-quality.txt: the report is named after the file
       it is about, so checking a second file never overwrites the
       first one's report
+
+  synthtwin doctor data.csv
+      check this computer before a first run, and weigh the size of
+      data.csv against its memory without opening the file
 """
 
 
@@ -298,15 +328,219 @@ def _shown(value: object) -> str:
     return parsing.visible(f"{value}")
 
 
-def _say(message: str) -> None:
+# THE CHARACTERS A SHELL READS AS THEMSELVES, outside any quotes (the
+# Codex review of lane R1, item 1). A value of the table or a column's
+# name is put into a line the person is told to type again, and a shell
+# reads `$(...)`, a backtick, `;` or a space in it as syntax: measured on
+# the tree before this, a code written `$(printf marker)` was printed
+# bare after `--missing-value`, and `NOT RECORDED` became two words, so
+# the repeat exited 2. A value made only of these characters is printed
+# as it is; any other is quoted whole. POSIX shells first; PowerShell,
+# the shell a Windows terminal opens, reads `,` and `@` as its own syntax
+# and `\` and `:` as text, so its set differs by those. And `~` is no
+# plain character to a POSIX shell anywhere in a word: bash reads a `~`
+# after the `=` of a word shaped like `a=~`, or after a `:` there, as
+# the home folder, and prints `a=/home/...` (measured with bash 3.2;
+# zsh leaves it alone), so such a code would be declared as another.
+_POSIX_PLAIN = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    "_@%+=:,./-"
+)
+_POWERSHELL_PLAIN = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    "_%+=:./\\~-"
+)
+# The four characters PowerShell reads as a single quote: the ASCII one
+# and the three typographic ones. Inside single quotes each is written
+# twice, which is how that shell writes one of them.
+_POWERSHELL_QUOTES = "'‘’‚‛"
+
+
+def _on_windows() -> bool:
+    """Whether the lines to type are quoted for PowerShell rather than POSIX."""
+    return sys.platform == "win32"
+
+
+def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
+    """One word, written so the shell the person types it into reads it back.
+
+    A word of only plain characters is printed as it stands, so `seen_at`
+    stays `seen_at`. Any other is quoted whole: on POSIX in single quotes,
+    a single quote inside written `'"'"'`; on Windows (``windows`` true,
+    or the platform where it is None) in PowerShell's single quotes, each
+    quote character inside written twice and a double quote written as
+    the program reads it back (below). Both shells read everything
+    between single quotes as text, so nothing in the value is run.
+
+    Guarantees: accepts any value, read as text; returns one word for the
+    shell. Determinism: a function of the value and the platform. Raises
+    nothing. No I/O.
+    """
+    text = f"{value}"
+    powershell = windows or (windows is None and _on_windows())
+    plain = _POWERSHELL_PLAIN if powershell else _POSIX_PLAIN
+    # ...and some of them not first: zsh reads a word starting with `=`
+    # as the path of a command, and PowerShell a leading `~` as a home
+    # folder, so such a word is quoted too. Inside a word `~` is text to
+    # PowerShell, which a Windows short path (`RUNNER~1`) needs. And a
+    # word starting with `-` is quoted for PowerShell: Windows PowerShell
+    # hands a program a bare word such as `--missing-value=-1.5` as two,
+    # split before the point, so `_typed_option`'s joined word is always
+    # quoted there.
+    leading = ("=", "~", "-") if powershell else ("=",)
+    if (
+        text
+        and text[:1] not in leading
+        and all(character in plain for character in text)
+    ):
+        return text
+    # Built a character at a time, for the offline audit's reason
+    # (`_joined`): no method of the value is called.
+    #
+    # AND ON POWERSHELL A DOUBLE QUOTE IS WRITTEN AS THE PROGRAM READS IT
+    # BACK. Windows PowerShell 5.1, the one every Windows machine
+    # carries, puts a value holding `"` into the command line it hands a
+    # program with that quote bare, and the program reads it as a quote
+    # of its own: `say "no" twice` arrived as `say no twice`, and `UNK"`
+    # opened a run that took the option typed after it into the value.
+    # So each `"` is written `\"` with the backslashes before it doubled,
+    # and the backslashes ending a value that holds white space, which
+    # that shell wraps in double quotes, are doubled too -- the C
+    # runtime's own rule for reading a command line. PowerShell 7.3 or
+    # later hands such a value over whole and keeps those backslashes, so
+    # there the declaration misses its value and the question is put
+    # again; on neither is an option taken into a value or anything run.
+    #
+    # WHITE SPACE IS EVERY CHARACTER .NET COUNTS AS WHITE SPACE, not the
+    # space and the tab alone (the verification of the repairs of the
+    # Codex review of lane R1, its open item 2). 5.1 wraps a value
+    # holding any character `Char.IsWhiteSpace` names -- the no-break
+    # space, the ideographic space and the other space separators, which
+    # the display boundary leaves as they are -- so `a`, a no-break
+    # space, `b` and `\` was printed with its one backslash, and in a
+    # model of 5.1's native command binder (no Windows PowerShell was at
+    # hand to run it) the program was handed one word, `a`, the space,
+    # `b`, a `"` and ` --code dose`: the option typed after the value
+    # was taken into it. `parsing.trimmed`
+    # empties a character exactly where Python reads it as white space,
+    # which takes in every character .NET counts. A character the
+    # display boundary shows escaped -- the tab, the line breaks, and the
+    # four separators below the space that Python counts too -- is no
+    # white space on the printed line, so a value whose only white space
+    # is one of those is not wrapped and its ending backslashes reach the
+    # program doubled: the declaration misses its value, as it already
+    # did for a value holding a character shown escaped, and nothing is
+    # taken into a value.
+    inside = ""
+    slashes = ""
+    spaced = False
+    for character in text:
+        if not parsing.trimmed(character):
+            spaced = True
+        if powershell and character == "\\":
+            slashes = slashes + character
+            continue
+        if powershell and character == '"':
+            inside = inside + slashes + slashes + '\\"'
+            slashes = ""
+            continue
+        inside = inside + slashes
+        slashes = ""
+        if powershell and character in _POWERSHELL_QUOTES:
+            inside = inside + character + character
+        elif not powershell and character == "'":
+            inside = inside + "'\"'\"'"
+        else:
+            inside = inside + character
+    inside = inside + slashes + (slashes if spaced else "")
+    return f"'{inside}'"
+
+
+def _typed_option(
+    option: str, value: object, windows: "bool | None" = None
+) -> str:
+    """An option and its value, as the person types them again.
+
+    The value is quoted for the shell (`_quoted_for_the_shell`), and one
+    that starts with a minus sign is joined to its option with `=` and
+    the two written as one word, quoted on PowerShell always: argparse
+    reads a word starting with `-` as an option of its own, so
+    `--missing-value -UNK` is refused where `--missing-value=-UNK` is
+    read. Then the whole is shown through the display boundary, like
+    every value this module prints.
+
+    Guarantees: accepts an option and a value; returns the text to type.
+    Determinism: a function of the two and the platform. Raises nothing.
+    """
+    text = f"{value}"
+    if text[:1] == "-":
+        return _shown(_quoted_for_the_shell(f"{option}={text}", windows))
+    return f"{option} {_shown(_quoted_for_the_shell(text, windows))}"
+
+
+def _typed_path(path: object, windows: "bool | None" = None) -> str:
+    """A path the person types as an argument of its own, quoted for the shell.
+
+    A path starting with `-` is read by argparse as an option, so it is
+    written `./-...`, which names the same file. Shown through the
+    display boundary.
+    """
+    text = f"{path}"
+    if text[:1] == "-":
+        text = f"./{text}"
+    return _shown(_quoted_for_the_shell(text, windows))
+
+
+def _shell_named(windows: "bool | None" = None) -> str:
+    """Which shell the lines to type are quoted for, in words."""
+    if windows or (windows is None and _on_windows()):
+        return "quoted for PowerShell"
+    return "quoted for a POSIX shell such as bash or zsh"
+
+
+def _quoting_said(line: str, windows: "bool | None" = None) -> str:
+    """Which shell a line to type is quoted for, said where it quotes a value.
+
+    The line that repeats a run always says it (`_how_to_repeat`). The
+    other lines a person is told to type -- the options a notice offers,
+    the `synthtwin validate` line -- say it once a value on them is
+    quoted, which is when the shell matters: PowerShell's quotes are not
+    the Windows command prompt's, which runs a `&` inside them, so the
+    person is told which shell the line was written for (the Codex
+    review of lane R1, item 1). A quoted value is the only way a `'`
+    reaches such a line, since no plain character is one.
+    """
+    if "'" not in line:
+        return ""
+    return f"\n  (each value {_shell_named(windows)})"
+
+
+def _say(message: str, end: str = "\n") -> None:
     """Print one message to the screen, through the display boundary.
 
     One of the two places in this module that print. Whatever it is
     given goes through `parsing.visible_lines` first, so a value that
     reached here without being shown safely still cannot instruct the
     terminal. Line breaks are kept: they are synthtwin's own layout.
+    ``end`` is what follows the message, a line feed unless the caller
+    is printing one message in pieces (`_say_pieces`).
     """
-    print(parsing.visible_lines(f"{message}"))
+    print(parsing.visible_lines(f"{message}"), end=end)
+
+
+def _say_pieces(pieces: "list[str]") -> None:
+    """Print one message handed over in pieces, as `_say` prints it whole.
+
+    Each piece goes through `_say` with nothing after it -- and so
+    through `parsing.visible_lines`, which reads one character at a
+    time -- and the line feed `_say` ends a message with comes once,
+    after the last piece: the screen receives the bytes
+    `_say` gives the pieces added together (stage 4 lane S4c, plan
+    P4-D390), and the whole message is never made at once.
+    """
+    for piece in pieces:
+        _say(piece, "")
+    _say("")
 
 
 def _described_columns(
@@ -334,7 +568,7 @@ def _described_columns(
     found: "list[dict[str, object]]" = []
     for entry in given:
         if isinstance(entry, dict):
-            found = found + [entry]
+            found += [entry]
     return found
 
 
@@ -373,10 +607,15 @@ def _encoding_note(encoding: str, used_fallback: bool) -> str:
     """One sentence about how the file was read."""
     if used_fallback:
         return (
-            "It was not readable as UTF-8, so it was read as Western "
-            "European text (Latin-1); if any accented letter looks wrong "
-            "in this summary, save the file as 'CSV UTF-8' and run the "
-            "command again."
+            f"It was not readable as UTF-8, so it was read as "
+            f"{dialect.ENCODING_WORDS[encoding]}; if any accented letter "
+            f"looks wrong in this summary, save the file as 'CSV UTF-8' "
+            f"and run the command again."
+        )
+    if encoding in (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE):
+        return (
+            f"It was read as {dialect.ENCODING_WORDS[encoding]} text "
+            f"(encoding: {encoding})."
         )
     return f"It was read as UTF-8 text (encoding: {encoding})."
 
@@ -475,8 +714,32 @@ class _Options:
     missing_values: list[str]
     first_row: str
     day_first: bool
+    # How many rows under the column names describe those columns, as
+    # the person typed it, or empty (plan P4-D81). Text rather than a
+    # number for the reason `seed` is text: whether it is a number this
+    # tool can use is decided in words a person can act on.
+    metadata_rows: str
+    # Which character separates the columns, as the person typed it, or
+    # empty (plan P4-D110). Text for the reason `metadata_rows` is.
+    delimiter: str
+    # Which sheet of a workbook holds the table, or empty to settle it
+    # by the first visible one (plan P4-D77).
+    sheet: str
     seed: str
     replace: bool
+    # The `--date-count COLUMN SYSTEM` pairs as typed (landing R4, plan
+    # P4-D384), each a column's name and the word of the system its dates
+    # are counted in, read by `_run_profile`.
+    date_counts: "list[list[str]]" = dataclasses.field(default_factory=list)
+    # The columns named with `--twelve-hour` (landing T1, plan P4-D370).
+    twelve_hours: "list[str]" = dataclasses.field(default_factory=list)
+    # The `--century COLUMN=YEAR` options as typed (landing R2a, plan
+    # P4-D383), read in words a person can act on by `_run_profile`.
+    centuries: "list[str]" = dataclasses.field(default_factory=list)
+    # -- 3b.R2c (P4-D383): the columns named with `--date-column` (Q6).
+    date_columns: "list[str]" = dataclasses.field(default_factory=list)
+    # Whether `--first-row` was typed, `auto` included (plan P4-D408).
+    first_row_typed: bool = False
 
 
 def _parse_arguments(argv: "list[str] | None") -> _Options:
@@ -517,13 +780,17 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         "command",
         nargs="?",
         default=None,
-        choices=[_PROFILE, _GENERATE, _VALIDATE],
+        choices=[_PROFILE, _GENERATE, _VALIDATE, _DOCTOR],
         help=(
             "what to do: 'profile' describes a CSV table on this "
             "computer, 'generate' builds the synthetic twin from a "
             "description 'profile' wrote, 'validate' measures a CSV "
             "file against that description and writes the quality "
-            "report"
+            "report, and 'doctor' checks this computer before a first "
+            "run -- Python, the libraries it needs (numpy, pandas, "
+            "pyarrow and scipy), the output folder and the memory -- and "
+            "weighs a table's size against that memory when you name "
+            "one, without opening it"
         ),
     )
     parser.add_argument(
@@ -532,7 +799,9 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         default=None,
         help=(
             "the file to work on: the CSV table for 'profile', the "
-            "description for 'generate' and for 'validate'"
+            "description for 'generate' and for 'validate', and for "
+            "'doctor' a table to weigh (optional; doctor reads its size "
+            "alone and never opens it)"
         ),
     )
     parser.add_argument(
@@ -596,15 +865,17 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         metavar="ROWS",
         help=(
             "advanced: a value shared by fewer rows than this is left out "
-            "of the profile. THE DEFAULT IS 1, WHICH LEAVES NOTHING OUT: "
-            "every value your table holds is named, together with how many "
-            "rows shared it, so a rare value reaches the twin. Raise it -- "
-            "for instance --smallest-group 11 -- where a review board or a "
-            "data-use agreement requires that no group named anywhere in "
-            "the profile can point at one person; the profile then pools "
-            "everything below that number and every file the run makes says "
-            "on its face that it was built that way "
-            "(default: 1)"
+            "of the profile and counted into a pooled remainder instead of "
+            f"being named. THE DEFAULT IS {_SMALLEST_GROUP}: no group named "
+            "anywhere in the profile covers fewer than "
+            f"{_SMALLEST_GROUP} rows, so a value that fewer rows share is "
+            "not named and does not reach the twin by name. A smaller "
+            "number is let through -- --smallest-group 1 names every value "
+            "your table holds, together with how many rows shared it -- "
+            "and then the screen and every file the run makes say on their "
+            "face that the profile names groups small enough to point at "
+            "one person "
+            f"(default: {_SMALLEST_GROUP})"
         ),
     )
     parser.add_argument(
@@ -637,8 +908,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "of the column; what changes is that synthtwin stops reading "
             "them as numbers. It keeps each code exactly as written, "
             "leading zeros and all, and publishes how many rows carried "
-            "each one -- instead of an average, a smallest and a largest, "
-            "which for a code are meaningless and are real codes besides. "
+            "each code that at least the smallest group of rows share "
+            "(11 by default; rarer codes are counted together and not "
+            "named) -- instead of an average, a spread and points along "
+            "a range, which for a code are meaningless, and whose "
+            "published boundaries are real codes besides. "
             "Use this for a column written in digits. A column whose "
             "every value carries a letter or a dash usually reads as "
             "codes already, but one whose values are mostly bare "
@@ -667,12 +941,15 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "synthtwin never guesses this: a comma inside an address or "
             "a note is not a decimal point, so it changes the reading "
             "only for the columns you name. It reaches a column read as "
-            "PLAIN NUMBERS, and not one whose cells hold a number "
-            "inside a larger spelling -- a unit or a currency mark "
-            "around it, or a separator between two numbers -- because "
-            "then synthtwin cannot tell which mark is the decimal "
-            "point; where that happens it says so and reads the column "
-            "as it otherwise would. May be given more than once"
+            "PLAIN NUMBERS, and a column whose numbers each wear one "
+            "shared unit or currency mark, such as '795,64 EUR' or "
+            "'37,5 %%': there the number inside the mark is read and "
+            "written your way and the mark itself is copied exactly. "
+            "It does NOT reach a cell holding two numbers with a "
+            "separator between them, because there synthtwin cannot "
+            "tell which mark is the decimal point; where that happens "
+            "it says so and reads the column as it otherwise would. "
+            "May be given more than once"
         ),
     )
     parser.add_argument(
@@ -699,6 +976,109 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "column here says the number inside is a quantity after "
             "all, and it is described as one. May be given more than "
             "once"
+        ),
+    )
+    parser.add_argument(
+        "--century",
+        action="append",
+        default=None,
+        metavar="COLUMN=YEAR",
+        help=(
+            "name a column of dates whose years are written with TWO "
+            "FIGURES, and the first year of the century they lie in: 1930 "
+            "(years 1930 to 2029), 1940 (1940 to 2039) or 1900 (1900 to "
+            "1999), as in --century birth_date=1930. Two figures do not say "
+            "which century they are in, so synthtwin asks; without this it "
+            "reads them as 1969 to 2068, and a birth date of 1925 written "
+            "25 is then read as 2025. May be given more than once"
+        ),
+    )
+    # -- 3b.R2c (P4-D383)
+    parser.add_argument(
+        "--date-column",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column that holds DATES although some of its values are "
+            "written another way, or written as a year and its day of the "
+            "year (2023076): it is read as dates where half its values or "
+            "more read as one, the rest left unread and written in the twin "
+            "as made-up text. Without this such a column is read as text or "
+            "numbers, and synthtwin asks. May be given more than once"
+        ),
+    )
+    parser.add_argument(
+        "--twelve-hour",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column of times of day written on a 12-HOUR CLOCK "
+            "WITHOUT AM OR PM, such as 8:34 and 12:15. A 24-hour clock "
+            "whose hours all lie between 1 and 12 is written the same "
+            "way, so synthtwin cannot tell the two apart and asks; "
+            "without this it reads such a column as a 24-hour clock. "
+            "Named here, 12 is read as the hour after midnight and the "
+            "twin writes hours 1 to 12 only, as your table does. May be "
+            "given more than once"
+        ),
+    )
+    # -- 3b.R4 (P4-D384): numbers that are dates.
+    parser.add_argument(
+        "--date-count",
+        action="append",
+        nargs=2,
+        default=None,
+        metavar=("COLUMN", "SYSTEM"),
+        help=(
+            "name a column whose DATES ARE WRITTEN AS NUMBERS, and the "
+            "system that counts them: excel-1900 (Excel serial days), "
+            "excel-1904, days-since-1960 (SAS and Stata dates), "
+            "seconds-since-1960 (SAS date-times), milliseconds-since-1960 "
+            "(Stata), days-since-1970 (R), seconds-since-1970 (Unix), "
+            "milliseconds-since-1970 (JavaScript), microseconds-since-1970, "
+            "nanoseconds-since-1970, days-since-1840 (Epic, with a contact "
+            "number after the point) or seconds-since-1582 (SPSS), as in "
+            "--date-count visit_day excel-1900. A number does not say that "
+            "it counts days, so synthtwin asks; named here, each cell is "
+            "read as the date it counts, the column is described as dates, "
+            "and the twin writes each date back as the same count. May be "
+            "given more than once"
+        ),
+    )
+    parser.add_argument(
+        "--metadata-rows",
+        default=None,
+        metavar="N",
+        help=(
+            "say that the first N rows UNDER your column names describe "
+            "those columns rather than holding a record. Some survey "
+            "tools write two such rows -- the question wording, then a "
+            "row of ImportId markers -- and a reader that takes them "
+            "for data gets two rows of machine text mixed in with "
+            "people's answers. Takes 0 or 2. Without it, every row "
+            "under your column names is read as a record of your "
+            "table: synthtwin recognises that shape and will SAY so, "
+            "in the questions file and on the screen, but it never "
+            "acts on it by itself, because a file it recognised "
+            "wrongly would have two real records removed from every "
+            "count and their values published as column descriptions"
+        ),
+    )
+    parser.add_argument(
+        "--delimiter",
+        default=None,
+        metavar="CHARACTER",
+        help=(
+            "say which character separates the columns of your file: "
+            "',' ';' '|' or the word tab. synthtwin works this out by "
+            "itself, and it asks rather than guesses where a file reads "
+            "equally well two ways -- 'id,pair|code' over rows such as "
+            "'1,2|3' is two columns under the comma and two different "
+            "columns under the vertical bar, and nothing in the cells "
+            "can say which is yours. Only for delimited text; a "
+            "workbook has no such character"
         ),
     )
     parser.add_argument(
@@ -779,8 +1159,29 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--sheet",
+        default="",
+        metavar="NAME",
+        help=(
+            "which sheet of a spreadsheet workbook holds your table, by "
+            "its name. Without this, synthtwin reads the first sheet "
+            "that is not hidden and says on screen which one it chose. "
+            "That is not what a spreadsheet's own readers do -- they "
+            "take the first sheet whatever its state, which on a "
+            "workbook whose first sheet is a hidden notes page means "
+            "they read the notes -- so if your table is on a different "
+            "sheet, name it here. The name has to match the tab exactly, "
+            "and if it has a space in it put quotation marks around it. "
+            "This option does nothing for a delimited text file, which "
+            "has only one table in it"
+        ),
+    )
+    parser.add_argument(
         "--first-row",
-        default=_FIRST_ROW_AUTOMATIC,
+        # None where it was not typed, so `--first-row auto` typed is told
+        # from the default (Codex's review of lane AQ, item 3): typed, it
+        # replaces a kept answer about the first row.
+        default=None,
         choices=[
             _FIRST_ROW_AUTOMATIC,
             _FIRST_ROW_NAMES,
@@ -845,6 +1246,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     comma_named = (
         args.decimal_comma if args.decimal_comma is not None else []
     )
+    # -- 3b.R4 (P4-D384)
+    counted_named = args.date_count if args.date_count is not None else []
+    twelve_named = args.twelve_hour if args.twelve_hour is not None else []
+    century_named = args.century if args.century is not None else []
+    date_named = args.date_column if args.date_column is not None else []
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
         args.missing_value if args.missing_value is not None else []
@@ -868,10 +1274,22 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         answers=args.answers,
         kept_values=list(kept),
         missing_values=list(declared_missing),
-        first_row=f"{args.first_row}",
+        first_row=(
+            _FIRST_ROW_AUTOMATIC if args.first_row is None else f"{args.first_row}"
+        ),
+        first_row_typed=args.first_row is not None,
         day_first=bool(args.day_first),
+        metadata_rows=(
+            "" if args.metadata_rows is None else f"{args.metadata_rows}"
+        ),
+        delimiter=("" if args.delimiter is None else f"{args.delimiter}"),
+        sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
+        date_counts=[list(pair) for pair in counted_named],
+        twelve_hours=list(twelve_named),
+        centuries=list(century_named),
+        date_columns=list(date_named),
     )
 
 
@@ -894,8 +1312,17 @@ _LOWERED_FLOOR_REMINDER = (
 
 def _declared_words_notice(
     named: "list[tuple[str, str, int]]",
+    answered: "tuple[str, ...]" = (),
 ) -> str:
     """What the description kept of the words the person typed.
+
+    OR ANSWERED (review of lane R1, item 1): a code found again from an
+    answer of `missing` in the questions file is a `--missing-value` the
+    person never typed, and a notice calling it "words you typed" sends
+    them looking for an option they did not give. ``answered`` holds
+    those spellings; a word is counted as answered where its
+    declaration identity is one of theirs, and the opening line says
+    which way each word arrived.
 
     Shown when a word of the person's OWN, named with `--missing-value`,
     reached the description -- which contract 5 section 3.2 way 4 makes
@@ -957,19 +1384,43 @@ def _declared_words_notice(
     one_spelling = len(named) == 1
     words = summary.words_behind(named)
     one_word = words == 1
+    from_answers: "list[tuple[str, object]]" = []
+    answered_as = [asking.declared_identity(one) for one in answered]
+    for spelling, _column, _count in named:
+        identity = asking.declared_identity(spelling)
+        if identity in answered_as and identity not in from_answers:
+            from_answers += [identity]
+    typed_how = "You typed"
+    if not from_answers:
+        arrived = "you typed after --missing-value"
+    elif len(from_answers) >= words:
+        arrived = "your answers in the questions file declared missing"
+        typed_how = "You named"
+    else:
+        arrived = (
+            "you typed after --missing-value or your answers in the "
+            "questions file declared missing"
+        )
+        typed_how = "You named"
     both = "" if len(named) == words else (
         f"\n\nWHY THERE ARE MORE LINES THAN WORDS. Your table wrote "
         f"{'the word you named' if one_word else 'some of the words you named'}"
         f" more than one way, and the description records each way "
         f"separately, because it has to say how each cell was spelled. "
-        f"You typed {'one word' if one_word else f'{words} words'}; the "
+        f"{typed_how} {'one word' if one_word else f'{words} words'}; the "
         f"rest of what you see above is your table's own spelling."
+    )
+    undo = (
+        ""
+        if not from_answers
+        else ", or with your answer about the column they were found in "
+        "changed back to 'keep'"
     )
     return (
         f"\n{_ALARM}\n"
         f"READ THIS BEFORE EITHER OF THESE FILES GOES ANYWHERE.\n"
-        f"{'A word' if one_word else f'{words} words'} you typed after "
-        f"--missing-value {'is' if one_word else 'are'} written into the "
+        f"{'A word' if one_word else f'{words} words'} {arrived} "
+        f"{'is' if one_word else 'are'} written into the "
         f"description.\n"
         f"{_ALARM}\n"
         f"\n"
@@ -993,8 +1444,8 @@ def _declared_words_notice(
         f"code, anything that names a person -- then neither file may "
         f"leave your machine as it stands. Delete what this run writes "
         f"and describe the table again without naming "
-        f"{'that word' if one_word else 'those words'}, or with the "
-        f"cells already blank."
+        f"{'that word' if one_word else 'those words'}{undo}, or with "
+        f"the cells already blank."
     )
 
 
@@ -1003,10 +1454,33 @@ _ANSWER_KEYS = {
     "2": asking.ANSWER_CODE,
     "3": asking.ANSWER_IDENTIFIER,
     "4": asking.ANSWER_JOINED,
+    "5": asking.ANSWER_DECIMAL_COMMA,
+    # THE 12-HOUR ANSWER HAS ITS OWN KEY (landing T1, repair item 1).
+    # Without one, the first column `asking._clock_question` offered it
+    # on stopped an interactive run with a KeyError where the base read
+    # the same column and asked nothing.
+    "6": asking.ANSWER_TWELVE_HOUR,
+    # -- 3b.R4 (P4-D384): QUESTION Q3'S TWELVE SYSTEMS, from 7 in the
+    # table's own order, so a question offering any of them can be answered
+    # at the keyboard as in the questions file.
+    "7": date_counts.EXCEL_1900,
+    "8": date_counts.EXCEL_1904,
+    "9": date_counts.DAYS_SINCE_1960,
+    "10": date_counts.SECONDS_SINCE_1960,
+    "11": date_counts.MILLISECONDS_SINCE_1960,
+    "12": date_counts.DAYS_SINCE_1970,
+    "13": date_counts.SECONDS_SINCE_1970,
+    "14": date_counts.MILLISECONDS_SINCE_1970,
+    "15": date_counts.MICROSECONDS_SINCE_1970,
+    "16": date_counts.NANOSECONDS_SINCE_1970,
+    "17": date_counts.DAYS_SINCE_1840,
+    "18": date_counts.SECONDS_SINCE_1582,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
     "j": asking.ANSWER_JOINED,
+    "d": asking.ANSWER_DECIMAL_COMMA,
+    "t": asking.ANSWER_TWELVE_HOUR,
 }
 
 _WHY_SHOWN = {
@@ -1022,6 +1496,27 @@ _WHY_SHOWN = {
         "every value is two or more numbers joined by one mark, "
         "which is how a blood pressure is written and also how a "
         "laboratory code is"
+    ),
+    asking.BECAUSE_GROUPED_FIXED_WIDTH: (
+        "every value is the same number of figures, grouped in threes, "
+        "which is how an identifier is written for reading"
+    ),
+    asking.BECAUSE_POINT_THOUSANDS: (
+        "every value with a point has three figures after it, and every "
+        "other value is below a thousand, which is also how a point "
+        "between thousands is written"
+    ),
+    # WHY THE PERSON QUESTION IS BEING PUT (plan P4-D340). Its reason is
+    # not that the column might be a code: it is that the column might
+    # name the people the rows are about, which is a different question
+    # with a different consequence, so it says so in its own words.
+    asking.BECAUSE_REPEATS_AND_MANY: (
+        "its values repeat, and there are either more of them than a "
+        "set of categories could hold or every one of them is written "
+        "as a code of letters and figures standing on two rows or "
+        "more, which is how a column naming the people the rows are "
+        "about is written, and no column at all was named with "
+        "--identifier"
     ),
 }
 
@@ -1070,6 +1565,21 @@ _KEY_OF = {
     asking.ANSWER_CODE: "2",
     asking.ANSWER_IDENTIFIER: "3",
     asking.ANSWER_JOINED: "4",
+    asking.ANSWER_DECIMAL_COMMA: "5",
+    asking.ANSWER_TWELVE_HOUR: "6",
+    # -- 3b.R4 (P4-D384)
+    date_counts.EXCEL_1900: "7",
+    date_counts.EXCEL_1904: "8",
+    date_counts.DAYS_SINCE_1960: "9",
+    date_counts.SECONDS_SINCE_1960: "10",
+    date_counts.MILLISECONDS_SINCE_1960: "11",
+    date_counts.DAYS_SINCE_1970: "12",
+    date_counts.SECONDS_SINCE_1970: "13",
+    date_counts.MILLISECONDS_SINCE_1970: "14",
+    date_counts.MICROSECONDS_SINCE_1970: "15",
+    date_counts.NANOSECONDS_SINCE_1970: "16",
+    date_counts.DAYS_SINCE_1840: "17",
+    date_counts.SECONDS_SINCE_1582: "18",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -1114,6 +1624,488 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
     )
 
 
+def _metadata_rows_unseen_notice(rows: int) -> str:
+    """What is said when such rows are declared on a file not wearing the shape.
+
+    The declaration exists for a survey export whose rows under the
+    column names describe those columns. Given on any other file it
+    USED to take those rows out of the table and publish them as
+    schema -- text held to no smallest group, written into the twin as
+    it stands. Measured on an ordinary table of 120 records:
+    `--metadata-rows 2` published two people's records verbatim at a
+    floor of eleven, dropped them from every count, and nothing but
+    this notice questioned it.
+
+    THAT IS NO LONGER WHAT HAPPENS (review of landing 2b.17, MAJOR).
+    A notice is not a safeguard: it is read after the description has
+    been written, by a person who has already made the mistake, and
+    the disclosure it describes has happened by the time they read it.
+    So the rows now STAY in the table -- the safe reading the contract
+    already names for a declaration that found nothing -- and this
+    notice says so and says how to confirm the declaration in the
+    questions file if the person means it. The reading still obeys the
+    person; what it no longer does is obey a declaration the file
+    contradicts without asking them first.
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE DOES NOT WEAR THE SHAPE --metadata-rows IS FOR\n"
+        f"{'=' * 66}\n"
+        f"You said the {rows} row(s) under your column names describe "
+        f"those columns. What synthtwin looked for and did not see is "
+        f"the shape such a file usually has: rows as wide as your "
+        f"table whose second holds a marker in every cell. So those "
+        f"{rows} rows have STAYED in your table: they are counted "
+        f"among your rows, described as data like every other record, "
+        f"and nothing they hold is published anywhere in your "
+        f"description. If they really do describe your columns, say so "
+        f"in the questions file this run writes -- answer "
+        f"'metadata-rows' under 'about_your_file', then describe the "
+        f"table again with --answers -- and they will be taken out of "
+        f"the table and published as written. You are asked rather "
+        f"than taken at your word here because on a file this "
+        f"declaration is wrong about, those rows are somebody's "
+        f"records, and publishing one of those cannot be undone."
+    )
+
+
+# How `--delimiter` may be typed (plan P4-D110). A tab is hard to type
+# on most command lines, so the word stands for it beside the character.
+_DELIMITER_SPELLINGS = {
+    ",": ",",
+    ";": ";",
+    "|": "|",
+    "\t": "\t",
+    "tab": "\t",
+}
+
+
+def _answers_that_change_the_reading(
+    written: asking.Answers,
+    first_row: str,
+    declared_delimiter: str,
+    kept: "tuple[tuple[str, str], ...]" = (),
+) -> "list[str]":
+    """Which answers of a questions file change HOW THE FILE IS READ.
+
+    The subjects, in the questions file's own words, of the answers that
+    give the same column name to a different column (review of stage 3,
+    floor item 1). Two of the three file questions do that:
+
+    * WHICH ROW HOLDS THE COLUMN NAMES. Under one reading the names come
+      out of the file's first row; under the other they are generated,
+      `column_1`, `column_2` and so on. Every name moves, and `column_1`
+      exists under both readings.
+    * WHICH CHARACTER SEPARATES THE COLUMNS. It decides how many columns
+      there are and where each one begins, so a name may move, may be
+      the name of a wider column, or may not be a name at all.
+
+    The third, how many rows under the names describe the columns, takes
+    ROWS out of the table and leaves every column where it was, so it is
+    not here.
+
+    AN ANSWER THAT AGREES WITH WHAT WAS TYPED CHANGES NOTHING and is not
+    reported: `--first-row names` answered `names`, or `--delimiter ';'`
+    answered `semicolon`, is the reading already in force. A delimiter
+    answered where none was typed IS a change, because the reading in
+    force was the one the cells favoured and nothing here can know which
+    that was -- the answers are read before the table is opened, which
+    is what makes them usable at all.
+
+    Guarantees: accepts the answers read back from the file, the
+    `--first-row` option as typed and the delimiter as typed (empty
+    where none was); returns the subjects in the order the questions
+    file writes them. A fixed function of the three. Raises nothing,
+    opens no file, and carries no value of the table -- the subjects are
+    this module's own question headings.
+    """
+    changed: "list[str]" = []
+    # A QUESTION AN EARLIER RUN KEPT AN ANSWER TO IS NOT JUDGED HERE (plan
+    # P4-D408): the run that wrote the file read the table by that
+    # answer, so `_kept_reading_changed` sets the reading this run takes
+    # against it instead of against what was typed.
+    subjects = {subject: True for subject, _word in kept}
+    if asking.FIRST_ROW_SUBJECT not in subjects:
+        if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
+            if first_row != _FIRST_ROW_NAMES:
+                changed += [asking.FIRST_ROW_SUBJECT]
+        elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
+            if first_row == _FIRST_ROW_NAMES:
+                changed += [asking.FIRST_ROW_SUBJECT]
+    if asking.DELIMITER_SUBJECT not in subjects:
+        if written.delimiter and written.delimiter != declared_delimiter:
+            changed += [asking.DELIMITER_SUBJECT]
+    return changed
+
+
+def _kept_reading_changed(
+    written: asking.Answers,
+    first_row: str,
+    declared_delimiter: str,
+    kept: "tuple[tuple[str, str], ...]",
+    automatic: bool = False,
+) -> "list[str]":
+    """The kept answers about how the file is read that this run would not follow.
+
+    Plan P4-D408. `kept` is `asking.kept_reading` of
+    the questions file as it was handed back: how the run that WROTE the
+    file read the table, so the column names in the file are the names
+    under that reading. This run's reading is the file's answer where it
+    gives one -- the kept entry, edited or not, or the same question
+    answered again -- and otherwise the typed option, which replaces the
+    kept entry (`asking.typed_over_kept`). A subject is named where the
+    two differ, or where the kept entry no longer says which reading it
+    was. Measured before this check: a table whose header `column_2,
+    column_1` reads as a record, answered `names` in round one and
+    `identifier` / `keep` for its two columns in round two, then handed
+    back in round three with the kept `names` edited to `first-record`
+    -- or with `--first-row data` typed -- put `identifier` on the visit
+    labels and `keep` on the subject column, and published 200 of 200
+    real subject codes with their counts.
+
+    `automatic` (Codex's review of lane AQ, item 3): `--first-row auto`
+    was typed over the kept answer about the first row, and the file
+    lists the names its answers use. That reading is the one a run given
+    no answer takes, which the read itself settles, so it is not set
+    against the kept answer here: the names it reads are set against the
+    file's list after the read (`_answered_under_other_names`).
+
+    Guarantees: each subject once, in the order `kept` names them. A
+    fixed function of the five. Raises nothing. No I/O.
+    """
+    changed: "list[str]" = []
+    for subject, before in kept:
+        if subject in changed:
+            continue
+        now = ""
+        if subject == asking.FIRST_ROW_SUBJECT:
+            now = written.first_row
+            if not now and automatic:
+                continue
+            if not now and first_row == _FIRST_ROW_NAMES:
+                now = asking.ANSWER_FIRST_ROW_NAMES
+            elif not now and first_row == _FIRST_ROW_DATA:
+                now = asking.ANSWER_FIRST_ROW_DATA
+        else:
+            now = asking.delimiter_answer(
+                written.delimiter if written.delimiter else declared_delimiter
+            )
+        if not before or now != before:
+            changed += [subject]
+    return changed
+
+
+def _kept_reading_not_kept(
+    path: str, changed: "list[str]", named: "list[str]"
+) -> str:
+    """The refusal of a run that would read the table another way than the file's writer (plan P4-D408)."""
+    moved = ""
+    for one in changed:
+        moved = f"{moved}; {one}" if moved else one
+    columns = ""
+    for one in named:
+        columns = f"{columns}, '{one}'" if columns else f"'{one}'"
+    return (
+        f"The questions file at {path} was written by a run that read "
+        f"your table by an answer it keeps under '{asking.ANSWERED_BEFORE}' "
+        f"-- {moved} -- and this run would read it another way, by an "
+        f"answer changed in the file or typed on the command line, while "
+        f"the file also names {columns}. synthtwin will not act on both "
+        f"at once: the column names in that file are the names under the "
+        f"earlier reading, and reading the table another way changes which "
+        f"column each name stands for, so an answer made by name would "
+        f"reach a column you were not looking at. Either keep the earlier "
+        f"answer about how the file is read, or do it in two runs: clear "
+        f"every answer that names a column, '{asking.ANSWERED_BEFORE}' "
+        f"included, run the command again with the new reading, then "
+        f"answer the columns in the questions file that run writes. "
+        f"Nothing was written."
+    )
+
+
+def _typed_answers(
+    codes: "list[str]",
+    identifiers: "list[str]",
+    measurements: "list[str]",
+    commas: "list[str]",
+    twelve_hours: "list[str]",
+    counted: "dict[str, str]",
+    centuries: "dict[str, int]",
+    date_columns: "list[str]",
+    day_first: bool,
+    delimiter: str,
+    first_row: str,
+    centuries_reset: "list[str] | None" = None,
+    first_row_typed: bool = False,
+) -> "tuple[tuple[str, str], ...]":
+    """This command line's declarations as `(column, answer)` (plan P4-D408).
+
+    What `asking.answers_in` sets against the answers an earlier run
+    kept: a declaration typed now is later than any of them, so it
+    replaces one about the same column. A question about the whole file
+    is named by its subject. A default typed all the same is a statement
+    too (Codex's review of lane AQ, item 3): `--century NAME=1969`, in
+    `centuries_reset`, is the answer naming the standing window, and
+    `--first-row auto` typed is `asking.TYPED_FIRST_ROW_AUTOMATIC`; each
+    replaces a kept answer of its family. A fixed function of the
+    arguments. Raises nothing. No I/O.
+    """
+    said: "list[tuple[str, str]]" = []
+    for answer, names in (
+        (asking.ANSWER_CODE, codes),
+        (asking.ANSWER_IDENTIFIER, identifiers),
+        (asking.ANSWER_MEASUREMENT, measurements),
+        (asking.ANSWER_DECIMAL_COMMA, commas),
+        (asking.ANSWER_TWELVE_HOUR, twelve_hours),
+        (asking.ANSWER_DATES, date_columns),
+    ):
+        for name in names:
+            said += [(name, answer)]
+    for name in sorted(counted):
+        said += [(name, counted[name])]
+    for name in sorted(centuries):
+        word = asking.century_answer(centuries[name])
+        if word:
+            said += [(name, word)]
+    for name in sorted(centuries_reset or []):
+        said += [(name, asking.ANSWER_CENTURY_POSIX)]
+    if day_first:
+        said += [(asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST)]
+    word = asking.delimiter_answer(delimiter)
+    if word:
+        said += [(asking.DELIMITER_SUBJECT, word)]
+    if first_row == _FIRST_ROW_NAMES:
+        said += [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_NAMES)]
+    elif first_row == _FIRST_ROW_DATA:
+        said += [(asking.FIRST_ROW_SUBJECT, asking.ANSWER_FIRST_ROW_DATA)]
+    elif first_row_typed:
+        said += [(asking.FIRST_ROW_SUBJECT, asking.TYPED_FIRST_ROW_AUTOMATIC)]
+    return tuple(said)
+
+
+def _answers_given(
+    columns: "list[str]",
+    codes: "list[str]",
+    identifiers: "list[str]",
+    measurements: "list[str]",
+    commas: "list[str]",
+    twelve_hours: "list[str]",
+    counted: "dict[str, str]",
+    centuries: "dict[str, int]",
+    centuries_kept: "list[str]",
+    date_columns: "list[str]",
+    dates_kept: "list[str]",
+    identities_kept: "tuple[str, ...]",
+    missing_dates: "list[str]",
+    real_values: "list[str]",
+    code_shapes: "dict[str, str]",
+    first_row: str,
+    metadata_answer: str,
+    delimiter: str,
+    day_first: bool,
+    month_first: bool,
+) -> "asking.Given":
+    """Every answer this run acts on, as `asking.answered_before` writes it.
+
+    Plan P4-D408: the declarations in force, whichever route each came
+    by -- a questions file, an earlier run's kept answers, the command
+    line or the screen. A typed `--metadata-rows` is not among them: the
+    file asks to confirm it where the file does not bear it out, and
+    writing it as an answer would confirm it for the person. Typed
+    `--keep-value` and `--missing-value` name values, and the questions
+    file carries none. A fixed function of the arguments. Raises nothing.
+    """
+    day_order = ""
+    if day_first:
+        day_order = asking.ANSWER_DAY_FIRST
+    elif month_first:
+        day_order = asking.ANSWER_MONTH_FIRST
+    first_row_word = ""
+    if first_row == _FIRST_ROW_NAMES:
+        first_row_word = asking.ANSWER_FIRST_ROW_NAMES
+    elif first_row == _FIRST_ROW_DATA:
+        first_row_word = asking.ANSWER_FIRST_ROW_DATA
+    return asking.Given(
+        columns=tuple(columns),
+        codes=tuple(codes),
+        identifiers=tuple(identifiers),
+        measurements=tuple(measurements),
+        decimal_commas=tuple(commas),
+        twelve_hours=tuple(twelve_hours),
+        date_counts=tuple((name, counted[name]) for name in sorted(counted)),
+        centuries=tuple((name, centuries[name]) for name in sorted(centuries)),
+        centuries_kept=tuple(centuries_kept),
+        date_columns=tuple(date_columns),
+        date_columns_kept=tuple(dates_kept),
+        identities_kept=identities_kept,
+        missing_dates=tuple(
+            (name, code_shapes[name] if name in code_shapes else "")
+            for name in missing_dates
+        ),
+        real_values=tuple(
+            (name, code_shapes[name] if name in code_shapes else "")
+            for name in real_values
+        ),
+        first_row=first_row_word,
+        metadata=metadata_answer,
+        delimiter=asking.delimiter_answer(delimiter),
+        day_order=day_order,
+    )
+
+
+def _earlier_answers_dropped(
+    carried: "tuple[tuple[str, str, str], ...]",
+    columns: "list[str]",
+    given: "asking.Given",
+) -> "list[str]":
+    """The columns whose kept answer this run would drop (plan P4-D408).
+
+    Each answer an earlier run kept and no later one replaced that names
+    a column `columns` does not hold, or that the section written from
+    `given` would not keep (`asking.answers_not_kept`): each name once,
+    in the order `carried` names them. A fixed function of the three.
+    Raises nothing. No I/O.
+    """
+    held = {one: 1 for one in columns}
+    dropped: "list[str]" = []
+    for name, _answer, family in carried:
+        if family in asking.FILE_FAMILIES or name in held:
+            continue
+        if name not in dropped:
+            dropped += [name]
+    for name in asking.answers_not_kept(carried, asking.answered_before(given)):
+        if name not in dropped:
+            dropped += [name]
+    return dropped
+
+
+def _answered_under_other_names(path: str) -> str:
+    """The refusal of answers made by name under names this run does not read (plan P4-D408)."""
+    return (
+        f"The questions file at {path} answers columns by the names listed "
+        f"under '{asking.ANSWERED_BEFORE_COLUMNS}', and this run reads your "
+        f"table under other names: an answer about how the file is read "
+        f"was taken out of the file or replaced by '--first-row auto', or "
+        f"the file was written for another table. synthtwin will not act "
+        f"on an answer made by name when "
+        f"that name may now stand for another column. Put back the answer "
+        f"about how the file is read, or clear every answer that names a "
+        f"column, '{asking.ANSWERED_BEFORE}' included, and run the command "
+        f"again. Nothing was written."
+    )
+
+
+def _earlier_answers_not_kept(path: str, dropped: "list[str]") -> str:
+    """The refusal of a run that would drop an answer an earlier run kept (plan P4-D408)."""
+    named = ""
+    for one in dropped:
+        named = f"{named}, '{one}'" if named else f"'{one}'"
+    return (
+        f"The questions file at {path} keeps answers given in an earlier "
+        f"run, and this run cannot keep the ones about {named}: the table "
+        f"has no column of that name, or another answer in the file or on "
+        f"the command line contradicts it. synthtwin does not drop an "
+        f"answer you gave without telling you. Check that the file was "
+        f"written for this table, then answer those again under "
+        f"'answered_before' -- or clear the answer that contradicts them "
+        f"-- and run the command again. Nothing was written."
+    )
+
+
+def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
+    """What is said about a file that reads equally well two ways.
+
+    It names the delimiters, never a cell: which character separates the
+    columns is a fact about the file, and the reading taken is the one
+    the file would have had anyway (review item CODEX-4).
+
+    AND THE REASON IT GIVES IS THE REASON THE WALK USED (the repair of
+    the skeptic's finding 2 on P4-D282). This sentence said synthtwin
+    had taken "the reading under which more of the values read as
+    numbers", and that was true while a competitor had to agree about
+    the WIDTH to be reported at all -- `dialect.delimiter_reading` asks
+    the count of numbers only where the share AND the width tie. P4-D282
+    widened the competitor to any reading of the winner's own share, so
+    the sentence began to be printed about files the width alone
+    settled. MEASURED on the tree carrying P4-D282: a header
+    `id,note|tagA|tagB` over 120 rows `{i},alpha{i}|x{i}|y{i}` reads at
+    a share of 1.0 under both, two columns and 120 values read as
+    numbers under the comma, three columns and NOUGHT under the vertical
+    bar; the bar wins on the width, and the person was told it won
+    because more of the values read as numbers -- false by 120 to 0, in
+    the one sentence that tells them whether to override the reading.
+    The order is now stated as the walk has it: the wider reading, and
+    the count of numbers only between readings of one width.
+
+    AND A READING WHOSE FIRST ROW IS AS WIDE AS ITS ROWS COMES FIRST
+    (Codex's review of landing R5, item 1). `dialect.delimiter_reading`
+    takes such a reading before one that lines the first row up only by
+    reading a delimiter at the end of a line as closing it, and records
+    the lined-up reading as the competitor; the sentence says so, because
+    on `id,notes,measure;type;unit;` over rows `i,x;y;z,6` the two
+    readings give three columns each and the comma was not taken for
+    its numbers.
+    """
+    others = ""
+    for one in tied[1:]:
+        others = (
+            dialect.DELIMITER_WORDS[one]
+            if not others
+            else f"{others} or with {dialect.DELIMITER_WORDS[one]}"
+        )
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE READS EQUALLY WELL WITH MORE THAN ONE DELIMITER\n"
+        f"{'=' * 66}\n"
+        f"Every record of your file splits cleanly, into one steady "
+        f"number of columns, whether it is read with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]} or with "
+        f"{others} -- and the two readings need not give your table the "
+        f"same number of columns at all. Nothing in the values can say "
+        f"which your file uses. synthtwin has read it with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]}: a reading under which "
+        f"the first row has as many fields as the rows below it most "
+        f"often have is taken before one that lines them up only by "
+        f"reading a delimiter at the end of a line as closing it; then "
+        f"the reading that gives your table the most columns; where two "
+        f"readings give it the same number of columns, the one under "
+        f"which more of the values read as numbers is taken. If that is "
+        f"not how your "
+        f"file is written, describe the table again with --delimiter, "
+        f"or answer the question under 'about_your_file' in the "
+        f"questions file this run writes: your column names, and every "
+        f"column's values, depend on it."
+    )
+
+
+def _metadata_rows_notice() -> str:
+    """What is said about a file wearing a survey export's shape.
+
+    It names what was SEEN, what was done about it (nothing), and the
+    one option that changes it. The shape is not evidence: a table
+    whose first record happens to be as wide as its header with a row
+    of markers under it wears it too, and acting on the resemblance is
+    how a person's own record became schema text (review item
+    CODEX-2).
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"THE TWO ROWS UNDER YOUR COLUMN NAMES MAY DESCRIBE THE COLUMNS\n"
+        f"{'=' * 66}\n"
+        f"They are each as wide as your table and every cell of the "
+        f"second is an ImportId marker, which is the shape some survey "
+        f"tools write to describe their columns. synthtwin has read "
+        f"them as RECORDS of your table, because that is what a row "
+        f"under the column names is unless you say otherwise, and "
+        f"because a file this shape was recognised wrongly in would "
+        f"have two real records taken out of every count and their "
+        f"values published as column descriptions. If those two rows "
+        f"do describe your columns, describe the table again with "
+        f"--metadata-rows 2, or answer the question under "
+        f"'about_your_file' in the questions file this run writes."
+    )
+
+
 def _checklist_notice(listed: "list[asking.Question]") -> str:
     """Every column read as a number, under ONE question.
 
@@ -1153,6 +2145,179 @@ def _checklist_notice(listed: "list[asking.Question]") -> str:
     )
 
 
+def _date_codes_notice(questions: "list[asking.Question]") -> str:
+    """What is said about columns of dates or times beside a few codes (plan P4-D381).
+
+    THE SHAPE, NOT THE VALUES, for the reason every question here gives
+    (owner ruling 2026-09-10): the questions file may not name a code,
+    so neither may the screen, or one question would be asked two ways.
+    What it names is the column, what synthtwin saw in it, and the two
+    ways to say the codes stand for a missing date or time -- the answer
+    in the file, which finds them again, or `--missing-value` naming
+    each, for a person who knows them.
+    """
+    rows = ""
+    for question in questions:
+        rows = rows + f"\n  '{_shown(question.name)}' -- {question.shape}"
+    return (
+        f"{'=' * 66}\n"
+        f"THESE COLUMNS READ AS DATES OR TIMES BUT FOR A FEW REPEATED "
+        f"SPELLINGS\n"
+        f"{'=' * 66}{rows}\n\n"
+        f"Those spellings keep each column above from being read as dates "
+        f"or times, so it is described the way it reads with them in it, "
+        f"and many of its twin's cells will not read as dates or times. If "
+        f"they stand for a date or time nobody wrote down -- unknown, not "
+        f"recorded or not applicable -- answer 'missing' for the column "
+        f"under 'asked' in the questions file this run writes, and "
+        f"describe the table again with --answers: the column is then "
+        f"read as dates or times, and the spellings are counted as "
+        f"missing and written back in the twin as your table writes them. "
+        f"Naming each spelling with --missing-value does the same, in "
+        f"every column of your table. Nothing is wrong with this profile "
+        f"if they really are values of their own."
+    )
+
+
+def _century_notice(questions: "list[asking.Question]") -> str:
+    """What is said about columns of dates whose years are two figures (landing R2a).
+
+    Question Q5's own words, put in the questions file and said here, as
+    the date questions of plan P4-D381 are: each column, what synthtwin saw
+    and the two ways to place its years in another century.
+    """
+    rows = ""
+    for question in questions:
+        rows = rows + f"\n  '{_shown(question.name)}'"
+    return (
+        f"{'=' * 66}\n"
+        f"THESE COLUMNS WRITE THEIR YEARS WITH TWO FIGURES\n"
+        f"{'=' * 66}{rows}\n\n"
+        f"Two figures do not say which century a year is in, so synthtwin "
+        f"has read them as 1969 to 2068: 24 is 2024 and 75 is 1975. If a "
+        f"column's years lie elsewhere -- birth dates before 1969 are the "
+        f"commonest case -- answer '1930-2029', '1940-2039' or '1900-1999' "
+        f"for it under 'asked' in the questions file this run writes and "
+        f"describe the table again with --answers, or describe it again "
+        f"with --century, as in --century birth_date=1930."
+    )
+
+
+def _date_column_notice(questions: "list[asking.Question]") -> str:
+    """What is said about columns mostly of dates (landing R2c, question Q6).
+
+    Question Q6's own words, put in the questions file and said here, as
+    Q5's are: each column, and the two ways to have it read as dates.
+    """
+    rows = ""
+    for question in questions:
+        rows = rows + f"\n  '{_shown(question.name)}'"
+    return (
+        f"{'=' * 66}\n"
+        f"THESE COLUMNS MAY HOLD DATES\n"
+        f"{'=' * 66}{rows}\n\n"
+        f"Half of these values or more read as dates, but not enough for "
+        f"synthtwin to read the column as dates on its own, or they are "
+        f"written as a year and a day of the year, which a record number "
+        f"is too. If a column holds dates, answer 'dates' for it under "
+        f"'asked' in the questions file this run writes and describe the "
+        f"table again with --answers, or describe it again with "
+        f"--date-column, as in --date-column visit_date. Its other values "
+        f"are then left unread, and the twin writes them as made-up text."
+    )
+
+
+def _day_or_month_notice(found: "tuple[asking.DayOrMonth, ...]") -> str:
+    """What is said where no value of a column of dates says which comes first (plan P4-D381).
+
+    It is the questions file's own sentence, rendered from the question
+    `asking.file_questions` puts, so the screen and the file ask one
+    question in one set of words.
+    """
+    asked = asking.file_questions(False, day_or_month=found)
+    seen = asked[0].shape if asked else ""
+    return (
+        f"{'=' * 66}\n"
+        f"THE ORDER OF THE DAY AND THE MONTH CANNOT BE TOLD FROM SOME DATES\n"
+        f"{'=' * 66}\n"
+        f"What synthtwin saw: {_shown(seen)}.\n\n"
+        f"synthtwin has read them month first, so 03/04/2024 is the 4th "
+        f"of March. If your file writes the day first, describe the table "
+        f"again with --day-first, or answer 'day-first' under "
+        f"'about_your_file' in the questions file this run writes: every "
+        f"such column is then read day first, and its twin writes its "
+        f"dates the same way."
+    )
+
+
+def _offers(question: asking.Question, answer: str) -> bool:
+    """Whether one question offers one answer among its choices."""
+    for choice in question.choices:
+        if choice.answer == answer:
+            return True
+    return False
+
+
+def _clock_notice(clocks: "list[asking.Question]", listing: str) -> str:
+    """The scripted run's block for columns read as times of day (the T1 review's item 8).
+
+    Each column is offered what its own question offers: `--twelve-hour`
+    where every hour lies in 1 to 12 with no AM or PM, `--measurement`
+    where an hour in one figure makes the cell two numbers joined by a
+    colon, and `--code` where few times each shared by many rows may be
+    labels written as times (landing 3b.5, plan P4-D373), never for the
+    colon question's codes written in parts (the T1 review's item 8).
+    Guarantees: a function of the questions and their listing; raises
+    nothing; opens nothing.
+    """
+    twelve = [one for one in clocks if _offers(one, asking.ANSWER_TWELVE_HOUR)]
+    joined = [one for one in clocks if _offers(one, asking.ANSWER_JOINED)]
+    codes = [one for one in clocks if asking.offers_labels_written_as_times(one)]
+    said = (
+        f"THESE COLUMNS WERE READ AS TIMES OF DAY, AND MIGHT BE READ "
+        f"ANOTHER WAY.{listing}\n\n"
+        f"Each column above is described as times of day on a 24-hour "
+        f"clock -- alone, or after a date -- with points along the day and "
+        f"the two tails beyond them, and its twin writes its times the way "
+        f"your table does."
+    )
+    if twelve:
+        # QUOTED FOR THE SHELL like every other line to type (lane CF4b,
+        # its skeptic's item 2): `--twelve-hour Visit time` printed bare
+        # was two words, and a name holding `&` ran what followed it.
+        flags = _joined(
+            [_typed_option("--twelve-hour", one.name) for one in twelve], " "
+        )
+        said = said + (
+            f" Where every hour lies from 1 to 12 and no cell writes AM or "
+            f"PM, a 12-hour clock writes the same cells, and 12:15 is then "
+            f"a quarter past midnight rather than past noon; only you know "
+            f"which clock wrote them.\n\n"
+            f"If any of them is a 12-hour clock, run the command again "
+            f"naming it:\n  {flags}{_quoting_said(flags)}"
+        )
+    if joined:
+        flags = _joined(
+            [_typed_option("--measurement", one.name) for one in joined], " "
+        )
+        said = said + (
+            f"\n\nA time whose hour is written in one figure is also two "
+            f"numbers joined by a colon, which is how a duration in minutes "
+            f"and seconds is written. If any of them holds such numbers, "
+            f"run the command again naming it:\n  {flags}{_quoting_said(flags)}"
+        )
+    if codes:
+        flags = _joined([_typed_option("--code", one.name) for one in codes], " ")
+        said = said + (
+            f"\n\nA few times each shared by many rows can also be labels "
+            f"written as times, each naming a group rather than a moment -- "
+            f"a shift called by when it starts. If any of them holds such "
+            f"labels, run the command again naming it:\n  "
+            f"{flags}{_quoting_said(flags)}"
+        )
+    return said
+
+
 def _assumptions_notice(questions: "list[asking.Question]") -> str:
     """What is printed where there is nobody to ask.
 
@@ -1171,11 +2336,44 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # and it reached the screen because nothing tests this text.
     numeric: list[asking.Question] = []
     joined: list[asking.Question] = []
+    # A JOINED-LOOKING COLUMN ALREADY READ AS JOINED NUMBERS (plan
+    # P4-D40) is not being described as text, and telling it so would
+    # be the false sentence the comment above records once already.
+    paired: list[asking.Question] = []
+    pointed: list[asking.Question] = []
+    # ...AND THE ONE QUESTION THAT IS NOT ABOUT A READING AT ALL (plan
+    # P4-D340). It asks who the rows are about, and falling through to
+    # the numeric block told a person their subject number was being
+    # averaged and offered them `--code`, which is the wrong answer to
+    # a question nobody had asked them.
+    people: list[asking.Question] = []
+    # ...AND A COLUMN READ AS TIMES OF DAY (the T1 review's item 8). Its
+    # question is the 12-hour one, or the colon one a clock in one figure
+    # keeps, and falling through put the first under "read as
+    # measurements" with `--code`, and the second under "described as
+    # text", though both are read as times of day. Its block offers what
+    # its own question offers.
+    clocks: list[asking.Question] = []
+    # -- 3b.R4 (P4-D384): ...AND A COLUMN OF NUMBERS LYING WHERE A COUNTING
+    # SYSTEM WRITES DATES (question Q3), which is told what it would gain
+    # as dates and the option that reads it so.
+    dated: list[asking.Question] = []
     for question in questions:
-        if question.reason == asking.BECAUSE_JOINED:
-            joined = joined + [question]
+        if asking.asks_about_a_clock(question):
+            clocks += [question]
+        elif question.reason == asking.BECAUSE_DATE_COUNTS:
+            dated += [question]
+        elif question.reason == asking.BECAUSE_JOINED:
+            if asking.reads_each_number(question.role):
+                paired += [question]
+            else:
+                joined += [question]
+        elif question.reason == asking.BECAUSE_POINT_THOUSANDS:
+            pointed += [question]
+        elif question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+            people += [question]
         else:
-            numeric = numeric + [question]
+            numeric += [question]
 
     def _listing(group: "list[asking.Question]", say_what: bool) -> str:
         shown = ""
@@ -1196,7 +2394,12 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
                 # different readings reaches free text, which publishes
                 # no value of it at all, and the notice said the
                 # opposite of the profile sitting beside it.
-                if not asking.publishes_its_values(question.role):
+                if asking.reads_each_number(question.role):
+                    line = line + (
+                        "\n      (each number in its cells is described "
+                        "on its own, and no whole cell is published)"
+                    )
+                elif not asking.publishes_its_values(question.role):
                     line = line + (
                         "\n      (no value of this column is published)"
                     )
@@ -1209,27 +2412,47 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         return shown
 
     blocks: list[str] = []
+    if clocks:
+        blocks += [_clock_notice(clocks, _listing(clocks, False))]
+    if dated:
+        flags = _joined(
+            [f"{_typed_option('--date-count', one.name)} SYSTEM" for one in dated],
+            " ",
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ AS NUMBERS, AND MIGHT BE DATES WRITTEN "
+            f"AS COUNTS.{_listing(dated, False)}\n\n"
+            f"Each column above lies where a system that counts days, "
+            f"seconds or a finer unit from a fixed day writes dates, and was "
+            f"read as numbers: its twin keeps how the numbers spread, but "
+            f"not the day of the week or the time of day each date falls "
+            f"on. Only you know whether they are dates.\n\n"
+            f"If any of them holds dates, run the command again naming it "
+            f"and the system it is counted in -- one of those named beside "
+            f"it above:\n  {flags}{_quoting_said(flags)}"
+        ]
     if numeric:
         flags = _joined(
-            [f"--code {_shown(one.name)}" for one in numeric], " "
+            [_typed_option("--code", one.name) for one in numeric], " "
         )
-        blocks = blocks + [
+        blocks += [
             f"THESE COLUMNS WERE READ AS MEASUREMENTS, AND MIGHT BE CODES."
             f"{_listing(numeric, False)}\n\n"
             f"synthtwin cannot tell a coding system from a measurement: "
             f"they are written identically, and only you know which this "
             f"is. Each column above is being described with an average, a "
-            f"smallest and a largest -- which for a code are meaningless, "
-            f"and are real codes besides -- and its twin will lose any "
+            f"spread and points along its range -- which for a code are "
+            f"meaningless, and whose published boundaries are real codes "
+            f"besides -- and its twin will lose any "
             f"leading zeros.\n\n"
             f"If any of them holds codes, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     if joined:
         flags = _joined(
-            [f"--measurement {_shown(one.name)}" for one in joined], " "
+            [_typed_option("--measurement", one.name) for one in joined], " "
         )
-        blocks = blocks + [
+        blocks += [
             f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND MIGHT BE "
             f"READINGS.{_listing(joined, True)}\n\n"
             f"Each column above is being described as text rather than as "
@@ -1239,7 +2462,55 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"blood pressure of `120/80` is two readings and a laboratory "
             f"code is not, and only you know which this is.\n\n"
             f"If any of them holds readings, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
+        ]
+    if paired:
+        flags = _joined(
+            [_typed_option("--code", one.name) for one in paired], " "
+        )
+        blocks += [
+            f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND WERE READ AS "
+            f"READINGS.{_listing(paired, True)}\n\n"
+            f"Each number inside those cells is described on its own, with "
+            f"its own average, spread and points along its range -- and "
+            f"its own two ends only where a group of rows shares them -- "
+            f"and the twin's cells "
+            f"are built from those. A blood pressure of `120/80` is two "
+            f"readings and a register written as two numbers is not, and "
+            f"only you know which this is.\n\n"
+            f"If any of them holds codes, run the command again naming "
+            f"them:\n  {flags}{_quoting_said(flags)}"
+        ]
+    if pointed:
+        flags = _joined(
+            [_typed_option("--decimal-comma", one.name) for one in pointed], " "
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ WITH A DECIMAL POINT, AND MIGHT BE "
+            f"WRITTEN WITH A POINT BETWEEN THOUSANDS.{_listing(pointed, False)}"
+            f"\n\n"
+            f"Each column above is being described with its point as a "
+            f"decimal point. If the point is a mark between thousands, "
+            f"every average, spread and published point of it is a "
+            f"thousand times too small, and only you know which it is.\n\n"
+            f"If any of them writes a point between thousands, run the "
+            f"command again naming them:\n  {flags}{_quoting_said(flags)}"
+        ]
+    if people:
+        flags = _joined(
+            [_typed_option("--identifier", one.name) for one in people], " "
+        )
+        blocks += [
+            f"THESE COLUMNS MIGHT NAME THE PEOPLE YOUR ROWS ARE ABOUT."
+            f"{_listing(people, False)}\n\n"
+            f"No column that names PEOPLE has been declared, so this "
+            f"table's population was counted in ROWS. If one row is one "
+            f"visit rather than one person, that count is larger than "
+            f"the number of people in the table, and synthtwin cannot "
+            f"tell which it is: a column whose values repeat can be a "
+            f"subject number or a ward.\n\n"
+            f"If any of them names people, run the command again naming "
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     # `_joined` rather than `str.join`, for the offline audit's reason:
     # the formatting protocol of whatever is handed to `join` runs, so
@@ -1293,9 +2564,127 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
         )
 
 
+def _style_held_back(column: "dict[str, object]") -> bool:
+    """Whether a slashed stamp's one written-clock word was pooled (the T1 review's item 9).
+
+    Its census of marks is `(withheld)` alone, so the description names
+    no written clock -- which is not the same as a declaration that
+    reached nothing: where the clocks write no marker
+    (`_clocks_on_the_declared_face`), `--twelve-hour` was honoured in
+    reading them, and only the word saying so is too rare to print.
+    """
+    if "format" not in column or f"{column['format']}" not in parsing.SLASHED_STAMPS:
+        return False
+    census = column["datetime_separators"] if "datetime_separators" in column else None
+    if not isinstance(census, dict) or not census:
+        return False
+    for word in census:
+        if f"{word}" != "(withheld)":
+            return False
+    return True
+
+
+def _clocks_on_the_declared_face(cells: "list[str]") -> bool:
+    """Whether a declared column's clocks are read on the 12-hour face with no marker.
+
+    THE PRODUCER'S OWN RULE (`parsing.clock_style_of_cells`): the face
+    most of the clocks write, a column declared a 12-hour clock reading
+    its unmarked ones on that face. Asked of a declared slashed stamp
+    whose written-clock word was pooled (`_style_held_back`), whose
+    description cannot say it: ten stamps written `1:00 PM` beside
+    ninety `NA` were told `--twelve-hour` was used and to keep it, where
+    a marked clock is one the declaration does not change -- the other
+    half of the T1 review's item 9.
+
+    Guarantees: accepts the column's cells as written; returns whether
+    some clock half reads and most of them write no marker. Determinism:
+    a function of the cells. Raises nothing. No I/O.
+    """
+    read: "list[tuple[int, int, int, bool, int, str, bool]]" = []
+    for cell in cells:
+        parts = parsing.clock_parts(parsing.stamp_halves(cell)[1])
+        if parts is not None:
+            read += [parts]
+    if not read:
+        return False
+    style = parsing.clock_style_of_cells(read, True)
+    return parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
+
+
+def _read_on_twelve_hours(column: "dict[str, object]") -> bool:
+    """Whether a described column was read on the declared 12-hour face."""
+    style = ""
+    # -- 3b.R2b (P4-D383): a layout says its own clock in its format.
+    if "format" in column and parsing.is_layout_name(f"{column['format']}"):
+        found = parsing.layout_clock_style(f"{column['format']}")
+        return found is not None and parsing.clock_face(found) == parsing.CLOCK_TWELVE_HOUR
+    if column["role"] == "time_of_day":
+        form = f"{column['clock_form']}"
+        if form in parsing.CLOCK_FORMS:
+            style = parsing.clock_style_of(form)
+    elif "datetime_separators" in column:
+        census = column["datetime_separators"]
+        if isinstance(census, dict):
+            for word in census:
+                found = parsing.stamp_style(f"{word}")
+                if found is not None:
+                    style = found
+    return bool(style) and parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
+
+
+def _offered_here(answer: str, question: asking.Question) -> bool:
+    """Whether one typed answer is one this question offers.
+
+    Guarantees: a fixed function of the two; raises nothing; opens
+    nothing. The reading Enter keeps (`question.taken`) is always taken,
+    and so is anything that is no column answer at all, which no key
+    reaches. `measurement` stands for `keep` where the question offers
+    `keep`, because the two share key 1 (see `_KEY_OF`).
+    """
+    if answer == question.taken:
+        return True
+    reached = False
+    for key in _ANSWER_KEYS:
+        if _ANSWER_KEYS[key] == answer:
+            reached = True
+    if not reached:
+        return True
+    offered = [choice.answer for choice in question.choices]
+    if answer in offered:
+        return True
+    return answer == asking.ANSWER_MEASUREMENT and asking.ANSWER_KEEP in offered
+
+
+def _century_given(typed: str) -> "tuple[str, int] | None":
+    """One `--century COLUMN=YEAR` read, or None where it is not that (landing R2a).
+
+    Split at the LAST equals sign, since a column's name may hold one; the
+    year is one of the three a description may declare or the 1969 that
+    stands where nothing is declared.
+    """
+    if not isinstance(typed, str):
+        raise TypeError("a typed option reached the reader as something else")
+    cut = len(typed) - 1
+    while cut >= 0 and typed[cut] != "=":
+        cut = cut - 1
+    if cut < 1:
+        return None
+    name = typed[0:cut]
+    year = typed[cut + 1 :]
+    if not parsing.is_digit_text(year):
+        return None
+    first_year = int(year)
+    if (
+        first_year not in parsing.CENTURY_WINDOW_YEARS
+        and first_year != parsing.CENTURY_DEFAULT_FIRST_YEAR
+    ):
+        return None
+    return name, first_year
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
-) -> "tuple[list[str], list[str], list[str]] | None":
+) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]]] | None":
     """Put every question; return the columns named as codes and as IDs.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
@@ -1317,50 +2706,142 @@ def _put_the_questions(
     codes: list[str] = []
     identifiers: list[str] = []
     measurements: list[str] = []
+    commas: list[str] = []
+    twelve: list[str] = []
+    # -- 3b.R4 (P4-D384): the columns answered with a counting system.
+    counted: "list[tuple[str, str]]" = []
     place = 0
     for question in questions:
         place = place + 1
         _say(_the_question(question, place, total))
         answer = _read_one_answer(question.taken)
+        # ONLY AN ANSWER THIS QUESTION OFFERS IS TAKEN (landing T1, its
+        # second skeptic's item 2). `_read_one_answer` knows every key,
+        # so `6` typed at a column of codes recorded a 12-hour clock on
+        # it, and `5` a decimal comma, with no warning: the check that
+        # warns on an unreached declaration runs before the questions.
+        # A key of an answer the question did not offer is asked again,
+        # as the questions file refuses an answer its entry did not
+        # offer (`answers_answer_is_not_offered`).
+        while answer is not None and not _offered_here(answer, question):
+            _say(
+                "    Please type one of the numbers offered, or press Enter "
+                "to keep the reading synthtwin made."
+            )
+            answer = _read_one_answer(question.taken)
         if answer is None:
             return None
         if answer == asking.ANSWER_CODE:
-            codes = codes + [question.name]
+            codes += [question.name]
         elif answer == asking.ANSWER_IDENTIFIER:
-            identifiers = identifiers + [question.name]
+            identifiers += [question.name]
         elif answer == asking.ANSWER_JOINED:
-            measurements = measurements + [question.name]
-    return codes, identifiers, measurements
+            measurements += [question.name]
+        elif answer == asking.ANSWER_DECIMAL_COMMA:
+            commas += [question.name]
+        elif answer == asking.ANSWER_TWELVE_HOUR:
+            twelve += [question.name]
+        elif answer in date_counts.MEMBERS:
+            counted += [(question.name, answer)]
+    return codes, identifiers, measurements, commas, twelve, counted
 
 
 def _how_to_repeat(
     forced_codes: "list[str]",
     forced_identifiers: "list[str]",
     forced_measurements: "list[str]",
+    forced_decimal_commas: "tuple[str, ...]" = (),
+    twelve_hours: "tuple[str, ...]" = (),
+    date_counted: "tuple[tuple[str, str], ...]" = (),
+    answered_missing: "tuple[str, ...]" = (),
+    answered_kept: "tuple[str, ...]" = (),
+    answered_day_first: bool = False,
+    taken_out: "tuple[str, ...]" = (),
+    centuries: "tuple[tuple[str, int], ...]" = (),
+    date_columns: "tuple[str, ...]" = (),
 ) -> str:
-    """The options that repeat this run without asking anything."""
+    """The options that repeat this run without asking anything.
+
+    ``taken_out`` are options the person typed that an answer replaced,
+    each already written as it is typed (`_typed_option`): they are said
+    as options to take out of the command, since an answer is the newer
+    statement and the typed option left in would contradict it (the Codex
+    review of lane R1, item 7: `--keep-value UNK` typed and `missing`
+    answered were told to add `--missing-value UNK`, and the pair exits 2).
+
+    The answers about dates (plan P4-D381) are repeated as the options
+    they stood for: `--day-first`, and `--missing-value` or
+    `--keep-value` naming each code the run found in the answered
+    columns. The codes are the person's declarations now, published
+    where the description publishes any declared word, so naming them
+    here says nothing the summary above did not. `answered_day_first`
+    is True only where the run reads day first BECAUSE of an answer
+    (landing T1): a typed `--day-first` is already on the line the
+    person typed. `twelve_hours` names the columns read as 12-hour
+    clocks, typed or answered (landing T1).
+    """
     parts: list[str] = []
+    # -- 3b.R4 (P4-D384): the columns whose dates are written as counts,
+    # typed or answered, each with its system.
+    for name, member in sorted(date_counted):
+        parts += [f"{_typed_option('--date-count', name)} {member}"]
+    if answered_day_first:
+        parts += ["--day-first"]
+    for name in sorted(twelve_hours):
+        parts += [_typed_option("--twelve-hour", name)]
+    # The centuries of two-figure years (landing R2a), typed or answered.
+    for name, first_year in sorted(centuries):
+        parts += [_typed_option("--century", f"{name}={first_year}")]
+    # The columns said to hold dates (landing R2c), typed or answered.
+    for name in sorted(date_columns):
+        parts += [_typed_option("--date-column", name)]
+    for spelling in answered_missing:
+        parts += [_typed_option("--missing-value", spelling)]
+    for spelling in answered_kept:
+        parts += [_typed_option("--keep-value", spelling)]
+    for name in sorted(forced_decimal_commas):
+        parts += [_typed_option("--decimal-comma", name)]
     for name in sorted(forced_codes):
-        parts = parts + [f"--code {_shown(name)}"]
+        parts += [_typed_option("--code", name)]
     for name in sorted(forced_identifiers):
-        parts = parts + [f"--identifier {_shown(name)}"]
+        parts += [_typed_option("--identifier", name)]
     for name in sorted(forced_measurements):
-        parts = parts + [f"--measurement {_shown(name)}"]
+        parts += [_typed_option("--measurement", name)]
     flags = _joined(parts, " ")
+    out = ""
+    if taken_out:
+        out = (
+            f"and take these out of the command you typed, because your "
+            f"answers replaced them:\n  {_joined(list(taken_out), ' ')}\n"
+        )
     return (
         f"\nTO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:\n  "
         f"{flags}\n"
-        f"Those answers are also recorded inside the profile itself."
+        f"{out}"
+        f"Those answers are also recorded inside the profile itself. "
+        f"Each value is {_shell_named()}."
     )
 
 
+def _counted_settings(
+    counted: "dict[str, str]",
+) -> "tuple[tuple[str, str], ...]":
+    """The columns whose dates are written as counts, as the settings hold them (landing R4).
+
+    `(column, system)` in the columns' rising order: the one shape the
+    settings block records, the questions file's answers and the typed
+    options agree in.
+    """
+    return tuple((name, counted[name]) for name in sorted(counted))
+
+
 def _lowered_floor_warning(given: int) -> str:
-    """The warning shown when `--smallest-group` is under the default.
+    """The warning shown when `--smallest-group` is under the notice line.
 
     Guarantees:
 
     - Inputs: the number the person typed, already known to be below
-      `taxonomy.Settings().small_cell_floor` and at least 1.
+      `_NOTICE_LINE` (the default, 11) and at least 1.
     - Determinism: a fixed function of that number.
     - Errors raised: none.
     - Boundary: no value of the table reaches it. It names a count and
@@ -1383,14 +2864,26 @@ def _lowered_floor_warning(given: int) -> str:
     suite compares the two so they cannot drift. `_NOTICE_LINE` mirrors
     `contract.SMALL_GROUP_NOTICE_LINE` the same way.
 
+    IT NAMES THE UNIT OF EACH FLOOR, AND IT COUNTS SIX FILES (review of
+    2026-09-23, items 6 and 10). Two sentences were false. It said the
+    notice line keeps a published group too big to point at one
+    person, and the disclosure floor counts ROWS (plan P4-D348):
+    measured on 100 declared people of twelve visits each, a value one
+    person holds publishes the count 12 at the default floor. And it
+    counted the files a full run leaves one short, and it counted the
+    pages that stamp themselves one too many: the pages that say it in
+    words are the summary, the twin's report and the quality report,
+    beside the description, which records the floor as a setting.
+
     WHEN THIS IS SHOWN CHANGED ON 2026-08-25 (plan A-P4-37). It used to
     be shown whenever the floor was under the default, which was the
     same thing as somebody having typed `--smallest-group`. The default
-    is 1 now, so that test would never fire again. It is shown when the
-    person TYPED a floor under `_NOTICE_LINE` -- a choice they made and
-    should see priced. A default run says the same facts on the written
-    pages, which are the files that travel, and does not alarm the
-    screen about a setting nobody chose.
+    was 1 from then until 2026-09-22, so that test would never have
+    fired. It is shown when the person TYPED a floor under
+    `_NOTICE_LINE` -- a choice they made and should see priced. The
+    default is 11 again since 2026-09-22 (plan P4-D316), the same number
+    as `_NOTICE_LINE`, so a run that names no floor is never alarmed,
+    and a run that types one below it always is.
     """
     # At a floor of one a published group can be a single row, which is
     # the whole of the disclosure said in one sentence -- so it is said,
@@ -1426,19 +2919,492 @@ def _lowered_floor_warning(given: int) -> str:
         f"else the description says about that group. Nothing has to be "
         f"broken into or decoded for that to happen: the count is the "
         f"disclosure, and {_NOTICE_LINE} is the number "
-        f"that keeps a published group too big to point at one person.\n"
+        f"that keeps a published group bigger than that.\n"
+        f"\n"
+        f"AND THE NUMBER COUNTS ROWS, NOT PEOPLE. Whatever you set it "
+        f"to, a group has to cover that many ROWS. Where your table "
+        f"holds several rows per person, twelve visits of one patient "
+        f"are twelve rows, so a value only that patient has is "
+        f"published with the count twelve even at the usual "
+        f"{_NOTICE_LINE}. The one number counted in people is the SIZE "
+        f"of the table, which is what decides whether synthtwin will "
+        f"describe it at all.\n"
         f"\n"
         f"WHERE THOSE COUNTS GO NEXT. Not into the description alone. "
         f"The twin is built to hold the published counts exactly, and "
         f"the plain-language summary beside the description, the twin's "
-        f"report and the quality report all quote them back. All five "
-        f"files of a full run carry them, and each of the four written "
-        f"pages says on its own face that it was made this way.\n"
+        f"report and the quality report all quote them back. All six "
+        f"files of a full run carry them, and the summary, the twin's "
+        f"report and the quality report each say on their own face that "
+        f"this description names groups this small, while the "
+        f"description itself records the floor it was made at.\n"
         f"\n"
         f"IF YOU DID NOT MEAN THIS, run the command again without "
         f"--smallest-group, or with a larger number, and delete what "
         f"this run writes."
     )
+
+
+# -- the population floor (plan P4-D341) ------------------------------
+#
+# IT LIVES IN THIS COMMAND AND NOWHERE ELSE. `profile.build_document`
+# describes a table of any size, the loader reads a description of one,
+# and `synthtwin validate` checks a file of one -- so a library caller
+# keeps describing five rows, the validator keeps re-describing whatever
+# it was pointed at, and a description written before this landing still
+# loads. What the floor governs is the one act this command performs:
+# turning somebody's real table into files that leave the machine.
+
+
+def _population_of(
+    table: object,
+    settings: object,
+    declared: "list[str]",
+    codes: "list[str] | None" = None,
+    measurements: "list[str] | None" = None,
+    decimal_commas: "list[str] | None" = None,
+    stored_as: "tuple[str, ...]" = (),
+) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
+    """The person columns, the population and the word it is counted in.
+
+    The census is `profile.population_census_of`'s: a table read in
+    groups of columns (lane SR, plan P4-D400) is counted one column at a
+    time, never every declared column at once.
+
+    Returns (person columns, how many, the unit word, the readings the
+    census took). The readings are handed to `profile.build_document`
+    right after, so a column the census read under the finished reading
+    is not read again there (`taxonomy.population_census`). The unit is
+    `people` where some declared identifier REPEATS and `rows` where
+    none does, which is what `taxonomy.repeating_identifiers` decides
+    and says why at length.
+
+    THE ROWS COUNTED ARE THE ROWS THAT HOLD A VALUE (repair of landing
+    3.2), which is `taxonomy.people_in`'s rule and not this function's:
+    a row every cell of which the run reads as "no value" is counted
+    nowhere, so twenty records padded to a hundred lines are a
+    population of twenty and are refused -- whether the padding is
+    blank, a listed spelling, a declared number or a stand-in this run
+    judged for itself.
+
+    AND WHAT A CELL HOLDS IS THE FINISHED READING'S ANSWER (review of
+    stage 3, floor item 3). All four declarations are carried down,
+    not the identifiers alone: each of them changes which cells of a
+    column survive the passes that judge "no value", and the census has
+    to read each column the way the run reads it. Measured before this:
+    a column of twenty numbers followed by eighty `-999` cells passed
+    the hundred-row floor as a hundred rows, under
+    `--missing-value=-999`, under `-999.0`, and under the stand-in rule
+    with nothing declared at all -- and the description that came out of
+    the same run recorded twenty present cells.
+
+    Guarantees: accepts the table, the settings in force and the
+    columns declared with `--identifier`, `--code`, `--measurement` and
+    `--decimal-comma`, and how a workbook stores each column
+    (`profile.stored_as_of`, plan P4-D382), which the description is
+    handed too; returns the four. A fixed function of them.
+    Raises TypeError where the settings are not settings or the table
+    not a table, which are internal invariants, and what
+    `reading.column_values` raises. Opens
+    no file for a table read whole, reads a table read in groups again
+    one column at a time, and prints nothing.
+    """
+    from synthtwin import profile, reading, taxonomy
+
+    if not isinstance(settings, taxonomy.Settings):
+        raise TypeError("internal check: the settings are not settings")
+    if not isinstance(table, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    people, counted, readings = profile.population_census_of(
+        table,
+        settings,
+        declared,
+        codes if codes is not None else [],
+        measurements if measurements is not None else [],
+        decimal_commas if decimal_commas is not None else [],
+        stored_as,
+    )
+    unit = taxonomy.NOTE_UNIT_ROWS
+    if people:
+        unit = taxonomy.NOTE_UNIT_PEOPLE
+    return people, counted, unit, readings
+
+
+def _table_sentences(document: "dict[str, object]") -> "list[str]":
+    """The description's notes about the WHOLE TABLE, in its own order.
+
+    Read back out of the document rather than kept in a variable beside
+    it (plan P4-D341): the questions file then carries exactly what the
+    description carries, and a rebuild that changed the note cannot
+    leave the two disagreeing.
+    """
+    notes = document["publication_notes"]
+    said: "list[str]" = []
+    if not isinstance(notes, list):
+        return said
+    for entry in notes:
+        if not isinstance(entry, dict):
+            continue
+        if entry["column"] != "":
+            continue
+        said += [f"{entry['note']}"]
+    return said
+
+
+def _held_as_counted_dates(described_column: "dict[str, object]") -> bool:
+    """Whether a column block is held as counted dates its cells did not read as (NF127).
+
+    Asked of the block's EVIDENCE, never of its role (lane HX2's close
+    verify, item 1): the count in people (NF126) makes a declared column
+    that DID read as dates a record number too, and naming it as a
+    declaration that did not reach told the person something false and a
+    remedy that changes nothing. Raises nothing, opens no file.
+    """
+    from synthtwin import taxonomy
+
+    if "detection_evidence" not in described_column:
+        return False
+    return f"{described_column['detection_evidence']}" == taxonomy.rendered(
+        taxonomy.EVIDENCE_COUNTED_DATES_HELD, ()
+    )
+
+
+def _held_counted_dates(
+    document: "dict[str, object]", counted: "dict[str, str]"
+) -> "list[tuple[str, str]]":
+    """Each column declared as counted dates that did not read so, with its system.
+
+    Plan P4-D406 (contract NF127): such a column is held on every table,
+    and the questions file names it beside the screen and the summary
+    (the orchestrator's LANE HX2 ADDENDUM 2). Read back out of the FINAL
+    document, as `_table_sentences` is, in the table's column order: a
+    declared column whose block carries NF127's evidence
+    (`_held_as_counted_dates`). Raises nothing, opens no file.
+    """
+    held: "list[tuple[str, str]]" = []
+    for described_column in _described_columns(document):
+        name = f"{described_column['name']}"
+        if name not in counted:
+            continue
+        if not _held_as_counted_dates(described_column):
+            continue
+        held += [(name, counted[name])]
+    return held
+
+
+def _counted_in_rows_notice(names: "list[str]") -> str:
+    """What the screen says when nobody has said who the rows are about.
+
+    Printed beside the person question (plan P4-D340), and only where
+    the population is still counted in ROWS. The question asks whether
+    a column names people; this says what the run did in the meantime,
+    which is the half a person cannot see: the population was counted
+    in ROWS, and a table of several rows per subject therefore passed a
+    floor its subjects might not have.
+
+    AND IT SAYS "NO COLUMN THAT NAMES PEOPLE", not "nothing was named
+    with --identifier" (review of stage 3, floor item 4). The question
+    is now put wherever the count is still in rows, and a unique-per-row
+    `visit_id` declared is a column named with `--identifier` that
+    leaves the count exactly there -- so the older sentence would have
+    told a person who had just typed the option that they had not.
+
+    Guarantees: accepts the columns asked about; returns one paragraph.
+    A fixed function of the names, which are the table's own column
+    names and are published in the description like every other.
+    Raises nothing, opens no file.
+    """
+    return (
+        f"\nHOW THIS RUN COUNTED YOUR TABLE\n"
+        f"No column that names PEOPLE has been declared, so this "
+        f"table's population was counted in ROWS. If one row of your "
+        f"table is one visit rather than one person, that count is "
+        f"larger than the number of people in it.\n"
+        f"\nThe questions file asks about "
+        f"{_joined(names, ' and ')}, whose values repeat and are "
+        f"either many or written as codes -- the shape a column that "
+        f"names people wears. Answer it there, or run the command "
+        f"again with --identifier and the column's name, and the "
+        f"population will be counted in people."
+    )
+
+
+def _withheld_notice(names: "tuple[str, ...]") -> str:
+    """What the screen says of the columns held back until answered.
+
+    Plan P4-D401. Each was asked a question `identifier` answers, and
+    nobody has answered, so this run describes it as record numbers and
+    publishes none of its values.
+    The sentence names the way back, which is answering.
+
+    Guarantees: accepts the columns held back; returns one paragraph. A
+    fixed function of the names, which are the table's own column names
+    and are published in the description like every other. Raises
+    nothing, opens no file.
+    """
+    return (
+        f"\nCOLUMNS HELD BACK UNTIL YOU ANSWER\n"
+        f"Nobody has answered the question about "
+        f"{_joined(list(names), ' and ')}, and `identifier` -- record "
+        f"numbers -- is among its answers, so this description treats "
+        f"them as record numbers and publishes none of their values, and "
+        f"the twin writes made-up record numbers there. Answer the "
+        f"questions file, and run the command again with --answers: any "
+        f"answer gives the column the description that answer names."
+    )
+
+
+def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
+    """What the screen says of the columns whose values were counted in people.
+
+    Plan P4-D406. On a table of several rows a person, a value fewer
+    than the smallest group size of PEOPLE hold is not published however
+    many rows hold it: its column is described as record numbers, and the
+    twin writes made-up values in the column's layouts.
+
+    Guarantees: accepts the columns and the floor; returns one
+    paragraph. A fixed function of the names, which are the table's own
+    column names and are published in the description like every other.
+    Raises nothing, opens no file.
+    """
+    return (
+        f"\nVALUES HELD BY FEWER THAN {floor} PEOPLE\n"
+        f"This table has several rows a person, so each value of "
+        f"{_joined(list(names), ' and ')} was counted in people as well "
+        f"as rows: a value fewer than {floor} people hold is not "
+        f"published however many rows hold it, so these columns are "
+        f"described as record numbers and the twin writes made-up values "
+        f"there. No answer gives such a value back."
+    )
+
+
+def _small_population_notice(spoken: str, person_columns: str) -> str:
+    """The notice a table between the floor and the line gets, on the screen.
+
+    ONE NOTICE, AND IT CANNOT BE SILENCED (plan P4-D341). There is no
+    option that turns it off, it is not conditional on anybody being at
+    the keyboard, and the sentence in it is the same sentence the
+    description carries: the screen and the five pages a full run
+    leaves cannot say two different things about how large the table
+    was, because all of them render the one note.
+
+    Guarantees: accepts the note's rendered sentence and the person
+    columns named, if any; returns one paragraph. A fixed function of
+    the two. Raises nothing, opens no file, and carries no value of the
+    table -- the names in it are ones the person typed after
+    `--identifier`.
+    """
+    by = ""
+    if person_columns:
+        by = (
+            f" The people were counted by {person_columns}: rows "
+            f"sharing a value there are one person, and rows holding no "
+            f"value there count as one person between them."
+        )
+    return (
+        f"\nABOUT THE SIZE OF THIS TABLE\n"
+        f"{spoken}.{by}\n"
+        f"\nThis notice is on the screen and on every page this run "
+        f"writes. The description carries it as a note of its own, and "
+        f"the plain-language summary, the questions file, the twin's "
+        f"report and the quality report all read it back from there. "
+        f"Nothing turns it off. The twin's own table carries no trace "
+        f"of it, so code you write against the twin runs exactly as it "
+        f"ran before."
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class ChainRun:
+    """The chain's switch for one `synthtwin profile` run (lane CHa, plan P4-D418; NOT IN FORCE).
+
+    No command-line option sets it: `main` never passes one, so every
+    shipped run describes, summarizes and writes exactly as before
+    (invariant S12). The tools and the tests hand it to `_run_profile`.
+    `name` is the table's name (4.6b.4's `--name`; None reads the input
+    file's name without its extension); `folder` the installation's data
+    folder (None: the platform's own, `installation.data_folder`);
+    `replace_description` and `new_key` are 4.6b.4's
+    `--replace-description` and `--new-key`.
+    """
+
+    name: "str | None" = None
+    folder: "str | None" = None
+    replace_description: bool = False
+    new_key: bool = False
+
+
+@dataclasses.dataclass
+class _ChainState:
+    """One switched run's installation, opened before the table is read, and its pending entry."""
+
+    run: ChainRun
+    # `installation.Opened` and `installation.Entry`: the installation (its
+    # key comes from `secrets`) is imported only behind the chain's switch,
+    # never by a shipped run (Codex's item 10 on repair 1).
+    opened: "typing.Any"
+    entry: "typing.Any" = None
+    statistical: "dict[str, object] | None" = None
+    notes: "tuple[str, ...]" = ()
+    # The pairs the handed-back questions file asks to add and to drop,
+    # and the requests it could not read (`asking.between_columns_requests`).
+    add: "tuple[tuple[str, str], ...]" = ()
+    drop: "tuple[tuple[str, str], ...]" = ()
+    unread: "tuple[str, ...]" = ()
+
+
+def _chained_description(
+    chain_state: _ChainState,
+    table: pathlib.Path,
+    read: "typing.Any",
+    published: "dict[str, object]",
+    settings: "typing.Any",
+    held: "tuple[str, ...]",
+    forced_codes: "list[str]",
+    forced_measurements: "list[str]",
+    forced_decimal_commas: "list[str]",
+    storage: "tuple[str, ...]",
+) -> "dict[str, object]":
+    """The description with its chain, the ledger's decision on it, and the one line on the screen.
+
+    Sets `chain_state.entry` to the ledger entry this run will write
+    before its description, or leaves it None where the ledger refuses
+    the run (its words printed): the caller then writes nothing. The
+    private notes stay in `chain_state.notes`; no line names the key.
+    """
+    from synthtwin import chain, installation
+
+    run = chain_state.run
+    name = run.name if run.name is not None else table.stem
+    chained = chain.describe(
+        read,
+        published,
+        settings,
+        chain.ChainSwitch(name, chain_state.opened.key, held, chain_state.add, chain_state.drop),
+        list(forced_codes),
+        list(forced_measurements),
+        list(forced_decimal_commas),
+        storage,
+    )
+    relationships = published["relationships"]
+    if not isinstance(relationships, dict):
+        return published
+    with_chain: "dict[str, object]" = {}
+    for key in published:
+        with_chain[key] = published[key]
+    block: "dict[str, object]" = {}
+    for key in relationships:
+        block[key] = relationships[key]
+    block["statistical"] = chained.statistical
+    with_chain["relationships"] = block
+    digest = installation.description_digest(with_chain)
+    between = installation.publishes_between(with_chain)
+    decision = installation.decide(
+        chain_state.opened,
+        name,
+        chained.content,
+        digest,
+        between,
+        run.replace_description,
+    )
+    chain_state.notes = chained.notes
+    chain_state.statistical = chained.statistical
+    if decision.verdict == installation.REFUSE:
+        _warn(decision.words)
+        return with_chain
+    if decision.verdict == installation.WARN:
+        _warn(decision.words)
+    chain_state.entry = installation.Entry(
+        name,
+        chained.content,
+        installation.fingerprint(chain_state.opened.key),
+        digest,
+        between,
+    )
+    _say(_chain_line(chained.statistical))
+    if chain_state.add or chain_state.drop or chain_state.unread:
+        _say(_requests_line(chain_state.add, chain_state.drop, chain_state.unread, chained.statistical))
+    return with_chain
+
+
+def _requests_line(
+    add: "tuple[tuple[str, str], ...]",
+    drop: "tuple[tuple[str, str], ...]",
+    unread: "tuple[str, ...]",
+    statistical: "dict[str, object] | None",
+) -> str:
+    """The line naming what the questions file asked of the chain and what this run did with it."""
+    eligible: "set[str]" = set()
+    ladder = statistical["ladder"] if isinstance(statistical, dict) else None
+    if isinstance(ladder, list):
+        for entry in ladder:
+            if isinstance(entry, dict) and isinstance(entry["column"], str):
+                eligible |= {entry["column"]}
+    taken_add = [pair for pair in add if pair[0] != pair[1] and pair[0] in eligible and pair[1] in eligible]
+    taken_drop = [pair for pair in drop if pair[0] != pair[1] and pair[0] in eligible and pair[1] in eligible]
+    done: "list[str]" = []
+    if taken_add:
+        done += [f"{len(taken_add)} pair(s) to add were offered to the chain with more weight (never forced)"]
+    if taken_drop:
+        done += [f"{len(taken_drop)} pair(s) to drop share no family table"]
+    others = [pair for pair in add + drop if pair not in taken_add and pair not in taken_drop]
+    if others:
+        left = ""
+        for one, other in others:
+            left += ("; " if left else "") + f"{one} and {other}"
+        done += ["these name a column the chain does not hold and were left: " + left]
+    if unread:
+        unread_text = ""
+        for one in unread:
+            unread_text += ("; " if unread_text else "") + one
+        done += ["these requests could not be read (a pair is two column names of this table): " + unread_text]
+    if statistical is None:
+        done += ["no family table is published for this table"]
+    said = ""
+    for one in done:
+        said += ("; " if said else "") + one
+    return "Between columns, from the questions file: " + said + ". The requests stay in the questions file."
+
+
+def _chain_line(statistical: "dict[str, object] | None") -> str:
+    """The one line on the screen about the chain: how many pairs share a family table."""
+    if statistical is None:
+        return (
+            "\nBetween columns: no family table is published for this table; "
+            "every pair of columns is carried as the twin's columns on their own."
+        )
+    words = statistical["words"]
+    exact = 0
+    total = 0
+    if isinstance(words, list):
+        for entry in words:
+            if isinstance(entry, dict) and "word" in entry:
+                total += 1
+                if entry["word"] == "exact":
+                    exact += 1
+    return (
+        f"\nBetween columns: {exact} of the {total} pairs of eligible columns "
+        "share a family table and are carried exactly; the others are carried "
+        "as the chain implies. The questions file names the pairs, and a pair "
+        "to add or drop can be named there; nothing waits for it."
+    )
+
+
+def _chain_pairs(chain_state: "_ChainState | None") -> "list[list[str]] | None":
+    """The pairs a switched run carries exactly, for the questions file's one entry; None unswitched."""
+    if chain_state is None:
+        return None
+    exact: "list[list[str]]" = []
+    statistical = chain_state.statistical
+    if isinstance(statistical, dict):
+        words = statistical["words"]
+        if isinstance(words, list):
+            for entry in words:
+                if isinstance(entry, dict) and entry["word"] == "exact":
+                    columns = entry["columns"]
+                    if isinstance(columns, list):
+                        exact += [[f"{one}" for one in columns]]
+    return exact
 
 
 def _run_profile(
@@ -1455,6 +3421,112 @@ def _run_profile(
     missing_values: list[str],
     first_row: str,
     day_first: bool,
+    sheet: str = "",
+    metadata_rows_given: str = "",
+    delimiter_given: str = "",
+    date_counts_given: "list[list[str]] | None" = None,
+    forced_twelve_hours: "list[str] | None" = None,
+    centuries_given: "list[str] | None" = None,
+    date_columns_given: "list[str] | None" = None,
+    first_row_typed: bool = False,
+    chain: "ChainRun | None" = None,
+) -> int:
+    """Do the work of `synthtwin profile`; return the exit code (`_run_profile_body`).
+
+    With the chain's switch (`chain`, which no command-line option sets),
+    the installation's data folder is opened and locked BEFORE the table
+    is read (contract 4.6b.4: a ledger without its key is refused before
+    anything is read), and the lock is released however the run ends.
+    """
+    if chain is None:
+        return _run_profile_body(
+            table=table,
+            out_dir=out_dir,
+            smallest_group=smallest_group,
+            floor_chosen=floor_chosen,
+            forced_identifiers=forced_identifiers,
+            forced_codes=forced_codes,
+            forced_measurements=forced_measurements,
+            forced_decimal_commas=forced_decimal_commas,
+            answers_path=answers_path,
+            kept_values=kept_values,
+            missing_values=missing_values,
+            first_row=first_row,
+            day_first=day_first,
+            sheet=sheet,
+            metadata_rows_given=metadata_rows_given,
+            delimiter_given=delimiter_given,
+            date_counts_given=date_counts_given,
+            forced_twelve_hours=forced_twelve_hours,
+            centuries_given=centuries_given,
+            date_columns_given=date_columns_given,
+            first_row_typed=first_row_typed,
+        )
+    from synthtwin import installation
+
+    folder = (
+        pathlib.Path(chain.folder)
+        if chain.folder is not None
+        else installation.data_folder()
+    )
+    opened = installation.open_installation(folder, new_key=chain.new_key)
+    try:
+        if opened.refusal:
+            _warn(opened.refusal)
+            return 2
+        for line in opened.lines:
+            _say(line)
+        return _run_profile_body(
+            table=table,
+            out_dir=out_dir,
+            smallest_group=smallest_group,
+            floor_chosen=floor_chosen,
+            forced_identifiers=forced_identifiers,
+            forced_codes=forced_codes,
+            forced_measurements=forced_measurements,
+            forced_decimal_commas=forced_decimal_commas,
+            answers_path=answers_path,
+            kept_values=kept_values,
+            missing_values=missing_values,
+            first_row=first_row,
+            day_first=day_first,
+            sheet=sheet,
+            metadata_rows_given=metadata_rows_given,
+            delimiter_given=delimiter_given,
+            date_counts_given=date_counts_given,
+            forced_twelve_hours=forced_twelve_hours,
+            centuries_given=centuries_given,
+            date_columns_given=date_columns_given,
+            first_row_typed=first_row_typed,
+            chain_state=_ChainState(chain, opened),
+        )
+    finally:
+        installation.release(opened)
+
+
+def _run_profile_body(
+    table: str,
+    out_dir: "str | None",
+    smallest_group: int,
+    floor_chosen: bool,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
+    forced_decimal_commas: list[str],
+    answers_path: "str | None",
+    kept_values: list[str],
+    missing_values: list[str],
+    first_row: str,
+    day_first: bool,
+    sheet: str = "",
+    metadata_rows_given: str = "",
+    delimiter_given: str = "",
+    date_counts_given: "list[list[str]] | None" = None,
+    forced_twelve_hours: "list[str] | None" = None,
+    centuries_given: "list[str] | None" = None,
+    date_columns_given: "list[str] | None" = None,
+    first_row_typed: bool = False,
+    chain_state: "_ChainState | None" = None,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -1487,10 +3559,101 @@ def _run_profile(
         taxonomy,
         writing,
     )
+    # WHAT THE PERSON TYPED, kept as typed, so the line that repeats the
+    # run can say which of these an answer replaced (`_how_to_repeat`).
+    typed_codes = list(forced_codes)
+    typed_identifiers = list(forced_identifiers)
+    typed_measurements = list(forced_measurements)
+    typed_commas = list(forced_decimal_commas)
+    typed_kept = list(kept_values)
+    typed_missing = list(missing_values)
 
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
+    # -- 3b.R4 (P4-D384): THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS
+    # (`--date-count COLUMN SYSTEM`, question Q3). Each system is one of
+    # the twelve, refused before the table is opened where it is not, and
+    # one column named with two systems is refused as two readings of it.
+    counted: "dict[str, str]" = {}
+    for typed_pair in date_counts_given or []:
+        if len(typed_pair) != 2:
+            continue
+        counted_name = f"{typed_pair[0]}"
+        counted_member = f"{typed_pair[1]}"
+        if counted_member not in date_counts.MEMBERS:
+            _warn(errors.date_count_system_not_supported(_shown(counted_member)))
+            return 2
+        if counted_name in counted and counted[counted_name] != counted_member:
+            _warn(errors.column_declared_twice(counted_name))
+            return 2
+        counted[counted_name] = counted_member
+    typed_counted = dict(counted)
+    # THE SEVENTH DECLARATION (landing T1, plan P4-D370): the columns
+    # named 12-hour clocks written without AM or PM.
+    twelve_hours = sorted(
+        {one: 1 for one in (forced_twelve_hours or [])}
+    )
+    # -- 3b.R2c (P4-D383): THE COLUMNS SAID TO HOLD DATES (question Q6).
+    date_columns = sorted({one: 1 for one in (date_columns_given or [])})
+    # THE CENTURIES OF TWO-FIGURE YEARS (landing R2a, question Q5): each
+    # `--century COLUMN=YEAR`, refused before the table is opened where it
+    # is not that, and the window that stands where nothing was said
+    # (1969) taken as no declaration at all.
+    centuries: "dict[str, int]" = {}
+    # ...AND THE STANDING WINDOW TYPED all the same (plan P4-D408, third
+    # round; Codex's review of lane AQ, item 3): it declares nothing, but
+    # it is a statement about the column -- it replaces a window an earlier
+    # run kept, and it is kept as the answer that names the standing
+    # window, as an answered question Q5 is. Dropped here before, a kept
+    # `--century event_date=1930` survived `--century event_date=1969`, and
+    # `01/02/40` read 1940 where the person had asked for 2040. A window
+    # nobody typed is still not stored.
+    centuries_reset: "list[str]" = []
+    for typed_century in centuries_given or []:
+        found_century = _century_given(typed_century)
+        if found_century is None:
+            _warn(errors.century_not_supported(_shown(typed_century)))
+            return 2
+        if found_century[1] in parsing.CENTURY_WINDOW_YEARS:
+            centuries[found_century[0]] = found_century[1]
+            centuries_reset = [
+                one for one in centuries_reset if one != found_century[0]
+            ]
+        else:
+            if found_century[0] in centuries:
+                del centuries[found_century[0]]
+            if found_century[0] not in centuries_reset:
+                centuries_reset += [found_century[0]]
+
+    # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan P4-D81).
+    # Refused here, before the table is opened, like every other
+    # declaration that cannot be acted on.
+    metadata_rows = 0
+    # WHETHER THE PERSON CONFIRMED IT AFTER BEING TOLD WHAT IT COSTS
+    # (review of landing 2b.17, MAJOR). A declaration typed on the
+    # command line is read, and where the file does not bear it out the
+    # rows STAY in the table and the question is put in the questions
+    # file. An answer in that file is the confirmation: it is given
+    # after reading what each answer publishes, so it cannot be a
+    # typing slip, and it is the one route by which such rows leave the
+    # table on a file wearing none of the shape.
+    metadata_rows_confirmed = False
+    if metadata_rows_given:
+        if metadata_rows_given not in ("0", "2"):
+            _warn(errors.metadata_rows_not_supported(_shown(metadata_rows_given)))
+            return 2
+        metadata_rows = int(metadata_rows_given)
+
+    # WHICH CHARACTER SEPARATES THE COLUMNS, WHERE THE PERSON SAID (plan
+    # P4-D110, review item CODEX-4). Refused before the table is opened
+    # where it is not one of the four this format reads.
+    declared_delimiter = ""
+    if delimiter_given:
+        if delimiter_given not in _DELIMITER_SPELLINGS:
+            _warn(errors.delimiter_not_supported(_shown(delimiter_given)))
+            return 2
+        declared_delimiter = _DELIMITER_SPELLINGS[delimiter_given]
 
     # THE ANSWERS ARE READ BEFORE THE TABLE IS OPENED (amendment
     # A-P4-58). A file that is not a questions file, or that answers a
@@ -1507,19 +3670,222 @@ def _run_profile(
     # that pair by a route that never re-checked is exactly the defect
     # review item P4-G3-R4-F3 found on the interview path.
     answers_were_handed_back = False
+    # What the questions file answered about dates (plan P4-D381): the
+    # order of day and month, and the columns whose few repeated codes
+    # were answered `missing` or `real-value`.
+    answered_day_first = False
+    answered_month_first = False
+    answered_missing_dates: "list[str]" = []
+    answered_real_values: "list[str]" = []
+    # ...and what each of those questions said it saw, by column, which
+    # tells the run which codes the answer was about.
+    answered_code_shapes: "dict[str, str]" = {}
+    # ...and the columns whose centuries the file answered (landing R2a).
+    answered_centuries: "list[str]" = []
+    # ...and the columns whose Q6 the file answered `keep` (landing R2c):
+    # nothing is declared, and Q6 is not put to them again.
+    dates_kept: "list[str]" = []
+    # ...and the columns whose question offering `identifier` the file
+    # answered `keep` (plan P4-D401): nothing is declared, and their
+    # values are published as their reading publishes them.
+    identities_kept: "tuple[str, ...]" = ()
+    # ...and the answers an earlier run kept that still stand, each set
+    # against the section this run writes, and the answers the file gave
+    # about the rows under the column names and the windows that stand
+    # (plan P4-D408).
+    carried_answers: "tuple[tuple[str, str, str], ...]" = ()
+    identities_kept_answered: "tuple[str, ...]" = ()
+    # ...and the column names the file's answers use, with the columns
+    # those answers name, set against the names this run reads (plan
+    # P4-D408).
+    answered_under: "tuple[str, ...] | None" = None
+    names_by_answer: "list[str]" = []
+    metadata_answer = ""
+    centuries_kept: "list[str]" = []
     if answers_path is not None:
         try:
+            handed_back = contract.load_answers(answers_path)
+            # ...and, behind the chain's switch alone, the pairs its entry
+            # asks to add or drop (lane CHa, repair 2, Codex's item 6).
+            if chain_state is not None:
+                (
+                    chain_state.add,
+                    chain_state.drop,
+                    chain_state.unread,
+                ) = asking.between_columns_requests(handed_back)
+            # HOW THE RUN THAT WROTE THE FILE READ THE TABLE, before
+            # anything typed now takes a kept answer out (plan P4-D408).
+            kept_reading = asking.kept_reading(handed_back)
+            # ...and the column names its answers use (plan P4-D408).
+            answered_under = asking.columns_answered_under(handed_back)
             written = asking.answers_in(
-                contract.load_answers(answers_path), _shown(answers_path)
+                # LESS THE KEPT ANSWERS THIS COMMAND LINE REPLACES: a
+                # declaration typed now is later than any answer an
+                # earlier run kept (plan P4-D408).
+                asking.typed_over_kept(
+                    handed_back,
+                    _typed_answers(
+                        typed_codes, typed_identifiers, typed_measurements,
+                        typed_commas, twelve_hours, typed_counted, centuries,
+                        date_columns, day_first, declared_delimiter,
+                        first_row, centuries_reset, first_row_typed,
+                    ),
+                ),
+                _shown(answers_path),
             )
         except ValueError as error:
             _warn(_shown(f"{error}"))
             return 2
-        spoken_for = (
+        # THE FIFTH ANSWER IS READ BEFORE THE TABLE IS OPENED, which is
+        # what makes it usable at all (plan P4-D81): it changes the
+        # READING of the file, so an answer arriving after the read
+        # would mean reading the table twice. A person answers the
+        # question in the file their last run wrote, and their next run
+        # reads their table the way they said.
+        # AN ANSWER OF `data` IS AN ANSWER (plan P4-D172). It is nought
+        # rows, and a truthiness test here read nought as "not answered"
+        # and kept a typed `--metadata-rows 2`: measured, a file whose
+        # two rows under the names were a person's record and a marker
+        # row lost both to `header_rows` after the person had answered
+        # that they were records.
+        if written.metadata_rows_answered:
+            metadata_rows = written.metadata_rows
+            metadata_rows_confirmed = written.metadata_rows > 0
+        # AN ANSWER THAT CHANGES THE READING MAY NOT STAND BESIDE ONE
+        # THAT NAMES A COLUMN (review of stage 3, floor item 1). The
+        # names in a questions file are the names of the reading that
+        # WROTE it; an answer that changes the reading gives the same
+        # names to different columns, and a declaration applied by name
+        # afterwards lands on the wrong one. Measured on the tree before
+        # this refusal: a header of `column_2,column_1` over 360 records
+        # whose first field held twelve repeating subject codes, with
+        # `names` answered for the first row and `identifier` answered
+        # for `column_1` -- the FIRST field under the reading in force
+        # -- reached all three writers with the declaration on the
+        # SECOND field, counted 350 people and published the twelve real
+        # subject codes with their visit counts. Declaring the first
+        # field refuses the same table as twelve people.
+        #
+        # THE ANSWERS ARE NOT RANKED AND NOTHING IS GUESSED. Whether
+        # `column_1` means the first field or a column the corrected
+        # reading names `column_1` is exactly what cannot be told apart
+        # -- the reproduction above is a file where both readings hold
+        # -- so the pair is refused and the person is told to answer the
+        # file's own question first. Two runs, each with one reading in
+        # it, and no name means two columns.
+        reading_changed = _answers_that_change_the_reading(
+            written, first_row, declared_delimiter, kept_reading
+        )
+        # ...AND A READING OTHER THAN THE ONE THE FILE WAS WRITTEN UNDER
+        # (plan P4-D408): a kept answer about how the file is read,
+        # edited in the file or replaced by a typed option.
+        # `--first-row auto` typed over a kept answer about the first row
+        # (Codex's review of lane AQ, item 3) reads the table as a run
+        # given no answer reads it; where the file lists the names its
+        # answers use, whether that moved a name is told after the read,
+        # by those names (`_answered_under_other_names`).
+        kept_changed = _kept_reading_changed(
+            written, first_row, declared_delimiter, kept_reading,
+            automatic=(
+                first_row_typed
+                and first_row == _FIRST_ROW_AUTOMATIC
+                and answered_under is not None
+            ),
+        )
+        named_columns: "list[str]" = []
+        for one in (
+            list(written.codes)
+            + list(written.identifiers)
+            + list(written.measurements)
+            + list(written.decimal_commas)
+            # -- 3b.R4 (P4-D384): and the columns answered with a system.
+            + [one for one, _member in written.date_counts]
+            + list(written.twelve_hours)
+            # ...and the columns whose centuries were answered (landing R2a).
+            + [one_century for one_century, _year in written.century_windows]
+            + list(written.centuries_kept)
+            # ...and the columns whose codes were answered (plan P4-D381):
+            # each is found again by its name in the table, so a changed
+            # reading would find them in a different column.
+            + list(written.missing_date_columns)
+            + list(written.real_value_columns)
+            # ...and the columns answered `dates` (landing R2c), or `keep`.
+            + list(written.date_columns)
+            + list(written.date_columns_kept)
+            # ...and every column an earlier run's answer kept (plan
+            # P4-D408): its name is the name under the reading that run
+            # took, which an answer changing the reading moves.
+            + [
+                one_name
+                for one_name, _answer, family in written.carried
+                if family not in asking.FILE_FAMILIES
+            ]
+        ):
+            # Each name once: a column answered in both sections of the
+            # file would otherwise stand twice in one sentence.
+            if one not in named_columns:
+                named_columns += [one]
+        if kept_changed and named_columns:
+            _warn(
+                _kept_reading_not_kept(
+                    _shown(answers_path), kept_changed,
+                    [_shown(one) for one in sorted(named_columns)],
+                )
+            )
+            return 2
+        reading_changed += [
+            one for one in kept_changed if one not in reading_changed
+        ]
+        if reading_changed and named_columns:
+            _warn(
+                errors.answers_change_the_reading_and_name_columns(
+                    _shown(answers_path), reading_changed,
+                    sorted(named_columns),
+                )
+            )
+            return 2
+        # ...AND THE SIXTH, FOR THE SAME REASON (plan P4-D110): which
+        # delimiter the file is written with decides how it is read, so
+        # the answer has to arrive before the read. It is the newer
+        # statement and replaces a typed one.
+        if written.delimiter:
+            declared_delimiter = written.delimiter
+        # ...AND THE SEVENTH, FOR THE SAME REASON (the owner's ruling of
+        # 2026-09-17, item 8; plan P4-D232): which row holds the column
+        # names decides how the file is read, so the answer has to
+        # arrive before the read.
+        #
+        # BOTH ANSWERS ARE APPLIED, and only one of them was until the
+        # review of stage 3 (floor item 2). `first-record` was called
+        # "the reading that already stands", which it is only while
+        # nothing else moves: answered BESIDE a delimiter correction it
+        # is the one answer holding the first row in the table, and
+        # dropping it let the corrected reading take that row as the
+        # column names. Measured: a first record of `12,HEADER|LABEL`
+        # over 360 records of `i,code{i}|other{i}`, answered
+        # `first-record` and `vertical-bar`, described 360 records and
+        # published `12,HEADER` and `LABEL` as two column names, where
+        # `--first-row data --delimiter '|'` keeps all 361 records and
+        # names the columns `column_1` and `column_2`. An answer that is
+        # dropped is an answer a person was told had been heard.
+        if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
+            first_row = _FIRST_ROW_NAMES
+        elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
+            first_row = _FIRST_ROW_DATA
+        # A COMMA KEPT ON ITS OWN SAYS ONLY HOW THE NUMBERS ARE WRITTEN
+        # (plan P4-D408, third round), so a typed declaration of what the
+        # column holds stands beside it; an answer to the question of a
+        # point between thousands decides both, and replaces it as before.
+        held_by_answer = (
             list(written.codes)
             + list(written.identifiers)
             + list(written.measurements)
         )
+        spoken_for = held_by_answer + [
+            one
+            for one in written.decimal_commas
+            if one not in written.decimal_commas_alone
+        ]
         forced_codes = sorted(
             [one for one in forced_codes if one not in spoken_for]
             + list(written.codes)
@@ -1532,7 +3898,118 @@ def _run_profile(
             [one for one in forced_measurements if one not in spoken_for]
             + list(written.measurements)
         )
-        answers_were_handed_back = bool(spoken_for)
+        # AN ANSWER THAT THE POINT GROUPS THOUSANDS IS `--decimal-comma`
+        # (landing 2b.2), added to the typed ones rather than replacing
+        # them: the declaration names a column, and naming it twice is
+        # naming it once.
+        forced_decimal_commas = sorted(
+            [one for one in forced_decimal_commas if one not in written.decimal_commas]
+            + list(written.decimal_commas)
+        )
+        # ...AND THE 12-HOUR CLOCKS (landing T1): a column answered
+        # `twelve-hour` joins the typed ones.
+        twelve_hours = sorted(
+            {one: 1 for one in twelve_hours + list(written.twelve_hours)}
+        )
+        # ...AND THE CENTURIES OF TWO-FIGURE YEARS (landing R2a, question
+        # Q5): an answer is the newer statement and replaces a typed
+        # `--century` for its column; the window that stands declares
+        # nothing, and is carried so the question is not put again.
+        for one_century, first_year in written.century_windows:
+            centuries[one_century] = first_year
+        for one_century in written.centuries_kept:
+            if one_century in centuries:
+                del centuries[one_century]
+        answered_centuries = [
+            one_century for one_century, _year in written.century_windows
+        ] + list(written.centuries_kept)
+        # ...AND THE COLUMNS SAID TO HOLD DATES (landing R2c, question Q6):
+        # an answer of `dates` joins the typed `--date-column`.
+        date_columns = sorted(
+            {one: 1 for one in date_columns + list(written.date_columns)}
+        )
+        # ...and those answered `keep`, carried so Q6 is not put again.
+        dates_kept = list(written.date_columns_kept)
+        # ...and the columns answered `keep` to a question offering
+        # `identifier` (plan P4-D401). Under an answer that changes the
+        # reading a name may land on another column, so there such a
+        # `keep` holds nothing back from the hold below: the column is
+        # asked again under the reading in force.
+        if not reading_changed:
+            identities_kept = written.identities_kept
+            identities_kept_answered = written.identities_kept_answered
+            names_by_answer += named_columns
+            names_by_answer += list(identities_kept_answered)
+        carried_answers = written.carried
+        if written.metadata_rows_answered:
+            metadata_answer = (
+                asking.ANSWER_METADATA_ROWS
+                if written.metadata_rows
+                else asking.ANSWER_DATA
+            )
+        centuries_kept = list(written.centuries_kept)
+        # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
+        # `day-first` is `--day-first`, and it is applied before the read
+        # because it decides how the columns of dates are read. It goes
+        # on the repeat line only where it was not typed (landing T1,
+        # repair item 4): a typed `--day-first` is on the line the person
+        # typed already.
+        if written.day_first:
+            if not day_first:
+                answered_day_first = True
+            day_first = True
+        # An answer of `month-first` declares nothing -- it is the
+        # reading that stands -- and is carried so the question is not
+        # put back to the person in the file this run writes again.
+        answered_month_first = written.month_first
+        # -- 3b.R4 (P4-D384): AND THE COLUMNS ANSWERED WITH A COUNTING
+        # SYSTEM (question Q3), each the newer statement: it replaces a
+        # typed `--date-count` for its column and a typed `--code`,
+        # `--identifier` or `--measurement` for it, and a column answered
+        # one of those three is no longer read as counted dates.
+        for counted_name, counted_member in written.date_counts:
+            counted[counted_name] = counted_member
+        # ...and a comma before the decimals is no such answer: it says
+        # how numbers are written and stands beside counted dates (plan
+        # P4-D408, third round; Codex's review of lane AQ, item 2). Typed
+        # with `--date-count visit excel-1900` and handed back unchanged,
+        # the kept comma deleted the dates here and the run refused.
+        for counted_name in held_by_answer:
+            if counted_name in counted:
+                del counted[counted_name]
+        forced_codes = [one for one in forced_codes if one not in counted]
+        forced_identifiers = [
+            one for one in forced_identifiers if one not in counted
+        ]
+        forced_measurements = [
+            one for one in forced_measurements if one not in counted
+        ]
+        # ...AND THE CODES OF A COLUMN OF DATES OR TIMES (plan P4-D381).
+        # These name columns, and what each answer declares is found in
+        # the table once it is open, below.
+        answered_missing_dates = list(written.missing_date_columns)
+        answered_real_values = list(written.real_value_columns)
+        for one, saw in written.date_code_shapes:
+            answered_code_shapes[one] = saw
+        answers_were_handed_back = (
+            bool(spoken_for)
+            or bool(written.twelve_hours)
+            or bool(written.date_counts)
+            or written.day_first
+            or bool(answered_missing_dates)
+            or bool(answered_real_values)
+            or bool(written.century_windows)
+            or bool(written.date_columns)
+        )
+    # THE STANDING WINDOW TYPED IS KEPT AS AN ANSWER NAMING IT (plan
+    # P4-D408, third round): it declares nothing, and question Q5 is not
+    # put again for its column, as for the answer `1969-2068`. A window
+    # the questions file answered for the column is the newer statement.
+    for one_century in centuries_reset:
+        if one_century in centuries or one_century in answered_centuries:
+            continue
+        centuries_kept += [one_century]
+        answered_centuries += [one_century]
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
     # values that reach the whole table, so a pair that is one number
@@ -1577,8 +4054,95 @@ def _run_profile(
         kept_values=tuple(kept_values),
         declared_missing_values=tuple(missing_values),
         day_first=day_first,
+        forced_twelve_hour_clocks=tuple(twelve_hours),
+        # The second cut's three declarations (plan P4-D386): the landing
+        # that fills each passes it here, below its own line.
+        # -- 3b.R2a (P4-D383)
+        century_windows=tuple(
+            (one_century, centuries[one_century])
+            for one_century in sorted(centuries)
+        ),
+        # -- 3b.R2c (P4-D383)
+        forced_date_columns=tuple(date_columns),
+        # -- 3b.R4 (P4-D384)
+        forced_date_counts=_counted_settings(counted),
     )
-    read = reading.read_table(table, first_row)
+    read = reading.read_table(
+        table, first_row, sheet=sheet, metadata_rows=metadata_rows,
+        # ...and whether the person confirmed a declaration the file
+        # does not bear out, which is what decides whether those rows
+        # leave the table at all (review of landing 2b.17, MAJOR).
+        metadata_rows_confirmed=metadata_rows_confirmed,
+        # AND UNDER THE DECLARED GRAMMAR (review item CODEX-9). The
+        # survey reads the row order off the cells as written, and a
+        # column declared to write `0,5` and `10,0` reads as no number
+        # at all under the ordinary grammar -- so it fell to the text
+        # collation, where `10,0` sorts before `9,9`, and a table
+        # genuinely sorted by it published no order. The declaration
+        # has to reach the survey for the order to be read correctly.
+        decimal_comma_columns=tuple(forced_decimal_commas),
+        # AND WITH THE DELIMITER THE PERSON DECLARED, where they did
+        # (plan P4-D110). Nothing is guessed about a declared one.
+        declared_delimiter=declared_delimiter,
+        # AND WITH THE SMALLEST GROUP, which both readers want. On a
+        # workbook it decides whether a column's second number format is
+        # a population of it or the one cell somebody reformatted (plan
+        # P4-D283); on a delimited file the written form carries counts
+        # and positions of its own lines, and those are held to the one
+        # disclosure rule like every other count synthtwin publishes
+        # (plan P4-D290). One number, so it is passed once.
+        small_cell_floor=settings.small_cell_floor,
+        # AND THE WORDS THAT MEAN NO VALUE (the repair of review item 3
+        # of landing R3): a workbook's clock times beside `NA`, or beside
+        # a word named with `--missing-value`, are read as clocks. The
+        # codes a questions file answered `missing` are found in the
+        # table this read opens, below, and reach the description but
+        # not this reading: a refusal of clocks beside such a code names
+        # `--missing-value`, which reaches both.
+        missing_under=settings,
+        # ONE GROUP OF COLUMNS AT A TIME where the table is large (lane
+        # SR, plan P4-D400): its text is never held whole, and every
+        # step below asks its columns of `reading.column_values`.
+        in_groups=True,
+    )
+
+    # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
+    # LOUD (review item CODEX-4, plan P4-D110). It is read the way the
+    # cells favour, which is how every file this tool twinned before is
+    # still read, and the person is told the other reading exists and
+    # how to choose it: a silent misreading of their columns is the one
+    # outcome this may not leave them with.
+    delimiter_tie: "tuple[str, ...]" = ()
+    if read.survey is not None and not declared_delimiter:
+        delimiter_tie = read.survey.delimiter_tie
+    if delimiter_tie:
+        _say(f"\n{_delimiter_tie_notice(delimiter_tie)}\n")
+
+    # AND THE PERSON IS TOLD WHAT WAS SEEN AND NOT ACTED ON (plan
+    # P4-D81). The shape some survey exports wear is recognised and
+    # deliberately left alone: saying nothing would leave a person
+    # whose file really is such an export with two rows of machine
+    # text among their records and no idea why.
+    surveyed = read.survey
+    if surveyed is not None and surveyed.metadata_shape and not metadata_rows:
+        _say(f"\n{_metadata_rows_notice()}\n")
+
+    # ...AND A DECLARATION THE FILE DOES NOT BEAR OUT IS QUESTIONED THE
+    # OTHER WAY ROUND. The notice above exists because acting on a
+    # resemblance published a person's record as schema; the
+    # declaration itself is checked against nothing at all, so
+    # `--metadata-rows 2` on an ordinary table takes two records out of
+    # it and publishes them verbatim, exempt from the smallest group,
+    # with nothing said. The reading still obeys the person -- it is
+    # their file and their declaration -- and they are told what was
+    # seen.
+    metadata_declaration_unseen = (
+        bool(metadata_rows)
+        and (surveyed is None or not surveyed.metadata_shape)
+        and not metadata_rows_confirmed
+    )
+    if metadata_declaration_unseen:
+        _say(f"\n{_metadata_rows_unseen_notice(metadata_rows)}\n")
 
     # An option naming a column that is not there is refused here, with
     # nothing built and nothing written. Warning about it afterwards --
@@ -1627,6 +4191,42 @@ def _run_profile(
         )
         return 2
 
+    unknown_twelve = [
+        name for name in twelve_hours if name not in read.column_names
+    ]
+    if unknown_twelve:
+        _warn(
+            errors.unknown_column_named(
+                "as a 12-hour clock", unknown_twelve[0], read.column_names
+            )
+        )
+        return 2
+    # -- 3b.R2a (P4-D383)
+    unknown_centuries = [
+        name for name in sorted(centuries) if name not in read.column_names
+    ]
+    if unknown_centuries:
+        _warn(
+            errors.unknown_column_named(
+                "writing two-figure years in a century of its own",
+                unknown_centuries[0],
+                read.column_names,
+            )
+        )
+        return 2
+
+    # -- 3b.R2c (P4-D383)
+    unknown_dates = [
+        name for name in date_columns if name not in read.column_names
+    ]
+    if unknown_dates:
+        _warn(
+            errors.unknown_column_named(
+                "as a column of dates", unknown_dates[0], read.column_names
+            )
+        )
+        return 2
+
     unknown_commas = [
         name
         for name in forced_decimal_commas
@@ -1641,6 +4241,31 @@ def _run_profile(
             )
         )
         return 2
+    # -- 3b.R4 (P4-D384): A COLUMN WHOSE DATES ARE WRITTEN AS COUNTS is a
+    # column of this table, and is read one way, as those dates: named
+    # beside `--code`, `--identifier`, `--measurement` or `--twelve-hour`
+    # it is refused, as the description's own rule S8d refuses it.
+    unknown_counted = [
+        name for name in sorted(counted) if name not in read.column_names
+    ]
+    if unknown_counted:
+        _warn(
+            errors.unknown_column_named(
+                "writing its dates as counts",
+                unknown_counted[0],
+                read.column_names,
+            )
+        )
+        return 2
+    for name in sorted(counted):
+        if (
+            name in forced_codes
+            or name in forced_identifiers
+            or name in forced_measurements
+            or name in twelve_hours
+        ):
+            _warn(errors.column_declared_twice(name))
+            return 2
 
     # THE FOURTH DECLARATION IS NOT ONE OF THE THREE, and its refusals
     # are its own (plan P4-D26). It says how a column's numbers are
@@ -1669,16 +4294,227 @@ def _run_profile(
     # ranked: they ask for different readings and there is no reading of
     # the pair that is not a guess about which the person meant.
     both = [name for name in forced_codes if name in forced_identifiers]
-    both = both + [
+    both += [
         name for name in forced_measurements if name in forced_identifiers
     ]
-    both = both + [
+    both += [
         name for name in forced_measurements if name in forced_codes
     ]
     if both:
         _warn(errors.column_declared_twice(both[0]))
         return 2
 
+    # NO ANSWER AN EARLIER RUN KEPT IS DROPPED IN SILENCE (plan P4-D408).
+    # Each still standing must reach the file this run writes, where the
+    # next run reads it again; one naming a column this table does not
+    # hold, or one another answer here contradicts, is refused in plain
+    # words before anything is written -- an `identifier` answer lost
+    # between rounds is a person column read as numbers, and a held
+    # column's answer lost is the hold put back on it without a word.
+    # ...AND NO ANSWER MADE BY NAME UNDER OTHER NAMES (plan P4-D408): the
+    # file lists the names its answers use, and a run reading the table
+    # under other names -- a kept answer about how the file is read
+    # deleted, or another table -- would put each answer on a column the
+    # person was not looking at. Measured: the kept `names` deleted, 200
+    # of 200 real subject codes published.
+    if (
+        answered_under is not None
+        and names_by_answer
+        and tuple(read.column_names) != answered_under
+    ):
+        _warn(_answered_under_other_names(_shown(f"{answers_path}")))
+        return 2
+    if carried_answers:
+        not_kept = _earlier_answers_dropped(
+            carried_answers,
+            read.column_names,
+            _answers_given(
+                read.column_names, forced_codes, forced_identifiers,
+                forced_measurements, forced_decimal_commas, twelve_hours,
+                counted, centuries, centuries_kept, date_columns,
+                dates_kept, identities_kept_answered,
+                answered_missing_dates, answered_real_values,
+                answered_code_shapes, first_row, metadata_answer,
+                declared_delimiter, day_first, answered_month_first,
+            ),
+        )
+        if not_kept:
+            _warn(
+                _earlier_answers_not_kept(
+                    _shown(f"{answers_path}"), [_shown(one) for one in not_kept]
+                )
+            )
+            return 2
+    # THE CODES THE QUESTIONS FILE ANSWERED, FOUND AGAIN IN THE TABLE
+    # (plan P4-D381). The file names the column and never its codes --
+    # it carries no value of the table -- so the codes are read here,
+    # from the cells just opened, by the rule that asked about them, and
+    # become the declarations the answers stand for: `missing` is
+    # `--missing-value` naming each code, `real-value` is `--keep-value`
+    # naming each. Both reach every column, which is what those options
+    # do and what the answers said.
+    held_names = {one: 1 for one in read.column_names}
+    unknown_dates = [
+        name
+        for name in answered_missing_dates + answered_real_values
+        if name not in held_names
+    ]
+    if unknown_dates:
+        _warn(
+            errors.unknown_column_named(
+                "a column of dates or times beside a few repeated codes",
+                unknown_dates[0],
+                read.column_names,
+            )
+        )
+        return 2
+    added_missing: "list[str]" = []
+    added_kept: "list[str]" = []
+    kept_code_shapes: "dict[str, str]" = dict(answered_code_shapes)
+    # Each declaration once, by the identity it matches by: two columns
+    # both answered `missing` about `UNK` declare it once, and the line
+    # that repeats the run names it once. Once for EACH answer: `UNK`
+    # answered `missing` in one column and `real-value` in another is
+    # the contradiction refused below, and is not folded away here.
+    missing_as: "dict[tuple[str, object], int]" = {}
+    kept_as: "dict[tuple[str, object], int]" = {}
+    # Each column found by its name once (the Codex review of lane R1,
+    # item 9): a walk of the names per answer grew with their square.
+    column_place: "dict[str, int]" = {}
+    for named_at in range(len(read.column_names)):
+        if read.column_names[named_at] not in column_place:
+            column_place[read.column_names[named_at]] = named_at
+    # THE CODES THE QUESTION DESCRIBED, AND NO OTHERS (the Codex review
+    # of lane R1, item 5): found under the typed declarations where the
+    # question's own words describe what is found -- the run that wrote
+    # the file was typed the same way -- and otherwise with the typed
+    # words a code of the column would match taken out, so the answer, the
+    # newer statement (below), replaces a typed word it was about and
+    # leaves alone one it never counted (`asking.date_codes_answered`).
+    # Where neither reading is the one described, the typed words stand,
+    # and a typed word the answer contradicts is said to be left as typed.
+    for name, missing in (
+        [(one, True) for one in answered_missing_dates]
+        + [(one, False) for one in answered_real_values]
+    ):
+        column_at = column_place[name]
+        seen, left = asking.date_codes_answered(
+            reading.column_values(read, column_at),
+            settings,
+            answered_code_shapes[name] if name in answered_code_shapes else "",
+            missing,
+        )
+        if left:
+            _warn(
+                errors.the_date_codes_answer_left_typed_words(
+                    name,
+                    "--keep-value" if missing else "--missing-value",
+                    len(left),
+                )
+            )
+        if seen is None:
+            _warn(errors.the_date_codes_answer_reached_nothing(name))
+            continue
+        # ...and the file this run writes keeps the answer by the codes
+        # found here, which every round finds alike (plan P4-D408), and
+        # not by the words of the question it answered, which count the
+        # cells the reading of that round read.
+        kept_code_shapes[name] = asking.kept_codes_saw(seen)
+        for spelling, _rows in seen.codes:
+            identity = asking.declared_identity(spelling)
+            if missing:
+                if identity not in missing_as:
+                    missing_as[identity] = 1
+                    added_missing += [spelling]
+            elif identity not in kept_as:
+                kept_as[identity] = 1
+                added_kept += [spelling]
+    if added_missing or added_kept:
+        commas = bool(forced_decimal_commas)
+        for spelling, option in (
+            [(one, "--keep-value") for one in added_kept]
+            + [(one, "--missing-value") for one in added_missing]
+        ):
+            if commas and parsing.reads_as_two_numbers(spelling):
+                _warn(errors.a_declared_value_reads_two_ways(spelling, option))
+                return 2
+        # THE ANSWER IS THE NEWER STATEMENT, as it is for a column's
+        # role above: a typed value it contradicts gives way to it.
+        kept_values = [
+            one
+            for one in kept_values
+            if not taxonomy.contradictory_declarations(
+                (one,), tuple(added_missing), commas
+            )
+        ] + added_kept
+        missing_values = [
+            one
+            for one in missing_values
+            if not taxonomy.contradictory_declarations(
+                tuple(added_kept), (one,), commas
+            )
+        ] + added_missing
+        clashes = taxonomy.contradictory_declarations(
+            tuple(kept_values), tuple(missing_values), commas
+        )
+        if clashes:
+            _warn(
+                errors.answered_codes_contradict_each_other(
+                    _shown(answers_path or ""), _shown(clashes[0])
+                )
+            )
+            return 2
+        settings = dataclasses.replace(
+            settings,
+            kept_values=tuple(kept_values),
+            declared_missing_values=tuple(missing_values),
+        )
+
+    # THE POPULATION FLOOR, ASKED FIRST WITH WHAT IS DECLARED SO FAR
+    # (plan P4-D341): the columns typed after `--identifier` and the
+    # ones answered in the questions file, both of which were settled
+    # before the table was opened. A declaration that arrives later --
+    # on the screen, at the interview below -- can only LOWER the count
+    # of people, because a repeating identifier splits the rows into
+    # more groups than one, so this check is a necessary condition and
+    # the one after the rebuild is the final one.
+    #
+    # NOTHING HAS BEEN WRITTEN AT THIS POINT and nothing has been
+    # described. A table under the floor therefore costs the person one
+    # message and no files at all.
+    # HOW A WORKBOOK STORES EACH COLUMN, taken once and handed to the
+    # census and the description alike (plan P4-D382), so the column
+    # the census reads is read once.
+    storage = profile.stored_as_of(read, settings)
+    person_columns, population, unit, census_readings = _population_of(
+        read,
+        settings,
+        forced_identifiers,
+        forced_codes,
+        forced_measurements,
+        forced_decimal_commas,
+        storage,
+    )
+    if population < parsing.POPULATION_FLOOR:
+        _warn(
+            errors.the_population_is_too_small(
+                population, unit, _joined(list(person_columns), " and ")
+            )
+        )
+        return 1
+    settings = dataclasses.replace(settings, person_columns=person_columns)
+    population_notes = profile.notes_for_a_small_population(
+        population, unit, parsing.POPULATION_NOTICE_LINE
+    )
+
+    # A reading of a table read in groups is not handed over (lane SR,
+    # plan P4-D400): the description is handed its columns again, read
+    # again, and the reading would only be held beside them.
+    census_box = [census_readings if read.source is None else ()]
+    census_readings = ()
+    # The columns whose values the count in people changed (plan
+    # P4-D406), named on the screen.
+    counted_in_people: "list[str]" = []
     document = profile.build_document(
         read,
         settings,
@@ -1686,7 +4522,25 @@ def _run_profile(
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
+        forced_metadata_rows=metadata_rows,
+        forced_delimiter=declared_delimiter,
+        table_notes=population_notes,
+        # HANDED OVER IN A BOX (lane S4d, plan P4-D390): the description
+        # takes the readings out of the box in its own frame, so it
+        # holds each column's census reading alone and lets it go once
+        # that column is described, rather than this frame keeping every
+        # one alive until the whole table is. The box itself is the
+        # argument (lane CF4b): an argument is held by the caller until
+        # the call returns on CPython 3.10, so the readings handed over
+        # as one lived through the whole description there.
+        readings_box=census_box,
+        stored_as=storage,
+        # -- P4-D406: every value counted in the declared people too.
+        subjects=list(person_columns),
+        counted_in_subjects=counted_in_people,
     )
+    # Handed over once: the description has taken the reading as its own.
+    census_readings = ()
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
     # after the description is built, because what a column was READ AS
@@ -1716,6 +4570,92 @@ def _run_profile(
                     name, f"{described_column['role']}"
                 )
             )
+    # -- 3b.R4 (P4-D384): ...AND A COLUMN DECLARED TO WRITE ITS DATES AS
+    # COUNTS WHOSE CELLS DID NOT READ AS SUCH DATES, said here as the
+    # description says it: held, on every table (plan P4-D406, NF127),
+    # chosen by its evidence and never by its role, which the count in
+    # people (NF126) sets to `identifier` for a column read as dates.
+    for name in sorted(counted):
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if not _held_as_counted_dates(described_column):
+                continue
+            _warn(
+                errors.the_date_count_declaration_did_not_reach(
+                    name, counted[name]
+                )
+            )
+    # ...AND THE 12-HOUR DECLARATION, WHICH REACHES ONLY AN UNMARKED CLOCK
+    # (landing T1, plan P4-D370), said where it reached nothing.
+    for name in twelve_hours:
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if _read_on_twelve_hours(described_column):
+                continue
+            # A WORD TOO RARE TO NAME IS NOT A DECLARATION THAT REACHED
+            # NOTHING (the T1 review's item 9) -- unless the clocks write
+            # AM or PM, which the declaration does not change.
+            column_at = 0
+            for held in read.column_names:
+                if held == name:
+                    break
+                column_at = column_at + 1
+            if _style_held_back(described_column) and _clocks_on_the_declared_face(
+                reading.column_values(read, column_at)
+            ):
+                _warn(errors.the_twelve_hour_style_was_held_back(name))
+                continue
+            # A LAYOUT COLUMN READ IN PART is a time of day without a
+            # marker the partial reader takes on the 24-hour clock alone
+            # (the Codex review of landing I3a, item 2), said so.
+            if asking.layout_read_in_part(described_column) and parsing.layout_asks_twelve_hours(
+                f"{described_column['format']}"
+            ):
+                _warn(errors.the_twelve_hour_declaration_did_not_reach_in_part(name))
+                continue
+            _warn(
+                errors.the_twelve_hour_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
+
+    # ...AND THE CENTURY, WHICH REACHES ONLY A COLUMN OF DATES WITH A
+    # TWO-FIGURE YEAR (landing R2a, question Q5), said where it reached
+    # nothing.
+    for name in sorted(centuries):
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if (
+                described_column["role"] == "datetime"
+                and "format" in described_column
+                and parsing.layout_two_figure_year(
+                    f"{described_column['format']}"
+                )
+                == centuries[name]
+            ):
+                continue
+            _warn(
+                errors.the_century_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
+
+    # -- 3b.R2c (P4-D383): ...AND THE DATES DECLARATION, WHICH REACHES A
+    # COLUMN HALF OF WHOSE VALUES READ AS DATES, said where it reached none.
+    for name in date_columns:
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if described_column["role"] == "datetime":
+                continue
+            _warn(
+                errors.the_dates_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
 
     # A COLUMN DECLARED A MEASUREMENT HAS BEEN ANSWERED TOO, and this
     # list left it out until amendment A-P4-60. It cost nothing while
@@ -1729,32 +4669,117 @@ def _run_profile(
     # the question.
     already_answered = (
         forced_identifiers + forced_codes + forced_measurements
+        # -- 3b.R4 (P4-D384): a column declared to write its dates as
+        # counts has answered question Q3.
+        + sorted(counted)
     )
-    asked_about = asking.questions_for(
-        document, read.columns, settings, already_answered
-    )
+    # ...AND THE COLUMNS OF DATES OR TIMES THAT WRITE A FEW REPEATED
+    # CODES (plan P4-D381), which are asked that and nothing else: the
+    # joined question `00/00/0000` raises would offer a blood pressure
+    # reading of a column of dates. They are put in the questions file
+    # and said on the screen below rather than at the keyboard, where
+    # each answer changes one column's reading: these declare spellings
+    # every column reads, which the file's answers apply before the
+    # table is described.
+    #
+    # WORKED OUT ONCE A RUN where nothing it reads changes (review of
+    # lane R1, item 7): the screen and the questions file below reuse
+    # this pass unless the interview rebuilt the description or moved
+    # the settings or the declarations.
+    # A column whose codes were answered `real-value` is asked no
+    # question of what kind its values are either: the answer kept its
+    # codes, and the joined question is no more the column's for that.
+    # Its checklist line as a measurement stands (`checklist_for`).
+    # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
+    # Asked only where the population is STILL COUNTED IN ROWS -- where
+    # `settings.person_columns` is empty, which is exactly where nobody
+    # has settled who the rows are about -- of a column whose values
+    # repeat and are many or are written as codes: the shape a table
+    # with several rows per subject wears. Until it existed, such a
+    # table was counted in rows with nothing said and every subject's
+    # identifier published beside its visit count; and until the review
+    # of stage 3 (floor item 4) a declared identifier DIFFERENT ON
+    # EVERY ROW silenced it while leaving the count in rows, which is
+    # the same silence by a shorter route.
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
     # (owner ruling 2026-09-10, amendment A-P4-58). The questions
     # above are the columns whose VALUES raised a question; these
     # are the ones no rule can reach, because a register of concept
     # identifiers and a column of ages are written identically. A
     # person reads one list and names the codes.
-    listed_about = asking.checklist_for(
+    # ALL OF THEM IN ONE WALK OF THE TABLE (lane SR, plan P4-D400): a
+    # table read in groups of columns is asked them a group at a time.
+    first_questions = profile.questions_of(
+        read,
         document,
-        read.columns,
         settings,
         already_answered,
-        asked_about,
+        tuple(forced_decimal_commas),
+        storage,
+        None,
+        None,
+        asking.DateColumnsSeen(),
+        False,
+        (),
+        False,
     )
+    asked_about = first_questions.asked
+    split_columns = first_questions.split
+    codes_seen = first_questions.codes_seen
+    seen_of = (
+        document,
+        settings,
+        list(already_answered),
+        list(forced_decimal_commas),
+    )
+    coded_about = list(codes_seen.questions)
+    listed_about = first_questions.listed
     answered = False
+    assumptions_said = False
     if asked_about:
         if _there_is_somebody_to_ask():
             given = _put_the_questions(asked_about)
             if given is None:
                 _warn(errors.the_questions_were_not_finished())
                 return 1
-            new_codes, new_identifiers, new_measured = given
-            if new_codes or new_identifiers or new_measured:
+            (
+                new_codes, new_identifiers, new_measured, new_commas,
+                new_twelve, new_counted,
+            ) = given
+            # -- 3b.R4 (P4-D384): a column answered with a counting system
+            # is read as those dates from here, and is no measurement.
+            if new_counted:
+                for counted_name, counted_member in new_counted:
+                    counted[counted_name] = counted_member
+                forced_measurements = [
+                    named for named in forced_measurements if named not in counted
+                ]
+                settings = dataclasses.replace(
+                    settings, forced_date_counts=_counted_settings(counted)
+                )
+            if new_twelve:
+                twelve_hours = sorted(
+                    {one: 1 for one in twelve_hours + new_twelve}
+                )
+                settings = dataclasses.replace(
+                    settings, forced_twelve_hour_clocks=tuple(twelve_hours)
+                )
+            if (
+                new_codes
+                or new_identifiers
+                or new_measured
+                or new_commas
+                or new_twelve
+                or new_counted
+            ):
+                forced_decimal_commas = sorted(
+                    [
+                        named
+                        for named in forced_decimal_commas
+                        if named not in new_commas
+                    ]
+                    + new_commas
+                )
                 forced_codes = sorted(forced_codes + new_codes)
                 forced_identifiers = sorted(
                     forced_identifiers + new_identifiers
@@ -1800,14 +4825,54 @@ def _run_profile(
                 kept_commas: "list[str]" = []
                 for named in forced_decimal_commas:
                     if named in forced_codes or named in forced_identifiers:
-                        dropped = dropped + [named]
+                        dropped += [named]
                         continue
-                    kept_commas = kept_commas + [named]
+                    kept_commas += [named]
                 forced_decimal_commas = kept_commas
                 for named in dropped:
                     _warn(
                         errors.the_comma_declaration_was_answered_away(named)
                     )
+                # THE POPULATION FLOOR AGAIN, WITH THE FINAL SET (plan
+                # P4-D341), and this time it is final: the person has
+                # just said on the screen which columns hold record
+                # numbers, so a table counted in rows a moment ago may
+                # be counted in people now and may be too small. It is
+                # asked HERE, before anything is announced and before
+                # anything is written, so a refusal still costs one
+                # message and no files.
+                # READ AFRESH under the final declarations, and handed
+                # over again: the first census's readings were the
+                # first description's.
+                person_columns, population, unit, census_readings = (
+                    _population_of(
+                        read,
+                        settings,
+                        forced_identifiers,
+                        forced_codes,
+                        forced_measurements,
+                        forced_decimal_commas,
+                        storage,
+                    )
+                )
+                if population < parsing.POPULATION_FLOOR:
+                    _warn(
+                        errors.the_population_is_too_small(
+                            population,
+                            unit,
+                            _joined(list(person_columns), " and "),
+                        )
+                    )
+                    return 1
+                settings = dataclasses.replace(
+                    settings, person_columns=person_columns
+                )
+                population_notes = profile.notes_for_a_small_population(
+                    population, unit, parsing.POPULATION_NOTICE_LINE
+                )
+                census_box = [census_readings if read.source is None else ()]
+                census_readings = ()
+                counted_in_people = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -1815,7 +4880,15 @@ def _run_profile(
                     forced_codes,
                     forced_measurements,
                     forced_decimal_commas,
+                    forced_metadata_rows=metadata_rows,
+                    forced_delimiter=declared_delimiter,
+                    table_notes=population_notes,
+                    readings_box=census_box,
+                    stored_as=storage,
+                    subjects=list(person_columns),
+                    counted_in_subjects=counted_in_people,
                 )
+                census_readings = ()
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
                 for name in sorted(forced_decimal_commas):
@@ -1832,6 +4905,11 @@ def _run_profile(
             answered = True
         else:
             _say(f"\n{_assumptions_notice(asked_about)}\n")
+            # THAT NOTICE ALREADY SAYS THE POPULATION WAS COUNTED IN
+            # ROWS, in its own block, so the sentence below is not said
+            # a second time (plan P4-D340). One fact, one place, on the
+            # screen as well as on a page.
+            assumptions_said = True
     # THE CHECKLIST IS SHOWN ONCE PER RUN, WHOEVER IS THERE (review
     # round 1 of landing L17a, item 1). It hung off the scripted notice
     # above, which fires only where a column's VALUES raised a question
@@ -1842,6 +4920,216 @@ def _run_profile(
     # that should depend on another column raising a question.
     if listed_about:
         _say(f"\n{_checklist_notice(listed_about)}\n")
+    # ...AND THE TWO QUESTIONS ABOUT DATES, ONCE PER RUN AND WHOEVER IS
+    # THERE (plan P4-D381), for the checklist's reason: each is put in
+    # the questions file, and a run whose only finding is one of them
+    # would otherwise show nothing.
+    settled = forced_identifiers + forced_codes + forced_measurements
+    codes_moved = not (
+        document is seen_of[0]
+        and settings == seen_of[1]
+        and settled == seen_of[2]
+        and list(forced_decimal_commas) == seen_of[3]
+    )
+    # THE DATE QUESTIONS BELOW ARE WORKED OUT IN ONE WALK OF THE TABLE
+    # (lane SR, plan P4-D400) -- the codes question again where the
+    # interview moved what it reads, question Q6, and the day-or-month
+    # question -- and said in the order they always were.
+    day_or_month: "tuple[asking.DayOrMonth, ...]" = ()
+    codes_seen, dates_seen, day_or_month = profile.dated_questions_of(
+        read,
+        document,
+        settings,
+        split_columns,
+        None if codes_moved else codes_seen,
+        settled,
+        settled + date_columns + dates_kept,
+        not answered_month_first,
+        tuple(forced_decimal_commas),
+        storage,
+    )
+    if codes_moved:
+        seen_of = (
+            document,
+            settings,
+            list(settled),
+            list(forced_decimal_commas),
+        )
+    if codes_seen.questions:
+        _say(f"\n{_date_codes_notice(list(codes_seen.questions))}\n")
+    # -- 3b.R2c (P4-D383): question Q6, WORKED OUT ONCE A RUN as the codes
+    # question is (the R2c repair, item 3): each candidate is described
+    # again under the declaration, three to four times its own describe,
+    # so the questions file below reuses this unless the interview moved
+    # what it reads. Worked out before Q5 and Q1 are, since the reading
+    # each answer `dates` proposes joins theirs (the Codex review of
+    # landing R2c, item 7).
+    dates_asked = list(dates_seen.questions)
+    dates_of = (
+        document,
+        settings,
+        list(settled + date_columns + dates_kept),
+        list(forced_decimal_commas),
+    )
+    # -- 3b.R2a (P4-D383): question Q5, said as the date questions are --
+    # and of a column of dates beside codes whose answer `missing` reads
+    # its years as two figures, in the same file (the Codex review of
+    # landing R2a, item 5), and of one Q6's answer `dates` would read so
+    # (the Codex review of landing R2c, item 7).
+    century_asked = asking.century_questions(
+        document,
+        tuple(sorted(centuries)) + tuple(answered_centuries),
+        also=codes_seen.century,
+        dated=dates_seen.century,
+    )
+    if century_asked:
+        _say(f"\n{_century_notice(century_asked)}\n")
+    # ...and Q6 itself, said as Q5 is.
+    if dates_asked:
+        _say(f"\n{_date_column_notice(dates_asked)}\n")
+    # A column of dates beside codes whose other cells read either way
+    # is asked the order too, in the same file (review of lane R1, item
+    # 4): answered `missing` alone, it would be read month first and
+    # asked the order only by the file the answering run writes.
+    day_or_month_of = (document, settings)
+    if day_or_month:
+        _say(f"\n{_day_or_month_notice(day_or_month)}\n")
+    # HOW LARGE THE TABLE IS, SAID ONCE, WHOEVER IS THERE (plan
+    # P4-D341). It is printed here because here the count is final:
+    # the interview above is the last thing that can change which
+    # columns name people, and nothing has been announced or written
+    # yet. The sentence is the one the description carries, rendered
+    # from the note itself rather than written again at this call site,
+    # so the screen cannot drift from the five pages.
+    for spoken in population_notes:
+        _warn(
+            _small_population_notice(
+                f"{spoken}", _joined(list(person_columns), " and ")
+            )
+        )
+    # AND WHERE NOBODY HAS SAID WHO THE ROWS ARE, THE SCREEN SAYS SO
+    # (plan P4-D340). A person asked about a column that might name
+    # people has to be told what this run did in the meantime, or the
+    # question reads as a request for information rather than a
+    # decision with a standing answer.
+    person_asked: "list[str]" = []
+    for question in asked_about:
+        if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+            person_asked += [question.name]
+    if person_asked and not person_columns and not assumptions_said:
+        _warn(_counted_in_rows_notice(person_asked))
+
+    # NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan
+    # P4-D401). Where nobody was at the keyboard, a column a question
+    # offering `identifier` was put to -- the person question, or one
+    # asked because its values are shaped like record numbers -- and
+    # that the questions file did not answer is described as record
+    # numbers until it is answered, and the run says so. The questions
+    # below are worked out from the description as the rules read it, so
+    # the file asks exactly what it asked before; only what is WRITTEN
+    # holds the column back. A person at the keyboard answered every
+    # question put, Enter included, and nothing is held.
+    withheld: "tuple[str, ...]" = ()
+    if not answered:
+        # EVERY DECLARATION IS AN ANSWER (Codex's review of lane HX, item
+        # 1): `--decimal-comma amount` says `amount` holds measurements,
+        # and a column also held as a record number would stand in two
+        # declarations the contract refuses together (S8a).
+        withheld = asking.unanswered_identities(
+            asked_about + dates_asked + coded_about,
+            document,
+            tuple(
+                forced_identifiers
+                + forced_codes
+                + forced_measurements
+                + list(forced_decimal_commas)
+                + list(twelve_hours)
+                + list(date_columns)
+                + sorted(counted)
+            )
+            + identities_kept,
+        )
+    # THE CANDIDATES OF THE OPEN PERSON QUESTION ARE SUBJECTS whether or
+    # not their own description is held (Codex's review of lane HX2,
+    # item 4): a key read as free text publishes no value of its own, so
+    # it is held by nothing above, yet every other value is still counted
+    # in it.
+    candidates: "list[str]" = []
+    if not answered:
+        declared_here = (
+            forced_identifiers
+            + forced_codes
+            + forced_measurements
+            + list(forced_decimal_commas)
+            + list(twelve_hours)
+            + list(date_columns)
+            + sorted(counted)
+            + list(identities_kept)
+        )
+        for question in asked_about:
+            if (
+                question.reason == asking.BECAUSE_REPEATS_AND_MANY
+                and asking.offers_identifier(question)
+                and question.name not in declared_here
+                and question.name not in withheld
+                and question.name not in candidates
+            ):
+                candidates += [question.name]
+    published = document
+    if withheld or candidates:
+        if withheld:
+            _warn(_withheld_notice(withheld))
+        # ...and every column held so -- the candidates of the open
+        # person question, and a key held by another identity question,
+        # such as a patient number of figures padded with zeros that the
+        # codes-or-measurements question was put to -- is a subject every
+        # other value is counted in (plan P4-D406; lane HX2's skeptic,
+        # round 2, item 1). One that never repeats counts in rows, as the
+        # floor does, and is set aside by `profile.build_document`.
+        counted_in_people = []
+        published = profile.build_document(
+            read,
+            settings,
+            forced_identifiers,
+            forced_codes,
+            forced_measurements,
+            forced_decimal_commas,
+            forced_metadata_rows=metadata_rows,
+            forced_delimiter=declared_delimiter,
+            table_notes=population_notes,
+            stored_as=storage,
+            unanswered=list(withheld),
+            subjects=list(person_columns) + list(withheld) + candidates,
+            counted_in_subjects=counted_in_people,
+        )
+    if counted_in_people:
+        named_once: "list[str]" = []
+        for name in counted_in_people:
+            if name not in named_once:
+                named_once += [name]
+        _warn(
+            _counted_in_people_notice(
+                tuple(named_once), settings.small_cell_floor
+            )
+        )
+
+    # THE CHAIN BETWEEN COLUMNS, behind its switch (lane CHa, plan
+    # P4-D418; contract 4.6b, NOT IN FORCE): no shipped run reaches this.
+    if chain_state is not None:
+        published = _chained_description(
+            chain_state,
+            pathlib.Path(table),
+            read,
+            published,
+            settings,
+            tuple(withheld) + tuple(candidates),
+            forced_codes,
+            forced_measurements,
+            forced_decimal_commas,
+            storage,
+        )
+        if chain_state.entry is None:
+            return 1
 
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
@@ -1850,7 +5138,8 @@ def _run_profile(
     # person, so it is a human-facing sink like any other.
     text = parsing.visible_lines(
         summary.render(
-            document, _encoding_note(read.encoding, read.used_fallback_encoding)
+            published,
+            _encoding_note(read.encoding, read.used_fallback_encoding),
         )
     )
     profile_path, summary_path = profile.default_output_paths(
@@ -1950,8 +5239,9 @@ def _run_profile(
         _say(
             f"\nYour answers were read from {shown_questions_path} and "
             f"are recorded in the description. That file is about to be "
-            f"written again: it will hold the questions still open, and "
-            f"will no longer ask the ones you have answered."
+            f"written again: it will hold the questions still open, will "
+            f"no longer ask the ones you have answered, and keeps every "
+            f"answer given so far under '{asking.ANSWERED_BEFORE}'."
         )
     # BOTH WARNINGS GO HERE, before the write, for the one reason (plan
     # P1-D6): a person weighs what a file carries before it exists, not
@@ -1960,17 +5250,64 @@ def _run_profile(
     # has a reminder line of its own after the "Written:" confirmation
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
+    # WHAT AN ANSWER REPLACED, to be taken out of the typed command (the
+    # Codex review of lane R1, item 7).
+    taken_out: "list[str]" = []
+    # -- 3b.R4 (P4-D384): a typed `--date-count` an answer replaced.
+    for typed_name in sorted(typed_counted):
+        if typed_name not in counted or counted[typed_name] != typed_counted[typed_name]:
+            taken_out += [
+                f"{_typed_option('--date-count', typed_name)} "
+                f"{typed_counted[typed_name]}"
+            ]
+    for option, typed_list, final in (
+        ("--code", typed_codes, forced_codes),
+        ("--identifier", typed_identifiers, forced_identifiers),
+        ("--measurement", typed_measurements, forced_measurements),
+        ("--decimal-comma", typed_commas, list(forced_decimal_commas)),
+        ("--keep-value", typed_kept, list(kept_values)),
+        ("--missing-value", typed_missing, list(missing_values)),
+    ):
+        final_of = {one: 1 for one in final}
+        for one in typed_list:
+            if one not in final_of:
+                taken_out += [_typed_option(option, one)]
     if (answered or answers_were_handed_back) and (
-        forced_codes or forced_identifiers or forced_measurements
+        counted
+        or forced_codes
+        or forced_identifiers
+        or forced_measurements
+        or forced_decimal_commas
+        or twelve_hours
+        or added_missing
+        or added_kept
+        or answered_day_first
+        or taken_out
+        or centuries
+        or date_columns
     ):
         _say(
             _how_to_repeat(
-                forced_codes, forced_identifiers, forced_measurements
+                forced_codes,
+                forced_identifiers,
+                forced_measurements,
+                tuple(forced_decimal_commas),
+                tuple(twelve_hours),
+                _counted_settings(counted),
+                answered_missing=tuple(added_missing),
+                answered_kept=tuple(added_kept),
+                answered_day_first=answered_day_first,
+                taken_out=tuple(taken_out),
+                centuries=tuple(
+                    (one_century, centuries[one_century])
+                    for one_century in sorted(centuries)
+                ),
+                date_columns=tuple(date_columns),
             )
         )
-    kept_of_yours = summary.words_of_your_own(document)
+    kept_of_yours = summary.words_of_your_own(published)
     if kept_of_yours:
-        _warn(_declared_words_notice(kept_of_yours))
+        _warn(_declared_words_notice(kept_of_yours, tuple(added_missing)))
     if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(_lowered_floor_warning(smallest_group))
 
@@ -1989,12 +5326,19 @@ def _run_profile(
     # recognizes it and still gives its own advice. Both halves are
     # needed: one says what they are holding, the other says why it
     # stopped (review item P1-R7-F1).
+    # THE LEDGER'S ENTRY IS WRITTEN FIRST, the description after it, so
+    # two runs can never both find no entry and both publish (contract
+    # 4.6b.4); behind the chain's switch alone.
+    if chain_state is not None and chain_state.entry is not None:
+        from synthtwin import installation
+
+        installation.record(chain_state.opened, chain_state.entry)
     state = profile.DiskState()
     try:
         left_behind = profile.write_both_files(
             profile_path,
             summary_path,
-            profile.serialize(document),
+            profile.serialize(published),
             text,
             state=state,
         )
@@ -2047,11 +5391,77 @@ def _run_profile(
     # an answered column is gone and every reading left is the one in
     # force.
     settled = forced_identifiers + forced_codes + forced_measurements
-    asked_about = asking.questions_for(
-        document, read.columns, settings, settled
+    # ...AND THE COLUMNS OF DATES OR TIMES BESIDE A FEW CODES, recomputed
+    # from the FINAL settings (plan P4-D381): a column whose codes were
+    # answered `missing` reads as dates now and is asked nothing, and one
+    # answered `real-value` has its codes declared kept.
+    # -- 3b.R2c (P4-D383): QUESTION Q6 from the FINAL settings, worked out
+    # again only where the interview moved what it reads, and before Q1
+    # and Q5, whose collections take the reading each answer `dates`
+    # proposes (the Codex review of landing R2c, item 7).
+    # ...AND THE PERSON QUESTION, recomputed from the FINAL
+    # declarations like every other (plan P4-D340). A column answered
+    # `identifier` at the terminal is declared now, so the file that
+    # replaces this one no longer asks about it -- and the settings
+    # carried here are the rebuilt ones, whose `person_columns` says
+    # whether that answer settled who the rows are about.
+    # -- 3b.R2c (P4-D383): QUESTION Q6, BESIDE every other question its
+    # column raises: an accession number written `2024-252` is asked
+    # whether it is dates and, as before, whether it is a code or a
+    # record number, since only the person knows which.
+    # ALL OF THEM IN ONE WALK OF THE TABLE (lane SR, plan P4-D400), each
+    # date question worked out again only where the interview moved what
+    # it reads.
+    codes_moved = not (
+        document is seen_of[0]
+        and settings == seen_of[1]
+        and settled == seen_of[2]
+        and list(forced_decimal_commas) == seen_of[3]
     )
-    listed_about = asking.checklist_for(
-        document, read.columns, settings, settled, asked_about
+    dates_moved = not (
+        document is dates_of[0]
+        and settings == dates_of[1]
+        and settled + date_columns + dates_kept == dates_of[2]
+        and list(forced_decimal_commas) == dates_of[3]
+    )
+    month_moved = dates_moved or not (
+        document is day_or_month_of[0] and settings == day_or_month_of[1]
+    )
+    if month_moved and answered_month_first:
+        day_or_month = ()
+    last_questions = profile.questions_of(
+        read,
+        document,
+        settings,
+        settled,
+        tuple(forced_decimal_commas),
+        storage,
+        None if codes_moved else codes_seen,
+        settled + date_columns + dates_kept if dates_moved else None,
+        dates_seen,
+        month_moved and not answered_month_first,
+        day_or_month,
+        True,
+    )
+    codes_seen = last_questions.codes_seen
+    dates_seen = last_questions.dates_seen
+    if dates_moved:
+        dates_asked = list(dates_seen.questions)
+    day_or_month = last_questions.day_or_month
+    coded_about = list(codes_seen.questions)
+    asked_about = last_questions.asked
+    listed_about = last_questions.listed
+    asked_about = asked_about + coded_about
+    # ...AND QUESTION Q5, of every column of dates whose years are two
+    # figures and whose century nobody gave (landing R2a), and of every
+    # column the codes question would read so (the Codex review of
+    # landing R2a, item 5), and of every column Q6's answer `dates` would
+    # read so (the Codex review of landing R2c, item 7).
+    asked_about = asked_about + asking.century_questions(
+        document,
+        tuple(sorted(centuries)) + tuple(answered_centuries),
+        also=codes_seen.century,
+        dated=dates_seen.century,
     )
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a
@@ -2075,6 +5485,7 @@ def _run_profile(
         # them, which reads as two separate troubles.
         if floor_chosen and smallest_group < _NOTICE_LINE:
             _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
+        _say(_teaching_generate(profile_path))
         return 0
     written_questions = True
     questions_state = writing.DiskState()
@@ -2085,8 +5496,72 @@ def _run_profile(
             canonical.serialize(
                 asking.questions_document(
                     _shown(pathlib.Path(table).name),
-                    asked_about,
+                    # -- P4-D401: a column held back is read as record
+                    # numbers until answered, and its entry says so.
+                    asking.held_back(asked_about, withheld),
                     listed_about,
+                    asking.file_questions(
+                        surveyed is not None
+                        and surveyed.metadata_shape
+                        and not metadata_rows,
+                        # ...and the same subject from the other side:
+                        # a declaration the file does not bear out was
+                        # not acted on, so the person is asked here
+                        # rather than having it done to their table.
+                        metadata_rows if metadata_declaration_unseen else 0,
+                        # ...and the delimiter, where the file reads
+                        # equally well under more than one (P4-D110).
+                        delimiter_tie,
+                        # ...and which row the column names are in,
+                        # where the first row could not be told from a
+                        # record of the table (the owner's ruling of
+                        # 2026-09-17, item 8; plan P4-D232). The words
+                        # are what the FILE showed, and no cell of it.
+                        read.first_row_seen,
+                        # ...and which comes first, the day or the month,
+                        # where no value of a column of dates can say
+                        # (plan P4-D381), from the FINAL settings -- and
+                        # not to a person whose file answered it. The
+                        # screen's pass, where nothing has moved since.
+                        day_or_month=day_or_month,
+                    ),
+                    # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
+                    # WHOLE (plan P4-D341). The population notice, in
+                    # the description's own words, because this file
+                    # travels on its own and a page naming the columns
+                    # of a small table without saying it is a small
+                    # table says less than the other four do.
+                    _table_sentences(document),
+                    # ...and EVERY ANSWER THIS RUN ACTED ON, from the file,
+                    # from an earlier run's kept answers or from the
+                    # command line, so that handing this file back keeps
+                    # them all (plans P4-D401 and P4-D408).
+                    answered=asking.answered_before(
+                        _answers_given(
+                            read.column_names, forced_codes,
+                            forced_identifiers, forced_measurements,
+                            forced_decimal_commas, twelve_hours, counted,
+                            centuries, centuries_kept, date_columns,
+                            dates_kept, identities_kept_answered,
+                            answered_missing_dates, answered_real_values,
+                            kept_code_shapes, first_row,
+                            metadata_answer, declared_delimiter, day_first,
+                            answered_month_first,
+                        )
+                    ),
+                    # ...with the names those answers use (P4-D408).
+                    answered_columns=list(read.column_names),
+                    # ...and each column declared as counted dates that
+                    # did not read so, held on every table (P4-D406).
+                    held_dates=_held_counted_dates(document, counted),
+                    # ...and, behind the chain's switch alone, its one
+                    # entry (lane CHa, plan P4-D418).
+                    chain_pairs=_chain_pairs(chain_state),
+                    chain_requests=(
+                        (chain_state.add, chain_state.drop)
+                        if chain_state is not None
+                        else ((), ())
+                    ),
                 )
             ),
             sources=guarded_questions,
@@ -2128,6 +5603,7 @@ def _run_profile(
 
     if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(f"\n{_LOWERED_FLOOR_REMINDER}")
+    _say(_teaching_generate(profile_path))
     return 0
 
 
@@ -2208,7 +5684,9 @@ def _twin_stem(name: str) -> str:
 
 
 def _twin_paths(
-    description: pathlib.Path, out_dir: "str | None"
+    description: pathlib.Path,
+    out_dir: "str | None",
+    packaged: bool = False,
 ) -> "tuple[pathlib.Path, pathlib.Path]":
     """Where the twin and its report go (plan P2-D10).
 
@@ -2240,8 +5718,9 @@ def _twin_paths(
             raise errors.ProfileError(
                 errors.output_folder_missing(f"{folder}", errors.TWIN_WORDS)
             )
+    ending = _WORKBOOK_TWIN_SUFFIX if packaged else _TWIN_SUFFIX
     twin_target = validate_local_path(
-        f"{folder / (stem + _TWIN_SUFFIX)}", purpose="output file"
+        f"{folder / (stem + ending)}", purpose="output file"
     )
     report_target = validate_local_path(
         f"{folder / (stem + _REPORT_SUFFIX)}", purpose="output file"
@@ -2299,14 +5778,28 @@ def _run_generate(
     rule that this command opens the description and nothing else -- so
     it refuses, names both files, and teaches `--replace`.
     """
-    from synthtwin import contract, generation, rendering, writing
+    from synthtwin import (
+        contract,
+        generation,
+        rendering,
+        sheetwriting,
+        writing,
+    )
 
     seed, refusal = _seed_or_refusal(seed_given)
     if seed is None:
         _warn(refusal)
         return 2
     loaded = contract.load_profile(description)
-    twin_path, report_path = _twin_paths(pathlib.Path(description), out_dir)
+    # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
+    # P4-D79, which supersedes P4-D78's refusal). The description says
+    # which the table was, so the twin's name, its bytes and the rules
+    # it is written by all follow from `source.workbook` rather than
+    # from anything this run reads.
+    packaged = loaded.source.workbook is not None
+    twin_path, report_path = _twin_paths(
+        pathlib.Path(description), out_dir, packaged
+    )
     writing.refuse_if_folder(twin_path, errors.TWIN_WORDS)
     writing.refuse_if_folder(report_path, errors.TWIN_WORDS)
 
@@ -2334,7 +5827,7 @@ def _run_generate(
         taken: list[str] = []
         for target in (twin_path, report_path):
             if _already_there(target):
-                taken = taken + [_shown(target)]
+                taken += [_shown(target)]
         if taken:
             _warn(
                 errors.outputs_already_there(
@@ -2353,7 +5846,36 @@ def _run_generate(
     # human-facing sink like the profiler's summary and crosses the
     # boundary once, here, so the file on disk and the screen carry the
     # same text and cannot differ.
-    twin_text = rendering.twin_csv(twin)
+    # A WORKBOOK TWIN IS BYTES AND A DELIMITED ONE IS TEXT, and the two
+    # are kept apart from here to the write: a zip package put through
+    # an encoding and a line-ending rule would be corrupted by both.
+    # THE TWIN IS WRITTEN IN ITS TABLE'S OWN ENCODING (plan P4-D86), and
+    # that is checked before anything is shown or written: a cell holding
+    # a character the encoding has no byte for would otherwise stop the
+    # write half way. Every published label was read in that encoding and
+    # every made-up value is ASCII, so reaching this is a defect.
+    #
+    # A WORKBOOK ANSWERS NONE OF IT (plan P4-D79). Its parts are written
+    # as UTF-8 inside a zip package whatever the source's encoding was,
+    # because that is what a spreadsheet file IS; the source encoding
+    # describes a delimited file's bytes and there are none here.
+    twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
+    twin_members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None
+    twin_text = ""
+    if packaged:
+        twin_members = sheetwriting.workbook_stream(loaded, twin)
+    else:
+        written = rendering.twin_csv(twin)
+        try:
+            written.encode(twin_codec)
+        except UnicodeEncodeError:
+            _warn(
+                errors.twin_not_writable_in_encoding(
+                    dialect.ENCODING_WORDS[loaded.source.encoding]
+                )
+            )
+            return 1
+        twin_text = written
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
     _say(report_text)
@@ -2392,6 +5914,9 @@ def _run_generate(
             table_path=pathlib.Path(source),
             state=state,
             words=errors.TWIN_WORDS,
+            first_encoding=twin_codec,
+            first_newline="",
+            first_members=twin_members,
         )
     except BaseException:
         if state.sentence:
@@ -2412,6 +5937,25 @@ def _run_generate(
     return 0
 
 
+def _teaching_generate(description: pathlib.Path) -> str:
+    """The lines that end every `profile` run that wrote a description (plan P4-D397).
+
+    The first link of the teaching chain `_teaching_validate` describes:
+    `profile` ends by teaching `generate`. Until this function it did
+    not, although README and this module promised it (the R5 map's pain
+    point 6). It is printed on each way a run that wrote the description
+    can end -- with the questions file beside it or without -- and it
+    is the last thing on the screen's ordinary output, so a person who
+    reads nothing else reads what to type next. The path is the
+    description just written, quoted for the shell (`_typed_path`).
+    """
+    line = f"synthtwin generate {_typed_path(description)}"
+    return (
+        f"\nNext, build the twin from this description:\n"
+        f"  {line}{_quoting_said(line)}"
+    )
+
+
 def _teaching_validate(
     description: str, twin_path: pathlib.Path
 ) -> str:
@@ -2430,12 +5974,16 @@ def _teaching_validate(
     right.
 
     Both paths pass through `_shown`, like every other path this module
-    prints.
+    prints, and are quoted for the shell (`_typed_path`, the Codex review
+    of lane R1, item 1), which the line then names where it quotes one.
     """
+    line = (
+        f"synthtwin validate {_typed_path(description)} "
+        f"{_typed_option('--twin', twin_path)}"
+    )
     return (
         f"\nNext, measure the twin against the description:\n"
-        f"  synthtwin validate {_shown(description)} "
-        f"--twin {_shown(twin_path)}\n"
+        f"  {line}{_quoting_said(line)}\n"
         f"That writes a quality report saying which of the description's "
         f"obligations the twin holds, which it misses, and which nothing "
         f"written in a CSV can evidence either way."
@@ -2477,8 +6025,11 @@ def _quality_path(
     The exact target goes through the locality gate, not only the folder,
     for the reason `_twin_paths` gives: a link left at the report's name
     would otherwise send the file wherever it points. The name cannot
-    collide with any of the four artifacts that already exist, which end
-    '-profile.json', '-profile.txt', '-twin.csv' and '-twin-report.txt'.
+    collide with any of the five artifacts that already exist by the time
+    this command runs, which end '-profile.json', '-profile.txt',
+    '-questions.json', '-twin.csv' and '-twin-report.txt'. The questions
+    file joined that list when it shipped (amendment A-P4-58) and this
+    sentence counted four until the review of 2026-09-23.
     """
     source = pathlib.Path(description)
     stem = f"{pathlib.Path(measured).stem}"
@@ -2499,7 +6050,9 @@ def _quality_path(
     return pathlib.Path(target)
 
 
-def _measured_path(description: str, twin_given: "str | None") -> str:
+def _measured_path(
+    description: str, twin_given: "str | None", packaged: bool = False
+) -> str:
     """Which file this run measures: the one named, or the twin beside it.
 
     The default is derived from the DESCRIPTION's own folder rather than
@@ -2510,7 +6063,9 @@ def _measured_path(description: str, twin_given: "str | None") -> str:
     """
     if twin_given is not None:
         return twin_given
-    twin_path, _report_path = _twin_paths(pathlib.Path(description), None)
+    twin_path, _report_path = _twin_paths(
+        pathlib.Path(description), None, packaged
+    )
     return f"{twin_path}"
 
 
@@ -2550,6 +6105,7 @@ def _run_validate(
     twin_given: "str | None",
     out_dir: "str | None",
     replace: bool,
+    sheet: str = "",
 ) -> int:
     """Do the work of `synthtwin validate`; return the exit code.
 
@@ -2587,7 +6143,9 @@ def _run_validate(
     from synthtwin import contract, quality, validation, writing
 
     loaded = contract.load_profile(description)
-    measured = _measured_path(description, twin_given)
+    measured = _measured_path(
+        description, twin_given, loaded.source.workbook is not None
+    )
     quality_path = _quality_path(pathlib.Path(description), measured, out_dir)
     writing.refuse_if_folder(quality_path, errors.QUALITY_WORDS)
 
@@ -2618,17 +6176,27 @@ def _run_validate(
         _warn(errors.quality_target_already_there(shown_quality_path))
         return 1
 
-    outcome = validation.measure(loaded, measured)
+    # `--sheet` REACHES THIS COMMAND TOO (repair of landing 2b.10). The
+    # option was accepted here and then dropped on the floor: a person
+    # checking a real workbook whose table is not on the first visible
+    # sheet named the sheet, was given no error, and had a different
+    # sheet measured against their description.
+    outcome = validation.measure(loaded, measured, sheet)
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
-    # disk. The two cannot differ.
-    report_text = parsing.visible_lines(
-        quality.quality_report(loaded, outcome)
-    )
+    # disk. The two cannot differ. AND IT IS NEVER MADE WHOLE (stage 4
+    # lane S4c, plan P4-D390): it crosses in the pieces
+    # `quality.report_pieces` hands over, which add up to
+    # `quality.quality_report`'s text, and each is printed and written in
+    # turn. The display boundary reads one character at a time, so the
+    # pieces cross it as the whole text would.
+    report_pieces = quality.report_pieces(loaded, outcome)
+    for index in range(len(report_pieces)):
+        report_pieces[index] = parsing.visible_lines(report_pieces[index])
     code = 3 if outcome.census.missed else 0
 
-    _say(report_text)
+    _say_pieces(report_pieces)
     _say(f"This file will be written:\n  {shown_quality_path}")
     # THE OTHERS ARE ALL NAMED, not the two nearest to hand (plan
     # amendment A-P3-8 clause 2). This sentence exists to say that a
@@ -2655,10 +6223,11 @@ def _run_validate(
     try:
         left_behind = writing.write_one_file(
             quality_path,
-            report_text,
+            "",
             sources=guarded,
             state=state,
             words=errors.QUALITY_WORDS,
+            pieces=report_pieces,
         )
     except BaseException:
         if state.sentence:
@@ -2683,17 +6252,501 @@ def _run_validate(
     return code
 
 
-def main(argv: "list[str] | None" = None) -> int:
+# -- checking this computer before a first run (plan P4-D397) ----------
+
+# THE PYTHON THIS PACKAGE NEEDS, as pyproject.toml's `requires-python`
+# states it. An older one cannot even install the package, so this line
+# is for the person whose environment was built by another Python than
+# the one they think. An older Python running `python -m synthtwin` from
+# a source folder never reaches this module: `__main__.py` says so before
+# importing it. 3.11 since plan P4-D410 (the owner's "3.11 and later" of
+# 2026-10-19): the libraries' current releases need it.
+_PYTHON_FLOOR = (3, 11)
+
+# HOW MUCH MEMORY A TEXT TABLE TAKES TO READ, AS A MULTIPLE OF ITS FILE'S
+# SIZE. Measured, not guessed: `K-S4-02` reads a fifty-column table of
+# about 480 bytes a row at a peak of 4.38 kilobytes a row above the
+# start, about nine times the file (plan P4-D387), and describing it
+# needs more on top. Ten is that measurement rounded up. It holds for a
+# file of plain text only, and the line says it is a guess from the
+# size alone.
+_MEMORY_PER_FILE_BYTE = 10
+
+# A WORKBOOK'S SIZE SAYS NOTHING OF WHAT READING IT TAKES: it is a
+# packed file, and a few megabytes of it can hold a million cells. What
+# bounds it is the reader's cell cap (`workbook.MAXIMUM_CELLS`, one
+# million), measured at 632 megabytes of peak memory for 1,048,708
+# cells (workbook.py, plan A-P4-66). So a workbook is weighed at that
+# bound whatever its size (the Codex review of lane TI, item 9).
+# A workbook is known by its name's ending, `.xlsx` or `.xlsm`, since
+# doctor reads none of its bytes (written out in `_check_table`).
+_WORKBOOK_READ_BYTES = 632 * 1024 * 1024
+
+# A table counts as large for this computer when what reading it takes
+# passes half the memory, the other half being what the system and the
+# person's other programs hold.
+
+# The small file `doctor` writes and removes to learn whether the
+# output folder takes a file. A leading point keeps it out of most
+# folder views for the instant it exists.
+_DOCTOR_PROBE = ".synthtwin-doctor-check"
+
+# What to do when a package is missing or Python is the wrong one, in
+# words a person who has never programmed can act on.
+_INSTALL_AGAIN = (
+    "run the install script again from the synthtwin folder -- "
+    "sh scripts/install.sh on a Mac or Linux, scripts\\install.bat on "
+    "Windows -- or see 'Installing' in README.md"
+)
+
+# Where a Mac lets a terminal reach a protected folder (the Desktop,
+# Documents and Downloads, until the person allows it).
+_MAC_FOLDER_ACCESS = (
+    "On a Mac, let Terminal reach that folder (System Settings, then "
+    "Privacy & Security, then Files and Folders)"
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class _Check:
+    """One line of `synthtwin doctor`: whether it passed, whether it was made, its words.
+
+    A check that could not be made -- this computer's memory where the
+    standard library cannot read it -- is a note: no failure, and no
+    pass either, so the closing line does not claim it.
+    """
+
+    passed: bool
+    made: bool
+    line: str
+
+
+def _passed(line: str) -> _Check:
+    return _Check(True, True, f"  ok       {line}")
+
+
+def _noted(line: str) -> _Check:
+    return _Check(True, False, f"  note     {line}")
+
+
+def _failed(line: str) -> _Check:
+    return _Check(False, True, f"  PROBLEM  {line}")
+
+
+def _python_version() -> "tuple[int, int, int]":
+    """The running Python's version, read in one place so a test can set it."""
+    return (sys.version_info[0], sys.version_info[1], sys.version_info[2])
+
+
+def _check_python(version: "tuple[int, int, int]") -> _Check:
+    spoken = f"{version[0]}.{version[1]}.{version[2]}"
+    floor = f"{_PYTHON_FLOOR[0]}.{_PYTHON_FLOOR[1]}"
+    if (version[0], version[1]) >= _PYTHON_FLOOR:
+        return _passed(f"Python {spoken} ({floor} or later is needed)")
+    return _failed(
+        f"Python {spoken} is too old: synthtwin needs Python {floor} or "
+        f"later. Install a newer Python (see 'Before you start' in "
+        f"README.md), then {_INSTALL_AGAIN}."
+    )
+
+
+def _not_loaded(package: str, needed_for: str) -> _Check:
+    return _failed(
+        f"{package} could not be loaded, and synthtwin needs it to "
+        f"{needed_for}. To put it in place, {_INSTALL_AGAIN}."
+    )
+
+
+def _library_version(package: str) -> str:
+    """The installed version of one library, as its own metadata records it.
+
+    EVERY RUNTIME LIBRARY IS NAMED WITH ITS VERSION (plan P4-D410): the
+    twin's bytes are proved under exact pins, so the line a person copies
+    into a question says which ones this computer holds. A library that
+    loaded but carries no metadata -- a source folder on the path -- says
+    so instead of a number.
+    """
+    try:
+        return importlib.metadata.version(package)
+    except Exception:  # noqa: BLE001 -- as in _version: the allowlist
+        # (plan D6.2) permits only importlib.metadata.version.
+        return "of no recorded version"
+
+
+def _check_numpy() -> _Check:
+    # A plain import, in this function alone: the check is whether the
+    # package loads, and nothing of it is used here (plan P2-D1 keeps
+    # the generator's own import inside `_run_generate`). Any exception
+    # is a failed load, not ImportError alone: a build made for another
+    # Python or another numpy raises ValueError or RuntimeError as it
+    # loads, and the check says so instead of stopping (the Codex
+    # review of lane TI, item 7).
+    try:
+        import numpy.random  # noqa: F401
+    except Exception:  # noqa: BLE001 -- see above
+        return _not_loaded("numpy", "build a twin")
+    return _passed(f"numpy {_library_version('numpy')} can be loaded")
+
+
+def _check_pandas() -> _Check:
+    # The same plain import, for the reader's checking library. It is
+    # loaded and nothing of it is called: `doctor` reads no table.
+    try:
+        import pandas  # noqa: F401
+    except Exception:  # noqa: BLE001 -- as in _check_numpy
+        return _not_loaded("pandas", "read a table")
+    return _passed(f"pandas {_library_version('pandas')} can be loaded")
+
+
+def _check_pyarrow() -> _Check:
+    # The same plain import, of the one admitted pyarrow module (plans
+    # P4-D409 and P4-D410: zone R, and text held as exact bytes).
+    try:
+        import pyarrow.csv  # noqa: F401
+    except Exception:  # noqa: BLE001 -- as in _check_numpy
+        return _not_loaded("pyarrow", "read and hold a table")
+    return _passed(f"pyarrow {_library_version('pyarrow')} can be loaded")
+
+
+def _check_scipy() -> _Check:
+    # The same plain import, of the two admitted scipy modules (plans
+    # P4-D409 and P4-D410: the search side of zone D, and zone P).
+    try:
+        import scipy.linalg  # noqa: F401
+        import scipy.optimize  # noqa: F401
+    except Exception:  # noqa: BLE001 -- as in _check_numpy
+        return _not_loaded("scipy", "check what is published")
+    return _passed(f"scipy {_library_version('scipy')} can be loaded")
+
+
+def _total_memory() -> "int | None":
+    """This computer's total memory in bytes, or None where it cannot be read.
+
+    `os.sysconf` reports it on macOS and Linux and does not exist on
+    Windows, and the standard library has no other way to ask without
+    starting a program or calling native code, which this package never
+    does (charter principle 3). Total memory, not free memory: no
+    portable call reports what is free.
+    """
+    if sys.platform == "win32":
+        return None
+    try:
+        pages = os.sysconf("SC_PHYS_PAGES")
+        page_size = os.sysconf("SC_PAGE_SIZE")
+    except (ValueError, OSError, AttributeError):
+        return None
+    if pages <= 0 or page_size <= 0:
+        return None
+    return pages * page_size
+
+
+def _size_words(size: int) -> str:
+    """A size in bytes as a person reads it: 512 bytes, 3.4 MB, 24.0 GB."""
+    if size < 1024:
+        return f"{size} bytes"
+    amount = float(size)
+    for unit in ("KB", "MB", "GB", "TB"):
+        amount = amount / 1024
+        if amount < 1024 or unit == "TB":
+            return f"{amount:.1f} {unit}"
+    return f"{size} bytes"
+
+
+def _check_memory(memory: "int | None") -> _Check:
+    if memory is None:
+        # A note, not a failure: Windows simply does not say, and
+        # nothing the person does changes that.
+        return _noted(
+            "This computer's memory could not be read here, so a table's "
+            "size cannot be weighed against it"
+        )
+    return _passed(f"This computer has {_size_words(memory)} of memory")
+
+
+def _not_allowed(shown: str, otherwise: str) -> _Check:
+    """The file system refused to say anything of a path: what to do (lane TI, item 2)."""
+    return _failed(
+        f"synthtwin is not allowed to look at {shown}. "
+        f"{_MAC_FOLDER_ACCESS}, or {otherwise}; then run synthtwin "
+        f"doctor again."
+    )
+
+
+def _check_output_folder(raw: str) -> _Check:
+    """Whether a file can be written in the folder, learned by writing one.
+
+    The folder goes through the path validator like every path this
+    module uses. The test file is created only where nothing at all
+    stands at its name -- not a file, not a link, not a dangling link --
+    and created exclusively, so it is made in this folder or not at all
+    (the Codex review of lane TI, item 6); it is removed at once. Every
+    question asked of the file system is answered with a line, a refusal
+    of permission included, never a stack trace.
+    """
+    choose = "choose a folder of your own with --out-dir FOLDER"
+    try:
+        folder = validate_local_path(raw, purpose="output folder")
+    except PathValidationError as error:
+        return _failed(_shown(error))
+    except OSError:
+        return _not_allowed(_shown(raw), choose)
+    shown = _shown(folder)
+    named = os.path.join(f"{folder}", _DOCTOR_PROBE)
+    # One `stat` asks whether the folder is there, and only a missing
+    # path (or a file standing where a folder of the path should be) is
+    # "not there": any other refusal is a refusal of permission. Path's
+    # exists() and is_dir() are not asked, since from Python 3.14
+    # they answer False where they may not look, which would send the
+    # person to make a folder that already exists (lane TI, repair 2).
+    try:
+        folder.stat()
+    except (FileNotFoundError, NotADirectoryError):
+        there = False
+    except OSError:
+        return _not_allowed(shown, choose)
+    else:
+        there = True
+    # Asked once the look succeeded, through os.path, which answers and
+    # never raises.
+    a_folder = there and os.path.isdir(folder)
+    taken = a_folder and os.path.lexists(named)
+    if not there:
+        return _failed(
+            f"The output folder {shown} does not exist. Make it first, or "
+            f"name a folder that exists with --out-dir FOLDER."
+        )
+    if not a_folder:
+        return _failed(
+            f"{shown} is a file, not a folder. Name the folder synthtwin "
+            f"should write into with --out-dir FOLDER."
+        )
+    taken_said = (
+        f"Something named {_DOCTOR_PROBE} is already in {shown}, and "
+        f"synthtwin does not touch what it did not just make. Move or "
+        f"rename it, or {choose}; then run synthtwin doctor again."
+    )
+    if taken:
+        return _failed(taken_said)
+    # Built the way every file this package writes is built -- through
+    # the path validator, then `pathlib.Path` -- so the offline audit
+    # traces the handle it opens (plan D6.2).
+    try:
+        probe = pathlib.Path(
+            validate_local_path(named, purpose="output folder")
+        )
+    except PathValidationError as error:
+        return _failed(_shown(error))
+    except OSError:
+        return _not_allowed(shown, choose)
+    try:
+        # Exclusive creation: it fails on anything standing at the name,
+        # a link included, rather than following it.
+        probe.touch(exist_ok=False)
+    except FileExistsError:
+        return _failed(taken_said)
+    except OSError:
+        return _failed(
+            f"synthtwin could not save a file in {shown}. Choose a folder "
+            f"you can save files in, such as one inside your Documents "
+            f"folder, and name it with --out-dir FOLDER."
+        )
+    try:
+        probe.unlink()
+    except OSError:
+        return _passed(
+            f"The output folder {shown} takes a file, but the test file "
+            f"could not be removed: delete {_shown(probe)}"
+        )
+    return _passed(f"The output folder {shown} takes a file")
+
+
+def _check_table(raw: str, memory: "int | None") -> _Check:
+    """The table's size against this computer's memory; the table is never opened.
+
+    The path is validated and its size asked of the file system, which
+    reads no byte of the file. The size and the name's suffix are all
+    `doctor` is told, and a refusal of permission is a line, not a stack
+    trace (lane TI's skeptic, item 2).
+    """
+    try:
+        table = validate_local_path(raw, purpose="table")
+    except PathValidationError as error:
+        return _failed(_shown(error))
+    except OSError:
+        return _not_allowed(
+            _shown(raw), "move the table into a folder of your own"
+        )
+    shown = _shown(table)
+    # As in _check_output_folder: one `stat`, whose only "not there" is
+    # a missing path; any other refusal is a refusal of permission,
+    # on every Python from 3.10 on (lane TI, repair 2).
+    moved = "move the table into a folder of your own"
+    try:
+        size = table.stat().st_size
+    except (FileNotFoundError, NotADirectoryError):
+        there = False
+        size = 0
+    except OSError:
+        return _not_allowed(shown, moved)
+    else:
+        there = True
+    a_folder = there and os.path.isdir(table)
+    if not there:
+        return _failed(
+            f"There is no file at {shown}. Check the spelling of the path, "
+            f"and put quotation marks around it if it has a space in it."
+        )
+    if a_folder:
+        return _failed(
+            f"{shown} is a folder. Name the table's own file, such as "
+            f"my-table.csv."
+        )
+    spelled = f"{table}".lower()
+    workbook = spelled.endswith(".xlsx") or spelled.endswith(".xlsm")
+    return _weighed(size, workbook, memory)
+
+
+def _weighed(size: int, workbook: bool, memory: "int | None") -> _Check:
+    """What reading a table of this size takes, against the memory, in words.
+
+    A text table is weighed at ten times its size, said to be a guess
+    from the size alone; a workbook at the reader's measured bound,
+    whatever its size, since a packed file's size does not say.
+    """
+    if workbook:
+        needed = _WORKBOOK_READ_BYTES
+        estimate = (
+            f"a workbook's size does not say what reading it takes, and "
+            f"synthtwin reads at most a million cells of one, which takes "
+            f"about {_size_words(needed)}"
+        )
+    else:
+        needed = size * _MEMORY_PER_FILE_BYTE
+        estimate = (
+            f"reading it takes roughly {_size_words(needed)}, a guess "
+            f"from the file's size alone"
+        )
+    said = f"The table is {_size_words(size)}; {estimate}"
+    if memory is None:
+        return _noted(
+            f"{said}. This computer's memory could not be read, so that "
+            f"could not be weighed against it"
+        )
+    if needed > memory // 2:
+        return _failed(
+            f"{said}, which is large for this computer's "
+            f"{_size_words(memory)}. synthtwin may run out of memory on "
+            f"it. Close other programs before you start, use a computer "
+            f"with more memory, or describe a smaller extract of rows "
+            f"taken from the whole table first."
+        )
+    return _passed(f"{said}, which fits this computer's {_size_words(memory)}")
+
+
+def _doctor_checks(table: "str | None", out_dir: "str | None") -> "list[_Check]":
+    """Every check `synthtwin doctor` makes, one line each, in order.
+
+    The output folder is the one `--out-dir` names, else the table's
+    folder (where `profile` writes), else the current folder.
+    """
+    memory = _total_memory()
+    checks = [
+        _check_python(_python_version()),
+        _check_numpy(),
+        _check_pandas(),
+        _check_pyarrow(),
+        _check_scipy(),
+    ]
+    if out_dir is not None:
+        folder = out_dir
+    elif table is not None:
+        folder = os.path.dirname(os.path.abspath(table))
+    else:
+        folder = "."
+    checks += [_check_output_folder(folder), _check_memory(memory)]
+    if table is not None:
+        checks += [_check_table(table, memory)]
+    return checks
+
+
+def _run_doctor(table: "str | None", out_dir: "str | None") -> int:
+    """`synthtwin doctor`: one plain line per check, then what to do next.
+
+    Guarantees: returns 0 when every check passed or could not be made,
+    and 1 when any did not pass. Boundary: a named table is never opened
+    -- its size is asked of the file system and nothing else -- and the
+    one file written is the test file in the output folder, removed at
+    once. No network, subprocess, native or dynamic-code operation.
+    """
+    _say(f"synthtwin {_version()}: checking this computer before a first run.")
+    checks = _doctor_checks(table, out_dir)
+    failed = 0
+    unmade = 0
+    for check in checks:
+        _say(check.line)
+        if not check.passed:
+            failed += 1
+        elif not check.made:
+            unmade += 1
+    if failed:
+        _say(
+            f"\n{failed} check(s) did not pass. Do what the line marked "
+            f"PROBLEM says, then run this again:\n"
+            f"{_doctor_again(table, out_dir)}"
+        )
+        return 1
+    passed = "Every check that could be made passed." if unmade else "Every check passed."
+    _say(f"\n{passed} {_teaching_profile(table, out_dir)}")
+    return 0
+
+
+def _typed_with_folder(line: str, out_dir: "str | None") -> str:
+    """A command line, with `--out-dir` as the person typed it when they did."""
+    if out_dir is None:
+        return line
+    return f"{line} {_typed_option('--out-dir', out_dir)}"
+
+
+def _doctor_again(table: "str | None", out_dir: "str | None") -> str:
+    """The line a failed `doctor` ends with: the same check, as the person typed it."""
+    line = "synthtwin doctor"
+    if table is not None:
+        line = f"{line} {_typed_path(table)}"
+    line = _typed_with_folder(line, out_dir)
+    return f"  {line}{_quoting_said(line)}"
+
+
+def _teaching_profile(table: "str | None", out_dir: "str | None" = None) -> str:
+    """The line that ends a passing `doctor`: the first command of a run.
+
+    It names the table and the output folder doctor was given, so the
+    folder it checked is the one `profile` writes into.
+    """
+    named = "my-table.csv" if table is None else _typed_path(table)
+    line = _typed_with_folder(f"synthtwin profile {named}", out_dir)
+    return (
+        f"Next, describe your table:\n"
+        f"  {line}{_quoting_said(line)}"
+    )
+
+
+def main(argv: "list[str] | None" = None, chain: "ChainRun | None" = None) -> int:
     """Run the `synthtwin` command.
+
+    `chain` is the chain's switch (lane CHa, plan P4-D418; contract 4.6b,
+    NOT IN FORCE): the console entry point never passes it, so a person
+    typing `synthtwin` cannot turn it on; the tools and the tests hand it
+    in, and it reaches the `profile` command alone.
 
     Guarantees:
 
     - Inputs: `argv` is the list of command-line arguments to parse, or
       `None` to parse `sys.argv[1:]`. Recognized: `--version`, `--help`,
       the `profile` command word with its options, the `generate`
-      command word with `--seed`, `--out-dir` and `--replace`, and the
+      command word with `--seed`, `--out-dir` and `--replace`, the
       `validate` command word with `--twin`, `--out-dir` and
-      `--replace`.
+      `--replace`, and the `doctor` command word with an optional table
+      path and `--out-dir` (plan P4-D397).
     - Return codes: 0 when the work finished; 1 when a file given could
       not be read or an output file could not be written, with a
       plain-language explanation on the error stream; 2 when an option's
@@ -2714,6 +6767,9 @@ def main(argv: "list[str] | None" = None) -> int:
       written. Automation therefore tells a file that failed its check
       from a file that was never evaluated -- which is what 1 means on
       this command -- without reading a word of prose.
+
+      `doctor` returns 0 when every check it printed passed and 1 when
+      any did not, each failed line saying what to do next.
     - Determinism: the same table and the same options produce the same
       two files, byte for byte, on the same platform (plan D12 and
       P1-D11); so do the same description, the same seed and the same
@@ -2763,7 +6819,10 @@ def main(argv: "list[str] | None" = None) -> int:
       reaches the generator, so this package's own random number
       generator is out of its reach and its verdicts cannot inherit the
       planner's defects; and it never writes, moves, truncates or
-      re-encodes either of the two files it read. No network,
+      re-encodes either of the two files it read. A `doctor` run opens
+      no table: it asks the file system for a named table's size, and
+      the one file it writes is a test file in the output folder,
+      removed at once. No network,
       subprocess, native, or dynamic-code operation is performed
       anywhere in the package.
     - Display: nothing reaches the screen, the error stream, the summary
@@ -2780,6 +6839,9 @@ def main(argv: "list[str] | None" = None) -> int:
         _say(_version())
         return 0
 
+    if options.command == _DOCTOR:
+        return _run_doctor(options.given, options.out_dir)
+
     named = options.given
     if named is None or options.command is None:
         _say(_STATUS.format(version=_version(), repo=_REPO_URL))
@@ -2794,7 +6856,11 @@ def main(argv: "list[str] | None" = None) -> int:
             )
         if validating:
             return _run_validate(
-                named, options.twin, options.out_dir, options.replace
+                named,
+                options.twin,
+                options.out_dir,
+                options.replace,
+                options.sheet,
             )
         return _run_profile(
             named,
@@ -2810,6 +6876,15 @@ def main(argv: "list[str] | None" = None) -> int:
             options.missing_values,
             options.first_row,
             options.day_first,
+            options.sheet,
+            options.metadata_rows,
+            options.delimiter,
+            options.date_counts,
+            options.twelve_hours,
+            options.centuries,
+            options.date_columns,
+            options.first_row_typed,
+            chain=chain,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin
@@ -2842,6 +6917,14 @@ def main(argv: "list[str] | None" = None) -> int:
             _warn(errors.quality_out_of_memory(_shown(named)))
         else:
             _warn(errors.out_of_memory_while_describing(_shown(named)))
+        return 1
+    except RecursionError:
+        # A STEP NESTED PAST PYTHON'S OWN LIMIT ends here and never as a
+        # stack trace (plan P4-D380). The pool walk that did it on columns
+        # of numbers written to full precision carries its own stack now;
+        # this is what any step that still reaches the limit says, on the
+        # file the person typed, whichever of the three commands it was.
+        _warn(errors.stopped_nested_too_deep(_shown(named)))
         return 1
 
 

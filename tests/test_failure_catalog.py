@@ -16,7 +16,7 @@ import sys
 
 import pytest
 
-from synthtwin import errors
+from synthtwin import asking, errors, parsing
 
 # The builders and one set of plausible arguments for each. Adding a
 # builder to errors.py without adding it here fails the completeness
@@ -25,22 +25,34 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "file_missing": ("/data/table.csv",),
     "path_is_a_folder": ("/data",),
     "file_unreadable": ("/data/table.csv", "permission denied"),
-    "not_utf8_or_latin1": ("/data/table.csv",),
     "looks_like_utf16": ("/data/table.csv",),
     "file_is_empty": ("/data/table.csv",),
     "no_data_rows": ("/data/table.csv",),
-    "header_looks_like_data": ("/data/table.csv", "every value reads as a number"),
-    "duplicate_column_names": (["age", "age"],),
-    "empty_column_name": (3,),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
+    # A row that does not close the way the others do (plan P4-D387,
+    # lane R5's repair): positions and kinds, both whole numbers.
+    "trailing_delimiter_uneven": ("/data/table.csv", [(51, 0), (501, 1)], 9),
+    # A first row ending in a quoted empty name over a column no row
+    # fills (Codex's review of landing R5, item 2): a path and the
+    # delimiter's words.
+    "quoted_empty_name_over_an_empty_column": ("/data/table.csv", "a semicolon"),
+    "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
+    # A file that changed between two readings of it (lane SR, plan
+    # P4-D400): a path.
+    "file_changed_while_read": ("/data/table.csv",),
     "unreadable_as_csv": ("/data/table.csv", "unexpected end of data"),
     "readers_disagree": ("/data/table.csv", "12 rows", "13 rows"),
     "out_of_memory": ("/data/table.csv", 4_000_000_000),
     "output_folder_missing": ("/reports",),
     "output_not_writable": ("/reports/out.json", "read-only file system"),
     "floor_not_positive": ("0",),
-    "first_row_could_be_a_record": ("/data/table.csv", 3),
+    # THE POPULATION FLOOR (plan P4-D341). Registered with the landing
+    # that added it, because a refusal nobody has read is a refusal
+    # nobody has checked. Two shapes, and the people one carries the
+    # column the person typed after --identifier: the rows one names
+    # no column at all.
+    "the_population_is_too_small": (48, "rows", ""),
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
     # The same three refusals for a file `synthtwin validate` was only
@@ -48,6 +60,55 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # path the file may not be the reader's own table, and a refusal
     # travels as freely as a report does. The test below walks their
     # arguments and asserts no spelling from a file can be among them.
+    # Reading a workbook (plan P4-D77). Every argument is a path, a
+    # limit or a sheet name: no cell of a workbook reaches a refusal.
+    "workbook_unreadable": ("/data/table.xlsx",),
+    "workbook_part_unreadable": ("/data/table.xlsx",),
+    "workbook_declares_a_document_type": ("/data/table.xlsx",),
+    "workbook_is_a_compound_file": ("/data/table.xls",),
+    "workbook_is_markup": ("/data/table.xls",),
+    "workbook_expands_too_far": ("/data/table.xlsx", 256_000_000),
+    "workbook_part_expands_too_far": ("/data/table.xlsx", 200),
+    "workbook_too_many_parts": ("/data/table.xlsx", 4_096),
+    "workbook_part_named_away": ("/data/table.xlsx",),
+    # The files review of 2026-09-18 (plans P4-D283, P4-D289). Neither
+    # names a cell: one names the column, the other the file alone.
+    "workbook_is_packaged_unreadably": ("/data/table.xlsx",),
+    "workbook_column_mixes_number_formats": ("/data/table.xlsx", "amount"),
+    "workbook_cell_too_long": ("/data/table.xlsx", 32_767),
+    "workbook_holds_too_many_cells": ("/data/table.xlsx", 8_000_000),
+    "workbook_too_many_shared_strings": ("/data/table.xlsx", 4_000_000),
+    "workbook_too_many_rows": ("/data/table.xlsx", 1_048_576),
+    "workbook_too_many_columns": ("/data/table.xlsx", 16_384),
+    "workbook_has_no_sheet": ("/data/table.xlsx",),
+    "workbook_sheet_not_found": ("/data/table.xlsx", "Data", ["Notes", "Totals"]),
+    "workbook_sheet_is_empty": ("/data/table.xlsx", "Data"),
+    "workbook_other_sheet_holds_a_table": ("/data/table.xlsx", "Notes", "Data"),
+    # The files review's repairs (plan P4-D164 to P4-D173). The three
+    # `checked_` forms are the validate path's, and take a path and
+    # positions alone (V9); the rectangle and the storage refusals are
+    # the profile path's.
+    "workbook_table_spans_too_many_cells": ("/data/table.xlsx", 1_000_000),
+    "checked_workbook_sheet_not_found": ("/data/checked.xlsx", 3),
+    # Review item 4 of landing R3: a position, never a name (V9).
+    "checked_clocks_described_as_numbers": ("/data/checked.xlsx", 2),
+    "checked_workbook_sheet_is_empty": ("/data/checked.xlsx", 2),
+    "checked_workbook_other_sheet_holds_a_table": ("/data/checked.xlsx", 2, 1),
+    "workbook_column_mixes_storage": ("/data/table.xlsx", "amount", "formats"),
+    # The repair pass after the files review (plan P4-D174): a header
+    # row the sheet does not settle is asked about, by row number.
+    # Registered here by landing 2b.11 part 2. The builder arrived with
+    # the `--metadata-rows` declaration of plan P4-D81 and reached this
+    # table with no entry, so this file -- whose whole job is that every
+    # refusal a person can meet has been read by somebody -- was red on
+    # the commit that added it.
+    "metadata_rows_not_supported": ("3",),
+    # Registered with the `--delimiter` declaration of plan P4-D110.
+    "delimiter_not_supported": ("x",),
+    "delimiter_declared_against_the_file": (
+        "/data/table.csv", "a semicolon", "a comma",
+    ),
+    "delimiter_declared_on_a_workbook": ("/data/table.xlsx",),
     "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
     "checked_file_readers_disagree_about_a_value": (
         "/data/checked.csv",
@@ -55,7 +116,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
         2,
     ),
     "checked_file_unreadable_as_csv": ("/data/checked.csv",),
-    "checked_file_repeats_a_column_name": ("/data/checked.csv",),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -101,6 +161,14 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "output_would_replace_the_table": ("/data/table.csv",),
     "unknown_column_named": ("holding record numbers", "agee", ["age", "site"]),
     "out_of_memory_while_describing": ("/data/table.csv",),
+    # Any step nesting past Python's own limit (plan P4-D380), on the
+    # file the person typed; driven through the command in
+    # `tests/test_stage3b_full_precision.py`.
+    "stopped_nested_too_deep": ("/data/table.csv",),
+    # The bound on the search for one cell's number (the Codex review of
+    # 3b-R0, item 2), driven through the command in
+    # `tests/test_stage3b_full_precision.py`.
+    "cell_too_long_to_search": (20_000_000,),
     "output_is_not_a_plain_file": ("/reports/table-profile.json",),
     "outputs_are_the_same_file": ("/r/a-profile.json", "/r/a-profile.txt"),
     # Reading a description back: the strict loader's nineteen refusals,
@@ -160,6 +228,10 @@ CASES: "dict[str, tuple[object, ...]]" = {
         "the description gives the table a different number of rows",
     ),
     "profile_relationships_carried": ("grain",),
+    # The chain between columns breaking one of S23 to S28 (lane CHa,
+    # plan P4-D418), read only behind the loader's switch: the rule, where
+    # it broke, and what broke it.
+    "profile_chain_broken": ("S24", "chain", "an option W1 refuses was drawn"),
     "profile_out_of_memory": ("/reports/table-profile.json",),
     # Building the twin: the three refusals that belong to the command
     # rather than to the loader or to the method (plan P2-D10), plus the
@@ -192,6 +264,16 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "answers_entry_names_no_column": ("checklist[7]",),
     "answers_entry_offers_nothing": ("asked[2]", "dose"),
     "answers_names_one_key_twice": ("/data/clinic-questions.json", "column"),
+    # THE PAIR THE FILE MAY NOT CARRY (review of stage 3, floor item 1).
+    # An answer that changes how the file is READ gives the file's own
+    # column names to different columns, so a declaration made by name
+    # lands on one the person was not looking at. It names the question,
+    # the columns, and the two runs to do it in.
+    "answers_change_the_reading_and_name_columns": (
+        "/data/clinic-questions.json",
+        [asking.FIRST_ROW_SUBJECT],
+        ["dose"],
+    ),
     # Said BEFORE anything is written, where a link or a name of the
     # person's own stands where the questions file goes (review item
     # L17b-R1-1). The noun is one of the three written out in errors.py
@@ -244,6 +326,14 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # already theirs, and both needed, because the sentence has to say
     # which pair it is refusing and there are two such pairs.
     "comma_declaration_would_be_ignored": ("weight", "--code"),
+    # -- 3b.R4 (P4-D384): `--date-count` naming a system that is not one of
+    # the twelve is refused before the table is opened, and it takes what
+    # the person typed, theirs already; a column so named whose cells did
+    # not read as such dates is told so after the run, for the comma
+    # declaration's reason, with the system -- and that it is held, on
+    # every table (plan P4-D406), so the role it read no longer travels.
+    "date_count_system_not_supported": ("excel-2000",),
+    "the_date_count_declaration_did_not_reach": ("visit_day", "excel-1900"),
     # NOT a refusal: the loud remark for a declaration that was
     # accepted and then could not be honoured, because the column's
     # role was not known until the table had been read (R-P4-52). It
@@ -251,6 +341,26 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # read it as -- the second is synthtwin's own word and is the
     # whole reason the sentence is worth printing.
     "the_comma_declaration_did_not_reach": ("price", "free_text"),
+    # ...and `--twelve-hour` on a column that is no unmarked clock
+    # (landing T1, plan P4-D370): the same notice, for the same reason.
+    "the_twelve_hour_declaration_did_not_reach": ("seen_at", "count"),
+    # ...and the one it was honoured on, whose written clock was pooled
+    # (the T1 review's item 9): told so, rather than told to drop it.
+    "the_twelve_hour_style_was_held_back": ("seen_at",),
+    # ...and a layout column read in part, which the partial reader takes
+    # on the 24-hour clock alone (the Codex review of landing I3a, item 2).
+    "the_twelve_hour_declaration_did_not_reach_in_part": ("seen_at",),
+    # ...and `--century` (landing R2a, plan P4-D383): a value that is not
+    # a column's name, an equals sign and a year question Q5 offers is
+    # refused before the table is opened, and it takes what the person
+    # typed, which is theirs already; a column it names that is read with
+    # no two-figure year is told so after the run, for the comma
+    # declaration's reason, with the role synthtwin read it as.
+    "century_not_supported": ("birth_date=1950",),
+    "the_century_declaration_did_not_reach": ("birth_date", "free_text"),
+    # ...and `--date-column` (landing R2c, question Q6): a column fewer than
+    # half of whose values read as dates, said and not refused.
+    "the_dates_declaration_did_not_reach": ("visit_date", "free_text"),
     # Also not a refusal: an ANSWER to a question can create the pair
     # the flags refuse, and the answer is the newer statement, so the
     # comma declaration is dropped rather than the run stopped. It
@@ -266,6 +376,26 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # things and the advice differs by neither.
     "a_declared_value_reads_two_ways": ("1,234", "--missing-value"),
     "the_questions_were_not_finished": (),
+    # Not a refusal: an answer about a column's codes (plan P4-D381)
+    # found none in the table the run opened. It takes the column name
+    # the questions file gave, which is the person's own.
+    "the_date_codes_answer_reached_nothing": ("seen_at",),
+    # Not a refusal either: such an answer left words typed the other
+    # way as they were, where the column's codes no longer look as the
+    # question described them (the Codex review of lane R1, item 5). The
+    # column name, the option and how many words, never a word.
+    "the_date_codes_answer_left_typed_words": ("seen_at", "--missing-value", 1),
+    # Two entries of one questions file answering one column's codes
+    # both ways (the Codex review of lane R1, item 8): the path and the
+    # column name, both the person's own.
+    "one_column_answered_both_ways": ("/data/clinic-questions.json", "seen_at"),
+    # ...and the refusal of two such answers that make one spelling a
+    # value and "no value" at once. It takes the file's path and the
+    # clashing pair as `taxonomy.contradictory_declarations` words it.
+    "answered_codes_contradict_each_other": (
+        "clinic-questions.json",
+        "--keep-value UNK and --missing-value UNK",
+    ),
 }
 
 
@@ -442,7 +572,6 @@ CHECKED_FILE_FORMS = (
     "checked_file_readers_disagree_about_a_name",
     "checked_file_readers_disagree_about_a_value",
     "checked_file_unreadable_as_csv",
-    "checked_file_repeats_a_column_name",
 )
 
 
@@ -815,8 +944,16 @@ def _a_described_table(folder: "pathlib.Path") -> "pathlib.Path":
     import fixtures
     from synthtwin.cli import main
 
+    # A HUNDRED ROWS AND NOT FORTY-EIGHT (plan P4-D341). The command
+    # refuses a table under the population floor and writes nothing, so
+    # a helper that describes one describes no table at all. The number
+    # is derived from the rule -- `parsing.POPULATION_FLOOR` is the
+    # smallest population the command describes -- and not copied off a
+    # run: what this helper needs is a described table, and the
+    # smallest one the command makes is the cheapest.
     rows = [
-        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+        [fixtures.REGIONS[index % 4], f"{index % 7}"]
+        for index in range(parsing.POPULATION_FLOOR)
     ]
     table = fixtures.write(
         folder, "clinic.csv", fixtures.rows_to_csv(["region", "visits"], rows)
@@ -1138,11 +1275,24 @@ def _the_description_no_file_can_be_the_twin_of(folder, description, undo):
     import fixtures
     from synthtwin.cli import main
 
+    # EACH VALUE ON SEVERAL ROWS, SO THE TABLE CLEARS THE POPULATION
+    # FLOOR (plan P4-D341). The condition this fixture needs is a
+    # property of the COLUMN -- twenty-six different values where the
+    # code alphabet can write twenty-five -- and not of the row count,
+    # so the rows are raised until the command describes the table at
+    # all and the property is left exactly as it was. The copies are
+    # derived: enough of them for `parsing.POPULATION_FLOOR` rows, which
+    # is four at a hundred. No value reaches the floor of eleven either
+    # way, so the description is the one this fixture had before.
     values = [chr(0x100 + 2 * index) for index in range(26)]
+    copies = -(-parsing.POPULATION_FLOOR // len(values))
     table = fixtures.write(
         folder,
         "note.csv",
-        fixtures.rows_to_csv(["note"], [[value] for value in values]),
+        fixtures.rows_to_csv(
+            ["note"],
+            [[value] for value in values for _each in range(copies)],
+        ),
     )
     assert main(["profile", f"{table}"]) == 0
     ordinary = fixtures.write(folder, "any.csv", "note\nx\n")

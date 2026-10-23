@@ -25,11 +25,24 @@ __pycache__/
 dist/
 build/
 wheelhouse/
+# The offline bundle's built files (plan P4-D416): wheels are binary and
+# the notices quote licence texts the decontamination scanner matches.
+*.whl
+THIRD-PARTY-NOTICES*
+SHA256SUMS
 .venv/
 venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# What the sharded CI steps write into the checkout root, and what
+# anyone reproducing one of those steps locally writes there too
+# (CONTRIBUTING.md documents the tool). They are output of a run, never
+# repository content, and the landing checklist starts with `git add
+# -A`.
+shard-files.txt
+collected.txt
 
 # OS noise
 .DS_Store
