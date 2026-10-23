@@ -996,7 +996,7 @@ the question an auditor actually cares about answered per row:
 
 | Role | Contents | Executes on a user machine? | Pinned by |
 | --- | --- | --- | --- |
-| Runtime, direct | `numpy`, `pyarrow`, `scipy`, `pandas` | yes | bounds in `pyproject.toml` for an ordinary `pip install` (floors installed and tested by the `minimums` CI job on Python 3.11); by hash in `requirements-install.lock` for the supported institutional install and the offline bundle |
+| Runtime, direct | `numpy`, `pyarrow`, `scipy`, `pandas` | yes | bounds in `pyproject.toml` (floors installed and tested by the `minimums` CI job on Python 3.11); by hash in `requirements-install.lock` for the offline bundle, the only distribution (the owner's D3, plan P4-D416), and CI's institutional install |
 | Runtime, transitive | `python-dateutil`, `six`, and (on Windows) `tzdata` - the closure pandas brings; numpy is in pandas' and scipy's closures too. numpy was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order; the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and the zones of P4-D409 keep every library float away from published bytes. What returned at Phase 2 is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
 | Runtime, optional | `numba` with `llvmlite` (the `polish` extra), compiling the one audited polish kernel; not on Intel Macs | only where installed, and only once CI proves the kernel byte-identical (P4-D409 part 4) | by hash in `requirements-dev.lock`; not in the offline bundle, whose lock is `requirements-install.lock`, until lane MPn's kernel is adopted on green vectors from the `numba-vectors` CI job (P4-D416) |
 | Test-only | `openpyxl`, `statsmodels`, `scikit-learn` (zone P: independent readers and second implementations) | no - contributor and CI machines only; `src/` never imports them | hash-locked in `requirements-dev.lock`, consumed frozen |
@@ -1048,9 +1048,11 @@ runs the command, and profiles a table built on the spot by a seeded
 script. The wheel matters: installing from a source folder would make
 pip fetch and execute a build backend that this lock does not pin, so
 the documented procedure names the wheel and CI exercises exactly it. That
-path is exercised on every run rather than described and never tried. An
-ordinary `pip install synthtwin` is governed by version bounds only and
-is documented as such. The bounds are not guesses: the `minimums` job
+path is exercised on every run rather than described and never tried. No
+package index serves synthtwin: the owner's D3 (2026-10-20, plan
+P4-D416) makes the hash-checked offline bundle the only distribution,
+and `pyproject.toml`'s version bounds govern only what the bundle and
+CI install. The bounds are not guesses: the `minimums` job
 installs exactly the declared floors on the oldest supported interpreter
 and runs the whole test suite against them.
 

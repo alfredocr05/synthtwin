@@ -2804,12 +2804,13 @@ POOLED_FEW_HOURS = (
     "is built from a description of a few evenly filled hours with no census of the hour, so the "
     "generator's count of different values and its count at midnight miss (method G7.9 on "
     "stamps): 32 of 39 hours and 1,208 rows at midnight against 515 at 20,000 rows; the twin's "
-    "stamps parse; lane PS's follow-up"
+    "stamps parse; lane PS2, lane PS's follow-up (the orchestrator, 2026-10-23)"
 )
 HELD_VALUES = (
     "a measurement column beside a person column holding a value one to ten people hold is held "
     "whole (the orchestrator's ruling of 2026-10-19 15:42, item 1): its twin writes made-up values "
-    "in the column's layouts; pooling values in subject units is lane PS's (plan P4-D406)"
+    "in the column's layouts; pooling values in subject units was lane PS's (plan P4-D406), held as "
+    "before by lane PS (plan P4-D417), lane PS2's since (the orchestrator, 2026-10-23)"
 )
 CENSUS_IN_PEOPLE = (
     "the person column's census of rows a person is counted in people, its groups of one to ten "
@@ -2856,7 +2857,7 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "admit_ts wears an offset in force on its date", "discharge_ts wears an offset in force on its date")),
     ),
     "labs": (
-        ("PS", HELD_VALUES, covers(
+        ("PS2", HELD_VALUES, covers(
             "censored values read past < and >", "the numbers of viral_load keep their range",
             columns=("viral_load",))),
         ("CODES-1", "a measurement column held whole in people (plan P4-D406) gets a twin that misses "
@@ -2961,7 +2962,7 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("CODES-1", MADE_UP_CODES, covers("NPIs pass their Luhn check", columns=("npi",))),
     ),
     "wearables": (
-        ("PS", POOLED_FEW_HOURS, covers("miss ts")),
+        ("PS2", POOLED_FEW_HOURS, covers("miss ts")),
     ),
 }
 

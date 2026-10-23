@@ -56,9 +56,12 @@ SEED = 20261016
 # words for one no lane covers yet (the orchestrator names a new one).
 # Lanes MG and PS own what lane HX2's count in people costs the zoo (plan
 # P4-D406; batch 4e's integration); lane G2T2 the mixed result column's
-# held-back mean at 20,000 rows (batch 4e's records).
+# held-back mean at 20,000 rows (batch 4e's records); lane PS2, lane PS's
+# follow-up, what PS left held or pooled (the orchestrator, 2026-10-23;
+# batch 4g's records).
 PLAN_LANES = (
-    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", *zoo.ZOO_LANES, zoo.NEEDS_OWNER,
+    "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", *zoo.ZOO_LANES,
+    zoo.NEEDS_OWNER,
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing

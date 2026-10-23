@@ -6,6 +6,47 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4g's records: the chain met by its oracle, the six time entries stamped, owners for every stated limit, a shorter STATE (2026-10-23)
+
+**Records of batch 4g**, which merged lanes CHa, CHo and ZR-a (plans
+P4-D418, P4-D421 and P4-D419). Lane CHo's product test meets lane CHa's
+product for the first time: handed the chain's switch alone it still
+skips, because the trial table's `ward` is held by lane HX's open
+identifier question and no chain is published beside a held column that
+repeats, so a second test answers `ward` `keep` in a second round with
+the switch on; each column's bands, the family tables, their anchors,
+the floor, RULE W1 and the structural words equal the oracle's, and the
+test fails rather than skips when no chain is published. With the switch
+off, lane SR's 880 descriptions and every golden are byte for byte batch
+4f's. The six time entries (`K-P3-12`, `K-S1-01`, `K-S1-05`, `K-S1-06`,
+`K-S1-07`, `K-2B-38`) are stamped from the orchestrator's night window
+of 2026-10-23 under the floor interpreter, five passing and `K-S1-06`
+open as before. `K-S3-64`, `K-S3-65`, `K-P4-06` and `K-S6-08` are run
+again on the merged head and stamped there, each value as its earlier
+tree read it. `K-S4-09`'s and `K-S4-11`'s evidence names lane H3 as the
+owner of the keyed subject cells and the person-column run since
+2026-10-22, the earlier assignment to lane SR-A kept as history, and
+lane SR-A's percentage reads 32.5 % where it read 24.5 % (here and in
+P4-D414). Owners: the G1 floor over a length, lane CODES-1 part C; a
+pooled column's missing spellings and whatever "lane PS's follow-up"
+named, lane PS2 (P4-D417, STATE and the zoo's owner lines). The zoo's
+SNOMED ids write 2 codes the real never writes on 14 cells at 600 rows
+at the zoo's own seed on lane HX3's head as on the merges: HX3's 7 came
+from another fixture seed. STATE names the live HIPAA exposures found on
+2026-10-23 with their owners (ages over 89 and a ZIP column with one
+word, lane SH; register lists at 20,000 rows, lane HX4), CI's three
+bundle jobs and the three landings, and holds its clock and calendar
+limits in one bullet by owner, every owner and limit kept: 829 lines
+after batch 4f, 741 now. SECURITY.md no longer offers an ordinary
+`pip install` (the owner's D3). The ledger's byte cap is set once for
+the batch.
+
+OWED, NOT DONE HERE: `K-S4-09` and `K-S4-11` re-stamped on lane SR-A's
+merged code in a night window (`wave6/SRA/night-sra.sh <head> kpi`), and
+lane H3's person-column run; the wall-time assertion of
+`tests/test_stage4_counted_in_persons.py::test_a_raised_floor_asks_a_set_of_subjects`
+watched on CI's first run.
+
 ### The zoo-fix reading page: where each new reading stands in the classifier, the questions it adds, what it may publish (lane ZR-a, plan P4-D419, 2026-10-21; NOT BUILT)
 
 **A method page, written before the code of the health data zoo's fix
@@ -186,10 +227,10 @@ or a time beside a person column holds at both sizes. `K-HZ-01` and
 `K-HZ-02` are restamped and their bounds moved back; `K-S3-65` stays 0.
 A table with no subject column is described byte for byte as before.
 Stated limits: a stamp of a few evenly filled hours misses its count of
-different values (`wearables` at 20,000 rows, lane PS's follow-up); a
-measurement attached to its person is held as before (lane PS's
-follow-up); P4-D406's limit (2), a table of ten people or fewer, stays
-open.
+different values (`wearables` at 20,000 rows, lane PS's follow-up, lane
+PS2 since batch 4g's records); a measurement attached to its person is
+held as before (lane PS2 likewise); P4-D406's limit (2), a table of ten
+people or fewer, stays open.
 
 **Repair round 1** (the lane's two skeptics). A description at a grain
 no longer leaves a count of one to ten people to subtraction: every

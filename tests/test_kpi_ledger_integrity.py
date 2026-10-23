@@ -815,6 +815,18 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 754,000 from 745,000, AT THE INTEGRATION OF BATCH 4G (2026-10-23),
+    # the orchestrator's recorded call D15 (the owner may veto), set once
+    # for the batch, the least round figure the merged ledger fits under:
+    # lane CHa's `K-S6-08` with its note clause (its branch raised its own
+    # cap to 743,000, below; lanes CHo and ZR-a add no entry), every entry
+    # kept by id and the note merged clause by clause; then the records:
+    # the six time entries stamped from the night window of 2026-10-23,
+    # `K-S4-09` and `K-S4-11` re-owned to lane H3 with night 1022's figure
+    # and lane SR-A's percentage corrected, and `K-S3-64`, `K-S3-65`,
+    # `K-P4-06` and `K-S6-08` stamped from their re-runs on the merged
+    # head, 753,943 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    #
     # 745,000 from 741,000, AT THE INTEGRATION OF BATCH 4F (2026-10-22),
     # the orchestrator's recorded call D15 (the owner may veto), set once
     # for the batch, the least round figure the merged ledger fits under:
@@ -1306,10 +1318,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-08 new, the chain's
     # tables part, with its note clause. The batch integrator settles this
     # beside the other lanes' raises.
-    #
-    # INTERIM AT BATCH 4G'S MERGE OF LANE CHa: 751,000, the batch's records
-    # set the cap once for the batch with its reason (above).
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 751_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 754_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
