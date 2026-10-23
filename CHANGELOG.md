@@ -6,6 +6,64 @@ exists).
 
 ## [Unreleased]
 
+### The zoo-fix reading page: where each new reading stands in the classifier, the questions it adds, what it may publish (lane ZR-a, plan P4-D419, 2026-10-21; NOT BUILT)
+
+**A method page, written before the code of the health data zoo's fix
+lanes UN-1a, UN-1b, TR, LISTS, UN-2 and NOTES and of CODES-3's question**
+(`docs/plans/phase-4-columns.md`, "The zoo-fix reading page"). It fixes
+the classifier's order for every new reading -- clock times written as
+figures before the numeric rule, read only on the answer `clock-figures`,
+four new stand-asides of the categories rule, a templated reading from a
+closed list and a list reading both ahead of the long tail, and a share
+line of a quarter of the rows for a long tail NOTES' trigger reaches until
+its question is answered -- the eight questions they add, none naming a
+value of the table, the keys of the templated reading and of a new role
+for several values in one cell, why each prints no count of one to ten,
+how `synthtwin validate` reads each, and the KPIs each lane stamps, with
+the zoo kinds each can turn. No new reading lifts a hold of plan P4-D401:
+its exemption for dates and times covers only what today's reader reads
+so, because padded keys numbered in order stay on the clock's grid and a
+month-year register reads as dates (read unanswered, 9 to 12 real keys and
+13 of 180 cases published, measured by the lane's skeptics). Measured on
+98c0fce6: templated notes cover 13.3 % of rows at 20,000 and 24.1 % at
+200,000, and spaced label tails 7.5 to 22.5 %, so the trigger NOTES keeps,
+not the line, holds whole notes out of every description, and the line
+waits on the answer. Repair 2 (the verify and Codex's review): a list of
+three-figure codes, which today's reader takes for grouped thousands, is
+asked before the numeric rule; rare list lengths are pooled with the
+total of their values, so a twin meeting the list margins always exists
+(Gale and Ryser's condition; the censuses beside them are carried to
+lane LISTS); a zone word moves no instant (`CST` names two offsets); a
+clock declaration that does not read holds its column; and a list whose
+values look like record numbers is held until answered, as measured today
+a long tail of such a list publishes two of them. Repair 3 (the verify
+of repair 2): fees heaped on round steps are asked as a list may be,
+and a clock with a few hours past 23 is read as durations only on the
+answer or the declaration. Repair 4 (Codex's second round): the codes
+`-1` and `-2` beside compact dates are read for that column alone, as
+the table-wide declaration took 240 of a change score's 600 values; a
+declared list is read before the numeric rule; the twin's list writes
+as many stand-ins as values were held back, so its description
+publishes the same counts again, and the count of cells holding one,
+which no construction is proven to meet, is withdrawn; a missing-code
+answer is acted on only for the table it was given for; and the
+list role's pool counts may be 1 to 10, as a label column's are.
+Repair 5 (Codex's third round; the owner chose two of its six items to
+fix here): the register-list hold is lane HX4's rule, so one ordinary
+word beside 40 record numbers no longer lets a list reading publish
+them, and no list is read over a record number beyond that rule; a
+missing-code answer stays on the value it was given for when the same
+file is read again with two rows confirmed as metadata; the other four
+items are carried to lanes LISTS and UN-2 with Codex's cases, and each
+sentence they touch is marked open. Close 4 (the lane's internal verify
+of repair 5): one ordinary word no longer undoes any route of that rule,
+not only the five-figure one, so keys such as `R1000`, `AB100` or a
+padded `0100` beside one `OTHER` are not read as a list at 600 or 20,000
+rows, and lane LISTS' gate holds those three with the question put.
+Measured in the same close: at 20,000 rows today's reader prints such
+keys inside whole-cell levels, lane HX4's to close. No product code,
+golden, vector or KPI moves; `tests/test_zoo_reading_page.py` pins the
+page's computed figures and each rule's operative sentence.
 ### Between columns: the exact oracle, and the class its route decides (2026-10-21, repaired twice 2026-10-22)
 
 **Lane CHo (plan P4-D421); tools and tests only, no product code.** An
