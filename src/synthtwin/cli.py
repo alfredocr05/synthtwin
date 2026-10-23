@@ -1905,6 +1905,7 @@ def _answers_given(
     day_first: bool,
     month_first: bool,
     safe_harbor_no: "tuple[str, ...]" = (),
+    safe_harbor_yes: "tuple[str, ...]" = (),
 ) -> "asking.Given":
     """Every answer this run acts on, as `asking.answered_before` writes it.
 
@@ -1940,6 +1941,7 @@ def _answers_given(
         date_columns_kept=tuple(dates_kept),
         identities_kept=identities_kept,
         safe_harbor_no=safe_harbor_no,
+        safe_harbor_yes=safe_harbor_yes,
         missing_dates=tuple(
             (name, code_shapes[name] if name in code_shapes else "")
             for name in missing_dates
@@ -3439,6 +3441,7 @@ def _run_profile(
     # question (plan P4-D427): read without the top-code, or no longer
     # held for their five figures.
     safe_harbor_no: "list[str]" = []
+    safe_harbor_yes: "list[str]" = []
     # ...and the columns read as five-figure numbers beside a few words,
     # as the latest description found them (plan P4-D427).
     five_figures: "list[str]" = []
@@ -3680,7 +3683,8 @@ def _run_profile(
             names_by_answer += named_columns
             names_by_answer += list(identities_kept_answered)
             safe_harbor_no = list(written.safe_harbor_no)
-            names_by_answer += safe_harbor_no
+            safe_harbor_yes = list(written.safe_harbor_yes)
+            names_by_answer += safe_harbor_no + safe_harbor_yes
         carried_answers = written.carried
         if written.metadata_rows_answered:
             metadata_answer = (
@@ -4077,7 +4081,7 @@ def _run_profile(
                 answered_missing_dates, answered_real_values,
                 answered_code_shapes, first_row, metadata_answer,
                 declared_delimiter, day_first, answered_month_first,
-                tuple(safe_harbor_no),
+                tuple(safe_harbor_no), tuple(safe_harbor_yes),
             ),
         )
         if not_kept:
@@ -4846,8 +4850,20 @@ def _run_profile(
     for name in five_figures:
         if name not in declared_five and name not in withheld and name not in five_held:
             five_held += [name]
+    # ...and a column answered `yes` to that question is held so for good,
+    # the run asking nothing more of it (plan P4-D427).
+    harbor_held: "list[str]" = []
+    for name in safe_harbor_yes:
+        if (
+            name in read.column_names
+            and name not in forced_identifiers
+            and name not in withheld
+            and name not in five_held
+            and name not in harbor_held
+        ):
+            harbor_held += [name]
     published = document
-    if withheld or candidates or five_held:
+    if withheld or candidates or five_held or harbor_held:
         if withheld:
             _warn(_withheld_notice(withheld))
         if five_held:
@@ -4871,7 +4887,7 @@ def _run_profile(
             forced_delimiter=declared_delimiter,
             table_notes=population_notes,
             stored_as=storage,
-            unanswered=list(withheld) + five_held,
+            unanswered=list(withheld) + five_held + harbor_held,
             subjects=list(person_columns) + list(withheld) + candidates,
             counted_in_subjects=counted_in_people,
             safe_harbor_no=safe_harbor_no,
@@ -5316,6 +5332,7 @@ def _run_profile(
                             kept_code_shapes, first_row,
                             metadata_answer, declared_delimiter, day_first,
                             answered_month_first, tuple(safe_harbor_no),
+                            tuple(safe_harbor_yes),
                         )
                     ),
                     # ...with the names those answers use (P4-D408).

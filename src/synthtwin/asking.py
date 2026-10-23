@@ -3858,8 +3858,12 @@ def unanswered_identities(
 # to a column of five-figure numbers beside a few words, wherever no
 # other question is put to that column (HX3's `code` in round one is the
 # model: one entry, which lane CODES-2 extends to label columns). Its two
-# answers are `no` and `yes`; `yes` is `--identifier` (P4-D401's held
-# block), `no` lifts the top-code or the hold. Unanswered, a column the
+# answers are `no` and `yes`; `yes` holds the column as P4-D401 holds one
+# whose question is open (its block, its twin's made-up record numbers),
+# and never as a declared `--identifier`, which would make a column of
+# ages or ZIP codes the table's person column and count the table in
+# them (measured: 20,000 ages answered so were 86 "people", and the run
+# refused the table); `no` lifts the top-code or the hold. Unanswered, a column the
 # top-code reaches reads every value above 89 as 90, and a column of
 # five-figure numbers is held whole.
 BECAUSE_SAFE_HARBOR_AGES = "numbers-from-0-to-125-some-above-89"
@@ -5751,8 +5755,10 @@ class Answers:
     decimal_commas_alone: "tuple[str, ...]" = ()
     # ...AND THE COLUMNS ANSWERED `no` TO THE SAFE HARBOR QUESTION (plan
     # P4-D427): read without the top-code, or no longer held for their
-    # five figures. `yes` is `--identifier`, among ``identifiers``.
+    # five figures; and those answered `yes`, held as P4-D401 holds a
+    # column whose question is open.
     safe_harbor_no: "tuple[str, ...]" = ()
+    safe_harbor_yes: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -5983,6 +5989,7 @@ def answers_in(document: object, shown: str) -> Answers:
     carried: "list[tuple[str, str, str]]" = []
     decimal_commas_alone: "list[str]" = []
     safe_harbor_no: "list[str]" = []
+    safe_harbor_yes: "list[str]" = []
     # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
     # against every later one before any is acted on (plan P4-D408).
     entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
@@ -6099,8 +6106,8 @@ def answers_in(document: object, shown: str) -> Answers:
             date_columns_kept += [name]
         elif written == ANSWER_SAFE_HARBOR_YES:
             # The Safe Harbor question answered `yes` (plan P4-D427): the
-            # column is a record number, P4-D401's held block.
-            identifiers += [name]
+            # column is held, P4-D401's held block.
+            safe_harbor_yes += [name]
         elif written == ANSWER_SAFE_HARBOR_NO:
             safe_harbor_no += [name]
         elif written == ANSWER_KEEP and ANSWER_IDENTIFIER in offered:
@@ -6151,6 +6158,7 @@ def answers_in(document: object, shown: str) -> Answers:
         carried=tuple(carried),
         decimal_commas_alone=tuple(decimal_commas_alone),
         safe_harbor_no=tuple(safe_harbor_no),
+        safe_harbor_yes=tuple(safe_harbor_yes),
     )
 
 
@@ -6277,7 +6285,7 @@ _KEPT_MEANS: "dict[str, str]" = {
     ANSWER_MONTH_FIRST: "the month comes first in the dates",
     ANSWER_DAY_FIRST: "the day comes first in the dates",
     ANSWER_SAFE_HARBOR_NO: "no value of the column could name a person (the Safe Harbor question)",
-    ANSWER_SAFE_HARBOR_YES: "a value of the column could name a person: record numbers",
+    ANSWER_SAFE_HARBOR_YES: "a value of the column could name a person: no value of it is published",
 }
 # ...and `keep` where it takes a declaration of how numbers are written
 # back, which is not the reading a column keeps.
@@ -6606,8 +6614,10 @@ class Given:
     date_columns: "tuple[str, ...]" = ()
     date_columns_kept: "tuple[str, ...]" = ()
     identities_kept: "tuple[str, ...]" = ()
-    # The columns answered `no` to the Safe Harbor question (plan P4-D427).
+    # The columns answered `no` and `yes` to the Safe Harbor question
+    # (plan P4-D427).
     safe_harbor_no: "tuple[str, ...]" = ()
+    safe_harbor_yes: "tuple[str, ...]" = ()
     # `(column, what the question saw)`: the run reading the answer
     # finds the codes again by those words.
     missing_dates: "tuple[tuple[str, str], ...]" = ()
@@ -6731,7 +6741,11 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     for name in given.centuries_kept:
         if name not in centuries:
             centuries[name] = ANSWER_CENTURY_POSIX
-    harbored: "dict[str, bool]" = {name: True for name in given.safe_harbor_no}
+    harbored: "dict[str, str]" = {
+        name: ANSWER_SAFE_HARBOR_NO for name in given.safe_harbor_no
+    }
+    for name in given.safe_harbor_yes:
+        harbored[name] = ANSWER_SAFE_HARBOR_YES
     dated: "dict[str, str]" = {name: ANSWER_DATES for name in given.date_columns}
     for name in given.date_columns_kept:
         if name not in dated:
@@ -6777,7 +6791,7 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             found += [_kept_entry(name, dated[name], _FAMILY_DATES, "")]
         if name in harbored:
             found += [
-                _kept_entry(name, ANSWER_SAFE_HARBOR_NO, _FAMILY_SAFE_HARBOR, "")
+                _kept_entry(name, harbored[name], _FAMILY_SAFE_HARBOR, "")
             ]
     return found
 
@@ -6818,14 +6832,6 @@ def answers_not_kept(
         if not family or (name, family, said) in written:
             continue
         if said == ANSWER_KEEP and family == _FAMILY_KIND and name in declared:
-            continue
-        # ...and a kept `yes` to the Safe Harbor question is kept by the
-        # `identifier` it declares (plan P4-D427).
-        if (
-            said == ANSWER_SAFE_HARBOR_YES
-            and family == _FAMILY_SAFE_HARBOR
-            and name in declared
-        ):
             continue
         if name not in dropped:
             dropped += [name]

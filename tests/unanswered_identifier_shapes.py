@@ -553,3 +553,166 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     }
     seen.update(counted)
     return seen
+
+
+# THE SAFE HARBOR NUMBER SHAPES (lane SH, plan P4-D427), each a column read
+# as numbers beside a unique row key `pid`, nobody answering.
+#
+# FIVE-FIGURE ZIP CODES BESIDE A FEW WORDS (`ZIP_WORDS`; ZR-b's verify 2,
+# item 1): 70 ZIP codes drawn with weights 1/(k+1)^1.1, with a leading zero
+# (`02100`...) or without (`52240`...), beside `UNKNOWN` once or `HOMELESS`
+# three times. Measured on b85200be at 600 rows: read as a count, 38 or 39
+# real ZIPs printed and 406 to 411 twin cells real; 44 and over 13,000 at
+# 20,000. Counted by `count_real`, as every held shape is.
+#
+# AGES (`AGES`; 45 CFR 164.514(b)(2)(i)(C)): ages 18 to 89 with 3 % drawn
+# from 90 to 103 (the orchestrator's probe of 2026-10-23), plain, beside
+# `999` once or twenty times, or beside `-9` on 2 % of rows. Measured on
+# b85200be at 20,000 rows: `max` 103, the high tail's values 99 to 103.
+# Counted by `run_ages`: what every output of the table carries beside
+# the same outputs of the table with every value above 89 written 90.
+ZIP_WORDS = ("zip5word_unknown", "zip5word_homeless", "zip5word52_unknown",
+             "zip5word52_homeless")
+AGES = ("ages", "ages999", "ages999x20", "ages-9")
+SAFE_HARBOR_NUMBERS = ZIP_WORDS + AGES
+# word, how many cells hold it, whether the ZIPs carry a leading zero
+_ZIP_WORD = {"zip5word_unknown": ("UNKNOWN", 1, True),
+             "zip5word_homeless": ("HOMELESS", 3, True),
+             "zip5word52_unknown": ("UNKNOWN", 1, False),
+             "zip5word52_homeless": ("HOMELESS", 3, False)}
+# placeholder, how many cells hold it, the share of rows that hold it
+_AGE_PLACEHOLDER = {"ages": ("", 0, 0.0), "ages999": ("999", 1, 0.0),
+                    "ages999x20": ("999", 20, 0.0), "ages-9": ("-9", 0, 0.02)}
+AGE_TOP_CODE = 90
+
+
+def write_safe_harbor_table(
+    folder: pathlib.Path, kind: str, rows: int, top_coded: bool = False
+) -> "tuple[pathlib.Path, list[str]]":
+    """A Safe Harbor number table as a CSV file; its path and the real values to look for.
+
+    For ZIPs, the different ZIP codes written; for ages, the different
+    ages above 90 written (an age of 90 is the top-code itself). With
+    ``top_coded``, every age above 89 is written 90 -- the table the
+    top-code reads.
+    """
+    draw = random.Random(SEED + len(kind))
+    cells: "list[str]" = []
+    if kind in _ZIP_WORD:
+        word, times, lead = _ZIP_WORD[kind]
+        zips = [f"0{2100 + 7 * k:04d}" if lead else f"{52240 + 7 * k}" for k in range(70)]
+        weights = [1.0 / (k + 1) ** 1.1 for k in range(70)]
+        for row in range(rows):
+            cells += [word if row < times else draw.choices(zips, weights)[0]]
+        real = sorted({cell for cell in cells if cell != word})
+    else:
+        placeholder, times, share = _AGE_PLACEHOLDER[kind]
+        for row in range(rows):
+            age = (draw.choice(range(90, 104)) if draw.random() < 0.03
+                   else draw.randint(18, 89))
+            if row < times or (share and draw.random() < share):
+                cells += [placeholder]
+            else:
+                cells += [f"{min(age, AGE_TOP_CODE) if top_coded else age}"]
+        real = sorted({cell for cell in cells
+                       if cell.isdigit() and AGE_TOP_CODE < int(cell) <= 125})
+    lines = [f"pid,{kind}"] + [f"P{row:06d},{cell}" for row, cell in enumerate(cells)]
+    path = folder / f"{kind}_long.csv"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return path, real
+
+
+def _number_tokens(value: str, text: str) -> int:
+    """How often a whole number stands in a text as itself, `103` or `103.0`."""
+    return len(re.findall(f"(?<![0-9.]){value}(?:\\.0+)?(?![0-9.])", text))
+
+
+def _profiled(folder: pathlib.Path, table: pathlib.Path, kind: str) -> "dict[str, object]":
+    """Profile, generate (seed 0) and validate the twin and the table itself, scripted."""
+    screen = io.StringIO()
+    with nobody_at_the_keyboard():
+        with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
+            profiled = cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"])
+        described = folder / f"{kind}_long-profile.json"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            generated = cli.main(["generate", f"{described}", "--out-dir", f"{folder}",
+                                  "--seed", "0", "--replace"])
+            validated = cli.main(["validate", f"{described}", "--twin",
+                                  f"{folder / (kind + '_long-twin.csv')}",
+                                  "--out-dir", f"{folder}", "--replace"])
+            checked = folder / "real"
+            checked.mkdir(exist_ok=True)
+            validated_real = cli.main(["validate", f"{described}", "--twin", f"{table}",
+                                       "--out-dir", f"{checked}", "--replace"])
+    texts = {
+        name: (folder / name).read_text(encoding="utf-8")
+        for name in (f"{kind}_long-profile.json", f"{kind}_long-profile.txt",
+                     f"{kind}_long-questions.json", f"{kind}_long-twin-report.txt",
+                     f"{kind}_long-twin-quality.txt")
+    }
+    texts["real-quality"] = (checked / f"{kind}_long-quality.txt").read_text(encoding="utf-8")
+    texts["screen"] = screen.getvalue().replace(f"{folder}", "<folder>")
+    for name in texts:
+        texts[name] = texts[name].replace(f"{folder}", "<folder>")
+    return {"profile_exit": profiled, "generate_exit": generated,
+            "validate_exit": validated, "validate_real_exit": validated_real,
+            "texts": texts,
+            "twin": _csv_column(folder / f"{kind}_long-twin.csv", 1)}
+
+
+def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
+    """One Safe Harbor number shape profiled unanswered, generated and validated.
+
+    ZIPs are counted as every held shape is (`count_real`). Ages are
+    counted against the same table with every value above 89 written 90,
+    profiled in a folder of its own: an age above 90 counts as published
+    where it stands in an output of the table more often than in the
+    same output of that table (so a `100` of the page's own words is no
+    age), the outputs that differ are counted as fragments, and twin cells
+    above 90 as real cells.
+    """
+    table, real = write_safe_harbor_table(folder, kind, rows)
+    seen = _profiled(folder, table, kind)
+    texts = seen["texts"]
+    assert isinstance(texts, dict)
+    document = json.loads(texts[f"{kind}_long-profile.json"])
+    block = [one for one in document["columns"] if one["name"] == kind][0]
+    questions = json.loads(texts[f"{kind}_long-questions.json"])
+    asked = [entry for entry in questions["asked"] if entry["column"] == kind]
+    twin = seen["twin"]
+    assert isinstance(twin, list)
+    found: "dict[str, object]" = {
+        "profile_exit": seen["profile_exit"], "generate_exit": seen["generate_exit"],
+        "validate_exit": seen["validate_exit"],
+        "validate_real_exit": seen["validate_real_exit"],
+        "different": len(real), "role": block["role"],
+        "top_coded": block["top_coded"] if "top_coded" in block else None,
+        "asked": [[c["answer"] for c in entry["answers_you_can_give"]] for entry in asked],
+        "read_as_now": [entry["read_as_now"] for entry in asked],
+        "screen": texts["screen"],
+    }
+    if kind in ZIP_WORDS:
+        published = [texts[name] for name in texts if name != "real-quality"]
+        found.update(count_real(real, published, [f"{cell}" for cell in twin]))
+        return found
+    control_folder = folder / "top-coded"
+    control_folder.mkdir()
+    control_table, _none = write_safe_harbor_table(control_folder, kind, rows, top_coded=True)
+    control = _profiled(control_folder, control_table, kind)
+    control_texts = control["texts"]
+    assert isinstance(control_texts, dict)
+    leaked = [value for value in real
+              if any(_number_tokens(value, texts[name]) > _number_tokens(value, control_texts[name])
+                     for name in texts)]
+    differing = [name for name in texts if texts[name] != control_texts[name]]
+    over = 0
+    for cell in twin:
+        try:
+            number = float(f"{cell}")
+        except ValueError:
+            continue
+        if AGE_TOP_CODE < number <= 125:
+            over += 1
+    found.update({"description_values": len(leaked), "description_fragments": len(differing),
+                  "twin_cells": over, "twin_fragments": 0, "differing": differing})
+    return found
