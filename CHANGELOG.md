@@ -55,7 +55,13 @@ them, and no list is read over a record number beyond that rule; a
 missing-code answer stays on the value it was given for when the same
 file is read again with two rows confirmed as metadata; the other four
 items are carried to lanes LISTS and UN-2 with Codex's cases, and each
-sentence they touch is marked open. No product code,
+sentence they touch is marked open. Close 4 (the lane's internal verify
+of repair 5): one ordinary word no longer undoes any route of that rule,
+not only the five-figure one, so keys such as `R1000`, `AB100` or a
+padded `0100` beside one `OTHER` are not read as a list at 600 or 20,000
+rows, and lane LISTS' gate holds those three with the question put.
+Measured in the same close: at 20,000 rows today's reader prints such
+keys inside whole-cell levels, lane HX4's to close. No product code,
 golden, vector or KPI moves; `tests/test_zoo_reading_page.py` pins the
 page's computed figures and each rule's operative sentence.
 

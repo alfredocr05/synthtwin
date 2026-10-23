@@ -39,6 +39,9 @@ and no list inferred over a record number; a missing-code answer bound
 to its value's own digest when the fence moves within the same file;
 and items 3 to 6 carried to lanes LISTS and UN-2, each touched sentence
 marked open, with Codex's cases computed where the page's helpers reach.
+Since close 4 (the internal verify of repair 5, item 1): every route of
+the register-list hold keeps it with one value in three set aside, on
+the verify's three shapes below five figures at 600 and 20,000 rows.
 
 WHAT IS NOT HERE. No lane's code exists, so nothing here says a twin
 meets anything. The functions below are the page's rules written once
@@ -312,8 +315,38 @@ OPERATIVE = {
     ),
     # Codex's third round: items 1 and 2 fixed (repair 5), items 3 to 6 carried.
     "R5-1 HX4's share": (
-        "a would-be list's values are taken as record numbers where every value but at most one in three, counted"
-        " over every value of every cell, is written in the code alphabet with a run of five figures or more"
+        "the share arm, where every value but at most one in three, counted over every value of every cell, is"
+        " written in the code alphabet with a run of five figures or more"
+    ),
+    "R6-1 every route past one token in three": (
+        "a would-be list's values are taken as record numbers where any route of P4-D424 reaches them once at most"
+        " one value in three, counted over every value of every cell, is set aside"
+    ),
+    "R6-1 what the rule guarantees": (
+        "ONE ORDINARY TOKEN UNDOES NO ROUTE: on every route rule I names, ordinary tokens making up at most one"
+        " value in three of a list's values neither lift the hold nor let rule 9l be inferred"
+    ),
+    "R6-1 how the page agrees with HX4": (
+        "HOW THE PAGE AGREES WITH HX4: lane HX4 closes the same two arms in `_listed_on`"
+    ),
+    "R6-1 one set once HX4 lands": (
+        "so once it lands the columns this page declines and the columns HX4 holds and asks are one set"
+    ),
+    "R6-1 the three shapes in LISTS' gate": (
+        "LISTS' gate holds the three shapes at 600 and at 20,000 rows, each with 0 keys published and the list"
+        " question put, each red on the all-or-nothing mutant (ZR.10)"
+    ),
+    "R6-1 ZR.10's condition": (
+        "THE CONDITION: LISTS' gate holds the three shapes with `;OTHER`, at 600 rows and at 20,000 (the 600 cells"
+        " repeated in order), each with 0 keys published in any file and the list question put, each red on the"
+        " all-or-nothing mutant"
+    ),
+    "R6-1 ZR.7's KPI": (
+        "at 600 and at 20,000 rows, held with the list question put and 0 keys published, each red on the"
+        " all-or-nothing mutant (gate), and `K-S3-64` gains them"
+    ),
+    "R6-1 today's reader at 20,000 rows": (
+        "but with `;OTHER` reads them `categorical` and publishes all 40"
     ),
     "R5-1 one rule read once": (
         "LISTS calls HX4's function and writes no second copy of it, so the columns this page holds and the columns"
@@ -760,20 +793,64 @@ def _written_as_a_record_number(value: str) -> bool:
 NOT_A_RECORD_NUMBER_SHARE = 3
 
 
-def _register_values(values: "list[str]") -> bool:
-    """Rule I's register-list hold, lane HX4's rule read once: the share arm, or the padded route.
+def _a_third_at_most(set_aside: int, total: int) -> bool:
+    """Whether the values a route sets aside are at most one value in three of all of them."""
+    return set_aside * NOT_A_RECORD_NUMBER_SHARE <= total
 
-    Every value but at most one in three written as a record number, or
-    the padded route reaching the values from four figures. Routes two to
-    four of P4-D424 are HX4's gate's, not modelled here; the fixed-width
-    route below five figures and the person question are not put to a
-    list's values (HX4).
+
+def _register_route(values: "list[str]") -> str:
+    """Rule I's register-list hold: the first route of P4-D424 that reaches the values; "" for none.
+
+    ONE ORDINARY TOKEN UNDOES NO ROUTE (the verify of repair 5, item 1;
+    the orchestrator's addendum 2 to lane HX4 of 2026-10-22 21:32): each
+    route sets aside the values it does not take, at most one value in
+    three counted over every value of every cell, and judges the rest --
+    the share arm (a run of five figures or more), the padded route from
+    four figures (whole numbers, one of four figures or more opening with
+    a nought), route two (codes of letters and figures, each repeating on
+    average), route three (a value naming one person) and route four (a
+    key of figures repeating, most of five figures or more, beside fewer
+    than half placeholders). The fixed-width route below five figures and
+    route one are not put to a list's values (HX4).
     """
-    others = sum(1 for value in values if not _written_as_a_record_number(value))
-    if others * NOT_A_RECORD_NUMBER_SHARE <= len(values):
-        return True
-    padded = asking.why_worth_asking(values) == asking.BECAUSE_PADDED
-    return padded and any(len(value) >= 4 for value in values)
+    total = len(values)
+    if not total:
+        return ""
+    wide = [value for value in values if _written_as_a_record_number(value)]
+    if _a_third_at_most(total - len(wide), total):
+        return "wide"
+    whole = [value for value in values if asking._is_plain_whole_number(value)]
+    padding = any(len(value) >= 4 and value[0] == "0" for value in whole)
+    if padding and _a_third_at_most(total - len(whole), total):
+        return "padded"
+    codes = [parsing.folded(value) for value in values if asking._a_register_of_codes([value])]
+    repeating = len(codes) >= asking.PERSON_ROWS_PER_VALUE * len(set(codes))
+    if codes and repeating and _a_third_at_most(total - len(codes), total):
+        return "codes"
+    if _a_third_at_most(sum(1 for value in values if not asking._names_one_person(value)), total):
+        return "persons"
+    figures = [asking._key_figures(value) for value in values]
+    keys = [written for written in figures if written is not None]
+    placeholders = sum(
+        1 for value, written in zip(values, figures) if written is None and asking._a_key_placeholder(value)
+    )
+    others = total - len(keys) - placeholders
+    different = set(keys)
+    five = sum(1 for written in different if asking._five_figures_or_more(written))
+    if (
+        len(different) >= 2
+        and len(keys) >= asking.PERSON_ROWS_PER_VALUE * len(different)
+        and five * 2 > len(different)
+        and placeholders * 2 < total
+        and _a_third_at_most(others, total)
+    ):
+        return "keys"
+    return ""
+
+
+def _register_values(values: "list[str]") -> bool:
+    """Rule I's register-list hold, lane HX4's rule read once, every route keeping its hold past one token in three."""
+    return bool(_register_route(values))
 
 
 def _list_reading_publishes(cells: "list[str]", floor: int = 11) -> "list[str]":
@@ -867,6 +944,56 @@ def test_one_ordinary_token_does_not_undo_the_register_list_hold() -> None:
     assert "(1,801 of its 3,281 values not record numbers)" in page
     assert "today's product reads it `free_text`, asks nothing and publishes 0 of the 40 record numbers" in page
     assert "HX4's head puts it the list question (`keep`, `code`, `identifier`) and publishes 0 of 40" in page
+
+
+# The internal verify of repair 5, item 1: keys below five figures, which
+# the share arm does not reach, each with the route that reaches them pure.
+BELOW_FIVE_FIGURES = {
+    "R1000-R1039": ([f"R{1000 + index}" for index in range(40)], "codes"),
+    "AB100-AB139": ([f"AB{100 + index}" for index in range(40)], "codes"),
+    "padded 0100-0139": ([f"0{100 + index}" for index in range(40)], "padded"),
+}
+
+
+def _codex_construction(keys: "list[str]", rows: int) -> "list[str]":
+    """Codex's 600 cells on `keys` (40 single, 240 cyclic pairs, 320 cyclic triples), repeated in order to `rows`, `;OTHER` on the first."""
+    cells = list(keys)
+    cells += [f"{keys[index]};{keys[(index + step) % 40]}" for step in range(1, 7) for index in range(40)]
+    cells += [
+        f"{keys[index]};{keys[(index + step) % 40]};{keys[(index + step + 1) % 40]}"
+        for step in range(1, 9)
+        for index in range(40)
+    ]
+    cells = [cells[place % 600] for place in range(rows)]
+    cells[0] = cells[0] + ";OTHER"
+    return cells
+
+
+@pytest.mark.parametrize("rows", (600, 20000))
+@pytest.mark.parametrize("shape", sorted(BELOW_FIVE_FIGURES))
+def test_one_ordinary_token_undoes_no_route(shape: str, rows: int) -> None:
+    """The verify of repair 5, item 1: one `OTHER` beside keys a route other than the share arm reaches lifts no hold."""
+    keys, route = BELOW_FIVE_FIGURES[shape]
+    cells = _codex_construction(keys, rows)
+    values = [part for cell in cells for part in cell.split(";")]
+    assert len(set(cells)) == (600 if rows == 600 else 601)
+    assert len(values) == (1481 if rows == 600 else 49201) and len(set(values)) == 41
+    # Rule 9l's four conditions hold, and no identity route reaches the whole cells.
+    assert _a_list(cells) == ";"
+    assert asking.why_worth_asking(cells) is None
+    # No value holds five figures: neither the share arm nor the decline over record numbers reaches it.
+    assert not any(_written_as_a_record_number(value) for value in values)
+    # Every key stands on 37 cells (1,230 or more at 20,000 rows): read as a list undeclined, all 40 would print.
+    held = collections.Counter(value for cell in cells for value in set(cell.split(";")))
+    assert min(held[key] for key in keys) == (37 if rows == 600 else 1230)
+    # Pure, the route reaches every value; one `OTHER` set aside, it still does, so no list is read.
+    assert _register_route([value for value in values if value != "OTHER"]) == route
+    assert _register_route(values) == route
+    assert _list_reading_publishes(cells) == []
+    page = _flat(_page())
+    assert "ONE ORDINARY TOKEN DOES NOT UNDO IT" not in page
+    assert "(41 values over 600 different cells)" in page
+    assert "49,201 values, 41 different over 601 different cells, each key on 1,230 cells or more" in page
 
 
 GROUPED = re.compile(r"\d{1,3}(?:,\d{3})+")
@@ -1388,7 +1515,7 @@ def test_codex_items_3_to_6_are_carried_and_their_sentences_marked_open() -> Non
         assert outside.count(marker + "]") + outside.count(marker + ",") == marked, marker
     both = "open until LISTS: ZR.10 items 3 and 4"
     assert outside.count(both + "]") + outside.count(both + ",") == 2
-    assert carried.count("THE CONDITION:") == 4
+    assert carried.count("THE CONDITION:") == 5
     # Item 3, Codex's case: the fill gives 10 whole cells `101` where the table holds 120.
     cells = [frozenset(("101",))] * 120 + [frozenset(("A", "B"))] * 110
     twin = _twin_list(_describe_list(cells))
