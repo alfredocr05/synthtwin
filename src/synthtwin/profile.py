@@ -4213,6 +4213,7 @@ def build_document(
     counted_in_subjects: "list[str] | None" = None,
     time_grains: "dict[str, grains.Grain] | None" = None,
     absent_read: "dict[str, tuple[str, ...]] | None" = None,
+    top_code: bool = False,
     safe_harbor_no: "list[str] | None" = None,
     top_coded_only: "tuple[str, ...] | None" = None,
     five_figures: "list[str] | None" = None,
@@ -4331,9 +4332,11 @@ def build_document(
       dates published as plain numbers. Declarations reconstructed from
       a description (``declarations_are_reconstructed``, the validator's)
       hold nothing: a checked file is described as its cells read.
-    - THE SAFE HARBOR TOP-CODE (plan P4-D427, lane ZR-b's ZS.1): a column
-      read as numbers (`count`, `continuous`, or the numbers of
-      `numbers_with_labels`) whose present numbers, all-nines
+    - THE SAFE HARBOR TOP-CODE (plan P4-D427, lane ZR-b's ZS.1), the
+      command's rule as P4-D401's hold is (``top_code``, which `synthtwin
+      profile` passes; False describes every column as before, byte for
+      byte): a column read as numbers (`count`, `continuous`, or the
+      numbers of `numbers_with_labels`) whose present numbers, all-nines
       placeholders aside, lie within 0 to 125 and include one above 89 is
       described with every value above 89 read as 90 and the key
       `top_coded` (`taxonomy.top_coded_cells`), unless it is named in
@@ -4541,7 +4544,7 @@ def build_document(
         # spread is one of those values; every step below reads the cells
         # so written.
         if described.role in taxonomy.TOP_CODE_ROLES and (
-            (top_coded_only is None and name not in no_safe_harbor)
+            (top_coded_only is None and top_code and name not in no_safe_harbor)
             or (top_coded_only is not None and name in top_coded_only)
         ):
             coded = taxonomy.top_coded_cells(

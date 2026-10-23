@@ -4286,6 +4286,7 @@ def _run_profile(
         counted_in_subjects=counted_in_people,
         # -- P4-D427: the Safe Harbor top-code, but where answered `no`,
         # and the five-figure columns beside a few words, named.
+        top_code=True,
         safe_harbor_no=safe_harbor_no,
         five_figures=five_figures,
     )
@@ -4638,6 +4639,7 @@ def _run_profile(
                     stored_as=storage,
                     subjects=list(person_columns),
                     counted_in_subjects=counted_in_people,
+                    top_code=True,
                     safe_harbor_no=safe_harbor_no,
                     five_figures=five_figures,
                 )
@@ -4890,6 +4892,7 @@ def _run_profile(
             unanswered=list(withheld) + five_held + harbor_held,
             subjects=list(person_columns) + list(withheld) + candidates,
             counted_in_subjects=counted_in_people,
+            top_code=True,
             safe_harbor_no=safe_harbor_no,
         )
     if counted_in_people:

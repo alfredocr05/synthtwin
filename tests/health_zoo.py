@@ -131,6 +131,10 @@ GENERAL_ANSWERS = frozenset(
         "first-record", "month-first", "day-first", "missing",
         "real-value", "1969-2068", "1930-2029", "1940-2039",
         "1900-1999", "dates",
+        # The Safe Harbor question (plan P4-D427): whether a value of the
+        # column could name a person, a place, a birth date or a number
+        # given to one person -- what the data is.
+        "no", "yes",
     }
 )
 # The count systems a column of dates written as numbers may be read in
@@ -2635,6 +2639,11 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
         given = known if known in offered else ""
         if not given and known and "identifier" in offered and "keep" in offered:
             given = "keep"
+        # ...and the Safe Harbor question (plan P4-D427; lane ZR-b's ZS.7):
+        # a column the person knows as anything but a record number names
+        # nobody, so `no`; one they know as a record number, `yes`.
+        if not given and known and offered == ["no", "yes"]:
+            given = "yes" if known == "identifier" else "no"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
