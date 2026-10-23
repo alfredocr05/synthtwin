@@ -13616,22 +13616,35 @@ def _exact_census(
 ) -> "tuple[list[float], dict[float, dict[tuple[int, tuple[str, ...], int], int]], dict[tuple[int, tuple[str, ...], int], int]]":
     """The exact numbers `records` hold, counted without a key a cell (lane H3).
 
-    `records` is walked once, or twice where some value is held by more
-    than one cell. Returns the values of the cells that read as numbers,
-    sorted; for each value held by more than one of those cells, how many
-    cells hold each exact number of that value (two exact numbers can
-    round to one binary64 value, and only there is the exact number
-    asked, off the record); and how many cells hold each exact number
-    among the cells that read as numbers but hold no value (none do: the
-    reader refuses a value it cannot hold, but the count does not
-    depend on that). A value held by one cell is one exact number held
-    once.
+    `records` is walked once; twice where some value is held by more
+    than one cell; three times where two exact numbers share one value.
+    Returns the values of the cells that read as numbers, sorted; for
+    each value whose cells hold MORE THAN ONE exact number (two exact
+    numbers can round to one binary64 value, and only there is the exact
+    number asked, off the record), how many cells hold each exact number
+    of that value; and how many cells hold each exact number among the
+    cells that read as numbers but hold no value (none do: the reader
+    refuses a value it cannot hold, but the count does not depend on
+    that). A value held by one cell is one exact number held once; a
+    value held by several cells of ONE exact number is that number held
+    by every cell of its run in the sorted values, and no map is made
+    for it.
 
     THE MAP OF EVERY EXACT NUMBER IS WHAT THIS REPLACES (plan P4-D423):
     with the exact number read off the record when asked, a map keyed by
     it held one new triple a different number, about 200 bytes a row on
     a column whose numbers never repeat; the sorted values are the
-    values the record already holds.
+    values the record already holds. AND NO MAP A REPEATED VALUE (Codex's
+    review of lane H3, item 3): a map of each repeated value's exact
+    numbers held a map and a new triple a value, 307 traced bytes a row
+    against 4682d6ad's 249 on a column of 10,000 numbers written twice
+    each, though a value of a column read from text is one exact number
+    almost always. Each repeated value is held by the first cell holding
+    it, a reference to a record the column holds already; a later cell is
+    the same exact number where its text and its declaration are the
+    first cell's (the exact number is a function of the two), and is
+    asked its exact number only where they differ. Only a value two
+    exact numbers share is counted by a map.
 
     Guarantees: a function of the records' kinds, values and exact
     numbers, so of the multiset of their spellings. Raises nothing. No
@@ -13650,41 +13663,84 @@ def _exact_census(
             exact = cell.exact
             if exact is not None:
                 unvalued[exact] = unvalued[exact] + 1 if exact in unvalued else 1
-    shared: "dict[float, dict[tuple[int, tuple[str, ...], int], int]]" = {}
+    split: "dict[float, dict[tuple[int, tuple[str, ...], int], int]]" = {}
+    # The first cell holding each value more than one cell holds. Every
+    # value here is finite (the reader refuses a value it cannot hold),
+    # so equal values stand together in `ordered`.
+    first_of: "dict[float, _Cell | None]" = {}
     for place in range(1, len(ordered)):
         if ordered[place] == ordered[place - 1]:
-            shared[ordered[place]] = {}
-    if shared:
+            first_of[ordered[place]] = None
+    if first_of:
         for cell in records:
             if cell.facts[0] != parsing.NUMBER:
                 continue
             value = cell.value
-            if value is None or value not in shared:
+            if value is None or value not in first_of or value in split:
+                continue
+            first = first_of[value]
+            if first is None:
+                first_of[value] = cell
+                continue
+            if first.text == cell.text and first.facts[5] == cell.facts[5]:
+                continue
+            if first.exact != cell.exact:
+                split[value] = {}
+        first_of = {}
+    if split:
+        for cell in records:
+            if cell.facts[0] != parsing.NUMBER:
+                continue
+            value = cell.value
+            if value is None or value not in split:
                 continue
             exact = cell.exact
             if exact is None:
                 continue
-            by_exact = shared[value]
+            by_exact = split[value]
             by_exact[exact] = by_exact[exact] + 1 if exact in by_exact else 1
-    return ordered, shared, unvalued
+    return ordered, split, unvalued
+
+
+def _run_of(ordered: "list[float]", start: int) -> int:
+    """Where the run of values equal to ``ordered[start]`` ends: the first place past it."""
+    stop = start + 1
+    while stop < len(ordered) and ordered[stop] == ordered[start]:
+        stop = stop + 1
+    return stop
+
+
+def _most_in_run(
+    split: "dict[float, dict[tuple[int, tuple[str, ...], int], int]]",
+    value: float,
+    held: int,
+) -> int:
+    """The most cells one exact number of ``value`` holds, the run holding ``held`` cells (`_exact_census`)."""
+    if value not in split:
+        return held
+    most = 0
+    by_exact = split[value]
+    for exact_held in by_exact:
+        if by_exact[exact_held] > most:
+            most = by_exact[exact_held]
+    return most
 
 
 def _exact_count(records: "list[_Cell]") -> int:
     """How many different exact numbers the cells of `records` reading as numbers hold.
 
     The count a map keyed by each such cell's exact number has keys
-    (`_exact_census`). Guarantees: a function of the records. Raises
-    nothing. No I/O of any kind.
+    (`_exact_census`): one a run of equal values, or as many as the run's
+    cells hold where two exact numbers share its value. Guarantees: a
+    function of the records. Raises nothing. No I/O of any kind.
     """
-    ordered, shared, unvalued = _exact_census(records)
+    ordered, split, unvalued = _exact_census(records)
     count = len(unvalued)
-    for place in range(len(ordered)):
-        value = ordered[place]
-        if value in shared:
-            if place == 0 or ordered[place - 1] != value:
-                count = count + len(shared[value])
-            continue
-        count = count + 1
+    start = 0
+    while start < len(ordered):
+        value = ordered[start]
+        count = count + (len(split[value]) if value in split else 1)
+        start = _run_of(ordered, start)
     return count
 
 
@@ -13739,32 +13795,39 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     # held once; a repeated value is counted by the exact numbers of its
     # cells. The cells that read as numbers but hold no value are left
     # out, as the map left them.
-    ordered, shared, _unvalued = _exact_census(cells.classified)
+    ordered, split, _unvalued = _exact_census(cells.classified)
     if not ordered:
         return None, 0
+    # EACH RUN OF EQUAL VALUES ASKED ONCE (Codex's review of lane H3,
+    # item 1): the run's own length where its cells hold one exact
+    # number, its map where they hold more. Asked a place at a time, the
+    # map of a value N exact numbers share was read at each of its N
+    # places, N times N steps on a column of numbers past binary64's
+    # figures.
     most = 0
-    for place in range(len(ordered)):
-        if ordered[place] not in shared:
-            most = 1
-            break
-    for shared_value in shared:
-        by_exact = shared[shared_value]
-        for exact_held in by_exact:
-            if by_exact[exact_held] > most:
-                most = by_exact[exact_held]
+    start = 0
+    while start < len(ordered):
+        stop = _run_of(ordered, start)
+        held = _most_in_run(split, ordered[start], stop - start)
+        if held > most:
+            most = held
+        start = stop
     # THE SMALLEST VALUE ANY NUMBER HELD `most` TIMES HOLDS, read up the
-    # sorted values.
+    # sorted values a run at a time.
     least: "float | None" = None
-    for place in range(len(ordered)):
-        value = ordered[place]
-        if value in shared:
-            by_exact = shared[value]
+    start = 0
+    while start < len(ordered):
+        stop = _run_of(ordered, start)
+        value = ordered[start]
+        if value in split:
+            by_exact = split[value]
             if any(by_exact[exact_held] == most for exact_held in by_exact):
                 least = value
                 break
-        elif most == 1:
+        elif stop - start == most:
             least = value
             break
+        start = stop
     # THE VALUES ARE READ OFF THE CELLS OF THE COMMONEST NUMBERS, in a
     # second walk, rather than held in a map beside the counts (lane S4d,
     # plan P4-D390): on a column whose numbers never repeat that map was
@@ -13789,7 +13852,7 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
         exact = cell.exact
         if exact is None:
             continue
-        if least in shared and shared[least][exact] != most:
+        if least in split and split[least][exact] != most:
             continue
         if chosen is None:
             chosen = exact
@@ -23682,8 +23745,8 @@ def affixed_reach(cells: _Cells) -> int:
     sorted numbers stand each pair's cells together, in one run of
     their hash. A run is a bound on every pair in it, counted exactly
     (`_pairs_in_run`) only where it could beat the best counted so far,
-    longest runs first: equal pairs have equal hashes, so the answer is
-    the map's, whatever the hashes are.
+    the longest band of runs first: equal pairs have equal hashes, so
+    the answer is the map's, whatever the hashes are.
 
     Guarantees: accepts a tally of one column; returns a count of its
     present cells. No spelling of the column travels out through it.
@@ -23700,27 +23763,48 @@ def affixed_reach(cells: _Cells) -> int:
     if not keys:
         return 0
     keys = sorted(keys)
-    lengths: "dict[int, bool]" = {}
-    run = 0
-    for place in range(len(keys)):
-        run = run + 1
-        if place + 1 == len(keys) or keys[place + 1] >> _PLACE_BITS != keys[place] >> _PLACE_BITS:
-            lengths[run] = True
-            run = 0
+    longest = 0
+    start = 0
+    while start < len(keys):
+        stop = _hash_run_stop(keys, start)
+        if stop - start > longest:
+            longest = stop - start
+        start = stop
+    # THE RUNS ARE COUNTED BY SIZE, A BAND OF SIZES A WALK (Codex's review
+    # of lane H3, item 2): the runs longer than half the band's top and
+    # no longer than it, the top halved each walk, each run counted only
+    # where it is longer than the best counted so far. A walk a different
+    # length walked every key once a length: up to the square root of
+    # twice the keys' count of walks, 256 walks of 262,656 keys on 512
+    # wrapper pairs whose hashes share their kept bits. A run's count is
+    # at most its length, so the runs of a band whose top is the best
+    # counted cannot beat it: at most one walk more than the longest
+    # run's figures in binary, each run counted at most once, and no
+    # list of the runs' places held beside the keys (a number a run is
+    # a number a cell on a column of free text).
     best = 0
-    for length in sorted(lengths, reverse=True):
-        if length <= best:
-            break
+    high = longest
+    while high > best:
+        low = high // 2
         start = 0
-        for place in range(len(keys)):
-            if place + 1 < len(keys) and keys[place + 1] >> _PLACE_BITS == keys[place] >> _PLACE_BITS:
-                continue
-            if place + 1 - start == length:
-                best = max(best, _pairs_in_run(cells, keys, start, place + 1))
-                if best == length:
+        while start < len(keys):
+            stop = _hash_run_stop(keys, start)
+            length = stop - start
+            if low < length <= high and length > best:
+                best = max(best, _pairs_in_run(cells, keys, start, stop))
+                if best == high:
                     return best
-            start = place + 1
+            start = stop
+        high = low
     return best
+
+
+def _hash_run_stop(keys: "list[int]", start: int) -> int:
+    """Where the run of sorted pair keys sharing the hash's bits of ``keys[start]`` ends: the first place past it."""
+    stop = start + 1
+    while stop < len(keys) and keys[stop] >> _PLACE_BITS == keys[start] >> _PLACE_BITS:
+        stop = stop + 1
+    return stop
 
 
 # The bits of a pair key that hold the cell's place, and the bits of the

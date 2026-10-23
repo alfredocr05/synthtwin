@@ -1396,3 +1396,126 @@ def test_notes_with_capitals_and_figures_hold_under_two_hundred_bytes_a_row(
 ) -> None:
     per_row = _h3_repair_traced_a_row(_h3_repair_values(shape, rows), monkeypatch, rows // 32)
     assert per_row < 200, (shape, rows, per_row)
+
+
+# -- LANE H3'S SECOND REPAIR: CODEX'S REVIEW OF THE LANE (plan P4-D423) -----
+#
+# Item 1: a value many exact numbers share was read a place at a time, its
+# map once a place, N times N steps. Item 2: the affix pair runs were walked
+# once a different length. Item 3: a map and a new triple a repeated value,
+# 307 traced bytes a row against 4682d6ad's 249 on 10,000 numbers written
+# twice each. Each is pinned by what can be counted without a clock.
+
+
+class _ReadCounted(dict):  # type: ignore[type-arg]
+    """One value's map of exact numbers that counts how often a count is read off it."""
+
+    def __init__(self, counts: "dict[object, int]", reads: "list[int]") -> None:
+        super().__init__(counts)
+        self.reads = reads
+
+    def __getitem__(self, key: object) -> int:
+        self.reads[0] = self.reads[0] + 1
+        return int(super().__getitem__(key))
+
+
+def test_a_value_many_exact_numbers_share_is_read_once_a_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """1,500 numbers past binary64's figures that round to 1.0, and eleven 2s: the mode reads each run once, not each place."""
+    _built, names = stage4_as_built.compiled(taxonomy, stage4_as_built.EXACT_MAPS, "_distinct_numbers")
+    cells = [f"1.{k:022d}" for k in range(1, 1_501)] + ["2"] * 11
+    tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), _SETTINGS)
+    before = names["_mode_of"](tallied)  # type: ignore[operator]
+    reads = [0]
+    census = taxonomy._exact_census
+
+    def counted(records: "list[taxonomy._Cell]") -> object:
+        ordered, split, unvalued = census(records)
+        return ordered, {value: _ReadCounted(split[value], reads) for value in split}, unvalued
+
+    monkeypatch.setattr(taxonomy, "_exact_census", counted)
+    assert taxonomy._mode_of(tallied) == before == (2.0, 11)
+    # Two reads a number for the most a run holds, one for the smallest
+    # value holding it: 4,500 here, against 2,250,000 a place at a time.
+    assert reads[0] <= 3 * 1_500, reads[0]
+    assert taxonomy._exact_count(tallied.classified) == 1_501
+
+
+def test_a_value_its_cells_write_as_one_exact_number_is_counted_by_its_run() -> None:
+    """A value whose cells write one exact number, however spelled, makes no map; two exact numbers of one value make one."""
+    twice = [f"{100001 + k}" for k in range(1_000)] * 2
+    respelled = [f"{100001 + k}" for k in range(1_000)] + [f"{100001 + k}.0" for k in range(1_000)]
+    for cells in (twice, respelled):
+        ordered, split, unvalued = taxonomy._exact_census(taxonomy._classify_all(cells))
+        assert (len(ordered), split, unvalued) == (2_000, {}, {})
+    near = ["0.1"] * 3 + ["7"] * 4 + ["0.10000000000000000001"] * 2 + ["0.10"]
+    ordered, split, _unvalued = taxonomy._exact_census(taxonomy._classify_all(near))
+    assert list(split) == [0.1] and sorted(split[0.1].values()) == [2, 4]
+    tallied = taxonomy._tally(taxonomy._classify_all(near), len(near), _SETTINGS)
+    assert taxonomy._mode_of(tallied) == (0.1, 4) and taxonomy._exact_count(tallied.classified) == 3
+
+
+# Measured, Python 3.11, 20,000 rows, the shipped memos: 130.3 traced bytes a
+# row (4682d6ad 248.7, 6d4cb0b2 307.2).
+def test_numbers_each_written_twice_hold_under_two_hundred_bytes_a_row() -> None:
+    values = [f"{100001 + k}" for k in range(10_000)] * 2
+    taxonomy.profile_column("warm", 1, values[:200], 200, _SETTINGS, forced_measurement=True)
+    gc.collect()
+    tracemalloc.start()
+    try:
+        before = tracemalloc.get_traced_memory()[0]
+        tracemalloc.reset_peak()
+        taxonomy.profile_column("column", 1, values, len(values), _SETTINGS, forced_measurement=True)
+        held = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        tracemalloc.stop()
+    assert held / len(values) < 200, held / len(values)
+
+
+class _ShiftCounted(int):
+    """A pair key that counts how often the bits of its hash are asked for (``>>``)."""
+
+    shifts = [0]
+
+    def __rshift__(self, other: int) -> int:
+        _ShiftCounted.shifts[0] = _ShiftCounted.shifts[0] + 1
+        return int(self) >> other
+
+
+def test_the_affix_runs_are_walked_a_band_of_sizes_at_a_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    """64 wrapper pairs whose keys share their hash's bits, pair i holding i cores under each: walked by bands, each run counted once.
+
+    A walk a different length walked the 4,160 keys 33 times here (a
+    length pass and the 32 lengths above the best); by bands it is two.
+    """
+    _built, names = stage4_as_built.compiled(taxonomy, stage4_as_built.AFFIX_PAIRS, "affixed_reach")
+    code_of: "dict[tuple[str, str], int]" = {}
+    cells: "list[str]" = []
+    for pair in range(1, 65):
+        for side in "ab":
+            suffix = f" units {chr(97 + pair // 26)}{chr(97 + pair % 26)}{side}"
+            code_of[("", suffix)] = pair
+            cells += [f"{1000 + core}{suffix}" for core in range(pair)]
+    tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), _SETTINGS)
+    before = names["affixed_reach"](tallied)  # type: ignore[operator]
+    splits = [0]
+    split_once = taxonomy._split_once
+
+    def counted_split(cells_of: "taxonomy._Cells", text: str) -> "tuple[str, str, str] | None":
+        splits[0] = splits[0] + 1
+        return split_once(cells_of, text)
+
+    def keyed(split: "tuple[str, str, str]", place: int) -> int:
+        return _ShiftCounted((code_of[(split[0], split[2])] << taxonomy._PLACE_BITS) | place)
+
+    monkeypatch.setattr(taxonomy, "_split_once", counted_split)
+    monkeypatch.setattr(taxonomy, "_pair_key", keyed)
+    _ShiftCounted.shifts[0] = 0
+    assert taxonomy.affixed_reach(tallied) == before == 64
+    keys = len(cells)
+    # Two shifts a key a walk: the longest run's pass and the one band
+    # (64, 128] holding it, under the general bound of one walk more than
+    # the longest run's 8 binary figures.
+    assert _ShiftCounted.shifts[0] <= 2 * keys * 2, _ShiftCounted.shifts[0]
+    assert _ShiftCounted.shifts[0] <= 2 * keys * (1 + (128).bit_length())
+    # Every cell split once for its key, and once more at most in its run.
+    assert splits[0] <= 2 * keys, splits[0]
