@@ -1154,6 +1154,8 @@ def test_written_units_out_of_order_are_counted_as_the_set_counts_them_and_none_
     assert taxonomy._written_units(ascending, days, 60) is ascending
     midnights = tuple(day * 86_400 for day in days)
     assert taxonomy._written_units(midnights, days, 86_400) is days
+    shifted = [day + 1 for day in days]
+    assert taxonomy._written_units(midnights, shifted, 86_400) == days
     assert taxonomy._written_units(tuple(instant + 1 for instant in ascending), days, 60) == [(instant + 1) // 60 for instant in ascending]
     groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(days), 2)
     gc.collect()
