@@ -275,6 +275,14 @@ BECAUSE_POINT_THOUSANDS = "three-figures-after-the-point"
 # different values over how many cells -- rather than restating the
 # route that found it. `asking._names_people` holds both routes.
 BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
+# QUESTION Q-ID OF THE ZOO-FIX READING PAGE (plan P4-D419's ZR.2; lane
+# CODES-3, plan P4-D428): a column today's reader leaves free text whose
+# every present cell is a DICOM UID with two points or more
+# (`parsing.is_a_uid`), every value different. One more shape of HX's
+# question about figures (plan P4-D401), never a second question: it
+# offers `keep`, `code` and `identifier`, and holds the column as record
+# numbers until it is answered.
+BECAUSE_FIGURES_JOINED_BY_POINTS = "whole-numbers-joined-by-points-every-value-different"
 # QUESTION Q3, "NUMBER OR DATE?" (landing R4, plan P4-D384): a column of
 # numbers whose values lie where a counting system writes dates -- Excel's
 # serials, SAS's and Stata's days and seconds, Unix seconds -- read as
@@ -1538,6 +1546,26 @@ def questions_and_splits_for(
             asked += [dates]
             position = position + 1
             continue
+        # -- Q-ID (lane CODES-3, plan P4-D428): a column of DICOM UIDs.
+        if role == taxonomy.ROLE_TEXT and _uids_every_one_different(present):
+            asked += [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_FIGURES_JOINED_BY_POINTS,
+                    _shape_of(
+                        BECAUSE_FIGURES_JOINED_BY_POINTS,
+                        present,
+                        settings.small_cell_floor,
+                    ),
+                    _figures_joined_by_points_choices(
+                        role, settings.small_cell_floor
+                    ),
+                    ANSWER_KEEP,
+                )
+            ]
+            position = position + 1
+            continue
         if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
@@ -1684,6 +1712,55 @@ def _beside_sign_placeholders(present: "list[str]") -> "list[str]":
         if len(value) < _KEY_FIGURES:
             return []
     return rest
+
+
+def _uids_every_one_different(present: "list[str]") -> bool:
+    """Q-ID's trigger (plan P4-D428): every present cell a DICOM UID, every one different.
+
+    `parsing.is_a_uid`: the grammar `[012](\\.(0|[1-9]\\d*))+` with two
+    points or more. Over the battery's fixture columns of figures and
+    marks with nearly every value different -- `pressure` (figures and
+    `/`) and `amount` (figures and one point) -- neither holds a cell of
+    the grammar (plan P4-D419's ZR.2). A fixed function of the cells.
+    Raises nothing. No I/O, and no cell reaches what it returns.
+    """
+    if not present:
+        return False
+    seen: "dict[str, bool]" = {}
+    for value in present:
+        if value in seen or not parsing.is_a_uid(value):
+            return False
+        seen[value] = True
+    return True
+
+
+def _figures_joined_by_points_choices(role: str, floor: int) -> "list[Choice]":
+    """Q-ID's three answers (plan P4-D428): `keep` first, `code`, `identifier`.
+
+    About the data and nothing else: what the column holds, in the words
+    of HX3's offer of `code` (plan P4-D420) and of the person question's
+    record-number answer.
+    """
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "not a record number -- the reading it has now is right",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes of a coding system, where each value stands for a "
+            "thing and names no study, image, record or person",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers -- each value names one study, series, image, "
+            "record or person, such as a DICOM unique identifier, and it "
+            "is a key nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
 
 
 def _signs_said(signs: int, population: int, floor: int) -> str:
@@ -2311,6 +2388,13 @@ def _shape_of(
         return (
             f"{len(different)} different value(s) over {len(present)} "
             f"cell(s), so they stand on more than one row each on average"
+        )
+    if reason == BECAUSE_FIGURES_JOINED_BY_POINTS:
+        # Q-ID's words (plan P4-D419's ZR.2): the shape, and a made-up
+        # example that is no cell (plan P4-D428).
+        return (
+            "every value is different, and written as whole numbers joined "
+            "by points, as the made-up 1.2.840.1 is"
         )
     if reason == BECAUSE_PADDED:
         padded = 0
@@ -3325,9 +3409,85 @@ def _names_people_past_route_four(
     # P4-D401): e-mail addresses, telephone or social security numbers.
     # `_TELEPHONE_AND_SOCIAL_SECURITY_LAYOUTS` says why routes one and
     # two miss it.
-    return _a_register_of_codes(present) or _a_register_naming_one_person_a_cell(
-        present
+    return (
+        _a_register_of_codes(present)
+        or _a_register_naming_one_person_a_cell(present)
+        or _keys_beside_words(present)
     )
+
+
+# ONE ORDINARY WORD DOES NOT SILENCE ROUTE TWO (lane CODES-3, plan
+# P4-D428, the orchestrator's item (d) of 2026-10-23 from push critic 13's
+# MAJOR 5; the rule of lane HX4's addendum: one ordinary token must not
+# defeat a hold). Route two asks a register every cell of which is a code
+# of letters and figures, so `R1000` to `R1039` or `AB100` to `AB139`,
+# one key a cell on 600 or 20,000 rows, is held; and ONE `OTHER` among
+# them made it a column of labels publishing all 40 keys with their
+# counts (measured on af69aaef: 40 of 40 keys and 599 twin cells at 600
+# rows, 40 and 19,999 at 20,000). So up to one present cell in three may
+# be words of letters alone, set aside, where every other cell is a KEY:
+# one to three letters and then three figures or more, nothing else.
+# Narrower than route two's code on purpose: a scale `A1` to `A9`, an
+# ICD-10 `E11` or `E11.9`, a stage `pT1c` and a lab code are no such
+# key, so a column of them beside words is not asked (measured over the
+# description batteries and the health data zoo, plan P4-D428).
+_WORDS_BESIDE_KEYS_SHARE = 3
+_KEY_LETTERS_AT_MOST = 3
+_KEY_FIGURES_AT_LEAST = 3
+
+
+def _an_ordinary_word(value: str) -> bool:
+    """Whether a cell is words of letters alone, single spaces between them."""
+    if not value or value[0] == " " or value[len(value) - 1] == " ":
+        return False
+    before = ""
+    for character in value:
+        if character == " ":
+            if before == " ":
+                return False
+        elif not (("a" <= character <= "z") or ("A" <= character <= "Z")):
+            return False
+        before = character
+    return True
+
+
+def _a_lettered_key(value: str) -> bool:
+    """Whether a cell is one to three letters and then three figures or more, alone."""
+    letters = 0
+    while letters < len(value) and (
+        ("a" <= value[letters] <= "z") or ("A" <= value[letters] <= "Z")
+    ):
+        letters = letters + 1
+    if letters < 1 or letters > _KEY_LETTERS_AT_MOST:
+        return False
+    figures = value[letters:]
+    return len(figures) >= _KEY_FIGURES_AT_LEAST and _is_plain_whole_number(figures)
+
+
+def _keys_beside_words(present: "list[str]") -> bool:
+    """Route two beside words (plan P4-D428): keys repeating, at most a third words.
+
+    Every present cell a lettered key (`_a_lettered_key`) or ordinary
+    words (`_an_ordinary_word`); one word cell at least, and at most one
+    present cell in three; the keys repeat, `PERSON_ROWS_PER_VALUE` rows a
+    different key on average, routes one and two's first condition read
+    over the keys. A column of keys alone is route two's already. A fixed
+    function of the cells. Raises nothing. No I/O.
+    """
+    words = 0
+    keys: "dict[str, bool]" = {}
+    counted = 0
+    for value in present:
+        if _a_lettered_key(value):
+            keys[parsing.folded(value)] = True
+            counted = counted + 1
+            continue
+        if not _an_ordinary_word(value):
+            return False
+        words = words + 1
+    if words == 0 or not keys or words * _WORDS_BESIDE_KEYS_SHARE > len(present):
+        return False
+    return counted >= PERSON_ROWS_PER_VALUE * len(keys)
 
 
 # THE READINGS ROUTE FOUR IS NOT PUT TO: none at all, dates, clock times
@@ -3467,7 +3627,42 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
     for figures in keys:
         if _five_figures_or_more(figures):
             wide = wide + 1
-    return wide * 2 > len(keys)
+    return wide * 2 > len(keys) or _padded_beside_words(
+        keys, placeholders, len(present)
+    )
+
+
+# ...AND A PADDED KEY BELOW FIVE FIGURES BESIDE WORDS (lane CODES-3, plan
+# P4-D428, the orchestrator's item (d)). `0100` to `0139`, one key a cell,
+# is held by the padded question while every cell is figures; one `OTHER`
+# made the column a count and 20 % of them labels, asked nothing, and
+# the labels published all 40 keys (measured on af69aaef: 40 of 40 and
+# 16,000 twin cells at 20,000 rows). So route four also asks where its
+# placeholders are at most one present cell in three, one at least, and
+# every key is figures alone of one width, four or more, more than half
+# of them led by a nought: the padded question's own signal, which no
+# measurement is written with. A column of such keys alone stays the
+# padded question's, as before.
+_PADDED_KEY_WIDTH = 4
+
+
+def _padded_beside_words(
+    keys: "dict[str, int]", placeholders: int, population: int
+) -> bool:
+    """Route four's padded arm (plan P4-D428); see the note above."""
+    if placeholders == 0 or placeholders * _WORDS_BESIDE_KEYS_SHARE > population:
+        return False
+    widths: "dict[int, bool]" = {}
+    led = 0
+    for figures in keys:
+        if not _is_plain_whole_number(figures):
+            return False
+        widths[len(figures)] = True
+        if figures[0] == "0":
+            led = led + 1
+    if len(widths) != 1 or len(sorted(keys)[0]) < _PADDED_KEY_WIDTH:
+        return False
+    return led * 2 > len(keys)
 
 
 def _repeats_naming_one_person_a_cell(present: "list[str]", role: str) -> bool:
@@ -3758,6 +3953,10 @@ HOLDING_REASONS = (
     BECAUSE_PADDED,
     BECAUSE_FIXED_WIDTH,
     BECAUSE_GROUPED_FIXED_WIDTH,
+    # ...and Q-ID, one more holding shape (plan P4-D428): described as
+    # record numbers until it is answered, though its free-text reading
+    # publishes no value either.
+    BECAUSE_FIGURES_JOINED_BY_POINTS,
 )
 
 # THE QUESTIONS ABOUT DATES AND TIMES HOLD NOTHING, and nor does a
@@ -3837,8 +4036,12 @@ def unanswered_identities(
             continue
         if question.role in _READ_AS_DATES_OR_TIMES:
             continue
-        if not publishes_its_values(question.role):
-            # Free text and the like publish no value already.
+        if (
+            not publishes_its_values(question.role)
+            and question.reason != BECAUSE_FIGURES_JOINED_BY_POINTS
+        ):
+            # Free text and the like publish no value already; Q-ID holds
+            # its free-text column whatever (plan P4-D428).
             continue
         flagged[question.name] = True
     held: "list[str]" = []
