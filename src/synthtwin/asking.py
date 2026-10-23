@@ -3825,10 +3825,18 @@ _LIST_MARKS_SAID = {
     "|": "a vertical bar",
     ",": "a comma",
     " ": "a space",
-    _ANY_MARK: "semicolons, vertical bars, commas, spaces or tabs",
+    _ANY_MARK: "semicolons, vertical bars, commas, spaces, tabs or line breaks",
 }
-# What `_ANY_MARK` splits on: those four marks, and a tab, read as a space.
-_ANY_MARK_CHARACTERS = ";|, \t"
+# What `_ANY_MARK` splits on: those four marks, and the characters of
+# `_READ_AS_SPACE`, each read as a space.
+_ANY_MARK_CHARACTERS = ";|, \t\n\r\u00a0"
+# A tab, a line break and a no-break space between two values are read as
+# a space (lane HX4's repair 2, item 3 of its verify: six-figure lists on
+# a line break or a no-break space read as long tails and published 1 of
+# 40 at 600 rows, 13 twin cells holding a real one, on 5cd84df6). A
+# column holding any of them is judged on `_ANY_MARK`, as one mixing
+# marks is.
+_READ_AS_SPACE = "\t\n\r\u00a0"
 # A list's own wrapping, taken off before its values are judged (skeptic
 # 1's item 6: `[185380, 928534]` and `'185380', '928534'` read as long
 # tails and published 1 of 40 at 600 rows on 6c566d3c): one pair of
@@ -3853,12 +3861,25 @@ _LIST_CELLS_AT_LEAST = 1
 # ONE ORDINARY WORD DOES NOT UNDO THE HOLD (the orchestrator's addendum to
 # lane HX4, 2026-10-22 18:23, from Codex's third round on lane ZR-a's
 # page): a list whose values are written as record numbers is held where
-# at most one value in `_LIST_NO_KEY_SHARE` is not, the share route three
-# allows (`_SIGN_PLACEHOLDER_SHARE`). Codex's case -- `R100000` to
-# `R100039` in 40 single cells, 240 pairs and 320 triples, the first cell
-# closing `;OTHER` -- failed "every value holds five figures", no identity
-# route reached it, and a list reading published all 40 record numbers.
-_LIST_NO_KEY_SHARE = _SIGN_PLACEHOLDER_SHARE
+# at most one value in `_LIST_NO_KEY_SHARE` is not. Codex's case --
+# `R100000` to `R100039` in 40 single cells, 240 pairs and 320 triples,
+# the first cell closing `;OTHER` -- failed "every value holds five
+# figures", no identity route reached it, and a list reading published
+# all 40 record numbers.
+#
+# ONE VALUE IN TWO (lane HX4's repair 2, item 2 of its verify): at one in
+# three (route three's share), a key and a word in every cell undid the
+# hold -- measured on 5cd84df6, `185380;pending` read `categorical`, was
+# asked nothing and published 33 of 40 record numbers at 600 rows (538
+# twin cells holding one) and 40 of 40 at 20,000 (every twin cell).
+_LIST_NO_KEY_SHARE = 2
+# EVERY OTHER ROUTE SETS ASIDE ONE VALUE IN THREE (the orchestrator's
+# addendum 2 to lane HX4, 2026-10-22 21:32, from lane ZR-a's verify 3):
+# the padded route and route two were all-or-nothing on a list's values,
+# so `;OTHER` in one cell took `R1000` to `R1039`, `AB100` to `AB139` and
+# `0100` to `0139` from held to not asked. They now allow the share the
+# list's other routes allow (route three's, `_SIGN_PLACEHOLDER_SHARE`).
+_LIST_ROUTE_SHARE = _SIGN_PLACEHOLDER_SHARE
 
 # Why a list's values are taken as record numbers, as the question says it.
 _LISTED_WIDE = "wide"
@@ -3868,17 +3889,17 @@ _LISTED_PERSONS = "persons"
 _LISTED_KEYS = "keys"
 _LISTED_SAID = {
     _LISTED_WIDE: (
-        "every part but at most one in three is written in letters, "
+        "every part but at most one in two is written in letters, "
         "figures, hyphens and underscores, with a run of five figures or "
         "more"
     ),
     _LISTED_PADDED: (
-        "every part is written in figures alone, some of them four figures "
-        "or more with a leading zero"
+        "every part but at most one in three is written in figures alone, "
+        "some of them four figures or more with a leading zero"
     ),
     _LISTED_CODES: (
-        "every part is a code of letters and figures, each standing in two "
-        "parts or more on average"
+        "every part but at most one in three is a code of letters and "
+        "figures, each standing in two parts or more on average"
     ),
     _LISTED_PERSONS: (
         "the parts are written as e-mail addresses or as telephone, social "
@@ -3942,7 +3963,9 @@ def _parts_on_any_mark(text: str) -> "list[str]":
     """
     if not isinstance(text, str):
         raise TypeError("a cell to ask about must be text")
-    flat = text.replace(";", ",").replace("|", ",").replace("\t", " ")
+    flat = text.replace(";", ",").replace("|", ",")
+    for character in _READ_AS_SPACE:
+        flat = flat.replace(character, " ")
     parts: "list[str]" = []
     for piece in flat.strip(", ").split(","):
         found = False
@@ -3960,7 +3983,7 @@ def _parts_on_any_mark(text: str) -> "list[str]":
 
 
 def _marks_mixed(present: "list[str]") -> bool:
-    """Whether a column holds two kinds of `_ANY_MARK_CHARACTERS` or more, or a tab.
+    """Whether a column holds two kinds of `_ANY_MARK_CHARACTERS` or more, or one of `_READ_AS_SPACE`.
 
     Where it holds one kind alone, `_ANY_MARK` splits every cell as that
     mark does, and is not judged again (the rule's cost on free text,
@@ -3970,7 +3993,7 @@ def _marks_mixed(present: "list[str]") -> bool:
     for character in _ANY_MARK_CHARACTERS:
         for cell in present:
             if character in cell:
-                if character == "\t":
+                if character in _READ_AS_SPACE:
                     return True
                 kinds = kinds + 1
                 break
@@ -4047,21 +4070,52 @@ def _a_wide_listed_value(value: str) -> bool:
     return False
 
 
+def _wrapped(cell: str) -> bool:
+    """Whether a cell opens or closes with a bracket or a quote, which `_list_parts` may take off.
+
+    The cheap first look of `_list_values` at a cell without the mark: a
+    cell that neither opens nor closes so is its own one value.
+    """
+    text = parsing.trimmed(cell)
+    return text != "" and (text[0] in _LIST_OPENINGS or text[-1] in _LIST_CLOSINGS)
+
+
+_LIST_OPENINGS = "['\""
+_LIST_CLOSINGS = "]'\""
+
+
+def _a_list_cell(cell: str, parts: "list[str]") -> bool:
+    """Whether a cell, split into ``parts`` (`_list_parts`), is written as a list.
+
+    Two values or more; or ONE value that a mark, a pair of brackets or
+    quotes was taken off (lane HX4's repair 2, item 1 of its verify):
+    measured on 5cd84df6, a column of `185380;`, `[185380]`, `'185380'` or
+    `R185380;` a cell was no list, read `categorical`, was asked nothing
+    and published 40 of 40 record numbers, every twin cell a real one, at
+    600 and 20,000 rows -- the very wrappings this rule takes off.
+    """
+    if len(parts) >= 2:
+        return True
+    return len(parts) == 1 and parts[0] != "" and parts[0] != parsing.trimmed(cell)
+
+
 def _list_values(present: "list[str]", mark: str) -> int:
     """How many values a column's cells hold as lists on `mark`; 0 where they are no list.
 
-    A list where `mark` splits at least `_LIST_CELLS_AT_LEAST` cells into
-    two values or more and leaves no value empty. A cell without the mark
-    is one value.
+    A list where at least `_LIST_CELLS_AT_LEAST` cells are written as
+    lists on `mark` (`_a_list_cell`) and no cell holding the mark leaves
+    a value empty. A cell without the mark is one value.
     """
     several = 0
     values = 0
     for cell in present:
         if not _holds_the_mark(cell, mark):
             values = values + 1
+            if _wrapped(cell) and _a_list_cell(cell, _list_parts(cell, mark)):
+                several = several + 1
             continue
         parts = _list_parts(cell, mark)
-        if len(parts) >= 2:
+        if _a_list_cell(cell, parts):
             several = several + 1
         for part in parts:
             if not part:
@@ -4137,8 +4191,10 @@ def _listed_on(present: "list[str]", mark: str, values: int) -> str:
     wide = True
     unwide = 0
     padded = True
+    unpadded = 0
     padding = False
     codes = True
+    uncoded = 0
     different: "dict[str, int]" = {}
     persons = True
     misses = 0
@@ -4154,7 +4210,9 @@ def _listed_on(present: "list[str]", mark: str, values: int) -> str:
                     wide = False
             if padded:
                 if not _is_plain_whole_number(value):
-                    padded = False
+                    unpadded = unpadded + 1
+                    if unpadded * _LIST_ROUTE_SHARE > values:
+                        padded = False
                 elif len(value) >= _PADDED_LIST_FIGURES and value[0] == "0":
                     padding = True
             if codes:
@@ -4165,8 +4223,10 @@ def _listed_on(present: "list[str]", mark: str, values: int) -> str:
                     else:
                         different[folded] = 1
                 else:
-                    codes = False
-                    different = {}
+                    uncoded = uncoded + 1
+                    if uncoded * _LIST_ROUTE_SHARE > values:
+                        codes = False
+                        different = {}
             # A word of letters alone names nobody (`_names_one_person`
             # needs a figure, `@`, a point or `://`), and is told so
             # without the walk through every layout: free text is mostly
@@ -4205,7 +4265,7 @@ def _listed_on(present: "list[str]", mark: str, values: int) -> str:
         return _LISTED_WIDE
     if padded and padding:
         return _LISTED_PADDED
-    if codes and values >= PERSON_ROWS_PER_VALUE * len(different):
+    if codes and values - uncoded >= PERSON_ROWS_PER_VALUE * len(different):
         return _LISTED_CODES
     if persons:
         return _LISTED_PERSONS
@@ -4293,18 +4353,37 @@ def listed_record_number_questions(
         if not mark:
             continue
         several = 0
+        single = 0
         for cell in present:
-            if _holds_the_mark(cell, mark) and len(_list_parts(cell, mark)) >= 2:
+            if not (_holds_the_mark(cell, mark) or _wrapped(cell)):
+                continue
+            parts = _list_parts(cell, mark)
+            if len(parts) >= 2:
                 several = several + 1
+            elif _a_list_cell(cell, parts):
+                single = single + 1
         floor = settings.small_cell_floor
+        # How the cells are written as lists: two parts or more on the
+        # mark, and (lane HX4's repair 2) one part in brackets or quotes
+        # or beside the mark.
+        written: "list[str]" = []
+        if several:
+            written += [
+                f"{_sayable(several, len(present), floor)} hold "
+                f"{_LIST_MARKS_SAID[mark]} between two or more parts"
+            ]
+        if single:
+            written += [
+                f"{_sayable(single, len(present), floor)} hold one part in "
+                f"brackets or quotes or beside {_LIST_MARKS_SAID[mark]}"
+            ]
         found += [
             Question(
                 name,
                 role,
                 BECAUSE_LISTED_RECORD_NUMBERS,
                 f"{len(present)} values, and "
-                f"{_sayable(several, len(present), floor)} hold "
-                f"{_LIST_MARKS_SAID[mark]} between two or more parts; "
+                f"{', and '.join(written)}; "
                 f"{_LISTED_SAID[why]}, which is how a list of record "
                 f"numbers is written and also how a list of codes is. Does "
                 f"a cell hold several codes or labels, or several record "
