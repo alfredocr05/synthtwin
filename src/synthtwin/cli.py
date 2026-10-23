@@ -784,7 +784,7 @@ def _description_floor_refused(
 
 
 def _parse_arguments(
-    argv: "list[str] | None", lowered_floor: "int | None" = None
+    argv: "list[str] | None", lowered_floor: "int | None"
 ) -> _Options:
     """Build the command line and read it; return the options.
 
@@ -5481,7 +5481,7 @@ def _run_generate(
     out_dir: "str | None",
     seed_given: str,
     replace: bool,
-    least_floor: int = _SMALLEST_GROUP,
+    least_floor: int,
 ) -> int:
     """Do the work of `synthtwin generate`; return the exit code.
 
@@ -5845,8 +5845,8 @@ def _run_validate(
     twin_given: "str | None",
     out_dir: "str | None",
     replace: bool,
-    sheet: str = "",
-    least_floor: int = _SMALLEST_GROUP,
+    sheet: str,
+    least_floor: int,
 ) -> int:
     """Do the work of `synthtwin validate`; return the exit code.
 
