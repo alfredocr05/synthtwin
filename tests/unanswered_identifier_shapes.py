@@ -595,7 +595,9 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
 # - skeptic 1 of lane SH, items 9 and 12: ages beside an open person
 #   question, each value above 89 held by at least eleven people at
 #   20,000 rows (`age_person`), and a plus sign on every fiftieth age
-#   (`age_plus`).
+#   (`age_plus`); and its item 5, one cell `07` (`age_padded07`): P4-D401's
+#   padded question holds the column, its held block read from the
+#   top-coded cells, and no Safe Harbor question is put beside it.
 ZIP_WORDS = ("zip5word_unknown", "zip5word_homeless", "zip5word52_unknown",
              "zip5word52_homeless")
 ZIPS = ZIP_WORDS + (
@@ -609,7 +611,7 @@ AGES = (
     "ages", "ages999", "ages999x20", "ages-9", "age_binary", "age_constant",
     "age_outlier", "age_126", "age_999share", "age_minus1share", "age_888",
     "age_gauss_minus1", "age_years", "age_unk", "age_words800",
-    "age_years_words", "age_person", "age_plus",
+    "age_years_words", "age_person", "age_plus", "age_padded07",
 )
 SAFE_HARBOR_NUMBERS = ZIPS + AGES
 AGE_TOP_CODE = 90
@@ -731,6 +733,8 @@ def _age_cells(kind: str, rows: int, draw: random.Random) -> "list[str | tuple[i
         return cells
     if kind == "age_plus":
         return [(_an_age(draw), "+{}" if row % 50 == 0 else "{}") for row in range(rows)]
+    if kind == "age_padded07":
+        return ["07"] + [(_an_age(draw), "{}") for _ in range(rows - 1)]
     if kind == "age_person":
         for row in range(rows):
             if row % 2 == 0:
