@@ -37,6 +37,7 @@ import dataclasses
 import json
 import pathlib
 import random
+import re
 
 import pytest
 
@@ -783,3 +784,794 @@ def test_the_contract_quotes_the_sentence_the_product_writes() -> None:
     quoted = entry[entry.index("\n\n> ") + len("\n\n> "):]
     said = taxonomy.rendered(taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ())
     assert quoted[: quoted.index("\n")] == said
+
+
+# -- a list of record numbers in one cell (plan P4-D424, lane HX4) ----------
+#
+# Measured on 91ee9374 by lane ZR-a's second repair (`probe-where.log`):
+# one to three six-figure record numbers a cell, drawn from 40, read as a
+# long tail, published two record numbers as levels and asked nothing.
+# Here each form is held at 600 and 20,000 rows: at 600 rows by the list
+# question, which offers `code` and `identifier` beside `keep`; at 20,000
+# rows the person question reaches the whole cells first (more different
+# cells than the categories ceiling, repeating) and the list question is
+# never put as a second question, except beside a declared person column,
+# where the person question is not put.
+#
+# LANE HX4'S REPAIR 1 adds the shapes that published record numbers on
+# 6c566d3c (`shapes.LISTED`): marks mixed cell by cell, one list cell
+# among single record numbers, a mark closing each list cell, and
+# comma-grouped keys separated by spaces.
+
+_LIST_ANSWERS = [asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]
+# At 20,000 rows the person question reaches these whole cells first; every
+# other register list is put the list question at both sizes.
+_PERSON_FIRST = ("reglist6", "reglist7", "reglistR", "reglisttrail6", "reglistgrouped")
+# ...and these read as free text at 600 rows, which publishes no value: the
+# list question is put, and nothing needs holding.
+_FREE_TEXT_AT_600 = ("reglisttrail6", "reglistgrouped")
+
+
+def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
+    assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0
+    if kind not in shapes.VALIDATION_LIMITS:
+        assert seen["validate_exit"] == 0, seen
+    assert seen["description_values"] == 0, seen
+    assert seen["description_fragments"] == 0, seen
+    assert seen["twin_cells"] == 0, seen
+    assert seen["twin_fragments"] == 0, seen
+    if rows == _ROWS and kind in _FREE_TEXT_AT_600:
+        assert seen["role"] == taxonomy.ROLE_TEXT
+    else:
+        assert seen["role"] == taxonomy.ROLE_IDENTIFIER
+    asked = seen["asked"]
+    assert isinstance(asked, list) and len(asked) == 1, "one question, never two"
+    if rows != _ROWS and kind in _PERSON_FIRST:
+        assert asked == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    else:
+        assert asked == [_LIST_ANSWERS]
+
+
+@pytest.mark.parametrize("rows", (_ROWS, 20000))
+@pytest.mark.parametrize("kind", shapes.LISTED)
+def test_a_list_of_record_numbers_is_held_until_answered(
+    tmp_path: pathlib.Path, kind: str, rows: int
+) -> None:
+    """0 of the 40 record numbers published, 0 twin cells holding one; one question."""
+    seen = shapes.run(tmp_path, kind, rows)
+    _check_list_held(seen, rows, kind)
+    if rows == _ROWS:
+        assert "THESE COLUMNS HOLD SEVERAL VALUES IN A CELL" in f"{seen['screen']}"
+    if rows == _ROWS and kind not in _FREE_TEXT_AT_600:
+        assert seen["read_as_now"] == [asking.ANSWER_IDENTIFIER]
+        assert seen["evidence"] == taxonomy.rendered(
+            taxonomy.EVIDENCE_UNANSWERED_IDENTITY, ()
+        )
+        assert "COLUMNS HELD BACK UNTIL YOU ANSWER" in f"{seen['screen']}"
+
+
+def _listing_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tree before lane HX4: no list is asked about."""
+    monkeypatch.setattr(
+        asking, "listed_record_number_questions", lambda *named, **said: []
+    )
+
+
+def test_mutant_the_list_rule_off_publishes_record_numbers(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the rule off, the six-figure form publishes record numbers (2 at 600 rows)."""
+    _listing_off(monkeypatch)
+    seen = shapes.run(tmp_path, "reglist6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglist6")
+
+
+def _answered_list(
+    folder: pathlib.Path, answer: str, questions: "pathlib.Path | None" = None
+) -> "tuple[int, pathlib.Path]":
+    """Answer reglist6's question in the file a run wrote (or hand `questions` back), into a folder of its own."""
+    source = questions or folder / "reglist6_long-questions.json"
+    document = json.loads(source.read_text(encoding="utf-8"))
+    if questions is None:
+        for entry in document["asked"]:
+            if entry["column"] == "reglist6":
+                entry["your_answer"] = answer
+    answers = folder / f"answers-{answer}.json"
+    answers.write_text(json.dumps(document), encoding="utf-8", newline="\n")
+    out = folder / f"answered-{answer}"
+    out.mkdir()
+    with shapes.nobody_at_the_keyboard():
+        code = cli.main(["profile", f"{folder / 'reglist6_long.csv'}", "--out-dir",
+                         f"{out}", "--answers", f"{answers}"])
+    return code, out
+
+
+def _described_before(
+    folder: pathlib.Path, name: str, typed: "list[str]", monkeypatch: pytest.MonkeyPatch
+) -> pathlib.Path:
+    """The same table described with the list rule off (today's tree), `typed` on the command line."""
+    out = folder / name
+    out.mkdir()
+    with monkeypatch.context() as patched:
+        _listing_off(patched)
+        with shapes.nobody_at_the_keyboard():
+            assert cli.main(["profile", f"{folder / 'reglist6_long.csv'}", "--out-dir",
+                             f"{out}"] + typed) == 0
+    return out
+
+
+@pytest.mark.parametrize(
+    ("answer", "typed"),
+    [
+        (asking.ANSWER_KEEP, []),
+        (asking.ANSWER_CODE, ["--code", "reglist6"]),
+        (asking.ANSWER_IDENTIFIER, ["--identifier", "reglist6"]),
+    ],
+)
+def test_each_answer_to_the_list_question_gives_todays_bytes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, answer: str, typed: "list[str]"
+) -> None:
+    """`keep` and `code` read the list as today; `identifier` keeps it held.
+
+    Each answered description and summary are byte for byte today's tree's
+    with nothing typed (`keep`), `--code` typed (`code`) or `--identifier`
+    typed (`identifier`, which publishes no value).
+    """
+    shapes.run(tmp_path, "reglist6", _ROWS)
+    code, out = _answered_list(tmp_path, answer)
+    assert code == 0
+    before = _described_before(tmp_path, f"before-{answer}", typed, monkeypatch)
+    for page in ("reglist6_long-profile.json", "reglist6_long-profile.txt"):
+        assert (out / page).read_bytes() == (before / page).read_bytes(), page
+    block = _block(json.loads((out / "reglist6_long-profile.json").read_text(encoding="utf-8")),
+                   "reglist6")
+    if answer == asking.ANSWER_IDENTIFIER:
+        assert block["role"] == taxonomy.ROLE_IDENTIFIER
+    else:
+        assert block["role"] != taxonomy.ROLE_IDENTIFIER
+
+
+def _code_kept(folder: pathlib.Path) -> None:
+    """Answered `code`, then the file that run wrote handed back blank: still read as codes."""
+    shapes.run(folder, "reglist6", _ROWS)
+    code, out = _answered_list(folder, asking.ANSWER_CODE)
+    assert code == 0
+    code, again = _answered_list(folder, "again", out / "reglist6_long-questions.json")
+    assert code == 0
+    document = json.loads((again / "reglist6_long-profile.json").read_text(encoding="utf-8"))
+    settings = document["settings"]
+    assert isinstance(settings, dict)
+    assert settings["forced_codes"] == ["reglist6"], "the answer was lost"
+    assert _block(document, "reglist6")["role"] != taxonomy.ROLE_IDENTIFIER
+
+
+def test_the_list_answer_is_kept_in_the_questions_file(tmp_path: pathlib.Path) -> None:
+    """The questions file keeps the answer (plan P4-D408): a second round reads it again."""
+    _code_kept(tmp_path)
+
+
+def test_mutant_the_list_answer_lost_is_seen(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the file a run writes keeps no earlier answer, so the list is held again."""
+    monkeypatch.setattr(asking, "answered_before", lambda given: [])
+    with pytest.raises(AssertionError, match="the answer was lost"):
+        _code_kept(tmp_path)
+
+
+def _list_cells(values: "list[str]", mark: str, rows: int, seed: int = 7) -> "list[str]":
+    draw = random.Random(seed)
+    return [mark.join(draw.sample(values, draw.randint(1, 3))) for _row in range(rows)]
+
+
+def test_the_list_rule_reaches_record_numbers_and_no_short_code() -> None:
+    """The three forms on every mark, the identity routes on values; short codes, sums and words not."""
+    draw = random.Random(11)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    for mark in (";", "|", ",", " "):
+        assert asking._listed_record_numbers(_list_cells(six, mark, 600), "free_text") == (
+            mark, "wide")
+    seven = [f"0{one}" for one in six]
+    lettered = [f"R{one}" for one in six]
+    for keys in (seven, lettered):
+        assert asking._listed_record_numbers(_list_cells(keys, ";", 600), "long_tail_labels")[1] == "wide"
+    padded = [f"0{draw.randint(100, 999)}" for _key in range(40)]
+    assert asking._listed_record_numbers(_list_cells(padded, "|", 600), "free_text")[1] == "padded"
+    codes = [f"A{draw.randint(10, 99)}B" for _key in range(30)]
+    assert asking._listed_record_numbers(_list_cells(codes, ";", 600), "free_text")[1] == "codes"
+    mails = [f"pat{one}@mailhost.org" for one in range(40)]
+    assert asking._listed_record_numbers(_list_cells(mails, "; ", 600), "free_text")[1] == "persons"
+    # Most values not wide (four-figure keys and `UNKNOWN`), fewer than
+    # half `UNKNOWN`, most different keys five figures: route four (at one
+    # value in two, lane HX4's repair 2, a key list with fewer than half
+    # placeholders is wide first).
+    mostly = six[:21] + [f"{draw.randint(1000, 9999)}" for _key in range(19)]
+    keyed = _list_cells(mostly, ";", 600, seed=5) + ["UNKNOWN"] * 300
+    assert asking._listed_record_numbers(keyed, "free_text")[1] == "keys"
+    # NOT REACHED: three-figure codes 101 to 106, of mixed widths 3 and 4,
+    # all four figures; grouped thousands and decimal commas; ICD codes
+    # with points; free text; one cell of two values; a list read as dates.
+    short = [f"{one}" for one in range(101, 107)]
+    mixed = [f"{draw.choice([draw.randint(100, 999), draw.randint(1000, 9999)])}" for _key in range(20)]
+    four = [f"{draw.randint(1000, 9999)}" for _key in range(20)]
+    for values in (short, mixed, four):
+        for mark in (";", ","):
+            for rows in (_ROWS, 20000):
+                assert asking._listed_record_numbers(_list_cells(values, mark, rows), "categorical") == ("", "")
+    sums = [f"{draw.randint(1, 9999):,}" for _row in range(600)] + ["12,05", "3,75"]
+    icd = _list_cells(["E11.9", "I10", "J45.909", "N18.3"], ";", 600)
+    words = [" ".join(draw.choice(["pain", "fever", "cough"]) for _word in range(5)) for _row in range(600)]
+    for cells in (sums, icd, words):
+        assert asking._listed_record_numbers(cells, "free_text") == ("", "")
+    # ONE LIST CELL IS A LIST (lane HX4's repair 1, skeptic 1's item 2): at
+    # two cells, this column read `count` and published 40 of 40.
+    once = [six[0]] * 599 + [f"{six[0]};{six[1]}"]
+    assert asking._listed_record_numbers(once, "free_text") == (";", "wide")
+    assert asking._listed_record_numbers(_list_cells(six, ";", 600), taxonomy.ROLE_DATETIME) == ("", "")
+
+
+def test_mutant_the_five_figure_bound_ignored_reaches_short_codes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mutant: a run of one figure taken as wide, so a list of three- and four-figure codes is held."""
+    draw = random.Random(11)
+    mixed = [f"{draw.choice([draw.randint(100, 999), draw.randint(1000, 9999)])}" for _key in range(20)]
+    cells = _list_cells(mixed, ";", _ROWS)
+    assert asking._listed_record_numbers(cells, "categorical") == ("", "")
+    monkeypatch.setattr(asking, "_KEY_FIGURES", 1)
+    assert asking._listed_record_numbers(cells, "categorical") == (";", "wide")
+
+
+def test_a_list_of_three_figure_codes_is_held_by_the_person_question_alone(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codes 101 to 106, one to three a cell, are not this rule's: what holds them is today's.
+
+    At 600 rows the person question reaches the whole cells (more different
+    cells than the categories ceiling of 60, repeating), offering `keep` and
+    `identifier` as today, and the list question is not put. At 20,000 rows
+    nothing holds them: 156 combinations under the ceiling of 1,000 read as
+    categories, published as today (the rule's own reading is asserted in
+    `test_the_list_rule_reaches_record_numbers_and_no_short_code`).
+    """
+    cells = _list_cells([f"{one}" for one in range(101, 107)], ";", _ROWS)
+    draw = random.Random(3)
+    lines = ["codes,value"] + [f"{cell},{draw.uniform(1, 9):.1f}" for cell in cells]
+    code, document = _profile_rows(tmp_path, "codes_long", lines)
+    assert code == 0
+    asked = json.loads(
+        (tmp_path / "codes_long-questions.json").read_text(encoding="utf-8")
+    )["asked"]
+    offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+               for entry in asked if entry["column"] == "codes"]
+    assert offered == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    assert _block(document, "codes")["role"] == taxonomy.ROLE_IDENTIFIER
+
+
+# -- lane HX4's repair 1: each escape pinned, each by its mutant -------------
+
+
+def _first_mark_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: only the first mark that makes a list is judged (6c566d3c's rule)."""
+    judged: "list[str]" = []
+    real = asking._listed_on
+
+    def first_only(present: "list[str]", mark: str, values: int) -> str:
+        judged.append(mark)
+        return real(present, mark, values) if len(judged) == 1 else ""
+
+    monkeypatch.setattr(asking, "_listed_on", first_only)
+
+
+def test_mutant_6c566d3cs_rule_publishes_mixed_lists(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1's item 1: marks drawn from `;`, `,` and `|` published 40 of 40 at 20,000 rows.
+
+    The mutant is 6c566d3c's rule whole: only the first mark judged, every
+    value wide. Either repair alone holds this shape (the share of the
+    addendum reads its other marks' cells as the third that is no key), so
+    each is pinned apart too: the first mark alone below, every value
+    wide by Codex's case of the addendum.
+    """
+    _first_mark_only(monkeypatch)
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 10**9)
+    seen = shapes.run(tmp_path, "reglistmix6", 20000)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, 20000, "reglistmix6")
+
+
+def _mostly_on_commas() -> "list[str]":
+    """Six-figure lists, one cell in ten on `;` and the rest on `,`."""
+    draw = random.Random(13)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    return [(";" if place % 10 == 0 else ",").join(draw.sample(six, draw.randint(1, 3)))
+            for place in range(_ROWS)]
+
+
+def test_a_list_mostly_on_a_later_mark_is_judged_on_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every mark is judged: on `;` most values are `185380,928534` and no key; on `,` they are keys.
+
+    The mutant judges the first mark that makes a list alone (6c566d3c),
+    and the column is not reached.
+    """
+    cells = _mostly_on_commas()
+    assert asking._listed_record_numbers(cells, "long_tail_labels") == (",", "wide")
+    _first_mark_only(monkeypatch)
+    assert asking._listed_record_numbers(cells, "long_tail_labels") == ("", "")
+
+
+def _codex_grouped_lines() -> "list[str]":
+    """Codex's item 1, its exact column: space-separated lists of comma-grouped keys."""
+    keys = [f"{123000 + one:,}" for one in range(1, 41)]
+    cells = [first + " " + second for first in keys for second in keys if first != second][:588]
+    cells += [keys[0]] * 12
+    return ["ids,value"] + [f'"{cell}",{place % 7}' for place, cell in enumerate(cells)]
+
+
+def _texts_of(folder: pathlib.Path, name: str) -> str:
+    """The description, its summary and the questions file a run wrote, as one text."""
+    return "".join(
+        (folder / f"{name}-{page}").read_text(encoding="utf-8")
+        for page in ("profile.json", "profile.txt", "questions.json")
+    )
+
+
+def test_codex_grouped_keys_split_by_spaces_are_held(tmp_path: pathlib.Path) -> None:
+    """Codex's item 1: `123,001 123,002` is judged on the spaces too; `123,001` is not published.
+
+    On 6c566d3c the comma was judged first, its parts reached nothing, the
+    spaces were never tried, and the profile published `123,001` on 12 rows.
+    """
+    keys = [f"{123000 + one:,}" for one in range(1, 41)]
+    cells = [first + " " + second for first in keys for second in keys if first != second][:588]
+    assert asking._listed_record_numbers(cells + [keys[0]] * 12, "long_tail_labels") == (" ", "keys")
+    code, document = _profile_rows(tmp_path, "grouped", _codex_grouped_lines())
+    assert code == 0
+    assert _block(document, "ids")["role"] == taxonomy.ROLE_IDENTIFIER
+    texts = _texts_of(tmp_path, "grouped")
+    for key in keys:
+        assert key not in texts and key.replace(",", "") not in texts
+
+
+def test_mutant_only_the_first_mark_judged_publishes_codex_grouped_keys(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant publishes `123,001`, as 6c566d3c did."""
+    _first_mark_only(monkeypatch)
+    code, _document = _profile_rows(tmp_path, "grouped", _codex_grouped_lines())
+    assert code == 0
+    assert "123,001" in _texts_of(tmp_path, "grouped")
+
+
+def test_mutant_two_list_cells_needed_publishes_the_register(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skeptic 1's item 2: at two cells, one list cell among the keys published 40 of 40."""
+    monkeypatch.setattr(asking, "_LIST_CELLS_AT_LEAST", 2)
+    seen = shapes.run(tmp_path, "reglistonce6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglistonce6")
+
+
+def _list_parts_before(cell: str, mark: str) -> "list[str]":
+    """6c566d3c's split: a mark closing a cell leaves an empty value, so the cell is no list."""
+    parts: "list[str]" = []
+    for piece in cell.split(mark):
+        one = piece.strip()
+        if one or mark != " ":
+            parts += [one]
+    return parts
+
+
+def _trail_lines() -> "tuple[list[str], list[str]]":
+    """Skeptic 1's item 3 at 600 rows: a `;` closes each list cell; the keys and the table."""
+    draw = random.Random(7)
+    keys: "list[str]" = []
+    while len(keys) < 40:
+        one = f"{draw.randint(100000, 999999)}"
+        if one not in keys:
+            keys += [one]
+    cells = _list_cells(keys, ";", _ROWS, seed=1)
+    cells = [cell + ";" if ";" in cell else cell for cell in cells]
+    lines = ["ids,test,value"] + [
+        f"{cell},{('Sodium', 'Potassium', 'Glucose')[place % 3]},{(place * 37) % 140 + 3}.{place % 10}"
+        for place, cell in enumerate(cells)
+    ]
+    return keys, lines
+
+
+def test_a_mark_closing_each_list_cell_is_held(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1's item 3: `185380;928534;` is a list of two; 0 of 40 published at 600 rows."""
+    keys, lines = _trail_lines()
+    assert asking._listed_record_numbers([line.split(",")[0] for line in lines[1:]],
+                                         "long_tail_labels") == (";", "wide")
+    code, document = _profile_rows(tmp_path, "trail", lines)
+    assert code == 0
+    assert _block(document, "ids")["role"] == taxonomy.ROLE_IDENTIFIER
+    texts = _texts_of(tmp_path, "trail")
+    assert [key for key in keys if key in texts] == []
+
+
+def test_mutant_a_closing_mark_left_as_a_value_publishes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant (6c566d3c's split) reads the column as a long tail and publishes a record number."""
+    monkeypatch.setattr(asking, "_list_parts", _list_parts_before)
+    keys, lines = _trail_lines()
+    code, document = _profile_rows(tmp_path, "trail", lines)
+    assert code == 0
+    texts = _texts_of(tmp_path, "trail")
+    assert [key for key in keys if key in texts] != []
+
+
+def test_brackets_quotes_and_tabs_around_a_list_are_taken_off() -> None:
+    """Skeptic 1's item 6: `[185380, 928534]`, `'185380', '928534'` and a tab between are lists.
+
+    Each published 1 of 40 at 600 rows on 6c566d3c. A `+` between values
+    stays lane LISTS' (plan P4-D424).
+    """
+    draw = random.Random(11)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    listed = _list_cells(six, ";", _ROWS)
+    bracketed = ["[" + cell.replace(";", ", ") + "]" for cell in listed]
+    quoted = [", ".join("'" + one + "'" for one in cell.split(";")) for cell in listed]
+    tabbed = [cell.replace(";", "\t") for cell in listed]
+    assert asking._listed_record_numbers(bracketed, "long_tail_labels") == (",", "wide")
+    assert asking._listed_record_numbers(quoted, "long_tail_labels") == (",", "wide")
+    assert asking._listed_record_numbers(tabbed, "long_tail_labels") == (asking._ANY_MARK, "wide")
+    assert asking._listed_record_numbers([cell.replace(";", "+") for cell in listed],
+                                         "long_tail_labels") == ("", "")
+
+
+def test_mutant_quotes_kept_reach_no_quoted_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: quotes left on each value, so the quoted list is not reached."""
+    draw = random.Random(11)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    quoted = [", ".join("'" + one + "'" for one in cell.split(";"))
+              for cell in _list_cells(six, ";", _ROWS)]
+    monkeypatch.setattr(asking, "_LIST_QUOTES", "")
+    assert asking._listed_record_numbers(quoted, "long_tail_labels") == ("", "")
+
+
+def _amounts() -> "list[str]":
+    """Codex's item 3: numbers written with a decimal comma and four decimals."""
+    return ["amount,value"] + [f'"{place % 12 + 1},0{place % 30 + 1:03}",{place % 7}'
+                               for place in range(_ROWS)]
+
+
+def test_a_declared_decimal_comma_is_asked_nothing(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3: `--decimal-comma amount` settles the column; the list question is not put."""
+    code, document = _profile_rows(tmp_path, "amounts", _amounts(), ["--decimal-comma", "amount"])
+    assert code == 0
+    assert _block(document, "amount")["role"] == taxonomy.ROLE_CONTINUOUS
+    asked = json.loads((tmp_path / "amounts-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert [entry for entry in asked if entry["column"] == "amount"] == []
+
+
+def test_mutant_the_declaration_unread_asks_the_list_question(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the declared columns not handed to the list rule, so it asks."""
+    real = asking.listed_record_number_questions
+
+    def unread(*named: object, **said: object) -> "list[asking.Question]":
+        return real(*named[:6])
+
+    monkeypatch.setattr(asking, "listed_record_number_questions", unread)
+    code, _document = _profile_rows(tmp_path, "amounts", _amounts(), ["--decimal-comma", "amount"])
+    assert code == 0
+    asked = json.loads((tmp_path / "amounts-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert [entry["column"] for entry in asked] == ["amount"]
+
+
+def test_keep_says_what_a_column_read_as_numbers_publishes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Codex's item 3: `keep` on a column read as numbers names its statistics, not its values."""
+    for role in asking.NUMERIC_ROLES:
+        kept = asking._listed_choices(role, 11)[0]
+        assert kept.answer == asking.ANSWER_KEEP
+        assert kept.publishes == "what it publishes now: " + asking._publishes_under(
+            asking.ANSWER_MEASUREMENT, role, 11)
+    labels = asking._listed_choices(taxonomy.ROLE_LONG_TAIL, 11)[0]
+    assert labels.publishes == asking._publishes_under(asking.ANSWER_KEEP, taxonomy.ROLE_LONG_TAIL, 11)
+    monkeypatch.setattr(asking, "NUMERIC_ROLES", ())
+    assert asking._listed_choices(taxonomy.ROLE_COUNT, 11)[0].publishes.startswith(
+        "what it publishes now: every value")
+
+
+def _names_every_character(said: str) -> bool:
+    """Whether the wide sentence names each kind of character `parsing.is_code_text` admits."""
+    for character, word in (("A", "letters"), ("7", "figures"), ("-", "hyphens"),
+                            ("_", "underscores")):
+        assert asking.parsing.is_code_text(character)
+        if word not in said:
+            return False
+    return True
+
+
+def test_the_shape_sentence_names_every_character_the_rule_reads() -> None:
+    """Codex's item 4: `R_123456` is reached, and the sentence names underscores."""
+    draw = random.Random(11)
+    keys = [f"R_{draw.randint(100000, 999999)}" for _key in range(40)]
+    assert asking._listed_record_numbers(_list_cells(keys, ";", _ROWS), "long_tail_labels") == (
+        ";", "wide")
+    assert _names_every_character(asking._LISTED_SAID[asking._LISTED_WIDE])
+
+
+def test_mutant_the_sentence_without_underscores_is_seen() -> None:
+    """The mutant: 6c566d3c's sentence, letters, figures and hyphens alone."""
+    assert not _names_every_character(
+        "every part is written in letters, figures and hyphens, with a run "
+        "of five figures or more"
+    )
+
+
+def test_the_list_question_stands_beside_the_dates_question_as_hxs_does(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Codex's item 2, measured: ONE question offering `identifier`; Q6 beside it as beside HX's.
+
+    598 cells of `2024001` to `2024030` and two of `2024001;2024002`: the
+    list question and question Q6 (`keep` or `dates`), as the same column
+    without its list cells is put P4-D401's width question and Q6. Q6
+    asks whether the column holds dates; it holds nothing (P4-D401), and
+    its family is kept apart by the questions file (P4-D408).
+    """
+    plain = ["days,value"] + [f"{2024001 + place % 30},{place % 7}" for place in range(_ROWS)]
+    listed = plain[: _ROWS - 1] + ["2024001;2024002,1", "2024001;2024002,2"]
+    families: "list[list[list[str]]]" = []
+    for name, lines in (("plain", plain), ("listed", listed)):
+        folder = tmp_path / name
+        folder.mkdir()
+        code, document = _profile_rows(folder, name, lines)
+        assert code == 0
+        assert _block(document, "days")["role"] == taxonomy.ROLE_IDENTIFIER
+        asked = json.loads((folder / f"{name}-questions.json").read_text(encoding="utf-8"))["asked"]
+        offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+                   for entry in asked if entry["column"] == "days"]
+        assert len([one for one in offered if asking.ANSWER_IDENTIFIER in one]) == 1
+        families += [[one for one in offered if asking.ANSWER_IDENTIFIER not in one]]
+    assert families[0] == families[1] == [[asking.ANSWER_KEEP, asking.ANSWER_DATES]]
+
+
+# -- the orchestrator's addendum (2026-10-22 18:23): one ordinary word ------
+
+
+def _codex_other_cells() -> "list[str]":
+    """Codex's case from its third round on lane ZR-a's page, exactly as the addendum gives it.
+
+    `R100000` to `R100039`: 40 single cells, 240 cyclic pairs (i, i+s) for s
+    of 1 to 6 and 320 cyclic triples (i, i+s, i+s+1) for s of 1 to 8, the
+    indices modulo 40; the first cell closes `;OTHER`.
+    """
+    keys = [f"R{100000 + one}" for one in range(40)]
+    cells = [keys[one] for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]}" for step in range(1, 7) for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]};{keys[(one + step + 1) % 40]}"
+              for step in range(1, 9) for one in range(40)]
+    cells[0] = cells[0] + ";OTHER"
+    assert len(cells) == _ROWS
+    return cells
+
+
+def test_one_ordinary_word_does_not_undo_the_list_hold(tmp_path: pathlib.Path) -> None:
+    """Codex's case at 600 rows: the list question is put, and 0 of the 40 record numbers published."""
+    cells = _codex_other_cells()
+    assert asking._listed_record_numbers(cells, "long_tail_labels") == (";", "wide")
+    lines = ["ids,value"] + [f"{cell},{place % 7}" for place, cell in enumerate(cells)]
+    code, _document = _profile_rows(tmp_path, "other", lines)
+    assert code == 0
+    asked = json.loads((tmp_path / "other-questions.json").read_text(encoding="utf-8"))["asked"]
+    offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+               for entry in asked if entry["column"] == "ids"]
+    assert offered == [_LIST_ANSWERS]
+    texts = _texts_of(tmp_path, "other")
+    assert [one for one in range(40) if f"{100000 + one}" in texts] == []
+
+
+def test_mutant_every_value_wide_lets_one_word_undo_the_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mutant: every value must be wide (6c566d3c's arm), so `OTHER` leaves the list unasked.
+
+    Since lane HX4's repair 2, route two sets aside one value in three too
+    (the orchestrator's addendum 2), and reaches `R100000` to `R100039`
+    as codes repeating: either arm alone holds Codex's case, so the
+    mutant takes both all-or-nothing, and the wide arm alone is seen
+    giving way to route two.
+    """
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 10**9)
+    assert asking._listed_record_numbers(_codex_other_cells(), "long_tail_labels") == (";", "codes")
+    monkeypatch.setattr(asking, "_LIST_ROUTE_SHARE", 10**9)
+    assert asking._listed_record_numbers(_codex_other_cells(), "long_tail_labels") == ("", "")
+
+
+# -- lane HX4's repair 2: one value a cell, a key and a word, line breaks ----
+
+
+def _one_a_cell(form: str) -> "list[str]":
+    """600 cells of one record number of 40 each, written in ``form`` (`{}` for the number)."""
+    draw = random.Random(17)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    return [form.format(six[place % 40]) for place in range(_ROWS)]
+
+
+# Item 1 of lane HX4's verify on 5cd84df6: each published 40 of 40 at 600 and
+# 20,000 rows, every twin cell a real one; the mark the rule names.
+_ONE_A_CELL = (("{};", ";"), ("R{};", ";"), ("{},", ","), ("[{}]", ";"), ("[R{}]", ";"),
+               ("'{}'", ";"), ("'{}", ";"), ('"{}"', ";"), ("['{}']", ";"))
+
+
+def test_one_record_number_wrapped_as_a_list_is_reached() -> None:
+    """`185380;`, `185380,`, `[185380]`, `'185380'` and the `R` forms are lists; bare keys are not."""
+    for form, mark in _ONE_A_CELL:
+        assert asking._listed_record_numbers(_one_a_cell(form), "categorical") == (mark, "wide"), form
+    # A bare key, a cell of one bracket or quote alone, and words in quotes are not.
+    assert asking._listed_record_numbers(_one_a_cell("{}"), "categorical") == ("", "")
+    assert asking._listed_record_numbers(["[]", "''", "'"] * 200, "categorical") == ("", "")
+    assert asking._listed_record_numbers(["'Yes'", "'No'"] * 300, "categorical") == ("", "")
+
+
+def _two_values_a_list_cell(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: 5cd84df6's rule, a list cell holds two values or more."""
+    monkeypatch.setattr(asking, "_a_list_cell", lambda cell, parts: len(parts) >= 2)
+
+
+def test_mutant_one_value_no_list_reaches_no_wrapped_record_number(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mutant reaches none of the wrapped forms."""
+    _two_values_a_list_cell(monkeypatch)
+    for form, _mark in _ONE_A_CELL:
+        assert asking._listed_record_numbers(_one_a_cell(form), "categorical") == ("", ""), form
+
+
+def test_mutant_one_value_no_list_publishes_every_record_number(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant publishes the record numbers of `185380;` a cell, as 5cd84df6 did (40 of 40)."""
+    _two_values_a_list_cell(monkeypatch)
+    seen = shapes.run(tmp_path, "reglistone6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglistone6")
+
+
+def test_a_key_and_a_word_in_every_cell_is_reached() -> None:
+    """Item 2: `185380;pending` and `R185380;done` are one value in two record numbers."""
+    draw = random.Random(19)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    worded = [f"{six[place % 40]};pending" for place in range(_ROWS)]
+    lettered = [f"R{six[place % 40]};{('pending', 'done', 'open')[place % 3]}" for place in range(_ROWS)]
+    for cells in (worded, lettered):
+        assert asking._listed_record_numbers(cells, "categorical") == (";", "wide")
+    # Words beside one key in two cells are more than one value in two: no list of record numbers.
+    sparse = [f"{six[place % 40]};{'pending'};{'done'}" for place in range(_ROWS)]
+    assert asking._listed_record_numbers(sparse, "categorical") == ("", "")
+
+
+def test_mutant_one_in_three_lets_a_word_a_cell_publish(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: repair 1's share (one value in three), so `185380;pending` publishes record numbers."""
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 3)
+    seen = shapes.run(tmp_path, "reglistword6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglistword6")
+
+
+def _broken(between: str) -> "list[str]":
+    draw = random.Random(23)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    return _list_cells(six, between, _ROWS)
+
+
+def test_a_line_break_or_a_no_break_space_between_values_is_a_space() -> None:
+    """Item 3: six-figure lists on a line break or a no-break space are lists (1 of 40 published on 5cd84df6).
+
+    A `/`, a `.` or a doubled `;;` between values stays lane LISTS' (plan P4-D424).
+    """
+    for between in ("\n", "\r\n", "\u00a0"):
+        assert asking._listed_record_numbers(_broken(between), "long_tail_labels") == (
+            asking._ANY_MARK, "wide"), repr(between)
+    for between in ("/", ".", ";;"):
+        assert asking._listed_record_numbers(_broken(between), "long_tail_labels") == ("", "")
+
+
+def test_mutant_a_line_break_read_as_no_mark_reaches_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: a tab alone read as a space (5cd84df6), so the broken lists are not reached."""
+    monkeypatch.setattr(asking, "_READ_AS_SPACE", "\t")
+    for between in ("\n", "\u00a0"):
+        assert asking._listed_record_numbers(_broken(between), "long_tail_labels") == ("", "")
+
+
+# The orchestrator's addenda 2 (2026-10-22 21:32, from lane ZR-a's verify 3)
+# and 3 (2026-10-23 07:20, from its close 4): Codex's construction on keys
+# the wide arm, route two and the padded route reach, pure and with `;OTHER`
+# closing the first cell, at 600 AND 20,000 rows (the 600 cells repeating
+# in order). At 20,000 rows today's product (98c0fce6) published 40 of 40
+# keys of every shape as whole-cell categorical levels, and 5cd84df6 those
+# of the three `;OTHER` shapes below five figures; the reason each is
+# reached by.
+_ROUTE_KEYS = (("R{}", 100000, "wide"), ("R{}", 1000, "codes"), ("AB{}", 100, "codes"),
+               ("0{}", 100, "padded"))
+
+
+def _codex_route_cells(form: str, first: int, rows: int, other: bool) -> "tuple[list[str], list[str]]":
+    """The keys and Codex's cells: 40 singles, 240 cyclic pairs s = 1..6, 320 cyclic triples s = 1..8."""
+    keys = [form.format(first + one) for one in range(40)]
+    cells = [keys[one] for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]}" for step in range(1, 7) for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]};{keys[(one + step + 1) % 40]}"
+              for step in range(1, 9) for one in range(40)]
+    assert len(cells) == _ROWS
+    cells = [cells[place % _ROWS] for place in range(rows)]
+    if other:
+        cells[0] = cells[0] + ";OTHER"
+    return keys, cells
+
+
+def _keys_found(keys: "list[str]", text: str) -> "list[str]":
+    """The keys standing in a text as a whole token (not inside a longer run of letters and figures)."""
+    return [key for key in keys if re.search(rf"(?<![0-9A-Za-z]){key}(?![0-9A-Za-z])", text)]
+
+
+@pytest.mark.parametrize("rows", (_ROWS, 20000))
+@pytest.mark.parametrize("other", (False, True))
+@pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS)
+def test_one_word_undoes_no_route_of_the_list_hold(
+    tmp_path: pathlib.Path, form: str, first: int, why: str, other: bool, rows: int
+) -> None:
+    """Every key form, pure or with `;OTHER`: the list question is put, 0 keys in any file or twin cell."""
+    keys, cells = _codex_route_cells(form, first, rows, other)
+    assert asking._listed_record_numbers(cells, "free_text") == (";", why)
+    lines = ["ids,value"] + [f"{cell},{place % 7}" for place, cell in enumerate(cells)]
+    code, _document = _profile_rows(tmp_path, "route", lines)
+    assert code == 0
+    asked = json.loads((tmp_path / "route-questions.json").read_text(encoding="utf-8"))["asked"]
+    offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+               for entry in asked if entry["column"] == "ids"]
+    assert offered == [_LIST_ANSWERS]
+    assert _keys_found(keys, _texts_of(tmp_path, "route")) == []
+    with shapes.nobody_at_the_keyboard():
+        assert cli.main(["generate", f"{tmp_path / 'route-profile.json'}", "--out-dir",
+                         f"{tmp_path}", "--seed", "0", "--replace"]) == 0
+    twin = (tmp_path / "route-twin.csv").read_text(encoding="utf-8")
+    assert _keys_found(keys, twin) == []
+
+
+@pytest.mark.parametrize("other", (False, True))
+@pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS)
+def test_mutant_all_or_nothing_routes_let_one_word_undo_the_hold(
+    monkeypatch: pytest.MonkeyPatch, form: str, first: int, why: str, other: bool
+) -> None:
+    """The mutant: every route all-or-nothing (5cd84df6's routes, every value wide), so `;OTHER` reaches nothing.
+
+    Pure, the mutant still reaches each shape: the word is what it lets undo the hold.
+    """
+    monkeypatch.setattr(asking, "_LIST_ROUTE_SHARE", 10**9)
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 10**9)
+    for rows in (_ROWS, 20000):
+        _keys, cells = _codex_route_cells(form, first, rows, other)
+        found = asking._listed_record_numbers(cells, "free_text")
+        assert found == (("", "") if other else (";", why)), (rows, found)
+
+
+@pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS[1:])
+def test_mutant_all_or_nothing_routes_publish_every_key_at_20000_rows(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, form: str, first: int, why: str
+) -> None:
+    """The mutant at the owner's floor size: `;OTHER` read as categories, the keys published (40 of 40 on 5cd84df6)."""
+    monkeypatch.setattr(asking, "_LIST_ROUTE_SHARE", 10**9)
+    keys, cells = _codex_route_cells(form, first, 20000, True)
+    lines = ["ids,value"] + [f"{cell},{place % 7}" for place, cell in enumerate(cells)]
+    code, _document = _profile_rows(tmp_path, "route", lines)
+    assert code == 0
+    assert _keys_found(keys, _texts_of(tmp_path, "route")) != []

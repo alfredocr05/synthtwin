@@ -732,13 +732,19 @@ def test_the_order_docstring_lists_no_rule_0c() -> None:
 
 def test_rule_i_reads_the_holding_questions_the_product_has() -> None:
     """The page's rule I rests on these lists; a change to any of them sends a lane back to the page."""
+    # Batch 4h's merge of lane HX4 (plan P4-D424) adds its list question:
+    # the page's rule I already names it ("Q-LIST is HX4's list question in
+    # its record-number form ... and it holds (rule I) until answered").
     assert asking.HOLDING_REASONS == (
         asking.BECAUSE_REPEATS_AND_MANY,
         asking.BECAUSE_JOINED,
         asking.BECAUSE_PADDED,
         asking.BECAUSE_FIXED_WIDTH,
         asking.BECAUSE_GROUPED_FIXED_WIDTH,
+        asking.BECAUSE_LISTED_RECORD_NUMBERS,
     )
+    page_i = _flat(_page())
+    assert "and it holds (rule I) until answered" in page_i
     assert asking._READ_AS_DATES_OR_TIMES == (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
     # A unit column read as an affixed number is still put the person
     # question; a column read as joined numbers is not, which is why

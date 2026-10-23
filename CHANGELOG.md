@@ -6,6 +6,40 @@ exists).
 
 ## [Unreleased]
 
+### A column of lists written as record numbers is held until answered (lane HX4, 2026-10-22)
+
+**Lane HX4** (plan P4-D424, amending P4-D401's stated limits). A column
+whose cells hold one to three record numbers separated by `;` was read
+as a long tail and published two of them on 11 rows or more, with no
+question put (lane ZR-a's measurement). A column whose cells are lists --
+values separated by `;`, `|`, `,`, spaces (a tab, a line break or a
+no-break space read as one) or any of them at once, in at least one
+cell, brackets, quotes and closing marks taken off, so that one value
+`185380;`, `[185380]` or `'185380'` is a list too, every mark judged --
+every value of which, but at most one in two, holds a run of five
+figures or more, or which the padded route or routes two to four of the
+person rule reach taken over its values, each setting one value in
+three aside, is now put one question about the data: do its
+cells hold several codes or labels, or several record numbers? It offers
+`keep`, `code` and `identifier`, and is put only where no question
+offering `identifier` was and nothing, a decimal comma included, is
+declared. Until answered, the column is held as an unanswered identifier
+column is: no value published, made-up values in the twin. `keep` and
+`code` read it as before, byte for byte; `identifier` keeps it held; the
+questions file keeps the answer. On fourteen measured shapes -- among
+them the marks mixed cell by cell, one list cell among single record
+numbers, a closing mark, space-separated grouped keys, one record number
+a cell in a wrapping and a record number beside a word in every cell,
+which the reviews found publishing up to 40 of 40 -- 0 record numbers
+are published and 0 twin cells hold one at 600 and 20,000 rows. A list
+of three-figure codes is left to the person question, as before; a list
+split by `/`, `.` or `;;` is lane LISTS'. Keys such as `R1000`,
+`AB100` or `0100` in lists with one word beside them, which 20,000 rows
+published whole, are held too. A column of five-figure whole
+numbers with one cell `a;b` is held until answered, the price. No column
+of lane S4d's description battery or of the health data zoo is reached.
+`K-S3-64` gains the fourteen shapes.
+
 ### Batch 4g's records: the chain met by its oracle, the six time entries stamped, owners for every stated limit, a shorter STATE (2026-10-23)
 
 **Records of batch 4g**, which merged lanes CHa, CHo and ZR-a (plans

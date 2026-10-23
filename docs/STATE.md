@@ -464,6 +464,31 @@ cannot get worse unseen.
   UTC offsets publishes no count at its rung, lane DST; a table of ten
   people or fewer whose person question is open still publishes per
   rows (P4-D406's limit (2)), the orchestrator's to decide.
+- **A list of record numbers in one cell (lane HX4, P4-D424,
+  2026-10-22).** A column of lists (`;`, `|`, `,`, spaces -- a tab, a
+  line break or a no-break space read as one -- or any of them, in one
+  cell or more, one value in a closing mark, brackets or quotes a list
+  too, every mark judged) whose values, all but one in two, hold five
+  figures or more, or that the padded route or routes two to four reach
+  (each setting one in three aside: `R1000`, `AB100`, `0100` beside one
+  word), is asked one question (`keep`,
+  `code`, `identifier`) and held until answered: 0 of 40 record numbers
+  published at 600 and 20,000 rows on fourteen shapes where up to 40
+  were (`K-S3-64`). Still so: a list whose values no route reaches
+  (names, ICD codes with points) or split by another mark (`+`, `^`,
+  `~`; `/`, `.` and `;;` publish 1 of 40 at 600 rows, 13 twin cells
+  holding a real one, and are held by the person question at 20,000),
+  and a held `;` or `|` list written in the twin without its mark (11 of
+  600 twin cells keep one where 398 real cells hold one), lane LISTS';
+  codes `101` to `106` in lists are held at 600 rows by the person
+  question alone, and at 20,000 published as categories by `;` or `, `
+  and held by the person question by `,` alone, as before; a made-up record number equal to a
+  real one by chance in any room (2 to 7 twin cells at 20,000 rows on the
+  measured shapes, before this lane too), and one list cell among one
+  key's whole numbers whose twin misses `all_whole_numbers`, CODES-1 part
+  C's; a decimal-comma column of four decimals from a nought (`1,0001`)
+  held until answered, and a column of five-figure whole numbers with
+  one cell `a;b` held where it read `count`, the prices.
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Lane L1
   (P4-D390, P4-D384, `K-S3-61`) writes made-up figure codes at the
