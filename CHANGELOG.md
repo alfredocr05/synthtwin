@@ -31,8 +31,9 @@ not the line, holds whole notes out of every description, and the line
 waits on the answer. Repair 2 (the verify and Codex's review): a list of
 three-figure codes, which today's reader takes for grouped thousands, is
 asked before the numeric rule; rare list lengths are pooled with the
-total of their values, so a twin always exists (Gale and Ryser's
-condition); a zone word moves no instant (`CST` names two offsets); a
+total of their values, so a twin meeting the list margins always exists
+(Gale and Ryser's condition; the censuses beside them are carried to
+lane LISTS); a zone word moves no instant (`CST` names two offsets); a
 clock declaration that does not read holds its column; and a list whose
 values look like record numbers is held until answered, as measured today
 a long tail of such a list publishes two of them. Repair 3 (the verify
@@ -46,7 +47,15 @@ as many stand-ins as values were held back, so its description
 publishes the same counts again, and the count of cells holding one,
 which no construction is proven to meet, is withdrawn; a missing-code
 answer is acted on only for the table it was given for; and the
-list role's pool counts may be 1 to 10, as a label column's are. No product code,
+list role's pool counts may be 1 to 10, as a label column's are.
+Repair 5 (Codex's third round; the owner chose two of its six items to
+fix here): the register-list hold is lane HX4's rule, so one ordinary
+word beside 40 record numbers no longer lets a list reading publish
+them, and no list is read over a record number beyond that rule; a
+missing-code answer stays on the value it was given for when the same
+file is read again with two rows confirmed as metadata; the other four
+items are carried to lanes LISTS and UN-2 with Codex's cases, and each
+sentence they touch is marked open. No product code,
 golden, vector or KPI moves; `tests/test_zoo_reading_page.py` pins the
 page's computed figures and each rule's operative sentence.
 

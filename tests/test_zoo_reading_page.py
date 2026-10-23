@@ -32,7 +32,13 @@ Since repair 4 (Codex's second round): a `DateKey`'s codes read for
 that column alone, a declared list read before the numeric rule, the
 twin's list meeting every published count it is said to meet (and the
 count it cannot, withdrawn), a missing-code answer acted on only for
-its own table, and LV1 accepting the 110-row description.
+its own table, and LV1 accepting the 110-row description. Since repair 5
+(Codex's third round, the owner's "correct just 1-2"): the register-list
+hold read as lane HX4's share, which one ordinary token does not undo,
+and no list inferred over a record number; a missing-code answer bound
+to its value's own digest when the fence moves within the same file;
+and items 3 to 6 carried to lanes LISTS and UN-2, each touched sentence
+marked open, with Codex's cases computed where the page's helpers reach.
 
 WHAT IS NOT HERE. No lane's code exists, so nothing here says a twin
 meets anything. The functions below are the page's rules written once
@@ -183,11 +189,11 @@ OPERATIVE = {
         " hide a register"
     ),
     "a register list is not inferred": (
-        "So rule 9l is NOT inferred where every value of the would-be list holds five figures or more"
+        "So rule 9l is NOT inferred where HX4's rule takes the values of the would-be list as record numbers"
     ),
     "the register list's gate case": (
-        "LISTS' gate holds that register list (40 record numbers `R` and six figures) with 0 published values"
-        " unanswered, and `K-S3-64` gains it"
+        "LISTS' gate holds that register list (40 record numbers `R` and six figures), Codex's `;OTHER` case and"
+        " its three-word form, each with 0 published values unanswered, and `K-S3-64` gains them"
     ),
     # Codex's review of repair 1, item by item.
     "the grouped number or the list is asked before rule 6": (
@@ -211,7 +217,8 @@ OPERATIVE = {
     "a declared list needs no varying length": "Declared, conditions (1) and (4) bind and (2) and (3) do not",
     "missing codes said alike are named by place": "each is named by its place among them on the number line",
     "an answer never binds to another value": (
-        "a later run acts on it only where the table it reads has the same digest"
+        "A later run acts on the answer only where the table it reads has the same `table_sha256`, and only for the"
+        " value whose `value_sha256` it finds among the table's spellings of Q-MISSING's shape"
     ),
     "J4, J7 and J8 read conditionally": "J4, J7 and J8 are read conditionally",
     "the conditional J7 and J8": "J7 reads \"`part_agreements` is empty\" and J8 \"`part_above` is empty\"",
@@ -298,11 +305,40 @@ OPERATIVE = {
         " cells summed -- within theirs"
     ),
     "R4-4 the digest kept beside the answer": (
-        "beside the SHA-256 digest of the table's bytes as the run that asked it read them (`table_sha256`)"
+        "beside TWO digests: the SHA-256 digest of the table's bytes as the run that asked it read them (`table_sha256`)"
     ),
     "R4-4 a changed table is asked again": (
-        "Where the digest differs the question is put again as a new question with its unanswered default"
+        "Where the table's digest differs the question is put again as a new question with its unanswered default"
     ),
+    # Codex's third round: items 1 and 2 fixed (repair 5), items 3 to 6 carried.
+    "R5-1 HX4's share": (
+        "a would-be list's values are taken as record numbers where every value but at most one in three, counted"
+        " over every value of every cell, is written in the code alphabet with a run of five figures or more"
+    ),
+    "R5-1 one rule read once": (
+        "LISTS calls HX4's function and writes no second copy of it, so the columns this page holds and the columns"
+        " HX4's hold holds are the same by construction"
+    ),
+    "R5-1 no list over a record number": (
+        "rule 9l is NOT inferred where any value of the would-be list is written as a record number"
+    ),
+    "R5-1 no hold beside HX4's": "This adds no hold and no question beside HX4's",
+    "R5-1 Q-LIST is HX4's question": (
+        "lane HX4's rule takes the values as record numbers -- every value but at most one in three, counted over"
+        " every value of every cell, in the code alphabet with a run of five figures or more"
+    ),
+    "R5-2 the value's own digest": (
+        "THE VALUE'S OWN DIGEST (`value_sha256`), the SHA-256 of those same bytes followed by one zero byte and"
+        " the value's spelling as the column wrote it"
+    ),
+    "R5-2 a moved fence asks the new value": (
+        "Every value the fence asks about whose digest no kept answer holds is put the question again as a new"
+        " question with its unanswered default"
+    ),
+    "R5-2 ZR.9's limit": (
+        "and a table read again whose fence moves to another value is asked about that value (owner UN-2)"
+    ),
+    "R5-3 nothing carried is settled": "Items 3 to 6 are NOT settled by this page",
     "R4-5 LV11 B4's band": (
         "LV11, B4's band: `suppressed_values` <= `suppressed_value_occurrences` <= `suppressed_values` x (floor - 1)"
     ),
@@ -336,7 +372,7 @@ def test_the_questions_that_hold_are_the_identity_ones() -> None:
     assert holds["Q-ID"].startswith("yes (P4-D401, one more holding shape")
     assert holds["Q-CLOCK"].startswith("yes on whole figures: today's reader always puts the padded question")
     assert "its hold stands until answered" in holds["Q-CLOCK"]
-    assert holds["Q-LIST"].startswith("yes where the values hold five figures or more or reach an identity route")
+    assert holds["Q-LIST"].startswith("yes where HX4's rule takes the values as record numbers")
     for question in ("Q-COMMA-3", "Q-COMMA-DD", "Q-COMMA-PICKS", "Q-UNIT", "Q-MISSING"):
         assert holds[question].startswith("no"), question
 
@@ -712,11 +748,44 @@ def test_the_two_numbers_question_holds_the_register_and_offers_what_the_page_sa
     assert asking.why_joined_is_worth_asking(fraction) == asking.BECAUSE_JOINED
 
 
+def _written_as_a_record_number(value: str) -> bool:
+    """Lane HX4's `_a_wide_listed_value` (P4-D424): the code alphabet with a run of five figures or more."""
+    return parsing.is_code_text(value) and re.search(r"\d{5}", value) is not None
+
+
+# Lane HX4's share (P4-D424, the share of P4-D401's route three): at most
+# one value in this many, counted over every value of every cell, may be
+# written otherwise while the list's values are still taken as record
+# numbers.
+NOT_A_RECORD_NUMBER_SHARE = 3
+
+
 def _register_values(values: "list[str]") -> bool:
-    """Rule I's guard on a would-be list: every value in five figures or more, or a holding route reaches them."""
-    if all(sum(1 for character in value if character.isdigit()) >= 5 for value in values):
+    """Rule I's register-list hold, lane HX4's rule read once: the share arm, or the padded route.
+
+    Every value but at most one in three written as a record number, or
+    the padded route reaching the values from four figures. Routes two to
+    four of P4-D424 are HX4's gate's, not modelled here; the fixed-width
+    route below five figures and the person question are not put to a
+    list's values (HX4).
+    """
+    others = sum(1 for value in values if not _written_as_a_record_number(value))
+    if others * NOT_A_RECORD_NUMBER_SHARE <= len(values):
         return True
-    return asking.why_worth_asking(values) in asking.HOLDING_REASONS
+    padded = asking.why_worth_asking(values) == asking.BECAUSE_PADDED
+    return padded and any(len(value) >= 4 for value in values)
+
+
+def _list_reading_publishes(cells: "list[str]", floor: int = 11) -> "list[str]":
+    """The values rule 9l would publish unanswered: none where it is not inferred or rule I declines it."""
+    mark = _a_list(cells)
+    if mark is None:
+        return []
+    values = [part.strip() for cell in cells for part in cell.split(mark)]
+    if _register_values(values) or any(_written_as_a_record_number(value) for value in values):
+        return []
+    held = collections.Counter(value for cell in cells for value in {part.strip() for part in cell.split(mark)})
+    return sorted(value for value, rows in held.items() if rows >= floor)
 
 
 def test_a_register_list_is_never_read_as_a_list_unanswered() -> None:
@@ -748,13 +817,56 @@ def test_a_register_list_is_never_read_as_a_list_unanswered() -> None:
     picks = [str(draw.randint(1, 15)) for _ in range(600)]
     for values in (problems, picks):
         assert not _register_values(values)
-    # ... but three-figure codes all one width reach the fixed-width
-    # question, as a column of them alone does today (P4-D401's accepted
-    # price), so a list of them is held until answered.
+    # ... and three-figure codes all one width, which the fixed-width
+    # question reaches as one column, are no record numbers to HX4's rule:
+    # the route is not put to a list's values below five figures.
     codes = [str(draw.randint(101, 106)) for _ in range(600)]
-    assert asking.why_worth_asking(codes) == asking.BECAUSE_FIXED_WIDTH and _register_values(codes)
+    assert asking.why_worth_asking(codes) == asking.BECAUSE_FIXED_WIDTH and not _register_values(codes)
     page = _flat(_page())
-    assert "Three-figure codes all one width (`101` to `106`) reach the fixed-width question" in page
+    assert "Three-figure codes all one width (`101` to `106`) are no record numbers to this rule" in page
+
+
+def _codex_register(words_each: int = 0) -> "list[str]":
+    """Codex's round-3 item 1: `R100000` to `R100039`, the first cell closing `;OTHER`; words added to each cell."""
+    keys = [f"R{100000 + index}" for index in range(40)]
+    cells = list(keys)
+    cells += [f"{keys[index]};{keys[(index + step) % 40]}" for step in range(1, 7) for index in range(40)]
+    cells += [
+        f"{keys[index]};{keys[(index + step) % 40]};{keys[(index + step + 1) % 40]}"
+        for step in range(1, 9)
+        for index in range(40)
+    ]
+    cells[0] = cells[0] + ";OTHER"
+    words = ("OTHER", "NONE", "TRANSFER", "UNKNOWN")
+    return [cell + "".join(f";{words[(place + extra) % 4]}" for extra in range(words_each)) for place, cell in enumerate(cells)]
+
+
+def test_one_ordinary_token_does_not_undo_the_register_list_hold() -> None:
+    """Codex's round-3 item 1: one `OTHER` beside 40 record numbers; HX4's share holds it, and no list is inferred over a record number."""
+    cells = _codex_register()
+    values = [part for cell in cells for part in cell.split(";")]
+    assert len(cells) == len(set(cells)) == 600
+    assert len(values) == 1481 and len(set(values)) == 41
+    assert _a_list(cells) == ";"
+    # No identity route reaches its cells or its values today.
+    assert asking.why_worth_asking(cells) is None and asking.why_worth_asking(values) is None
+    keys = [value for value in set(values) if _written_as_a_record_number(value)]
+    assert len(keys) == 40 and {sum(1 for cell in cells if key in cell.split(";")) for key in keys} == {37}
+    # 'Every value' fails on the one word, and would publish all 40.
+    assert not all(_written_as_a_record_number(value) for value in values)
+    assert _register_values(values)
+    assert _list_reading_publishes(cells) == []
+    # Three words a cell escape HX4's share, but no list is inferred over a record number.
+    worded = _codex_register(3)
+    worded_values = [part for cell in worded for part in cell.split(";")]
+    assert len(worded_values) == 3281 and sum(1 for value in worded_values if not _written_as_a_record_number(value)) == 1801
+    assert _a_list(worded) == ";" and not _register_values(worded_values)
+    assert _list_reading_publishes(worded) == []
+    page = _flat(_page())
+    assert "one of its 1,481 values is not a record number" in page
+    assert "(1,801 of its 3,281 values not record numbers)" in page
+    assert "today's product reads it `free_text`, asks nothing and publishes 0 of the 40 record numbers" in page
+    assert "HX4's head puts it the list question (`keep`, `code`, `identifier`) and publishes 0 of 40" in page
 
 
 GROUPED = re.compile(r"\d{1,3}(?:,\d{3})+")
@@ -856,7 +968,7 @@ def _the_twins_pair(cells: "list[frozenset[str]]", floor: int = 11) -> "tuple[li
 
 
 def test_list_lengths_pooled_jointly_always_admit_a_twin() -> None:
-    """Codex's item 3: pooled alone the lengths contradict the values; pooled jointly a twin always exists."""
+    """Codex's item 3: pooled alone the lengths contradict the values; pooled jointly a twin meeting the list margins always exists."""
     labels = "ABCDEFGHIJ"
     pairs = [frozenset((labels[index], labels[(index + step) % 10])) for step in (1, 2) for index in range(10)]
     assert len(set(pairs)) == 20
@@ -1165,8 +1277,40 @@ def test_lv1_accepts_the_110_row_description_and_every_described_table() -> None
     assert "LV11" not in _list_invariants({**codex, "suppressed_values": 3, "suppressed_value_occurrences": 30})
 
 
+def _value_sha256(data: bytes, spelling: str) -> str:
+    """ZR.2's `value_sha256`: the table's bytes, one zero byte, then the value's spelling."""
+    digest = hashlib.sha256(data)
+    digest.update(b"\x00" + spelling.encode("utf-8"))
+    return digest.hexdigest()
+
+
+def _kept_answer(data: bytes, spelling: str, answer: str) -> "dict[str, object]":
+    """A Q-MISSING answer as ZR.2 keeps it: the answer and its two digests, no value."""
+    return {
+        "answer": answer,
+        "table_sha256": hashlib.sha256(data).hexdigest(),
+        "value_sha256": _value_sha256(data, spelling),
+    }
+
+
 def _q_missing_acts_on(kept: "dict[str, object]", data: bytes, cells: "list[str]") -> "str | None":
-    """ZR.2: the value a kept Q-MISSING answer is acted on for, or None where the question is put again."""
+    """ZR.2: the value a kept Q-MISSING answer is acted on for, or None where no value is the one it was given for."""
+    if kept["table_sha256"] != hashlib.sha256(data).hexdigest():
+        return None
+    for spelling in sorted({cell for cell in cells if _placeholder_shape(cell)}):
+        if _value_sha256(data, spelling) == kept["value_sha256"]:
+            return spelling
+    return None
+
+
+def _q_missing_asked_anew(kept: "list[dict[str, object]]", data: bytes, cells: "list[str]") -> "list[str]":
+    """ZR.2: the values the fence asks about whose digest no kept answer holds, each put the question again."""
+    held = {answer["value_sha256"] for answer in kept if answer["table_sha256"] == hashlib.sha256(data).hexdigest()}
+    return [value for value in _asked_missing(cells) if _value_sha256(data, value) not in held]
+
+
+def _bound_by_place(kept: "dict[str, object]", data: bytes, cells: "list[str]") -> "str | None":
+    """Repair 4's binding, kept to show Codex's round-3 case: the table's digest, then shape, place and count."""
     if kept["table_sha256"] != hashlib.sha256(data).hexdigest():
         return None
     alike = sorted(
@@ -1183,13 +1327,79 @@ def _as_bytes(cells: "list[str]") -> bytes:
 
 
 def test_a_missing_answer_is_acted_on_only_for_its_own_table() -> None:
-    """Item 4: `-66` exported in place of `-88` keeps shape, place and count; the digest tells them apart."""
+    """Round-2 item 4: `-66` exported in place of `-88` keeps shape, place and count; the digests tell them apart."""
     first = [str(value) for value in range(1, 6) for _ in range(100)] + ["-88"] * 50 + ["-77"] * 50
     later = [str(value) for value in range(1, 6) for _ in range(100)] + ["-66"] * 50 + ["-77"] * 50
     written = asking._code_written("-88")
     assert asking._code_written("-66") == asking._code_written("-77") == written
-    lower = {"written": written, "place": 1, "of": 2, "answer": "missing", "table_sha256": hashlib.sha256(_as_bytes(first)).hexdigest()}
+    lower = _kept_answer(_as_bytes(first), "-88", "missing")
     assert _q_missing_acts_on(lower, _as_bytes(first), first) == "-88"
     # Shape, place and count alone would take `-77`, answered `real-value`.
     assert sorted(_asked_missing(later), key=float)[0] == "-77"
     assert _q_missing_acts_on(lower, _as_bytes(later), later) is None
+    assert _q_missing_asked_anew([lower], _as_bytes(later), later) == ["-66", "-77"]
+
+
+def test_a_missing_answer_stays_on_its_value_when_the_fence_moves() -> None:
+    """Round-3 item 2: two metadata rows confirmed in the same file move the fence from `-77` to `-11`."""
+    records = ["-78.5", "-78.5"] + ["-55"] * 11 + ["-11"] * 11 + ["-77"] * 11 + ["-78.5"] * 22
+    records += ["-62.5"] * 39 + ["-61.5"] * 36 + ["-51.5"] * 11
+    assert len(records) == 143 and records.count("-78.5") == 24
+    data = _as_bytes(records)
+    assert _asked_missing(records) == ["-77"]
+    read_again = records[2:]
+    assert _asked_missing(read_again) == ["-11"]
+    assert asking._code_written("-77") == asking._code_written("-11")
+    kept = _kept_answer(data, "-77", "missing")
+    # Bound by the table's digest, shape, place and count, the answer moves to `-11`.
+    by_place = {**kept, "written": asking._code_written("-77"), "place": 1, "of": 1}
+    assert _bound_by_place(by_place, data, records) == "-77"
+    assert _bound_by_place(by_place, data, read_again) == "-11"
+    # Bound by its value's digest it stays on `-77`, and `-11` is asked as new.
+    assert _q_missing_acts_on(kept, data, records) == "-77"
+    assert _q_missing_acts_on(kept, data, read_again) == "-77"
+    assert _q_missing_asked_anew([kept], data, read_again) == ["-11"]
+    # The kept answer names no value: no digest is the spelling's own.
+    assert kept["value_sha256"] != hashlib.sha256(b"-77").hexdigest()
+    assert "-77" not in str(kept)
+    page = _flat(_page())
+    assert "its 141 records left are put the question about `-11` alone" in page
+    assert "so in round 3 `-77` stays declared missing once the metadata rows are confirmed" in page
+    assert "in round 3, `-11` is asked as new" in page
+
+
+def test_codex_items_3_to_6_are_carried_and_their_sentences_marked_open() -> None:
+    """The owner, 2026-10-22: items 3 to 6 carried to LISTS and UN-2 with Codex's cases; each touched sentence marked open."""
+    page = _flat(_page())
+    heading = "### ZR.10 Carried to lanes LISTS and UN-2 (the owner, 2026-10-22)"
+    assert page.count(heading) == 1
+    carried = page[page.index(heading):]
+    assert "\"regret my last decision, let's correct just 1-2\"" in carried
+    # Each item, its owner, and how many sentences outside ZR.10 carry its mark.
+    owners = {
+        "**Item 3: Ryser's fill and an exact whole-cell census (owner LISTS).**": ("open until LISTS: ZR.10 item 3", 2),
+        "**Item 4: equal rare-value counts and the published form census (owner LISTS).**": ("open until LISTS: ZR.10 item 4", 2),
+        "**Item 5: LV1 and a rare empty-list word (owner LISTS).**": ("open until LISTS: ZR.10 item 5", 3),
+        "**Item 6: the no-base template and J9 and J10 (owner UN-2).**": ("open until UN-2: ZR.10 item 6", 2),
+    }
+    outside = page.replace(carried, "")
+    for item, (marker, marked) in owners.items():
+        assert carried.count(item) == 1, item
+        assert outside.count(marker + "]") + outside.count(marker + ",") == marked, marker
+    both = "open until LISTS: ZR.10 items 3 and 4"
+    assert outside.count(both + "]") + outside.count(both + ",") == 2
+    assert carried.count("THE CONDITION:") == 4
+    # Item 3, Codex's case: the fill gives 10 whole cells `101` where the table holds 120.
+    cells = [frozenset(("101",))] * 120 + [frozenset(("A", "B"))] * 110
+    twin = _twin_list(_describe_list(cells))
+    assert sum(1 for cell in twin if cell == frozenset(("101",))) == 10
+    assert sum(1 for cell in cells if cell == frozenset(("101",))) == 120
+    # Item 4, Codex's case: 22 stand-ins on five cells each; the forms publish 11 and 99.
+    rare = ["Q10"] * 10 + ["Q11"] + [f"Q{code}" for code in range(100, 119) for _ in range(5)] + ["Q119"] * 4
+    described = _describe_list([frozenset(("A", code)) for code in rare])
+    assert (described["suppressed_values"], described["suppressed_value_occurrences"]) == (22, 110)
+    assert _even(110, 22) == [5] * 22 and 11 % 5 and 99 % 5
+    # Item 5, Codex's case: `n_unparsed` 1 beside 110 listed cells is refused by LV1.
+    listed = _describe_list([frozenset(("A", "B"))] * 55 + [frozenset(("A", "C"))] * 55)
+    assert "LV1" not in _list_invariants(listed)
+    assert "LV1" in _list_invariants({**listed, "n_unparsed": 1, "n_empty_lists": 0})
