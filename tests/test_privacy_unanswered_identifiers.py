@@ -36,6 +36,7 @@ from __future__ import annotations
 import json
 import pathlib
 import random
+import re
 
 import pytest
 
@@ -933,9 +934,12 @@ def test_the_list_rule_reaches_record_numbers_and_no_short_code() -> None:
     assert asking._listed_record_numbers(_list_cells(codes, ";", 600), "free_text")[1] == "codes"
     mails = [f"pat{one}@mailhost.org" for one in range(40)]
     assert asking._listed_record_numbers(_list_cells(mails, "; ", 600), "free_text")[1] == "persons"
-    # More than a third of the values `UNKNOWN`, fewer than half: no longer
-    # wide, still a key beside its placeholders (route four).
-    keyed = _list_cells(six, ";", 600) + ["UNKNOWN"] * 800
+    # Most values not wide (four-figure keys and `UNKNOWN`), fewer than
+    # half `UNKNOWN`, most different keys five figures: route four (at one
+    # value in two, lane HX4's repair 2, a key list with fewer than half
+    # placeholders is wide first).
+    mostly = six[:21] + [f"{draw.randint(1000, 9999)}" for _key in range(19)]
+    keyed = _list_cells(mostly, ";", 600, seed=5) + ["UNKNOWN"] * 300
     assert asking._listed_record_numbers(keyed, "free_text")[1] == "keys"
     # NOT REACHED: three-figure codes 101 to 106, of mixed widths 3 and 4,
     # all four figures; grouped thousands and decimal commas; ICD codes
@@ -1325,6 +1329,161 @@ def test_one_ordinary_word_does_not_undo_the_list_hold(tmp_path: pathlib.Path) -
 def test_mutant_every_value_wide_lets_one_word_undo_the_hold(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The mutant: every value must be wide (6c566d3c's arm), so `OTHER` leaves the list unasked."""
+    """The mutant: every value must be wide (6c566d3c's arm), so `OTHER` leaves the list unasked.
+
+    Since lane HX4's repair 2, route two sets aside one value in three too
+    (the orchestrator's addendum 2), and reaches `R100000` to `R100039`
+    as codes repeating: either arm alone holds Codex's case, so the
+    mutant takes both all-or-nothing, and the wide arm alone is seen
+    giving way to route two.
+    """
     monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 10**9)
+    assert asking._listed_record_numbers(_codex_other_cells(), "long_tail_labels") == (";", "codes")
+    monkeypatch.setattr(asking, "_LIST_ROUTE_SHARE", 10**9)
     assert asking._listed_record_numbers(_codex_other_cells(), "long_tail_labels") == ("", "")
+
+
+# -- lane HX4's repair 2: one value a cell, a key and a word, line breaks ----
+
+
+def _one_a_cell(form: str) -> "list[str]":
+    """600 cells of one record number of 40 each, written in ``form`` (`{}` for the number)."""
+    draw = random.Random(17)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    return [form.format(six[place % 40]) for place in range(_ROWS)]
+
+
+# Item 1 of lane HX4's verify on 5cd84df6: each published 40 of 40 at 600 and
+# 20,000 rows, every twin cell a real one; the mark the rule names.
+_ONE_A_CELL = (("{};", ";"), ("R{};", ";"), ("{},", ","), ("[{}]", ";"), ("[R{}]", ";"),
+               ("'{}'", ";"), ("'{}", ";"), ('"{}"', ";"), ("['{}']", ";"))
+
+
+def test_one_record_number_wrapped_as_a_list_is_reached() -> None:
+    """`185380;`, `185380,`, `[185380]`, `'185380'` and the `R` forms are lists; bare keys are not."""
+    for form, mark in _ONE_A_CELL:
+        assert asking._listed_record_numbers(_one_a_cell(form), "categorical") == (mark, "wide"), form
+    # A bare key, a cell of one bracket or quote alone, and words in quotes are not.
+    assert asking._listed_record_numbers(_one_a_cell("{}"), "categorical") == ("", "")
+    assert asking._listed_record_numbers(["[]", "''", "'"] * 200, "categorical") == ("", "")
+    assert asking._listed_record_numbers(["'Yes'", "'No'"] * 300, "categorical") == ("", "")
+
+
+def _two_values_a_list_cell(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: 5cd84df6's rule, a list cell holds two values or more."""
+    monkeypatch.setattr(asking, "_a_list_cell", lambda cell, parts: len(parts) >= 2)
+
+
+def test_mutant_one_value_no_list_reaches_no_wrapped_record_number(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mutant reaches none of the wrapped forms."""
+    _two_values_a_list_cell(monkeypatch)
+    for form, _mark in _ONE_A_CELL:
+        assert asking._listed_record_numbers(_one_a_cell(form), "categorical") == ("", ""), form
+
+
+def test_mutant_one_value_no_list_publishes_every_record_number(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant publishes the record numbers of `185380;` a cell, as 5cd84df6 did (40 of 40)."""
+    _two_values_a_list_cell(monkeypatch)
+    seen = shapes.run(tmp_path, "reglistone6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglistone6")
+
+
+def test_a_key_and_a_word_in_every_cell_is_reached() -> None:
+    """Item 2: `185380;pending` and `R185380;done` are one value in two record numbers."""
+    draw = random.Random(19)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    worded = [f"{six[place % 40]};pending" for place in range(_ROWS)]
+    lettered = [f"R{six[place % 40]};{('pending', 'done', 'open')[place % 3]}" for place in range(_ROWS)]
+    for cells in (worded, lettered):
+        assert asking._listed_record_numbers(cells, "categorical") == (";", "wide")
+    # Words beside one key in two cells are more than one value in two: no list of record numbers.
+    sparse = [f"{six[place % 40]};{'pending'};{'done'}" for place in range(_ROWS)]
+    assert asking._listed_record_numbers(sparse, "categorical") == ("", "")
+
+
+def test_mutant_one_in_three_lets_a_word_a_cell_publish(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: repair 1's share (one value in three), so `185380;pending` publishes record numbers."""
+    monkeypatch.setattr(asking, "_LIST_NO_KEY_SHARE", 3)
+    seen = shapes.run(tmp_path, "reglistword6", _ROWS)
+    assert seen["description_values"] > 0 and seen["twin_cells"] > 0
+    with pytest.raises(AssertionError):
+        _check_list_held(seen, _ROWS, "reglistword6")
+
+
+def _broken(between: str) -> "list[str]":
+    draw = random.Random(23)
+    six = [f"{draw.randint(100000, 999999)}" for _key in range(40)]
+    return _list_cells(six, between, _ROWS)
+
+
+def test_a_line_break_or_a_no_break_space_between_values_is_a_space() -> None:
+    """Item 3: six-figure lists on a line break or a no-break space are lists (1 of 40 published on 5cd84df6).
+
+    A `/`, a `.` or a doubled `;;` between values stays lane LISTS' (plan P4-D424).
+    """
+    for between in ("\n", "\r\n", "\u00a0"):
+        assert asking._listed_record_numbers(_broken(between), "long_tail_labels") == (
+            asking._ANY_MARK, "wide"), repr(between)
+    for between in ("/", ".", ";;"):
+        assert asking._listed_record_numbers(_broken(between), "long_tail_labels") == ("", "")
+
+
+def test_mutant_a_line_break_read_as_no_mark_reaches_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mutant: a tab alone read as a space (5cd84df6), so the broken lists are not reached."""
+    monkeypatch.setattr(asking, "_READ_AS_SPACE", "\t")
+    for between in ("\n", "\u00a0"):
+        assert asking._listed_record_numbers(_broken(between), "long_tail_labels") == ("", "")
+
+
+# The orchestrator's addendum 2 (2026-10-22 21:32), from lane ZR-a's verify 3:
+# Codex's 600-row construction on keys the padded route and route two reach,
+# `;OTHER` closing the first cell; the reason each is reached by.
+_ROUTE_KEYS = (("R{}", 1000, "codes"), ("AB{}", 100, "codes"), ("0{}", 100, "padded"))
+
+
+def _codex_route_cells(form: str, first: int) -> "tuple[list[str], list[str]]":
+    """The keys and Codex's cells: 40 singles, 240 cyclic pairs s = 1..6, 320 cyclic triples s = 1..8."""
+    keys = [form.format(first + one) for one in range(40)]
+    cells = [keys[one] for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]}" for step in range(1, 7) for one in range(40)]
+    cells += [f"{keys[one]};{keys[(one + step) % 40]};{keys[(one + step + 1) % 40]}"
+              for step in range(1, 9) for one in range(40)]
+    cells[0] = cells[0] + ";OTHER"
+    assert len(cells) == _ROWS
+    return keys, cells
+
+
+@pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS)
+def test_one_word_does_not_undo_the_padded_route_or_route_two(
+    tmp_path: pathlib.Path, form: str, first: int, why: str
+) -> None:
+    """`R1000`, `AB100` and `0100` lists with `;OTHER`: the list question is put, 0 keys published."""
+    keys, cells = _codex_route_cells(form, first)
+    assert asking._listed_record_numbers(cells, "free_text") == (";", why)
+    lines = ["ids,value"] + [f"{cell},{place % 7}" for place, cell in enumerate(cells)]
+    code, _document = _profile_rows(tmp_path, "route", lines)
+    assert code == 0
+    asked = json.loads((tmp_path / "route-questions.json").read_text(encoding="utf-8"))["asked"]
+    offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
+               for entry in asked if entry["column"] == "ids"]
+    assert offered == [_LIST_ANSWERS]
+    texts = _texts_of(tmp_path, "route")
+    assert [key for key in keys if re.search(rf"(?<![0-9A-Za-z]){key}(?![0-9A-Za-z])", texts)] == []
+
+
+@pytest.mark.parametrize(("form", "first", "why"), _ROUTE_KEYS)
+def test_mutant_all_or_nothing_routes_let_one_word_undo_the_hold(
+    monkeypatch: pytest.MonkeyPatch, form: str, first: int, why: str
+) -> None:
+    """The mutant: the padded route and route two all-or-nothing (5cd84df6), so `;OTHER` reaches nothing."""
+    _keys, cells = _codex_route_cells(form, first)
+    monkeypatch.setattr(asking, "_LIST_ROUTE_SHARE", 10**9)
+    assert asking._listed_record_numbers(cells, "free_text") == ("", "")

@@ -235,9 +235,19 @@ PATIENTS_TEN = 10
 # list cell (`reglisttrail6`: 1 of 40 at 600 rows, item 3); and
 # comma-grouped keys separated by spaces (`reglistgrouped`, nine figures;
 # Codex's item 1 measured `123,001` on 12 rows).
+#
+# ...and the shapes lane HX4's repair 2 closed, each of which published 40
+# of 40 record numbers at 600 and 20,000 rows on 5cd84df6, every twin cell
+# a real one (item 1 of its verify): ONE record number a cell closed by
+# `;` (`reglistone6`), in square brackets with `R` (`reglistoneR`) and in
+# quotes (`reglistquoted6`); and a record number and a word in every
+# cell, `185380;pending` (`reglistword6`, item 2: 33 of 40 at 600 rows).
 LISTED = ("reglist6", "reglist7", "reglistR", "reglist6_beside",
           "reglistmix6", "reglistmixR", "reglistonce6", "reglistonceR",
-          "reglisttrail6", "reglistgrouped")
+          "reglisttrail6", "reglistgrouped", "reglistone6", "reglistoneR",
+          "reglistquoted6", "reglistword6")
+# The register lists of one record number a cell (lane HX4's repair 2).
+LISTED_ONE = ("reglistone6", "reglistoneR", "reglistquoted6", "reglistword6")
 LIST_KEYS = 40
 # The STATED shapes: a name, a street address and a full birth date on a
 # long table with NO subject column -- the value is the only thing that
@@ -296,7 +306,7 @@ def _list_key(kind: str, draw: random.Random) -> str:
         # 99,999 to seven figures, a room of 100,000 spellings where a
         # made-up record number meets a real one by chance (plan P4-D424).
         return f"0{draw.randint(100000, 999999)}"
-    if base in ("reglistR", "reglistmixR", "reglistonceR"):
+    if base in ("reglistR", "reglistmixR", "reglistonceR", "reglistoneR"):
         return f"R{draw.randint(100000, 999999)}"
     if base == "reglistgrouped":
         # Nine figures grouped by commas: Codex measured six (`123,001`),
@@ -316,6 +326,8 @@ def _list_cell(kind: str, keys: "list[str]", row: int, draw: random.Random) -> "
     many = draw.randint(1, 3)
     if base in ("reglistonce6", "reglistonceR"):
         many = 2 if row == 0 else 1
+    if base in LISTED_ONE:
+        many = 1
     listed = draw.sample(keys, many)
     mark = ";"
     if base in ("reglistmix6", "reglistmixR"):
@@ -325,6 +337,14 @@ def _list_cell(kind: str, keys: "list[str]", row: int, draw: random.Random) -> "
     cell = mark.join(listed)
     if base == "reglisttrail6" and many > 1:
         cell = cell + mark
+    if base == "reglistone6":
+        cell = cell + mark
+    elif base == "reglistoneR":
+        cell = f"[{cell}]"
+    elif base == "reglistquoted6":
+        cell = f"'{cell}'"
+    elif base == "reglistword6":
+        cell = cell + mark + "pending"
     return listed + [cell]
 
 
