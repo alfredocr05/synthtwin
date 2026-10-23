@@ -1689,6 +1689,20 @@ nobody lowered names no group of fewer than eleven rows. From
 description made in that time carries 1 and is read as one made under a
 lowered floor.
 
+**SINCE 2026-10-23 NO COMMAND WRITES ONE BELOW 11** (the owner; plan
+P4-D426). The owner answered that the floor of 11 is a minimum:
+`--smallest-group` may raise it and never lower it, a number under 11
+is refused writing nothing, and `synthtwin generate` and `synthtwin
+validate` refuse a description recording a floor under 11, so every
+twin keeps decision D7's promise that it may be shared freely. THE
+DOCUMENT'S RULE IS UNCHANGED: the loader still reads a `small_cell_floor`
+of one or more, every invariant below still governs such a document, and
+the library's own callers, the test suite and the measurement drivers
+still write them through `cli.main`'s internal keyword `lowered_floor`,
+which no option, environment variable, questions file or settings file
+reaches. The ruling below is history: it is what let a person lower
+the floor until that date.
+
 **WHY A FLOOR OF ONE IS PERMITTED, in the owner's terms.** synthtwin
 publishes no structure between columns — section 4.6's eight reserved
 names are all empty, and invariant S12 keeps them that way — so a

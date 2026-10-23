@@ -385,19 +385,23 @@ def test_no_settings_file_reaches_the_floor(
         (folder / "synthtwin.toml").write_text(
             "smallest_group = 1\nsmall_cell_floor = 1\nlowered_floor = 1\n",
             encoding="utf-8",
+            newline="\n",
         )
         (folder / "pyproject.toml").write_text(
             "[tool.synthtwin]\nsmallest_group = 1\nlowered_floor = 1\n",
             encoding="utf-8",
+            newline="\n",
         )
         (folder / "setup.cfg").write_text(
-            "[synthtwin]\nsmallest_group = 1\n", encoding="utf-8"
+            "[synthtwin]\nsmallest_group = 1\n", encoding="utf-8", newline="\n"
         )
         (folder / ".synthtwinrc").write_text(
-            "--smallest-group 1\n", encoding="utf-8"
+            "--smallest-group 1\n", encoding="utf-8", newline="\n"
         )
         (folder / "synthtwin.json").write_text(
-            '{"smallest_group": 1, "lowered_floor": 1}', encoding="utf-8"
+            '{"smallest_group": 1, "lowered_floor": 1}',
+            encoding="utf-8",
+            newline="\n",
         )
     monkeypatch.chdir(tmp_path)
     assert _run(["profile", f"{table}"]) == 0

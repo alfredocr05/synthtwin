@@ -1837,6 +1837,14 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
 def _lowered_floor_lines(floor: int) -> list[str]:
     """Said only where this profile was made under a lowered floor.
 
+    SINCE PLAN P4-D426 NO PERSON REACHES IT. The owner answered on
+    2026-10-23 that the floor of 11 is a minimum: `--smallest-group`
+    under 11 is refused, writing nothing, and `generate` and `validate`
+    refuse a description recorded under 11. Such a description is made
+    now only through `cli.main`'s internal keyword `lowered_floor`, for
+    the suite and the measurement drivers, and this text is kept byte
+    for byte for them.
+
     THIS PAGE IS ONE OF THE FOUR THAT MUST SAY IT (owner ruling
     2026-08-14, plan amendment A-P3-11). The owner ruled that
     `--smallest-group` below the default is let through end to end, and

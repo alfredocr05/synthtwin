@@ -1822,6 +1822,14 @@ def _small_population_lines(profile: contract.Profile) -> "list[str]":
 def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
     """Said only where the description was made under a lowered floor.
 
+    SINCE PLAN P4-D426 NO PERSON REACHES IT. The owner answered on
+    2026-10-23 that the floor of 11 is a minimum: `--smallest-group`
+    under 11 is refused, writing nothing, and `generate` and `validate`
+    refuse a description recorded under 11. Such a description is made
+    now only through `cli.main`'s internal keyword `lowered_floor`, for
+    the suite and the measurement drivers, and this text is kept byte
+    for byte for them.
+
     THIS REPORT IS ONE OF THE FOUR THAT MUST SAY IT (owner ruling
     2026-08-14, plan amendment A-P3-11). `--smallest-group` below the
     default now runs end to end, and the ruling that let it through

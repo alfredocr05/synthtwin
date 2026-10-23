@@ -2894,6 +2894,14 @@ def _counted_settings(
 def _lowered_floor_warning(given: int) -> str:
     """The warning shown when `--smallest-group` is under the notice line.
 
+    SINCE PLAN P4-D426 NO PERSON REACHES IT. The owner answered on
+    2026-10-23 that the floor of 11 is a minimum: `--smallest-group`
+    under 11 is refused, writing nothing, and `generate` and `validate`
+    refuse a description recorded under 11. Such a description is made
+    now only through `cli.main`'s internal keyword `lowered_floor`, for
+    the suite and the measurement drivers, and this warning is kept byte
+    for byte for them.
+
     Guarantees:
 
     - Inputs: the number the person typed, already known to be below

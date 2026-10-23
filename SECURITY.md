@@ -158,9 +158,14 @@ Stated here so that no reader has to discover them independently:
   pointed at, still loads and is still checked, so nothing here is a
   guarantee about a description that reaches you from elsewhere.
 
-- **THE SMALL-CELL FLOOR DEFAULTS TO ELEVEN, AND A PERSON MAY LOWER IT
-  TO ONE** (owner, 2026-09-22, returning the default to the value it
-  held before 2026-08-25; plan P4-D316). At the default no VALUE named
+- **THE SMALL-CELL FLOOR DEFAULTS TO ELEVEN, AND ELEVEN IS ITS MINIMUM**
+  (owner, 2026-09-22, returning the default to the value it held before
+  2026-08-25, plan P4-D316; and owner, 2026-10-23, plan P4-D426:
+  `--smallest-group` may raise it and never lower it, a number under
+  eleven is refused writing nothing, and `generate` and `validate`
+  refuse a description an earlier version wrote under eleven, so every
+  twin keeps decision D7's promise that it may be shared freely). At
+  the default no VALUE named
   in a description is held by fewer than eleven rows. **The floor counts
   ROWS, and the population floor above it counts people** (owner,
   2026-09-23, plan P4-D348): where a table holds several rows per
@@ -171,13 +176,16 @@ Stated here so that no reader has to discover them independently:
   KPI `K-S3-14`; counting people per value is designed and shelved. No
   sentence in this repository may say the floor keeps a published group
   from pointing at one person without that qualification, because where
-  one row is not one person it does not. At a floor of one
-  every distinct value of a label-published column is published as its
-  own level, with its count: on a 300-row column of readings that is
-  177 of them. The owner's reasoning for letting a person lower it
-  (ruling 2026-09-03), recorded in their words: knowing that a piece of
-  information is present is not the privacy question; the privacy
-  question is knowing that EVERYTHING is present, and whose row it is.
+  one row is not one person it does not. Until 2026-10-23 a person could
+  lower the floor to one, where every distinct value of a
+  label-published column is published as its own level, with its count:
+  on a 300-row column of readings that is 177 of them. The owner's
+  reasoning for allowing that (ruling 2026-09-03), recorded in their
+  words: knowing that a piece of information is present is not the
+  privacy question; the privacy question is knowing that EVERYTHING is
+  present, and whose row it is. The owner's answer of 2026-10-23 closed
+  it: a twin is shared freely, so no file a command writes names a
+  group under eleven.
 
   **The structure that carries that reasoning** is worth stating,
   because it is what makes the floor defensible and it is not a claim
@@ -199,14 +207,14 @@ Stated here so that no reader has to discover them independently:
   and it is the only one; it does not reach across columns. Second, a
   value that is unique in the world identifies a person by itself
   wherever a reader already knows who holds it, and the floor is what
-  keeps such a value out of a description; lowering it lets it in. The
-  owner's ruling of 2026-08-31 that a rare finding must reach the twin
-  is the other half of that trade and is recorded with it.
+  keeps such a value out of a description. The owner's ruling of
+  2026-08-31 that a rare finding must reach the twin is the other half
+  of that trade and is recorded with it: a finding at least eleven rows
+  share reaches it.
 
   The floor is one setting, `--smallest-group`, and it changes what is
-  published rather than what the twin is for. A run that lowers it
-  below eleven says so on the screen before any file is written and on
-  the face of every page it writes.
+  published rather than what the twin is for. It can be raised and not
+  lowered: below eleven the command refuses and writes nothing.
 
   **THE SAME RULING COVERS A PERCENTILE LADDER** (owner, 2026-09-03,
   extending the above). Describing a column's numbers puts some of
@@ -446,10 +454,8 @@ Stated here so that no reader has to discover them independently:
   is so. **`small_cell_floor` is 11 by default** (owner,
   2026-09-22), so by default it publishes a label only where at least
   eleven rows share it, with how many rows did, and pools the rest into
-  a count that names none of them. `--smallest-group` lowers it, down to
-  1, where it publishes every label the table holds together with how
-  many rows shared it - a label one row held included - and the whole
-  workflow runs on the result. What a named label discloses is that
+  a count that names none of them. `--smallest-group` raises it and
+  never lowers it (plan P4-D426). What a named label discloses is that
   somebody in the table had that value: this version publishes nothing
   that crosses two columns, so it says nothing about who, or about
   anything else in that person's row. Handle it under your
@@ -513,14 +519,20 @@ Stated here so that no reader has to discover them independently:
   **What follows for you:** the control that matters is who may hold the
   checked file, not what its report withholds. The quality report says
   this on its own face, on every run.
-- **The floor is a number the person running the tool sets, and it can be
-  set below the default** (owner ruling 2026-08-14; Phase 3 plan
-  amendment A-P3-11, carried into the contract's section 4.4 under a
-  counted re-seal). `--smallest-group` accepts any whole number of 1 or
-  more, and the whole workflow - profile, generate, validate - runs on
-  the description it produces. This is the one control in this document
-  that a user can lower, so it is stated as a control rather than as an
-  option. **What lowering it gives up:** at a floor of `f`, no value
+- **The floor is a number the person running the tool may raise, and
+  never lower below eleven** (owner, 2026-10-23, plan P4-D426, closing
+  the ruling of 2026-08-14 and Phase 3 plan amendment A-P3-11 that let
+  it be set to any whole number of 1 or more). `--smallest-group`
+  accepts any whole number of 11 or more, and the whole workflow -
+  profile, generate, validate - runs on the description it produces; a
+  number under eleven, or anything not a whole number, is refused by
+  every command with code 2 before anything is read or written, and
+  `generate` and `validate` refuse with code 1, writing nothing, a
+  description that records a floor under eleven. Lower floors are
+  reached only by `cli.main`'s internal keyword `lowered_floor`, which
+  the test suite and the measurement drivers pass and which no option,
+  environment variable, questions file or settings file reaches. **What
+  a lower floor would give up, and why it is closed:** at a floor of `f`, no value
   named in the description is held by fewer than `f` rows, and at `f = 1`
   every group is named exactly, a group of one row included. Where one
   row of the real table is one person, the description then publishes
@@ -531,14 +543,13 @@ Stated here so that no reader has to discover them independently:
   every floor-governed invariant of the contract still binds at the value
   the document carries, a floor of zero or below is still refused, and a
   hand-edited description is still refused for every other reason it was
-  refused before. **What the product does about it:** a `profile` run at
-  a lowered number prints an unmissable warning before either file
-  exists, saying what a group that small can reveal about a person; and
-  the plain-language summary, the generation report and the quality
-  report each state on their own face that the description was made that
-  way, so that a reader handed one file alone can tell. synthtwin does
-  not refuse the setting: it is the table owner's decision, taken with
-  the consequence in front of them.
+  refused before. **What the product does about it:** since 2026-10-23
+  it refuses the setting, because a twin is meant to travel freely
+  (decision D7) and a count of a group that small is a disclosure the
+  files would carry wherever they went. The warning a lowered run
+  printed, and the sentence the summary, the generation report and the
+  quality report put on their own face, are still written for a run
+  made through the internal keyword, byte for byte.
 - **Version 4 publishes the exact spellings of the labels the profile
   already names** (plan P2-D0 owner decisions 9 and 11). Through version
   3 a label left the machine in one settled form only: the producer

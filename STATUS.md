@@ -146,9 +146,9 @@ Useful options:
   earlier run, with your answers written in. Each answer becomes the
   declaration it stands for, so you can settle a whole table's columns
   by editing one file instead of remembering flags
-- `--smallest-group 11` — the privacy floor, and 11 is the default;
-  groups smaller than this are not named in the description. A smaller
-  number is allowed, and the run warns you before it writes anything
+- `--smallest-group 20` — raises the privacy floor: groups smaller
+  than this are not named in the description. 11 is the default and
+  the least: a smaller number is refused and nothing is written
 
 **If you name a word with `--missing-value` or `--keep-value`, that word
 is written into the description.** The tool tells you so before it writes

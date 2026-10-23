@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### The floor of 11 is a minimum: `--smallest-group` raises it and never lowers it (lane MIN, 2026-10-23)
+
+**Lane MIN** (plan P4-D426), on the owner's answer of 2026-10-23, "Only
+raise it". Every command refuses `--smallest-group` under 11, or text
+that is no whole number, in plain words, with code 2, writing nothing,
+under every spelling argparse takes for the option; 11 and more behave as
+before. `generate` and `validate` refuse, with code 1 and nothing
+written, a description an earlier version wrote under a lowered floor,
+saying to describe the table again: a twin is meant to be shared freely
+(decision D7), so none is built from groups that small. Lower floors are
+reached only by `cli.main`'s internal keyword `lowered_floor`, which the
+test suite (through `tests/lowered_floor.py`) and the measurement drivers
+pass and no option, environment variable, questions file or settings
+file reaches. The help, README, STATUS, SECURITY and the contract say so.
+Measured: at floors 1, 2, 5, 10, 11 and 20 and with none, every file and
+screen of 441 runs is byte for byte what b85200be wrote typing the same
+floor (3,717 digests); no golden, frozen vector or ledger file moves.
+
 ### Batch 4f's records: the zoo measured on the merged code, `K-P4-06`'s ceiling, a shorter STATE (2026-10-22)
 
 **Records of batch 4f**, which merged lanes DEP-2, SR-A, HX3 and PS
