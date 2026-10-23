@@ -1116,40 +1116,52 @@ def test_the_clock_style_of_a_census_is_the_style_of_every_clock() -> None:
 
 
 def test_written_units_are_counted_along_the_instants_as_the_set_counts_them() -> None:
-    """`_different_units` and `_few_units` answer as the set of every unit and `calendar_rules.few_units` do, in order or not."""
+    """`_different_units`, `calendar_rules.few_units` counting run by run, and the units `_written_units` hands it, answer as the set of every unit did."""
+    _built, names = stage4_as_built.compiled(calendar_rules, stage4_as_built.FEW_UNITS, "few_units")
+    old = names["few_units"]
     draw = random.Random(47)
     for _case in range(120):
         instants = sorted(draw.randrange(0, 86_400 * 400) for _ in range(draw.randint(1, 400)))
         if draw.random() < 0.3:
             instants = [instant - instant % 86_400 for instant in instants]
+        elif draw.random() < 0.3:
+            instants = [instant - instant % 60 for instant in instants]
         body = [instant // 86_400 for instant in instants]
         if draw.random() < 0.2:
             draw.shuffle(instants)
         groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 2)
         for step in (1, 60, 86_400):
-            assert taxonomy._different_units(tuple(instants), step) == len({instant // step for instant in instants})
+            units = [instant // step for instant in instants]
+            assert taxonomy._different_units(tuple(instants), step) == len(set(units))
             if groups:
-                expected = calendar_rules.few_units(groups, body, [instant // step for instant in instants])
-                assert taxonomy._few_units(groups, body, tuple(instants), step) == expected
+                expected = old(groups, body, units)  # type: ignore[operator]
+                assert calendar_rules.few_units(groups, body, units) == expected
+                assert calendar_rules.few_units(groups, body, taxonomy._written_units(tuple(instants), body, step)) == expected
+                assert calendar_rules.few_units(groups, body[: len(body) // 2], units) == old(groups, body[: len(body) // 2], units)  # type: ignore[operator]
 
 
 def test_written_units_out_of_order_are_counted_as_the_set_counts_them_and_none_is_held() -> None:
     """Units met again after another are one unit (the run count alone counts them again); no list of them is made."""
+    _built, names = stage4_as_built.compiled(calendar_rules, stage4_as_built.FEW_UNITS, "few_units")
     body = [day for day in range(14) for _row in range(20)]
     instants = [day * 86_400 + 3_600 * (place % 2) for place, day in enumerate(body)]
     groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 2)
     assert groups
-    expected = calendar_rules.few_units(groups, body, list(instants))
-    assert taxonomy._few_units(groups, body, tuple(instants), 1) == expected is True
-    ascending = tuple(sorted(range(0, 40_000 * 61, 61)))
+    assert calendar_rules.few_units(groups, body, instants) == names["few_units"](groups, body, instants) is True  # type: ignore[operator]
+    ascending = tuple(sorted(range(0, 40_000 * 60, 60)))
     days = [instant // 86_400 for instant in ascending]
+    assert taxonomy._written_units(ascending, days, 1) is ascending
+    assert taxonomy._written_units(ascending, days, 60) is ascending
+    midnights = tuple(day * 86_400 for day in days)
+    assert taxonomy._written_units(midnights, days, 86_400) is days
+    assert taxonomy._written_units(tuple(instant + 1 for instant in ascending), days, 60) == [(instant + 1) // 60 for instant in ascending]
     groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(days), 2)
     gc.collect()
     tracemalloc.start()
     try:
         before = tracemalloc.get_traced_memory()[0]
         tracemalloc.reset_peak()
-        taxonomy._few_units(groups, days, ascending, 60)
+        calendar_rules.few_units(groups, days, taxonomy._written_units(ascending, days, 60))
         taxonomy._different_units(ascending, 60)
         held = tracemalloc.get_traced_memory()[1] - before
     finally:

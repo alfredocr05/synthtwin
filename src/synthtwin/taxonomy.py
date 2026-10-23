@@ -19120,43 +19120,40 @@ def _different_units(moments: "tuple[int, ...]", step: int) -> int:
     return count
 
 
-def _few_units(
-    groups: "tuple[tuple[int, int, int], ...]",
-    body: "list[int]",
-    instants: "tuple[int, ...]",
-    step: int,
-) -> bool:
-    """`calendar_rules.few_units(groups, body, units)` of the units these instants are written at.
+def _written_units(
+    instants: "tuple[int, ...]", body: "list[int]", step: int
+) -> "tuple[int, ...] | list[int]":
+    """The written units `calendar_rules.few_units` counts, handed as a list a row only where nothing held already is one.
 
-    WITHOUT A UNIT OR A PAIR A CELL (lane H3's repair, plan P4-D423): the
-    body's instants are ascending, so the cells of one written unit
-    stand together, and each group's count of different units is
-    counted run by run, a unit counted once in each group one of its
-    days falls in. The list of every unit and the set of every (group,
-    unit) pair this replaces held about 150 bytes a row of a column of
-    stamps that never repeat. Instants handed in another order are asked
-    of `calendar_rules.few_units` itself. Determinism: a function of the
-    four. Raises nothing. No I/O of any kind.
+    `calendar_rules.few_units` counts the different (group, unit) pairs,
+    so any units in one-to-one step with the true ones answer as they do.
+    The instants themselves where the unit is the second, or every instant
+    is a whole number of units (a minute column holding no second): one
+    instant a unit, and no list made (lane H3's repair, plan P4-D423; the
+    list of every unit held about 40 bytes a row of a column of stamps
+    that never repeat). The body's own days where every value stands at
+    midnight and each instant is its day's: the units ARE the days. A
+    list of the units otherwise, as before.
+
+    Guarantees: a sequence as long as ``instants`` whose different
+    values, beside ``body``, pair as `[instant // step ...]`'s do.
+    Raises nothing. No I/O of any kind.
     """
-    where = calendar_rules.where_of(groups)
-    held = [0 for _group in groups]
-    seen: "dict[int, bool]" = {}
-    previous = 0
-    for place in range(len(body)):
-        unit = instants[place] // step
-        if place and unit < previous:
-            return calendar_rules.few_units(
-                groups, body, [instant // step for instant in instants]
-            )
-        if not place or unit != previous:
-            seen = {}
-            previous = unit
-        index = where[calendar_rules.weekday_of(body[place])]
-        if index not in seen:
-            seen[index] = True
-            held[index] = held[index] + 1
-    filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
-    return len(filled) >= 2 and sum(filled) < calendar_rules.FEWEST_MEAN_UNITS * len(filled)
+    if step == 1:
+        return instants
+    whole = True
+    days = step == 86400 and len(body) == len(instants)
+    for place in range(len(instants)):
+        if instants[place] % step:
+            whole = False
+            break
+        if days and instants[place] // step != body[place]:
+            days = False
+    if days and whole:
+        return body
+    if whole and step != 86400:
+        return instants
+    return [instant // step for instant in instants]
 
 
 def moments_weekday_decision(
@@ -19294,7 +19291,7 @@ def moments_weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, body):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
-    if _few_units(groups, body, instants, step):
+    if calendar_rules.few_units(groups, body, _written_units(instants, body, step)):
         return withheld(calendar_rules.REASON_FEW_UNITS, entry)
     # THE COUNT'S ROOM, AT EVERY FLOOR (skeptic 1 of landing 3b.D2, items 1
     # and 2). A column every value of which stands at midnight is counted

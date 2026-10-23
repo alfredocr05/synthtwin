@@ -44,8 +44,9 @@ nothing reads the product's source to build them:
   character at a time: the oracles of lane H3
   (`tests/test_stage4_describe_memory.py`, plan P4-D423), whose answers
   the product's must be wherever both answer.
-- `AFFIX_PAIRS`, `STAMP_CLOCK` and `LABEL_READERS` are, as 4682d6ad
-  shipped them, the affix reading's pair walk and reach over a map of
+- `AFFIX_PAIRS`, `STAMP_CLOCK`, `LABEL_READERS`, `CENSUS_RANKED` and
+  `FEW_UNITS` (`calendar_rules.few_units` over a set of every pair) are,
+  as 4682d6ad shipped them, the affix reading's pair walk and reach over a map of
   every pair, the slashed stamps' one written clock over a tuple of
   halves, parts and pairs a stamp, and four rules reading the tally's
   labels by their folded text: the oracles of lane H3's repair (the
@@ -2624,4 +2625,38 @@ def _census_ranked(
             local = parsing.instant_key(pairs[at][0], "")
             instants += [instant if local is None else local]
     return [entry[3] for entry in ordered]
+'''
+
+
+FEW_UNITS = r'''
+def few_units(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: "list[int]",
+    units: "list[int]",
+) -> bool:
+    """Whether the census's groups hold too few different written units (P4-D367).
+
+    THE PRODUCER'S FEW-UNITS RULE, on the REAL body: `body` is the day
+    of every body cell and `units` its written unit (its instant in
+    whole units of the column's precision, or its day where every value
+    stands at midnight), in the same order. True where at least two
+    groups are non-empty and they hold fewer than `FEWEST_MEAN_UNITS`
+    different written units each on average. A CONSERVATIVE rule, set on
+    the measured cases where a twin missed its count of different values
+    (module text above), not a proof that no twin can meet the census;
+    a rule of what the twin is sure to meet, never of what a reader
+    could work out, so the loader cannot ask it, and need not.
+
+    Guarantees: accepts the census, the body's days and its written
+    units, one each a cell; returns the answer. Determinism: a function
+    of the three. Raises nothing. No I/O of any kind.
+    """
+    where = where_of(groups)
+    held = [0 for _group in groups]
+    for index, _unit in {
+        (where[weekday_of(day)], unit) for day, unit in zip(body, units)
+    }:
+        held[index] = held[index] + 1
+    filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
+    return len(filled) >= 2 and sum(filled) < FEWEST_MEAN_UNITS * len(filled)
 '''
