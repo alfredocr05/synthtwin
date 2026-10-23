@@ -1,6 +1,6 @@
 """P4-D428 (lane CODES-3): identifiers with numeric roots, float record numbers, prefixed ids, plain keys.
 
-THE FINDINGS (the health data zoo's plan, wave6/ZOO/PLAN.md rows 19, 42 and
+WHAT WAS MEASURED (the health data zoo's plan, wave6/ZOO/PLAN.md rows 19, 42 and
 43; push critic 13's MAJOR 5 for the plain keys; measured on af69aaef):
 
 (a) A DICOM UID column (`1.2.840.113619.2.55.3.` and three more arcs) was

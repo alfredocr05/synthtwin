@@ -18704,6 +18704,21 @@ is pinned to a length only a case flip reaches — 750 record numbers and
 fifty of them again with a trailing space — writes one flipped prefix,
 which the twin's report and the validator both name.
 
+**Amended by plan P4-D428 (lane CODES-3, 2026-10-23).** (1) C6-139's
+prefix holds no figure save in one case: a column every present cell of
+which is a DICOM UID (`[012](\.(0|[1-9]\d*))+`, two points or more)
+publishes as `(column)` the arcs every cell shares, cut back to its last
+point (`parsing.uid_root`, which `is_a_literal_prefix` admits; LP2 reads
+its figures as `%`), and its twin writes no arc led by a nought. (2) A
+declared record number publishing a `(column)` prefix counts every cell
+of a layout too rare to name in its commonest named layout, its
+`min_length` and `max_length` read the same way, wherever C6-131b leaves
+that census whole (rule A1 of plan P4-D422's ZS.2), and the validator
+recounts the measured file so: the first limit above is closed, the 790
+and ten cells writing 800 of 800 in `^P\d{5,6}$`. (3) A record number
+publishing `all_whole_numbers true` writes `0` at each place after the
+point of a layout of figures, one point and figures.
+
 ---
 
 <!-- a7i: the spellings of a count column -->
