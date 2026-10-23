@@ -82,7 +82,7 @@ def described(folder, name, cells):
     code = None
     with contextlib.redirect_stdout(heard), contextlib.redirect_stderr(heard):
         try:
-            code = cli.main(["profile", str(path), "--out-dir", str(folder), "--replace"])
+            code = cli.main(["profile", str(path), "--out-dir", str(folder), "--replace"], table_floor=False)
         except BaseException as stopped:  # noqa: BLE001 -- a stack trace is what this counts
             code = type(stopped).__name__
     seconds = time.perf_counter() - started

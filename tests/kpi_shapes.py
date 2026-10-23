@@ -214,7 +214,9 @@ def quiet_cli(argv: "list[str]") -> int:
             io.StringIO()
         ):
             try:
-                code = cli.main()
+                # The table floor off (plan P4-D425): the shapes are
+                # small tables, measured as they were before the floor.
+                code = cli.main(table_floor=False)
             except SystemExit as stop:
                 code = 0 if stop.code is None else int(stop.code)
     finally:

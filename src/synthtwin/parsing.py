@@ -955,6 +955,33 @@ DEFAULT_SMALL_CELL_FLOOR = 11
 POPULATION_FLOOR = 100
 POPULATION_NOTICE_LINE = 1000
 
+# THE TABLE FLOOR (the owner, 2026-10-22: "we don't make twins of small
+# tables"; plan P4-D425, a dated amendment of P4-D341). `synthtwin
+# profile` refuses, writing nothing, a table with fewer than
+# `TABLE_ROW_FLOOR` rows that hold a value, and a table in which a
+# declared or answered person column REPEATS (one person, several rows)
+# but fewer than `TABLE_PEOPLE_FLOOR` people appear. Rows and people are
+# counted exactly as the population above is (`taxonomy.people_in`).
+#
+# THE REASON. Every count a description publishes must reach the floor
+# of `DEFAULT_SMALL_CELL_FLOOR` people; below these sizes too few counts
+# reach it for an analysis run on the twin to stand on the real table,
+# and the small groups a small table is made of are where disclosure
+# risk lives. The owner chose the two numbers: the work goes to twins
+# whose code runs on the original and whose statistics stand.
+#
+# AND WHAT BECOMES OF THE TWO NUMBERS ABOVE. They stay, byte for byte,
+# and a run applies them only where the table floor is off -- which no
+# command line can ask for: `cli.main`'s internal `table_floor`
+# parameter, used by the suite's helpers and the measurement drivers so
+# the small-table checks keep running. On the command a person types,
+# every table the notice line would mark is refused instead, because
+# the notice line is not above either floor (`POPULATION_NOTICE_LINE <=
+# TABLE_PEOPLE_FLOOR <= TABLE_ROW_FLOOR`, asserted by
+# tests/test_table_floor.py): no table the floor accepts gets the notice.
+TABLE_ROW_FLOOR = 20000
+TABLE_PEOPLE_FLOOR = 1000
+
 
 def census_floor(floor: int) -> int:
     """The smallest count a spelling census publishes: two, or the floor.

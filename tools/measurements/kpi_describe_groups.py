@@ -140,7 +140,7 @@ def run(table: str, out: pathlib.Path, group_bytes: int, trace: bool, walk_bytes
     said = io.StringIO()
     started = time.process_time()
     with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
-        code = cli.main(["profile", table, "--out-dir", str(out), "--replace"])
+        code = cli.main(["profile", table, "--out-dir", str(out), "--replace"], table_floor=False)
     seconds = time.process_time() - started
     traced = -1
     if trace:

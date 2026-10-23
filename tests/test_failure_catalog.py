@@ -53,6 +53,9 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # column the person typed after --identifier: the rows one names
     # no column at all.
     "the_population_is_too_small": (48, "rows", ""),
+    # THE OWNER'S TABLE FLOOR (plan P4-D425): the people shape, which
+    # names the person column the way the population floor's does.
+    "the_table_is_below_the_floor": (20000, 999, "patient"),
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
     # The same three refusals for a file `synthtwin validate` was only

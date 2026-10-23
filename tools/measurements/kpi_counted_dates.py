@@ -133,7 +133,7 @@ CHANCE_DRAWS = 10
 def _quiet(argv: "list[str]") -> int:
     held = io.StringIO()
     with contextlib.redirect_stdout(held), contextlib.redirect_stderr(held):
-        return cli(argv)
+        return cli(argv, table_floor=False)
 
 
 def _write(path: pathlib.Path, cells: "list[str]") -> None:

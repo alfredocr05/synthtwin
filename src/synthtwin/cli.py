@@ -2964,7 +2964,7 @@ def _population_of(
     measurements: "list[str] | None" = None,
     decimal_commas: "list[str] | None" = None,
     stored_as: "tuple[str, ...]" = (),
-) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
+) -> "tuple[tuple[str, ...], int, str, tuple[object, ...], int]":
     """The person columns, the population and the word it is counted in.
 
     The census is `profile.population_census_of`'s: a table read in
@@ -2972,7 +2972,8 @@ def _population_of(
     time, never every declared column at once.
 
     Returns (person columns, how many, the unit word, the readings the
-    census took). The readings are handed to `profile.build_document`
+    census took, the rows that hold a value -- which the table floor
+    asks beside the people, plan P4-D425). The readings are handed to `profile.build_document`
     right after, so a column the census read under the finished reading
     is not read again there (`taxonomy.population_census`). The unit is
     `people` where some declared identifier REPEATS and `rows` where
@@ -3015,7 +3016,7 @@ def _population_of(
         raise TypeError("internal check: the settings are not settings")
     if not isinstance(table, reading.Table):
         raise TypeError("internal check: the table is not a table")
-    people, counted, readings = profile.population_census_of(
+    people, counted, rows, readings = profile.population_and_rows_census_of(
         table,
         settings,
         declared,
@@ -3027,7 +3028,27 @@ def _population_of(
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
         unit = taxonomy.NOTE_UNIT_PEOPLE
-    return people, counted, unit, readings
+    return people, counted, unit, readings, rows
+
+
+def _below_the_table_floor(
+    rows: int, person_columns: "tuple[str, ...]", people: int
+) -> bool:
+    """Whether `synthtwin profile` refuses the table at the owner's table floor.
+
+    Plan P4-D425 (the owner, 2026-10-22: "we don't make twins of small
+    tables"). Refused: fewer than `parsing.TABLE_ROW_FLOOR` rows that
+    hold a value; or, where a declared or answered person column
+    REPEATS (one person, several rows), fewer than
+    `parsing.TABLE_PEOPLE_FLOOR` people. A column a question only
+    OFFERS as a person column is not among ``person_columns`` until it
+    is answered, so an open question never refuses a table.
+
+    Guarantees: a fixed function of the three. Raises nothing.
+    """
+    if rows < parsing.TABLE_ROW_FLOOR:
+        return True
+    return bool(person_columns) and people < parsing.TABLE_PEOPLE_FLOOR
 
 
 def _table_sentences(document: "dict[str, object]") -> "list[str]":
@@ -3092,7 +3113,7 @@ def _held_counted_dates(
     return held
 
 
-def _counted_in_rows_notice(names: "list[str]") -> str:
+def _counted_in_rows_notice(names: "list[str]", table_floor: bool = False) -> str:
     """What the screen says when nobody has said who the rows are about.
 
     Printed beside the person question (plan P4-D340), and only where
@@ -3109,11 +3130,27 @@ def _counted_in_rows_notice(names: "list[str]") -> str:
     leaves the count exactly there -- so the older sentence would have
     told a person who had just typed the option that they had not.
 
-    Guarantees: accepts the columns asked about; returns one paragraph.
-    A fixed function of the names, which are the table's own column
-    names and are published in the description like every other.
-    Raises nothing, opens no file.
+    AND WHERE THE TABLE FLOOR APPLIES IT SAYS WHEN ITS PEOPLE HALF
+    STARTS TO (plan P4-D425): an open question never refuses a table,
+    and the people floor applies once the column is answered as one
+    that names people.
+
+    Guarantees: accepts the columns asked about and whether the table
+    floor is on; returns one paragraph. A fixed function of the two;
+    the names are the table's own column names and are published in
+    the description like every other. Raises nothing, opens no file.
     """
+    floor_said = ""
+    if table_floor:
+        floor_said = (
+            f" Once a column is answered as one that names people, the "
+            f"table floor counts those people too: a table in which one "
+            f"person has several rows needs at least "
+            f"{parsing.TABLE_PEOPLE_FLOOR:,} people, beside "
+            f"{parsing.TABLE_ROW_FLOOR:,} rows that hold a value, or "
+            f"synthtwin refuses it and writes nothing. An unanswered "
+            f"question does not refuse the table."
+        )
     return (
         f"\nHOW THIS RUN COUNTED YOUR TABLE\n"
         f"No column that names PEOPLE has been declared, so this "
@@ -3125,7 +3162,7 @@ def _counted_in_rows_notice(names: "list[str]") -> str:
         f"either many or written as codes -- the shape a column that "
         f"names people wears. Answer it there, or run the command "
         f"again with --identifier and the column's name, and the "
-        f"population will be counted in people."
+        f"population will be counted in people.{floor_said}"
     )
 
 
@@ -3236,8 +3273,12 @@ def _run_profile(
     centuries_given: "list[str] | None" = None,
     date_columns_given: "list[str] | None" = None,
     first_row_typed: bool = False,
+    table_floor: bool = True,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
+
+    ``table_floor`` is `main`'s internal parameter of the same name
+    (plan P4-D425): no command-line option sets it.
 
     The order of operations is a control, not a convenience, and review
     round 1 found it inverted. Nothing is written until every target has
@@ -4187,15 +4228,30 @@ def _run_profile(
     # census and the description alike (plan P4-D382), so the column
     # the census reads is read once.
     storage = profile.stored_as_of(read, settings)
-    person_columns, population, unit, census_readings = _population_of(
-        read,
-        settings,
-        forced_identifiers,
-        forced_codes,
-        forced_measurements,
-        forced_decimal_commas,
-        storage,
+    person_columns, population, unit, census_readings, held_rows = (
+        _population_of(
+            read,
+            settings,
+            forced_identifiers,
+            forced_codes,
+            forced_measurements,
+            forced_decimal_commas,
+            storage,
+        )
     )
+    # THE OWNER'S TABLE FLOOR (plan P4-D425), asked before today's
+    # population floor, which it is above: no twin of a small table.
+    if table_floor and _below_the_table_floor(
+        held_rows, person_columns, population
+    ):
+        _warn(
+            errors.the_table_is_below_the_floor(
+                held_rows,
+                population if person_columns else 0,
+                _joined(list(person_columns), " and "),
+            )
+        )
+        return 1
     if population < parsing.POPULATION_FLOOR:
         _warn(
             errors.the_population_is_too_small(
@@ -4545,7 +4601,7 @@ def _run_profile(
                 # READ AFRESH under the final declarations, and handed
                 # over again: the first census's readings were the
                 # first description's.
-                person_columns, population, unit, census_readings = (
+                person_columns, population, unit, census_readings, held_rows = (
                     _population_of(
                         read,
                         settings,
@@ -4556,6 +4612,20 @@ def _run_profile(
                         storage,
                     )
                 )
+                # The table floor again, with the final person columns
+                # (plan P4-D425): a column just answered as naming
+                # people is where the people floor starts to apply.
+                if table_floor and _below_the_table_floor(
+                    held_rows, person_columns, population
+                ):
+                    _warn(
+                        errors.the_table_is_below_the_floor(
+                            held_rows,
+                            population if person_columns else 0,
+                            _joined(list(person_columns), " and "),
+                        )
+                    )
+                    return 1
                 if population < parsing.POPULATION_FLOOR:
                     _warn(
                         errors.the_population_is_too_small(
@@ -4718,7 +4788,7 @@ def _run_profile(
         if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
             person_asked += [question.name]
     if person_asked and not person_columns and not assumptions_said:
-        _warn(_counted_in_rows_notice(person_asked))
+        _warn(_counted_in_rows_notice(person_asked, table_floor))
 
     # NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan
     # P4-D401). Where nobody was at the keyboard, a column a question
@@ -6398,7 +6468,7 @@ def _teaching_profile(table: "str | None", out_dir: "str | None" = None) -> str:
     )
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: "list[str] | None" = None, *, table_floor: bool = True) -> int:
     """Run the `synthtwin` command.
 
     Guarantees:
@@ -6410,6 +6480,17 @@ def main(argv: "list[str] | None" = None) -> int:
       `validate` command word with `--twin`, `--out-dir` and
       `--replace`, and the `doctor` command word with an optional table
       path and `--out-dir` (plan P4-D397).
+    - `table_floor`, keyword only and INTERNAL (plan P4-D425): True, the
+      default and the only value a typed command ever runs with, makes
+      `profile` refuse, writing nothing, a table under
+      `parsing.TABLE_ROW_FLOOR` rows that hold a value or, where a
+      declared or answered person column repeats, under
+      `parsing.TABLE_PEOPLE_FLOOR` people. False is for the suite's
+      helpers and the measurement drivers, which run the command on
+      small tables in this process; it leaves P4-D341's population
+      floor and notice as they were. No command-line option, and no
+      environment variable, sets it, and it changes no byte written for
+      a table at or above the floor.
     - Return codes: 0 when the work finished; 1 when a file given could
       not be read or an output file could not be written, with a
       plain-language explanation on the error stream; 2 when an option's
@@ -6547,6 +6628,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.centuries,
             options.date_columns,
             options.first_row_typed,
+            table_floor=table_floor,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

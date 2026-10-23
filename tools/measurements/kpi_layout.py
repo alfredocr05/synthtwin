@@ -97,7 +97,7 @@ SCALE_ROUNDS = 2
 def _quiet(argv: "list[str]") -> int:
     held = io.StringIO()
     with contextlib.redirect_stdout(held), contextlib.redirect_stderr(held):
-        return cli(argv)
+        return cli(argv, table_floor=False)
 
 
 def _rows(path: pathlib.Path) -> "list[list[str]]":

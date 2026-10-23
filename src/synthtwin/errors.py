@@ -1403,6 +1403,53 @@ def floor_not_positive(given: str) -> str:
     )
 
 
+def the_table_is_below_the_floor(rows: int, people: int, column: str) -> str:
+    """Message for a table under the owner's table floor (plan P4-D425).
+
+    The owner, 2026-10-22: "we don't make twins of small tables". THE
+    MINIMUM SIZES, THIS TABLE'S ROWS AND PEOPLE, WHY, WHAT TO DO, AND
+    THAT NOTHING WAS WRITTEN, in words a person who is not a
+    statistician can act on and that a statistician would sign: below
+    the floor too few counts reach the smallest group of
+    `parsing.DEFAULT_SMALL_CELL_FLOOR` people for an analysis to stand
+    on the twin, and small groups are where disclosure risk lives.
+
+    ``people`` and ``column`` are given where a declared or answered
+    person column repeats (``column`` names it, as the person typed or
+    answered it); 0 and empty where the rows were counted.
+
+    Guarantees: a fixed function of the three; one paragraph. Raises
+    nothing. No I/O of any kind.
+    """
+    held = f"{rows:,} rows that hold a value"
+    if column:
+        held = (
+            f"{held} and {people:,} people, counted by "
+            f"'{_shown(column)}': rows sharing a value of it are one "
+            f"person, and rows holding no value of it count as one "
+            f"person between them"
+        )
+    return (
+        f"synthtwin makes twins of large tables only, and this table is "
+        f"below its floor. The floor is {parsing.TABLE_ROW_FLOOR:,} rows "
+        f"that hold a value and, where one person has several rows, "
+        f"{parsing.TABLE_PEOPLE_FLOOR:,} people. This table holds "
+        f"{held}. Why: every count a description publishes must cover at "
+        f"least {parsing.DEFAULT_SMALL_CELL_FLOOR} people, and below these "
+        f"sizes too few of the table's counts reach that floor -- most of "
+        f"its groups would be pooled or withheld, so an analysis run on "
+        f"the twin would not stand on the real table -- and the smaller a "
+        f"table's groups are, the higher the risk that a published fact "
+        f"points to one person. What you can do: describe the whole "
+        f"extract rather than a sample of it, or combine sites or years "
+        f"into one table, and run the command again. A row counts only "
+        f"when it holds a value: one whose every cell this run reads as "
+        f"no value -- a blank, a spelling that means no value, a number "
+        f"declared with --missing-value, or a stand-in such as -999 -- is "
+        f"counted nowhere. Nothing was written."
+    )
+
+
 def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     """Message for a table with too few rows, or too few people, to describe.
 

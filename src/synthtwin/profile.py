@@ -4696,6 +4696,30 @@ def population_census_of(
 ) -> "tuple[tuple[str, ...], int, tuple[taxonomy.HeldReading, ...]]":
     """`taxonomy.population_census` of this table: the person columns, how many people, and the readings kept.
 
+    `population_and_rows_census_of`'s answer less the rows that hold a
+    value, which that function says how it works out.
+    """
+    people, counted, _rows, readings = population_and_rows_census_of(
+        table, settings, declared, codes, measurements, decimal_commas,
+        stored_as,
+    )
+    return people, counted, readings
+
+
+def population_and_rows_census_of(
+    table: Table,
+    settings: taxonomy.Settings,
+    declared: "list[str]",
+    codes: "list[str]",
+    measurements: "list[str]",
+    decimal_commas: "list[str]",
+    stored_as: "tuple[str, ...]",
+) -> "tuple[tuple[str, ...], int, int, tuple[taxonomy.HeldReading, ...]]":
+    """`taxonomy.population_and_rows_census` of this table (plan P4-D425).
+
+    The person columns, how many people, how many rows hold a value
+    (the command's table floor asks both), and the readings kept.
+
     A table read whole is handed over whole. A table read in groups
     (lane SR, plan P4-D400) is counted ONE COLUMN AT A TIME, every
     column asked of `reading.column_values` and let go before the next
@@ -4716,7 +4740,7 @@ def population_census_of(
         decimal_commas=tuple(decimal_commas),
     )
     if table.source is None:
-        return taxonomy.population_census(
+        return taxonomy.population_and_rows_census(
             table.column_names, table.columns, declared, settings,
             declarations, stored_as,
         )
@@ -4755,13 +4779,15 @@ def population_census_of(
         )
         if repeats:
             people += [name]
+    counted = 0
+    for row in range(table.n_rows):
+        if holding[row]:
+            counted = counted + 1
     if joined is None:
-        counted = 0
-        for row in range(table.n_rows):
-            if holding[row]:
-                counted = counted + 1
-        return (), counted, ()
-    return tuple(people), taxonomy.people_counted(joined, holding), ()
+        return (), counted, counted, ()
+    return (
+        tuple(people), taxonomy.people_counted(joined, holding), counted, ()
+    )
 
 
 def _first_place_named(names: "list[str]", name: str) -> int:

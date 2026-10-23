@@ -4150,14 +4150,43 @@ def population_census(
     at most one reading (`_census_reading` says why one). A fixed function of the arguments. Raises
     what `_read_the_column` raises. No I/O of any kind.
     """
+    people, counted, _rows, held = population_and_rows_census(
+        column_names, columns, declared, settings, declarations, stored_as,
+        holding,
+    )
+    return people, counted, held
+
+
+def population_and_rows_census(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    declared: "list[str]",
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: "tuple[str, ...]" = (),
+    holding: "list[bool] | None" = None,
+) -> "tuple[tuple[str, ...], int, int, tuple[HeldReading, ...]]":
+    """`population_census`, with the rows that hold a value beside it (plan P4-D425).
+
+    The command's table floor asks BOTH numbers of a table whose person
+    column repeats: the rows that hold a value (`parsing.TABLE_ROW_FLOOR`)
+    and the people (`parsing.TABLE_PEOPLE_FLOOR`). Where no declared
+    identifier repeats the two are one count. The rows are the ones
+    `people_in` already works out to count people over, so this reads
+    no column `population_census` does not.
+
+    Guarantees: `population_census`'s own, over the same arguments,
+    with the count of rows that hold a value third. A fixed function of
+    the arguments. Raises what `_read_the_column` raises. No I/O.
+    """
     people, held = _repeating_identifiers_held(
         column_names, columns, declared, settings, declarations, (), stored_as
     )
-    counted, held = _people_held(
+    counted, rows, held = _people_and_rows_held(
         column_names, columns, people, settings, declarations, held,
         stored_as, holding,
     )
-    return people, counted, held
+    return people, counted, rows, held
 
 
 def _people_held(
@@ -4172,10 +4201,32 @@ def _people_held(
 ) -> "tuple[int, tuple[HeldReading, ...]]":
     """`people_in`, and the readings the census holds after it.
 
-    Guarantees: `people_in`'s own, over the same arguments, plus
-    ``held``: what this census keeps, returned as it stands after the
-    columns read here (`_census_reading`). ``stored_as`` is
-    `population_census`'s.
+    Guarantees: `_people_and_rows_held`'s, less the count of rows.
+    """
+    counted, _rows, held = _people_and_rows_held(
+        column_names, columns, person_columns, settings, declarations, held,
+        stored_as, holding_given,
+    )
+    return counted, held
+
+
+def _people_and_rows_held(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    person_columns: "tuple[str, ...]",
+    settings: Settings,
+    declarations: "Declarations | None",
+    held: "tuple[HeldReading, ...]",
+    stored_as: "tuple[str, ...]" = (),
+    holding_given: "list[bool] | None" = None,
+) -> "tuple[int, int, tuple[HeldReading, ...]]":
+    """`people_in`, the rows that hold a value, and the readings the census holds after them.
+
+    Guarantees: `people_in`'s own, over the same arguments, then the
+    count of rows that hold a value (the population where no person
+    column is given), plus ``held``: what this census keeps, returned as
+    it stands after the columns read here (`_census_reading`).
+    ``stored_as`` is `population_census`'s.
     """
     if holding_given is not None:
         holding = holding_given
@@ -4188,12 +4239,12 @@ def _people_held(
         holding, held = _rows_holding_a_value(
             columns, rows, settings, column_names, declarations, held, stored_as
         )
+    count = 0
+    for place in range(rows):
+        if holding[place]:
+            count = count + 1
     if not person_columns:
-        count = 0
-        for place in range(rows):
-            if holding[place]:
-                count = count + 1
-        return count, held
+        return count, count, held
     # `home[row]` is the row this one has been merged onto. Every merge
     # points at the EARLIER row of the two, so the walk to a group's
     # first row is short and the answer does not depend on the order
@@ -4254,7 +4305,7 @@ def _people_held(
             continue
         if first_of(place) == place:
             people = people + 1
-    return people + unknown, held
+    return people + unknown, count, held
 
 
 def _rows_holding_a_value(

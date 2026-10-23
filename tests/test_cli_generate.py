@@ -838,7 +838,15 @@ def test_importing_the_command_module_starts_no_reader(
     check drawn after the dispatch could have seen it.
     """
     seen = _watching_imports(monkeypatch)
-    importlib.reload(cli)
+    # The module's own objects are put back afterwards (plan P4-D425):
+    # a reload makes a new `main`, and a test module that imported the
+    # old one by name would then hold a function whose internal
+    # `table_floor` default the suite's conftest no longer reaches.
+    kept = dict(vars(cli))
+    try:
+        importlib.reload(cli)
+    finally:
+        vars(cli).update(kept)
     for forbidden in ("pandas", "synthtwin.reading", "synthtwin.profile"):
         assert forbidden not in seen, (
             f"importing synthtwin.cli started {forbidden}, so every run "
