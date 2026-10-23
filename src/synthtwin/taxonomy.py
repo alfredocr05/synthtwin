@@ -4534,7 +4534,8 @@ def _spellings_of_one_subject(earliest: "dict[str, int]") -> "list[tuple[int, in
     """
     first: "dict[str, int]" = {}
     pairs: "list[tuple[int, int]]" = []
-    for spelling, place in earliest.items():
+    for spelling in earliest:
+        place = earliest[spelling]
         key = parsing.subject_key(spelling)
         if key in first:
             pairs += [(first[key], place)]
