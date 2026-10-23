@@ -179,7 +179,27 @@ OPERATIVE = {
     "top-code": "while that question is open every value above 89 is read as 90 for the whole description",
     "top-code-asked": "it is put the Safe Harbor question whatever its count of values",
     "top-code-reach": "or the number part of `numbers_with_labels`; whole numbers or not) whose present numbers, "
-    "negative all-nines placeholders aside",
+    "all-nines placeholders of either sign aside (`999` and `9999` beside `-9`, `-99` and `-999`, on at most one "
+    "present cell in three: P4-D401's one-third cap",
+    "top-code-ages999": "the `ages999` shapes (`999` once and twenty times) are reached and print 0 ages over 89 "
+    "(CODES-2's gate cases and `K-S3-64`'s held shapes `ages999`)",
+    "top-code-live": "TODAY'S product prints ages over 89 for ANY age column, a live exposure",
+    "top-code-sh": "Lane SH (P4-D427, launched 2026-10-23, the orchestrator's LANE SH NOTE) builds this top-code in the "
+    "product now; CODES-2 extends the same Safe Harbor question to the columns this page names later, never a second "
+    "question.",
+    "five-figure": "A number column (`count` or `continuous`, or the number part of `numbers_with_labels`) whose whole "
+    "numbers all have five figures, padded or not (`02100`, `52240`), with at most one present cell in three set aside "
+    "as words",
+    "five-figure-held": "and the column is held whole until `no` -- P4-D401's held block",
+    "five-figure-nwl": "On the number part of `numbers_with_labels` the labels half is the words set aside, whatever "
+    "its share",
+    "five-figure-gate": "the `zip5word` shapes (`UNKNOWN` once, `HOMELESS` three times, with and without a leading "
+    "zero) are CODES-2's gate cases at 0 ZIPs printed and `K-S3-64`'s held shapes `zip5word`",
+    "five-figure-live": "TODAY'S product prints 9 real ZIPs on each of the four shapes",
+    "five-figure-sh": "Lane SH (P4-D427) builds this hold in the product now, beside the top-code",
+    "row-45": "Row 45 is CLOSED by lane HX only where every present cell is a key, a ZIP or a UDI",
+    "screen-record": "So is a short record or accession number written in figures and marks (`#4521`, `12-345`)",
+    "screen-hash-not": "refusing `#` before figures is NOT adopted",
     "top-code-validate": "no twin cell above 90; the real file, read with every value above 89 as 90, meets the description",
     "top-code-answers": "`no` lifts it (today's description, GG where its class holds); `yes` holds the column "
     "(P4-D401's held block)",
@@ -767,14 +787,20 @@ def test_the_level_wise_hold_leaves_word_levels_and_its_price_is_named() -> None
     assert "the majority reading would add 2 columns and 17 levels" in page
 
 
-PLACEHOLDER = re.compile(r"-9+(\.0+)?")
+PLACEHOLDER = re.compile(r"(?:-9+|9{3,})(\.0+)?")
+NEGATIVE_PLACEHOLDER = re.compile(r"-9+(\.0+)?")
 
 
-def _top_coded(cells: "list[str]") -> bool:
-    """The Safe Harbor top-code's reach: present values (all-nines placeholders aside) within 0..125, one above 89."""
+def _top_coded(cells: "list[str]", placeholder: "re.Pattern[str]" = PLACEHOLDER) -> bool:
+    """The Safe Harbor top-code's reach: present values within 0..125, one above 89, all-nines placeholders of
+    either sign (`999`, `9999`, `-9`, `-99`, `-999`) set aside on at most one present cell in three."""
+    present = [cell for cell in (cell.strip() for cell in cells) if cell]
+    aside = [cell for cell in present if placeholder.fullmatch(cell)]
+    if 3 * len(aside) > len(present):
+        return False
     values: "list[float]" = []
-    for cell in (cell.strip() for cell in cells):
-        if not cell or PLACEHOLDER.fullmatch(cell):
+    for cell in present:
+        if placeholder.fullmatch(cell):
             continue
         try:
             values += [float(cell)]
@@ -972,3 +998,87 @@ def test_the_zoo_knows_its_udi_as_a_code_and_answers_it_yes() -> None:
     page = _flat(_page())
     assert "answered `no` it would publish the 20 GS1 UDIs it prints today" in page
     assert "| `immunizations_providers` | CODES-2's names (`npi`) beside a repeating person column, and `udi` answered `yes`" in page
+
+
+# The third repair (2026-10-23): the second verify of 37e028c7, its three new items.
+
+
+def _five_figure_held(cells: "list[str]", every: bool = False) -> bool:
+    """ZS.1's five-figure hold: whole numbers all of five figures, padded or not, at most one present cell in three
+    set aside as words; `every` is the all-or-nothing reading no word cell may sit beside."""
+    present = [cell for cell in (cell.strip() for cell in cells) if cell]
+    numbers = [cell for cell in present if re.fullmatch(r"\d+", cell)]
+    words = [cell for cell in present if not re.fullmatch(r"[-+]?\d+(\.\d*)?", cell)]
+    if every and words:
+        return False
+    if 3 * len(words) > len(present) or len(numbers) + len(words) != len(present) or not numbers:
+        return False
+    return all(len(cell) == 5 for cell in numbers)
+
+
+def _zip5word(lead: bool, token: str, times: int) -> "tuple[list[str], list[str]]":
+    draw = random.Random(11)
+    zips = [f"0{2100 + 7 * k:04d}" if lead else f"{52240 + 7 * k}" for k in range(70)]
+    weights = [1.0 / (k + 1) ** 1.1 for k in range(70)]
+    return zips, [token if k < times else draw.choices(zips, weights)[0] for k in range(600)]
+
+
+@pytest.mark.parametrize("lead", [True, False])
+@pytest.mark.parametrize("token, times", [("UNKNOWN", 1), ("HOMELESS", 3)])
+def test_one_word_cell_beside_five_figure_zips_read_as_numbers_prints_them_today(
+    lead: bool, token: str, times: int, tmp_path: pathlib.Path,
+) -> None:
+    """The second verify's item 1, `zip5word`: today 9 real ZIPs print; the five-figure hold reaches the column."""
+    zips, cells = _zip5word(lead, token, times)
+    lines = ["pid,zip"] + [f"P{k:06d},{cell}" for k, cell in enumerate(cells)]
+    column = _column(_profiled(tmp_path, "zip5word.csv", "\n".join(lines) + "\n"), "zip")
+    assert column["role"] == "count"
+    printed = [value for value in _printed_values(column) if float(value).is_integer()]
+    assert len([value for value in printed if f"{int(value):05d}" in zips]) == 9
+    assert _five_figure_held(cells)
+    assert not _five_figure_held(cells, every=True)  # the all-or-nothing reading: one word lifts it
+    assert not _five_figure_held(["HOMELESS"] * 201 + cells[201:])  # above the cap, a count column is not reached
+    page = _flat(_page())
+    assert "TODAY'S product prints 9 real ZIPs on each of the four shapes" in page
+    assert "a tenth rung within one of a real ZIP (`2478.7`, `52618.7`; the second verify counted it, 10)" in page
+
+
+def test_the_five_figure_hold_spares_other_number_columns() -> None:
+    assert not _five_figure_held(["2100", "52240", "UNKNOWN"])  # a ZIP column whose zeros were lost: a stated limit
+    assert not _five_figure_held(["45", "91", "UNKNOWN"]) and not _five_figure_held(["12345.5", "23456"])
+    assert _five_figure_held(["02100", "52240", "", "UNKNOWN"])
+    page = _flat(_page())
+    assert "a ZIP column whose leading zeros were lost (`2100` beside `52240`) has values of four and five figures" in page
+    assert "With 150 or 250 `HOMELESS` cells of 600 and a leading zero the column is read `numbers_with_labels`" in page
+
+
+@pytest.mark.parametrize("times, over", [(1, [93.0, 103.0]), (20, [94.0, 112.95])])
+def test_a_999_cell_beside_ages_prints_ages_over_89_today_and_both_signs_are_set_aside(
+    times: int, over: "list[float]", tmp_path: pathlib.Path,
+) -> None:
+    """The second verify's item 2, `ages999`: one `999` defeated a reach setting aside negative placeholders only."""
+    draw = random.Random(7)
+    ages = [min(104, max(18, int(draw.gauss(70, 14)))) for _ in range(2000)]
+    cells = ["999" if k < times else f"{age}" for k, age in enumerate(ages)]
+    lines = ["pid,age"] + [f"P{k:06d},{cell}" for k, cell in enumerate(cells)]
+    document = _profiled(tmp_path, "ages999.csv", "\n".join(lines) + "\n")
+    age = _column(document, "age")
+    assert age["role"] == "count"
+    assert sorted(value for value in _printed_values(age) if 89 < value <= 125) == over
+    asked = json.loads((tmp_path / "ages999-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert _top_coded(cells)
+    assert not _top_coded(cells, placeholder=NEGATIVE_PLACEHOLDER)  # "negative all-nines placeholders aside"
+    assert _top_coded(["9999", "45", "91"]) and not _top_coded(["99", "45", "91", "130"])
+    assert not _top_coded(["999", "999", "45", "91"])  # more than one present cell in three: not reached
+    assert "beside one `999` the same column prints 93 and 103, beside twenty 94 and 112.95" in _flat(_page())
+
+
+def test_the_screen_passes_short_record_numbers_in_figures_and_marks_as_its_named_residual() -> None:
+    """The second verify's item 3: `#4521` and `12-345` pass the screen beside the result words that must."""
+    for word in ("#4521", "12-345", "4521/7", "#45-21", "120/80", "2-3", "1:40"):
+        assert _passes_screen(word), word
+    page = _flat(_page())
+    assert "`#4521`, `12-345`, `4521/7` and `#45-21` pass, as the result words `120/80`, `2-3` and `1:40` must" in page
+    assert ("and a short record or accession number written in figures and marks (`#4521`, `12-345`), pass the shape "
+            "screen (owner CODES-2, held at its KPI ceiling)") in page

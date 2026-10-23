@@ -39,9 +39,17 @@ nothing asked, 6 beside one word cell); `yes` acted on at once, `no`
 waiting for every identity question of the table; a column of words such
 as a birth city keeps its common word levels unanswered, a stated limit;
 the Safe Harbor top-code, a number column within 0 to 125 holding a value
-above 89 read with those values as 90 until its question is answered
-(three ages over 89 printed today at 2,000 rows); short result words by
-a shape screen that refuses every word holding a letter and a figure;
+above 89 read with those values as 90 until its question is answered,
+all-nines placeholders of either sign set aside (`999` beside `-99`), so
+one `999` cell no longer defeats it (three ages over 89 printed today at
+2,000 rows, two beside one `999`); the five-figure hold, a number column
+whose whole numbers all have five figures, padded or not, with at most
+one present cell in three set aside as words, held whole until `no` (9
+real ZIPs printed today beside one `UNKNOWN` cell); both live in today's
+product and built now by lane SH (P4-D427); short result words by
+a shape screen that refuses every word holding a letter and a figure,
+short record numbers in figures and marks (`#4521`, `12-345`) its named
+residual beside lone names;
 named levels' sizes allocated jointly with the published form debts; lane HX3's `code` offered on code-form
 long tails in the same question; names beside a person column only where
 the column is not attached to it. GG: a few-valued number column, after
@@ -53,9 +61,9 @@ validator's rule of each; what moves (no golden, checked on the
 fixtures; the frozen vectors each lane names); the KPIs the four lanes
 stamp and the kinds each turns. Measured on 4682d6ad
 (`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
-(167 cases) pins the page's figures and its reading of the product, red on
-each of 101 page mutants after the second repair, on the combined review
-and the one outside review.
+(187 cases) pins the page's figures and its reading of the product, red on
+each of 118 page mutants after the third repair, on the combined review,
+the one outside review and the second verify.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
