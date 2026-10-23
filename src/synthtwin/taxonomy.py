@@ -26169,22 +26169,24 @@ def with_layout_pool_absorbed(
     twin writes the pool's cells in the commonest layout, so no length
     only the pool held is owed, and none is printed. ``cells`` is the
     column's cells; the present ones are those holding text that is not a
-    spelling the column read as missing. A census the whole-census rule
-    of C6-131b took a named layout from (it names other layouts than
-    `layout_census` over the same cells) is left as it is, since the
-    validator's recount could not read it alike. The validator reads the
-    measured file with the same absorption (`validation._identifier_checks`),
-    so the real table meets the census it was described with. Every other
-    column is returned unchanged.
+    spelling the column read as missing.
+
+    THE CENSUS ABSORBED IS THE RECOUNT'S, read by `layout_census` as the
+    validator reads the measured file, and it stands only where C6-131b's
+    whole-census rule (`_no_complement_of_one`) leaves it whole: a census
+    that rule took a layout from to keep one row from being named is the
+    recount's with the pool written in, and a census that would leave one
+    cell's complement after absorbing is not absorbed (the description is
+    then today's). The validator reads the measured file with the same
+    absorption (`validation._identifier_checks`), so the real table meets
+    the census it was described with. Every other column is returned
+    unchanged.
 
     Guarantees: a fixed function of the arguments. Raises nothing. No I/O.
     """
     if column.role != ROLE_IDENTIFIER or not absorbs_its_layout_pool(
         column.details
     ):
-        return column
-    forms = column.details["layout_forms"] if "layout_forms" in column.details else None
-    if not isinstance(forms, dict):
         return column
     absent: "dict[str, bool]" = {}
     for spelling in column.absent_spellings:
@@ -26195,19 +26197,30 @@ def with_layout_pool_absorbed(
         if parsing.trimmed(value) and value not in absent
     ]
     recounted = layout_census(present, floor, len(set(present)))
-    for layout in sorted(forms):
-        if layout != SUPPRESSED_LABEL and layout not in recounted:
-            return column
-    for layout in sorted(recounted):
-        if layout != SUPPRESSED_LABEL and layout not in forms:
-            return column
-    absorbed = absorbed_layout_census(forms, present)
+    absorbed = absorbed_layout_census(recounted, present)
     if absorbed is None:
+        return column
+    census = absorbed[0]
+    code_alphabet = (
+        column.details["n_code_alphabet"] if "n_code_alphabet" in column.details else 0
+    )
+    all_digits = column.details["n_all_digits"] if "n_all_digits" in column.details else 0
+    if not isinstance(code_alphabet, int) or not isinstance(all_digits, int):
+        return column
+    plain = parsing.layout_convention(present) == parsing.LAYOUT_PLAIN
+    totals = [
+        (code_alphabet, _LAYOUT_CODE_MARKS),
+        (all_digits if plain else 0, _LAYOUT_FIGURE_MARKS),
+    ]
+    named: dict[str, int] = {}
+    for layout in sorted(census):
+        named[layout] = census[layout]
+    if _no_complement_of_one(named, 0, False, floor, totals, column.n_present) != census:
         return column
     details: dict[str, object] = {}
     for key in sorted(column.details):
         details[key] = column.details[key]
-    details["layout_forms"] = absorbed[0]
+    details["layout_forms"] = census
     details["min_length"] = absorbed[1]
     details["max_length"] = absorbed[2]
     return dataclasses.replace(column, details=details)
