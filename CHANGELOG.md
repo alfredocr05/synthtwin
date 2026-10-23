@@ -6,10 +6,10 @@ exists).
 
 ## [Unreleased]
 
-### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21, repaired 2026-10-22)
+### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21, repaired 2026-10-22 and 2026-10-23)
 
 **Describing a column whose values never repeat, or free text, holds
-fewer objects a row** (plan P4-D423 and its repair round 1, answering
+fewer objects a row** (plan P4-D423 and its repair rounds 1 and 2, answering
 P4-D400's stated limits (a) and (b)). A cell's record holds three slots;
 exact numbers, the mode, different spellings, tail runs, a date reading's
 texts, days and moment order are counted off sorted values or the tally's
@@ -32,9 +32,18 @@ dose and a date 182 to 184 (769 to 1,343), all under 200; about 1.0 ms a
 note untraced (0.6 for the large vocabulary) against 1.4 to 1.7 on
 4682d6ad. The mixed table's traced peak at 20,000 rows is its reading's,
 unmoved; its heaviest describe is now a clock column, 370 bytes a row,
-where `check_at` held 821 on 4682d6ad. A declared person column's extra
-memory, measured, is the date questions' walk of the table, not the
-subject keys (22 bytes a row): named for lane SR-A. Every description,
+where `check_at` held 821 on 4682d6ad. The second repair answers
+Codex's review: the mode reads each run of equal values once (a value
+16,000 exact numbers share took 0.1 s, not the square of them), the
+affix runs are counted a band of sizes a walk (512 wrapper pairs whose
+kept hash bits collide, 7.9 s where 6d4cb0b2 took 16.0), and a value its
+cells write as one exact number is counted by its run with no map
+(10,000 numbers written twice, 130 traced bytes a row where 6d4cb0b2
+held 307 and 4682d6ad 249). With a declared person column the date
+questions described the answer's nine held columns of dates and stamps
+beside a walk of groups (14.2 MB traced at 20,000 rows, above every
+describe); each column is now described beside its own group alone (9.8
+MB), at six more readings of the file. Every description,
 summary and twin is the same bytes: lane SR's 880-description battery
 read whole and one column a group, the health data zoo, skeptic 1's 144
 adversarial descriptions with generate and validate, and the lane's
