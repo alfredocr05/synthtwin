@@ -100,7 +100,7 @@ def test_the_page_stands_once_and_its_decision_follows_it() -> None:
     assert text.count(DECISION_HEADING) == 1
     assert text.index(PAGE_HEADING) < text.index(DECISION_HEADING)
     page = _page()
-    for section in range(11):
+    for section in range(12):
         assert f"### ZS.{section} " in page, section
 
 
@@ -178,18 +178,90 @@ OPERATIVE = {
     "names-validate": "each published form's count met with the named and unnamed levels' cells inside it",
     "top-code": "while that question is open every value above 89 is read as 90 for the whole description",
     "top-code-asked": "it is put the Safe Harbor question whatever its count of values",
-    "top-code-reach": "or the number part of `numbers_with_labels`; whole numbers or not) whose present numbers, "
-    "all-nines placeholders of either sign aside (`999` and `9999` beside `-9`, `-99` and `-999`, on at most one "
-    "present cell in three: P4-D401's one-third cap",
+    "top-code-reach": "its word cells and its PLACEHOLDERS set aside whatever their share -- an all-nines value of "
+    "either sign (`999` and `9999` beside `-9`, `-99` and `-999`), a minus sign with one figure (`-1`), and ANY single "
+    "value outside 0 to 125 that at least the floor's rows repeat (`888`, `-1` or `130` on 11 rows or more) -- AT LEAST "
+    "TWO THIRDS of its remaining numbers lie within 0 to 125 and one of them is above 89",
+    "top-code-placeholder-written": "and each placeholder set aside as the source wrote it (a code, not an age)",
+    "top-code-gate3": "lane SH's gate cases (its LANE SH ADDENDUM 2, case (1)), and CODES-2's, `K-S3-64`'s held shape "
+    "`agesbulk`",
+    "top-code-limit": "Only an age column more than a third of whose numbers lie outside 0 to 125 on values that fewer "
+    "than the floor's rows each hold -- the values outside 0 to 125 that the floor's rows repeat, the all-nines values "
+    "and `-1` being set aside as placeholders, whatever their share -- is not reached",
+    "top-code-months": "and an age counted in months or days is not protected: its values above 125 are set aside as "
+    "placeholders where the floor's rows repeat them, and keep it out of reach where they are spread thin",
+    "top-code-pounds": "or a weight in pounds whose values above 125 each hold the floor's rows, is top-coded too",
+    "top-code-floor": "save a placeholder set aside -- an all-nines value, or a value above 125 that at least the floor's "
+    "rows repeat -- a code written as the source wrote it",
+    "top-code-bulk": "the reach is decided on the bulk of the values, never on all of them, so neither one outlier "
+    "(`130`) nor a placeholder share past one present cell in three switches it off",
+    "top-code-roles": "EVERY ROLE THAT PRINTS A VALUE is in its reach: `binary`, `constant`, `count` and `continuous`, "
+    "and the number part of `numbers_with_labels` and of `affixed_number` (`95 years` read 95)",
+    "top-code-other-question": "and whatever other question it is put, in the same round -- an answer to another "
+    "question (the person question's `keep`, `code` or `measurement`) never answers this one",
+    "top-code-outlier-read": "every value above 89 is read as 90 for the whole description, an outlier above 125 that "
+    "fewer than the floor's rows hold included",
+    "top-code-levels": "every level of a `binary` or `constant` column above 89 is printed as 90",
+    "label-ages": "AGES IN LABEL ROLES ARE IN ITS REACH NOW, built by lane SH, not left to CODES-2 (the orchestrator's "
+    "LANE SH ADDENDUM 2, case (2))",
+    "label-ages-reach": "a `categorical` or `long_tail_labels` column whose levels -- placeholders set aside whatever their "
+    "share (the number placeholders above, and any single word that at least the floor's rows repeat, such as `UNK`), "
+    "and other words on at most one present cell in three -- are whole or decimal numbers with an optional unit word "
+    "(`95`, `95 years`), at least two thirds of them within 0 to 125 and one above 89, is put the same Safe Harbor question",
+    "label-ages-pool": "while it is open every level above 89 is pooled into one level written as 90 in the source's own "
+    "form (`90 years`), printed, as every level is, only at the floor's rows or more; the twin writes no level above 89 "
+    "but that one",
+    "label-ages-codes-2": "CODES-2's path (iii) later holds such a column wider -- whole where every present cell holds a "
+    "figure, level by level beside words (ZS.3) -- which publishes less, under the same question, never a second one",
+    "label-ages-gate": "lane SH's gate cases (its LANE SH ADDENDUM 2, case (2)), and CODES-2's, `K-S3-64`'s held shape "
+    "`ageslabel`",
+    "label-ages-blank": "and on a label column of ages its levels above 89 pooled into one written as 90 until path (iii) "
+    "holds it wider (ZS.1)",
+    "label-ages-validate": "on a label column of ages, no level above 89 but the pooled 90",
+    "label-ages-live": "beside a placeholder share (`-1` or `888` x 7,000: 95 printed; 8,000 `-1` beside 12,000 ages: 90 to "
+    "104 printed) and in label roles (ages written `NN years`: the levels `90 years` to `104 years`; `95` beside `UNK` x "
+    "7,000)",
+    "label-ages-point-9": "its reach in label roles (ages written `NN years`, `95` beside `UNK`: the LANE SH ADDENDUM 2)",
+    "label-ages-kpi": "`ageslabel`: the levels `90 years` to `104 years`, and `95` beside `UNK` x 7,000",
+    "top-code-gate2": "lane SH's gate cases (1) and (2), and CODES-2's, `K-S3-64`'s held shapes `agesrole` and `agesbulk`",
     "top-code-ages999": "the `ages999` shapes (`999` once and twenty times) are reached and print 0 ages over 89 "
     "(CODES-2's gate cases and `K-S3-64`'s held shapes `ages999`)",
     "top-code-live": "TODAY'S product prints ages over 89 for ANY age column, a live exposure",
     "top-code-sh": "Lane SH (P4-D427, launched 2026-10-23, the orchestrator's LANE SH NOTE) builds this top-code in the "
     "product now; CODES-2 extends the same Safe Harbor question to the columns this page names later, never a second "
     "question.",
-    "five-figure": "A number column (`count` or `continuous`, or the number part of `numbers_with_labels`) whose whole "
-    "numbers all have five figures, padded or not (`02100`, `52240`), with at most one present cell in three set aside "
-    "as words",
+    "five-figure": "A column of a role the top-code reaches (`binary`, `constant`, `count`, `continuous`, and the "
+    "number part of `numbers_with_labels` and of `affixed_number`) whose whole numbers, read as the source wrote them, "
+    "are AT LEAST TWO THIRDS of four or five figures and one at least of five",
+    "five-figure-zeros": "and a ZIP whose leading zero was lost read in its five-figure reading (`2100` beside `52240`: "
+    "mixed widths are in reach, Codex's second outside round, item 4)",
+    "five-figure-aside": "a lone `0` and a minus sign with one figure set aside whatever their share, may hold ZIP codes",
+    "five-figure-gate2": "lane SH's gate cases (1) and (3), and CODES-2's, `K-S3-64`'s held shapes `ziprole` and "
+    "`zipwidth`",
+    "five-figure-four": "A column whose ZIPs ALL lost their zero (four figures alone, `2100` to `2583`) is held today by "
+    "P4-D401's fixed-width question",
+    "sh-agree": "So the page and SH agree once SH's addenda land; SH's verify reads its code against these "
+    "paragraphs, and a difference is settled there, never by a second question.",
+    "sh-head": "Read read-only at SH's head 0e3a65d4 (2026-10-23 07:53), SH's code already takes this page's words",
+    "sh-addendum-2": "Its LANE SH ADDENDUM 2 (2026-10-23 08:44) adds the third verify's five shapes to that gate at 0 "
+    "ages over 89 in any file",
+    "sh-family": "its answers `no` and `yes` sit in their own AQ family `safe-harbor`",
+    "sh-reach-still": "Its reach there is still repair 3's -- `taxonomy.TOP_CODE_ROLES` (`count`, `continuous`, "
+    "`numbers_with_labels`)",
+    "sh-goldens": "at 0e3a65d4 it is the `profile` command's rule, as P4-D401's hold is applied -- "
+    "`profile.build_document` top-codes only where it is told to (its `top_code`, which `synthtwin profile` passes) -- so "
+    "the goldens, built through `profile.build_document`, keep their bytes",
+    "goldens-zs7": "The top-code reaches the fixtures' `amount` (0.5 to 99.5), but it is the `profile` command's rule "
+    "(SH's 0e3a65d4: `profile.build_document` top-codes only where it is told to), and the goldens are built through "
+    "`profile.build_document`, so they keep their bytes",
+    "five-figure-other-question": "it is put the Safe Harbor question (ZS.3's first-round entry), whatever other question "
+    "it is put, and the column is held whole until `no`",
+    "five-figure-one-word": "One word cell cannot lift it (the orchestrator's rulings for HX4 of 2026-10-22 18:23 and "
+    "21:32",
+    "five-figure-blank": "on a number column the five-figure hold reaches, the column held (ZS.1)",
+    "five-figure-floor": "**The five-figure hold** publishes less: the column takes P4-D401's held block until `no`",
+    "when-put-all": "every column path (ii) reaches with a held-back word holding a figure, and every column the "
+    "top-code or the five-figure hold reaches in the one entry that lists them",
     "five-figure-held": "and the column is held whole until `no` -- P4-D401's held block",
     "five-figure-nwl": "On the number part of `numbers_with_labels` the labels half is the words set aside, whatever "
     "its share",
@@ -198,9 +270,16 @@ OPERATIVE = {
     "five-figure-live": "TODAY'S product prints 9 real ZIPs on each of the four shapes",
     "five-figure-sh": "Lane SH (P4-D427) builds this hold in the product now, beside the top-code",
     "row-45": "Row 45 is CLOSED by lane HX only where every present cell is a key, a ZIP or a UDI",
-    "screen-record": "So is a short record or accession number written in figures and marks (`#4521`, `12-345`)",
+    "screen-record": "A WORD HOLDING A FIGURE IS NAMED ONLY AFTER `no` (Codex's second outside round, item 2, "
+    "superseding repair 3's named residual)",
+    "screen-record-asked": "it is put, in the first round's one entry, to every column with a held-back word that holds "
+    "a figure and passes the screen, and while it is open no such word is named",
+    "screen-record-blank": "on a column path (ii) reaches, no held-back word holding a figure named",
+    "screen-record-when": "every column path (ii) reaches with a held-back word holding a figure",
+    "screen-letters": "Words of letters and marks alone (`TNP`, `HI`, `N/A`, `Not done`) are named by the screen",
     "screen-hash-not": "refusing `#` before figures is NOT adopted",
-    "top-code-validate": "no twin cell above 90; the real file, read with every value above 89 as 90, meets the description",
+    "top-code-validate": "no twin cell above 90 save a placeholder set aside; the real file, read with every value above "
+    "89 as 90, meets the description",
     "top-code-answers": "`no` lifts it (today's description, GG where its class holds); `yes` holds the column "
     "(P4-D401's held block)",
     "top-code-twin": "the twin writes the column so read, never a value above 90",
@@ -841,8 +920,13 @@ def test_the_top_codes_reach_spares_the_golden_reading_and_names_its_limits() ->
     assert not _top_coded([row["visits"] for row in rows])
     assert _top_coded([f"{value}" for value in range(50, 121)])  # a pulse: a false alarm, asked once
     assert _top_coded(["-99", "45", "91"]) and _top_coded(["-99.0", "88.5", "92.25"])
-    assert not _top_coded(["45", "91", "130"]) and not _top_coded(["-1", "45", "91"])
-    assert "one column, `vitals.pulse` (50 to 120, 71 values; today it prints 103, 113, 117, 119 and 120)" in _flat(_page())
+    assert not _top_coded(["45", "91", "130"]) and not _top_coded(["-1", "45", "91"])  # repair 3's reach
+    assert _top_code_reach(["45", "91", "130"]) and _top_code_reach(["-1", "45", "91"])  # the bulk reach (close 2)
+    assert not _top_code_reach([row["reading"] for row in rows]) and not _top_code_reach([row["visits"] for row in rows])
+    assert _top_code_reach([row["amount"] for row in rows]) and _top_coded([row["amount"] for row in rows])
+    page = _flat(_page())
+    assert "one column, `vitals.pulse` (50 to 120, 71 values; today it prints 103, 113, 117, 119 and 120)" in page
+    assert "the fixtures' `amount` (0.5 to 99.5) was in repair 3's reach already" in page
 
 
 def test_rule_np_reads_the_products_attachment_ratio() -> None:
@@ -1037,18 +1121,21 @@ def test_one_word_cell_beside_five_figure_zips_read_as_numbers_prints_them_today
     assert len([value for value in printed if f"{int(value):05d}" in zips]) == 9
     assert _five_figure_held(cells)
     assert not _five_figure_held(cells, every=True)  # the all-or-nothing reading: one word lifts it
-    assert not _five_figure_held(["HOMELESS"] * 201 + cells[201:])  # above the cap, a count column is not reached
+    assert not _five_figure_held(["HOMELESS"] * 201 + cells[201:])  # repair 3's cap: past it, not reached
+    assert _zip_reach(cells) and _zip_reach(["HOMELESS"] * 201 + cells[201:])  # close 2: words aside whatever their share
     page = _flat(_page())
     assert "TODAY'S product prints 9 real ZIPs on each of the four shapes" in page
     assert "a tenth rung within one of a real ZIP (`2478.7`, `52618.7`; the second verify counted it, 10)" in page
 
 
 def test_the_five_figure_hold_spares_other_number_columns() -> None:
-    assert not _five_figure_held(["2100", "52240", "UNKNOWN"])  # a ZIP column whose zeros were lost: a stated limit
-    assert not _five_figure_held(["45", "91", "UNKNOWN"]) and not _five_figure_held(["12345.5", "23456"])
-    assert _five_figure_held(["02100", "52240", "", "UNKNOWN"])
+    assert not _five_figure_held(["2100", "52240", "UNKNOWN"])  # repair 3's reach missed the lost zeros
+    assert _zip_reach(["2100", "52240", "UNKNOWN"])  # close 2: in reach
+    for cells in (["45", "91", "UNKNOWN"], ["12345.5", "23456"], ["2100", "2107"], ["1998", "2003", "2011"]):
+        assert not _five_figure_held(cells) and not _zip_reach(cells), cells
+    assert _five_figure_held(["02100", "52240", "", "UNKNOWN"]) and _zip_reach(["02100", "52240", "", "UNKNOWN"])
     page = _flat(_page())
-    assert "a ZIP column whose leading zeros were lost (`2100` beside `52240`) has values of four and five figures" in page
+    assert "a ZIP column whose leading zeros were lost (`2100` beside `52240`) is in reach" in page
     assert "With 150 or 250 `HOMELESS` cells of 600 and a leading zero the column is read `numbers_with_labels`" in page
 
 
@@ -1080,5 +1167,430 @@ def test_the_screen_passes_short_record_numbers_in_figures_and_marks_as_its_name
         assert _passes_screen(word), word
     page = _flat(_page())
     assert "`#4521`, `12-345`, `4521/7` and `#45-21` pass, as the result words `120/80`, `2-3` and `1:40` must" in page
-    assert ("and a short record or accession number written in figures and marks (`#4521`, `12-345`), pass the shape "
-            "screen (owner CODES-2, held at its KPI ceiling)") in page
+    assert ("a short record or accession number written in figures and marks (`#4521`, `12-345`) passes it too, but is "
+            "named only after `no` (ZS.3 (ii)), no residual") in page
+
+
+# Close 2 (2026-10-23): Codex's second outside round (`codex-w3/verdict-ZRb2.md`). The owner: "Fix 4 privacy, carry
+# 5". Items 1 to 4 are fixed on the page, each case computed here and its product reading measured at 20,000 rows;
+# items 5 to 9 are carried to their lanes (ZS.11), each with Codex's case and an "open until" mark on the page.
+
+NINES = re.compile(r"(?:-9+|9{3,})(?:\.0+)?")
+ONE_NUMBER = re.compile(r"[^\d.+-]*([-+]?\d+(?:\.\d+)?)[^\d]*")
+REPAIR_3_ROLES = ("count", "continuous", "numbers_with_labels")
+
+
+def _numbers_of(cells: "list[str]") -> "list[str]":
+    """The present cells read as one number each, an affix taken off (`95 years` is 95); words and joined cells aside."""
+    found: "list[str]" = []
+    for cell in (cell.strip() for cell in cells):
+        match = ONE_NUMBER.fullmatch(cell) if cell else None
+        if match:
+            found += [match.group(1)]
+    return found
+
+
+def _set_aside(numbers: "list[str]", repeated: bool = True) -> "set[float]":
+    """ZS.1's placeholders, close 3: an all-nines value of either sign; a minus sign with one figure; and any single
+    value outside 0 to 125 that at least the floor's rows repeat, whatever their share. `repeated=False` is close 2's
+    all-nines alone, a mutant."""
+    aside = {float(text) for text in numbers if NINES.fullmatch(text)}
+    if repeated:
+        tally = collections.Counter(float(text) for text in numbers)
+        aside |= {float(text) for text in numbers if re.fullmatch(r"-\d(?:\.0+)?", text)}
+        aside |= {value for value, n in tally.items() if not 0 <= value <= 125 and n >= FLOOR}
+    return aside
+
+
+def _top_code_reach(cells: "list[str]", bulk: bool = True, capped: bool = False, repeated: bool = True) -> bool:
+    """ZS.1's top-code reach: words and placeholders set aside whatever their share; at least two thirds of the other
+    numbers within 0 to 125; one above 89. `bulk=False` asks it of every number and `capped` sets the all-nines
+    placeholders aside on at most one present cell in three: repair 3's reach, each a mutant; `repeated=False` is
+    close 2's placeholders, a mutant."""
+    present = [cell for cell in (cell.strip() for cell in cells) if cell]
+    numbers = _numbers_of(cells)
+    if capped and 3 * len([text for text in numbers if NINES.fullmatch(text)]) > len(present):
+        return False
+    aside = _set_aside(numbers, repeated)
+    values = [float(text) for text in numbers if float(text) not in aside]
+    inside = [value for value in values if 0 <= value <= 125]
+    enough = 3 * len(inside) >= 2 * len(values) if bulk else len(inside) == len(values)
+    return bool(values) and enough and max(values) > 89
+
+
+LEVEL_NUMBER = re.compile(r"\s*([-+]?\d+(?:\.\d+)?)(?:\s*[A-Za-z]+)?\s*")
+
+
+def _label_age_reach(cells: "list[str]", word_placeholders: bool = True) -> bool:
+    """ZS.1's reach in label roles, close 3: levels that are a number with an optional unit word; placeholders set
+    aside whatever their share (the number ones, and a word that at least the floor's rows repeat), other words on at
+    most one present cell in three; then the numbers' reach. `word_placeholders=False` caps every word, a mutant."""
+    present = [cell for cell in (cell.strip() for cell in cells) if cell]
+    numbers: "list[str]" = []
+    words: "list[str]" = []
+    for cell in present:
+        match = LEVEL_NUMBER.fullmatch(cell)
+        if match:
+            numbers += [match.group(1)]
+        else:
+            words += [cell]
+    tally = collections.Counter(words)
+    other = [word for word in words if tally[word] < FLOOR] if word_placeholders else words
+    if 3 * len(other) > len(present):
+        return False
+    aside = _set_aside(numbers)
+    values = [float(text) for text in numbers if float(text) not in aside]
+    inside = [value for value in values if 0 <= value <= 125]
+    return bool(values) and 3 * len(inside) >= 2 * len(values) and max(values) > 89
+
+
+def _read_as_90(cells: "list[str]", label: bool = False) -> "list[str]":
+    """The column read under the top-code: every number above 89 that is no placeholder written as 90, in the
+    source's own form (`95 years` read `90 years`); placeholders as the source wrote them."""
+    pattern = LEVEL_NUMBER if label else ONE_NUMBER
+    numbers = [match.group(1) for match in (pattern.fullmatch(cell.strip()) for cell in cells if cell.strip()) if match]
+    aside = _set_aside(numbers)
+    read: "list[str]" = []
+    for cell in cells:
+        match = pattern.fullmatch(cell.strip()) if cell.strip() else None
+        number = match.group(1) if match else ""
+        if number and float(number) not in aside and float(number) > 89:
+            read += [cell.replace(number, "90", 1)]
+        else:
+            read += [cell]
+    return read
+
+
+def _zip_reach(cells: "list[str]", widths: "tuple[int, ...]" = (4, 5)) -> bool:
+    """ZS.1's five-figure hold, close 2: whole numbers as the source wrote them, at least two thirds of four or five
+    figures, one of five; words, a lone `0` and a minus sign with one figure set aside whatever their share.
+    `widths=(5,)` is repair 3's five figures only, a mutant."""
+    numbers = [text for text in _numbers_of(cells) if text != "0" and not re.fullmatch(r"-\d", text)]
+    whole = [text.split(".")[0] for text in numbers if re.fullmatch(r"\d+(\.0+)?", text)]
+    shaped = [text for text in whole if len(text) in widths]
+    return bool(numbers) and 3 * len(shaped) >= 2 * len(numbers) and any(len(text) == 5 for text in whole)
+
+
+def _reach_roles() -> "set[str]":
+    """The roles the page's top-code sentence names, read from the page itself."""
+    page = _flat(_page())
+    start = page.index("EVERY ROLE THAT PRINTS A VALUE is in its reach:")
+    return set(re.findall(r"`([a-z_]+)`", page[start:page.index("whole numbers or not", start)]))
+
+
+def _affixed_ages() -> "list[str]":
+    draw = random.Random(5)
+    return [f"{min(104.99, max(18.0, draw.gauss(70, 14))):.2f} years" for _ in range(20000)]
+
+
+CODEX_AGES = {
+    "binary": (["60"] * 10000 + ["95"] * 10000, "binary"),
+    "constant": (["95"] * 20000, "constant"),
+    "outlier": (["60"] * 10000 + ["95"] * 9999 + ["130"], "count"),
+    "placeholders": (["60"] * 6500 + ["95"] * 6500 + ["999"] * 7000, "count"),
+}
+CODEX_ZIPS = {
+    "binary": (["02100"] * 10000 + ["02107"] * 10000, "binary"),
+    "constant": (["02100"] * 20000, "constant"),
+    "zeros-lost": (["2100", "2107", "52240", "52247"] * 5000, "count"),
+}
+
+
+def _printed(column: "dict") -> "set[str]":
+    """Every value a block prints: levels, rungs (`percentiles_between` too), mode, empty-gap edges and tail values."""
+    shown: "set[str]" = set()
+    for level in column.get("levels") or []:
+        shown |= {f"{level['label']}"}
+    rungs = list((column.get("percentiles") or {}).values()) + list((column.get("percentiles_between") or {}).values())
+    for value in rungs + [column.get("mode")] + [edge for pair in column.get("empty_edges") or [] for edge in pair]:
+        if value is not None:
+            shown |= {f"{value}"}
+    for side in ("high", "low"):
+        shown |= {f"{value}" for value in ((column.get("tails") or {}).get(side) or {}).get("values") or []}
+    return shown
+
+
+@pytest.mark.parametrize("case", sorted(CODEX_AGES))
+def test_codex_round_two_ages_print_today_and_the_widened_reach_takes_them(case: str, tmp_path: pathlib.Path) -> None:
+    """Items 1 and 3: at 20,000 rows, nobody answering, each case prints 95 with no question; the page's reach takes it."""
+    cells, role = CODEX_AGES[case]
+    document = _profiled(tmp_path, "ages.csv", "age\n" + "\n".join(cells) + "\n")
+    column = _column(document, "age")
+    assert column["role"] == role and role in _reach_roles()
+    assert any(89 < float(value) <= 125 for value in _printed(column)), _printed(column)
+    asked = json.loads((tmp_path / "ages-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert _top_code_reach(cells)
+    if case == "outlier":
+        assert not _top_code_reach(cells, bulk=False) and not _top_coded(cells)  # every value within 0..125: off
+    if case == "placeholders":
+        assert not _top_code_reach(cells, capped=True) and not _top_coded(cells)  # one-third cap: off
+    if case in ("binary", "constant"):
+        assert _top_coded(cells) and role not in REPAIR_3_ROLES  # repair 3 met the cells, not the role
+
+
+def test_codex_round_two_affixed_ages_are_in_reach_after_keep() -> None:
+    """Item 1: ages written ` years`, read `affixed_number` once the person question is answered `keep`
+    (`r4-probe3.log`): the number part is in reach; repair 3's reach, reading whole cells, was not."""
+    cells = _affixed_ages()
+    assert _top_code_reach(cells) and not _top_coded(cells)
+    assert "affixed_number" in _reach_roles() and "affixed_number" not in REPAIR_3_ROLES
+    page = _flat(_page())
+    assert ("once it is answered `keep` they read `affixed_number` and print `max` 104.99, `p99` 102.91 and `p95` "
+            "92.83") in page
+    assert "`60` x 6,500, `95` x 6,500 and `999` x 7,000 read `count` and print `p50` 95" in page
+    assert "`60` x 10,000, `95` x 9,999 and one `130` read `count` and print 95 from `p75` to `p99`" in page
+
+
+@pytest.mark.parametrize("case", sorted(CODEX_ZIPS))
+def test_codex_round_two_zips_print_today_and_the_widened_hold_takes_them(case: str, tmp_path: pathlib.Path) -> None:
+    """Items 1 and 4: binary and constant ZIPs and ZIPs that lost their leading zeros print real ZIPs today."""
+    cells, role = CODEX_ZIPS[case]
+    document = _profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n")
+    column = _column(document, "zip")
+    assert column["role"] == role and role in _reach_roles()
+    real = {cell.lstrip("0") for cell in cells}
+    shown = {value.split(".")[0].lstrip("0") for value in _printed(column)}
+    assert real <= shown, (real, shown)
+    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    assert _zip_reach(cells)
+    if case == "zeros-lost":
+        assert not _zip_reach(cells, widths=(5,)) and not _five_figure_held(cells)  # five figures only: missed
+    else:
+        assert _five_figure_held(cells) and role not in REPAIR_3_ROLES  # repair 3 met the cells, not the role
+    page = _flat(_page())
+    assert ("and prints `mode` 2100, `min` 2100, `max` 52247, `p90` 52247 and the tail values 2100 and 52247, and 2107 and "
+            "52240 among `percentiles_between` and as the edges of its published empty gap") in page
+
+
+def _named_by_path_ii(word: str, answer: str, screen_only: bool = False) -> bool:
+    """ZS.3 (ii), close 2: a held-back word passing the screen is named; one holding a figure only after `no`.
+    `screen_only` is repair 3's reading, its mutant."""
+    if not _passes_screen(word):
+        return False
+    return screen_only or answer == "no" or not any(mark.isdigit() for mark in word)
+
+
+def test_codex_round_two_hash_word_is_held_until_no(tmp_path: pathlib.Path) -> None:
+    """Item 2: 16,000 numbers 1.00..16.99, 3,999 `HI` and one `#4521` at 20,000 rows: today `#4521` is held back
+    unnamed and nothing is asked; the screen alone would name it; the page names it only after `no`."""
+    cells = [f"{1 + (k % 1600) / 100:.2f}" for k in range(16000)] + ["HI"] * 3999 + ["#4521"]
+    document = _profiled(tmp_path, "hash.csv", "result\n" + "\n".join(cells) + "\n")
+    column = _column(document, "result")
+    assert column["role"] == "numbers_with_labels" and "#4521" not in json.dumps(column)
+    asked = json.loads((tmp_path / "hash-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "result"]
+    assert _named_by_path_ii("#4521", "", screen_only=True)  # repair 3: named with no question
+    assert not _named_by_path_ii("#4521", "") and _named_by_path_ii("#4521", "no")
+    for word in ("12-345", "4521/7", "120/80", "1:40"):
+        assert not _named_by_path_ii(word, "") and _named_by_path_ii(word, "no"), word
+    for word in ("HI", "TNP", "N/A", "Not done"):
+        assert _named_by_path_ii(word, ""), word
+    assert "and `#4521` stays held unanswered (CODES-2's gate case `hashword`)" in _flat(_page())
+
+
+def _carried() -> str:
+    page = _page()
+    return page[page.index("### ZS.11 Carried to lanes (the owner, 2026-10-23)"):]
+
+
+CARRIED = {
+    5: ("owner CODES-2", "open until CODES-2 (ZS.11 item 5)",
+        ("ten ZIP+4 labels on 1,990 rows each beside `UNKNOWN` on 100 rows", "`suppressed_rows 19,900`",
+         "at most 100 cells (10 levels of at most 10)", "contract B4", "A report that names a shortfall does not meet it.")),
+    6: ("owner CODES-1", "open until CODES-1 (ZS.11 item 6)",
+        ("a held form `@%` of 24 levels on 5 rows each", "the census lists [empty, `01`]", "[`ABX`, `01234`]")),
+    7: ("owner CODES-2", "open until CODES-2 (ZS.11 item 7)",
+        ("validate reads that profile and one CSV", "keeps the overlap with the source a measurement of its gate's "
+         "fixtures")),
+    8: ("owner lane SH now, CODES-2 extending it", "open until lane SH (P4-D427), CODES-2 extending it (ZS.11 item 8)",
+        ("a pulse of 50 to 120", "\"none of these: the values are measurements, counts, codes or categories that name "
+         "no person, place, date or record\"", "The question asks what the column holds, never the analysis.")),
+    9: ("owner NOTES", "open until NOTES",
+        ("20 common three-word descriptions on 11 rows each beside 19,780 different three-word descriptions",
+         "BEFORE rule 9b's fallback and kept after it")),
+}
+
+
+@pytest.mark.parametrize("item", sorted(CARRIED))
+def test_each_carried_item_names_codexs_case_its_condition_and_its_owner(item: int) -> None:
+    owner, mark, case = CARRIED[item]
+    carried = _flat(_carried())
+    entry = carried[carried.index(f"{item}. **"):]
+    entry = entry[:entry.index(f"{item + 1}. **")] if item < 9 else entry
+    assert f"-- {owner}.**" in entry, item
+    for fragment in case:
+        assert _flat(fragment) in entry, (item, fragment)
+    assert "The condition" in entry and "The gate" in entry
+    page = _flat(_page())
+    elsewhere = page[:page.index("### ZS.11 Carried to lanes")]
+    assert mark in elsewhere, (item, mark)
+    assert f"ZS.11 item {item}" in elsewhere
+
+
+def test_the_carried_cases_add_up() -> None:
+    """Codex's carried cases, computed: the pool, A2's census before and after, NOTES' rows."""
+    assert 10 * 1990 == 19900 and 10 * (FLOOR - 1) == 100 and 10 * 1990 + 100 == 20000
+    letters = [chr(code) for code in range(ord("A"), ord("W") + 1)] + ["Y"]
+    real = [(f"{letter}{k % 2}", f"{letter}{k}") for k, letter in enumerate(letters) for _ in range(5)]
+    assert len({value for value, _ in real}) <= 24 and len(real) == 120
+    assert _census(real, FLOOR, in_people=False)["@%"] == ["", "01"]
+    written = [f"X{k}" for k in range(9)] + [f"A{k}" for k in range(10)] + [f"B{k}" for k in range(5)]
+    twin = [(value, value) for value in written for _ in range(5)]
+    assert len(written) == 24 and len(twin) == 120
+    assert _census(twin, FLOOR, in_people=False)["@%"] == ["ABX", "01234"]
+    assert 20 * 11 + 19780 == 20000
+
+
+def test_the_owners_decision_is_recorded_and_the_page_agrees_with_lane_sh() -> None:
+    text = _flat(PLAN.read_text(encoding="utf-8"))
+    decision = text[text.index(DECISION_HEADING):]
+    assert "\"Fix 4 privacy, carry 5\"" in decision and "**Close 2 (2026-10-23).**" in decision
+    assert "no third outside round" in decision and "The items carried to lanes are ZS.11." in decision
+    page = _flat(_page())
+    assert "\"Fix 4 privacy, carry 5\"" in page
+    assert "`asking.safe_harbor_sentence`" in page and "`SAFE_HARBOR_CLASSES`" in page
+    assert "its own AQ family `safe-harbor`" in page
+
+
+# Close 3 (2026-10-23): the internal verify of close 2 (`wave6/ZRb-verify3.md`) and the orchestrator's LANE SH
+# ADDENDUM 2: placeholders that are not all-nines, ages in label roles, the carried items' marks at their places, and
+# SH's head.
+
+MARKS = (
+    ("### ZS.0 ", "(whether that question reaches a column rule 9b has already turned into `free_text` is open until "
+     "NOTES, ZS.11 item 9)"),
+    ("### ZS.3 ", "Where no allocation meets the debts, the twin's report names the shortfall, as G8.2a names one; a "
+     "profile whose pool no allocation can meet at all is open until CODES-2 (ZS.11 item 5)."),
+    ("### ZS.3 ", "(GG's columns join it, ZS.4); a column the reading page's rule 9b turns into `free_text` before this "
+     "entry is written is open until NOTES (ZS.11 item 9)."),
+    ("### ZS.3 ", "at most 100 cells allocable at floor 11): open until CODES-2 (ZS.11 item 5)."),
+    ("### ZS.3 ", "and names nothing; whether a tail rule 9b has turned into `free_text` is put the question at all is "
+     "open until NOTES, ZS.11 item 9);"),
+    ("### ZS.3 ", "The wording of `no` is open until lane SH (P4-D427), CODES-2 extending it (ZS.11 item 8): as written "
+     "it leaves a measurement, such as a pulse of 50 to 120, no truthful answer."),
+    ("### ZS.5 ", "A2 adds no own-fact group to RULE W1's list. That the twin and the validator keep the unlisted "
+     "characters' bound is open until CODES-1 (ZS.11 item 6)."),
+    ("### ZS.6 ", "the upper bound on unlisted characters, in generation and validation, is open until CODES-1 (ZS.11 "
+     "item 6) |"),
+    ("### ZS.6 ", "the held block's checks, as `yes`; \"no twin cell a real value\" is not validate's to check from one "
+     "profile and one CSV: open until CODES-2 (ZS.11 item 7) |"),
+)
+
+
+def _section(heading: str) -> str:
+    page = _page()
+    start = page.index(heading)
+    stop = page.find("### ZS.", start + len(heading))
+    return page[start:stop if stop >= 0 else len(page)]
+
+
+@pytest.mark.parametrize("place, mark", MARKS, ids=[f"{place.strip()}-{k}" for k, (place, _) in enumerate(MARKS)])
+def test_each_open_until_mark_stands_where_the_rule_is_stated(place: str, mark: str) -> None:
+    """The verify's item 5: a carried item's mark pinned at its place, not as appearing somewhere on the page."""
+    assert _flat(mark) in _flat(_section(place)), (place, mark)
+
+
+def _spread_ages() -> "list[str]":
+    """The verify's case: 12,000 ages drawn from N(70, 14) clipped to 18..104 (its seed, 23) beside 8,000 `-1`."""
+    draw = random.Random(23)
+    return [f"{min(104, max(18, int(draw.gauss(70, 14))))}" for _ in range(12000)] + ["-1"] * 8000
+
+
+VERIFY_AGES = {
+    "minus-one": (["60"] * 6500 + ["95"] * 6500 + ["-1"] * 7000, "continuous", [95.0]),
+    "minus-one-spread": (_spread_ages(), "continuous", [90.0, 92.0, 95.0, 99.0, 100.0, 101.0, 102.0, 103.0, 104.0]),
+    "eights": (["60"] * 6500 + ["95"] * 6500 + ["888"] * 7000, "count", [95.0]),
+}
+
+
+@pytest.mark.parametrize("case", sorted(VERIFY_AGES))
+def test_placeholders_that_are_not_all_nines_print_ages_today_and_the_reach_takes_them(
+    case: str, tmp_path: pathlib.Path,
+) -> None:
+    """The verify's item 3: at 20,000 rows, nobody answering, each prints ages over 89 with no question; close 2's reach,
+    setting aside all-nines alone, missed each; with `-1` and every repeated value outside 0 to 125 aside, it is
+    reached, and read as 90 prints 0 ages over 89."""
+    cells, role, over = VERIFY_AGES[case]
+    document = _profiled(tmp_path, "ages.csv", "age\n" + "\n".join(cells) + "\n")
+    column = _column(document, "age")
+    assert column["role"] == role and role in _reach_roles()
+    assert sorted({float(value) for value in _printed(column) if 89 < float(value) <= 125}) == over
+    asked = json.loads((tmp_path / "ages-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert _top_code_reach(cells) and not _top_code_reach(cells, repeated=False)
+    top = _column(_profiled(tmp_path, "agestop.csv", "age\n" + "\n".join(_read_as_90(cells)) + "\n"), "age")
+    assert {float(value) for value in _printed(top) if 89 < float(value) <= 125} <= {90.0}
+    page = _flat(_page())
+    assert "`60` x 6,500, `95` x 6,500 and `-1` x 7,000 read `continuous` and print 95" in page
+    assert ("12,000 ages drawn from N(70, 14) clipped to 18..104 beside 8,000 `-1` read `continuous` and print 90, 92, "
+            "95, 99 and 100 to 104") in page
+    assert "`60` x 6,500, `95` x 6,500 and `888` x 7,000 read `count` and print `p50` 95" in page
+
+
+def test_the_placeholder_reach_spares_the_golden_reading_and_names_its_limits() -> None:
+    """ZS.10 narrowed: repeated values outside 0 to 125 are set aside; spread thin they keep an age out of reach."""
+    rows = list(csv.DictReader(io.StringIO(fixtures.every_role_table())))
+    assert not _top_code_reach([row["reading"] for row in rows])  # `-999` set aside, still out of reach
+    assert _top_code_reach(["-1", "45", "91", "300"]) and not _top_code_reach(["-1", "45", "91", "300"], bulk=False)
+    months = [f"{month}" for month in range(1200)]
+    assert not _top_code_reach(months)  # an age in months spread thin: out of reach
+    assert _top_code_reach(months * FLOOR)  # repeated: its values above 125 set aside, the rest top-coded
+    assert _top_code_reach([f"{pounds}" for pounds in range(100, 300)] * FLOOR)  # a weight in pounds: a false alarm
+    page = _flat(_page())
+    assert "it drops `labs.result_value` (no value from 90 to 125 left once its repeated values above 125 are set aside)" in page
+    assert "on the analyst tables it adds `fu_days` of ST1 and ST6" in page
+
+
+VERIFY_LABELS = {
+    "years": ([f"{18 + (k * 37) % 87} years" for k in range(20000)], "categorical"),
+    "unk": (["60"] * 6500 + ["95"] * 6500 + ["UNK"] * 7000, "categorical"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(VERIFY_LABELS))
+def test_ages_in_label_roles_print_today_and_the_label_reach_takes_them(case: str, tmp_path: pathlib.Path) -> None:
+    """The verify's item 4: ages written `NN years`, and `95` beside `UNK` x 7,000, read `categorical` and print levels
+    above 89 with no question; the label-role reach takes both, and pooled into 90 they print 0 ages over 89."""
+    cells, role = VERIFY_LABELS[case]
+    document = _profiled(tmp_path, "labels.csv", "age\n" + "\n".join(cells) + "\n")
+    column = _column(document, "age")
+    assert column["role"] == role
+    shown = [f"{level['label']}" for level in column.get("levels") or []]
+    numbers = [float(match.group(1)) for match in (LEVEL_NUMBER.fullmatch(label) for label in shown) if match]
+    over = sorted(number for number in numbers if 89 < number <= 125)
+    assert over == ([float(age) for age in range(90, 105)] if case == "years" else [95.0])
+    asked = json.loads((tmp_path / "labels-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "age"]
+    assert role not in _reach_roles()  # the number roles' reach never reads a label column
+    assert _label_age_reach(cells)
+    if case == "unk":
+        assert not _label_age_reach(cells, word_placeholders=False)  # every word capped: `UNK` x 7,000 lifts it
+    pooled = _read_as_90(cells, label=True)
+    top = _column(_profiled(tmp_path, "labelstop.csv", "age\n" + "\n".join(pooled) + "\n"), "age")
+    labels = [f"{level['label']}" for level in top.get("levels") or []]
+    numbers = [float(match.group(1)) for match in (LEVEL_NUMBER.fullmatch(label) for label in labels) if match]
+    assert not [number for number in numbers if 89 < number <= 125 and number != 90]
+    page = _flat(_page())
+    assert ("ages 18 to 104 written `NN years`, each on about 230 rows, read `categorical`, nothing is asked, and the "
+            "levels `90 years` to `104 years` print with their counts") in page
+    assert "`60` x 6,500, `95` x 6,500 and `UNK` x 7,000 read `categorical` and print the level `95`" in page
+
+
+def test_the_page_cites_sh_at_its_head_and_closes_the_goldens_mark() -> None:
+    """The verify's item 6: SH's 0e3a65d4 makes the top-code the `profile` command's rule, so the goldens keep their
+    bytes; no "open until SH" mark is left on them."""
+    page = _flat(_page())
+    assert "0e3a65d4" in page and "b0dbd57c" not in page
+    assert "open until SH" not in page
+    assert "and the zoo answers `no` for `vitals.pulse` (ZS.7)" in page
+
+
+def test_close_3_is_recorded_in_the_decision() -> None:
+    text = _flat(PLAN.read_text(encoding="utf-8"))
+    decision = text[text.index(DECISION_HEADING):]
+    assert "**Close 3 (2026-10-23).** On the internal verify of close 2 (`wave6/ZRb-verify3.md`)" in decision
+    assert ("`-1` and any single value outside 0 to 125 that the floor's rows repeat are set aside whatever their share "
+            "(the orchestrator's LANE SH ADDENDUM 2, case (1))") in decision
+    assert "ages in label roles are in the top-code's reach now, built by lane SH (its case (2)), not left to CODES-2" in decision

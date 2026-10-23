@@ -38,18 +38,30 @@ ZIPs and 12 of 49 UDIs printed answered `code` today, 9 of 363 ZIPs with
 nothing asked, 6 beside one word cell); `yes` acted on at once, `no`
 waiting for every identity question of the table; a column of words such
 as a birth city keeps its common word levels unanswered, a stated limit;
-the Safe Harbor top-code, a number column within 0 to 125 holding a value
-above 89 read with those values as 90 until its question is answered,
-all-nines placeholders of either sign set aside (`999` beside `-99`), so
-one `999` cell no longer defeats it (three ages over 89 printed today at
-2,000 rows, two beside one `999`); the five-figure hold, a number column
-whose whole numbers all have five figures, padded or not, with at most
-one present cell in three set aside as words, held whole until `no` (9
-real ZIPs printed today beside one `UNKNOWN` cell); both live in today's
-product and built now by lane SH (P4-D427); short result words by
-a shape screen that refuses every word holding a letter and a figure,
-short record numbers in figures and marks (`#4521`, `12-345`) its named
-residual beside lone names;
+the Safe Harbor top-code, a column of any role that prints a value
+(`binary`, `constant`, a count, a measurement, and the number part of
+numbers with labels and of affixed numbers) at least two thirds of whose
+numbers lie within 0 to 125, one above 89, read with those values as 90
+until its question is answered, words and placeholders (all-nines of
+either sign, `-1`, and any value outside 0 to 125 that the floor's rows
+repeat) set aside whatever their share, so neither one `999` cell, one
+outlier `130`, nor `999`, `-1` or `888` on 7,000 of 20,000 rows defeats
+it (three ages over 89 printed today at 2,000 rows; `95` printed at
+20,000 rows as a `binary` and a `constant` level, beside `130` and
+beside `999`, `-1` or `888` x 7,000, 90 to 104 beside 8,000 `-1`, and
+`max` 104.99 on ages written ` years` once the person question is
+answered `keep`), and a label column of such numbers read with its
+levels above 89 pooled into one written as 90 (the levels `90 years` to
+`104 years`, and `95` beside `UNK` x 7,000, printed today); the five-figure hold, such a column at least two thirds
+of whose whole numbers have four or five figures, one of five, held whole
+until `no`, so ZIPs that lost their leading zeros are held too (9 real
+ZIPs printed today beside one `UNKNOWN` cell, 4 of 4 for
+`[2100, 2107, 52240, 52247]`); both live in today's product and built now
+by lane SH (P4-D427), whose gate holds Codex's four cases and the
+third verify's five shapes; short result
+words by a shape screen that refuses every word holding a letter and a
+figure, a word holding a figure (`#4521`) named only after `no`, lone
+names its named residual;
 named levels' sizes allocated jointly with the published form debts; lane HX3's `code` offered on code-form
 long tails in the same question; names beside a person column only where
 the column is not attached to it. GG: a few-valued number column, after
@@ -61,9 +73,10 @@ validator's rule of each; what moves (no golden, checked on the
 fixtures; the frozen vectors each lane names); the KPIs the four lanes
 stamp and the kinds each turns. Measured on 4682d6ad
 (`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
-(187 cases) pins the page's figures and its reading of the product, red on
-each of 118 page mutants after the third repair, on the combined review,
-the one outside review and the second verify.
+(262 cases) pins the page's figures and its reading of the product, red on
+each of 213 page mutants after close 3, on the combined review, the one
+outside review, the second and third verifies and Codex's second outside
+round.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)
 
