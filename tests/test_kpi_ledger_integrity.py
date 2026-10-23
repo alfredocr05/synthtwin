@@ -818,9 +818,10 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 720,000 from 716,000 ON LANE SG'S BRANCH (plan P4-D415, 2026-10-22):
     # its `K-S4-12` with its note clause and the named generate part in
     # `K-S4-09`'s evidence, 719,382 bytes; its repair 1 restates both on
-    # the floor's figures, the prose shortened, 719,916 bytes; the
-    # integrator sets the cap for the batch. A MEASUREMENT IS NEVER
-    # TRIMMED TO FIT.
+    # the floor's figures, the prose shortened, 719,916 bytes; its repair
+    # 2 gives `K-S4-12` the CPU pairs against 8a02faa3, the prose
+    # shortened again, 719,985 bytes; the integrator sets the cap for the
+    # batch. A MEASUREMENT IS NEVER TRIMMED TO FIT.
     #
     # 716,000 from 711,000, AT LANE AQ'S MERGE INTO BATCH 4D (2026-10-20),
     # set once, the least round figure the merged ledger fits under: lane

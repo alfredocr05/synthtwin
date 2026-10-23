@@ -24,8 +24,13 @@ projected at 2,000,000 rows over Python 3.11 and 3.13 and two ways of
 projecting, under the 2.5 GB. A workbook twin's shared strings are
 written a piece at a time too: a twin of lane XW's wide book whose
 record numbers differ on every row is written at 568 MB at 500,000
-rows, 0.8 to 1.0 GB projected at 1,048,576. Generate's seconds do not
-move (`K-S4-12` records them). One placement hook, `_row_placement`,
+rows, 0.8 to 1.0 GB projected at 1,048,576. A double-spaced file, or
+one whose line endings are mixed, is written a piece at a time as well,
+and the twin's report counts the cells a spreadsheet reads as formulas
+in every column, one holding the character U+0000 included. Generate's
+seconds are recorded (`K-S4-12`): about as before at 100,000 rows, and
+18 to 27 % more CPU at 150,000 and 250,000 rows in one day's pairs,
+which the night's pairs settle. One placement hook, `_row_placement`,
 is where lane CHb's chain generator will put a column's cells in rows.
 The offline scan admits zlib's `compress` and `decompress` in the
 twin's store alone.
