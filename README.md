@@ -429,9 +429,11 @@ that needed it keeps the warning and drops the number.
 The counts do not stop at the profile: the twin is built to hold them
 exactly, and the summary, the questions file, the twin's report and the
 quality report quote them back, so all six files of a run carry them.
-That is why the floor stops at eleven: every count those files carry
-covers at least eleven rows, or the larger number you chose, and the
-description records the floor it was made at.
+That is why the floor stops at eleven: every value those files name is
+held by at least eleven rows, or the larger number you chose, so every
+count the floor governs is at least that number -- the counts of cells
+by kind above are not governed by it -- and the description records the
+floor it was made at.
 
 `--keep-value` names a value your table means as real data even though
 synthtwin would otherwise read it as "no value" -- a region genuinely

@@ -1841,7 +1841,8 @@ def _lowered_floor_lines(floor: int) -> list[str]:
     2026-10-23 that the floor of 11 is a minimum: `--smallest-group`
     under 11 is refused, writing nothing, and `generate` and `validate`
     refuse a description recorded under 11. Such a description is made
-    now only through `cli.main`'s internal keyword `lowered_floor`, for
+    now only through `cli.main`'s internal keyword
+    `internal_smallest_group`, for
     the suite and the measurement drivers, and this text is kept byte
     for byte for them.
 

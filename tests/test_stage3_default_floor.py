@@ -141,15 +141,6 @@ def _defaulted_floors(
 # used.
 _A_LINE_NOT_A_FLOOR = {("parsing", "census_names_one_row")}
 
-# `cli.main`'s keyword-only `lowered_floor` is THE INTERNAL SETTING of
-# plan P4-D426, not a floor with a default: None is "not set", the only
-# value a typed command runs with, under which the floor is the one the
-# person typed or the default. The command's own calls (`sys.exit(main())`
-# and `__main__`) must leave it out -- passing it is what no typed command
-# may do -- so it is the one keyword both checks below set aside, by its
-# name, and only on that function.
-_THE_INTERNAL_SETTING = {("cli", "main", "lowered_floor")}
-
 
 def _literal_floor_defaults(replaced: "dict[str, str] | None" = None) -> "list[str]":
     """Every floor parameter whose default is a number of its own."""
@@ -158,8 +149,6 @@ def _literal_floor_defaults(replaced: "dict[str, str] | None" = None) -> "list[s
         if (module, node.name) in _A_LINE_NOT_A_FLOOR:
             continue
         for _place, name, default in _defaulted_floors(node):
-            if (module, node.name, name) in _THE_INTERNAL_SETTING:
-                continue
             if default != "parsing.DEFAULT_SMALL_CELL_FLOOR":
                 wrong += [f"{module}.{node.name}({name}={default})"]
     return wrong
@@ -209,8 +198,6 @@ def _omissions(replaced: "dict[str, str] | None" = None) -> "list[str]":
         for node in tree.body:
             if isinstance(node, ast.FunctionDef):
                 for found in _defaulted_floors(node):
-                    if (path.stem, node.name, found[1]) in _THE_INTERNAL_SETTING:
-                        continue
                     defaulted[(path.stem, node.name)] = found
     omitted: "list[str]" = []
     for module, tree in sorted(trees.items()):

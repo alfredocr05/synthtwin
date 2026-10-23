@@ -783,8 +783,24 @@ def _description_floor_refused(
     return True
 
 
+def _no_floor_at_all(given: "int | None") -> bool:
+    """Whether `main`'s internal setting is under 1; says so if it is.
+
+    NO FLOOR AT ALL, whichever command (plan P4-D426, Codex's review of
+    lane MIN, item 6): `main` refuses it, with code 2, before any command
+    is dispatched and before anything is read or written, in the words
+    `profile` always gave it -- so `generate` and `validate` never read a
+    description against a least size of 0 or less. None (the setting
+    off) and every whole number of 1 or more pass.
+    """
+    if given is None or given >= 1:
+        return False
+    _warn(errors.floor_not_positive(f"{given}"))
+    return True
+
+
 def _parse_arguments(
-    argv: "list[str] | None", lowered_floor: "int | None"
+    argv: "list[str] | None", internal_smallest_group: "int | None"
 ) -> _Options:
     """Build the command line and read it; return the options.
 
@@ -793,8 +809,8 @@ def _parse_arguments(
     argparse takes for it, is refused here with code 2 -- before any
     command word is acted on, so nothing is read or written -- where it
     is no whole number or a number under `_SMALLEST_GROUP`, whichever
-    command it was typed with. ``lowered_floor`` is `main`'s internal
-    keyword of the same name: given, it IS the floor and the typed
+    command it was typed with. ``internal_smallest_group`` is `main`'s
+    internal keyword of the same name: given, it IS the floor and the typed
     option is not read, as though that number had been typed before plan
     P4-D426 (`floor_chosen` True, so a run under 11 shows the warnings
     such a run showed). Nothing on the command line sets it.
@@ -1274,7 +1290,7 @@ def _parse_arguments(
             f"space in it, put quotation marks around the whole path."
         )
     floor_typed: "int | None" = None
-    if lowered_floor is None and args.smallest_group is not None:
+    if internal_smallest_group is None and args.smallest_group is not None:
         floor_typed = _typed_floor(f"{args.smallest_group}")
     if args.command == _PROFILE and args.path is None:
         _refuse_the_command_line(
@@ -1316,13 +1332,15 @@ def _parse_arguments(
         twin=args.twin,
         out_dir=args.out_dir,
         smallest_group=(
-            lowered_floor
-            if lowered_floor is not None
+            internal_smallest_group
+            if internal_smallest_group is not None
             else _SMALLEST_GROUP
             if floor_typed is None
             else floor_typed
         ),
-        floor_chosen=lowered_floor is not None or floor_typed is not None,
+        floor_chosen=(
+            internal_smallest_group is not None or floor_typed is not None
+        ),
         identifiers=list(named),
         codes=list(code_named),
         measurements=list(measured_named),
@@ -2898,7 +2916,8 @@ def _lowered_floor_warning(given: int) -> str:
     2026-10-23 that the floor of 11 is a minimum: `--smallest-group`
     under 11 is refused, writing nothing, and `generate` and `validate`
     refuse a description recorded under 11. Such a description is made
-    now only through `cli.main`'s internal keyword `lowered_floor`, for
+    now only through `cli.main`'s internal keyword
+    `internal_smallest_group`, for
     the suite and the measurement drivers, and this warning is kept byte
     for byte for them.
 
@@ -6479,7 +6498,9 @@ def _teaching_profile(table: "str | None", out_dir: "str | None" = None) -> str:
 
 
 def main(
-    argv: "list[str] | None" = None, *, lowered_floor: "int | None" = None
+    argv: "list[str] | None" = None,
+    *,
+    internal_smallest_group: "int | None" = None,
 ) -> int:
     """Run the `synthtwin` command.
 
@@ -6500,15 +6521,19 @@ def main(
       with code 1 and nothing written, a description that records a
       smallest group size under 11, which a version before that plan
       could write.
-    - `lowered_floor`, keyword only and INTERNAL (plan P4-D426): None, the
-      default and the only value a typed command ever runs with, keeps
+    - `internal_smallest_group`, keyword only and INTERNAL (plan P4-D426;
+      named without "floor" so the default-floor check stays whole): None,
+      the default and the only value a typed command ever runs with, keeps
       the rules above. A whole number is for the suite's helpers and the
       measurement drivers, which describe tables at the floors they were
       written for: `profile` then works at that number, under 11
       included, with the warnings a lowered floor showed before that
       plan (the typed option is not read), and `generate` and `validate`
       read a description whose size is at least the smaller of that
-      number and 11. A number under 1 is refused as it always was. No
+      number and 11. A number under 1 is no floor at all: it is refused
+      with code 2 by every command, before anything is read or written
+      (`profile` refused it so before that plan; `generate` and
+      `validate` would otherwise read a description at any floor). No
       command-line option, environment variable, questions file or
       settings file sets it -- synthtwin reads no environment variable
       and no settings file at all -- and it changes no byte written at
@@ -6599,13 +6624,15 @@ def main(
       must not: they are read by a program, and an escaped cell would be
       a value the description never published.
     """
-    options = _parse_arguments(argv, lowered_floor)
+    options = _parse_arguments(argv, internal_smallest_group)
+    if _no_floor_at_all(internal_smallest_group):
+        return 2
     # The least smallest group size a description `generate` or
     # `validate` reads may record (plan P4-D426).
     least_read = (
         _SMALLEST_GROUP
-        if lowered_floor is None
-        else min(lowered_floor, _SMALLEST_GROUP)
+        if internal_smallest_group is None
+        else min(internal_smallest_group, _SMALLEST_GROUP)
     )
 
     if options.version:

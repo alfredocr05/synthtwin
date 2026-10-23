@@ -528,10 +528,11 @@ Stated here so that no reader has to discover them independently:
   number under eleven, or anything not a whole number, is refused by
   every command with code 2 before anything is read or written, and
   `generate` and `validate` refuse with code 1, writing nothing, a
-  description that records a floor under eleven. Lower floors are
-  reached only by `cli.main`'s internal keyword `lowered_floor`, which
-  the test suite and the measurement drivers pass and which no option,
-  environment variable, questions file or settings file reaches. **What
+  description that records a floor under eleven. Lower floors exist
+  only as an internal setting of synthtwin's own test suite and
+  measurement drivers; it is not part of synthtwin's interface, and no
+  option, environment variable, questions file or settings file reaches
+  it. **What
   a lower floor would give up, and why it is closed:** at a floor of `f`, no value
   named in the description is held by fewer than `f` rows, and at `f = 1`
   every group is named exactly, a group of one row included. Where one

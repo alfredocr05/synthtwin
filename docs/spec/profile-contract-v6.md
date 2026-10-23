@@ -1698,9 +1698,9 @@ twin keeps decision D7's promise that it may be shared freely. THE
 DOCUMENT'S RULE IS UNCHANGED: the loader still reads a `small_cell_floor`
 of one or more, every invariant below still governs such a document, and
 the library's own callers, the test suite and the measurement drivers
-still write them through `cli.main`'s internal keyword `lowered_floor`,
-which no option, environment variable, questions file or settings file
-reaches. The ruling below is history: it is what let a person lower
+still write them through `cli.main`'s internal keyword
+`internal_smallest_group`, which no option, environment variable,
+questions file or settings file reaches. The ruling below is history: it is what let a person lower
 the floor until that date.
 
 **WHY A FLOOR OF ONE IS PERMITTED, in the owner's terms.** synthtwin
