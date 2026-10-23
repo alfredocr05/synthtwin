@@ -43,7 +43,10 @@ THE GATE: K-S3-64's Safe Harbor number shapes (`shapes.SAFE_HARBOR_NUMBERS`)
 at 600 and at 20,000 rows, the owner's table floor: 0 ZIPs and 0 ages
 over 89 in any file -- the description, its summary, the questions file,
 the screen, the twin's report and the quality reports -- and in the twin,
-the question put. The mutants of wave6/SH/r1/sh_mutants_r1.py turn it red.
+the question put; and (the orchestrator's LANE SH ADDENDUM 6) a column
+put any open question offering `identifier` -- the date-count question
+at any width among them -- is held whole meanwhile (`acct_date_count`).
+The mutants of wave6/SH/r1/sh_mutants_r1.py turn it red.
 """
 
 from __future__ import annotations
@@ -189,6 +192,8 @@ _WORDS = [f"w{chr(97 + place % 26)}{chr(97 + place // 26)}" for place in range(8
         (_FOUR * 3 + ["99999"] * 11, taxonomy.SAFE_HARBOR_ZIPS),
         (_FOUR * 3 + ["-9999"] * 30 + ["999999"] * 30, taxonomy.SAFE_HARBOR_ZIPS),
         (["52240"] * 200 + ["UNKNOWN"] + ["52240-1000"] * 20, taxonomy.SAFE_HARBOR_ZIPS),
+        # ...a ZIP+4 cell is a five-figure value, whatever its share.
+        (["52240"] * 20 + ["52240-1000"] * 20, taxonomy.SAFE_HARBOR_ZIPS),
         ([f"+{52200 + place % 80}" for place in range(597)] + ["UNKNOWN"] * 3,
          taxonomy.SAFE_HARBOR_ZIPS),
         (["02100"] * 20 + ["UNKNOWN"] * 20, taxonomy.SAFE_HARBOR_ZIPS),
