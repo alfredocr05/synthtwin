@@ -193,6 +193,9 @@ _WORDS = [f"w{chr(97 + place % 26)}{chr(97 + place // 26)}" for place in range(8
         # ...while three placeholders on the floor's rows are set aside,
         # and a few typing slips (one remaining cell in twenty) stand.
         (_ages() * 5 + ["777"] * 100 + ["888"] * 100 + ["555"] * 100, taxonomy.SAFE_HARBOR_AGES),
+        # ...and a one-figure negative beside them, set aside as `-d`.
+        (_ages() * 5 + ["777"] * 100 + ["888"] * 100 + ["555"] * 100 + ["-1"] * 90,
+         taxonomy.SAFE_HARBOR_AGES),
         (_ages() * 5 + [f"{300 + place}" for place in range(21)], taxonomy.SAFE_HARBOR_AGES),
         # ZIPS (addenda 1 (3), 3 (1), 4 and 5; skeptic 1, item 8; Codex,
         # item 6): four figures beside five, placeholders of any share,
