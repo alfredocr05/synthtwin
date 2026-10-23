@@ -2788,6 +2788,37 @@ def date_columns_seen(
     column order; opens nothing; no cell of any column appears in what it
     returns.
     """
+    seen = date_columns_seen_in_a_walk(
+        document, table_columns, settings, already, split, decimal_commas,
+        stored_as, True,
+    )
+    if seen is None:
+        raise ValueError("synthtwin internal check: Q6 refused to describe")
+    return seen
+
+
+def date_columns_seen_in_a_walk(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None",
+    decimal_commas: "tuple[str, ...]",
+    stored_as: "tuple[str, ...]",
+    describes: bool,
+) -> "DateColumnsSeen | None":
+    """`date_columns_seen`, or None where ``describes`` is False and a column would be described.
+
+    A COLUMN IS DESCRIBED BESIDE ITS OWN GROUP OF COLUMNS, NEVER BESIDE A
+    WALK (lane H3's second repair, plan P4-D423): asked of a walk of
+    groups (`reading.column_walks`), which holds up to
+    `reading.WALK_BYTES` of cells for steps that describe nothing, Q6's
+    reading of a candidate under the declaration (`taxonomy.role_read`)
+    held a describe's bytes beside the whole walk. Asked so, it answers
+    None at the first column it would describe, and the caller asks the
+    group again alone (`profile._by_groups`). Guarantees: otherwise
+    `date_columns_seen`'s.
+    """
     blocks = document["columns"]
     found: "list[Question]" = []
     order: "list[DayOrMonth]" = []
@@ -2823,6 +2854,8 @@ def date_columns_seen(
         # asked Q2, or answered `real-value` there, is Q2's.
         if date_codes_of(present, settings, len(cells), counting_kept=True) is not None:
             continue
+        if not describes:
+            return None
         declared = dataclasses.replace(
             settings,
             forced_date_columns=tuple(sorted(settings.forced_date_columns + (name,))),
@@ -5096,6 +5129,33 @@ def date_codes_pending(
     Guarantees: a fixed function of the arguments, in the order of the
     document's columns; opens nothing; prints nothing.
     """
+    pending = date_codes_pending_in_a_walk(
+        document, table_columns, settings, already, split, decimal_commas,
+        stored_as, True,
+    )
+    if pending is None:
+        raise ValueError("synthtwin internal check: the codes question refused to describe")
+    return pending
+
+
+def date_codes_pending_in_a_walk(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None",
+    decimal_commas: "tuple[str, ...]",
+    stored_as: "tuple[str, ...]",
+    describes: bool,
+) -> "DateCodesPending | None":
+    """`date_codes_pending`, or None where ``describes`` is False and a column would be described.
+
+    The codes question's reading of a column once its codes are missing
+    (`_as_the_classifier_reads`) is a describe, and is made beside the
+    column's own group, never beside a walk, as Q6's is
+    (`date_columns_seen_in_a_walk`; lane H3's second repair, plan
+    P4-D423). Guarantees: otherwise `date_codes_pending`'s.
+    """
     blocks = document["columns"]
     if not isinstance(blocks, list):
         return DateCodesPending()
@@ -5144,6 +5204,8 @@ def date_codes_pending(
             # and the column is one asked about and answered -- where the
             # question would have been put, which the classifier says.
             stood = _codes_and_rest(counted, len(present), settings, n_rows, True)
+            if stood is not None and not describes:
+                return None
             if stood is not None and _as_the_classifier_reads(
                 name,
                 table_columns[position - 1],
@@ -5159,6 +5221,8 @@ def date_codes_pending(
                 ]
             continue
         rest = seen[1]
+        if not describes:
+            return None
         confirmed = _as_the_classifier_reads(
             name, table_columns[position - 1], settings, seen[0], comma, storage
         )

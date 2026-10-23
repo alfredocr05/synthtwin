@@ -4685,6 +4685,75 @@ def _parts_of(
         cells = []
 
 
+_Answer = typing.TypeVar("_Answer")
+
+
+def _part_of(document: "dict[str, object]", start: int, end: int) -> "dict[str, object]":
+    """The description cut to the blocks of columns ``start`` to ``end``, every other key as it stands."""
+    blocks = document["columns"]
+    part: "dict[str, object]" = {}
+    for key in document:
+        part[key] = document[key]
+    if isinstance(blocks, list):
+        part["columns"] = blocks[start:end]
+    return part
+
+
+def _by_groups(
+    table: Table,
+    document: "dict[str, object]",
+    asked: "typing.Callable[[int, dict[str, object], list[list[str]], bool], _Answer | None]",
+) -> "list[_Answer]":
+    """``asked`` of each group of a table read in groups, in column order, every column described beside its own group alone.
+
+    A COLUMN DESCRIBED IS DESCRIBED BESIDE ITS GROUP, NEVER BESIDE A WALK
+    (lane H3's second repair, plan P4-D423; the orchestrator's H3
+    addendum 2 of 2026-10-23). A walk (`reading.column_walks`) holds up
+    to `reading.WALK_BYTES` of cells, three times `reading.GROUP_BYTES`,
+    for steps that describe nothing; the date questions describe a
+    candidate column under its declaration (`taxonomy.role_read`), and
+    on the mixed table with a declared person column Q6 described nine
+    columns of dates and stamps beside their walks, the command's peak
+    at 20,000 rows (14.2 MB traced against the description's 12.3), and
+    the 2,000,000-row person leg stopped at 2,400 MB. So each group of a
+    walk is asked with ``describes`` False, of the walk's cells held
+    once, and a group whose answer is None -- a column of it would be
+    described -- is asked again with ``describes`` True, the walk's
+    other columns let go and its own alone held
+    (`reading.hold_columns_alone`): the first such group of a walk as the
+    walk read it, each further one read again, one more reading of the
+    file. A walk of one group is asked so at once. Each step's answer is
+    made column by column, so a group's answer is the same asked within
+    its walk or alone.
+    """
+    groups = reading.column_groups(table)
+    answers: "list[_Answer | None]" = []
+    for walk_start, walk_end in reading.column_walks(table):
+        reading.hold_columns(table, tuple(range(walk_start, walk_end)))
+        inside = [one for one in groups if walk_start <= one[0] < walk_end]
+        later: "list[tuple[int, int, int]]" = []
+        for start, end in inside:
+            cells = [reading.column_values(table, place) for place in range(start, end)]
+            answer = asked(start, _part_of(document, start, end), cells, len(inside) == 1)
+            cells = []
+            if answer is None:
+                later += [(len(answers), start, end)]
+            answers += [answer]
+        # The walk's other columns let go, each such group alone: the
+        # first kept as the walk read it, the others read again.
+        for index, start, end in later:
+            reading.hold_columns_alone(table, tuple(range(start, end)))
+            cells = [reading.column_values(table, place) for place in range(start, end)]
+            answers[index] = asked(start, _part_of(document, start, end), cells, True)
+            cells = []
+    answered: "list[_Answer]" = []
+    for answer in answers:
+        if answer is None:
+            raise ValueError("synthtwin internal check: a group asked alone refused to describe")
+        answered += [answer]
+    return answered
+
+
 def population_census_of(
     table: Table,
     settings: taxonomy.Settings,
@@ -4792,6 +4861,18 @@ class Asked:
     listed: "list[asking.Question]"
 
 
+@dataclasses.dataclass
+class _GroupAsked:
+    """What `questions_of` works out of one group of a table read in groups, put together in column order."""
+
+    kept: "list[asking.Question]"
+    moved: "asking.DateCodesPending | None"
+    dated: "asking.DateColumnsSeen | None"
+    months: "list[asking.DayOrMonth]"
+    person: "list[asking.Question]"
+    listed: "list[asking.Question]"
+
+
 def questions_of(
     table: Table,
     document: "dict[str, object]",
@@ -4860,39 +4941,45 @@ def questions_of(
                 codes_seen.answered,
             ),
         )
-    kept_all: "list[asking.Question]" = []
-    person_all: "list[asking.Question]" = []
-    listed: "list[asking.Question]" = []
-    walked_all: "list[asking.DateCodesPending]" = []
-    dated_all: "list[asking.DateColumnsSeen]" = []
-    found_months: "list[asking.DayOrMonth]" = []
-    for start, part, cells in _parts_of(table, document):
+    # Each group's questions, its codes walk (None where the codes are
+    # given), its Q6 (None where it is not asked), its day-or-month
+    # columns, its person questions and its checklist, every column
+    # described beside its own group (`_by_groups`).
+    def asked_of(
+        start: int, part: "dict[str, object]", cells: "list[list[str]]", describes: bool
+    ) -> "_GroupAsked | None":
         group_storage = stored_as[start : start + len(cells)]
         found, split = asking.questions_and_splits_for(
             part, cells, settings, already, decimal_commas
         )
+        moved: "asking.DateCodesPending | None" = None
         if codes_seen is None:
-            walked = asking.date_codes_pending(
+            walked = asking.date_codes_pending_in_a_walk(
                 part, cells, settings, already, split, decimal_commas,
-                group_storage,
+                group_storage, describes,
             )
-            walked_all += [_moved_by(walked, start)]
+            if walked is None:
+                return None
+            moved = _moved_by(walked, start)
             group_codes = asking.date_codes_found(walked, {}, settings)
         else:
             group_codes = codes_seen
         coded_about = list(group_codes.questions)
         coded_or_answered = coded_about + list(group_codes.answered)
         kept = asking.without_columns_of(found, coded_or_answered)
-        kept_all += kept
         group_dates = dates_seen
+        dated: "asking.DateColumnsSeen | None" = None
         if dates_already is not None:
-            group_dates = asking.date_columns_seen(
+            dated = asking.date_columns_seen_in_a_walk(
                 part, cells, settings, dates_already, split, decimal_commas,
-                group_storage,
+                group_storage, describes,
             )
-            dated_all += [group_dates]
+            if dated is None:
+                return None
+            group_dates = dated
+        months: "list[asking.DayOrMonth]" = []
         if month:
-            found_months += list(
+            months = list(
                 asking.day_or_month_columns(
                     part, cells, settings, split,
                     also=group_codes.day_or_month + group_dates.day_or_month,
@@ -4901,15 +4988,29 @@ def questions_of(
         person = asking.person_questions(
             part, cells, settings, already, kept + coded_or_answered, split
         )
-        person_all += person
         dated_about = list(group_dates.questions) if with_dates else []
-        listed += asking.checklist_for(
+        checked = asking.checklist_for(
             part, cells, settings, already,
             kept + person + dated_about + coded_about,
             group_codes.answered,
         )
-        split = asking.SplitColumns(settings, {}, {})
-        cells = []
+        return _GroupAsked(kept, moved, dated, months, person, checked)
+
+    kept_all: "list[asking.Question]" = []
+    person_all: "list[asking.Question]" = []
+    listed: "list[asking.Question]" = []
+    walked_all: "list[asking.DateCodesPending]" = []
+    dated_all: "list[asking.DateColumnsSeen]" = []
+    found_months: "list[asking.DayOrMonth]" = []
+    for group in _by_groups(table, document, asked_of):
+        kept_all += group.kept
+        if group.moved is not None:
+            walked_all += [group.moved]
+        if group.dated is not None:
+            dated_all += [group.dated]
+        found_months += group.months
+        person_all += group.person
+        listed += group.listed
     if codes_seen is None:
         codes_seen = _codes_counted(table, document, settings, decimal_commas, walked_all)
     if dates_already is not None:
@@ -4961,10 +5062,12 @@ def dated_questions_of(
                 also=codes_seen.day_or_month + dates_seen.day_or_month,
             )
         return codes_seen, dates_seen, day_or_month
-    walked_all: "list[asking.DateCodesPending]" = []
-    dated_all: "list[asking.DateColumnsSeen]" = []
-    found_months: "list[asking.DayOrMonth]" = []
-    for start, part, cells in _parts_of(table, document):
+    # Each group's codes walk (None where the codes are given), Q6 and
+    # day-or-month answers, every column described beside its own group
+    # (`_by_groups`).
+    def asked(
+        start: int, part: "dict[str, object]", cells: "list[list[str]]", describes: bool
+    ) -> "tuple[asking.DateCodesPending | None, asking.DateColumnsSeen, list[asking.DayOrMonth]] | None":
         group_storage = stored_as[start : start + len(cells)]
         split_cells: "dict[int, list[str]]" = {}
         split_present: "dict[int, list[str]]" = {}
@@ -4973,29 +5076,40 @@ def dated_questions_of(
             split_present[place] = taxonomy.split_missing(cells[place], settings)[0]
         group_split = asking.SplitColumns(settings, split_cells, split_present)
         group_codes = codes_seen
+        moved: "asking.DateCodesPending | None" = None
         if codes_seen is None:
-            walked = asking.date_codes_pending(
+            walked = asking.date_codes_pending_in_a_walk(
                 part, cells, settings, codes_already, group_split,
-                decimal_commas, group_storage,
+                decimal_commas, group_storage, describes,
             )
-            walked_all += [_moved_by(walked, start)]
+            if walked is None:
+                return None
+            moved = _moved_by(walked, start)
             group_codes = asking.date_codes_found(walked, {}, settings)
-        group_dates = asking.date_columns_seen(
+        group_dates = asking.date_columns_seen_in_a_walk(
             part, cells, settings, dates_already, group_split, decimal_commas,
-            group_storage,
+            group_storage, describes,
         )
-        dated_all += [group_dates]
+        if group_dates is None:
+            return None
+        months: "list[asking.DayOrMonth]" = []
         if month and group_codes is not None:
-            found_months += list(
+            months = list(
                 asking.day_or_month_columns(
                     part, cells, settings, group_split,
                     also=group_codes.day_or_month + group_dates.day_or_month,
                 )
             )
-        split_cells = {}
-        split_present = {}
-        group_split = asking.SplitColumns(settings, {}, {})
-        cells = []
+        return moved, group_dates, months
+
+    walked_all: "list[asking.DateCodesPending]" = []
+    dated_all: "list[asking.DateColumnsSeen]" = []
+    found_months: "list[asking.DayOrMonth]" = []
+    for moved, group_dates, months in _by_groups(table, document, asked):
+        if moved is not None:
+            walked_all += [moved]
+        dated_all += [group_dates]
+        found_months += months
     if codes_seen is None:
         codes_seen = _codes_counted(table, document, settings, decimal_commas, walked_all)
     return codes_seen, _dates_joined(dated_all), tuple(found_months)

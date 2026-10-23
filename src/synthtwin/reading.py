@@ -2890,6 +2890,44 @@ def _hold(source: ColumnSource, places: "tuple[int, ...]") -> None:
     source.held_places = places
 
 
+def hold_columns_alone(table: Table, places: "tuple[int, ...]") -> None:
+    """Hold the columns at ``places`` and nothing else, for a step that describes one of them.
+
+    A COLUMN IS DESCRIBED BESIDE ITS OWN GROUP (lane H3's second repair,
+    plan P4-D423): asked for columns a walk holds, `hold_columns` reads
+    nothing and leaves the whole walk held, up to `WALK_BYTES` of cells
+    beside the describe. Here the other columns are let go: where every
+    one of ``places`` is held, the lists held for them are kept as they
+    are and nothing is read; otherwise what is held is let go and one
+    reading of the file holds them (`hold_columns`). Guarantees:
+    `column_values`'s for each of them, and nothing else held. Raises
+    what `hold_columns` raises.
+    """
+    width = len(table.column_names)
+    for place in places:
+        if not 0 <= place < width:
+            raise IndexError(f"column {place} of a table of {width}")
+    source = table.source
+    if source is None:
+        return
+    wanted = tuple(sorted(set(places)))
+    if wanted == source.held_places:
+        return
+    kept: "list[list[str]]" = []
+    for place in wanted:
+        at = 0
+        while at < len(source.held_places) and source.held_places[at] != place:
+            at = at + 1
+        if at == len(source.held_places):
+            _hold(source, wanted)
+            return
+        kept += [source.held[at]]
+    source.held = []
+    source.held_places = ()
+    source.held = kept
+    source.held_places = wanted
+
+
 def _read_group(source: ColumnSource, places: "tuple[int, ...]") -> "list[list[str]]":
     """The columns at ``places`` of a table read in groups, read from its file again.
 

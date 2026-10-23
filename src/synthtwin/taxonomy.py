@@ -23774,9 +23774,10 @@ def affixed_reach(cells: _Cells) -> int:
     # of lane H3, item 2): the runs longer than half the band's top and
     # no longer than it, the top halved each walk, each run counted only
     # where it is longer than the best counted so far. A walk a different
-    # length walked every key once a length: up to the square root of
-    # twice the keys' count of walks, 256 walks of 262,656 keys on 512
-    # wrapper pairs whose hashes share their kept bits. A run's count is
+    # length walked every key once a length, as many walks as the runs
+    # have lengths above the best (up to about the square root of twice
+    # the keys): 256 walks of 262,656 keys on 512 wrapper pairs whose
+    # hashes share their kept bits. A run's count is
     # at most its length, so the runs of a band whose top is the best
     # counted cannot beat it: at most one walk more than the longest
     # run's figures in binary, each run counted at most once, and no

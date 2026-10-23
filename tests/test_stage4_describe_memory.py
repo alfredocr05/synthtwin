@@ -30,10 +30,12 @@ the census reading's release, by a weak reference; and the bytes
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import datetime
 import gc
 import hashlib
+import io
 import json
 import math
 import pathlib
@@ -1519,3 +1521,86 @@ def test_the_affix_runs_are_walked_a_band_of_sizes_at_a_time(monkeypatch: pytest
     assert _ShiftCounted.shifts[0] <= 2 * keys * (1 + (128).bit_length())
     # Every cell split once for its key, and once more at most in its run.
     assert splits[0] <= 2 * keys, splits[0]
+
+
+# THE DATE QUESTIONS DESCRIBE A COLUMN BESIDE ITS OWN GROUP, NEVER BESIDE A
+# WALK (the orchestrator's H3 addendum 2 of 2026-10-23). With a declared
+# person column, Q6 read nine columns of dates and stamps of the mixed table
+# under the declaration (`taxonomy.role_read`) beside the walk holding them:
+# 14.2 MB traced at 20,000 rows, the command's peak, against the
+# description's 12.3; at 2,000,000 rows the person leg stopped at 2,400 MB.
+# Read one column a group in one walk of every group, the codes question
+# (`00/00/0000` beside dates) and Q6 (`2024-252` beside months) each describe
+# their column with that column alone held, and every file and word is the
+# one the table read whole writes.
+def _h3_walk_table() -> str:
+    draw = random.Random(17)
+    lines = ["visit,patient,seen_on,code,amount,clock,ward,stay,taken,dose"]
+    for row in range(400):
+        seen = "00/00/0000" if row % 37 == 0 else f"{1 + row % 12:02d}/{1 + row % 12:02d}/2023"
+        lines += [
+            ",".join(
+                [
+                    "" if row % 9 == 4 else f"V{row:05d}",
+                    f"P{draw.randrange(120):04d}",
+                    seen,
+                    f"{draw.choice(['99213', '99214', '99215', '00000'])}",
+                    f"{draw.gauss(80, 12):.1f}",
+                    f"{draw.randrange(1, 13)}:{draw.choice(['00', '15', '30', '45'])}",
+                    "00/00/0000" if row % 41 == 0 else draw.choice(["east", "west", "north"]),
+                    f"{draw.randrange(1, 30)}",
+                    f"2024-{1 + row % 12:02d}" if row % 3 else "2024-252",
+                    f"{draw.choice([5, 10, 20])}",
+                ]
+            )
+        ]
+    return "\n".join(lines) + "\n"
+
+
+def _h3_profiled(table: pathlib.Path, out: pathlib.Path, options: "list[str]") -> "dict[str, bytes]":
+    out.mkdir()
+    said = io.StringIO()
+    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+        code = cli.main(["profile", str(table), "--out-dir", str(out), "--replace"] + options)
+    found = {"exit": f"{code}".encode(), "said": said.getvalue().replace(str(out), "OUT").replace(str(table), "IN").encode()}
+    for written in sorted(out.iterdir()):
+        found[written.name] = written.read_bytes()
+    return found
+
+
+@pytest.mark.parametrize("options", [[], ["--identifier", "patient"]])
+def test_the_date_questions_describe_a_column_beside_its_own_group_alone(
+    options: "list[str]", tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    table = tmp_path / "clinic.csv"
+    table.write_text(_h3_walk_table(), encoding="utf-8", newline="\n")
+    whole = _h3_profiled(table, tmp_path / "whole", options)
+    monkeypatch.setattr(reading, "GROUP_BYTES", 1)
+    monkeypatch.setattr(reading, "WALK_BYTES", 1 << 40)
+    tables: "list[reading.Table]" = []
+    read_table = reading.read_table
+
+    def kept_table(*arguments: object, **named: object) -> reading.Table:
+        nonlocal tables
+        read = read_table(*arguments, **named)  # type: ignore[arg-type]
+        tables += [read]
+        return read
+
+    described: "list[tuple[str, tuple[int, ...]]]" = []
+    role_read = taxonomy.role_read
+
+    def watched(name: str, *arguments: object, **named: object) -> "tuple[str, str, int, int]":
+        nonlocal described
+        source = tables[len(tables) - 1].source
+        described += [(name, source.held_places if source is not None else ())]
+        return role_read(name, *arguments, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading, "read_table", kept_table)
+    monkeypatch.setattr(taxonomy, "role_read", watched)
+    grouped = _h3_profiled(table, tmp_path / "groups", options)
+    assert sorted(grouped) == sorted(whole)
+    for name in whole:
+        assert grouped[name] == whole[name], name
+    assert ("seen_on", (2,)) in described and ("taken", (8,)) in described, described
+    for name, held in described:
+        assert len(held) == 1, (name, held)
