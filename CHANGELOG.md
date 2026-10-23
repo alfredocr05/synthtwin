@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### Lane SH: ages over 89 read as 90, and five-figure numbers beside a few words held, while the Safe Harbor question is open (2026-10-23)
+
+**Two live Safe Harbor exposures closed** (plan P4-D427; 45 CFR
+164.514(b)(2)(i)). A number column whose present numbers lie within 0 to
+125 and include an age over 89 -- all-nines placeholders of either sign
+set aside, at most one cell in three -- is put the owner's Safe Harbor
+question in the questions file, and while it is open every value of 90 or
+more is read as 90 for the whole description (`top_coded`, contract
+TC1), the twin writes none above 90 (method G7.14), and `synthtwin
+validate` reads the real table the same way (validation V15). A number
+column of five-figure whole numbers beside a few words is held whole until
+that question is answered `no`. On b85200be, 20,000 ages published 95 to
+103 and five-figure ZIP codes beside one `UNKNOWN` printed 38 to 44 real
+ZIPs; now 0 in every file and in the twin, at 600 and 20,000 rows.
+`yes` holds a column as an open question does; `no` gives back today's
+description. `K-S3-64` gains the eight shapes; the zoo answers `no` for
+its pulse, its verdicts unchanged. Owed: the analyst battery's slow KPIs
+re-measured by the batch integrator (its ages are top-coded under the
+command).
+
 ### Batch 4f's records: the zoo measured on the merged code, `K-P4-06`'s ceiling, a shorter STATE (2026-10-22)
 
 **Records of batch 4f**, which merged lanes DEP-2, SR-A, HX3 and PS
