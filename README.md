@@ -367,11 +367,15 @@ of large tables only. `synthtwin profile` refuses, and writes nothing
 at all, a table with fewer than **20,000 rows that hold a value**, and a
 table in which one person has several rows (a column you named with
 `--identifier`, or answered in the questions file, repeats) but fewer
-than **1,000 people** appear. Every count a description publishes must
-cover at least eleven people, and below these sizes too few of the
-table's counts reach that floor for an analysis run on the twin to
-stand on the real table, while the small groups a small table is made
-of are where the risk of pointing to one person lives. So describe the
+than **1,000 people** appear (one person written two ways, such as
+`P00001` and `P-00001`, is one person). This is synthtwin's policy for
+every table. A count is published only when it covers at least the
+smallest group, eleven unless you set another with `--smallest-group`,
+counted in people where a column names the person and in rows where
+none does. The fewer rows or people a table has, the more of its counts
+fall under that and are pooled or withheld, so an analysis run on the
+twin stands less well on the real table, and small groups are where a
+published fact can point to one person. So describe the
 whole extract rather than a sample of it, or combine sites or years
 into one table. A column the questions file only ASKS about is not
 counted in people until you answer it, so an unanswered question never

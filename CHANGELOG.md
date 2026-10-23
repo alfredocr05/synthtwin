@@ -12,14 +12,17 @@ exists).
 20,000 rows that hold a value, or one in which a declared or answered
 person column repeats but fewer than 1,000 people appear** (lane POP,
 plan P4-D425, amending P4-D341; the owner, 2026-10-22: "we don't make
-twins of small tables"). The message gives both minimum sizes, the
-table's own rows and people, why -- below them too few counts reach the
-floor of 11 people for an analysis to stand on the twin, and small
-groups raise disclosure risk -- and what to do: describe the whole
-extract, or combine sites or years. A column the questions file only
+twins of small tables"). People are counted with one person's
+spellings merged (`P00001` and `P-00001` are one person), as the
+description counts them. The message gives both minimum sizes, the
+table's own rows and people, why -- a count is published only when it
+covers at least the run's smallest group, and the fewer rows or people,
+the more counts fall under it, so an analysis on the twin stands less
+well, and small groups are where a fact can point to one person -- and
+what to do: describe the whole extract, or combine sites or years. A column the questions file only
 asks about never refuses a table; the screen says the people floor
 applies once it is answered. No option turns the floor off: `cli.main`
-takes an internal `table_floor` keyword that the suite's helpers and the
+takes an internal `small_tables_refused` keyword that the suite's helpers and the
 measurement drivers use for their small tables, so the earlier 100-row
 floor and its notice under 1,000 are reached only there. No byte written
 for a table at or above the floor changes, and the library applies no

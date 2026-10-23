@@ -2469,8 +2469,9 @@ without it at any row count. What this clause fixes is its grammar and
 its place. Since the owner's table floor (plan P4-D425, 2026-10-22)
 `synthtwin profile` refuses, writing nothing, a table under 20,000 rows
 that hold a value or, where `settings.person_columns` is not empty,
-under 1,000 people; so the command a person types never writes this
-note, which only a run with `cli.main`'s internal `table_floor` off --
+under 1,000 people (one person's spellings merged, `parsing.subject_key`);
+so the command a person types never writes this
+note, which only a run with `cli.main`'s internal `small_tables_refused` off --
 the suite's helpers and the measurement drivers -- still writes. The
 floor is the command's too: no key of this document carries it, and a
 loader accepts a conforming document of any size.
