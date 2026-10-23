@@ -370,7 +370,7 @@ table in which one person has several rows (a column you named with
 than **1,000 people** appear (one person written two ways, such as
 `P00001` and `P-00001`, is one person). This is synthtwin's policy for
 every table. A count is published only when it covers at least the
-smallest group, eleven unless you set another with `--smallest-group`,
+smallest group, 11, or more if you raised it with `--smallest-group`,
 counted in people where a column names the person and in rows where
 none does. The fewer rows or people a table has, the more of its counts
 fall under that and are pooled or withheld, so an analysis run on the

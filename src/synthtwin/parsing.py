@@ -1003,13 +1003,13 @@ POPULATION_NOTICE_LINE = 1000
 # description counts people; `taxonomy.population_and_rows_census`).
 #
 # THE REASON, the owner's policy: a count is published only when it
-# covers at least the run's smallest group (`DEFAULT_SMALL_CELL_FLOOR`
-# unless --smallest-group set another), in people where a column names
-# the person and in rows where none does; the fewer rows or people a
-# table has, the more of its counts fall under that and are pooled or
-# withheld, so an analysis run on the twin stands less well on the real
-# table, and small groups are where a published fact can point to one
-# person. The owner chose the two numbers: the work goes to twins whose
+# covers at least the run's smallest group (`DEFAULT_SMALL_CELL_FLOOR`,
+# 11, or more if raised with --smallest-group), in people where a
+# column names the person and in rows where none does; the fewer rows
+# or people a table has, the more of its counts fall under that and are
+# pooled or withheld, so an analysis run on the twin stands less well on
+# the real table, and small groups are where a published fact can point
+# to one person. The owner chose the two numbers: the work goes to twins whose
 # code runs on the original and whose statistics stand.
 #
 # AND WHAT BECOMES OF THE TWO NUMBERS ABOVE. They stay, byte for byte,

@@ -196,6 +196,33 @@ def test_the_same_column_answered_as_a_person_column_is_refused(
     assert _written(tmp_path) == ["clinic.csv"]
 
 
+def test_the_second_census_counts_merged_people_and_names_the_run_s_group(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Answered at the keyboard, 600 subjects each written two ways: 600 people, group 20.
+
+    The census after the answer counts people with one person's
+    spellings merged (as the first does), and its message names the
+    run's smallest group (POP verify item 3).
+    """
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    answers = iter([asking.ANSWER_IDENTIFIER] + [""] * 20)
+    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers))
+    lines = ["subject_id,score"]
+    for index in range(ROWS):
+        subject = index % 600
+        spelled = f"S{subject:04d}" if (index // 600) % 2 == 0 else f"S-{subject:04d}"
+        lines += [f"{spelled},{index % 97}"]
+    table = _write(tmp_path, lines)
+    assert _profile(table, "--smallest-group", "20") == 1
+    said = capsys.readouterr().err
+    assert "600 people, counted by 'subject_id'" in said
+    assert "at least the smallest group, 20 (" in said
+    assert _written(tmp_path) == ["clinic.csv"]
+
+
 # -- the message -------------------------------------------------------------
 
 
@@ -214,7 +241,7 @@ def test_the_message_says_the_sizes_the_counts_why_and_what_to_do() -> None:
         "1,000 people",
         "This table holds 20,000 rows that hold a value and 999 people, counted by 'patient'",
         "apart from case, spaces, punctuation and leading zeros, are one person",
-        "at least the smallest group, 11 (11 unless --smallest-group set another)",
+        "at least the smallest group, 11 (11, or more if you raised it with --smallest-group)",
         "counted in people where a column names the person and in rows where none does",
         "the more of its counts",
         "stands less well on the real table",
@@ -224,7 +251,16 @@ def test_the_message_says_the_sizes_the_counts_why_and_what_to_do() -> None:
         "Nothing was written.",
     ):
         assert fact in said, fact
-    for claim in ("most of its groups", "every count a description publishes", "would not stand"):
+    # The owner, 2026-10-23: the floor of 11 is a minimum; no message
+    # suggests lowering it (lane POP's addendum, ruling (3)).
+    for claim in (
+        "most of its groups",
+        "every count a description publishes",
+        "would not stand",
+        "unless",
+        "set another",
+        "lower",
+    ):
         assert claim not in said, claim
     raised = errors.the_table_is_below_the_floor(20000, 999, "patient", 20)
     assert "at least the smallest group, 20 (" in raised
@@ -542,7 +578,7 @@ _VALUES: "dict[str, list[str]]" = {
     "--replace": [],
     "--seed": ["7"],
     "--sheet": ["Sheet1"],
-    "--smallest-group": ["1"],
+    "--smallest-group": ["20"],
     "--twelve-hour": ["age"],
     "--twin": ["@twin"],
 }
@@ -580,6 +616,6 @@ def test_no_option_of_the_command_lets_a_small_table_through(
         assert "below its floor" in said.err, option
         assert _written(tmp_path / "t") == ["clinic.csv"], option
         assert not (tmp_path / "out").exists(), option
-    for value in ("1", "50"):
+    for value in ("11", "50"):
         assert _profile(table, "--smallest-group", value) == 1
         assert "below its floor" in capsys.readouterr().err

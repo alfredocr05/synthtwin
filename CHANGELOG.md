@@ -26,7 +26,9 @@ takes an internal `small_tables_refused` keyword that the suite's helpers and th
 measurement drivers use for their small tables, so the earlier 100-row
 floor and its notice under 1,000 are reached only there. No byte written
 for a table at or above the floor changes, and the library applies no
-floor. CI's demonstration checks the installed command refuses its
+floor, so the written summary and the twin's report still say 100 rows is
+the smallest table (owner: lane FLW). The message never suggests lowering
+the smallest group of 11; `--smallest-group` may only raise it. CI's demonstration checks the installed command refuses its
 240-row table.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)

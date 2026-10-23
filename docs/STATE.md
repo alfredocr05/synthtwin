@@ -716,9 +716,10 @@ cannot get worse unseen.
   the smallest table synthtwin describes"** (`summary.py`, measured in a
   20,000-row run's plain-language summary; `rendering.py`), false since
   the table floor (P4-D425); rewording moves bytes of every table, which
-  lane POP may not, so a later landing that moves those bytes, named by
-  the orchestrator, owns it. The status screen and the package say the
-  new floor.
+  lane POP may not. Owner: lane FLW (the floor's words in every written
+  output, a byte-change landing after POP and MIN merge, the
+  orchestrator's ruling of 2026-10-23). The status screen and the
+  package say the new floor.
 - **A name, street address or birth date is held beside a patient
   key, declared or asked about by any question offering `identifier`,
   and published where nothing says who the rows are.** Beside a subject column, of any number of people,

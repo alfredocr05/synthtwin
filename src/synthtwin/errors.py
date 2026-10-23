@@ -1414,10 +1414,11 @@ def the_table_is_below_the_floor(
     is not a statistician can act on and that a statistician would sign.
     The why claims no more than holds (skeptic 1 of lane POP, item 5;
     Codex's review, item 1): a count is published only when it covers at
-    least the smallest group of this run (``floor``: 11 unless
-    --smallest-group set another), counted in people where a column
-    names the person and in rows where none does; the fewer rows or
-    people, the MORE counts fall under it -- not "most", which is false
+    least the smallest group of this run (``floor``: 11, or more if the
+    person raised it with --smallest-group; never lower, the owner,
+    2026-10-23), counted in people where a column names the person and
+    in rows where none does; the fewer rows or people, the MORE counts
+    fall under it -- not "most", which is false
     just under the floor for a column of a few common levels.
 
     ``people`` and ``column`` are given where a declared or answered
@@ -1444,10 +1445,10 @@ def the_table_is_below_the_floor(
         f"and, where one person has several rows, "
         f"{parsing.TABLE_PEOPLE_FLOOR:,} people. This table holds "
         f"{held}. Why: synthtwin publishes a count only when it covers "
-        f"at least the smallest group, {floor} (11 unless --smallest-group "
-        f"set another), counted in people where a column names the person "
-        f"and in rows where none does; the fewer rows or people a table "
-        f"has, the more of its counts -- rare categories, and cells of "
+        f"at least the smallest group, {floor} (11, or more if you raised "
+        f"it with --smallest-group), counted in people where a column names "
+        f"the person and in rows where none does; the fewer rows or people "
+        f"a table has, the more of its counts -- rare categories, and cells of "
         f"two or more columns taken together -- fall under it and are "
         f"pooled or withheld, so an analysis run on the twin stands less "
         f"well on the real table, and small groups are where a published "
