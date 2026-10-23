@@ -6,6 +6,25 @@ exists).
 
 ## [Unreleased]
 
+### Lane SH, repair round 1: the Safe Harbor numbers in every role, judged on the bulk, and the hold follows the identifier offer (2026-10-23)
+
+**Every escape measured on the lane's first head closed** (plan P4-D427,
+its repair round 1). The age top-code and the ZIP hold now reach every
+role that prints a value (two values, one value, labels such as `95
+years`), set aside words, the column's missing values, nines, one-figure
+negatives and up to three repeated placeholders whatever their share, and
+judge the rest on its bulk: ages within 0 to 125 but for a few strays,
+ZIPs two in three of four or five figures, padded, signed or ZIP+4. A
+cell keeps its own form in the description and the twin, the twin keeps
+how many cells each value holds, and ages held as record numbers keep the
+key validation reads. Every open question offering `identifier` now holds
+its column, the date-count question at any width among them. `no` reads
+"none of these: the values are measurements, counts, codes or categories
+that name no person, place, date or record". `K-S3-64` rises to 206
+shapes, 0 on every key. The price, each freed by `no`: weights, CRP and
+Fahrenheit temperatures top-coded; five-figure CPT codes, incomes in
+hundreds, years and four-figure codes held.
+
 ### Lane SH: ages over 89 read as 90, and five-figure numbers beside a few words held, while the Safe Harbor question is open (2026-10-23)
 
 **Two live Safe Harbor exposures closed** (plan P4-D427; 45 CFR
