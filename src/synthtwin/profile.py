@@ -4693,6 +4693,17 @@ def build_document(
                     if counted_in_subjects is not None:
                         counted_in_subjects += [name]
         if (
+            not declarations_are_reconstructed
+            and name in forced_identifiers
+            and name not in withheld_names
+            and name not in held_in_people
+        ):
+            # RULE A1 ON A DECLARED, PREFIXED RECORD NUMBER (lane CODES-3,
+            # plan P4-D428): its layout pool counted in its commonest
+            # layout. The validator reads the published prefix and absorbs
+            # the measured file's pool alike (`validation._identifier_checks`).
+            described = taxonomy.with_layout_pool_absorbed(described)
+        if (
             name in subject_names
             and name not in withheld_names
             and name not in held_in_people

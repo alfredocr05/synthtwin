@@ -2925,6 +2925,149 @@ def layout_supply(name: str) -> int:
 PREFIX_OF_THE_COLUMN = "(column)"
 
 
+# -- the ROOT of a column of DICOM UIDs (lane CODES-3, plan P4-D428) ---
+#
+# A DICOM unique identifier is whole numbers joined by points, its first
+# arc 0, 1 or 2 and no arc but `0` led by a nought: the grammar
+# `[012](\.(0|[1-9]\d*))+` (DICOM PS3.5, section 9.1). Every UID an
+# organisation makes opens with the root it was registered under --
+# `1.2.840.113619.` is one vendor's -- and a column of them shares it.
+# Ruling 1 of the owner (2026-09-17) keeps a literal prefix every cell
+# shares; rule 1 of `literal_prefix` stops a prefix before its first
+# figure, which no UID root survives (row 19 of the zoo plan: the twin
+# lost the root on 600 of 600 cells). So a column EVERY present cell of
+# which is a UID with two points or more publishes the arcs every cell
+# shares, cut back to its last point, as its prefix, and nothing else
+# changes: a column holding one cell that is not such a UID publishes
+# what it published before.
+
+
+def _arc_unled(arc: str) -> bool:
+    """Whether one arc of a UID is `0` or figures not led by a nought."""
+    if not _all_ascii_digits(arc):
+        return False
+    return arc == "0" or arc[0] != "0"
+
+
+def _uid_arcs(text: str) -> "list[str] | None":
+    """The arcs of a text written as a DICOM UID, or None where it is not one.
+
+    The grammar `[012](\\.(0|[1-9]\\d*))+`: two arcs or more, every one
+    figures, the first `0`, `1` or `2`, and no arc but `0` led by a
+    nought. A fixed function of the text; no I/O.
+    """
+    arcs: "list[str]" = []
+    current = ""
+    for character in text:
+        if character == ".":
+            arcs += [current]
+            current = ""
+            continue
+        current = current + character
+    arcs += [current]
+    if len(arcs) < 2 or arcs[0] not in ("0", "1", "2"):
+        return None
+    for arc in arcs:
+        if not _arc_unled(arc):
+            return None
+    return arcs
+
+
+def is_a_uid(text: str) -> bool:
+    """Whether one cell is a DICOM UID with at least two points (plan P4-D428).
+
+    Raises TypeError for anything that is not a string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    arcs = _uid_arcs(text)
+    return arcs is not None and len(arcs) >= 3
+
+
+def is_a_uid_root(text: str) -> bool:
+    """Whether a prefix is a UID's root: two arcs or more of the grammar and a closing point.
+
+    The one prefix of figures `is_a_literal_prefix` admits (plan
+    P4-D428). Raises TypeError for anything that is not a string. No
+    I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(text) < 2 or text[len(text) - 1] != ".":
+        return False
+    return _uid_arcs(text[: len(text) - 1]) is not None
+
+
+def uid_root(values: "list[str]") -> str:
+    """The root every one of ``values`` opens with, where every one is a UID; else "".
+
+    THE ARCS EVERY CELL SHARES, WHOLE (plan P4-D428). The longest opening
+    every value shares is cut back to its last point, so no arc is ever
+    published in part -- `literal_prefix`'s rule 3, no half a run, read
+    for figures -- and every value goes on after it (rule 2), since a UID
+    ends in a figure. Where every value is a UID (`is_a_uid`) and that
+    opening is a root of two arcs or more (`is_a_uid_root`), it is the
+    answer; otherwise "".
+
+    Guarantees: a fixed function of the list. Raises TypeError for
+    anything that is not a list of strings. No I/O.
+    """
+    if not isinstance(values, list):
+        raise TypeError(_NOT_TEXT)
+    if not values:
+        return ""
+    common = ""
+    first = True
+    for value in values:
+        if not isinstance(value, str):
+            raise TypeError(_NOT_TEXT)
+        if not is_a_uid(value):
+            return ""
+        if first:
+            common = value
+            first = False
+            continue
+        place = 0
+        while (
+            place < len(common)
+            and place < len(value)
+            and common[place] == value[place]
+        ):
+            place = place + 1
+        common = common[:place]
+    cut = -1
+    for place in range(len(common)):
+        if common[place] == ".":
+            cut = place
+    if cut < 0:
+        return ""
+    common = common[: cut + 1]
+    if not is_a_uid_root(common) or len(common) >= LAYOUT_FORM_LIMIT:
+        return ""
+    return common
+
+
+def uid_unled(text: str) -> bool:
+    """Whether no arc of a text written in points is led by a nought, `0` aside.
+
+    What the twin of a column publishing a UID root asks of every cell it
+    writes (plan P4-D428): a filled layout steps its figures freely, and
+    `%%%` filled at a step whose first figure is nought spells `012`, an
+    arc the grammar forbids. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    current = ""
+    for character in text + ".":
+        if character == ".":
+            if len(current) > 1 and current[0] == "0":
+                return False
+            current = ""
+            continue
+        current = current + character
+    return True
+
+
 def literal_prefix(values: "list[str]", convention: str) -> str:
     """The literal text every one of ``values`` opens with, or "".
 
@@ -2973,6 +3116,11 @@ def literal_prefix(values: "list[str]", convention: str) -> str:
         raise TypeError(_NOT_TEXT)
     if convention not in LAYOUT_CONVENTIONS or not values:
         return ""
+    # A COLUMN OF DICOM UIDS KEEPS ITS ROOT (lane CODES-3, plan P4-D428):
+    # `uid_root`, the one prefix of figures this function writes.
+    root = uid_root(values)
+    if root:
+        return root
     common = ""
     shortest = -1
     first = True
@@ -3055,6 +3203,12 @@ def is_a_literal_prefix(text: str) -> bool:
         raise TypeError(_NOT_TEXT)
     if not text or len(text) >= LAYOUT_FORM_LIMIT:
         return False
+    # ...AND A DICOM UID'S ROOT, figures and points, which `uid_root`
+    # writes only over a column every cell of which is a UID (lane
+    # CODES-3, plan P4-D428). Everywhere else a prefix still holds a
+    # letter and no figure.
+    if is_a_uid_root(text):
+        return True
     letters = 0
     before = ""
     for character in text:

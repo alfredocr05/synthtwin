@@ -26090,6 +26090,90 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
     )
 
 
+def absorbed_layout_census(
+    census: "dict[str, int]", present: int
+) -> "dict[str, int] | None":
+    """A layout census with the cells no named layout counts moved into its commonest one.
+
+    RULE A1 OF THE ZOO-FIX STAND-INS PAGE, ON A PREFIXED RECORD NUMBER
+    (plan P4-D422's ZS.2, ruling 6 of the owner; lane CODES-3, plan
+    P4-D428). The cells that wear no named layout -- the `(withheld)`
+    pool, and a pool `_layout_forms` left unwritten -- are counted in the
+    commonest named layout (the earliest in sorted order on a tie), and
+    `(withheld)` goes. None where nothing moves: no named layout to
+    receive them, or no cell outside the named ones.
+
+    Guarantees: a fixed function of the census and the column's present
+    cells. Raises nothing. No I/O.
+    """
+    named: dict[str, int] = {}
+    counted = 0
+    for layout in sorted(census):
+        if layout == SUPPRESSED_LABEL:
+            continue
+        named[layout] = census[layout]
+        counted = counted + census[layout]
+    pool = present - counted
+    if not named or pool <= 0:
+        return None
+    commonest = ""
+    for layout in sorted(named):
+        if not commonest or named[layout] > named[commonest]:
+            commonest = layout
+    named[commonest] = named[commonest] + pool
+    return named
+
+
+def absorbs_its_layout_pool(details: "dict[str, object]") -> bool:
+    """Whether a record number's block is one rule A1 absorbs (plan P4-D428).
+
+    A block publishing a prefix every cell opens with, `(column)`: the
+    prefixed record numbers of several lengths (row 43 of the zoo plan,
+    VCF `rs` and four to nine figures), whose pool the twin wrote with
+    `-` fillers, one cell without its prefix. A block publishing no
+    prefix -- a record number of no common opening, or one held until its
+    question is answered (P4-D401), whose prefix is never published --
+    keeps today's `(withheld)` pool and bytes.
+    """
+    prefixes = details["layout_prefixes"] if "layout_prefixes" in details else None
+    return isinstance(prefixes, dict) and parsing.PREFIX_OF_THE_COLUMN in prefixes
+
+
+def with_layout_pool_absorbed(column: ColumnProfile) -> ColumnProfile:
+    """A declared record number's block under rule A1 (plan P4-D428).
+
+    Where `absorbs_its_layout_pool` reads the block and
+    `absorbed_layout_census` moves cells, the census is the absorbed one
+    and the shortest and longest lengths are those of its layouts (one
+    mark a character, so a layout is as long as every cell wearing it):
+    the twin writes the pool's cells in the commonest layout, so no
+    length only the pool held is owed, and none is printed. The validator
+    reads the measured file with the same absorption
+    (`validation._identifier_checks`), so the real table meets the census
+    it was described with. Every other column is returned unchanged.
+
+    Guarantees: a fixed function of the column. Raises nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER or not absorbs_its_layout_pool(
+        column.details
+    ):
+        return column
+    forms = column.details["layout_forms"] if "layout_forms" in column.details else None
+    if not isinstance(forms, dict):
+        return column
+    absorbed = absorbed_layout_census(forms, column.n_present)
+    if absorbed is None:
+        return column
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    details["layout_forms"] = absorbed
+    lengths = [len(layout) for layout in sorted(absorbed)]
+    details["min_length"] = min(lengths)
+    details["max_length"] = max(lengths)
+    return dataclasses.replace(column, details=details)
+
+
 def as_held_in_people(column: ColumnProfile) -> ColumnProfile:
     """A record-number description, for a column counted in people (plan P4-D406).
 

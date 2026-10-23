@@ -22043,13 +22043,36 @@ def _identifier_checks(
     """A column the person declared to hold record numbers."""
     name = column.name
     checks: list[Check] = []
+    present = [cell for cell in cells if parsing.trimmed(cell)]
+    census = taxonomy.layout_census(present, floor, len(set(present)))
+    # RULE A1, READ AS IT WAS WRITTEN (lane CODES-3, plan P4-D428): a
+    # description publishing a `(column)` prefix and no `(withheld)` pool
+    # counted the cells of its rare layouts in its commonest one
+    # (`taxonomy.with_layout_pool_absorbed`), so the measured file's
+    # cells are counted so too, and its shortest and longest lengths are
+    # read off the layouts they are counted in. On every other column
+    # nothing here moves.
+    absorbed_lengths: "dict[str, int]" = {}
+    if (
+        taxonomy.absorbs_its_layout_pool({"layout_prefixes": facts.layout_prefixes})
+        and contract.WITHHELD not in facts.layout_forms
+    ):
+        absorbed = taxonomy.absorbed_layout_census(census, len(present))
+        if absorbed is not None:
+            census = absorbed
+            widths = [len(layout) for layout in sorted(absorbed)]
+            absorbed_lengths = {"min_length": min(widths), "max_length": max(widths)}
     for field, published, subcheck in (
         ("min_length", facts.min_length, "length.min"),
         ("max_length", facts.max_length, "length.max"),
         ("n_all_digits", facts.n_all_digits, "counts.n_all_digits"),
         ("n_code_alphabet", facts.n_code_alphabet, "counts.n_code_alphabet"),
     ):
-        found = _count_at(block, field)
+        found = (
+            absorbed_lengths[field]
+            if field in absorbed_lengths
+            else _count_at(block, field)
+        )
         checks += [
             _exact(
                 name,
@@ -22089,12 +22112,8 @@ def _identifier_checks(
     # MISSED. `taxonomy.layout_census` is every rule of C6-130 about one
     # layout at a time, which is exactly what a recount of one published
     # layout needs, and nothing it prints is more than the file holds.
-    present = [cell for cell in cells if parsing.trimmed(cell)]
-    recounted: "dict[str, object]" = {
-        "layout_forms": taxonomy.layout_census(
-            present, floor, len(set(present))
-        )
-    }
+    # (Recounted above, where rule A1 reads it: plan P4-D428.)
+    recounted: "dict[str, object]" = {"layout_forms": census}
     checks = checks + _form_checks(
         name, "identifier.layout_forms", facts.layout_forms, recounted,
         floor, "layout_forms",
