@@ -13,7 +13,11 @@ product cannot reach the reference too:
 - `PLACE_EMPTY_ROWS` is `dialect._place_empty_rows` as 8a02faa3 shipped
   it, which this landing removes;
 - `TWIN_TEXT` is `dialect.twin_text` as 8a02faa3 shipped it, the text
-  grown a line at a time.
+  grown a line at a time;
+- `SCHEDULES` is `dialect.spread_places`, `dialect.spread_endings` and
+  `dialect.closings_in_turn` as 8a02faa3 shipped them, each laying its
+  schedule out a line or a record at a time, which repair 2 walks as the
+  lines ask instead (the Codex review's item 2).
 
 They are compiled into a COPY of `dialect`'s own names, so the helpers
 they call (`_empty_targets`, `_permutation`, `data_line` and the rest,
@@ -28,6 +32,68 @@ import random
 import sys
 
 from synthtwin import cli, contract, dialect, generation
+
+SCHEDULES = '''
+def spread_places(spread: BlankSpread) -> "tuple[BlankPlace, ...]":
+    places: list[BlankPlace] = []
+    span = spread.last - spread.first
+    for index in range(spread.lines):
+        after = spread.first
+        if spread.lines > 1:
+            after = spread.first + (index * span) // (spread.lines - 1)
+        last = len(places) - 1
+        if last >= 0 and places[last].after == after:
+            places[last] = BlankPlace(after=after, lines=places[last].lines + 1, text=spread.text)
+        else:
+            places += [BlankPlace(after=after, lines=1, text=spread.text)]
+    return tuple(places)
+
+
+def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
+    total = 0
+    most = 0
+    for index in range(len(census)):
+        total = total + census[index].lines
+        if census[index].lines > census[most].lines:
+            most = index
+    if not census:
+        return []
+    endings = [census[most].ending for _line in range(total)]
+    taken = [False for _line in range(total)]
+    low = 0
+    for index in range(len(census)):
+        if index == most:
+            continue
+        count = census[index].lines
+        cursor = 0
+        for step in range(count):
+            target = ((2 * step + 1) * total) // (2 * count)
+            at = max(target, cursor)
+            while at < total and taken[at]:
+                at = at + 1
+            if at >= total:
+                while low < total and taken[low]:
+                    low = low + 1
+                at = low
+            taken[at] = True
+            endings[at] = census[index].ending
+            cursor = at + 1
+    return endings
+
+
+def closings_in_turn(form: Dialect, n_rows: int) -> "list[bool]":
+    if not form.rows_trailing_delimiter:
+        return [False for _row in range(n_rows)]
+    if not form.rows_closing_runs:
+        return [form.rows_closing_quoted for _row in range(n_rows)]
+    found: "list[bool]" = []
+    last = False
+    for run in form.rows_closing_runs:
+        last = run.ending == CLOSING_QUOTED
+        found += [last for _line in range(min(run.lines, n_rows - len(found)))]
+    found += [last for _row in range(n_rows - len(found))]
+    return found
+'''
 
 TWIN_TEXT = '''
 def twin_text(
@@ -218,9 +284,10 @@ def _place_empty_rows(grid: "list[list[str]]", form: Dialect, n_rows: int) -> No
 
 
 def _as_built_namespace() -> dict:
-    """`dialect`'s names with the three frozen functions compiled over them."""
+    """`dialect`'s names with the frozen functions compiled over them."""
     names = dict(vars(dialect))
     for text, label in (
+        (SCHEDULES, "<as built schedules>"),
         (TWIN_TEXT, "<as built twin_text>"),
         (ARRANGED, "<as built arranged>"),
         (PLACE_EMPTY_ROWS, "<as built _place_empty_rows>"),

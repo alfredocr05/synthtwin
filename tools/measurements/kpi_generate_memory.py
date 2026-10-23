@@ -72,6 +72,7 @@ import json
 import math
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -243,15 +244,27 @@ def _resident_kb(pid: int) -> int:
     return int(text) if text.isdigit() else -1
 
 
+def launcher() -> "list[str]":
+    """How a child is started: under `nice` where the system has it, and as
+    Python itself where it has not (native Windows: repair 2 of lane SG,
+    the Codex review's item 6, where a missing `nice` stopped the driver
+    before it measured anything)."""
+    if shutil.which("nice") is None:
+        return [sys.executable]
+    return ["nice", "-n", "10", sys.executable]
+
+
 def _child(argv: "list[str]") -> "dict[str, object]":
     """One action of this driver in a process of its own, so its peak is its own; its JSON.
 
-    Run under nice and under `GUARD_KB`: a child past it is stopped and
-    the driver exits with the size it was stopped at.
+    Run under nice where the system has it (`launcher`) and under
+    `GUARD_KB` where `ps` can read the child's resident memory: a child
+    past it is stopped and the driver exits with the size it was stopped
+    at.
     """
     with tempfile.TemporaryFile("w+") as said:
         child = subprocess.Popen(
-            ["nice", "-n", "10", sys.executable, str(pathlib.Path(__file__).resolve())] + argv,
+            launcher() + [str(pathlib.Path(__file__).resolve())] + argv,
             stdout=said,
             stderr=subprocess.DEVNULL,
             text=True,
@@ -308,10 +321,23 @@ def _generated(work: pathlib.Path, kind: str, rows: int, trace: bool) -> "dict[s
     return {"run": found, "traced": traced}
 
 
+def memory_record(sizes: "list[int]") -> "dict[str, object]":
+    """K-S4-09's generate keys before any is measured.
+
+    EVERY KEY NAMES GENERATE (repair 2 of lane SG, the Codex review's
+    item 7): `kpi_run.py` merges this record into the describe driver's
+    record for the same KPI, the later key winning, and a key both write
+    -- `rows_traced` was one, describe's 200,000 overwritten by this
+    driver's 50,000 beside describe's own measurements -- would carry one
+    driver's value under the other's name.
+    """
+    return {"generate_rows_traced": TRACED_ROWS, "generate_sizes": sizes}
+
+
 def measure(night: bool) -> "tuple[dict[str, object], dict[str, object]]":
     """K-S4-09's generate keys and K-S4-12's values."""
     sizes = list(NIGHT_SIZES if night else SIZES)
-    memory: "dict[str, object]" = {"rows_traced": TRACED_ROWS, "generate_sizes": sizes}
+    memory = memory_record(sizes)
     seconds: "dict[str, object]" = {"sizes": sizes}
     with tempfile.TemporaryDirectory() as folder:
         work = pathlib.Path(folder)
@@ -321,7 +347,7 @@ def measure(night: bool) -> "tuple[dict[str, object], dict[str, object]]":
         if resident:
             memory["generate_imports_mb"] = round(imports, 1)
         else:
-            memory["resident_memory"] = "unavailable on this platform: no peak recorded"
+            memory["generate_resident_memory"] = "unavailable on this platform: no peak recorded"
         for kind in ("mixed", "gaussian"):
             peaks: "list[float]" = []
             cpu: "list[float]" = []

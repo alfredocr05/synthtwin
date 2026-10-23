@@ -3106,17 +3106,28 @@ def closings_in_turn(form: Dialect, n_rows: int) -> "list[bool]":
     takes the last run's closing (plan P4-D387, lane R6). One walk over
     the runs, so the work is the rows plus the runs.
     """
+    return [closed for closed in _closings_walked(form, n_rows)]
+
+
+def _closings_walked(form: Dialect, n_rows: int) -> "typing.Iterator[bool]":
+    """`closings_in_turn`, a record at a time, never held (repair 2 of lane SG)."""
     if not form.rows_trailing_delimiter:
-        return [False for _row in range(n_rows)]
+        for _row in range(n_rows):
+            yield False
+        return
     if not form.rows_closing_runs:
-        return [form.rows_closing_quoted for _row in range(n_rows)]
-    found: "list[bool]" = []
+        for _row in range(n_rows):
+            yield form.rows_closing_quoted
+        return
+    given = 0
     last = False
     for run in form.rows_closing_runs:
         last = run.ending == CLOSING_QUOTED
-        found += [last for _line in range(min(run.lines, n_rows - len(found)))]
-    found += [last for _row in range(n_rows - len(found))]
-    return found
+        for _line in range(min(run.lines, n_rows - given)):
+            yield last
+            given = given + 1
+    for _row in range(n_rows - given):
+        yield last
 
 
 DOCUMENT_KEYS = (
@@ -6353,18 +6364,28 @@ def spread_places(spread: BlankSpread) -> "tuple[BlankPlace, ...]":
     records, so a file with one blank line after each of its records --
     double spacing -- is written exactly as it was.
     """
-    places: list[BlankPlace] = []
+    return tuple([place for place in _spread_places_in_turn(spread)])
+
+
+def _spread_places_in_turn(spread: BlankSpread) -> "typing.Iterator[BlankPlace]":
+    """`spread_places`, one place at a time and in order, never all at once
+    (repair 2 of lane SG: a double-spaced file has a place a record)."""
     span = spread.last - spread.first
+    after = spread.first
+    lines = 0
     for index in range(spread.lines):
-        after = spread.first
+        at = spread.first
         if spread.lines > 1:
-            after = spread.first + (index * span) // (spread.lines - 1)
-        last = len(places) - 1
-        if last >= 0 and places[last].after == after:
-            places[last] = BlankPlace(after=after, lines=places[last].lines + 1, text=spread.text)
-        else:
-            places += [BlankPlace(after=after, lines=1, text=spread.text)]
-    return tuple(places)
+            at = spread.first + (index * span) // (spread.lines - 1)
+        if lines and at == after:
+            lines = lines + 1
+            continue
+        if lines:
+            yield BlankPlace(after=after, lines=lines, text=spread.text)
+        after = at
+        lines = 1
+    if lines:
+        yield BlankPlace(after=after, lines=lines, text=spread.text)
 
 
 def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
@@ -6376,16 +6397,32 @@ def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
     file, the next free line where that one is taken. Every ending is
     written on exactly as many lines as the census says.
     """
+    if not census:
+        return []
+    marks, most = _spread_ending_marks(census)
+    return [census[most if mark == _COMMONEST_ENDING else mark].ending for mark in marks]
+
+
+# The mark of a line the commonest ending ends (`_spread_ending_marks`).
+_COMMONEST_ENDING = 255
+
+
+def _spread_ending_marks(census: "tuple[EndingRun, ...]") -> "tuple[bytearray, int]":
+    """`spread_endings` held as one byte a line (repair 2 of lane SG).
+
+    Returns (marks, most): ``marks[line]`` is the place in ``census`` of
+    the rarer ending that line takes, or `_COMMONEST_ENDING` where the
+    commonest, ``census[most]``, ends it; the rule is `spread_endings`'s,
+    step for step, a line taken being one whose mark is not
+    `_COMMONEST_ENDING`. Raises nothing. No I/O of any kind.
+    """
     total = 0
     most = 0
     for index in range(len(census)):
         total = total + census[index].lines
         if census[index].lines > census[most].lines:
             most = index
-    if not census:
-        return []
-    endings = [census[most].ending for _line in range(total)]
-    taken = [False for _line in range(total)]
+    marks = bytearray([_COMMONEST_ENDING]) * max(total, 0)
     low = 0
     for index in range(len(census)):
         if index == most:
@@ -6395,16 +6432,15 @@ def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
         for step in range(count):
             target = ((2 * step + 1) * total) // (2 * count)
             at = max(target, cursor)
-            while at < total and taken[at]:
+            while at < total and marks[at] != _COMMONEST_ENDING:
                 at = at + 1
             if at >= total:
-                while low < total and taken[low]:
+                while low < total and marks[low] != _COMMONEST_ENDING:
                     low = low + 1
                 at = low
-            taken[at] = True
-            endings[at] = census[index].ending
+            marks[at] = index
             cursor = at + 1
-    return endings
+    return marks, most
 
 
 def _refuse_a_quoted_empty_against_closing(
@@ -6847,12 +6883,126 @@ def twin_text(
 _LINES_A_PIECE = 256
 
 
-def _blank_lines_total(places: "tuple[BlankPlace, ...]") -> int:
-    """How many blank lines the form's places write, every place once."""
+def _blank_lines_total(form: Dialect) -> int:
+    """How many blank lines the form writes, every place once."""
+    if form.blank_lines_spread is not None:
+        return max(form.blank_lines_spread.lines, 0)
     total = 0
-    for place in places:
+    for place in form.blank_lines:
         total = total + place.lines
     return total
+
+
+def _blank_places_in_turn(form: Dialect) -> "typing.Iterator[BlankPlace]":
+    """The form's blank places in file order, one at a time (`spread_places`
+    for counted blank lines, made as they are asked)."""
+    if form.blank_lines_spread is not None:
+        for place in _spread_places_in_turn(form.blank_lines_spread):
+            yield place
+        return
+    for place in form.blank_lines:
+        yield place
+
+
+def _endings_in_turn(form: Dialect) -> "typing.Iterator[str]":
+    """Each line's ending from the form's runs, in file order, as the lines ask.
+
+    The counted endings where the form has them (`spread_endings`, held
+    as one byte a line), otherwise the published runs a line at a time;
+    a line past them asks for none (`_line_ended`).
+    """
+    census = form.line_endings_spread
+    if census:
+        marks, most = _spread_ending_marks(census)
+        for mark in marks:
+            yield ENDING_TEXT[census[most if mark == _COMMONEST_ENDING else mark].ending]
+        return
+    for run in form.line_endings:
+        text = ENDING_TEXT[run.ending]
+        for _line in range(run.lines):
+            yield text
+
+
+def _lines_above_total(write_header: bool, form: Dialect) -> int:
+    """How many lines stand above the first data record."""
+    total = preamble_lines_total(form.preamble) + len(form.header_rows)
+    if form.separator_line:
+        total = total + 1
+    if write_header:
+        total = total + 1
+    return total
+
+
+def _lines_above(
+    names: "tuple[str, ...]", write_header: bool, form: Dialect
+) -> "typing.Iterator[str]":
+    """The lines above the data, without their endings, one at a time: the
+    separator hint, the preamble, the header and the metadata rows."""
+    if form.separator_line:
+        yield "sep=" + form.delimiter
+    for before in form.preamble:
+        line = preamble_line(before)
+        for _line in range(before.lines):
+            yield line
+    if write_header:
+        yield header_line(names, form)
+    for row in form.header_rows:
+        alone = len(row) == 1
+        parts = [
+            written_field(cell, form.header_rows_quoting, form, alone)
+            for cell in row
+        ]
+        yield _joined(parts, form)
+
+
+def _ended_lines(
+    names: "tuple[str, ...]",
+    rows: "typing.Iterable[tuple[str, ...]]",
+    write_header: bool,
+    form: Dialect,
+    n_rows: int,
+) -> "typing.Iterator[str]":
+    """Every line of the twin with its ending, in file order, one at a time.
+
+    The form's schedules -- the endings, the blank places, the records'
+    closings -- are walked as the lines ask for them, never laid out a
+    line or a record at a time beforehand (repair 2 of lane SG, the Codex
+    review's item 2: a double-spaced file laid its blank places out one
+    object a record, about 160 bytes a record before the first piece);
+    only counted endings are held, at a byte a line (`_endings_in_turn`).
+    """
+    lines_total = _lines_above_total(write_header, form) + n_rows + _blank_lines_total(form)
+    endings = _endings_in_turn(form)
+    at = 0
+    for line in _lines_above(names, write_header, form):
+        yield _line_ended(line, at, lines_total, next(endings, None), form)
+        at = at + 1
+    # Each record closed as the source closed it (plan P4-D387, lane R6).
+    closings = _closings_walked(form, n_rows)
+    places = _blank_places_in_turn(form)
+    place = next(places, None)
+    index = 0
+    for cells in rows:
+        while place is not None and place.after == index:
+            for _line in range(place.lines):
+                yield _line_ended(place.text, at, lines_total, next(endings, None), form)
+                at = at + 1
+            place = next(places, None)
+        if index >= n_rows:
+            raise TypeError("internal check: a twin held more rows than it said")
+        written = data_line(cells, form)
+        if next(closings, False):
+            written = written + _closing_quotes(form)
+        yield _line_ended(written, at, lines_total, next(endings, None), form)
+        at = at + 1
+        index = index + 1
+    if index != n_rows:
+        raise TypeError("internal check: a twin held fewer rows than it said")
+    while place is not None:
+        for _line in range(place.lines):
+            yield _line_ended(place.text, at, lines_total, next(endings, None), form)
+            at = at + 1
+        place = next(places, None)
 
 
 def twin_pieces(
@@ -6871,7 +7021,8 @@ def twin_pieces(
       and the form.
     - What comes back: pieces whose text, joined in order, is the twin's
       whole text: each line with its ending, a piece at most
-      `_LINES_A_PIECE` lines, so the whole text is never made.
+      `_LINES_A_PIECE` lines -- of the preamble, of data or blank -- so
+      the whole text is never made.
     - Determinism: a fixed function of the inputs, on every platform; the
       line endings are written into the text, so the caller writes it
       without translating any.
@@ -6886,68 +7037,17 @@ def twin_pieces(
     source's last line had none. A byte-order mark leads where the form
     has one, and the end-of-file mark follows where it has one.
     """
-    blank_places = form.blank_lines
-    if form.blank_lines_spread is not None:
-        blank_places = spread_places(form.blank_lines_spread)
-    endings: list[str] = []
-    for run in form.line_endings:
-        for _line in range(run.lines):
-            endings += [ENDING_TEXT[run.ending]]
-    if form.line_endings_spread:
-        endings = [ENDING_TEXT[word] for word in spread_endings(form.line_endings_spread)]
-    above: list[str] = []
-    if form.separator_line:
-        above += ["sep=" + form.delimiter]
-    for before in form.preamble:
-        for _line in range(before.lines):
-            above += [preamble_line(before)]
-    if write_header:
-        above += [header_line(names, form)]
-    for row in form.header_rows:
-        alone = len(row) == 1
-        parts = [
-            written_field(cell, form.header_rows_quoting, form, alone)
-            for cell in row
-        ]
-        above += [_joined(parts, form)]
-    lines_total = len(above) + n_rows + _blank_lines_total(blank_places)
-    # Each record closed as the source closed it (plan P4-D387, lane R6).
-    quoted_closings = closings_in_turn(form, n_rows)
     piece: list[str] = []
     if form.byte_order_mark:
         piece += [_MARK]
-    at = 0
-    for line in above:
-        piece += [_line_ended(line, at, lines_total, endings, form)]
-        at = at + 1
-    blank_at = 0
-    index = 0
-    for cells in rows:
-        while blank_at < len(blank_places) and blank_places[blank_at].after == index:
-            place = blank_places[blank_at]
-            for _line in range(place.lines):
-                piece += [_line_ended(place.text, at, lines_total, endings, form)]
-                at = at + 1
-            blank_at = blank_at + 1
-        if index >= n_rows:
-            raise TypeError("internal check: a twin held more rows than it said")
-        written = data_line(cells, form)
-        if quoted_closings[index]:
-            written = written + _closing_quotes(form)
-        piece += [_line_ended(written, at, lines_total, endings, form)]
-        at = at + 1
-        index = index + 1
-        if len(piece) >= _LINES_A_PIECE:
+    held = 0
+    for line in _ended_lines(names, rows, write_header, form, n_rows):
+        piece += [line]
+        held = held + 1
+        if held >= _LINES_A_PIECE:
             yield "".join(_pieces_held(piece))
             piece = []
-    if index != n_rows:
-        raise TypeError("internal check: a twin held fewer rows than it said")
-    while blank_at < len(blank_places):
-        place = blank_places[blank_at]
-        for _line in range(place.lines):
-            piece += [_line_ended(place.text, at, lines_total, endings, form)]
-            at = at + 1
-        blank_at = blank_at + 1
+            held = 0
     if form.end_of_file_mark:
         piece += [_END_OF_FILE]
     if piece:
@@ -6960,16 +7060,16 @@ def _pieces_held(piece: "list[str]") -> "list[str]":
 
 
 def _line_ended(
-    line: str, at: int, lines_total: int, endings: "list[str]", form: Dialect
+    line: str, at: int, lines_total: int, ending: "str | None", form: Dialect
 ) -> str:
     """Line number ``at`` of ``lines_total`` with the ending the form gives it.
 
-    The next ending of the form's runs while one is left; past them a
-    line feed, except on the last line where the source's last line had
-    no ending.
+    ``ending`` is the next ending of the form's runs while one is left
+    (`_endings_in_turn`); past them a line feed, except on the last line
+    where the source's last line had no ending.
     """
-    if at < len(endings):
-        return line + endings[at]
+    if ending is not None:
+        return line + ending
     if at < lines_total - 1 or form.final_line_ending:
         return line + _LF
     return line

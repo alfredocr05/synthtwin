@@ -28063,7 +28063,15 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
     ranks 801 minutes apart, on a gap of minutes kept by the day, built
     102,528, and a million ranks could build 801 million. Past both the
     gap is walked, as every gap was before the index, each walk asking
-    400 units each side at most; the answer is the same either way."""
+    400 units each side at most; the answer is the same either way.
+
+    AND NEVER ONE OF MORE UNITS THAN ALL THE INDEXES MAY HOLD (repair 2
+    of lane SG, the Codex review's item 3): `_weekday_indexes_bounded`
+    always keeps the gap asked last, so an index larger than
+    `_WEEKDAY_INDEX_UNITS_HELD` was held whatever the bound said (25,000
+    movable ranks across 100,000 minutes built one of 100,000 units, 32.8
+    MB, and a larger gap more). Such a gap is walked instead, before
+    anything is built; the answer is the same."""
     if (low, high) in state.indexes:
         cached = state.indexes[(low, high)]
         # The gap asked last stands last (`_weekday_indexes_bounded`).
@@ -28078,6 +28086,7 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
         size > 0
         and last - first + 1 <= size * (2 * _WEEKDAY_REACH + 1)
         and last - first + 1 <= max(2 * _WEEKDAY_REACH + 1, size * _WEEKDAY_INDEX_PER_RANK)
+        and last - first + 1 <= _WEEKDAY_INDEX_UNITS_HELD
     ):
         units: "dict[tuple[int, _WeekdayKind], list[int]]" = {}
         for unit in range(first, last + 1):
@@ -63736,10 +63745,17 @@ def twin_column_blocks(twin: Twin, index: int) -> "typing.Iterator[list[str]]":
     The blocks joined are the column's cells (`twin_column`); a held
     column is read one `twinstore.BLOCK_ROWS` block at a time, so a walk over
     one column holds one block. No I/O of any kind.
+
+    BOTH WAYS A COLUMN IS HELD (repair 2, the Codex review's item 1): the
+    blocks are counted from the column's cells, not from its packed
+    blocks, because a column where a cell holds U+0000 is held as its
+    cells and has no packed block (`twinstore.held_column`); counted from
+    the packed blocks, none of its cells was read, and the report found
+    no cell beginning as a formula does in it.
     """
     if twin.held_columns is not None:
         column = twin.held_columns[index]
-        for block in range(len(column.blocks)):
+        for block in range(twinstore.blocks_of(column.count)):
             yield twinstore.column_block(column, block)
         return
     yield list(twin.columns[index])
