@@ -22057,11 +22057,10 @@ def _identifier_checks(
         taxonomy.absorbs_its_layout_pool({"layout_prefixes": facts.layout_prefixes})
         and contract.WITHHELD not in facts.layout_forms
     ):
-        absorbed = taxonomy.absorbed_layout_census(census, len(present))
+        absorbed = taxonomy.absorbed_layout_census(census, present)
         if absorbed is not None:
-            census = absorbed
-            widths = [len(layout) for layout in sorted(absorbed)]
-            absorbed_lengths = {"min_length": min(widths), "max_length": max(widths)}
+            census = absorbed[0]
+            absorbed_lengths = {"min_length": absorbed[1], "max_length": absorbed[2]}
     for field, published, subcheck in (
         ("min_length", facts.min_length, "length.min"),
         ("max_length", facts.max_length, "length.max"),

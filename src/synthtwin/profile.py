@@ -4702,7 +4702,9 @@ def build_document(
             # plan P4-D428): its layout pool counted in its commonest
             # layout. The validator reads the published prefix and absorbs
             # the measured file's pool alike (`validation._identifier_checks`).
-            described = taxonomy.with_layout_pool_absorbed(described)
+            described = taxonomy.with_layout_pool_absorbed(
+                described, cells, settings.small_cell_floor
+            )
         if (
             name in subject_names
             and name not in withheld_names

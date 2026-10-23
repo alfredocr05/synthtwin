@@ -738,6 +738,9 @@ def test_rule_i_reads_the_holding_questions_the_product_has() -> None:
         asking.BECAUSE_PADDED,
         asking.BECAUSE_FIXED_WIDTH,
         asking.BECAUSE_GROUPED_FIXED_WIDTH,
+        # Q-ID, built by lane CODES-3 as ZR.2 states it: "yes (P4-D401, one
+        # more holding shape)" (plan P4-D428).
+        asking.BECAUSE_FIGURES_JOINED_BY_POINTS,
     )
     assert asking._READ_AS_DATES_OR_TIMES == (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK)
     # A unit column read as an affixed number is still put the person

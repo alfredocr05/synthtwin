@@ -26091,37 +26091,56 @@ def as_unanswered_identity(column: ColumnProfile) -> ColumnProfile:
 
 
 def absorbed_layout_census(
-    census: "dict[str, int]", present: int
-) -> "dict[str, int] | None":
-    """A layout census with the cells no named layout counts moved into its commonest one.
+    census: "dict[str, int]", present: "list[str]"
+) -> "tuple[dict[str, int], int, int] | None":
+    """A layout census with its pooled cells moved into its commonest named layout.
 
     RULE A1 OF THE ZOO-FIX STAND-INS PAGE, ON A PREFIXED RECORD NUMBER
     (plan P4-D422's ZS.2, ruling 6 of the owner; lane CODES-3, plan
-    P4-D428). The cells that wear no named layout -- the `(withheld)`
-    pool, and a pool `_layout_forms` left unwritten -- are counted in the
+    P4-D428). A cell that wears a layout and is counted in no named one
+    -- its layout too rare to name, or of too small a supply, the
+    `(withheld)` pool whether or not it was written -- is counted in the
     commonest named layout (the earliest in sorted order on a tie), and
-    `(withheld)` goes. None where nothing moves: no named layout to
-    receive them, or no cell outside the named ones.
+    `(withheld)` goes. A cell of a deep zero fill counted under a
+    shallower named layout stays there (`parsing.layout_shallower`), and a
+    cell with no layout at all stays counted nowhere, as
+    `layout_census` counts it.
 
-    Guarantees: a fixed function of the census and the column's present
-    cells. Raises nothing. No I/O.
+    Returned with the shortest and longest lengths read the same way: a
+    cell moved counts at its new layout's length (one mark a character,
+    so a layout is as long as every cell wearing it), every other cell at
+    its own. None where nothing moves: no named layout, or no cell
+    pooled.
+
+    Guarantees: a fixed function of the census and the present cells.
+    Raises nothing. No I/O.
     """
     named: dict[str, int] = {}
-    counted = 0
     for layout in sorted(census):
-        if layout == SUPPRESSED_LABEL:
-            continue
-        named[layout] = census[layout]
-        counted = counted + census[layout]
-    pool = present - counted
-    if not named or pool <= 0:
+        if layout != SUPPRESSED_LABEL:
+            named[layout] = census[layout]
+    if not named:
         return None
     commonest = ""
     for layout in sorted(named):
         if not commonest or named[layout] > named[commonest]:
             commonest = layout
+    convention = parsing.layout_convention(present)
+    pool = 0
+    lengths: "list[int]" = []
+    for value in present:
+        layout = parsing.layout_form(value, convention)
+        while layout and layout not in named and parsing.layout_fill(layout) >= 2:
+            layout = parsing.layout_shallower(layout)
+        if layout and layout not in named:
+            pool = pool + 1
+            lengths += [len(commonest)]
+            continue
+        lengths += [len(value)]
+    if pool == 0:
+        return None
     named[commonest] = named[commonest] + pool
-    return named
+    return named, min(lengths), max(lengths)
 
 
 def absorbs_its_layout_pool(details: "dict[str, object]") -> bool:
@@ -26139,20 +26158,26 @@ def absorbs_its_layout_pool(details: "dict[str, object]") -> bool:
     return isinstance(prefixes, dict) and parsing.PREFIX_OF_THE_COLUMN in prefixes
 
 
-def with_layout_pool_absorbed(column: ColumnProfile) -> ColumnProfile:
+def with_layout_pool_absorbed(
+    column: ColumnProfile, cells: "list[str]", floor: int
+) -> ColumnProfile:
     """A declared record number's block under rule A1 (plan P4-D428).
 
     Where `absorbs_its_layout_pool` reads the block and
     `absorbed_layout_census` moves cells, the census is the absorbed one
-    and the shortest and longest lengths are those of its layouts (one
-    mark a character, so a layout is as long as every cell wearing it):
-    the twin writes the pool's cells in the commonest layout, so no
-    length only the pool held is owed, and none is printed. The validator
-    reads the measured file with the same absorption
-    (`validation._identifier_checks`), so the real table meets the census
-    it was described with. Every other column is returned unchanged.
+    and the shortest and longest lengths are read as it reads them: the
+    twin writes the pool's cells in the commonest layout, so no length
+    only the pool held is owed, and none is printed. ``cells`` is the
+    column's cells; the present ones are those holding text that is not a
+    spelling the column read as missing. A census the whole-census rule
+    of C6-131b took a named layout from (it names other layouts than
+    `layout_census` over the same cells) is left as it is, since the
+    validator's recount could not read it alike. The validator reads the
+    measured file with the same absorption (`validation._identifier_checks`),
+    so the real table meets the census it was described with. Every other
+    column is returned unchanged.
 
-    Guarantees: a fixed function of the column. Raises nothing. No I/O.
+    Guarantees: a fixed function of the arguments. Raises nothing. No I/O.
     """
     if column.role != ROLE_IDENTIFIER or not absorbs_its_layout_pool(
         column.details
@@ -26161,16 +26186,30 @@ def with_layout_pool_absorbed(column: ColumnProfile) -> ColumnProfile:
     forms = column.details["layout_forms"] if "layout_forms" in column.details else None
     if not isinstance(forms, dict):
         return column
-    absorbed = absorbed_layout_census(forms, column.n_present)
+    absent: "dict[str, bool]" = {}
+    for spelling in column.absent_spellings:
+        absent[spelling] = True
+    present = [
+        value
+        for value in cells
+        if parsing.trimmed(value) and value not in absent
+    ]
+    recounted = layout_census(present, floor, len(set(present)))
+    for layout in sorted(forms):
+        if layout != SUPPRESSED_LABEL and layout not in recounted:
+            return column
+    for layout in sorted(recounted):
+        if layout != SUPPRESSED_LABEL and layout not in forms:
+            return column
+    absorbed = absorbed_layout_census(forms, present)
     if absorbed is None:
         return column
     details: dict[str, object] = {}
     for key in sorted(column.details):
         details[key] = column.details[key]
-    details["layout_forms"] = absorbed
-    lengths = [len(layout) for layout in sorted(absorbed)]
-    details["min_length"] = min(lengths)
-    details["max_length"] = max(lengths)
+    details["layout_forms"] = absorbed[0]
+    details["min_length"] = absorbed[1]
+    details["max_length"] = absorbed[2]
     return dataclasses.replace(column, details=details)
 
 
