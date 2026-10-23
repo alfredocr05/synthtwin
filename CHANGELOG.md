@@ -53,8 +53,8 @@ validator's rule of each; what moves (no golden, checked on the
 fixtures; the frozen vectors each lane names); the KPIs the four lanes
 stamp and the kinds each turns. Measured on 4682d6ad
 (`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
-(166 cases) pins the page's figures and its reading of the product, red on
-each of 100 page mutants after the second repair, on the combined review
+(167 cases) pins the page's figures and its reading of the product, red on
+each of 101 page mutants after the second repair, on the combined review
 and the one outside review.
 
 ### Batch 4e's records: what counting in people costs the health data zoo, the night window's stamps, stated limits given owners (2026-10-21)

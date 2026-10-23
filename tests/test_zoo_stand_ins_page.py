@@ -233,6 +233,8 @@ OPERATIVE = {
     "see-note": "`mixed_results.result_value` 6 (moot once CODES-2 names `SEE NOTE`)",
     "gg-kpi-no": "values off the real list on the few-valued cases, stamped with `no` answered",
     "PS": "this page writes no date or time stand-in and names that rule wherever one is meant",
+    "table-floor": "every rule here holds at every size, the Safe Harbor question, the top-code and rule U being "
+    "identifier rules the floor never excuses",
 }
 
 
