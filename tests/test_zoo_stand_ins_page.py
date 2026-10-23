@@ -237,13 +237,16 @@ OPERATIVE = {
     "40 of 40 padded ZIPs and 4 of 4 ZIPs that lost their zeros beside `-99` x 7,000",
     "label-ages-point-9": "its reach in label roles (ages written `NN years`, `95` beside `UNK`: the LANE SH ADDENDUM 2; "
     "every word set aside whatever its share: the LANE SH ADDENDUM 3, case (2)) and the five-figure hold (its "
-    "placeholders set aside whatever their share: the LANE SH ADDENDUM 3, case (1)) in the product before CODES-2",
-    "point-9-verify-4": "and the fourth verify's four (the LANE SH ADDENDUM 3; ZS.1 says how the page agrees with SH)",
+    "placeholders set aside whatever their share: the LANE SH ADDENDUM 3, case (1); `9999` and `99999` counted toward "
+    "\"one of five\", never set aside: the LANE SH ADDENDUM 4) in the product before CODES-2",
+    "point-9-verify-4": "(the LANE SH ADDENDUM 2), the fourth verify's four (the LANE SH ADDENDUM 3) and the fifth "
+    "verify's `V5-1` (the LANE SH ADDENDUM 4; ZS.1 says how the page agrees with SH)",
     "point-7-words": "one zoo column fewer, and with every word of a label column set aside none more, modelled, ZS.1)",
     "label-ages-kpi": "`ageslabel`: the levels `90 years` to `104 years`, and `95` beside `UNK` x 7,000, and beside words "
     "on more than one cell in three `95` and `90 years` to `104 years`",
-    "zip-kpi": "`ziprole`: 2 and 1 real ZIPs; `zipwidth`: 4 of 4, and 4 of 4 beside `-99` x 7,000; `zip5word` at 20,000 "
-    "rows: 40 of 40 padded ZIPs beside `-99` x 7,000)",
+    "zip-kpi": "`ziprole`: 2 and 1 real ZIPs; `zipwidth`: 4 of 4, and 4 of 4 beside `-99` x 7,000, and 40 of 40 "
+    "four-figure ZIPs beside `99999` x 1,000 or on 11 rows; `zip5word` at 20,000 rows: 40 of 40 padded ZIPs beside "
+    "`-99` x 7,000)",
     "top-code-gate2": "lane SH's gate cases (1) and (2), and CODES-2's, `K-S3-64`'s held shapes `agesrole` and `agesbulk`",
     "top-code-ages999": "the `ages999` shapes (`999` once and twenty times) are reached and print 0 ages over 89 "
     "(CODES-2's gate cases and `K-S3-64`'s held shapes `ages999`)",
@@ -257,9 +260,35 @@ OPERATIVE = {
     "five-figure-zeros": "and a ZIP whose leading zero was lost read in its five-figure reading (`2100` beside `52240`: "
     "mixed widths are in reach, Codex's second outside round, item 4)",
     "five-figure-aside": "a lone `0`, a minus sign with one figure and its PLACEHOLDERS set aside whatever their share -- an "
-    "all-nines value of either sign (`999`, `-99`) and ANY single value of other than four or five figures that at "
-    "least the floor's rows repeat (`-99`, `-1` or `888` on 11 rows or more), mirroring the top-code, the reach judged on "
-    "the numbers that remain (the orchestrator's LANE SH ADDENDUM 3, case (1)) -- may hold ZIP codes",
+    "all-nines value of either sign (`999`, `-99`), save `9999` and `99999`, the all-nines values of four or five "
+    "figures, which are never set aside and count as values of the ZIP widths, \"one at least of five\" included (the "
+    "orchestrator's LANE SH ADDENDUM 4, correcting its ADDENDUM 3), and ANY single value of other than four or five "
+    "figures that at least the floor's rows repeat (`-99`, `-1` or `888` on 11 rows or more), mirroring the top-code, "
+    "the reach judged on the numbers that remain (the orchestrator's LANE SH ADDENDUM 3, case (1)) -- may hold ZIP "
+    "codes",
+    "five-figure-v5-1": "40 four-figure ZIPs (`2100` to `2373`) on 19,000 rows beside `99999` x 1,000, or beside "
+    "`99999` on 11 rows, read `count` and print 40 of 40 real ZIPs today, nothing asked, the widths 4 and 5 putting no "
+    "fixed-width question; with `99999` counted as a five-figure value the hold reaches both, 0 ZIPs printed with the "
+    "question put: lane SH's gate case `V5-1` (its LANE SH ADDENDUM 4), and CODES-2's, `K-S3-64`'s held shape "
+    "`zipwidth`.",
+    "five-figure-four-limit": "The fixed-width question holds such a column only while every value has four figures "
+    "(beside `9999` x 1,000 too: `identifier`, 0 printed); beside any other placeholder or a word -- `999`, `-99` or "
+    "`-1` x 1,000, `UNKNOWN` x 1,000 or once -- the same 40 ZIPs read `count`, `continuous` or `categorical` and print "
+    "40 of 40 today, nothing asked, and neither the hold nor that question reaches them (ZS.10: a live exposure, owner "
+    "CODES-2).",
+    "five-figure-nines-price": "Counting `9999` and `99999` toward the ZIP widths moves no column of the zoo (600 and "
+    "20,000 rows), the fixtures or the analyst tables, modelled the same way (`wave6/ZRb/r7/r7-reach.log`); its false "
+    "alarm is a column of four-figure years beside `99999` (one question).",
+    "five-figure-limit-four": "and so is one whose zeros were ALL lost beside the unknown-ZIP code `99999` (counted as a "
+    "five-figure value, never set aside: the LANE SH ADDENDUM 4); one whose zeros were ALL lost, every value of four "
+    "figures (`9999` included), is held by P4-D401's fixed-width question instead, until answered; one whose zeros were "
+    "ALL lost beside any other placeholder or a word (`999`, `-99` or `-1` x 1,000, `UNKNOWN` x 1,000 or once) is "
+    "reached by neither and prints its ZIPs today, 40 of 40 at 20,000 rows (`wave6/ZRb/r7/r7-probe.log`), a live "
+    "exposure (owner CODES-2, which measures all three).",
+    "sh-addendum-4": "Its LANE SH ADDENDUM 4 (2026-10-23 11:16) corrects its ADDENDUM 3's case (1): an all-nines value "
+    "of four or five figures (`9999`, `99999`) is not set aside and counts toward \"one at least of five\", and it adds "
+    "the fifth verify's shape `V5-1` at 0 ZIPs in any file, the question put: 40 four-figure ZIPs (`2100` to `2373`) on "
+    "19,000 rows beside `99999` x 1,000, and beside `99999` on 11 rows.",
     "five-figure-placeholder-gate": "With `-99` set aside each is reached and held, 0 ZIPs printed with the question put: "
     "lane SH's gate cases (its LANE SH ADDENDUM 3, case (1)), and CODES-2's, `K-S3-64`'s held shapes `zip5word` (the "
     "padded ZIPs beside `-99`) and `zipwidth` (the lost zeros beside `-99`).",
@@ -1310,17 +1339,22 @@ def _read_as_90(cells: "list[str]", label: bool = False) -> "list[str]":
 SHAPED = re.compile(r"\d{4,5}(?:\.0+)?")
 
 
-def _zip_reach(cells: "list[str]", widths: "tuple[int, ...]" = (4, 5), placeholders: bool = True) -> bool:
-    """ZS.1's five-figure hold, close 4: whole numbers as the source wrote them, at least two thirds of four or five
+def _zip_reach(
+    cells: "list[str]", widths: "tuple[int, ...]" = (4, 5), placeholders: bool = True, nines: bool = True,
+) -> bool:
+    """ZS.1's five-figure hold, close 5: whole numbers as the source wrote them, at least two thirds of four or five
     figures, one of five; words, a lone `0`, a minus sign with one figure and the placeholders -- an all-nines value of
-    either sign, and any single value of other than four or five figures that at least the floor's rows repeat -- set
-    aside whatever their share. `widths=(5,)` is repair 3's five figures only and `placeholders=False` close 3's hold,
-    each a mutant."""
+    other than four or five figures, either sign, and any single value of other than four or five figures that at least
+    the floor's rows repeat -- set aside whatever their share; an all-nines value of four or five figures (`9999`,
+    `99999`) is not set aside and counts toward "one of five" (the orchestrator's LANE SH ADDENDUM 4). `widths=(5,)`
+    is repair 3's five figures only, `placeholders=False` close 3's hold and `nines=False` close 4's (every all-nines
+    value set aside before "one of five"), each a mutant."""
     numbers = [text for text in _numbers_of(cells) if text != "0" and not re.fullmatch(r"-\d", text)]
     if placeholders:
         tally = collections.Counter(numbers)
         numbers = [text for text in numbers
-                   if not NINES.fullmatch(text) and (tally[text] < FLOOR or SHAPED.fullmatch(text))]
+                   if not (NINES.fullmatch(text) and (not nines or not SHAPED.fullmatch(text)))
+                   and (tally[text] < FLOOR or SHAPED.fullmatch(text))]
     whole = [text.split(".")[0] for text in numbers if re.fullmatch(r"\d+(\.0+)?", text)]
     shaped = [text for text in whole if len(text) in widths]
     return bool(numbers) and 3 * len(shaped) >= 2 * len(numbers) and any(len(text) == 5 for text in whole)
@@ -1807,7 +1841,98 @@ def test_close_4_is_recorded_in_the_decision() -> None:
             "`zipwidth` and SH's gate") in decision
     assert ("every word is set aside whatever its share and the reach decides on the number levels (the verify's option "
             "(a)), the two shapes added to `ageslabel` and SH's gate, and ZS.10's \"Only\" corrected") in decision
-    assert ("its words and placeholders (all-nines, and any value of other than four or five figures that the floor's "
-            "rows repeat) set aside whatever their share, held whole until `no`") in decision
+    assert ("its words and placeholders (all-nines of other than four or five figures, and any value of other than four "
+            "or five figures that the floor's rows repeat) set aside whatever their share, `9999` and `99999` counted "
+            "toward \"one of five\", held whole until `no`") in decision
     assert "every word set aside whatever its share, its levels above 89 pooled into one written as 90" in decision
     assert "Only an age column" not in _flat(_page())
+
+
+# Close 5 (2026-10-23): the fifth verify (`wave6/ZRb-verify5.md`), its option (a), the orchestrator's LANE SH ADDENDUM
+# 4: an all-nines value of four or five figures counts toward "one of five" and is never set aside.
+
+FOUR_FIGURE_ZIPS = [f"{2100 + 7 * k}" for k in range(40)]
+V5_1 = {
+    "x1000": [FOUR_FIGURE_ZIPS[k % 40] for k in range(19000)] + ["99999"] * 1000,
+    "x11": [FOUR_FIGURE_ZIPS[k % 40] for k in range(19989)] + ["99999"] * 11,
+}
+
+
+@pytest.mark.parametrize("case", sorted(V5_1))
+def test_zips_that_all_lost_their_zeros_beside_99999_print_today_and_the_hold_takes_them(
+    case: str, tmp_path: pathlib.Path,
+) -> None:
+    """`V5-1`: at 20,000 rows, nobody answering, 40 four-figure ZIPs beside `99999` read `count` and print 40 of 40
+    with no question; close 4's hold, setting `99999` aside before "one of five", misses them; close 5's takes them."""
+    cells = V5_1[case]
+    assert len(cells) == 20000 and FOUR_FIGURE_ZIPS[-1] == "2373"
+    column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
+    assert column["role"] == "count" and column["role"] in _reach_roles()
+    shown = {value.split(".")[0] for value in _printed(column)}
+    assert set(FOUR_FIGURE_ZIPS) <= shown, set(FOUR_FIGURE_ZIPS) - shown
+    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
+    assert not [entry for entry in asked if entry.get("column") == "zip"]
+    assert _zip_reach(cells) and not _zip_reach(cells, nines=False)  # close 4's hold: missed
+
+
+FOUR_FIGURES_BESIDE = {
+    "alone": ([FOUR_FIGURE_ZIPS[k % 40] for k in range(20000)], "identifier"),
+    "9999": ([FOUR_FIGURE_ZIPS[k % 40] for k in range(19000)] + ["9999"] * 1000, "identifier"),
+    "999": ([FOUR_FIGURE_ZIPS[k % 40] for k in range(19000)] + ["999"] * 1000, "count"),
+    "minus99": ([FOUR_FIGURE_ZIPS[k % 40] for k in range(19000)] + ["-99"] * 1000, "continuous"),
+    "minus1": ([FOUR_FIGURE_ZIPS[k % 40] for k in range(19000)] + ["-1"] * 1000, "continuous"),
+    "UNKNOWN-1000": ([FOUR_FIGURE_ZIPS[k % 40] for k in range(19000)] + ["UNKNOWN"] * 1000, "categorical"),
+    "UNKNOWN-once": ([FOUR_FIGURE_ZIPS[k % 40] for k in range(19999)] + ["UNKNOWN"], "count"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(FOUR_FIGURES_BESIDE))
+def test_zips_that_all_lost_their_zeros_are_held_only_as_zs10_says(case: str, tmp_path: pathlib.Path) -> None:
+    """ZS.10 corrected: four figures alone, or beside `9999`, are held by the fixed-width question (0 printed); beside
+    any other placeholder or a word neither that question nor the hold reaches them and 40 of 40 print today, the
+    live exposure ZS.10 names."""
+    cells, role = FOUR_FIGURES_BESIDE[case]
+    column = _column(_profiled(tmp_path, "zips.csv", "zip\n" + "\n".join(cells) + "\n"), "zip")
+    assert column["role"] == role
+    shown = {value.split(".")[0] for value in _printed(column)}
+    asked = json.loads((tmp_path / "zips-questions.json").read_text(encoding="utf-8"))["asked"]
+    put = [entry for entry in asked if entry.get("column") == "zip"]
+    assert not _zip_reach(cells)
+    if role == "identifier":
+        assert put and not set(FOUR_FIGURE_ZIPS) & shown
+    else:
+        assert not put and set(FOUR_FIGURE_ZIPS) <= shown, set(FOUR_FIGURE_ZIPS) - shown
+    page = _flat(_page())
+    assert "one whose zeros were ALL lost (four figures alone) is held by P4-D401's fixed-width question" not in page
+
+
+def test_only_the_all_nines_of_the_zip_widths_count_toward_one_of_five() -> None:
+    """ADDENDUM 4's rule: `9999` and `99999` are values of the ZIP widths; all-nines of other widths, negative
+    placeholders and repeated values of other widths are still set aside whatever their share."""
+    four = [FOUR_FIGURE_ZIPS[k % 40] for k in range(1300)]
+    assert _zip_reach(four + ["99999"] * 700) and _zip_reach(four + ["99999.0"] * 11)
+    assert not _zip_reach(four + ["9999"] * 700)  # four figures only: the fixed-width question's
+    for other in ("999", "-99", "-9999", "999999", "-1", "88"):
+        assert not _zip_reach(four + [other] * 700), other  # set aside: four figures remain
+    padded = [f"0{2100 + 7 * (k % 40):04d}" for k in range(1300)]
+    for other in ("999", "-99", "-9999", "999999"):
+        assert _zip_reach(padded + [other] * 700), other  # set aside whatever their share
+    assert _zip_reach(padded + ["99999"] * 700) and _zip_reach(padded + ["9999"] * 700)
+    years = [f"{1990 + k % 30}" for k in range(1900)]
+    assert _zip_reach(years + ["99999"] * 100) and not _zip_reach(years + ["99999"] * 100, nines=False)  # the price
+
+
+def test_close_5_is_recorded_in_the_decision() -> None:
+    text = _flat(PLAN.read_text(encoding="utf-8"))
+    decision = text[text.index(DECISION_HEADING):]
+    assert ("**Close 5 (2026-10-23).** On the fifth verify (`wave6/ZRb-verify5.md`), its option (a), the "
+            "orchestrator's LANE SH ADDENDUM 4 (11:16) correcting its ADDENDUM 3's case (1)") in decision
+    assert ("the hold now counts `9999` and `99999` as values of the ZIP widths, \"one at least of five\" included, and "
+            "still sets aside all-nines of other widths, negative placeholders and any value of other than four or five "
+            "figures that the floor's rows repeat, whatever their share; the shape `V5-1` added to `zipwidth` and SH's "
+            "gate") in decision
+    assert ("ZS.10's sentence on ZIPs that lost all their zeros corrected to what holds, the column beside any other "
+            "placeholder or a word named a live exposure (40 of 40 printed today; owner CODES-2)") in decision
+    assert ("Its price, modelled on the cells: no zoo, fixture or analyst column; four-figure years beside `99999` one "
+            "question.") in decision
+    assert decision.index("**Close 4 (2026-10-23).**") < decision.index("**Close 5 (2026-10-23).**")
