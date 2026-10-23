@@ -27,6 +27,7 @@ import pytest
 
 import fixtures
 from synthtwin import contract, generation, parsing
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 ORACLE = REPOSITORY / "tools" / "reference" / "make_generation_reference_vectors.py"
@@ -40,14 +41,13 @@ def _oracle():
 
 
 def _exit_of(argv: "list[str]") -> int:
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     out = io.StringIO()
     try:
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
-            code = cli.main()
+            code = lowered_floor.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:

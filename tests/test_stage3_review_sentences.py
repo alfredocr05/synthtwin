@@ -64,7 +64,8 @@ import json
 import pathlib
 
 import fixtures
-from synthtwin import asking, cli, contract, parsing, taxonomy
+from synthtwin import asking, contract, parsing, taxonomy
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 
 def _table(folder: pathlib.Path, header: "list[str]", rows: "list[list[str]]") -> str:
@@ -80,7 +81,7 @@ def _run(*words: str) -> "tuple[int, str]":
     """
     spoken = io.StringIO()
     with contextlib.redirect_stdout(spoken), contextlib.redirect_stderr(spoken):
-        code = cli.main(list(words))
+        code = lowered_floor.main(list(words))
     return code, spoken.getvalue()
 
 

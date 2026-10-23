@@ -30,6 +30,7 @@ import pytest
 
 import fixtures
 from synthtwin import contract, dialect, errors
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 DELIMITERS = [",", ";", "\t", "|"]
 IDS = ["comma", "semicolon", "tab", "bar"]
@@ -37,14 +38,13 @@ IDS = ["comma", "semicolon", "tab", "bar"]
 
 def _exit_of(argv: "list[str]") -> int:
     """Run one synthtwin command in this process, quietly, and return its exit code."""
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     sink = io.StringIO()
     try:
         with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-            code = cli.main()
+            code = lowered_floor.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:

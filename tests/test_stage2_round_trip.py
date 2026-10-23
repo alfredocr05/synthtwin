@@ -33,6 +33,7 @@ import keyboard
 
 from synthtwin import parsing
 from tests import fixtures
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 FACTS = (
     "role",
@@ -52,12 +53,11 @@ ROWS = 240
 
 def _exit_of(argv: "list[str]") -> int:
     """Run one synthtwin command in this process and return its exit code."""
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        code = cli.main()
+        code = lowered_floor.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:

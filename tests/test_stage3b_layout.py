@@ -159,6 +159,7 @@ from synthtwin import (
 from tests import fixtures
 from tests import layout_r2a_descriptions as r2a_written
 from tests import layout_spellings as spellings
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 ROWS = 300
 SEEDS = (0, 1, 2)
@@ -169,12 +170,11 @@ _MATCHING_LAYOUT = taxonomy._matching_layout
 
 def _exit_of(argv: "list[str]") -> int:
     """Run one synthtwin command in this process and return its exit code."""
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        code = cli.main()
+        code = lowered_floor.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:

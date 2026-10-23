@@ -38,6 +38,7 @@ from synthtwin import (
     sheetwriting,
     workbook,
 )
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # EVERY SHEET THIS FILE DESCRIBES THROUGH THE COMMAND IS WRITTEN AT THE
 # POPULATION FLOOR (plan P4-D341): `synthtwin profile` refuses a table
@@ -189,7 +190,6 @@ def _rows(grid: "dict[int, list[str]]") -> str:
 
 def _exit_of(argv: "list[str]") -> "tuple[int, str]":
     """One synthtwin command: its exit code, and what it said."""
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
@@ -197,7 +197,7 @@ def _exit_of(argv: "list[str]") -> "tuple[int, str]":
     try:
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             try:
-                code = cli.main()
+                code = lowered_floor.main()
             except SystemExit as stop:
                 code = 0 if stop.code is None else int(stop.code)
     finally:

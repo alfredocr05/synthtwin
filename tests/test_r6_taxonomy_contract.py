@@ -35,7 +35,8 @@ import pytest
 import cost_rule_window
 import fixtures
 import tail_rule
-from synthtwin import cli, parsing, profile, reading, taxonomy
+from synthtwin import parsing, profile, reading, taxonomy
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # THE SMALLEST GROUP EVERY CASE HERE IS DESCRIBED AT, DECLARED BECAUSE
 # IT IS NO LONGER THE DEFAULT. The owner lowered the shipped
@@ -286,7 +287,7 @@ def test_the_out_of_range_spread_survives_the_command_line(
         "spread.csv",
         fixtures.kept_column_table("reading", padded),
     )
-    assert cli.main(
+    assert lowered_floor.main(
         ["profile", str(table), "--smallest-group", "3"]
     ) == 0
     printed = capsys.readouterr().out

@@ -56,16 +56,16 @@ import sys
 
 from synthtwin import parsing
 from tests import fixtures
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 
 def _run(argv: "list[str]") -> None:
     """Run one synthtwin command in this process and require success."""
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        code = cli.main()
+        code = lowered_floor.main()
     except SystemExit as stop:
         if stop.code not in (None, 0):
             raise AssertionError(f"{argv} exited {stop.code}") from stop

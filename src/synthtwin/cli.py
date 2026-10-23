@@ -742,6 +742,47 @@ class _Options:
     first_row_typed: bool = False
 
 
+def _typed_floor(typed: str) -> int:
+    """The smallest group size typed after `--smallest-group`, or a refusal.
+
+    THE FLOOR OF 11 IS A MINIMUM (plan P4-D426). Returns the number where
+    it is a whole number of `_SMALLEST_GROUP` or more; otherwise says why
+    in plain words and stops with code 2 (`_refuse_the_command_line`),
+    before anything is read or written. `int` reads the text exactly as
+    argparse's `type=int` read it before that plan, so every number of 11
+    or more is taken as it was. Determinism: a fixed function of the text.
+    """
+    try:
+        floor = int(typed)
+    except ValueError:
+        _refuse_the_command_line(errors.floor_not_a_whole_number(_shown(typed)))
+        raise
+    if floor < _SMALLEST_GROUP:
+        _refuse_the_command_line(errors.floor_under_the_minimum(_shown(typed)))
+    return floor
+
+
+def _description_floor_refused(
+    floor: int, least: int, description: str, building: bool
+) -> bool:
+    """Whether a description's recorded floor is refused; says so if it is.
+
+    HIPAA FIRST (plan P4-D426): `generate` builds no twin from, and
+    `validate` checks no file against, a description recording a smallest
+    group size under ``least`` -- `_SMALLEST_GROUP` on every typed
+    command -- and the refusal is put on the error stream here, before
+    anything is written. ``building`` is True for `generate`.
+    """
+    if floor >= least:
+        return False
+    _warn(
+        errors.description_floor_under_the_minimum(
+            _shown(description), floor, building
+        )
+    )
+    return True
+
+
 def _parse_arguments(
     argv: "list[str] | None", lowered_floor: "int | None" = None
 ) -> _Options:
@@ -1232,21 +1273,9 @@ def _parse_arguments(
             f"my-table-profile.json  and nothing else. If the path has a "
             f"space in it, put quotation marks around the whole path."
         )
-    # THE FLOOR OF 11 IS A MINIMUM (plan P4-D426). `int` reads the typed
-    # text exactly as argparse's `type=int` read it before, so every
-    # number of 11 or more is taken as it was.
     floor_typed: "int | None" = None
     if lowered_floor is None and args.smallest_group is not None:
-        try:
-            floor_typed = int(f"{args.smallest_group}")
-        except ValueError:
-            _refuse_the_command_line(
-                errors.floor_not_a_whole_number(_shown(args.smallest_group))
-            )
-        if floor_typed is not None and floor_typed < _SMALLEST_GROUP:
-            _refuse_the_command_line(
-                errors.floor_under_the_minimum(_shown(args.smallest_group))
-            )
+        floor_typed = _typed_floor(f"{args.smallest_group}")
     if args.command == _PROFILE and args.path is None:
         _refuse_the_command_line(
             "Please say which file to describe, for example: "
@@ -5490,12 +5519,9 @@ def _run_generate(
     # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT BUILT FROM (plan
     # P4-D426, HIPAA first): the twin would hold every group it names,
     # however small, and decision D7 lets a twin travel freely.
-    if loaded.settings.small_cell_floor < least_floor:
-        _warn(
-            errors.description_floor_under_the_minimum(
-                _shown(description), loaded.settings.small_cell_floor, True
-            )
-        )
+    if _description_floor_refused(
+        loaded.settings.small_cell_floor, least_floor, description, True
+    ):
         return 1
     # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
     # P4-D79, which supersedes P4-D78's refusal). The description says
@@ -5853,12 +5879,9 @@ def _run_validate(
     # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT CHECKED AGAINST
     # (plan P4-D426, HIPAA first): the report would quote its small
     # groups and count the checked file's at that size.
-    if loaded.settings.small_cell_floor < least_floor:
-        _warn(
-            errors.description_floor_under_the_minimum(
-                _shown(description), loaded.settings.small_cell_floor, False
-            )
-        )
+    if _description_floor_refused(
+        loaded.settings.small_cell_floor, least_floor, description, False
+    ):
         return 1
     measured = _measured_path(
         description, twin_given, loaded.source.workbook is not None

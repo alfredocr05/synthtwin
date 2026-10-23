@@ -34,6 +34,16 @@ before.
 Every table here is built by the seeded neutral builders in
 `fixtures.py` (plan D13: no data-format file is ever committed), and
 every description by the REAL producer.
+
+SINCE PLAN P4-D426 NO PERSON REACHES ANY OF THIS. The owner answered on
+2026-10-23 that the floor of 11 is a minimum: `--smallest-group` under
+11 is refused writing nothing, and `generate` and `validate` refuse a
+description recorded under 11 (`tests/test_floor_is_a_minimum.py`).
+The floors below 11 these checks run at are reached through
+`cli.main`'s internal keyword `lowered_floor`, by way of
+`tests/lowered_floor.py`; what this file holds is what such a run
+still writes, byte for byte, for the suite and the measurement drivers
+that keep those floors.
 """
 
 import json
@@ -54,7 +64,7 @@ from synthtwin import (
     taxonomy,
     validation,
 )
-from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # Two floors below eleven, and they are different cases. Two is an
 # ordinary lowering. One is the boundary the contract now stops at, and
@@ -119,19 +129,19 @@ def test_profile_generate_and_validate_all_run_at_a_lowered_floor(
     the person to do what they had just done.
     """
     table = _table(tmp_path)
-    assert main(
+    assert lowered_floor.main(
         ["profile", f"{table}", "--smallest-group", f"{floor}"]
     ) == 0, "profile refused a floor it accepted before the twin existed"
     capsys.readouterr()
 
     description = tmp_path / "clinic-profile.json"
-    assert main(["generate", f"{description}"]) == 0, (
+    assert lowered_floor.main(["generate", f"{description}"]) == 0, (
         "generate refused the description profile had just written -- "
         "which is the whole defect amendment A-P3-11 closes"
     )
     capsys.readouterr()
 
-    assert main(["validate", f"{description}"]) == 0, (
+    assert lowered_floor.main(["validate", f"{description}"]) == 0, (
         "validate refused the description, or the twin missed an "
         "obligation, at a lowered floor"
     )
@@ -215,7 +225,7 @@ def test_a_floor_of_zero_is_still_refused(tmp_path: pathlib.Path) -> None:
     the loader refuses it in a document.
     """
     table = _table(tmp_path)
-    assert main(["profile", f"{table}", "--smallest-group", "0"]) == 2
+    assert lowered_floor.main(["profile", f"{table}", "--smallest-group", "0"]) == 2
 
     document = json.loads(
         _described(tmp_path, 1).read_text(encoding="utf-8")
@@ -468,7 +478,7 @@ def test_the_profile_command_warns_before_either_file_exists(
     profile.write_both_files = refuse  # type: ignore[assignment]
     try:
         with pytest.raises(KeyboardInterrupt):
-            main(["profile", f"{table}", "--smallest-group", "2"])
+            lowered_floor.main(["profile", f"{table}", "--smallest-group", "2"])
     finally:
         profile.write_both_files = real  # type: ignore[assignment]
 

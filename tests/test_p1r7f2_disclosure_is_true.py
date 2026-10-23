@@ -55,6 +55,7 @@ import fixtures
 import tail_rule
 from synthtwin import parsing, profile, taxonomy
 from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # THE FLOOR THIS FILE ASKS ITS QUESTIONS AT, NAMED RATHER THAN ASSUMED.
 # Every sentence checked below is about what a description holds back,
@@ -76,7 +77,7 @@ def _run(
     """Profile one column through the command; return document, JSON, summary."""
     text = fixtures.single_column_table(name, values)
     table = fixtures.write(tmp_path, f"{name}.csv", text)
-    assert main(
+    assert lowered_floor.main(
         ["profile", f"{table}", "--smallest-group", f"{FLOOR}"] + options
     ) == 0
     written = (tmp_path / f"{name}-profile.json").read_text(encoding="utf-8")
