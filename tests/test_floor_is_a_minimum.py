@@ -655,9 +655,42 @@ def test_the_bridge_keeps_the_last_of_several_floors(
         ["profile", "t.csv", "--", _OPTION, "5"],
         None,
     )
+    # Verify of repair 1: a typed floor that is no number under 11
+    # reaches `generate` and `validate` as typed, never replaced by the
+    # internal setting (the description below records floor 1).
+    old = tmp_path / "old"
+    assert cli.main(["profile", f"{_table(old)}"], internal_smallest_group=1) == 0
+    described = f"{old / 'clinic-profile.json'}"
+    typed = (
+        (["generate", described, "--replace", _OPTION, "abc"], 2),
+        (["validate", described, "--replace", _OPTION, "abc"], 2),
+        (["generate", described, "--replace", "--sm=abc"], 2),
+        (["generate", described, "--replace", _OPTION, "20"], 1),
+        (["validate", described, "--replace", _OPTION, "20"], 1),
+    )
+    for argv, code in typed:
+        assert _bridged(argv) == code, argv
+    capsys.readouterr()
+    monkeypatch.setattr(lowered_floor, "_found", _nothing_found)
+    assert [_bridged(argv) for argv, _code in typed] == [0, 0, 0, 0, 0]
+    capsys.readouterr()
     monkeypatch.setattr(lowered_floor, "_moved", _first_moved)
     assert _bridged_floor(tmp_path, capsys, later_twenty) == (0, 5)
     assert _bridged_floor(tmp_path, capsys, later_junk) == (0, 5)
+
+
+def _bridged(argv: "list[str]") -> int:
+    """The bridge as a typed command runs it: its code, SystemExit included."""
+    try:
+        return lowered_floor.main(argv)
+    except SystemExit as stop:
+        return 0 if stop.code is None else int(f"{stop.code}")
+
+
+# The bridge of repair 1: no typed floor seen, so `generate` and
+# `validate` were always handed the internal setting at 1.
+def _nothing_found(argv: "list[str]") -> "list[tuple[int, int, str]]":
+    return []
 
 
 def test_the_shortest_spelling_the_bridge_reads_is_argparse_s(

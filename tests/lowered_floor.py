@@ -19,11 +19,12 @@ winning. Where that last value is a whole number under 11, every
 occurrence is taken out and the number handed to the setting, so the
 typed option never carries it; and `generate` and `validate` -- the
 command found by the product's own parser, so an option's value is
-never taken for it -- are given the setting at 1, so they read the
-descriptions those runs wrote. Every other run -- a last value of 11 or
-more, text that is no number, or no floor typed -- goes to `cli.main`
-exactly as typed, so nothing it writes moves by a byte and a refusal
-stays a refusal.
+never taken for it -- typed with no floor at all are given the setting
+at 1, so they read the descriptions those runs wrote. Every other run
+-- a last value of 11 or more, or text that is no number, on any
+command, and no floor typed on the others -- goes to `cli.main` exactly
+as typed, so nothing it writes moves by a byte and a refusal stays a
+refusal.
 """
 
 import contextlib
@@ -46,12 +47,11 @@ def _spelled(word: str) -> bool:
     return len(name) >= len(_SHORTEST) and _OPTION.startswith(name)
 
 
-def _moved(argv: "list[str]") -> "tuple[list[str], int | None]":
-    """The arguments without a floor under 11, and that floor (or None).
+def _found(argv: "list[str]") -> "list[tuple[int, int, str]]":
+    """Each place the option is typed: (its index, its words, its value).
 
-    The floor is the LAST value given to the option, as argparse keeps
-    it; only where that value is a whole number under 11 is anything
-    moved, and then every occurrence goes.
+    Empty when no floor is typed at all; the last entry is the value
+    argparse keeps.
     """
     found: "list[tuple[int, int, str]]" = []
     index = 0
@@ -67,6 +67,17 @@ def _moved(argv: "list[str]") -> "tuple[list[str], int | None]":
                 index += 2
                 continue
         index += 1
+    return found
+
+
+def _moved(argv: "list[str]") -> "tuple[list[str], int | None]":
+    """The arguments without a floor under 11, and that floor (or None).
+
+    The floor is the LAST value given to the option, as argparse keeps
+    it; only where that value is a whole number under 11 is anything
+    moved, and then every occurrence goes.
+    """
+    found = _found(argv)
     if not found:
         return list(argv), None
     try:
@@ -105,15 +116,18 @@ def main(argv: "list[str] | None" = None) -> int:
 
     Guarantees: `argv` None reads `sys.argv[1:]`, as `cli.main` does. A
     run whose arguments name no floor under 11 (by the last value given)
-    and no `generate` or `validate` is `cli.main` called with the same
-    argument (None kept as None); otherwise `cli.main` is called with the
-    floor moved to `internal_smallest_group` (1 for `generate` and
-    `validate`). Returns what it returns and lets what it raises through.
+    is `cli.main` called with the same argument (None kept as None),
+    except a `generate` or `validate` with no floor typed at all, which
+    is given `internal_smallest_group` 1; a floor under 11 is moved to
+    `internal_smallest_group`. So a typed floor of 11 or more, or text
+    that is no number, reaches `generate` and `validate` as typed too
+    (Codex's item 4, its "final `abc`"; lane MIN's verify of repair 1).
+    Returns what `cli.main` returns and lets what it raises through.
     """
     words = list(sys.argv[1:] if argv is None else argv)
     kept, floor = _moved(words)
     reading = _command(kept) in ("generate", "validate")
-    if floor is None and not reading:
+    if floor is None and (not reading or _found(words)):
         return cli.main(argv)
     if floor is None:
         floor = 1
