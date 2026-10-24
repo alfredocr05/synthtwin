@@ -585,3 +585,499 @@ def test_the_loader_refuses_a_broken_chain_before_reading_the_file(clinic, invar
     code, report, said = clinic.validate(clinic.rows, description=broken)
     assert code == 1 and report == ""
     assert f"breaks its rule {invariant}" in said, said
+
+
+# -- REPAIR 1 (lane CHv, plan P4-D430): each item pinned by a case red on its mutant --
+
+
+def _home(monkeypatch, folder):
+    for name in ("HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME"):
+        monkeypatch.setenv(name, str(folder / "home"))
+
+
+def _write_lines(path, header, rows, before=0, inside=0, after=0, cell=""):
+    """A file of `rows` with records holding nothing written before, at the middle of and after them."""
+    blank = ",".join([cell] * len(header))
+    middle = len(rows) // 2
+    lines = [",".join(header)] + [blank] * before
+    lines += [",".join(row) for row in rows[:middle]] + [blank] * inside
+    lines += [",".join(row) for row in rows[middle:]] + [blank] * after
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
+def _validate_file(described, path):
+    out = path.parent
+    code, said = _quiet(lambda: cli.main(["validate", str(described.path), "--twin", str(path), "--out-dir", str(out)], chain=cli.ChainRun()))
+    return code, (out / (path.stem + "-quality.txt")).read_text(encoding="utf-8"), said
+
+
+@pytest.fixture(scope="module")
+def split(tmp_path_factory):
+    """`level` 1 to 20 (thirty rows each), `flag` 1 exactly above 10, `other` blank on a third of `flag` 0's rows.
+
+    The published chain: `level` at `L2`; `flag | level` [[300, 0], [0,
+    300]]; `other | flag`, its blank band reached by `flag` 0 alone.
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        folder = tmp_path_factory.mktemp("split")
+        _home(patch, folder)
+        draw = random.Random(3)
+        rows = []
+        for row in range(600):
+            level = 1 + row % 20
+            flag = "1" if level > 10 else "0"
+            rows += [[f"{level}", flag, "" if flag == "0" and row % 3 == 0 else draw.choice(["x", "y"])]]
+        draw.shuffle(rows)
+        described = Described(folder, ["level", "flag", "other"], rows)
+        tables = {f["child"]: f["table"] for f in _families(described)}
+        assert tables["flag"] == [[300, 0], [0, 300]] and tables["other"][1][0] == 0, _families(described)
+        yield described
+
+
+def test_rule_w1_reads_the_file_s_own_spellings_of_nothing(split):
+    """Item 4 (b) of skeptic 1: an own-fact group only `chain_rules.small_group_bands`
+    reads. Five of `other`'s blank cells written `NA` keep every band
+    total (both read as nothing), but the file's own description counts
+    the spelling `NA` on five rows, a group inside `other`'s blank band
+    that `other | flag` confines to `flag` 0: every family line prints
+    V5.3's sentence. The table's own check reads every line HELD."""
+    code, report, _screen = split.validate(split.rows)
+    assert code == 0 and set(_verdicts(report)[1].values()) == {"HELD"}
+    rows = [list(row) for row in split.rows]
+    for at in [at for at in range(len(rows)) if rows[at][2] == ""][:5]:
+        rows[at][2] = "NA"
+    code, report, _screen = split.validate(rows)
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"HELD"}, totals
+    assert set(families.values()) == {"WITHHELD"}, families
+    assert validation.CHAIN_GATE_CLOSED in _section(report)
+
+
+def test_rule_w1_reads_the_file_s_own_runs_of_values(split):
+    """Item 4 (c) of skeptic 1: an own-fact group only `chain.value_run_bands` reads.
+    Twenty-two of `level`'s 2 cells written 1 keep `level`'s lowest band
+    (1 and 2) at its published 60 rows, and the file's own description
+    then names the mode 1 on 52 rows: the band less its mode holds 8 rows,
+    a group `flag | level` confines to `flag` 0. No count the file's own
+    block publishes is under the floor, so the block's list alone sees
+    nothing: every family line prints V5.3's sentence only because the
+    file's own values are read."""
+    rows = [list(row) for row in split.rows]
+    for at in [at for at in range(len(rows)) if rows[at][0] == "2"][:22]:
+        rows[at][0] = "1"
+    code, report, _screen = split.validate(rows)
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"HELD"}, totals
+    assert set(families.values()) == {"WITHHELD"}, families
+    assert validation.CHAIN_GATE_CLOSED in _section(report)
+
+
+def test_a_column_the_file_lacks_is_read_as_holding_a_group_in_every_band(split, tmp_path):
+    """Items 5 and V12's reading (c): a file without `level` reads `level`'s
+    total and both families holding it NOT CHECKABLE, never 'not judged',
+    and, read for RULE W1 as holding a group in every band, closes the
+    gate over the one family it does not hold (`other | flag`), which
+    prints V5.3's sentence rather than HELD."""
+    rows = [row[1:] for row in split.rows]
+    code, report, _screen = split.validate(rows, header=["flag", "other"])
+    totals, families = _verdicts(report)
+    assert totals == {"level": "NOT CHECKABLE", "flag": "HELD", "other": "HELD"}, totals
+    index = {f["child"]: at for at, f in enumerate(_families(split))}
+    assert families[index["level"]] == "NOT CHECKABLE" and families[index["flag"]] == "NOT CHECKABLE"
+    assert families[index["other"]] == "WITHHELD", families
+    section = _section(report)
+    assert chain_validation.NO_SUCH_COLUMN in section and chain_validation.A_MEMBER_NOT_CHECKABLE in section
+    assert chain_validation.NOT_JUDGED not in section
+
+
+@pytest.mark.parametrize("case", ["no gender", "pressure as words"])
+def test_not_checkable_lines_on_the_clinic(clinic, case):
+    """Item 5 of skeptic 1 (V3.3): a file without `gender` reads gender's total
+    and every family holding it NOT CHECKABLE, the others HELD; `pressure`
+    written as words reads under another role, and its total and every
+    family holding it are NOT CHECKABLE, never MISSED."""
+    column = "gender" if case == "no gender" else "pressure"
+    place = clinic.header.index(column)
+    if case == "no gender":
+        header = [name for name in clinic.header if name != column]
+        rows = [[cell for at, cell in enumerate(row) if at != place] for row in clinic.rows]
+    else:
+        header = None
+        rows = [list(row) for row in clinic.rows]
+        for row in rows:
+            row[place] = "high" if Fraction(row[place]) > 130 else "low"
+    code, report, _screen = clinic.validate(rows, header=header)
+    totals, families = _verdicts(report)
+    for name, verdict in totals.items():
+        assert verdict == ("NOT CHECKABLE" if name == column else "HELD"), (name, verdict)
+    holding = _holding(clinic, column)
+    for at, verdict in families.items():
+        assert verdict == ("NOT CHECKABLE" if at in holding else "HELD"), (at, verdict)
+    reason = chain_validation.NO_SUCH_COLUMN if case == "no gender" else chain_validation.ANOTHER_ROLE
+    assert reason in _section(report)
+
+
+def _verdict_counts(report):
+    """The verdict summary's printed count of each outcome, and its NOT CHECKABLE count."""
+    top = report.split("THE VERDICT", 1)[1].split("WHAT THIS REPORT DOES NOT SAY", 1)[0]
+    counts = {verdict: int(number) for number, verdict in re.findall(r"^\s+(\d+)  (HELD|WITHIN BOUND|AUTHORIZED DEVIATION|WITHHELD|MISSED) --", top, re.M)}
+    counts["NOT CHECKABLE"] = int(re.search(r"A further (\d+) obligation\(s\) are NOT", top).group(1))
+    return counts
+
+
+@pytest.mark.parametrize("case", ["off by 30", "no gender"])
+def test_the_verdict_counts_every_chain_line_and_says_why_each_is_withheld(clinic, case, tmp_path):
+    """Item 6 of skeptic 1: the verdict at the top counts every chain line, HELD,
+    MISSED, WITHHELD and NOT CHECKABLE, on top of the single-column
+    obligations; and the handling paragraph counts the lines V5.3's rule
+    closed over apart from the family lines read 'not judged', naming the
+    other reason. The screen's one line prints the chain's own counts."""
+    from synthtwin import contract
+
+    if case == "off by 30":
+        header, rows = None, _off_by(clinic, 30)
+    else:
+        place = clinic.header.index("gender")
+        header = [name for name in clinic.header if name != "gender"]
+        rows = [[cell for at, cell in enumerate(row) if at != place] for row in clinic.rows]
+    code, report, screen = clinic.validate(rows, header=header)
+    measured = _write(tmp_path / "file.csv", header or clinic.header, rows)
+    loaded, document = contract.load_profile_document(str(clinic.path))
+    plain = validation.measure(loaded, str(measured)).census
+    chained = validation.measure(loaded, str(measured), "", document)
+    lines = chained.chain
+    counts = _verdict_counts(report)
+    assert counts["HELD"] == plain.held + lines.held
+    assert counts["MISSED"] == plain.missed + lines.missed
+    assert counts["WITHHELD"] == plain.withheld + lines.withheld
+    assert counts["NOT CHECKABLE"] == plain.not_checkable + lines.not_checkable
+    if case == "off by 30":
+        judged_not = len(_holding(clinic, "pressure"))
+        assert lines.not_judged == judged_not == lines.withheld and lines.missed == 1
+        handling = report.split("HOW TO KEEP THIS FILE", 1)[1]
+        assert f"{judged_not} more between-columns family line(s) read WITHHELD for another" in handling
+        closed = plain.withheld
+        if closed:
+            assert f"On this file it closed over {closed} obligation(s)" in handling
+        else:
+            assert "On this file the rule closed over nothing" in handling
+    else:
+        assert lines.not_checkable == 1 + len(_holding(clinic, "gender")) and lines.not_judged == 0
+    between = [line for line in screen.split("\n") if line.startswith("Between columns:")]
+    assert between == [
+        f"Between columns: {lines.held} band-total and family line(s) HELD, {lines.missed} MISSED, "
+        f"{lines.withheld} withheld or not judged, {lines.not_checkable} not checkable, over "
+        f"{len(lines.families)} published family table(s); "
+        f"{sum(1 for pair in lines.pairs if pair.word == 'implied')} pair(s) of columns not in one family "
+        f"(the chain only implies them; not checked). The written report holds every line, with the published tables."
+    ]
+
+
+def test_rule_we_reads_the_file_s_own_records_holding_nothing(tmp_path, monkeypatch):
+    """Item 4 (a) of skeptic 1 (V12.3, RULE WE read with the file's own census
+    of records holding nothing). Three label columns with 200, 200 and 25
+    blank cells and no record holding nothing; the file is the same rows
+    and 33 records holding nothing, 11 before, 11 inside and 11 after them,
+    so its own description leaves no room for a row blank in every column
+    while the published tables count at least 25 such rows: every total
+    HELD, every family line V5.3's sentence. The same file with `C`'s 25
+    blank cells written `NA` (still nothing, so every total holds) holds
+    no blank cell of `C` at all: no row is blank in every column, and every
+    family line is judged, HELD."""
+    _home(monkeypatch, tmp_path)
+    draw = random.Random(9)
+    rows = []
+    for _row in range(3000):
+        a = draw.choice(["x", "y"])
+        b = ("u" if a == "x" else "v") if draw.random() < 0.8 else draw.choice(["u", "v"])
+        rows += [[a, b, draw.choice(["p", "q", "s"])]]
+    for at in range(0, 200):
+        rows[at][0] = ""
+    for at in range(170, 370):
+        rows[at][1] = ""
+    for at in range(1000, 1025):
+        rows[at][2] = ""
+    draw.shuffle(rows)
+    header = ["A", "B", "C"]
+    described = Described(tmp_path, header, rows)
+    assert chain_rules.records_holding_nothing(described.document) == 0
+    code, report, _screen = described.validate(rows)
+    assert code == 0 and set(_verdicts(report)[1].values()) == {"HELD"}
+    (tmp_path / "we").mkdir()
+    code, report, _said = _validate_file(described, _write_lines(tmp_path / "we" / "twin.csv", header, rows, 11, 11, 11))
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"HELD"} and set(families.values()) == {"WITHHELD"}, (totals, families)
+    assert validation.CHAIN_GATE_CLOSED in _section(report)
+    spelled = [row[:2] + ["NA" if row[2] == "" else row[2]] for row in rows]
+    (tmp_path / "na").mkdir()
+    code, report, _said = _validate_file(described, _write_lines(tmp_path / "na" / "twin.csv", header, spelled, 11, 11, 11))
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"HELD"} and set(families.values()) == {"HELD"}, (totals, families)
+
+
+def test_the_file_s_calendar_censuses_are_its_own_facts(tmp_path, monkeypatch):
+    """Codex's item 1 on the build: RULE W1 reads the file's own-fact groups,
+    and a periodic census draws some of them, so V12's own description of
+    the file holds its calendar censuses. 4,000 weekly visits, a day later
+    from row 2,000 on, `flag` yes from row 1,992; the described table has
+    row 800 moved to a Tuesday. The file with that row back on its Monday
+    holds every band total, and its weekday census places 8 Mondays among
+    the 2,000 Tuesdays of the later band, a group `flag | visit` confines:
+    every family line prints V5.3's sentence (with the censuses left out,
+    both read HELD)."""
+    import datetime
+
+    _home(monkeypatch, tmp_path)
+
+    def day(row, moved):
+        shift = 7 * (row // 8) + (1 if row >= 2000 else 0) + (1 if moved and row == 800 else 0)
+        return (datetime.date(2010, 1, 4) + datetime.timedelta(days=shift)).isoformat()
+
+    rows = [[day(row, True), "no" if row < 1992 else "yes"] for row in range(4000)]
+    described = Described(tmp_path, ["visit", "flag"], rows)
+    assert [f["table"] for f in _families(described)] == [[[1992, 2008]], [[0, 1992], [2008, 0]]], _families(described)
+    code, report, _screen = described.validate(rows)
+    assert code == 0 and set(_verdicts(report)[1].values()) == {"HELD"}
+    code, report, _screen = described.validate([[day(row, False), rows[row][1]] for row in range(4000)])
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"HELD"} and set(families.values()) == {"WITHHELD"}, (totals, families)
+    assert validation.CHAIN_GATE_CLOSED in _section(report)
+
+
+def test_a_file_whose_record_numbers_repeat_is_counted_in_people(tmp_path, monkeypatch):
+    """Codex's item 2 on the build: `id` declared as record numbers, one a row
+    in the described table; the file writes each id on ten rows (100
+    people). Its own description counts every value in people and
+    publishes no family (the chain's `OFF_PERSON`), so no published band
+    applies: every total and family line NOT CHECKABLE, in the words that
+    say why. The table itself reads every line HELD."""
+    _home(monkeypatch, tmp_path)
+    rows = []
+    for row in range(1000):
+        a = "alpha" if row < 50 else "beta" if row < 100 else "gamma" if row < 550 else "delta"
+        rows += [[f"{100000 + row}", a, "yes" if (a in ("alpha", "gamma")) != (row % 10 < 3) else "no"]]
+    table = _write(tmp_path / "clinic.csv", ["id", "a", "b"], rows)
+    data = tmp_path / "data"
+    data.mkdir(mode=0o700)
+    key = data / "chain-key"
+    key.touch(mode=0o600)
+    key.write_bytes(oc.TEST_KEY)
+    code, said = _quiet(lambda: cli.main(["profile", str(table), "--out-dir", str(tmp_path), "--identifier", "id"], chain=cli.ChainRun(folder=str(data))))
+    assert code == 0, said
+    path = tmp_path / "clinic-profile.json"
+    assert json.loads(path.read_text(encoding="utf-8"))["relationships"]["statistical"]["chain"]
+    verdicts = []
+    for name, candidate in (("self", rows), ("people", [[f"{100000 + at // 10}"] + row[1:] for at, row in enumerate(rows)])):
+        (tmp_path / name).mkdir()
+        measured = _write(tmp_path / name / "file.csv", ["id", "a", "b"], candidate)
+        code, said = _quiet(lambda: cli.main(["validate", str(path), "--twin", str(measured), "--out-dir", str(tmp_path / name)], chain=cli.ChainRun()))
+        report = (tmp_path / name / "file-quality.txt").read_text(encoding="utf-8")
+        verdicts += [(_verdicts(report), report)]
+    (totals, families), _report = verdicts[0]
+    assert set(totals.values()) == {"HELD"} and set(families.values()) == {"HELD"}
+    (totals, families), report = verdicts[1]
+    assert set(totals.values()) == {"NOT CHECKABLE"} and set(families.values()) == {"NOT CHECKABLE"}, (totals, families)
+    assert chain_validation.COUNTED_IN_PEOPLE in _section(report)
+
+
+def test_a_miss_between_columns_only_is_named_where_it_is(clinic):
+    """Codex's item 3 and skeptic 1's item 7: a file missing one family alone
+    (mutant 1, every single-column obligation met) says no single-column
+    obligation was missed and where the between-columns misses are, never
+    'Nothing was missed'; the verdict names them too; and under the switch
+    the report says which tables between columns were checked, never that
+    none is carried."""
+    from synthtwin import contract
+
+    at, family = _family_with_parents(clinic)
+    codes = _band_codes(clinic, clinic.rows)
+    level = int(family["level"][1])
+
+    def cell_of(row):
+        return tuple(codes[p["column"]][0].coarsen(int(p["level"][1]))[codes[p["column"]][1][row]] for p in family["parents"])
+
+    child_lad, child_l0 = codes[family["child"]]
+    to_level = child_lad.coarsen(level)
+    second = next(r for r in range(1, len(clinic.rows)) if cell_of(r) != cell_of(0) and to_level[child_l0[r]] != to_level[child_l0[0]])
+    place = clinic.header.index(family["child"])
+    rows = [list(row) for row in clinic.rows]
+    rows[0][place], rows[second][place] = rows[second][place], rows[0][place]
+    code, report, _screen = clinic.validate(rows)
+    loaded, document = contract.load_profile_document(str(clinic.path))
+    measured = _write(clinic.folder / "only-family.csv", clinic.header, rows)
+    assert validation.measure(loaded, str(measured)).census.missed == 0
+    missed = validation.measure(loaded, str(measured), "", document).chain.missed
+    assert code == 3 and _verdicts(report)[1][at] == "MISSED" and missed >= 1
+    assert "Nothing was missed" not in report
+    assert "No obligation of a single column was missed" in report
+    assert f"the section is empty. {missed} between-columns line(s) were" in report
+    assert f"Of them, {missed} are between-columns line(s)" in report
+    assert "NO CROSS-COLUMN STRUCTURE WAS VALIDATED" not in report
+    assert "BETWEEN COLUMNS, ONLY THE PUBLISHED FAMILY TABLES WERE CHECKED." in report
+    assert "CHECKED BETWEEN COLUMNS: each table of counts" in report
+    assert "the description publishes\nnone" not in report and "the description publishes" in report
+
+
+def test_the_default_call_to_measure_is_the_three_argument_call(tmp_path, monkeypatch):
+    """Skeptic 1's item 1: a run without the switch hands `validation.measure`
+    the three arguments it always took, so a caller wrapping it with that
+    signature (the health zoo's battery) runs and reads the same report."""
+    monkeypatch.chdir(tmp_path)
+    table = _write(tmp_path / "plain.csv", HEADER, _clinic_rows(300, seed=2))
+    code, said = _quiet(lambda: cli.main(["profile", str(table), "--out-dir", str(tmp_path)]))
+    assert code == 0, said
+    real = validation.measure
+    reports = []
+    for wrapped in (False, True):
+        if wrapped:
+
+            def keep(description, path, sheet=""):
+                return real(description, path, sheet)
+
+            monkeypatch.setattr(validation, "measure", keep)
+        out = tmp_path / f"out-{wrapped}"
+        out.mkdir()
+        code, said = _quiet(lambda: cli.main(["validate", str(tmp_path / "plain-profile.json"), "--twin", str(table), "--out-dir", str(out)]))
+        assert code == 0, said
+        reports += [(out / "plain-quality.txt").read_bytes()]
+    assert reports[0] == reports[1]
+
+
+def test_an_implied_table_past_its_bounds_is_named_and_not_worked_out(clinic, monkeypatch):
+    """Codex's item 4: an implied table is worked out only within the report's
+    bounds, decided from the description alone: two root columns of 40
+    bands give 1,600 cells (more than 1,024), and no work at all is spent
+    on them; a budget spent stops the product. A pair past a bound prints
+    its word and why, and no share or spread; the clinic's pairs print
+    so when the bound is lowered."""
+    def ladder(name, bands):
+        return chain_rules.Ladder(name, tuple((f"{name}{k}",) for k in range(bands)), (tuple(range(bands)),) * 3, (bands,) * 3, (11,) * bands, (True,) * bands)
+
+    scales = {"A": ladder("A", 40), "B": ladder("B", 40)}
+    families = [chain_rules.Family("A", 0, (), None, (11,) * 40), chain_rules.Family("B", 0, (), None, (11,) * 40)]
+    work = chain_validation._Work(5)
+    assert chain_validation.implied_shares(families, scales, "A", "B", work) is None and work.left == 5
+    small = {"A": ladder("A", 4), "B": ladder("B", 4)}
+    roots = [chain_rules.Family("A", 0, (), None, (11,) * 4), chain_rules.Family("B", 0, (), None, (11,) * 4)]
+    assert chain_validation.implied_shares(roots, small, "A", "B", chain_validation._Work(3)) is None
+    assert chain_validation.implied_shares(roots, small, "A", "B")[0][0] == (1, 16)
+    monkeypatch.setattr(chain_validation, "IMPLIED_CELLS_AT_MOST", 1)
+    code, report, _screen = clinic.validate(clinic.rows)
+    section = _section(report)
+    implied = [entry["columns"] for entry in clinic.statistical["words"] if entry["word"] == "implied"]
+    for a, b in implied:
+        assert re.search(rf"^  '{a}' and '{b}': implied\n      {re.escape(chain_validation.TOO_MANY_CELLS)}$", section, re.M)
+    assert "implied; dealing spread" not in section and "implied shares" not in section
+
+
+def test_the_printed_details_of_the_section(clinic):
+    """Skeptic 1's item 8: the details a reader reads off the section, each
+    pinned. A share prints to four decimals rounded half up; each band's
+    legend prints the description's own words; a family's row labels run
+    over its parents' bands in the parents' order, the first slowest; an
+    `exact` pair names the first family holding both; each row and share
+    of an implied table is named by its band words; the dealing spread is
+    said in words."""
+    assert [quality._chain_share(share) for share in ((1, 3), (2, 3), (1, 8), (1, 20000), (1, 1), (0, 1))] == [
+        "0.3333",
+        "0.6667",
+        "0.1250",
+        "0.0001",
+        "1.0000",
+        "0.0000",
+    ]
+    code, report, _screen = clinic.validate(clinic.rows)
+    section = _section(report)
+    for entry in clinic.statistical["ladder"]:
+        for at, band in enumerate(entry["l0"]):
+            words = []
+            for one in band:
+                if isinstance(one, list) and len(one) == 2:
+                    low, high = one
+                    words += ["every value" if low is None and high is None else f"below {high}" if low is None else f"{low} and above" if high is None else f"{low} to below {high}"]
+                else:
+                    words += [f"{one[0]}" if isinstance(one, list) else f"{one}"]
+            assert f"    band {at}: {' + '.join(words)}\n" in section, (entry["column"], at)
+    at, family = max(enumerate(_families(clinic)), key=lambda pair: len(pair[1]["parents"]))
+    widths = []
+    for parent in family["parents"]:
+        entry = next(e for e in clinic.statistical["ladder"] if e["column"] == parent["column"])
+        widths += [len(entry["l0"]) if parent["level"] == "L0" else len(entry["l1" if parent["level"] == "L1" else "l2"])]
+    assert len(widths) >= 2 and min(widths) >= 2, widths
+    block = section.split(f"  family {at}: ", 1)[1].split("\n  family ", 1)[0].split("Every pair", 1)[0]
+    labels = re.findall(r"^        \(([\d, ]+)\) ", block, re.M)
+    import itertools
+
+    assert labels == [", ".join(f"{k}" for k in cell) for cell in itertools.product(*[range(w) for w in widths])]
+    for entry in clinic.statistical["words"]:
+        a, b = entry["columns"]
+        if entry["word"] == "exact":
+            first = next(k for k, f in enumerate(_families(clinic)) if {a, b} <= {f["child"]} | {p["column"] for p in f["parents"]})
+            assert f"  '{a}' and '{b}': exact (family {first})\n" in section
+    lines = chain_validation.lines_of(
+        clinic.document,
+        __import__("synthtwin.reading", fromlist=["read_table"]).read_table(str(clinic.table), small_cell_floor=FLOOR),
+        clinic.document,
+        validation.settings_for(__import__("synthtwin.contract", fromlist=["load_profile"]).load_profile_document(str(clinic.path))[0]),
+        [],
+        [],
+        [],
+        (),
+    )
+    legends = {legend.column: legend for legend in lines.legends}
+    for pair in lines.pairs:
+        if pair.word != "implied":
+            continue
+        first, second = pair.columns
+        for row_at, row in enumerate(pair.shares):
+            said = "; ".join(
+                f"{quality._chain_band_words(legends[second], pair.levels[1], k)} {quality._chain_share(share)}" for k, share in enumerate(row)
+            )
+            assert f"        '{first}' {quality._chain_band_words(legends[first], pair.levels[0], row_at)}: {said}\n" in section
+    assert "how far a twin dealt at random from these shares would typically" in section
+
+
+def test_records_of_spaces_hold_nothing(tmp_path, monkeypatch):
+    """Skeptic 1's item 8: a record of cells holding only spaces or tabs holds
+    nothing (contract 4.1), so the file whose twelve records holding
+    nothing are written as spaces sets them aside as the description did:
+    every line HELD."""
+    _home(monkeypatch, tmp_path)
+    rows = _clinic_rows()
+    empty_at = set(range(100, 112))
+    described = Described(tmp_path, HEADER, rows, empty_at)
+    for cell in ("  ", "\t"):
+        place = tmp_path / f"cell{len(cell)}{ord(cell[0])}"
+        place.mkdir()
+        lines = [",".join(HEADER)]
+        for at in range(len(rows)):
+            if at in empty_at:
+                lines += [",".join([cell] * len(HEADER))]
+            lines += [",".join(rows[at])]
+        (place / "twin.csv").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        code, report, _said = _validate_file(described, place / "twin.csv")
+        totals, families = _verdicts(report)
+        assert set(totals.values()) == {"HELD"} and set(families.values()) == {"HELD"}, (cell, totals, families)
+
+
+def test_codes_are_held_one_byte_a_row_where_the_ladder_allows(clinic):
+    """Skeptic 1's item 10 and Codex's item 5: a column's codes are held in one
+    byte a tabled row where its ladder has at most 254 bands, in four
+    bytes otherwise, and both count the same totals and tables."""
+    import array
+
+    assert isinstance(chain_validation._code_store(254, 3), bytearray)
+    wide = chain_validation._code_store(255, 3)
+    assert isinstance(wide, array.array) and wide.itemsize == 4
+    narrow = bytearray([1, 2, 2, 0])
+    assert chain_validation._band_totals(narrow, 2) == ([1, 2], False)
+    assert chain_validation._band_totals(array.array("I", [1, 2, 2, 0]), 2) == ([1, 2], False)
+    scales = {
+        "A": chain_rules.Ladder("A", (("a0",), ("a1",)), ((0, 1), (0, 1), (0, 1)), (2, 2, 2), (2, 2), (True, True)),
+        "B": chain_rules.Ladder("B", (("b0",), ("b1",)), ((0, 1), (0, 1), (0, 1)), (2, 2, 2), (2, 2), (True, True)),
+    }
+    family = chain_rules.Family("B", 0, (("A", 0),), 0, (1, 1, 1, 1))
+    as_bytes = chain_validation._measured_table(family, scales, {"A": bytearray([1, 1, 2, 2]), "B": bytearray([1, 2, 1, 2])}, 4)
+    as_words = chain_validation._measured_table(family, scales, {"A": array.array("I", [1, 1, 2, 2]), "B": array.array("I", [1, 2, 1, 2])}, 4)
+    assert as_bytes == as_words == [1, 1, 1, 1]
