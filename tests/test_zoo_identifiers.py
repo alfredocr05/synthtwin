@@ -21,12 +21,13 @@ WHAT WAS MEASURED (the health data zoo's plan, wave6/ZOO/PLAN.md rows 19, 42 and
 
 THE RULE (plan P4-D428, with its repair round 1). (a) Q-ID, one more shape
 of HX's question about figures (plan P4-D401; ZR.2 of P4-D419), puts
-`keep`, `code` and `identifier` to a column every cell of which, a third of
-words aside, is a UID with two points or more -- every value different, or
-repeating with an arc of five figures or more -- and holds it until
+`keep`, `code` and `identifier` to a column every cell of which, words
+aside, is a UID with two points or more -- every value different, or
+repeating with an arc after its organisation's root -- and holds it until
 answered; declared, its organisation's root is published as its prefix
 (owner ruling 1; cut before the first arc of five figures or more, the
-orchestrator's ruling of 2026-10-23), the twin writes no arc led by a
+orchestrator's ruling of 2026-10-23, and three arcs after the organisation
+arc at the latest, repair round 2), the twin writes no arc led by a
 nought and the validator checks the grammar. (b) A declared record number
 publishing `all_whole_numbers true` writes `0` at every place after the
 point, and such a layout is named only where its figures before the point
@@ -34,10 +35,11 @@ leave room; unanswered, the same noughts on every cell are read as the
 bare figures. (c) Rule A1 (P4-D422's ZS.2): a declared record number of one
 opening and figures counts every cell of a layout its published census
 does not name, or whose room the opening would take, in its commonest
-layout, producer and validator alike. (d) Route two of the person rule sets
-aside up to one present cell in three holding no figure, or a placeholder
-for nobody, beside lettered keys, and route four asks padded keys of one
-width beside them.
+layout, producer and validator alike; and a whole one written as a decimal
+with no prefix the same way. (d) Route two of the person rule sets aside
+every cell holding no figure, and every placeholder for nobody, beside
+lettered keys filling the floor's cells, and route four asks padded keys
+of one width beside them.
 
 Each case runs the product's own command line, nobody at the keyboard, and
 each is red on the mutant its docstring names (wave6/CODES-3/mutants.log,

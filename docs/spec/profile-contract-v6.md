@@ -18705,14 +18705,17 @@ fifty of them again with a trailing space — writes one flipped prefix,
 which the twin's report and the validator both name.
 
 **Amended by plan P4-D428 (lane CODES-3, 2026-10-23; repair round 1 the
-same day).** (1) C6-139's prefix holds no figure save in one case: a
+same day; repair round 2, 2026-10-24).** (1) C6-139's prefix holds no figure save in one case: a
 column every present cell of which is a DICOM UID
 (`[012](\.(0|[1-9]\d*))+`, two points or more) publishes as `(column)`
 its organisation's root -- the arcs every cell shares, cut back to the
 last point and then before the first arc of five figures or more, the
-one arc after `1.2.840.` aside (the orchestrator's ruling of 2026-10-23:
+one arc after `1.2.840.` or `2.16.840.1.` aside (the orchestrator's ruling of 2026-10-23:
 a serial number, a timestamp or a random number names a device, a study
-or a series) -- read over the whole column and never over one layout's
+or a series), and three arcs after the organisation arc at the latest
+(repair round 2: a site, a date and a time of four figures or fewer
+named one study), the organisation arc being that arc or else the first
+of four figures or more -- read over the whole column and never over one layout's
 cells (`parsing.uid_root`, which `is_a_literal_prefix` admits; LP2
 reads its figures as `%`); LP3 counts the room after such a root with no
 arc led by a nought (`parsing.uid_room`), and its twin writes none. (2)
@@ -18734,7 +18737,14 @@ marks between thousands, one point and figures, and such a layout worn
 only by whole numbers is named only where its figures before the point
 clear the room rule (C6-130). (4) A description whose `(column)` prefix
 is a UID root is checked for the grammar on every present cell
-(`uid.grammar`).
+(`uid.grammar`). (5) Repair round 2: rule A1 of (2) also reaches a
+declared record number with no prefix every present cell of which is
+figures, one point and the same count of noughts, described with
+`all_whole_numbers` true: a layout its census does not name, or one whose
+room the census refuses, is counted in its commonest named whole-places
+layout of the same places, and the validator reads a census so where it
+publishes no prefix, no `(withheld)` pool and named whole-places layouts
+of one count of places counting every present cell.
 
 ---
 

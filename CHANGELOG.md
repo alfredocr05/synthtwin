@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23)
+### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair round 2, 2026-10-24)
 
 **The health data zoo's identifier rows 19, 42 and 43, and push critic
 13's MAJOR 5.** A column whose every cell, words aside, is a DICOM UID --
@@ -31,6 +31,19 @@ figures, so `R1000`, `AB100` or `0100` keys beside `OTHER`, `Not known.`,
 af69aaef, 0 now. No golden moves; the pinned C6-142 limit closes and
 P4-D406's stated limit 8 closes for `.0` by turns. Gate:
 `tests/test_zoo_identifiers.py`. The ledger's cap is 757,000.
+
+**Repair round 2 (the lane's combined verify, 2026-10-24).** A UID root
+now ends three arcs after its organisation arc at the latest, so a study
+UID of short arcs is never published as the root of its instances (332
+of 600 real instance UIDs in the twin before, 0 now); Q-ID reads
+repeating UIDs by the arcs after that root and never asks a column under
+the DICOM standard's root (SOP Class and Transfer Syntax UIDs). Words and
+placeholders beside keys or UIDs are set aside whatever their share
+where the floor's key cells remain (`Unknown` on two cells in five
+printed 24 keys). A whole record number of several widths at 20,000 rows
+keeps its noughts after the point (2,864 cells off `\d+\.00` before):
+rule A1 without a prefix. The oracle mirrors G9.6a's amended templates,
+with two frozen cases in vectors file 27, and method G9.6a gains step 7.
 
 ### Batch 4g's records: the chain met by its oracle, the six time entries stamped, owners for every stated limit, a shorter STATE (2026-10-23)
 
