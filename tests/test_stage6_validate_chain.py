@@ -966,6 +966,11 @@ def test_an_implied_table_past_its_bounds_is_named_and_not_worked_out(clinic, mo
     ]
     assert chain_validation.implied_shares(linked, small, "A", "C", chain_validation._Work(3)) is None
     assert chain_validation.implied_shares(linked, small, "A", "C")[0] == [(1, 4), (0, 1), (0, 1), (0, 1)]
+    # Two trees of the forest: a root column no family reads beside `A` is independent of it.
+    small["D"] = ladder("D", 4)
+    forest = linked + [chain_rules.Family("D", 0, (), None, (22, 11, 11, 0))]
+    assert chain_validation.implied_shares(forest, small, "A", "D")[0] == [(1, 8), (1, 16), (1, 16), (0, 1)]
+    assert chain_validation.implied_shares(forest, small, "D", "C")[0] == [(1, 8), (1, 8), (1, 8), (1, 8)]
     monkeypatch.setattr(chain_validation, "IMPLIED_CELLS_AT_MOST", 1)
     code, report, _screen = clinic.validate(clinic.rows)
     section = _section(report)
