@@ -506,6 +506,22 @@ def test_no_is_true_of_a_measurement() -> None:
     assert "placeholders and words set aside" in question.shape
 
 
+def test_no_second_question_beside_an_open_one() -> None:
+    """MUST NOT: a second question where one is put (the person question keeps its place)."""
+    document: "dict[str, object]" = {
+        "columns": [{"name": "age", "role": "count", "top_coded": 90},
+                    {"name": "zip", "role": "count"}]
+    }
+    person = asking.Question("age", "count", asking.BECAUSE_REPEATS_AND_MANY, "", [],
+                             asking.ANSWER_KEEP)
+    held = asking.Question("zip", "count", asking.BECAUSE_REPEATS_AND_MANY, "", [],
+                           asking.ANSWER_KEEP)
+    assert asking.safe_harbor_questions(document, ("zip",), [person, held]) == []
+    assert [one.name for one in asking.safe_harbor_questions(document, ("zip",), [])] == [
+        "age", "zip"
+    ]
+
+
 # -- the escapes Codex's review and skeptic 1 measured on 28e5d2f5 ---------
 
 
