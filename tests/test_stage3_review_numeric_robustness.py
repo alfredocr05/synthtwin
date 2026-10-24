@@ -58,6 +58,8 @@ import pathlib
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, errors, generation, parsing, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of
@@ -420,6 +422,7 @@ def test_the_tail_shape_has_the_moments_its_clause_claims(
 
 def test_a_lone_far_value_keeps_the_column_s_mean_and_spread(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verdict item 3's own column, end to end, at its three seeds.
 
@@ -435,6 +438,9 @@ def test_a_lone_far_value_keeps_the_column_s_mean_and_spread(
     test above), and what is left is the rounding of each row onto the
     column's grid.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     cells = [repr(100 + step / 1199) for step in range(1199)] + [
         "100000100.0"
     ]

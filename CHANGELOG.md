@@ -22,7 +22,7 @@ its column, the date-count question at any width among them. `no` reads
 "none of these: the values are measurements, counts, codes or categories
 that name no person, place, date or record". `K-S3-64` rises to 206
 shapes, 0 on every key. The price, each freed by `no`: weights, CRP and
-Fahrenheit temperatures top-coded; five-figure CPT codes, incomes in
+Fahrenheit temperatures top-coded; five-figure procedure codes, incomes in
 hundreds, years and four-figure codes held.
 
 ### Lane SH: ages over 89 read as 90, and five-figure numbers beside a few words held, while the Safe Harbor question is open (2026-10-23)

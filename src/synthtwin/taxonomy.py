@@ -26170,10 +26170,12 @@ def with_held_dates(column: ColumnProfile, grain: "dict[str, object]") -> Column
 # block says so with `top_coded`.
 #
 # A ZIP CODE (164.514(b)(2)(i)(B)). A column whose numbers, its
-# placeholders and words set aside, are whole numbers of four or five
-# figures (a ZIP that lost its leading zero has four), padded or not,
-# signed `+` or not, or ZIP+4 forms, is held whole until the question is
-# answered `no`.
+# placeholders and words set aside, are whole numbers of five figures,
+# padded or not, or of four (a ZIP that lost its leading zero), signed
+# `+` or not, never grouped between thousands, or ZIP+4 forms, one of
+# five among them where the role is a count or a measurement unless
+# every one has four (four figures beside other widths are as often a
+# year or a count), is held whole until the question is answered `no`.
 #
 # THE REACH IS JUDGED ON THE BULK, never on every cell (the orchestrator's
 # addenda 1 (2), 2 (1) and 3: one outlier `130`, or `999`, `-1` or `888`
@@ -26204,6 +26206,12 @@ SAFE_HARBOR_UNREACHED_ROLES = (
     ROLE_EMPTY, ROLE_UNREPRESENTABLE, ROLE_DATETIME, ROLE_CLOCK,
     ROLE_IDENTIFIER,
 )
+# The roles that print a column's values as levels: there a ZIP that lost
+# its leading zero (four figures alone) is reached; a count or a
+# measurement of four figures alone needs one of five beside it (lane
+# ZR-b's page: four figures alone are as often a year or a count, and
+# the fixed-width question holds a column of them).
+SAFE_HARBOR_LEVEL_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
 SAFE_HARBOR_AGES = "ages"
 SAFE_HARBOR_ZIPS = "zips"
 ZIP_WIDTHS = (4, 5)
@@ -26241,11 +26249,19 @@ _ZIP_ASIDE = 0
 _ZIP_IN = 1
 _ZIP_OUTSIDE = 2
 _ZIP_OTHER = 3
+_ZIP_IN_FOUR = 4
 
 
 def _a_figure(character: str) -> bool:
     """Whether one character is a figure from 0 to 9."""
     return "0" <= character <= "9"
+
+
+def _a_letter(character: str) -> bool:
+    """Whether one character is a letter: one with a capital and a small form."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return character.lower() != character.upper()
 
 
 def _holds_a_figure(text: str) -> bool:
@@ -26294,7 +26310,8 @@ class SafeHarborNumber:
     ``value`` is what the profiler's own reader (`parsing.parse_number`)
     reads, ``whole`` the figures before the point (leading zeros kept),
     ``places`` the figures after it (0 with an exponent), ``plus``
-    whether a plus sign stands before it.
+    whether a plus sign stands before it, ``grouped`` whether a mark
+    stands between its thousands (`12,345`).
     """
 
     head: str
@@ -26305,6 +26322,7 @@ class SafeHarborNumber:
     places: int
     plus: bool
     exponent: bool
+    grouped: bool
 
 
 def safe_harbor_number(cell: str, comma: bool = False) -> "SafeHarborNumber | None":
@@ -26324,12 +26342,12 @@ def safe_harbor_number(cell: str, comma: bool = False) -> "SafeHarborNumber | No
     rest = body.rstrip()
     after = body[len(rest):]
     place = len(rest)
-    while place > 0 and (rest[place - 1].isalpha() or rest[place - 1] in " ."):
+    while place > 0 and (_a_letter(rest[place - 1]) or rest[place - 1] in " ."):
         place -= 1
     number = rest
     tail = after
     for character in rest[place:]:
-        if character.isalpha():
+        if _a_letter(character):
             number = rest[:place].rstrip()
             tail = rest[len(number):] + after
             break
@@ -26350,10 +26368,24 @@ def safe_harbor_number(cell: str, comma: bool = False) -> "SafeHarborNumber | No
             break
         mantissa = mantissa + character
     whole, fraction = _at_the_point(mantissa)
+    # Written with a mark between its thousands (`12,345`, `12 345`):
+    # the profiler's reader drops the mark, so the text holds more
+    # characters than the figures, sign and point it read.
+    grouped = len(parsing.trimmed(read)) > len(core) and not _holds_a_letter(read)
     return SafeHarborNumber(
         head, number, tail, value, whole, 0 if exponent else len(fraction),
-        plus, exponent,
+        plus, exponent, grouped,
     )
+
+
+def _holds_a_letter(text: str) -> bool:
+    """Whether a text holds a letter (an exponent's `e`, a currency word)."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    for character in text:
+        if _a_letter(character):
+            return True
+    return False
 
 
 def _all_nines(value: float) -> bool:
@@ -26398,13 +26430,20 @@ def _safe_harbor_kind(cell: str, comma: bool) -> "tuple[int, int, float]":
         age = _AGE_ABOVE_PADDED if padded else _AGE_ABOVE
     else:
         age = _AGE_IN_PADDED if padded else _AGE_IN
-    if read.tail.strip():
+    if parsing.trimmed(read.tail):
         # A number with a word after it is no ZIP, nor a placeholder.
         postal = _ZIP_OTHER
     elif value < 0 or (whole and value == 0 and len(read.whole) == 1):
         postal = _ZIP_ASIDE
-    elif whole and not read.exponent and len(read.whole) in ZIP_WIDTHS:
+    elif whole and not read.exponent and not read.grouped and len(read.whole) == 5:
         postal = _ZIP_IN
+    elif (
+        whole and not read.exponent and not read.grouped and len(read.whole) == 4
+        and read.whole[:1] != "0"
+    ):
+        # A ZIP that lost its leading zero (`2100`); a padded `0123` is a
+        # code's spelling, never a ZIP's.
+        postal = _ZIP_IN_FOUR
     elif whole and _all_nines(value):
         postal = _ZIP_ASIDE
     else:
@@ -26417,18 +26456,24 @@ def safe_harbor_reach(
     comma: bool,
     absent: "frozenset[str]",
     floor: int,
+    levels: bool = False,
 ) -> str:
     """Which Safe Harbor reach a column's cells fall in: `ages`, `zips` or none (plan P4-D427).
 
     ``absent``: the spellings the column was read as holding no value,
     set aside; ``floor``: the rows a value outside the reach must hold
     to be set aside as a placeholder whatever its share (three such
-    values at most, `_placeholder_rows`). Ages: the cells that remain
-    within 0 to 125 but for fewer than ``floor`` or at most one in
-    twenty, one of 90 or more among them, and at most half of them
+    values at most, `_placeholder_rows`); ``levels``: whether the
+    column's role prints its values as levels. Ages: the cells that
+    remain within 0 to 125 but for fewer than ``floor`` or at most one
+    in twenty, one of 90 or more among them, and at most half of them
     written with a leading zero. ZIPs: at least two in three of the
-    cells that remain whole numbers of four or five figures or ZIP+4
-    forms. Guarantees: a fixed
+    cells that remain whole numbers of five figures, of four with no
+    leading zero (a ZIP that lost it) or ZIP+4 forms, none grouped
+    between its thousands, and one of five among them unless ``levels``
+    or every cell that remains has four (the fixed-width question's
+    shape, its placeholders set aside whatever their share: four-figure
+    ZIPs beside `-9999` on a twentieth of the rows printed 40 of 40). Guarantees: a fixed
     function of the four. Raises TypeError for a cell that is not text.
     No I/O.
     """
@@ -26440,6 +26485,7 @@ def safe_harbor_reach(
     age_above = False
     age_outside: "dict[float, int]" = {}
     zip_in = 0
+    zip_five = 0
     zip_aside = 0
     zip_outside: "dict[float, int]" = {}
     for cell in cells:
@@ -26467,6 +26513,9 @@ def safe_harbor_reach(
             zip_aside += 1
         elif postal == _ZIP_IN:
             zip_in += 1
+            zip_five += 1
+        elif postal == _ZIP_IN_FOUR:
+            zip_in += 1
         elif postal == _ZIP_OUTSIDE:
             zip_outside[value] = (zip_outside[value] if value in zip_outside else 0) + 1
     repeat = max(floor, 1)
@@ -26483,7 +26532,11 @@ def safe_harbor_reach(
         and 2 * age_padded <= age_in
     ):
         return SAFE_HARBOR_AGES
-    if zip_in > 0 and _BULK_PARTS * zip_in >= _BULK_TAKEN * (present - zip_aside):
+    if (
+        zip_in > 0
+        and (zip_five > 0 or levels or zip_in == present - zip_aside)
+        and _BULK_PARTS * zip_in >= _BULK_TAKEN * (present - zip_aside)
+    ):
         return SAFE_HARBOR_ZIPS
     return ""
 
@@ -26520,8 +26573,9 @@ def _top_coded_text(read: SafeHarborNumber, comma: bool) -> str:
     figures were padded wider than two; an exponent's cell is written 90.
     """
     figures = f"{TOP_CODE}"
-    if not read.exponent and len(read.whole) > len(figures) and read.whole[:1] == "0":
-        figures = figures.rjust(len(read.whole), "0")
+    whole = read.whole
+    if not read.exponent and len(whole) > len(figures) and whole[:1] == "0":
+        figures = "0" * (len(whole) - len(figures)) + figures
     if read.places:
         figures = figures + ("," if comma else ".") + "0" * read.places
     if read.plus:

@@ -145,8 +145,10 @@ def _ages(*extra: str) -> "list[str]":
     return [f"{age}" for age in range(18, 104)] + list(extra)
 
 
-def _reach(cells: "list[str]", absent: "frozenset[str]" = frozenset([""])) -> str:
-    return taxonomy.safe_harbor_reach(cells, False, absent, 11)
+def _reach(
+    cells: "list[str]", absent: "frozenset[str]" = frozenset([""]), levels: bool = False
+) -> str:
+    return taxonomy.safe_harbor_reach(cells, False, absent, 11, levels)
 
 
 _FOUR = [f"{2100 + 7 * k}" for k in range(40)]
@@ -213,13 +215,44 @@ _WORDS = [f"w{chr(97 + place % 26)}{chr(97 + place // 26)}" for place in range(8
         ([f"+{52200 + place % 80}" for place in range(597)] + ["UNKNOWN"] * 3,
          taxonomy.SAFE_HARBOR_ZIPS),
         (["02100"] * 20 + ["UNKNOWN"] * 20, taxonomy.SAFE_HARBOR_ZIPS),
-        (["2100"] * 100 + ["2107"] * 100, taxonomy.SAFE_HARBOR_ZIPS),
+        # FOUR FIGURES BESIDE OTHER WIDTHS are a count as often as ZIP
+        # codes that lost their zero (lane ZR-b's page): reached where the
+        # role prints levels (below), not as a count -- birth weights in
+        # grams from 700 -- but every one of four, placeholders aside, is
+        # the fixed-width question's shape, and reached.
+        ([f"{700 + 13 * place}" for place in range(300)], ""),
+        (_FOUR * 3 + ["-9999"] * 7, taxonomy.SAFE_HARBOR_ZIPS),
+        # ...and no ZIP is grouped between thousands or padded to four.
+        ([f"{12000 + 7 * place:,}" for place in range(300)], ""),
+        ([f"0{100 + place}" for place in range(300)] + ["52240"], ""),
         (["52240"] * 20 + ["5224a"] * 20, ""),  # other forms past the bulk
         (["123456"] * 20 + ["1234567"] * 20, ""),
     ],
 )
 def test_the_reach_is_judged_on_the_bulk(cells: "list[str]", reach: str) -> None:
     assert _reach(cells) == reach
+
+
+@pytest.mark.parametrize(
+    ("cells", "reach"),
+    [
+        # A ROLE THAT PRINTS LEVELS (addendum 5): two four-figure ZIPs,
+        # one, and forty beside a placeholder share.
+        (["2100"] * 100 + ["2107"] * 100, taxonomy.SAFE_HARBOR_ZIPS),
+        (["2100"] * 200, taxonomy.SAFE_HARBOR_ZIPS),
+        (_FOUR * 3 + ["-9999"] * 30, taxonomy.SAFE_HARBOR_ZIPS),
+        # ...a padded four-figure code is none, at any role.
+        ([f"0{100 + place}" for place in range(40)] * 3, ""),
+        # ...and four figures beside a few of three, as levels only.
+        (_FOUR * 3 + ["815", "920"], taxonomy.SAFE_HARBOR_ZIPS),
+    ],
+)
+def test_four_figures_alone_are_reached_where_the_role_prints_levels(
+    cells: "list[str]", reach: str
+) -> None:
+    assert _reach(cells, levels=True) == reach
+    assert _reach(cells) == ("" if reach == "" or "815" in cells else reach)
+
 
 
 def test_absent_cells_are_set_aside() -> None:
@@ -442,8 +475,11 @@ def test_ages_held_in_people_validate_as_described(tmp_path: pathlib.Path) -> No
     assert block["top_coded"] == taxonomy.TOP_CODE
     (tmp_path / "real").mkdir()
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        cli.main(["validate", f"{tmp_path / 't-profile.json'}", "--twin", f"{tmp_path / 't.csv'}",
-                  "--out-dir", f"{tmp_path / 'real'}", "--replace"])
+        checked = cli.main(["validate", f"{tmp_path / 't-profile.json'}", "--twin",
+                            f"{tmp_path / 't.csv'}", "--out-dir", f"{tmp_path / 'real'}",
+                            "--replace"])
+    # A held block's real table misses its census of repetition (exit 3).
+    assert checked in (0, 3), checked
     report = (tmp_path / "real" / "t-quality.txt").read_text(encoding="utf-8")
     assert set(_MISSED.findall(report)) <= _HELD_REAL_MISSES
 

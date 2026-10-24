@@ -59,13 +59,15 @@ def _round_trip_answered(
     check_real: bool = True,
     seed: str = "4",
 ) -> "tuple[dict[str, object], dict[str, object], list[str], int, int]":
-    """`_round_trip`, with the Safe Harbor question answered `no` where it held the column.
+    """`_round_trip`, with the question that held the column answered as a measurement.
 
-    THE ZIP HOLD (plan P4-D427): a column whose whole numbers have four
-    or five figures, as ZIP codes are written -- incomes in hundreds
-    among them -- is held as record numbers until its Safe Harbor
-    question is answered `no` (the price P4-D427 names). These shapes are
-    measurements, so the person answers `no`, and the numeric facts are
+    THE HOLDS OF PLAN P4-D427: a column whose whole numbers have five
+    figures, as ZIP codes are written, is held as record numbers until
+    its Safe Harbor question is answered `no`, and a column put any open
+    question offering `identifier` -- incomes in hundreds read as
+    spreadsheet days by the date-count question among them -- until it is
+    answered (the price P4-D427 names). These shapes are measurements, so
+    the person answers `no` or `measurement`, and the numeric facts are
     those of the column read as numbers.
     """
     found = _round_trip(folder, cells, flags, check_real=check_real, seed=seed)
@@ -76,10 +78,15 @@ def _round_trip_answered(
     answered = False
     for entry in written["asked"]:
         offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
-        if entry["column"] == "value" and asking.ANSWER_SAFE_HARBOR_NO in offered:
+        if entry["column"] != "value":
+            continue
+        if offered == [asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]:
             entry["your_answer"] = asking.ANSWER_SAFE_HARBOR_NO
             answered = True
-    assert answered, (folder, "held, but by no Safe Harbor question")
+        elif asking.ANSWER_MEASUREMENT in offered and asking.ANSWER_IDENTIFIER in offered:
+            entry["your_answer"] = asking.ANSWER_MEASUREMENT
+            answered = True
+    assert answered, (folder, "held, but by no question it could answer")
     answers = folder.parent / f"{folder.name}-answers.json"
     answers.write_text(json.dumps(written), encoding="utf-8", newline="\n")
     return _round_trip(

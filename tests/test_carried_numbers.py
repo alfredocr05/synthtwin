@@ -19,6 +19,8 @@ import random
 
 import pytest
 
+import keyboard
+
 from synthtwin import contract, generation, parsing, profile, reading, taxonomy
 from tests import fixtures
 from tests.test_extra_round_numbers import _round_trip
@@ -58,7 +60,8 @@ def _boundary_rung(block: "dict", percent: int) -> float:
 
 @pytest.mark.parametrize("seed", ["4", "1", "2", "3"])
 def test_an_absorbed_notation_leaves_the_twin_every_number(
-    tmp_path: pathlib.Path, seed: str
+    tmp_path: pathlib.Path, seed: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The twin held 400 spellings of 399 numbers, and validate exited 3.
 
@@ -95,6 +98,9 @@ def test_an_absorbed_notation_leaves_the_twin_every_number(
     this test was built for is untouched: 400 numbers, 400 spellings,
     none of them led by a nought.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     block, written, twin_exit, real_exit = _round_trip(
         tmp_path / "absorbed", _absorbed_notation_cells(),
         ("--smallest-group", "11"), seed,

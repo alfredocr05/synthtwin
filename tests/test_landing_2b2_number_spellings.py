@@ -489,23 +489,17 @@ def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: 
     asked = document["asked"]
     assert isinstance(asked, list) and len(asked) == 1
     entry = asked[0]
-    assert entry["read_as_now"] == "measurement"
+    # THE HOLD FOLLOWS THE OFFER (plan P4-D427, the orchestrator's LANE SH
+    # ADDENDUM 6): the question offers `identifier` -- six figures grouped
+    # by a point are what a record number written the German way looks
+    # like -- so until it is answered the column is held as P4-D401 holds
+    # one, and none of its values is published.
+    assert entry["read_as_now"] == "identifier"
     answers = [choice["answer"] for choice in entry["answers_you_can_give"]]
     assert answers[:2] == ["measurement", "decimal_comma"]
     column = json.loads((folder / "t-profile.json").read_text(encoding="utf-8"))["columns"][0]
-    assert column["role"] == "continuous"
-    # READ AS TWELVE AND A BIT, said through the rung the tail rule
-    # leaves: `max` is withheld on a column of different numbers
-    # (contract 6.7a, landing 3.3), and the middle rung carries the
-    # same point -- read with the point between thousands these cells
-    # are tens of thousands, and read as decimals they are under a
-    # hundred.
-    # ...and read so they lie within 0 to 125 with values of 90 or more,
-    # so the Safe Harbor top-code (plan P4-D427) reads those as 90, which
-    # many rows hold: `max` is that 90, the top-code's own number.
-    assert column["top_coded"] == 90
-    assert column["percentiles"]["max"] == 90.0
-    assert column["percentiles"]["p50"] < 100
+    assert column["role"] == "identifier"
+    assert "percentiles" not in column or not column["percentiles"]
     # ANSWERED IN THE FILE, the column is read with a point between thousands.
     entry["your_answer"] = "decimal_comma"
     answers_path = folder / "answered.json"

@@ -400,9 +400,14 @@ def test_us_vitals_person_answered_over_two_rounds_is_one_rounds_twin(tmp_path: 
     # P4-D401) a blank to a question offering `identifier` holds the
     # column, so the zoo's person answers `keep` where it knows the column
     # as something else (batch 4d's integration, 2026-10-20).
+    # ...and `no` for temp_f, written `98.6 F`: a number from 0 to 125
+    # with a unit word, values of 90 or more among them, is put the Safe
+    # Harbor question (plan P4-D427), which the zoo's person answers `no`
+    # in the same round.
     assert [(one[0], one[1]) for one in rounds.given[0]] == [
         ("patient_id", asking.ANSWER_IDENTIFIER),
         ("weight", "keep"),
+        ("temp_f", asking.ANSWER_SAFE_HARBOR_NO),
     ]
     assert [(one[0], one[1]) for one in rounds.given[1]] == [("weight", asking.ANSWER_MEASUREMENT)]
     assert rounds.lost == []
@@ -1508,7 +1513,9 @@ def test_k_s3_66_counts_a_refusal_on_both_routes_apart(tmp_path: pathlib.Path, m
     table, answerer = zoo_table(tmp_path, "us_vitals")
     measure_table(table, answerer, found)
     assert found["twins_refused_on_both_routes"] == 1
-    assert found["answers"] == 2 and found["byte_differences"] == 0 and found["failed_runs"] == 0
+    # Three answers: patient_id, weight and temp_f's Safe Harbor `no`
+    # (plan P4-D427).
+    assert found["answers"] == 3 and found["byte_differences"] == 0 and found["failed_runs"] == 0
 
 
 def test_mutant_judged_reading_refusals_as_twins_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -37,6 +37,8 @@ import tempfile
 
 import pytest
 
+import keyboard
+
 import fixtures
 from synthtwin import asking, cli, contract, profile, reading, taxonomy
 
@@ -359,6 +361,9 @@ def test_the_questions_file_never_survives_a_terminal_answer(
     reading the run did not take, which is the one thing it may never
     do.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column; its numbers
+    # are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_CODE, "", ""])
     monkeypatch.setattr(

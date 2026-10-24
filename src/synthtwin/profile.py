@@ -4569,6 +4569,7 @@ def build_document(
                 name in declared_commas,
                 frozenset(described.absent_spellings),
                 settings.small_cell_floor,
+                described.role in taxonomy.SAFE_HARBOR_LEVEL_ROLES,
             )
         if forced_top or reach == taxonomy.SAFE_HARBOR_AGES:
             coded = taxonomy.top_coded_cells(

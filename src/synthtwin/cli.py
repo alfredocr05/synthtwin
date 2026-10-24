@@ -5261,10 +5261,15 @@ def _run_profile(
     # top-code reaches and each column of five-figure numbers held, where
     # no question above names the column; such a column leaves the
     # checklist, since it raised a question of its own.
+    # ...where an open question offering `identifier` holds the column,
+    # that question is the one put; a question answered at the keyboard
+    # holds nothing, so the Safe Harbor question is put to the file then
+    # (measured: incomes in hundreds asked the date-count question at the
+    # keyboard stayed held as ZIP-shaped with no question to free them).
     harbor_asked = asking.safe_harbor_questions(
         published,
         tuple(five_held),
-        asked_about,
+        [question for question in asked_about if question.name in withheld],
         tuple(ages_held),
         tuple(safe_harbor_no + safe_harbor_yes),
     )
