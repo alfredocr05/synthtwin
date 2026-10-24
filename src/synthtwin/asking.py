@@ -1838,10 +1838,12 @@ def _an_arc_naming_an_item(uid: str) -> bool:
 
     Read after the cut a published root takes (`parsing.
     uid_after_the_organisation`): the root ends before the first arc of
-    five figures or more and three arcs after the organisation arc at the
-    latest, so what is left could name a study, a series, an image or a
-    moment, and the organisation arc itself -- GE's 113619 -- names none
-    (the verify of lane CODES-3's repair 1, finding 5 (i)). A version
+    five figures or more, three arcs after the organisation arc at the
+    latest, at the first later arc of four figures or more, and at the
+    fifth arc where no organisation arc is found, so what is left could
+    name a study, a series, an image or a moment, and the organisation
+    arc itself -- GE's 113619 -- names none (the verify of lane CODES-3's
+    repair 1, finding 5 (i)). A version
     number `2.1.0`, a section number `1.2.3` and a code system's OID
     `2.16.840.1.113883.6.96` leave nothing after their root.
     """

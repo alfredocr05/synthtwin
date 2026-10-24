@@ -335,6 +335,19 @@ SIEMENS = "1.3.12.2.1107.5.2.32.35162."
 # A study UID whose own arcs hold four figures or fewer: a site arc, then
 # month-day and hour-minute (the verify of repair 1, finding 1).
 SHORT_STUDY = f"{ROOT}4021.1015.1230"
+# The verify of repair 2, findings 1 and 3: a study UID under a root of
+# short arcs with no organisation arc (`1.2.276.0.12.34.56`), one under a
+# vendor's single product arc (`1.2.840.113619.2.4021.1015.1230`), and one
+# under Siemens' product arcs (`1.3.12.2.1107.5.2.32.4021.1015.1230`).
+SHORT_NO_ORGANISATION = "1.2.276.0.12.34.56"
+ONE_PRODUCT_ARC = "1.2.840.113619.2.4021.1015.1230"
+SIEMENS_SHORT = "1.3.12.2.1107.5.2.32.4021.1015.1230"
+SHORT_ROOTS = {
+    "ge": (SHORT_STUDY, ROOT),
+    "noorg": (SHORT_NO_ORGANISATION, "1.2.276.0.12."),
+    "one_product_arc": (ONE_PRODUCT_ARC, "1.2.840.113619.2."),
+    "siemens": (SIEMENS_SHORT, "1.3.12.2.1107.5.2.32."),
+}
 
 
 def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() -> None:
@@ -351,8 +364,20 @@ def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() ->
     # repair 1, finding 1): a site arc, month-day and hour-minute of four
     # figures or fewer are cut, every root above unmoved.
     assert parsing.uid_root([f"{SHORT_STUDY}.{place}" for place in range(1, 50)]) == ROOT
-    assert parsing.uid_root([f"2.16.840.1.113883.3.464.1003.{place}" for place in range(1, 50)]) == "2.16.840.1.113883.3.464.1003."
+    assert parsing.uid_root([f"{ROOT}402.101.123.{place}" for place in range(1, 50)]) == ROOT
     assert parsing.uid_root([f"1.2.826.0.1.3680043.8.498.{place}" for place in range(1, 50)]) == "1.2.826.0.1."
+    # ...after the organisation arc, only arcs of three figures at most,
+    # and at most five arcs where no organisation arc is found (the
+    # verify of repair 2, findings 1 and 3; LANE CODES-3 ADDENDUM 3).
+    # Mutants: no cap without an organisation arc (the study UID under
+    # `1.2.276.0.12.34.56` published); arcs of four figures kept after the
+    # organisation arc (`1.2.840.113619.2.4021.1015.` published);
+    # `_ORGANISATION_ARC_FIGURES_AT_LEAST` 5 (Siemens' 1107 read as no
+    # organisation arc: `1.3.12.2.1107.` instead of its product root).
+    for study, root in SHORT_ROOTS.values():
+        assert parsing.uid_root([f"{study}.{place}" for place in range(1, 50)]) == root, study
+    assert parsing.uid_root([f"2.16.840.1.113883.3.464.1003.{place}" for place in range(1, 50)]) == "2.16.840.1.113883.3.464."
+    assert parsing.uid_root([f"1.2.40.0.13.1.5.{place}" for place in range(1, 50)]) == "1.2.40.0.13."
     # A serial of five figures where no organisation arc came first is
     # cut too (mutant: `_ROOT_ARC_FIGURES_AT_MOST` 5, the serial published).
     assert parsing.uid_root([f"1.2.276.0.72300.3.{place}" for place in range(1, 50)]) == "1.2.276.0."
@@ -402,26 +427,43 @@ def test_a_siemens_root_is_cut_before_the_scanner_serial(tmp_path: pathlib.Path)
 
 
 @pytest.mark.parametrize("n", SIZES)
-def test_a_short_arc_study_uid_is_never_published_as_the_root(tmp_path: pathlib.Path, n: int) -> None:
-    """The verify of repair 1, finding 1 (HIPAA): instances of one study whose arcs are short.
+@pytest.mark.parametrize("shape", sorted(SHORT_ROOTS))
+def test_a_short_arc_study_uid_is_never_published_as_the_root(
+    tmp_path: pathlib.Path, n: int, shape: str
+) -> None:
+    """The verifies of repairs 1 and 2 (HIPAA): instances of one study whose arcs are short.
 
-    `...2.55.3.4021.1015.1230.<k>` declared: the root published is GE's,
+    Declared, `<study>.<k>`: the root published is the organisation's,
     never the study UID, and no real instance UID is in any file or the
-    twin (before: the study UID published, 332 of 600 and 2,222 of 20,000
-    real UIDs in the twin). Mutant: no cap on the arcs after the
-    organisation arc (`_ARCS_AFTER_THE_ORGANISATION_AT_MOST` past every
-    arc).
+    twin. `ge` (`...2.55.3.4021.1015.1230`; before repair 2: the study UID
+    published, 332 of 600 and 2,222 of 20,000 real UIDs in the twin);
+    `noorg` (`1.2.276.0.12.34.56`, no organisation arc; on 1cf6f3c3: the
+    study UID published, 332 of 600 and 2,222 of 20,000 real), red on the
+    mutant "no cap without an organisation arc"; `one_product_arc`
+    (`1.2.840.113619.2.4021.1015.1230`; on 1cf6f3c3 `...2.4021.1015.`
+    published, a site arc and a month-day), red on the mutant "arcs of
+    four figures kept after the organisation arc"; `siemens`
+    (`1.3.12.2.1107.5.2.32.4021.1015.1230`), red on the mutant
+    `_ORGANISATION_ARC_FIGURES_AT_LEAST` 5 (332 of 600 real under it on
+    1cf6f3c3).
     """
-    cells = [f"{SHORT_STUDY}.{k + 1}" for k in range(n)]
+    study, root = SHORT_ROOTS[shape]
+    cells = [f"{study}.{k + 1}" for k in range(n)]
     header, rows = _uid_table(cells)
     seen = run(tmp_path / "short", header, rows, "uid", declared=("uid",))
     assert seen["exits"] == (0, 0, 0), seen["exits"]
-    assert seen["block"]["layout_prefixes"] == {"(column)": ROOT}
+    assert seen["block"]["layout_prefixes"] == {"(column)": root}
     for text in seen["texts"]:
-        assert SHORT_STUDY not in text
-    assert not set(seen["cells"]) & set(cells)
+        assert study + "." not in text
+    # Under `1.2.276.0.12.` the twin's two-figure arcs spell `34.56` once
+    # in 8,100 draws, and the instance numbers then fill their room:
+    # chance alone, nothing real read, 1 cell of 20,000 at seed 0 (stated
+    # limit (4)); 0 for every other shape and at 600 rows.
+    real = set(cells)
+    equal = sum(1 for cell in seen["cells"] if cell in real)
+    assert equal <= n // 4000, equal
     assert sum(1 for cell in seen["cells"] if UID.fullmatch(cell) is None) == 0
-    assert sum(1 for cell in seen["cells"] if not cell.startswith(ROOT)) == 0
+    assert sum(1 for cell in seen["cells"] if not cell.startswith(root)) == 0
 
 
 @pytest.mark.parametrize("n", SIZES)

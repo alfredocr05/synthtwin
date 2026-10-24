@@ -3074,6 +3074,22 @@ def uid_root(values: "list[str]") -> str:
 # arcs after it are three at most (GE's `2.55.3`, Siemens' `5.2.32`), so
 # every root named above stands as it is.
 #
+# ...AND, AFTER THE ORGANISATION ARC, ONLY ARCS OF AT MOST THREE FIGURES;
+# AND NO MORE THAN FIVE ARCS WHERE NO ORGANISATION ARC IS FOUND (the
+# verify of lane CODES-3's repair 2, finding 1, a HIPAA case; the
+# orchestrator's LANE CODES-3 ADDENDUM 3 of 2026-10-24 13:00, a second
+# amendment stated in P4-D428). A vendor writing one product arc lets the
+# three-arc cap keep two study arcs: `1.2.840.113619.2.4021.1015.1230.<k>`
+# published `1.2.840.113619.2.4021.1015.`, a site arc and a month-day; so
+# the first arc of four figures or more after the organisation arc ends
+# the root, giving `1.2.840.113619.2.`. A root whose arcs are all short
+# finds no organisation arc and was never cut: `1.2.276.0.12.34.56.<k>`
+# published `1.2.276.0.12.34.56.`, the study UID, and the twin wrote 332
+# of 600 real UIDs; so where no organisation arc has come by the fifth arc
+# the root ends there, giving `1.2.276.0.12.`. GE's `1.2.840.113619.2.55.3.`,
+# Siemens' `1.3.12.2.1107.5.2.32.`, dcmtk's `1.2.276.0.` and pydicom's
+# `1.2.826.0.1.` stand as they are.
+#
 # The joint ISO-ITU branch for United States organisations, `2.16.840.1.`,
 # is read as the ANSI branch is: its next arc is an organisation's (HL7's
 # 113883), so `2.16.840.1.113883.6.96`, a code system's identifier, keeps
@@ -3083,6 +3099,8 @@ _ANSI_BRANCH = ("1", "2", "840")
 _ORGANISATION_BRANCHES = (_ANSI_BRANCH, ("2", "16", "840", "1"))
 _ORGANISATION_ARC_FIGURES_AT_LEAST = 4
 _ARCS_AFTER_THE_ORGANISATION_AT_MOST = 3
+_FIGURES_AFTER_THE_ORGANISATION_AT_MOST = 3
+_ARCS_WITHOUT_AN_ORGANISATION_AT_MOST = 5
 
 
 def _root_of_the_organisation(root: str) -> str:
@@ -3098,10 +3116,12 @@ def _root_of_the_organisation(root: str) -> str:
             ansi = ansi or (place == len(branch) and tuple(arcs[:place]) == branch)
         if len(arc) > _ROOT_ARC_FIGURES_AT_MOST and not ansi:
             break
-        if (
-            organisation_at >= 0
-            and place - organisation_at > _ARCS_AFTER_THE_ORGANISATION_AT_MOST
+        if organisation_at >= 0 and (
+            place - organisation_at > _ARCS_AFTER_THE_ORGANISATION_AT_MOST
+            or len(arc) > _FIGURES_AFTER_THE_ORGANISATION_AT_MOST
         ):
+            break
+        if organisation_at < 0 and place >= _ARCS_WITHOUT_AN_ORGANISATION_AT_MOST:
             break
         if organisation_at < 0 and (
             ansi or len(arc) >= _ORGANISATION_ARC_FIGURES_AT_LEAST
