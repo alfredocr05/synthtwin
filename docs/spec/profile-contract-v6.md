@@ -18705,7 +18705,7 @@ fifty of them again with a trailing space — writes one flipped prefix,
 which the twin's report and the validator both name.
 
 **Amended by plan P4-D428 (lane CODES-3, 2026-10-23; repair round 1 the
-same day; repair round 2, 2026-10-24).** (1) C6-139's prefix holds no figure save in one case: a
+same day; repair rounds 2 and 3, 2026-10-24).** (1) C6-139's prefix holds no figure save in one case: a
 column every present cell of which is a DICOM UID
 (`[012](\.(0|[1-9]\d*))+`, two points or more) publishes as `(column)`
 its organisation's root -- the arcs every cell shares, cut back to the
@@ -18715,7 +18715,10 @@ a serial number, a timestamp or a random number names a device, a study
 or a series), and three arcs after the organisation arc at the latest
 (repair round 2: a site, a date and a time of four figures or fewer
 named one study), the organisation arc being that arc or else the first
-of four figures or more -- read over the whole column and never over one layout's
+of four figures or more; after it only arcs of at most three figures,
+and where no organisation arc is found the fifth arc at the latest
+(repair round 3: `1.2.276.0.12.34.56` and `1.2.840.113619.2.4021.1015`
+named one study each) -- read over the whole column and never over one layout's
 cells (`parsing.uid_root`, which `is_a_literal_prefix` admits; LP2
 reads its figures as `%`); LP3 counts the room after such a root with no
 arc led by a nought (`parsing.uid_room`), and its twin writes none. (2)

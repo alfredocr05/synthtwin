@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair round 2, 2026-10-24)
+### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair rounds 2 and 3, 2026-10-24)
 
 **The health data zoo's identifier rows 19, 42 and 43, and push critic
 13's MAJOR 5.** A column whose every cell, words aside, is a DICOM UID --
@@ -44,6 +44,17 @@ printed 24 keys). A whole record number of several widths at 20,000 rows
 keeps its noughts after the point (2,864 cells off `\d+\.00` before):
 rule A1 without a prefix. The oracle mirrors G9.6a's amended templates,
 with two frozen cases in vectors file 27, and method G9.6a gains step 7.
+
+**Repair round 3 (the lane's verify 2, 2026-10-24).** A UID root keeps
+only arcs of three figures or fewer after its organisation arc, and ends
+at the fifth arc where no organisation arc is found: instances under
+`1.2.276.0.12.34.56` no longer publish that study UID as their root (332
+of 600 real UIDs in the twin before, 0 now), and a vendor's single
+product arc no longer lets a site arc and a month-day into it. The gate
+pins four short roots, Siemens' among them, at 600 and 20,000 rows, each
+red on its mutant; P4-D428 names the any-share rule's false alarms
+(HCPCS codes and ward labels beside words) and widens stated limits (1)
+and (4) with their measured counts.
 
 ### Batch 4g's records: the chain met by its oracle, the six time entries stamped, owners for every stated limit, a shorter STATE (2026-10-23)
 

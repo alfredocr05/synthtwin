@@ -819,8 +819,9 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # P4-D428), the least round figure the lane's ledger fits under:
     # `K-HZ-04` (the zoo's identifier cells out of pattern) with its note
     # clause, 756,690 bytes (756,824 with its repair round 2's evidence,
-    # 2026-10-24). The integrator sets the cap for the batch as
-    # a whole. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    # 756,894 with its repair round 3's, 2026-10-24). The integrator sets
+    # the cap for the batch as a whole. A MEASUREMENT IS NEVER TRIMMED TO
+    # FIT.
     #
     # 754,000 from 745,000, AT THE INTEGRATION OF BATCH 4G (2026-10-23),
     # the orchestrator's recorded call D15 (the owner may veto), set once

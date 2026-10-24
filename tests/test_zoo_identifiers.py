@@ -335,7 +335,7 @@ SIEMENS = "1.3.12.2.1107.5.2.32.35162."
 # A study UID whose own arcs hold four figures or fewer: a site arc, then
 # month-day and hour-minute (the verify of repair 1, finding 1).
 SHORT_STUDY = f"{ROOT}4021.1015.1230"
-# The verify of repair 2, findings 1 and 3: a study UID under a root of
+# The verify of repair 2, items 1 and 3: a study UID under a root of
 # short arcs with no organisation arc (`1.2.276.0.12.34.56`), one under a
 # vendor's single product arc (`1.2.840.113619.2.4021.1015.1230`), and one
 # under Siemens' product arcs (`1.3.12.2.1107.5.2.32.4021.1015.1230`).
@@ -368,7 +368,7 @@ def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() ->
     assert parsing.uid_root([f"1.2.826.0.1.3680043.8.498.{place}" for place in range(1, 50)]) == "1.2.826.0.1."
     # ...after the organisation arc, only arcs of three figures at most,
     # and at most five arcs where no organisation arc is found (the
-    # verify of repair 2, findings 1 and 3; LANE CODES-3 ADDENDUM 3).
+    # verify of repair 2, items 1 and 3; LANE CODES-3 ADDENDUM 3).
     # Mutants: no cap without an organisation arc (the study UID under
     # `1.2.276.0.12.34.56` published); arcs of four figures kept after the
     # organisation arc (`1.2.840.113619.2.4021.1015.` published);
