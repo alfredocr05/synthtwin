@@ -167,7 +167,7 @@ def test_mutant_3_records_holding_nothing_placed_by_single_cell_exchanges(tmp_pa
     G2.1 step 2's old exchanges: in each column on its own, the cells of
     twelve chosen rows exchanged with the blank cells, each column pairing
     them its own way. The file again holds twelve records holding nothing
-    and every band total, while the rows that took the cells are mixtures:
+    and every band total, while each row that took the cells is made of several rows:
     a family MISSED. The same twelve rows emptied WHOLE (every column paired
     alike) moves no table: every line HELD."""
     for name in ("HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME"):
