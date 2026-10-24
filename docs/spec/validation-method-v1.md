@@ -3669,6 +3669,41 @@ lines add 0.6 s to the measurement's 6.6 s at 20,000 rows and 8.3 s to
 63.1 s at 200,000 rows, at a peak of 230 MB; 2,000,000 rows are not run
 here.
 
+**Repair 1 of the build (2026-10-24, lane CHv's skeptic 1 and the codex
+review, plan P4-D430).** Four readings join (a) to (d): (e) the file's own
+description is read FOR PEOPLE: where a column the description or the
+file's own description reads as record numbers (declared, the person
+column, or read `identifier`) repeats a value on the file, `profile` run
+on the file counts every value in people and publishes no family (the
+chain's `OFF_PERSON`), so every total and family line is NOT CHECKABLE,
+in words that say why; (f) the own-fact groups of (b) are read on a
+description of the file that holds its CALENDAR CENSUSES (built, on a
+switched run, only where the chain holds a column of dates or times),
+since a periodic census draws some of them; (g) an implied table is
+carried along the chain's junction tree from its first column's family,
+each family's published table being its clique's joint count, one walk
+of the tree a leading column, and is worked out only within bounds the
+description alone sets (at most 1,024 cells, 65,536 joint cells held at
+once, 4,000,000 products over the section; a pair past one prints its
+word and why, no share and no spread); (h) each column's codes are held
+in one byte a tabled row (a list of whole numbers past 254 bands) and its
+own-fact groups read while its readings are in hand, which are then let
+go. Without the chain's lines the report is the bytes it was; with them,
+its verdict names the between-columns misses, its fact-by-fact part says
+where they are, its first limit and its expectations say which tables
+between columns were checked and which targets were not, and its
+handling paragraph counts the "not judged" lines apart from V5.3's.
+Measured (wave6/CHv/repair1, `wide_peak.py`, ten blocks of the clinic's
+five columns, a loaded machine): at 20,000 rows by 50 columns all 1,124
+implied tables are worked out and the lines take 53.6 s of the switched
+measurement's 129.8 s, most of it each column's reading by the
+profiler's own `chain.read_column`; their own traced peak is 12.4 MB at
+20,000 rows and 51.3 MB at 200,000, the codes 10 MB of it (one byte a
+row and column, as V12.6 counts), the switched measurement's whole
+footprint 401 MB at most there. At 2,000,000 rows the reading alone,
+growing with the rows, is about 100 times its 20,000-row figure:
+`K-S6-15`'s (lanes CHb, MPg, SX).
+
 **V12.1 The measurement re-uses the published choices and makes none of
 its own.** The file is re-described as V2 says. Each eligible column is
 cut at its PUBLISHED ladder (contract 4.6b.2), and every published

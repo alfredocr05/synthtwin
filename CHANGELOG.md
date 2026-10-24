@@ -23,7 +23,16 @@ before, byte for byte. `K-S6-04`, `K-S6-05` and `K-S6-10` are new: every
 pair one word, every family one line and V12's six data mutants as
 stated; whole real rows in a chain-arranged twin rising from 9.7 to
 17.45 in 1,000 rows on K-S6-01's table, for the owner; and the
-death-rate difference at age 70 recorded as the chain carries it.
+death-rate difference at age 70 recorded as the chain carries it. Repair
+1: the default run calls the measurement as it did (the health zoo's
+battery runs again); the file is read for people and for its calendar
+censuses before a family is judged; implied tables are carried along the
+chain's junction tree within bounds the description sets, every one of
+1,124 on 50 columns worked out; each column's codes take one byte a row;
+and the report's verdict, limits and handling paragraph say what the
+between-columns lines found, in plain words. At 20,000 rows the
+chain-arranged twin's whole real rows rise from 652.1 to 939.55, for the
+owner.
 
 ### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
 

@@ -28,7 +28,14 @@ and every candidate pair with its published word, a pair reading
   the oracle's test key): every family's table counted by the oracle on
   the file equals the published one exactly where V12 reads HELD;
 - the loader's invariants S23 to S27 refusing a broken chain before a
-  byte of the file is read.
+  byte of the file is read;
+- REPAIR 1's cases, each red on its mutant: RULE WE on the file's own
+  records holding nothing, each own-fact source alone, the NOT CHECKABLE
+  lines, the verdict's census and the "not judged" count, the file's
+  calendar censuses, a file counted in people, a miss between columns
+  only, the three-argument call without the switch, the implied bounds
+  and the forest, the printed details, records of spaces and the
+  one-byte codes.
 
 Every fixture is invented here; the key is the oracle's fixed test key.
 """
