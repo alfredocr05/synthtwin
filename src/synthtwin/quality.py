@@ -867,6 +867,179 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
     return lines
 
 
+def _chain_level(level: int) -> str:
+    return f"L{level}"
+
+
+def _chain_verdict(verdict: str) -> str:
+    """A chain line's verdict in the report's words: HELD, MISSED, WITHHELD, or NOT CHECKABLE."""
+    return verdict if verdict else "NOT CHECKABLE"
+
+
+def _chain_family_name(family: validation.ChainFamily) -> str:
+    named = f"'{_shown(family.child)}' at {_chain_level(family.level)}"
+    if not family.parents:
+        return named + ", no parent"
+    given = ""
+    for name, level in family.parents:
+        given = (given + ", " if given else "") + f"'{_shown(name)}' at {_chain_level(level)}"
+    return named + " given " + given
+
+
+def _chain_numbers(numbers: "tuple[int, ...]") -> str:
+    out = ""
+    for number in numbers:
+        out = (out + ", " if out else "") + f"{number}"
+    return out
+
+
+def _chain_share(share: "tuple[int, int]") -> str:
+    if share[0] == 0:
+        return "0"
+    if share[1] == 1:
+        return f"{share[0]}"
+    return f"{share[0]}/{share[1]}"
+
+
+def _chain_cell_name(parts: "list[int]") -> str:
+    out = ""
+    for part in parts:
+        out = (out + ", " if out else "") + f"{part}"
+    return out
+
+
+def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
+    """V12's section of the written report: the chain's lines, every one in the description's own numbers.
+
+    NO NUMBER THE CHECKED FILE HOLDS IS PRINTED HERE (V12.3): each line
+    prints its verdict and the published table, totals or words; an
+    implied pair prints the shares the published families imply and its
+    dealing spread, both functions of the description alone.
+    """
+    implied = 0
+    for pair in lines_in.pairs:
+        if pair.word == "implied":
+            implied += 1
+    lines = [
+        _RULE,
+        "BETWEEN COLUMNS: THE CHAIN'S FAMILY TABLES (V12)",
+        _RULE,
+        "",
+        (
+            f"The description publishes {len(lines_in.families)} family "
+            f"table(s) over {len(lines_in.totals)} column(s)."
+        ),
+        "Each column's band totals and each family's table are checked",
+        "against the published numbers: HELD where this file holds them",
+        "exactly, MISSED where it does not. A family is judged only where",
+        "every one of its columns holds its published band totals, and only",
+        "where describing this file on its own would let the published",
+        "tables stand. No number this file holds is printed in this",
+        "section: every line prints its verdict and what the description",
+        "publishes, so a line reads the same however far the file is off.",
+        "These lines are counted in the verdict at the top of this report.",
+        "",
+        "Each column's bands (L0), as the description publishes them, with",
+        "the bands of its two coarser levels (L1, L2) as lists of L0 bands:",
+    ]
+    for legend in lines_in.legends:
+        lines += [f"  '{_shown(legend.column)}'"]
+        for at in range(len(legend.bands)):
+            lines += [f"    band {at}: {_shown(legend.bands[at])}"]
+        for name, coarser in (("L1", legend.l1), ("L2", legend.l2)):
+            said = ""
+            for at in range(len(coarser)):
+                said = (said + "; " if said else "") + f"band {at} = L0 {_chain_numbers(coarser[at])}"
+            lines += [f"    {name}: {said}"]
+    lines += ["", "The band totals, one line a column:"]
+    for total in lines_in.totals:
+        lines += [
+            f"  '{_shown(total.column)}': {_chain_verdict(total.verdict)}; "
+            f"published L0 totals {_chain_numbers(total.totals)}"
+        ]
+        if total.reason:
+            lines += [f"      {_shown(total.reason)}"]
+    lines += ["", "The family tables, one line a family:"]
+    for family in lines_in.families:
+        lines += [f"  family {family.index}: {_chain_family_name(family)}: {_chain_verdict(family.verdict)}"]
+        if family.reason:
+            lines += [f"      {_shown(family.reason)}"]
+        if family.parents:
+            lines += ["      published table (a row for each cell of the parents, bands in the order above):"]
+        else:
+            lines += ["      published table:"]
+        widths: "list[int]" = []
+        for legend in lines_in.legends:
+            for name, level in family.parents:
+                if legend.column == name:
+                    widths += [len(legend.bands) if level == 0 else (len(legend.l1) if level == 1 else len(legend.l2))]
+        for row_at in range(len(family.table)):
+            parts: "list[int]" = []
+            rest = row_at
+            for size in widths[::-1]:
+                parts = [rest % size] + parts
+                rest //= size
+            label = f"({_chain_cell_name(parts)}) " if parts else ""
+            lines += [f"        {label}{_chain_numbers(family.table[row_at])}"]
+    lines += [
+        "",
+        "Every pair of eligible columns, one line a pair, with the word the",
+        "description gives it: 'exact' where one family holds both, so its",
+        "line above checks them together; 'implied' where none does. An",
+        "implied pair is printed as the published families imply it, shares",
+        "of the tabled rows at the two columns' chain levels, beside the",
+        "dealing spread an independent dealing would leave. It is never a",
+        "check and nothing of this file stands beside it.",
+    ]
+    if not lines_in.pairs:
+        lines += ["  The description names no pair of eligible columns."]
+    for pair in lines_in.pairs:
+        first, second = pair.columns
+        named = f"'{_shown(first)}' and '{_shown(second)}'"
+        if pair.word == "exact" and pair.family is not None:
+            lines += [f"  {named}: exact (family {pair.family})"]
+            continue
+        if pair.word != "implied":
+            lines += [f"  {named}: {_shown(pair.word)}"]
+            continue
+        lines += [
+            f"  {named}: implied; dealing spread {pair.spread}",
+            (
+                f"      implied shares (a row for each {_chain_level(pair.levels[0])} band of "
+                f"'{_shown(first)}', a share for each {_chain_level(pair.levels[1])} band of '{_shown(second)}'):"
+            ),
+        ]
+        for row_at in range(len(pair.shares)):
+            said = ""
+            for share in pair.shares[row_at]:
+                said = (said + ", " if said else "") + _chain_share(share)
+            lines += [f"        band {row_at}: {said}"]
+    lines += [
+        "",
+        (
+            f"{implied} pair(s) read 'implied'. {lines_in.held} line(s) HELD, "
+            f"{lines_in.missed} MISSED, {lines_in.withheld} withheld or not judged, "
+            f"{lines_in.not_checkable} not checkable."
+        ),
+    ]
+    return lines
+
+
+def _chain_screen_line(lines_in: validation.ChainLines) -> str:
+    """The one line the screen prints for V12's section (the written report holds it whole)."""
+    implied = 0
+    for pair in lines_in.pairs:
+        if pair.word == "implied":
+            implied += 1
+    return (
+        f"Between columns: {lines_in.held} band-total and family line(s) HELD, "
+        f"{lines_in.missed} MISSED, {lines_in.withheld} withheld or not judged, "
+        f"{lines_in.not_checkable} not checkable, over {len(lines_in.families)} family "
+        f"table(s); {implied} pair(s) read 'implied'. The written report holds "
+        f"every line, with the published tables."
+    )
+
+
 def _expectations_lines() -> "list[str]":
     """The analyst-expectations section (V7.4).
 
@@ -1207,7 +1380,9 @@ def quality_report(
 
 
 def report_pieces(
-    description: contract.Profile, outcome: validation.Outcome
+    description: contract.Profile,
+    outcome: validation.Outcome,
+    screen: bool = False,
 ) -> "list[str]":
     """The same report as `quality_report`, handed over in pieces.
 
@@ -1226,8 +1401,12 @@ def report_pieces(
     `quality_report`, which this reads the same lines from; raises
     nothing for a description the loader accepted and an outcome
     measured from it. No I/O of any kind.
+
+    ``screen`` (lane CHv, plan P4-D430) changes one thing, and only on an
+    outcome carrying the chain's lines: the chain's section is ONE line,
+    for the screen. Without those lines it changes nothing.
     """
-    return _lines_pieces(_report_lines(description, outcome))
+    return _lines_pieces(_report_lines(description, outcome, screen))
 
 
 # How many lines a piece of the report holds at most (`report_pieces`).
@@ -1254,7 +1433,9 @@ def _lines_pieces(lines: "list[str]") -> "list[str]":
 
 
 def _report_lines(
-    description: contract.Profile, outcome: validation.Outcome
+    description: contract.Profile,
+    outcome: validation.Outcome,
+    screen: bool = False,
 ) -> "list[str]":
     """Every line of the quality report, in order, none ended (`quality_report`)."""
     lines = _opening_lines(description, outcome.measured_name)
@@ -1280,6 +1461,12 @@ def _report_lines(
     lines += _detail_lines(outcome)
     lines += _not_checkable_lines(outcome)
     lines += [""]
+    # THE CHAIN'S SECTION (V12; lane CHv, plan P4-D430; NOT IN FORCE):
+    # nothing at all, not even a blank line, where the outcome carries no
+    # chain lines, so every other report's bytes are what they were.
+    if outcome.chain is not None:
+        lines += [_chain_screen_line(outcome.chain)] if screen else _chain_lines(outcome.chain)
+        lines += [""]
     lines += _expectations_lines()
     lines += [""]
     lines += _handling_lines(description, outcome.census.withheld)

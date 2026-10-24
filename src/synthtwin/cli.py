@@ -6138,6 +6138,7 @@ def _run_validate(
     out_dir: "str | None",
     replace: bool,
     sheet: str = "",
+    chain: bool = False,
 ) -> int:
     """Do the work of `synthtwin validate`; return the exit code.
 
@@ -6171,10 +6172,21 @@ def _run_validate(
     earlier run of its own wrote from a file of the person's that happens
     to sit at that name, so it refuses, names the file, and teaches
     `--replace`.
+
+    THE CHAIN'S SWITCH (`chain`, lane CHv, plan P4-D430; NOT IN FORCE):
+    no command-line option sets it. With it, the description is loaded
+    with its chain (`contract.load_profile_document`: S23 to S28), and
+    where it carries one the quality report gains V12's section and the
+    screen ONE line in its place; a description carrying no chain is
+    measured, reported and exited exactly as without the switch.
     """
     from synthtwin import contract, quality, validation, writing
 
-    loaded = contract.load_profile(description)
+    document: "dict[str, object] | None" = None
+    if chain:
+        loaded, document = contract.load_profile_document(description)
+    else:
+        loaded = contract.load_profile(description)
     measured = _measured_path(
         description, twin_given, loaded.source.workbook is not None
     )
@@ -6213,7 +6225,7 @@ def _run_validate(
     # checking a real workbook whose table is not on the first visible
     # sheet named the sheet, was given no error, and had a different
     # sheet measured against their description.
-    outcome = validation.measure(loaded, measured, sheet)
+    outcome = validation.measure(loaded, measured, sheet, document)
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
@@ -6228,7 +6240,16 @@ def _run_validate(
         report_pieces[index] = parsing.visible_lines(report_pieces[index])
     code = 3 if outcome.census.missed else 0
 
-    _say_pieces(report_pieces)
+    if outcome.chain is None:
+        _say_pieces(report_pieces)
+    else:
+        # THE SCREEN KEEPS ONE LINE OF THE CHAIN'S SECTION (lane CHv): the
+        # written report holds the pair section whole; the screen prints
+        # the same report with that section as one summary line.
+        screen_pieces = quality.report_pieces(loaded, outcome, screen=True)
+        for index in range(len(screen_pieces)):
+            screen_pieces[index] = parsing.visible_lines(screen_pieces[index])
+        _say_pieces(screen_pieces)
     _say(f"This file will be written:\n  {shown_quality_path}")
     # THE OTHERS ARE ALL NAMED, not the two nearest to hand (plan
     # amendment A-P3-8 clause 2). This sentence exists to say that a
@@ -6768,7 +6789,8 @@ def main(argv: "list[str] | None" = None, chain: "ChainRun | None" = None) -> in
     `chain` is the chain's switch (lane CHa, plan P4-D418; contract 4.6b,
     NOT IN FORCE): the console entry point never passes it, so a person
     typing `synthtwin` cannot turn it on; the tools and the tests hand it
-    in, and it reaches the `profile` command alone.
+    in. It reaches the `profile` command, and the `validate` command as
+    V12's lines (lane CHv, plan P4-D430); `generate` never reads it.
 
     Guarantees:
 
@@ -6893,6 +6915,7 @@ def main(argv: "list[str] | None" = None, chain: "ChainRun | None" = None) -> in
                 options.out_dir,
                 options.replace,
                 options.sheet,
+                chain=chain is not None,
             )
         return _run_profile(
             named,

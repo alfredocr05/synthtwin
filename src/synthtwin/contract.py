@@ -22223,6 +22223,26 @@ def load_profile(raw_path: str, chain: bool = False) -> Profile:
     met is a separate stage that runs afterwards, so that a valid
     description never becomes unloadable.
     """
+    return _loaded(raw_path, chain)[0]
+
+
+def load_profile_document(raw_path: str) -> "tuple[Profile, dict[str, object]]":
+    """`load_profile` with the chain's switch on, and the document it read (lane CHv, plan P4-D430).
+
+    NOT IN FORCE: only `synthtwin validate` run with the chain's switch
+    (`cli.main(..., chain=...)`, which no command-line option sets) calls
+    this. It reads the description ONCE, as `load_profile(raw_path,
+    chain=True)` does, with every refusal of that function and its
+    invariants S23 to S28 (`chain_check`), and hands back the parsed
+    document beside the typed one, so the validator's V12 lines read the
+    chain from the very bytes the loader accepted, never from a second
+    read of the file.
+    """
+    return _loaded(raw_path, True)
+
+
+def _loaded(raw_path: str, chain: bool) -> "tuple[Profile, dict[str, object]]":
+    """The body of `load_profile`: the typed description and the document it was read from."""
     validated = validate_local_path(raw_path, purpose="description")
     place = pathlib.Path(validated)
     shown = f"{place}"
@@ -22251,7 +22271,7 @@ def load_profile(raw_path: str, chain: bool = False) -> Profile:
         _scanned(text, shown)
         document = _versioned(_parsed(text, shown), shown)
         _round_tripped(document, text, size, shown)
-        return _validated(document, chain)
+        return _validated(document, chain), document
     except MemoryError as error:
         raise errors.ProfileError(
             errors.profile_out_of_memory(shown)
