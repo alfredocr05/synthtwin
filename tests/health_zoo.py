@@ -2325,9 +2325,13 @@ def generic_mode(table: Table, name: str) -> "tuple[str, str] | None":
         ("dtype ", "same"), ("missing spellings ", "spellings"), ("missing ", "bad"), ("shapes ", "shapes"),
         ("forms ", "forms"), ("levels ", "levels"), ("stand-ins ", "bad"), ("codes ", "codes"),
     )
+    every_column = {column for names in table.kinds.values() for column in names}
     for prefix, mode in columns:
         if name.startswith(prefix):
-            return kind_of(table, name[len(prefix):]), mode
+            column = name[len(prefix):]
+            # A column the reader makes and the export does not name (an
+            # unnamed one after a trailing delimiter) is the file's.
+            return (kind_of(table, column) if column in every_column else _file_kind(table)), mode
     if name == "rows read":
         return _file_kind(table), "same"
     if name == "file: byte-order mark":

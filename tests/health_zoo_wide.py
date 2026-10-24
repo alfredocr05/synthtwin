@@ -2051,6 +2051,344 @@ FAMILY_SYSTEMS: "tuple[Table, ...]" = (
 )
 
 
+# -- family 5: the file shapes (Excel-readable CSV and workbook shapes) ---------
+
+WARD_COMMENTS = (
+    ("Évaluation faite", 25.0), ("Patient stable", 30.0), ("Reprise à domicile", 15.0), ("Ürin normal", 10.0),
+    ("Contrôle demain", 10.0), ("Pas de fièvre", 10.0),
+)
+WARD_UNITS = (("Médecine", 40.0), ("Chirurgie", 35.0), ("Pédiatrie", 25.0))
+
+
+def unicode_text(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A sheet saved as Excel's "Unicode Text": UTF-16 with its byte-order mark, tab-delimited, CRLF."""
+    draw = random.Random(seed)
+    header = ["ward_ref", "unit", "admit_date", "comment", "score"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        rows += [[
+            f"W{600000 + index}",
+            _pick(draw, WARD_UNITS),
+            _when(draw).date().isoformat(),
+            _pick(draw, WARD_COMMENTS),
+            f"{draw.randint(0, 10)}",
+        ]]
+    return header, rows
+
+
+def utf16_bytes(header: "list[str]", rows: "list[list[str]]") -> bytes:
+    return csv_bytes(header, rows, delimiter="\t", newline="\r\n", encoding="utf-16")
+
+
+SMART_COMMENTS = (
+    ("Patient said “fine” today", 30.0), ("Family’s request noted", 20.0), ("Pain 3–4 at rest", 15.0),
+    ("Follow-up — two weeks", 15.0), ("‘Do not resuscitate’ reviewed", 10.0), ("Wound clean…", 10.0),
+)
+
+
+def smart_quotes(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Comments typed in Word and saved from Excel as CSV in Windows-1252: curly quotes, dashes, an ellipsis."""
+    draw = random.Random(seed)
+    header = ["note_ref", "category", "comment"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        rows += [[f"NT{700000 + index}", draw.choice(("Nursing", "Social work", "Chaplain")), _pick(draw, SMART_COMMENTS)]]
+    return header, rows
+
+
+def _cp1252_mojibake(frame: object) -> int:
+    """Cells showing Windows-1252 punctuation read as another encoding ('â€œ', 'â€™', '\\x93')."""
+    bad = 0
+    for name in frame.columns:  # type: ignore[attr-defined]
+        values = frame[name].dropna().astype(str)  # type: ignore[index]
+        bad += int(values.str.contains("â€|[\x91-\x97]|�", regex=True).sum())
+    return bad
+
+
+SAS_ARMS = (("A", 50.0), ("B", 50.0))
+SAS_VISITS = (("BASELINE", 40.0), ("WEEK 4", 30.0), ("WEEK 12", 30.0))
+
+
+def sas_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A SAS dataset exported to CSV: a lone '.' where a number is missing."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["subjid", "visit", "arm", "sbp", "ldl"]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        rows += [[
+            f"S-{draw.randrange(people):05d}",
+            _pick(draw, SAS_VISITS),
+            _pick(draw, SAS_ARMS),
+            "." if draw.random() < 0.08 else f"{draw.randint(95, 180)}",
+            "." if draw.random() < 0.12 else f"{draw.gauss(110.0, 30.0):.1f}",
+        ]]
+    return header, rows
+
+
+WIDE_ITEMS = tuple(f"item_{place:03d}" for place in range(1, 301))
+ITEM_LEVELS = (("0", 30.0), ("1", 25.0), ("2", 20.0), ("3", 15.0), ("4", 7.0), ("", 3.0))
+
+
+def wide_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A wide export: 300 questionnaire items beside the patient and the date, 302 columns."""
+    draw = random.Random(seed)
+    header = ["patient_ref", "visit_date", *WIDE_ITEMS]
+    values = [value for value, _weight in ITEM_LEVELS]
+    weights = [weight for _value, weight in ITEM_LEVELS]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        rows += [[f"PR{800000 + index}", _when(draw).date().isoformat(), *draw.choices(values, weights, k=len(WIDE_ITEMS))]]
+    return header, rows
+
+
+def _items_bad(frame: object) -> int:
+    return sum(_bad_set(frame[column], {"0", "1", "2", "3", "4"}) for column in WIDE_ITEMS)  # type: ignore[index]
+
+
+ORDER_TESTS = (("CBC", 35.0), ("BMP", 30.0), ("Lipid panel", 15.0), ("TSH", 10.0), ("HbA1c", 10.0))
+ORDER_STATUS = (("Resulted", 75.0), ("Pending", 15.0), ("Cancelled", 10.0))
+
+
+def trailing_comma(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Orders exported with a delimiter after the last field of every line."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["order_ref", "patient_id", "order_date", "test", "status"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        rows += [[
+            f"OR{900000 + index}", _person(draw, people), _when(draw).date().isoformat(),
+            _pick(draw, ORDER_TESTS), _pick(draw, ORDER_STATUS),
+        ]]
+    return header, rows
+
+
+def trailing_bytes(header: "list[str]", rows: "list[list[str]]") -> bytes:
+    text = csv_bytes(header, rows).decode("utf-8")
+    return "".join(line + ",\n" for line in text.split("\n") if line).encode("utf-8")
+
+
+ZIPS_LOST = (
+    ("2139", 12.0), ("6510", 10.0), ("1803", 9.0), ("7030", 9.0), ("8540", 8.0), ("2115", 8.0),
+    ("10027", 12.0), ("19104", 10.0), ("60611", 8.0), ("94110", 7.0), ("33101", 7.0),
+)
+
+
+def excel_mangled(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Codes Excel mangled before the CSV was saved: long numbers shown in scientific notation, ZIPs that lost
+    their leading nought."""
+    draw = random.Random(seed)
+    header = ["member_ref", "npi_shown", "zip_lost", "account_shown"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        rows += [[
+            f"MB{100000 + index}",
+            f"{draw.randint(1_000_000_000, 1_999_999_999):.5E}",
+            _pick(draw, ZIPS_LOST),
+            f"{draw.randint(100_000_000_000, 999_999_999_999):.5E}",
+        ]]
+    return header, rows
+
+
+def workbook_1904(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Visits in a workbook kept in the 1904 date system (Excel for the Mac's old default): serial numbers from 1904."""
+    draw = random.Random(seed)
+    header = ["patient_ref", "visit_date", "score"]
+    rows: "list[list[str]]" = []
+    epoch = datetime.date(1904, 1, 1)
+    for index in range(n):
+        day = zoo._day(draw, datetime.date(2023, 1, 1), datetime.date(2024, 12, 31))
+        rows += [[f"VB{300000 + index}", f"{(day - epoch).days}", f"{draw.randint(0, 100)}"]]
+    return header, rows
+
+
+def book_1904(header: "list[str]", rows: "list[list[str]]") -> bytes:
+    """The visits as a workbook in the 1904 date system: date cells styled as dates, numbers typed, text inline."""
+    import workbooks
+
+    body: "list[tuple[int, list[str]]]" = [
+        (1, [workbooks.cell(f"{zoo._letter(place)}1", header[place], "inlineStr") for place in range(len(header))])
+    ]
+    for index in range(len(rows)):
+        number = index + 2
+        cells: "list[str]" = []
+        for place in range(len(header)):
+            value = rows[index][place]
+            where = f"{zoo._letter(place)}{number}"
+            typed = re.fullmatch(r"-?\d+", value) is not None
+            if header[place] == "visit_date" and typed:
+                cells += [workbooks.cell(where, value, "", 1)]
+            elif header[place] == "score" and typed:
+                cells += [workbooks.cell(where, value)]
+            else:
+                cells += [workbooks.cell(where, value, "inlineStr")]
+        body += [(number, cells)]
+    last = f"{zoo._letter(len(header) - 1)}{len(rows) + 1}"
+    return workbooks.package(
+        [
+            ("[Content_Types].xml", workbooks._content_types(1, False, False, False)),
+            ("_rels/.rels", workbooks._root_rels()),
+            ("xl/workbook.xml", workbooks._workbook([("Visits", "")], epoch_1904=True)),
+            ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, False)),
+            ("xl/styles.xml", workbooks._styles()),
+            ("xl/worksheets/sheet1.xml", workbooks.sheet(body, dimension=f"A1:{last}")),
+        ]
+    )
+
+
+def _visits_outside(series: object) -> int:
+    """Visit dates read outside 2023 and 2024 (a 1904 serial read in the 1900 system lands four years early)."""
+    import pandas
+
+    days = pandas.to_datetime(series.dropna(), errors="coerce")  # type: ignore[attr-defined]
+    return int((days.isna() | (days.dt.year < 2023) | (days.dt.year > 2024)).sum())
+
+
+APOSTROPHE_CODES = _zipf(("'0450", "'0250", "'0300", "'0320", "'0360", "'0636"))
+
+
+def apostrophe_codes(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A sheet whose codes were typed with Excel's leading apostrophe, saved as CSV with the apostrophe kept."""
+    draw = random.Random(seed)
+    header = ["record_ref", "rev_code", "amount"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        rows += [[f"'{100000 + index:06d}", _pick(draw, APOSTROPHE_CODES), f"{draw.lognormvariate(5.0, 1.0):.2f}"]]
+    return header, rows
+
+
+FAMILY_FILES: "tuple[Table, ...]" = (
+    Table(
+        "unicode_text", ".txt", unicode_text, utf16_bytes,
+        {"utf16_text": ("ward_ref", "unit", "admit_date", "comment", "score")},
+        {"ward_ref": "identifier", "score": "measurement"},
+        _csv_reader(sep="\t", encoding="utf-16"),
+        (
+            Check("utf16_text", "the file is UTF-16 little-endian, as Excel writes it, with its byte-order mark", "same",
+                  lambda f: bytes(f.get("bytes", b""))[:2] == b"\xff\xfe", "", lambda header, rows: None,  # type: ignore[call-overload]
+                  lambda header, rows: csv_bytes(header, rows, delimiter="\t", newline="\r\n", encoding="utf-16-be", mark=True)),
+            _listed("utf16_text", "units with their accents", "unit", _levels(WARD_UNITS)),
+            _listed("utf16_text", "comments with their accents", "comment", _levels(WARD_COMMENTS)),
+            _bad("utf16_text", "no cell reads as mojibake", "comment", lambda f: zoo._mojibake(f["text"]),
+                 spoil_cell("comment", "Ã‰valuation faite")),
+            _dated("utf16_text", "admit_date parses as %Y-%m-%d", "admit_date", "%Y-%m-%d"),
+            _ranged("utf16_text", "score", r"(?P<n>\d+)", 3.0),
+        ),
+        separator="tab",
+    ),
+    Table(
+        "smart_quotes", ".csv", smart_quotes,
+        lambda header, rows: csv_bytes(header, rows, encoding="cp1252"),
+        {"cp1252_smart_quotes": ("note_ref", "category", "comment")},
+        {"note_ref": "identifier"},
+        _csv_reader(encoding="cp1252"),
+        (
+            _listed("cp1252_smart_quotes", "comments with their curly quotes and dashes", "comment", _levels(SMART_COMMENTS)),
+            _bad("cp1252_smart_quotes", "no Windows-1252 punctuation reads as mojibake", "comment",
+                 lambda f: _cp1252_mojibake(f["text"]), spoil_cell("comment", "Patient said â€œfine today")),
+            *_present("cp1252_smart_quotes", "some comment keeps its curly quotes", "comment", "[“”‘’]",
+                      spoil_every("comment", lambda v: re.sub("[“”‘’]", "'", v))),
+            _listed("cp1252_smart_quotes", "categories", "category", {"Nursing", "Social work", "Chaplain"}),
+        ),
+    ),
+    Table(
+        "sas_export", ".csv", sas_export,
+        lambda header, rows: csv_bytes(header, rows),
+        {"sas_dot_missing": ("subjid", "visit", "arm", "sbp", "ldl")},
+        {"subjid": "identifier", "sbp": "measurement", "ldl": "measurement"},
+        _csv_reader(),
+        (
+            *_repeats("sas_dot_missing", "subjid"),
+            _listed("sas_dot_missing", "visits", "visit", _levels(SAS_VISITS)),
+            _listed("sas_dot_missing", "arms", "arm", {"A", "B"}),
+            _bad("sas_dot_missing", "sbp reads as numbers past SAS's '.'", "sbp",
+                 lambda f: _bad_numbers(_not_in((".",))(_t("sbp")(f)))),  # type: ignore[operator]
+            _ranged("sas_dot_missing", "sbp", r"(?P<n>\d+)"),
+            *_rare("sas_dot_missing", "some sbp is SAS's '.' missing", "sbp", r"^\.$",
+                   spoil_every("sbp", lambda v: "" if v == "." else v), crowd("sbp", ".")),
+            _bad("sas_dot_missing", "ldl reads as numbers past SAS's '.'", "ldl",
+                 lambda f: _bad_numbers(_not_in((".",))(_t("ldl")(f)))),  # type: ignore[operator]
+            _ranged("sas_dot_missing", "ldl", r"(?P<n>-?\d+\.\d)"),
+            *_rare("sas_dot_missing", "some ldl is SAS's '.' missing", "ldl", r"^\.$",
+                   spoil_every("ldl", lambda v: "" if v == "." else v), crowd("ldl", ".")),
+        ),
+        person="subjid",
+    ),
+    Table(
+        "wide_export", ".csv", wide_export,
+        lambda header, rows: csv_bytes(header, rows),
+        {"wide_table": ("patient_ref", "visit_date", *WIDE_ITEMS)},
+        {"patient_ref": "identifier", **{item: "measurement" for item in WIDE_ITEMS}},
+        _csv_reader(),
+        (
+            Check("wide_table", "the file holds its 302 columns", "same",
+                  lambda f: int(f["inferred"].shape[1]), "", spoil_extra_column),  # type: ignore[attr-defined]
+            _bad("wide_table", "every item 0 to 4 or blank", "item_001", lambda f: _items_bad(f["text"])),
+            _dated("wide_table", "visit_date parses as %Y-%m-%d", "visit_date", "%Y-%m-%d"),
+        ),
+    ),
+    Table(
+        "trailing_comma", ".csv", trailing_comma, trailing_bytes,
+        {"trailing_delimiter": ("order_ref", "patient_id", "order_date", "test", "status")},
+        {"order_ref": "identifier", "patient_id": "identifier"},
+        _csv_reader(),
+        (
+            Check("trailing_delimiter", "the file reads as its five columns and one unnamed", "same",
+                  lambda f: list(f["inferred"].columns), "", lambda header, rows: None,  # type: ignore[attr-defined]
+                  lambda header, rows: csv_bytes(header, rows)),
+            *_repeats("trailing_delimiter"),
+            _dated("trailing_delimiter", "order_date parses as %Y-%m-%d", "order_date", "%Y-%m-%d"),
+            _listed("trailing_delimiter", "tests", "test", _levels(ORDER_TESTS)),
+            _listed("trailing_delimiter", "status", "status", _levels(ORDER_STATUS)),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "excel_mangled", ".csv", excel_mangled,
+        lambda header, rows: csv_bytes(header, rows),
+        {"excel_mangled_codes": ("member_ref", "npi_shown", "zip_lost", "account_shown")},
+        {"member_ref": "identifier", "npi_shown": "identifier", "zip_lost": "code", "account_shown": "identifier"},
+        _csv_reader(),
+        (
+            _pattern("excel_mangled_codes", "NPIs shown d.ddddDE+09", "npi_shown", r"\d\.\d{5}E\+09"),
+            _pattern("excel_mangled_codes", "ZIPs of four or five figures", "zip_lost", r"\d{4,5}"),
+            *_present("excel_mangled_codes", "some ZIP lost its leading nought (four figures)", "zip_lost", r"^\d{4}$",
+                      spoil_every("zip_lost", lambda v: v.zfill(5))),
+            _pattern("excel_mangled_codes", "account numbers shown d.dddddE+11", "account_shown", r"\d\.\d{5}E\+11"),
+        ),
+        leaks=(("zip_lost", "values"), ("account_shown", "values")),
+    ),
+    Table(
+        "workbook_1904", ".xlsx", workbook_1904, book_1904,
+        {"workbook_1904_dates": ("patient_ref", "visit_date", "score")},
+        {"patient_ref": "identifier", "score": "measurement"},
+        zoo._excel_reader,
+        (
+            Check("workbook_1904_dates", "visit_date reads as dates", "same",
+                  lambda f: str(_i("visit_date")(f).dtype), "visit_date"),  # type: ignore[attr-defined]
+            _bad("workbook_1904_dates", "visit dates fall in 2023 and 2024 (read in the 1904 system)", "visit_date",
+                 lambda f: _visits_outside(_i("visit_date")(f)), spoil_every("visit_date", lambda v: f"{int(v) + 1462}")),
+            _ranged("workbook_1904_dates", "score", r"(?P<n>\d+)", 3.0),
+        ),
+    ),
+    Table(
+        "apostrophe_codes", ".csv", apostrophe_codes,
+        lambda header, rows: csv_bytes(header, rows),
+        {"leading_apostrophe": ("record_ref", "rev_code", "amount")},
+        {"record_ref": "identifier", "rev_code": "code", "amount": "measurement"},
+        _csv_reader(),
+        (
+            _pattern("leading_apostrophe", "record references keep their apostrophe", "record_ref", r"'\d{6}"),
+            _pattern("leading_apostrophe", "revenue codes keep their apostrophe and nought", "rev_code", r"'0\d{3}"),
+            *_present("leading_apostrophe", "some code is written with Excel's apostrophe", "rev_code", r"^'",
+                      spoil_every("rev_code", lambda v: v.lstrip("'"))),
+            _ranged("leading_apostrophe", "amount", r"(?P<n>\d+\.\d\d)"),
+        ),
+    ),
+)
+
+
 # -- the catalogue's widening, in the order the report lists it --------------
 
 WIDE_TABLES: "tuple[Table, ...]" = (
@@ -2058,10 +2396,11 @@ WIDE_TABLES: "tuple[Table, ...]" = (
     *FAMILY_CLINICAL_A,
     *FAMILY_CLINICAL_B,
     *FAMILY_SYSTEMS,
+    *FAMILY_FILES,
 )
 WIDE_KINDS: "tuple[str, ...]" = tuple(kind for table in WIDE_TABLES for kind in table.kinds)
 WIDE_FILE_KINDS: "tuple[str, ...]" = (
-    "tab_delimited", "all_fields_quoted", "pipe_delimited",
+    "tab_delimited", "all_fields_quoted", "pipe_delimited", "utf16_text", "cp1252_smart_quotes", "trailing_delimiter",
 )
 
 

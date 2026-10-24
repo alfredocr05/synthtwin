@@ -96,6 +96,9 @@ E0C_KINDS = (
     "diagnosis_code_forms", "procedure_and_drg_forms", "icd10_long_tail",
     # the long and system-shaped exports
     "omop_cdm", "pcornet_cdm", "i2b2_eav", "fhir_flattened", "hl7v2_flattened", "epic_caboodle", "cerner_ccl",
+    # the file shapes
+    "utf16_text", "cp1252_smart_quotes", "sas_dot_missing", "wide_table", "trailing_delimiter",
+    "excel_mangled_codes", "workbook_1904_dates", "leading_apostrophe",
 )
 
 
@@ -888,7 +891,7 @@ def test_the_workbook_is_left_out_where_its_reader_is_absent(monkeypatch: pytest
 
 # The catalogue's workbook exports' kinds: E0a's survey workbook, and lane
 # E0c's workbook in the 1904 date system.
-WORKBOOK_KINDS = {"surveys_pro", "excel_workbook"}
+WORKBOOK_KINDS = {"surveys_pro", "excel_workbook", "workbook_1904_dates"}
 
 
 def _driver(monkeypatch: pytest.MonkeyPatch, name: str) -> "object":
