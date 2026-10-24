@@ -2665,6 +2665,14 @@ def _offered(entry: "dict") -> "list[str]":
     return [f"{choice.get('answer')}" for choice in entry["answers_you_can_give"]]
 
 
+def _asks_for_people(entry: "dict") -> bool:
+    """Whether an entry is the person question: its `identifier` answer means the people the rows are about."""
+    return any(
+        f"{choice.get('answer')}" == "identifier" and "people" in f"{choice.get('means', '')}"
+        for choice in entry["answers_you_can_give"]
+    )
+
+
 # Keys whose strings are names or answers rather than prose a person reads.
 NOT_PROSE = frozenset({"column", "answer", "your_answer", "table", "subject"})
 
@@ -2732,6 +2740,12 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
         given = known if known in offered else ""
         if not given and known and "identifier" in offered and "keep" in offered:
             given = "keep"
+        # The person question (lane E0c): `identifier` there means "the
+        # people the rows are about", so a record number that is not the
+        # table's person column -- an encounter beside its patient -- is
+        # answered `keep`, "not a person: it repeats for some other reason".
+        if given == "identifier" and table.person and column != table.person and _asks_for_people(entry):
+            given = "keep" if "keep" in offered else ""
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(

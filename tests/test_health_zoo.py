@@ -94,6 +94,8 @@ E0C_KINDS = (
     "promis_phq9", "pro_multi_select", "vcf_flattened", "wearable_offsets_subsecond",
     # the coding systems
     "diagnosis_code_forms", "procedure_and_drg_forms", "icd10_long_tail",
+    # the long and system-shaped exports
+    "omop_cdm", "pcornet_cdm", "i2b2_eav", "fhir_flattened", "hl7v2_flattened", "epic_caboodle", "cerner_ccl",
 )
 
 
@@ -634,6 +636,34 @@ def test_a_question_about_the_file_is_answered_by_its_subject() -> None:
     assert asked[0]["given"] == "day-first"
     asked, _general = zoo.answer_generally(zoo.table_named("claims"), {"about_your_file": [entry]})
     assert asked[0]["given"] == "month-first"
+
+
+def test_the_person_question_is_answered_for_the_person_column_only() -> None:
+    """Lane E0c: an encounter number beside its patient is not the people the rows are about.
+
+    The person question's `identifier` means "the people the rows are
+    about", so the zoo's person answers it for the table's person column
+    and `keep` ("not a person: it repeats for some other reason") for
+    another record number; a record-number question that does not ask
+    about people is answered `identifier` as before.
+    """
+    person = {"answer": "identifier", "means": "the people the rows are about -- rows sharing a value of it are one person"}
+    entries = [
+        {"column": "PATID", "answers_you_can_give": [{"answer": "keep"}, dict(person)], "your_answer": ""},
+        {"column": "ENCOUNTERID", "answers_you_can_give": [{"answer": "keep"}, dict(person)], "your_answer": ""},
+        {"column": "DIAGNOSISID", "answers_you_can_give": [
+            {"answer": "code"}, {"answer": "identifier", "means": "record numbers -- a key nothing should publish"},
+        ], "your_answer": ""},
+    ]
+    asked, general = zoo.answer_generally(zoo.table_named("pcornet_diagnosis"), {"asked": entries})
+    assert general
+    assert {entry["column"]: entry["given"] for entry in asked} == {
+        "PATID": "identifier", "ENCOUNTERID": "keep", "DIAGNOSISID": "identifier",
+    }
+    # E0a's tables name no person column, and keep their answers.
+    entry = {"column": "enc_id", "answers_you_can_give": [{"answer": "keep"}, dict(person)], "your_answer": ""}
+    asked, _general = zoo.answer_generally(zoo.table_named("diagnoses_procedures"), {"asked": [entry]})
+    assert asked[0]["given"] == "identifier"
 
 
 def test_the_semicolon_file_says_semicolon() -> None:

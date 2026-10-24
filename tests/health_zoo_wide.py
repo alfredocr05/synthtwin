@@ -1563,12 +1563,501 @@ FAMILY_CLINICAL_B: "tuple[Table, ...]" = (
 )
 
 
+# -- family 4: the long and system-shaped exports -------------------------------
+
+# OMOP's measurement table, long: each concept with its LOINC source
+# value, its unit concept and its range; one concept valued by a concept.
+OMOP_CONCEPTS = (
+    ("3004410", "4548-4", "8554", 4.5, 12.0), ("3013682", "2160-0", "8840", 0.5, 3.0),
+    ("3016723", "2345-7", "8840", 60.0, 300.0), ("3027018", "718-7", "8713", 8.0, 17.0),
+    ("3020630", "2093-3", "8840", 120.0, 300.0), ("3003694", "882-1", "0", 0.0, 0.0),
+)
+OMOP_ANSWERS = (("45884084", 40.0), ("45878583", 55.0), ("45880296", 5.0))
+
+
+def omop_measurement(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """An OMOP CDM measurement slice: concept ids read as numbers, value_as_number or value_as_concept_id, units."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "measurement_id", "person_id", "measurement_concept_id", "measurement_date", "value_as_number",
+        "value_as_concept_id", "unit_concept_id", "measurement_source_value",
+    ]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        concept, loinc, unit, low, high = draw.choice(OMOP_CONCEPTS)
+        valued = unit != "0"
+        rows += [[
+            f"{90000000 + index}",
+            f"{1 + draw.randrange(people)}",
+            concept,
+            _when(draw).date().isoformat(),
+            f"{draw.uniform(low, high):.2f}" if valued else "",
+            "" if valued else _pick(draw, OMOP_ANSWERS),
+            unit,
+            loinc,
+        ]]
+    return header, rows
+
+
+def _units_off_their_concept(frame: object) -> int:
+    """Rows whose unit concept is not their measurement concept's own (read by concept: between columns)."""
+    own = {concept: unit for concept, _loinc, unit, _low, _high in OMOP_CONCEPTS}
+    bad = 0
+    for concept, unit in zip(frame["measurement_concept_id"], frame["unit_concept_id"]):  # type: ignore[index]
+        bad += 0 if own.get(f"{concept}") == f"{unit}" else 1
+    return bad
+
+
+def _omop_valued(header: "list[str]", row: "list[str]") -> bool:
+    return row[header.index("unit_concept_id")] != "0"
+
+
+PCORNET_TYPES = (("10", 70.0), ("09", 15.0), ("SM", 10.0), ("NI", 5.0))
+PCORNET_SOURCES = (("AD", 25.0), ("DI", 30.0), ("FI", 30.0), ("IN", 5.0), ("NI", 4.0), ("UN", 3.0), ("OT", 3.0))
+PCORNET_PDX = (("P", 30.0), ("S", 60.0), ("X", 5.0), ("NI", 5.0))
+RAW_TYPE_OF = {"10": "ICD10CM", "09": "ICD9CM", "SM": "SNOMED", "NI": ""}
+DX_FORM_OF = {
+    "10": zoo.ICD10_PATTERN, "09": r"V\d{2}(\.\d{1,2})?|E\d{3}(\.\d)?|\d{3}(\.\d{1,2})?", "SM": r"[1-9]\d{5,17}",
+}
+
+
+def pcornet_diagnosis(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A PCORnet CDM DIAGNOSIS slice: DX in the system its DX_TYPE names, DX_SOURCE and PDX with NI, the raw_ columns."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "DIAGNOSISID", "PATID", "ENCOUNTERID", "ADMIT_DATE", "DX", "DX_TYPE", "DX_SOURCE", "PDX", "RAW_DX", "RAW_DX_TYPE",
+    ]
+    pools = {"10": zoo.ICD10, "09": zoo.ICD9, "SM": zoo.SNOMED}
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        kind = _pick(draw, PCORNET_TYPES)
+        code = _pick(draw, pools[kind]) if kind in pools else ""
+        patient = draw.randrange(people)
+        rows += [[
+            f"DX{80000000 + index}",
+            f"P{100000 + patient}",
+            f"ENC{60000000 + 10 * patient + draw.randint(0, 2)}",
+            _when(draw).date().isoformat(),
+            code,
+            kind,
+            _pick(draw, PCORNET_SOURCES),
+            _pick(draw, PCORNET_PDX),
+            code.replace(".", ""),
+            RAW_TYPE_OF[kind],
+        ]]
+    return header, rows
+
+
+def _dx_off_its_type(frame: object) -> int:
+    """Codes not in the form their DX_TYPE names (read by type: between columns)."""
+    bad = 0
+    for code, kind in zip(frame["DX"], frame["DX_TYPE"]):  # type: ignore[index]
+        form = DX_FORM_OF.get(f"{kind}")
+        if form is not None:
+            bad += 0 if isinstance(code, str) and re.fullmatch(form, code) else 1
+    return bad
+
+
+def _is_icd10_type(header: "list[str]", row: "list[str]") -> bool:
+    return row[header.index("DX_TYPE")] == "10"
+
+
+I2B2_LOINC = (("2345-7", "mg/dL", 60.0, 300.0), ("718-7", "g/dL", 8.0, 17.0), ("2160-0", "mg/dL", 0.5, 3.0))
+
+
+def i2b2_facts(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """An i2b2 observation_fact slice (entity, attribute, value): ICD10CM:, LOINC: and DEM|GENDER: concepts, '@' members."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "encounter_num", "patient_num", "concept_cd", "provider_id", "start_date", "modifier_cd", "instance_num",
+        "valtype_cd", "tval_char", "nval_num", "units_cd",
+    ]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        level = draw.random()
+        valtype = tval = value = units = ""
+        if level < 0.4:
+            concept = f"ICD10CM:{_pick(draw, zoo.ICD10)}"
+        elif level < 0.75:
+            loinc, units, low, high = draw.choice(I2B2_LOINC)
+            concept, valtype, tval, value = f"LOINC:{loinc}", "N", "E", f"{draw.uniform(low, high):.2f}"
+        elif level < 0.9:
+            concept = f"DEM|GENDER:{draw.choice('FM')}"
+        else:
+            concept = f"DEM|VITAL:{draw.choice('NY')}"
+        moment = _when(draw)
+        patient = draw.randrange(people)
+        rows += [[
+            f"{10 * patient + draw.randint(1, 3)}",
+            f"{1 + patient}",
+            concept,
+            "@",
+            moment.strftime("%Y-%m-%d %H:%M:%S") + ".000",
+            "@",
+            "1",
+            valtype,
+            tval,
+            value,
+            units,
+        ]]
+    return header, rows
+
+
+def _prefixes_off(series: object) -> int:
+    prefixes = {"ICD10CM", "LOINC", "DEM|GENDER", "DEM|VITAL"}
+    return sum(1 for text in series.dropna().astype(str) if text.partition(":")[0] not in prefixes)  # type: ignore[attr-defined]
+
+
+CDC_CATEGORY = (
+    ("2106-3", 60.0), ("2054-5", 18.0), ("2028-9", 8.0), ("1002-5", 3.0), ("2076-8", 1.0), ("2131-1", 10.0),
+)
+CDC_ROOT = "urn:oid:2.16.840.1.113883.6.238|"
+FHIR_CODES = (("2345-7", "mg/dL", 60.0, 300.0), ("718-7", "g/dL", 8.0, 17.0), ("4548-4", "%", 4.5, 12.0), ("2951-2", "mmol/L", 130.0, 150.0))
+FHIR_STATUS = (("final", 85.0), ("amended", 10.0), ("preliminary", 5.0))
+
+
+def fhir_observations(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """FHIR Observations flattened to CSV: references 'Patient/123', codings 'http://loinc.org|2345-7', quantities,
+    instants with offsets, and the CDC's category code under its OMB coding."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "id", "subject_reference", "code_coding", "value_quantity_value", "value_quantity_unit",
+        "effective_date_time", "status", "omb_category",
+    ]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        loinc, unit, low, high = draw.choice(FHIR_CODES)
+        moment = _stamp_on_a_change_day(draw)
+        rows += [[
+            f"obs-{70000000 + index}",
+            f"Patient/{10000 + draw.randrange(people)}",
+            f"http://loinc.org|{loinc}",
+            f"{draw.uniform(low, high):.1f}",
+            unit,
+            moment.strftime("%Y-%m-%dT%H:%M:%S") + zoo.eastern_offset(moment),
+            _pick(draw, FHIR_STATUS),
+            CDC_ROOT + _pick(draw, CDC_CATEGORY),
+        ]]
+    return header, rows
+
+
+HL7_TESTS = (
+    ("2345-7", "Glucose", "mg/dL", 60.0, 300.0), ("2160-0", "Creatinine", "mg/dL", 0.5, 3.0),
+    ("718-7", "Hemoglobin", "g/dL", 8.0, 17.0), ("4548-4", "Hemoglobin A1c", "%", 4.5, 12.0),
+    ("2951-2", "Sodium", "mmol/L", 130.0, 150.0), ("2823-3", "Potassium", "mmol/L", 3.0, 6.0),
+)
+HL7_TEXT_OF = {code: text for code, text, _unit, _low, _high in HL7_TESTS}
+HL7_FLAGS = (("N", 60.0), ("H", 15.0), ("L", 10.0), ("", 15.0))
+HL7_STATUS = (("F", 85.0), ("C", 10.0), ("P", 5.0))
+
+
+def hl7_obx(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """HL7 v2 results flattened a segment field a column: '^'-joined components (code^text^LN, PID-3's
+    identifier list) and MSH-7 stamps YYYYMMDDHHMMSS-0400."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["msh_7", "pid_3", "obx_3", "obx_5", "obx_6", "obx_8", "obx_11"]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        code, text, unit, low, high = draw.choice(HL7_TESTS)
+        moment = _stamp_on_a_change_day(draw)
+        rows += [[
+            moment.strftime("%Y%m%d%H%M%S") + zoo.eastern_offset(moment).replace(":", ""),
+            f"{3000000 + draw.randrange(people)}^^^HOSP^MR",
+            f"{code}^{text}^LN",
+            f"{draw.uniform(low, high):.1f}",
+            f"{unit}^^UCUM",
+            _pick(draw, HL7_FLAGS),
+            _pick(draw, HL7_STATUS),
+        ]]
+    return header, rows
+
+
+def _components_off(series: object) -> int:
+    """OBX-3 cells that are not code^text^LN with the text the code names."""
+    bad = 0
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        parts = text.split("^")
+        bad += 0 if len(parts) == 3 and parts[2] == "LN" and HL7_TEXT_OF.get(parts[0]) == parts[1] else 1
+    return bad
+
+
+CABOODLE_WORDS = (("Positive", 10.0), ("Negative", 20.0), ("See comment", 5.0), ("TNP", 5.0))
+CABOODLE_FLAGS = (
+    ("Normal", 60.0), ("Abnormal", 25.0), ("*Unspecified", 8.0), ("*Unknown", 4.0), ("*Not Applicable", 3.0),
+)
+CABOODLE_COMMENTS = (("NULL", 70.0), ("Hemolyzed", 10.0), ("Recollect", 10.0), ("Verified", 10.0))
+
+
+def caboodle_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """An Epic Caboodle-style export: PatientDurableKey and DateKey with their -1 and -2 members, a result field of
+    numbers and words, '*Unspecified' members, millisecond stamps and the literal NULL."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["PatientDurableKey", "EncounterKey", "DateKey", "ResultValue", "AbnormalFlag", "LoadDttm", "CommentText"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        level = draw.random()
+        key = "-1" if level < 0.02 else "-2" if level < 0.03 else f"{100000 + draw.randrange(people)}"
+        level = draw.random()
+        day = _when(draw)
+        date_key = "-1" if level < 0.03 else "-2" if level < 0.045 else day.strftime("%Y%m%d")
+        level = draw.random()
+        result = f"{draw.uniform(0.5, 300.0):.1f}" if level < 0.6 else _pick(draw, CABOODLE_WORDS)
+        rows += [[
+            key,
+            f"{700000000 + index}",
+            date_key,
+            result,
+            _pick(draw, CABOODLE_FLAGS),
+            day.strftime("%Y-%m-%d %H:%M:%S") + f".{draw.randint(0, 999):03d}",
+            _pick(draw, CABOODLE_COMMENTS),
+        ]]
+    return header, rows
+
+
+def _date_keys_bad(series: object) -> int:
+    bad = 0
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        if text in ("-1", "-2"):
+            continue
+        try:
+            datetime.datetime.strptime(text, "%Y%m%d")
+        except ValueError:
+            bad += 1
+    return bad
+
+
+CERNER_EVENTS = _zipf(("2797130.00", "704641.00", "2700653.00", "5076214.00", "3410573.00"))
+CERNER_WORDS = (("See Comment", 5.0), ("Positive", 10.0), ("Negative", 15.0))
+CERNER_UNITS = (("mg/dL", 40.0), ("g/dL", 20.0), ("%", 20.0), ("mmol/L", 20.0))
+
+
+def cerner_ccl(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A Cerner Millennium CCL export: record numbers written as floats ('31000000.00'), event codes likewise,
+    upper-case stamps ('23-FEB-2024 16:40:00'), results with 'See Comment'."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["ENCNTR_ID", "PERSON_ID", "EVENT_CD", "RESULT_VAL", "EVENT_END_DT_TM", "RESULT_UNITS_CD_DISP"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        level = draw.random()
+        moment = _when(draw)
+        rows += [[
+            f"{31000000 + index}.00",
+            f"{21000000 + draw.randrange(people)}.00",
+            _pick(draw, CERNER_EVENTS),
+            f"{draw.uniform(0.5, 300.0):.1f}" if level < 0.7 else _pick(draw, CERNER_WORDS),
+            f"{moment.day:02d}-{zoo.MONTHS[moment.month - 1].upper()}-{moment.year} {moment.strftime('%H:%M:%S')}",
+            _pick(draw, CERNER_UNITS),
+        ]]
+    return header, rows
+
+
+FAMILY_SYSTEMS: "tuple[Table, ...]" = (
+    Table(
+        "omop_measurement", ".csv", omop_measurement,
+        lambda header, rows: csv_bytes(header, rows),
+        {"omop_cdm": (
+            "measurement_id", "person_id", "measurement_concept_id", "measurement_date", "value_as_number",
+            "value_as_concept_id", "unit_concept_id", "measurement_source_value",
+        )},
+        {
+            "measurement_id": "identifier", "person_id": "identifier", "measurement_concept_id": "code",
+            "value_as_number": "measurement", "value_as_concept_id": "code", "unit_concept_id": "code",
+            "measurement_source_value": "code",
+        },
+        _csv_reader(),
+        (
+            *_repeats("omop_cdm", "person_id"),
+            _listed("omop_cdm", "measurement concepts", "measurement_concept_id", {c for c, *_rest in OMOP_CONCEPTS}),
+            _dated("omop_cdm", "measurement_date parses as %Y-%m-%d", "measurement_date", "%Y-%m-%d"),
+            _bad("omop_cdm", "value_as_number reads as numbers", "value_as_number", lambda f: _bad_numbers(_t("value_as_number")(f))),
+            _ranged("omop_cdm", "value_as_number", r"(?P<n>\d+\.\d\d)"),
+            _listed("omop_cdm", "answer concepts", "value_as_concept_id", _levels(OMOP_ANSWERS)),
+            _listed("omop_cdm", "unit concepts", "unit_concept_id", {u for _c, _l, u, _lo, _hi in OMOP_CONCEPTS}),
+            _pattern("omop_cdm", "source values are LOINC codes", "measurement_source_value", r"\d{1,7}-\d"),
+            _bad("omop_cdm", "each concept's unit is its own (read by concept)", "unit_concept_id",
+                 lambda f: _units_off_their_concept(f["text"]),
+                 zoo.spoil_first_where("unit_concept_id", _omop_valued, "9529")),
+        ),
+        person="person_id",
+    ),
+    Table(
+        "pcornet_diagnosis", ".csv", pcornet_diagnosis,
+        lambda header, rows: csv_bytes(header, rows),
+        {"pcornet_cdm": (
+            "DIAGNOSISID", "PATID", "ENCOUNTERID", "ADMIT_DATE", "DX", "DX_TYPE", "DX_SOURCE", "PDX", "RAW_DX",
+            "RAW_DX_TYPE",
+        )},
+        {
+            "DIAGNOSISID": "identifier", "PATID": "identifier", "ENCOUNTERID": "identifier", "DX": "code",
+            "DX_TYPE": "code", "DX_SOURCE": "code", "PDX": "code", "RAW_DX": "code", "RAW_DX_TYPE": "code",
+        },
+        _csv_reader(),
+        (
+            *_repeats("pcornet_cdm", "PATID"),
+            _dated("pcornet_cdm", "ADMIT_DATE parses as %Y-%m-%d", "ADMIT_DATE", "%Y-%m-%d"),
+            _pattern("pcornet_cdm", "DX is ICD-10-CM, ICD-9-CM or SNOMED CT", "DX",
+                     "|".join(f"(?:{form})" for form in DX_FORM_OF.values())),
+            _bad("pcornet_cdm", "DX is in the system its DX_TYPE names (read by type)", "DX",
+                 lambda f: _dx_off_its_type(f["text"]), zoo.spoil_first_where("DX", _is_icd10_type, "486")),
+            _listed("pcornet_cdm", "DX_TYPE with NI", "DX_TYPE", _levels(PCORNET_TYPES)),
+            _listed("pcornet_cdm", "DX_SOURCE with NI, UN and OT", "DX_SOURCE", _levels(PCORNET_SOURCES)),
+            _listed("pcornet_cdm", "PDX with NI", "PDX", _levels(PCORNET_PDX)),
+            _pattern("pcornet_cdm", "RAW_DX as the source wrote it, no point", "RAW_DX", r"[A-Z0-9]{3,18}"),
+            _listed("pcornet_cdm", "RAW_DX_TYPE", "RAW_DX_TYPE", {"ICD10CM", "ICD9CM", "SNOMED"}),
+        ),
+        person="PATID",
+    ),
+    Table(
+        "i2b2_facts", ".csv", i2b2_facts,
+        lambda header, rows: csv_bytes(header, rows),
+        {"i2b2_eav": (
+            "encounter_num", "patient_num", "concept_cd", "provider_id", "start_date", "modifier_cd", "instance_num",
+            "valtype_cd", "tval_char", "nval_num", "units_cd",
+        )},
+        {
+            "encounter_num": "identifier", "patient_num": "identifier", "concept_cd": "code", "nval_num": "measurement",
+            "units_cd": "code",
+        },
+        _csv_reader(),
+        (
+            *_repeats("i2b2_eav", "patient_num"),
+            _pattern("i2b2_eav", "concepts with their vocabulary prefix", "concept_cd",
+                     r"(ICD10CM|LOINC|DEM\|GENDER|DEM\|VITAL):[A-Z0-9.\-]+"),
+            _bad("i2b2_eav", "the vocabulary prefixes are i2b2's", "concept_cd",
+                 lambda f: _prefixes_off(_t("concept_cd")(f)), spoil_cell("concept_cd", "ICDX:E11.9")),
+            *_present("i2b2_eav", "some fact is a demographic (DEM|GENDER:)", "concept_cd", r"^DEM\|GENDER:",
+                      spoil_every("concept_cd", lambda v: v.replace("DEM|GENDER:", "DEM|VITAL:"))),
+            _dated("i2b2_eav", "start_date parses to the millisecond", "start_date", "%Y-%m-%d %H:%M:%S.%f"),
+            _listed("i2b2_eav", "provider '@'", "provider_id", {"@"}),
+            _listed("i2b2_eav", "modifier '@'", "modifier_cd", {"@"}),
+            _listed("i2b2_eav", "value types", "valtype_cd", {"N"}),
+            _listed("i2b2_eav", "text values E", "tval_char", {"E"}),
+            _bad("i2b2_eav", "numeric values read as numbers", "nval_num", lambda f: _bad_numbers(_t("nval_num")(f))),
+            _ranged("i2b2_eav", "nval_num", r"(?P<n>\d+\.\d\d)"),
+        ),
+        person="patient_num",
+    ),
+    Table(
+        "fhir_observations", ".csv", fhir_observations,
+        lambda header, rows: csv_bytes(header, rows),
+        {"fhir_flattened": (
+            "id", "subject_reference", "code_coding", "value_quantity_value", "value_quantity_unit",
+            "effective_date_time", "status", "omb_category",
+        )},
+        {
+            "id": "identifier", "subject_reference": "identifier", "code_coding": "code",
+            "value_quantity_value": "measurement", "value_quantity_unit": "code", "omb_category": "code",
+        },
+        _csv_reader(),
+        (
+            *_repeats("fhir_flattened", "subject_reference"),
+            _pattern("fhir_flattened", "references Patient/123", "subject_reference", r"Patient/\d+"),
+            _pattern("fhir_flattened", "codings system|code", "code_coding", r"http://loinc\.org\|\d{1,7}-\d"),
+            _bad("fhir_flattened", "quantities read as numbers", "value_quantity_value",
+                 lambda f: _bad_numbers(_t("value_quantity_value")(f))),
+            _ranged("fhir_flattened", "value_quantity_value", r"(?P<n>\d+\.\d)"),
+            _listed("fhir_flattened", "units", "value_quantity_unit", {u for _c, u, _lo, _hi in FHIR_CODES}),
+            _dated("fhir_flattened", "instants parse with their offset", "effective_date_time", "%Y-%m-%dT%H:%M:%S%z", utc=True),
+            _bad("fhir_flattened", "each instant wears an offset in force on its date", "effective_date_time",
+                 lambda f: _wrong_offsets_by(_t("effective_date_time")(f), zoo.eastern_offsets, "%Y-%m-%dT%H:%M:%S", 19),
+                 spoil_cell("effective_date_time", "2024-07-01T10:00:00-05:00")),
+            _listed("fhir_flattened", "observation status", "status", _levels(FHIR_STATUS)),
+            _pattern("fhir_flattened", "category codings under the CDC code system", "omb_category",
+                     re.escape(CDC_ROOT) + r"\d{4}-\d"),
+            _listed("fhir_flattened", "CDC category codes", "omb_category", {CDC_ROOT + code for code, _w in CDC_CATEGORY}),
+        ),
+        person="subject_reference",
+    ),
+    Table(
+        "hl7_obx", ".csv", hl7_obx,
+        lambda header, rows: csv_bytes(header, rows),
+        {"hl7v2_flattened": ("msh_7", "pid_3", "obx_3", "obx_5", "obx_6", "obx_8", "obx_11")},
+        {"pid_3": "identifier", "obx_3": "code", "obx_5": "measurement", "obx_6": "code", "obx_8": "code", "obx_11": "code"},
+        _csv_reader(),
+        (
+            *_repeats("hl7v2_flattened", "pid_3"),
+            _dated("hl7v2_flattened", "MSH-7 stamps YYYYMMDDHHMMSS-0400", "msh_7", "%Y%m%d%H%M%S%z", utc=True),
+            _bad("hl7v2_flattened", "MSH-7 wears an offset in force on its date", "msh_7",
+                 lambda f: _wrong_offsets_by(_t("msh_7")(f), _compact_eastern, "%Y%m%d%H%M%S", 14),
+                 spoil_cell("msh_7", "20240701100000-0500")),
+            _pattern("hl7v2_flattened", "PID-3 as id^^^HOSP^MR", "pid_3", r"\d{7}\^\^\^HOSP\^MR"),
+            _bad("hl7v2_flattened", "OBX-3 is code^text^LN, the text its code's own", "obx_3",
+                 lambda f: _components_off(_t("obx_3")(f)), spoil_cell("obx_3", "2345-7^Sodium^LN")),
+            _bad("hl7v2_flattened", "OBX-5 reads as numbers", "obx_5", lambda f: _bad_numbers(_t("obx_5")(f))),
+            _ranged("hl7v2_flattened", "obx_5", r"(?P<n>\d+\.\d)"),
+            _pattern("hl7v2_flattened", "OBX-6 units as unit^^UCUM", "obx_6", r"[^\^]+\^\^UCUM"),
+            _listed("hl7v2_flattened", "OBX-8 flags", "obx_8", _levels(HL7_FLAGS) - {""}),
+            _listed("hl7v2_flattened", "OBX-11 result status", "obx_11", _levels(HL7_STATUS)),
+        ),
+        person="pid_3",
+        leaks=(("pid_3", "values"),),
+    ),
+    Table(
+        "caboodle_export", ".csv", caboodle_export,
+        lambda header, rows: csv_bytes(header, rows),
+        {"epic_caboodle": ("PatientDurableKey", "EncounterKey", "DateKey", "ResultValue", "AbnormalFlag", "LoadDttm", "CommentText")},
+        {
+            "PatientDurableKey": "identifier", "EncounterKey": "identifier", "ResultValue": "measurement",
+            "AbnormalFlag": "code",
+        },
+        _csv_reader(),
+        (
+            *_repeats("epic_caboodle", "PatientDurableKey"),
+            _pattern("epic_caboodle", "durable keys of six figures, or -1 and -2", "PatientDurableKey", r"-[12]|1\d{5}"),
+            *_rare("epic_caboodle", "some row's durable key is the -1 member", "PatientDurableKey", r"^-1$",
+                   spoil_every("PatientDurableKey", lambda v: "100000" if v == "-1" else v), crowd("PatientDurableKey", "-1")),
+            _bad("epic_caboodle", "DateKeys are dates YYYYMMDD, or -1 and -2", "DateKey", lambda f: _date_keys_bad(_t("DateKey")(f))),
+            *_rare("epic_caboodle", "some DateKey is the -1 member", "DateKey", r"^-1$",
+                   spoil_every("DateKey", lambda v: "20240101" if v == "-1" else v), crowd("DateKey", "-1")),
+            _pattern("epic_caboodle", "a result is a number or a word", "ResultValue",
+                     r"\d+(\.\d+)?|Positive|Negative|See comment|TNP"),
+            _bad("epic_caboodle", "the results read past their words", "ResultValue",
+                 lambda f: _bad_numbers(_not_in(tuple(_levels(CABOODLE_WORDS)))(_t("ResultValue")(f)))),  # type: ignore[operator]
+            _listed("epic_caboodle", "flags with the *Unspecified members", "AbnormalFlag", _levels(CABOODLE_FLAGS)),
+            _dated("epic_caboodle", "LoadDttm to the millisecond", "LoadDttm", "%Y-%m-%d %H:%M:%S.%f"),
+            _bad("epic_caboodle", "comments a word or the literal NULL", "CommentText",
+                 lambda f: _bad_pattern(_r("CommentText")(f), r"NULL|Hemolyzed|Recollect|Verified")),
+        ),
+        person="PatientDurableKey",
+        leaks=(("PatientDurableKey", "values"),),
+    ),
+    Table(
+        "cerner_ccl", ".csv", cerner_ccl,
+        lambda header, rows: csv_bytes(header, rows),
+        {"cerner_ccl": ("ENCNTR_ID", "PERSON_ID", "EVENT_CD", "RESULT_VAL", "EVENT_END_DT_TM", "RESULT_UNITS_CD_DISP")},
+        {"ENCNTR_ID": "identifier", "PERSON_ID": "identifier", "EVENT_CD": "code", "RESULT_VAL": "measurement"},
+        _csv_reader(),
+        (
+            *_repeats("cerner_ccl", "PERSON_ID"),
+            _pattern("cerner_ccl", "encounter numbers written 31000000.00", "ENCNTR_ID", r"\d{8}\.00"),
+            _pattern("cerner_ccl", "person numbers written 21000000.00", "PERSON_ID", r"\d{8}\.00"),
+            _listed("cerner_ccl", "event codes written as floats", "EVENT_CD", _levels(CERNER_EVENTS)),
+            _pattern("cerner_ccl", "a result is a number or a word", "RESULT_VAL", r"\d+\.\d|See Comment|Positive|Negative"),
+            _bad("cerner_ccl", "the results read past their words", "RESULT_VAL",
+                 lambda f: _bad_numbers(_not_in(tuple(_levels(CERNER_WORDS)))(_t("RESULT_VAL")(f)))),  # type: ignore[operator]
+            _dated("cerner_ccl", "stamps parse as %d-%b-%Y %H:%M:%S", "EVENT_END_DT_TM", "%d-%b-%Y %H:%M:%S"),
+            _listed("cerner_ccl", "units", "RESULT_UNITS_CD_DISP", _levels(CERNER_UNITS)),
+        ),
+        person="PERSON_ID",
+        leaks=(("ENCNTR_ID", "values"), ("PERSON_ID", "values")),
+    ),
+)
+
+
 # -- the catalogue's widening, in the order the report lists it --------------
 
 WIDE_TABLES: "tuple[Table, ...]" = (
     *FAMILY_ROLES,
     *FAMILY_CLINICAL_A,
     *FAMILY_CLINICAL_B,
+    *FAMILY_SYSTEMS,
 )
 WIDE_KINDS: "tuple[str, ...]" = tuple(kind for table in WIDE_TABLES for kind in table.kinds)
 WIDE_FILE_KINDS: "tuple[str, ...]" = (
