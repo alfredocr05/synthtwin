@@ -49,12 +49,23 @@ with two frozen cases in vectors file 27, and method G9.6a gains step 7.
 only arcs of three figures or fewer after its organisation arc, and ends
 at the fifth arc where no organisation arc is found: instances under
 `1.2.276.0.12.34.56` no longer publish that study UID as their root (332
-of 600 real UIDs in the twin before, 0 now), and a vendor's single
-product arc no longer lets a site arc and a month-day into it. The gate
-pins four short roots, Siemens' among them, at 600 and 20,000 rows, each
-red on its mutant; P4-D428 names the any-share rule's false alarms
-(HCPCS codes and ward labels beside words) and widens stated limits (1)
-and (4) with their measured counts.
+of 600 real UIDs in the twin before; 0 of 600 now, and 1 of 20,000 by
+chance), and a vendor's single product arc no longer lets a site arc
+and a month-day into it. The gate pins four short roots, Siemens' among
+them, at 600 and 20,000 rows, each red on its mutant, and asserts 0 real
+UIDs in the twin for every node but `noorg` at 20,000 rows, which it
+bounds; P4-D428 names the any-share rule's false alarms (HCPCS codes and
+ward labels beside words) and widens stated limit (1).
+
+**The orchestrator's ruling (2026-10-24, 17:25).** A declared
+identifier's twin draws its free arcs and figures in the column's own
+rooms and reads no real value, so where the real values fill a room
+densely a twin cell can equal a real one by chance: 1,022 of 20,000
+under `1.2.752.24.7.`, 348 for Cerner numbers of two widths, about 250
+at 2,000,000 rows for `1.2.276.0.12.`. P4-D428's stated limit (4) names
+the class with verify 3's counts, OPEN and owned by lane ID-ROOM (plan
+P4-D432: no twin identifier cell equals a real one, by construction), as
+is the fidelity note that IANA enterprise roots now publish `1.3.6.1.4.`.
 
 ### Batch 4g's records: the chain met by its oracle, the six time entries stamped, owners for every stated limit, a shorter STATE (2026-10-23)
 

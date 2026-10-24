@@ -18747,7 +18747,13 @@ figures, one point and the same count of noughts, described with
 room the census refuses, is counted in its commonest named whole-places
 layout of the same places, and the validator reads a census so where it
 publishes no prefix, no `(withheld)` pool and named whole-places layouts
-of one count of places counting every present cell.
+of one count of places counting every present cell. (6) Stated, not
+promised (the orchestrator's ruling of 2026-10-24): the twin of a
+declared identifier draws its free arcs and figures in the column's own
+rooms and reads no real value, so where the real values fill a room
+densely a twin cell can equal a real one by chance (1,022 of 20,000
+under `1.2.752.24.7.`; P4-D428's stated limit (4)); making that
+impossible by construction is lane ID-ROOM's (plan P4-D432).
 
 ---
 
