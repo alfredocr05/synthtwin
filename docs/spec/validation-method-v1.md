@@ -3620,18 +3620,54 @@ The third is the property the determinism clause above needs. A random
 source being present in the process is not a defect; drawing from one
 would be.
 
-## V12. Between columns: the chain's families checked (stage 6, plan P4-D407; specified, NOT BUILT)
+## V12. Between columns: the chain's families checked (stage 6, plan P4-D407; layer L1 built behind the chain's switch, plan P4-D430)
 
-**No validator in this repository runs anything in this section**, and
-the sentence at the head of this document (no cross-column check of any
-kind, because the profile publishes none) stays true until the landing
-that ships stage 6. What follows is what lane CHv builds for the chain,
+**No shipped command runs anything in this section**, and the sentence
+at the head of this document (no cross-column check of any kind, because
+the profile publishes none) stays true until the landing that ships
+stage 6. What follows is what lane CHv builds for the chain,
 layer L1, against the families `docs/spec/profile-contract-v6.md`
 section 4.6b publishes and the arrangement
 `docs/spec/generation-method-v1.md` G16 makes. The held page of plan
 P4-D394 numbered its checks V11; that page is superseded (plan P4-D407)
 and the number V11 stays unused. The moments' lines are lane MPOL's to
 add, and the patient layer's lane MG's.
+
+**Built for layer L1, behind the chain's switch (2026-10-24, lane CHv,
+plan P4-D430).** `synthtwin validate` handed the switch that `profile`
+takes (`cli.main(..., chain=...)`; no option, variable or file sets it)
+loads the description with its chain (`contract.load_profile_document`:
+S23 to S28 before a byte of the file is read) and, where it carries one,
+adds the lines of V12.2 that this version's chain can carry
+(`src/synthtwin/chain_validation.py`): an `L0` band-total line a column,
+a line a family, and every candidate pair with its published word, a
+pair reading `implied` beside its implied table and dealing spread. The
+written quality report holds them in a section of its own, counted in
+its verdict and its exit code; the screen prints that section as one
+line. A description carrying no chain is checked, reported and exited
+exactly as without the switch. The readings this build takes where the
+clauses below leave one open: (a) a cell standing in no published band
+(a starting band no `L0` band joins) makes its column's total line
+MISSED; (b) RULE W1 and RULE WE are read once over the whole published
+chain beside the file's own facts (its own-fact groups by the producer's
+two readings, `chain_rules.small_group_bands` and
+`chain.value_run_bands`, on its own description and values), and where
+either refuses, every family line takes V5.3's sentence; (c) a column
+the file lacks or reads under another role makes its total line and
+every family holding it NOT CHECKABLE, and is read for (b) as holding a
+group in every band; (d) an implied table is computed in whole numbers
+from the published families (each family's child share given its
+parents' cell) and printed as shares of the tabled rows to four
+decimals, its dealing spread bounded by integer square roots and written
+to four decimals. The design's 3.6 (BC-ARCH version 2.3) asked for a
+moved target and for mutant 5's descendants read OUTSIDE; V12.2, V12.3
+and V12.4 below replace both, and this build follows them. Slopes,
+carried rules and derived columns have no line: this version's loader
+refuses a description carrying one (S26, S28). Measured (wave6/CHv,
+`cost.py`, a loaded machine): on a clinic table of five columns the
+lines add 0.6 s to the measurement's 6.6 s at 20,000 rows and 8.3 s to
+63.1 s at 200,000 rows, at a peak of 230 MB; 2,000,000 rows are not run
+here.
 
 **V12.1 The measurement re-uses the published choices and makes none of
 its own.** The file is re-described as V2 says. Each eligible column is

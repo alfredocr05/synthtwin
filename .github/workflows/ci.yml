@@ -780,6 +780,7 @@ jobs:
           wheel required synthtwin/chain_check.py
           wheel required synthtwin/chain_moments.py
           wheel required synthtwin/chain_rules.py
+          wheel required synthtwin/chain_validation.py
           wheel required synthtwin/cli.py
           wheel required synthtwin/contract.py
           wheel required synthtwin/date_counts.py
@@ -823,6 +824,7 @@ jobs:
           sdist required ROOT/src/synthtwin/chain_check.py
           sdist required ROOT/src/synthtwin/chain_moments.py
           sdist required ROOT/src/synthtwin/chain_rules.py
+          sdist required ROOT/src/synthtwin/chain_validation.py
           sdist required ROOT/src/synthtwin/cli.py
           sdist required ROOT/src/synthtwin/contract.py
           sdist required ROOT/src/synthtwin/date_counts.py
