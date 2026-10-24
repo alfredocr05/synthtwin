@@ -32,7 +32,12 @@ and counts what is real:
   failing validation, the real age tables' own validation among them
   (a held block's real table but for the census of repetition every held
   block's real table misses), but the held block's named limit at
-  20,000 rows. Target 0.
+  20,000 rows and an age twin missing only what the top-coded table's
+  own twin misses. And the same over `SAFE_HARBOR_ANSWERED` (the second
+  repair of lane SH): each shape once its column's other question is
+  answered -- NAACCR's three-figure ages `measurement` or `code`, ZIP
+  codes `code`, `measurement` or `keep` -- where the Safe Harbor question
+  is then put. Target 0.
 - over the STATED shapes (a name, a street address, a full birth date on
   a long table with no subject column, so no people to count in; plan
   P4-D406 item (a)): real values in the description and twin cells
@@ -86,15 +91,17 @@ with tempfile.TemporaryDirectory() as scratch:
             else:
                 stated["stated_description_values"] += int(seen["description_values"])
                 stated["stated_twin_cells"] += int(seen["twin_cells"])
-        # LANE SH'S SAFE HARBOR NUMBER SHAPES (plan P4-D427).
-        for kind in shapes.SAFE_HARBOR_NUMBERS:
-            folder = pathlib.Path(scratch) / f"{kind}-{rows}"
+        # LANE SH'S SAFE HARBOR NUMBER SHAPES (plan P4-D427), unanswered and
+        # with the column's other question answered (its second repair).
+        harbor = [(kind, "") for kind in shapes.SAFE_HARBOR_NUMBERS]
+        for kind, answer in harbor + list(shapes.SAFE_HARBOR_ANSWERED):
+            folder = pathlib.Path(scratch) / f"{kind}-{rows}-{answer or 'unanswered'}"
             folder.mkdir()
-            seen = shapes.run_safe_harbor(folder, kind, rows)
+            seen = shapes.run_safe_harbor(folder, kind, rows, answer)
             if seen["profile_exit"] != 0 or seen["generate_exit"] != 0:
                 raise SystemExit(f"{kind} at {rows} rows: profile {seen['profile_exit']}, "
                                  f"generate {seen['generate_exit']}")
-            lines += [f"{kind:8s} {rows:6d} rows: role {seen['role']}, "
+            lines += [f"{kind:8s} {answer or 'unanswered'} {rows:6d} rows: role {seen['role']}, "
                       f"{seen['description_values']} of {seen['different']} real values in the "
                       f"outputs, {seen['description_fragments']} outputs differing, "
                       f"{seen['twin_cells']} twin cells real, validate {seen['validate_exit']}, "
@@ -106,6 +113,9 @@ with tempfile.TemporaryDirectory() as scratch:
                     held[key] = held[key] + int(seen[key])
             limited = (rows >= 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_20000) or (
                 rows < 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_600)
+            if kind not in shapes.ZIP_KINDS and (limited or answer):
+                # An age twin's limit is the top-coded table's own.
+                limited = seen["twin_misses"] == seen["control_twin_misses"]
             if seen["validate_exit"] != 0 and not limited:
                 held["twins_failing_validation"] += 1
             missed = set(re.findall(r"^\s+(\S+) \[[^\]]+\]: MISSED",
@@ -120,7 +130,7 @@ for line in lines:
 value = dict(held)
 value.update(stated)
 held_shapes = (len(shapes.HELD) + len(shapes.BESIDE) + len(shapes.COUNTED)
-               + len(shapes.SAFE_HARBOR_NUMBERS))
+               + len(shapes.SAFE_HARBOR_NUMBERS) + len(shapes.SAFE_HARBOR_ANSWERED))
 value["shapes"] = len(SIZES) * (held_shapes + len(shapes.STATED))
 kpi_rules.emit("K-S3-64", value, f"{len(SIZES)} sizes x {held_shapes} held and "
                f"{len(shapes.STATED)} stated shapes")
