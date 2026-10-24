@@ -1525,8 +1525,11 @@ class Table:
     person: str = ""
     # HIPAA FIRST: the columns whose real values must reach neither the
     # description nor the twin, each with how it is read: 'values' (every
-    # real value but a one-figure placeholder such as '-1') or 'ages over
-    # 89' (Safe Harbor: no age past 89 printed or written as a number).
+    # real value but a one-figure placeholder such as '-1', in the
+    # description and the twin), 'printed values' (in the description
+    # only: a date the twin draws in its span meets a real one by chance)
+    # or 'ages over 89' (Safe Harbor: no age past the top-code 90 printed
+    # or written as a number).
     leaks: "tuple[tuple[str, str], ...]" = ()
 
 
@@ -1689,7 +1692,7 @@ TABLES: "tuple[Table, ...]" = (
             _bad("utf8_accents", "no cell reads as mojibake", "birth_city", lambda f: _mojibake(f["text"]),
                  spoil_cell("birth_city", "SÃ£o Paulo")),
         ),
-        leaks=(("zip5", "values"), ("zip4", "values"), ("dob_iso", "values")),
+        leaks=(("zip5", "values"), ("zip4", "values"), ("dob_iso", "printed values")),
     ),
     Table(
         "encounters", ".csv", encounters,
@@ -2960,10 +2963,11 @@ def _block(described: "dict", column: str) -> "list[str]":
 
 
 def _over_89(texts: "list[str]") -> "set[str]":
+    """The ages past the Safe Harbor top-code: 90 itself stands for the pooled '90 or older', so past 90."""
     ages: "set[str]" = set()
     for text in texts:
         match = re.fullmatch(r"\s*(\d{2,3})(\.\d+)?\s*(years?)?\s*", text)
-        if match and 89 < float(match.group(1) + (match.group(2) or "")) < 150:
+        if match and 90 < float(match.group(1) + (match.group(2) or "")) < 150:
             ages |= {_normal(match.group(1))}
     return ages
 
@@ -2975,7 +2979,8 @@ def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: path
     '-1' aside), compared stripped and, for whole numbers, without their
     leading noughts or '.0' -- found among the scalars of the column's
     block in the description (and the notes naming it) and among the
-    twin's cells. 'ages over 89': the distinct ages past 89 written as
+    twin's cells; 'printed values': the same in the description alone.
+    'ages over 89': the distinct ages past the top-code 90 written as
     numbers there. Returns {column: {"description": n, "twin": n,
     "twin_cells": n}}, distinct values and the twin's cells holding one.
     """
@@ -2995,7 +3000,7 @@ def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: path
         else:
             real = {_normal(cell) for cell in real_cells if cell.strip() and not PLACEHOLDER.fullmatch(cell.strip())}
             in_description = real & set(said)
-            normal_twin = [_normal(cell) for cell in twin_cells]
+            normal_twin = [_normal(cell) for cell in twin_cells] if how == "values" else []
             in_twin = real & set(normal_twin)
             cells = sum(1 for cell in normal_twin if cell in real)
         found[column] = {"description": len(in_description), "twin": len(in_twin), "twin_cells": cells}

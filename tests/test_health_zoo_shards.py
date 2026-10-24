@@ -203,8 +203,19 @@ def test_the_age_scan_sees_an_age_past_89(tmp_path: pathlib.Path) -> None:
     rows[0][place] = "93"
     twin = tmp_path / "twin.csv"
     twin.write_bytes(table.write(header, rows))
-    profile.write_text(json.dumps({"columns": [{"name": "age", "tails": {"high": {"values": [91.0, 104]}}}]}), encoding="utf-8")
+    profile.write_text(json.dumps({"columns": [{"name": "age", "tails": {"high": {"values": [90.0, 91.0, 104]}}}]}), encoding="utf-8")
     assert zoo.leaked(table, real, twin, profile)["age"] == {"description": 2, "twin": 1, "twin_cells": 1}
+
+
+def test_a_printed_value_is_read_in_the_description_alone(tmp_path: pathlib.Path) -> None:
+    """A birth date the twin draws in its span meets a real one by chance: 'printed values' reads the description only."""
+    case = _leak_case(tmp_path, lambda header, rows: None, {"columns": []})
+    assert case["dob_iso"] == {"description": 0, "twin": 0, "twin_cells": 0}
+    table = zoo.table_named("patients")
+    header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
+    born = rows[0][header.index("dob_iso")]
+    printed = _leak_case(tmp_path / "printed", lambda header, rows: None, {"columns": [{"name": "dob_iso", "percentiles": {"min": born}}]})
+    assert printed["dob_iso"] == {"description": 1, "twin": 0, "twin_cells": 0}
 
 
 def test_a_leak_fails_its_kind_and_is_counted() -> None:

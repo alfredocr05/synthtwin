@@ -99,6 +99,10 @@ E0C_KINDS = (
     # the file shapes
     "utf16_text", "cp1252_smart_quotes", "sas_dot_missing", "wide_table", "trailing_delimiter",
     "excel_mangled_codes", "workbook_1904_dates", "leading_apostrophe",
+    # the HIPAA and de-identified shapes
+    "phi_columns", "undeclared_record_number_long", "numeric_keys_unanswered", "safe_harbor_shapes",
+    # the time edge kinds
+    "dst_zones_and_words", "month_year", "durations", "epoch_stamps", "open_end_dates", "quarters",
 )
 
 
