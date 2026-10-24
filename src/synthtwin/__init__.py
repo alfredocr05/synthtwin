@@ -36,8 +36,11 @@ published counts exactly can force a twin row to match a real one: a
 single-column table of 100 rows whose one label is shared by all 100
 publishes that label with the count 100, so the twin holds it in all
 100 rows. Nothing was copied; the arithmetic left no other answer. The
-example is stated at 100 rows because that is the smallest table
-`synthtwin profile` will describe. synthtwin
+example is stated at 100 rows because it is the shortest true one;
+`synthtwin profile` refuses any table under 20,000 rows that hold a
+value, or under 1,000 people where one person has several rows (plan
+P4-D425), and the same arithmetic holds there for any column whose
+published facts pin it completely. synthtwin
 offers no formal privacy guarantee, and all six files a full run
 produces — the profile, the plain-language summary beside it, the
 questions file, the twin, the twin's report and the quality report —

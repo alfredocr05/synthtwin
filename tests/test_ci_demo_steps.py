@@ -54,11 +54,15 @@ def _python(tag: str) -> "tuple[int, str]":
     return status, printed.getvalue()
 
 
-def _command(argv: "list[str]") -> int:
-    """The installed command, as the step calls it, with its output kept quiet."""
+def _command(argv: "list[str]", small_tables_refused: bool = True) -> int:
+    """The installed command, as the step calls it, with its output kept quiet.
+
+    The table floor is ON unless the step says otherwise (plan P4-D425):
+    the step runs the installed command, whose floor no option turns off.
+    """
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         try:
-            return cli.main(argv)
+            return cli.main(argv, small_tables_refused=small_tables_refused)
         except SystemExit as stop:
             return stop.code if isinstance(stop.code, int) else 1
 
@@ -80,7 +84,15 @@ def test_the_build_jobs_demonstration_steps_pass_on_this_tree(
     demo.mkdir()
     status, printed = _python("MAKE")
     assert status == 0, printed
-    assert _command(["profile", f"{demo / 'table.csv'}", "--identifier", "record_code"]) == 0
+    # The installed command refuses the 240-row battery at the table
+    # floor and writes nothing; the step then describes it through the
+    # package's entry point with the internal keyword off (P4-D425).
+    assert "cli.main(sys.argv[1:], small_tables_refused=False))' \\\n" in workflow
+    assert '[ "$refused" != 1 ] || [ -e "$DEMO/table-profile.json" ]' in workflow
+    demo_argv = ["profile", f"{demo / 'table.csv'}", "--identifier", "record_code"]
+    assert _command(demo_argv) == 1
+    assert not (demo / "table-profile.json").exists()
+    assert _command(demo_argv, small_tables_refused=False) == 0
     status, printed = _python("CHECK")
     assert status == 0, printed
     assert _command(["generate", f"{demo / 'table-profile.json'}", "--seed", "7"]) == 0

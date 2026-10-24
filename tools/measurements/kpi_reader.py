@@ -48,7 +48,7 @@ RUNS = ((1000, (0, 1, 2)), (10000, (0,)))
 def _quiet(argv: "list[str]") -> int:
     held = io.StringIO()
     with contextlib.redirect_stdout(held), contextlib.redirect_stderr(held):
-        return cli(argv)
+        return cli(argv, small_tables_refused=False)
 
 
 def _column(path: pathlib.Path) -> "list[list[str]]":

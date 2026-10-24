@@ -1403,6 +1403,65 @@ def floor_not_positive(given: str) -> str:
     )
 
 
+def the_table_is_below_the_floor(
+    rows: int, people: int, column: str, floor: int
+) -> str:
+    """Message for a table under the owner's table floor (plan P4-D425).
+
+    The owner, 2026-10-22: "we don't make twins of small tables". THE
+    MINIMUM SIZES AS THE OWNER'S POLICY, THIS TABLE'S ROWS AND PEOPLE,
+    WHY, WHAT TO DO, AND THAT NOTHING WAS WRITTEN, in words a person who
+    is not a statistician can act on and that a statistician would sign.
+    The why claims no more than holds (skeptic 1 of lane POP, item 5;
+    Codex's review, item 1): a count is published only when it covers at
+    least the smallest group of this run (``floor``: 11, or more if the
+    person raised it with --smallest-group; never lower, the owner,
+    2026-10-23), counted in people where a column names the person and
+    in rows where none does; the fewer rows or people, the MORE counts
+    fall under it -- not "most", which is false
+    just under the floor for a column of a few common levels.
+
+    ``people`` and ``column`` are given where a declared or answered
+    person column repeats (``column`` names it, as the person typed or
+    answered it); 0 and empty where the rows were counted. ``people`` is
+    the floor's count, spellings merged (`parsing.subject_key`).
+
+    Guarantees: a fixed function of the four; one paragraph. Raises
+    nothing. No I/O of any kind.
+    """
+    held = f"{rows:,} rows that hold a value"
+    if column:
+        held = (
+            f"{held} and {people:,} people, counted by "
+            f"'{_shown(column)}': rows whose values of it are written "
+            f"alike, apart from case, spaces, punctuation and leading "
+            f"zeros, are one person, and rows holding no value of it "
+            f"count as one person between them"
+        )
+    return (
+        f"synthtwin makes twins of large tables only, and this table is "
+        f"below its floor. The floor, a policy for every table synthtwin "
+        f"twins, is {parsing.TABLE_ROW_FLOOR:,} rows that hold a value "
+        f"and, where one person has several rows, "
+        f"{parsing.TABLE_PEOPLE_FLOOR:,} people. This table holds "
+        f"{held}. Why: synthtwin publishes a count only when it covers "
+        f"at least the smallest group, {floor} (11, or more if you raised "
+        f"it with --smallest-group), counted in people where a column names "
+        f"the person and in rows where none does; the fewer rows or people "
+        f"a table has, the more of its counts -- rare categories, and cells of "
+        f"two or more columns taken together -- fall under it and are "
+        f"pooled or withheld, so an analysis run on the twin stands less "
+        f"well on the real table, and small groups are where a published "
+        f"fact can point to one person. What you can do: describe the "
+        f"whole extract rather than a sample of it, or combine sites or "
+        f"years into one table, and run the command again. A row counts "
+        f"only when it holds a value: one whose every cell this run reads "
+        f"as no value -- a blank, a spelling that means no value, a "
+        f"number declared with --missing-value, or a stand-in such as "
+        f"-999 -- is counted nowhere. Nothing was written."
+    )
+
+
 def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     """Message for a table with too few rows, or too few people, to describe.
 

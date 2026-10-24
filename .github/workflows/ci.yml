@@ -1024,8 +1024,25 @@ jobs:
           # was worked out from the values, and it went on asserting it
           # for three rounds because ci.yml never runs on a developer
           # machine -- the check outlived the rule it was checking.
+          #
+          # THE OWNER'S TABLE FLOOR (plan P4-D425): the installed command
+          # refuses this 240-row table, under 20,000 rows that hold a
+          # value, with exit 1 and nothing written -- checked here on a
+          # clean machine. The table is a battery of roles, not a twin
+          # anybody analyses, so it is then described through the
+          # installed package's own entry point with the internal
+          # `small_tables_refused` keyword off, which no command line reaches.
+          set +e
           "$RUNNER_TEMP/fresh-env/bin/synthtwin" profile "$DEMO/table.csv" \
             --identifier record_code
+          refused=$?
+          set -e
+          if [ "$refused" != 1 ] || [ -e "$DEMO/table-profile.json" ]; then
+            echo "The installed command did not refuse a table under the table floor (exit $refused)."
+            exit 1
+          fi
+          "$RUNNER_TEMP/fresh-env/bin/python" -c 'import sys; from synthtwin import cli; sys.exit(cli.main(sys.argv[1:], small_tables_refused=False))' \
+            profile "$DEMO/table.csv" --identifier record_code
           "$RUNNER_TEMP/fresh-env/bin/python" - <<'CHECK'
           import json
           import os

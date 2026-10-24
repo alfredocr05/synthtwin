@@ -4183,14 +4183,55 @@ def population_census(
     at most one reading (`_census_reading` says why one). A fixed function of the arguments. Raises
     what `_read_the_column` raises. No I/O of any kind.
     """
+    people, counted, _merged, _rows, held = population_and_rows_census(
+        column_names, columns, declared, settings, declarations, stored_as,
+        holding,
+    )
+    return people, counted, held
+
+
+def population_and_rows_census(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    declared: "list[str]",
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+    stored_as: "tuple[str, ...]" = (),
+    holding: "list[bool] | None" = None,
+) -> "tuple[tuple[str, ...], int, int, int, tuple[HeldReading, ...]]":
+    """`population_census`, with the people's spellings merged and the rows that hold a value beside it (plan P4-D425).
+
+    The command's table floor asks BOTH numbers of a table whose person
+    column repeats: the rows that hold a value (`parsing.TABLE_ROW_FLOOR`)
+    and the people (`parsing.TABLE_PEOPLE_FLOOR`). Where no declared
+    identifier repeats the two are one count. The rows are the ones
+    `people_in` already works out to count people over, so this reads
+    no column `population_census` does not.
+
+    THE FLOOR'S PEOPLE ARE COUNTED WITH THEIR SPELLINGS MERGED (skeptic
+    1 of lane POP, item 2): `P00001` and `P-00001`, `000123` and `123`,
+    `P 00001` and `P00001` are one person to `profile.subject_keys`, the
+    count the description publishes by, while `people_in` folds case and
+    space only and counts them twice -- so 600 people written two ways
+    passed a floor of 1,000. The third number is `people_in`'s count
+    with every two rows whose cells of one person column share a
+    `parsing.subject_key` joined too; it can only be smaller, and only
+    the floor reads it. The second stays `people_in`'s (plan P4-D341's
+    population, unchanged).
+
+    Guarantees: `population_census`'s own, over the same arguments,
+    with the people counted over merged spellings third and the count
+    of rows that hold a value fourth. A fixed function of the
+    arguments. Raises what `_read_the_column` raises. No I/O.
+    """
     people, held = _repeating_identifiers_held(
         column_names, columns, declared, settings, declarations, (), stored_as
     )
-    counted, held = _people_held(
+    counted, merged, rows, held = _people_and_rows_held(
         column_names, columns, people, settings, declarations, held,
         stored_as, holding,
     )
-    return people, counted, held
+    return people, counted, merged, rows, held
 
 
 def _people_held(
@@ -4205,9 +4246,34 @@ def _people_held(
 ) -> "tuple[int, tuple[HeldReading, ...]]":
     """`people_in`, and the readings the census holds after it.
 
-    Guarantees: `people_in`'s own, over the same arguments, plus
-    ``held``: what this census keeps, returned as it stands after the
-    columns read here (`_census_reading`). ``stored_as`` is
+    Guarantees: `_people_and_rows_held`'s, less the count of rows.
+    """
+    counted, _merged, _rows, held = _people_and_rows_held(
+        column_names, columns, person_columns, settings, declarations, held,
+        stored_as, holding_given,
+    )
+    return counted, held
+
+
+def _people_and_rows_held(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    person_columns: "tuple[str, ...]",
+    settings: Settings,
+    declarations: "Declarations | None",
+    held: "tuple[HeldReading, ...]",
+    stored_as: "tuple[str, ...]" = (),
+    holding_given: "list[bool] | None" = None,
+) -> "tuple[int, int, int, tuple[HeldReading, ...]]":
+    """`people_in`, the people with spellings merged, the rows that hold a value, and the readings the census holds after them.
+
+    Guarantees: `people_in`'s own, over the same arguments, then the
+    same count with each person column's cells joined by
+    `parsing.subject_key` too (`population_and_rows_census` says why;
+    the rows where no person column is given), then the count of rows
+    that hold a value (the population where no person column is given),
+    plus ``held``: what this census keeps, returned as it stands after
+    the columns read here (`_census_reading`). ``stored_as`` is
     `population_census`'s.
     """
     if holding_given is not None:
@@ -4221,12 +4287,12 @@ def _people_held(
         holding, held = _rows_holding_a_value(
             columns, rows, settings, column_names, declarations, held, stored_as
         )
+    count = 0
+    for place in range(rows):
+        if holding[place]:
+            count = count + 1
     if not person_columns:
-        count = 0
-        for place in range(rows):
-            if holding[place]:
-                count = count + 1
-        return count, held
+        return count, count, count, held
     # `home[row]` is the row this one has been merged onto. Every merge
     # points at the EARLIER row of the two, so the walk to a group's
     # first row is short and the answer does not depend on the order
@@ -4236,6 +4302,7 @@ def _people_held(
     for place in range(rows):
         home += [place]
         named += [False]
+    spelled: "list[tuple[int, int]]" = []
 
     def first_of(place: int) -> int:
         while home[place] != place:
@@ -4274,6 +4341,7 @@ def _people_held(
                 else:
                     home[one] = two
             place = place + 1
+        spelled += _spellings_of_one_subject(earliest)
     people = 0
     unknown = 0
     for place in range(rows):
@@ -4287,7 +4355,8 @@ def _people_held(
             continue
         if first_of(place) == place:
             people = people + 1
-    return people + unknown, held
+    merged = people - _joined_beyond(home, spelled)
+    return people + unknown, merged + unknown, count, held
 
 
 def _rows_holding_a_value(
@@ -4403,6 +4472,10 @@ class PeopleJoined:
 
     home: "list[int]"
     named: "list[bool]"
+    # Pairs of rows whose cells of one person column are two spellings
+    # of one `parsing.subject_key` (`_spellings_of_one_subject`): the
+    # table floor's merged count joins them too (plan P4-D425).
+    spelled: "list[tuple[int, int]]" = dataclasses.field(default_factory=list)
 
 
 def people_joined(rows: int) -> PeopleJoined:
@@ -4477,7 +4550,73 @@ def people_joined_if_repeating(
             else:
                 home[one] = two
         place = place + 1
+    joined.spelled += _spellings_of_one_subject(earliest)
     return True, joined
+
+
+def _spellings_of_one_subject(earliest: "dict[str, int]") -> "list[tuple[int, int]]":
+    """Pairs of rows, one a folded spelling, whose spellings share a `parsing.subject_key`.
+
+    ``earliest`` maps each folded spelling of one person column to the
+    first row holding it. Each spelling after the first of a merged key
+    is paired with that key's first spelling's row, so joining the pairs
+    joins every spelling of one subject (`population_and_rows_census`).
+    Memory: one entry a merged key, and one pair a spelling past the
+    first -- none where every person is written one way. Guarantees: a
+    fixed function of the argument. Raises nothing. No I/O.
+    """
+    first: "dict[str, int]" = {}
+    pairs: "list[tuple[int, int]]" = []
+    for spelling in earliest:
+        place = earliest[spelling]
+        key = parsing.subject_key(spelling)
+        if key in first:
+            pairs += [(first[key], place)]
+            continue
+        first[key] = place
+    return pairs
+
+
+def _joined_beyond(home: "list[int]", pairs: "list[tuple[int, int]]") -> int:
+    """How many people the pairs join beyond what ``home`` already joins.
+
+    ``home`` is a finished union-find of rows (`people_in`'s); it is read,
+    never changed, so `people_in`'s count stands. The pairs are joined
+    in a union-find of their own over ``home``'s roots, and each join of
+    two different people is one person fewer. Guarantees: a fixed
+    function of the arguments. Raises nothing. No I/O.
+    """
+    over: "dict[int, int]" = {}
+
+    def top(place: int) -> int:
+        while home[place] != place:
+            place = home[place]
+        while place in over:
+            place = over[place]
+        return place
+
+    fewer = 0
+    for one, two in pairs:
+        left, right = top(one), top(two)
+        if left == right:
+            continue
+        if left < right:
+            over[right] = left
+        else:
+            over[left] = right
+        fewer = fewer + 1
+    return fewer
+
+
+def people_counted_merged(joined: PeopleJoined, holding: "list[bool]") -> int:
+    """`people_counted`, with the spellings of one subject joined (`population_and_rows_census`).
+
+    Read `people_counted` first or after: neither changes ``joined``.
+    Guarantees: at most `people_counted`'s answer. Raises nothing. No I/O.
+    """
+    return people_counted(joined, holding) - _joined_beyond(
+        joined.home, joined.spelled
+    )
 
 
 def people_counted(joined: PeopleJoined, holding: "list[bool]") -> int:

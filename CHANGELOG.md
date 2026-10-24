@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### No twin of a small table: the owner's table floor (2026-10-22)
+
+**`synthtwin profile` refuses, writing nothing, a table with fewer than
+20,000 rows that hold a value, or one in which a declared or answered
+person column repeats but fewer than 1,000 people appear** (lane POP,
+plan P4-D425, amending P4-D341; the owner, 2026-10-22: "we don't make
+twins of small tables"). People are counted with one person's
+spellings merged (`P00001` and `P-00001` are one person), as the
+description counts them. The message gives both minimum sizes, the
+table's own rows and people, why -- a count is published only when it
+covers at least the run's smallest group, and the fewer rows or people,
+the more counts fall under it, so an analysis on the twin stands less
+well, and small groups are where a fact can point to one person -- and
+what to do: describe the whole extract, or combine sites or years. A column the questions file only
+asks about never refuses a table; the screen says the people floor
+applies once it is answered. No option turns the floor off: `cli.main`
+takes an internal `small_tables_refused` keyword that the suite's helpers and the
+measurement drivers use for their small tables, so the earlier 100-row
+floor and its notice under 1,000 are reached only there. No byte written
+for a table at or above the floor changes, and the library applies no
+floor, so the written summary and the twin's report still say 100 rows is
+the smallest table (owner: lane FLW). The message never suggests lowering
+the smallest group of 11; `--smallest-group` may only raise it. CI's demonstration checks the installed command refuses its
+240-row table.
+
 ### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
 
 **Records of batch 4h**, which merged lanes HX4 and SG (plans P4-D424 and

@@ -2660,7 +2660,10 @@ def _quietly(arguments: "list[str]") -> "tuple[int, str]":
     sink = io.StringIO()
     try:
         with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-            code = cli.main(arguments)
+            # The table floor off (plan P4-D425): the zoo keeps measuring
+            # its tables at today's sizes; lane E0c re-defines them at or
+            # above the floor.
+            code = cli.main(arguments, small_tables_refused=False)
     except Exception as failure:  # noqa: BLE001 -- a traceback is a result to record
         return -1, f"{type(failure).__name__}: {failure}"[:300]
     except SystemExit as stop:

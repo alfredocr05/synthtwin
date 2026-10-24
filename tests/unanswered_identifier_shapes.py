@@ -594,7 +594,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     with nobody_at_the_keyboard():
         with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
             profiled = cli.main(["profile", f"{table}", "--out-dir", f"{folder}",
-                                 "--replace"] + declared)
+                                 "--replace"] + declared, small_tables_refused=False)
         described = folder / f"{kind}_long-profile.json"
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             generated = cli.main(["generate", f"{described}", "--out-dir", f"{folder}",

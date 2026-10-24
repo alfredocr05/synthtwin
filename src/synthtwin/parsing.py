@@ -626,6 +626,43 @@ def folded(text: str) -> str:
     return text.strip().casefold()
 
 
+def subject_key(cell: str) -> str:
+    """One subject cell's merged form: `profile.subject_keys`' reading of one spelling.
+
+    Folded (`folded`), every ASCII character that is neither a letter nor
+    a figure dropped (one outside the ASCII range kept), and every zero
+    that opens a run of figures dropped (a run of zeros alone stays one
+    zero): `REC-0007`, `rec7` and `Rec 7` are all `rec7`. It can only
+    MERGE spellings, never split one. Here so that `profile.subject_keys`
+    (what HX2 publishes by) and the table floor's people count
+    (`taxonomy.population_and_rows_census`, plan P4-D425) read a person
+    the same way.
+
+    Guarantees: accepts text; returns text; raises TypeError if handed
+    anything that is not a string instance. No I/O of any kind.
+    """
+    kept = ""
+    zeros = False
+    started = False
+    for character in folded(cell):
+        if "0" <= character <= "9":
+            if started or character != "0":
+                kept = kept + character
+                started = True
+            else:
+                zeros = True
+            continue
+        if zeros and not started:
+            kept = kept + "0"
+        zeros = False
+        started = False
+        if "a" <= character <= "z" or character > "\x7f":
+            kept = kept + character
+    if zeros and not started:
+        kept = kept + "0"
+    return kept
+
+
 def is_missing_text(text: str) -> bool:
     """True when ``text`` is one of the documented spellings of "no value".
 
@@ -954,6 +991,38 @@ DEFAULT_SMALL_CELL_FLOOR = 11
 # imports nothing.
 POPULATION_FLOOR = 100
 POPULATION_NOTICE_LINE = 1000
+
+# THE TABLE FLOOR (the owner, 2026-10-22: "we don't make twins of small
+# tables"; plan P4-D425, a dated amendment of P4-D341). `synthtwin
+# profile` refuses, writing nothing, a table with fewer than
+# `TABLE_ROW_FLOOR` rows that hold a value, and a table in which a
+# declared or answered person column REPEATS (one person, several rows)
+# but fewer than `TABLE_PEOPLE_FLOOR` people appear. Rows are counted
+# as the population above is (`taxonomy.people_in`), and people as it
+# counts them with one person's spellings merged (`subject_key`, as the
+# description counts people; `taxonomy.population_and_rows_census`).
+#
+# THE REASON, the owner's policy: a count is published only when it
+# covers at least the run's smallest group (`DEFAULT_SMALL_CELL_FLOOR`,
+# 11, or more if raised with --smallest-group), in people where a
+# column names the person and in rows where none does; the fewer rows
+# or people a table has, the more of its counts fall under that and are
+# pooled or withheld, so an analysis run on the twin stands less well on
+# the real table, and small groups are where a published fact can point
+# to one person. The owner chose the two numbers: the work goes to twins whose
+# code runs on the original and whose statistics stand.
+#
+# AND WHAT BECOMES OF THE TWO NUMBERS ABOVE. They stay, byte for byte,
+# and a run applies them only where the table floor is off -- which no
+# command line can ask for: `cli.main`'s internal `small_tables_refused`
+# parameter, used by the suite's helpers and the measurement drivers so
+# the small-table checks keep running. On the command a person types,
+# every table the notice line would mark is refused instead, because
+# the notice line is not above either floor (`POPULATION_NOTICE_LINE <=
+# TABLE_PEOPLE_FLOOR <= TABLE_ROW_FLOOR`, asserted by
+# tests/test_table_floor.py): no table the floor accepts gets the notice.
+TABLE_ROW_FLOOR = 20000
+TABLE_PEOPLE_FLOOR = 1000
 
 
 def census_floor(floor: int) -> int:

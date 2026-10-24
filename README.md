@@ -362,16 +362,24 @@ keyboard -- a script, a pipeline, CI -- it never stops: it names those
 columns on screen, says what it assumed, and prints the `--code` line
 that corrects it.
 
-**How small a table synthtwin will describe.** `synthtwin profile`
-refuses a table of fewer than 100 and writes nothing at all, and
-describes one of 100 to 999 with a plain notice on the screen and on
-every page it writes. Every count a description publishes is a count of
-rows over the population it was taken from, and below a hundred those
-counts describe the individuals in the table rather than a population.
-The notice cannot be turned off, it is on the description, the
-plain-language summary, the questions file, the twin's report and the
-quality report alike, and the twin's own table carries no trace of it,
-so code you write against the twin runs exactly as it ran before.
+**How small a table synthtwin will describe.** synthtwin makes twins
+of large tables only. `synthtwin profile` refuses, and writes nothing
+at all, a table with fewer than **20,000 rows that hold a value**, and a
+table in which one person has several rows (a column you named with
+`--identifier`, or answered in the questions file, repeats) but fewer
+than **1,000 people** appear (one person written two ways, such as
+`P00001` and `P-00001`, is one person). This is synthtwin's policy for
+every table. A count is published only when it covers at least the
+smallest group, 11, or more if you raised it with `--smallest-group`,
+counted in people where a column names the person and in rows where
+none does. The fewer rows or people a table has, the more of its counts
+fall under that and are pooled or withheld, so an analysis run on the
+twin stands less well on the real table, and small groups are where a
+published fact can point to one person. So describe the
+whole extract rather than a sample of it, or combine sites or years
+into one table. A column the questions file only ASKS about is not
+counted in people until you answer it, so an unanswered question never
+refuses a table. No option turns the floor off (plan P4-D425).
 
 **The population is counted in PEOPLE where you say who the rows are.**
 Name a column with `--identifier` and, if its values REPEAT, rows
@@ -675,8 +683,10 @@ match a real one. The plainest case: a table of 100 rows with one
 column, whose single label is shared by all 100 rows, publishes that
 label with the count 100 -- so the twin writes that label in all 100 of
 its rows, and each of those rows is the row you have. It is stated at
-100 rows because that is the smallest table `synthtwin profile` will
-describe: below 100 it refuses and writes nothing. Nothing
+100 rows because it is the shortest true example; `synthtwin profile`
+now refuses any table under 20,000 rows (plan P4-D425), and the same
+arithmetic holds there for any column whose published facts pin it
+completely. Nothing
 was copied. The arithmetic left no other answer, and any tool that
 reproduces published counts exactly lands in the same place.
 

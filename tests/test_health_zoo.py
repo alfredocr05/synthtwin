@@ -707,7 +707,7 @@ def test_a_failed_command_is_never_read_as_success(monkeypatch: pytest.MonkeyPat
     """_quietly returns the command's own exit; a profile that exits 2 stops the run and fails every kind."""
     from synthtwin import cli
 
-    monkeypatch.setattr(cli, "main", lambda arguments: 2)
+    monkeypatch.setattr(cli, "main", lambda arguments, **_switch: 2)
     assert zoo._quietly(["profile", "x"])[0] == 2
     result = zoo.run_table(zoo.table_named("patients"), tmp_path, 150, SEED)
     assert result["steps"] == {"profile": {"exit": 2, "error": ""}}
@@ -755,7 +755,7 @@ def test_a_command_that_stops_is_read_by_its_exit(monkeypatch: pytest.MonkeyPatc
     """The verify's item 1 (c): a SystemExit(2) is exit 2, never success."""
     from synthtwin import cli
 
-    def stops(arguments: "list[str]") -> int:
+    def stops(arguments: "list[str]", **_switch: bool) -> int:
         raise SystemExit(2)
 
     monkeypatch.setattr(cli, "main", stops)
