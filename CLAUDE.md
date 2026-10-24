@@ -202,8 +202,9 @@ though it existed:
   about anybody's obligations. The six files above carry facts
   computed from real data, and at the default floor of eleven a column
   whose role publishes values names every value eleven or more rows
-  held, with how many did - at a floor lowered to one, every one of
-  them - while the roles that publish none still publish counts
+  held, with how many did - a floor `--smallest-group` may raise and
+  never lower (plan P4-D426) - while the roles that publish none still
+  publish counts
   and shapes measured from real cells - so whether a privacy rule, an
   institution's own rules, or a study's approval is satisfied is a
   question for the people who set

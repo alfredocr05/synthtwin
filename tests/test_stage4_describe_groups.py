@@ -64,6 +64,7 @@ import weakref
 import pytest
 
 from synthtwin import cli, dialect, errors, profile, reading, taxonomy
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 
 def _read(path: pathlib.Path, first_row: str, in_groups: bool) -> "tuple[str, object]":
@@ -283,7 +284,7 @@ def _profiled(table: pathlib.Path, out: pathlib.Path, options: "list[str]") -> "
     out.mkdir()
     said = io.StringIO()
     with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
-        code = cli.main(["profile", str(table), "--out-dir", str(out), "--replace"] + options)
+        code = lowered_floor.main(["profile", str(table), "--out-dir", str(out), "--replace"] + options)
     found = {"exit": f"{code}".encode(), "said": said.getvalue().replace(str(out), "OUT").replace(str(table), "IN").encode()}
     for written in sorted(out.iterdir()):
         found[written.name] = written.read_bytes()

@@ -71,7 +71,7 @@ import pytest
 
 import fixtures
 from synthtwin import contract, parsing, summary, validation
-from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # THE FLOOR THIS FILE ASKS AT. The five blank cells are what pools the
 # split below the publication floor, and a pooled split is what puts the
@@ -162,7 +162,7 @@ def _describe(folder: pathlib.Path) -> "tuple[pathlib.Path, contract.Profile]":
     # composed a description's bytes itself, and that test goes red.
     asked = ["profile", f"{table}", "--missing-value", MARKER,
              "--smallest-group", f"{FLOOR}"]
-    assert main(asked) == 0
+    assert lowered_floor.main(asked) == 0
     written = folder / "reading-profile.json"
     return written, contract.load_profile(f"{written}")
 
@@ -203,7 +203,7 @@ def test_the_table_its_own_description_was_written_from_holds_it_all(
     """No miss, and nothing withheld: seven checks came back to life."""
     written, _description = _describe(tmp_path)
     table = _table(tmp_path, "same.csv")
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     counted = _counts((tmp_path / "same-quality.txt").read_text("utf-8"))
     assert counted["MISSED"] == 0
     assert counted["WITHHELD"] == 0
@@ -213,7 +213,7 @@ def test_a_file_that_breaks_them_is_told_so(tmp_path: pathlib.Path) -> None:
     """The two obligations that were withheld now carry a verdict."""
     written, _description = _describe(tmp_path)
     other = _table(tmp_path, "other.csv", odd=12)
-    assert main(["validate", f"{written}", "--twin", f"{other}"]) == 3
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{other}"]) == 3
     report = (tmp_path / "other-quality.txt").read_text("utf-8")
     counted = _counts(report)
     assert counted["WITHHELD"] == 0

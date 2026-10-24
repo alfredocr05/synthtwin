@@ -176,7 +176,7 @@ def _options_the_parser_offers() -> "set[str]":
         contextlib.redirect_stdout(printed),
         contextlib.suppress(SystemExit),
     ):
-        cli._parse_arguments(["--help"])
+        cli._parse_arguments(["--help"], None)
     said = printed.getvalue()
     found = set()
     for line in said.split("\n"):

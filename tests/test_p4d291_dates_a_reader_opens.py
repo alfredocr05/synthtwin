@@ -53,6 +53,7 @@ import pytest
 
 from synthtwin import dialect, sheetwriting, workbook
 from tests import crosscheck, workbooks
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # The shipped rule, held before any test puts a withdrawn one in its
 # place, so that a mutant of one class does not silence the others.
@@ -63,12 +64,11 @@ _FLOOR_TWO = "2"
 
 
 def _exit_of(argv: "list[str]") -> int:
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        code = cli.main()
+        code = lowered_floor.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:

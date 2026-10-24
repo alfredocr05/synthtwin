@@ -58,7 +58,7 @@ import pytest
 
 import fixtures
 from synthtwin import canonical, contract, errors, parsing, profile
-from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # The two field names the walk looks for, and the format's one word for
 # "held back". All three are things a cell of somebody's table can say,
@@ -157,7 +157,7 @@ def _described(
     command = ["profile", f"{table}", "--smallest-group", "1"]
     for word in declared:
         command = command + ["--missing-value", word]
-    assert main(command) == 0
+    assert lowered_floor.main(command) == 0
     written = folder / "reading-profile.json"
     return written, json.loads(written.read_text(encoding="utf-8"))
 

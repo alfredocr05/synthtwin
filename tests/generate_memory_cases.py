@@ -31,7 +31,9 @@ import pathlib
 import random
 import sys
 
-from synthtwin import cli, contract, dialect, generation
+from synthtwin import contract, dialect, generation
+
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 SCHEDULES = '''
 def spread_places(spread: BlankSpread) -> "tuple[BlankPlace, ...]":
@@ -344,11 +346,17 @@ def before_bytes(described: contract.Profile, seed: int) -> bytes:
 
 
 def run(argv: "list[str]") -> int:
-    """One synthtwin command in this process; its exit code."""
+    """One synthtwin command in this process; its exit code.
+
+    Through the bridge (`tests/lowered_floor.py`, plan P4-D426; batch 4i's
+    integration): the gate's `sorted_floor_one` and `sparse_floor_one`
+    describe at a smallest group of 1, which `--smallest-group` refuses
+    since that plan, and their twins are made from those descriptions.
+    """
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        code = cli.main()
+        code = lowered_floor.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:

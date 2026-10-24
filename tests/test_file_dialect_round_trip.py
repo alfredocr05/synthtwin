@@ -36,6 +36,7 @@ import sys
 import pytest
 
 from synthtwin import asking, parsing
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 ROWS = 120
 SITES = ("North", "South", "East", "West")
@@ -52,12 +53,11 @@ _FLOOR_ONE = ("--smallest-group", "1")
 
 def _exit_of(argv: "list[str]") -> int:
     """Run one synthtwin command in this process and return its exit code."""
-    from synthtwin import cli
 
     before = sys.argv
     sys.argv = ["synthtwin"] + argv
     try:
-        code = cli.main()
+        code = lowered_floor.main()
     except SystemExit as stop:
         return 0 if stop.code is None else int(stop.code)
     finally:

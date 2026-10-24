@@ -57,7 +57,7 @@ import pytest
 
 import fixtures
 from synthtwin import contract, parsing, validation
-from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 MARKER = "n/a"
 
@@ -116,7 +116,7 @@ def _described(
     those two name the floor of eleven they were written against.
     """
     options = [] if floor is None else ["--smallest-group", f"{floor}"]
-    assert main(["profile", f"{table}"] + options) == 0
+    assert lowered_floor.main(["profile", f"{table}"] + options) == 0
     written = folder / f"{table.stem}-profile.json"
     return written, contract.load_profile(f"{written}")
 
@@ -148,7 +148,7 @@ def test_the_table_its_own_description_came_from_misses_nothing(
     """Twenty-eight misses on a perfect match, and now none."""
     table = _table(tmp_path, "reading.csv", 12)
     written, _description = _described(tmp_path, table)
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     report = (tmp_path / "reading-quality.txt").read_text("utf-8")
     counted = _counts(report)
     assert counted["MISSED"] == 0
@@ -216,7 +216,7 @@ def test_every_built_in_word_the_description_names_comes_off_the_pin(
     assert sorted(kept) == sorted(
         f"{value:g}" for value in parsing.NUMERIC_SENTINELS
     )
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     assert (
         _counts((tmp_path / "many-quality.txt").read_text("utf-8"))["MISSED"]
         == 0
@@ -234,10 +234,10 @@ def test_the_twin_of_that_description_still_measures_clean(
     """
     table = _table(tmp_path, "reading.csv", 12)
     written, _description = _described(tmp_path, table)
-    assert main(["generate", f"{written}"]) == 0
+    assert lowered_floor.main(["generate", f"{written}"]) == 0
     twin = tmp_path / "reading-twin.csv"
     assert twin.exists()
-    assert main(["validate", f"{written}", "--twin", f"{twin}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{twin}"]) == 0
     counted = _counts(
         (tmp_path / "reading-twin-quality.txt").read_text("utf-8")
     )
@@ -286,14 +286,14 @@ def test_pooled_words_count_as_absent_so_the_table_holds_its_counts(
     assert column.missing_by_source == {}
     assert column.n_missing_withheld == 12
     assert column.missing_by_class.text_code == 12
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     report = (tmp_path / "split-quality.txt").read_text("utf-8")
     assert _counts(report)["MISSED"] == 0
     assert "presence.n_present [universal.n_present]: HELD" in report
     assert "presence.n_missing [universal.n_missing]: HELD" in report
-    assert main(["generate", f"{written}"]) == 0
+    assert lowered_floor.main(["generate", f"{written}"]) == 0
     twin = tmp_path / "split-twin.csv"
-    assert main(["validate", f"{written}", "--twin", f"{twin}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{twin}"]) == 0
 
 
 def test_the_guard_checks_the_pool_s_total(tmp_path: pathlib.Path) -> None:
@@ -315,11 +315,11 @@ def test_the_guard_checks_the_pool_s_total(tmp_path: pathlib.Path) -> None:
     )
     written, description = _described(tmp_path, table, floor=11)
     assert description.columns[0].n_missing_withheld == 12
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     spelled = _split_witness(
         tmp_path, "spelled.csv", values + ["n/a"] * 18 + ["N/A"] * 6
     )
-    assert main(["validate", f"{written}", "--twin", f"{spelled}"]) == 3
+    assert lowered_floor.main(["validate", f"{written}", "--twin", f"{spelled}"]) == 3
     report = (tmp_path / "spelled-quality.txt").read_text("utf-8")
     assert "presence.n_present [universal.n_present]: MISSED" in report
     assert "presence.n_missing [universal.n_missing]: MISSED" in report

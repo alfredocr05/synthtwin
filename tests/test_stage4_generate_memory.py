@@ -134,6 +134,15 @@ _TABLES: "dict[str, tuple[str, typing.Callable[[], bytes], tuple[str, ...]]]" = 
 # digest below, and the merged tree writes the same. The other seven are
 # 8a02faa3's and af69aaef's alike (`planning-notes/work-2026-10/wave3/
 # merge-4h/gate-digests-base.txt`).
+#
+# `sorted_floor_one` and `sparse_floor_one` RE-MEASURED AT BATCH 4I'S MERGE
+# OF LANE MIN (plan P4-D426, 2026-10-23): `--smallest-group 1` is refused
+# since that plan, so `cases.run` reaches a floor of 1 through the bridge
+# (`tests/lowered_floor.py`, `cli.main`'s `internal_smallest_group`). The
+# batch's base fc25bae4, typing the option, and the merged tree, through
+# the bridge, write the same two twins and the same two descriptions, so
+# both digests stand (`planning-notes/work-2026-10/wave3/merge-4i/
+# floor-one-digests.log`).
 _BEFORE_SHA256 = {
     "latin": "c5a78f1a7c2980c4913bfe4e220cd321f70cb28d0305df1898b02ba4519bc09c",
     "sorted": "f88db8f7772084ce124ba6569786b8313e6a59a1aa88bb53944e098847b50592",

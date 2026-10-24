@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### The floor of 11 is a minimum: `--smallest-group` raises it and never lowers it (lane MIN, 2026-10-23)
+
+**Lane MIN** (plan P4-D426), on the owner's answer of 2026-10-23, "Only
+raise it". Every command refuses `--smallest-group` under 11, or text
+that is no whole number, in plain words, with code 2, writing nothing,
+under every spelling argparse takes for the option; 11 and more behave as
+before. `generate` and `validate` refuse, with code 1 and nothing
+written, a description an earlier version wrote under a lowered floor,
+saying to describe the table again: a twin is meant to be shared freely
+(decision D7), so none is built from groups that small. Lower floors are
+reached only by `cli.main`'s internal keyword `internal_smallest_group`
+(named without "floor", so the default-floor check stays whole), which
+the test suite (through `tests/lowered_floor.py`) and the measurement
+drivers pass and no option, environment variable, questions file or
+settings file reaches; under 1 it is refused on every command. The help,
+README, STATUS, SECURITY and the contract say so, the user-facing pages
+naming no library keyword; the refusal says what the floor counts (rows,
+and people where the person column is known), and rebuilding an old
+description is not promised to keep code running, since levels it named
+under 11 may be withheld. Measured: at floors 1, 2, 5, 10, 11 and 20 and
+with none, every file and screen of 441 runs is byte for byte what
+b85200be wrote typing the same floor (3,717 digests); no golden, frozen
+vector or ledger file moves.
+
+
 ### No twin of a small table: the owner's table floor (2026-10-22)
 
 **`synthtwin profile` refuses, writing nothing, a table with fewer than

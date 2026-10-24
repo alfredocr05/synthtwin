@@ -745,8 +745,78 @@ class _Options:
     first_row_typed: bool = False
 
 
-def _parse_arguments(argv: "list[str] | None") -> _Options:
+def _typed_floor(typed: str) -> int:
+    """The smallest group size typed after `--smallest-group`, or a refusal.
+
+    THE FLOOR OF 11 IS A MINIMUM (plan P4-D426). Returns the number where
+    it is a whole number of `_SMALLEST_GROUP` or more; otherwise says why
+    in plain words and stops with code 2 (`_refuse_the_command_line`),
+    before anything is read or written. `int` reads the text exactly as
+    argparse's `type=int` read it before that plan, so every number of 11
+    or more is taken as it was. Determinism: a fixed function of the text.
+    """
+    try:
+        floor = int(typed)
+    except ValueError:
+        _refuse_the_command_line(errors.floor_not_a_whole_number(_shown(typed)))
+        raise
+    if floor < _SMALLEST_GROUP:
+        _refuse_the_command_line(errors.floor_under_the_minimum(_shown(typed)))
+    return floor
+
+
+def _description_floor_refused(
+    floor: int, least: int, description: str, building: bool
+) -> bool:
+    """Whether a description's recorded floor is refused; says so if it is.
+
+    HIPAA FIRST (plan P4-D426): `generate` builds no twin from, and
+    `validate` checks no file against, a description recording a smallest
+    group size under ``least`` -- `_SMALLEST_GROUP` on every typed
+    command -- and the refusal is put on the error stream here, before
+    anything is written. ``building`` is True for `generate`.
+    """
+    if floor >= least:
+        return False
+    _warn(
+        errors.description_floor_under_the_minimum(
+            _shown(description), floor, building
+        )
+    )
+    return True
+
+
+def _no_floor_at_all(given: "int | None") -> bool:
+    """Whether `main`'s internal setting is under 1; says so if it is.
+
+    NO FLOOR AT ALL, whichever command (plan P4-D426, Codex's review of
+    lane MIN, item 6): `main` refuses it, with code 2, before any command
+    is dispatched and before anything is read or written, in the words
+    `profile` always gave it -- so `generate` and `validate` never read a
+    description against a least size of 0 or less. None (the setting
+    off) and every whole number of 1 or more pass.
+    """
+    if given is None or given >= 1:
+        return False
+    _warn(errors.floor_not_positive(f"{given}"))
+    return True
+
+
+def _parse_arguments(
+    argv: "list[str] | None", internal_smallest_group: "int | None"
+) -> _Options:
     """Build the command line and read it; return the options.
+
+    THE SMALLEST GROUP SIZE IS RAISED, NEVER LOWERED (plan P4-D426, the
+    owner's answer of 2026-10-23). `--smallest-group`, under any spelling
+    argparse takes for it, is refused here with code 2 -- before any
+    command word is acted on, so nothing is read or written -- where it
+    is no whole number or a number under `_SMALLEST_GROUP`, whichever
+    command it was typed with. ``internal_smallest_group`` is `main`'s
+    internal keyword of the same name: given, it IS the floor and the typed
+    option is not read, as though that number had been typed before plan
+    P4-D426 (`floor_chosen` True, so a run under 11 shows the warnings
+    such a run showed). Nothing on the command line sets it.
 
     The command word is an ordinary argument rather than a subcommand.
     That keeps one help screen for the whole tool -- which is what a
@@ -858,12 +928,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     )
     parser.add_argument(
         "--smallest-group",
-        type=int,
+        # TEXT, READ AS A NUMBER BELOW (plan P4-D426), so that a word that
+        # is no number is refused in this module's words and through its
+        # display boundary rather than in argparse's.
         # NONE RATHER THAN THE NUMBER, so that typing the default is
-        # distinguishable from not typing it (plan A-P4-37). The screen
-        # alarm below is for somebody who CHOSE a floor that names small
-        # groups; the written pages state what the description carries
-        # either way, and they are the files that travel.
+        # distinguishable from not typing it (plan A-P4-37).
         default=None,
         metavar="ROWS",
         help=(
@@ -872,12 +941,10 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             f"being named. THE DEFAULT IS {_SMALLEST_GROUP}: no group named "
             "anywhere in the profile covers fewer than "
             f"{_SMALLEST_GROUP} rows, so a value that fewer rows share is "
-            "not named and does not reach the twin by name. A smaller "
-            "number is let through -- --smallest-group 1 names every value "
-            "your table holds, together with how many rows shared it -- "
-            "and then the screen and every file the run makes say on their "
-            "face that the profile names groups small enough to point at "
-            "one person "
+            "not named and does not reach the twin by name. It can be "
+            "raised -- --smallest-group 20 leaves out every value fewer "
+            "than 20 rows share -- and never lowered: a number under "
+            f"{_SMALLEST_GROUP} is refused and nothing is written "
             f"(default: {_SMALLEST_GROUP})"
         ),
     )
@@ -1225,6 +1292,9 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             f"my-table-profile.json  and nothing else. If the path has a "
             f"space in it, put quotation marks around the whole path."
         )
+    floor_typed: "int | None" = None
+    if internal_smallest_group is None and args.smallest_group is not None:
+        floor_typed = _typed_floor(f"{args.smallest_group}")
     if args.command == _PROFILE and args.path is None:
         _refuse_the_command_line(
             "Please say which file to describe, for example: "
@@ -1265,11 +1335,15 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         twin=args.twin,
         out_dir=args.out_dir,
         smallest_group=(
-            _SMALLEST_GROUP
-            if args.smallest_group is None
-            else int(args.smallest_group)
+            internal_smallest_group
+            if internal_smallest_group is not None
+            else _SMALLEST_GROUP
+            if floor_typed is None
+            else floor_typed
         ),
-        floor_chosen=args.smallest_group is not None,
+        floor_chosen=(
+            internal_smallest_group is not None or floor_typed is not None
+        ),
         identifiers=list(named),
         codes=list(code_named),
         measurements=list(measured_named),
@@ -2884,6 +2958,15 @@ def _counted_settings(
 
 def _lowered_floor_warning(given: int) -> str:
     """The warning shown when `--smallest-group` is under the notice line.
+
+    SINCE PLAN P4-D426 NO PERSON REACHES IT. The owner answered on
+    2026-10-23 that the floor of 11 is a minimum: `--smallest-group`
+    under 11 is refused, writing nothing, and `generate` and `validate`
+    refuse a description recorded under 11. Such a description is made
+    now only through `cli.main`'s internal keyword
+    `internal_smallest_group`, for
+    the suite and the measurement drivers, and this warning is kept byte
+    for byte for them.
 
     Guarantees:
 
@@ -5873,6 +5956,7 @@ def _run_generate(
     out_dir: "str | None",
     seed_given: str,
     replace: bool,
+    least_floor: int,
 ) -> int:
     """Do the work of `synthtwin generate`; return the exit code.
 
@@ -5915,6 +5999,13 @@ def _run_generate(
         _warn(refusal)
         return 2
     loaded = contract.load_profile(description)
+    # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT BUILT FROM (plan
+    # P4-D426, HIPAA first): the twin would hold every group it names,
+    # however small, and decision D7 lets a twin travel freely.
+    if _description_floor_refused(
+        loaded.settings.small_cell_floor, least_floor, description, True
+    ):
+        return 1
     # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
     # P4-D79, which supersedes P4-D78's refusal). The description says
     # which the table was, so the twin's name, its bytes and the rules
@@ -6238,7 +6329,8 @@ def _run_validate(
     twin_given: "str | None",
     out_dir: "str | None",
     replace: bool,
-    sheet: str = "",
+    sheet: str,
+    least_floor: int,
 ) -> int:
     """Do the work of `synthtwin validate`; return the exit code.
 
@@ -6276,6 +6368,13 @@ def _run_validate(
     from synthtwin import contract, quality, validation, writing
 
     loaded = contract.load_profile(description)
+    # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT CHECKED AGAINST
+    # (plan P4-D426, HIPAA first): the report would quote its small
+    # groups and count the checked file's at that size.
+    if _description_floor_refused(
+        loaded.settings.small_cell_floor, least_floor, description, False
+    ):
+        return 1
     measured = _measured_path(
         description, twin_given, loaded.source.workbook is not None
     )
@@ -6868,6 +6967,7 @@ def main(
     chain: "ChainRun | None" = None,
     *,
     small_tables_refused: bool = True,
+    internal_smallest_group: "int | None" = None,
 ) -> int:
     """Run the `synthtwin` command.
 
@@ -6896,6 +6996,33 @@ def main(
       floor and notice as they were. No command-line option, and no
       environment variable, sets it, and it changes no byte written for
       a table at or above the floor.
+    - THE FLOOR OF 11 IS A MINIMUM (plan P4-D426, the owner's answer of
+      2026-10-23). `--smallest-group` raises the smallest group size and
+      never lowers it: a number under 11, or text that is no number, is
+      refused with code 2 whichever command it is typed with, before
+      anything is read or written. `generate` and `validate` refuse,
+      with code 1 and nothing written, a description that records a
+      smallest group size under 11, which a version before that plan
+      could write.
+    - `internal_smallest_group`, keyword only and INTERNAL (plan P4-D426;
+      named without "floor" so the default-floor check stays whole): None,
+      the default and the only value a typed command ever runs with, keeps
+      the rules above. A whole number is for the suite's helpers and the
+      measurement drivers, which describe tables at the floors they were
+      written for: `profile` then works at that number, under 11
+      included, with the warnings a lowered floor showed before that
+      plan (the typed option is not read), and `generate` and `validate`
+      read a description whose size is at least the smaller of that
+      number and 11. A number under 1 is no floor at all: it is refused
+      with code 2 by every command, before anything is read or written
+      (`profile` refused it so before that plan; `generate` and
+      `validate` would otherwise read a description at any floor). No
+      command-line option, environment variable, questions file or
+      settings file sets it -- synthtwin reads no settings file, and no
+      environment variable but the two that place the chain's data
+      folder behind `chain` (`installation.data_folder`: LOCALAPPDATA,
+      XDG_DATA_HOME) -- and it changes no byte written at a floor of 11
+      or more.
     - Return codes: 0 when the work finished; 1 when a file given could
       not be read or an output file could not be written, with a
       plain-language explanation on the error stream; 2 when an option's
@@ -6982,7 +7109,16 @@ def main(
       must not: they are read by a program, and an escaped cell would be
       a value the description never published.
     """
-    options = _parse_arguments(argv)
+    options = _parse_arguments(argv, internal_smallest_group)
+    if _no_floor_at_all(internal_smallest_group):
+        return 2
+    # The least smallest group size a description `generate` or
+    # `validate` reads may record (plan P4-D426).
+    least_read = (
+        _SMALLEST_GROUP
+        if internal_smallest_group is None
+        else min(internal_smallest_group, _SMALLEST_GROUP)
+    )
 
     if options.version:
         _say(_version())
@@ -7001,7 +7137,11 @@ def main(
     try:
         if generating:
             return _run_generate(
-                named, options.out_dir, options.seed, options.replace
+                named,
+                options.out_dir,
+                options.seed,
+                options.replace,
+                least_read,
             )
         if validating:
             return _run_validate(
@@ -7010,6 +7150,7 @@ def main(
                 options.out_dir,
                 options.replace,
                 options.sheet,
+                least_read,
             )
         return _run_profile(
             named,

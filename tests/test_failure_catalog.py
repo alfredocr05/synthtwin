@@ -47,6 +47,13 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "output_folder_missing": ("/reports",),
     "output_not_writable": ("/reports/out.json", "read-only file system"),
     "floor_not_positive": ("0",),
+    # THE FLOOR OF 11 IS A MINIMUM (plan P4-D426): a typed number under
+    # it, typed text that is no number, and a description an earlier
+    # version wrote under a lowered floor, for each of the two commands
+    # that read one. Each names the number or text typed, or the path.
+    "floor_under_the_minimum": ("5",),
+    "floor_not_a_whole_number": ("abc",),
+    "description_floor_under_the_minimum": ("/data/t-profile.json", 1, True),
     # THE POPULATION FLOOR (plan P4-D341). Registered with the landing
     # that added it, because a refusal nobody has read is a refusal
     # nobody has checked. Two shapes, and the people one carries the

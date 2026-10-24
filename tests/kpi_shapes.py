@@ -26,7 +26,6 @@ import sys
 import fixtures
 import workbooks
 from synthtwin import (
-    cli,
     contract,
     generation,
     profile,
@@ -35,6 +34,7 @@ from synthtwin import (
     taxonomy,
     validation,
 )
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # The golden demonstration's seed (tests/test_twin_golden.py).
 GOLDEN_SEED = 20260811
@@ -215,8 +215,9 @@ def quiet_cli(argv: "list[str]") -> int:
         ):
             try:
                 # The table floor off (plan P4-D425): the shapes are
-                # small tables, measured as they were before the floor.
-                code = cli.main(small_tables_refused=False)
+                # small tables, measured as they were before the floor;
+                # a floor under 11 through the bridge (plan P4-D426).
+                code = lowered_floor.main(small_tables_refused=False)
             except SystemExit as stop:
                 code = 0 if stop.code is None else int(stop.code)
     finally:

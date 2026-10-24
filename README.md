@@ -189,9 +189,9 @@ why the rule asks first whether the column is one.
 **By default no label fewer than eleven rows held is named**:
 synthtwin pools every group under eleven rows into a count that names
 none of them, so a label rarer than that does not reach your twin by
-name. `--smallest-group` lowers the number -- down to 1, where
-every value is named together with how many rows shared it -- and the
-whole workflow runs on the result. What a named rare value tells
+name. `--smallest-group` can raise that number -- `--smallest-group 20`
+pools every group under twenty rows -- and never lower it: a number
+under eleven is refused and nothing is written. What a named value tells
 anybody is that somebody in your table had it -- synthtwin publishes
 nothing that crosses two columns, so it says nothing about who, or
 about anything else that person's row holds. What each setting costs
@@ -346,9 +346,9 @@ a column of 100 codes `1000` to `1099`, one row each: at the default
 floor the description publishes no code at all, and a prefix `10` that
 every one of the 100 source rows carried came back on 20 rows of the
 twin at seed 4. So the promise is worth what the floor leaves named --
-count the rows per code before relying on a rollup, and read what
-lowering `--smallest-group` costs below before lowering it. synthtwin
-knows no coding system and does not need to.
+count the rows per code before relying on a rollup. The floor cannot be
+lowered below 11, so a code fewer than eleven rows share is never named.
+synthtwin knows no coding system and does not need to.
 
 **synthtwin asks you about this rather than guessing.** A column of
 `08`, `20`, `213` is vaccine codes or it is counts, and the two are
@@ -393,24 +393,26 @@ there are more of them than a set of categories could have -- the
 questions file asks you about it and the screen says the count was
 taken in rows.
 
-**`--smallest-group`, and what lowering it does.** It changes how many
-rows a group needs before the profile names it. **The default is 11**:
-no VALUE named anywhere in the profile is held by fewer than eleven
-rows, so a value fewer than eleven rows share is pooled into a count
-that names none of them, and does not reach your twin by name. Any
-whole number of 1 or more is accepted end to end: `profile`, `generate`
-and `validate` all run on the file it produces. Raising it publishes
-less. Lowering it publishes more, and **below 11 the profile publishes
-small groups and their counts**, which is worth reading slowly, because
-the count is the disclosure rather than a route to one. At a smallest
-group size of two, the profile names values that
-two rows shared and says that two rows shared them; at one, it names a
-value one row held and says that one row held it. If one row of your
-table is one person, somebody who already knows one true thing about
-someone in it -- that they are in it at all -- can find the small group
-that person must be in and read off everything else the profile says
-about that group. Eleven is the number that keeps a published group too
-big for that where one row is one person.
+**`--smallest-group` raises the floor and never lowers it.** It changes
+how many rows a group needs before the profile names it. **The default
+is 11, and 11 is also the least**: no VALUE named anywhere in the
+profile is held by fewer than eleven rows, so a value fewer than eleven
+rows share is pooled into a count that names none of them, and does not
+reach your twin by name. Any whole number of 11 or more is accepted end
+to end -- `profile`, `generate` and `validate` all run on the file it
+produces -- and a larger one publishes less. A number under 11, or
+anything that is not a whole number, is refused in plain words and
+nothing is written, whichever command it is typed with. That is the
+owner's decision of 2026-10-23 (plan P4-D426): below 11 a profile would
+publish small groups and their counts, and the count is the disclosure
+rather than a route to one -- at one, it would name a value one row held
+and say that one row held it, and if one row of your table is one
+person, somebody who already knows that person is in it could find the
+small group they must be in and read off everything else the profile
+says about it. A twin is meant to be shared freely, so no file synthtwin
+writes names a group that small. A description written by an earlier
+version with the number lowered is refused the same way by `generate`
+and `validate`: describe the table again and delete the old files.
 
 **The two floors are counted in different units, and the difference
 matters.** The SIZE of your table is counted in people where a declared
@@ -435,13 +437,11 @@ that needed it keeps the warning and drops the number.
 The counts do not stop at the profile: the twin is built to hold them
 exactly, and the summary, the questions file, the twin's report and the
 quality report quote them back, so all six files of a run carry them.
-synthtwin does not
-refuse the option -- it is your table and your institution's rules -- but
-a run at a lowered number prints an unmissable warning before either file
-exists; the description records the floor it was made at; and the
-plain-language summary, the twin's report and the quality report each say
-on their own face that it was made that way, so that a colleague handed
-one of those alone can tell.
+That is why the floor stops at eleven: every value those files name is
+held by at least eleven rows, or the larger number you chose, so every
+count the floor governs is at least that number -- the counts of cells
+by kind above are not governed by it -- and the description records the
+floor it was made at.
 
 `--keep-value` names a value your table means as real data even though
 synthtwin would otherwise read it as "no value" -- a region genuinely

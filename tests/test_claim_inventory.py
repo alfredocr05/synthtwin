@@ -318,7 +318,7 @@ def _shipped_command_words() -> "tuple[str, ...]":
         contextlib.redirect_stderr(complaint),
         contextlib.suppress(SystemExit),
     ):
-        cli._parse_arguments(["a-word-no-command-can-be"])
+        cli._parse_arguments(["a-word-no-command-can-be"], None)
     said = complaint.getvalue()
     found = re.search(r"argument command:[^(]*\(choose from ([^)]*)\)", said)
     assert found is not None, (

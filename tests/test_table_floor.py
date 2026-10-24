@@ -310,9 +310,12 @@ def test_the_internal_parameter_is_keyword_only_and_on_by_default() -> None:
     function = ast.parse(inspect.getsource(cli.main).lstrip()).body[0]
     assert isinstance(function, ast.FunctionDef)
     names = [argument.arg for argument in function.args.kwonlyargs]
-    assert names == ["small_tables_refused"]
-    default = function.args.kw_defaults[0]
-    assert isinstance(default, ast.Constant) and default.value is True
+    # Lane MIN's `internal_smallest_group` beside it (plan P4-D426,
+    # batch 4i's integration): both keyword only, each off by default.
+    assert names == ["small_tables_refused", "internal_smallest_group"]
+    defaults = function.args.kw_defaults
+    assert isinstance(defaults[0], ast.Constant) and defaults[0].value is True
+    assert isinstance(defaults[1], ast.Constant) and defaults[1].value is None
 
 
 def test_no_command_line_reaches_the_internal_parameter() -> None:
@@ -577,7 +580,7 @@ def _every_option() -> "list[str]":
     argparse.ArgumentParser.parse_known_args = caught  # type: ignore[assignment,method-assign]
     try:
         with pytest.raises(SystemExit):
-            cli._parse_arguments(["profile", "x.csv"])
+            cli._parse_arguments(["profile", "x.csv"], None)
     finally:
         argparse.ArgumentParser.parse_known_args = original  # type: ignore[method-assign]
     return sorted(seen)
