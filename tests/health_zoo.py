@@ -1154,7 +1154,8 @@ class Check:
 
     `column` is the column it reads, and `spoil` the change to a real
     table that must make it fail (`tests/test_health_zoo.py` runs every
-    one): by default, the column's first cell written as JUNK.
+    one): by default, the column's first cell written as JUNK; `rewrite`,
+    where given, writes the spoiled copy in place of the table's writer.
     """
 
     kind: str
@@ -1163,6 +1164,10 @@ class Check:
     run: "Callable[[dict[str, object]], object]"
     column: str = ""
     spoil: "Callable[[list[str], list[list[str]]], None] | None" = None
+    # A check of a FILE's shape (lane E0c: every field quoted) is spoiled
+    # by writing the same cells another way: the writer of its spoiled
+    # copy, where it is not the table's own.
+    rewrite: "Callable[[list[str], list[list[str]]], bytes] | None" = None
 
 
 def spoil_cell(column: str, value: str = JUNK, row: int = 0) -> "Callable[[list[str], list[list[str]]], None]":

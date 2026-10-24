@@ -38,7 +38,9 @@ exchange, social security numbers in the 900 area no person holds).
 
 from __future__ import annotations
 
+import csv
 import datetime
+import io
 import math
 import random
 import re
@@ -360,14 +362,1217 @@ FAMILY_ROLES: "tuple[Table, ...]" = (
     ),
 )
 
+# -- family 2: the clinical domains, part 1 -------------------------------------
+
+MEDICINES = _zipf((
+    "Metformin", "Lisinopril", "Acetaminophen", "Insulin glargine", "Heparin", "Ondansetron", "Morphine",
+    "Vancomycin", "Furosemide", "Albuterol", "Pantoprazole", "Enoxaparin",
+))
+ATC_OF = {
+    "Metformin": "A10BA02", "Lisinopril": "C09AA03", "Acetaminophen": "N02BE01", "Insulin glargine": "A10AE04",
+    "Heparin": "B01AB01", "Ondansetron": "A04AA01", "Morphine": "N02AA01", "Vancomycin": "J01XA01",
+    "Furosemide": "C03CA01", "Albuterol": "R03AC02", "Pantoprazole": "A02BC02", "Enoxaparin": "B01AB05",
+}
+DOSE_OF = {
+    "Metformin": "500 mg", "Lisinopril": "10 mg", "Acetaminophen": "650 mg", "Insulin glargine": "20 units",
+    "Heparin": "5000 units", "Ondansetron": "4 mg", "Morphine": "2 mg", "Vancomycin": "1 g",
+    "Furosemide": "40 mg", "Albuterol": "2 puffs", "Pantoprazole": "40 mg", "Enoxaparin": "40 mg",
+}
+ADMIN_STATUS = (("Given", 80.0), ("Held", 10.0), ("Refused", 5.0), ("Not Given", 5.0))
+HELD_REASONS = (("NPO", 40.0), ("Patient refused", 25.0), ("Hold parameters", 25.0), ("Not available", 10.0))
+
+
+def medication_administration(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A medication administration record: dose and unit, given or held and why, PRN, the ATC class."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "mar_id", "patient_id", "scheduled_at", "drug", "atc_code", "dose_given", "admin_status", "given_at",
+        "prn", "held_reason",
+    ]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        drug = _pick(draw, MEDICINES)
+        scheduled = _when(draw).replace(minute=0, second=0)
+        status = _pick(draw, ADMIN_STATUS)
+        given = status == "Given"
+        rows += [[
+            f"MAR{60000000 + index}",
+            _person(draw, people),
+            scheduled.strftime("%Y-%m-%d %H:%M"),
+            drug,
+            ATC_OF[drug],
+            DOSE_OF[drug] if given else "",
+            status,
+            (scheduled + datetime.timedelta(minutes=draw.randint(0, 90))).strftime("%Y-%m-%d %H:%M") if given else "",
+            "Y" if draw.random() < 0.2 else "N",
+            "" if given else _pick(draw, HELD_REASONS),
+        ]]
+    return header, rows
+
+
+def quoted_bytes(header: "list[str]", rows: "list[list[str]]") -> bytes:
+    """A delimited table with every field inside quotes, as some exporters write every file."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n", quoting=csv.QUOTE_ALL)
+    writer.writerow(header)
+    writer.writerows(rows)
+    return buffer.getvalue().encode("utf-8")
+
+
+def _every_field_quoted(data: object) -> bool:
+    """Whether every field of every line opens and closes with a quote (no field holds a line break here)."""
+    if not isinstance(data, bytes):
+        return False
+    for line in data.decode("utf-8").splitlines():
+        for field in next(csv.reader([line], quoting=csv.QUOTE_NONE, escapechar=None)):
+            if not (len(field) >= 2 and field.startswith('"') and field.endswith('"')):
+                return False
+    return True
+
+
+NDC_FORMS = (
+    ("0002-3227-30", 8.0), ("0006-0749-54", 7.0), ("0009-0090-01", 8.0), ("0013-2626-81", 7.0),
+    ("50090-123-01", 8.0), ("60505-257-05", 7.0), ("00093-715-56", 8.0), ("68180-513-09", 7.0),
+    ("00071-0155-2", 10.0), ("00378-0208-1", 10.0), ("00591-0405-1", 10.0), ("00904-6278-6", 10.0),
+)
+DAYS_SUPPLY = (
+    ("30", 55.0), ("90", 25.0), ("7", 5.0), ("14", 4.0), ("10", 3.0), ("5", 2.0), ("21", 2.0), ("28", 2.0),
+    ("84", 1.0), ("60", 1.0),
+)
+QUANTITIES = (("30", 30.0), ("60", 15.0), ("90", 20.0), ("15.5", 5.0), ("120", 10.0), ("28", 10.0), ("1", 10.0))
+DAW = (("0", 82.0), ("1", 8.0), ("2", 4.0), ("3", 2.0), ("5", 2.0), ("7", 1.0), ("8", 1.0))
+
+
+def pharmacy_fills(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A pharmacy's dispensing file: NDC in its three labeler forms, days supply, quantity, DAW codes."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["rx_number", "patient_id", "fill_date", "ndc", "quantity", "days_supply", "daw_code"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        rows += [[
+            f"RX{7000000 + index}",
+            _person(draw, people),
+            _when(draw).date().isoformat(),
+            _pick(draw, NDC_FORMS),
+            _pick(draw, QUANTITIES),
+            _pick(draw, DAYS_SUPPLY),
+            _pick(draw, DAW),
+        ]]
+    return header, rows
+
+
+SMOKING = (
+    ("Never smoker", 55.0), ("Former smoker", 25.0), ("Current every day smoker", 10.0),
+    ("Current some day smoker", 5.0), ("Unknown if ever smoked", 5.0),
+)
+ALCOHOL = (("None", 50.0), ("Social", 35.0), ("Daily", 5.0), ("Declined", 10.0))
+
+
+def prenatal_visits(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Prenatal visits: gestational age written 37+5 and 39w2d, gravida and para (G2P1), the social history."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "patient_id", "visit_date", "gest_age_plus", "gest_age_wd", "gravida_para", "smoking_status",
+        "pack_years", "alcohol_use",
+    ]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        gravida = draw.choice((1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 6))
+        smoking = _pick(draw, SMOKING)
+        rows += [[
+            _person(draw, people),
+            _when(draw).date().isoformat(),
+            f"{draw.randint(6, 41)}+{draw.randint(0, 6)}",
+            f"{draw.randint(6, 41)}w{draw.randint(0, 6)}d",
+            f"G{gravida}P{draw.randint(0, gravida - 1)}",
+            smoking,
+            "" if smoking.startswith(("Never", "Unknown")) else f"{draw.uniform(0.5, 40.0):.1f}",
+            _pick(draw, ALCOHOL),
+        ]]
+    return header, rows
+
+
+def _gestation_days(series: object, mark: str) -> "tuple[float, float, float] | None":
+    """A gestational age read as days: weeks times seven plus days, '37+5' or '37w5d'."""
+    pattern = r"(\d{1,2})\+([0-6])" if mark == "+" else r"(\d{1,2})w([0-6])d"
+    days: "list[float]" = []
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        match = re.fullmatch(pattern, text)
+        if match:
+            days += [float(7 * int(match.group(1)) + int(match.group(2)))]
+    return _spread(days)
+
+
+def _doubled_weeks(value: str) -> str:
+    match = re.fullmatch(r"(\d{1,2})([+w])(.*)", value)
+    return f"{2 * int(match.group(1))}{match.group(2)}{match.group(3)}" if match else value
+
+
+def _para_past_gravida(series: object) -> int:
+    bad = 0
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        match = re.fullmatch(r"G(\d+)P(\d+)", text)
+        bad += 0 if match and int(match.group(2)) < int(match.group(1)) else 1
+    return bad
+
+
+def well_child(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Well-child visits: ages in days, months and years ('14 d', '3 mo', '2 yr'), growth percentiles with <1 and >99."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["patient_id", "visit_date", "age_text", "wt_kg", "weight_pct", "head_circ"]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        days = draw.randint(3, 1800)
+        if days < 30:
+            age = f"{days} d"
+        elif days < 730:
+            age = f"{days // 30} mo"
+        else:
+            age = f"{days // 365} yr"
+        level = draw.random()
+        percentile = "<1" if level < 0.03 else ">99" if level < 0.06 else f"{draw.randint(1, 99)}"
+        rows += [[
+            _person(draw, people),
+            _when(draw).date().isoformat(),
+            age,
+            f"{3.3 + days * 0.008 + draw.gauss(0, 0.6):.2f}",
+            percentile,
+            f"{34.5 + 12.0 * (1 - math.exp(-days / 300.0)) + draw.gauss(0, 0.8):.1f} cm",
+        ]]
+    return header, rows
+
+
+AGE_UNITS = {"d": 1.0, "mo": 30.4, "yr": 365.25}
+
+
+def _age_days(series: object) -> "tuple[float, float, float] | None":
+    days: "list[float]" = []
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        match = re.fullmatch(r"(\d{1,4}) (d|mo|yr)", text)
+        if match:
+            days += [round(int(match.group(1)) * AGE_UNITS[match.group(2)], 1)]
+    return _spread(days)
+
+
+RHYTHMS = (
+    ("Sinus rhythm", 60.0), ("Sinus tachycardia", 12.0), ("Sinus bradycardia", 10.0),
+    ("Atrial fibrillation", 12.0), ("Atrial flutter", 3.0), ("Paced rhythm", 3.0),
+)
+
+
+def ecg_reads(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """ECG reads: intervals in milliseconds (PR written '164 ms', blank in atrial fibrillation), QTc, rhythm, axis."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["patient_id", "ecg_at", "vent_rate", "pr_interval", "qrs_duration", "qtc_interval", "rhythm", "axis"]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        rhythm = _pick(draw, RHYTHMS)
+        rows += [[
+            _person(draw, people),
+            _when(draw).strftime("%Y-%m-%d %H:%M:%S"),
+            f"{draw.randint(40, 150)}",
+            "" if rhythm.startswith("Atrial") else f"{draw.randint(120, 220)} ms",
+            f"{draw.randint(70, 160)}",
+            f"{draw.randint(360, 520)}",
+            rhythm,
+            f"{draw.randint(-90, 180)}",
+        ]]
+    return header, rows
+
+
+GENERA = (
+    "Staphylococcus", "Streptococcus", "Enterococcus", "Escherichia", "Klebsiella", "Pseudomonas", "Enterobacter",
+    "Proteus", "Serratia", "Acinetobacter", "Candida", "Bacteroides", "Clostridioides", "Haemophilus",
+    "Neisseria", "Citrobacter", "Morganella", "Stenotrophomonas", "Corynebacterium", "Moraxella",
+)
+SPECIES = (
+    "aureus", "epidermidis", "pneumoniae", "faecalis", "faecium", "coli", "aeruginosa", "cloacae", "mirabilis",
+    "marcescens", "baumannii", "albicans", "glabrata", "fragilis", "difficile", "influenzae", "meningitidis",
+    "freundii", "morganii", "maltophilia", "striatum", "catarrhalis", "agalactiae", "pyogenes", "lugdunensis",
+    "oxytoca", "aerogenes", "vulgaris", "parapsilosis", "tropicalis",
+)
+# 150 organism names on a Zipf tail, beside the two words a culture
+# writes when it grows nothing named.
+ORGANISM_TAIL = _zipf(tuple(
+    f"{GENERA[place % len(GENERA)]} {SPECIES[(place * 7 + place // len(GENERA)) % len(SPECIES)]}"
+    for place in range(150)
+))
+SPECIMENS = (("Blood", 35.0), ("Urine", 35.0), ("Sputum", 15.0), ("Wound", 15.0))
+GROWTH = (("Heavy", 30.0), ("Moderate", 30.0), ("Light", 25.0), ("Rare", 15.0))
+
+
+def culture_results(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Culture results: organism names as a long tail, beside 'No growth' and 'Mixed flora'."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["isolate_id", "patient_id", "specimen", "organism", "growth"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        level = draw.random()
+        organism = "No growth" if level < 0.2 else "Mixed flora" if level < 0.25 else _pick(draw, ORGANISM_TAIL)
+        rows += [[
+            f"ISO{80000000 + index}",
+            _person(draw, people),
+            _pick(draw, SPECIMENS),
+            organism,
+            "" if organism == "No growth" else _pick(draw, GROWTH),
+        ]]
+    return header, rows
+
+
+EXAMS = ("CT CHEST WITH CONTRAST", "MRI BRAIN WITHOUT CONTRAST", "XR CHEST 2 VIEWS", "US ABDOMEN COMPLETE")
+READERS = (
+    "Alan Brooks", "Maria Chen", "Samuel Ortiz", "Priya Raman", "Helen Novak", "David Okafor", "Laura Silva",
+    "Tomas Weber",
+)
+OBSERVED = (
+    "There is a 4 mm nodule in the right upper lobe.", "No pleural effusion.", "Mild degenerative change.",
+    "The liver is normal in size.", "Small hiatal hernia.", "No acute intracranial hemorrhage.",
+    "Scattered white matter hyperintensities.", "Heart size is normal.",
+)
+IMPRESSIONS = (
+    "Stable compared with the prior study.", "Recommend follow-up in 12 months.", "No acute process.",
+    "Result discussed with the ordering clinician.",
+)
+TEMPLATED = r"EXAM: [A-Z0-9 ]+\nOBSERVED: No acute abnormality\.\nIMPRESSION: Normal study\.\nElectronically signed by: Dr\. [A-Z][a-z]+ [A-Z][a-z]+"
+EXCEL_CELL = 32_767
+
+
+def reports(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Radiology and pathology reports under their headings, half of them a template that names its reader;
+    an addendum column whose rare cells run past Excel's 32,767 characters."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["report_id", "patient_id", "report_type", "report_text", "addendum"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        exam = draw.choice(EXAMS)
+        reader = draw.choice(READERS)
+        if draw.random() < 0.5:
+            text = (
+                f"EXAM: {exam}\nOBSERVED: No acute abnormality.\nIMPRESSION: Normal study.\n"
+                f"Electronically signed by: Dr. {reader}"
+            )
+        else:
+            found = " ".join(draw.sample(OBSERVED, draw.randint(1, 4)))
+            text = f"EXAM: {exam}\nOBSERVED: {found}\nIMPRESSION: {draw.choice(IMPRESSIONS)}"
+        level = draw.random()
+        if level < 0.025:
+            addendum = " ".join(draw.choice(OBSERVED) for _place in range(draw.randint(1100, 1300)))
+        elif level < 0.05:
+            addendum = "No addendum."
+        else:
+            addendum = ""
+        rows += [[
+            f"RPT{90000000 + index}",
+            _person(draw, people),
+            "Radiology" if draw.random() < 0.8 else "Pathology",
+            text,
+            addendum,
+        ]]
+    return header, rows
+
+
+def _share_templated(series: object) -> float:
+    cells = series.fillna("").astype(str)  # type: ignore[attr-defined]
+    return round(float(cells.str.fullmatch(TEMPLATED).mean()), 3) if len(cells) else 0.0
+
+
+def _past_excel(series: object) -> float:
+    cells = series.fillna("").astype(str)  # type: ignore[attr-defined]
+    return round(float((cells.str.len() > EXCEL_CELL).mean()), 3) if len(cells) else 0.0
+
+
+def _any_past_excel(series: object) -> bool:
+    cells = series.dropna().astype(str)  # type: ignore[attr-defined]
+    return bool((cells.str.len() > EXCEL_CELL).any())
+
+
+def _long_addendum(every: int) -> "object":
+    def change(header: "list[str]", rows: "list[list[str]]") -> None:
+        place = header.index("addendum")
+        for index in range(0, len(rows), every):
+            rows[index][place] = "No pleural effusion. " * 1700
+
+    return change
+
+
+DIAGNOSIS_SITES = _zipf(("C509", "C187", "C341", "C619", "C649", "C220"))
+HISTOLOGY = _zipf(("8500", "8140", "8070", "8520", "9680", "8010"))
+GRADES = (("1", 20.0), ("2", 35.0), ("3", 25.0), ("4", 5.0), ("9", 15.0))
+PATH_T = (
+    ("pT1mi", 3.0), ("pT1a", 8.0), ("pT1b", 10.0), ("pT1c", 20.0), ("pT2", 25.0), ("pT3", 15.0), ("pT4b", 4.0),
+    ("pTX", 5.0), ("pTis", 10.0),
+)
+AIS_CODES = _zipf((
+    "450203", "140651", "853422", "752100", "650616", "441002", "856100", "210402", "541822", "160806",
+    "710402", "816001",
+))
+
+
+def registry_extract_naaccr(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A state registry's extract: NAACCR dates to the day, the month or the year (YYYYMMDD, YYYYMM, YYYY),
+    site and histology without their marks, behaviour and grade, pT1mi, and a trauma registry's AIS codes."""
+    draw = random.Random(seed)
+    header = [
+        "case_ref", "date_of_diagnosis", "primary_site", "histology", "behavior", "grade", "path_t", "ais_code",
+        "injury_date",
+    ]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        known = zoo._day(draw, datetime.date(1995, 1, 1), datetime.date(2023, 12, 31))
+        level = draw.random()
+        when = known.strftime("%Y%m%d") if level < 0.6 else known.strftime("%Y%m") if level < 0.85 else f"{known.year}"
+        rows += [[
+            f"NC{30000000 + index}",
+            when,
+            _pick(draw, DIAGNOSIS_SITES),
+            _pick(draw, HISTOLOGY),
+            "3" if draw.random() < 0.9 else "2",
+            _pick(draw, GRADES),
+            _pick(draw, PATH_T),
+            f"{_pick(draw, AIS_CODES)}.{draw.randint(1, 6)}",
+            zoo._day(draw, datetime.date(2015, 1, 1), datetime.date(2024, 12, 31)).strftime("%Y%m%d"),
+        ]]
+    return header, rows
+
+
+def _naaccr_dates_bad(series: object) -> int:
+    bad = 0
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        form = {8: "%Y%m%d", 6: "%Y%m", 4: "%Y"}.get(len(text))
+        try:
+            parsed = datetime.datetime.strptime(text, form) if form else None
+        except ValueError:
+            parsed = None
+        bad += 0 if parsed and 1990 <= parsed.year <= 2030 else 1
+    return bad
+
+
+def _severity(series: object) -> "tuple[float, float, float] | None":
+    found = [float(text[-1]) for text in series.dropna().astype(str) if re.fullmatch(r"\d{6}\.[1-6]", text)]  # type: ignore[attr-defined]
+    return _spread(found)
+
+
+APPOINTMENT_STATUS = (("Completed", 70.0), ("No Show", 12.0), ("Cancelled", 12.0), ("Rescheduled", 6.0))
+
+
+def appointments(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Appointment slots on a quarter-hour grid, an evening clinic's slots ending at 24:00, no-shows."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["appt_id", "patient_id", "appt_date", "slot_start", "slot_end", "slot_minutes", "appt_status", "no_show"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        minutes = draw.choice((15, 30, 30, 45, 60))
+        if draw.random() < 0.15:
+            start = 24 * 60 - minutes
+        else:
+            start = draw.randint(7 * 4, 22 * 4) * 15
+        end = start + minutes
+        status = _pick(draw, APPOINTMENT_STATUS)
+        rows += [[
+            f"APT{40000000 + index}",
+            _person(draw, people),
+            _when(draw).date().isoformat(),
+            f"{start // 60:02d}:{start % 60:02d}",
+            f"{end // 60:02d}:{end % 60:02d}",
+            f"{minutes}",
+            status,
+            "Y" if status == "No Show" else "N",
+        ]]
+    return header, rows
+
+
+FAMILY_CLINICAL_A: "tuple[Table, ...]" = (
+    Table(
+        "medication_administration", ".csv", medication_administration,
+        quoted_bytes,
+        {
+            "all_fields_quoted": (),
+            "medication_administration": (
+                "mar_id", "patient_id", "scheduled_at", "drug", "atc_code", "dose_given", "admin_status",
+                "given_at", "prn", "held_reason",
+            ),
+        },
+        {"mar_id": "identifier", "patient_id": "identifier", "atc_code": "code"},
+        _csv_reader(),
+        (
+            Check("all_fields_quoted", "every field of every line is quoted", "same",
+                  lambda f: _every_field_quoted(f.get("bytes")), "", lambda header, rows: None,
+                  lambda header, rows: csv_bytes(header, rows)),
+            *_repeats("medication_administration"),
+            _dated("medication_administration", "scheduled_at parses as %Y-%m-%d %H:%M", "scheduled_at", "%Y-%m-%d %H:%M"),
+            _dated("medication_administration", "given_at parses as %Y-%m-%d %H:%M", "given_at", "%Y-%m-%d %H:%M"),
+            _listed("medication_administration", "medicines", "drug", _levels(MEDICINES)),
+            _pattern("medication_administration", "ATC codes", "atc_code", r"[A-Z]\d\d[A-Z]{2}\d\d"),
+            _pattern("medication_administration", "a dose and its unit", "dose_given", r"\d+(\.\d+)? (mg|g|units|puffs)"),
+            _listed("medication_administration", "given, held, refused or not given", "admin_status", _levels(ADMIN_STATUS)),
+            _listed("medication_administration", "PRN Y or N", "prn", {"Y", "N"}),
+            _listed("medication_administration", "reasons a dose is held", "held_reason", _levels(HELD_REASONS)),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "pharmacy_fills", ".csv", pharmacy_fills,
+        lambda header, rows: csv_bytes(header, rows),
+        {"pharmacy_dispensing": ("rx_number", "patient_id", "fill_date", "ndc", "quantity", "days_supply", "daw_code")},
+        {
+            "rx_number": "identifier", "patient_id": "identifier", "ndc": "code", "quantity": "measurement",
+            "days_supply": "measurement", "daw_code": "code",
+        },
+        _csv_reader(),
+        (
+            *_repeats("pharmacy_dispensing"),
+            _dated("pharmacy_dispensing", "fill_date parses as %Y-%m-%d", "fill_date", "%Y-%m-%d"),
+            _pattern("pharmacy_dispensing", "NDC in its 4-4-2, 5-3-2 and 5-4-1 forms", "ndc",
+                     r"\d{4}-\d{4}-\d{2}|\d{5}-\d{3}-\d{2}|\d{5}-\d{4}-\d"),
+            _bad("pharmacy_dispensing", "quantities read as numbers", "quantity", lambda f: _bad_numbers(_t("quantity")(f))),
+            _ranged("pharmacy_dispensing", "quantity", r"(?P<n>\d+(\.\d+)?)"),
+            _listed("pharmacy_dispensing", "days supply are the pharmacy's own", "days_supply", _levels(DAYS_SUPPLY)),
+            _listed("pharmacy_dispensing", "DAW codes", "daw_code", _levels(DAW)),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "prenatal_visits", ".csv", prenatal_visits,
+        lambda header, rows: csv_bytes(header, rows),
+        {
+            "obstetrics": ("patient_id", "visit_date", "gest_age_plus", "gest_age_wd", "gravida_para"),
+            "social_history": ("smoking_status", "pack_years", "alcohol_use"),
+        },
+        {
+            "patient_id": "identifier", "pack_years": "measurement", "gest_age_plus": "keep", "gest_age_wd": "keep",
+            "gravida_para": "keep",
+        },
+        _csv_reader(),
+        (
+            *_repeats("obstetrics"),
+            _dated("obstetrics", "visit_date parses as %Y-%m-%d", "visit_date", "%Y-%m-%d"),
+            _pattern("obstetrics", "gestational age written 37+5", "gest_age_plus", r"\d{1,2}\+[0-6]"),
+            Check("obstetrics", "gestational ages written 37+5 keep their range in days", "range",
+                  lambda f: _gestation_days(_t("gest_age_plus")(f), "+"), "gest_age_plus",
+                  spoil_every("gest_age_plus", _doubled_weeks)),
+            _pattern("obstetrics", "gestational age written 39w2d", "gest_age_wd", r"\d{1,2}w[0-6]d"),
+            Check("obstetrics", "gestational ages written 39w2d keep their range in days", "range",
+                  lambda f: _gestation_days(_t("gest_age_wd")(f), "w"), "gest_age_wd",
+                  spoil_every("gest_age_wd", _doubled_weeks)),
+            _pattern("obstetrics", "gravida and para (G2P1)", "gravida_para", r"G\d+P\d+"),
+            _bad("obstetrics", "para below gravida", "gravida_para",
+                 lambda f: _para_past_gravida(_t("gravida_para")(f)), spoil_cell("gravida_para", "G1P3")),
+            _listed("social_history", "smoking status", "smoking_status", _levels(SMOKING)),
+            _bad("social_history", "pack-years read as numbers", "pack_years", lambda f: _bad_numbers(_t("pack_years")(f))),
+            _ranged("social_history", "pack_years", r"(?P<n>\d+\.\d)"),
+            _listed("social_history", "alcohol use", "alcohol_use", _levels(ALCOHOL)),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "well_child", ".csv", well_child,
+        lambda header, rows: csv_bytes(header, rows),
+        {"pediatrics": ("patient_id", "visit_date", "age_text", "wt_kg", "weight_pct", "head_circ")},
+        {
+            "patient_id": "identifier", "age_text": "keep", "wt_kg": "measurement", "weight_pct": "measurement",
+            "head_circ": "measurement",
+        },
+        _csv_reader(),
+        (
+            *_repeats("pediatrics"),
+            _dated("pediatrics", "visit_date parses as %Y-%m-%d", "visit_date", "%Y-%m-%d"),
+            _pattern("pediatrics", "ages in days, months or years", "age_text", r"\d{1,2} (d|mo|yr)"),
+            Check("pediatrics", "ages read as days keep their range", "range",
+                  lambda f: _age_days(_t("age_text")(f)), "age_text",
+                  spoil_every("age_text", lambda v: re.sub(r"^(\d+)", lambda m: f"{3 * int(m.group(1))}", v))),
+            _bad("pediatrics", "weights read as numbers", "wt_kg", lambda f: _bad_numbers(_t("wt_kg")(f))),
+            _ranged("pediatrics", "wt_kg", r"(?P<n>-?\d+\.\d\d)"),
+            _pattern("pediatrics", "growth percentiles 1 to 99, <1 or >99", "weight_pct", r"<1|>99|\d{1,2}"),
+            *_rare("pediatrics", "some percentile is past the chart (<1 or >99)", "weight_pct", r"^(?:<1|>99)$",
+                   spoil_every("weight_pct", lambda v: "1" if v == "<1" else "99" if v == ">99" else v),
+                   crowd("weight_pct", ">99")),
+            _pattern("pediatrics", "head circumference in cm", "head_circ", r"\d{2}\.\d cm"),
+            _ranged("pediatrics", "head_circ", r"(?P<n>\d+\.\d) cm", 2.0),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "ecg_reads", ".csv", ecg_reads,
+        lambda header, rows: csv_bytes(header, rows),
+        {"cardiology_ecg": ("patient_id", "ecg_at", "vent_rate", "pr_interval", "qrs_duration", "qtc_interval", "rhythm", "axis")},
+        {
+            "patient_id": "identifier", "vent_rate": "measurement", "pr_interval": "measurement",
+            "qrs_duration": "measurement", "qtc_interval": "measurement", "axis": "measurement",
+        },
+        _csv_reader(),
+        (
+            *_repeats("cardiology_ecg"),
+            _dated("cardiology_ecg", "ecg_at parses as %Y-%m-%d %H:%M:%S", "ecg_at", "%Y-%m-%d %H:%M:%S"),
+            _pattern("cardiology_ecg", "PR intervals in ms", "pr_interval", r"\d{3} ms"),
+            _ranged("cardiology_ecg", "pr_interval", r"(?P<n>\d+) ms"),
+            _ranged("cardiology_ecg", "qrs_duration", r"(?P<n>\d+)"),
+            _ranged("cardiology_ecg", "qtc_interval", r"(?P<n>\d+)", 2.0),
+            _listed("cardiology_ecg", "rhythms", "rhythm", _levels(RHYTHMS)),
+            _bad("cardiology_ecg", "axes read as numbers", "axis", lambda f: _bad_numbers(_t("axis")(f))),
+            _ranged("cardiology_ecg", "axis", r"(?P<n>-?\d+)", 3.0),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "culture_results", ".csv", culture_results,
+        lambda header, rows: csv_bytes(header, rows),
+        {"organism_long_tail": ("isolate_id", "patient_id", "specimen", "organism", "growth")},
+        {"isolate_id": "identifier", "patient_id": "identifier", "organism": "code"},
+        _csv_reader(),
+        (
+            *_repeats("organism_long_tail"),
+            _listed("organism_long_tail", "specimens", "specimen", _levels(SPECIMENS)),
+            _pattern("organism_long_tail", "organisms named Genus species, or no growth or mixed flora", "organism",
+                     r"[A-Z][a-z]+ [a-z]+|No growth|Mixed flora"),
+            _listed("organism_long_tail", "organisms are named ones", "organism",
+                    _levels(ORGANISM_TAIL) | {"No growth", "Mixed flora"}),
+            _listed("organism_long_tail", "growth", "growth", _levels(GROWTH)),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "reports", ".csv", reports,
+        lambda header, rows: csv_bytes(header, rows),
+        {
+            "report_text_with_headings": ("report_id", "patient_id", "report_type", "report_text"),
+            "long_cell": ("addendum",),
+        },
+        {"report_id": "identifier", "patient_id": "identifier", "report_text": "keep", "addendum": "keep"},
+        _csv_reader(),
+        (
+            *_repeats("report_text_with_headings"),
+            _listed("report_text_with_headings", "report types", "report_type", {"Radiology", "Pathology"}),
+            *_present("report_text_with_headings", "some report keeps its IMPRESSION heading", "report_text", "\nIMPRESSION: ",
+                      spoil_every("report_text", lambda v: v.replace("IMPRESSION: ", ""))),
+            *_present("report_text_with_headings", "some report runs over several lines", "report_text", "\n",
+                      spoil_every("report_text", lambda v: v.replace("\n", " "))),
+            Check("report_text_with_headings", "the share of reports written from the template", "share",
+                  lambda f: _share_templated(_t("report_text")(f)), "report_text",
+                  spoil_every("report_text", lambda v: v.replace("Normal study.", "Normal."))),
+            Check("report_text_with_headings", "report lengths at the 10th, 50th and 90th percentiles", "ratios",
+                  lambda f: zoo._length_percentiles(_t("report_text")(f)), "report_text",
+                  spoil_every("report_text", lambda v: v[:15])),
+            Check("long_cell", "some addendum runs past Excel's 32,767 characters", "present",
+                  lambda f: _any_past_excel(_t("addendum")(f)), "addendum",
+                  spoil_every("addendum", lambda v: v[:EXCEL_CELL])),
+            Check("long_cell", "addenda past Excel's 32,767 characters, as a share", "share",
+                  lambda f: _past_excel(_t("addendum")(f)), "addendum", _long_addendum(4)),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "registry_naaccr", ".csv", registry_extract_naaccr,
+        lambda header, rows: csv_bytes(header, rows),
+        {"naaccr_and_trauma_registry": (
+            "case_ref", "date_of_diagnosis", "primary_site", "histology", "behavior", "grade", "path_t", "ais_code",
+            "injury_date",
+        )},
+        {
+            "case_ref": "identifier", "date_of_diagnosis": "dates", "primary_site": "code", "histology": "code",
+            "behavior": "code", "grade": "code", "path_t": "code", "ais_code": "code", "injury_date": "dates",
+        },
+        _csv_reader(),
+        (
+            _pattern("naaccr_and_trauma_registry", "NAACCR dates YYYYMMDD, YYYYMM or YYYY", "date_of_diagnosis",
+                     r"\d{8}|\d{6}|\d{4}"),
+            _bad("naaccr_and_trauma_registry", "each NAACCR date parses at its own precision", "date_of_diagnosis",
+                 lambda f: _naaccr_dates_bad(_t("date_of_diagnosis")(f))),
+            *_present("naaccr_and_trauma_registry", "some diagnosis is known to the year only", "date_of_diagnosis",
+                      r"^\d{4}$", spoil_every("date_of_diagnosis", lambda v: f"{v}0701" if len(v) == 4 else v)),
+            *_present("naaccr_and_trauma_registry", "some diagnosis is known to the month only", "date_of_diagnosis",
+                      r"^\d{6}$", spoil_every("date_of_diagnosis", lambda v: f"{v}15" if len(v) == 6 else v)),
+            _pattern("naaccr_and_trauma_registry", "primary sites without the point", "primary_site", r"C\d{3}"),
+            _pattern("naaccr_and_trauma_registry", "histology four figures", "histology", r"\d{4}"),
+            _listed("naaccr_and_trauma_registry", "behaviour", "behavior", {"2", "3"}),
+            _listed("naaccr_and_trauma_registry", "grades", "grade", _levels(GRADES)),
+            _pattern("naaccr_and_trauma_registry", "pathologic T (pT1mi)", "path_t", r"pT(X|is|[1-4](mi|[a-d])?)"),
+            _listed("naaccr_and_trauma_registry", "pathologic T categories", "path_t", _levels(PATH_T)),
+            _pattern("naaccr_and_trauma_registry", "AIS codes with their severity", "ais_code", r"\d{6}\.[1-6]"),
+            Check("naaccr_and_trauma_registry", "AIS severities keep their range", "range",
+                  lambda f: _severity(_t("ais_code")(f)), "ais_code",
+                  spoil_every("ais_code", lambda v: v[:-1] + "1")),
+            _dated("naaccr_and_trauma_registry", "injury_date parses as %Y%m%d", "injury_date", "%Y%m%d"),
+        ),
+    ),
+    Table(
+        "appointments", ".csv", appointments,
+        lambda header, rows: csv_bytes(header, rows),
+        {"scheduling": ("appt_id", "patient_id", "appt_date", "slot_start", "slot_end", "slot_minutes", "appt_status", "no_show")},
+        {"appt_id": "identifier", "patient_id": "identifier", "slot_end": "keep", "slot_minutes": "measurement"},
+        _csv_reader(),
+        (
+            *_repeats("scheduling"),
+            _dated("scheduling", "appt_date parses as %Y-%m-%d", "appt_date", "%Y-%m-%d"),
+            _dated("scheduling", "slot_start parses as %H:%M", "slot_start", "%H:%M"),
+            _pattern("scheduling", "slot ends are clocks or 24:00", "slot_end", r"([01]\d|2[0-3]):[0-5]\d|24:00"),
+            *_rare("scheduling", "some slot ends at 24:00", "slot_end", r"^24:00$",
+                   spoil_every("slot_end", lambda v: "23:59" if v == "24:00" else v), crowd("slot_end", "24:00")),
+            _listed("scheduling", "slot lengths", "slot_minutes", {"15", "30", "45", "60"}),
+            _listed("scheduling", "appointment status", "appt_status", _levels(APPOINTMENT_STATUS)),
+            _listed("scheduling", "no-show Y or N", "no_show", {"Y", "N"}),
+        ),
+        person="patient_id",
+    ),
+)
+
+
+# -- family 3: the clinical domains, part 2, and the coding systems -----------
+
+PLACES_OF_SERVICE = (
+    ("11", 50.0), ("21", 12.0), ("22", 15.0), ("23", 10.0), ("02", 5.0), ("19", 3.0), ("03", 2.0), ("04", 2.0),
+    ("31", 1.0),
+)
+BILLED_PROCEDURES = _zipf(("99213", "99214", "93000", "71046", "80053", "85025", "36415", "99285", "97110", "G0439"))
+CARC = (
+    ("CO-45", 40.0), ("PR-1", 15.0), ("PR-2", 12.0), ("CO-97", 8.0), ("OA-23", 5.0), ("CO-16", 5.0),
+    ("PR-3", 10.0), ("CO-4", 5.0),
+)
+REMARKS = (("", 70.0), ("N130", 10.0), ("MA130", 8.0), ("M15", 7.0), ("N381", 5.0))
+
+
+def remittance_835(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """An 835 remittance flattened to pipe-delimited lines: CCYYMMDD dates, place of service with its leading
+    nought, HC: procedures, charges and payments, CARC adjustments (CO-45), remark codes."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "claim_control", "patient_id", "service_date", "place_of_service", "procedure", "charge", "paid",
+        "adjustment", "remark",
+    ]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        charge = draw.lognormvariate(5.0, 0.9)
+        rows += [[
+            f"CLP{20000000 + index}",
+            _person(draw, people),
+            _when(draw).strftime("%Y%m%d"),
+            _pick(draw, PLACES_OF_SERVICE),
+            f"HC:{_pick(draw, BILLED_PROCEDURES)}",
+            f"{charge:.2f}",
+            f"{charge * draw.uniform(0.3, 0.9):.2f}",
+            _pick(draw, CARC),
+            _pick(draw, REMARKS),
+        ]]
+    return header, rows
+
+
+def central_offsets(moment: datetime.datetime) -> "tuple[str, ...]":
+    """Every offset a local US Central wall-clock moment may wear: the Eastern rule an hour west."""
+    west = {"-04:00": "-05:00", "-05:00": "-06:00"}
+    return tuple(west[offset] for offset in zoo.eastern_offsets(moment))
+
+
+def _stamp_on_a_change_day(draw: random.Random) -> datetime.datetime:
+    """A local moment, a quarter of them on a day the clocks change, never in the hour they skip."""
+    if draw.random() < 0.25:
+        day = draw.choice(zoo.CHANGE_DAYS)
+    else:
+        day = zoo._day(draw, datetime.date(2023, 1, 1), datetime.date(2024, 12, 31))
+    moment = datetime.datetime.combine(day, datetime.time(draw.randint(0, 23), draw.randint(0, 59), draw.randint(0, 59)))
+    if not zoo.eastern_offsets(moment):
+        moment = moment.replace(hour=3)
+    return moment
+
+
+def _wrong_offsets_by(series: object, offsets: "object", form: str, cut: int, skip: int = 0) -> int:
+    """Stamps whose written offset is not one in force on their local date and time (`offsets` of the moment)."""
+    wrong = 0
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        try:
+            local = datetime.datetime.strptime(text[:cut], form)
+        except ValueError:
+            continue
+        wrong += 0 if text[cut + skip:] in offsets(local) else 1  # type: ignore[operator]
+    return wrong
+
+
+UNITS_OF_CARE = (("4W", 20.0), ("5E", 20.0), ("6N", 15.0), ("ED", 20.0), ("OBS", 10.0), ("7S", 10.0), ("3C", 5.0))
+ADT_EVENTS = (("A01", 25.0), ("A02", 45.0), ("A03", 25.0), ("A08", 5.0))
+
+
+def adt_events(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """ADT bed movements: admit, transfer and discharge events, units and beds, in and out stamps with US Central
+    offsets across the days the clocks change."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["event_id", "patient_id", "event_type", "unit", "bed", "in_ts", "out_ts"]
+    rows: "list[list[str]]" = []
+    for index in range(n):
+        unit = _pick(draw, UNITS_OF_CARE)
+        arrived = _stamp_on_a_change_day(draw)
+        left = arrived + datetime.timedelta(hours=draw.randint(1, 72), minutes=draw.randint(0, 59))
+        if not zoo.eastern_offsets(left):
+            left = left.replace(hour=3)
+        rows += [[
+            f"ADT{50000000 + index}",
+            _person(draw, people),
+            _pick(draw, ADT_EVENTS),
+            unit,
+            f"{unit}-{draw.randint(1, 40):02d}{draw.choice('AB')}",
+            arrived.strftime("%Y-%m-%d %H:%M:%S") + central_offsets(arrived)[0],
+            left.strftime("%Y-%m-%d %H:%M:%S") + central_offsets(left)[0],
+        ]]
+    return header, rows
+
+
+PHQ_ITEM = (("0", 45.0), ("1", 30.0), ("2", 15.0), ("3", 10.0))
+PHQ_COLUMNS = tuple(f"phq9_{item}" for item in range(1, 10))
+
+
+def pro_scales(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Patient-reported outcomes: PROMIS T-scores beside -99 and 999, the nine PHQ-9 items and their total,
+    a numeric multi-select ('1,3,5'), two picks of twelve sorted and in click order, and the click-order residual."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = [
+        "patient_id", "survey_date", "promis_t", *PHQ_COLUMNS, "phq9_total", "symptoms_multi", "pick_two_sorted",
+        "pick_two_click", "pick_two_residual",
+    ]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        level = draw.random()
+        score = "-99" if level < 0.05 else "999" if level < 0.07 else f"{min(80.0, max(20.0, draw.gauss(50.0, 10.0))):.1f}"
+        items = [_pick(draw, PHQ_ITEM) for _item in PHQ_COLUMNS]
+        multi = sorted(draw.sample(range(1, 9), draw.randint(1, 4)))
+        pair = draw.sample(range(1, 13), 1 if draw.random() < 0.15 else 2)
+        click = draw.sample(range(1, 13), 1 if draw.random() < 0.15 else 2)
+        rows += [[
+            _person(draw, people),
+            _when(draw).date().isoformat(),
+            score,
+            *items,
+            f"{sum(int(item) for item in items)}",
+            ",".join(f"{pick}" for pick in multi),
+            ",".join(f"{pick}" for pick in sorted(pair)),
+            ",".join(f"{pick}" for pick in click),
+            f"{draw.randint(1, 6)},{draw.randint(7, 12)}",
+        ]]
+    return header, rows
+
+
+def _picks(series: object) -> "list[list[int]]":
+    found: "list[list[int]]" = []
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        try:
+            found += [[int(part) for part in text.split(",")]]
+        except ValueError:
+            found += [[-1]]
+    return found
+
+
+def _picks_bad(series: object, low: int, high: int, most: int, ordered: bool) -> int:
+    """Cells with a pick outside low to high, more than `most` picks, a pick twice, or (ordered) out of order."""
+    bad = 0
+    for picks in _picks(series):
+        wrong = any(pick < low or pick > high for pick in picks) or len(picks) > most or len(set(picks)) < len(picks)
+        bad += 1 if wrong or (ordered and picks != sorted(picks)) else 0
+    return bad
+
+
+def _some_in_click_order(series: object) -> bool:
+    return any(len(picks) == 2 and picks[0] > picks[1] for picks in _picks(series))
+
+
+def _residual_bad(series: object) -> int:
+    return sum(1 for picks in _picks(series) if not (len(picks) == 2 and 1 <= picks[0] <= 6 and 7 <= picks[1] <= 12))
+
+
+def _sorted_picks(value: str) -> str:
+    try:
+        return ",".join(f"{pick}" for pick in sorted(int(part) for part in value.split(",")))
+    except ValueError:
+        return value
+
+
+def _totals_bad(frame: object) -> int:
+    import pandas
+
+    items = frame[list(PHQ_COLUMNS)].apply(pandas.to_numeric, errors="coerce")  # type: ignore[index]
+    total = pandas.to_numeric(frame["phq9_total"], errors="coerce")  # type: ignore[index]
+    return int((items.sum(axis=1) != total).sum())
+
+
+CHROMOSOMES = tuple((f"chr{place}", 25.0 - place) for place in range(1, 23)) + (("chrX", 4.0), ("chrY", 1.0))
+GENOTYPES = (("0/1", 55.0), ("1/1", 25.0), ("0/0", 10.0), ("./.", 7.0), ("1/2", 3.0))
+RS_FIGURES = ((4, 5.0), (5, 10.0), (6, 15.0), (7, 25.0), (8, 25.0), (9, 20.0))
+
+
+def vcf_calls(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Variant calls flattened from a VCF: CHROM, POS, REF, ALT (and <DEL>), rsIDs of four to nine figures or '.',
+    genotypes with './.', QUAL; several variants a sample."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["sample_id", "chrom", "pos", "ref", "alt", "rsid", "gt", "qual"]
+    bases = "ACGT"
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        ref = draw.choice(bases) if draw.random() < 0.9 else "".join(draw.choice(bases) for _base in range(draw.randint(2, 3)))
+        level = draw.random()
+        if level < 0.05:
+            alt = "<DEL>"
+        elif level < 0.15:
+            alt = "".join(draw.choice(bases) for _base in range(2))
+        else:
+            alt = draw.choice([base for base in bases if base != ref[0]])
+        figures = draw.choices([width for width, _weight in RS_FIGURES], [weight for _width, weight in RS_FIGURES])[0]
+        rows += [[
+            f"SMP{4000000 + draw.randrange(people)}",
+            _pick(draw, CHROMOSOMES),
+            f"{draw.randint(10_000, 248_000_000)}",
+            ref,
+            alt,
+            "." if draw.random() < 0.1 else f"rs{draw.randint(10 ** (figures - 1), 10 ** figures - 1)}",
+            _pick(draw, GENOTYPES),
+            f"{draw.uniform(20.0, 5000.0):.1f}",
+        ]]
+    return header, rows
+
+
+def wearable_stream(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A wearable's export: local stamps with the offset after a space ('-0400', as Apple Health writes them)
+    across daylight saving, and UTC stamps to the millisecond."""
+    draw = random.Random(seed)
+    people = _people(n)
+    header = ["device_id", "recorded_local", "sample_ts", "heart_rate", "step_count"]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        local = _stamp_on_a_change_day(draw)
+        offset = zoo.eastern_offset(local)
+        utc = local - datetime.timedelta(hours=int(offset[:3]))
+        rows += [[
+            f"WD-{draw.randrange(people):05d}",
+            local.strftime("%Y-%m-%d %H:%M:%S") + " " + offset.replace(":", ""),
+            utc.strftime("%Y-%m-%dT%H:%M:%S") + f".{draw.randint(0, 999):03d}Z",
+            f"{draw.randint(48, 170)}",
+            f"{draw.randint(0, 40) if draw.random() > 0.4 else 0}",
+        ]]
+    return header, rows
+
+
+def _compact_eastern(moment: datetime.datetime) -> "tuple[str, ...]":
+    return tuple(offset.replace(":", "") for offset in zoo.eastern_offsets(moment))
+
+
+# The coding systems' forms section 6 (b) names: ICD-10-CM's seventh
+# character with its X placeholders, SNOMED CT ids with their Verhoeff
+# check figure, a code and its name in one cell, procedure codes with
+# chains of modifiers, APR-DRG with its severity of illness, and ICD-10-CM
+# as a real export holds it, 600 codes on a Zipf tail.
+SEVENTH = _zipf((
+    "S72.001A", "S72.001D", "T81.4XXA", "S06.0X1A", "M80.08XA", "W19.XXXA", "S82.201A", "T84.84XA",
+    "S52.501A", "S42.001S",
+))
+_VERHOEFF_D = (
+    (0, 1, 2, 3, 4, 5, 6, 7, 8, 9), (1, 2, 3, 4, 0, 6, 7, 8, 9, 5), (2, 3, 4, 0, 1, 7, 8, 9, 5, 6),
+    (3, 4, 0, 1, 2, 8, 9, 5, 6, 7), (4, 0, 1, 2, 3, 9, 5, 6, 7, 8), (5, 9, 8, 7, 6, 0, 4, 3, 2, 1),
+    (6, 5, 9, 8, 7, 1, 0, 4, 3, 2), (7, 6, 5, 9, 8, 2, 1, 0, 4, 3), (8, 7, 6, 5, 9, 3, 2, 1, 0, 4),
+    (9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
+)
+_VERHOEFF_P = (
+    (0, 1, 2, 3, 4, 5, 6, 7, 8, 9), (1, 5, 7, 6, 2, 8, 3, 0, 9, 4), (5, 8, 0, 3, 7, 9, 6, 1, 4, 2),
+    (8, 9, 1, 6, 0, 4, 3, 5, 2, 7), (9, 4, 5, 3, 1, 2, 6, 8, 7, 0), (4, 2, 8, 6, 5, 7, 3, 9, 0, 1),
+    (2, 7, 9, 3, 8, 0, 6, 4, 1, 5), (7, 0, 4, 6, 9, 1, 3, 2, 5, 8),
+)
+_VERHOEFF_INV = (0, 4, 3, 2, 1, 5, 6, 7, 8, 9)
+
+
+def verhoeff_check(figures: str) -> int:
+    """The Verhoeff check figure to append to `figures`."""
+    check = 0
+    for place, figure in enumerate(reversed(figures)):
+        check = _VERHOEFF_D[check][_VERHOEFF_P[(place + 1) % 8][int(figure)]]
+    return _VERHOEFF_INV[check]
+
+
+def verhoeff_valid(figures: str) -> bool:
+    check = 0
+    for place, figure in enumerate(reversed(figures)):
+        check = _VERHOEFF_D[check][_VERHOEFF_P[place % 8][int(figure)]]
+    return check == 0
+
+
+def _snomed_ids() -> "tuple[str, ...]":
+    draw = random.Random(31)
+    found: "list[str]" = []
+    while len(found) < 14:
+        body = f"{draw.randint(10 ** 5, 10 ** 8 - 1)}10"
+        code = body + f"{verhoeff_check(body)}"
+        found += [code] if code not in found else []
+    return tuple(found)
+
+
+SNOMED_CHECKED = _zipf(_snomed_ids())
+NAMED = (
+    ("E11.9", "Type 2 diabetes mellitus without complications"), ("I10", "Essential (primary) hypertension"),
+    ("E78.5", "Hyperlipidemia, unspecified"), ("J44.9", "Chronic obstructive pulmonary disease, unspecified"),
+    ("N18.3", "Chronic kidney disease, stage 3"), ("F32.9", "Major depressive disorder, single episode, unspecified"),
+    ("I48.91", "Unspecified atrial fibrillation"), ("K21.9", "Gastro-esophageal reflux disease without esophagitis"),
+    ("M54.5", "Low back pain"), ("G47.33", "Obstructive sleep apnea"),
+)
+NAME_OF = dict(NAMED)
+CODE_WITH_NAME = _zipf(tuple(f"{code} - {name}" for code, name in NAMED))
+PROC_CHAINS = _zipf(("99214-25-59", "20610-RT-59", "97140-GP-59", "99213", "99213-25", "73030-LT-26", "93010-26", "96372-59-XU"))
+PROC_MODIFIERS = {"25", "59", "RT", "LT", "GP", "26", "XU"}
+APR_DRGS = _zipf(("194", "140", "720", "139", "201", "045", "053", "300"))
+SOI = (("1", 30.0), ("2", 40.0), ("3", 22.0), ("4", 8.0))
+
+
+def _icd10_tail() -> "tuple[str, ...]":
+    draw = random.Random(5)
+    codes: "list[str]" = []
+    while len(codes) < 600:
+        code = f"{draw.choice('ABCDEFGHIJKLMNOPQRSTVWXYZ')}{draw.randint(0, 99):02d}.{draw.randint(0, 99):d}"
+        codes += [code] if code not in codes else []
+    return tuple(codes)
+
+
+ICD10_TAIL = _zipf(_icd10_tail())
+
+
+def coded_forms(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """Coded rows of an encounter: the coding systems' longer forms, and a realistic ICD-10-CM long tail."""
+    draw = random.Random(seed)
+    header = ["enc_id", "icd10_seventh", "snomed_checked", "dx_with_name", "proc_chain", "apr_drg", "icd10_tail"]
+    rows: "list[list[str]]" = []
+    for _index in range(n):
+        rows += [[
+            f"E{200000000 + draw.randrange(max(n // 2, 1))}",
+            _pick(draw, SEVENTH),
+            _pick(draw, SNOMED_CHECKED),
+            _pick(draw, CODE_WITH_NAME),
+            _pick(draw, PROC_CHAINS),
+            f"{_pick(draw, APR_DRGS)}-{_pick(draw, SOI)}",
+            _pick(draw, ICD10_TAIL),
+        ]]
+    return header, rows
+
+
+def _verhoeff_bad(series: object) -> int:
+    return sum(
+        0 if re.fullmatch(r"\d{6,18}", text) and verhoeff_valid(text) else 1
+        for text in series.dropna().astype(str)  # type: ignore[attr-defined]
+    )
+
+
+def _names_off(series: object) -> int:
+    bad = 0
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        code, _dash, name = text.partition(" - ")
+        bad += 0 if NAME_OF.get(code) == name else 1
+    return bad
+
+
+def _modifiers_off(series: object) -> int:
+    modifiers = [part for text in series.dropna().astype(str) for part in text.split("-")[1:]]  # type: ignore[attr-defined]
+    return sum(1 for modifier in modifiers if modifier not in PROC_MODIFIERS)
+
+
+def _soi(series: object) -> "tuple[float, float, float] | None":
+    return _spread([float(text[-1]) for text in series.dropna().astype(str) if re.fullmatch(r"\d{3}-[1-4]", text)])  # type: ignore[attr-defined]
+
+
+def _last_figure_moved(value: str) -> str:
+    return value[:-1] + f"{(int(value[-1]) + 1) % 10}" if value[-1:].isdigit() else value
+
+
+FAMILY_CLINICAL_B: "tuple[Table, ...]" = (
+    Table(
+        "remit_835", ".txt", remittance_835,
+        lambda header, rows: csv_bytes(header, rows, delimiter="|"),
+        {
+            "pipe_delimited": (),
+            "remittance_835": (
+                "claim_control", "patient_id", "service_date", "place_of_service", "procedure", "charge", "paid",
+                "adjustment", "remark",
+            ),
+        },
+        {
+            "claim_control": "identifier", "patient_id": "identifier", "place_of_service": "code", "procedure": "code",
+            "adjustment": "code", "remark": "code", "charge": "measurement", "paid": "measurement", "service_date": "dates",
+        },
+        _csv_reader(sep="|"),
+        (
+            Check("pipe_delimited", "the file splits into nine columns", "same",
+                  lambda f: int(f["inferred"].shape[1]), "", spoil_extra_column),  # type: ignore[attr-defined]
+            *_repeats("remittance_835"),
+            _dated("remittance_835", "service dates CCYYMMDD", "service_date", "%Y%m%d"),
+            _listed("remittance_835", "places of service keep two figures", "place_of_service", _levels(PLACES_OF_SERVICE)),
+            *_rare("remittance_835", "some place of service keeps its leading nought", "place_of_service", r"^0\d$",
+                   spoil_every("place_of_service", lambda v: f"{int(v)}"), crowd("place_of_service", "02")),
+            _pattern("remittance_835", "procedures written HC:code", "procedure", r"HC:[0-9A-Z]{5}"),
+            _bad("remittance_835", "charges read as numbers", "charge", lambda f: _bad_numbers(_t("charge")(f))),
+            _ranged("remittance_835", "charge", r"(?P<n>\d+\.\d\d)"),
+            _ranged("remittance_835", "paid", r"(?P<n>\d+\.\d\d)"),
+            _pattern("remittance_835", "adjustments as group and reason (CO-45)", "adjustment", r"(CO|PR|OA|PI|CR)-\d{1,3}"),
+            _listed("remittance_835", "adjustment reasons are the payer's", "adjustment", _levels(CARC)),
+            _listed("remittance_835", "remark codes", "remark", _levels(REMARKS) - {""}),
+        ),
+        separator="vertical-bar",
+        person="patient_id",
+    ),
+    Table(
+        "adt_events", ".csv", adt_events,
+        lambda header, rows: csv_bytes(header, rows),
+        {"adt_bed_movements": ("event_id", "patient_id", "event_type", "unit", "bed", "in_ts", "out_ts")},
+        {"event_id": "identifier", "patient_id": "identifier", "event_type": "code", "unit": "code", "bed": "keep"},
+        _csv_reader(),
+        (
+            *_repeats("adt_bed_movements"),
+            _listed("adt_bed_movements", "ADT event types", "event_type", _levels(ADT_EVENTS)),
+            _listed("adt_bed_movements", "units", "unit", _levels(UNITS_OF_CARE)),
+            _pattern("adt_bed_movements", "beds named unit-number-letter", "bed", r"[0-9A-Z]{2,4}-\d{2}[AB]"),
+            _dated("adt_bed_movements", "in_ts parses with its offset", "in_ts", "%Y-%m-%d %H:%M:%S%z", utc=True),
+            _dated("adt_bed_movements", "out_ts parses with its offset", "out_ts", "%Y-%m-%d %H:%M:%S%z", utc=True),
+            _bad("adt_bed_movements", "in_ts wears a Central offset in force on its date", "in_ts",
+                 lambda f: _wrong_offsets_by(_t("in_ts")(f), central_offsets, "%Y-%m-%d %H:%M:%S", 19),
+                 spoil_cell("in_ts", "2024-07-01 10:00:00-06:00")),
+            _bad("adt_bed_movements", "out_ts wears a Central offset in force on its date", "out_ts",
+                 lambda f: _wrong_offsets_by(_t("out_ts")(f), central_offsets, "%Y-%m-%d %H:%M:%S", 19),
+                 spoil_cell("out_ts", "2024-01-15 10:00:00-05:00")),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "pro_scales", ".csv", pro_scales,
+        lambda header, rows: csv_bytes(header, rows),
+        {
+            "promis_phq9": ("patient_id", "survey_date", "promis_t", *PHQ_COLUMNS, "phq9_total"),
+            "pro_multi_select": ("symptoms_multi", "pick_two_sorted", "pick_two_click", "pick_two_residual"),
+        },
+        {
+            "patient_id": "identifier", "promis_t": "measurement", "phq9_total": "measurement",
+            **{column: "measurement" for column in PHQ_COLUMNS},
+            "symptoms_multi": "keep", "pick_two_sorted": "keep", "pick_two_click": "keep", "pick_two_residual": "keep",
+        },
+        _csv_reader(),
+        (
+            *_repeats("promis_phq9"),
+            _dated("promis_phq9", "survey_date parses as %Y-%m-%d", "survey_date", "%Y-%m-%d"),
+            _pattern("promis_phq9", "T-scores to one place, or -99 or 999", "promis_t", r"\d{2}\.\d|-99|999"),
+            _ranged("promis_phq9", "promis_t", r"(?P<n>\d{2}\.\d)", 0.5),
+            *_rare("promis_phq9", "some T-score is the missing code -99", "promis_t", r"^-99$",
+                   spoil_every("promis_t", lambda v: "50.0" if v == "-99" else v), crowd("promis_t", "-99")),
+            _bad("promis_phq9", "PHQ-9 items 0 to 3", "phq9_1",
+                 lambda f: sum(_bad_set(_t(column)(f), {"0", "1", "2", "3"}) for column in PHQ_COLUMNS)),
+            _listed("promis_phq9", "PHQ-9 totals 0 to 27", "phq9_total", {f"{k}" for k in range(28)}),
+            _bad("promis_phq9", "the total is the sum of its nine items (between columns)", "phq9_total",
+                 lambda f: _totals_bad(f["text"]), spoil_cell("phq9_total", "27")),
+            _bad("pro_multi_select", "multi-select picks 1 to 8, each once, in order", "symptoms_multi",
+                 lambda f: _picks_bad(_t("symptoms_multi")(f), 1, 8, 8, True), spoil_cell("symptoms_multi", "5,3")),
+            *_present("pro_multi_select", "some multi-select holds several picks", "symptoms_multi", ",",
+                      spoil_every("symptoms_multi", lambda v: v.split(",")[0])),
+            _bad("pro_multi_select", "two picks of twelve, sorted", "pick_two_sorted",
+                 lambda f: _picks_bad(_t("pick_two_sorted")(f), 1, 12, 2, True), spoil_cell("pick_two_sorted", "12,3")),
+            *_present("pro_multi_select", "some sorted cell holds two picks", "pick_two_sorted", ",",
+                      spoil_every("pick_two_sorted", lambda v: v.split(",")[0])),
+            _bad("pro_multi_select", "two picks of twelve in click order", "pick_two_click",
+                 lambda f: _picks_bad(_t("pick_two_click")(f), 1, 12, 2, False), spoil_cell("pick_two_click", "13,3")),
+            Check("pro_multi_select", "some pair is written in click order, the larger first", "present",
+                  lambda f: _some_in_click_order(_t("pick_two_click")(f)), "pick_two_click",
+                  spoil_every("pick_two_click", _sorted_picks)),
+            _bad("pro_multi_select", "the residual: a first pick of 1 to 6, then one of 7 to 12", "pick_two_residual",
+                 lambda f: _residual_bad(_t("pick_two_residual")(f)), spoil_cell("pick_two_residual", "9,2")),
+        ),
+        person="patient_id",
+    ),
+    Table(
+        "vcf_calls", ".csv", vcf_calls,
+        lambda header, rows: csv_bytes(header, rows),
+        {"vcf_flattened": ("sample_id", "chrom", "pos", "ref", "alt", "rsid", "gt", "qual")},
+        {
+            "sample_id": "identifier", "chrom": "code", "pos": "measurement", "ref": "code", "alt": "code",
+            "rsid": "identifier", "gt": "code", "qual": "measurement",
+        },
+        _csv_reader(),
+        (
+            *_repeats("vcf_flattened", "sample_id"),
+            _listed("vcf_flattened", "chromosomes", "chrom", _levels(CHROMOSOMES)),
+            _bad("vcf_flattened", "positions read as numbers", "pos", lambda f: _bad_numbers(_t("pos")(f))),
+            _ranged("vcf_flattened", "pos", r"(?P<n>\d+)", 0.1),
+            _pattern("vcf_flattened", "REF alleles are bases", "ref", r"[ACGT]+"),
+            _pattern("vcf_flattened", "ALT alleles are bases or <DEL>", "alt", r"[ACGT]+|<DEL>"),
+            _pattern("vcf_flattened", "rsIDs of four to nine figures, or '.'", "rsid", r"rs\d{4,9}|\."),
+            *_present("vcf_flattened", "some rsID is short (four to six figures)", "rsid", r"^rs\d{4,6}$",
+                      spoil_every("rsid", lambda v: f"rs{int(v[2:]):07d}" if v.startswith("rs") else v)),
+            _listed("vcf_flattened", "genotypes with ./.", "gt", _levels(GENOTYPES)),
+            _ranged("vcf_flattened", "qual", r"(?P<n>\d+\.\d)"),
+        ),
+        person="sample_id",
+    ),
+    Table(
+        "wearable_stream", ".csv", wearable_stream,
+        lambda header, rows: csv_bytes(header, rows),
+        {"wearable_offsets_subsecond": ("device_id", "recorded_local", "sample_ts", "heart_rate", "step_count")},
+        {"device_id": "identifier", "heart_rate": "measurement", "step_count": "measurement"},
+        _csv_reader(),
+        (
+            *_repeats("wearable_offsets_subsecond", "device_id"),
+            _dated("wearable_offsets_subsecond", "local stamps parse with the offset after a space", "recorded_local",
+                   "%Y-%m-%d %H:%M:%S %z", utc=True),
+            _bad("wearable_offsets_subsecond", "the local offset is in force on its date", "recorded_local",
+                 lambda f: _wrong_offsets_by(_t("recorded_local")(f), _compact_eastern, "%Y-%m-%d %H:%M:%S", 19, 1),
+                 spoil_cell("recorded_local", "2024-07-01 10:00:00 -0500")),
+            _dated("wearable_offsets_subsecond", "UTC stamps to the millisecond", "sample_ts", "%Y-%m-%dT%H:%M:%S.%fZ"),
+            *_present("wearable_offsets_subsecond", "some stamp carries its milliseconds", "sample_ts", r"\.(?!000Z)\d{3}Z$",
+                      spoil_every("sample_ts", lambda v: v[:20] + "000Z")),
+            _ranged("wearable_offsets_subsecond", "heart_rate", r"(?P<n>\d+)", 2.0),
+        ),
+        person="device_id",
+    ),
+    Table(
+        "coded_forms", ".csv", coded_forms,
+        lambda header, rows: csv_bytes(header, rows),
+        {
+            "diagnosis_code_forms": ("enc_id", "icd10_seventh", "snomed_checked", "dx_with_name"),
+            "procedure_and_drg_forms": ("proc_chain", "apr_drg"),
+            "icd10_long_tail": ("icd10_tail",),
+        },
+        {
+            "enc_id": "identifier", "icd10_seventh": "code", "snomed_checked": "code", "dx_with_name": "code",
+            "proc_chain": "code", "apr_drg": "code", "icd10_tail": "code",
+        },
+        _csv_reader(),
+        (
+            _pattern("diagnosis_code_forms", "ICD-10-CM with its seventh character", "icd10_seventh", r"[A-Z]\d[0-9A-Z]\.[0-9X]{3}[ADS]"),
+            *_present("diagnosis_code_forms", "some code keeps its X placeholder", "icd10_seventh", "X",
+                      spoil_every("icd10_seventh", lambda v: v.replace("X", "0"))),
+            _pattern("diagnosis_code_forms", "SNOMED CT ids", "snomed_checked", r"\d{6,18}"),
+            _bad("diagnosis_code_forms", "SNOMED CT ids pass their Verhoeff check", "snomed_checked",
+                 lambda f: _verhoeff_bad(_t("snomed_checked")(f)), spoil_every("snomed_checked", _last_figure_moved)),
+            _pattern("diagnosis_code_forms", "a code and its name in one cell", "dx_with_name", zoo.ICD10_PATTERN + r" - .+"),
+            _bad("diagnosis_code_forms", "each name is its code's own", "dx_with_name",
+                 lambda f: _names_off(_t("dx_with_name")(f)), spoil_cell("dx_with_name", "E11.9 - Low back pain")),
+            _pattern("procedure_and_drg_forms", "procedure codes with their modifier chains", "proc_chain",
+                     r"\d{4}[0-9A-Z](-[0-9A-Z]{2})*"),
+            _bad("procedure_and_drg_forms", "modifiers are listed ones", "proc_chain",
+                 lambda f: _modifiers_off(_t("proc_chain")(f)), spoil_cell("proc_chain", "99214-25-Q9")),
+            _pattern("procedure_and_drg_forms", "APR-DRG with its severity (194-3)", "apr_drg", r"\d{3}-[1-4]"),
+            Check("procedure_and_drg_forms", "severities of illness keep their range", "range",
+                  lambda f: _soi(_t("apr_drg")(f)), "apr_drg", spoil_every("apr_drg", lambda v: v[:-1] + "1")),
+            _pattern("icd10_long_tail", "a long tail of ICD-10-CM codes", "icd10_tail", zoo.ICD10_PATTERN),
+        ),
+    ),
+)
+
+
 # -- the catalogue's widening, in the order the report lists it --------------
 
 WIDE_TABLES: "tuple[Table, ...]" = (
     *FAMILY_ROLES,
+    *FAMILY_CLINICAL_A,
+    *FAMILY_CLINICAL_B,
 )
 WIDE_KINDS: "tuple[str, ...]" = tuple(kind for table in WIDE_TABLES for kind in table.kinds)
 WIDE_FILE_KINDS: "tuple[str, ...]" = (
-    "tab_delimited",
+    "tab_delimited", "all_fields_quoted", "pipe_delimited",
 )
 
 

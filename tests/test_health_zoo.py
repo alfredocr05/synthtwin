@@ -87,6 +87,13 @@ E0C_KINDS = (
     # the roles the zoo never reached
     "labelled_results", "lab_instrument_results", "numeric_unrepresentable", "tab_delimited",
     "ventilator_settings", "compact_and_fraction_clocks",
+    # the clinical domains
+    "all_fields_quoted", "medication_administration", "pharmacy_dispensing", "obstetrics", "social_history",
+    "pediatrics", "cardiology_ecg", "organism_long_tail", "report_text_with_headings", "long_cell",
+    "naaccr_and_trauma_registry", "scheduling", "pipe_delimited", "remittance_835", "adt_bed_movements",
+    "promis_phq9", "pro_multi_select", "vcf_flattened", "wearable_offsets_subsecond",
+    # the coding systems
+    "diagnosis_code_forms", "procedure_and_drg_forms", "icd10_long_tail",
 )
 
 
@@ -256,7 +263,7 @@ def test_every_check_goes_red_on_its_spoiled_table(name: str, tmp_path: pathlib.
     blind = []
     for place in range(len(table.checks)):
         check = table.checks[place]
-        failures = _pair(name, tmp_path / f"{place}", zoo.spoil_of(check))
+        failures = _pair(name, tmp_path / f"{place}", zoo.spoil_of(check), check.rewrite)
         if check.name not in [failure[1] for failure in failures]:
             blind += [check.name]
     assert not blind, f"{name}: these checks did not see their spoil: {blind}"
