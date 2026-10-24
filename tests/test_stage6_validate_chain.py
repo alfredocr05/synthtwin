@@ -466,6 +466,19 @@ def test_mutant_6_band_totals_differ_and_their_families_are_not_judged_in_the_sa
     assert sections[0] == sections[1]
 
 
+def test_a_cell_in_no_published_band_misses_its_total_line(clinic):
+    """A file holding one more row whose cells stand in no published band
+    (a word in a number column, a blank where the table held none) keeps
+    every band's count, yet its total lines read MISSED: the file holds a
+    row the published bands do not, and the families holding those columns
+    are not judged. Read as a count alone, every total would be HELD."""
+    rows = [list(row) for row in clinic.rows] + [["unknown", "", "", "unknown", ""]]
+    code, report, _screen = clinic.validate(rows)
+    totals, families = _verdicts(report)
+    assert set(totals.values()) == {"MISSED"}, totals
+    assert set(families.values()) == {"WITHHELD"} and code == 3
+
+
 # -- what a report may print (V12.3) ------------------------------------------
 
 
