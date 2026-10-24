@@ -5,8 +5,9 @@ uses when nobody asks for another is 11 again, the value it held before
 amendment A-P4-37 and the same number as the notice line. It is written
 once, `parsing.DEFAULT_SMALL_CELL_FLOOR`, and read by the taxonomy's
 settings, the loader, the command line, the reader and the file's
-written form. `--smallest-group` below it stays legal and keeps its
-alarm.
+written form. `--smallest-group` below it kept its alarm until plan
+P4-D426 (the owner, 2026-10-23), which refuses it: the floor of 11 is a
+minimum, raised and never lowered.
 
 THE HOLES (plan P4-D317), each measured before it was closed and each
 held here by a check that was put back to the old code and seen red:

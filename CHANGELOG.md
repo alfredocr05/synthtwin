@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### Batch 4i's records: the two floors merged, a grained column's working set let go (2026-10-23)
+
+**Records of batch 4i**, which merged lanes POP, MIN and ZR-b (plans
+P4-D425, P4-D426 and P4-D422) on batch 4h. `synthtwin generate` lets a
+grained column's words and its leaving cells go after their last use
+(Codex's review of batch 4h, P4-D415): on a 300-row table a date column
+pooled at the year, or held, no longer keeps 10,724 bytes of words into
+the next column and 17,700 bytes of cells through the final
+arrangement, and the twin, its words drawn and its report are the same
+bytes. `cli.main` takes the chain's switch and the two internal
+keywords, `small_tables_refused` and `internal_smallest_group`, each
+keyword only, off by default and set by no option; the suite's bridge
+hands either switch on, and lane SG's two gate cases at a smallest group
+of 1 describe through it, writing the same twins and descriptions as
+before. The package reads one environment variable pair, the chain's
+data folder (LOCALAPPDATA, XDG_DATA_HOME, behind the chain's switch),
+and both lanes' checks set aside only that. STATE's ruling line of
+2026-09-22 now says the floor of 11 is raised and never lowered. No
+twin, description or report byte moves at a floor of 11 or more.
+
 ### The zoo-fix stand-ins page: stand-ins, rare values named, few-valued numbers (plan P4-D422, lane ZR-b, 2026-10-22; specified, NOT BUILT)
 
 **A method page, no product code.** Lanes CODES-1, CODES-2, CODES-3 and
