@@ -6,6 +6,25 @@ exists).
 
 ## [Unreleased]
 
+### The chain's families checked by `validate`, behind the chain's switch (2026-10-24)
+
+**Lane CHv** (plan P4-D430; validation method V12, layer L1). `synthtwin
+validate` handed the chain's switch, which no option reaches, now reads a
+description's chain and checks the file against it: each column's band
+totals and each family table at the published bands, HELD or MISSED, a
+family judged only where its columns' totals hold and the file's own
+facts let the published tables stand; every pair of columns with the
+word the description gives it, a pair the chain only implies printed as
+the published families imply it, never as a check. No line prints a
+number the checked file holds. The written quality report holds the
+section; the screen prints one line for it. Every run without the switch,
+and every description carrying no chain, is checked and reported as
+before, byte for byte. `K-S6-04`, `K-S6-05` and `K-S6-10` are new: every
+pair one word, every family one line and V12's six data mutants as
+stated; whole real rows in a chain-arranged twin rising from 9.7 to
+17.45 in 1,000 rows on K-S6-01's table, for the owner; and the
+death-rate difference at age 70 recorded as the chain carries it.
+
 ### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
 
 **Records of batch 4h**, which merged lanes HX4 and SG (plans P4-D424 and
