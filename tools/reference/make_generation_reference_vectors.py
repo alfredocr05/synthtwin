@@ -26111,29 +26111,91 @@ def templated_census(column):
     A function of its own so the frozen cases' registered mutant can take
     it away: with the layouts left as they were published, the opening
     letters are filled from the step, and the committed cells move.
+
+    And a whole number's places after the point are its noughts (G9.6a's
+    amendment, plan P4-D428): where the column publishes
+    `all_whole_numbers` true, a layout of figures, one point and figures
+    (`whole_places_template`) is written with `0` at every place after
+    the point, the figures the cells hold, never filled from the step.
     """
     census = column.get("layout_forms") or {}
     prefixes = column.get("layout_prefixes") or {}
     whole = prefixes.get(PREFIX_OF_THE_COLUMN, "")
+    noughts = bool(column.get("all_whole_numbers")) and any(
+        name != WITHHELD and whole_places_template(name) != name for name in census
+    )
     templated = {}
     for name in sorted(census):
         prefix = prefixes.get(name, whole)
-        if name == WITHHELD or not prefix:
+        if name == WITHHELD:
             templated[name] = census[name]
-        else:
-            templated[prefix + name[len(prefix):]] = census[name]
+            continue
+        written = prefix + name[len(prefix):] if prefix else name
+        if noughts:
+            written = whole_places_template(written)
+        templated[written] = census[name]
     return templated
 
 
+def whole_places_template(name):
+    """A layout of figures, one point and figures, written with `0` after its point (P4-D428).
+
+    Written from G9.6a's amendment: only `%`, the zero fill `!` and a
+    comma between thousands before the point, at least one mark there and
+    a `%` just before it; only `%` after it, at least one. Every other
+    layout is returned as it stands.
+    """
+    if name.count(".") != 1:
+        return name
+    before, after = name.split(".")
+    if not before or not after or before[-1] != "%":
+        return name
+    if set(before) - {"%", "!", ","} or set(after) != {"%"}:
+        return name
+    return before + "." + "0" * len(after)
+
+
+def _opens_with_a_uid_root(template):
+    """Whether a template opens with a DICOM UID's root (G9.6a's amendment, P4-D428).
+
+    The opening is the template's figures and points up to its first
+    other mark; a root closes with a point and its arcs before it are two
+    or more, the first `0`, `1` or `2`, none but `0` led by a nought.
+    """
+    opening = ""
+    for mark in template:
+        if mark not in DIGIT_CHARACTERS and mark != ".":
+            break
+        opening += mark
+    if len(opening) < 2 or not opening.endswith("."):
+        return False
+    arcs = opening[:-1].split(".")
+    return (
+        len(arcs) >= 2
+        and arcs[0] in ("0", "1", "2")
+        and all(arc and set(arc) <= DIGIT_CHARACTERS and (arc == "0" or arc[0] != "0")
+                for arc in arcs)
+    )
+
+
 def wears_template(candidate, template, convention):
-    """The cell recounts into the template's layout and holds its letters."""
+    """The cell recounts into the template's layout and holds its letters and figures.
+
+    A figure stands in a template only as a UID's published root or a
+    whole number's nought after the point (G9.6a's amendment, plan
+    P4-D428), and under a UID root no arc of the cell is led by a nought.
+    """
     if layout_of(candidate, convention) != prefix_layout(template, convention):
         return False
-    return all(
+    if not all(
         candidate[place] == mark
         for place, mark in enumerate(template)
-        if _ascii_letter(mark)
-    )
+        if _ascii_letter(mark) or mark in DIGIT_CHARACTERS
+    ):
+        return False
+    if _opens_with_a_uid_root(template):
+        return not any(len(arc) > 1 and arc[0] == "0" for arc in candidate.split("."))
+    return True
 
 
 def worn_template(candidate, convention, keys):
@@ -34186,6 +34248,59 @@ def _identifier_column_prefix():
         "eighteen identities stay different. This case's mutant withdraws "
         "the templates, the three letters are filled from the step as the "
         "layout's own marks, and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_whole_places():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=24, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        min_length=11, max_length=11, all_whole_numbers=True,
+        n_all_digits=0, n_code_alphabet=0,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={"%%%%%%%%.%%": 24},
+        layout_prefixes={},
+    )
+    return {
+        "why": "a declared identifier every present cell of which is a whole "
+        "number a warehouse exports as a decimal, eight figures, a point and "
+        "two noughts (lane CODES-3, plan P4-D428). G9.6a's amendment writes "
+        "the layout `%%%%%%%%.%%` beside `all_whole_numbers` true as its "
+        "TEMPLATE `%%%%%%%%.00`: the places after the point are the noughts "
+        "the cells hold and only the eight figures are filled from the step, "
+        "so every cell is a whole number. This case's mutant withdraws the "
+        "noughts, the places after the point are filled from the step as the "
+        "layout's own marks, and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_uid_root():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=25, max_length=25, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=0,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={"%.%.%%%.%%%%%%.%.%%.%.%%%": 24},
+        layout_prefixes={"(column)": "1.2.840.113619.2.55.3."},
+    )
+    return {
+        "why": "a declared identifier every present cell of which is a DICOM "
+        "UID under one organisation's root, `1.2.840.113619.2.55.3.` and an "
+        "arc of three figures (lane CODES-3, plan P4-D428). G9.6a's amendment "
+        "writes the root's figures as part of the TEMPLATE, standing in every "
+        "cell, and refuses a filling whose arc is led by a nought, which the "
+        "UID grammar forbids: `%%%` filled at a step whose first figure is "
+        "nought spells `012`. This case's mutant withdraws that refusal, an "
+        "arc led by a nought is written, and the cells move.",
         "column": column,
         "rows": 24,
         "identifier_declared": True,
@@ -45346,6 +45461,11 @@ TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
 # twenty-first, its first step's, stands at 247,663 bytes against the
 # manifest's 250,000-byte cap, so these open a file of their own.
 TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
+    # ...and lane CODES-3's two record-number templates (plan P4-D428),
+    # method G9.6a's amendment: the noughts after the point of a whole
+    # number, and a UID root's figures with no arc led by a nought.
+    "identifier_whole_places": _identifier_whole_places,
+    "identifier_uid_root": _identifier_uid_root,
     "clock_minutes_slots": _clock_minutes_slots,
     "clock_minutes_seconds": _clock_minutes_seconds,
     "clock_minutes_all_different": _clock_minutes_all_different,
@@ -46281,7 +46401,10 @@ _TWENTY_SEVENTH_BRANCH_ACCOUNT = (
     "off the minute groups' counts, and the rounding of a walk-in grid "
     "with both counts kept -- and G7A.5's stand-ins past route 1's "
     "allowance, written as times at the column's other precision (the "
-    "Codex review of the landing, item 1). They "
+    "Codex review of the landing, item 1); and G9.6a's amendment for a "
+    "record number (lane CODES-3, plan P4-D428): a whole number exported "
+    "as a decimal written with its noughts after the point, and a DICOM "
+    "UID's root standing in every cell with no arc led by a nought. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -46384,6 +46507,29 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # LANE CODES-3's two record-number templates (plan P4-D428), method
+    # G9.6a's amendment, at seeds 600 and 601, the first two after every
+    # seed in use below 642.
+    "identifier_whole_places": (
+        3937486668014301965, 99505735939204010, 15048440771524124013,
+        16264220149667360691, 13793608813758503827, 17748973132272367450,
+        7062005559459141481, 4582273027957797523, 1398587684305037423,
+        16642428574306073765, 9264218060852264119, 13868201377579275433,
+        16925391298350839152, 604692644350355475, 6810008217396016117,
+        3683255615373923426, 3619810394422965046, 14989334523405194814,
+        13536965931106076013, 16634459806744589104, 18146102320973012924,
+        10695200289321073453, 5290484014699118777,
+    ),
+    "identifier_uid_root": (
+        15227093137976780385, 51065652742575040, 12347582842039230096,
+        14602233890251714639, 16205105839449828240, 11086774025441587131,
+        10842823246896248470, 16624526634095605972, 5741442261056303979,
+        18171395180045372710, 8932504395991295122, 8878212837791436462,
+        16315974265518245429, 14396745096696685671, 5067324705072501447,
+        10828880891900856152, 12190631171840324440, 16638670318840042791,
+        8314523262659576930, 13764856756239251816, 12549659001045162923,
+        213441213211777757, 1301442411461646261,
+    ),
     # LANDING 3b.5's SECOND STEP, the minute census of a column of clock
     # times (lane C2, plan P4-D374), at seeds 442 to 447 (renumbered at batch
     # 3b's merge of lane C2 from 436 to 441, which landing R2a's layout cases

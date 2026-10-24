@@ -280,12 +280,18 @@ def test_q_id_reaches_no_column_but_a_column_of_uids() -> None:
     """Q-ID's trigger, and the columns it must not reach (ZR.2's goldens, figures and marks).
 
     Different UIDs are asked; repeating ones where every value holds an
-    arc of five figures or more (a study, series or instance number); a
-    third of words aside (skeptic 1, items 4 and 9). Mutants: the trigger
-    reading a cell of figures and points without the grammar
+    arc after its organisation's root (a study, series or instance
+    number); words aside whatever their share where the floor's UIDs
+    remain (skeptic 1, items 4 and 9; the verify of repair 1, items 4
+    and 5); never a column under the DICOM standard's root. Mutants: the
+    trigger reading a cell of figures and points without the grammar
     (`parsing.is_a_uid` answering True for any text: `1.25`-style numbers
     and `120/80` pressures asked); `_an_arc_naming_an_item` answering True
-    (version numbers `2.1.0` repeating asked).
+    (version numbers `2.1.0` repeating asked); it asking an arc of five
+    figures (the short-arc study UIDs repeating not asked) or of seven
+    (the verify's V7: five- and six-figure arcs not asked); the standard's
+    root asked (SOP Class and Transfer Syntax UIDs held); words capped at
+    a third (`UNKNOWN` on 100 of 299 cells not asked).
     """
     uids = [f"1.2.840.{place}.{place + 7}" for place in range(1, 200)]
     assert asking._a_column_of_uids(uids)
@@ -300,7 +306,17 @@ def test_q_id_reaches_no_column_but_a_column_of_uids() -> None:
     assert asking._a_column_of_uids(series)
     assert asking._a_column_of_uids(["UNKNOWN"] + uids)
     assert asking._a_column_of_uids(["Not known."] * 66 + uids)
-    assert not asking._a_column_of_uids(["UNKNOWN"] * 100 + uids)
+    assert asking._a_column_of_uids(["UNKNOWN"] * 100 + uids)
+    assert not asking._a_column_of_uids(["UNKNOWN"] * 100 + uids[:10])
+    for arc in (41000, 410000):
+        assert asking._a_column_of_uids([f"{ROOT}{arc + k // 10}.{k // 10 % 50 + 1}" for k in range(600)])
+    assert asking._a_column_of_uids([f"{ROOT}4021.1015.{1000 + k // 10}" for k in range(600)])
+    for standard in (
+        ["1.2.840.10008.5.1.4.1.1.2", "1.2.840.10008.5.1.4.1.1.4", "1.2.840.10008.5.1.4.1.1.6.1"],
+        ["1.2.840.10008.1.2", "1.2.840.10008.1.2.1", "1.2.840.10008.1.2.4.70"],
+        ["2.16.840.1.113883.6.96", "2.16.840.1.113883.6.1", "2.16.840.1.113883.6.90"],
+    ):
+        assert not asking._a_column_of_uids(standard * 200), standard
     assert parsing.is_a_uid_root("1.2.840.113619.") and not parsing.is_a_uid_root("1.2.840")
     assert not parsing.is_a_literal_prefix("12.") and not parsing.is_a_literal_prefix("P00")
     assert parsing.uid_root(uids) == "1.2.840."
@@ -314,16 +330,27 @@ def test_q_id_reaches_no_column_but_a_column_of_uids() -> None:
 SERIES = f"{ROOT}604688119.868.1599999999.123"
 STUDY = f"{ROOT}604688119.868.1599999999"
 SIEMENS = "1.3.12.2.1107.5.2.32.35162."
+# A study UID whose own arcs hold four figures or fewer: a site arc, then
+# month-day and hour-minute (the verify of repair 1, finding 1).
+SHORT_STUDY = f"{ROOT}4021.1015.1230"
 
 
 def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() -> None:
-    """The ruling's cut on its four named roots. Mutant: `_root_of_the_organisation`
-    returning the shared arcs whole (the series and study UIDs published)."""
+    """The ruling's cut on its four named roots. Mutants: `_root_of_the_organisation`
+    returning the shared arcs whole (the series and study UIDs published);
+    no cap on the arcs after the organisation arc (the short-arc study UID
+    published)."""
     assert parsing.uid_root([f"{SERIES}.{place}" for place in range(1, 50)]) == ROOT
     assert parsing.uid_root([f"{STUDY}.{place % 20 + 1}.{place}" for place in range(1, 50)]) == ROOT
     assert parsing.uid_root([f"{SIEMENS}{place}.1" for place in range(1, 50)]) == "1.3.12.2.1107.5.2.32."
     assert parsing.uid_root([f"1.2.276.0.7230010.3.1.4.{place}" for place in range(1, 50)]) == "1.2.276.0."
-    assert parsing.uid_root([f"1.2.840.10008.5.1.4.1.1.{place}" for place in range(1, 50)]) == "1.2.840.10008.5.1.4.1.1."
+    assert parsing.uid_root([f"1.2.840.10008.5.1.4.1.1.{place}" for place in range(1, 50)]) == "1.2.840.10008.5.1.4."
+    # ...and at most three arcs after the organisation arc (the verify of
+    # repair 1, finding 1): a site arc, month-day and hour-minute of four
+    # figures or fewer are cut, every root above unmoved.
+    assert parsing.uid_root([f"{SHORT_STUDY}.{place}" for place in range(1, 50)]) == ROOT
+    assert parsing.uid_root([f"2.16.840.1.113883.3.464.1003.{place}" for place in range(1, 50)]) == "2.16.840.1.113883.3.464.1003."
+    assert parsing.uid_root([f"1.2.826.0.1.3680043.8.498.{place}" for place in range(1, 50)]) == "1.2.826.0.1."
 
 
 def _uid_table(cells: "list[str]") -> "tuple[list[str], list[list[str]]]":
@@ -370,6 +397,49 @@ def test_a_siemens_root_is_cut_before_the_scanner_serial(tmp_path: pathlib.Path)
 
 
 @pytest.mark.parametrize("n", SIZES)
+def test_a_short_arc_study_uid_is_never_published_as_the_root(tmp_path: pathlib.Path, n: int) -> None:
+    """The verify of repair 1, finding 1 (HIPAA): instances of one study whose arcs are short.
+
+    `...2.55.3.4021.1015.1230.<k>` declared: the root published is GE's,
+    never the study UID, and no real instance UID is in any file or the
+    twin (before: the study UID published, 332 of 600 and 2,222 of 20,000
+    real UIDs in the twin). Mutant: no cap on the arcs after the
+    organisation arc (`_ARCS_AFTER_THE_ORGANISATION_AT_MOST` past every
+    arc).
+    """
+    cells = [f"{SHORT_STUDY}.{k + 1}" for k in range(n)]
+    header, rows = _uid_table(cells)
+    seen = run(tmp_path / "short", header, rows, "uid", declared=("uid",))
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    assert seen["block"]["layout_prefixes"] == {"(column)": ROOT}
+    for text in seen["texts"]:
+        assert SHORT_STUDY not in text
+    assert not set(seen["cells"]) & set(cells)
+    assert sum(1 for cell in seen["cells"] if UID.fullmatch(cell) is None) == 0
+    assert sum(1 for cell in seen["cells"] if not cell.startswith(ROOT)) == 0
+
+
+@pytest.mark.parametrize("n", SIZES)
+@pytest.mark.parametrize("shape", ["sop_class", "transfer_syntax"])
+def test_the_dicom_standard_s_own_uids_are_not_asked(tmp_path: pathlib.Path, n: int, shape: str) -> None:
+    """The verify of repair 1, finding 5 (i): SOP Class and Transfer Syntax UIDs repeating.
+
+    They name a kind of object or an encoding, the same in every hospital:
+    no question and no hold, read as af69aaef read them. Mutant: Q-ID put
+    to a column under the standard's root `1.2.840.10008.` (both held).
+    """
+    values = (["1.2.840.10008.5.1.4.1.1.2", "1.2.840.10008.5.1.4.1.1.4", "1.2.840.10008.5.1.4.1.1.1",
+               "1.2.840.10008.5.1.4.1.1.6.1"] if shape == "sop_class"
+              else ["1.2.840.10008.1.2", "1.2.840.10008.1.2.1", "1.2.840.10008.1.2.4.70",
+                    "1.2.840.10008.1.2.4.90"])
+    draw = random.Random(8)
+    header, rows = _uid_table([draw.choice(values) for _row in range(n)])
+    seen = run(tmp_path / shape, header, rows, "uid", validate=False)
+    assert seen["asked"] == []
+    assert seen["held"] is False
+
+
+@pytest.mark.parametrize("n", SIZES)
 @pytest.mark.parametrize("shape", ["short_tail", "sop_series"])
 def test_a_declared_uid_of_several_tail_lengths_keeps_its_root(
     tmp_path: pathlib.Path, n: int, shape: str
@@ -392,18 +462,29 @@ def test_a_declared_uid_of_several_tail_lengths_keeps_its_root(
     assert sum(1 for cell in seen["cells"] if not cell.startswith(ROOT)) == 0
 
 
+REPEATING = {
+    20: lambda k: f"{STUDY}.{k // 20 + 1}",
+    40: lambda k: f"{ROOT}{604688119 + (k // 40) * 7919}.868.{1600000000 + k // 40}",
+    # The verify of repair 1, finding 6 (V7) and finding 1: the longest arc
+    # after the organisation's five or six figures, or four.
+    5: lambda k: f"{ROOT}{41000 + k // 10}.{k // 10 % 50 + 1}",
+    6: lambda k: f"{ROOT}{410000 + k // 10}.{k // 10 % 50 + 1}",
+    4: lambda k: f"{SHORT_STUDY}.{k // 10 + 1}",
+}
+
+
 @pytest.mark.parametrize("n", SIZES)
-@pytest.mark.parametrize("every", [20, 40])
+@pytest.mark.parametrize("every", sorted(REPEATING))
 def test_repeating_uids_are_put_q_id_and_held(tmp_path: pathlib.Path, n: int, every: int) -> None:
     """Skeptic 1, item 4: a series UID on the rows of its images, read as labels, is held.
 
     Q-ID put once, the column held, 0 real UIDs in any file or the twin.
-    Mutant: Q-ID's trigger asking every value different (the labels print
-    30 series UIDs at 600 rows and the twin writes them on every row).
+    Mutants: Q-ID's trigger asking every value different (the labels print
+    30 series UIDs at 600 rows and the twin writes them on every row); it
+    asking an arc of seven figures (the five- and six-figure shapes
+    published) or of five (the short-arc shape published).
     """
-    cells = [f"{STUDY}.{k // every + 1}" if every == 20
-             else f"{ROOT}{604688119 + (k // every) * 7919}.868.{1600000000 + k // every}"
-             for k in range(n)]
+    cells = [REPEATING[every](k) for k in range(n)]
     header, rows = _uid_table(cells)
     seen = run(tmp_path / f"rep{every}", header, rows, "uid", validate=False)
     assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
@@ -496,6 +577,32 @@ def _found_linear(
     return found, equal
 
 
+@pytest.mark.parametrize("n", SIZES)
+def test_b_record_numbers_of_three_widths_write_their_noughts(tmp_path: pathlib.Path, n: int) -> None:
+    """The verify of repair 1, finding 2: `1500+k`, `150000+k` and `15000000+k`, each `.00`, declared.
+
+    At 20,000 rows the four-figure layout's room (9,000) is refused beside
+    20,000 values, and its cells were written in the pool writer's
+    spelling (`001112.`: 2,864 cells off `\\d+\\.00`). Rule A1 without a
+    prefix counts them in the commonest whole-places layout of the same
+    places, producer and validator alike: every twin cell `\\d+\\.00`,
+    validate at exit 0, and the source validated against its own
+    description misses no layout or length. Mutant: the whole-places arm
+    of A1 removed (`taxonomy._with_whole_places_absorbed` returning the
+    column).
+    """
+    draw = random.Random(7)
+    cells = [f"{draw.choice([1500, 150000, 15000000]) + k}.00" for k in range(n)]
+    rows = [[cell, draw.choice(("CT", "MR"))] for cell in cells]
+    seen = run(tmp_path / "widths", ["ID", "other"], rows, "ID", declared=("ID",))
+    assert seen["exits"] == (0, 0, 0), seen["exits"]
+    assert sum(seen["block"]["layout_forms"].values()) == n
+    assert sum(1 for cell in seen["cells"] if re.fullmatch(r"\d+\.00", cell) is None) == 0
+    document = json.loads(seen["texts"][0])
+    missed = _validated(tmp_path / "source", document, cells)
+    assert "layout" not in missed and "length" not in missed, missed
+
+
 def test_b_grouped_and_partly_decimal_record_numbers(tmp_path: pathlib.Path) -> None:
     """Skeptic 1, items 8 and 12 (X4), at 600 rows.
 
@@ -561,12 +668,13 @@ def test_c_a_prefixed_id_s_rare_layouts_are_counted_in_its_commonest(tmp_path: p
     # ...and at 600 rows the real file meets the census, the prefix and the
     # lengths it was described with. (Its repetition pattern, `{"1": n}`,
     # is missed on af69aaef as here: not this lane's, and not read below.
-    # At 20,000 rows C6-131b takes back the 20 six-figure rsIDs so that the
-    # one of five figures is not named, rule A1 keeps that decision, and
-    # the real file, not the twin, misses the census: plan P4-D428's
-    # stated limit (10).)
-    if n != 600:
-        return
+    # At 20,000 rows the real file misses: the strict xfail below.)
+    if n == 600:
+        _the_real_file_meets_its_forms(tmp_path)
+
+
+def _the_real_file_meets_its_forms(tmp_path: pathlib.Path) -> None:
+    """The source of `tmp_path / 'vcf'` validated against its own description: no form MISSED."""
     real = tmp_path / "vcf" / "t.csv"
     (tmp_path / "real").mkdir()
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
@@ -577,6 +685,26 @@ def test_c_a_prefixed_id_s_rare_layouts_are_counted_in_its_commonest(tmp_path: p
     missed = [line for line in report.splitlines() if line.rstrip().endswith("MISSED")]
     for line in missed:
         assert "layout" not in line and "prefix" not in line and "length" not in line, line
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="plan P4-D428's stated limit (10), owner lane CODES-1 part C: at 20,000 rows "
+    "C6-131b takes back the 20 six-figure rsIDs so that the one of five figures is not "
+    "named, rule A1 keeps that decision, and the REAL file, not the twin, misses its own "
+    "census and length.min",
+)
+def test_c_the_real_vcf_meets_its_own_forms_at_20000(tmp_path: pathlib.Path) -> None:
+    """The owner's floor size, the real file against its description (the verify of repair 1, finding 7).
+
+    Kept as a strict xfail pinned to stated limit (10): it turns red the
+    day the real file meets its forms, so the limit is closed in the plan
+    then.
+    """
+    header, rows = vcf_rows(20_000, 43)
+    seen = run(tmp_path / "vcf", header, rows, "ID", declared=("ID",), validate=False)
+    assert seen["exits"][:2] == (0, 0), seen["exits"]
+    _the_real_file_meets_its_forms(tmp_path)
 
 
 def _rs_mix(n: int, unique: bool) -> "list[str]":
@@ -791,6 +919,12 @@ MEASURED_WORDS = (
     ("PAD", "NOT KNOWN", -1),
     ("PAD", "Unknown.", -1),
     ("PAD", "N.K.", -1),
+    # The verify of repair 1, finding 6 (V3): placeholders of two and three
+    # figures on one cell in five.
+    ("R", "-99", 5),
+    ("R", "-999", 5),
+    ("PAD", "-99", 5),
+    ("PAD", "-999", 5),
 )
 
 
@@ -812,6 +946,72 @@ def test_d_keys_beside_any_word_or_placeholder_are_held(
     counted = shapes.count_real(PLAIN_KEYS[form], seen["texts"][:3], seen["cells"])
     assert counted["description_values"] == 0, counted
     assert counted["twin_cells"] == 0, counted
+
+
+def two_in_five_rows(form: str, n: int, word: str) -> "tuple[list[str], list[list[str]]]":
+    """`PLAIN_KEYS[form]` beside ``word`` on two cells in five: a mostly missing reference column."""
+    draw = random.Random(25)
+    keys = PLAIN_KEYS[form]
+    rows = [[word if index % 5 < 2 else keys[index % len(keys)], draw.choice(("Sodium", "Glucose"))]
+            for index in range(n)]
+    return ["key", "test"], rows
+
+
+@pytest.mark.parametrize("n", SIZES)
+@pytest.mark.parametrize("form", sorted(PLAIN_KEYS))
+@pytest.mark.parametrize("word", ["Unknown", "Not recorded"])
+def test_d_keys_beside_words_on_two_cells_in_five_are_held(
+    tmp_path: pathlib.Path, n: int, form: str, word: str
+) -> None:
+    """The verify of repair 1, finding 4 (HIPAA): words past one cell in three set aside.
+
+    `Unknown` on two cells in five made the keys labels: 24 keys printed
+    and 360 of 600 real twin cells (12,000 of 20,000). Words with no
+    figure are set aside whatever their share: 0 keys in any file and the
+    twin, held, the question put once. Mutant: words capped at one present
+    cell in three again (`_set_aside_within_reach` counting words in the
+    cap).
+    """
+    header, rows = two_in_five_rows(form, n, word)
+    seen = run(tmp_path / f"{form}-{word[:3]}".lower(), header, rows, "key", validate=False)
+    assert seen["held"] is True
+    assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
+    counted = shapes.count_real(PLAIN_KEYS[form], seen["texts"][:3], seen["cells"])
+    assert counted["description_values"] == 0, counted
+    assert counted["twin_cells"] == 0, counted
+
+
+@pytest.mark.parametrize("n", SIZES)
+def test_d_lettered_keys_beside_a_placeholder_on_two_cells_in_five_are_held(
+    tmp_path: pathlib.Path, n: int
+) -> None:
+    """Lettered keys beside `-99` on two cells in five: no measurement is written `R1000`.
+
+    Mutant: the one-in-three cap kept for placeholders beside lettered
+    keys (`_set_aside_within_reach` capped: 25 keys printed as labels).
+    """
+    header, rows = two_in_five_rows("R", n, "-99")
+    seen = run(tmp_path / "m99", header, rows, "key", validate=False)
+    assert seen["held"] is True
+    assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
+    counted = shapes.count_real(PLAIN_KEYS["R"], seen["texts"][:3], seen["cells"])
+    assert counted["description_values"] == 0 and counted["twin_cells"] == 0, counted
+
+
+def test_d_words_beside_a_stray_key_or_a_padded_placeholder_share_are_not_asked() -> None:
+    """The floor's key cells: words beside fewer than eleven key cells are not asked.
+
+    And beside PADDED keys of figures alone the cap on placeholders of
+    figures stays (a measurement may write `-99` too). Mutant: no floor of
+    key cells (`_KEY_CELLS_AT_LEAST` 1: a column of `Yes`/`No` beside ten
+    `R1000`-shaped cells asked).
+    """
+    draw = random.Random(10)
+    words = [draw.choice(["Yes", "No", "Unknown"]) for _row in range(590)]
+    assert not asking._keys_beside_words(words + [f"R{1000 + k % 5}" for k in range(10)])
+    assert asking._keys_beside_words(words + [f"R{1000 + k % 5}" for k in range(11)])
+    padded = [PLAIN_KEYS["PAD"][k % 40] if k % 5 >= 2 else "-99" for k in range(600)]
+    assert not asking._padded_beside_words(padded)
 
 
 def test_d_codes_and_scales_beside_words_are_not_asked() -> None:

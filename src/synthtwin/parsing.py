@@ -3062,8 +3062,27 @@ def uid_root(values: "list[str]") -> str:
 # 113619, the DICOM standard's 10008): GE's `1.2.840.113619.2.55.3.` and
 # dcmtk's `1.2.276.0.` stand, and Siemens' `1.3.12.2.1107.5.2.32.35162.`
 # is cut to `1.3.12.2.1107.5.2.32.` (35162 is a scanner serial).
+#
+# ...AND AT MOST THREE ARCS AFTER THE ORGANISATION ARC (the verify of lane
+# CODES-3's repair 1, finding 1, a HIPAA case; an amendment of the
+# ruling's cut, stated in P4-D428): a serial, a date or a time may be
+# written in four figures or fewer -- `...2.55.3.4021.1015.1230.`, a site
+# arc, then month-day and hour-minute, is one study's UID -- and the
+# five-figure cut cannot see it (measured: 332 of 600 real instance UIDs
+# in the twin). The organisation arc is the arc after `1.2.840.`,
+# otherwise the first arc of four figures or more; a vendor's product
+# arcs after it are three at most (GE's `2.55.3`, Siemens' `5.2.32`), so
+# every root named above stands as it is.
+#
+# The joint ISO-ITU branch for United States organisations, `2.16.840.1.`,
+# is read as the ANSI branch is: its next arc is an organisation's (HL7's
+# 113883), so `2.16.840.1.113883.6.96`, a code system's identifier, keeps
+# its root whole and leaves nothing after it.
 _ROOT_ARC_FIGURES_AT_MOST = 4
 _ANSI_BRANCH = ("1", "2", "840")
+_ORGANISATION_BRANCHES = (_ANSI_BRANCH, ("2", "16", "840", "1"))
+_ORGANISATION_ARC_FIGURES_AT_LEAST = 4
+_ARCS_AFTER_THE_ORGANISATION_AT_MOST = 3
 
 
 def _root_of_the_organisation(root: str) -> str:
@@ -3072,12 +3091,37 @@ def _root_of_the_organisation(root: str) -> str:
         raise TypeError(_NOT_TEXT)
     arcs = root[: len(root) - 1].split(".") if root.endswith(".") else []
     kept = ""
+    organisation_at = -1
     for place, arc in enumerate(arcs):
-        organisation = place == len(_ANSI_BRANCH) and tuple(arcs[:place]) == _ANSI_BRANCH
-        if len(arc) > _ROOT_ARC_FIGURES_AT_MOST and not organisation:
+        ansi = False
+        for branch in _ORGANISATION_BRANCHES:
+            ansi = ansi or (place == len(branch) and tuple(arcs[:place]) == branch)
+        if len(arc) > _ROOT_ARC_FIGURES_AT_MOST and not ansi:
             break
+        if (
+            organisation_at >= 0
+            and place - organisation_at > _ARCS_AFTER_THE_ORGANISATION_AT_MOST
+        ):
+            break
+        if organisation_at < 0 and (
+            ansi or len(arc) >= _ORGANISATION_ARC_FIGURES_AT_LEAST
+        ):
+            organisation_at = place
         kept = kept + arc + "."
     return kept
+
+
+def uid_after_the_organisation(uid: str) -> "list[str]":
+    """The arcs of a UID after its organisation's root (`_root_of_the_organisation`).
+
+    What could name a study, a series, an image or a moment (plan
+    P4-D428). Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(uid, str):
+        raise TypeError(_NOT_TEXT)
+    root = _root_of_the_organisation(uid + ".")
+    rest = uid[len(root):]
+    return rest.split(".") if rest else []
 
 
 def uid_room(tail: str) -> int:

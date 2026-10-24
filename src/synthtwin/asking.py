@@ -1763,12 +1763,14 @@ def _beside_sign_placeholders(present: "list[str]") -> "list[str]":
 def _uid_cells(present: "list[str]") -> "list[str]":
     """The cells of a column Q-ID reads as UIDs, words aside; [] where it reads none.
 
-    Up to one present cell in three holding no figure at all (`UNKNOWN`,
-    `Not known.`, `-`) is set aside, as route two of the person rule sets
-    such words aside (skeptic 1 of lane CODES-3, item 9: one `UNKNOWN`
-    made 599 UIDs a number with words, and nothing was asked); every
-    other cell must be a UID (`parsing.is_a_uid`). A fixed function of
-    the cells. Raises nothing. No I/O.
+    Every present cell holding no figure at all (`UNKNOWN`, `Not
+    known.`, `-`) is set aside, whatever their share, as the keys beside
+    words set them aside (skeptic 1 of lane CODES-3, item 9: one
+    `UNKNOWN` made 599 UIDs a number with words, and nothing was asked;
+    the verify of its repair 1, finding 4: words on two cells in five);
+    every other cell must be a UID (`parsing.is_a_uid`), and where words
+    were set aside the UIDs fill the floor's cells at least. A fixed
+    function of the cells. Raises nothing. No I/O.
     """
     uids: "list[str]" = []
     aside = 0
@@ -1779,7 +1781,7 @@ def _uid_cells(present: "list[str]") -> "list[str]":
         if not parsing.is_a_uid(value):
             return []
         uids += [value]
-    if aside * _WORDS_BESIDE_KEYS_SHARE > len(present):
+    if aside and len(uids) < _KEY_CELLS_AT_LEAST:
         return []
     return uids
 
@@ -1793,9 +1795,11 @@ def _a_column_of_uids(present: "list[str]") -> bool:
     they REPEAT -- a study or series UID on the rows of each of its images
     (skeptic 1, item 4: 30 series UIDs published as labels at 600 rows,
     1,000 at 20,000, the twin writing real ones on every row) -- it is
-    asked where every different value holds an arc of five figures or
-    more, the serial number, timestamp or random number a UID names one
-    item by, which no version number (`2.1.0`) or section number holds.
+    asked where every different value holds an arc after its
+    organisation's root (`_an_arc_naming_an_item`): the serial number,
+    timestamp or random number a UID names one item by, which no version
+    number (`2.1.0`) or section number holds. A column under the DICOM
+    standard's own root is never asked.
     Over the battery's columns of figures and marks with nearly every
     value different -- `pressure` (figures and `/`) and `amount` (figures
     and one point) -- no cell is of the grammar (plan P4-D419's ZR.2). A
@@ -1806,8 +1810,18 @@ def _a_column_of_uids(present: "list[str]") -> bool:
     if not uids:
         return False
     seen: "dict[str, bool]" = {}
+    standard = True
     for value in uids:
         seen[value] = True
+        standard = standard and value[: len(_THE_STANDARDS_ROOT)] == _THE_STANDARDS_ROOT
+    if standard:
+        # THE DICOM STANDARD'S OWN UIDS NAME NO ITEM (the verify of lane
+        # CODES-3's repair 1, finding 5 (i)): a SOP Class UID
+        # `1.2.840.10008.5.1.4.1.1.2` or a Transfer Syntax UID
+        # `1.2.840.10008.1.2.1` names a kind of object or an encoding, the
+        # same in every hospital, so a column under the standard's root
+        # is never asked.
+        return False
     if len(seen) == len(uids):
         return True
     for value in seen:
@@ -1816,14 +1830,24 @@ def _a_column_of_uids(present: "list[str]") -> bool:
     return True
 
 
+_THE_STANDARDS_ROOT = "1.2.840.10008."
+
+
 def _an_arc_naming_an_item(uid: str) -> bool:
-    """Whether a UID holds an arc of five figures or more (plan P4-D428)."""
+    """Whether a UID holds an arc after its organisation's root (plan P4-D428).
+
+    Read after the cut a published root takes (`parsing.
+    uid_after_the_organisation`): the root ends before the first arc of
+    five figures or more and three arcs after the organisation arc at the
+    latest, so what is left could name a study, a series, an image or a
+    moment, and the organisation arc itself -- GE's 113619 -- names none
+    (the verify of lane CODES-3's repair 1, finding 5 (i)). A version
+    number `2.1.0`, a section number `1.2.3` and a code system's OID
+    `2.16.840.1.113883.6.96` leave nothing after their root.
+    """
     if not isinstance(uid, str):
         raise TypeError("a cell to ask about must be text")
-    for arc in uid.split("."):
-        if len(arc) >= _KEY_FIGURES:
-            return True
-    return False
+    return bool(parsing.uid_after_the_organisation(uid))
 
 
 def _holds_no_figure(value: str) -> bool:
@@ -3530,8 +3554,9 @@ def _names_people_past_route_four(
 # one key a cell on 600 or 20,000 rows, is held; and ONE `OTHER` among
 # them made it a column of labels publishing all 40 keys with their
 # counts (measured on af69aaef: 40 of 40 keys and 599 twin cells at 600
-# rows, 40 and 19,999 at 20,000). So up to one present cell in three may
-# be SET ASIDE (`_set_aside_beside_keys`: any cell holding no figure --
+# rows, 40 and 19,999 at 20,000). So cells may be SET ASIDE, whatever
+# their share (`_set_aside_within_reach`, below), where the keys fill the
+# floor's cells (`_set_aside_beside_keys`: any cell holding no figure --
 # `OTHER`, `Not known.`, `Other (specify)`, `?` -- and the placeholders a
 # key writes for nobody, `-1` to `-999`, a lone `0`, nines alone; skeptic
 # 1, item 2: `Not known.`, `-1`, `0` and `Other (specify)` published all
@@ -3549,14 +3574,74 @@ _KEY_FIGURES_AT_LEAST = 3
 def _set_aside_beside_keys(value: str) -> bool:
     """Whether a cell beside keys is a word or a placeholder, set aside (P4-D428).
 
-    A cell holding no figure (`_holds_no_figure`); a minus sign and one to
-    three figures; a lone `0`; or nines alone (`_a_width_placeholder`).
+    A cell holding no figure (`_holds_no_figure`), or a placeholder of
+    figures (`_a_placeholder_beside_keys`).
     """
-    if _holds_no_figure(value) or _a_width_placeholder(value):
+    return _holds_no_figure(value) or _a_placeholder_beside_keys(value)
+
+
+def _a_placeholder_beside_keys(value: str) -> bool:
+    """Whether a cell is a minus sign and one to three figures, a lone `0` or nines alone."""
+    if _a_width_placeholder(value):
         return True
     return (
         value[:1] == "-" and 2 <= len(value) <= 4 and _is_plain_whole_number(value[1:])
     )
+
+
+# WORDS ARE SET ASIDE WHATEVER THEIR SHARE (the verify of lane CODES-3's
+# repair 1, finding 4, a HIPAA case; the rule of lane SH's addendum 3 for
+# its reaches): `R1000` to `R1039` beside `Unknown` on two cells in five,
+# a mostly missing reference column, was read as labels and published 24
+# keys (360 of 600 twin cells real). So a cell holding no figure is set
+# aside however many there are; beside PADDED keys of figures alone the
+# one-in-three cap is kept for the placeholders of figures (`-1`, `0`,
+# nines), which a measurement may write too, while beside LETTERED keys,
+# which no measurement is written as, those placeholders are set aside
+# whatever their share too (`-99` on two cells in five published 25 keys);
+# and the keys left must fill at least the floor's cells (eleven, the
+# floor no user lowers), so a column of words with a stray key is not
+# asked.
+_KEY_CELLS_AT_LEAST = parsing.DEFAULT_SMALL_CELL_FLOOR
+
+
+def _beside_keys_counted(
+    present: "list[str]", padded: bool
+) -> "tuple[dict[str, bool], int, int, int] | None":
+    """The keys, key cells, words and placeholders of a column beside words (P4-D428).
+
+    A key is a lettered key (`_a_lettered_key`), or where ``padded`` is
+    true figures alone (`_a_padded_key_cell`). None where a present cell
+    is neither a key, nor a word with no figure, nor a placeholder of
+    figures. A fixed function of the cells. Raises nothing. No I/O.
+    """
+    keys: "dict[str, bool]" = {}
+    counted = 0
+    words = 0
+    placeholders = 0
+    for value in present:
+        if padded and _a_padded_key_cell(value):
+            keys[value] = True
+            counted = counted + 1
+        elif not padded and _a_lettered_key(value):
+            keys[parsing.folded(value)] = True
+            counted = counted + 1
+        elif _holds_no_figure(value):
+            words = words + 1
+        elif _a_placeholder_beside_keys(value):
+            placeholders = placeholders + 1
+        else:
+            return None
+    return keys, counted, words, placeholders
+
+
+def _set_aside_within_reach(
+    counted: int, words: int, placeholders: int, n_present: int, capped: bool
+) -> bool:
+    """Whether a column beside words keeps its keys in reach (P4-D428): see the note above."""
+    if words + placeholders == 0 or counted < _KEY_CELLS_AT_LEAST:
+        return False
+    return not capped or placeholders * _WORDS_BESIDE_KEYS_SHARE <= n_present
 
 
 def _a_lettered_key(value: str) -> bool:
@@ -3573,27 +3658,23 @@ def _a_lettered_key(value: str) -> bool:
 
 
 def _keys_beside_words(present: "list[str]") -> bool:
-    """Route two beside words (plan P4-D428): keys repeating, at most a third set aside.
+    """Route two beside words (plan P4-D428): keys repeating, words and placeholders aside.
 
     Every present cell a lettered key (`_a_lettered_key`) or set aside
-    (`_set_aside_beside_keys`); one set aside at least, and at most one
-    present cell in three; the keys repeat, `PERSON_ROWS_PER_VALUE` rows a
-    different key on average, routes one and two's first condition read
-    over the keys. A column of keys alone is route two's already. A fixed
-    function of the cells. Raises nothing. No I/O.
+    (`_set_aside_beside_keys`); one set aside at least, whatever their
+    share, and the floor's key cells at least (`_set_aside_within_reach`);
+    the keys repeat, `PERSON_ROWS_PER_VALUE`
+    rows a different key on average, routes one and two's first condition
+    read over the keys. A column of keys alone is route two's already. A
+    fixed function of the cells. Raises nothing. No I/O.
     """
-    aside = 0
-    keys: "dict[str, bool]" = {}
-    counted = 0
-    for value in present:
-        if _a_lettered_key(value):
-            keys[parsing.folded(value)] = True
-            counted = counted + 1
-            continue
-        if not _set_aside_beside_keys(value):
-            return False
-        aside = aside + 1
-    if aside == 0 or not keys or aside * _WORDS_BESIDE_KEYS_SHARE > len(present):
+    found = _beside_keys_counted(present, False)
+    if found is None:
+        return False
+    keys, counted, words, placeholders = found
+    if not keys or not _set_aside_within_reach(
+        counted, words, placeholders, len(present), False
+    ):
         return False
     return counted >= PERSON_ROWS_PER_VALUE * len(keys)
 
@@ -3746,10 +3827,12 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
 # is held by the padded question while every cell is figures; one `OTHER`
 # made the column a count and 20 % of them labels, asked nothing, and
 # the labels published all 40 keys (measured on af69aaef: 40 of 40 and
-# 16,000 twin cells at 20,000 rows). So route four also asks where up to
-# one present cell in three, one at least, is set aside as route two's
-# arm sets it aside (`_set_aside_beside_keys`: `NOT KNOWN`, `Unknown.`,
-# `N.K.` and a lone `0` among them, skeptic 1's item 2), and every other
+# 16,000 twin cells at 20,000 rows). So route four also asks where cells
+# are set aside as route two's arm sets them aside
+# (`_set_aside_beside_keys`: `NOT KNOWN`, `Unknown.`, `N.K.` and a lone
+# `0` among them, skeptic 1's item 2) -- words whatever their share,
+# placeholders of figures on one present cell in three at most
+# (`_set_aside_within_reach`) -- and every other
 # cell is figures alone of one width, four or more, repeating, more than
 # half of the different keys led by a nought: the padded question's own
 # signal, which no measurement is written with. A column of such keys
@@ -3757,20 +3840,18 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
 _PADDED_KEY_WIDTH = 4
 
 
+def _a_padded_key_cell(value: str) -> bool:
+    """Whether a cell is figures alone and no placeholder of figures (P4-D428)."""
+    return _is_plain_whole_number(value) and not _a_placeholder_beside_keys(value)
+
+
 def _padded_beside_words(present: "list[str]") -> bool:
     """Route four's padded arm (plan P4-D428); see the note above."""
-    keys: "dict[str, bool]" = {}
-    counted = 0
-    aside = 0
-    for value in present:
-        if _set_aside_beside_keys(value):
-            aside = aside + 1
-            continue
-        if not _is_plain_whole_number(value):
-            return False
-        keys[value] = True
-        counted = counted + 1
-    if aside == 0 or aside * _WORDS_BESIDE_KEYS_SHARE > len(present):
+    found = _beside_keys_counted(present, True)
+    if found is None:
+        return False
+    keys, counted, words, placeholders = found
+    if not _set_aside_within_reach(counted, words, placeholders, len(present), True):
         return False
     if len(keys) < 2 or counted < PERSON_ROWS_PER_VALUE * len(keys):
         return False

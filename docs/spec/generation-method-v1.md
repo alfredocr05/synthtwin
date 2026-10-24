@@ -15569,6 +15569,28 @@ matched 800 real cells and 0 twin cells, and `^P\d{5}$` 800 and 30.
    wrote 20 of those, `&%%%%` came back 7 of 26 and `validate` exited 3
    naming both misses; with this step the twin writes the census exactly
    at seeds 1 and 4.
+7. **AMENDED (lane CODES-3, plan P4-D428, 2026-10-24): figures stand in a
+   template too.** (a) A column publishing `all_whole_numbers` true writes
+   every layout of figures, one point and figures -- only `%`, the zero
+   fill `!` and a comma between thousands before the point, a `%` just
+   before it, only `%` after it (`parsing.whole_places_layout`) -- as the
+   template with `0` at every place after the point: a record number a
+   warehouse exports as a decimal, `31000000.00`, keeps the source's
+   constant figures there and they are never filled from the step
+   (measured before: 595 of 600 cells no whole number). It applies with a
+   prefix or without one; a column publishing `all_whole_numbers` false
+   is written as before. (b) A `(column)` prefix may be a DICOM UID's
+   root, figures and points (contract 7.12a as P4-D428 amends it), and
+   its figures stand in the template as a prefix's letters do: step 2
+   asks every letter AND every figure of the template to stand in the
+   cell at its place. (c) Under a template opening with such a root, a
+   filling none of whose arcs but `0` is led by a nought is the only one
+   taken (`parsing.uid_unled`): `%%%` filled at a step whose first figure
+   is nought spells `012`, an arc the UID grammar
+   `[012](\.(0|[1-9]\d*))+` forbids. A template holding no figure is
+   tested as before, so every other column is written byte for byte as
+   it was. Frozen cases `identifier_whole_places` (a) and
+   `identifier_uid_root` (b, c) pin this step, each red on its mutant.
 
 The cells a prefix governs are recounted beside the layout census, and
 the report names a prefix some such cell does not open with. **What this
@@ -18539,7 +18561,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and sixteen are required.** The count is taken off the committed
+**All two hundred and eighteen are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -18606,11 +18628,13 @@ landing I3a a column on the dial with no marker read at UTC beside two
 offsets, which G7.3b step 10's half day does not reach; and from lane
 L2 a set of clock times written with U+202F before their marker (plan
 P4-D392) --; and the TWENTY-SEVENTH,
-`tests/reference/generation-branch-vectors-27.json`, holds seven --
+`tests/reference/generation-branch-vectors-27.json`, holds nine --
 landing 3b.5's second step, G7A.4c's minute census of a column of clock
 times (plan P4-D374), in a file of its own because the twenty-first
 stands at the manifest's cap, and from its Codex review G7A.5's
-stand-ins past route 1's allowance --
+stand-ins past route 1's allowance, and from lane CODES-3 G9.6a's
+step 7, a whole record number's noughts after the point and a UID
+root with no arc led by a nought (plan P4-D428) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -18840,6 +18864,8 @@ case passed, which is the failure the count exists to prevent:
 | `saturated_levels` | G6.5a's fill of a column whose published levels are its strata (plan P4-D178): thirty-three readings at one place of the four levels 2.0, 3.2, 6.5 and 15.0, each named by two rungs or more, the mode 6.5, four different values published; the rungs name more than four numbers, so the levels are the numbers two rungs or more name with the ends and the mode, and the strata take them in order. Its mutant withdraws the fill and the walk writes `4.6` |
 | `separated_in_order` | G6.5a's walks taken reach by reach (plan P4-D183): `signed_pads` publishing eleven different values and twenty-two spellings, twenty-two strata over 100 to 110; every stratum is walked inside its own share first, so the thirteenth takes 105 inside its share. Its mutant takes the three reaches stratum by stratum, the tenth stratum walks out of its share onto 105, and the cells move |
 | `identifier_column_prefix` | G9.6a's TEMPLATE for the whole column (plan P4-D202, owner ruling of 2026-09-17): a declared identifier publishing `{"@@@%%%%": 24}` and `{"(column)": "REC"}` over twelve identities written once and six twice; every cell is `REC` and four figures filled from the step, `REC1816`, `REC2632`, and the eighteen stay different. Its mutant reads the census as published, the letters are filled from the step, and the recount of 7.12a stops the oracle |
+| `identifier_whole_places` | G9.6a's step 7 (a) (lane CODES-3, plan P4-D428): a declared identifier publishing `{"%%%%%%%%.%%": 24}` beside `all_whole_numbers` true over twelve identities written once and six twice; the template is `%%%%%%%%.00`, so every cell is eight figures and `.00`, `79101458.00`, `98373897.00`. Its mutant fills the places after the point from the step, and the cells move |
+| `identifier_uid_root` | G9.6a's step 7 (b) and (c) (lane CODES-3, plan P4-D428): a declared identifier publishing `{"%.%.%%%.%%%%%%.%.%%.%.%%%": 24}` and `{"(column)": "1.2.840.113619.2.55.3."}` over twelve identities written once and six twice; the root stands in every cell and the arc of three figures is never led by a nought, `1.2.840.113619.2.55.3.832`. Its mutant lets a nought lead the arc, `1.2.840.113619.2.55.3.091` is written, and the cells move |
 | `identifier_layout_prefixes` | G9.6a's templates per layout (plan P4-D202): `{"@%%%%%": 12, "@@%%%%": 12}` with `{"@%%%%%": "E", "@@%%%%": "ST"}` over twenty-four identities; the rotation spreads `E%%%%%` and `ST%%%%` over them as it spread the layouts, `E30816`, `ST7553`. Its mutant reads the census as published, and the recount of 7.12a stops the oracle |
 | `pooled_level_sizes` | G8.3's sizes read off a pooled total and its debts (plan P4-D201, owner ruling of 2026-09-17): a column of categories publishing `alpha` and `beta` beside five held-back labels pooled on twenty-one rows at a floor of eleven, all owed to the one form the census names; the debt takes the three labels that pay it below the floor and then the other two, and its rows are shared one each and the rest by the square of each label's place, so the stand-ins cover 1, 2, 4, 6 and 8 rows. Its mutant shares the pool out evenly, 4, 4, 4, 4 and 5, and the cells move |
 | `pooled_number_scale` | G8.3c's placement of the pool's made-up numbers on the mean contract 6.3.3 publishes for them (plan P4-D302, ledger K-2B-50): thirty-one rows at a floor of eleven, one published label `alpha` on eleven and four held-back levels covering twenty rows, every one of which the source wrote as a number. The column publishes no number of its own, so the ladder of G8.3a step 3 is unanchored; the pool's block — twenty numeric cells and a mean of 50, with NO spread since the owner's decision of 2026-09-21 — places them instead. G8.3 reads the four sizes off the pool as 10, 6, 3 and 1, the walk hands them out largest first at positions 0, 1, -1 and 2, and their weighted centre is a quarter, so their offsets are -1/4, 3/4, -5/4 and 7/4. Nothing published says how far apart the held-back numbers stood, so the spacing is this method's own — five places of this column's whole-number grid, unbounded here because the column publishes no number to bound it — and the first value asked for, 48.75, rounds onto 49. The four groups then CARRY EACH OTHER'S ARREARS (step 4): no group is pushed by the census here, so the order is the walk's own, and each group after the first is asked for what the cells still to be written must average for the pool to come out on 50 — 53.5 onto 54, 42.75 onto 43 and 57 onto 57 — against the 54, 44 and 59 the step 2 values alone would have written. The twin's own pool comes back at 50 EXACTLY, inside the window G12.12 draws, which is two places of this column's whole-number grid; the fact stays APPROXIMATED because a mean the last group's rounding cannot carry is met inside that window and not on it. Its mutant withdraws the placement and the unanchored ladder answers instead, so all four cells move |

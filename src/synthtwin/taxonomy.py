@@ -26198,7 +26198,10 @@ def absorbed_layout_census(
 
 
 def a1_census_is_absorbed(
-    layouts: "dict[str, int]", prefixes: "dict[str, str]", n_present: int
+    layouts: "dict[str, int]",
+    prefixes: "dict[str, str]",
+    n_present: int,
+    all_whole: bool = False,
 ) -> str:
     """The layout a description's rule A1 counted moved cells in, or "" (P4-D428).
 
@@ -26209,8 +26212,22 @@ def a1_census_is_absorbed(
     CODES-3, item 5) -- is not one, and is read as it was written. The
     answer is the commonest named layout (the earliest in sorted order on
     a tie), which the validator counts a measured file's other cells in.
+
+    ...AND A WHOLE RECORD NUMBER WRITTEN AS A DECIMAL (P4-D428): with
+    ``all_whole`` true and no prefix, a census whose every layout is a
+    whole-places layout of the same places (`whole_places_layout_of`) is
+    read the same way.
     """
-    if parsing.PREFIX_OF_THE_COLUMN not in prefixes or SUPPRESSED_LABEL in layouts:
+    if SUPPRESSED_LABEL in layouts:
+        return ""
+    if not prefixes and all_whole:
+        places = -1
+        for layout in sorted(layouts):
+            mine = whole_places_layout_of(layout)
+            if mine < 1 or (places >= 0 and mine != places):
+                return ""
+            places = mine
+    elif parsing.PREFIX_OF_THE_COLUMN not in prefixes:
         return ""
     total = 0
     commonest = ""
@@ -26275,6 +26292,8 @@ def with_layout_pool_absorbed(
         return column
     convention = parsing.layout_convention(present)
     whole = column_prefix(present, convention)
+    if not whole and not old_prefixes:
+        return _with_whole_places_absorbed(column, present, forms, convention, floor)
     if not whole or not parsing.prefix_nameable(len(present), len(present), floor):
         return column
     uid = parsing.is_a_uid_root(whole)
@@ -26304,6 +26323,27 @@ def with_layout_pool_absorbed(
         parsing.PREFIX_OF_THE_COLUMN: whole
     }:
         return column
+    return _a1_written(
+        column, census, {parsing.PREFIX_OF_THE_COLUMN: whole}, shortest, longest,
+        convention, floor,
+    )
+
+
+def _a1_written(
+    column: ColumnProfile,
+    census: "dict[str, int]",
+    written: "dict[str, str]",
+    shortest: int,
+    longest: int,
+    convention: str,
+    floor: int,
+) -> ColumnProfile:
+    """A record number's block with rule A1's census, where every obligation holds.
+
+    C6-131b's whole-census rule must leave the census whole, and the
+    validator must read it as A1's (`a1_census_is_absorbed`); otherwise
+    the column is returned unchanged. No I/O.
+    """
     code_alphabet = (
         column.details["n_code_alphabet"] if "n_code_alphabet" in column.details else 0
     )
@@ -26317,8 +26357,14 @@ def with_layout_pool_absorbed(
     ]
     if _no_complement_of_one(census, 0, False, floor, totals, column.n_present) != census:
         return column
-    written = {parsing.PREFIX_OF_THE_COLUMN: whole}
-    if not a1_census_is_absorbed(census, written, column.n_present):
+    all_whole = (
+        column.details["all_whole_numbers"]
+        if "all_whole_numbers" in column.details
+        else False
+    )
+    if not a1_census_is_absorbed(
+        census, written, column.n_present, all_whole is True
+    ):
         return column
     details: dict[str, object] = {}
     for key in sorted(column.details):
@@ -26328,6 +26374,86 @@ def with_layout_pool_absorbed(
     details["min_length"] = shortest
     details["max_length"] = longest
     return dataclasses.replace(column, details=details)
+
+
+def whole_places_of(value: str) -> int:
+    """How many noughts follow the point of a whole number written as a decimal, or -1.
+
+    `31000000.00` gives 2 and `1500.0` gives 1: figures alone, one point,
+    and noughts alone after it (plan P4-D428). Every other text gives -1.
+    A fixed function of the text. Raises TypeError for a non-string. No
+    I/O.
+    """
+    if not isinstance(value, str):
+        raise TypeError("a cell must be text")
+    point = value.find(".")
+    if point < 1 or not parsing.noughts_after_the_point(value):
+        return -1
+    for character in value[:point]:
+        if not "0" <= character <= "9":
+            return -1
+    return len(value) - point - 1
+
+
+def whole_places_layout_of(layout: str) -> int:
+    """How many places follow the point of a whole-places layout (`%%%%.%%`), or -1."""
+    if not isinstance(layout, str):
+        raise TypeError("a layout must be text")
+    if layout == SUPPRESSED_LABEL or parsing.whole_places_layout(layout) == layout:
+        return -1
+    point = layout.find(".")
+    for mark in layout[:point]:
+        if mark != parsing.LAYOUT_DIGIT and mark != parsing.LAYOUT_LEADING_ZERO:
+            return -1
+    return len(layout) - point - 1
+
+
+def _with_whole_places_absorbed(
+    column: ColumnProfile,
+    present: "list[str]",
+    forms: "dict[str, int]",
+    convention: str,
+    floor: int,
+) -> ColumnProfile:
+    """Rule A1 WITHOUT A PREFIX, for a whole record number written as a decimal (P4-D428).
+
+    THE VERIFY OF LANE CODES-3's REPAIR 1, FINDING 2. A declared record
+    number every present cell of which is figures, one point and the same
+    count of noughts (`31000000.00`; `whole_places_of`), described with
+    `all_whole_numbers` true: a layout whose room the census refuses
+    (`%%%%.%%` spells 9,000 cells, too few beside 20,000 different
+    values), or one under the line, was counted nowhere, and the twin
+    wrote its cells in the pool writer's spelling (`001112.`: 2,864 of
+    20,000 cells were no whole number with two noughts after its point).
+    Its cells are counted in the commonest named whole-places layout with
+    the same places, as rule A1 counts a prefixed record number's, and
+    the validator reads the measured file alike (`a1_census_is_absorbed`).
+    A column with nothing to move is returned unchanged, today's
+    description. No I/O.
+    """
+    all_whole = (
+        column.details["all_whole_numbers"]
+        if "all_whole_numbers" in column.details
+        else False
+    )
+    if all_whole is not True:
+        return column
+    places = -1
+    for value in present:
+        mine = whole_places_of(value)
+        if mine < 1 or (places >= 0 and mine != places):
+            return column
+        places = mine
+    kept: "list[str]" = []
+    for layout in sorted(forms):
+        if whole_places_layout_of(layout) == places:
+            kept += [layout]
+    if not kept:
+        return column
+    census, shortest, longest, moved = absorbed_layout_census(kept, present, convention)
+    if moved == 0:
+        return column
+    return _a1_written(column, census, {}, shortest, longest, convention, floor)
 
 
 def as_held_in_people(column: ColumnProfile) -> ColumnProfile:

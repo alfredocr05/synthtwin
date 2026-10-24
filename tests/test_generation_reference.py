@@ -921,7 +921,8 @@ TWENTY_FIRST_BRANCH_CASES = (
 )
 
 # THE TWENTY-SEVENTH FILE: landing 3b.5's second step, G7A.4c's minute
-# census of a column of clock times (plan P4-D374).
+# census of a column of clock times (plan P4-D374), and lane CODES-3's two
+# record-number templates, G9.6a's amendment (plan P4-D428).
 TWENTY_SEVENTH_BRANCH_CASES = (
     "clock_minutes_all_different",
     "clock_minutes_no_tails",
@@ -930,6 +931,8 @@ TWENTY_SEVENTH_BRANCH_CASES = (
     "clock_minutes_seconds",
     "clock_minutes_slots",
     "clock_stand_ins_past_route_one",
+    "identifier_uid_root",
+    "identifier_whole_places",
 )
 
 # THE TWENTY-THIRD FILE: lane G2's width rule, G6.6.8's reach (plan
@@ -1040,6 +1043,10 @@ SEEDS = {
     # renumbered at batch 3b's merge of lane C2 from 436 to 441, which
     # landing R2a's layout cases and landing 3b.5's absent places held.
     "clock_minutes_slots": 442,
+    # Lane CODES-3's two record-number templates (plan P4-D428) take the
+    # first two seeds free after 571.
+    "identifier_whole_places": 600,
+    "identifier_uid_root": 601,
     "clock_minutes_seconds": 443,
     "clock_minutes_all_different": 444,
     "clock_minutes_rung_pins": 445,
@@ -1367,6 +1374,8 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_column_prefix",
         "identifier_layout_prefixes",
         "identifier_absorbed_figure",
+        "identifier_whole_places",
+        "identifier_uid_root",
     }
 )
 
@@ -3831,6 +3840,32 @@ def _prefixes_not_templated(column: dict) -> dict:
     return dict(column.get("layout_forms") or {})
 
 
+def _no_whole_places_template(column: dict) -> dict:
+    """G9.6a's amendment withdrawn (plan P4-D428): no noughts written after the point."""
+    census = column.get("layout_forms") or {}
+    prefixes = column.get("layout_prefixes") or {}
+    whole = prefixes.get(gen.PREFIX_OF_THE_COLUMN, "")
+    templated = {}
+    for name in sorted(census):
+        prefix = prefixes.get(name, whole)
+        if name == gen.WITHHELD or not prefix:
+            templated[name] = census[name]
+        else:
+            templated[prefix + name[len(prefix):]] = census[name]
+    return templated
+
+
+def _uid_arcs_led_by_noughts(candidate: str, template: str, convention: str) -> bool:
+    """G9.6a's amendment withdrawn under a UID root (plan P4-D428): an arc may be led by a nought."""
+    if gen.layout_of(candidate, convention) != gen.prefix_layout(template, convention):
+        return False
+    return all(
+        candidate[place] == mark
+        for place, mark in enumerate(template)
+        if gen._ascii_letter(mark) or mark in gen.DIGIT_CHARACTERS
+    )
+
+
 def _no_layout_packing(*_arguments, **_keywords):
     """G9.6's layout packing withdrawn (plan P4-D182): no packing is found."""
     return None
@@ -4800,6 +4835,22 @@ CASE_MUTANTS = {
         attribute="templated_census",
         replacement=_prefixes_not_templated,
         outcome="do not open with a prefix the case publishes",
+    ),
+    "identifier_whole_places": Mutant(
+        branch="G9.6a's amendment for a whole number exported as a decimal "
+        "(plan P4-D428); the mutant writes no nought after the point, the "
+        "places are filled from the step, and the cells move",
+        attribute="templated_census",
+        replacement=_no_whole_places_template,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_uid_root": Mutant(
+        branch="G9.6a's amendment under a DICOM UID root (plan P4-D428); the "
+        "mutant lets an arc be led by a nought, which the UID grammar "
+        "forbids, and the cells move",
+        attribute="wears_template",
+        replacement=_uid_arcs_led_by_noughts,
+        outcome=CHANGES_THE_CELLS,
     ),
     "identifier_layout_prefixes": Mutant(
         branch="G9.6a's templates, per layout (plan P4-D202); the mutant "

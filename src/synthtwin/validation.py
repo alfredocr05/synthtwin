@@ -22062,22 +22062,42 @@ def _identifier_checks(
     # written (Codex's review of lane CODES-3, item 5).
     absorbed_lengths: "dict[str, int]" = {}
     into = taxonomy.a1_census_is_absorbed(
-        facts.layout_forms, facts.layout_prefixes, column.n_present
+        facts.layout_forms, facts.layout_prefixes, column.n_present,
+        facts.all_whole_numbers,
     )
     if into:
         convention = parsing.layout_convention(present)
-        prefix = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
         distinct = len(set(present))
         named = [layout for layout in sorted(facts.layout_forms)]
-        for layout in sorted(census):
-            if (
-                layout != contract.WITHHELD
-                and layout not in facts.layout_forms
-                and parsing.prefix_leaves_room(
-                    layout, prefix, convention, distinct, floor
-                )
-            ):
-                named += [layout]
+        if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+            prefix = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+            for layout in sorted(census):
+                if (
+                    layout != contract.WITHHELD
+                    and layout not in facts.layout_forms
+                    and parsing.prefix_leaves_room(
+                        layout, prefix, convention, distinct, floor
+                    )
+                ):
+                    named += [layout]
+        else:
+            # ...AND RULE A1 WITHOUT A PREFIX, a whole record number written
+            # as a decimal (P4-D428; `taxonomy._with_whole_places_absorbed`):
+            # a layout the recount names is counted as itself, and so is
+            # every layout that is not of the published places, so only a
+            # measured cell the producer would have moved -- the same
+            # places, its layout too small a room or under the line -- is
+            # counted in the commonest.
+            places = taxonomy.whole_places_layout_of(into)
+            worn: "dict[str, bool]" = {}
+            for cell in present:
+                worn[parsing.layout_form(cell, convention)] = True
+            for layout in sorted(worn):
+                if layout and layout not in facts.layout_forms and (
+                    layout in census
+                    or taxonomy.whole_places_layout_of(layout) != places
+                ):
+                    named += [layout]
         absorbed = taxonomy.absorbed_layout_census(named, present, convention, into)
         census = {}
         for layout in sorted(absorbed[0]):
