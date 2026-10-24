@@ -2127,11 +2127,18 @@ def sas_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
 
 
 WIDE_ITEMS = tuple(f"item_{place:03d}" for place in range(1, 301))
-ITEM_LEVELS = (("0", 30.0), ("1", 25.0), ("2", 20.0), ("3", 15.0), ("4", 7.0), ("", 3.0))
+# The items as a survey tool's label export writes them. MEASURED on this
+# lane's head (planning-notes wave6/E0c/probe-20k-slow.log): written as
+# the raw codes 0 to 4, each of the 300 is put the measurement, code or
+# identifier question (301 questions at 600 rows), and the table takes
+# 46 s at 600 rows and 1,499 s at 20,000 -- over K-HZ-03's 900 s for a
+# whole shard on its own; written as labels, it asks one.
+ITEM_LEVELS = (("Never", 30.0), ("Rarely", 25.0), ("Sometimes", 20.0), ("Often", 15.0), ("Always", 7.0), ("", 3.0))
+ITEM_WORDS = {"Never", "Rarely", "Sometimes", "Often", "Always"}
 
 
 def wide_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
-    """A wide export: 300 questionnaire items beside the patient and the date, 302 columns."""
+    """A wide export: 300 questionnaire items, as labels, beside the patient and the date, 302 columns."""
     draw = random.Random(seed)
     header = ["patient_ref", "visit_date", *WIDE_ITEMS]
     values = [value for value, _weight in ITEM_LEVELS]
@@ -2143,7 +2150,7 @@ def wide_export(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
 
 
 def _items_bad(frame: object) -> int:
-    return sum(_bad_set(frame[column], {"0", "1", "2", "3", "4"}) for column in WIDE_ITEMS)  # type: ignore[index]
+    return sum(_bad_set(frame[column], ITEM_WORDS) for column in WIDE_ITEMS)  # type: ignore[index]
 
 
 ORDER_TESTS = (("CBC", 35.0), ("BMP", 30.0), ("Lipid panel", 15.0), ("TSH", 10.0), ("HbA1c", 10.0))
@@ -2319,12 +2326,12 @@ FAMILY_FILES: "tuple[Table, ...]" = (
         "wide_export", ".csv", wide_export,
         lambda header, rows: csv_bytes(header, rows),
         {"wide_table": ("patient_ref", "visit_date", *WIDE_ITEMS)},
-        {"patient_ref": "identifier", **{item: "measurement" for item in WIDE_ITEMS}},
+        {"patient_ref": "identifier"},
         _csv_reader(),
         (
             Check("wide_table", "the file holds its 302 columns", "same",
                   lambda f: int(f["inferred"].shape[1]), "", spoil_extra_column),  # type: ignore[attr-defined]
-            _bad("wide_table", "every item 0 to 4 or blank", "item_001", lambda f: _items_bad(f["text"])),
+            _bad("wide_table", "every item a listed label or blank", "item_001", lambda f: _items_bad(f["text"])),
             _dated("wide_table", "visit_date parses as %Y-%m-%d", "visit_date", "%Y-%m-%d"),
         ),
     ),

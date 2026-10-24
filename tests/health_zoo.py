@@ -2983,7 +2983,17 @@ def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: path
     twin's cells; 'printed values': the same in the description alone.
     'ages over 89': the distinct ages past the top-code 90 written as
     numbers there. Returns {column: {"description": n, "twin": n,
-    "twin_cells": n}}, distinct values and the twin's cells holding one.
+    "twin_cells": n, "twin_by_chance": n}}, distinct values and the
+    twin's cells holding one.
+
+    A TWIN OF MADE-UP NUMBERS MEETS REAL ONES BY CHANCE where the real
+    keys fill their range (5,000 durable keys from 100000 to 104999, a
+    twin of six-figure keys): so where every real value is a whole
+    number, the twin is read against a CONTROL as well, the real values
+    moved past the real range by its width, which no real value holds,
+    and its matches there (`twin_by_chance`) say what chance gives. The
+    twin's real values count (`twin`) only when they pass twice the
+    control and three more; the description's are counted exactly.
     """
     real_frames = table.read(source)
     twin_frames = table.read(twin)
@@ -3003,9 +3013,30 @@ def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: path
             in_description = real & set(said)
             normal_twin = [_normal(cell) for cell in twin_cells] if how == "values" else []
             in_twin = real & set(normal_twin)
-            cells = sum(1 for cell in normal_twin if cell in real)
-        found[column] = {"description": len(in_description), "twin": len(in_twin), "twin_cells": cells}
+            chance = _by_chance(real, set(normal_twin))
+            if len(in_twin) <= 2 * chance + 3 and chance:
+                in_twin = set()
+            cells = sum(1 for cell in normal_twin if cell in in_twin)
+            found[column] = {
+                "description": len(in_description), "twin": len(in_twin), "twin_cells": cells, "twin_by_chance": chance,
+            }
+            continue
+        found[column] = {"description": len(in_description), "twin": len(in_twin), "twin_cells": cells, "twin_by_chance": 0}
     return found
+
+
+def _by_chance(real: "set[str]", twin: "set[str]") -> int:
+    """The twin's matches with the CONTROL: every real whole number moved past the real range by its width.
+
+    Nought where a real value is not a whole number (names, addresses,
+    codes with letters): there no control is drawn and every match counts.
+    """
+    if not real or not all(re.fullmatch(r"-?\d+", value) for value in real):
+        return 0
+    numbers = [int(value) for value in real]
+    width = max(numbers) - min(numbers) + 1
+    control = {f"{number + width}" for number in numbers}
+    return len(control & twin)
 
 
 # -- per kind, and the three KPIs --------------------------------------------

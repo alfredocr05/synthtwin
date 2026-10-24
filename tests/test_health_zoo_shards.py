@@ -176,16 +176,52 @@ def _made_up_zips(header: "list[str]", rows: "list[list[str]]") -> None:
 def test_the_leak_scan_sees_a_real_value(tmp_path: pathlib.Path) -> None:
     """HIPAA first: a real ZIP in the twin, or printed in the column's block or its note, is found; made-up ones are not."""
     clean = _leak_case(tmp_path / "clean", _made_up_zips, {"columns": [{"name": "zip5", "role": "identifier"}]})
-    assert clean == {column: {"description": 0, "twin": 0, "twin_cells": 0} for column, _how in zoo.table_named("patients").leaks}
+    assert clean == {column: {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0} for column, _how in zoo.table_named("patients").leaks}
     copied = _leak_case(tmp_path / "copied", lambda header, rows: None, {"columns": []})
     assert copied["zip5"]["twin"] >= 10 and copied["zip5"]["twin_cells"] == zoo.SMOKE_ROWS
     printed = _leak_case(tmp_path / "printed", _made_up_zips, {
         "columns": [{"name": "zip5", "percentiles": {"p50": 2139.0}, "mode": "06510", "mode_count": 2139}],
         "publication_notes": [{"column": "zip4", "note": ["02139-0001"]}],
     })
-    assert printed["zip5"] == {"description": 2, "twin": 0, "twin_cells": 0}
+    assert printed["zip5"] == {"description": 2, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
     counted = _leak_case(tmp_path / "counted", _made_up_zips, {"columns": [{"name": "zip5", "rows": 2139, "n_distinct": 6510}]})
     assert counted["zip5"]["description"] == 0, "a count is not a value"
+
+
+def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path: pathlib.Path) -> None:
+    """A twin of keys drawn in a range real keys fill meets them by chance; a copy of a few real keys is a leak.
+
+    The control (the real keys moved past their range by its width) meets
+    the twin as often as chance does, so the drawn twin counts nothing;
+    the twin that copies twenty real keys and draws the rest past the
+    range counts all twenty.
+    """
+    import dataclasses
+    import random
+
+    table = dataclasses.replace(zoo.table_named("patients"), leaks=(("patient_id", "values"),))
+    header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
+    place = header.index("patient_id")
+    for index in range(len(rows)):
+        rows[index][place] = f"{100000 + index * 3}"
+    real = tmp_path / "real.csv"
+    real.write_bytes(table.write(header, rows))
+    profile = tmp_path / "profile.json"
+    profile.write_text(json.dumps({"columns": []}), encoding="utf-8")
+    draw = random.Random(4)
+    for row in rows:
+        row[place] = f"{draw.randint(100000, 103599)}"
+    drawn = tmp_path / "drawn.csv"
+    drawn.write_bytes(table.write(header, rows))
+    by_chance = zoo.leaked(table, real, drawn, profile)["patient_id"]
+    assert by_chance["twin"] == 0 and by_chance["twin_by_chance"] > 0, by_chance
+    for index in range(len(rows)):
+        rows[index][place] = f"{100000 + index * 3}" if index < 20 else f"{200000 + index}"
+    copied = tmp_path / "copied.csv"
+    copied.write_bytes(table.write(header, rows))
+    assert zoo.leaked(table, real, copied, profile)["patient_id"] == {
+        "description": 0, "twin": 20, "twin_cells": 20, "twin_by_chance": 0,
+    }
 
 
 def test_the_age_scan_sees_an_age_past_89(tmp_path: pathlib.Path) -> None:
@@ -198,24 +234,24 @@ def test_the_age_scan_sees_an_age_past_89(tmp_path: pathlib.Path) -> None:
     real.write_bytes(table.write(header, rows))
     profile = tmp_path / "profile.json"
     profile.write_text(json.dumps({"columns": [{"name": "age", "levels": {"90+": 30}}]}), encoding="utf-8")
-    assert zoo.leaked(table, real, real, profile)["age"] == {"description": 0, "twin": 0, "twin_cells": 0}
+    assert zoo.leaked(table, real, real, profile)["age"] == {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
     place = header.index("age")
     rows[0][place] = "93"
     twin = tmp_path / "twin.csv"
     twin.write_bytes(table.write(header, rows))
     profile.write_text(json.dumps({"columns": [{"name": "age", "tails": {"high": {"values": [90.0, 91.0, 104]}}}]}), encoding="utf-8")
-    assert zoo.leaked(table, real, twin, profile)["age"] == {"description": 2, "twin": 1, "twin_cells": 1}
+    assert zoo.leaked(table, real, twin, profile)["age"] == {"description": 2, "twin": 1, "twin_cells": 1, "twin_by_chance": 0}
 
 
 def test_a_printed_value_is_read_in_the_description_alone(tmp_path: pathlib.Path) -> None:
     """A birth date the twin draws in its span meets a real one by chance: 'printed values' reads the description only."""
     case = _leak_case(tmp_path, lambda header, rows: None, {"columns": []})
-    assert case["dob_iso"] == {"description": 0, "twin": 0, "twin_cells": 0}
+    assert case["dob_iso"] == {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
     table = zoo.table_named("patients")
     header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
     born = rows[0][header.index("dob_iso")]
     printed = _leak_case(tmp_path / "printed", lambda header, rows: None, {"columns": [{"name": "dob_iso", "percentiles": {"min": born}}]})
-    assert printed["dob_iso"] == {"description": 1, "twin": 0, "twin_cells": 0}
+    assert printed["dob_iso"] == {"description": 1, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
 
 
 def test_a_leak_fails_its_kind_and_is_counted() -> None:
@@ -223,7 +259,7 @@ def test_a_leak_fails_its_kind_and_is_counted() -> None:
     result = {
         "table": "patients", "rows": zoo.SMOKE_ROWS, "misses": [], "analyst": [], "asked": [], "general": True,
         "analyst_real_errors": [], "steps": {step: {"exit": 0, "error": ""} for step in ("profile", "answers", "generate", "validate")},
-        "leaks": {"zip5": {"description": 3, "twin": 4, "twin_cells": 90}, "zip4": {"description": 0, "twin": 0, "twin_cells": 0}},
+        "leaks": {"zip5": {"description": 3, "twin": 4, "twin_cells": 90}, "zip4": {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}},
     }
     verdicts = zoo.per_kind([result])
     assert "leak zip5" in verdicts["demographics"]["failures"]
