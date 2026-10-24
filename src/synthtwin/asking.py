@@ -3566,7 +3566,6 @@ def _names_people_past_route_four(
 # to `A9`, an ICD-10 `E11` or `E11.9`, a stage `pT1c` and a lab code are
 # no such key, so a column of them beside words is not asked (measured
 # over the description batteries and the health data zoo, plan P4-D428).
-_WORDS_BESIDE_KEYS_SHARE = 3
 _KEY_LETTERS_AT_MOST = 3
 _KEY_FIGURES_AT_LEAST = 3
 
@@ -3593,13 +3592,14 @@ def _a_placeholder_beside_keys(value: str) -> bool:
 # repair 1, finding 4, a HIPAA case; the rule of lane SH's addendum 3 for
 # its reaches): `R1000` to `R1039` beside `Unknown` on two cells in five,
 # a mostly missing reference column, was read as labels and published 24
-# keys (360 of 600 twin cells real). So a cell holding no figure is set
-# aside however many there are; beside PADDED keys of figures alone the
-# one-in-three cap is kept for the placeholders of figures (`-1`, `0`,
-# nines), which a measurement may write too, while beside LETTERED keys,
-# which no measurement is written as, those placeholders are set aside
-# whatever their share too (`-99` on two cells in five published 25 keys);
-# and the keys left must fill at least the floor's cells (eleven, the
+# keys (360 of 600 twin cells real). So a cell holding no figure, and a
+# placeholder of figures (`-1` to `-999`, a lone `0`, nines alone), is
+# set aside however many there are (`-99` on two cells in five published
+# 25 lettered keys, and padded keys read as a count, one in their
+# percentiles and 19,801 of 20,000 twin cells real): no measurement is
+# written as a lettered key, nor as padded figures most of whose
+# different values a nought leads, which the padded arm asks of its
+# keys. The keys left must fill at least the floor's cells (eleven, the
 # floor no user lowers), so a column of words with a stray key is not
 # asked.
 _KEY_CELLS_AT_LEAST = parsing.DEFAULT_SMALL_CELL_FLOOR
@@ -3636,12 +3636,10 @@ def _beside_keys_counted(
 
 
 def _set_aside_within_reach(
-    counted: int, words: int, placeholders: int, n_present: int, capped: bool
+    counted: int, words: int, placeholders: int
 ) -> bool:
     """Whether a column beside words keeps its keys in reach (P4-D428): see the note above."""
-    if words + placeholders == 0 or counted < _KEY_CELLS_AT_LEAST:
-        return False
-    return not capped or placeholders * _WORDS_BESIDE_KEYS_SHARE <= n_present
+    return words + placeholders > 0 and counted >= _KEY_CELLS_AT_LEAST
 
 
 def _a_lettered_key(value: str) -> bool:
@@ -3663,18 +3661,15 @@ def _keys_beside_words(present: "list[str]") -> bool:
     Every present cell a lettered key (`_a_lettered_key`) or set aside
     (`_set_aside_beside_keys`); one set aside at least, whatever their
     share, and the floor's key cells at least (`_set_aside_within_reach`);
-    the keys repeat, `PERSON_ROWS_PER_VALUE`
-    rows a different key on average, routes one and two's first condition
-    read over the keys. A column of keys alone is route two's already. A
+    the keys repeat, `PERSON_ROWS_PER_VALUE` rows a different key on
+    average, routes one and two's first condition read over the keys. A column of keys alone is route two's already. A
     fixed function of the cells. Raises nothing. No I/O.
     """
     found = _beside_keys_counted(present, False)
     if found is None:
         return False
     keys, counted, words, placeholders = found
-    if not keys or not _set_aside_within_reach(
-        counted, words, placeholders, len(present), False
-    ):
+    if not keys or not _set_aside_within_reach(counted, words, placeholders):
         return False
     return counted >= PERSON_ROWS_PER_VALUE * len(keys)
 
@@ -3830,9 +3825,8 @@ def _a_key_of_figures_repeating(present: "list[str]") -> bool:
 # 16,000 twin cells at 20,000 rows). So route four also asks where cells
 # are set aside as route two's arm sets them aside
 # (`_set_aside_beside_keys`: `NOT KNOWN`, `Unknown.`, `N.K.` and a lone
-# `0` among them, skeptic 1's item 2) -- words whatever their share,
-# placeholders of figures on one present cell in three at most
-# (`_set_aside_within_reach`) -- and every other
+# `0` among them, skeptic 1's item 2) -- words and placeholders whatever
+# their share (`_set_aside_within_reach`) -- and every other
 # cell is figures alone of one width, four or more, repeating, more than
 # half of the different keys led by a nought: the padded question's own
 # signal, which no measurement is written with. A column of such keys
@@ -3851,7 +3845,7 @@ def _padded_beside_words(present: "list[str]") -> bool:
     if found is None:
         return False
     keys, counted, words, placeholders = found
-    if not _set_aside_within_reach(counted, words, placeholders, len(present), True):
+    if not _set_aside_within_reach(counted, words, placeholders):
         return False
     if len(keys) < 2 or counted < PERSON_ROWS_PER_VALUE * len(keys):
         return False

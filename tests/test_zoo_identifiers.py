@@ -339,7 +339,7 @@ def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() ->
     """The ruling's cut on its four named roots. Mutants: `_root_of_the_organisation`
     returning the shared arcs whole (the series and study UIDs published);
     no cap on the arcs after the organisation arc (the short-arc study UID
-    published)."""
+    published); five-figure arcs kept (a serial of five figures published)."""
     assert parsing.uid_root([f"{SERIES}.{place}" for place in range(1, 50)]) == ROOT
     assert parsing.uid_root([f"{STUDY}.{place % 20 + 1}.{place}" for place in range(1, 50)]) == ROOT
     assert parsing.uid_root([f"{SIEMENS}{place}.1" for place in range(1, 50)]) == "1.3.12.2.1107.5.2.32."
@@ -351,6 +351,9 @@ def test_the_root_is_the_organisation_s_and_names_no_study_series_or_device() ->
     assert parsing.uid_root([f"{SHORT_STUDY}.{place}" for place in range(1, 50)]) == ROOT
     assert parsing.uid_root([f"2.16.840.1.113883.3.464.1003.{place}" for place in range(1, 50)]) == "2.16.840.1.113883.3.464.1003."
     assert parsing.uid_root([f"1.2.826.0.1.3680043.8.498.{place}" for place in range(1, 50)]) == "1.2.826.0.1."
+    # A serial of five figures where no organisation arc came first is
+    # cut too (mutant: `_ROOT_ARC_FIGURES_AT_MOST` 5, the serial published).
+    assert parsing.uid_root([f"1.2.276.0.72300.3.{place}" for place in range(1, 50)]) == "1.2.276.0."
 
 
 def _uid_table(cells: "list[str]") -> "tuple[list[str], list[list[str]]]":
@@ -982,35 +985,36 @@ def test_d_keys_beside_words_on_two_cells_in_five_are_held(
 
 
 @pytest.mark.parametrize("n", SIZES)
-def test_d_lettered_keys_beside_a_placeholder_on_two_cells_in_five_are_held(
-    tmp_path: pathlib.Path, n: int
+@pytest.mark.parametrize("form", ["R", "PAD"])
+def test_d_keys_beside_a_placeholder_on_two_cells_in_five_are_held(
+    tmp_path: pathlib.Path, n: int, form: str
 ) -> None:
-    """Lettered keys beside `-99` on two cells in five: no measurement is written `R1000`.
+    """Keys beside `-99` on two cells in five: no measurement is written `R1000`, or `0100` to `0139`.
 
-    Mutant: the one-in-three cap kept for placeholders beside lettered
-    keys (`_set_aside_within_reach` capped: 25 keys printed as labels).
+    Before, the lettered keys were labels (25 keys printed) and the padded
+    ones a count (one key in its percentiles, 19,801 of 20,000 twin cells
+    real). Mutant: the one-in-three cap kept for placeholders of figures
+    (`_set_aside_within_reach` capped).
     """
-    header, rows = two_in_five_rows("R", n, "-99")
+    header, rows = two_in_five_rows(form, n, "-99")
     seen = run(tmp_path / "m99", header, rows, "key", validate=False)
     assert seen["held"] is True
     assert len(seen["asked"]) == 1 and asking.ANSWER_IDENTIFIER in seen["asked"][0]
-    counted = shapes.count_real(PLAIN_KEYS["R"], seen["texts"][:3], seen["cells"])
+    counted = shapes.count_real(PLAIN_KEYS[form], seen["texts"][:3], seen["cells"])
     assert counted["description_values"] == 0 and counted["twin_cells"] == 0, counted
 
 
-def test_d_words_beside_a_stray_key_or_a_padded_placeholder_share_are_not_asked() -> None:
+def test_d_words_beside_a_stray_key_are_not_asked() -> None:
     """The floor's key cells: words beside fewer than eleven key cells are not asked.
 
-    And beside PADDED keys of figures alone the cap on placeholders of
-    figures stays (a measurement may write `-99` too). Mutant: no floor of
-    key cells (`_KEY_CELLS_AT_LEAST` 1: a column of `Yes`/`No` beside ten
-    `R1000`-shaped cells asked).
+    Mutant: no floor of key cells (`_KEY_CELLS_AT_LEAST` 1: a column of
+    `Yes`/`No` beside ten `R1000`-shaped cells asked).
     """
     draw = random.Random(10)
     words = [draw.choice(["Yes", "No", "Unknown"]) for _row in range(590)]
     assert not asking._keys_beside_words(words + [f"R{1000 + k % 5}" for k in range(10)])
     assert asking._keys_beside_words(words + [f"R{1000 + k % 5}" for k in range(11)])
-    padded = [PLAIN_KEYS["PAD"][k % 40] if k % 5 >= 2 else "-99" for k in range(600)]
+    padded = ["Unknown"] * 590 + [PLAIN_KEYS["PAD"][k % 5] for k in range(10)]
     assert not asking._padded_beside_words(padded)
 
 
