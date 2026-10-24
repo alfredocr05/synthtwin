@@ -6,6 +6,87 @@ exists).
 
 ## [Unreleased]
 
+### The zoo-fix stand-ins page: stand-ins, rare values named, few-valued numbers (plan P4-D422, lane ZR-b, 2026-10-22; specified, NOT BUILT)
+
+**A method page, no product code.** Lanes CODES-1, CODES-2, CODES-3 and
+GG own twelve of the health data zoo's failing kinds and write into one
+generator path, one publication and one questions file, so the page in
+`docs/plans/phase-4-columns.md` settles them before any is built. Rule U
+says what "unanswered" means for every name, value and census. Rules A1
+to A3: a form or layout under the floor absorbed into the commonest
+published one, producer and validator alike (the VCF `rs` layouts); for
+the label class, a floored positional census per published form after
+the Safe Harbor `no`, counted in people beside a subject column, keeping a
+vocabulary prefix such as `ICD10CM:`, its stand-ins stepped through the
+lists in balanced order, then the characters the published levels wear,
+then the alphabet widened from the last place (the zoo's TNM: 0 of 81
+cells out of grammar, 11 of 11 levels real), and unanswered reading no
+held-back cell; held-back numbers keeping their own form and width
+(PCORnet `DX`: `%%%.%` 24 against a published 21 today). CODES-1 part C: a
+held column's twin meets its published forms. CODES-2 under the owner's Z1
+(B): rare names published only through an allowlist, after the owner's
+question "Could a value of this column name a person, a place smaller
+than a state, a birth date, or a record, account or device number?",
+answered `no`; the question put in the first round to every label column
+in one entry, its explanation covering ages over 89, three-figure ZIPs
+and any other number or code given to one person; a column answered
+`code`, and a label column with a figure in every present cell, held
+until then, and on every other label column each level holding a figure
+pooled until then, so a five-figure ZIP, a ZIP+4 and a device UDI publish
+none of their values, one `UNKNOWN` cell beside them included (9 of 59
+ZIPs and 12 of 49 UDIs printed answered `code` today, 9 of 363 ZIPs with
+nothing asked, 6 beside one word cell); `yes` acted on at once, `no`
+waiting for every identity question of the table; a column of words such
+as a birth city keeps its common word levels unanswered, a stated limit;
+the Safe Harbor top-code, a column of any role that prints a value
+(`binary`, `constant`, a count, a measurement, and the number part of
+numbers with labels and of affixed numbers) at least two thirds of whose
+numbers lie within 0 to 125, one above 89, read with those values as 90
+until its question is answered, words and placeholders (all-nines of
+either sign, `-1`, and any value outside 0 to 125 that the floor's rows
+repeat) set aside whatever their share, so neither one `999` cell, one
+outlier `130`, nor `999`, `-1` or `888` on 7,000 of 20,000 rows defeats
+it (three ages over 89 printed today at 2,000 rows; `95` printed at
+20,000 rows as a `binary` and a `constant` level, beside `130` and
+beside `999`, `-1` or `888` x 7,000, 90 to 104 beside 8,000 `-1`, and
+`max` 104.99 on ages written ` years` once the person question is
+answered `keep`), and a label column of such numbers, every word set
+aside whatever its share, read with its levels above 89 pooled into one
+written as 90 (the levels `90 years` to `104 years`, and `95` beside
+`UNK` x 7,000 or beside 800 different words, printed today); the five-figure hold, such a column at least two thirds
+of whose whole numbers have four or five figures, one of five, its words
+and placeholders (all-nines of other than four or five figures, and any
+value of other than four or five figures that the floor's rows repeat)
+set aside whatever their share, `9999` and `99999` counted toward "one of
+five", held whole until `no`, so ZIPs that lost their leading zeros are held too
+(9 real ZIPs printed today beside one `UNKNOWN` cell, 4 of 4 for
+`[2100, 2107, 52240, 52247]`, 40 of 40 padded ZIPs beside `-99` x 7,000,
+40 of 40 four-figure ZIPs beside `99999`), and four-figure ZIPs beside any
+other placeholder or a word named a live exposure owned by CODES-2, and
+four-figure ZIPs of one or two values (`binary`: 2 printed; `constant`:
+1) a live exposure owned by lane SH; both live in today's product and built now
+by lane SH (P4-D427), whose gate holds Codex's four cases, the
+third verify's five shapes, the fourth verify's four, the fifth
+verify's `V5-1` and the sixth verify's `V6-1` and `V6-2`; short result
+words by a shape screen that refuses every word holding a letter and a
+figure, a word holding a figure (`#4521`) named only after `no`, lone
+names its named residual;
+named levels' sizes allocated jointly with the published form debts; lane HX3's `code` offered on code-form
+long tails in the same question; names beside a person column only where
+the column is not attached to it. GG: a few-valued number column, after
+the same `no`, writes only its own values, rare ones included;
+unanswered it keeps today's twin, and `yes` holds its ladder, mode and
+tails. Each rule's floor argument, with the chain's RULE W1 reading a
+named level and every printed rare value as an own-fact group; the
+validator's rule of each; what moves (no golden, checked on the
+fixtures; the frozen vectors each lane names); the KPIs the four lanes
+stamp and the kinds each turns. Measured on 4682d6ad
+(`planning-notes/work-2026-10/wave6/ZRb/`). `tests/test_zoo_stand_ins_page.py`
+(314 cases) pins the page's figures and its reading of the product, red on
+each of 314 page mutants after close 6 (close 6 re-ran the 21 whose text it
+touched), on the combined review, the one outside review, the second to
+sixth verifies and Codex's second outside round.
+
 ### The floor of 11 is a minimum: `--smallest-group` raises it and never lowers it (lane MIN, 2026-10-23)
 
 **Lane MIN** (plan P4-D426), on the owner's answer of 2026-10-23, "Only
