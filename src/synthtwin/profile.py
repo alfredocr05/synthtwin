@@ -4570,6 +4570,12 @@ def build_document(
                 frozenset(described.absent_spellings),
                 settings.small_cell_floor,
                 described.role in taxonomy.SAFE_HARBOR_LEVEL_ROLES,
+                # ...and a column a person has said is a measurement or a
+                # code -- P4-D401's padded question answered, or declared
+                # -- is no longer judged a code by its leading zeros (the
+                # second repair of lane SH, item 1: ages written `000` to
+                # `120`, answered `measurement`, printed 91 to 105).
+                name in declared_codes or name in declared_measurements,
             )
         if forced_top or reach == taxonomy.SAFE_HARBOR_AGES:
             coded = taxonomy.top_coded_cells(

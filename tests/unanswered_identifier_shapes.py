@@ -474,9 +474,9 @@ def nobody_at_the_keyboard():
         cli._there_is_somebody_to_ask = asked
 
 
-def _csv_column(path: pathlib.Path, place: int) -> "list[str]":
+def _csv_column(path: pathlib.Path, place: int, delimiter: str = ",") -> "list[str]":
     with open(path, encoding="utf-8", newline="") as handle:
-        rows = list(csv.reader(handle))
+        rows = list(csv.reader(handle, delimiter=delimiter))
     return [row[place] for row in rows[1:]]
 
 
@@ -598,6 +598,28 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
 #   (`age_plus`); and its item 5, one cell `07` (`age_padded07`): P4-D401's
 #   padded question holds the column, its held block read from the
 #   top-coded cells, and no Safe Harbor question is put beside it.
+#
+# THE SECOND REPAIR OF LANE SH (the combined verify on 9ccb6bc7,
+# wave6/SH-verify.md), each measured live there at 20,000 rows:
+# - item 2: every cell a ZIP+4 with a varied +4 (`zipplus4_all`) was put
+#   the two-numbers question AND the Safe Harbor question;
+# - item 3: ages written with a decimal comma (`94,8`) in a `;` file, no
+#   comma declared (`agescomma`), read as labels and printed `96,5`;
+# - item 4: nine-figure ZIP+4 cells with no hyphen beside three `UNKNOWN`
+#   (`zip9_unk`, padded `zip9pad_unk`) read as a count and printed rungs
+#   opening with real ZIPs; their published nine-figure numbers are
+#   counted by the ZIP they open with (`_zip_heads`);
+# - item 7: ages beside four placeholders, `777`, `888`, `555` and `999`
+#   on 6 % of the rows each (`ages4ph`), are reached only while the
+#   all-nines `999` is set aside;
+# - items 1 and 6, the column's other question answered
+#   (`SAFE_HARBOR_ANSWERED`): NAACCR's Age at Diagnosis, three figures
+#   padded, `999` unknown on 2 % (`naaccr`), answered `measurement` or
+#   `code`; and ZIPs answered `code`, `measurement` or `keep` to the
+#   date-count question (`zip5word52_unknown`), the person question
+#   (`zip52_unknown40`, `UNKNOWN` on 40 % of rows) or the two-numbers
+#   question (`zipplus4_30`, `zipplus4_1234`): the Safe Harbor question
+#   is put and the column held until `no`.
 ZIP_WORDS = ("zip5word_unknown", "zip5word_homeless", "zip5word52_unknown",
              "zip5word52_homeless")
 ZIPS = ZIP_WORDS + (
@@ -605,15 +627,31 @@ ZIPS = ZIP_WORDS + (
     "zip_mixed_minus99", "zip4_99999", "zip4_99999x11", "zip_plus4",
     "zip_plus_sign", "zip4_binary", "zip4_constant", "zip_pad_unknown",
     "zip_pad_unknown35", "zip_mixed_unknown", "zip4_99999_unknown",
-    "zip4_minus9999", "zip4_999999", "acct_date_count",
+    "zip4_minus9999", "zip4_999999", "acct_date_count", "zipplus4_all",
+    "zip9_unk", "zip9pad_unk",
 )
+# The shapes counted only once their column's other question is answered.
+ZIPS_ANSWERED_ONLY = ("zip52_unknown40", "zipplus4_30", "zipplus4_1234")
+ZIP_KINDS = ZIPS + ZIPS_ANSWERED_ONLY
+# ZIP+4 cells written as nine figures, counted by the ZIP they open with.
+ZIP_NINE = ("zip9_unk", "zip9pad_unk")
 AGES = (
     "ages", "ages999", "ages999x20", "ages-9", "age_binary", "age_constant",
     "age_outlier", "age_126", "age_999share", "age_minus1share", "age_888",
     "age_gauss_minus1", "age_years", "age_unk", "age_words800",
-    "age_years_words", "age_person", "age_plus", "age_padded07",
+    "age_years_words", "age_person", "age_plus", "age_padded07", "ages4ph",
+    "agescomma",
 )
 SAFE_HARBOR_NUMBERS = ZIPS + AGES
+# Each shape whose column's other question is answered, with the answer.
+SAFE_HARBOR_ANSWERED = (
+    ("naaccr", "measurement"), ("naaccr", "code"),
+    ("zip5word52_unknown", "code"), ("zip5word52_unknown", "measurement"),
+    ("zip52_unknown40", "keep"), ("zip52_unknown40", "code"),
+    ("zipplus4_30", "keep"), ("zipplus4_1234", "keep"),
+)
+# The tables written with `;` between their cells.
+_SEMICOLON = ("agescomma",)
 AGE_TOP_CODE = 90
 AGE_CEILING = 125
 # Validation limits of the held block (plan P4-D427, stated): at 20,000
@@ -622,13 +660,23 @@ AGE_CEILING = 125
 # census line absorbs the one), and the held generator writes whole
 # numbers only, so the twin misses that one fact (exit 3); owner CODES-1
 # part C, as `VALIDATION_LIMITS` are.
-SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown")
+SAFE_HARBOR_HELD_LIMITS_AT_20000 = ("zip5word_unknown", "zip5word52_unknown", "ages4ph")
 # ...and at 600 rows ZIP codes beside twenty ZIP+4 cells are held by
 # P4-D401's person question, whose held twin writes the ZIP+4 layout and
 # too few cells of the five-figure one (`forms.published.%%%%%`): the
 # same exit 3 on b85200be, before this lane (wave6/SH/r1/base-zip4.log);
 # owner CODES-1 part C, as above.
-SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4",)
+SAFE_HARBOR_HELD_LIMITS_AT_600 = ("zip_plus4", "ages4ph", "agescomma")
+# ...and ages beside four placeholders, each on 6 % of the rows
+# (`ages4ph`): the twin misses the published `p90`, which lies among the
+# placeholders, top-coded or not -- the same exit 3 answered `no` and on
+# b85200be (wave6/SH-verify.md, "for the orchestrator"); a generation
+# limit outside lane SH, named there. And at 600 rows, ages written with
+# an undeclared decimal comma read as labels (`agescomma`): the twin
+# misses `n_numeric`, `n_not_numeric` and the form `%%,%` -- the same
+# three on the table written with every age above 89 as `90,0`, which
+# no top-code touches (wave6/SH/r2), a label generation limit outside
+# lane SH.
 
 def _an_age(draw: random.Random) -> int:
     """18 to 89, or 90 to 103 for 3 % of draws."""
@@ -673,6 +721,26 @@ def _zip_cells(kind: str, rows: int, draw: random.Random) -> "tuple[list[str], l
                 cells[row] = f"{zips[row % 7]}-{1000 + row}"
         real = sorted({cell for cell in cells if cell != word})
         return cells, real
+    zips52 = [f"{52240 + 7 * k}" for k in range(40)]
+    if kind in ("zipplus4_all", "zipplus4_30", "zipplus4_1234", "zip52_unknown40"):
+        for _row in range(rows):
+            zip_code = draw.choice(zips52)
+            if kind == "zipplus4_all" or (kind == "zipplus4_30" and draw.random() < 0.3):
+                cells += [f"{zip_code}-{draw.randint(1000, 9999)}"]
+            elif kind == "zipplus4_1234":
+                cells += [f"{zip_code}-1234"]
+            else:
+                cells += [zip_code]
+        if kind == "zip52_unknown40":
+            cells[: rows * 2 // 5] = ["UNKNOWN"] * (rows * 2 // 5)
+            draw.shuffle(cells)
+        return cells, sorted(set(zips52) & {cell[:5] for cell in cells})
+    if kind in ZIP_NINE:
+        heads = padded if kind == "zip9pad_unk" else zips52
+        cells = [f"{draw.choice(heads)}{draw.randint(1000, 9999)}" for _ in range(rows - 3)]
+        cells += ["UNKNOWN"] * 3
+        draw.shuffle(cells)
+        return cells, sorted(set(heads) & {cell[:5] for cell in cells})
     if kind == "acct_date_count":
         accounts = [f"{1400000000 + draw.randrange(10 ** 8)}" for _ in range(60)]
         cells = [f"{123400000 + row}" if row % 150 == 0 else accounts[row % 60]
@@ -731,6 +799,20 @@ def _age_cells(kind: str, rows: int, draw: random.Random) -> "list[str | tuple[i
             else:
                 cells += [(age, "{}")]
         return cells
+    if kind == "naaccr":
+        # NAACCR's Age at Diagnosis: three figures, `999` unknown.
+        return ["999" if draw.random() < 0.02
+                else (min(105, max(0, round(draw.gauss(64, 14)))), "{:03d}")
+                for _ in range(rows)]
+    if kind == "agescomma":
+        return [(_an_age(draw), "{}," + f"{draw.randint(0, 9)}") for _ in range(rows)]
+    if kind == "ages4ph":
+        share = rows * 6 // 100
+        cells = [(_an_age(draw), "{}") for _ in range(rows - 4 * share)]
+        for placeholder in ("777", "888", "555", "999"):
+            cells += [placeholder] * share
+        draw.shuffle(cells)
+        return cells
     if kind == "age_plus":
         return [(_an_age(draw), "+{}" if row % 50 == 0 else "{}") for row in range(rows)]
     if kind == "age_padded07":
@@ -780,6 +862,9 @@ def _written_age(cell: "str | tuple[int, str]", top_coded: bool) -> str:
     age, form = cell
     if top_coded and AGE_TOP_CODE <= age <= AGE_CEILING:
         age = AGE_TOP_CODE
+        if "," in form:
+            # A decimal comma's fraction is written as zeros: `90,0`.
+            form = form.split(",")[0] + ",0"
     return form.format(age)
 
 
@@ -806,7 +891,7 @@ def write_safe_harbor_table(
     written as another of the same form (`_decoy`), placeholders kept.
     """
     draw = random.Random(SEED + len(kind))
-    if kind in ZIPS:
+    if kind in ZIP_KINDS:
         written, real = _zip_cells(kind, rows, draw)
         if decoy:
             named = set(real)
@@ -818,7 +903,8 @@ def write_safe_harbor_table(
                        if not isinstance(cell, str) and AGE_TOP_CODE < cell[0] <= AGE_CEILING})
     keys = [f"P{row // 2:06d}" if kind == "age_person" else f"P{row:06d}"
             for row in range(rows)]
-    lines = [f"pid,{kind}"] + [f"{key},{cell}" for key, cell in zip(keys, written)]
+    between = ";" if kind in _SEMICOLON else ","
+    lines = [f"pid{between}{kind}"] + [f"{key}{between}{cell}" for key, cell in zip(keys, written)]
     path = folder / f"{kind}_long.csv"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     return path, real
@@ -829,12 +915,37 @@ def _number_tokens(value: str, text: str) -> int:
     return len(re.findall(f"(?<![0-9.]){value}(?:\\.0+)?(?![0-9.])", text))
 
 
-def _profiled(folder: pathlib.Path, table: pathlib.Path, kind: str) -> "dict[str, object]":
-    """Profile, generate (seed 0) and validate the twin and the table itself, scripted."""
+def _answers_given(folder: pathlib.Path, table: pathlib.Path, kind: str, answer: str) -> "list[str]":
+    """Profile unanswered, then write `answer` to every question on the column offering it."""
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        assert cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]) == 0
+    written = json.loads((folder / f"{kind}_long-questions.json").read_text(encoding="utf-8"))
+    given = 0
+    for entry in written["asked"]:
+        offered = [choice["answer"] for choice in entry["answers_you_can_give"]]
+        if entry["column"] == kind and answer in offered:
+            entry["your_answer"] = answer
+            given += 1
+    assert given == 1, written["asked"]
+    answers = folder / "answers.json"
+    answers.write_text(json.dumps(written), encoding="utf-8", newline="\n")
+    return ["--answers", f"{answers}"]
+
+
+def _profiled(
+    folder: pathlib.Path, table: pathlib.Path, kind: str, answer: str = ""
+) -> "dict[str, object]":
+    """Profile, generate (seed 0) and validate the twin and the table itself, scripted.
+
+    With ``answer``, the column's one question is first answered so, and
+    the table profiled again with that file.
+    """
     screen = io.StringIO()
     with nobody_at_the_keyboard():
+        given = _answers_given(folder, table, kind, answer) if answer else []
         with contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
-            profiled = cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"])
+            profiled = cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]
+                                + given)
         described = folder / f"{kind}_long-profile.json"
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             generated = cli.main(["generate", f"{described}", "--out-dir", f"{folder}",
@@ -859,23 +970,59 @@ def _profiled(folder: pathlib.Path, table: pathlib.Path, kind: str) -> "dict[str
     return {"profile_exit": profiled, "generate_exit": generated,
             "validate_exit": validated, "validate_real_exit": validated_real,
             "texts": texts,
-            "twin": _csv_column(folder / f"{kind}_long-twin.csv", 1)}
+            "twin": _csv_column(folder / f"{kind}_long-twin.csv", 1,
+                                ";" if kind in _SEMICOLON else ",")}
 
 
 def _twin_ages_over(twin: "list[str]") -> int:
     """How many twin cells hold a number above 90, to 125, a unit word after it or not."""
     over = 0
     for cell in twin:
-        found = re.fullmatch(r"\s*\+?([0-9]+(?:\.[0-9]+)?)(?:\s*[A-Za-z]+)?\s*", f"{cell}")
-        if found is not None and AGE_TOP_CODE < float(found.group(1)) <= AGE_CEILING:
+        found = re.fullmatch(r"\s*\+?([0-9]+(?:[.,][0-9]+)?)(?:\s*[A-Za-z]+)?\s*", f"{cell}")
+        if found is not None and AGE_TOP_CODE < float(found.group(1).replace(",", ".")) <= AGE_CEILING:
             over += 1
     return over
 
 
-def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
+def _zip_heads(heads: "list[str]", texts: "list[str]", cells: "list[str]") -> "dict[str, int]":
+    """The published nine-figure numbers, and twin cells, that open with a real ZIP.
+
+    A number is read with its leading zeros put back to nine figures
+    (`21001234` is `021001234`), so a padded ZIP's head is found too.
+    """
+    named = set(heads)
+    published = 0
+    for text in texts:
+        for number in re.findall(r"(?<![0-9.])([0-9]{8,9})(?:\.0+)?(?![0-9])", text):
+            if number.rjust(9, "0")[:5] in named:
+                published += 1
+    twin = 0
+    for cell in cells:
+        figures = cell.strip()
+        if figures.isdigit() and len(figures) in (8, 9) and figures.rjust(9, "0")[:5] in named:
+            twin += 1
+    return {"description_values": published, "twin_cells": twin}
+
+
+def _count_zips(
+    kind: str, real: "list[str]", texts: "list[str]", cells: "list[str]"
+) -> "dict[str, int]":
+    """`count_real`, and for nine-figure ZIP+4 cells the numbers opening with a real ZIP."""
+    counted = count_real(real, texts, cells)
+    if kind in ZIP_NINE:
+        heads = _zip_heads(real, texts, cells)
+        counted["description_values"] += heads["description_values"]
+        counted["twin_cells"] += heads["twin_cells"]
+    return counted
+
+
+def run_safe_harbor(
+    folder: pathlib.Path, kind: str, rows: int, answer: str = ""
+) -> "dict[str, object]":
     """One Safe Harbor number shape profiled unanswered, generated and validated.
 
-    ZIPs are counted as every held shape is (`count_real`). Ages are
+    With ``answer``, the column's other question is answered so first
+    (`SAFE_HARBOR_ANSWERED`), the control table's too. ZIPs are counted as every held shape is (`count_real`). Ages are
     counted against the same table with every age from 90 to 125 written
     90, profiled in a folder of its own: an age above 90 counts as
     published where it stands in an output of the table more often than
@@ -884,7 +1031,7 @@ def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, ob
     twin cells above 90 as real cells.
     """
     table, real = write_safe_harbor_table(folder, kind, rows)
-    seen = _profiled(folder, table, kind)
+    seen = _profiled(folder, table, kind, answer)
     texts = seen["texts"]
     assert isinstance(texts, dict)
     document = json.loads(texts[f"{kind}_long-profile.json"])
@@ -905,10 +1052,10 @@ def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, ob
         "summary": texts[f"{kind}_long-profile.txt"],
         "real_quality": texts["real-quality"],
     }
-    if kind in ZIPS:
+    if kind in ZIP_KINDS:
         published = [texts[name] for name in texts if name != "real-quality"]
         cells = [f"{cell}" for cell in twin]
-        counted = count_real(real, published, cells)
+        counted = _count_zips(kind, real, published, cells)
         found.update(counted)
         if counted["twin_cells"]:
             # A MADE-UP VALUE EQUAL TO A REAL ONE BY CHANCE. A held column's
@@ -921,8 +1068,8 @@ def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, ob
             decoy_folder = folder / "decoy"
             decoy_folder.mkdir()
             decoy_table, _same = write_safe_harbor_table(decoy_folder, kind, rows, decoy=True)
-            decoy_twin = set(f"{cell}" for cell in _profiled(decoy_folder, decoy_table, kind)["twin"])  # type: ignore[arg-type]
-            again = count_real(real, [], [cell for cell in cells if cell not in decoy_twin])
+            decoy_twin = set(f"{cell}" for cell in _profiled(decoy_folder, decoy_table, kind, answer)["twin"])  # type: ignore[arg-type]
+            again = _count_zips(kind, real, [], [cell for cell in cells if cell not in decoy_twin])
             found["twin_cells_by_chance"] = counted["twin_cells"] - again["twin_cells"]
             found["twin_cells"] = again["twin_cells"]
             found["twin_fragments"] = again["twin_fragments"]
@@ -930,7 +1077,7 @@ def run_safe_harbor(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, ob
     control_folder = folder / "top-coded"
     control_folder.mkdir()
     control_table, _none = write_safe_harbor_table(control_folder, kind, rows, top_coded=True)
-    control = _profiled(control_folder, control_table, kind)
+    control = _profiled(control_folder, control_table, kind, answer)
     control_texts = control["texts"]
     assert isinstance(control_texts, dict)
     leaked = [value for value in real

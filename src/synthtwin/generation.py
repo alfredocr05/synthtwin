@@ -63141,9 +63141,13 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         written = _kept_inside_the_day(profile, step, column, written)
         # THE SAFE HARBOR TOP-CODE (plan P4-D427): the twin of a column
         # described with every value above 89 read as 90 writes none above
-        # 90, here, before anything below measures the column.
+        # 90, here, before anything below measures the column -- its
+        # missing cells kept as written (the second repair of lane SH,
+        # item 5: `--missing-value 95` had its missing cells written 90).
         if column.top_coded:
-            written = taxonomy.at_most_the_top_code(written)
+            written = taxonomy.at_most_the_top_code(
+                written, frozenset(column.missing_by_source)
+            )
         # THE OTHER HALF OF THE DECLARATION (plan P4-D26), and it is
         # applied to the CELLS HANDED OUT and to nothing this loop then
         # measures. A column read with the comma as its decimal point

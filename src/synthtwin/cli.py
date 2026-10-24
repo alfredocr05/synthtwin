@@ -4853,20 +4853,23 @@ def _run_profile(
     # cell, three `HOMELESS`, `-99` on a third of the rows -- were read as
     # a count, binary, constant or labels with nothing asked and printed
     # every real ZIP. Held whoever is at the keyboard, since that question
-    # is put in the questions file; a declaration is an answer, as above,
-    # and so is `yes` (Codex's review of lane SH, item 8: the column then
-    # stays held and the question is not put again). A column of ages
-    # whose top-code would make cells missing is held so too. It is no
-    # subject the other columns are counted in: it names a place.
+    # is put in the questions file. ONLY `no` FREES IT (the second repair
+    # of lane SH, item 6): the other questions ask about record numbers,
+    # dates and codes, not places, so `code`, `measurement` or `keep` is
+    # the truthful answer for a ZIP, and each released 40 of 40 real ZIPs
+    # with no Safe Harbor question put; such an answer, or the same
+    # declaration, leaves the column held and the Safe Harbor question is
+    # put in that run. A declaration that reads the column as record
+    # numbers, dates or times takes it out of the reach, as before; `yes`
+    # holds it (Codex's review of lane SH, item 8: the column then stays
+    # held and the question is not put again). A column of ages whose
+    # top-code would make cells missing is held so too. It is no subject
+    # the other columns are counted in: it names a place.
     declared_five = (
         forced_identifiers
-        + forced_codes
-        + forced_measurements
-        + list(forced_decimal_commas)
         + list(twelve_hours)
         + list(date_columns)
         + sorted(counted)
-        + list(identities_kept)
         + safe_harbor_no
     )
     five_held: "list[str]" = []
@@ -5266,16 +5269,43 @@ def _run_profile(
     # holds nothing, so the Safe Harbor question is put to the file then
     # (measured: incomes in hundreds asked the date-count question at the
     # keyboard stayed held as ZIP-shaped with no question to free them).
+    # EVERY OPEN QUESTION OFFERING `identifier` counts, not only those of
+    # the columns held as record numbers (the second repair of lane SH,
+    # item 2): ZIP+4 cells held for their figures and put the two-numbers
+    # question were put the Safe Harbor question beside it. A question a
+    # file answered `keep` is put again under its kept reading, and is no
+    # longer open: there the Safe Harbor question is the one put, below.
     harbor_asked = asking.safe_harbor_questions(
         published,
         tuple(five_held),
-        [question for question in asked_about if question.name in withheld],
+        [
+            question
+            for question in asked_about
+            if question.name in withheld
+            or (
+                not answered
+                and asking.offers_identifier(question)
+                and question.name not in identities_kept
+            )
+        ],
         tuple(ages_held),
         tuple(safe_harbor_no + safe_harbor_yes),
     )
     if harbor_asked:
-        asked_about = asked_about + harbor_asked
         harbored = [question.name for question in harbor_asked]
+        # ...ONE QUESTION A COLUMN: a column answered `keep` to a question
+        # offering `identifier` and held for its numbers is asked the Safe
+        # Harbor question in place of that one, whose answer the file
+        # carries (the second repair of lane SH, item 6).
+        asked_about = [
+            question
+            for question in asked_about
+            if not (
+                question.name in harbored
+                and question.name in identities_kept
+                and asking.offers_identifier(question)
+            )
+        ] + harbor_asked
         listed_about = [
             question for question in listed_about if question.name not in harbored
         ]

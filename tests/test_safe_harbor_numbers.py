@@ -49,6 +49,19 @@ the question put; and (the orchestrator's LANE SH ADDENDUM 6) a column
 put any open question offering `identifier` -- the date-count question
 at any width among them -- is held whole meanwhile (`acct_date_count`).
 The mutants of wave6/SH/r1/sh_mutants_r1.py turn it red.
+
+THE SECOND REPAIR (the combined verify on 9ccb6bc7, wave6/SH-verify.md):
+the column's other question answered -- the padded question `measurement`
+or `code` for NAACCR's three-figure ages, the date-count, person or
+two-numbers question `code`, `measurement` or `keep` for ZIP codes --
+puts the Safe Harbor question in that run, one question a column, and
+publishes no age over 89 and no ZIP meanwhile
+(`shapes.SAFE_HARBOR_ANSWERED`, at 600 and 20,000 rows); every open
+question offering `identifier` counts as the one put (ZIP+4 cells); an
+undeclared decimal comma is read where the point reads no number; a
+nine-figure whole number is a ZIP+4 written without its hyphen; and the
+twin's clamp keeps the declared missing cells. The mutants of
+wave6/SH/r2/sh_mutants_r2.py turn it red.
 """
 
 from __future__ import annotations
@@ -138,6 +151,41 @@ def test_no_zip_and_no_age_over_89_is_published_at_20000_rows(
     _check(shapes.run_safe_harbor(tmp_path, kind, 20000), kind, 20000)
 
 
+@pytest.mark.parametrize(("kind", "answer"), shapes.SAFE_HARBOR_ANSWERED)
+@pytest.mark.parametrize("rows", [600, 20000])
+def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
+    tmp_path: pathlib.Path, kind: str, answer: str, rows: int
+) -> None:
+    """Items 1 and 6 of the second repair: no other answer frees an age over 89 or a ZIP.
+
+    NAACCR's Age at Diagnosis answered `measurement` printed 91 to 105
+    and its twin wrote 606 cells over 90; ZIP codes answered `code`,
+    `measurement` or `keep` printed 40 of 40. Each answer is kept, the
+    Safe Harbor question is the one question put, and the column is
+    top-coded (ages) or held (ZIPs) until `no`.
+    """
+    seen = shapes.run_safe_harbor(tmp_path, kind, rows, answer)
+    assert seen["profile_exit"] == 0 and seen["generate_exit"] == 0, seen
+    assert seen["description_values"] == 0, seen
+    assert seen["description_fragments"] == 0, seen
+    assert seen["twin_cells"] == 0, seen
+    assert seen["twin_fragments"] == 0, seen
+    assert seen["asked"] == [[asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]], seen
+    if kind in shapes.ZIP_KINDS:
+        assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
+        assert seen["read_as_now"] == [asking.ANSWER_SAFE_HARBOR_YES], seen
+    else:
+        assert seen["top_coded"] == taxonomy.TOP_CODE, seen
+        assert seen["read_as_now"] == [asking.SAFE_HARBOR_TOP_CODED], seen
+        assert seen["validate_real_exit"] == 0, seen
+        # Answered `code`, three-figure codes are long-tail labels whose twin
+        # misses its role and level counts at 600 rows on the control
+        # table too, which no top-code touches (wave6/SH/r2): a label
+        # generation limit outside lane SH.
+        if answer != asking.ANSWER_CODE:
+            assert seen["validate_exit"] == 0, seen
+
+
 # -- the reach, cell by cell ----------------------------------------------
 
 
@@ -201,6 +249,15 @@ _WORDS = [f"w{chr(97 + place % 26)}{chr(97 + place // 26)}" for place in range(8
         (_ages() * 5 + ["777"] * 100 + ["888"] * 100 + ["555"] * 100 + ["-1"] * 90,
          taxonomy.SAFE_HARBOR_AGES),
         (_ages() * 5 + [f"{300 + place}" for place in range(21)], taxonomy.SAFE_HARBOR_AGES),
+        # ...and `999` beside three more placeholders, each on 6 % of the
+        # rows: nines alone are set aside before the three are counted
+        # (the second repair, item 7: read as an ordinary value, the
+        # fourth placeholder stood as strays and the reach was lost).
+        (_ages() * 5 + ["777"] * 30 + ["888"] * 30 + ["555"] * 30 + ["999"] * 30,
+         taxonomy.SAFE_HARBOR_AGES),
+        # AN UNDECLARED DECIMAL COMMA (the second repair, item 3): `94,8`
+        # read with its comma for the point where the point reads none.
+        ([f"{age},5" for age in range(18, 104)], taxonomy.SAFE_HARBOR_AGES),
         # ZIPS (addenda 1 (3), 3 (1), 4 and 5; skeptic 1, item 8; Codex,
         # item 6): four figures beside five, placeholders of any share,
         # 99999 a ZIP, ZIP+4 cells, a plus sign, words of any share.
@@ -215,6 +272,12 @@ _WORDS = [f"w{chr(97 + place % 26)}{chr(97 + place // 26)}" for place in range(8
         ([f"+{52200 + place % 80}" for place in range(597)] + ["UNKNOWN"] * 3,
          taxonomy.SAFE_HARBOR_ZIPS),
         (["02100"] * 20 + ["UNKNOWN"] * 20, taxonomy.SAFE_HARBOR_ZIPS),
+        # NINE FIGURES ARE A ZIP+4 WITHOUT ITS HYPHEN (the second repair,
+        # item 4), padded or not, beside words.
+        ([f"5224{place % 10}{1000 + place}" for place in range(300)] + ["UNKNOWN"] * 3,
+         taxonomy.SAFE_HARBOR_ZIPS),
+        ([f"0210{place % 10}{1000 + place}" for place in range(300)] + ["UNKNOWN"] * 3,
+         taxonomy.SAFE_HARBOR_ZIPS),
         # FOUR FIGURES BESIDE OTHER WIDTHS are a count as often as ZIP
         # codes that lost their zero (lane ZR-b's page): reached where the
         # role prints levels (below), not as a count -- birth weights in
@@ -258,6 +321,15 @@ def test_four_figures_alone_are_reached_where_the_role_prints_levels(
 
 
 
+def test_an_answered_padded_question_ends_the_padded_test() -> None:
+    """The second repair, item 1: three-figure ages answered `measurement` are ages."""
+    cells = [f"{age:03d}" for age in range(0, 106)] * 3 + ["999"] * 6
+    assert _reach(cells) == ""
+    assert taxonomy.safe_harbor_reach(
+        cells, False, frozenset([""]), 11, False, True
+    ) == taxonomy.SAFE_HARBOR_AGES
+
+
 def test_absent_cells_are_set_aside() -> None:
     """Codex's review, item 1: a declared missing `-1` is absent, not an outlier."""
     cells = _ages() * 7 + ["-1"] * 300
@@ -279,6 +351,8 @@ def test_the_top_code_keeps_each_cells_own_form() -> None:
         ["+95", " 95", "95 years", "095", "45.5", "93.25", "99,000e-3", "1e2", "89.5"]
     ) == ["+90", " 90", "90 years", "090", "45.5", "90.00", "90", "90", "89.5"]
     assert taxonomy.top_coded_cells(["45,5", "93,25"], comma=True) == ["45,5", "90,00"]
+    # ...and an undeclared decimal comma keeps its comma (the second repair, item 3).
+    assert taxonomy.top_coded_cells(["45,5", "94,8", "101,102"]) == ["45,5", "90,0", "101,102"]
 
 
 def test_the_twin_writes_none_above_90_and_keeps_its_counts() -> None:
@@ -291,6 +365,13 @@ def test_the_twin_writes_none_above_90_and_keeps_its_counts() -> None:
     ]
     # ...or down to the column's least value (a tail of 99 beside 60 and 90).
     assert taxonomy.at_most_the_top_code(["60", "90", "99", "99"]) == ["60", "90", "89", "89"]
+
+
+def test_the_twins_clamp_keeps_the_missing_cells() -> None:
+    """The second repair, item 5: `--missing-value 95` had its missing cells written 90."""
+    assert taxonomy.at_most_the_top_code(["95", "91", " 95", "60"], frozenset(["95"])) == [
+        "95", "90", " 95", "60"
+    ]
 
 
 def test_the_twin_keeps_how_many_cells_each_value_holds() -> None:
@@ -451,6 +532,14 @@ def test_declared_missing_values_keep_their_cells(tmp_path: pathlib.Path, missin
     assert block["top_coded"] == taxonomy.TOP_CODE
     assert block["n_missing"] == 11 + (7 if missing == "95" else 0)
     assert max(_published_numbers(block)) <= taxonomy.TOP_CODE
+    # ...AND THE TWIN KEEPS THEM (the second repair, item 5): its clamp
+    # wrote the 18 missing `95` cells as 90, and the twin failed (exit 3).
+    described = f"{tmp_path / 't-profile.json'}"
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        assert cli.main(["generate", described, "--out-dir", f"{tmp_path}", "--seed", "0",
+                         "--replace"]) == 0
+        assert cli.main(["validate", described, "--twin", f"{tmp_path / 't-twin.csv'}",
+                         "--out-dir", f"{tmp_path}", "--replace"]) == 0
 
 
 def test_a_missing_value_of_90_holds_the_column(tmp_path: pathlib.Path) -> None:
