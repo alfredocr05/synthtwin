@@ -80,6 +80,14 @@ REQUIRED_KINDS = (
     # no table seeded.
     "title_rows_above_header", "day_first_dates", "two_digit_years", "true_false_columns",
 )
+# Lane E0c (plan P4-D431): every kind of the zoo plan's section 6 (b)
+# that E0a's catalogue did not hold, and the cases the repository's
+# records name as the lane's, by family (`tests/health_zoo_wide.py`).
+E0C_KINDS = (
+    # the roles the zoo never reached
+    "labelled_results", "lab_instrument_results", "numeric_unrepresentable", "tab_delimited",
+    "ventilator_settings", "compact_and_fraction_clocks",
+)
 
 
 def _written(name: str, folder: pathlib.Path, n: int = SMALL, seed: int = SEED) -> pathlib.Path:
@@ -115,30 +123,42 @@ def _pair(
 
 
 def _csv_tables() -> "list[str]":
-    return [table.name for table in zoo.TABLES if table.suffix == ".csv"]
+    return [table.name for table in zoo.catalogue() if table.suffix != ".xlsx"]
 
 
 def test_every_kind_the_lane_names_is_in_the_catalogue() -> None:
-    """Each kind served by one table; every column by one kind; the named kinds all there."""
+    """Each kind served by one table; every column by one kind; the named kinds all there.
+
+    Over the whole catalogue: E0a's forty kinds and lane E0c's. A kind
+    section 6 (b) names that E0a's catalogue already holds is merged
+    there (`health_zoo_wide.MERGED`), never served twice.
+    """
+    import health_zoo_wide as wide
+
     named = set()
-    for table in zoo.TABLES:
+    for table in zoo.catalogue():
         header, _rows = table.build(150, SEED)
         served = [column for columns in table.kinds.values() for column in columns]
         assert sorted(served) == sorted(set(served)), f"{table.name}: a column serves two kinds"
         assert set(served) <= set(header), f"{table.name}: a kind names a column the table lacks"
         for column in header:
-            assert zoo.kind_of(table, column) in zoo.KINDS, f"{table.name}.{column}"
+            assert zoo.kind_of(table, column) in zoo.all_kinds(), f"{table.name}.{column}"
         assert not named & set(table.kinds), f"{table.name}: a kind is served twice"
         named |= set(table.kinds)
         for check in table.checks:
             assert check.kind in table.kinds, f"{table.name}: {check.name}"
             assert not check.column or check.column in header, f"{table.name}: {check.name}"
-    assert named == set(zoo.KINDS)
+    assert named == set(zoo.all_kinds())
     assert set(REQUIRED_KINDS) == set(zoo.KINDS)
-    assert set(zoo.FILE_KINDS) <= set(zoo.KINDS)
+    assert set(E0C_KINDS) == set(wide.WIDE_KINDS)
+    assert len(zoo.all_kinds()) == len(set(zoo.all_kinds()))
+    assert set(zoo.file_kinds()) <= set(zoo.all_kinds())
+    assert set(wide.MERGED.values()) <= set(zoo.KINDS), "a merged item names a kind of E0a's catalogue"
+    names = [table.name for table in zoo.catalogue()]
+    assert len(names) == len(set(names))
 
 
-@pytest.mark.parametrize("name", [table.name for table in zoo.TABLES])
+@pytest.mark.parametrize("name", [table.name for table in zoo.catalogue()])
 def test_each_table_rebuilds_byte_for_byte_from_its_seed(name: str, tmp_path: pathlib.Path) -> None:
     first = _written(name, tmp_path / "a", 150).read_bytes()
     again = _written(name, tmp_path / "b", 150).read_bytes()
@@ -212,16 +232,16 @@ def test_the_analyst_scripts_run_clean_on_every_real_table(tmp_path: pathlib.Pat
     it is the one that read the real table without a fault. The workbook
     is read last, through the cross-check reader.
     """
-    for table in zoo.TABLES:
-        if table.suffix == ".csv":
+    for table in zoo.catalogue():
+        if table.suffix != ".xlsx":
             _clean(table, tmp_path / table.name)
     crosscheck.reader()
-    for table in zoo.TABLES:
+    for table in zoo.catalogue():
         if table.suffix == ".xlsx":
             _clean(table, tmp_path / table.name)
 
 
-@pytest.mark.parametrize("name", [table.name for table in zoo.TABLES])
+@pytest.mark.parametrize("name", [table.name for table in zoo.catalogue()])
 def test_every_check_goes_red_on_its_spoiled_table(name: str, tmp_path: pathlib.Path) -> None:
     """A spoiled copy of the real table makes each check fail: none of them can be blind.
 
@@ -807,8 +827,8 @@ def test_a_failure_with_only_a_gap_stated_is_counted_apart(monkeypatch: pytest.M
 
 def test_every_owner_is_a_lane_of_the_plan_or_needs_one() -> None:
     assert zoo.OWNERS, "the baseline's failures are owned"
-    for kind, owners in zoo.OWNERS.items():
-        assert kind in zoo.KINDS, kind
+    for kind, owners in zoo.owners().items():
+        assert kind in zoo.all_kinds(), kind
         assert owners, kind
         for owner, gap, covers in owners:
             assert owner in PLAN_LANES, f"{kind}: {owner}"
@@ -822,7 +842,16 @@ def test_the_workbook_is_left_out_where_its_reader_is_absent(monkeypatch: pytest
     monkeypatch.setattr(crosscheck, "present", lambda: False)
     names = [table.name for table in zoo.runnable_tables()]
     assert "surveys" not in names and len(names) == len(zoo.TABLES) - 1
-    assert set(zoo.workbook_kinds()) == {"surveys_pro", "excel_workbook"}
+    every = zoo.runnable_tables(zoo.catalogue())
+    workbooks = [table for table in zoo.catalogue() if table.suffix == ".xlsx"]
+    assert len(every) == len(zoo.catalogue()) - len(workbooks)
+    assert not [table.name for table in every if table.suffix == ".xlsx"]
+    assert set(zoo.workbook_kinds()) == WORKBOOK_KINDS
+
+
+# The catalogue's workbook exports' kinds: E0a's survey workbook, and lane
+# E0c's workbook in the 1904 date system.
+WORKBOOK_KINDS = {"surveys_pro", "excel_workbook"}
 
 
 def _driver(monkeypatch: pytest.MonkeyPatch, name: str) -> "object":
@@ -860,20 +889,31 @@ def test_the_driver_prints_only_what_it_measured(
 
     module = _driver(monkeypatch, "kpi_health_zoo_printing")
     monkeypatch.setattr(crosscheck, "present", lambda: reader)
-    monkeypatch.setattr(zoo, "run_zoo", lambda folder, n, seed=0: [_result(t.name) for t in zoo.runnable_tables()])
+    sizes: "list[tuple[int, int]]" = []
+
+    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None) -> "list[dict]":
+        sizes.extend([(n, len(tables))])  # type: ignore[arg-type]
+        return [_result(t.name, rows=n) for t in zoo.runnable_tables(tables)]  # type: ignore[arg-type]
+
+    monkeypatch.setattr(zoo, "run_zoo", run_zoo)
     module.main()  # type: ignore[attr-defined]
     printed = {}
     for line in capsys.readouterr().out.splitlines():
         if line.startswith("KPI "):
             record = json.loads(line[4:])
             printed[record["id"]] = record["value"]
-    delimited = [table for table in zoo.TABLES if table.suffix == ".csv"]
+    shards = zoo.shards()
+    assert sizes == [(600, len(shard)) for shard in shards] + [(20_000, len(shard)) for shard in shards]
+    delimited = [table for table in zoo.catalogue() if table.suffix != ".xlsx"]
     delimited_kinds = sum(len(table.kinds) for table in delimited)
-    assert printed["K-HZ-01"]["kinds_passing_20000_rows_csv"] == delimited_kinds
+    assert printed["K-HZ-01"]["kinds_passing_csv"] == delimited_kinds
     assert printed["K-HZ-03"]["tables_run_csv"] == 2 * len(delimited)
+    assert printed["K-HZ-03"]["shards"] == len(shards)
+    assert all(f"seconds_20000_rows_shard_{k}" in printed["K-HZ-03"] for k in range(1, len(shards) + 1))
+    assert printed["K-HZ-05"]["kinds_refused_by_floor"] == 0
     if reader:
-        assert printed["K-HZ-01"]["kinds_passing_20000_rows"] == len(zoo.KINDS)
-        assert printed["K-HZ-03"]["tables_run"] == 2 * len(zoo.TABLES)
+        assert printed["K-HZ-01"]["kinds_passing"] == len(zoo.all_kinds())
+        assert printed["K-HZ-03"]["tables_run"] == 2 * len(zoo.catalogue())
     else:
-        assert "kinds_passing_20000_rows" not in printed["K-HZ-01"]
+        assert "kinds_passing" not in printed["K-HZ-01"]
         assert "tables_run" not in printed["K-HZ-03"]

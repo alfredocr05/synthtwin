@@ -1510,6 +1510,19 @@ class Table:
     # What the person knows about the whole file, for the questions about
     # it: where the column names are and how the dates order day and month.
     facts: "tuple[str, ...]" = ("names", "month-first")
+    # Lane E0c (plan P4-D431). The character between the columns, as the
+    # person answers the separator question ('' reads the comma, and the
+    # semicolon for the vitals export, as before).
+    separator: str = ""
+    # The column that names a patient where one patient has several rows
+    # ('' where none does): the owner's table floor counts its people
+    # (plan P4-D425), and K-HZ-05 holds the catalogue to it.
+    person: str = ""
+    # HIPAA FIRST: the columns whose real values must reach neither the
+    # description nor the twin, each with how it is read: 'values' (every
+    # real value but a one-figure placeholder such as '-1') or 'ages over
+    # 89' (Safe Harbor: no age past 89 printed or written as a number).
+    leaks: "tuple[tuple[str, str], ...]" = ()
 
 
 def _csv_reader(**options: object) -> "Callable[[pathlib.Path], dict[str, object]]":
@@ -1671,6 +1684,7 @@ TABLES: "tuple[Table, ...]" = (
             _bad("utf8_accents", "no cell reads as mojibake", "birth_city", lambda f: _mojibake(f["text"]),
                  spoil_cell("birth_city", "SÃ£o Paulo")),
         ),
+        leaks=(("zip5", "values"), ("zip4", "values"), ("dob_iso", "values")),
     ),
     Table(
         "encounters", ".csv", encounters,
@@ -1702,6 +1716,7 @@ TABLES: "tuple[Table, ...]" = (
                  lambda f: _bad_set(_t("department")(f).str.title(), {"Cardiology", "Emergency", "Oncology", "Orthopedics", "Pediatrics", "Neurology", "Medicine"})),  # type: ignore[attr-defined]
             _listed("encounters", "visit types are listed ones", "visit_type", _levels(VISIT_TYPES)),
         ),
+        person="patient_id",
     ),
     Table(
         "diagnoses_procedures", ".csv", diagnoses_procedures,
@@ -1765,6 +1780,7 @@ TABLES: "tuple[Table, ...]" = (
             *_present("mixed_results", "some result is a word", "result_value", r"^[A-Z ]+$",
                      spoil_every("result_value", lambda v: "1.0" if v.replace(" ", "").isalpha() else v)),
         ),
+        person="patient_id",
     ),
     Table(
         "prescriptions", ".csv", prescriptions,
@@ -1780,6 +1796,7 @@ TABLES: "tuple[Table, ...]" = (
             _listed("medication_orders", "routes", "route", _levels(ROUTES)),
             _pattern("medication_orders", "frequencies", "frequency", r"(BID|TID|QID|QD|QHS|PRN|q\d+h)( PRN)?"),
         ),
+        person="patient_id",
     ),
     Table(
         "vitals", ".csv", vitals,
@@ -1809,6 +1826,7 @@ TABLES: "tuple[Table, ...]" = (
             _ranged("vitals", "spo2", r"(?P<n>\d+)%", 0.5),
             _ranged("semicolon_decimal_comma", "mass_index", r"(?P<n>-?\d+(,\d+)?)"),
         ),
+        person="patient_id",
     ),
     Table(
         "flowsheet", ".csv", flowsheet,
@@ -1825,6 +1843,7 @@ TABLES: "tuple[Table, ...]" = (
             _bad("flowsheet_long", "other rows hold numbers (read by row name)", "flo_value",
                  lambda f: _flowsheet_numbers_bad(f["text"]), spoil_first_where("flo_value", _not_bp, JUNK)),
         ),
+        person="patient_id",
     ),
     Table(
         "redcap", ".csv", redcap,
@@ -1851,6 +1870,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("redcap", "the calculated total is a whole number", "phq_total", r"\d+"),
             _listed("redcap", "form status 0/1/2", "baseline_complete", {"0", "1", "2"}),
         ),
+        person="record_id",
     ),
     Table(
         "claims", ".csv", claims,
@@ -1881,6 +1901,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("claims", "DRG three figures", "drg", r"\d{3}"),
             _pattern("claims", "revenue codes keep the leading zero", "revenue_code", r"0\d{3}"),
         ),
+        person="patient_id",
     ),
     Table(
         "notes", ".csv", notes,
@@ -1942,6 +1963,7 @@ TABLES: "tuple[Table, ...]" = (
                  lambda f: int((_i("steps")(f) < 0).sum()), spoil_cell("steps", "-1")),  # type: ignore[operator]
             _listed("wearables", "activity levels", "activity", {"sedentary", "light", "moderate", "vigorous"}),
         ),
+        person="device_id",
     ),
     Table(
         "genomics", ".csv", genomics,
@@ -1987,6 +2009,7 @@ TABLES: "tuple[Table, ...]" = (
             _dated("dicom_metadata", "TM times parse as %H%M%S.%f", "study_time", "%H%M%S.%f"),
             _pattern("dicom_metadata", "UIDs are dotted figures", "study_uid", r"[0-9]+(\.[0-9]+)+"),
         ),
+        person="patient_id",
     ),
     Table(
         "perioperative", ".csv", perioperative,
@@ -2009,6 +2032,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("perioperative", "physical status with its emergency mark", "phys_status", r"(I|II|III|IV|V|VI)( E)?"),
             _pattern("perioperative", "rooms", "or_room", r"OR \d{1,2}"),
         ),
+        person="patient_id",
     ),
     Table(
         "problem_list", ".csv", problem_list,
@@ -2066,6 +2090,7 @@ TABLES: "tuple[Table, ...]" = (
             _ranged("us_unit_vitals", "weight", r"(?P<n>\d+) lb", 0.1),
             _ranged("us_unit_vitals", "temp_f", r"(?P<n>\d+\.\d) F", 2.0),
         ),
+        person="patient_id",
     ),
     Table(
         "sql_server", ".csv", sql_server,
@@ -2114,6 +2139,7 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("immunizations_providers", "UDI with its application identifiers", "udi",
                      r"\(01\)\d{14}\(17\)\d{6}\(10\)[A-Z0-9]+"),
         ),
+        person="patient_id",
     ),
     Table(
         "risk_adjustment", ".csv", risk_adjustment,
@@ -2187,9 +2213,74 @@ TABLES: "tuple[Table, ...]" = (
 )
 
 
+# -- the whole catalogue (lane E0c, plan P4-D431) ---------------------------
+#
+# E0a's twenty-five tables above stay as they are, byte for byte from the
+# same seeds: other KPIs read them by name (K-S3-66 answers every one of
+# them in rounds, K-S3-65's driver counts them in people, and the
+# generator's memory test describes each). Lane E0c widens the catalogue
+# to every kind of the zoo plan's section 6 (b) in `tests/health_zoo_wide.py`,
+# and the zoo's own KPIs (K-HZ-01, K-HZ-02, K-HZ-03 and K-HZ-05) run the
+# whole of it: `catalogue()`.
+
+# The sizes the zoo runs at: the suite's fast smoke, BELOW THE OWNER'S
+# TABLE FLOOR (plan P4-D425: `synthtwin profile` refuses a table under
+# 20,000 rows that hold a value, so its runs pass the command's internal
+# switch off), and the KPI size, at the floor, where the shipped command
+# runs as a person runs it, the refusal on.
+SMOKE_ROWS = 600
+KPI_ROWS = 20_000
+# The people a several-rows-per-patient kind must hold once its
+# identifier is answered: the floor's 1,000 at the KPI size, and 100 at
+# the smoke's 600 rows (the zoo plan's sizing, critic item 15).
+PEOPLE_AT_LEAST = {SMOKE_ROWS: 100, KPI_ROWS: 1_000}
+# The seed the catalogue's tables are drawn from: E0a's table at place k
+# takes SEED + k (as it always has), the widened catalogue's at place k
+# takes SEED + WIDE_SEED_STEP + k.
+SEED = 20261016
+WIDE_SEED_STEP = 100
+
+
+def _wide() -> "object":
+    import health_zoo_wide
+
+    return health_zoo_wide
+
+
+def catalogue() -> "tuple[Table, ...]":
+    """Every table of the catalogue: E0a's, then lane E0c's."""
+    return TABLES + _wide().WIDE_TABLES  # type: ignore[attr-defined]
+
+
+def all_kinds() -> "tuple[str, ...]":
+    """Every kind of the catalogue, in the order the report lists them."""
+    return KINDS + _wide().WIDE_KINDS  # type: ignore[attr-defined]
+
+
+def file_kinds() -> "tuple[str, ...]":
+    """Every kind that is a shape of a whole file."""
+    return FILE_KINDS + _wide().WIDE_FILE_KINDS  # type: ignore[attr-defined]
+
+
+def owners() -> "dict[str, tuple[tuple[str, str, str], ...]]":
+    """Every kind's OWNERS lines: E0a's and lane E0c's."""
+    merged = dict(OWNERS)
+    merged.update(_wide().WIDE_OWNERS)  # type: ignore[attr-defined]
+    return merged
+
+
+def seed_of(table: Table, seed: int = SEED) -> int:
+    """The seed a catalogue table is drawn from: E0a's keep theirs."""
+    names = [known.name for known in TABLES]
+    if table.name in names:
+        return seed + names.index(table.name)
+    wide = [known.name for known in _wide().WIDE_TABLES]  # type: ignore[attr-defined]
+    return seed + WIDE_SEED_STEP + wide.index(table.name)
+
+
 def table_named(name: str) -> Table:
     """The catalogue table of that name."""
-    for table in TABLES:
+    for table in catalogue():
         if table.name == name:
             return table
     raise KeyError(name)
@@ -2235,11 +2326,11 @@ def generic_mode(table: Table, name: str) -> "tuple[str, str] | None":
     if name == "rows read":
         return _file_kind(table), "same"
     if name == "file: byte-order mark":
-        return _file_kind(table, "byte_order_mark"), "same"
+        return _file_kind(table, "byte_order_mark", "utf16_text"), "same"
     if name == "file: line endings":
         return _file_kind(table, "crlf_line_endings"), "same"
     if name == "file: decodes as UTF-8":
-        return _file_kind(table, "latin1", "utf8_accents"), "same"
+        return _file_kind(table, "latin1", "utf8_accents", "utf16_text", "cp1252_smart_quotes"), "same"
     return None
 
 
@@ -2616,7 +2707,8 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
     """
     asked: "list[dict]" = []
     general = True
-    file_facts = {"data", "semicolon" if table.name == "vitals" else "comma"} | set(table.facts)
+    separator = table.separator or ("semicolon" if table.name == "vitals" else "comma")
+    file_facts = {"data", separator} | set(table.facts)
     every_column = {column for names in table.kinds.values() for column in names}
     checklist = document.get("checklist") or {}
     framing = " ".join(prose({key: value for key, value in document.items() if key not in ("about_your_file", "asked", "checklist")}))
@@ -2653,17 +2745,20 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
 # -- one table, end to end ---------------------------------------------------
 
 
-def _quietly(arguments: "list[str]") -> "tuple[int, str]":
-    """Run one synthtwin command in this process; its exit code, or the error it raised."""
+def _quietly(arguments: "list[str]", small_tables_refused: bool = False) -> "tuple[int, str]":
+    """Run one synthtwin command in this process; its exit code, or the error it raised.
+
+    ``small_tables_refused`` is passed to `cli.main`'s internal keyword of
+    the same name, always explicitly (plan P4-D425): True at the KPI size,
+    where the zoo runs the shipped command with the owner's table floor
+    on, and False for the suite's 600-row smoke, below the floor.
+    """
     from synthtwin import cli
 
     sink = io.StringIO()
     try:
         with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-            # The table floor off (plan P4-D425): the zoo keeps measuring
-            # its tables at today's sizes; lane E0c re-defines them at or
-            # above the floor.
-            code = cli.main(arguments, small_tables_refused=False)
+            code = cli.main(arguments, small_tables_refused=small_tables_refused)
     except Exception as failure:  # noqa: BLE001 -- a traceback is a result to record
         return -1, f"{type(failure).__name__}: {failure}"[:300]
     except SystemExit as stop:
@@ -2674,26 +2769,59 @@ def _quietly(arguments: "list[str]") -> "tuple[int, str]":
     return int(code), (said[-1] if said else "")[:300]
 
 
-def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
+def people_in(table: Table, header: "list[str]", rows: "list[list[str]]") -> "int | None":
+    """The people a table's person column names (every spelling its own), or None where it has none."""
+    if not table.person:
+        return None
+    place = header.index(table.person)
+    return len({row[place] for row in rows if row[place].strip()})
+
+
+def _floor_refused(arguments: "list[str]", small_tables_refused: bool, code: int) -> bool:
+    """Whether a step that exited 1 with the floor on runs with it off: the floor refused it."""
+    if not small_tables_refused or code != 1:
+        return False
+    return _quietly(arguments, False)[0] == 0
+
+
+def run_table(
+    table: Table, folder: pathlib.Path, n: int, seed: int, small_tables_refused: bool = False,
+) -> "dict":
     """profile, the general answers, profile --answers, generate, validate, the analyst.
 
     Every step is recorded, and a step that fails stops the ones that
-    need its output. Nothing is retried and nothing is repaired.
+    need its output. Nothing is retried and nothing is repaired: a step
+    the owner's table floor refuses (``small_tables_refused``, plan
+    P4-D425) is run once more with the floor off only to name the refusal
+    (`refused_by_floor`), and the run stops there as it would for the
+    person. The people the person column names are counted on the real
+    table (`people`), and the columns that name a person, a place or a
+    record are read for their real values in the description and the
+    twin (`leaks`, HIPAA first).
     """
     from synthtwin import validation
 
     folder.mkdir(parents=True, exist_ok=True)
-    source = write_table(table, folder, n, seed)
+    header, rows = table.build(n, seed)
+    source = folder / f"{table.name}{table.suffix}"
+    source.write_bytes(table.write(header, rows))
     stem = table.name
     profile_path = folder / f"{stem}-profile.json"
     questions_path = folder / f"{stem}-questions.json"
-    result: "dict" = {"table": table.name, "rows": n, "steps": {}, "misses": [], "analyst": []}
+    result: "dict" = {
+        "table": table.name, "rows": n, "steps": {}, "misses": [], "analyst": [],
+        "floor": small_tables_refused, "people": people_in(table, header, rows),
+    }
+    del header, rows
     steps = result["steps"]
     started = time.perf_counter()
 
-    code, error = _quietly(["profile", f"{source}", "--replace"])
+    arguments = ["profile", f"{source}", "--replace"]
+    code, error = _quietly(arguments, small_tables_refused)
     steps["profile"] = {"exit": code, "error": error}
     if code != 0:
+        if _floor_refused(arguments, small_tables_refused, code):
+            result["refused_by_floor"] = "profile"
         result["seconds"] = time.perf_counter() - started
         return result
     document = json.loads(questions_path.read_text(encoding="utf-8"))
@@ -2701,15 +2829,22 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
     result["asked"] = asked
     result["general"] = general
     questions_path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
-    code, error = _quietly(["profile", f"{source}", "--replace", "--answers", f"{questions_path}"])
+    arguments = ["profile", f"{source}", "--replace", "--answers", f"{questions_path}"]
+    code, error = _quietly(arguments, small_tables_refused)
     steps["answers"] = {"exit": code, "error": error}
     if code != 0:
+        if _floor_refused(arguments, small_tables_refused, code):
+            result["refused_by_floor"] = "answers"
         result["seconds"] = time.perf_counter() - started
         return result
 
-    code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"])
+    code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"], small_tables_refused)
     steps["generate"] = {"exit": code, "error": error}
     twin = folder / f"{stem}-twin{table.suffix}"
+    if not twin.is_file():
+        # A text export ('.txt': tab- or pipe-delimited, or Excel's
+        # Unicode text) is twinned as '.csv' in the source's own dialect.
+        twin = folder / f"{stem}-twin.csv"
     if code != 0 or not twin.is_file():
         result["seconds"] = time.perf_counter() - started
         return result
@@ -2724,7 +2859,7 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
 
     validation.measure = keep  # type: ignore[assignment]
     try:
-        code, error = _quietly(["validate", f"{profile_path}", "--replace"])
+        code, error = _quietly(["validate", f"{profile_path}", "--replace"], small_tables_refused)
     finally:
         validation.measure = measure  # type: ignore[assignment]
     steps["validate"] = {"exit": code, "error": error}
@@ -2742,8 +2877,106 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
     made = analyse(table, twin)
     result["analyst_real_errors"] = real_faults(table, real)
     result["analyst"] = [list(failure) for failure in analyst_failures(table, real, made)]
+    if table.leaks:
+        result["leaks"] = leaked(table, source, twin, profile_path)
     result["seconds"] = time.perf_counter() - started
     return result
+
+
+# -- HIPAA first: real values in the description and the twin -----------------
+
+# Keys of a column's block that hold a count, a share or a width, never a
+# value of the column: a number under them is not read as a real value.
+NOT_A_VALUE_KEY = re.compile(
+    r"count|rows|cells|share|width|figures|places|length|distinct|people|persons|subjects|"
+    r"seen|total|number_of|n_|_n$|digits|size|bins|rank|order|position|index"
+)
+PLACEHOLDER = re.compile(r"-\d")
+
+
+def _normal(text: str) -> str:
+    """A value as the leak scan compares it: stripped, a whole number without its leading noughts or '.0'."""
+    stripped = text.strip()
+    whole = re.fullmatch(r"(-?)0*(\d+)(\.0+)?", stripped)
+    if whole:
+        return f"{whole.group(1)}{whole.group(2)}"
+    return stripped
+
+
+def _scalars(value: object, key: str = "") -> "list[str]":
+    """Every string and every number a description block holds, under any key but a count's."""
+    found: "list[str]" = []
+    if isinstance(value, bool) or value is None:
+        return found
+    if isinstance(value, str):
+        found += [value]
+    elif isinstance(value, (int, float)):
+        if not NOT_A_VALUE_KEY.search(key.casefold()):
+            found += [f"{int(value)}" if float(value).is_integer() else f"{value}"]
+    elif isinstance(value, dict):
+        for inner_key, inner in value.items():
+            # A dict keyed by values (a census) holds them in its keys.
+            found += [f"{inner_key}"]
+            found += _scalars(inner, f"{inner_key}")
+    elif isinstance(value, list):
+        for inner in value:
+            found += _scalars(inner, key)
+    return found
+
+
+def _block(described: "dict", column: str) -> "list[str]":
+    """The description's scalars about one column: its block, and the notes that name it."""
+    found: "list[str]" = []
+    for block in described.get("columns", []):
+        if isinstance(block, dict) and f"{block.get('name')}" == column:
+            found += _scalars({key: value for key, value in block.items() if key != "name"})
+    for note in described.get("publication_notes", []) or []:
+        if isinstance(note, dict) and f"{note.get('column')}" == column:
+            found += _scalars(note.get("note"))
+    return found
+
+
+def _over_89(texts: "list[str]") -> "set[str]":
+    ages: "set[str]" = set()
+    for text in texts:
+        match = re.fullmatch(r"\s*(\d{2,3})(\.\d+)?\s*(years?)?\s*", text)
+        if match and 89 < float(match.group(1) + (match.group(2) or "")) < 150:
+            ages |= {_normal(match.group(1))}
+    return ages
+
+
+def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: pathlib.Path) -> "dict[str, dict]":
+    """Per column `Table.leaks` names: the real values the description and the twin carry.
+
+    'values': each distinct real value (a one-figure placeholder such as
+    '-1' aside), compared stripped and, for whole numbers, without their
+    leading noughts or '.0' -- found among the scalars of the column's
+    block in the description (and the notes naming it) and among the
+    twin's cells. 'ages over 89': the distinct ages past 89 written as
+    numbers there. Returns {column: {"description": n, "twin": n,
+    "twin_cells": n}}, distinct values and the twin's cells holding one.
+    """
+    real_frames = table.read(source)
+    twin_frames = table.read(twin)
+    described = json.loads(profile.read_text(encoding="utf-8"))
+    found: "dict[str, dict]" = {}
+    for column, how in table.leaks:
+        real_cells = [f"{cell}" for cell in real_frames["raw"][column]]  # type: ignore[index]
+        twin_cells = [f"{cell}" for cell in twin_frames["raw"][column]] if column in twin_frames["raw"] else []  # type: ignore[index,operator]
+        said = [_normal(text) for text in _block(described, column)]
+        if how == "ages over 89":
+            in_description = _over_89(said)
+            twin_ages = [_normal(cell) for cell in twin_cells]
+            in_twin = _over_89(twin_ages)
+            cells = sum(1 for cell in twin_ages if _over_89([cell]))
+        else:
+            real = {_normal(cell) for cell in real_cells if cell.strip() and not PLACEHOLDER.fullmatch(cell.strip())}
+            in_description = real & set(said)
+            normal_twin = [_normal(cell) for cell in twin_cells]
+            in_twin = real & set(normal_twin)
+            cells = sum(1 for cell in normal_twin if cell in real)
+        found[column] = {"description": len(in_description), "twin": len(in_twin), "twin_cells": cells}
+    return found
 
 
 # -- per kind, and the three KPIs --------------------------------------------
@@ -2973,7 +3206,8 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
 def failure_items(table: Table, result: "dict", kind: str) -> "list[str]":
     """Every way a kind failed in one table's run, named for OWNERS."""
     columns = table.kinds[kind]
-    file_kinds = [name for name in table.kinds if name in FILE_KINDS]
+    whole_file = file_kinds()
+    file_kinds_here = [name for name in table.kinds if name in whole_file]
     items: "list[str]" = []
     steps = result["steps"]
     for step in ("profile", "answers", "generate", "validate"):
@@ -2986,19 +3220,24 @@ def failure_items(table: Table, result: "dict", kind: str) -> "list[str]":
             items += ["questions"]
             break
     for miss in result["misses"]:
-        if miss[0] in columns or (not miss[0] and (kind in file_kinds or not file_kinds)):
+        if miss[0] in columns or (not miss[0] and (kind in file_kinds_here or not file_kinds_here)):
             items += [f"miss {miss[0] or 'the file'}"]
     for name in result.get("analyst_real_errors", []):
         if name == "read" or _mode_of(table, name)[0] == kind:
             items += [f"real {name}"]
     items += [failure[1] for failure in result["analyst"] if failure[0] == kind]
+    # HIPAA FIRST (lane E0c): a real value of a column that names a
+    # person, a place or a record, found in the description or the twin.
+    for column, found in result.get("leaks", {}).items():
+        if column in columns and (found["description"] or found["twin"]):
+            items += [f"leak {column}"]
     return sorted(set(items))
 
 
 def owner_lines(kind: str, item: str) -> "list[tuple[str, str]]":
     """The OWNERS lines that cover one failure of a kind: (owner, gap)."""
     return [
-        (owner, gap) for owner, gap, covers in OWNERS.get(kind, ())
+        (owner, gap) for owner, gap, covers in owners().get(kind, ())
         if re.fullmatch(covers, item)
     ]
 
@@ -3025,15 +3264,16 @@ def per_kind(results: "list[dict]") -> "dict[str, dict]":
     analyst check held on the twin.
     """
     kinds: "dict[str, dict]" = {}
+    whole_file = file_kinds()
     for result in results:
         table = table_named(result["table"])
-        file_kinds = [kind for kind in table.kinds if kind in FILE_KINDS]
+        file_kinds_here = [kind for kind in table.kinds if kind in whole_file]
         for kind, columns in table.kinds.items():
             items = failure_items(table, result, kind)
             misses = [
                 miss for miss in result["misses"]
                 if miss[0] in columns
-                or (not miss[0] and (kind in file_kinds or not file_kinds))
+                or (not miss[0] and (kind in file_kinds_here or not file_kinds_here))
             ]
             analyst = [failure for failure in result["analyst"] if failure[0] == kind]
             owned = {item: owner_lines(kind, item) for item in items}
@@ -3052,37 +3292,120 @@ def per_kind(results: "list[dict]") -> "dict[str, dict]":
                 "owners": sorted({owner for lines in owned.values() for owner, _gap in lines}),
                 "gaps": sorted({f"{owner}: {gap}" for lines in owned.values() for owner, gap in lines}),
             }
-    return {kind: kinds[kind] for kind in KINDS if kind in kinds}
+    return {kind: kinds[kind] for kind in all_kinds() if kind in kinds}
 
 
-def runnable_tables() -> "tuple[Table, ...]":
-    """The catalogue's tables this machine can read: a workbook needs the cross-check reader.
+def runnable_tables(tables: "tuple[Table, ...] | None" = None) -> "tuple[Table, ...]":
+    """The tables this machine can read (E0a's, unless named): a workbook needs the cross-check reader.
 
     pandas opens an `.xlsx` through openpyxl, which CI's `minimums` cell
-    does not install (`tests/crosscheck.py`); there the workbook export
-    is left out, and its kinds are named as not measured.
+    does not install (`tests/crosscheck.py`); there the workbook exports
+    are left out, and their kinds are named as not measured.
     """
     import crosscheck
 
+    chosen = TABLES if tables is None else tables
     if crosscheck.present():
-        return TABLES
-    return tuple(table for table in TABLES if table.suffix != ".xlsx")
+        return chosen
+    return tuple(table for table in chosen if table.suffix != ".xlsx")
 
 
 def workbook_kinds() -> "tuple[str, ...]":
-    """The kinds the workbook exports serve, measured only where the cross-check reader is."""
-    return tuple(kind for table in TABLES if table.suffix == ".xlsx" for kind in table.kinds)
+    """The kinds the catalogue's workbook exports serve, measured only where the cross-check reader is."""
+    return tuple(kind for table in catalogue() if table.suffix == ".xlsx" for kind in table.kinds)
 
 
-def run_zoo(folder: pathlib.Path, n: int, seed: int = 20261016) -> "list[dict]":
-    """Every catalogue table this machine can read, end to end, each in a folder of its own."""
+def run_zoo(
+    folder: pathlib.Path, n: int, seed: int = SEED, tables: "tuple[Table, ...] | None" = None,
+) -> "list[dict]":
+    """The catalogue's tables (or those named) this machine can read, end to end, each in a folder of its own.
+
+    At the KPI size and above the shipped command runs with the owner's
+    table floor on (plan P4-D425); below it, for the suite's smoke, the
+    internal switch turns it off.
+    """
     results: "list[dict]" = []
-    runnable = runnable_tables()
-    for place in range(len(TABLES)):
-        table = TABLES[place]
+    chosen = catalogue() if tables is None else tables
+    runnable = runnable_tables(chosen)
+    floor_on = n >= KPI_ROWS
+    for table in chosen:
         if table in runnable:
-            results += [run_table(table, folder / table.name, n, seed + place)]
+            results += [run_table(table, folder / table.name, n, seed_of(table, seed), small_tables_refused=floor_on)]
     return results
+
+
+# -- the shards (K-HZ-03's bound, the zoo plan's critic item 16) ---------------
+
+# The slow driver runs the catalogue in shards of at most this many kinds,
+# each judged on its own time; a table's kinds stay in one shard.
+SHARD_KINDS_AT_MOST = 30
+
+
+def shards() -> "tuple[tuple[Table, ...], ...]":
+    """The catalogue in shards: `health_zoo_wide.SHARDS` names each shard's tables, in run order."""
+    return tuple(tuple(table_named(name) for name in names) for names in _wide().SHARDS)  # type: ignore[attr-defined]
+
+
+def smoke_ran(results: "list[dict]") -> "dict[str, bool]":
+    """Per kind: whether its table's run went through every step to exit 0 or 3 (the smoke's own rule)."""
+    ran: "dict[str, bool]" = {}
+    for result in results:
+        steps = result["steps"]
+        whole = all(
+            step in steps and steps[step]["exit"] in (0, 3)
+            for step in ("profile", "answers", "generate", "validate")
+        )
+        for kind in table_named(result["table"]).kinds:
+            ran[kind] = whole
+    return {kind: ran[kind] for kind in all_kinds() if kind in ran}
+
+
+def floor_measures(results: "list[dict]") -> "dict[str, object]":
+    """K-HZ-05: the kinds the owner's table floor refused, and the people each several-rows kind holds.
+
+    A kind is refused when its table's run was stopped by the floor
+    (`refused_by_floor`); the people are the distinct values of its
+    table's person column on the real table, held to PEOPLE_AT_LEAST at
+    the run's size (100 at 600 rows, 1,000 at 20,000).
+    """
+    refused: "list[str]" = []
+    short: "list[str]" = []
+    several = 0
+    fewest: "int | None" = None
+    for result in results:
+        table = table_named(result["table"])
+        if result.get("refused_by_floor"):
+            refused += list(table.kinds)
+        people = result.get("people")
+        if people is None:
+            continue
+        several += len(table.kinds)
+        fewest = people if fewest is None else min(fewest, people)
+        if people < PEOPLE_AT_LEAST.get(int(result["rows"]), PEOPLE_AT_LEAST[KPI_ROWS]):
+            short += list(table.kinds)
+    return {
+        "kinds_refused_by_floor": len(refused),
+        "kinds_refused_by_floor_named": ", ".join(refused) or "none",
+        "several_rows_kinds": several,
+        "fewest_people": fewest if fewest is not None else 0,
+        "several_rows_kinds_under_people_floor": len(short),
+        "several_rows_kinds_under_people_floor_named": ", ".join(short) or "none",
+    }
+
+
+def leak_measures(results: "list[dict]") -> "dict[str, object]":
+    """HIPAA first: the real values of person, place and record columns found published, per column."""
+    published = 0
+    named: "list[str]" = []
+    for result in results:
+        for column, found in sorted(result.get("leaks", {}).items()):
+            if found["description"] or found["twin"]:
+                published += found["description"] + found["twin"]
+                named += [
+                    f"{result['table']}.{column}: {found['description']} in the description, "
+                    f"{found['twin']} in the twin ({found['twin_cells']} cells)"
+                ]
+    return {"real_values_published": published, "real_values_published_named": "; ".join(named) or "none"}
 
 
 def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
@@ -3110,7 +3433,7 @@ def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
         "analyst_errors_on_real": sum(len(r.get("analyst_real_errors", [])) for r in results),
         "roles_reached": len(roles),
         "roles": sorted(roles),
-        "failing": [kind for kind in KINDS if kind in failing],
+        "failing": [kind for kind in all_kinds() if kind in failing],
     }
     second: "dict[str, object]" = {
         "kinds_failing": len(failing),
@@ -3124,4 +3447,6 @@ def zoo_measures(results: "list[dict]") -> "dict[str, dict]":
     for kind, verdict in kinds.items():
         second[f"misses_{kind}"] = verdict["misses"]
         second[f"analyst_failures_{kind}"] = len(verdict["analyst_failures"])
-    return {"K-HZ-01": first, "K-HZ-02": second, "kinds": kinds}
+    second["failures"] = sum(len(verdict["failures"]) for verdict in kinds.values())
+    second.update(leak_measures(results))
+    return {"K-HZ-01": first, "K-HZ-02": second, "K-HZ-05": floor_measures(results), "kinds": kinds}
