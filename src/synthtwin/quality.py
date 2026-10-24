@@ -894,11 +894,9 @@ def _chain_numbers(numbers: "tuple[int, ...]") -> str:
 
 
 def _chain_share(share: "tuple[int, int]") -> str:
-    if share[0] == 0:
-        return "0"
-    if share[1] == 1:
-        return f"{share[0]}"
-    return f"{share[0]}/{share[1]}"
+    """An implied share of the tabled rows to four decimals, rounded half up from its exact value."""
+    units = (share[0] * 20000 + share[1]) // (2 * share[1])
+    return f"{units // 10000}.{units % 10000:04d}"
 
 
 def _chain_cell_name(parts: "list[int]") -> str:
@@ -986,10 +984,12 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
         "Every pair of eligible columns, one line a pair, with the word the",
         "description gives it: 'exact' where one family holds both, so its",
         "line above checks them together; 'implied' where none does. An",
-        "implied pair is printed as the published families imply it, shares",
-        "of the tabled rows at the two columns' chain levels, beside the",
-        "dealing spread an independent dealing would leave. It is never a",
-        "check and nothing of this file stands beside it.",
+        "implied pair is printed as the published families imply it: the",
+        "share of the tabled rows in each pair of bands at the two columns'",
+        "chain levels, worked out exactly from the published tables and",
+        "printed to four decimals, beside the dealing spread an independent",
+        "dealing would leave. It is never a check, and nothing of this file",
+        "stands beside it.",
     ]
     if not lines_in.pairs:
         lines += ["  The description names no pair of eligible columns."]

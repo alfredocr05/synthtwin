@@ -115,7 +115,7 @@ def _product(left: "tuple[int, int]", numerator: int, denominator: int) -> "tupl
     return _reduced(left[0] * numerator, left[1] * denominator)
 
 
-# -- THE FILE READ AT THE PUBLISHED LADDERS --------------------------------
+# -- THE FILE READ AT EACH PUBLISHED LADDER ---------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
