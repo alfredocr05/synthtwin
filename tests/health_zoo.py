@@ -1134,6 +1134,9 @@ STAND_IN = r"group-\d+"
 # rule there, not a gap. The `codes` check leaves them out; their levels,
 # shapes and forms are checked like any column's.
 NOT_A_VOCABULARY = frozenset({"zip5", "zip4"})
+# The columns naming a place smaller than a state: a five-figure ZIP code
+# (45 CFR 164.514(b)(2)(i)(B)); the four-figure ZIP+4 add-on alone is not.
+PLACES = frozenset({"zip5"})
 # A text column is read for its shapes when the real table writes it in
 # at most this many shapes; free text, whose sentences recombine, is not.
 SHAPED_AT_MOST = 30
@@ -2641,9 +2644,11 @@ def answer_generally(table: Table, document: "dict") -> "tuple[list[dict], bool]
             given = "keep"
         # ...and the Safe Harbor question (plan P4-D427; lane ZR-b's ZS.7):
         # a column the person knows as anything but a record number names
-        # nobody, so `no`; one they know as a record number, `yes`.
+        # nobody, so `no`; one they know as a record number, `yes`; and a
+        # five-figure ZIP code names a place smaller than a state, so `yes`
+        # (the second repair of lane SH, item 6).
         if not given and known and offered == ["no", "yes"]:
-            given = "yes" if known == "identifier" else "no"
+            given = "yes" if known == "identifier" or column in PLACES else "no"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -2712,6 +2717,22 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
     if code != 0:
         result["seconds"] = time.perf_counter() - started
         return result
+    # ...AND THE SAFE HARBOR QUESTION AN ANSWER OPENS (plan P4-D427, the
+    # second repair of lane SH, item 6): a column of ZIP-shaped numbers
+    # answered `code` or `keep` is put that question in the run reading
+    # the answer, and the person answers it as they did the first.
+    follow = json.loads(questions_path.read_text(encoding="utf-8"))
+    if any(_offered(entry) == ["no", "yes"] and not entry.get("your_answer")
+           for entry in follow.get("asked") or []):
+        more, more_general = answer_generally(table, follow)
+        result["asked"] = asked + [one for one in more if one["offered"] == ["no", "yes"]]
+        result["general"] = general and more_general
+        questions_path.write_text(json.dumps(follow, indent=2), encoding="utf-8", newline="\n")
+        code, error = _quietly(["profile", f"{source}", "--replace", "--answers", f"{questions_path}"])
+        steps["answers"] = {"exit": code, "error": error}
+        if code != 0:
+            result["seconds"] = time.perf_counter() - started
+            return result
 
     code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"])
     steps["generate"] = {"exit": code, "error": error}
