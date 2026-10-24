@@ -434,8 +434,13 @@ def test_a_short_arc_study_uid_is_never_published_as_the_root(
     """The verifies of repairs 1 and 2 (HIPAA): instances of one study whose arcs are short.
 
     Declared, `<study>.<k>`: the root published is the organisation's,
-    never the study UID, and no real instance UID is in any file or the
-    twin. `ge` (`...2.55.3.4021.1015.1230`; before repair 2: the study UID
+    never the study UID, and no real instance UID is in any published file
+    (the description, its text, the questions and the screen). The twin
+    writes 0 real instance UIDs for `ge`, `one_product_arc` and `siemens`
+    at both sizes and for every shape at 600 rows; for `noorg` at 20,000
+    rows alone it writes at most n // 4000 (5), a bound, not a 0: the
+    chance equalities of stated limit (4), owned by lane ID-ROOM (plan
+    P4-D432). `ge` (`...2.55.3.4021.1015.1230`; before repair 2: the study UID
     published, 332 of 600 and 2,222 of 20,000 real UIDs in the twin);
     `noorg` (`1.2.276.0.12.34.56`, no organisation arc; on 1cf6f3c3: the
     study UID published, 332 of 600 and 2,222 of 20,000 real), red on the
@@ -455,13 +460,18 @@ def test_a_short_arc_study_uid_is_never_published_as_the_root(
     assert seen["block"]["layout_prefixes"] == {"(column)": root}
     for text in seen["texts"]:
         assert study + "." not in text
-    # Under `1.2.276.0.12.` the twin's two-figure arcs spell `34.56` once
-    # in 8,100 draws, and the instance numbers then fill their room:
-    # chance alone, nothing real read, 1 cell of 20,000 at seed 0 (stated
-    # limit (4)); 0 for every other shape and at 600 rows.
+    # 0 real UIDs in the twin, asserted, for ge, one_product_arc and
+    # siemens at both sizes and for noorg at 600 rows. noorg at 20,000 rows
+    # is bounded, not 0: under `1.2.276.0.12.` the twin's two-figure arcs
+    # spell `34.56` once in 8,100 draws and the instance numbers then fill
+    # their room, chance alone with nothing real read (1 cell of 20,000 at
+    # seed 0; stated limit (4), owned by lane ID-ROOM, plan P4-D432).
     real = set(cells)
     equal = sum(1 for cell in seen["cells"] if cell in real)
-    assert equal <= n // 4000, equal
+    if shape == "noorg" and n == 20_000:
+        assert equal <= n // 4000, equal
+    else:
+        assert equal == 0, equal
     assert sum(1 for cell in seen["cells"] if UID.fullmatch(cell) is None) == 0
     assert sum(1 for cell in seen["cells"] if not cell.startswith(root)) == 0
 
