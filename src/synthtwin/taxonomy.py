@@ -26435,14 +26435,16 @@ def _safe_harbor_kind(cell: str, comma: bool) -> "tuple[int, int, float]":
         postal = _ZIP_OTHER
     elif value < 0 or (whole and value == 0 and len(read.whole) == 1):
         postal = _ZIP_ASIDE
-    elif whole and not read.exponent and not read.grouped and len(read.whole) == 5:
+    elif read.grouped or (len(read.whole) == 4 and read.whole[:1] == "0"):
+        # A number grouped between its thousands (`1,234.00`) or padded to
+        # four figures (`0123`) is no ZIP's spelling, nor a placeholder:
+        # set aside as one, `1,234.00` on fourteen rows beside `1234.00`
+        # left the rest to read as ZIP codes.
+        postal = _ZIP_OTHER
+    elif whole and not read.exponent and len(read.whole) == 5:
         postal = _ZIP_IN
-    elif (
-        whole and not read.exponent and not read.grouped and len(read.whole) == 4
-        and read.whole[:1] != "0"
-    ):
-        # A ZIP that lost its leading zero (`2100`); a padded `0123` is a
-        # code's spelling, never a ZIP's.
+    elif whole and not read.exponent and len(read.whole) == 4:
+        # A ZIP that lost its leading zero (`2100`).
         postal = _ZIP_IN_FOUR
     elif whole and _all_nines(value):
         postal = _ZIP_ASIDE

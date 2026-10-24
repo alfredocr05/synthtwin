@@ -22,6 +22,8 @@ import sys
 
 import pytest
 
+import keyboard
+
 from synthtwin import generation, parsing
 from tests import fixtures
 
@@ -494,7 +496,7 @@ def test_a_judged_removal_does_not_fail_the_real_table(
 
 @pytest.mark.parametrize("floor", ["1", "11"])
 def test_an_absorbed_decimal_does_not_fail_its_own_source(
-    tmp_path: pathlib.Path, floor: str
+    tmp_path: pathlib.Path, floor: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`styles.spelled` failed the original file at the default floor too.
 
@@ -502,6 +504,10 @@ def test_an_absorbed_decimal_does_not_fail_its_own_source(
     into `numeric_styles {"plain": 31}` with `fraction_widths {}`, the
     original file failed `styles.spelled`, and the seed-4 twin passed.
     """
+    # THE SAFE HARBOR REACH (plan P4-D427) takes this column -- every
+    # number has four figures, as a ZIP code that lost its leading zero
+    # has; its numbers are measurements, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     cells = [str(1000 + 3 * step) for step in range(30)] + ["1254.00"]
     block, _written, twin_exit, real_exit = _round_trip(
         tmp_path / f"absorbed-{floor}", cells, ("--smallest-group", floor)

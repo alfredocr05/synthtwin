@@ -225,6 +225,9 @@ _WORDS = [f"w{chr(97 + place % 26)}{chr(97 + place // 26)}" for place in range(8
         # ...and no ZIP is grouped between thousands or padded to four.
         ([f"{12000 + 7 * place:,}" for place in range(300)], ""),
         ([f"0{100 + place}" for place in range(300)] + ["52240"], ""),
+        # ...nor a placeholder: one value grouped on fourteen rows beside
+        # the same value ungrouped (the mixture reader's column).
+        (["1,234.00"] * 7 + ["1 234.00"] * 7 + ["1234.00"] * 86, ""),
         (["52240"] * 20 + ["5224a"] * 20, ""),  # other forms past the bulk
         (["123456"] * 20 + ["1234567"] * 20, ""),
     ],
