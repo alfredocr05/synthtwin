@@ -5275,18 +5275,53 @@ def _run_profile(
     # question were put the Safe Harbor question beside it. A question a
     # file answered `keep` is put again under its kept reading, and is no
     # longer open: there the Safe Harbor question is the one put, below.
+    open_offers = [
+        question
+        for question in asked_about
+        if question.name in withheld
+        or (
+            not answered
+            and asking.offers_identifier(question)
+            and question.name not in identities_kept
+        )
+    ]
+    # THE SAFE HARBOR QUESTION COMES FIRST (the second repair of lane SH,
+    # items 1 and 6): a column the reach takes -- ZIP-shaped numbers, or
+    # ages, held meanwhile by an open question offering `identifier` -- is
+    # put the Safe Harbor question IN PLACE OF that question in this run,
+    # one question a column, as HX3's `code` in round one settles what one
+    # question can: no other answer frees the column (the date-count,
+    # padded and two-numbers questions ask about record numbers, dates
+    # and codes, not places), while the answer to the other question,
+    # put again once `no` is given, is one an option types (`--code`,
+    # `--measurement`, `--date-count`), so every answer can still be given
+    # in one round (plan P4-D408). The person question keeps its place:
+    # its answer names who the rows are about.
+    harbor_ready = list(five_figures)
+    for block in published["columns"] if isinstance(published["columns"], list) else []:
+        if isinstance(block, dict) and "top_coded" in block:
+            harbor_ready += [f"{block['name']}"]
+    displaced = [
+        question
+        for question in open_offers
+        if question.reason != asking.BECAUSE_REPEATS_AND_MANY
+        and question.name in harbor_ready
+        and question.name not in safe_harbor_no
+        and question.name not in safe_harbor_yes
+    ]
+    displaced_names = [question.name for question in displaced]
     harbor_asked = asking.safe_harbor_questions(
         published,
-        tuple(five_held),
+        tuple(five_held)
+        + tuple(
+            name
+            for name in displaced_names
+            if name in five_figures and name not in five_held
+        ),
         [
             question
-            for question in asked_about
-            if question.name in withheld
-            or (
-                not answered
-                and asking.offers_identifier(question)
-                and question.name not in identities_kept
-            )
+            for question in open_offers
+            if question.name not in displaced_names
         ],
         tuple(ages_held),
         tuple(safe_harbor_no + safe_harbor_yes),
@@ -5296,14 +5331,20 @@ def _run_profile(
         # ...ONE QUESTION A COLUMN: a column answered `keep` to a question
         # offering `identifier` and held for its numbers is asked the Safe
         # Harbor question in place of that one, whose answer the file
-        # carries (the second repair of lane SH, item 6).
+        # carries (the second repair of lane SH, item 6), and so is a
+        # column whose open question the Safe Harbor question displaces.
         asked_about = [
             question
             for question in asked_about
             if not (
                 question.name in harbored
-                and question.name in identities_kept
-                and asking.offers_identifier(question)
+                and (
+                    (
+                        question.name in identities_kept
+                        and asking.offers_identifier(question)
+                    )
+                    or question in displaced
+                )
             )
         ] + harbor_asked
         listed_about = [

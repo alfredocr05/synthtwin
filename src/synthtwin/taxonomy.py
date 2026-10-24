@@ -26591,9 +26591,11 @@ def _placeholder_rows(outside: "dict[float, int]", repeat: int) -> int:
     return rows
 
 
-def _padded_widths(cells: "list[str]", comma: bool, absent: "frozenset[str]") -> "set[int]":
+def _padded_widths(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]"
+) -> "dict[int, bool]":
     """The widths a column pads its numbers to: those of its cells written with a leading zero."""
-    widths: "set[int]" = set()
+    widths: "dict[int, bool]" = {}
     seen: "dict[str, bool]" = {}
     for cell in cells:
         if cell in seen or cell in absent:
@@ -26602,7 +26604,7 @@ def _padded_widths(cells: "list[str]", comma: bool, absent: "frozenset[str]") ->
             seen[cell] = True
         read = safe_harbor_number(cell, comma)
         if read is not None and not read.exponent and len(read.whole) >= 2 and read.whole[:1] == "0":
-            widths.add(len(read.whole))
+            widths[len(read.whole)] = True
     return widths
 
 
@@ -26615,7 +26617,7 @@ def _padded_to(figures: str, width: int) -> str:
 
 
 def _top_coded_text(
-    read: SafeHarborNumber, comma: bool, padded: "set[int] | None" = None
+    read: SafeHarborNumber, comma: bool, padded: "dict[int, bool] | None" = None
 ) -> str:
     """A cell over 89 written as the top-code, in the cell's own form (plan P4-D427).
 

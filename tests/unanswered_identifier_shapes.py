@@ -628,10 +628,10 @@ ZIPS = ZIP_WORDS + (
     "zip_plus_sign", "zip4_binary", "zip4_constant", "zip_pad_unknown",
     "zip_pad_unknown35", "zip_mixed_unknown", "zip4_99999_unknown",
     "zip4_minus9999", "zip4_999999", "acct_date_count", "zipplus4_all",
-    "zip9_unk", "zip9pad_unk",
+    "zip9_unk", "zip9pad_unk", "zipplus4_30",
 )
 # The shapes counted only once their column's other question is answered.
-ZIPS_ANSWERED_ONLY = ("zip52_unknown40", "zipplus4_30", "zipplus4_1234")
+ZIPS_ANSWERED_ONLY = ("zip52_unknown40", "zipplus4_1234")
 ZIP_KINDS = ZIPS + ZIPS_ANSWERED_ONLY
 # ZIP+4 cells written as nine figures, counted by the ZIP they open with.
 ZIP_NINE = ("zip9_unk", "zip9pad_unk")
@@ -640,16 +640,22 @@ AGES = (
     "age_outlier", "age_126", "age_999share", "age_minus1share", "age_888",
     "age_gauss_minus1", "age_years", "age_unk", "age_words800",
     "age_years_words", "age_person", "age_plus", "age_padded07", "ages4ph",
-    "agescomma",
+    "agescomma", "naaccr",
 )
 SAFE_HARBOR_NUMBERS = ZIPS + AGES
-# Each shape whose column's other question is answered, with the answer.
+# Each shape whose column's other question is answered, with the answer:
+# in the questions file where a question offers it -- the person question
+# keeps its place beside the Safe Harbor question -- and typed where the
+# Safe Harbor question is put first in place of the other (`--code`,
+# `--measurement`).
 SAFE_HARBOR_ANSWERED = (
     ("naaccr", "measurement"), ("naaccr", "code"),
     ("zip5word52_unknown", "code"), ("zip5word52_unknown", "measurement"),
     ("zip52_unknown40", "keep"), ("zip52_unknown40", "code"),
-    ("zipplus4_30", "keep"), ("zipplus4_1234", "keep"),
+    ("zipplus4_30", "code"), ("zipplus4_1234", "code"),
 )
+# The answers an option types.
+_TYPED = {"code": "--code", "measurement": "--measurement"}
 # The tables written with `;` between their cells.
 _SEMICOLON = ("agescomma",)
 AGE_TOP_CODE = 90
@@ -920,7 +926,11 @@ def _number_tokens(value: str, text: str) -> int:
 
 
 def _answers_given(folder: pathlib.Path, table: pathlib.Path, kind: str, answer: str) -> "list[str]":
-    """Profile unanswered, then write `answer` to every question on the column offering it."""
+    """Profile unanswered, then write `answer` to the question on the column offering it.
+
+    Where no question offers it -- the Safe Harbor question put first in
+    place of the other -- the answer is typed instead.
+    """
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         assert cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]) == 0
     written = json.loads((folder / f"{kind}_long-questions.json").read_text(encoding="utf-8"))
@@ -930,6 +940,8 @@ def _answers_given(folder: pathlib.Path, table: pathlib.Path, kind: str, answer:
         if entry["column"] == kind and answer in offered:
             entry["your_answer"] = answer
             given += 1
+    if not given:
+        return [_TYPED[answer], kind]
     assert given == 1, written["asked"]
     answers = folder / "answers.json"
     answers.write_text(json.dumps(written), encoding="utf-8", newline="\n")

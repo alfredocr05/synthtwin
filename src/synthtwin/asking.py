@@ -1614,6 +1614,15 @@ def questions_and_splits_for(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
                 )
                 taken = ANSWER_MEASUREMENT
+            # A column of padded ages is counted in words as the top-code
+            # reads it (plan P4-D427, its second repair): `103` written
+            # `090` too, so the sentence names no count the top-coded
+            # description would not.
+            if reason == BECAUSE_PADDED and taxonomy.safe_harbor_reach(
+                shaped, False, frozenset([""]), settings.small_cell_floor,
+                False, True,
+            ) == taxonomy.SAFE_HARBOR_AGES:
+                shaped = taxonomy.top_coded_cells(shaped)
             asked += [
                 Question(
                     name,

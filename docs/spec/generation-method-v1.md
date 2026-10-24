@@ -12000,8 +12000,12 @@ cell's own decimals (chosen at six places at most, the finer figures
 written as zeros, so the search steps once per value already taken and
 ends: item 4 of the same review), above 89 or no lower than the column's
 least value, that no other cell holds; 90 itself where none is free. The
-cell's spaces, plus sign and unit word are kept, and a value above 125 is
-no age and is kept. No word is drawn, so no later column moves. The
+cell's spaces, plus sign and unit word are kept, its whole part as wide
+as the column pads its numbers (`097` is `089`), and a value above 125 is
+no age and is kept, as is a cell spelled as one of the block's
+`missing_by_source` keys (the second repair of lane SH, item 5:
+`--missing-value 95` beside top-coded ages had its missing cells written
+90, and the twin failed validation). No word is drawn, so no later column moves. The
 oracle has no function for this step, and no vector holds a `top_coded`
 block, so no vector moves (as G7.13's held fill).
 

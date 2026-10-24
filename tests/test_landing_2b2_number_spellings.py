@@ -36,7 +36,7 @@ import sys
 
 import pytest
 
-from tests import fixtures
+from tests import fixtures, keyboard
 from tests.test_stage2_round_trip import _exit_of, _round_trip
 
 FACTS = ("role", "group_separator", "negative_form", "decimal_plus", "n_negative")
@@ -480,8 +480,14 @@ def test_an_identifier_grouped_with_spaces_is_asked_about(tmp_path: pathlib.Path
     assert "identifier" in answers and "code" in answers
 
 
-def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: pathlib.Path) -> None:
+def test_whole_numbers_with_a_point_between_thousands_are_asked_about(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`12.345` is read as twelve and a bit, and the person is asked, with --decimal-comma offered."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) holds whole
+    # numbers of four and five figures, so read, until `no` whatever else
+    # they are answered; these are amounts, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     draw = random.Random(6)
     cells = [f"{draw.randint(1000, 99999):,}".replace(",", ".") for _ in range(800)]
     folder = tmp_path / "points"

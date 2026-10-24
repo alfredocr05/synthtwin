@@ -325,9 +325,14 @@ def test_the_answer_replaces_a_declaration_typed_earlier(
 
 
 def test_the_run_says_the_answered_file_is_written_again(
-    tmp_path: pathlib.Path, capsys
+    tmp_path: pathlib.Path, capsys, monkeypatch
 ) -> None:
     """A person who spent ten minutes filling it in is told first."""
+    # THE SAFE HARBOR REACH (plan P4-D427, its second repair) holds five
+    # figures padded with zeros until `no` whatever else they are
+    # answered, and asks its own question; these are codes of no place,
+    # so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     assert _run(tmp_path) == 0
     capsys.readouterr()
     questions = tmp_path / "clinic-questions.json"

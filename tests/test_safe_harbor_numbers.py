@@ -191,6 +191,20 @@ def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
         assert seen["twin_misses"] == seen["control_twin_misses"], seen
 
 
+@pytest.mark.parametrize("kind", ["naaccr", "zipplus4_all", "zip5word52_unknown"])
+def test_the_safe_harbor_question_comes_first(tmp_path: pathlib.Path, kind: str) -> None:
+    """The second repair, items 1 and 6: one question, the one only `no` answers.
+
+    A column the reach takes, held meanwhile by an open padded,
+    date-count or two-numbers question, is put the Safe Harbor question
+    in place of that one: the other question's answers would not free it,
+    and are typed once `no` is given, so one round still answers all.
+    """
+    seen = shapes.run_safe_harbor(tmp_path, kind, 600)
+    assert seen["asked"] == [[asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]], seen
+    assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
+
+
 # -- the reach, cell by cell ----------------------------------------------
 
 
