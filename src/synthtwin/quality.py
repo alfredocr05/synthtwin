@@ -350,7 +350,9 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     ]
 
 
-def _summary_lines(census: validation.Census) -> "list[str]":
+def _summary_lines(
+    census: validation.Census, chain: "validation.ChainLines | None" = None
+) -> "list[str]":
     """The verdict summary, generated from the census and nothing else.
 
     V7.2. Every sentence here is a function of six whole numbers. There
@@ -431,10 +433,23 @@ def _summary_lines(census: validation.Census) -> "list[str]":
             "file does not carry; it is not a judgement about whether the",
             "file is useful for anything.",
         ]
+        # BETWEEN COLUMNS (lane CHv, plan P4-D430; Codex's item 3 on its
+        # build): a missed family or band-total line is named in the
+        # between-columns section, not under FACT BY FACT, and the reader
+        # is told so; nothing at all where the outcome carries no chain.
+        if chain is not None and chain.missed:
+            lines += [
+                "",
+                (
+                    f"Of them, {chain.missed} are between-columns line(s), "
+                    f"named in the section"
+                ),
+                "BETWEEN COLUMNS further down rather than in the next one.",
+            ]
     return lines
 
 
-def _bounds_lines() -> "list[str]":
+def _bounds_lines(chain: "validation.ChainLines | None" = None) -> "list[str]":
     """The limits this report carries on every run (V7.3).
 
     None of these is conditional on what was measured. A limit that
@@ -445,24 +460,20 @@ def _bounds_lines() -> "list[str]":
     `SECURITY.md`, the package docstring, the command's status screen,
     the profiler's summary and the twin's report use, and
     `tests/test_claim_inventory.py` holds all of them to it.
+
+    UNDER THE CHAIN'S SWITCH (lane CHv, plan P4-D430; skeptic 1's item 7)
+    paragraph 1 says what WAS checked between columns and what was not,
+    because a report carrying a between-columns section cannot also say
+    that nothing of the kind is carried. Without the chain's lines the
+    paragraph is the one above, byte for byte.
     """
+    first = _no_structure_lines() if chain is None else _chain_scope_lines(chain)
     return [
         _RULE,
         "WHAT THIS REPORT DOES NOT SAY",
         _RULE,
         "",
-        "1. NO CROSS-COLUMN STRUCTURE WAS VALIDATED, because none is",
-        "   carried. This version of synthtwin describes and builds every",
-        "   column on its own and carries",
-        "   no cross-column structure at all: no fact about how two",
-        "   columns move together, so there is nothing of the kind for a",
-        "   check to measure -- not a correlation, not a formula tying one",
-        "   column to another, not a shared pattern of which cells are",
-        "   empty, not an ordering between two event columns. A file that",
-        "   passes every check in this report can still behave nothing",
-        "   like your table under any analysis that uses two columns at",
-        "   once.",
-        "   Cross-column structure arrives in a later version of synthtwin.",
+    ] + first + [
         "",
         "2. ROWS ARE TREATED AS INDEPENDENT, and this description",
         "   never says what one row of the real table is. Nothing here",
@@ -483,6 +494,46 @@ def _bounds_lines() -> "list[str]":
         "   nothing this description does not publish; and it cannot tell a",
         "   synthetic file from a real one, because nothing in a CSV proves",
         "   where its rows came from.",
+    ]
+
+
+def _no_structure_lines() -> "list[str]":
+    """Paragraph 1 of what the report does not say, on every report without the chain's lines."""
+    return [
+        "1. NO CROSS-COLUMN STRUCTURE WAS VALIDATED, because none is",
+        "   carried. This version of synthtwin describes and builds every",
+        "   column on its own and carries",
+        "   no cross-column structure at all: no fact about how two",
+        "   columns move together, so there is nothing of the kind for a",
+        "   check to measure -- not a correlation, not a formula tying one",
+        "   column to another, not a shared pattern of which cells are",
+        "   empty, not an ordering between two event columns. A file that",
+        "   passes every check in this report can still behave nothing",
+        "   like your table under any analysis that uses two columns at",
+        "   once.",
+        "   Cross-column structure arrives in a later version of synthtwin.",
+    ]
+
+
+def _chain_scope_lines(chain: validation.ChainLines) -> "list[str]":
+    """Paragraph 1 where the report carries the chain's lines: what was checked between columns, and what was not."""
+    return [
+        "1. BETWEEN COLUMNS, ONLY THE PUBLISHED FAMILY TABLES WERE CHECKED.",
+        (
+            f"   The description publishes {len(chain.families)} table(s) of "
+            f"counts that tie"
+        ),
+        "   columns together, each at the column bands it publishes, and the",
+        "   section BETWEEN COLUMNS below checks each against this file.",
+        "   Nothing else that ties two columns together is checked: not a",
+        "   pair of columns no published table holds (the tables only imply",
+        "   it, and what they imply is printed there, never checked), not a",
+        "   finer split than the published bands, not a correlation or a",
+        "   slope, not a formula tying one column to another, not a shared",
+        "   pattern of which cells are empty, not an ordering between two",
+        "   event columns. A file that passes every check in this report can",
+        "   still behave unlike your table under an analysis that uses two",
+        "   columns in a way no published table records.",
     ]
 
 
@@ -563,6 +614,19 @@ def _missed_lines(outcome: validation.Outcome) -> "list[str]":
     missed = [
         check for check in outcome.checks if check.verdict == validation.MISSED
     ]
+    if not missed and outcome.chain is not None and outcome.chain.missed:
+        # A MISS BETWEEN COLUMNS ONLY (lane CHv, plan P4-D430; Codex's
+        # item 3 on its build): "nothing was missed" would contradict the
+        # verdict above, so the section says where the misses are.
+        return [
+            "No obligation of a single column was missed, so this part of",
+            (
+                f"the section is empty. {outcome.chain.missed} between-columns "
+                f"line(s) were"
+            ),
+            "MISSED: they are named in the section BETWEEN COLUMNS below.",
+            "",
+        ]
     if not missed:
         return [
             "Nothing was missed, so this part of the section is empty. Every",
@@ -906,6 +970,17 @@ def _chain_cell_name(parts: "list[int]") -> str:
     return out
 
 
+def _chain_band_words(legend: validation.ChainLegend, level: int, band: int) -> str:
+    """One band of a column at a level, in the description's own words (an `L1` or `L2` band joins `L0` bands)."""
+    if level == 0:
+        return _shown(legend.bands[band])
+    coarser = legend.l1 if level == 1 else legend.l2
+    words = ""
+    for one in coarser[band]:
+        words = (words + " + " if words else "") + _shown(legend.bands[one])
+    return words
+
+
 def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
     """V12's section of the written report: the chain's lines, every one in the description's own numbers.
 
@@ -913,7 +988,15 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
     prints its verdict and the published table, totals or words; an
     implied pair prints the shares the published families imply and its
     dealing spread, both functions of the description alone.
+
+    IN WORDS A READER CAN USE (skeptic 1 of lane CHv, item 8): the bands'
+    levels, the rows counted and the dealing spread are said once in
+    plain words, and an implied table names each of its bands in the
+    description's words rather than by a number to look up.
     """
+    legends: "dict[str, validation.ChainLegend]" = {}
+    for legend in lines_in.legends:
+        legends[legend.column] = legend
     implied = 0
     for pair in lines_in.pairs:
         if pair.word == "implied":
@@ -927,6 +1010,14 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
             f"The description publishes {len(lines_in.families)} family "
             f"table(s) over {len(lines_in.totals)} column(s)."
         ),
+        "Each column is cut into bands. L0 is a column's finest set of",
+        "bands; L1 and L2 are coarser sets, each of their bands a group of",
+        "L0 bands. A family's table counts the rows in each band of one",
+        "column (its child) within each combination of bands of the",
+        "columns it is read beside (its parents); a family with no parent",
+        "counts the child's bands alone. Rows are counted over the table's",
+        "rows, the records holding nothing at all set aside.",
+        "",
         "Each column's band totals and each family's table are checked",
         "against the published numbers: HELD where this file holds them",
         "exactly, MISSED where it does not. A family is judged only where",
@@ -963,14 +1054,17 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
         if family.reason:
             lines += [f"      {_shown(family.reason)}"]
         if family.parents:
-            lines += ["      published table (a row for each cell of the parents, bands in the order above):"]
+            lines += [
+                "      published table (a row for each combination of the parents' bands,",
+                "      the first parent's band first; the child's bands in the order above):",
+            ]
         else:
             lines += ["      published table:"]
         widths: "list[int]" = []
-        for legend in lines_in.legends:
-            for name, level in family.parents:
-                if legend.column == name:
-                    widths += [len(legend.bands) if level == 0 else (len(legend.l1) if level == 1 else len(legend.l2))]
+        for name, level in family.parents:
+            if name in legends:
+                legend = legends[name]
+                widths += [len(legend.bands) if level == 0 else (len(legend.l1) if level == 1 else len(legend.l2))]
         for row_at in range(len(family.table)):
             parts: "list[int]" = []
             rest = row_at
@@ -985,11 +1079,13 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
         "description gives it: 'exact' where one family holds both, so its",
         "line above checks them together; 'implied' where none does. An",
         "implied pair is printed as the published families imply it: the",
-        "share of the tabled rows in each pair of bands at the two columns'",
+        "share of the rows in each pair of bands at the two columns'",
         "chain levels, worked out exactly from the published tables and",
-        "printed to four decimals, beside the dealing spread an independent",
-        "dealing would leave. It is never a check, and nothing of this file",
-        "stands beside it.",
+        "printed to four decimals. Beside it stands its dealing spread:",
+        "how far a twin dealt at random from these shares would typically",
+        "stray from them, in shares of the rows, half summed over the",
+        "cells. Neither is a check, and nothing of this file stands",
+        "beside them.",
     ]
     if not lines_in.pairs:
         lines += ["  The description names no pair of eligible columns."]
@@ -1002,22 +1098,27 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
         if pair.word != "implied":
             lines += [f"  {named}: {_shown(pair.word)}"]
             continue
+        if pair.reason:
+            lines += [f"  {named}: implied", f"      {_shown(pair.reason)}"]
+            continue
         lines += [
             f"  {named}: implied; dealing spread {pair.spread}",
             (
-                f"      implied shares (a row for each {_chain_level(pair.levels[0])} band of "
-                f"'{_shown(first)}', a share for each {_chain_level(pair.levels[1])} band of '{_shown(second)}'):"
+                f"      implied shares, a line for each {_chain_level(pair.levels[0])} band of "
+                f"'{_shown(first)}', a share for each {_chain_level(pair.levels[1])} band of '{_shown(second)}':"
             ),
         ]
         for row_at in range(len(pair.shares)):
             said = ""
-            for share in pair.shares[row_at]:
-                said = (said + ", " if said else "") + _chain_share(share)
-            lines += [f"        band {row_at}: {said}"]
+            for column_at in range(len(pair.shares[row_at])):
+                words = _chain_band_words(legends[second], pair.levels[1], column_at) if second in legends else f"{column_at}"
+                said = (said + "; " if said else "") + f"{words} {_chain_share(pair.shares[row_at][column_at])}"
+            row_words = _chain_band_words(legends[first], pair.levels[0], row_at) if first in legends else f"{row_at}"
+            lines += [f"        '{_shown(first)}' {row_words}: {said}"]
     lines += [
         "",
         (
-            f"{implied} pair(s) read 'implied'. {lines_in.held} line(s) HELD, "
+            f"In all: {implied} pair(s) read 'implied'. {lines_in.held} line(s) HELD, "
             f"{lines_in.missed} MISSED, {lines_in.withheld} withheld or not judged, "
             f"{lines_in.not_checkable} not checkable."
         ),
@@ -1034,13 +1135,13 @@ def _chain_screen_line(lines_in: validation.ChainLines) -> str:
     return (
         f"Between columns: {lines_in.held} band-total and family line(s) HELD, "
         f"{lines_in.missed} MISSED, {lines_in.withheld} withheld or not judged, "
-        f"{lines_in.not_checkable} not checkable, over {len(lines_in.families)} family "
-        f"table(s); {implied} pair(s) read 'implied'. The written report holds "
-        f"every line, with the published tables."
+        f"{lines_in.not_checkable} not checkable, over {len(lines_in.families)} published family "
+        f"table(s); {implied} pair(s) of columns not in one family (the chain only implies them; "
+        f"not checked). The written report holds every line, with the published tables."
     )
 
 
-def _expectations_lines() -> "list[str]":
+def _expectations_lines(chain: "validation.ChainLines | None" = None) -> "list[str]":
     """The analyst-expectations section (V7.4).
 
     One fixed section answering the question a methodologist brings:
@@ -1055,7 +1156,57 @@ def _expectations_lines() -> "list[str]":
     Measured on 100 readings 0.125 to 99.125: `min`, `max` and six of the
     nine interior rungs are withheld, so three rungs and two tails are
     the whole of what a ladder check has to work with.
+
+    UNDER THE CHAIN'S SWITCH (lane CHv, plan P4-D430; skeptic 1's item 7)
+    the part about targets that tie two columns together says what the
+    between-columns section checked and what it did not; without the
+    chain's lines the section is the one below, byte for byte.
     """
+    if chain is not None:
+        return _expectations_head() + _chain_expectations_lines()
+    return _expectations_head() + [
+        "NOT CHECKABLE IN THIS VERSION, and named rather than left out:",
+        "",
+        "  * any target that ties two columns together -- a rate within a",
+        "    subgroup defined by another column, a model coefficient, a",
+        "    time-to-event structure, agreement between a prediction",
+        "    column and an outcome column;",
+        "  * any target about how rows group -- per person, per visit, per",
+        "    site.",
+        "",
+        "Both of those need cross-column structure that this version of",
+        "synthtwin deliberately does not carry: the description publishes",
+        "none, so there is nothing for a check to measure against. Carrying",
+        "them is later work with its own plan and its own change to what a",
+        "description publishes. Nothing here promises when.",
+    ]
+
+
+def _chain_expectations_lines() -> "list[str]":
+    """The expectations section's last part where the report carries the chain's lines."""
+    return [
+        "CHECKED BETWEEN COLUMNS: each table of counts the description",
+        "publishes over two or more columns, at the column bands it",
+        "publishes (the section BETWEEN COLUMNS above).",
+        "",
+        "NOT CHECKABLE IN THIS VERSION, and named rather than left out:",
+        "",
+        "  * any other target that ties two columns together -- a pair of",
+        "    columns no published table holds, a rate within a subgroup",
+        "    finer than the published bands, a model coefficient, a",
+        "    time-to-event structure, agreement between a prediction",
+        "    column and an outcome column;",
+        "  * any target about how rows group -- per person, per visit, per",
+        "    site.",
+        "",
+        "The description publishes nothing else of the kind, so there is",
+        "nothing for a check to measure them against. Nothing here",
+        "promises when.",
+    ]
+
+
+def _expectations_head() -> "list[str]":
+    """The expectations section up to what it cannot check (`_expectations_lines`)."""
     return [
         _RULE,
         "IF YOU CAME TO THIS REPORT WITH A QUESTION",
@@ -1079,20 +1230,6 @@ def _expectations_lines() -> "list[str]":
         "    dates and times in the forms the description publishes, so",
         "    that reading the file back gives the same kinds of column.",
         "",
-        "NOT CHECKABLE IN THIS VERSION, and named rather than left out:",
-        "",
-        "  * any target that ties two columns together -- a rate within a",
-        "    subgroup defined by another column, a model coefficient, a",
-        "    time-to-event structure, agreement between a prediction",
-        "    column and an outcome column;",
-        "  * any target about how rows group -- per person, per visit, per",
-        "    site.",
-        "",
-        "Both of those need cross-column structure that this version of",
-        "synthtwin deliberately does not carry: the description publishes",
-        "none, so there is nothing for a check to measure against. Carrying",
-        "them is later work with its own plan and its own change to what a",
-        "description publishes. Nothing here promises when.",
     ]
 
 
@@ -1158,7 +1295,7 @@ def _floor_gate_lines(floor: int) -> "list[str]":
     ]
 
 
-def _withheld_census_lines(withheld: int) -> "list[str]":
+def _withheld_census_lines(withheld: int, not_judged: int = 0) -> "list[str]":
     """How many times the rule above bit on THIS run, said from the census.
 
     THE DEFECT THIS CLOSES (review of the shipped reports,
@@ -1173,7 +1310,30 @@ def _withheld_census_lines(withheld: int) -> "list[str]":
     which is true either way; this says what happened here, and it is
     generated from the census exactly as the verdict summary is, so it
     cannot claim more than the count supports.
+
+    AND A LINE ANOTHER RULE WITHHOLDS IS NOT GIVEN THIS ONE AS ITS CAUSE
+    (lane CHv, plan P4-D430; skeptic 1's item 6). A between-columns
+    family line whose column missed its published band totals reads
+    WITHHELD in V12.3's words "not judged", which is not the rule above:
+    ``not_judged`` counts those lines, said apart, and is 0 on every
+    report without the chain's lines.
     """
+    lines = _withheld_rule_census(withheld)
+    if not_judged:
+        lines += [
+            (
+                f"{not_judged} more between-columns family line(s) read "
+                f"WITHHELD for another"
+            ),
+            "reason, said on each of them: a column of the family missed its",
+            "published band totals, so the family's table is not judged",
+            "('not judged') whatever it holds.",
+        ]
+    return lines
+
+
+def _withheld_rule_census(withheld: int) -> "list[str]":
+    """How many times the rule above bit, in the words `_withheld_census_lines` explains."""
     if not withheld:
         return [
             "On this file the rule closed over nothing: no line of this",
@@ -1192,7 +1352,7 @@ def _withheld_census_lines(withheld: int) -> "list[str]":
 
 
 def _handling_lines(
-    description: contract.Profile, withheld: int
+    description: contract.Profile, withheld: int, not_judged: int = 0
 ) -> "list[str]":
     """Where the numbers came from, and how the six files are handled.
 
@@ -1292,7 +1452,7 @@ def _handling_lines(
         "  number.",
     ] + _floor_gate_lines(floor) + [
         "",
-    ] + _withheld_census_lines(withheld) + [
+    ] + _withheld_census_lines(withheld, not_judged) + [
         "",
         "WHAT WITHHELD PROTECTS, AND WHAT IT DOES NOT -- said here rather",
         "than left for you to assume. What it protects is this page, for a",
@@ -1454,9 +1614,9 @@ def _report_lines(
     if population:
         lines += population
         lines += [""]
-    lines += _summary_lines(outcome.census)
+    lines += _summary_lines(outcome.census, outcome.chain)
     lines += [""]
-    lines += _bounds_lines()
+    lines += _bounds_lines(outcome.chain)
     lines += [""]
     lines += _detail_lines(outcome)
     lines += _not_checkable_lines(outcome)
@@ -1467,9 +1627,12 @@ def _report_lines(
     if outcome.chain is not None:
         lines += [_chain_screen_line(outcome.chain)] if screen else _chain_lines(outcome.chain)
         lines += [""]
-    lines += _expectations_lines()
+    lines += _expectations_lines(outcome.chain)
     lines += [""]
-    lines += _handling_lines(description, outcome.census.withheld)
+    not_judged = 0 if outcome.chain is None else outcome.chain.not_judged
+    lines += _handling_lines(
+        description, outcome.census.withheld - not_judged, not_judged
+    )
     return lines
 
 

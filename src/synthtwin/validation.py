@@ -1721,6 +1721,9 @@ class ChainPair:
     levels: "tuple[int, int]"
     shares: "tuple[tuple[tuple[int, int], ...], ...]"
     spread: str
+    # Why an implied table is not worked out (`chain_validation`'s bounds;
+    # its fixed words), "" where it is.
+    reason: str = ""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1735,6 +1738,9 @@ class ChainLines:
     missed: int
     withheld: int
     not_checkable: int
+    # Of the withheld, the family lines V12.3's "not judged" words stand
+    # on (a member's band totals missed), not V5.3's rule.
+    not_judged: int = 0
 
 
 # -- V2.2: the settings the file is re-described under ----------------
@@ -5249,6 +5255,35 @@ def measure(
             time_grains=time_grains,
             absent_read=absent_read,
         )
+        # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
+        # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
+        # W1 with the file's own-fact groups, and a periodic census (days
+        # of the week or month, hours, minutes, seconds) draws some of
+        # them, which the description above never produces. Built only on
+        # a switched run whose chain holds a column of dates or times, from
+        # the cells and declarations the one above read, so every other run
+        # pays nothing.
+        chain_described = redescribed
+        if chain_document is not None:
+            from synthtwin import chain_validation
+
+            if chain_validation.reads_a_calendar(chain_document):
+                chain_described = profile.build_document(
+                    table,
+                    settings_for(description),
+                    declared,
+                    declared_codes,
+                    declared_measured,
+                    declared_commas,
+                    True,
+                    described_pairs,
+                    kept_placeholder_days=kept_days,
+                    judged_candidates=judged_here,
+                    calendar_censuses=True,
+                    counted_units=counted_units(description),
+                    time_grains=time_grains,
+                    absent_read={},
+                )
         table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
             table,
@@ -5322,7 +5357,7 @@ def measure(
     lines = chain_validation.lines_of(
         chain_document,
         table,
-        redescribed,
+        chain_described,
         settings,
         declared_codes,
         declared_measured,

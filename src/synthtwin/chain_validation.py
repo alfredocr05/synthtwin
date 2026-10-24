@@ -48,6 +48,7 @@ decides anything here, and no library logarithm, exponential or sine is
 called.
 """
 
+import array
 import dataclasses
 
 from synthtwin import chain, chain_rules, reading, taxonomy, validation
@@ -60,6 +61,10 @@ GATE_CLOSED = validation.CHAIN_GATE_CLOSED
 NO_SUCH_COLUMN = "the checked file has no column of this name, so its bands cannot be counted"
 ANOTHER_ROLE = "the checked file reads this column under another role, so its published bands do not apply"
 A_MEMBER_NOT_CHECKABLE = "a column of this family is not checkable in the checked file"
+COUNTED_IN_PEOPLE = (
+    "the checked file repeats a value of a column the descriptions read as record numbers, so its own "
+    "description counts every value in people and publishes no family, and no band published here applies to it"
+)
 
 # The scale an implied share's root is bounded at (as the oracle's `dealing_spread`).
 _ROOT_SCALE = 1 << 60
@@ -117,15 +122,32 @@ def _product(left: "tuple[int, int]", numerator: int, denominator: int) -> "tupl
 
 # -- THE FILE READ AT EACH PUBLISHED LADDER ---------------------------------
 
+# HELD COMPACTLY (skeptic 1 of lane CHv, item 10; Codex's item 5 on the
+# build): each eligible column's `L0` code a tabled row is held in ONE BYTE
+# where its ladder has at most `_BYTE_BANDS` bands (V12.6's one byte a row
+# and column), in four bytes a row otherwise; a stored code is the band
+# plus one, 0 standing for a cell outside every published band. A
+# column's readings are read for its own-fact groups the moment it is
+# read and let go before the next column is, so no column's readings
+# outlive it. Measured before: a Python list of codes a column (8 bytes a
+# row) and every column's readings held to the end, about 800 MB of codes
+# alone at 2,000,000 rows by 50 eligible columns.
+_BYTE_BANDS = 254
+
+def _code_store(bands: int, rows: int) -> "bytearray | array.array[int]":
+    """A column's stored codes over `rows` tabled rows, all 0: one byte a row where `bands` allows it."""
+    if bands <= _BYTE_BANDS:
+        return bytearray(rows)
+    return array.array("I", [0]) * rows
+
 
 @dataclasses.dataclass(frozen=True)
 class _Column:
-    """One eligible column of the file: each tabled row's `L0` band (-1 outside every band) and its readings."""
+    """One eligible column of the file: each tabled row's stored `L0` code, and what its own facts mark."""
 
-    codes: "list[int]"
-    readings: "tuple[tuple[object, int], ...]"
+    codes: "bytearray | array.array[int]"
     blank: int
-    start: chain_rules.Starting
+    groups: "set[int]"
 
 
 def _l0_of_start(scale: chain_rules.Ladder, start: chain_rules.Starting) -> "list[int]":
@@ -150,39 +172,53 @@ def _holds_nothing(text: str) -> bool:
 def _file_column(
     table: reading.Table,
     place: int,
-    block: "dict[str, object]",
+    blocks: "tuple[dict[str, object], dict[str, object]]",
     settings: taxonomy.Settings,
     declared: "dict[str, bool]",
     stored_as: str,
     scale: chain_rules.Ladder,
     holding_nothing: int,
-    tabled_rows: "list[int]",
+    tabled: "tuple[bytearray, int]",
+    floor: int,
 ) -> "_Column | None":
     """The file's column read by the profiler's own reading for the chain (`chain.read_column`), at the PUBLISHED bands.
 
+    `blocks` is the column's published block and the file's own block.
     `chain.read_column` cuts each cell at the published block's starting
     bands (every spread band and the held-back pool among them, so every
     cell has a starting band); a starting band that no published `L0`
     band joins held no row when the description was written, and a cell
-    standing there is outside every band (-1).
+    standing there is outside every band (stored 0). The column's
+    own-fact groups (V12.3: `chain_rules.small_group_bands` on the file's
+    own block, `chain.value_run_bands` on its own values) are read here,
+    while its readings are in hand, and the readings are not kept.
     """
-    found = chain.read_column(table, place, block, settings, declared, stored_as, holding_nothing)
+    published, own = blocks
+    found = chain.read_column(table, place, published, settings, declared, stored_as, holding_nothing)
     if found is None:
         return None
     to_l0 = _l0_of_start(scale, found.start)
-    codes: "list[int]" = []
+    mask, count = tabled
+    codes = _code_store(len(scale.l0), count)
     blank = 0
-    for row in tabled_rows:
-        codes += [to_l0[found.codes[row]]]
-        blank += found.blanks[row]
-    return _Column(codes, found.readings, blank, found.start)
+    at = 0
+    for row in range(len(mask)):
+        if mask[row]:
+            codes[at] = to_l0[found.codes[row]] + 1
+            blank += found.blanks[row]
+            at += 1
+    groups = chain_rules.small_group_bands(own, found.start, scale, floor) | chain.value_run_bands(
+        own, found.start, scale, floor, found.readings
+    )
+    return _Column(codes, blank, groups)
 
 
-def _tabled_rows(table: reading.Table, holding_nothing: int) -> "list[int]":
-    """The file's tabled rows: every row but the first `holding_nothing` rows blank in every column (4.6b.5).
+def _tabled_rows(table: reading.Table, holding_nothing: int) -> "tuple[bytearray, int]":
+    """The file's tabled rows as a mask a row (1: tabled), and their count (4.6b.5).
 
-    The rows set aside are the ones `chain.describe` sets aside: the
-    first `E` rows holding nothing, `E` the file's own count of them.
+    Every row is tabled but the first `holding_nothing` rows blank in
+    every column: the rows `chain.describe` sets aside, `E` being the
+    file's own count of records holding nothing.
     """
     filled = bytearray(table.n_rows)
     for place in range(len(table.column_names)):
@@ -191,34 +227,79 @@ def _tabled_rows(table: reading.Table, holding_nothing: int) -> "list[int]":
             if not filled[row] and not _holds_nothing(values[row]):
                 filled[row] = 1
     left = holding_nothing
-    out: "list[int]" = []
+    mask = bytearray(table.n_rows)
+    count = 0
     for row in range(table.n_rows):
         if left and not filled[row]:
             left -= 1
             continue
-        out += [row]
-    return out
+        mask[row] = 1
+        count += 1
+    return mask, count
+
+
+def _repeats(values: "list[str]") -> bool:
+    """Whether some present value of a column stands on two or more rows."""
+    seen: "set[str]" = set()
+    for text in values:
+        if _holds_nothing(text):
+            continue
+        if text in seen:
+            return True
+        seen |= {text}
+    return False
+
+
+def _counted_in_people(
+    table: reading.Table,
+    document: "dict[str, object]",
+    redescribed: "dict[str, object]",
+) -> bool:
+    """Whether the file's own description counts its values in PEOPLE (Codex's item 2 on the build).
+
+    A column the description declares as record numbers or as the
+    person column (`settings.forced_identifiers`, `person_columns`), or
+    that the description or the file's own description reads as record
+    numbers (role `identifier`), names a PERSON on the file where one of
+    its values stands on two or more rows (`taxonomy.repeating_identifiers`'
+    reading): `synthtwin profile` run on that file counts every value in
+    those people (plan P4-D406) and publishes no family at all (the
+    chain's `OFF_PERSON`), so no published band applies to the file.
+    """
+    named: "set[str]" = set()
+    for holder in (document, redescribed):
+        settings_block = _get(holder, "settings")
+        for key in ("forced_identifiers", "person_columns"):
+            listed = _get(settings_block, key)
+            if isinstance(listed, list):
+                for name in listed:
+                    named |= {f"{name}"}
+        columns = _get(holder, "columns")
+        if isinstance(columns, list):
+            for block in columns:
+                if isinstance(block, dict) and _get(block, "role") == taxonomy.ROLE_IDENTIFIER:
+                    named |= {f"{_get(block, 'name')}"}
+    for place in range(len(table.column_names)):
+        if table.column_names[place] in named and _repeats(reading.column_values(table, place)):
+            return True
+    return False
 
 
 # -- THE COUNTS -----------------------------------------------------------
 
 
-def _band_totals(codes: "list[int]", count: int) -> "tuple[list[int], bool]":
+def _band_totals(codes: "bytearray | array.array[int]", count: int) -> "tuple[list[int], bool]":
     """Each `L0` band's rows, and whether every row stands in a published band."""
-    out = [0] * count
-    inside = True
+    out = [0] * (count + 1)
     for code in codes:
-        if code < 0:
-            inside = False
-        else:
-            out[code] += 1
-    return out, inside
+        out[code] += 1
+    return out[1:], out[0] == 0
 
 
 def _measured_table(
     family: chain_rules.Family,
     scales: "dict[str, chain_rules.Ladder]",
-    codes: "dict[str, list[int]]",
+    codes: "dict[str, bytearray | array.array[int]]",
     rows: int,
 ) -> "list[int]":
     """A family's table over the file's tabled rows, laid out as the published one (4.6b.5)."""
@@ -228,7 +309,9 @@ def _measured_table(
     for size in sizes:
         width *= size
     out = [0] * width
-    maps = [scales[name].maps[level] for name, level in held]
+    # A stored code is the band plus one; every one is inside here (the
+    # family is counted only where its members' totals hold).
+    maps = [(0,) + scales[name].maps[level] for name, level in held]
     columns = [codes[name] for name, _level in held]
     for row in range(rows):
         index = 0
@@ -248,12 +331,45 @@ def _chain_levels(families: "list[chain_rules.Family]") -> "dict[str, int]":
     return out
 
 
+# BOUNDED (Codex's item 4 on the build). An implied table is a product of
+# published tables, independent of the rows, but its size is the product
+# of the two columns' band counts: two label columns of 50,000 published
+# levels make 2,500,000,000 cells. So this report works out an implied
+# table only where it has at most `IMPLIED_CELLS_AT_MOST` cells (decided
+# from the two band counts before any work), holding at most
+# `IMPLIED_HELD_AT_MOST` joint cells at any step of the product, and
+# spending at most `IMPLIED_WORK_AT_MOST` products over the whole section;
+# a pair past any of them prints its word and why its table is not
+# worked out, and nothing else. Every one is a function of the
+# description alone.
+IMPLIED_CELLS_AT_MOST = 1024
+IMPLIED_HELD_AT_MOST = 65536
+IMPLIED_WORK_AT_MOST = 4000000
+
+TOO_MANY_CELLS = (
+    f"not worked out: its table at these levels would hold more than {IMPLIED_CELLS_AT_MOST} cells, "
+    "more than this report prints, so neither its shares nor its spread are printed"
+)
+TOO_MUCH_WORK = (
+    "not worked out: the product of the published tables that gives it is larger than this report "
+    "works through, so neither its shares nor its spread are printed"
+)
+
+
+@dataclasses.dataclass
+class _Work:
+    """What is left of the section's work on implied tables (`IMPLIED_WORK_AT_MOST`)."""
+
+    left: int
+
+
 def implied_shares(
     families: "list[chain_rules.Family]",
     scales: "dict[str, chain_rules.Ladder]",
     first: str,
     second: str,
-) -> "list[list[tuple[int, int]]]":
+    work: "_Work | None" = None,
+) -> "list[list[tuple[int, int]]] | None":
     """The table the chain implies for two columns at their chain levels, as exact shares of the tabled rows.
 
     The junction-tree product of the published families (4.6b.9 (a)):
@@ -262,9 +378,13 @@ def implied_shares(
     child's totals over the tabled rows; every column the two do not
     descend from is left out, and every column no later family reads is
     summed away as soon as it is placed. Rows are `first`'s bands, columns
-    `second`'s. Integers and `+ - * /` only.
+    `second`'s. Integers and `+ - * /` only. None where the table would
+    pass one of the bounds above (`work` holds the section's own).
     """
     levels = _chain_levels(families)
+    if scales[first].counts[levels[first]] * scales[second].counts[levels[second]] > IMPLIED_CELLS_AT_MOST:
+        return None
+    budget = work if work is not None else _Work(IMPLIED_WORK_AT_MOST)
     needed = {first, second}
     for at in range(len(families) - 1, -1, -1):
         family = families[at]
@@ -307,8 +427,11 @@ def implied_shares(
                 continue
             for band in range(child_bands):
                 if row[band]:
+                    if budget.left <= 0 or len(grown) >= IMPLIED_HELD_AT_MOST:
+                        return None
+                    budget.left -= 1
                     grown[key + (band,)] = _product(share, row[band], total)
-        live = live + [family.child]
+        live += [family.child]
         keep = [place for place in range(len(live)) if live[place] in (first, second) or live[place] in later_parents[at]]
         summed: "dict[tuple[int, ...], tuple[int, int]]" = {}
         for key in grown:
@@ -467,6 +590,23 @@ def _legend(entry: "dict[str, object]") -> validation.ChainLegend:
     return validation.ChainLegend(f"{entry['column']}", tuple(bands), coarser[0], coarser[1])
 
 
+def reads_a_calendar(document: "dict[str, object]") -> bool:
+    """Whether the description's chain holds a column of dates or times (its own facts then need the calendar censuses)."""
+    statistical = _get(_get(document, "relationships"), "statistical")
+    ladder = _get(statistical, "ladder")
+    if not isinstance(ladder, list):
+        return False
+    eligible: "set[str]" = set()
+    for entry in ladder:
+        eligible |= {f"{_get(entry, 'column')}"}
+    columns = _get(document, "columns")
+    if isinstance(columns, list):
+        for block in columns:
+            if f"{_get(block, 'name')}" in eligible and _get(block, "role") in (taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK):
+                return True
+    return False
+
+
 def lines_of(
     document: "dict[str, object]",
     table: reading.Table,
@@ -532,11 +672,16 @@ def lines_of(
     for place in range(len(table.column_names)):
         file_place[table.column_names[place]] = place
     file_nothing = chain_rules.records_holding_nothing(redescribed)
-    rows = _tabled_rows(table, file_nothing)
-    codes: "dict[str, list[int]]" = {}
-    read: "dict[str, _Column]" = {}
+    tabled_mask = _tabled_rows(table, file_nothing)
+    codes: "dict[str, bytearray | array.array[int]]" = {}
+    groups: "dict[str, set[int]]" = {}
+    blank_counts: "dict[str, int]" = {}
     unchecked: "dict[str, str]" = {}
+    people = _counted_in_people(table, document, redescribed)
     for name in eligible:
+        if people:
+            unchecked[name] = COUNTED_IN_PEOPLE
+            continue
         if name not in file_place or name not in file_blocks:
             unchecked[name] = NO_SUCH_COLUMN
             continue
@@ -552,19 +697,21 @@ def lines_of(
         column = _file_column(
             table,
             place,
-            published_blocks[name],
+            (published_blocks[name], file_blocks[name]),
             settings,
             declared,
             stored_as[place] if place < len(stored_as) else "",
             scales[name],
             file_nothing,
-            rows,
+            tabled_mask,
+            floor,
         )
         if column is None:
             unchecked[name] = ANOTHER_ROLE
             continue
-        read[name] = column
         codes[name] = column.codes
+        groups[name] = column.groups
+        blank_counts[name] = column.blank
     totals: "list[validation.ChainTotal]" = []
     held_totals: "set[str]" = set()
     for name in eligible:
@@ -581,24 +728,17 @@ def lines_of(
     # -- whether the published tables stand beside the file's own facts (V12.3) --
     # A column that is not checkable is read as holding a group in every
     # band and its published blank cells: that refuses more, never less.
-    groups: "dict[str, set[int]]" = {}
-    blank_counts: "dict[str, int]" = {}
     for name in eligible:
-        if name in unchecked or name not in read:
+        if name in unchecked:
             groups[name] = set(range(len(scales[name].l0)))
             blank_counts[name] = _whole(_get(published_blocks[name], "n_missing_blank")) - holding_nothing
-            continue
-        block = file_blocks[name]
-        groups[name] = chain_rules.small_group_bands(block, starts[name], scales[name], floor) | chain.value_run_bands(
-            block, starts[name], scales[name], floor, read[name].readings
-        )
-        blank_counts[name] = read[name].blank
     gate_open = not chain_rules.w1_refusals(families, scales, groups)
     x0 = chain_rules.blank_cell(scales, blank_counts)
     room = chain_rules.blank_record_room(redescribed, floor) + chain_rules.outside_cells(redescribed, set(eligible))
     if x0 is not None and chain_rules.cell_bound(x0, families, scales, tabled) > room:
         gate_open = False
     lines: "list[validation.ChainFamily]" = []
+    not_judged = 0
     for at in range(len(families)):
         family = families[at]
         sizes = chain_rules.radices(family, scales)
@@ -610,16 +750,18 @@ def lines_of(
             continue
         if any(name not in held_totals for name in names):
             lines += [validation.ChainFamily(at, family.child, family.level, family.parents, written_rows, validation.WITHHELD, NOT_JUDGED)]
+            not_judged += 1
             continue
         if not gate_open:
             lines += [validation.ChainFamily(at, family.child, family.level, family.parents, written_rows, validation.WITHHELD, GATE_CLOSED)]
             continue
-        measured = _measured_table(family, scales, codes, len(rows))
+        measured = _measured_table(family, scales, codes, tabled_mask[1])
         verdict = validation.HELD if tuple(measured) == family.table else validation.MISSED
         lines += [validation.ChainFamily(at, family.child, family.level, family.parents, written_rows, verdict)]
     # -- every candidate pair, its word as published --
     levels = _chain_levels(families)
     pairs: "list[validation.ChainPair]" = []
+    work = _Work(IMPLIED_WORK_AT_MOST)
     words = statistical["words"]
     if isinstance(words, list):
         for entry in words:
@@ -636,12 +778,17 @@ def lines_of(
                     holding = at
             shares: "tuple[tuple[tuple[int, int], ...], ...]" = ()
             spread = ""
+            why = ""
             if word == "implied":
-                implied = implied_shares(families, scales, first, second)
-                shares = tuple(tuple(row) for row in implied)
-                low, _high = dealing_spread(implied, tabled)
-                spread = spread_text(low)
-            pairs += [validation.ChainPair((first, second), word, holding, (levels[first], levels[second]), shares, spread)]
+                implied = implied_shares(families, scales, first, second, work)
+                if implied is None:
+                    cells = scales[first].counts[levels[first]] * scales[second].counts[levels[second]]
+                    why = TOO_MANY_CELLS if cells > IMPLIED_CELLS_AT_MOST else TOO_MUCH_WORK
+                else:
+                    shares = tuple(tuple(row) for row in implied)
+                    low, _high = dealing_spread(implied, tabled)
+                    spread = spread_text(low)
+            pairs += [validation.ChainPair((first, second), word, holding, (levels[first], levels[second]), shares, spread, why)]
     counted_lines: "dict[str, int]" = {validation.HELD: 0, validation.MISSED: 0, validation.WITHHELD: 0, "": 0}
     for total in totals:
         counted_lines[total.verdict] += 1
@@ -656,6 +803,7 @@ def lines_of(
         counted_lines[validation.MISSED],
         counted_lines[validation.WITHHELD],
         counted_lines[""],
+        not_judged,
     )
 
 

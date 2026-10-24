@@ -6225,7 +6225,15 @@ def _run_validate(
     # checking a real workbook whose table is not on the first visible
     # sheet named the sheet, was given no error, and had a different
     # sheet measured against their description.
-    outcome = validation.measure(loaded, measured, sheet, document)
+    # THE DEFAULT CALL IS THE CALL IT WAS (skeptic 1 of lane CHv, item 1):
+    # a run without the chain's switch hands `measure` the three arguments
+    # it always took, so a caller that wraps `measure` with that signature
+    # (the health zoo's battery) still runs; only the switched run hands it
+    # the parsed document.
+    if document is None:
+        outcome = validation.measure(loaded, measured, sheet)
+    else:
+        outcome = validation.measure(loaded, measured, sheet, document)
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
