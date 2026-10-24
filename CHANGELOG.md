@@ -14,7 +14,8 @@ role that prints a value (two values, one value, labels such as `95
 years`), set aside words, the column's missing values, nines, one-figure
 negatives and up to three repeated placeholders whatever their share, and
 judge the rest on its bulk: ages within 0 to 125 but for a few strays,
-ZIPs two in three of four or five figures, padded, signed or ZIP+4. A
+ZIPs two in three of five figures, padded or not, signed or ZIP+4, or of
+four (a ZIP that lost its zero) as levels or all of one width. A
 cell keeps its own form in the description and the twin, the twin keeps
 how many cells each value holds, and ages held as record numbers keep the
 key validation reads. Every open question offering `identifier` now holds
