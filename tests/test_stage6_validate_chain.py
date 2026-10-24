@@ -958,10 +958,14 @@ def test_an_implied_table_past_its_bounds_is_named_and_not_worked_out(clinic, mo
     families = [chain_rules.Family("A", 0, (), None, (11,) * 40), chain_rules.Family("B", 0, (), None, (11,) * 40)]
     work = chain_validation._Work(5)
     assert chain_validation.implied_shares(families, scales, "A", "B", work) is None and work.left == 5
-    small = {"A": ladder("A", 4), "B": ladder("B", 4)}
-    roots = [chain_rules.Family("A", 0, (), None, (11,) * 4), chain_rules.Family("B", 0, (), None, (11,) * 4)]
-    assert chain_validation.implied_shares(roots, small, "A", "B", chain_validation._Work(3)) is None
-    assert chain_validation.implied_shares(roots, small, "A", "B")[0][0] == (1, 16)
+    small = {"A": ladder("A", 4), "B": ladder("B", 4), "C": ladder("C", 4)}
+    linked = [
+        chain_rules.Family("A", 0, (), None, (11,) * 4),
+        chain_rules.Family("B", 0, (("A", 0),), 0, (11, 0, 0, 0, 0, 11, 0, 0, 0, 0, 11, 0, 0, 0, 0, 11)),
+        chain_rules.Family("C", 0, (("B", 0),), 1, (11, 0, 0, 0, 0, 11, 0, 0, 0, 0, 11, 0, 0, 0, 0, 11)),
+    ]
+    assert chain_validation.implied_shares(linked, small, "A", "C", chain_validation._Work(3)) is None
+    assert chain_validation.implied_shares(linked, small, "A", "C")[0] == [(1, 4), (0, 1), (0, 1), (0, 1)]
     monkeypatch.setattr(chain_validation, "IMPLIED_CELLS_AT_MOST", 1)
     code, report, _screen = clinic.validate(clinic.rows)
     section = _section(report)
@@ -1063,21 +1067,18 @@ def test_records_of_spaces_hold_nothing(tmp_path, monkeypatch):
 
 def test_codes_are_held_one_byte_a_row_where_the_ladder_allows(clinic):
     """Skeptic 1's item 10 and Codex's item 5: a column's codes are held in one
-    byte a tabled row where its ladder has at most 254 bands, in four
-    bytes otherwise, and both count the same totals and tables."""
-    import array
-
+    byte a tabled row where its ladder has at most 254 bands, as a list of
+    whole numbers otherwise, and both count the same totals and tables."""
     assert isinstance(chain_validation._code_store(254, 3), bytearray)
-    wide = chain_validation._code_store(255, 3)
-    assert isinstance(wide, array.array) and wide.itemsize == 4
+    assert chain_validation._code_store(255, 3) == [0, 0, 0]
     narrow = bytearray([1, 2, 2, 0])
     assert chain_validation._band_totals(narrow, 2) == ([1, 2], False)
-    assert chain_validation._band_totals(array.array("I", [1, 2, 2, 0]), 2) == ([1, 2], False)
+    assert chain_validation._band_totals([1, 2, 2, 0], 2) == ([1, 2], False)
     scales = {
         "A": chain_rules.Ladder("A", (("a0",), ("a1",)), ((0, 1), (0, 1), (0, 1)), (2, 2, 2), (2, 2), (True, True)),
         "B": chain_rules.Ladder("B", (("b0",), ("b1",)), ((0, 1), (0, 1), (0, 1)), (2, 2, 2), (2, 2), (True, True)),
     }
     family = chain_rules.Family("B", 0, (("A", 0),), 0, (1, 1, 1, 1))
     as_bytes = chain_validation._measured_table(family, scales, {"A": bytearray([1, 1, 2, 2]), "B": bytearray([1, 2, 1, 2])}, 4)
-    as_words = chain_validation._measured_table(family, scales, {"A": array.array("I", [1, 1, 2, 2]), "B": array.array("I", [1, 2, 1, 2])}, 4)
+    as_words = chain_validation._measured_table(family, scales, {"A": [1, 1, 2, 2], "B": [1, 2, 1, 2]}, 4)
     assert as_bytes == as_words == [1, 1, 1, 1]

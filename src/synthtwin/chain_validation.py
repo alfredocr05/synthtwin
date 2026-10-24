@@ -48,7 +48,6 @@ decides anything here, and no library logarithm, exponential or sine is
 called.
 """
 
-import array
 import dataclasses
 
 from synthtwin import chain, chain_rules, reading, taxonomy, validation
@@ -125,7 +124,9 @@ def _product(left: "tuple[int, int]", numerator: int, denominator: int) -> "tupl
 # HELD COMPACTLY (skeptic 1 of lane CHv, item 10; Codex's item 5 on the
 # build): each eligible column's `L0` code a tabled row is held in ONE BYTE
 # where its ladder has at most `_BYTE_BANDS` bands (V12.6's one byte a row
-# and column), in four bytes a row otherwise; a stored code is the band
+# and column), as a list of whole numbers otherwise (a label column of
+# more than 254 published levels; the offline policy admits no `array`);
+# a stored code is the band
 # plus one, 0 standing for a cell outside every published band. A
 # column's readings are read for its own-fact groups the moment it is
 # read and let go before the next column is, so no column's readings
@@ -134,18 +135,18 @@ def _product(left: "tuple[int, int]", numerator: int, denominator: int) -> "tupl
 # alone at 2,000,000 rows by 50 eligible columns.
 _BYTE_BANDS = 254
 
-def _code_store(bands: int, rows: int) -> "bytearray | array.array[int]":
+def _code_store(bands: int, rows: int) -> "bytearray | list[int]":
     """A column's stored codes over `rows` tabled rows, all 0: one byte a row where `bands` allows it."""
     if bands <= _BYTE_BANDS:
         return bytearray(rows)
-    return array.array("I", [0]) * rows
+    return [0] * rows
 
 
 @dataclasses.dataclass(frozen=True)
 class _Column:
     """One eligible column of the file: each tabled row's stored `L0` code, and what its own facts mark."""
 
-    codes: "bytearray | array.array[int]"
+    codes: "bytearray | list[int]"
     blank: int
     groups: "set[int]"
 
@@ -288,7 +289,7 @@ def _counted_in_people(
 # -- THE COUNTS -----------------------------------------------------------
 
 
-def _band_totals(codes: "bytearray | array.array[int]", count: int) -> "tuple[list[int], bool]":
+def _band_totals(codes: "bytearray | list[int]", count: int) -> "tuple[list[int], bool]":
     """Each `L0` band's rows, and whether every row stands in a published band."""
     out = [0] * (count + 1)
     for code in codes:
@@ -299,7 +300,7 @@ def _band_totals(codes: "bytearray | array.array[int]", count: int) -> "tuple[li
 def _measured_table(
     family: chain_rules.Family,
     scales: "dict[str, chain_rules.Ladder]",
-    codes: "dict[str, bytearray | array.array[int]]",
+    codes: "dict[str, bytearray | list[int]]",
     rows: int,
 ) -> "list[int]":
     """A family's table over the file's tabled rows, laid out as the published one (4.6b.5)."""
@@ -363,6 +364,165 @@ class _Work:
     left: int
 
 
+def implied_tables(
+    families: "list[chain_rules.Family]",
+    scales: "dict[str, chain_rules.Ladder]",
+    wanted: "list[tuple[str, str]]",
+    work: "_Work | None" = None,
+) -> "dict[tuple[str, str], list[list[tuple[int, int]]] | None]":
+    """The table the chain implies for each wanted pair, at the two columns' chain levels, as exact shares of the tabled rows.
+
+    The junction-tree product of the published families (4.6b.9 (a)):
+    each family is a clique of the chain's junction tree (its child at
+    its chain level, its parents at its levels), joined to its anchor
+    through its parents, and its published table IS the clique's joint
+    count over the tabled rows (the margins tie, S25). For a pair `(X,
+    Y)` the joint of `X` with each clique is carried from `X`'s own
+    family outward along the tree, through each separator `S` (the
+    parents a family reads): `P(X, C) = P(X, S) P(C) / P(S)`, `X` and the
+    rest of `C` independent given `S`; `Y`'s family then gives `P(X,
+    Y)`. Columns in two trees of the forest are independent. One walk of
+    `X`'s tree gives every pair `X` leads, so the work grows with the
+    published tables, never with a product of all the columns. Rows are
+    `first`'s bands. Integers and `+ - * /` only. A pair is None where
+    its table would pass one of the bounds above (`work` holds the
+    section's own).
+    """
+    budget = work if work is not None else _Work(IMPLIED_WORK_AT_MOST)
+    levels = _chain_levels(families)
+    home: "dict[str, int]" = {}
+    for at in range(len(families)):
+        home[families[at].child] = at
+    out: "dict[tuple[str, str], list[list[tuple[int, int]]] | None]" = {}
+    led: "dict[str, list[str]]" = {}
+    for first, second in wanted:
+        out[(first, second)] = None
+        if scales[first].counts[levels[first]] * scales[second].counts[levels[second]] > IMPLIED_CELLS_AT_MOST:
+            continue
+        if first in led:
+            led[first] += [second]
+        else:
+            led[first] = [second]
+    if not led:
+        return out
+    support = chain_rules.support_of(families, scales)
+    # Each clique's cells holding rows: (rows, member bands, child first).
+    cells: "list[list[tuple[int, tuple[int, ...]]]]" = []
+    totals: "list[int]" = []
+    for at in range(len(families)):
+        sizes = chain_rules.radices(families[at], scales)
+        found: "list[tuple[int, tuple[int, ...]]]" = []
+        whole = 0
+        for index in range(len(families[at].table)):
+            count = families[at].table[index]
+            if count:
+                found += [(count, tuple(chain_rules.cell_parts(index, sizes)))]
+                whole += count
+        cells += [found]
+        totals += [whole]
+    # The tree's edges: each family to its anchor and to the families anchored on it.
+    edges: "list[list[int]]" = [[] for _family in families]
+    for at in range(len(families)):
+        anchor = families[at].anchor
+        if anchor is not None:
+            edges[at] += [anchor]
+            edges[anchor] += [at]
+
+    def separator(here: int, there: int, parts: "tuple[int, ...]") -> "tuple[int, ...]":
+        """A cell of clique `here` read at the separator toward `there` (the parents the child family reads)."""
+        if families[here].anchor == there:
+            return parts[1:]
+        return chain_rules.seen_from_anchor(support, there, parts)
+
+    for first in led:
+        start = home[first]
+        rows = scales[first].counts[levels[first]]
+        wanted_here: "dict[int, list[str]]" = {}
+        for second in led[first]:
+            if home[second] in wanted_here:
+                wanted_here[home[second]] += [second]
+            else:
+                wanted_here[home[second]] = [second]
+        # P(X, C) on X's own family: its table over the tabled rows.
+        held: "dict[int, dict[int, tuple[int, int]]]" = {}
+        for place in range(len(cells[start])):
+            count, parts = cells[start][place]
+            held[place] = {parts[0]: _reduced(count, totals[start])}
+        carried: "dict[int, dict[int, dict[int, tuple[int, int]]]]" = {start: held}
+        holding = len(cells[start])
+        queue = [start]
+        reached = {start}
+        next_at = 0
+        while next_at < len(queue):
+            here = queue[next_at]
+            next_at += 1
+            for there in edges[here]:
+                if there in reached:
+                    continue
+                joint: "dict[tuple[int, ...], dict[int, tuple[int, int]]]" = {}
+                for place in carried[here]:
+                    key = separator(here, there, cells[here][place][1])
+                    if key not in joint:
+                        joint[key] = {}
+                    into = joint[key]
+                    given_here = carried[here][place]
+                    for band in given_here:
+                        into[band] = _sum(into[band], given_here[band]) if band in into else given_here[band]
+                margin: "dict[tuple[int, ...], int]" = {}
+                for count, parts in cells[there]:
+                    key = separator(there, here, parts)
+                    margin[key] = margin[key] + count if key in margin else count
+                spread: "dict[int, dict[int, tuple[int, int]]]" = {}
+                for place in range(len(cells[there])):
+                    count, parts = cells[there][place]
+                    key = separator(there, here, parts)
+                    if key not in joint:
+                        continue
+                    given: "dict[int, tuple[int, int]]" = {}
+                    for band in joint[key]:
+                        if budget.left <= 0:
+                            return out
+                        budget.left -= 1
+                        given[band] = _product(joint[key][band], count, margin[key])
+                    spread[place] = given
+                    holding += len(given)
+                if holding > IMPLIED_HELD_AT_MOST:
+                    return out
+                carried[there] = spread
+                reached |= {there}
+                queue += [there]
+                if there in wanted_here:
+                    for second in wanted_here[there]:
+                        columns = scales[second].counts[levels[second]]
+                        table = [[(0, 1)] * columns for _row in range(rows)]
+                        for place in spread:
+                            band = cells[there][place][1][0]
+                            for row in spread[place]:
+                                table[row][band] = _sum(table[row][band], spread[place][row])
+                        out[(first, second)] = table
+            for place in carried[here]:
+                holding -= len(carried[here][place])
+            del carried[here]
+        # Two trees of the forest: the two columns are independent.
+        for there in wanted_here:
+            if there in reached:
+                continue
+            for second in wanted_here[there]:
+                columns = scales[second].counts[levels[second]]
+                own = [0] * rows
+                for count, parts in cells[start]:
+                    own[parts[0]] += count
+                other = [0] * columns
+                for count, parts in cells[there]:
+                    other[parts[0]] += count
+                table = [[(0, 1)] * columns for _row in range(rows)]
+                for row in range(rows):
+                    for column in range(columns):
+                        table[row][column] = _reduced(own[row] * other[column], totals[start] * totals[there])
+                out[(first, second)] = table
+    return out
+
+
 def implied_shares(
     families: "list[chain_rules.Family]",
     scales: "dict[str, chain_rules.Ladder]",
@@ -370,82 +530,8 @@ def implied_shares(
     second: str,
     work: "_Work | None" = None,
 ) -> "list[list[tuple[int, int]]] | None":
-    """The table the chain implies for two columns at their chain levels, as exact shares of the tabled rows.
-
-    The junction-tree product of the published families (4.6b.9 (a)):
-    each family contributes its child's share given its parents' cell,
-    `table[cell][band] / (the cell's row total)`, a root family its
-    child's totals over the tabled rows; every column the two do not
-    descend from is left out, and every column no later family reads is
-    summed away as soon as it is placed. Rows are `first`'s bands, columns
-    `second`'s. Integers and `+ - * /` only. None where the table would
-    pass one of the bounds above (`work` holds the section's own).
-    """
-    levels = _chain_levels(families)
-    if scales[first].counts[levels[first]] * scales[second].counts[levels[second]] > IMPLIED_CELLS_AT_MOST:
-        return None
-    budget = work if work is not None else _Work(IMPLIED_WORK_AT_MOST)
-    needed = {first, second}
-    for at in range(len(families) - 1, -1, -1):
-        family = families[at]
-        if family.child in needed:
-            for name, _level in family.parents:
-                needed = needed | {name}
-    order = [family for family in families if family.child in needed]
-    later_parents: "list[set[str]]" = []
-    for at in range(len(order)):
-        wanted: "set[str]" = set()
-        for family in order[at + 1 :]:
-            for name, _level in family.parents:
-                wanted = wanted | {name}
-        later_parents += [wanted]
-    live: "list[str]" = []
-    shares: "dict[tuple[int, ...], tuple[int, int]]" = {(): (1, 1)}
-    for at in range(len(order)):
-        family = order[at]
-        sizes = chain_rules.radices(family, scales)
-        child_bands = sizes[0]
-        parent_maps: "list[tuple[int, list[int], int]]" = []
-        for place in range(len(family.parents)):
-            name, level = family.parents[place]
-            where = -1
-            for one in range(len(live)):
-                if live[one] == name:
-                    where = one
-            parent_maps += [(where, chain_rules.coarsen(scales[name], levels[name], level), sizes[place + 1])]
-        grown: "dict[tuple[int, ...], tuple[int, int]]" = {}
-        for key in shares:
-            share = shares[key]
-            cell = 0
-            for where, mapping, size in parent_maps:
-                cell = cell * size + mapping[key[where]]
-            row = family.table[cell * child_bands : (cell + 1) * child_bands]
-            total = 0
-            for count in row:
-                total += count
-            if total == 0:
-                continue
-            for band in range(child_bands):
-                if row[band]:
-                    if budget.left <= 0 or len(grown) >= IMPLIED_HELD_AT_MOST:
-                        return None
-                    budget.left -= 1
-                    grown[key + (band,)] = _product(share, row[band], total)
-        live += [family.child]
-        keep = [place for place in range(len(live)) if live[place] in (first, second) or live[place] in later_parents[at]]
-        summed: "dict[tuple[int, ...], tuple[int, int]]" = {}
-        for key in grown:
-            short = tuple(key[place] for place in keep)
-            summed[short] = _sum(summed[short], grown[key]) if short in summed else grown[key]
-        live = [live[place] for place in keep]
-        shares = summed
-    first_at = 0 if live[0] == first else 1
-    rows = scales[first].counts[levels[first]]
-    columns = scales[second].counts[levels[second]]
-    out = [[(0, 1)] * columns for _row in range(rows)]
-    for key in shares:
-        out[key[first_at]][key[1 - first_at]] = shares[key]
-    return out
+    """The table the chain implies for one pair (`implied_tables` for that pair alone)."""
+    return implied_tables(families, scales, [(first, second)], work)[(first, second)]
 
 
 def dealing_spread(shares: "list[list[tuple[int, int]]]", tabled: int) -> "tuple[int, int]":
@@ -673,7 +759,7 @@ def lines_of(
         file_place[table.column_names[place]] = place
     file_nothing = chain_rules.records_holding_nothing(redescribed)
     tabled_mask = _tabled_rows(table, file_nothing)
-    codes: "dict[str, bytearray | array.array[int]]" = {}
+    codes: "dict[str, bytearray | list[int]]" = {}
     groups: "dict[str, set[int]]" = {}
     blank_counts: "dict[str, int]" = {}
     unchecked: "dict[str, str]" = {}
@@ -761,8 +847,14 @@ def lines_of(
     # -- every candidate pair, its word as published --
     levels = _chain_levels(families)
     pairs: "list[validation.ChainPair]" = []
-    work = _Work(IMPLIED_WORK_AT_MOST)
     words = statistical["words"]
+    wanted: "list[tuple[str, str]]" = []
+    if isinstance(words, list):
+        for entry in words:
+            pair = _get(entry, "columns")
+            if isinstance(pair, list) and len(pair) == 2 and f"{_get(entry, 'word')}" == "implied":
+                wanted += [(f"{pair[0]}", f"{pair[1]}")]
+    tables = implied_tables(families, scales, wanted, _Work(IMPLIED_WORK_AT_MOST))
     if isinstance(words, list):
         for entry in words:
             pair = _get(entry, "columns")
@@ -780,7 +872,7 @@ def lines_of(
             spread = ""
             why = ""
             if word == "implied":
-                implied = implied_shares(families, scales, first, second, work)
+                implied = tables[(first, second)]
                 if implied is None:
                     cells = scales[first].counts[levels[first]] * scales[second].counts[levels[second]]
                     why = TOO_MANY_CELLS if cells > IMPLIED_CELLS_AT_MOST else TOO_MUCH_WORK
