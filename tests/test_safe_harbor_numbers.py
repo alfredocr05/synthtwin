@@ -97,6 +97,10 @@ def _check(seen: "dict[str, object]", kind: str, rows: int) -> None:
         or (rows < 20000 and kind in shapes.SAFE_HARBOR_HELD_LIMITS_AT_600)
     ):
         assert seen["validate_exit"] == 0, seen
+    elif kind in shapes.AGES:
+        # ...and a limit of the twin is the control table's own, never the
+        # top-code's (the second repair: `ages4ph`, `agescomma`).
+        assert seen["twin_misses"] == seen["control_twin_misses"], seen
     assert seen["description_values"] == 0, seen
     assert seen["description_fragments"] == 0, seen
     assert seen["twin_cells"] == 0, seen
@@ -178,12 +182,13 @@ def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
         assert seen["top_coded"] == taxonomy.TOP_CODE, seen
         assert seen["read_as_now"] == [asking.SAFE_HARBOR_TOP_CODED], seen
         assert seen["validate_real_exit"] == 0, seen
-        # Answered `code`, three-figure codes are long-tail labels whose twin
-        # misses its role and level counts at 600 rows on the control
-        # table too, which no top-code touches (wave6/SH/r2): a label
-        # generation limit outside lane SH.
-        if answer != asking.ANSWER_CODE:
-            assert seen["validate_exit"] == 0, seen
+        # THE TOP-CODE COSTS THE TWIN NO FACT: it misses what the twin of
+        # the table written with every age above 89 as `090` misses, which
+        # no top-code touches -- answered `measurement`, the padding and
+        # styles of the unpadded `999` (at 20,000 rows); answered `code`,
+        # the long-tail labels' role and level counts (at 600) --
+        # generation limits outside lane SH (wave6/SH/r2, wave6/SH-verify.md).
+        assert seen["twin_misses"] == seen["control_twin_misses"], seen
 
 
 # -- the reach, cell by cell ----------------------------------------------

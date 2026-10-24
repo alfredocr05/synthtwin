@@ -910,6 +910,10 @@ def write_safe_harbor_table(
     return path, real
 
 
+# A fact a quality report names as missed.
+_MISSED = re.compile(r"^\s+(\S+) \[[^\]]+\]: MISSED", re.M)
+
+
 def _number_tokens(value: str, text: str) -> int:
     """How often a whole number stands in a text as itself, `103` or `103.0`."""
     return len(re.findall(f"(?<![0-9.]){value}(?:\\.0+)?(?![0-9.])", text))
@@ -1084,6 +1088,9 @@ def run_safe_harbor(
               if any(_number_tokens(value, texts[name]) > _number_tokens(value, control_texts[name])
                      for name in texts)]
     differing = [name for name in texts if texts[name] != control_texts[name]]
+    quality = f"{kind}_long-twin-quality.txt"
+    found.update({"twin_misses": sorted(set(_MISSED.findall(texts[quality]))),
+                  "control_twin_misses": sorted(set(_MISSED.findall(control_texts[quality])))})
     found.update({"description_values": len(leaked), "description_fragments": len(differing),
                   "twin_cells": _twin_ages_over([f"{cell}" for cell in twin]),
                   "twin_fragments": 0, "differing": differing})
