@@ -62,6 +62,11 @@ SEED = 20261016
 PLAN_LANES = (
     "DST", "RT1", "RT2", "LM1", "LM2", "R7", "FM", "SCH", "G2T", "G2T2", "MG", "PS", "PS2", *zoo.ZOO_LANES,
     zoo.NEEDS_OWNER,
+    # Lane E0c (plan P4-D431): the lanes its HIPAA kinds and its computed
+    # total name -- HX (an unanswered question holds, P4-D401), SH (Safe
+    # Harbor numbers, P4-D427) and RD (computed columns, the zoo plan's
+    # row 51).
+    "HX", "SH", "RD",
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing

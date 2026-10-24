@@ -2804,7 +2804,356 @@ def _packed(tables: "tuple[Table, ...]", most: int) -> "tuple[tuple[str, ...], .
 SHARDS: "tuple[tuple[str, ...], ...]" = _packed(zoo.TABLES + WIDE_TABLES, zoo.SHARD_KINDS_AT_MOST)
 
 # Who owns each failure of these kinds, as `health_zoo.OWNERS` does for
-# E0a's: filled from the measured runs at 600 and 20,000 rows.
-WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {}
+# E0a's: filled from the measured runs at 600 and 20,000 rows (plan
+# P4-D431), by the lanes of the zoo plan's sections 1 and 2 and of the
+# December plan. A failure no lane covers is 'needs owner', with its
+# measured cause stated, for the orchestrator to name one.
+_REPEATS = "patients with two rows or more, and three or more, as shares"
+IDENTIFIER_FORMS = (
+    "a column answered `identifier` gets a twin of made-up record numbers that keeps neither its published layout "
+    "nor its constant marks (a float's '.00', a component list's '^^^HOSP^MR', a leading apostrophe, scientific "
+    "notation): lane CODES-3 (identifiers with numeric roots, float record numbers, prefixed ids)"
+)
+HELD_UNANSWERED = (
+    "a column whose identifier or person question is left unanswered is held as record numbers (plan P4-D401): "
+    "no value is published and its twin writes made-up record numbers, the accepted price of HIPAA first until "
+    "the question is answered (lane HX)"
+)
+WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
+    # E0a's demographics, read for its real values since lane E0c.
+    "demographics": (
+        ("SH", "LIVE: a five-figure ZIP column answered `code` publishes its real ZIPs as levels and its twin writes "
+               "them (Safe Harbor; the orchestrator's LANE SH ADDENDUM 7: an answer of `code` never releases the ZIP "
+               "hold)", covers("leak zip5", "leak zip4")),
+        ("CODES-3", "LIVE: a birth date column on a table of one row a person publishes real birth dates as its date "
+                    "percentiles and tail boundaries, each one person's (Safe Harbor; full birth dates no question "
+                    "flags are CODES-1 part C's, now CODES-3's: the orchestrator's LANE HX2 ruling of 2026-10-19, "
+                    "item (4))", covers("leak dob_iso")),
+    ),
+    "labelled_results": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-2", zoo.WITHHELD, covers(
+            "visual acuity in Snellen, CF or HM", "dipstick protein grades", "titers written 1:N",
+            "titers are two-fold dilutions from 1:40", "Snellen denominators are chart lines",
+            columns=("visual_acuity", "urine_protein", "rubella_titer"))),
+        ("CODES-1", "a result's shape ('4+', '20/200', '<1:40') is filled from the whole alphabet", covers(
+            "visual acuity in Snellen, CF or HM", "titers written 1:N", columns=("visual_acuity", "rubella_titer"))),
+        ("CODES-2", "a meter's HI and LO beside numbers are held-back words (the zoo plan's row 21)", covers(
+            "a glucose is a number, HI or LO", "some glucose is past the meter's range",
+            "some glucose is past the meter's range, as a share", columns=("glucose",))),
+    ),
+    "lab_instrument_results": (
+        ("PS2", zoo.HELD_VALUES, covers(
+            "counts in scientific notation", "the counts read as numbers", "the numbers of wbc_count keep their range",
+            "the numbers of hiv_rna keep their range", columns=("wbc_count", "hiv_rna"))),
+        ("LM1", "the number part of a result written in scientific notation does not keep its exponent spelling "
+                "(the zoo plan's row 52)", covers("counts in scientific notation", columns=("wbc_count",))),
+    ),
+    "numeric_unrepresentable": (
+        (zoo.NEEDS_OWNER, "MEASURED, NO LANE NAMED (for the orchestrator): a column of magnitudes past a double's "
+                          "range (role numeric_unrepresentable) publishes no statistic, by design, and its twin writes "
+                          "made-up figures outside the source's form ('000067e400' for '8.732E+300'): no exponent "
+                          "written d.dddE+3dd and no value past the range; lane LM1's 'written as the source wrote "
+                          "them' is the nearest", covers(
+            "magnitudes written d.dddE+3dd", "the exponents keep their range",
+            "magnitudes past a double's range, as a share", columns=("magnitude",))),
+    ),
+    "ventilator_settings": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("UN-1a", zoo.UNITS_AS_LABELS, covers(
+            "FiO2 with %", "the numbers of fio2 keep their range", "the numbers of o2_delivery keep their range",
+            "oxygen is RA, litres a minute or a ventilator", columns=("fio2", "o2_delivery"))),
+    ),
+    "compact_and_fraction_clocks": (
+        ("TR", "a military time 'HHMM' is read as a number, and unanswered held as record numbers (the zoo plan's "
+               "row 32; ZR.9's stated limit, its answer `clock-figures`)", covers(
+            "military times HHMM", "chart_time parses as %H%M", "some time before ten keeps its leading nought",
+            "some time before ten keeps its leading nought, as a share", columns=("chart_time",))),
+        ("TR", "a clock with milliseconds ('08:37:21.902') is read as free text (the zoo plan's row 33)", covers(
+            "monitor_clock parses as %H:%M:%S.%f", "clocks keep three figures of milliseconds",
+            "some clock carries its milliseconds", "some clock carries its milliseconds, as a share",
+            columns=("monitor_clock",))),
+        ("SS", "the twin writes a clock's fraction as nought ('.000'; the zoo plan's row 33)", covers(
+            "some clock carries its milliseconds", "some clock carries its milliseconds, as a share")),
+    ),
+    "pharmacy_dispensing": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-2", zoo.WITHHELD, covers("DAW codes", "NDC in its 4-4-2, 5-3-2 and 5-4-1 forms", columns=("daw_code", "ndc"))),
+        ("GG", "a count of few values with rare values (days supply 5, 21, 84 below 11 rows) is written as values "
+               "no real row holds (the zoo plan's row 54)", covers("days supply are the pharmacy's own", columns=("days_supply",))),
+        ("PS2", zoo.HELD_VALUES, covers("days supply are the pharmacy's own", "quantities read as numbers",
+                                       "the numbers of quantity keep their range", columns=("days_supply", "quantity"))),
+    ),
+    "obstetrics": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("UN-2", "a gestational age '37+5' or '39w2d' is a template of two numbers (the zoo plan's row 35)", covers(
+            "gestational age written 37+5", "gestational age written 39w2d",
+            "gestational ages written 37+5 keep their range in days", "gestational ages written 39w2d keep their range in days",
+            columns=("gest_age_plus", "gest_age_wd"))),
+        ("CODES-1", "'G2P1' is filled character by character in its form (as GCS 'E4V5M6', the zoo plan's row 26)",
+         covers("gravida and para (G2P1)", "para below gravida", columns=("gravida_para",))),
+    ),
+    "social_history": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-2", zoo.WITHHELD, covers("smoking status", "alcohol use", columns=("smoking_status", "alcohol_use"))),
+        ("PS2", zoo.HELD_VALUES, covers("pack-years read as numbers", "the numbers of pack_years keep their range",
+                                       columns=("pack_years",))),
+    ),
+    "pediatrics": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("UN-2", "an age written with its unit ('14 d', '3 mo', '2 yr') is a template of a number and a unit word",
+         covers("ages in days, months or years", "ages read as days keep their range", columns=("age_text",))),
+        ("PS2", zoo.HELD_VALUES, covers(
+            "ages in days, months or years", "ages read as days keep their range", "weights read as numbers",
+            "the numbers of wt_kg keep their range", "the numbers of head_circ keep their range",
+            "growth percentiles 1 to 99, <1 or >99", "head circumference in cm",
+            columns=("age_text", "wt_kg", "weight_pct", "head_circ"))),
+        ("CODES-2", "a growth percentile's '<1' and '>99' are held-back words", covers(
+            "some percentile is past the chart (<1 or >99)", "some percentile is past the chart (<1 or >99), as a share")),
+    ),
+    "cardiology_ecg": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("PS2", zoo.HELD_VALUES, covers(
+            "PR intervals in ms", "the numbers of pr_interval keep their range", "the numbers of qrs_duration keep their range",
+            "the numbers of qtc_interval keep their range", "axes read as numbers", "the numbers of axis keep their range",
+            columns=("pr_interval", "qrs_duration", "qtc_interval", "axis", "vent_rate"))),
+        ("CODES-2", zoo.WITHHELD, covers("rhythms", columns=("rhythm",))),
+    ),
+    "organism_long_tail": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-2", "an organism name held by fewer than 11 rows on a long tail is written as 'group-N' "
+                    "(the zoo plan's row 46, under Z1)", covers(
+            "organisms named Genus species, or no growth or mixed flora", "organisms are named ones",
+            columns=("organism",))),
+    ),
+    "report_text_with_headings": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("NOTES", "free text publishes no line, heading, template or length facts: the twin's reports hold no line "
+                  "break, no IMPRESSION heading and no template, and their lengths collapse", covers(
+            "some report keeps its IMPRESSION heading", "some report keeps its IMPRESSION heading, as a share",
+            "some report runs over several lines", "some report runs over several lines, as a share",
+            "the share of reports written from the template", "report lengths at the 10th, 50th and 90th percentiles",
+            columns=("report_text",))),
+    ),
+    "long_cell": (
+        ("NOTES", "a free-text cell past Excel's 32,767 characters is a rare value the twin writes as a stand-in, "
+                  "and no length fact is published", covers(
+            "some addendum runs past Excel's 32,767 characters", "addenda past Excel's 32,767 characters, as a share",
+            columns=("addendum",))),
+    ),
+    "naaccr_and_trauma_registry": (
+        ("CODES-1", zoo.MADE_UP_CODES, covers(
+            "AIS codes with their severity", "AIS severities keep their range", "pathologic T (pT1mi)",
+            columns=("ais_code",))),
+        ("CODES-2", zoo.WITHHELD, covers("pathologic T categories", "grades", columns=("ais_code", "path_t", "grade"))),
+        ("TR", "a NAACCR date known to the month or the year (YYYYMM, YYYY) beside full dates is not read as a "
+               "partial date (the zoo plan's row 17)", covers(
+            "NAACCR dates YYYYMMDD, YYYYMM or YYYY", "each NAACCR date parses at its own precision",
+            "some diagnosis is known to the year only", "some diagnosis is known to the month only",
+            "some diagnosis is known to the year only, as a share", "some diagnosis is known to the month only, as a share",
+            columns=("date_of_diagnosis",))),
+    ),
+    "scheduling": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("TR", "a clock column whose evening slots end at '24:00' is not read as clock times and is held",
+         covers("slot ends are clocks or 24:00", "some slot ends at 24:00", "some slot ends at 24:00, as a share",
+                columns=("slot_end",))),
+    ),
+    "remittance_835": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-2", zoo.WITHHELD + " (place of service '03', '04': the zoo plan's row 56)", covers(
+            "places of service keep two figures", "adjustment reasons are the payer's", "remark codes",
+            columns=("place_of_service", "adjustment", "remark"))),
+    ),
+    "adt_bed_movements": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("DST", "the twin writes an offset not in force on its date (US Central; the zoo plan's row 30)", covers(
+            "in_ts wears a Central offset in force on its date", "out_ts wears a Central offset in force on its date")),
+        ("CODES-1", zoo.MADE_UP_CODES + " (a bed 'unit-number-letter' read as free text)", covers(
+            "beds named unit-number-letter", columns=("bed",))),
+    ),
+    "promis_phq9": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("GG", "decimal scores beside -99 and 999 are a few-valued number with a wide gap (the zoo plan's row 39)",
+         covers("T-scores to one place, or -99 or 999", "some T-score is the missing code -99",
+                "some T-score is the missing code -99, as a share", "the numbers of promis_t keep their range",
+                columns=("promis_t",))),
+        ("UN-2", "no question asks whether -99 and 999 mean missing", covers("some T-score is the missing code -99")),
+        ("RD", "a total computed from its items is not carried (between columns; the zoo plan's row 51)",
+         covers("the total is the sum of its nine items (between columns)")),
+    ),
+    "pro_multi_select": (
+        ("LISTS", "a cell listing several picks ('1,3,5', '3,11') is read as one label or as a decimal: its rarer "
+                  "combinations are 'group-N' or made-up figures, and click order and the residual are lost "
+                  "(the zoo plan's rows 50 and 2.1b)", covers(
+            "multi-select picks 1 to 8, each once, in order", "some multi-select holds several picks",
+            "some multi-select holds several picks, as a share", "two picks of twelve, sorted",
+            "some sorted cell holds two picks", "some sorted cell holds two picks, as a share",
+            "two picks of twelve in click order", "some pair is written in click order, the larger first",
+            "the residual: a first pick of 1 to 6, then one of 7 to 12",
+            columns=("symptoms_multi", "pick_two_sorted", "pick_two_click", "pick_two_residual"))),
+    ),
+    "vcf_flattened": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-2", zoo.WITHHELD + " (REF, ALT, CHROM and GT './.': the zoo plan's row 56)", covers(
+            "REF alleles are bases", "ALT alleles are bases or <DEL>", "chromosomes", "genotypes with ./.",
+            columns=("ref", "alt", "chrom", "gt"))),
+        ("CODES-1", "a held-back allele or chromosome is filled in its form from the whole alphabet", covers(
+            "REF alleles are bases", "ALT alleles are bases or <DEL>", "chromosomes", columns=("ref", "alt", "chrom"))),
+        ("CODES-3", "rsIDs of several lengths, declared identifiers, lose their 'rs' prefix or their widths "
+                    "(the zoo plan's row 43)", covers(
+            "rsIDs of four to nine figures, or '.'", "some rsID is short (four to six figures)",
+            "some rsID is short (four to six figures), as a share", columns=("rsid",))),
+        ("PS2", zoo.HELD_VALUES, covers("positions read as numbers", "the numbers of pos keep their range",
+                                       "the numbers of qual keep their range", columns=("pos", "qual"))),
+    ),
+    "wearable_offsets_subsecond": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("DST", "an offset written after a space ('-0400') is not one in force on its date (the zoo plan's row 55)",
+         covers("the local offset is in force on its date")),
+        ("SS", "a stamp's milliseconds are written as nought", covers(
+            "some stamp carries its milliseconds", "some stamp carries its milliseconds, as a share")),
+        ("CODES-1", "a measurement column held whole in people (plan P4-D406) gets a twin that misses its published "
+                    "forms: the identifier generator's limit (P4-D406's stated limit 4)", covers("miss step_count")),
+    ),
+    "diagnosis_code_forms": (
+        ("CODES-1", "a SNOMED CT id written for a held-back one fails its Verhoeff check (the zoo plan's row 2)", covers(
+            "SNOMED CT ids pass their Verhoeff check", "SNOMED CT ids", columns=("snomed_checked",))),
+        ("CODES-2", zoo.WITHHELD, covers(
+            "ICD-10-CM with its seventh character", "a code and its name in one cell", "each name is its code's own",
+            columns=("icd10_seventh", "dx_with_name", "snomed_checked"))),
+    ),
+    "procedure_and_drg_forms": (
+        ("CODES-1", zoo.MADE_UP_CODES + " (APR-DRG '194-3')", covers(
+            "APR-DRG with its severity (194-3)", "severities of illness keep their range", columns=("apr_drg",))),
+        ("CODES-2", zoo.WITHHELD, covers(
+            "procedure codes with their modifier chains", "modifiers are listed ones", columns=("proc_chain", "apr_drg"))),
+    ),
+    "icd10_long_tail": (
+        ("CODES-2", "a realistic ICD-10-CM long tail (600 codes) is mostly held back: its twin writes codes the real "
+                    "never writes (the zoo plan's row 46, under Z1)", covers(
+            "a long tail of ICD-10-CM codes", columns=("icd10_tail",))),
+    ),
+    "omop_cdm": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("KV", "a long table's unit is read by its concept; the twin carries no relation between the two columns "
+               "(the zoo plan's row 47)", covers("each concept's unit is its own (read by concept)")),
+        ("CODES-2", zoo.WITHHELD, covers("answer concepts", columns=("value_as_concept_id",))),
+    ),
+    "pcornet_cdm": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-1", "mixed ICD-10, ICD-9 and SNOMED codes answered `code` are written as number-class stand-ins that "
+                    "pay neither their forms nor their widths (the zoo plan's row 44, A3)", covers(
+            "DX is ICD-10-CM, ICD-9-CM or SNOMED CT", "RAW_DX as the source wrote it, no point", "miss DX", "miss RAW_DX",
+            columns=("DX", "RAW_DX"))),
+        ("KV", "a code's form follows its DX_TYPE: between columns (the zoo plan's row 48)",
+         covers("DX is in the system its DX_TYPE names (read by type)")),
+        ("CODES-2", zoo.WITHHELD, covers("DX_TYPE with NI", "DX_SOURCE with NI, UN and OT", "PDX with NI",
+                                        columns=("DX_TYPE", "DX_SOURCE", "PDX"))),
+    ),
+    "i2b2_eav": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-1", "a vocabulary prefix ('ICD10CM:', 'DEM|GENDER:') is rewritten by the full-alphabet fill "
+                    "(the zoo plan's row 49)", covers(
+            "concepts with their vocabulary prefix", "the vocabulary prefixes are i2b2's",
+            "some fact is a demographic (DEM|GENDER:)", "some fact is a demographic (DEM|GENDER:), as a share",
+            columns=("concept_cd",))),
+        ("PS2", zoo.HELD_VALUES, covers("numeric values read as numbers", "the numbers of nval_num keep their range",
+                                       columns=("nval_num",))),
+    ),
+    "fhir_flattened": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("DST", "the twin writes an offset not in force on its date (US Eastern, ISO 8601 instants)", covers(
+            "each instant wears an offset in force on its date")),
+        ("CODES-2", zoo.WITHHELD + " (the CDC's category codes, the zoo plan's row 25)", covers(
+            "CDC category codes", "category codings under the CDC code system", "units", "observation status",
+            columns=("omb_category", "value_quantity_unit", "status"))),
+    ),
+    "hl7v2_flattened": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("DST", "the twin writes an offset not in force on its date (HL7 'YYYYMMDDHHMMSS-0400'; the zoo plan's row 30)",
+         covers("MSH-7 wears an offset in force on its date")),
+        ("CODES-3", IDENTIFIER_FORMS, covers("PID-3 as id^^^HOSP^MR", columns=("pid_3",))),
+        ("LISTS", "an HL7 '^' component list is read as one label: its rarer combinations are 'group-N'", covers(
+            "OBX-3 is code^text^LN, the text its code's own", "OBX-6 units as unit^^UCUM", columns=("obx_3", "obx_6"))),
+    ),
+    "epic_caboodle": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-3", IDENTIFIER_FORMS + " (a durable key of six figures beside its -1 and -2 members)", covers(
+            "durable keys of six figures, or -1 and -2", "some row's durable key is the -1 member",
+            "some row's durable key is the -1 member, as a share", "miss PatientDurableKey",
+            columns=("PatientDurableKey",))),
+        ("TR", "a Caboodle DateKey (YYYYMMDD beside -1 and -2) left unanswered is read as a number and held "
+               "(the zoo plan's row 57, item (e))", covers(
+            "DateKeys are dates YYYYMMDD, or -1 and -2", "some DateKey is the -1 member",
+            "some DateKey is the -1 member, as a share", "miss DateKey", columns=("DateKey",))),
+        ("CODES-2", zoo.WITHHELD + " ('*Unspecified', '*Unknown', '*Not Applicable': the zoo plan's row 56)", covers(
+            "flags with the *Unspecified members", "a result is a number or a word", "the results read past their words",
+            columns=("AbnormalFlag", "ResultValue"))),
+    ),
+    "cerner_ccl": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("CODES-3", IDENTIFIER_FORMS + " (the zoo plan's row 42)", covers(
+            "encounter numbers written 31000000.00", "person numbers written 21000000.00", "miss ENCNTR_ID",
+            "miss PERSON_ID", columns=("ENCNTR_ID", "PERSON_ID"))),
+        ("CODES-2", zoo.WITHHELD + " ('See Comment')", covers(
+            "a result is a number or a word", "the results read past their words", "event codes written as floats",
+            columns=("RESULT_VAL", "EVENT_CD"))),
+    ),
+    "excel_mangled_codes": (
+        ("CODES-3", IDENTIFIER_FORMS, covers(
+            "NPIs shown d.ddddDE+09", "account numbers shown d.dddddE+11", "miss npi_shown", "miss account_shown",
+            columns=("npi_shown", "account_shown"))),
+        ("SH", "LIVE: a ZIP column answered `code` publishes its real ZIPs as levels and its twin writes them "
+               "(Safe Harbor; the orchestrator's LANE SH ADDENDUM 7: an answer of `code` never releases the ZIP hold)",
+         covers("leak zip_lost")),
+    ),
+    "leading_apostrophe": (
+        ("CODES-3", IDENTIFIER_FORMS, covers("record references keep their apostrophe", columns=("record_ref",))),
+    ),
+    "phi_columns": (
+        ("CODES-3", IDENTIFIER_FORMS + " (telephone numbers, e-mail addresses, social security numbers, MR numbers)",
+         covers("telephone numbers (NNN) 555-NNNN", "e-mail addresses", "social security numbers",
+                "medical record numbers", columns=("phone", "email", "ssn", "med_rec_no"))),
+        ("CODES-2", "names and street addresses answered `identifier` are written as made-up record numbers, not "
+                    "names or addresses (the allowlist's limit, CODES-2)", covers(
+            "names, first and last", "street addresses", columns=("patient_name", "street_address"))),
+    ),
+    "undeclared_record_number_long": (
+        ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
+        ("HX", HELD_UNANSWERED, covers("record numbers A and seven figures", columns=("med_rec_no",))),
+    ),
+    "numeric_keys_unanswered": (
+        ("HX", HELD_UNANSWERED, covers(
+            "durable keys of six figures, or -1 and -2", "ZIPs of five figures", "UDIs of fourteen figures",
+            columns=("durable_key", "zip_number", "udi_number"))),
+    ),
+    "safe_harbor_shapes": (
+        ("LM1", "the tail rule extends a bounded scale past its withheld end: a birth year written past the real's "
+                "range (the zoo plan's rows 13 and 53)", covers(
+            "birth years from 1920 to 2006", "shifted dates parse and stay in their century", "no age past 89 is written as a number")),
+        ("SH", "LIVE: an age past the top-code 90 printed or written as a number (Safe Harbor; lane SH, P4-D427)",
+         covers("leak age_top")),
+    ),
+    "dst_zones_and_words": (
+        ("DST", "the twin writes an offset not in force on its date (US Central and European rules; the zoo plan's row 30)",
+         covers("each Central stamp wears an offset in force on its date",
+                "each European stamp wears an offset in force on its date")),
+        ("TR", "a stamp followed by a zone word ('EDT', 'EST') is not read: only UTC and GMT are (the zoo plan's row 31)",
+         covers("Eastern stamps with their zone word", "each zone word is the one in force on its date", columns=("zoned_word",))),
+    ),
+    "month_year": (
+        ("TR", "a month and year column of its own ('03/2019') has no reading (the zoo plan's row 17)", covers(
+            "month and year MM/YYYY", "onset_month parses as %m/%Y", columns=("onset_month",))),
+    ),
+    "durations": (
+        ("UN-2", "durations ('48:15', 'PT48H15M', '2 days 00:15:00') have no reading: templates in mixed radix "
+                 "(the zoo plan's row 34)", covers(
+            "hours and minutes, past 24 hours too", "hours and minutes keep their range", "some duration passes 24 hours",
+            "some duration passes 24 hours, as a share", "ISO 8601 durations PT48H15M", "ISO durations keep their range",
+            "durations written 'N days HH:MM:SS'", "those durations read with pandas.to_timedelta",
+            columns=("elapsed_hhmm", "elapsed_iso", "elapsed_words"))),
+    ),
+}
 
 _UNUSED = (JUNK, _bad_pattern, _i, _r, _zipf, covers)

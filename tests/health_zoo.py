@@ -2273,7 +2273,8 @@ def file_kinds() -> "tuple[str, ...]":
 def owners() -> "dict[str, tuple[tuple[str, str, str], ...]]":
     """Every kind's OWNERS lines: E0a's and lane E0c's."""
     merged = dict(OWNERS)
-    merged.update(_wide().WIDE_OWNERS)  # type: ignore[attr-defined]
+    for kind, lines in _wide().WIDE_OWNERS.items():  # type: ignore[attr-defined]
+        merged[kind] = merged.get(kind, ()) + lines
     return merged
 
 
@@ -2915,7 +2916,7 @@ def run_table(
 # value of the column: a number under them is not read as a real value.
 NOT_A_VALUE_KEY = re.compile(
     r"count|rows|cells|share|width|figures|places|length|distinct|people|persons|subjects|"
-    r"seen|total|number_of|n_|_n$|digits|size|bins|rank|order|position|index"
+    r"seen|total|number_of|n_|_n$|digits|size|bins|rank|order|position|index|percent|ratio|fraction|proportion"
 )
 PLACEHOLDER = re.compile(r"-\d")
 
