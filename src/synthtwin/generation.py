@@ -63523,6 +63523,9 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             ]
         drawn = drawn + len(inside)
         left, unwritten = _inside_the_grain(column, spelled, inside)
+        # The grain's words are spent: none is held into the next column
+        # (batch 4i, Codex's review of batch 4h: one integer a row).
+        inside = []
         # THE CELLS AS THEY LEAVE are the ones the column is held as
         # (batch 4h: lane PS's grain beside lane SG's held twin, plan
         # P4-D415): `spelled` is what the column is measured in below.
@@ -63545,6 +63548,11 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             ):
                 written = seen
             spelled = seen
+            # Held as `spelled` (and `written`) alone from here, which the
+            # column's end lets go: `seen` would keep the cells through
+            # later columns and the final arrangement (batch 4i, Codex's
+            # review of batch 4h).
+            seen = []
             if unwritten > 0:
                 notes += [
                     _deviation(

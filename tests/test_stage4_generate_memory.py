@@ -48,12 +48,14 @@ WHAT THIS FILE HOLDS IT TO.
 
 import builtins
 import csv
+import datetime
 import gc
 import hashlib
 import io
 import os
 import pathlib
 import re
+import sys
 import tracemalloc
 import typing
 
@@ -1446,3 +1448,102 @@ def test_generate_and_describe_merge_into_one_record_without_a_clash() -> None:
     assert merged["generate_rows_traced"] == driver.TRACED_ROWS == 50_000
     assert all("generate" in key for key in generate), sorted(generate)
     assert not set(generate) & set(describe)
+
+
+# -- batch 4i: a grained column's working set let go (Codex's review of 4h) -
+
+
+def _dated_visits(rows: int, patients: int, first: datetime.date, days: int, seed: int) -> bytes:
+    """A date first, a repeated patient key, two numbers: Codex's order for batch 4h's probe."""
+    draw = random.Random(seed)
+    lines = ["seen,patient,value,dose"]
+    for _row in range(rows):
+        day = first + datetime.timedelta(days=draw.randrange(days))
+        lines += [
+            f"{day.strftime('%m/%d/%Y')},REC{80000000 + 7 * draw.randrange(patients):08d},"
+            f"{draw.uniform(3, 150):.1f},{draw.randrange(1, 40)}"
+        ]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+# THE CELLS, REPORT AND DRAWS BEFORE THE RELEASE, by sha256 of the twin's
+# cells, its words drawn and its outcomes' text: measured on batch 4h's
+# fc25bae4, which keeps `seen` and `inside`, through the same calls
+# (`planning-notes/work-2026-10/wave3/merge-4i/owes1-digests.log`).
+_GRAINED: "dict[str, tuple[typing.Callable[[], bytes], str, str]]" = {
+    "pooled": (
+        lambda: _dated_visits(300, 150, datetime.date(2023, 1, 1), 5 * 365, 7),
+        "year",
+        "1d46a0ab098d24f1d694e1a8da80f24720e80fea703d46a37255089b4ffcef74",
+    ),
+    "held": (
+        lambda: _dated_visits(300, 150, datetime.date(1925, 1, 1), 100 * 365, 19),
+        "held",
+        "c293b54af0004e6c3f2e3269aa6594894d4059f2c0200527da1dccabd7976fd3",
+    ),
+}
+
+
+def _grained_digest(twin: generation.Twin) -> str:
+    """The twin's cells, words drawn and report measurements, as one digest."""
+    whole = generation.materialised(twin)
+    said = repr((whole.columns, twin.words_drawn, twin.outcomes, twin.deviations, twin.approximations, twin.remarks))
+    return hashlib.sha256(said.encode("utf-8")).hexdigest()
+
+
+@pytest.mark.parametrize("case", sorted(_GRAINED))
+def test_a_grained_column_s_cells_and_words_are_let_go(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    """BATCH 4i OWES 1 (Codex's review of batch 4h, its Medium; plan P4-D415 beside P4-D417).
+
+    A date column pooled at the year, or held, beside a person column is
+    made first; then the patient key and two numbers. What the loop holds
+    of it is sampled BEFORE each later column's construction (the call of
+    `_content_of`) and BEFORE the final arrangement
+    (`dialect.arranged_columns`), read off the loop's own frame: the
+    grain's words (`inside`, one integer a row) and the cells as they
+    leave (`seen`) hold nothing there. The mutant that keeps them holds
+    all 300 words into the next column and all 300 cells through the
+    arrangement: fc25bae4, which keeps them, holds 10,724 bytes of words
+    (10,740 held) into the patient key's construction and 17,700 bytes of
+    cells into the arrangement, counted by item as here (Codex measured
+    13,252 and 19,335 with the lists). The cells, the words drawn (2,099
+    and 1,803) and the report are 4h's, byte for byte.
+    """
+    build, rung, expected = _GRAINED[case]
+    description = cases.described(
+        tmp_path, "visits.csv", build(), ("--identifier", "patient")
+    )
+    loaded = _loaded(description)
+    grain = loaded.columns[0].time_grain
+    assert loaded.columns[0].name == "seen" and grain is not None and grain.rung == rung
+    unprobed = _grained_digest(generation.generate_held(loaded, SEED))
+    samples: "list[tuple[str, int, int]]" = []
+    building = generation._content_of
+    arranging = dialect.arranged_columns
+
+    def held(where: str) -> None:
+        nonlocal samples
+        frame = sys._getframe(2).f_locals
+        bytes_held = []
+        for name in ("seen", "inside"):
+            value = frame.get(name)
+            bytes_held += [sum(sys.getsizeof(one) for one in value) if isinstance(value, list) else 0]
+        samples += [(where, bytes_held[0], bytes_held[1])]
+
+    def construction(*given: typing.Any, **named: typing.Any) -> typing.Any:
+        held("column")
+        return building(*given, **named)
+
+    def arrangement(*given: typing.Any, **named: typing.Any) -> typing.Any:
+        held("arrangement")
+        return arranging(*given, **named)
+
+    monkeypatch.setattr(generation, "_content_of", construction)
+    monkeypatch.setattr(dialect, "arranged_columns", arrangement)
+    probed = _grained_digest(generation.generate_held(loaded, SEED))
+    assert [where for where, _seen, _inside in samples] == ["column"] * 4 + ["arrangement"]
+    assert samples[1:] == [("column", 0, 0)] * 3 + [("arrangement", 0, 0)], samples
+    assert probed == unprobed
+    assert probed == expected, case
