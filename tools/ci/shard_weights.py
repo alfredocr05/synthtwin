@@ -75,6 +75,12 @@ loading: lane E0a's health data zoo, `tests/test_health_zoo.py`,
 22.78 s, and lane H1's padded swaps at scale,
 `tests/test_stage4_padded_swap_scale.py`, 67.35 s.
 
+ONE ROW ADDED 2026-10-25, on lane ID-ROOM's branch: its gate,
+`tests/test_identifier_room.py`, 824.45 s, timed ON ITS OWN on the
+lane's tree under the machine-wide guard, on a machine other work was
+loading -- sixty-six shapes profiled and generated at 20,000 rows, which no
+default weighs.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -126,6 +132,7 @@ SECONDS = {
     "tests/test_generation_reference.py": 95.29,
     "tests/test_health_zoo.py": 22.78,
     "tests/test_held_unit_search.py": 25.61,
+    "tests/test_identifier_room.py": 824.45,
     "tests/test_joined_battery_readings.py": 215.32,
     "tests/test_joined_pair_round_trip.py": 103.91,
     "tests/test_k_p3_03_outer_tail_spread.py": 58.33,
