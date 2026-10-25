@@ -33,6 +33,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import pathlib
+import re
 
 import pytest
 
@@ -223,6 +224,24 @@ def test_a_date_at_a_years_grain_is_not_a_persons_day(tmp_path: pathlib.Path) ->
     assert zoo.leaked(table, source, None, daily)["birth_date"]["description"] == 1
 
 
+def test_a_date_at_a_months_grain_is_not_a_persons_day(tmp_path: pathlib.Path) -> None:
+    """E0c verify of repair 1, item 2 (V1): '1950-03-01' published at a month grain is the month's, not a birth date.
+
+    Red without the month clause of `_printed_dates`; at a day's grain the
+    same date is a real one and counts.
+    """
+    table = zoo.table_named("phi_registry")
+    header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
+    rows[0][header.index("birth_date")] = "1950-03-01"
+    source = _write(tmp_path, table, header, rows, "real")
+    monthly = _profile(tmp_path, {"columns": [{"name": "birth_date", "heavy_dates": [{"date": "1950-03-01", "rows": 12}],
+                                               "grain": "month"}]})
+    assert zoo.leaked(table, source, None, monthly)["birth_date"]["description"] == 0
+    daily = _profile(tmp_path, {"columns": [{"name": "birth_date", "heavy_dates": [{"date": "1950-03-01", "rows": 12}],
+                                             "grain": "day"}]}, "daily")
+    assert zoo.leaked(table, source, None, daily)["birth_date"]["description"] == 1
+
+
 # -- the description before the answers ---------------------------------------------
 
 
@@ -282,18 +301,140 @@ def test_one_real_key_copied_onto_every_row_is_a_copy(tmp_path: pathlib.Path) ->
 def test_the_control_holds_no_real_value() -> None:
     """Codex item 1: the control of decimal numbers moved past their range never lands on the highest real one."""
     real = {"1.5", "2.5", "4.5"}
-    drawn, chance, control = zoo._by_chance(real, ["4.5", "4.5", "4.5"])
-    assert drawn and (chance, control) == (0, 0)
-    drawn, chance, control = zoo._by_chance({"100", "105"}, ["105", "111", "111"])
-    assert drawn and (chance, control) == (1, 1)
+    assert zoo._by_chance(real, ["4.5", "4.5", "4.5"]) == (True, 0)
+    assert zoo._by_chance({"100", "105"}, ["105", "111", "111"]) == (True, 1)
 
 
-def test_made_up_keys_filling_the_real_range_are_chance() -> None:
-    """A study's record numbers 1 to 223 and a twin drawn in 1 to 230: chance is the density inside the range."""
-    real = {f"{number}" for number in range(1, 224)}
-    twin = [f"{number}" for number in range(1, 231)] * 2
-    drawn, chance, control = zoo._by_chance(real, twin)
-    assert drawn and control == 7 and chance == 223
+def _real_values(cells: "list[str]") -> "set[str]":
+    """The distinct real values `leaked` compares a 'values' entry by: placeholders and missing words aside."""
+    return {
+        zoo._normal(cell) for cell in cells
+        if cell.strip() and not zoo.PLACEHOLDER.fullmatch(cell.strip()) and zoo._normal(cell) not in zoo.MISSING_WORDS
+    }
+
+
+def _past_the_control(real: "set[str]", index: int) -> str:
+    """A made-up value past the real range AND past the control the scan draws there (`_by_chance`).
+
+    A made-up half drawn just past the range would fill the control band
+    as densely as the copied half fills the range: such a twin is what
+    a twin drawing evenly over twice the range writes, and no scan of the
+    values alone can tell it from chance, so the made-up half lies past
+    both.
+    """
+    if not real:
+        return f"made up {index}"
+    parts = [re.fullmatch(r"(\D*?)(\d+)(\D*)", value) for value in real]
+    marks = {(part.group(1), part.group(3)) for part in parts if part}
+    if all(parts) and len(marks) == 1:
+        (before, after), = marks
+        numbers = [int(part.group(2)) for part in parts if part]
+        width = max(numbers) - min(numbers) + 1
+        return f"{before}{max(numbers) + width + 1 + index}{after}"
+    try:
+        values = [float(value) for value in real]
+    except ValueError:
+        return f"made up {index}"
+    spread = max(values) - min(values) or 1.0
+    return f"{int(max(values) + 3 * spread) + 1 + index}"
+
+
+def test_every_identifier_copied_into_the_twin_is_counted(tmp_path: pathlib.Path) -> None:
+    """E0c verify of repair 1, item 1 (HIPAA): a verbatim, a shuffled and a half copy of every 'values' entry count every copied value.
+
+    At 600 rows (BELOW THE FLOOR: the library's scan, not the command),
+    each entry of the catalogue read for its real values -- every column
+    answered `identifier`, and every name, address, telephone, e-mail,
+    SSN, record number, ZIP and device number a name rule reaches -- has
+    its real cells written as the twin: as they stand, shuffled, and in
+    half the rows beside made-up values past the range and its control.
+    `leaked` must count every distinct real value copied. Red on the
+    density mutant (chance read from the twin's own values inside the
+    real range: on sequential keys 1 to N it equals the copy, and the
+    copy counted nothing at 637d4b28 for 11 of 18 identifier columns).
+    """
+    import random
+
+    missed: "list[str]" = []
+    for table in zoo.catalogue():
+        header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
+        entries = [column for column, how in zoo.leak_list(table, header) if how == "values"]
+        if not entries:
+            continue
+        folder = tmp_path / table.name
+        source = _write(folder, table, header, rows, "real")
+        profile = _profile(folder, {"columns": []})
+        shuffled = [list(row) for row in rows]
+        halved = [list(row) for row in rows]
+        draw = random.Random(7)
+        expected: "dict[str, dict[str, set[str]]]" = {"verbatim": {}, "shuffled": {}, "half": {}}
+        for column in entries:
+            place = header.index(column)
+            cells = [row[place] for row in rows]
+            real = _real_values(cells)
+            mixed = list(cells)
+            draw.shuffle(mixed)
+            for row, cell in zip(shuffled, mixed):
+                row[place] = cell
+            for index, row in enumerate(halved):
+                if index % 2:
+                    row[place] = _past_the_control(real, index)
+            expected["verbatim"][column] = real
+            expected["shuffled"][column] = real
+            expected["half"][column] = _real_values(cells[::2])
+        for name, twin_rows in (("verbatim", rows), ("shuffled", shuffled), ("half", halved)):
+            twin = _write(folder, table, header, twin_rows, name)
+            found = zoo.leaked(table, source, twin, profile)
+            for column in entries:
+                wanted = len(expected[name][column])
+                got = found[zoo._leak_key(column, "values")]["twin"]
+                if got != wanted:
+                    missed += [f"{table.name}.{column} {name}: {got} of {wanted}"]
+    assert not missed, missed
+
+
+def test_a_real_value_copied_past_twice_the_most_rows_is_a_copy(tmp_path: pathlib.Path) -> None:
+    """E0c verify of repair 1, item 2 (V6): the copy rule's boundary, a real key on 2 x most + 4 twin cells counts, on 2 x most + 3 not.
+
+    `most` is the most rows any real value holds. Red when the threshold
+    is widened (20 x most + 3 lets the 2 x most + 4 copy pass).
+    """
+    import collections
+
+    table = zoo.table_named("phi_registry")
+    header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
+    place = header.index("med_rec_no")
+    source = _write(tmp_path, table, header, rows, "real")
+    cells = [row[place] for row in rows]
+    most = max(collections.Counter(zoo._normal(cell) for cell in cells if cell.strip()).values())
+    real = _real_values(cells)
+    profile = _profile(tmp_path, {"columns": []})
+    for written, counted in ((2 * most + 4, 1), (2 * most + 3, 0)):
+        twin_rows = [list(row) for row in rows]
+        for index, row in enumerate(twin_rows):
+            row[place] = cells[0] if index < written else _past_the_control(real, index)
+        twin = _write(tmp_path, table, header, twin_rows, f"twin-{written}")
+        found = zoo.leaked(table, source, twin, profile)["med_rec_no"]
+        assert found["twin"] == counted, (written, most, found)
+
+
+def test_a_missing_word_is_no_persons_value(tmp_path: pathlib.Path) -> None:
+    """E0c verify of repair 1, item 2 (V3): a ZIP column's 'UNKNOWN' cells, printed as a level, count 0; a real ZIP printed counts.
+
+    Red without the `MISSING_WORDS` clause of the real values (the word
+    would count as a ZIP published).
+    """
+    table = zoo.table_named("patients")
+    header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
+    place = header.index("zip5")
+    for row in rows[:40]:
+        row[place] = "UNKNOWN"
+    source = _write(tmp_path, table, header, rows, "real")
+    word = _profile(tmp_path, {"columns": [{"name": "zip5", "levels": [{"label": "UNKNOWN", "rows": 40}]}]})
+    assert zoo.leaked(table, source, None, word)["zip5"]["description"] == 0
+    real_zip = rows[100][place]
+    printed = _profile(tmp_path, {"columns": [{"name": "zip5", "levels": [{"label": "UNKNOWN"}, {"label": real_zip}]}]}, "zip")
+    assert zoo.leaked(table, source, None, printed)["zip5"]["description"] == 1
 
 
 # -- what counts as the same value -------------------------------------------------------

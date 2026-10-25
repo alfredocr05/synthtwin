@@ -235,10 +235,11 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
         rows[index][place] = f"{100000 + index * 3}" if index < 20 else f"{200000 + index}"
     copied = tmp_path / "copied.csv"
     copied.write_bytes(table.write(header, rows))
-    # Chance here is the real's density inside its range (600 keys over
-    # 1,798 numbers) times the twenty values drawn there: 7, far under 20.
+    # Chance is the control's matches past the range, never the twin's
+    # own values inside it (E0c verify of repair 1, item 1): the rest
+    # drawn far past the control, chance is 0 and all twenty count.
     assert _counted(zoo.leaked(table, real, copied, profile))["patient_id"] == {
-        "description": 0, "twin": 20, "twin_cells": 20, "twin_by_chance": 7,
+        "description": 0, "twin": 20, "twin_cells": 20, "twin_by_chance": 0,
     }
     # The same between constant marks: 'MR' and seven figures, as a
     # medical record number is written.
@@ -250,7 +251,7 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
     drawn.write_bytes(table.write(header, rows))
     marked = _counted(zoo.leaked(table, real, drawn, profile))["patient_id"]
     assert marked["twin"] == 0 and marked["twin_by_chance"] > 0, marked
-    assert zoo._by_chance({"maria chen", "mr1"}, ["maria chen"]) == (False, 0, 0), "no control where the values are not numbers"
+    assert zoo._by_chance({"maria chen", "mr1"}, ["maria chen"]) == (False, 0), "no control where the values are not numbers"
     # A number in scientific notation met once by chance: the control is
     # drawn, and one match under it is not a copy.
     assert zoo._by_chance({zoo._normal("4.56789E+11"), zoo._normal("1.23457E+11")}, [zoo._normal("4.56789E+11")])[0] is True

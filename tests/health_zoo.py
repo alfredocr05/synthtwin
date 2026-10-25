@@ -3231,8 +3231,8 @@ def leaked(
     keys fill their range (5,000 durable keys from 100000 to 104999, a
     twin of six-figure keys): so where every real value is a number, the
     twin is read against a CONTROL as well (`_by_chance`: the real
-    values moved past the real range, which no real value holds, or the
-    real's density inside its range where the twin draws there), and
+    values moved past the real range, which no real value holds; never
+    the twin's own values inside the range, which a copy fills), and
     `twin_by_chance` says what chance gives. The twin's real values all
     count (`twin`) when they pass twice that and three more; within it,
     a real value still counts when the twin writes it on more cells than
@@ -3275,7 +3275,7 @@ def leaked(
             entry["description"] = len(real & set(said))
             normal_twin = [_normal(cell) for cell in twin_cells] if how == "values" else []
             in_twin = real & set(normal_twin)
-            drawn, chance, _control = _by_chance(real, normal_twin)
+            drawn, chance = _by_chance(real, normal_twin)
             if drawn and len(in_twin) <= 2 * chance + 3:
                 # Within what chance gives, a real value still counts when
                 # the twin writes it on more cells than any real value
@@ -3289,56 +3289,48 @@ def leaked(
     return found
 
 
-def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int, int]":
-    """Whether a CONTROL is drawn; the distinct real values the twin meets by chance; the control's own matches.
+def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int]":
+    """Whether a CONTROL is drawn, and the distinct real values the twin meets by chance: the control's matches.
 
     The control is the real numbers moved past their range -- figures by
     the range's width, numbers by twice their spread -- so none of it is
     a real value (Codex item 1: a control shifted by the spread alone
     would land its lowest value on the highest real one), and its
     distinct matches in the twin say what chance gives where the twin
-    draws past the real range. Where the real values FILL their range (a
-    study's record numbers 1 to 223), a made-up value inside the range
-    is a real one by chance as often as the range is full: the chance
-    count is then the twin's distinct values inside the range times the
-    real's density there, when that is more. The numbers are the values'
-    figures where every value is one run of figures between the same
-    constant marks ('mr4000123', '100023', '31000000'), or else every
-    value read as a number; no control is drawn where they are neither
-    (names, addresses, codes with letters among the figures), and there
-    every match counts.
+    draws past the real range as often as inside it. Chance is never read
+    from the twin's own values inside the real range (E0c verify of
+    repair 1, item 1): where the real keys fill their range (sequential
+    record numbers 1 to N), every value a verbatim or shuffled copy
+    writes lies there, so a chance taken from them equals the copy and
+    hides it; a twin that draws inside the real range and not past it is
+    counted, as a copy is. The numbers are the values' figures where
+    every value is one run of figures between the same constant marks
+    ('mr4000123', '100023', '31000000'), or else every value read as a
+    number; no control is drawn where they are neither (names, addresses,
+    codes with letters among the figures), and there every match counts.
     """
     if not real:
-        return False, 0, 0
+        return False, 0
     parts = [re.fullmatch(r"(\D*?)(\d+)(\D*)", value) for value in real]
     marks = {(part.group(1), part.group(3)) for part in parts if part}
     control: "set[str]" = set()
-    inside = 0.0
     if all(parts) and len(marks) == 1:
         (before, after), = marks
         numbers = [int(part.group(2)) for part in parts if part]
         places = max(len(part.group(2)) for part in parts if part)
-        low, high = min(numbers), max(numbers)
-        width = high - low + 1
+        width = max(numbers) - min(numbers) + 1
         control = {f"{before}{number + width:0{places}d}{after}" for number in numbers}
         if not before:
             control = {_normal(value) for value in control}
-        drawn_inside = set()
-        for cell in set(twin):
-            part = re.fullmatch(re.escape(before) + r"(\d+)" + re.escape(after), cell)
-            if part and low <= int(part.group(1)) <= high:
-                drawn_inside |= {cell}
-        inside = len(drawn_inside) * len(set(numbers)) / width
     else:
         try:
             values = [float(value) for value in real]
         except ValueError:
-            return False, 0, 0
+            return False, 0
         spread = max(values) - min(values)
         shift = 2 * spread if spread else 1.0
         control = {_normal(f"{value + shift!r}") for value in values}
-    hits = [cell for cell in twin if cell in control]
-    return True, max(len(set(hits)), round(inside)), len(set(hits))
+    return True, len({cell for cell in twin if cell in control})
 
 
 # -- per kind, and the three KPIs --------------------------------------------

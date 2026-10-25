@@ -3296,6 +3296,13 @@ PS2_BIRTH_DATES = (
     "PS2's part (A), birth dates first (P4-D433; full birth dates no question flags were CODES-1 part C's, then "
     "CODES-3's, by the orchestrator's ruling of 2026-10-19 on HX2, item (4))"
 )
+STAND_INS_IN_RANGE = (
+    "LIVE: the stand-ins of a record number answered `identifier` are drawn inside the real keys' range, so a "
+    "study's sequential record numbers (1 to N, every value real) are written in the twin far more often than an "
+    "equally wide band past the range is (redcap.record_id at 20,000 rows: 5,572 real keys on 15,182 twin cells "
+    "against 1,933 in the control; E0c verify of repair 1, item 1); lane HX (P4-D401: the held identifier's "
+    "made-up values)"
+)
 BY_DESIGN = (
     "held by HIPAA's Safe Harbor rule; by design (the orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY, "
     "2026-10-25): the zoo answers the Safe Harbor question 'yes' for a ZIP, a place, a device number or a birth "
@@ -3312,7 +3319,10 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("SH2", SH2_PLACES, covers(*_leaks("birth_city"))),
         ("SH", BY_DESIGN, covers(columns=("birth_city",))),
     ),
-    "redcap": (("SH", HELD_WHILE_OPEN, covers(*_leaks("record_id"))),),
+    "redcap": (
+        ("SH", HELD_WHILE_OPEN, covers("leak record_id unanswered")),
+        ("HX", STAND_INS_IN_RANGE, covers("leak record_id")),
+    ),
     "immunizations_providers": (
         ("SH2", SH2_DEVICES, covers(*_leaks("udi"))),
         ("SH", BY_DESIGN, covers(columns=("udi",))),
