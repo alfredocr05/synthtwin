@@ -333,6 +333,10 @@ def test_a_census_keyed_by_counts_holds_no_value(tmp_path: pathlib.Path) -> None
     source = _write(tmp_path / "well", well, header, rows, "real")
     forms = _profile(tmp_path / "well", {"columns": [{"name": "age_text", "layout_forms": {"%% &&": 149, "(withheld)": 451}}]})
     assert zoo.leaked(well, source, None, forms)["age_text"]["description"] == 0, "149 rows of a form are no age of 149"
+    spelt = _profile(tmp_path / "well", {"columns": [{"name": "age_text", "levels": [
+        {"count": 136, "label": "13 mo", "variants": {"13 mo": 136}, "variants_withheld": {}},
+    ]}]}, "spelt")
+    assert zoo.leaked(well, source, None, spelt)["age_text"]["description"] == 0, "136 rows of a spelling are no age"
 
 
 # -- each validate check its own failure ----------------------------------------------------

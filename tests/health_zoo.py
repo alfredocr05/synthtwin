@@ -3006,10 +3006,13 @@ NOT_A_VALUE_KEY = re.compile(
 # are, a census counts hours, minutes, weekdays or days of the month,
 # and a tail block's `bin_groups` names histogram bins by their number.
 COUNTED_BLOCK = re.compile(r"by_occurrences|widths?$|_census$|^bin_groups$")
-# Blocks keyed by a form, a class or a style whose numbers are the rows
-# each holds: their keys are read (a prefix may be a value's), their
-# numbers never ('layout_forms' {"%% &&": 149} is 149 rows, not an age).
-COUNT_VALUED = re.compile(r"^(layout_\w+|missing_by_\w+|numeric_styles|number_spellings|negative_notations|decimal_plus)$")
+# Blocks keyed by a form, a class, a style or a spelling whose numbers
+# are the rows each holds: their keys are read (a prefix or a spelling
+# may be a value's), their numbers never ('layout_forms' {"%% &&": 149}
+# is 149 rows, not an age; a level's 'variants' {"13 mo": 136} is 136).
+COUNT_VALUED = re.compile(
+    r"^(layout_\w+|missing_by_\w+|numeric_styles|number_spellings|negative_notations|decimal_plus|variants\w*)$"
+)
 PLACEHOLDER = re.compile(r"-\d")
 # Words a column writes for a value it lacks: no person's value, so never
 # counted as one (a ZIP column's 'UNKNOWN', a death date's 'NULL').
@@ -3258,8 +3261,9 @@ def leaked(
 def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int, int]":
     """Whether a CONTROL is drawn; the distinct real values the twin meets by chance; the control's own matches.
 
-    The control is the real numbers moved past their range, none of it
-    a real value (Codex item 1: a control shifted by the range alone
+    The control is the real numbers moved past their range -- figures by
+    the range's width, numbers by twice their spread -- so none of it is
+    a real value (Codex item 1: a control shifted by the spread alone
     would land its lowest value on the highest real one), and its
     distinct matches in the twin say what chance gives where the twin
     draws past the real range. Where the real values FILL their range (a
@@ -3302,7 +3306,6 @@ def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int, int]":
         spread = max(values) - min(values)
         shift = 2 * spread if spread else 1.0
         control = {_normal(f"{value + shift!r}") for value in values}
-    control -= real
     hits = [cell for cell in twin if cell in control]
     return True, max(len(set(hits)), round(inside)), len(set(hits))
 
