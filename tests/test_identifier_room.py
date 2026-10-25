@@ -111,6 +111,18 @@ def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path,
         if scope == parsing.EXCLUSION_SPILL:
             assert len(text) > longest, (name, text)
             continue
+        if scope == parsing.EXCLUSION_UNNAMED:
+            # Said only where no real core wears a layout the census leaves unnamed.
+            assert text == parsing.EXCLUSION_NONE, (name, text)
+            named = {parsing.folded_layout(form) for form in block["layout_forms"]}
+            holes = set(block.get("missing_by_source") or {})
+            present = [cell.strip() for cell in seen["real"] if cell.strip() and cell not in holes]
+            convention = parsing.layout_convention(present)
+            assert all(
+                parsing.folded_layout(parsing.layout_form(core, convention)) in named
+                for core in present
+            ), name
+            continue
         written = [place for place in range(len(text)) if text[place] != scope[place]]
         assert written, (name, scope)
         for cell in by.get(scope, []):
@@ -123,6 +135,9 @@ def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path,
             for cell in by.get(scope, []):
                 held[cell[place]] = held.get(cell[place], 0) + 1
             alphabet = parsing.exclusion_alphabet(scope[place])
+            if any("0" <= c <= "9" for c in alphabet) and any(c > "9" for c in alphabet):
+                # A hexadecimal place is written with a figure, read from nine down.
+                alphabet = "0123456789"
             for character in reversed(alphabet):
                 if character == text[place]:
                     break
