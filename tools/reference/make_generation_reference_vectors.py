@@ -26120,7 +26120,6 @@ def templated_census(column):
     """
     census = column.get("layout_forms") or {}
     prefixes = column.get("layout_prefixes") or {}
-    exclusions = column.get("layout_exclusions") or {}
     whole = prefixes.get(PREFIX_OF_THE_COLUMN, "")
     noughts = bool(column.get("all_whole_numbers")) and any(
         name != WITHHELD and whole_places_template(name) != name for name in census
@@ -26134,16 +26133,12 @@ def templated_census(column):
         written = prefix + name[len(prefix):] if prefix else name
         if noughts:
             written = whole_places_template(written)
-        # ...AND WHAT NO REAL CELL HOLDS STANDS IN IT (method G9.6b, lane
-        # ID-ROOM, plan P4-D432): every place the layout's exclusion writes
-        # out, where the template holds a placeholder, holds its character.
-        if name in exclusions:
-            written = excluded_template(written, exclusions[name])
         templated[written] = census[name]
     return templated
 
 
 EXCLUSION_SPILL = "(spill)"
+EXCLUSION_UNNAMED = "(unnamed)"
 _EXCLUSION_ALPHABETS = {
     LAYOUT_DIGIT: "0123456789",
     LAYOUT_UPPER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -26193,22 +26188,28 @@ def widened_layout(name, opening, longest):
 def spelled_off_the_real(column, content):
     """Every present cell of a record number written where no real cell is (G9.6b, P4-D432).
 
-    Written from the rule statement.  A different value is KEPT where it
-    recounts into a named layout carrying an exclusion and wears that
-    layout's excluded template, or is at least as long as the spill;
-    every other one, in the order it first appears in the content, takes
-    the first spelling, stepping from nought (each template its own
-    step), that neither spells nor folds onto any cell of the content or
-    any spelling taken before it, wears the template and reads as no
-    absent spelling -- of its layout's excluded template, then of the
-    excluded template of each named layout its own layout widens to, a
-    figure at a time, then of its layout widened as long as the spill
-    (the same prefix and noughts), then of the spill -- and every cell of
-    the value is written so.  An
-    empty map moves nothing.  THIS ORACLE DOES NOT MODEL the date test the
-    product asks of a moved spelling: no frozen case's target reaches a
-    spelling any date format reads, and a case that did would need it
-    added first.
+    Written from the rule statement, after the walks have met the
+    column's counts.  A different value, in the order it first appears in
+    the content, is KEPT where it wears its own layout's excluded template,
+    is at least as long as the spill, or wears a layout the census does
+    not name where the profile publishes that no real cell does
+    (`(unnamed)`).  A value written again in another case, beside one
+    already moved, takes that one's letters in its own case where its own
+    layout's template takes them.  Every other value takes the first
+    spelling, its fillings read from the first and the nought filling last
+    (each template its own step, at most 4,096 a value before the next
+    template is asked), that neither spells
+    nor folds onto any cell of the content or any spelling taken before
+    it, wears the template and reads as no absent spelling -- of its
+    layout's excluded template, then of the excluded template of each
+    named layout its own layout widens to, a figure at a time, then of its
+    layout widened as long as the spill (the same prefix and noughts),
+    then of the spill -- and every cell of the value is written so.  An
+    empty map moves nothing.  THIS ORACLE DOES NOT MODEL two tests the
+    product asks of a moved spelling: that it reads as the value's own
+    class and alphabets, and that no date format reads it.  No frozen
+    case's templates spell another class or a date, and a case that did
+    would need them added first.
     """
     exclusions = column.get("layout_exclusions") or {}
     if not exclusions:
@@ -26234,10 +26235,22 @@ def spelled_off_the_real(column, content):
     if EXCLUSION_SPILL in exclusions:
         spill = template_of(exclusions[EXCLUSION_SPILL], whole)
     bound = len(spill)
+    unnamed = exclusions.get(EXCLUSION_UNNAMED) == "(none)"
     holes = tuple(sorted(column.get("missing_by_source") or {}))
-    used = set(content) | {folded(cell) for cell in content}
+    written = set(content)
+    folds = {folded(cell) for cell in content} - written
     moved = {}
+    by_fold = {}
     steps = {}
+
+    def in_its_case(spelling, cell):
+        if len(spelling) != len(cell):
+            return spelling
+        return "".join(
+            mark.lower() if "a" <= case <= "z" else mark.upper() if "A" <= case <= "Z" else mark
+            for mark, case in zip(spelling, cell)
+        )
+
     for cell in content:
         if cell in moved or not cell.strip():
             continue
@@ -26246,6 +26259,15 @@ def spelled_off_the_real(column, content):
             continue
         if bound and len(cell) >= bound:
             continue
+        if layout and unnamed and layout not in census:
+            continue
+        identity = folded(cell)
+        if identity in by_fold and layout in kept:
+            partner = in_its_case(by_fold[identity], cell)
+            if partner not in written and wears_template(partner, kept[layout], convention):
+                written.add(partner)
+                moved[cell] = partner
+                continue
         targets = []
         if layout in kept:
             targets += [kept[layout]]
@@ -26264,12 +26286,15 @@ def spelled_off_the_real(column, content):
         candidate = ""
         for into in targets:
             step = steps.get(into, 0)
-            while step < layout_room(into):
-                trial = filled_layout(into, step)
+            tries = 0
+            while step < layout_room(into) and tries < LAYOUT_STEPS:
+                trial = filled_layout(into, (step + 1) % layout_room(into))
                 step += 1
+                tries += 1
                 if (
-                    trial not in used
-                    and folded(trial) not in used
+                    trial not in written
+                    and folded(trial) not in written
+                    and folded(trial) not in folds
                     and wears_template(trial, into, convention)
                     and not reads_as_absent(trial, holes)
                 ):
@@ -26280,9 +26305,10 @@ def spelled_off_the_real(column, content):
                 break
         if not candidate:
             raise AssertionError("no spelling is left, which no frozen case reaches")
-        used.add(candidate)
-        used.add(folded(candidate))
+        written.add(candidate)
+        folds.add(folded(candidate))
         moved[cell] = candidate
+        by_fold[identity] = candidate
     return [moved.get(cell, cell) for cell in content]
 
 
@@ -26436,13 +26462,11 @@ def _a_signed_number(layout):
     every other layout opening with a formula character still is.
     """
     body = layout[1:]
-    # A figure an exclusion writes out stands for a figure (G9.6b, P4-D432).
-    figures = sum(1 for mark in body if mark == "%" or mark in DIGIT_CHARACTERS)
     return (
         layout[:1] in ("-", "+")
-        and figures >= 1
+        and body.count("%") >= 1
         and body.count(".") <= 1
-        and set(body) <= {"%", "."} | DIGIT_CHARACTERS
+        and set(body) <= {"%", "."}
     )
 LAYOUT_STEPS = 4096
 LAYOUT_ADMISSION_STEPS = 64

@@ -15617,39 +15617,50 @@ Contract section 7.12b publishes `layout_exclusions`. NO TWIN IDENTIFIER
 CELL IS SPELLED AS A REAL ONE, and the generator reads nothing real to
 make it so:
 
-1. **An excluded layout's template holds its exclusion.** Where a named
-   layout carries an exclusion, its template of G9.6a (prefix, then a
-   whole number's noughts) is written with the exclusion's characters at
-   every place the exclusion writes out (`parsing.written_excluded`).
-   Every walk of G9.6 reads that template, so every cell of the layout
-   carries them, and the room of the template is the room its
-   placeholders leave.
-2. **Every other cell is written in the spill.** After the column's
-   cells are built (G9.2 to G9.6), each different value that does not
-   wear the excluded template of its own layout -- a cell of a layout
-   carrying no exclusion, the pool's, a stand-in's, a pinned end's, the
-   band walk's -- is written, in the order it first appears, as the next
-   spelling of the SPILL's template (the `(spill)` layout under the
-   column's prefix and noughts), stepping from nought, that neither
-   spells nor folds onto any cell of the column or any spelling taken
-   before it, wears the spill's template, is no spelling read as absent
-   and no date; every cell of the value is written so, so a key repeated
-   on one twin person's rows stays one key. Where the description
-   publishes no spill, the excluded template of the most room is the
-   target; where it publishes no exclusion at all, nothing moves and the
-   column is written byte for byte as before.
+1. **The walks of G9.2 to G9.6 are as they were.** Every count they meet
+   -- the census, the lengths, the four classes, the two alphabets, the
+   repetition, the fold collisions -- is met first, on the templates of
+   G9.6a.
+2. **Then every value is spelled where no real cell can be.** Each
+   different value, in the order it first appears, is KEPT where it
+   wears its own layout's EXCLUDED TEMPLATE (the layout's template of
+   G9.6a with the places its exclusion writes out, `parsing.
+   written_excluded`), is at least as long as the spill, or wears a layout
+   the census does not name where the description publishes `(unnamed)`.
+   A value written again in another case, beside one already moved,
+   takes that one's letters in its own case where its own layout's
+   excluded template takes them, so a fold collision stays one. Every
+   other value is written as the first spelling, its fillings read from
+   the first and the nought filling last (each template its own step, at most 4,096 a value before the next
+   template is asked), that neither spells nor folds onto any cell of the
+   column or any spelling taken before it, wears the template, is no
+   spelling read as absent and no date, AND reads as the value's own
+   class and alphabets (`parsing.classify_number`, `is_digit_text`,
+   `is_code_text`), of: its layout's excluded template; the excluded
+   template of each named layout its own layout widens to a figure at a
+   time (`parsing.spill_layout`); its layout widened as long as the
+   spill, under its prefix and noughts; the spill's template. Only where
+   none of these gives one is the spill asked again for a spelling of
+   any class. Every cell of the value is written so, so a key repeated on
+   one twin person's rows stays one key, and its kinds -- a number, a
+   code, its prefix -- are kept. Where the description publishes no
+   exclusion at all, nothing moves and the column is written byte for
+   byte as before. A UID root's opening is read to its last point, so an
+   exclusion's figure after the root keeps the grammar's test of G9.6a
+   step 7 (c).
 3. **Why no cell equals a real one.** Two equal cells wear one layout and
    hold one character at every place. A cell wearing an excluded template
    holds characters no real cell of that layout holds at those places; a
-   cell wearing the spill is longer than every real cell.
+   cell as long as the spill is longer than every real cell.
 4. **What it costs**, measured (P4-D432): where the real values fill a
    layout's room -- record numbers `1` to `20,000`, every four-figure
-   value present -- no exclusion leaves room, the layout's cells are
-   written in the spill, and the report recounts the census, the
-   lengths and the counts they move and names them (a remark names the
-   values moved). The report's census recount and the validator name the
-   spilled layouts as missed; that is the twin keeping no real record
-   number, and it is stated, never hidden.
+   value present -- or are drawn at random across a room too small for
+   one block to leave the twin room, no exclusion is found, the layout's
+   values are written a figure or more wider, and the report recounts the
+   census, the lengths and the counts they move and names them (a remark
+   names the values moved). The validator names those layouts and
+   lengths as missed; that is the twin keeping no real record number,
+   and it is stated, never hidden.
 
 ## G10. Absent cells, straggler stand-ins, unrepresentable values
 

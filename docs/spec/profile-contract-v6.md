@@ -18765,54 +18765,62 @@ CONSTRUCTION. Every block of the `identifier` role carries
 the prefixes of 7.12 and 7.12a are final, reading the column's present
 cells:
 
-1. **Beside each named layout, an exclusion**: the layout with one place
-   or more written as a character of that place's own alphabet (`%` a
-   figure, `@` and `&` a letter of their case, `~` and `^` a hexadecimal
-   character of theirs; never the zero fill `!`), such that NO present
+1. **Beside each named layout, an exclusion, where one is found**: the
+   layout with one place or more written as a character of that place's
+   own alphabet (`%` a figure, `~` and `^` a hexadecimal character of
+   their case, `@` and `&` a letter of theirs; never the zero fill `!`),
+   such that NO present
    cell whose layout is that layout holds those characters at those
-   places. The first choice is ONE place: the first, left to right among
-   the places the twin fills (after the layout's prefix, never a whole
-   number's nought after the point), at which every character of its
-   alphabet is held by no such cell or by at least `small_cell_floor` of
-   them and one is held by none; the greatest such character is written,
-   never a nought that would open the cell, an arc, or the figures after
-   a sign or a zero fill. Where no place qualifies, the LAST k places the
-   twin fills are written as their alphabets' greatest characters, k the
-   fewest whose spellings number at least 1,000 times the layout's
-   published cells, provided no such cell holds all k. Either is written
-   only where the spellings left hold the layout's cells or the column's
-   different values, whichever is fewer, and at least one place stays a
-   placeholder; otherwise the layout carries none.
-2. **Under `(spill)`, the spill layout**: the widest named layout (the
+   places. First ONE place: the places the twin fills (after the layout's
+   prefix, never a whole number's nought after the point) are read left
+   to right, and at each the characters of its alphabet from the
+   greatest down -- never a nought that would open the cell, an arc, or
+   the figures after a sign or a zero fill -- until one no such cell
+   holds, which is written; a character held by at least one cell and
+   fewer than `small_cell_floor` is never passed over: the place is left
+   for the next. Where no place gives one, the BLOCK: every other figure
+   place the twin fills, counted from the last, k of them -- every other,
+   so no run of written characters stands in the description -- k the
+   most whose spellings leave the template room for the layout's cells or
+   the column's different values, whichever is fewer; its spellings are
+   read from the greatest down, none leading a number or an arc with a
+   nought, and the first no such cell holds at those places is written.
+2. **Under `(unnamed)`, `(none)`**, where no present cell wears a layout
+   the census does not name -- a zero count, read off the cells, never
+   beside a `(withheld)` pool (a census rule A1 absorbs is read so too).
+   **Under `(spill)`, the spill layout**: the widest named layout (the
    commonest among the widest) with figures inserted before its first
    `%` after the column's prefix -- copies of its first placeholder there
    where it holds no `%` -- until it is longer than every present cell.
    No real cell can wear it. None where it would pass 64 characters.
 3. **What it publishes is what the column does not hold.** A written
-   character is held by no real cell of its layout at its place, the
-   characters the one-place choice passed over at that place are each
-   held by at least `small_cell_floor` cells, and the spill's length says
-   only that every real cell is shorter, as `max_length` does. No value,
-   no fragment of one, no extreme of one and no count below the floor is
-   published. On the one-place choice a place passed over is either one
-   holding some character on 1 to `small_cell_floor` - 1 cells or one
-   holding every character; on the block of k places, the block held by a
-   real cell is never followed by another, so a missing exclusion says
-   at most that one block of k greatest characters is held, which values
-   drawn at random do on about one layout in a thousand.
+   character is held by no real cell of its layout at its place; every
+   character the one-place choice passed over at that place is held by
+   at least `small_cell_floor` cells; and the spill's length says only
+   that every real cell is shorter, as `max_length` does for every block
+   but rule A1's. No value, no fragment of one, no extreme of one and no
+   count below the floor is published. What the choice can say beyond
+   that is stated: a place it left holds a character on 1 to
+   `small_cell_floor` - 1 cells, or every character on the floor's cells
+   or more; and each block spelling it passed over is held at the block's
+   places -- the last, low places of the layout, never an extreme's -- by
+   some real cell.
 
 Invariants: **LX1** an exclusion is published for a layout the census
 names, or as the spill, and only beside a census naming a layout; **LX2**
 an exclusion is its layout with one place or more written as a character
 of that place's own alphabet, every one a place the twin fills after the
-layout's prefix, and at least one place left; **LX3** the spill is a
+layout's prefix; **LX4** `(unnamed)` is `(none)` and stands beside no
+`(withheld)` pool; **LX3** the spill is a
 layout the census does not name, longer than `max_length`, opening with
 the `(column)` prefix's layout where one is published. The loader checks
 the text; that no real cell holds the written characters is the
 producer's promise, read off the cells. The generator writes every cell
-of a layout carrying an exclusion with it, and every other cell in the
-spill (method G9.6b). The validator does not read this key: a real
-table's cells hold none of the written characters, by construction.
+of a layout carrying an exclusion with it, and every other value nearest
+its own shape where no real cell can be (method G9.6b). The validator
+does not read this key: a real table's cells hold none of the written
+characters, by construction, and a twin's cells written wider than every
+real cell are named where the census and the lengths are checked.
 
 ---
 

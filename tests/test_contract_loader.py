@@ -3121,6 +3121,14 @@ def battery() -> list[Mutation]:
             edit("record_code", layout_exclusions={"(spill)": "%%%%%%%"}),
         ),
         Mutation(
+            "LX4",
+            "no real cell outside the named layouts said otherwise than (none)",
+            edit(
+                "record_code",
+                layout_exclusions={"@%%%%%": "@9%%%%", "(unnamed)": "(some)"},
+            ),
+        ),
+        Mutation(
             "R16",
             "an exclusion that is not text",
             edit("record_code", layout_exclusions={"(spill)": 7}),

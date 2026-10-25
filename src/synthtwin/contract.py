@@ -2427,6 +2427,10 @@ INVARIANTS = {
         "column's longest value, opening with the column's own prefix "
         "where it publishes one"
     ),
+    "LX4": (
+        "that no real cell wears a layout the census does not name is said "
+        "only beside a census publishing no pool, and only as `(none)`"
+    ),
     # -- lane PS (plan P4-D417): the grain a column of dates or times was
     # pooled at, and the record a held one keeps.
     "TG1": (
@@ -18702,6 +18706,15 @@ def _layout_exclusions(
     opening = parsing.prefix_layout(whole, convention) if whole else ""
     for scope in sorted(exclusions):
         text = exclusions[scope]
+        if scope == parsing.EXCLUSION_UNNAMED:
+            if text != parsing.EXCLUSION_NONE or WITHHELD in layouts:
+                raise _broken(
+                    "LX4",
+                    where,
+                    "a census of layouts publishing a pool, or another value",
+                    "no real cell outside the named layouts is said so alone",
+                )
+            continue
         if scope != parsing.EXCLUSION_SPILL and scope not in named:
             raise _broken(
                 "LX1",

@@ -54277,8 +54277,7 @@ def _templated_facts(
     no I/O.
     """
     whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
-    exclusions = facts.layout_exclusions
-    if not facts.layout_prefixes and not whole_places and not exclusions:
+    if not facts.layout_prefixes and not whole_places:
         return facts
     whole = ""
     if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
@@ -54291,12 +54290,11 @@ def _templated_facts(
         if layout == contract.WITHHELD:
             templated[layout] = facts.layout_forms[layout]
             continue
-        written = parsing.layout_template(layout, prefix, whole_places)
-        if layout in exclusions:
-            # ...AND WHAT NO REAL CELL HOLDS STANDS IN IT (lane ID-ROOM,
-            # plan P4-D432): the places the exclusion writes out are
-            # written, so every cell of this layout carries them.
-            written = parsing.written_excluded(written, exclusions[layout])
+        written = layout
+        if prefix:
+            written = prefix + layout[len(prefix):]
+        if whole_places:
+            written = parsing.whole_places_layout(written)
         templated[written] = facts.layout_forms[layout]
     return dataclasses.replace(facts, layout_forms=templated)
 
@@ -54309,139 +54307,303 @@ def _spelled_off_the_real(
 ) -> "tuple[list[str], list[Remark]]":
     """Every cell of a record number written where no real cell is (lane ID-ROOM, plan P4-D432).
 
-    NO TWIN IDENTIFIER CELL EQUALS A REAL ONE, BY CONSTRUCTION. The walks
-    above write a cell of a layout carrying an exclusion with the places
-    it writes out (`_templated_facts`), and no real cell of that layout
-    holds them; this pass reads every other cell -- one of a layout no
-    exclusion is found for, the pool's, a stand-in's, a pinned end's, the
-    walk's, one an excluded layout's room could not hold -- and writes
-    each different value of them, once, as the next free spelling nearest
-    its own shape: its layout's excluded template where that has room
-    left; else the excluded template of its layout widened by one figure,
-    two and so on, where the census names that wider layout; else its
-    layout widened until it is as long as the column's `(spill)`
-    (`parsing.spill_layout`), which every real cell is shorter than, so
-    its kinds -- a number, a code, its prefix -- are kept; else the spill
-    itself. A cell already that long is kept. A value moves whole, so a key
-    repeated on one twin person's rows stays one key, and the published
-    shortest and longest lengths, the layout census and the counts a
-    moved value read as are recounted where the report recounts them.
-    Where the description publishes no spill, the excluded layout of the
-    most room takes the moved values; where it publishes no exclusion at
-    all -- a hand-written or older document -- nothing moves.
+    NO TWIN IDENTIFIER CELL EQUALS A REAL ONE, BY CONSTRUCTION, and the
+    walks above are left as they are: every published count they meet is
+    met first. Then each different value is KEPT where it is spelled as no
+    real cell can be -- its core (the value trimmed of the spaces around
+    it) wears its own layout's EXCLUDED TEMPLATE (the layout's template
+    with the places its exclusion writes out), the value is as long as the
+    column's `(spill)` (every real cell is shorter), or its core wears a
+    layout the census does not name where the profile publishes that no
+    real cell's does (`(unnamed)`). The values of one folded identity --
+    a fold collision, written again in another case or with a space --
+    are kept or moved TOGETHER: moved, they take one new core, each in its
+    own case and with its own spaces, so the collision stays one. A value
+    moved is written as the first free spelling of, nearest its own shape
+    first: its layout's excluded template; the excluded template of each
+    named layout its own widens to, a figure at a time; its layout widened
+    as long as the spill (`parsing.spill_layout`); the spill; and, where
+    none has one left, the spill widened a figure at a time. A spelling is
+    taken first only where it reads as the value's own class and
+    alphabets (`parsing.classify_number`, `is_digit_text`, `is_code_text`),
+    so the counts the walks met stay met, and only then of any class. A
+    value moves whole, so a key repeated on one twin person's rows stays
+    one key. The lengths and the census a value written wider moves are
+    recounted where the report recounts them.
 
     It reads nothing but the description: the exclusions are the
-    profile's, read off the real column; the cells are the twin's.
+    profile's, read off the real column; the cells are the twin's. Where
+    the description publishes no exclusion -- a hand-written or older
+    document -- nothing moves and the column is written byte for byte as
+    before.
 
-    Guarantees: returns the cells, every one a value of a layout carrying
-    its exclusion or of the spill, and a remark naming how many values
-    moved. Raises ProfileError where the spill has no free spelling left.
-    No I/O.
+    Guarantees: returns the cells and a remark naming how many values
+    moved. Raises ProfileError where no free spelling is left. No I/O.
     """
     exclusions = facts.layout_exclusions
     if not exclusions:
         return cells, []
-    convention = _layout_convention(facts)
-    whole = ""
-    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
-        whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
-    whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
-    kept: "dict[str, str]" = {}
-    for layout in _named_layouts(facts):
-        if layout in exclusions:
-            kept[layout] = parsing.written_excluded(
-                parsing.layout_template(layout, _prefix_of(facts, layout), whole_places),
-                exclusions[layout],
-            )
-    spill = ""
-    bound = 0
-    if parsing.EXCLUSION_SPILL in exclusions:
-        spill = parsing.layout_template(
-            exclusions[parsing.EXCLUSION_SPILL], whole, whole_places
-        )
-        # Every real cell is shorter than the spill (contract 7.12b).
-        bound = len(spill)
-    used: "dict[str, int]" = {}
+    room = _OffTheReal(facts, holes)
     for cell in cells:
-        _claim(cell, used)
+        if cell not in room.written:
+            room.claim(cell)
+    groups: "dict[str, list[str]]" = {}
+    order: "list[str]" = []
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in seen or not parsing.trimmed(cell):
+            continue
+        seen[cell] = True
+        identity = parsing.folded(cell)
+        if identity not in groups:
+            groups[identity] = []
+            order += [identity]
+        groups[identity] += [cell]
     moved: "dict[str, str]" = {}
-    safe: "dict[str, bool]" = {}
-    steps: "dict[str, int]" = {}
-    for cell in cells:
-        if cell in moved or cell in safe or not parsing.trimmed(cell):
+    wider = 0
+    for identity in order:
+        members = groups[identity]
+        if all(room.kept(member) for member in members):
             continue
-        layout = parsing.layout_form(cell, convention)
-        if (layout in kept and _wears_template(cell, kept[layout], convention)) or (
-            bound and len(cell) >= bound
-        ):
-            safe[cell] = True
-            continue
-        # THE NEXT FREE SPELLING, nearest the cell's own shape first: its
-        # layout's excluded template; the excluded template of the same
-        # layout a figure wider, two wider and so on (its family); its
-        # layout widened past every real cell; the column's spill.
-        targets: "list[str]" = []
-        if layout in kept:
-            targets += [kept[layout]]
-        if layout and bound:
-            prefix = _prefix_of(facts, layout)
-            opening = len(parsing.prefix_layout(prefix, convention)) if prefix else 0
-            for width in range(len(layout) + 1, bound):
-                wider = parsing.spill_layout(layout, opening, width - 1)
-                if wider in kept:
-                    targets += [kept[wider]]
-            wide = parsing.spill_layout(layout, opening, bound - 1)
-            if wide:
-                targets += [parsing.layout_template(wide, prefix, whole_places)]
-        if spill:
-            targets += [spill]
-        found = ""
-        for into in targets:
-            step = steps[into] if into in steps else 0
-            room = parsing.layout_room(into)
-            while step < room and not found:
-                candidate = _filled_layout(into, step)
-                step = step + 1
-                if (
-                    _free(candidate, used)
-                    and _wears_template(candidate, into, convention)
-                    and not _is_a_hole_spelling(candidate, holes)
-                    and not _reads_as_a_date(candidate)
-                ):
-                    found = candidate
-            steps[into] = step
-            if found:
-                break
-        if not found:
-            raise errors.ProfileError(
-                f"synthtwin internal check: the twin column "
-                f"'{parsing.visible(column.name)}' has no spelling left that "
-                f"no real record number can hold. This means a mistake in "
-                f"synthtwin; please report it. Nothing has been written."
-            )
-        _claim(found, used)
-        moved[cell] = found
+        together = room.respelled_together(members) if len(members) > 1 else None
+        if together is None:
+            together = {}
+            for member in members:
+                if not room.kept(member):
+                    together[member] = room.respelled(member)
+                    if not together[member]:
+                        raise errors.ProfileError(
+                            f"synthtwin internal check: the twin column "
+                            f"'{parsing.visible(column.name)}' has no spelling "
+                            f"left that no real record number can hold. This "
+                            f"means a mistake in synthtwin; please report it. "
+                            f"Nothing has been written."
+                        )
+        for member in sorted(together):
+            moved[member] = together[member]
+            room.claim(together[member])
+            if len(together[member]) > len(member):
+                wider = wider + 1
     if not moved:
         return cells, []
-    written = [moved[cell] if cell in moved else cell for cell in cells]
     rows = 0
     for cell in cells:
         if cell in moved:
             rows = rows + 1
-    return written, [
+    return [moved[cell] if cell in moved else cell for cell in cells], [
         Remark(
             column=column.name,
-            subject="values written in the spill layout",
-            held=f"{len(moved)} different values on {rows} rows",
+            subject="values written where no real record number is",
+            held=(
+                f"{len(moved)} different values on {rows} rows, {wider} of "
+                f"them written wider"
+            ),
             note=(
                 "No twin record number is spelled as a real one (plan "
-                "P4-D432): where the real values fill a layout's room, or a "
-                "cell could not carry what no real cell holds, the value is "
-                "written longer than the longest real value, so a length or "
-                "layout test meets these rows otherwise."
+                "P4-D432): these values were spelled again with what no real "
+                "cell of their layout holds, and where the real values fill "
+                "a layout's room, written longer than the longest real value, "
+                "so a length or layout test meets those rows otherwise."
             ),
         )
     ]
+
+
+# How many fillings of one template a value is offered before the next
+# template is asked (plan P4-D432); the template's own step goes on.
+_OFF_THE_REAL_TRIES = 4096
+
+
+class _OffTheReal:
+    """What `_spelled_off_the_real` reads and spends: the templates, the steps, the spellings taken."""
+
+    def __init__(self, facts: contract.IdentifierFacts, holes: "tuple[str, ...]") -> None:
+        exclusions = facts.layout_exclusions
+        self.facts = facts
+        self.holes = holes
+        self.convention = _layout_convention(facts)
+        self.whole = ""
+        if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+            self.whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+        self.whole_places = facts.all_whole_numbers and _any_whole_places(
+            facts.layout_forms
+        )
+        self.templates: "dict[str, str]" = {}
+        for layout in _named_layouts(facts):
+            if layout in exclusions:
+                self.templates[layout] = parsing.written_excluded(
+                    parsing.layout_template(
+                        layout, _prefix_of(facts, layout), self.whole_places
+                    ),
+                    exclusions[layout],
+                )
+        self.spill = ""
+        self.bound = 0
+        if parsing.EXCLUSION_SPILL in exclusions:
+            self.spill = parsing.layout_template(
+                exclusions[parsing.EXCLUSION_SPILL], self.whole, self.whole_places
+            )
+            # Every real cell is shorter than the spill (contract 7.12b).
+            self.bound = len(self.spill)
+        self.unnamed = (
+            parsing.EXCLUSION_UNNAMED in exclusions
+            and exclusions[parsing.EXCLUSION_UNNAMED] == parsing.EXCLUSION_NONE
+        )
+        self.written: "dict[str, bool]" = {}
+        self.folds: "dict[str, bool]" = {}
+        self.steps: "dict[str, int]" = {}
+
+    def claim(self, spelling: str) -> None:
+        """Record a spelling, and its folded identity, as written."""
+        self.written[spelling] = True
+        self.folds[parsing.folded(spelling)] = True
+
+    def kept(self, cell: str) -> bool:
+        """Whether a twin cell is spelled as no real cell can be (G9.6b)."""
+        core = parsing.trimmed(cell)
+        layout = parsing.layout_form(core, self.convention)
+        if layout in self.templates and _wears_template(
+            core, self.templates[layout], self.convention
+        ):
+            return True
+        if self.bound and len(cell) >= self.bound:
+            return True
+        return bool(layout) and self.unnamed and layout not in self.facts.layout_forms
+
+    def targets(self, core: str) -> "list[str]":
+        """The templates a value of this core is offered, nearest its own shape first."""
+        layout = parsing.layout_form(core, self.convention)
+        offered: "list[str]" = []
+        if layout in self.templates:
+            offered += [self.templates[layout]]
+        if layout and self.bound:
+            prefix = _prefix_of(self.facts, layout)
+            opening = (
+                len(parsing.prefix_layout(prefix, self.convention)) if prefix else 0
+            )
+            for width in range(len(layout) + 1, self.bound):
+                widened = parsing.spill_layout(layout, opening, width - 1)
+                if widened in self.templates:
+                    offered += [self.templates[widened]]
+            widest = parsing.spill_layout(layout, opening, self.bound - 1)
+            if widest:
+                offered += [parsing.layout_template(widest, prefix, self.whole_places)]
+        if self.spill:
+            offered += [self.spill]
+        return offered
+
+    def respelled(self, cell: str) -> str:
+        """One value's new spelling, its own spaces kept, or "" where none is left."""
+        core = parsing.trimmed(cell)
+        lead = cell[: cell.find(core)] if core else ""
+        trail = cell[len(lead) + len(core):]
+        targets = self.targets(core)
+        for strict in (True, False):
+            for into in targets if strict else targets[len(targets) - 1:]:
+                found = self._next(into, [(lead, core, trail, cell)], strict)
+                if found:
+                    return found[cell]
+        widening = self.spill
+        while self.spill and len(widening) < parsing.LAYOUT_FORM_LIMIT:
+            # THE LAST RESORT: the spill a figure wider, and wider again.
+            widening = parsing.spill_layout(widening, len(self.whole), len(widening))
+            if not widening:
+                break
+            found = self._next(widening, [(lead, core, trail, cell)], False)
+            if found:
+                return found[cell]
+        return ""
+
+    def respelled_together(self, members: "list[str]") -> "dict[str, str] | None":
+        """One new core for every value of one folded identity, or None (G9.3's collision kept)."""
+        parts: "list[tuple[str, str, str, str]]" = []
+        for member in members:
+            core = parsing.trimmed(member)
+            lead = member[: member.find(core)]
+            parts += [(lead, core, member[len(lead) + len(core):], member)]
+        offered: "dict[str, bool]" = {}
+        for _lead, core, _trail, _cell in parts:
+            for into in self.targets(core):
+                if into in offered or len(into) != len(core):
+                    continue
+                offered[into] = True
+                found = self._next(into, parts, True)
+                if found:
+                    return found
+        return None
+
+    def _next(
+        self,
+        template: str,
+        parts: "list[tuple[str, str, str, str]]",
+        strict: bool,
+    ) -> "dict[str, str] | None":
+        """The next filling of ``template`` every one of ``parts`` takes, in its own case and spaces."""
+        # Each template's walk reads its fillings from the first, the nought
+        # filling (every place at its lowest) last.
+        step = self.steps[template] if template in self.steps else 0
+        room = parsing.layout_room(template)
+        tries = 0
+        found: "dict[str, str] | None" = None
+        while step < room and tries < _OFF_THE_REAL_TRIES and found is None:
+            filled = _filled_layout(template, (step + 1) % room)
+            step = step + 1
+            tries = tries + 1
+            if (
+                filled in self.written
+                or parsing.folded(filled) in self.written
+                or parsing.folded(filled) in self.folds
+                or not _wears_template(filled, template, self.convention)
+            ):
+                continue
+            taken: "dict[str, str]" = {}
+            for lead, core, trail, cell in parts:
+                spelt = filled
+                if len(parts) > 1:
+                    if len(core) != len(filled):
+                        taken = {}
+                        break
+                    spelt = _in_its_case(filled, core)
+                written = lead + spelt + trail
+                if (
+                    written in self.written
+                    or written in taken.values()
+                    or (len(parts) > 1 and not self.kept(written))
+                    or _is_a_hole_spelling(written, self.holes)
+                    or _reads_as_a_date(written)
+                    or (strict and not _reads_alike(written, cell))
+                ):
+                    taken = {}
+                    break
+                taken[cell] = written
+            if taken:
+                found = taken
+        self.steps[template] = step
+        return found
+
+
+def _reads_alike(spelling: str, cell: str) -> bool:
+    """Whether two spellings read as one class and in the same two alphabets (G9.6b)."""
+    return (
+        parsing.classify_number(spelling) == parsing.classify_number(cell)
+        and parsing.is_digit_text(spelling) == parsing.is_digit_text(cell)
+        and parsing.is_code_text(spelling) == parsing.is_code_text(cell)
+    )
+
+
+def _in_its_case(spelling: str, cell: str) -> str:
+    """``spelling`` with each letter in the case ``cell``'s letter at that place wears."""
+    if len(spelling) != len(cell):
+        return spelling
+    written = ""
+    for place in range(len(spelling)):
+        character = spelling[place]
+        if "a" <= cell[place] <= "z":
+            character = character.lower()
+        elif "A" <= cell[place] <= "Z":
+            character = character.upper()
+        written = written + character
+    return written
 
 
 def _prefix_of(facts: contract.IdentifierFacts, layout: str) -> str:
@@ -54839,9 +55001,7 @@ def _signs_a_number(layout: str) -> bool:
     points = 0
     figures = 0
     for character in layout[1:]:
-        # ...a figure an exclusion writes out stands for one too (plan
-        # P4-D432): `-9` is the template of `-%` beside the exclusion `-9`.
-        if character == parsing.LAYOUT_DIGIT or "0" <= character <= "9":
+        if character == parsing.LAYOUT_DIGIT:
             figures = figures + 1
             continue
         if character == ".":
@@ -56658,7 +56818,7 @@ def _nought_walk_length(
             continue
         figures = True
         for character in layout:
-            if character != parsing.LAYOUT_DIGIT and not "0" <= character <= "9":
+            if character != parsing.LAYOUT_DIGIT:
                 figures = False
         if figures:
             after = len(layout) - 1

@@ -156,16 +156,19 @@ SHAPES: "dict[str, tuple[object, bool]]" = {
     ),
 }
 
-# The held shapes answered `identifier` on the questions file, as the person holding the table would.
+# The held shapes answered `identifier` on the questions file, as the person holding the table
+# would, at the sizes whose people the population floor describes (P4-D341: 100 people or more; the
+# forty keys of `keys_alone` are 40 people and are refused at every size, and the question put to
+# `record_numbers_beside_unknown` offers no `identifier`).
 ANSWERED = (
-    "keys_alone",
-    "keys_beside_unknown",
-    "keys_beside_na",
-    "record_numbers_beside_minus_99",
-    "record_numbers_beside_unknown",
-    "pt_held_person_on_three_rows",
-    "uid_study_held",
+    ("record_numbers_beside_minus_99", (600, 20_000)),
+    ("pt_held_person_on_three_rows", (600, 20_000)),
+    ("uid_study_held", (20_000,)),
 )
+
+# Declared shapes the population floor refuses at 600 rows (fewer than 100 people: 60 studies, 30
+# patients); profiled, nothing is written, so no twin cell can be real.
+REFUSED_AT_600 = ("uid_study_on_ten_rows", "sequential_person_on_twenty_rows")
 
 # Lane CODES-3's own gate tables (tests/test_zoo_identifiers.py): table, column, declared.
 CODES3 = (
@@ -214,10 +217,14 @@ def every_shape() -> "tuple[str, ...]":
     return tuple(SHAPES) + tuple(table for table, _column, _declared in CODES3)
 
 
-def equal_cells(real: "list[str]", twin: "list[str]") -> int:
-    """Twin cells, present, spelled exactly as a present real cell of the same column."""
-    present = {cell for cell in real if cell.strip()}
-    return sum(1 for cell in twin if cell.strip() and cell in present)
+def equal_cells(real: "list[str]", twin: "list[str]", absent: "frozenset[str]" = frozenset()) -> int:
+    """Twin cells, present, spelled exactly as a present real cell of the same column.
+
+    ``absent`` are the spellings the description reads as no value (its `missing_by_source`: `.`,
+    `N/A`), which the twin writes at their published counts and which are no identifier.
+    """
+    present = {cell for cell in real if cell.strip() and cell not in absent}
+    return sum(1 for cell in twin if cell.strip() and cell not in absent and cell in present)
 
 
 def run_shape(
@@ -273,11 +280,12 @@ def run_shape(
     for written in sorted(folder.iterdir()):
         if written.is_file() and written.name not in ("t.csv", "t-twin.csv"):
             texts[written.name] = written.read_text(encoding="utf-8", errors="replace")
+    absent = frozenset(block.get("missing_by_source") or {})  # type: ignore[arg-type]
     return {
         "exits": (profiled, generated, validated),
         "block": block,
         "real": real,
         "twin": twin,
-        "equal": equal_cells(real, twin),
+        "equal": equal_cells(real, twin, absent),
         "texts": texts,
     }

@@ -26394,7 +26394,7 @@ def _a1_written(
 # sign or after a zero fill's own noughts.
 _EXCLUSION_NO_NOUGHT_AFTER = ".-+" + parsing.LAYOUT_LEADING_ZERO
 # The placeholders an exclusion writes out: a figure's, the two
-# hexadecimal marks, and a letter's where another letter place stays.
+# hexadecimal marks (the block's), and a letter's.
 _EXCLUDED_MARKS = (
     parsing.LAYOUT_DIGIT + parsing.LAYOUT_LOWER_HEX + parsing.LAYOUT_UPPER_HEX
 )
@@ -26408,29 +26408,29 @@ def with_layout_exclusions(
 
     NO TWIN IDENTIFIER CELL EQUALS A REAL ONE, BY CONSTRUCTION. Asked once
     the block's census and prefixes are final, of the column's own cells,
-    it publishes `layout_exclusions`: beside each named layout, the
-    layout with places written out that NO real cell of that layout
-    holds -- the first place, left to right, at which every character of
-    its alphabet is held by no real cell or by at least ``floor`` of them,
-    one of them by none (the greatest such character, never a nought that
-    would lead a number or an arc); else, on a layout no such place
-    leaves, its last k places as their greatest characters, where k is
-    the fewest whose spellings are `_EXCLUSION_BLOCK_ODDS` times the
-    layout's published cells and no real cell holds them -- and only
-    where the room left still holds the layout's cells or the column's
-    different values, whichever is fewer. And `(spill)`: the widest named
-    layout widened past the column's longest real cell, which no real
-    cell wears (`parsing.spill_layout`). The twin writes every cell of a
-    layout carrying an exclusion with it, and every other cell in the
-    spill, so no twin cell is spelled as a real one: two equal cells wear
-    one layout and hold one character at every place.
+    it publishes `layout_exclusions` (contract 7.12b): beside each named
+    layout where one is found, the layout with places written out that NO
+    real cell of that layout holds -- ONE place, the first the twin fills,
+    left to right, whose alphabet read from its greatest character down
+    reaches one no such cell holds before one that 1 to ``floor`` - 1
+    cells hold (no nought that would lead a number or an arc); else the
+    BLOCK, every other figure place the twin fills from the last, as many
+    as leave the template room for the layout's cells or the column's
+    different values, written as the greatest of their spellings no real
+    cell of the layout holds there (`_exclusion_of`). And `(spill)`: the widest named layout widened past
+    the column's longest real cell, which no real cell wears
+    (`parsing.spill_layout`). The twin writes every cell of a layout
+    carrying an exclusion with it, and every other value nearest its own
+    shape where no real cell can be (method G9.6b), so no twin cell is
+    spelled as a real one: two equal cells wear one layout and hold one
+    character at every place.
 
     WHAT IT PUBLISHES IS WHAT THE COLUMN DOES NOT HOLD. A written
-    character is held by no real cell at its place; the characters the
-    choice passed over at that place are each held by at least ``floor``
-    cells; and the spill's length says only that every real cell is
-    shorter, as `max_length` already does for every block but rule A1's.
-    No real identifier, no extreme of one and no count below the floor is
+    character is held by no real cell at its place; every character the
+    choice passed over at that place is held by at least ``floor`` cells;
+    and the spill's length says only that every real cell is shorter, as
+    `max_length` already does for every block but rule A1's. No real
+    identifier, no extreme of one and no count below the floor is
     published.
 
     Guarantees: accepts a described column and its cells; returns it with
@@ -26468,13 +26468,17 @@ def with_layout_exclusions(
             wanted[layout] = True
         worn: "dict[str, list[str]]" = {}
         longest = 0
+        # READ ON THE CELL'S CORE: a value written with a space before or
+        # after it wears no layout of its own, and is held to the one its
+        # trimmed text wears, as the twin's own cells are (G9.6b).
         for value in present:
             longest = max(longest, len(value))
-            layout = parsing.layout_form(value, convention)
+            core = parsing.trimmed(value)
+            layout = parsing.layout_form(core, convention)
             if layout in wanted:
                 if layout not in worn:
                     worn[layout] = []
-                worn[layout] += [value]
+                worn[layout] += [core]
         whole = ""
         if parsing.PREFIX_OF_THE_COLUMN in prefixes:
             whole = f"{prefixes[parsing.PREFIX_OF_THE_COLUMN]}"
@@ -26511,6 +26515,16 @@ def with_layout_exclusions(
         spill = parsing.spill_layout(widest, opening, longest)
         if spill:
             exclusions[parsing.EXCLUSION_SPILL] = spill
+        # NO REAL CELL OUTSIDE THE NAMED LAYOUTS, where none is: a zero
+        # count, read off the cells (rule A1 counts some in its commonest).
+        outside = False
+        for value in present:
+            layout = parsing.layout_form(parsing.trimmed(value), convention)
+            if layout and layout not in wanted:
+                outside = True
+                break
+        if not outside:
+            exclusions[parsing.EXCLUSION_UNNAMED] = parsing.EXCLUSION_NONE
     details: dict[str, object] = {}
     for key in sorted(column.details):
         details[key] = column.details[key]
@@ -26532,18 +26546,9 @@ def _exclusion_of(
     room = (
         parsing.uid_room(template[len(root):]) if root else parsing.layout_room(template)
     )
-    letters = 0
-    for mark in template:
-        if mark in _LETTER_MARKS:
-            letters = letters + 1
-    # A LETTER PLACE IS WRITTEN OUT ONLY WHERE ANOTHER STAYS, so every
-    # spelling of the template still holds a letter placeholder where the
-    # layout's own did (the fold-collision ask reads it, G9.3).
     places: "list[int]" = []
     for place in range(len(template)):
-        if template[place] in _EXCLUDED_MARKS or (
-            template[place] in _LETTER_MARKS and letters >= 2
-        ):
+        if template[place] in _EXCLUDED_MARKS or template[place] in _LETTER_MARKS:
             places += [place]
     for place in places:
         held: "dict[str, int]" = {}
@@ -26564,34 +26569,61 @@ def _exclusion_of(
                 # PASSED OVER: the place is left, so what the choice says
                 # about a character it passed is that the floor's cells hold it.
                 break
-    # THE BLOCK: the last k figure places, k the most whose spellings the
-    # room still holds the layout's cells or values beside, written as
-    # their greatest characters, and one block tried, never a second.
+    # THE BLOCK: every other figure place the twin fills, counted from the
+    # last, k of them, k the most whose spellings the room still holds the
+    # layout's cells or values beside -- every other place, so no run of
+    # written characters stands in the description, where a run of five
+    # figures could be read as a fragment of some value. Its spellings are
+    # read from the greatest down and the first no real cell of the layout
+    # holds there is written: what the choice passes over is held at those
+    # places by some real cell, its low places, never an extreme's.
+    figures: "list[int]" = []
+    for place in places:
+        if template[place] in _EXCLUDED_MARKS:
+            figures += [place]
     spellings = 1
     block: "list[int]" = []
-    for at in range(len(places) - 1, -1, -1):
-        place = places[at]
-        if template[place] not in _EXCLUDED_MARKS:
-            break
+    for at in range(len(figures) - 1, -1, -2):
+        place = figures[at]
         wider = spellings * len(parsing.exclusion_alphabet(template[place]))
         if room // wider < max(need, 1):
             break
         block += [place]
         spellings = wider
-    if not block or spellings < max(published, 1):
+    if not block:
         return ""
-    written = layout
-    for place in block:
-        alphabet = parsing.exclusion_alphabet(template[place])
-        written = written[:place] + alphabet[len(alphabet) - 1] + written[place + 1:]
+    worn: "dict[str, bool]" = {}
     for value in cells:
-        every = True
+        key = ""
         for place in block:
-            if value[place] != written[place]:
-                every = False
-        if every:
-            return ""
-    return written
+            key = key + value[place]
+        worn[key] = True
+    if len(worn) >= spellings:
+        return ""
+    for number in range(spellings - 1, -1, -1):
+        key = ""
+        rest = number
+        for place in block:
+            alphabet = parsing.exclusion_alphabet(template[place])
+            key = key + alphabet[rest % len(alphabet)]
+            rest = rest // len(alphabet)
+        if key in worn:
+            continue
+        leads = False
+        for at in range(len(block)):
+            place = block[at]
+            if key[at] == "0" and (
+                place == 0 or template[place - 1] in _EXCLUSION_NO_NOUGHT_AFTER
+            ):
+                leads = True
+        if leads:
+            continue
+        written = layout
+        for at in range(len(block)):
+            place = block[at]
+            written = written[:place] + key[at] + written[place + 1:]
+        return written
+    return ""
 
 
 def whole_places_of(value: str) -> int:

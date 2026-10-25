@@ -2942,12 +2942,14 @@ def _leaf_is_published(
     if kind == _LITERAL_PREFIX:
         return isinstance(value, str) and parsing.is_a_literal_prefix(value)
     if kind == _EXCLUSION_SCOPE:
-        if value == parsing.EXCLUSION_SPILL:
+        if value in (parsing.EXCLUSION_SPILL, parsing.EXCLUSION_UNNAMED):
             return True
         return value != taxonomy.SUPPRESSED_LABEL and _is_layout_form(value)
     if kind == _LAYOUT_EXCLUSION:
         return isinstance(value, str) and (
-            parsing.is_a_layout_exclusion(value) or _is_layout_form(value)
+            value == parsing.EXCLUSION_NONE
+            or parsing.is_a_layout_exclusion(value)
+            or _is_layout_form(value)
         )
     if kind == _LAYOUT_FORM:
         return _is_layout_form(value)

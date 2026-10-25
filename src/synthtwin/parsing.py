@@ -3265,7 +3265,7 @@ def uid_unled(text: str) -> bool:
 # numbers of three widths 214, rsIDs 15, and the count grew with the
 # rows. The profile, which reads the real column, therefore publishes
 # beside each named layout ONE EXCLUSION: the layout with one placeholder
-# (or, on a layout too densely filled for one, its last few) written as a
+# (or, on a layout too densely filled for one, several) written as a
 # character NO real cell of that layout holds there. Every twin cell of
 # that layout carries it, so it equals no real cell: two equal cells wear
 # one layout and hold one character at every place. A layout no
@@ -3277,6 +3277,11 @@ def uid_unled(text: str) -> bool:
 # The key of `layout_exclusions` naming the spill layout. It holds
 # lower-case letters, which no layout holds, as `(column)` does.
 EXCLUSION_SPILL = "(spill)"
+# ...and the key saying NO real cell wears a layout the census does not
+# name (a zero count), under its one value: a twin cell of such a layout
+# then equals no real cell either.
+EXCLUSION_UNNAMED = "(unnamed)"
+EXCLUSION_NONE = "(none)"
 
 _EXCLUSION_ALPHABETS = {
     LAYOUT_DIGIT: "0123456789",
