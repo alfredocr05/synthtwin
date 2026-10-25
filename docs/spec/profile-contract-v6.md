@@ -18787,13 +18787,15 @@ cells:
    layout's cells or the column's different values, whichever is fewer
    (else the layout carries none); a character held by at least one cell
    and fewer than `small_cell_floor` is never passed over: the place is
-   left for the next. Where no place gives one, the BLOCK: every other figure
+   left for the next. Where no place gives one, the BLOCK: every other
    place the twin fills, counted from the last, k of them -- every other,
    so no run of written characters stands in the description -- k the
-   most whose spellings leave the template room for the layout's cells or
-   the column's different values, whichever is fewer; its spellings are
-   read from the greatest down, none opening a run of figures with a
-   nought, and the first no such cell holds at those places is written.
+   fewest from two at which some spelling is held by no such cell, while
+   the spellings left hold the layout's cells or the column's different
+   values, whichever is fewer (else the layout carries none); its
+   spellings are read from the greatest down, none opening a run of
+   figures with a nought, and the first no such cell holds at those
+   places is written.
    A layout carrying no exclusion has every value of its twin written
    wider than every real cell, and its census entry and the lengths are
    then the real table's, listed by the validator and named by the

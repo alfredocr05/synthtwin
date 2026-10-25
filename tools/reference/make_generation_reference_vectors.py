@@ -26273,7 +26273,9 @@ def spelled_off_the_real(column, content):
         if layout and bound:
             prefix = prefixes.get(layout, whole)
             opening = len(prefix_layout(prefix, convention))
-            wide = widened_layout(layout, opening, bound - 1)
+            # A value holding a letter is written one character wider still.
+            lettered = LAYOUT_UPPER in layout or LAYOUT_LOWER in layout
+            wide = widened_layout(layout, opening, bound - 1 + (1 if lettered else 0))
             if wide:
                 targets += [template_of(wide, prefix)]
         if spill:

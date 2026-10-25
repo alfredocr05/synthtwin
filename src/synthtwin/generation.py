@@ -54527,7 +54527,14 @@ def _off_the_real_targets(room: _OffTheReal, core: str) -> "list[str]":
     if layout and room.bound:
         prefix = _prefix_of(room.facts, layout)
         opening = len(parsing.prefix_layout(prefix, room.convention)) if prefix else 0
-        widest = parsing.spill_layout(layout, opening, room.bound - 1)
+        # A value holding a letter is written one character wider still, so
+        # a widened value of letters and figures never shares its length
+        # with the widened values of figures alone: the column's convention
+        # is read off the cells of one length (`parsing.layout_convention`).
+        lettered = parsing.LAYOUT_UPPER in layout or parsing.LAYOUT_LOWER in layout
+        widest = parsing.spill_layout(
+            layout, opening, room.bound - 1 + (1 if lettered else 0)
+        )
         if widest:
             offered += [parsing.layout_template(widest, prefix, room.whole_places)]
     if room.spill:
@@ -54594,7 +54601,7 @@ def _next_off_the_real(
     part's spelling is. Each part's spelling wears what keeps it off the
     real (`_kept_off_the_real`, for a folded identity of several), is no
     hole spelling and no date, and, where ``strict``, reads as that
-    part's own class and alphabets. The fillings are read from the
+    part's own class, wholeness and alphabets. The fillings are read from the
     first, the nought filling (every place at its lowest) last.
     """
     step = room.steps[template] if template in room.steps else 0
@@ -54642,9 +54649,10 @@ def _next_off_the_real(
 
 
 def _reads_alike(spelling: str, cell: str) -> bool:
-    """Whether two spellings read as one class and in the same two alphabets (G9.6b)."""
+    """Whether two spellings read as one class, as whole or not alike, and in the same two alphabets (G9.6b)."""
     return (
         parsing.classify_number(spelling) == parsing.classify_number(cell)
+        and parsing.numeric_whole(spelling) == parsing.numeric_whole(cell)
         and parsing.is_digit_text(spelling) == parsing.is_digit_text(cell)
         and parsing.is_code_text(spelling) == parsing.is_code_text(cell)
     )

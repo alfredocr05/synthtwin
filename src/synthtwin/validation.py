@@ -22509,7 +22509,7 @@ def _listings(
                     Listing(
                         column.name,
                         "identifier.layout_forms",
-                        f"layout_forms.published.{layout}",
+                        f"forms.published.{layout}",
                         _NOT_CHECKABLE_MOVED_OFF_THE_REAL,
                     )
                 ]

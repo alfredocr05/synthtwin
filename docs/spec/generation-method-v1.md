@@ -15638,9 +15638,13 @@ make it so:
    template is asked), that neither spells nor folds onto any cell of the
    column or any spelling taken before it, wears the template, is no
    spelling read as absent and no date, AND reads as the value's own
-   class and alphabets (`parsing.classify_number`, `is_digit_text`,
+   class, whole or not as it is, and in its alphabets
+   (`parsing.classify_number`, `numeric_whole`, `is_digit_text`,
    `is_code_text`), of: its layout's excluded template; its layout
-   widened as long as the spill (`parsing.spill_layout`), under its
+   widened as long as the spill (`parsing.spill_layout`), one character
+   longer still where it holds a letter (so no widened value of letters
+   shares its length with the widened values of figures, and the
+   column's convention, read over cells of one length, stays), under its
    prefix and noughts; the spill's template. No value is moved into
    another named layout, so every count of a layout carrying an
    exclusion stays as the walks met it. Only where

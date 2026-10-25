@@ -2400,7 +2400,7 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   description alone and as this validator's own second opinion: every
   named layout no exclusion is published for, whose twin values the
   generator writes wider than every real cell (method G9.6b) -- its
-  census entry, subcheck `layout_forms.published.<layout>`, is
+  census entry, subcheck `forms.published.<layout>`, is
   REPORT-ONLY; and the shortest and longest lengths, subchecks
   `length.min` and `length.max`, are REPORT-ONLY with it wherever such a
   layout is named, wherever `(unnamed)` does not say that no real cell

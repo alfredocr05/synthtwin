@@ -26419,10 +26419,11 @@ def with_layout_exclusions(
     left to right, whose alphabet read from its greatest character down
     reaches one no such cell holds before one that 1 to ``floor`` - 1
     cells hold (no nought opening a run of figures); else the
-    BLOCK, every other figure place the twin fills from the last, as many
-    as leave the template room for the layout's cells or the column's
-    different values, written as the greatest of their spellings no real
-    cell of the layout holds there (`_exclusion_of`). And `(spill)`: the widest named layout widened past
+    BLOCK, every other place the twin fills from the last, the fewest from
+    two that some spelling no real cell of the layout holds there leaves,
+    while the room left holds the layout's cells or the column's
+    different values, written as the greatest such spelling
+    (`_exclusion_of`). And `(spill)`: the widest named layout widened past
     the column's longest real cell, which no real cell wears
     (`parsing.spill_layout`). The twin writes every cell of a layout
     carrying an exclusion with it, and every other value nearest its own
@@ -26638,56 +26639,56 @@ def _exclusion_of(
                 # PASSED OVER: the place is left, so what the choice says
                 # about a character it passed is that the floor's cells hold it.
                 break
-    # THE BLOCK: every other figure place the twin fills, counted from the
-    # last, k of them, k the most whose spellings the room still holds the
-    # layout's cells or values beside -- every other place, so no run of
-    # written characters stands in the description, where a run of five
-    # figures could be read as a fragment of some value. Its spellings are
-    # read from the greatest down and the first no real cell of the layout
-    # holds there is written: what the choice passes over is held at those
-    # places by some real cell, its low places, never an extreme's.
-    spellings = 1
-    block: "list[int]" = []
+    # THE BLOCK: every other place the twin fills, counted from the last,
+    # k of them, k the FEWEST from two whose spellings some real cell of
+    # the layout leaves free there, while the room left still holds the
+    # layout's cells or values -- every other place, so no run of written
+    # characters stands in the description, where a run of five could be
+    # read as a fragment of some value. Its spellings are read from the
+    # greatest down and the first no real cell holds there is written:
+    # what the choice passes over is held at those places by some real
+    # cell, its low places, never an extreme's.
+    chosen: "list[int]" = []
     for at in range(len(places) - 1, -1, -2):
-        place = places[at]
-        wider = spellings * len(parsing.exclusion_alphabet(template[place]))
-        if room // wider < max(need, 1):
-            break
-        block += [place]
-        spellings = wider
-    if not block:
-        return ""
-    worn: "dict[str, bool]" = {}
-    for value in cells:
-        key = ""
+        chosen += [places[at]]
+    for size in range(2, len(chosen) + 1):
+        block = chosen[:size]
+        spellings = 1
         for place in block:
-            key = key + value[place]
-        worn[parsing.folded(key)] = True
-    if len(worn) >= spellings:
-        return ""
-    for number in range(spellings - 1, -1, -1):
-        key = ""
-        rest = number
-        for place in block:
-            alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]))
-            key = key + alphabet[rest % len(alphabet)]
-            rest = rest // len(alphabet)
-        if parsing.folded(key) in worn:
+            spellings = spellings * len(parsing.exclusion_alphabet(template[place]))
+        if room // spellings < max(need, 1):
+            return ""
+        worn: "dict[str, bool]" = {}
+        for value in cells:
+            key = ""
+            for place in block:
+                key = key + value[place]
+            worn[parsing.folded(key)] = True
+        if len(worn) >= spellings:
             continue
-        leads = False
-        for at in range(len(block)):
-            place = block[at]
-            if key[at] == "0" and (
-                place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
-            ):
-                leads = True
-        if leads:
-            continue
-        written = layout
-        for at in range(len(block)):
-            place = block[at]
-            written = written[:place] + key[at] + written[place + 1:]
-        return written
+        for number in range(spellings - 1, -1, -1):
+            key = ""
+            rest = number
+            for place in block:
+                alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]))
+                key = key + alphabet[rest % len(alphabet)]
+                rest = rest // len(alphabet)
+            if parsing.folded(key) in worn:
+                continue
+            leads = False
+            for at in range(len(block)):
+                place = block[at]
+                if key[at] == "0" and (
+                    place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
+                ):
+                    leads = True
+            if leads:
+                continue
+            written = layout
+            for at in range(len(block)):
+                place = block[at]
+                written = written[:place] + key[at] + written[place + 1:]
+            return written
     return ""
 
 

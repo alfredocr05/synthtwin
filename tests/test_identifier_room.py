@@ -14,7 +14,7 @@ keys beside `N/A` 4,000; and the zoo's own identifier columns 328 cells at 600 r
 record ids 318). The count grows with the rows.
 
 THE RULE (contract 7.12b, method G9.6b). The profile, which reads the real column, publishes beside
-each named layout an EXCLUSION -- the layout with one place (or every other figure place of a block)
+each named layout an EXCLUSION -- the layout with one place (or every other place of a block)
 written as a character NO real cell of that layout holds there -- and the SPILL, a layout longer
 than every real cell. The twin writes each excluded layout's cells with the exclusion, and every
 other value nearest its own shape where no real cell can be: its layout's excluded template, the
