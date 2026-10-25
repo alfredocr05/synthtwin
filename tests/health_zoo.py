@@ -3023,8 +3023,8 @@ def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: path
             in_description = real & set(said)
             normal_twin = [_normal(cell) for cell in twin_cells] if how == "values" else []
             in_twin = real & set(normal_twin)
-            chance = _by_chance(real, set(normal_twin))
-            if len(in_twin) <= 2 * chance + 3 and chance:
+            drawn, chance = _by_chance(real, set(normal_twin))
+            if drawn and len(in_twin) <= 2 * chance + 3:
                 in_twin = set()
             cells = sum(1 for cell in normal_twin if cell in in_twin)
             found[column] = {
@@ -3035,27 +3035,40 @@ def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: path
     return found
 
 
-def _by_chance(real: "set[str]", twin: "set[str]") -> int:
-    """The twin's matches with the CONTROL: every real number moved past the real range by its width.
+def _by_chance(real: "set[str]", twin: "set[str]") -> "tuple[bool, int]":
+    """Whether a CONTROL is drawn, and the twin's matches with it: the real numbers moved past their range by its width.
 
     The numbers are the values' figures where every value is one run of
     figures between the same constant marks ('MR4000123', '100023',
-    '31000000.00' read as its figures before the point); nought where
-    they are not (names, addresses, codes with letters among the
-    figures): there no control is drawn and every match counts.
+    '31000000.00' read as its figures before the point), or else every
+    value read as a number ('4.56789E+11'); no control is drawn where
+    they are neither (names, addresses, codes with letters among the
+    figures), and there every match counts.
     """
+    if not real:
+        return False, 0
     parts = [re.fullmatch(r"(\D*?)(\d+)(\D*|\.0+)", value) for value in real]
-    if not real or not all(parts):
-        return 0
     marks = {(part.group(1), part.group(3)) for part in parts if part}
-    if len(marks) != 1:
-        return 0
-    (before, after), = marks
-    numbers = [int(part.group(2)) for part in parts if part]
-    places = max(len(part.group(2)) for part in parts if part)
-    width = max(numbers) - min(numbers) + 1
-    control = {f"{before}{number + width:0{places}d}{after}" for number in numbers}
-    return len(control & twin)
+    if all(parts) and len(marks) == 1:
+        (before, after), = marks
+        numbers = [int(part.group(2)) for part in parts if part]
+        places = max(len(part.group(2)) for part in parts if part)
+        width = max(numbers) - min(numbers) + 1
+        control = {f"{before}{number + width:0{places}d}{after}" for number in numbers}
+        return True, len(control & twin)
+    try:
+        values = [float(value) for value in real]
+    except ValueError:
+        return False, 0
+    spread = max(values) - min(values) or 1.0
+    shifted = {value + spread for value in values}
+    hits = 0
+    for cell in twin:
+        try:
+            hits += 1 if float(cell) in shifted else 0
+        except ValueError:
+            continue
+    return True, hits
 
 
 # -- per kind, and the three KPIs --------------------------------------------

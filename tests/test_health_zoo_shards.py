@@ -232,7 +232,10 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
     drawn.write_bytes(table.write(header, rows))
     marked = zoo.leaked(table, real, drawn, profile)["patient_id"]
     assert marked["twin"] == 0 and marked["twin_by_chance"] > 0, marked
-    assert zoo._by_chance({"Maria Chen", "MR1"}, {"Maria Chen"}) == 0, "no control where the values are not one run of figures"
+    assert zoo._by_chance({"Maria Chen", "MR1"}, {"Maria Chen"}) == (False, 0), "no control where the values are not numbers"
+    # A number in scientific notation met once by chance: the control is
+    # drawn, and one match under it is not a copy.
+    assert zoo._by_chance({"4.56789E+11", "1.23457E+11"}, {"4.56789E+11"})[0] is True
 
 
 def test_the_age_scan_sees_an_age_past_89(tmp_path: pathlib.Path) -> None:
