@@ -247,8 +247,8 @@ def test_the_first_description_is_read_before_the_answers(monkeypatch: pytest.Mo
         profile = source.with_name(f"{table.name}-profile.json")
         held = "--answers" in arguments
         block = {"name": "zip5", "role": "identifier"} if held else {"name": "zip5", "mode": real_zip}
-        profile.write_text(json.dumps({"columns": [block]}), encoding="utf-8")
-        source.with_name(f"{table.name}-questions.json").write_text(json.dumps({"asked": []}), encoding="utf-8")
+        profile.write_text(json.dumps({"columns": [block]}), encoding="utf-8", newline="\n")
+        source.with_name(f"{table.name}-questions.json").write_text(json.dumps({"asked": []}), encoding="utf-8", newline="\n")
         return 0
 
     monkeypatch.setattr(cli, "main", main)
