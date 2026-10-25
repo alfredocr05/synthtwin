@@ -44,6 +44,7 @@ import io
 import math
 import random
 import re
+from typing import Callable
 
 import health_zoo as zoo
 from health_zoo import (
@@ -2609,14 +2610,28 @@ def eu_offsets(moment: datetime.datetime) -> "tuple[str, ...]":
     return ("+02:00",) if start <= moment < end else ("+01:00",)
 
 
+def _in_the_hour_twice(draw: random.Random, moment: datetime.datetime, offsets: "object", hour: int) -> datetime.datetime:
+    """On the day the clocks go back, a third of the moments moved into the hour that happens twice."""
+    twice = moment.replace(hour=hour)
+    if len(offsets(twice)) == 2 and draw.random() < 0.34:  # type: ignore[operator]
+        return twice
+    return moment
+
+
+def _either(draw: random.Random, offsets: "tuple[str, ...]") -> str:
+    """The offset a stamp wears: in the hour that happens twice, either occurrence (Codex item 7), else the one."""
+    return draw.choice(offsets) if len(offsets) > 1 else offsets[0]
+
+
 def zoned_stamps(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     """Stamps across the days the clocks change in US Central and in Europe, UTC instants with their Z, and
-    Eastern stamps followed by their zone word (EDT, EST)."""
+    Eastern stamps followed by their zone word (EDT, EST); in the hour the clocks go back through, both
+    occurrences of each local time, each with its own offset."""
     draw = random.Random(seed)
     header = ["event_ref", "central_ts", "eu_ts", "utc_instant", "zoned_word"]
     rows: "list[list[str]]" = []
     for index in range(n):
-        central = _stamp_on_a_change_day(draw)
+        central = _in_the_hour_twice(draw, _stamp_on_a_change_day(draw), central_offsets, 1)
         if draw.random() < 0.25:
             eu_day = draw.choice(EU_CHANGE_DAYS)
         else:
@@ -2624,15 +2639,60 @@ def zoned_stamps(n: int, seed: int) -> "tuple[list[str], list[list[str]]]":
         eu = datetime.datetime.combine(eu_day, datetime.time(draw.randint(0, 23), draw.randint(0, 59), draw.randint(0, 59)))
         if not eu_offsets(eu):
             eu = eu.replace(hour=3)
+        eu = _in_the_hour_twice(draw, eu, eu_offsets, 2)
         eastern = _stamp_on_a_change_day(draw)
         rows += [[
             f"EV{600000 + index}",
-            central.strftime("%Y-%m-%d %H:%M:%S") + central_offsets(central)[0],
-            eu.strftime("%Y-%m-%d %H:%M:%S") + eu_offsets(eu)[0],
+            central.strftime("%Y-%m-%d %H:%M:%S") + _either(draw, central_offsets(central)),
+            eu.strftime("%Y-%m-%d %H:%M:%S") + _either(draw, eu_offsets(eu)),
             _when(draw).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            eastern.strftime("%Y-%m-%d %H:%M:%S") + (" EDT" if zoo.eastern_offset(eastern) == "-04:00" else " EST"),
+            eastern.strftime("%Y-%m-%d %H:%M:%S") + (" EDT" if _either(draw, zoo.eastern_offsets(eastern)) == "-04:00" else " EST"),
         ]]
     return header, rows
+
+
+def _later_occurrences(series: object, offsets: "object") -> "tuple[int, int]":
+    """The stamps in an hour that happens twice, and those of them wearing the later occurrence's offset."""
+    twice = later = 0
+    for text in series.dropna().astype(str):  # type: ignore[attr-defined]
+        try:
+            local = datetime.datetime.strptime(text[:19], "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+        here = offsets(local)  # type: ignore[operator]
+        if len(here) == 2:
+            twice += 1
+            later += 1 if text[19:] == here[1] else 0
+    return twice, later
+
+
+def _the_earlier_only(offsets: "object") -> "Callable[[str], str]":
+    """A spoil: every stamp of the hour that happens twice written with the earlier occurrence's offset."""
+
+    def how(text: str) -> str:
+        try:
+            local = datetime.datetime.strptime(text[:19], "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return text
+        here = offsets(local)  # type: ignore[operator]
+        return text[:19] + here[0] if len(here) == 2 else text
+
+    return how
+
+
+def _both_occurrences(column: str, offsets: "object", region: str) -> "tuple[Check, Check]":
+    """Codex item 7: the hour that happens twice keeps its later occurrence, at all and as its share of that hour."""
+    spoil = spoil_every(column, _the_earlier_only(offsets))
+    return (
+        Check("dst_zones_and_words", f"some {region} stamp in the hour that happens twice is its later occurrence",
+              "present", lambda f: _later_occurrences(_t(column)(f), offsets)[1] > 0, column, spoil),
+        Check("dst_zones_and_words", f"the later occurrences, as a share of the {region} hour that happens twice",
+              "share", lambda f: _share_of(*_later_occurrences(_t(column)(f), offsets)), column, spoil),
+    )
+
+
+def _share_of(whole: int, part: int) -> float:
+    return round(part / whole, 4) if whole else 0.0
 
 
 def _zone_words_in_force(moment: datetime.datetime) -> "tuple[str, ...]":
@@ -2722,6 +2782,8 @@ FAMILY_TIME: "tuple[Table, ...]" = (
             _bad("dst_zones_and_words", "each European stamp wears an offset in force on its date", "eu_ts",
                  lambda f: _wrong_offsets_by(_t("eu_ts")(f), eu_offsets, "%Y-%m-%d %H:%M:%S", 19),
                  spoil_cell("eu_ts", "2024-07-01 10:00:00+01:00")),
+            *_both_occurrences("central_ts", central_offsets, "Central"),
+            *_both_occurrences("eu_ts", eu_offsets, "European"),
             _dated("dst_zones_and_words", "UTC instants with their Z", "utc_instant", "%Y-%m-%dT%H:%M:%SZ"),
             _pattern("dst_zones_and_words", "Eastern stamps with their zone word", "zoned_word",
                      r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d (EDT|EST)"),
@@ -3170,7 +3232,11 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     "dst_zones_and_words": (
         ("DST", "the twin writes an offset not in force on its date (US Central and European rules; the zoo plan's row 30)",
          covers("each Central stamp wears an offset in force on its date",
-                "each European stamp wears an offset in force on its date")),
+                "each European stamp wears an offset in force on its date",
+                "some Central stamp in the hour that happens twice is its later occurrence",
+                "the later occurrences, as a share of the Central hour that happens twice",
+                "some European stamp in the hour that happens twice is its later occurrence",
+                "the later occurrences, as a share of the European hour that happens twice")),
         ("TR", "a stamp followed by a zone word ('EDT', 'EST') is not read: only UTC and GMT are (the zoo plan's row 31)",
          covers("Eastern stamps with their zone word", "each zone word is the one in force on its date", columns=("zoned_word",))),
     ),

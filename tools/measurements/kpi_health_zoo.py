@@ -119,7 +119,9 @@ def main() -> None:
     large_second = measured_large["K-HZ-02"]
     first: "dict[str, object]" = {
         "kinds_passing_csv": sum(1 for kind in passing if kind not in workbook),
-        "kinds_smoke_600_rows_running": sum(1 for kind in kinds if smoke.get(kind)),
+        # Codex item 6: where the workbooks are not run, the smoke is counted
+        # over the delimited exports alone, never as the whole catalogue.
+        "kinds_smoke_600_rows_running_csv": sum(1 for kind in kinds if smoke.get(kind) and kind not in workbook),
         "questions_not_general_20000_rows": large_first["questions_not_general"],
         "analyst_errors_on_real_20000_rows": large_first["analyst_errors_on_real"],
         "failures_needing_owner_20000_rows": large_second["failures_needing_owner"],
@@ -129,6 +131,7 @@ def main() -> None:
     if whole:
         first["kinds_passing"] = len(passing)
         first["kinds_in_catalogue"] = len(kinds)
+        first["kinds_smoke_600_rows_running"] = sum(1 for kind in kinds if smoke.get(kind))
     kpi_rules.emit(
         "K-HZ-01",
         first,

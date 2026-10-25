@@ -152,6 +152,14 @@ def test_a_step_that_fails_for_another_reason_is_not_called_refused(monkeypatch:
     assert zoo.floor_measures([result])["kinds_refused_by_floor"] == 0
 
 
+COUNTS = ("description", "twin", "twin_cells", "twin_by_chance")
+
+
+def _counted(found: "dict[str, dict]") -> "dict[str, dict]":
+    """Each entry's counts alone (an entry also names its column and how it is read)."""
+    return {key: {name: entry[name] for name in COUNTS} for key, entry in found.items()}
+
+
 def _leak_case(tmp_path: pathlib.Path, twin_change: "object", described: "dict") -> "dict[str, dict]":
     table = zoo.table_named("patients")
     header, rows = table.build(zoo.SMOKE_ROWS, zoo.seed_of(table))
@@ -163,11 +171,14 @@ def _leak_case(tmp_path: pathlib.Path, twin_change: "object", described: "dict")
     twin.write_bytes(table.write(header, rows))
     profile = tmp_path / "profile.json"
     profile.write_text(json.dumps(described), encoding="utf-8", newline="\n")
-    return zoo.leaked(table, real, twin, profile)
+    return _counted(zoo.leaked(table, real, twin, profile))
 
 
 def _made_up_zips(header: "list[str]", rows: "list[list[str]]") -> None:
-    for column, value in (("zip5", "99901"), ("zip4", "99901-0001"), ("dob_iso", "1800-01-01")):
+    for column, value in (
+        ("zip5", "99901"), ("zip4", "99901-0001"), ("dob_iso", "1990-01-01"), ("dob_us", "01/01/1990"),
+        ("dob_text", "01-Jan-1990"), ("patient_id", "PX0000001"),
+    ):
         place = header.index(column)
         for row in rows:
             row[place] = value
@@ -176,7 +187,9 @@ def _made_up_zips(header: "list[str]", rows: "list[list[str]]") -> None:
 def test_the_leak_scan_sees_a_real_value(tmp_path: pathlib.Path) -> None:
     """HIPAA first: a real ZIP in the twin, or printed in the column's block or its note, is found; made-up ones are not."""
     clean = _leak_case(tmp_path / "clean", _made_up_zips, {"columns": [{"name": "zip5", "role": "identifier"}]})
-    assert clean == {column: {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0} for column, _how in zoo.table_named("patients").leaks}
+    patients = zoo.table_named("patients")
+    every = zoo.leak_list(patients, patients.build(10, 1)[0])
+    assert clean == {zoo._leak_key(column, how): dict.fromkeys(COUNTS, 0) for column, how in every}
     copied = _leak_case(tmp_path / "copied", lambda header, rows: None, {"columns": []})
     assert copied["zip5"]["twin"] >= 10 and copied["zip5"]["twin_cells"] == zoo.SMOKE_ROWS
     printed = _leak_case(tmp_path / "printed", _made_up_zips, {
@@ -213,14 +226,16 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
         row[place] = f"{draw.randint(100000, 103599)}"
     drawn = tmp_path / "drawn.csv"
     drawn.write_bytes(table.write(header, rows))
-    by_chance = zoo.leaked(table, real, drawn, profile)["patient_id"]
+    by_chance = _counted(zoo.leaked(table, real, drawn, profile))["patient_id"]
     assert by_chance["twin"] == 0 and by_chance["twin_by_chance"] > 0, by_chance
     for index in range(len(rows)):
         rows[index][place] = f"{100000 + index * 3}" if index < 20 else f"{200000 + index}"
     copied = tmp_path / "copied.csv"
     copied.write_bytes(table.write(header, rows))
-    assert zoo.leaked(table, real, copied, profile)["patient_id"] == {
-        "description": 0, "twin": 20, "twin_cells": 20, "twin_by_chance": 0,
+    # Chance here is the real's density inside its range (600 keys over
+    # 1,798 numbers) times the twenty values drawn there: 7, far under 20.
+    assert _counted(zoo.leaked(table, real, copied, profile))["patient_id"] == {
+        "description": 0, "twin": 20, "twin_cells": 20, "twin_by_chance": 7,
     }
     # The same between constant marks: 'MR' and seven figures, as a
     # medical record number is written.
@@ -230,12 +245,12 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
     for row in rows:
         row[place] = f"MR{draw.randint(4000000, 4001199)}"
     drawn.write_bytes(table.write(header, rows))
-    marked = zoo.leaked(table, real, drawn, profile)["patient_id"]
+    marked = _counted(zoo.leaked(table, real, drawn, profile))["patient_id"]
     assert marked["twin"] == 0 and marked["twin_by_chance"] > 0, marked
-    assert zoo._by_chance({"Maria Chen", "MR1"}, {"Maria Chen"}) == (False, 0), "no control where the values are not numbers"
+    assert zoo._by_chance({"maria chen", "mr1"}, ["maria chen"]) == (False, 0, 0), "no control where the values are not numbers"
     # A number in scientific notation met once by chance: the control is
     # drawn, and one match under it is not a copy.
-    assert zoo._by_chance({"4.56789E+11", "1.23457E+11"}, {"4.56789E+11"})[0] is True
+    assert zoo._by_chance({zoo._normal("4.56789E+11"), zoo._normal("1.23457E+11")}, [zoo._normal("4.56789E+11")])[0] is True
 
 
 def test_the_age_scan_sees_an_age_past_89(tmp_path: pathlib.Path) -> None:
@@ -248,13 +263,13 @@ def test_the_age_scan_sees_an_age_past_89(tmp_path: pathlib.Path) -> None:
     real.write_bytes(table.write(header, rows))
     profile = tmp_path / "profile.json"
     profile.write_text(json.dumps({"columns": [{"name": "age", "levels": {"90+": 30}}]}), encoding="utf-8", newline="\n")
-    assert zoo.leaked(table, real, real, profile)["age"] == {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
+    assert _counted(zoo.leaked(table, real, real, profile))["age"] == {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
     place = header.index("age")
     rows[0][place] = "93"
     twin = tmp_path / "twin.csv"
     twin.write_bytes(table.write(header, rows))
     profile.write_text(json.dumps({"columns": [{"name": "age", "tails": {"high": {"values": [90.0, 91.0, 104]}}}]}), encoding="utf-8", newline="\n")
-    assert zoo.leaked(table, real, twin, profile)["age"] == {"description": 2, "twin": 1, "twin_cells": 1, "twin_by_chance": 0}
+    assert _counted(zoo.leaked(table, real, twin, profile))["age"] == {"description": 2, "twin": 1, "twin_cells": 1, "twin_by_chance": 0}
 
 
 def test_a_printed_value_is_read_in_the_description_alone(tmp_path: pathlib.Path) -> None:

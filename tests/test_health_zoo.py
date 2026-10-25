@@ -873,7 +873,7 @@ def test_a_failure_with_only_a_gap_stated_is_counted_apart(monkeypatch: pytest.M
     owned = zoo.zoo_measures([_result("labs", misses=[["result_value", "mean"]])])
     assert owned["K-HZ-02"]["failures_without_owner"] == 0
     assert owned["K-HZ-02"]["failures_needing_owner"] == 1
-    assert owned["kinds"]["mixed_results"]["needing_owner"] == ["miss result_value"]
+    assert owned["kinds"]["mixed_results"]["needing_owner"] == ["miss result_value -- mean"]
     laned = zoo.zoo_measures([_result("labs", misses=[["ref_range", "styles"]])])
     assert laned["K-HZ-02"]["failures_needing_owner"] == 0
     assert laned["kinds"]["labs"]["owners"] == ["LM1"]
@@ -965,9 +965,62 @@ def test_the_driver_prints_only_what_it_measured(
     assert printed["K-HZ-03"]["shards"] == len(shards)
     assert all(f"seconds_20000_rows_shard_{k}" in printed["K-HZ-03"] for k in range(1, len(shards) + 1))
     assert printed["K-HZ-05"]["kinds_refused_by_floor"] == 0
+    assert printed["K-HZ-01"]["kinds_smoke_600_rows_running_csv"] == delimited_kinds
     if reader:
         assert printed["K-HZ-01"]["kinds_passing"] == len(zoo.all_kinds())
+        assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == len(zoo.all_kinds())
         assert printed["K-HZ-03"]["tables_run"] == 2 * len(zoo.catalogue())
     else:
+        # Codex item 6: the smoke over the delimited exports alone is never
+        # printed as the whole catalogue's.
         assert "kinds_passing" not in printed["K-HZ-01"]
+        assert "kinds_smoke_600_rows_running" not in printed["K-HZ-01"]
         assert "tables_run" not in printed["K-HZ-03"]
+
+
+def test_a_kind_whose_smoke_stops_does_not_pass(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Skeptic 1 item 7: a kind that passes at 20,000 rows while its 600-row run stops is not counted passing.
+
+    Red on the driver without the smoke conjunct (`and smoke.get(kind)`).
+    """
+    import json
+
+    module = _driver(monkeypatch, "kpi_health_zoo_smoke")
+    monkeypatch.setattr(crosscheck, "present", lambda: True)
+
+    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None) -> "list[dict]":
+        made = [_result(t.name, rows=n) for t in zoo.runnable_tables(tables)]  # type: ignore[arg-type]
+        for result in made:
+            if n == zoo.SMOKE_ROWS and result["table"] == "labs":
+                result["steps"]["generate"] = {"exit": 1, "error": "raised"}
+        return made
+
+    monkeypatch.setattr(zoo, "run_zoo", run_zoo)
+    module.main()  # type: ignore[attr-defined]
+    printed = {}
+    for line in capsys.readouterr().out.splitlines():
+        if line.startswith("KPI "):
+            record = json.loads(line[4:])
+            printed[record["id"]] = record["value"]
+    labs = set(zoo.table_named("labs").kinds)
+    assert printed["K-HZ-01"]["kinds_passing"] == len(zoo.all_kinds()) - len(labs)
+    assert printed["K-HZ-01"]["kinds_smoke_600_rows_running"] == len(zoo.all_kinds()) - len(labs)
+    assert all(kind in printed["K-HZ-01"]["kinds_failing_named"] for kind in labs)
+
+
+def test_the_smoke_rule_reads_every_step_present() -> None:
+    """Skeptic 1 item 7: a step present that exits 1 stops the smoke, as a step missing does.
+
+    Red on the mutant of `smoke_ran` that reads only whether each step is
+    there (its exit test replaced by True).
+    """
+    stopped = _result("labs")
+    stopped["steps"]["generate"] = {"exit": 1, "error": "raised"}
+    assert "validate" in stopped["steps"]
+    assert zoo.smoke_ran([stopped]) == {"labs": False, "mixed_results": False}
+    assert zoo.smoke_ran([_result("labs")]) == {"labs": True, "mixed_results": True}
+    warned = _result("labs")
+    warned["steps"]["validate"] = {"exit": 3, "error": ""}
+    assert zoo.smoke_ran([warned]) == {"labs": True, "mixed_results": True}

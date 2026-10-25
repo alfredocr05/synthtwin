@@ -56,6 +56,7 @@ table.
 
 from __future__ import annotations
 
+import collections
 import contextlib
 import csv
 import dataclasses
@@ -2834,7 +2835,10 @@ def run_table(
     person. The people the person column names are counted on the real
     table (`people`), and the columns that name a person, a place or a
     record are read for their real values in the description and the
-    twin (`leaks`, HIPAA first).
+    twin (`leaks`, HIPAA first): each description as soon as it is
+    written -- the first, before any answer, under the stage
+    'unanswered' -- and the twin once generate has written it, so what a
+    step published is kept whatever a later step does.
     """
     from synthtwin import validation
 
@@ -2861,6 +2865,14 @@ def run_table(
             result["refused_by_floor"] = "profile"
         result["seconds"] = time.perf_counter() - started
         return result
+    # HIPAA FIRST, before any answer (skeptic 1 item 5, Codex item 4): the
+    # first description is kept beside the answered one and read at once,
+    # so a value published while a question is open is counted whatever
+    # the later steps do.
+    unanswered = folder / f"{stem}-profile-unanswered.json"
+    unanswered.write_bytes(profile_path.read_bytes())
+    real_raw = table.read(source)["raw"]
+    result["leaks"] = leaked(table, source, None, unanswered, stage="unanswered", real_raw=real_raw)
     document = json.loads(questions_path.read_text(encoding="utf-8"))
     asked, general = answer_generally(table, document)
     result["asked"] = asked
@@ -2875,6 +2887,8 @@ def run_table(
         result["seconds"] = time.perf_counter() - started
         return result
 
+    result["leaks"].update(leaked(table, source, None, profile_path, real_raw=real_raw))
+
     code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"], small_tables_refused)
     steps["generate"] = {"exit": code, "error": error}
     twin = folder / f"{stem}-twin{table.suffix}"
@@ -2885,6 +2899,8 @@ def run_table(
     if code != 0 or not twin.is_file():
         result["seconds"] = time.perf_counter() - started
         return result
+    result["leaks"].update(leaked(table, source, twin, profile_path, real_raw=real_raw))
+    del real_raw
 
     seen: "list[object]" = []
     measure = validation.measure
@@ -2914,13 +2930,69 @@ def run_table(
     made = analyse(table, twin)
     result["analyst_real_errors"] = real_faults(table, real)
     result["analyst"] = [list(failure) for failure in analyst_failures(table, real, made)]
-    if table.leaks:
-        result["leaks"] = leaked(table, source, twin, profile_path)
     result["seconds"] = time.perf_counter() - started
     return result
 
 
 # -- HIPAA first: real values in the description and the twin -----------------
+
+# WHICH COLUMNS ARE READ (lane E0c's repair, skeptic 1 item 6 and Codex
+# item 3): the leak list follows from the columns, not from a hand list.
+# A column is read when the person who holds the table answers it
+# `identifier` (`Table.knows`), or when its name says it is one of HIPAA's
+# Safe Harbor elements -- a birth or death date, a birth year, an age, a
+# ZIP code, a device identifier or an instance UID, a person's name, a
+# street address, a telephone number, an e-mail address, a social
+# security number or a medical record number -- each with how it is read
+# (`LEAK_MODES`). A table's own `leaks` adds to that, never takes away;
+# `NOT_READ` names the few columns a rule would reach that hold no
+# person's value, each with its reason. `leak_list` is the inventory, and
+# `leaked` reads every entry of it.
+LEAK_MODES = ("values", "printed values", "ages over 89", "years over 89")
+SENSITIVE_NAMES: "tuple[tuple[re.Pattern[str], tuple[str, ...], str], ...]" = (
+    (re.compile(r"(?i)(^|_)(dob|birth_?date|date_of_birth)(_|$)"), ("printed values", "years over 89"), "a birth date"),
+    (re.compile(r"(?i)birth_?year|(^|_)yob$"), ("years over 89",), "a birth year"),
+    (re.compile(r"(?i)death_?date|date_of_death"), ("printed values",), "a death date"),
+    (re.compile(r"(?i)(^|_)age(_|$)"), ("ages over 89",), "an age"),
+    (re.compile(r"(?i)zip"), ("values",), "a ZIP code"),
+    (re.compile(r"(?i)(^|_)(udi|uid)(_|$)"), ("values",), "a device identifier or an instance UID"),
+    (re.compile(r"(?i)(patient|first|last|middle|given|family|sur)_?name$"), ("values",), "a person's name"),
+    (re.compile(r"(?i)address|street|phone|e_?mail|(^|_)ssn(_|$)|social_sec"), ("values",),
+     "an address, a telephone number, an e-mail address or a social security number"),
+    (re.compile(r"(?i)med_rec|(^|_)mrn(_|$)|durable_?key"), ("values",), "a medical record number or a patient key"),
+)
+NOT_READ = {
+    "rsid": "a public dbSNP variant code ('rs' and figures), the same in every person's file",
+    "zip3": "the Safe Harbor form itself: three figures and '**'",
+    "gest_age_plus": "a gestational age in weeks and days, not the person's age",
+    "gest_age_wd": "a gestational age in weeks and days, not the person's age",
+}
+# The zoo's era: its tables are written as of 2024 (the Safe Harbor
+# shapes write a birth year as 2024 less the age), so a year of 1934 or
+# earlier is the year of an age of 90 or more, which Safe Harbor pools
+# (45 CFR 164.514(b)(2)(i)(C): "all elements of dates (including year)
+# indicative of such age").
+REF_YEAR = 2024
+OLDEST_YEAR_SHOWN = REF_YEAR - 90
+
+
+def leak_list(table: Table, header: "list[str]") -> "tuple[tuple[str, str], ...]":
+    """Every (column, how) of a table read for real values: the columns' own inventory, then the table's `leaks`."""
+    entries: "list[tuple[str, str]]" = []
+    for column in header:
+        if column in NOT_READ:
+            continue
+        hows: "list[str]" = []
+        for pattern, modes, _what in SENSITIVE_NAMES:
+            if pattern.search(column):
+                hows += [how for how in modes if how not in hows]
+        if table.knows.get(column) == "identifier" and not hows:
+            hows += ["values"]
+        entries += [(column, how) for how in hows]
+    keys = {_leak_key(column, how) for column, how in entries}
+    entries += [entry for entry in table.leaks if entry[0] in header and _leak_key(*entry) not in keys]
+    return tuple(entries)
+
 
 # Keys of a column's block that hold a count, a share or a width, never a
 # value of the column: a number under them is not read as a real value.
@@ -2928,20 +3000,43 @@ NOT_A_VALUE_KEY = re.compile(
     r"count|rows|cells|share|width|figures|places|length|distinct|people|persons|subjects|"
     r"seen|total|number_of|n_|_n$|digits|size|bins|rank|order|position|index|percent|ratio|fraction|proportion"
 )
+# Blocks keyed by a count or by a part of a clock or a calendar, never by
+# a value of the column (skeptic 1 item 11): `n_distinct_by_occurrences`
+# {"1": 44} says 44 values occur once, the widths say how wide the cells
+# are, a census counts hours, minutes, weekdays or days of the month,
+# and a tail block's `bin_groups` names histogram bins by their number.
+COUNTED_BLOCK = re.compile(r"by_occurrences|widths?$|_census$|^bin_groups$")
 PLACEHOLDER = re.compile(r"-\d")
+# Words a column writes for a value it lacks: no person's value, so never
+# counted as one (a ZIP column's 'UNKNOWN', a death date's 'NULL').
+MISSING_WORDS = frozenset((
+    "null", "na", "n/a", "nan", "none", "unknown", "unk", "missing", "homeless", "not recorded", "declined", "-",
+))
 
 
 def _normal(text: str) -> str:
-    """A value as the leak scan compares it: stripped, a whole number without its leading noughts or '.0'."""
-    stripped = text.strip()
+    """A value as the leak scan compares it (Codex item 2): folded, its spaces single, a number as its value.
+
+    A name read 'Maria Chen' and published 'maria chen' is one value; a
+    whole number loses its leading noughts and its '.0'; a number in
+    scientific notation ('1.23457E+11', as Excel shows an account number)
+    is the number it writes (123457000000), as a published 123457000000.0
+    is.
+    """
+    stripped = " ".join(text.split()).casefold()
     whole = re.fullmatch(r"(-?)0*(\d+)(\.0+)?", stripped)
     if whole:
-        return f"{whole.group(1)}{whole.group(2)}"
+        return f"{whole.group(1)}{whole.group(2) or '0'}"
+    if re.fullmatch(r"-?\d+(\.\d+)?(e[+-]?\d+)?|-?\.\d+", stripped):
+        number = float(stripped)
+        if number.is_integer() and abs(number) < 1e300:
+            return f"{int(number)}"
+        return f"{number!r}"
     return stripped
 
 
 def _scalars(value: object, key: str = "") -> "list[str]":
-    """Every string and every number a description block holds, under any key but a count's."""
+    """Every string and every number a description block holds, under any key but a count's or a census's."""
     found: "list[str]" = []
     if isinstance(value, bool) or value is None:
         return found
@@ -2952,6 +3047,8 @@ def _scalars(value: object, key: str = "") -> "list[str]":
             found += [f"{int(value)}" if float(value).is_integer() else f"{value}"]
     elif isinstance(value, dict):
         for inner_key, inner in value.items():
+            if COUNTED_BLOCK.search(f"{inner_key}".casefold()):
+                continue
             # A dict keyed by values (a census) holds them in its keys.
             found += [f"{inner_key}"]
             found += _scalars(inner, f"{inner_key}")
@@ -2983,92 +3080,224 @@ def _over_89(texts: "list[str]") -> "set[str]":
     return ages
 
 
-def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: pathlib.Path) -> "dict[str, dict]":
-    """Per column `Table.leaks` names: the real values the description and the twin carry.
+# The written forms of a date the leak scan reads a real cell in, tried
+# in order; the first under which every present cell parses is the
+# column's (skeptic 1 item 3: a US, text or two-figure-year birth date
+# is compared as the ISO date the description prints).
+DATE_FORMS = (
+    "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y", "%d/%m/%Y", "%d-%b-%Y", "%d %b %Y",
+    "%b %d, %Y", "%Y%m%d", "%m/%d/%y", "%d/%m/%y", "%d-%b-%y",
+)
+ISO_DATE = re.compile(r"(\d{4})-(\d{2})-(\d{2})(?:[T ][\d:.]+)?")
+
+
+def _date_form(cells: "list[str]") -> str:
+    """The first of `DATE_FORMS` every present cell parses under ('' where none does: not a date column)."""
+    present = [cell.strip() for cell in cells if cell.strip() and not PLACEHOLDER.fullmatch(cell.strip())]
+    present = [cell for cell in present if cell.casefold() not in MISSING_WORDS]
+    if not present:
+        return ""
+    for form in DATE_FORMS:
+        try:
+            for cell in present:
+                datetime.datetime.strptime(cell, form)
+        except ValueError:
+            continue
+        return form
+    return ""
+
+
+def _iso_dates(cells: "list[str]", form: str, century: str = "") -> "list[str]":
+    """Each cell that parses under `form` as its ISO date; a two-figure year in the century the person named."""
+    dates: "list[str]" = []
+    first = int(century[:4]) if re.fullmatch(r"\d{4}-\d{4}", century) else 0
+    for cell in cells:
+        try:
+            moment = datetime.datetime.strptime(cell.strip(), form)
+        except ValueError:
+            continue
+        if first and "%y" in form:
+            moment = moment.replace(year=first + moment.year % 100)
+        dates += [moment.date().isoformat()]
+    return dates
+
+
+def _printed_dates(said: "list[str]") -> "set[str]":
+    """The full dates a block prints, as ISO dates; one at a grain coarser than a day is left out (skeptic 1 item 4).
+
+    A date published at a year grain is written as its year's first day
+    ('1931-01-01'), and at a month grain as its month's first; where the
+    block publishes at that grain such a date is the grain's, not a
+    person's day, and the years mode reads its year instead.
+    """
+    grains = {text.casefold() for text in said}
+    dates: "set[str]" = set()
+    for text in said:
+        match = ISO_DATE.fullmatch(text.strip())
+        if not match:
+            continue
+        year, month, day = match.groups()
+        if day == "01" and (month == "01" and "year" in grains or "month" in grains):
+            continue
+        dates |= {f"{year}-{month}-{day}"}
+    return dates
+
+
+def _old_years(texts: "list[str]", form: str = "", century: str = "") -> "set[int]":
+    """The years of 1934 or earlier (an age of 90 or more in the zoo's era) written as a year or in a date."""
+    years: "set[int]" = set()
+    for text in texts:
+        stripped = text.strip()
+        year = 0
+        if re.fullmatch(r"\d{4}(\.0+)?", stripped):
+            year = int(stripped[:4])
+        elif ISO_DATE.fullmatch(stripped) or re.fullmatch(r"\d{4}-\d{2}", stripped):
+            year = int(stripped[:4])
+        elif form:
+            parsed = _iso_dates([stripped], form, century)
+            year = int(parsed[0][:4]) if parsed else 0
+        if 1800 <= year <= OLDEST_YEAR_SHOWN:
+            years |= {year}
+    return years
+
+
+def _leak_key(column: str, how: str, stage: str = "") -> str:
+    """The name a leak entry is recorded under: the column, ' years' for the years mode, ' unanswered' before the answers."""
+    return f"{column}{' years' if how == 'years over 89' else ''}{f' {stage}' if stage else ''}"
+
+
+def leaked(
+    table: Table, source: pathlib.Path, twin: "pathlib.Path | None", profile: pathlib.Path, stage: str = "",
+    real_raw: object = None,
+) -> "dict[str, dict]":
+    """Per entry of `leak_list`: the real values the description and the twin carry.
 
     'values': each distinct real value (a one-figure placeholder such as
-    '-1' aside), compared stripped and, for whole numbers, without their
-    leading noughts or '.0' -- found among the scalars of the column's
-    block in the description (and the notes naming it) and among the
-    twin's cells; 'printed values': the same in the description alone.
-    'ages over 89': the distinct ages past the top-code 90 written as
-    numbers there. Returns {column: {"description": n, "twin": n,
+    '-1' aside), compared as `_normal` writes it -- found among the
+    scalars of the column's block in the description (and the notes
+    naming it) and among the twin's cells; 'printed values': the same in
+    the description alone, a date column's cells compared as the ISO
+    dates the description prints; 'ages over 89': the distinct ages past
+    the top-code 90 written as numbers there; 'years over 89': the
+    distinct years of 1934 or earlier written there, as years or in
+    dates. Returns {key: {"column", "how", "description": n, "twin": n,
     "twin_cells": n, "twin_by_chance": n}}, distinct values and the
-    twin's cells holding one.
+    twin's cells holding one, keyed as `_leak_key` names them. With no
+    twin (a description read before the next step, `stage`
+    'unanswered'), only the description is read.
 
     A TWIN OF MADE-UP NUMBERS MEETS REAL ONES BY CHANCE where the real
     keys fill their range (5,000 durable keys from 100000 to 104999, a
-    twin of six-figure keys): so where every real value is a whole
-    number, the twin is read against a CONTROL as well, the real values
-    moved past the real range by its width, which no real value holds,
-    and its matches there (`twin_by_chance`) say what chance gives. The
-    twin's real values count (`twin`) only when they pass twice the
-    control and three more; the description's are counted exactly.
+    twin of six-figure keys): so where every real value is a number, the
+    twin is read against a CONTROL as well (`_by_chance`: the real
+    values moved past the real range, which no real value holds, or the
+    real's density inside its range where the twin draws there), and
+    `twin_by_chance` says what chance gives. The twin's real values all
+    count (`twin`) when they pass twice that and three more; within it,
+    a real value still counts when the twin writes it on more cells than
+    twice the most rows any real value holds, and three more (Codex item
+    1: one real key copied onto every row is a copy, whatever chance
+    gives); the description's are counted exactly.
     """
-    real_frames = table.read(source)
-    twin_frames = table.read(twin)
+    raw = table.read(source)["raw"] if real_raw is None else real_raw
+    twin_raw = table.read(twin)["raw"] if twin is not None else None
     described = json.loads(profile.read_text(encoding="utf-8"))
     found: "dict[str, dict]" = {}
-    for column, how in table.leaks:
-        real_cells = [f"{cell}" for cell in real_frames["raw"][column]]  # type: ignore[index]
-        twin_cells = [f"{cell}" for cell in twin_frames["raw"][column]] if column in twin_frames["raw"] else []  # type: ignore[index,operator]
-        said = [_normal(text) for text in _block(described, column)]
+    for column, how in leak_list(table, [f"{name}" for name in raw.columns]):  # type: ignore[attr-defined]
+        real_cells = [f"{cell}" for cell in raw[column]]  # type: ignore[index]
+        twin_cells = (
+            [f"{cell}" for cell in twin_raw[column]]  # type: ignore[index]
+            if twin_raw is not None and column in twin_raw else []  # type: ignore[operator]
+        )
+        texts = _block(described, column)
+        said = [_normal(text) for text in texts]
+        form = _date_form(real_cells) if how in ("printed values", "years over 89") else ""
+        century = table.knows.get(column, "")
+        entry = {"column": column, "how": how, "description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
         if how == "ages over 89":
-            in_description = _over_89(said)
             twin_ages = [_normal(cell) for cell in twin_cells]
-            in_twin = _over_89(twin_ages)
-            cells = sum(1 for cell in twin_ages if _over_89([cell]))
+            entry["description"] = len(_over_89(said))
+            entry["twin"] = len(_over_89(twin_ages))
+            entry["twin_cells"] = sum(1 for cell in twin_ages if _over_89([cell]))
+        elif how == "years over 89":
+            entry["description"] = len(_old_years(texts))
+            entry["twin"] = len(_old_years(twin_cells, form, century))
+            entry["twin_cells"] = sum(1 for cell in twin_cells if _old_years([cell], form, century))
+        elif how == "printed values" and form:
+            real_dates = set(_iso_dates(real_cells, form, century))
+            entry["description"] = len(real_dates & _printed_dates(texts))
         else:
-            real = {_normal(cell) for cell in real_cells if cell.strip() and not PLACEHOLDER.fullmatch(cell.strip())}
-            in_description = real & set(said)
+            real = {
+                _normal(cell) for cell in real_cells
+                if cell.strip() and not PLACEHOLDER.fullmatch(cell.strip()) and _normal(cell) not in MISSING_WORDS
+            }
+            entry["description"] = len(real & set(said))
             normal_twin = [_normal(cell) for cell in twin_cells] if how == "values" else []
             in_twin = real & set(normal_twin)
-            drawn, chance = _by_chance(real, set(normal_twin))
+            drawn, chance, _control = _by_chance(real, normal_twin)
             if drawn and len(in_twin) <= 2 * chance + 3:
-                in_twin = set()
+                # Within what chance gives, a real value still counts when
+                # the twin writes it on more cells than any real value
+                # holds rows, twice over and three more (Codex item 1).
+                written = collections.Counter(cell for cell in normal_twin if cell in in_twin)
+                most = max(collections.Counter(_normal(cell) for cell in real_cells if cell.strip()).values())
+                in_twin = {value for value, cells in written.items() if cells > 2 * most + 3}
             cells = sum(1 for cell in normal_twin if cell in in_twin)
-            found[column] = {
-                "description": len(in_description), "twin": len(in_twin), "twin_cells": cells, "twin_by_chance": chance,
-            }
-            continue
-        found[column] = {"description": len(in_description), "twin": len(in_twin), "twin_cells": cells, "twin_by_chance": 0}
+            entry.update({"twin": len(in_twin), "twin_cells": cells, "twin_by_chance": chance})
+        found[_leak_key(column, how, stage)] = entry
     return found
 
 
-def _by_chance(real: "set[str]", twin: "set[str]") -> "tuple[bool, int]":
-    """Whether a CONTROL is drawn, and the twin's matches with it: the real numbers moved past their range by its width.
+def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int, int]":
+    """Whether a CONTROL is drawn; the distinct real values the twin meets by chance; the control's own matches.
 
-    The numbers are the values' figures where every value is one run of
-    figures between the same constant marks ('MR4000123', '100023',
-    '31000000.00' read as its figures before the point), or else every
-    value read as a number ('4.56789E+11'); no control is drawn where
-    they are neither (names, addresses, codes with letters among the
-    figures), and there every match counts.
+    The control is the real numbers moved past their range, none of it
+    a real value (Codex item 1: a control shifted by the range alone
+    would land its lowest value on the highest real one), and its
+    distinct matches in the twin say what chance gives where the twin
+    draws past the real range. Where the real values FILL their range (a
+    study's record numbers 1 to 223), a made-up value inside the range
+    is a real one by chance as often as the range is full: the chance
+    count is then the twin's distinct values inside the range times the
+    real's density there, when that is more. The numbers are the values'
+    figures where every value is one run of figures between the same
+    constant marks ('mr4000123', '100023', '31000000'), or else every
+    value read as a number; no control is drawn where they are neither
+    (names, addresses, codes with letters among the figures), and there
+    every match counts.
     """
     if not real:
-        return False, 0
-    parts = [re.fullmatch(r"(\D*?)(\d+)(\D*|\.0+)", value) for value in real]
+        return False, 0, 0
+    parts = [re.fullmatch(r"(\D*?)(\d+)(\D*)", value) for value in real]
     marks = {(part.group(1), part.group(3)) for part in parts if part}
+    control: "set[str]" = set()
+    inside = 0.0
     if all(parts) and len(marks) == 1:
         (before, after), = marks
         numbers = [int(part.group(2)) for part in parts if part]
         places = max(len(part.group(2)) for part in parts if part)
-        width = max(numbers) - min(numbers) + 1
+        low, high = min(numbers), max(numbers)
+        width = high - low + 1
         control = {f"{before}{number + width:0{places}d}{after}" for number in numbers}
-        return True, len(control & twin)
-    try:
-        values = [float(value) for value in real]
-    except ValueError:
-        return False, 0
-    spread = max(values) - min(values) or 1.0
-    shifted = {value + spread for value in values}
-    hits = 0
-    for cell in twin:
+        if not before:
+            control = {_normal(value) for value in control}
+        drawn_inside = set()
+        for cell in set(twin):
+            part = re.fullmatch(re.escape(before) + r"(\d+)" + re.escape(after), cell)
+            if part and low <= int(part.group(1)) <= high:
+                drawn_inside |= {cell}
+        inside = len(drawn_inside) * len(set(numbers)) / width
+    else:
         try:
-            hits += 1 if float(cell) in shifted else 0
+            values = [float(value) for value in real]
         except ValueError:
-            continue
-    return True, hits
+            return False, 0, 0
+        spread = max(values) - min(values)
+        shift = 2 * spread if spread else 1.0
+        control = {_normal(f"{value + shift!r}") for value in values}
+    control -= real
+    hits = [cell for cell in twin if cell in control]
+    return True, max(len(set(hits)), round(inside)), len(set(hits))
 
 
 # -- per kind, and the three KPIs --------------------------------------------
@@ -3313,24 +3542,33 @@ def failure_items(table: Table, result: "dict", kind: str) -> "list[str]":
             break
     for miss in result["misses"]:
         if miss[0] in columns or (not miss[0] and (kind in file_kinds_here or not file_kinds_here)):
-            items += [f"miss {miss[0] or 'the file'}"]
+            # Each validate check its own failure (Codex item 5): a column
+            # that misses three checks counts three, named by the check.
+            items += [f"miss {miss[0] or 'the file'}" + (f" -- {miss[1]}" if len(miss) > 1 and miss[1] else "")]
     for name in result.get("analyst_real_errors", []):
         if name == "read" or _mode_of(table, name)[0] == kind:
             items += [f"real {name}"]
     items += [failure[1] for failure in result["analyst"] if failure[0] == kind]
     # HIPAA FIRST (lane E0c): a real value of a column that names a
-    # person, a place or a record, found in the description or the twin.
-    for column, found in result.get("leaks", {}).items():
-        if column in columns and (found["description"] or found["twin"]):
-            items += [f"leak {column}"]
+    # person, a place or a record, found in the description or the twin,
+    # named by its entry ('leak dob_iso', 'leak dob_iso years', 'leak
+    # zip_lost unanswered').
+    for key, found in result.get("leaks", {}).items():
+        if found.get("column", key) in columns and (found["description"] or found["twin"]):
+            items += [f"leak {key}"]
     return sorted(set(items))
 
 
 def owner_lines(kind: str, item: str) -> "list[tuple[str, str]]":
-    """The OWNERS lines that cover one failure of a kind: (owner, gap)."""
+    """The OWNERS lines that cover one failure of a kind: (owner, gap).
+
+    A validate miss is named with its check ('miss ts -- n_distinct'); a
+    line that covers the column's misses ('miss ts') covers each of them.
+    """
+    base = item.split(" -- ")[0]
     return [
         (owner, gap) for owner, gap, covers in owners().get(kind, ())
-        if re.fullmatch(covers, item)
+        if re.fullmatch(covers, item) or re.fullmatch(covers, base)
     ]
 
 
