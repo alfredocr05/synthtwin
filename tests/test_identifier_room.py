@@ -283,6 +283,23 @@ def test_an_exclusion_is_its_layout_with_places_written_out() -> None:
     assert parsing.is_a_layout_exclusion("-9")
 
 
+def test_a_figure_after_a_numbers_point_is_never_written_out() -> None:
+    """Several spellings of one block, none at the figure after the point (plan P4-D432).
+
+    500 different values `100.0` to `149.9` held as record numbers fill too much of `%%%.%` for one
+    spelling, so the block carries fifteen; none writes the figure after the point, which says whether
+    a value is whole, so a twin value ending `.0` still wears a template. Mutant: the point's figures
+    offered to the block -- `%9%.9` and its neighbours, and the twin of a held measurement column
+    missed its census at exit 3 at 20,000 rows.
+    """
+    cells = [f"{value / 10:.1f}" for value in range(1000, 1500)] * 7
+    found = taxonomy._exclusion_of(cells, "%%%.%", "%%%.%", "", FLOOR, len(cells), 1470)
+    assert 2 <= len(found) <= parsing.EXCLUSIONS_AT_MOST, found
+    assert all(text[4] == "%" and text[3] == "." for text in found), found
+    worn = {(cell[0], cell[2]) for cell in cells}
+    assert all((text[0], text[2]) not in worn for text in found), found
+
+
 def test_the_loader_refuses_an_exclusion_that_does_not_fit_its_layout(tmp_path: pathlib.Path) -> None:
     """LX2 for a written place inside the prefix, in one exclusion or one of several; a list of one,
     of a repeated spelling or under `(spill)` refused as no entry; LX3 for a spill no longer than the
