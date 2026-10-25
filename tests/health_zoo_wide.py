@@ -3296,12 +3296,21 @@ PS2_BIRTH_DATES = (
     "PS2's part (A), birth dates first (P4-D433; full birth dates no question flags were CODES-1 part C's, then "
     "CODES-3's, by the orchestrator's ruling of 2026-10-19 on HX2, item (4))"
 )
-STAND_INS_IN_RANGE = (
-    "LIVE: the stand-ins of a record number answered `identifier` are drawn inside the real keys' range, so a "
-    "study's sequential record numbers (1 to N, every value real) are written in the twin far more often than an "
-    "equally wide band past the range is (redcap.record_id at 20,000 rows: 5,572 real keys on 15,182 twin cells "
-    "against 1,933 in the control; E0c verify of repair 1, item 1); lane HX (P4-D401: the held identifier's "
-    "made-up values)"
+TWIN_KEYS_EQUAL_REAL = (
+    "LIVE: the made-up keys the twin writes for a column answered `identifier` equal real keys of the column, drawn "
+    "inside the real keys' range or over the layout's whole room, which the real keys fill (sequential record "
+    "numbers) or a share of: at 20,000 rows redcap.record_id 5,572 real keys on 15,182 twin cells (1,933 in the "
+    "control past the range), tumor_registry.tumor_id ('T' and five figures, the real T80000 to T99999 a fifth of "
+    "the room) 4,000, sql_server.record_no (nine figures, the real keys 2 % of the room) 389; at 600 rows (below "
+    "the floor) omop_measurement.person_id 95 and i2b2_facts.patient_num 82 and encounter_num 48 too (E0c verify "
+    "of repair 1, item 1: the scan reads chance only past the range); lane ID-ROOM (P4-D432: twin identifier cells "
+    "equal to a real cell of their column, K-HZ-06)"
+)
+PREFIXED_SEQUENCE = (
+    "LIVE: a report reference written 'RPT' and six figures, one a row in sequence, is read as an affixed number "
+    "with no question (its header found only after the title rows are answered), so its description publishes the "
+    "run's ladder and the twin writes the sequence again: 19,998 of 20,000 real references at 20,000 rows, 598 of "
+    "600 at 600; lane CODES-3 (identifiers with numeric roots and prefixed ids, P4-D428)"
 )
 BY_DESIGN = (
     "held by HIPAA's Safe Harbor rule; by design (the orchestrator's ruling THE ZOO ANSWERS TRUTHFULLY, "
@@ -3321,8 +3330,11 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "redcap": (
         ("SH", HELD_WHILE_OPEN, covers("leak record_id unanswered")),
-        ("HX", STAND_INS_IN_RANGE, covers("leak record_id")),
+        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak record_id")),
     ),
+    "sql_server_export": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("record_no"))),),
+    "tumor_registry": (("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers(*_leaks("tumor_id"))),),
+    "title_rows_above_header": (("CODES-3", PREFIXED_SEQUENCE, covers(*_leaks("report_ref"))),),
     "immunizations_providers": (
         ("SH2", SH2_DEVICES, covers(*_leaks("udi"))),
         ("SH", BY_DESIGN, covers(columns=("udi",))),
@@ -3331,8 +3343,14 @@ LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("PS2", PS2_BIRTH_DATES, covers(*_leaks("dob_short"))),
         ("SH2", SH2_YEARS, covers(*_leaks("dob_short years"))),
     ),
-    "omop_cdm": (("SH", HELD_WHILE_OPEN, covers(*_leaks("person_id", "measurement_id"))),),
-    "i2b2_eav": (("SH", HELD_WHILE_OPEN, covers(*_leaks("encounter_num", "patient_num"))),),
+    "omop_cdm": (
+        ("SH", HELD_WHILE_OPEN, covers("leak person_id unanswered", "leak measurement_id unanswered")),
+        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak person_id", "leak measurement_id")),
+    ),
+    "i2b2_eav": (
+        ("SH", HELD_WHILE_OPEN, covers("leak encounter_num unanswered", "leak patient_num unanswered")),
+        ("ID-ROOM", TWIN_KEYS_EQUAL_REAL, covers("leak encounter_num", "leak patient_num")),
+    ),
     "excel_mangled_codes": (
         ("SH", HELD_WHILE_OPEN, covers(*_leaks("npi_shown", "account_shown", "member_ref"))),
         ("SH", SH_ZIPS, covers(*_leaks("zip_lost"))),

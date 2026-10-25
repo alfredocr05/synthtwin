@@ -72,6 +72,10 @@ PLAN_LANES = (
     # Harbor numbers, P4-D427) and RD (computed columns, the zoo plan's
     # row 51).
     "HX", "SH", "RD",
+    # ...and, since the second repair's scan reads chance only past the
+    # real range, ID-ROOM (twin identifier cells equal to real ones,
+    # P4-D432).
+    "ID-ROOM",
     # ...and the lane the orchestrator opens when SH closes for Safe Harbor
     # years, places and devices no question reaches (THE ZOO ANSWERS
     # TRUTHFULLY, 2026-10-25).
