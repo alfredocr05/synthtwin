@@ -31,7 +31,12 @@ holds the battery itself to its word, cheaply:
   validate misses reach its verdict;
 * the workbook is read through the suite's cross-check reader, so CI's
   `minimums` cell, which has no openpyxl, skips that part and only it;
-* the slow driver loads where there is no `resource` module (Windows).
+* the slow driver loads where there is no `resource` module (Windows),
+  and runs the catalogue shard by shard at 600 rows and at 20,000;
+* lane E0c's widening (plan P4-D431) is held to all of the above table
+  by table, and the person question is answered for the person column
+  alone (`tests/test_health_zoo_shards.py` holds the floor, the shards,
+  the people and the leak scan).
 """
 
 from __future__ import annotations

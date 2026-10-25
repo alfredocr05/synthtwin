@@ -2792,23 +2792,38 @@ WIDE_FILE_KINDS: "tuple[str, ...]" = (
 )
 
 
-def _packed(tables: "tuple[Table, ...]", most: int) -> "tuple[tuple[str, ...], ...]":
-    """The tables in catalogue order, packed into shards of at most `most` kinds, a table's kinds together."""
-    shards: "list[tuple[str, ...]]" = []
-    shard: "list[str]" = []
-    held = 0
-    for table in tables:
-        if shard and held + len(table.kinds) > most:
-            shards += [tuple(shard)]
-            shard, held = [], 0
-        shard += [table.name]
-        held += len(table.kinds)
-    return tuple(shards + [tuple(shard)])
-
-
 # The slow driver's shards (K-HZ-03's bound): each at most
-# `health_zoo.SHARD_KINDS_AT_MOST` kinds, a table's kinds in one shard.
-SHARDS: "tuple[tuple[str, ...], ...]" = _packed(zoo.TABLES + WIDE_TABLES, zoo.SHARD_KINDS_AT_MOST)
+# `health_zoo.SHARD_KINDS_AT_MOST` kinds, a table's kinds in one shard,
+# balanced on the seconds each table took at 20,000 rows on this lane's
+# head under the other lanes' load (planning-notes wave6/E0c,
+# probe-20k-rest.log and probe-20k-slow.log): 690, 706, 773, 694 and 693 s,
+# each under the bound of 900. Two tables carry most of the time: the
+# mangled codes' scientific-notation record numbers (675 s, nearly all of
+# it in `generate`'s identifier layouts) and the 302-column export (479 s).
+SHARDS: "tuple[tuple[str, ...], ...]" = (
+    (
+        "patients", "encounters", "diagnoses_procedures", "labs", "prescriptions", "vitals", "flowsheet", "redcap",
+        "claims", "notes", "surveys", "wearables", "genomics", "imaging",
+    ),
+    (
+        "perioperative", "problem_list", "tumor_registry", "us_vitals", "sql_server", "microbiology", "immunizations",
+        "risk_adjustment", "edge_columns", "titled_report", "registry_extract", "wide_export",
+    ),
+    (
+        "excel_mangled", "unicode_text", "smart_quotes", "sas_export", "trailing_comma", "workbook_1904",
+        "apostrophe_codes",
+    ),
+    (
+        "caboodle_export", "cerner_ccl", "reports", "pro_scales", "phi_registry", "time_edges", "zoned_stamps",
+        "medication_administration",
+    ),
+    (
+        "bedside_results", "instrument_magnitudes", "critical_care_charting", "pharmacy_fills", "prenatal_visits",
+        "well_child", "ecg_reads", "culture_results", "registry_naaccr", "appointments", "remit_835", "adt_events",
+        "vcf_calls", "wearable_stream", "coded_forms", "omop_measurement", "pcornet_diagnosis", "i2b2_facts",
+        "fhir_observations", "hl7_obx", "long_visits_record_numbers", "numeric_identifiers", "safe_harbor",
+    ),
+)
 
 # Who owns each failure of these kinds, as `health_zoo.OWNERS` does for
 # E0a's: filled from the measured runs at 600 and 20,000 rows (plan
@@ -2820,6 +2835,10 @@ IDENTIFIER_FORMS = (
     "a column answered `identifier` gets a twin of made-up record numbers that keeps neither its published layout "
     "nor its constant marks (a float's '.00', a component list's '^^^HOSP^MR', a leading apostrophe, scientific "
     "notation): lane CODES-3 (identifiers with numeric roots, float record numbers, prefixed ids)"
+)
+HELD_FORMS = (
+    "a column held as record numbers (answered, unanswered or held in people) gets a twin that misses its published "
+    "forms: the identifier generator's limit, P4-D406's stated limit 4 (lane CODES-1 part C, now CODES-3)"
 )
 HELD_UNANSWERED = (
     "a column whose identifier or person question is left unanswered is held as record numbers (plan P4-D401): "
@@ -2882,6 +2901,7 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             columns=("monitor_clock",))),
         ("SS", "the twin writes a clock's fraction as nought ('.000'; the zoo plan's row 33)", covers(
             "some clock carries its milliseconds", "some clock carries its milliseconds, as a share")),
+        ("CODES-3", HELD_FORMS, covers("miss chart_time")),
     ),
     "pharmacy_dispensing": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
@@ -3013,6 +3033,7 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "some rsID is short (four to six figures), as a share", columns=("rsid",))),
         ("PS2", zoo.HELD_VALUES, covers("positions read as numbers", "the numbers of pos keep their range",
                                        "the numbers of qual keep their range", columns=("pos", "qual"))),
+        ("CODES-3", HELD_FORMS, covers("miss ref", "miss alt", "miss chrom")),
     ),
     "wearable_offsets_subsecond": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
@@ -3020,8 +3041,7 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
          covers("the local offset is in force on its date")),
         ("SS", "a stamp's milliseconds are written as nought", covers(
             "some stamp carries its milliseconds", "some stamp carries its milliseconds, as a share")),
-        ("CODES-1", "a measurement column held whole in people (plan P4-D406) gets a twin that misses its published "
-                    "forms: the identifier generator's limit (P4-D406's stated limit 4)", covers("miss step_count")),
+        ("CODES-3", HELD_FORMS, covers("miss step_count", "miss heart_rate")),
     ),
     "diagnosis_code_forms": (
         ("CODES-1", "a SNOMED CT id written for a held-back one fails its Verhoeff check (the zoo plan's row 2)", covers(
@@ -3125,6 +3145,10 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("CODES-2", "names and street addresses answered `identifier` are written as made-up record numbers, not "
                     "names or addresses (the allowlist's limit, CODES-2)", covers(
             "names, first and last", "street addresses", columns=("patient_name", "street_address"))),
+        ("CODES-3", "LIVE: a birth date column no question flags publishes real birth dates as its date percentiles "
+                    "and tail boundaries, each one person's (Safe Harbor; full birth dates no question flags are "
+                    "CODES-1 part C's, now CODES-3's: the orchestrator's LANE HX2 ruling of 2026-10-19, item (4))",
+         covers("leak birth_date")),
     ),
     "undeclared_record_number_long": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
@@ -3134,6 +3158,7 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
         ("HX", HELD_UNANSWERED, covers(
             "durable keys of six figures, or -1 and -2", "ZIPs of five figures", "UDIs of fourteen figures",
             columns=("durable_key", "zip_number", "udi_number"))),
+        ("CODES-3", HELD_FORMS, covers("miss durable_key", "miss zip_number", "miss udi_number")),
     ),
     "safe_harbor_shapes": (
         ("LM1", "the tail rule extends a bounded scale past its withheld end: a birth year written past the real's "

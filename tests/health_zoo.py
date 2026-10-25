@@ -33,6 +33,16 @@ K-HZ-02, each kind's misses and the step that failed, with the lane
 that owns it (`OWNERS`); K-HZ-03, the battery's own time and memory
 (its driver, `tools/measurements/kpi_health_zoo.py`).
 
+Lane E0c (plan P4-D431) widens the catalogue to every kind of the zoo
+plan's section 6 (b) in `tests/health_zoo_wide.py` (`catalogue()`:
+these twenty-five exports, kept byte for byte, and the widening) and
+re-defines the zoo at or above the owner's table floor (plan P4-D425):
+a kind's KPI leg runs at 20,000 rows through the SHIPPED floor, its
+600-row smoke below it through the command's internal switch, and the
+slow driver runs the catalogue in shards (`shards()`). The columns
+that name a person, a place or a record are read for their real values
+in the description and the twin (`Table.leaks`, `leaked`: HIPAA first).
+
 THIS MODULE MEASURES; IT FIXES NOTHING. A kind that fails is recorded
 with its owner, never repaired here, and every check reads one column
 on its own: what the twin carries between two columns is the stage-6
@@ -3026,16 +3036,25 @@ def leaked(table: Table, source: pathlib.Path, twin: pathlib.Path, profile: path
 
 
 def _by_chance(real: "set[str]", twin: "set[str]") -> int:
-    """The twin's matches with the CONTROL: every real whole number moved past the real range by its width.
+    """The twin's matches with the CONTROL: every real number moved past the real range by its width.
 
-    Nought where a real value is not a whole number (names, addresses,
-    codes with letters): there no control is drawn and every match counts.
+    The numbers are the values' figures where every value is one run of
+    figures between the same constant marks ('MR4000123', '100023',
+    '31000000.00' read as its figures before the point); nought where
+    they are not (names, addresses, codes with letters among the
+    figures): there no control is drawn and every match counts.
     """
-    if not real or not all(re.fullmatch(r"-?\d+", value) for value in real):
+    parts = [re.fullmatch(r"(\D*?)(\d+)(\D*|\.0+)", value) for value in real]
+    if not real or not all(parts):
         return 0
-    numbers = [int(value) for value in real]
+    marks = {(part.group(1), part.group(3)) for part in parts if part}
+    if len(marks) != 1:
+        return 0
+    (before, after), = marks
+    numbers = [int(part.group(2)) for part in parts if part]
+    places = max(len(part.group(2)) for part in parts if part)
     width = max(numbers) - min(numbers) + 1
-    control = {f"{number + width}" for number in numbers}
+    control = {f"{before}{number + width:0{places}d}{after}" for number in numbers}
     return len(control & twin)
 
 

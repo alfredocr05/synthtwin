@@ -20,9 +20,9 @@ process's peak resident memory is read at the end. It prints
 - K-HZ-02's slow keys: the failures per (kind, check) at 20,000 rows,
   each with its owner lane, and the real values of person, place and
   record columns found published there (HIPAA first);
-- K-HZ-03: the seconds of the 600-row run and of each shard at 20,000
-  rows, the peak memory in megabytes, and the table runs, a
-  machine-free count beside them;
+- K-HZ-03: the seconds of each shard at 600 rows (the suite's fixture
+  runs the same shards) and at 20,000 rows, the peak memory in
+  megabytes, and the table runs, a machine-free count beside them;
 - K-HZ-05: the kinds the shipped floor refused at 20,000 rows, and the
   fewest people a several-rows-per-patient kind's table holds there.
 
@@ -157,6 +157,8 @@ def main() -> None:
         "kinds_in_largest_shard": max(sum(len(table.kinds) for table in shard) for shard in health_zoo.shards()),
         "tables_run_csv": sum(1 for result in small + large if health_zoo.table_named(result["table"]).suffix != ".xlsx"),
     }
+    for place, seconds in enumerate(small_seconds, 1):
+        found[f"seconds_600_rows_shard_{place}"] = seconds
     for place, seconds in enumerate(large_seconds, 1):
         found[f"seconds_20000_rows_shard_{place}"] = seconds
     if whole:
