@@ -9,8 +9,8 @@ densely a twin cell EQUALLED a real identifier by chance. At 20,000 rows: `1.2.7
 Siemens' root and `1.2.<k>` 110, GE's root and `1.2.3.<k>` 11, `1.2.<k>` 2,222; Cerner record numbers
 of three widths 214, of two widths 348, one place 214; record numbers `1` to `20,000` 11,110, a
 person on twenty rows 19,980, zero-filled 2,225, `100000.0` exported 400, random seven figures 50;
-`P` and five figures 4,000, `ABC-` and four 18,000, two systems 93; rsIDs 15, beside `.` 4,011; held
-keys beside `N/A` 4,000; and the zoo's own identifier columns 328 cells at 600 rows (its REDCap
+`P` and five figures 4,000, `ABC-` and four 18,000, two systems 93; rsIDs 15, beside `.` 11 (its
+absent `.` aside); and the zoo's own identifier columns 328 cells at 600 rows (its REDCap
 record ids 318). The count grows with the rows.
 
 THE RULE (contract 7.12b, method G9.6b). The profile, which reads the real column, publishes beside
