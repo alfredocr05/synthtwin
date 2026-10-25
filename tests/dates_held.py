@@ -62,6 +62,16 @@ def one_row_a_person(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]
     return ["patient_id", "birth_date", "admit_date", "death_date", "weight"], lines
 
 
+def one_row_a_person_unanswered(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
+    """A patient a row under a padded key nobody answered: its open question makes the key a candidate subject."""
+    draw = random.Random(seed)
+    lines: "list[list[str]]" = []
+    for index in range(rows):
+        born = _day(draw, datetime.date(1930, 1, 1), datetime.date(1999, 12, 31))
+        lines += [[f"{1000000 + index:09d}", born.isoformat(), f"{draw.uniform(40, 140):.1f}"]]
+    return ["patient_key", "birth_date", "weight"], lines
+
+
 def several_rows_a_person(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     """Four visits a patient: the birth and death date repeated on each, a dense visit day."""
     draw = random.Random(seed)
@@ -170,6 +180,8 @@ SWEEP: "dict[str, health_zoo.Table]" = {
     "one_row": _table("one_row", one_row_a_person,
                       ("patient_id", "birth_date", "admit_date", "death_date", "weight"),
                       {"patient_id": "identifier", "weight": "measurement"}),
+    "one_row_open": _table("one_row_open", one_row_a_person_unanswered,
+                           ("patient_key", "birth_date", "weight"), {"weight": "measurement"}),
     "several_rows": _table("several_rows", several_rows_a_person,
                            ("patient_id", "birth_date", "visit_date", "death_date", "weight"),
                            {"patient_id": "identifier", "weight": "measurement"}),

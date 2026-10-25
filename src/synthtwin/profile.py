@@ -6265,16 +6265,26 @@ def _date_parts(text: str) -> "tuple[str, ...]":
     and `2023-q1`; `2023-01` its month and quarter; `2023-q1` its quarter;
     any other text nothing. Folded text, as `_published_in` keeps words.
     """
-    if len(text) < 7 or text[4:5] != "-" or not text[:4].isdigit():
+    if len(text) < 7 or text[4:5] != "-" or not _all_figures(text[:4]):
         return ()
     if text[5:6] in ("q", "Q") and text[6:7] in ("1", "2", "3", "4"):
         return (f"{text[:4]}-q{text[6]}",)
-    if not text[5:7].isdigit() or not "01" <= text[5:7] <= "12":
+    if not _all_figures(text[5:7]) or not "01" <= text[5:7] <= "12":
         return ()
     quarter = f"{text[:4]}-q{(int(text[5:7]) - 1) // 3 + 1}"
-    if len(text) >= 10 and text[7:8] == "-" and text[8:10].isdigit():
+    if len(text) >= 10 and text[7:8] == "-" and _all_figures(text[8:10]):
         return (text[:10], text[:7], quarter)
     return (text[:7], quarter)
+
+
+def _all_figures(part: str) -> bool:
+    """Whether a piece of text is one or more of the figures 0 to 9 and nothing else."""
+    if not part:
+        return False
+    for character in part:
+        if not "0" <= character <= "9":
+            return False
+    return True
 
 
 def _dates_few_in_rows(

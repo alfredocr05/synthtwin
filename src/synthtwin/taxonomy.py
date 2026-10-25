@@ -772,7 +772,7 @@ EVIDENCE_POOLED_IN_PEOPLE = "evidence_pooled_in_people"
 # ...and the two a column of dates or stamps takes where no subject column
 # counts it in people -- a table of one row a person, or one with no person
 # column -- and each row is counted as its own holder instead (plan P4-D433,
-# contracts NF130 and NF131): held, or described at a coarser grain.
+# contract NF130 and NF131): held, or described at a coarser grain.
 EVIDENCE_HELD_IN_ROWS = "evidence_held_in_rows"
 EVIDENCE_POOLED_IN_ROWS = "evidence_pooled_in_rows"
 
