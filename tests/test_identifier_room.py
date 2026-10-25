@@ -179,7 +179,7 @@ def test_no_real_value_reaches_the_description_through_an_exclusion(tmp_path: pa
 
 UID_SHAPES = tuple(name for name in room.SHAPES if name.startswith("uid_")) + ("codes3_pacs_study_uid",)
 PREFIXED = ("pt_seven_sequential", "pt_seven_person_on_three_rows", "e_nine_sequential", "p_five",
-            "mrn_eight_random", "abc_dash_four", "rsid", "codes3_vcf_rsid")
+            "letters_eight_random", "abc_dash_four", "rsid", "codes3_vcf_rsid")
 WHOLE = ("cerner_one_width", "cerner_three_widths", "cerner_two_widths",
          "cerner_person_on_three_rows", "codes3_cerner_encounter")
 PEOPLE = ("sequential_person_on_three_rows", "sequential_person_on_twenty_rows",

@@ -11,7 +11,7 @@ as decimals (Cerner's `31000000.00`, three widths, one place, grouped, a person'
 record numbers of figures alone (sequential from 1, a person on 3 and on 20 rows, random of 7,
 8 and 10 figures, zero-filled, exported as `100000.0`, CSN-like strides, NPI-like numbers with
 their Luhn check digit), prefixed ids of several lengths (`PT` and seven figures on one and on
-three rows a person, `E` and nine, `P` and five, `MRN` and eight random, two systems, `ABC-`
+three rows a person, `E` and nine, `P` and five, `QRV` and eight random, two systems, `ABC-`
 and four, UUIDs), rsIDs (with and without `.`), and keys beside words and placeholders held
 until answered and answered `identifier` (`R1000` to `R1039` alone, beside `Unknown` on two
 cells in five, `N/A` on one in five, record numbers beside `-99` or `UNKNOWN`). `CODES3` adds
@@ -136,7 +136,7 @@ SHAPES: "dict[str, tuple[object, bool]]" = {
     "pt_seven_person_on_three_rows": (lambda k, d: f"PT{1000000 + k // 3:07d}", True),
     "e_nine_sequential": (lambda k, d: f"E{100000000 + k}", True),
     "p_five": (lambda k, d: f"P{k % 90000 + 10000}", True),
-    "mrn_eight_random": (lambda k, d: f"MRN{d.unique(10**7, 10**8 - 1)}", True),
+    "letters_eight_random": (lambda k, d: f"QRV{d.unique(10**7, 10**8 - 1)}", True),
     "two_systems": (lambda k, d: (f"ST{1000 + k % 9000}" if k % 2 else f"E{100000 + k}"), True),
     "abc_dash_four": (lambda k, d: f"ABC-{1000 + k % 9000}", True),
     "uuid": (lambda k, d: str(uuid.UUID(int=d.random.getrandbits(128))), True),

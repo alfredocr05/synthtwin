@@ -3279,7 +3279,7 @@ def uid_unled(text: str) -> bool:
 # for the twin's values carries several spellings of one block, each no
 # real cell of the layout holds; past this many it carries none, and its
 # values are written wider. The description stays short and the number
-# of spellings a reader learns are held by some real cell stays small.
+# of spellings a reader is told some real cell holds stays small.
 EXCLUSIONS_AT_MOST = 32
 
 # The key of `layout_exclusions` naming the spill layout. It holds
