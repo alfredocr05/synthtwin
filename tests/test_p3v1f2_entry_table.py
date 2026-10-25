@@ -7219,6 +7219,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # 2026-09-17, item 1): one subcheck per published scope, and the
     # every-role fixture's declared column publishes the whole column's.
     ("identifier", "prefix.(column)"): "identifier.layout_prefixes",
+    # ...and the exclusions (contract 7.12b, plan P4-D432), one listing
+    # wherever a record number publishes them, as the every-role
+    # fixture's declared column does.
+    ("identifier", "layout_exclusions"): "identifier.layout_exclusions",
     ("free_text", "forms.published.%%%%-%"): "free_text.shape_forms",
     ("label", "forms.published.@%%"): "label.shape_forms",
     ("label", "forms.published.@%%.%"): "label.shape_forms",

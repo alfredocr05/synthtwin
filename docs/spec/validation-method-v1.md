@@ -2405,7 +2405,10 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   `length.min` and `length.max`, are REPORT-ONLY with it wherever such a
   layout is named, wherever `(unnamed)` does not say that no real cell
   stands outside the named layouts, or wherever the census counts fewer
-  cells than the column holds. Each is a listing entry citing the plan,
+  cells than the column holds. `layout_exclusions` itself is
+  REPORT-ONLY wherever it is published, subcheck `layout_exclusions`:
+  it says what no real cell holds, and no written file is checked
+  against it. Each is a listing entry citing the plan,
   never a check that cannot fail; every other identifier check stands
   as before, the census entries of the layouts carrying an exclusion
   among them, exactly. A description publishing no exclusion lowers

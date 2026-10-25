@@ -136,8 +136,13 @@ def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path,
                 held[cell[place]] = held.get(cell[place], 0) + 1
             alphabet = parsing.exclusion_alphabet(scope[place])
             if any("0" <= c <= "9" for c in alphabet) and any(c > "9" for c in alphabet):
-                # A hexadecimal place is written with a figure, read from nine down.
-                alphabet = "0123456789"
+                # A hexadecimal place is written with a figure, read from nine down,
+                # where some real cell of the layout is figures alone; else its letters
+                # are read first, from the greatest down, and its figures after.
+                figures = "".join(c for c in alphabet if "0" <= c <= "9")
+                letters = "".join(c for c in alphabet if c > "9")
+                alone = any(cell.strip().isdigit() for cell in by.get(scope, []))
+                alphabet = figures if alone else figures + letters
             for character in reversed(alphabet):
                 if character == text[place]:
                     break

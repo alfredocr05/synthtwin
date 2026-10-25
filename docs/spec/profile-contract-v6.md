@@ -18780,9 +18780,11 @@ cells:
    at those places, letters compared in either case. First ONE place: the places the twin fills (after the layout's
    prefix, never a whole number's nought after the point) are read left
    to right, and at each the characters of its alphabet from the
-   greatest down (a hexadecimal place's figures alone, so a value of
-   figures alone still wears the template; its room is counted over all
-   sixteen) -- never a nought that would open a run of figures:
+   greatest down (at a hexadecimal place, its figures alone where some
+   such cell is figures alone, so a value of figures alone still wears
+   the template, and else its letters first, so the twin's letters keep
+   the column's case beside a prefix of the other; its room is counted
+   over all sixteen) -- never a nought that would open a run of figures:
    the cell, an arc, the figures after a sign, a zero fill or a prefix's
    letters -- until one no such cell
    holds, which is written where the spellings it leaves hold the

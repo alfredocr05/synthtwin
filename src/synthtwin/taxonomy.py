@@ -26578,14 +26578,19 @@ def moved_by_the_exclusions(
     return moved, lengths
 
 
-def _greatest_last(alphabet: str) -> str:
-    """The characters an exclusion may write at a place, in the order read from the end: a hexadecimal mark's FIGURES alone.
+def _greatest_last(alphabet: str, alone: bool) -> str:
+    """The characters an exclusion may write at a place, in the order read from the end.
 
-    A hexadecimal place is written with a figure and never a letter, so
-    a hexadecimal value of figures alone -- a number, by its class -- still
-    wears the excluded template, and the class and alphabet counts stay
-    met there. Every other alphabet is read whole. The room the template
-    keeps is still counted over the whole alphabet.
+    A HEXADECIMAL place, where ``alone`` says some real cell of the layout
+    is figures alone, takes a FIGURE and never a letter, so such a value --
+    a number, by its class -- still wears the excluded template and the
+    class and alphabet counts stay met there. Where no real cell of the
+    layout is figures alone, its letters are read first and its figures
+    after: a letter written in the column's own case keeps the case most
+    of the twin's letters wear, which is the case its convention reads
+    (`parsing.layout_convention`), beside a prefix of the other case.
+    Every other alphabet is read whole. The room the template keeps is
+    still counted over the whole alphabet.
     """
     letters = ""
     figures = ""
@@ -26594,9 +26599,9 @@ def _greatest_last(alphabet: str) -> str:
             figures = figures + character
         else:
             letters = letters + character
-    if figures and letters:
+    if figures and letters and alone:
         return figures
-    return letters + figures
+    return figures + letters
 
 
 def _exclusion_of(
@@ -26617,12 +26622,21 @@ def _exclusion_of(
     for place in range(len(template)):
         if template[place] in _EXCLUDED_MARKS or template[place] in _LETTER_MARKS:
             places += [place]
+    # Whether some real cell of the layout is figures alone (`_greatest_last`).
+    alone = False
+    for value in cells:
+        figures = 0
+        for character in value:
+            if "0" <= character <= "9":
+                figures = figures + 1
+        if value and figures == len(value):
+            alone = True
     for place in places:
         held: "dict[str, int]" = {}
         for value in cells:
             character = value[place]
             held[character] = (held[character] if character in held else 0) + 1
-        alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]))
+        alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]), alone)
         leads = place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
         for at in range(len(alphabet) - 1, -1, -1):
             character = alphabet[at]
@@ -26661,7 +26675,7 @@ def _exclusion_of(
         choices = 1
         for place in block:
             spellings = spellings * len(parsing.exclusion_alphabet(template[place]))
-            choices = choices * len(_greatest_last(parsing.exclusion_alphabet(template[place])))
+            choices = choices * len(_greatest_last(parsing.exclusion_alphabet(template[place]), alone))
         if room // spellings < max(need, 1):
             return ""
         worn: "dict[str, bool]" = {}
@@ -26676,7 +26690,7 @@ def _exclusion_of(
             key = ""
             rest = number
             for place in block:
-                alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]))
+                alphabet = _greatest_last(parsing.exclusion_alphabet(template[place]), alone)
                 key = key + alphabet[rest % len(alphabet)]
                 rest = rest // len(alphabet)
             if parsing.folded(key) in worn:

@@ -490,6 +490,11 @@ _NOT_CHECKABLE_MOVED_OFF_THE_REAL = (
     "every real value, so this fact is the real table's and is not one the "
     "twin holds"
 )
+_NOT_CHECKABLE_EXCLUSIONS = (
+    "the description records what no real record number of each layout "
+    "holds (plan P4-D432), and the twin is written where no real one is; "
+    "no written file is checked against it"
+)
 _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
@@ -22503,6 +22508,17 @@ def _listings(
         facts = column.facts
         if isinstance(facts, contract.IdentifierFacts):
             # WHAT NO TWIN CELL MAY HOLD MOVES (lane ID-ROOM, plan P4-D432).
+            if facts.layout_exclusions:
+                # The exclusions themselves are REPORT-ONLY: they say what no
+                # real cell holds, and the twin is written off them.
+                listings += [
+                    Listing(
+                        column.name,
+                        "identifier.layout_exclusions",
+                        "layout_exclusions",
+                        _NOT_CHECKABLE_EXCLUSIONS,
+                    )
+                ]
             moved, lengths = moved_off_the_real(facts, column.n_present)
             for layout in moved:
                 listings += [

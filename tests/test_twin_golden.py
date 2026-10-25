@@ -262,8 +262,14 @@ TAIL_LISTINGS_ADDED = (
     "visits|numeric.percentiles|ladder.p99",
 )
 
+# ...and lane ID-ROOM's `layout_exclusions` (plan P4-D432), REPORT-ONLY
+# and listed once on the declared `record_code`, set aside on the same
+# doctrine: the frozen 126 must come back without it.
+LAYOUT_EXCLUSIONS_FACT = "identifier.layout_exclusions"
+
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
+    LAYOUT_EXCLUSIONS_FACT,
     WIDE_RUNS_FACT,
     EMPTY_BIN_FACT,
     EMPTY_EDGE_FACT,
@@ -3510,7 +3516,13 @@ GOLDEN_QUALITY_SHA256 = (
     # Its two distinctness counts stay WITHIN-BOUND, their window's lower
     # end at 14 where it was 68. Nothing is MISSED before or after, and
     # the 214 obligations no CSV can evidence are the same 214.
-    "e756620213f5ddeb394386ee289cab2c445447e834e2c3b81f54df32c20572e4"
+    # RE-RECORDED AT LANE ID-ROOM (2026-10-25, plan P4-D432): diffed line
+    # by line against the lane's base 2d25b07, ONE OBLIGATION ARRIVES among
+    # those no CSV can evidence -- `record_code`'s `layout_exclusions`,
+    # REPORT-ONLY, listed with its sentence -- so 214 become 215 in the
+    # two counts that say so; every check and every verdict is as it was,
+    # the moved `record_code` cells held as the old ones were.
+    "db7be04a2ced388cc42a0ad42a59981a4e7f4fb178029b1271a458b89112c4ce"
 )
 
 
