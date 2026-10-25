@@ -65,15 +65,17 @@ def _quiet(argv: "list[str]") -> int:
 def count_off() -> "typing.Iterator[None]":
     """The product with the count in people switched off: the row floor alone."""
     saved = (profile._counted_in_subjects, profile._layouts_in_subjects,
-             taxonomy.with_census_in_people)
+             taxonomy.with_census_in_people, profile._dates_few_in_rows)
     profile._counted_in_subjects = lambda *_a, **_k: False  # type: ignore[assignment]
+    # ...and the count of dates in rows (plan P4-D433), its row-floor twin.
+    profile._dates_few_in_rows = lambda *_a, **_k: False  # type: ignore[assignment]
     profile._layouts_in_subjects = lambda described, *_a, **_k: described  # type: ignore[assignment]
     taxonomy.with_census_in_people = lambda column, *_a, **_k: column  # type: ignore[assignment]
     try:
         yield
     finally:
         (profile._counted_in_subjects, profile._layouts_in_subjects,
-         taxonomy.with_census_in_people) = saved
+         taxonomy.with_census_in_people, profile._dates_few_in_rows) = saved
 
 
 # THE GENERATOR'S STATED LIMITS (plan P4-D406, lane CODES-1 part C): a

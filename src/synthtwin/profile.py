@@ -4568,8 +4568,16 @@ def build_document(
         # stamp whose every published day the floor's rows hold keeps its
         # time of day and its bytes; only where one does not is the column
         # walked down its ladder, each row its own holder.
+        # AT THE TABLE FLOOR AND ABOVE: the command describes no table
+        # under `parsing.TABLE_ROW_FLOOR` rows (plan P4-D425), so the count
+        # in rows reaches every table a description is published of; the
+        # library keeps its bytes below it, where the suite's fixtures of a
+        # few hundred rows test what each date column does (measured: the
+        # count there turned 581 cases of stage 3b's 28 test files red).
         in_rows = (
-            described.role == taxonomy.ROLE_DATETIME and not any(counting_enough)
+            described.role == taxonomy.ROLE_DATETIME
+            and not any(counting_enough)
+            and table.n_rows >= parsing.TABLE_ROW_FLOOR
         )
         if in_rows:
             if len(row_holders) != len(cells):
@@ -4627,6 +4635,7 @@ def build_document(
                     None,
                 ),
                 grains.record(published_grain),
+                in_rows,
             )
         elif name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
@@ -4699,6 +4708,7 @@ def build_document(
                                     spans=spans[: place + 1],
                                 )
                             ),
+                            in_rows,
                         )
                     coarse = None
             if pooled is not None:
@@ -4721,7 +4731,7 @@ def build_document(
                     # declaration that did not reach, not as a count in people.
                     described = taxonomy.as_counted_dates_held(fresh)
                 else:
-                    described = taxonomy.as_held_in_people(fresh)
+                    described = taxonomy.as_held_in_people(fresh, in_rows)
                     if held_dates is not None:
                         described = taxonomy.with_held_dates(
                             described, grains.record(held_dates)

@@ -1116,6 +1116,8 @@ _UNANSWERED_EVIDENCE = taxonomy.rendered(
 )
 # ...and one counted in people (plan P4-D406): no answer gives it back.
 _HELD_IN_PEOPLE_EVIDENCE = taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
+# ...and a column of dates counted in rows (plan P4-D433, contract NF130).
+_HELD_IN_ROWS_EVIDENCE = taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_ROWS, ())
 # ...and one declared as counted dates its cells did not read as (plan
 # P4-D406, contract NF127): held on every table, its dates written again.
 _COUNTED_DATES_HELD_EVIDENCE = taxonomy.rendered(
@@ -1138,6 +1140,10 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         role == taxonomy.ROLE_IDENTIFIER
         and _text_of(column["detection_evidence"]) == _COUNTED_DATES_HELD_EVIDENCE
     )
+    held_in_rows = (
+        role == taxonomy.ROLE_IDENTIFIER
+        and _text_of(column["detection_evidence"]) == _HELD_IN_ROWS_EVIDENCE
+    )
     said_role = _role_words(role)
     if unanswered:
         said_role = (
@@ -1148,6 +1154,10 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         said_role = (
             "record numbers or codes, because too few people hold "
             "its values"
+        )
+    if held_in_rows:
+        said_role = (
+            "record numbers or codes, because too few rows hold its dates"
         )
     if counted_dates_held:
         said_role = (
@@ -1316,6 +1326,15 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                     "    Each row of this table belongs to a person, and "
                     "some value of this column is held by too few people "
                     "to be published, so none of its values is."
+                ),
+            ]
+        elif held_in_rows:
+            lines += [
+                (
+                    "    No column of this table names a person on several "
+                    "rows, so each row is counted as its own, and some date "
+                    "of this column falls on too few rows to be published, "
+                    "so none of its values is."
                 ),
             ]
         elif counted_dates_held:

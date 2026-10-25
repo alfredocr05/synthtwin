@@ -176,9 +176,13 @@ SWEEP: "dict[str, health_zoo.Table]" = {
     "no_person": _table("no_person", no_person_column, ("birth_date", "admit_date", "event_date", "ward"), {}),
     "dense_only": _table("dense_only", dense_only, ("admit_date", "arrived_at", "ward"), {}),
     "demographics": _zoo_table("patients"),
+    # The person question answered for the record number only, `keep` for
+    # every other column it is put to, as lane E0c's zoo answers it (its
+    # build: two repeating identifiers made 5 and 66 "people"): so no
+    # subject column repeats and the birth dates are counted in rows.
     "phi_registry": _table("phi_registry", phi_registry, PHI_COLUMNS, {
-        "med_rec_no": "identifier", "patient_name": "identifier", "street_address": "identifier",
-        "phone": "identifier", "email": "identifier", "ssn": "identifier",
+        "med_rec_no": "identifier", "patient_name": "keep", "street_address": "keep",
+        "phone": "keep", "email": "keep", "ssn": "keep", "zip5": "keep",
     }),
 }
 DENSE: "dict[str, tuple[str, ...]]" = {
