@@ -815,6 +815,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 749,000 from 746,500, ON LANE SH'S BRANCH (2026-10-25, plan P4-D427,
+    # repair round 3): `K-S3-64` restamped over 246 shapes, `K-S3-66` and
+    # `K-HZ-02` restated to the Safe Harbor question's second round (the
+    # orchestrator's ruling R1), their rules, evidence and notes, 748,726
+    # bytes. The batch integrator settles this beside the other lanes'
+    # raises.
+    #
     # 746,500 from 746,000, ON LANE SH'S BRANCH (2026-10-24, plan P4-D427,
     # repair round 2): `K-S3-64` restamped over 230 shapes, its rule,
     # evidence and note sentences, 746,195 bytes. The batch integrator
@@ -1316,7 +1323,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # entries, K-S4-20 (the number tail's range and spread over the gate's
     # fixtures) and K-S4-21 (G2's dense tail at 1,000,000 rows). The batch
     # integrator settles this beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 746_500
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 749_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

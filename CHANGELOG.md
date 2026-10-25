@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### Lane SH, repair round 3: no code answer frees a ZIP code or an age over 89, and the zoo answers the Safe Harbor question truthfully (2026-10-25)
+
+**Verify 2's open items closed** (plan P4-D427, its repair round 3, under
+the orchestrator's rulings R1 and R2 of 2026-10-25). A column of
+ZIP-shaped numbers answered or declared `code` now stays held and is put
+the Safe Harbor question in that run, as `measurement` and `keep`
+already were: only `no` frees it (40 of 40 real ZIPs were printed at
+20,000 rows, and the zoo's own `patients.zip5` 12 of 12 on every twin
+cell). A column in the age reach answered or declared `code` is
+top-coded and asked as for `measurement` (NAACCR's three-figure ages
+printed 93 and 100 to 105). The zoo answers that question truthfully:
+`yes` for a ZIP code, a place smaller than a state, so its `levels zip5`
+check is the HIPAA price, owned by this lane. `K-S3-64` counts 246
+shapes, 0 on every key. The price, by design: `K-S3-66` reads 100
+answers and 3 zoo tables that need the Safe Harbor question's second
+round, and `K-HZ-02` 105 analyst failures; no golden moves and no
+battery column is newly top-coded.
+
 ### Lane SH, repair round 2: no measurement or keep answer frees an age over 89 or a ZIP, one question a column, decimal commas and nine-figure ZIPs (2026-10-24)
 
 **The combined verify's open items closed** (plan P4-D427, its repair
