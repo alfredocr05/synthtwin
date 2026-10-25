@@ -73,6 +73,7 @@ def test_no_twin_identifier_cell_equals_a_real_one(tmp_path: pathlib.Path, name:
     assert seen["equal"] == 0, (name, n, seen["equal"])
     if seen["block"].get("role") == "identifier" and seen["block"].get("layout_forms"):
         assert seen["block"]["layout_exclusions"], (name, n)
+    _code_runs_unchanged(name, seen, answered=False)
 
 
 @pytest.mark.parametrize(
@@ -83,6 +84,7 @@ def test_an_answered_identifier_writes_no_real_one(tmp_path: pathlib.Path, name:
     seen = room.run_shape(tmp_path, name, n, answer="identifier", validate=False)
     assert seen["exits"][:2] == (0, 0), (name, n, seen["exits"])
     assert seen["equal"] == 0, (name, n, seen["equal"])
+    _code_runs_unchanged(name, seen, answered=True)
 
 
 # -- the fact's own privacy -------------------------------------------------------------------
@@ -168,78 +170,64 @@ def test_no_real_value_reaches_the_description_through_an_exclusion(tmp_path: pa
 
 
 UID_SHAPES = tuple(name for name in room.SHAPES if name.startswith("uid_")) + ("codes3_pacs_study_uid",)
-
-
-@pytest.mark.parametrize("name", UID_SHAPES)
-def test_a_uid_twin_keeps_the_grammar_the_length_and_the_root(tmp_path: pathlib.Path, name: str) -> None:
-    """Every twin UID matches `[012](\\.(0|[1-9]\\d*))+`, is at most 64 characters, opens with the root.
-
-    At 20,000 rows. Mutant: the UID root's opening read only to the first placeholder (an exclusion's
-    figure after the root then switches the grammar's test off, and arcs are led by noughts).
-    """
-    seen = room.run_shape(tmp_path, name, 20_000, validate=False)
-    root = (seen["block"].get("layout_prefixes") or {}).get(parsing.PREFIX_OF_THE_COLUMN, "")
-    for cell in seen["twin"]:
-        if not cell.strip():
-            continue
-        assert UID.fullmatch(cell) is not None and len(cell) <= 64, (name, cell)
-        assert cell.startswith(root), (name, cell, root)
-
-
 PREFIXED = ("pt_seven_sequential", "pt_seven_person_on_three_rows", "e_nine_sequential", "p_five",
             "mrn_eight_random", "abc_dash_four", "rsid", "codes3_vcf_rsid")
-
-
-@pytest.mark.parametrize("name", PREFIXED)
-def test_a_prefixed_twin_opens_with_its_prefix(tmp_path: pathlib.Path, name: str) -> None:
-    """Every twin cell of a column publishing a `(column)` prefix opens with it, at 20,000 rows."""
-    seen = room.run_shape(tmp_path, name, 20_000, validate=False)
-    prefix = (seen["block"].get("layout_prefixes") or {}).get(parsing.PREFIX_OF_THE_COLUMN, "")
-    assert prefix, name
-    assert all(cell.startswith(prefix) for cell in seen["twin"] if cell.strip()), name
-
-
-@pytest.mark.parametrize("name", ("cerner_one_width", "cerner_three_widths", "cerner_two_widths",
-                                  "cerner_person_on_three_rows", "codes3_cerner_encounter"))
-def test_a_whole_record_number_keeps_its_noughts(tmp_path: pathlib.Path, name: str) -> None:
-    """A record number exported as `31000000.00` writes `.00` on every twin cell, at 20,000 rows."""
-    seen = room.run_shape(tmp_path, name, 20_000, validate=False)
-    assert all(re.fullmatch(r"[1-9]\d*\.00", cell) for cell in seen["twin"] if cell.strip()), name
-
-
-def test_an_npi_twin_keeps_its_ten_figures(tmp_path: pathlib.Path) -> None:
-    """NPI-like numbers keep ten figures; the description publishes no check-digit fact.
-
-    The product publishes no check digit for any column, so the twin's Luhn digits were never the
-    table's; the exclusion writes its one figure at the first place and changes nothing else.
-    """
-    seen = room.run_shape(tmp_path, "npi_check_digit", 20_000, validate=False)
-    assert all(re.fullmatch(r"[1-9]\d{9}", cell) for cell in seen["twin"]), "npi"
-    assert seen["block"]["layout_exclusions"].get("%%%%%%%%%%", "").count("%") == 9
-
-
+WHOLE = ("cerner_one_width", "cerner_three_widths", "cerner_two_widths",
+         "cerner_person_on_three_rows", "codes3_cerner_encounter")
 PEOPLE = ("sequential_person_on_three_rows", "sequential_person_on_twenty_rows",
           "pt_seven_person_on_three_rows", "cerner_person_on_three_rows",
           "zero_filled_person_on_four_rows", "uid_study_on_ten_rows", "uid_pydicom_repeated")
 
 
-@pytest.mark.parametrize("name", PEOPLE)
-def test_a_repeated_key_stays_one_key_on_its_rows(tmp_path: pathlib.Path, name: str) -> None:
-    """The join: the twin's census of rows a value equals the published one, at 20,000 rows.
+def _code_runs_unchanged(name: str, seen: "dict[str, object]", answered: bool) -> None:
+    """What a shape's twin keeps for code written on the real table, on one run of it.
 
-    A value is moved whole (the twin person's rows keep one key). Mutant: the final pass writing a
-    fresh spelling on every ROW of a moved value instead of one a value.
+    Asked on every run of `test_no_twin_identifier_cell_equals_a_real_one` and
+    `test_an_answered_identifier_writes_no_real_one`, at 600 and 20,000 rows, so no shape is built
+    twice for it. THE UID GRAMMAR: every twin UID matches `[012](\\.(0|[1-9]\\d*))+`, is at most 64
+    characters and opens with the published root (a held UID publishes no root and its twin writes
+    placeholders off the grammar, as on the lane's base 2d25b07, 480 of 600 cells: lane HX's hold,
+    asked only answered here); mutant: the UID root's opening read only to the first placeholder.
+    THE PREFIX: every twin cell of a column publishing a `(column)` prefix opens with it. THE NOUGHTS:
+    a record number exported as `31000000.00` writes `.00` on every twin cell. THE CHECK DIGIT: NPI-like
+    numbers keep ten figures and the description publishes no check-digit fact -- the product
+    publishes none for any column, so the twin's Luhn digits were never the table's -- and the
+    exclusion writes its one figure at the first place. THE JOIN: the twin's census of rows a value
+    equals the published one, a value moved whole; mutant: the final pass writing a fresh spelling
+    on every ROW of a moved value instead of one a value.
     """
-    seen = room.run_shape(tmp_path, name, 20_000, validate=False)
-    counts: "dict[str, int]" = {}
-    for cell in seen["twin"]:
-        if cell.strip():
+    twin = [cell for cell in seen["twin"] if cell.strip()]
+    block = seen["block"]
+    prefixes = block.get("layout_prefixes") or {}
+    if name in UID_SHAPES and (answered or name not in dict(room.ANSWERED)):
+        root = prefixes.get(parsing.PREFIX_OF_THE_COLUMN, "")
+        for cell in twin:
+            assert UID.fullmatch(cell) is not None and len(cell) <= 64, (name, cell)
+            assert cell.startswith(root), (name, cell, root)
+    if name in PREFIXED:
+        prefix = prefixes.get(parsing.PREFIX_OF_THE_COLUMN, "")
+        assert prefix, name
+        assert all(cell.startswith(prefix) for cell in twin), name
+    if name in WHOLE:
+        assert all(re.fullmatch(r"[1-9]\d*\.00", cell) for cell in twin), name
+    if name == "npi_check_digit":
+        assert all(re.fullmatch(r"[1-9]\d{9}", cell) for cell in seen["twin"]), name
+        assert block["layout_exclusions"].get("%%%%%%%%%%", "").count("%") == 9
+    if name in PEOPLE:
+        counts: "dict[str, int]" = {}
+        for cell in twin:
             counts[cell] = counts.get(cell, 0) + 1
-    census: "dict[int, int]" = {}
-    for rows in counts.values():
-        census[rows] = census.get(rows, 0) + 1
-    published = {int(key): value for key, value in seen["block"]["n_distinct_by_occurrences"].items()}
-    assert census == published, name
+        census: "dict[int, int]" = {}
+        for rows in counts.values():
+            census[rows] = census.get(rows, 0) + 1
+        published = {int(key): value for key, value in block["n_distinct_by_occurrences"].items()}
+        assert census == published, name
+
+
+def test_the_code_pins_reach_every_shape_they_name() -> None:
+    """Every shape a pin of `_code_runs_unchanged` names is one the gate builds."""
+    named = set(UID_SHAPES) | set(PREFIXED) | set(WHOLE) | set(PEOPLE) | {"npi_check_digit"}
+    assert named <= set(room.every_shape()), sorted(named - set(room.every_shape()))
 
 
 # -- the bytes move only in identifier columns ---------------------------------------------------
