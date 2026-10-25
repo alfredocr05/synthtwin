@@ -988,8 +988,10 @@ def test_a_published_layout_no_date_wears_is_written_as_made_up(tmp_path: pathli
     The column is held (three people's `NOT DONE YET`); the made-up cells of
     the layout `&&&&&&&` no date wears stand for real cells that do not
     read either and leave as made up, every other cell is a valid date, and
-    the one miss left is the longest length, a withheld form's, named in
-    the twin's report as the G1 floor's limit (P4-D417, repair round 2).
+    the one miss left was the longest length, a withheld form's, named in
+    the twin's report as the G1 floor's limit (P4-D417, repair round 2);
+    since plan P4-D432 the lengths of such a column are listed, and the
+    report names the values the final pass moved.
     """
     described = _profiled(tmp_path, "unread", persons_counted.unread_dates_table(), "--identifier", "patient")
     block = _block(described, "visit_date")
@@ -1004,8 +1006,16 @@ def test_a_published_layout_no_date_wears_is_written_as_made_up(tmp_path: pathli
     outcome = validation.measure(contract.load_profile(f"{tmp_path / 'unread-profile.json'}"),
                                  f"{tmp_path / 'unread-twin.csv'}")
     missed = sorted({f"{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED})
-    assert missed == ["length.max"], missed
-    assert "max_length" in (tmp_path / "unread-twin-report.txt").read_text(encoding="utf-8")
+    # A RECORD NUMBER'S CORNER (plan P4-D432): the census counts fewer
+    # cells than the column holds (a withheld form), so the lengths are
+    # REPORT-ONLY and listed (validation method V4.1-A1): the longest
+    # length, a withheld form's, is listed where it was the one miss.
+    assert missed == [], missed
+    listed = sorted({f"{entry.subcheck}" for entry in outcome.listings if entry.column == "visit_date"})
+    assert "length.max" in listed, listed
+    # ...and the twin's report names the values moved where it named the length.
+    report = (tmp_path / "unread-twin-report.txt").read_text(encoding="utf-8")
+    assert "values written where no real record number is" in report.split("'visit_date'")[1]
 
 
 @pytest.mark.parametrize("shape", ("pending", "short"))
