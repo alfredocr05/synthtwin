@@ -6,6 +6,33 @@ exists).
 
 ## [Unreleased]
 
+### Lane ID-ROOM: no twin identifier cell equals a real one, by construction (plan P4-D432, 2026-10-25)
+
+**The class lane CODES-3's stated limit (4) names, closed.** A declared or
+answered identifier's twin drew its free figures, letters and arcs in its
+column's own layouts and read no real value, so where the real values
+filled a layout densely a twin cell equalled a real one by chance: on
+CODES-3's final head 1,022 of 20,000 cells under `1.2.752.24.7.1.`, 11,110
+for record numbers `1` to `20,000`, 19,980 for a person on twenty rows,
+and 328 and 50,594 cells of the health data zoo's identifier columns at
+600 and 20,000 rows. The profile, which reads the real column, now
+publishes `layout_exclusions` beside each named layout (contract 7.12b):
+the layout with one place, or every other place of a block, written as a
+character no real cell of that layout holds there -- several spellings of
+the block where one leaves too little room, at most 32 -- never passing
+over a character 1 to 10 cells hold, and a spill longer than every real
+cell. The generator's walks are unchanged; a final pass (method G9.6b)
+spells every other value in its layout's excluded templates, else wider
+than every real value, so two equal cells cannot occur. Where the real
+values fill a layout's room its values are written wider, and its census
+entry and the two lengths are listed (a record number's corner,
+validation method V4.1-A1); `layout_exclusions` is REPORT-ONLY. New
+`K-HZ-06`: 0 at 600 and 20,000 rows over the shapes and the zoo, every
+shape validating at exit 0 at 20,000 rows. Gate:
+`tests/test_identifier_room.py`. The demonstration's goldens move on
+`record_code` alone (216 of 240 cells now open `R9`; one more listing in
+the quality report), and vectors file 27 gains three cases.
+
 ### Lane CODES-3: identifiers with numeric roots, record numbers written as decimals, prefixed ids of several lengths, plain keys beside a word (plan P4-D428, 2026-10-23; repair rounds 2 and 3, 2026-10-24)
 
 **The health data zoo's identifier rows 19, 42 and 43, and push critic
