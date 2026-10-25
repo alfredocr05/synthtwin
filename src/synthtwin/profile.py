@@ -4362,6 +4362,9 @@ def build_document(
             subject_enough += [
                 _reaches_the_floor(keyed_subjects, settings.small_cell_floor)
             ]
+    # Each row its own holder, built once for the date columns no subject
+    # column counts in people (plan P4-D433, `rows_as_holders`).
+    row_holders: "list[str]" = []
     described_identifiers = forced_identifiers + [
         name for name in withheld_names if name not in forced_identifiers
     ]
@@ -4546,6 +4549,33 @@ def build_document(
                 settings.small_cell_floor,
             )
         real_census = _census_of(described)
+        # EVERY DATE IS COUNTED, IN PEOPLE OR ELSE IN ROWS (plan P4-D433,
+        # lane PS2). A full date is a Safe Harbor element whoever's rows it
+        # sits on: where no subject column beside the column counts in
+        # people -- a table of one row a person, whose person column never
+        # repeats, or one with no person column -- each ROW is its own
+        # holder, so a percentile, a tail, a mode or a census day that one
+        # to ten rows hold is pooled or held as one that one to ten people
+        # hold is (`_counted_in_subjects`, `_grain_walk`). On one row a
+        # person a row IS a person. Counting in rows is implied by counting
+        # in people, so a column a subject column counts in people is
+        # counted as before; a column whose every published date the floor's
+        # rows already hold keeps its bytes. Clock times of day, which name
+        # no date, are not reached.
+        # IN ROWS THE DATE IS COUNTED, not the instant: each published
+        # point's calendar day (its month, its quarter where it names one)
+        # against the rows that fall on it (`_dates_few_in_rows`), so a
+        # stamp whose every published day the floor's rows hold keeps its
+        # time of day and its bytes; only where one does not is the column
+        # walked down its ladder, each row its own holder.
+        in_rows = (
+            described.role == taxonomy.ROLE_DATETIME and not any(counting_enough)
+        )
+        if in_rows:
+            if len(row_holders) != len(cells):
+                row_holders = rows_as_holders(len(cells))
+            counting += [row_holders]
+            counting_enough += [True]
         # DATES DECLARED AS COUNTS AND NOT READ AS DATES are never
         # published as plain numbers (the orchestrator's LANE HX2 ADDENDUM
         # 2, from lane AQ's close verify): `42.345` for an Excel day leaves
@@ -4603,13 +4633,19 @@ def build_document(
         elif declined or (
             counting
             and name not in described_identifiers
-            and _counted_in_subjects(
-                described,
-                cells,
-                counting,
-                settings.small_cell_floor,
-                counting_enough,
-                cell_reading,
+            and (
+                _dates_few_in_rows(
+                    described, cells, settings.small_cell_floor, cell_reading
+                )
+                if in_rows
+                else _counted_in_subjects(
+                    described,
+                    cells,
+                    counting,
+                    settings.small_cell_floor,
+                    counting_enough,
+                    cell_reading,
+                )
             )
         ):
             # DATES AND TIMES POOLED IN PEOPLE (plan P4-D417): described at
@@ -5571,6 +5607,17 @@ def subjects_holding(
     return _holding(keyed, subject_keys(subjects, absent), floor)
 
 
+def rows_as_holders(rows: int) -> "list[str]":
+    """One holder a row, each told apart by its place (plan P4-D433).
+
+    A date column no subject column counts in people is counted in rows:
+    every row its own holder, so `_holding` keeps a date's first `floor`
+    rows and a date one to `floor` - 1 rows hold is one the description
+    may not publish. On a table of one row a person each row is a person.
+    """
+    return [f"{place}" for place in range(rows)]
+
+
 def subject_keys(
     subjects: "list[str]", absent: "tuple[str, ...]" = ()
 ) -> "list[str]":
@@ -6198,6 +6245,84 @@ def _counted_in_subjects(
                 return True
             if held.rows >= floor and _plainly(key, plain):
                 return True
+    return False
+
+
+def _date_parts(text: str) -> "tuple[str, ...]":
+    """The calendar parts a canonical date text names, finest first: its day, its month, its quarter.
+
+    `2023-01-05 18:07:00` and `2023-01-05` give `2023-01-05`, `2023-01`
+    and `2023-q1`; `2023-01` its month and quarter; `2023-q1` its quarter;
+    any other text nothing. Folded text, as `_published_in` keeps words.
+    """
+    if len(text) < 7 or text[4:5] != "-" or not text[:4].isdigit():
+        return ()
+    if text[5:6] in ("q", "Q") and text[6:7] in ("1", "2", "3", "4"):
+        return (f"{text[:4]}-q{text[6]}",)
+    if not text[5:7].isdigit() or not "01" <= text[5:7] <= "12":
+        return ()
+    quarter = f"{text[:4]}-q{(int(text[5:7]) - 1) // 3 + 1}"
+    if len(text) >= 10 and text[7:8] == "-" and text[8:10].isdigit():
+        return (text[:10], text[:7], quarter)
+    return (text[:7], quarter)
+
+
+def _dates_few_in_rows(
+    described: taxonomy.ColumnProfile,
+    cells: "list[str]",
+    floor: int,
+    reading: "_CellReading | None" = None,
+) -> bool:
+    """Whether a date the column publishes names a day one to `floor` - 1 rows hold (plan P4-D433).
+
+    THE COUNT IN ROWS, where no subject column counts the column in
+    people. Every word the column's block publishes that names a date --
+    a percentile, a tail's boundary or value, a mode, a heavy date, a
+    census entry -- is read as the calendar part it names (`_date_parts`:
+    its day; a month or a quarter where it names only that), and each
+    present cell, read by the column's own reading (its format, or the
+    declared count of days), counts once under its day, its month and its
+    quarter. A published part one to `floor` - 1 rows fall on is a date
+    that few rows hold: the column is then walked down its ladder, each
+    row its own holder (`_grain_walk`). A part no row falls on names no
+    row. A written form, a remainder and the present rows are counts the
+    row floor already holds.
+    """
+    shown = _column_block(described)
+    published = _published_in(shown, True)
+    wanted: "dict[str, bool]" = {}
+    for word in published.words:
+        parts = _date_parts(word)
+        if parts:
+            wanted[parts[0]] = True
+    if not wanted:
+        return False
+    how = _CellReading() if reading is None else reading
+    written = shown["format"] if "format" in shown else ""
+    absent = frozenset(described.absent_spellings)
+    rows: "dict[str, int]" = {}
+    memo: "dict[str, tuple[str, ...]]" = {}
+    for cell in cells:
+        if cell in memo:
+            parts = memo[cell]
+        else:
+            text = ""
+            if parsing.folded(cell) and cell not in absent:
+                if how.member:
+                    days = _counted_days(cell, how)
+                    text = days[0] if days else ""
+                elif isinstance(written, str) and written:
+                    read = parsing.parse_datetime(cell, written)
+                    text = parsing.folded(read[0]) if read is not None else ""
+            parts = _date_parts(text)
+            if len(memo) < 65536:
+                memo[cell] = parts
+        for part in parts:
+            if part in wanted:
+                rows[part] = rows[part] + 1 if part in rows else 1
+    for part in rows:
+        if rows[part] < floor:
+            return True
     return False
 
 
