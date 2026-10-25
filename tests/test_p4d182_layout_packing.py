@@ -103,12 +103,19 @@ def test_the_layout_census_comes_back_exactly(
     times against 160, and both twins miss at exit 3.
     """
     for seed in SEEDS:
+        # THE WALK'S OWN COUNTS (plan P4-D432): this packing is the walk of
+        # G9.6, and the final pass of G9.6b then writes the `-3` cells, a
+        # spelling no census entry names, past the spill, which moves the
+        # lengths in a record number's corner. The walk is built from the
+        # description without its exclusions; `tests/test_identifier_room.py`
+        # holds the final pass.
         first, second, _written, twin_exit, real_exit = _round_trip(
             tmp_path / f"{name}-{seed}",
             cells,
             _DECLARED,
             seed=seed,
             by_command=_BY_THE_PRODUCER,
+            walk_only=True,
         )
         assert first["role"] == "identifier"
         assert first["layout_forms"], name

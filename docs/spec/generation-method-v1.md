@@ -15635,7 +15635,9 @@ make it so:
    excluded template takes them, so a fold collision stays one. Every
    other value is written as the first spelling, its fillings read from
    the first and the nought filling last (each template its own step, at most 4,096 a value before the next
-   template is asked), that neither spells nor folds onto any cell of the
+   template is asked; a search that finds nothing gives its step back, so
+   the fillings a value of another class could not take stay for the
+   values that can), that neither spells nor folds onto any cell of the
    column or any spelling taken before it, wears the template, is no
    spelling read as absent and no date, AND reads as the value's own
    class, whole or not as it is, and in its alphabets

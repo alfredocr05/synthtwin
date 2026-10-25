@@ -26202,7 +26202,7 @@ def spelled_off_the_real(column, content):
     does (`(unnamed)`).  Every other value takes the first spelling, its
     fillings read from the first and the nought filling last (each
     template its own step, at most 4,096 a value before the next template
-    is asked), that neither spells nor folds onto any cell of the content
+    is asked, a search that finds nothing giving its step back), that neither spells nor folds onto any cell of the content
     or any spelling taken before it, wears the template and reads as no
     absent spelling -- of its layout's excluded template, then of its
     layout widened as long as the spill (the same prefix and noughts),
@@ -26297,8 +26297,9 @@ def spelled_off_the_real(column, content):
                 ):
                     candidate = trial
                     break
-            steps[into] = step
+            # A search that finds nothing gives its step back.
             if candidate:
+                steps[into] = step
                 break
         if not candidate:
             raise AssertionError("no spelling is left, which no frozen case reaches")

@@ -566,7 +566,16 @@ NARROW_COLUMN_DIGESTS = {
     # other column of the demonstration's twin is byte-identical, the
     # 240 cells are still 240 different values wearing `@%%%%%`, and the
     # quality report holds the new obligation.
-    "record_code": "a14f1696c9160fc472c68099dd9e4257",
+    # RE-RECORDED AT LANE ID-ROOM (2026-10-25, plan P4-D432), and again
+    # only this column moved: the description publishes `layout_exclusions`
+    # `{"@%%%%%": "@9%%%%", ...}` beside the census -- no real code opens
+    # `R9` -- and method G9.6b's final pass spells every twin value there.
+    # MEASURED before re-recording, against the lane's base 2d25b07: on
+    # the wide twin 216 of 240 `record_code` cells moved (24 already wore
+    # `R9`), all 240 still wear `@%%%%%` as 240 different values and none
+    # equals a real code; every other narrow digest here held, and the
+    # quality report digest below did not move.
+    "record_code": "790e2123a85782763fdd5785abab7a1e",
     "region": "ba323f8f897027f35f93eb5e6add6ccc",
     "visits": "39c2d46a66ba3ecd62edfd441b0e47c0",
     # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
@@ -715,7 +724,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # it recorded before landing 2b.10 changed how the sorted ones are taken.
     # Re-recorded for plan P4-D202 with the sorted digest above: the
     # same 240 cells, as written, each now opening with the prefix `R`.
-    "record_code": "b01184fc67597fdbcb3139cae1b051b1",
+    # Re-recorded at lane ID-ROOM (plan P4-D432) with the sorted digest
+    # above: the same moved cells, as written, each opening `R9`.
+    "record_code": "7f7e1aa5a65b9a362a1605098d1bb8fc",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
     # Re-recorded for plan P4-D183 with the sorted digest above: the same
@@ -1755,7 +1766,12 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # 3b.5's own (ccdecf9f...636e22), the second key cut's four keys alone.
     # The twin, the report and the quality report digests below are
     # 3b.5's, which the second key cut did not move.
-    "24cfc8b1d16da410a9d32e9fd851a61e01be0bd1c0f0246119771ba1189ef93a"
+    # RE-RECORDED AT LANE ID-ROOM (2026-10-25, plan P4-D432): read key by
+    # key against the lane's base 2d25b07, ONE KEY MOVES, `record_code`
+    # gains `layout_exclusions` `{"(spill)": "@%%%%%%", "(unnamed)":
+    # "(none)", "@%%%%%": "@9%%%%"}`; with it taken out the bytes are the
+    # base's. The quality report digest below did not move.
+    "db38c85962b91a51659c3b8e911cea063af7887be98c45e36fc4a742a8a69603"
 )
 
 
@@ -2024,7 +2040,12 @@ GOLDEN_TWIN_SHA256 = (
     # them in `seen_at`; it holds 122 different values before and after,
     # its hours come back 120 at 07 and 118 at 08 as the real column's do
     # (121 and 117 before), and no cell of any other column moves.
-    "e27696f931c4b190de08464bc5f42346ac87ba6f5398c091bd1e00b011baff43"
+    # RE-RECORDED AT LANE ID-ROOM (2026-10-25, plan P4-D432): READ CELL BY
+    # CELL against the lane's base 2d25b07 at this seed, 216 cells move,
+    # every one of them in `record_code`, each now opening `R9` (the
+    # description's exclusion), 240 different values none of which is a
+    # real code; no cell of any other column moves.
+    "c89ce5bb7f3be67bd9baa48cbc2a76b29321800ec51c67f358364027ecad9970"
 )
 
 
@@ -2660,7 +2681,13 @@ GOLDEN_REPORT_SHA256 = (
     # windows open from 68 to 14 at the lower end, the group windows
     # overlapping more. "inside the range" still stands 136 times, and
     # "outside the range" nought times as it did.
-    "e22d5664003c00da31b7df8f83c457ce49aff0fee8bde954c3d3f8970c8d3b40"
+    # RE-RECORDED AT LANE ID-ROOM (2026-10-25, plan P4-D432): diffed line
+    # by line against the lane's base 2d25b07, the summary's count of
+    # cases a reader should know about goes from 1 to 2, and one remark
+    # arrives on `record_code` -- "values written where no real record
+    # number is: 216 different values on 216 rows, 0 of them written
+    # wider" and its note. Nothing else differs.
+    "3e45bb53efd42cf6115a4958f2380e218f94437de56f6d4c54d5c3c023a4ea88"
 )
 
 

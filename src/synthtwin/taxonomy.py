@@ -26579,11 +26579,13 @@ def moved_by_the_exclusions(
 
 
 def _greatest_last(alphabet: str) -> str:
-    """An exclusion's alphabet in the order it is read from the end: a hexadecimal mark's letters first, its figures last.
+    """The characters an exclusion may write at a place, in the order read from the end: a hexadecimal mark's FIGURES alone.
 
-    So the greatest character read first is a FIGURE wherever the mark
-    allows one: a hexadecimal cell of figures alone then keeps a spelling
-    of figures alone, and the class and alphabet counts with it.
+    A hexadecimal place is written with a figure and never a letter, so
+    a hexadecimal value of figures alone -- a number, by its class -- still
+    wears the excluded template, and the class and alphabet counts stay
+    met there. Every other alphabet is read whole. The room the template
+    keeps is still counted over the whole alphabet.
     """
     letters = ""
     figures = ""
@@ -26592,6 +26594,8 @@ def _greatest_last(alphabet: str) -> str:
             figures = figures + character
         else:
             letters = letters + character
+    if figures and letters:
+        return figures
     return letters + figures
 
 
@@ -26631,7 +26635,7 @@ def _exclusion_of(
                 # ...ONLY WHERE THE ROOM LEFT HOLDS THE LAYOUT'S VALUES: a
                 # layout whose real values fill all but less than that
                 # carries no exclusion, and its values are written wider.
-                if room // len(alphabet) < max(need, 1):
+                if room // len(parsing.exclusion_alphabet(template[place])) < max(need, 1):
                     return ""
                 return layout[:place] + character + layout[place + 1:]
             if count < floor:
@@ -26654,8 +26658,10 @@ def _exclusion_of(
     for size in range(2, len(chosen) + 1):
         block = chosen[:size]
         spellings = 1
+        choices = 1
         for place in block:
             spellings = spellings * len(parsing.exclusion_alphabet(template[place]))
+            choices = choices * len(_greatest_last(parsing.exclusion_alphabet(template[place])))
         if room // spellings < max(need, 1):
             return ""
         worn: "dict[str, bool]" = {}
@@ -26666,7 +26672,7 @@ def _exclusion_of(
             worn[parsing.folded(key)] = True
         if len(worn) >= spellings:
             continue
-        for number in range(spellings - 1, -1, -1):
+        for number in range(choices - 1, -1, -1):
             key = ""
             rest = number
             for place in block:

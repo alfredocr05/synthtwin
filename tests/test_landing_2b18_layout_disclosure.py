@@ -204,6 +204,21 @@ def test_the_twin_wears_the_layouts_the_census_may_publish(
     )
     assert got["twin_exit"] == 0, f"{name}: the twin misses its description"
     assert got["real_exit"] == 0, f"{name}: the table misses its description"
+    if name.startswith("alphanumeric"):
+        # THE POOL IS WRITTEN PAST THE LONGEST REAL CELL (plan P4-D432):
+        # its cells wear layouts the census does not name, so no exclusion
+        # can say what no real cell of them holds, and the final pass of
+        # method G9.6b writes them longer than every real cell. The three
+        # checks are the walk's (`walk_only`); the final pass is held here
+        # to what it costs, and by `tests/test_identifier_room.py`.
+        longest = max(len(cell) for cell in cells)
+        assert all(
+            len(cell) == 8 or len(cell) > longest for cell in got["cells"]
+        ), name
+        got = _round_trip(
+            tmp_path / f"{name}-{source_seed}-walk", cells, floor=floor,
+            walk_only=True,
+        )
     _three_checks(cells, got["cells"], pattern, length, case)
 
 

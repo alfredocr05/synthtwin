@@ -54426,7 +54426,9 @@ class _OffTheReal:
     contract 7.12b reads a layout's exclusion over every real core folding
     to its layout); ``bound`` is the spill's length, which every real cell
     is shorter than. ``written``, ``folds`` and ``steps`` are filled as
-    the pass goes.
+    the pass goes, and ``missed`` names each search that found nothing
+    (its template, its step, its value's reading), so the same search is
+    not run again.
     """
 
     facts: contract.IdentifierFacts
@@ -54442,6 +54444,7 @@ class _OffTheReal:
     written: "dict[str, bool]"
     folds: "dict[str, bool]"
     steps: "dict[str, int]"
+    missed: "dict[str, bool]"
 
 
 def _off_the_real_room(
@@ -54491,6 +54494,7 @@ def _off_the_real_room(
         written={},
         folds={},
         steps={},
+        missed={},
     )
 
 
@@ -54602,9 +54606,24 @@ def _next_off_the_real(
     real (`_kept_off_the_real`, for a folded identity of several), is no
     hole spelling and no date, and, where ``strict``, reads as that
     part's own class, wholeness and alphabets. The fillings are read from the
-    first, the nought filling (every place at its lowest) last.
+    first, the nought filling (every place at its lowest) last. A search
+    that finds nothing GIVES ITS STEP BACK, so the fillings a value of
+    another class could not take are left for the values that can (a
+    hexadecimal template asked first by values of figures alone), and the
+    same search from the same step is not run twice.
     """
-    step = room.steps[template] if template in room.steps else 0
+    start = room.steps[template] if template in room.steps else 0
+    step = start
+    search = ""
+    if len(parts) == 1:
+        lead, _core, trail, cell = parts[0]
+        search = (
+            f"{template}|{start}|{strict}|{len(lead)}|{len(trail)}|"
+            f"{parsing.classify_number(cell)}|{parsing.numeric_whole(cell)}|"
+            f"{parsing.is_digit_text(cell)}|{parsing.is_code_text(cell)}"
+        )
+        if search in room.missed:
+            return None
     room_of = parsing.layout_room(template)
     tries = 0
     found: "dict[str, str] | None" = None
@@ -54644,6 +54663,11 @@ def _next_off_the_real(
             spelt_now[written] = True
         if fits and taken:
             found = taken
+    if found is None:
+        room.steps[template] = start
+        if search:
+            room.missed[search] = True
+        return None
     room.steps[template] = step
     return found
 
