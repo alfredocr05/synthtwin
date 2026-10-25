@@ -26638,8 +26638,20 @@ def _exclusion_of(
     room = (
         parsing.uid_room(template[len(root):]) if root else parsing.layout_room(template)
     )
+    # A NUMBER'S FIGURES AFTER ITS ONE POINT ARE NEVER WRITTEN: they say
+    # whether a value is whole, and a twin value whole or not as the walk
+    # wrote it must still wear the template.
+    point = len(template)
+    numbered = template.count(".") == 1
+    for character in template:
+        if character not in "%!-+,.":
+            numbered = False
+    if numbered:
+        point = template.index(".")
     places: "list[int]" = []
     for place in range(len(template)):
+        if place > point:
+            break
         if template[place] in _EXCLUDED_MARKS or template[place] in _LETTER_MARKS:
             places += [place]
     # The places that open a run of figures, which take no nought.

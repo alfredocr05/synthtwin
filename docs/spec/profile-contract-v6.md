@@ -18778,7 +18778,9 @@ cells:
    layout folding to that layout's own -- its letter marks read in lower
    case, so a value and its case flip share it -- holds those characters
    at those places, letters compared in either case. First ONE place: the places the twin fills (after the layout's
-   prefix, never a whole number's nought after the point) are read left
+   prefix, never a whole number's nought after the point, and never a
+   figure after the one point of a number, which says whether a value
+   is whole) are read left
    to right, and at each the characters of its alphabet from the
    greatest down (at a hexadecimal place, its figures alone where some
    such cell is figures alone, so a value of figures alone still wears
