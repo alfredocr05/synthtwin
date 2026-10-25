@@ -323,11 +323,16 @@ def test_a_census_keyed_by_counts_holds_no_value(tmp_path: pathlib.Path) -> None
     source = _write(tmp_path, table, header, rows, "real")
     profile = _profile(tmp_path, {"columns": [{
         "name": "record_id", "n_distinct_by_occurrences": {"1": 44, "2": 10, "3": 7}, "field_widths": {"1": 9, "2": 90},
-        "hour_census": {"3": 12},
+        "hour_census": {"3": 12}, "layout_forms": {"%%%": 9}, "missing_by_class": {"(blank)": 12},
     }]})
     assert zoo.leaked(table, source, None, profile)["record_id"]["description"] == 0
     printed = _profile(tmp_path, {"columns": [{"name": "record_id", "mode": "7"}]}, "printed")
     assert zoo.leaked(table, source, None, printed)["record_id"]["description"] == 1
+    well = zoo.table_named("well_child")
+    header, rows = well.build(zoo.SMOKE_ROWS, zoo.seed_of(well))
+    source = _write(tmp_path / "well", well, header, rows, "real")
+    forms = _profile(tmp_path / "well", {"columns": [{"name": "age_text", "layout_forms": {"%% &&": 149, "(withheld)": 451}}]})
+    assert zoo.leaked(well, source, None, forms)["age_text"]["description"] == 0, "149 rows of a form are no age of 149"
 
 
 # -- each validate check its own failure ----------------------------------------------------

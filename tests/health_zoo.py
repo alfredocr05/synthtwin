@@ -3006,6 +3006,10 @@ NOT_A_VALUE_KEY = re.compile(
 # are, a census counts hours, minutes, weekdays or days of the month,
 # and a tail block's `bin_groups` names histogram bins by their number.
 COUNTED_BLOCK = re.compile(r"by_occurrences|widths?$|_census$|^bin_groups$")
+# Blocks keyed by a form, a class or a style whose numbers are the rows
+# each holds: their keys are read (a prefix may be a value's), their
+# numbers never ('layout_forms' {"%% &&": 149} is 149 rows, not an age).
+COUNT_VALUED = re.compile(r"^(layout_\w+|missing_by_\w+|numeric_styles|number_spellings|negative_notations|decimal_plus)$")
 PLACEHOLDER = re.compile(r"-\d")
 # Words a column writes for a value it lacks: no person's value, so never
 # counted as one (a ZIP column's 'UNKNOWN', a death date's 'NULL').
@@ -3046,11 +3050,14 @@ def _scalars(value: object, key: str = "") -> "list[str]":
         if not NOT_A_VALUE_KEY.search(key.casefold()):
             found += [f"{int(value)}" if float(value).is_integer() else f"{value}"]
     elif isinstance(value, dict):
+        rows_only = bool(COUNT_VALUED.search(key.casefold()))
         for inner_key, inner in value.items():
             if COUNTED_BLOCK.search(f"{inner_key}".casefold()):
                 continue
             # A dict keyed by values (a census) holds them in its keys.
             found += [f"{inner_key}"]
+            if rows_only and isinstance(inner, (int, float)):
+                continue
             found += _scalars(inner, f"{inner_key}")
     elif isinstance(value, list):
         for inner in value:

@@ -3254,4 +3254,76 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
 }
 
+
+# HIPAA FIRST, the leak entries lane E0c's repair reads (health_zoo.leak_list):
+# who owns each real value found published, measured at 600 and 20,000
+# rows on the base (nothing in src changed). A leak is named 'leak
+# <column>' after the answers, 'leak <column> unanswered' in the first
+# description, and 'leak <column> years' for a year of an age of 90 or
+# more.
+def _leaks(*names: str) -> "tuple[str, ...]":
+    """A leak entry's failure names, as published after the answers and before them."""
+    return tuple(f"leak {name}{stage}" for name in names for stage in ("", " unanswered"))
+
+
+SH_YEARS = (
+    "LIVE: a year of 1934 or earlier (an age of 90 or more in the zoo's era, 2024) printed in the description or "
+    "written by the twin, as a birth year or in a birth date (45 CFR 164.514(b)(2)(i)(C): all elements of dates, "
+    "the year included, indicative of such age); Safe Harbor's top-code reaches no year column yet (lane SH, P4-D427)"
+)
+SH_ZIPS = (
+    "LIVE: a ZIP column publishes its real ZIPs before or after its answer (Safe Harbor; the orchestrator's LANE SH "
+    "ADDENDUM 7: an answer of `code` never releases the ZIP hold, ADDENDUM 9: the zoo answers the Safe Harbor "
+    "question 'yes')"
+)
+HELD_WHILE_OPEN = (
+    "LIVE: a column whose measurement, code or identifier question is still open publishes its values before the "
+    "answer (a person or record key of one to four figures, or a number Excel shows in scientific notation, read as "
+    "a count: its percentile ladder and tails), against HX's literal rule (P4-D401) that nothing is published while "
+    "a question offering `identifier` is open; the held block follows the offer under the orchestrator's LANE SH "
+    "ADDENDUM 6 (lane SH)"
+)
+CODES3_BIRTH_DATES = (
+    "LIVE: a birth date column no question flags publishes real birth dates as its date percentiles and tail "
+    "boundaries, each one person's, read as the ISO dates printed whatever the source's spelling (US, text, a "
+    "two-figure year in the century the person named); full birth dates no question flags are CODES-1 part C's, now "
+    "CODES-3's (the orchestrator's LANE HX2 ruling of 2026-10-19, item (4))"
+)
+CODES3_UDIS = (
+    "LIVE: device identifiers (GS1 UDIs, lot-level, about a thousand rows each, no serial) answered `code` are "
+    "published as category levels and written on every twin cell; identifier forms are lane CODES-3's, and whether a "
+    "lot-level UDI is an identifier is the orchestrator's to rule"
+)
+LEAK_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
+    "demographics": (
+        ("CODES-3", CODES3_BIRTH_DATES, covers(*_leaks("dob_iso", "dob_us", "dob_text"))),
+        ("SH", SH_YEARS, covers(*_leaks("dob_iso years", "dob_us years", "dob_text years"))),
+        ("SH", SH_ZIPS, covers(*_leaks("zip5", "zip4"))),
+    ),
+    "redcap": (("SH", HELD_WHILE_OPEN, covers(*_leaks("record_id"))),),
+    "immunizations_providers": (("CODES-3", CODES3_UDIS, covers(*_leaks("udi"))),),
+    "two_digit_years": (
+        ("CODES-3", CODES3_BIRTH_DATES, covers(*_leaks("dob_short"))),
+        ("SH", SH_YEARS, covers(*_leaks("dob_short years"))),
+    ),
+    "omop_cdm": (("SH", HELD_WHILE_OPEN, covers(*_leaks("person_id", "measurement_id"))),),
+    "i2b2_eav": (("SH", HELD_WHILE_OPEN, covers(*_leaks("encounter_num", "patient_num"))),),
+    "excel_mangled_codes": (
+        ("SH", HELD_WHILE_OPEN, covers(*_leaks("npi_shown", "account_shown", "member_ref"))),
+        ("SH", SH_ZIPS, covers(*_leaks("zip_lost"))),
+    ),
+    "phi_columns": (
+        ("CODES-3", CODES3_BIRTH_DATES, covers(*_leaks("birth_date"))),
+        ("SH", SH_YEARS, covers(*_leaks("birth_date years"))),
+        ("SH", SH_ZIPS, covers(*_leaks("zip5"))),
+    ),
+    "safe_harbor_shapes": (
+        ("SH", SH_YEARS, covers(*_leaks("birth_year years"))),
+        ("SH", "LIVE: an age past the top-code 90 printed or written as a number (Safe Harbor; lane SH, P4-D427)",
+         covers(*_leaks("age_top"))),
+    ),
+}
+for _kind, _lines in LEAK_OWNERS.items():
+    WIDE_OWNERS[_kind] = WIDE_OWNERS.get(_kind, ()) + _lines
+
 _UNUSED = (JUNK, _bad_pattern, _i, _r, _zipf, covers)

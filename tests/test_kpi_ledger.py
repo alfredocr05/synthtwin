@@ -2250,30 +2250,73 @@ def test_k_s8_04(record_property, tmp_path: pathlib.Path) -> None:
     _kpi(record_property, "K-S8-04", value)
 
 
-@pytest.fixture(scope="module")
-def health_zoo_small(tmp_path_factory: pytest.TempPathFactory) -> "dict":
-    """The health data zoo's 600-row smoke, BELOW THE OWNER'S TABLE FLOOR, run once for K-HZ-01 and K-HZ-02.
+# The health data zoo's shards (`health_zoo.shards()`), each run by a test
+# item of its own below (skeptic 1 item 8 of lane E0c's repair: K-HZ-03's
+# bound of 90 seconds is each shard's, so no one item runs the whole
+# catalogue). A shard once run is kept here for the module's K-HZ tests.
+HEALTH_ZOO_SHARDS = (1, 2, 3, 4, 5)
+_HEALTH_ZOO_RUNS: "dict[int, dict]" = {}
 
-    Lane E0c (plan P4-D431): the catalogue runs shard by shard
-    (`health_zoo.shards()`, at most thirty kinds a shard), each shard
-    timed on its own, with `cli.main`'s internal switch keeping the
-    floor off as the suite does (the 20,000-row legs, the floor on, are
-    the slow driver's). Where openpyxl is absent (CI's `minimums` cell)
-    the workbook exports are left out (`health_zoo.runnable_tables`),
-    and the two tests below judge the keys of the delimited exports and
-    name the rest.
-    """
+
+def _health_zoo_shard(place: int, tmp_path_factory: pytest.TempPathFactory) -> "dict":
+    """One shard of the 600-row smoke, run once: its results and its seconds."""
     import time
 
     import health_zoo
 
+    if place not in _HEALTH_ZOO_RUNS:
+        folder = tmp_path_factory.mktemp(f"health-zoo-shard-{place}")
+        started = time.perf_counter()
+        results = health_zoo.run_zoo(folder, health_zoo.SMOKE_ROWS, tables=health_zoo.shards()[place - 1])
+        _HEALTH_ZOO_RUNS[place] = {"results": results, "seconds": round(time.perf_counter() - started, 1)}
+    return _HEALTH_ZOO_RUNS[place]
+
+
+def test_the_health_zoo_shards_are_the_suites() -> None:
+    """The shards this file runs one item each are the catalogue's: red when a shard is added and not run here."""
+    import health_zoo
+
+    assert len(health_zoo.shards()) == len(HEALTH_ZOO_SHARDS)
+
+
+@pytest.mark.parametrize("place", HEALTH_ZOO_SHARDS)
+def test_health_zoo_smoke_shard(place: int, record_property, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """One shard of the zoo's 600-row smoke, BELOW THE OWNER'S TABLE FLOOR, as an item of its own (K-HZ-03's 90 s a shard).
+
+    Every runnable table of the shard is run end to end (profile, the
+    general answers, generate, validate, the analyst), its seconds
+    recorded; K-HZ-01 and K-HZ-02 below read the five shards' results.
+    """
+    import health_zoo
+
+    run = _health_zoo_shard(place, tmp_path_factory)
+    record_property("seconds_600_rows_shard", run["seconds"])
+    shard = health_zoo.shards()[place - 1]
+    assert [result["table"] for result in run["results"]] == [t.name for t in health_zoo.runnable_tables(shard)]
+
+
+@pytest.fixture(scope="module")
+def health_zoo_small(tmp_path_factory: pytest.TempPathFactory) -> "dict":
+    """The health data zoo's 600-row smoke, BELOW THE OWNER'S TABLE FLOOR, for K-HZ-01 and K-HZ-02.
+
+    Lane E0c (plan P4-D431): the catalogue runs shard by shard
+    (`health_zoo.shards()`, at most thirty kinds a shard), each shard an
+    item of its own above (`test_health_zoo_smoke_shard`), with
+    `cli.main`'s internal switch keeping the floor off as the suite does
+    (the 20,000-row legs, the floor on, are the slow driver's); a shard
+    not yet run (a K-HZ test run alone) is run here. Where openpyxl is
+    absent (CI's `minimums` cell) the workbook exports are left out
+    (`health_zoo.runnable_tables`), and the two tests below judge the
+    keys of the delimited exports and name the rest.
+    """
+    import health_zoo
+
     results: "list[dict]" = []
     seconds: "list[float]" = []
-    folder = tmp_path_factory.mktemp("health-zoo")
-    for place, shard in enumerate(health_zoo.shards(), 1):
-        started = time.perf_counter()
-        results += health_zoo.run_zoo(folder / f"shard-{place}", health_zoo.SMOKE_ROWS, tables=shard)
-        seconds += [round(time.perf_counter() - started, 1)]
+    for place in HEALTH_ZOO_SHARDS:
+        run = _health_zoo_shard(place, tmp_path_factory)
+        results += run["results"]
+        seconds += [run["seconds"]]
     measured = health_zoo.zoo_measures(results)
     measured["smoke"] = health_zoo.smoke_ran(results)
     measured["shard_seconds"] = seconds
