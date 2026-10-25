@@ -13923,12 +13923,13 @@ taking: when the guess was right it published no more than free text
 publishes, and when it was wrong it destroyed a distribution the twin
 exists to reproduce.
 
-**Added keys** — eight, beyond the universal keys of section 5.1:
+**Added keys** — nine, beyond the universal keys of section 5.1:
 
 | key | JSON type | range | meaning |
 |---|---|---|---|
 | `layout_forms` | object | section 7.12 | how many present cells were written in each shared LAYOUT, under the floor, with the pooled key `(withheld)` |
 | `layout_prefixes` | object | section 7.12a | the literal text every present cell opens with, under the key `(column)`, or the text every cell of one named layout opens with, under that layout; `{}` where there is none (owner ruling of 2026-09-17, item 1) |
+| `layout_exclusions` | object | section 7.12b | beside a named layout, that layout with places written as characters NO real cell of it holds there, and under `(spill)` a layout longer than every present cell; `{}` where the producer published none (lane ID-ROOM, plan P4-D432) |
 | `min_length` | integer ≥ 1 | ≤ `max_length` | the shortest present value's length in characters |
 | `max_length` | integer ≥ 1 | ≥ `min_length` | the longest present value's length in characters |
 | `all_whole_numbers` | boolean | — | true when every present cell is a whole number and there is at least one |
@@ -14324,7 +14325,7 @@ one row of the table below:
 |---|---|---|
 | labels | `constant`, `binary`, `categorical`, `long_tail_labels` | the values themselves appear, folded, with counts, and only when at least `small_cell_floor` rows share them |
 | ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers` | no spelling appears; order statistics computed from the values do. TWO named exceptions, each confined by section 6.11 to its own keys: C6-9's, at `affix_prefix`, `affix_suffix` and the `prefix`/`suffix` of each `affix_variants` entry — a column may wear a SET of wrappers (C6-7a) and every member of the vocabulary is published on the same terms as the commonest, which is what the exception was always about — and section 6.15's, at `separator` |
-| nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict. ONE named exception, by the owner's ruling of 2026-09-17 (item 1): the literal prefix of section 7.12a, confined by section 6.11 to `layout_prefixes` on `identifier` |
+| nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict. ONE named exception, by the owner's ruling of 2026-09-17 (item 1): the literal prefix of section 7.12a, confined by section 6.11 to `layout_prefixes` on `identifier`. The exclusions of section 7.12b are no exception: each written character is one NO real cell holds at its place |
 | **no value-publishing class** | `empty` | it has no value to publish, and it is NOT thereby a nothing-publishing column (C6-51) |
 
 The three value-publishing classes carry exactly twelve of the
@@ -18753,7 +18754,65 @@ declared identifier draws its free arcs and figures in the column's own
 rooms and reads no real value, so where the real values fill a room
 densely a twin cell can equal a real one by chance (1,022 of 20,000
 under `1.2.752.24.7.`; P4-D428's stated limit (4)); making that
-impossible by construction is lane ID-ROOM's (plan P4-D432).
+impossible by construction is lane ID-ROOM's (plan P4-D432), and 7.12b
+does it.
+
+### 7.12b `layout_exclusions` (lane ID-ROOM, plan P4-D432, 2026-10-24)
+
+NO TWIN IDENTIFIER CELL EQUALS A REAL IDENTIFIER OF ITS COLUMN, BY
+CONSTRUCTION. Every block of the `identifier` role carries
+`layout_exclusions`, which the producer writes LAST, once the census and
+the prefixes of 7.12 and 7.12a are final, reading the column's present
+cells:
+
+1. **Beside each named layout, an exclusion**: the layout with one place
+   or more written as a character of that place's own alphabet (`%` a
+   figure, `@` and `&` a letter of their case, `~` and `^` a hexadecimal
+   character of theirs; never the zero fill `!`), such that NO present
+   cell whose layout is that layout holds those characters at those
+   places. The first choice is ONE place: the first, left to right among
+   the places the twin fills (after the layout's prefix, never a whole
+   number's nought after the point), at which every character of its
+   alphabet is held by no such cell or by at least `small_cell_floor` of
+   them and one is held by none; the greatest such character is written,
+   never a nought that would open the cell, an arc, or the figures after
+   a sign or a zero fill. Where no place qualifies, the LAST k places the
+   twin fills are written as their alphabets' greatest characters, k the
+   fewest whose spellings number at least 1,000 times the layout's
+   published cells, provided no such cell holds all k. Either is written
+   only where the spellings left hold the layout's cells or the column's
+   different values, whichever is fewer, and at least one place stays a
+   placeholder; otherwise the layout carries none.
+2. **Under `(spill)`, the spill layout**: the widest named layout (the
+   commonest among the widest) with figures inserted before its first
+   `%` after the column's prefix -- copies of its first placeholder there
+   where it holds no `%` -- until it is longer than every present cell.
+   No real cell can wear it. None where it would pass 64 characters.
+3. **What it publishes is what the column does not hold.** A written
+   character is held by no real cell of its layout at its place, the
+   characters the one-place choice passed over at that place are each
+   held by at least `small_cell_floor` cells, and the spill's length says
+   only that every real cell is shorter, as `max_length` does. No value,
+   no fragment of one, no extreme of one and no count below the floor is
+   published. On the one-place choice a place passed over is either one
+   holding some character on 1 to `small_cell_floor` - 1 cells or one
+   holding every character; on the block of k places, the block held by a
+   real cell is never followed by another, so a missing exclusion says
+   at most that one block of k greatest characters is held, which values
+   drawn at random do on about one layout in a thousand.
+
+Invariants: **LX1** an exclusion is published for a layout the census
+names, or as the spill, and only beside a census naming a layout; **LX2**
+an exclusion is its layout with one place or more written as a character
+of that place's own alphabet, every one a place the twin fills after the
+layout's prefix, and at least one place left; **LX3** the spill is a
+layout the census does not name, longer than `max_length`, opening with
+the `(column)` prefix's layout where one is published. The loader checks
+the text; that no real cell holds the written characters is the
+producer's promise, read off the cells. The generator writes every cell
+of a layout carrying an exclusion with it, and every other cell in the
+spill (method G9.6b). The validator does not read this key: a real
+table's cells hold none of the written characters, by construction.
 
 ---
 

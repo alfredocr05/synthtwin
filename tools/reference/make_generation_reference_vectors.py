@@ -26120,6 +26120,7 @@ def templated_census(column):
     """
     census = column.get("layout_forms") or {}
     prefixes = column.get("layout_prefixes") or {}
+    exclusions = column.get("layout_exclusions") or {}
     whole = prefixes.get(PREFIX_OF_THE_COLUMN, "")
     noughts = bool(column.get("all_whole_numbers")) and any(
         name != WITHHELD and whole_places_template(name) != name for name in census
@@ -26133,8 +26134,116 @@ def templated_census(column):
         written = prefix + name[len(prefix):] if prefix else name
         if noughts:
             written = whole_places_template(written)
+        # ...AND WHAT NO REAL CELL HOLDS STANDS IN IT (method G9.6b, lane
+        # ID-ROOM, plan P4-D432): every place the layout's exclusion writes
+        # out, where the template holds a placeholder, holds its character.
+        if name in exclusions:
+            written = excluded_template(written, exclusions[name])
         templated[written] = census[name]
     return templated
+
+
+EXCLUSION_SPILL = "(spill)"
+_EXCLUSION_ALPHABETS = {
+    LAYOUT_DIGIT: "0123456789",
+    LAYOUT_UPPER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    LAYOUT_LOWER: "abcdefghijklmnopqrstuvwxyz",
+    LAYOUT_LOWER_HEX: "0123456789abcdef",
+    LAYOUT_UPPER_HEX: "0123456789ABCDEF",
+}
+
+
+def excluded_template(template, exclusion):
+    """A template with an exclusion's written characters standing in it (G9.6b, P4-D432).
+
+    Written from the rule statement: at every place where the template
+    holds a placeholder other than the zero fill and the exclusion a
+    character of that placeholder's alphabet, the character; elsewhere
+    the template's own.
+    """
+    if len(template) != len(exclusion):
+        return template
+    return "".join(
+        character
+        if character in _EXCLUSION_ALPHABETS.get(mark, "")
+        else mark
+        for mark, character in zip(template, exclusion)
+    )
+
+
+def spelled_off_the_real(column, content):
+    """Every present cell of a record number written where no real cell is (G9.6b, P4-D432).
+
+    Written from the rule statement.  A cell is KEPT where it recounts
+    into a named layout carrying an exclusion and wears that layout's
+    excluded template, or wears the spill's template; every other
+    different value, in the order it first appears in the content, takes
+    the next spelling of the target template -- the spill's, else the
+    excluded template of the most room -- stepping from nought, that
+    neither spells nor folds onto any cell of the content or any spelling
+    taken before it, wears the target and reads as no absent spelling,
+    and every cell of the value is written so.  An empty map moves
+    nothing.  THIS ORACLE DOES NOT MODEL the date test the product asks
+    of a moved spelling: no frozen case's target reaches a spelling any
+    date format reads, and a case that did would need it added first.
+    """
+    exclusions = column.get("layout_exclusions") or {}
+    if not exclusions:
+        return content
+    census = column.get("layout_forms") or {}
+    prefixes = column.get("layout_prefixes") or {}
+    whole = prefixes.get(PREFIX_OF_THE_COLUMN, "")
+    noughts = bool(column.get("all_whole_numbers")) and any(
+        name != WITHHELD and whole_places_template(name) != name for name in census
+    )
+    convention = _convention_of_the_keys([name for name in census if name != WITHHELD])
+    kept = {}
+    target = ""
+    for name in sorted(census):
+        if name == WITHHELD or name not in exclusions:
+            continue
+        prefix = prefixes.get(name, whole)
+        written = prefix + name[len(prefix):] if prefix else name
+        if noughts:
+            written = whole_places_template(written)
+        kept[name] = excluded_template(written, exclusions[name])
+        if not target or layout_room(kept[name]) > layout_room(target):
+            target = kept[name]
+    spill = exclusions.get(EXCLUSION_SPILL, "")
+    if spill:
+        target = whole + spill[len(whole):] if whole else spill
+        if noughts:
+            target = whole_places_template(target)
+    holes = tuple(sorted(column.get("missing_by_source") or {}))
+    used = set(content) | {folded(cell) for cell in content}
+    moved = {}
+    step = 0
+    for cell in content:
+        if cell in moved or not cell.strip():
+            continue
+        layout = layout_of(cell, convention)
+        if (layout in kept and wears_template(cell, kept[layout], convention)) or (
+            spill and wears_template(cell, target, convention)
+        ):
+            continue
+        while True:
+            if step >= layout_room(target):
+                raise AssertionError(
+                    "the spill has no spelling left, which no frozen case reaches"
+                )
+            candidate = filled_layout(target, step)
+            step += 1
+            if (
+                candidate not in used
+                and folded(candidate) not in used
+                and wears_template(candidate, target, convention)
+                and not reads_as_absent(candidate, holes)
+            ):
+                break
+        used.add(candidate)
+        used.add(folded(candidate))
+        moved[cell] = candidate
+    return [moved.get(cell, cell) for cell in content]
 
 
 def whole_places_template(name):
@@ -30241,6 +30350,11 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # every case frozen before that ruling.
     if role == "identifier" and "layout_prefixes" not in block:
         block["layout_prefixes"] = {}
+    # ...and what no real cell holds (contract 7.12b, lane ID-ROOM, plan
+    # P4-D432), REQUIRED on the identifier role and empty on every case
+    # frozen before it: an empty map moves no cell (method G9.6b).
+    if role == "identifier" and "layout_exclusions" not in block:
+        block["layout_exclusions"] = {}
     # The census of SPELLINGS (contract 7.13), REQUIRED on the count role
     # and forbidden everywhere else, and EMPTY on every count case frozen
     # before landing 2b.18's second part: none of their source columns
@@ -53696,7 +53810,7 @@ def build_case(name):
         if spec.get("decimal_comma_declared"):
             content = decimal_comma_spelled(content)
     elif column["role"] == "identifier":
-        content = _identifier_content(working)
+        content = spelled_off_the_real(column, _identifier_content(working))
     elif column["role"] == "free_text":
         content = _free_text_content(working)
     elif column["role"] == "numeric_unrepresentable":

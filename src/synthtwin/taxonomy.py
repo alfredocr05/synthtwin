@@ -562,6 +562,13 @@ KEYS_THAT_CARRY_NO_VALUE = (
     # prefix `parsing.is_a_literal_prefix` refuses and any key that is
     # neither `(column)` nor a layout, whatever built it.
     "layout_prefixes",
+    # THE EXCLUSIONS ARE ADMITTED ON A CHECKED PROPERTY TOO (lane ID-ROOM,
+    # plan P4-D432). Each is a named layout with a placeholder or a few
+    # written as a character that NO real cell of that layout holds there,
+    # or the spill layout, longer than every real cell: what it publishes
+    # is what the column does NOT hold, never a character any value has at
+    # its place (`with_layout_exclusions`, `contract._layout_exclusions`).
+    "layout_exclusions",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -26051,6 +26058,9 @@ def _identifier_verdict(
             # published, so a pattern written against the twin selects
             # the rows it selects on the table. See `_layout_prefixes`.
             "layout_prefixes": _layout_prefixes(cells, layouts),
+            # WHAT NO REAL CELL HOLDS (lane ID-ROOM, plan P4-D432): written
+            # once the census is final, by `with_layout_exclusions`.
+            "layout_exclusions": {},
             # The shape of repetition, with no value attached to it: the
             # one fact a generator needs to rebuild a column of codes
             # that repeat, and the one this block did not carry (review
@@ -26374,6 +26384,211 @@ def _a1_written(
     details["min_length"] = shortest
     details["max_length"] = longest
     return dataclasses.replace(column, details=details)
+
+
+# -- WHAT NO REAL CELL HOLDS (lane ID-ROOM, plan P4-D432) ----------------
+#
+# A block of the last k places is excluded only where its spellings are
+# at least this many times the layout's published cells, so the one
+# block tried is held by no real cell on all but about one layout in a
+# thousand of values drawn at random -- and a block a real cell does hold
+# is never followed by another, so the choice reads no second real block.
+_EXCLUSION_BLOCK_ODDS = 1000
+# The places before which a nought would read otherwise: the opening of a
+# cell (a record number of figures alone would recount as a zero fill),
+# of a UID arc (the grammar leads no arc but `0` with a nought), after a
+# sign or after a zero fill's own noughts.
+_EXCLUSION_NO_NOUGHT_AFTER = ".-+" + parsing.LAYOUT_LEADING_ZERO
+
+
+def with_layout_exclusions(
+    column: ColumnProfile, cells: "list[str]", floor: int
+) -> ColumnProfile:
+    """A record-number block with what no real cell holds (lane ID-ROOM, plan P4-D432).
+
+    NO TWIN IDENTIFIER CELL EQUALS A REAL ONE, BY CONSTRUCTION. Asked once
+    the block's census and prefixes are final, of the column's own cells,
+    it publishes `layout_exclusions`: beside each named layout, the
+    layout with places written out that NO real cell of that layout
+    holds -- the first place, left to right, at which every character of
+    its alphabet is held by no real cell or by at least ``floor`` of them,
+    one of them by none (the greatest such character, never a nought that
+    would lead a number or an arc); else, on a layout no such place
+    leaves, its last k places as their greatest characters, where k is
+    the fewest whose spellings are `_EXCLUSION_BLOCK_ODDS` times the
+    layout's published cells and no real cell holds them -- and only
+    where the room left still holds the layout's cells or the column's
+    different values, whichever is fewer. And `(spill)`: the widest named
+    layout widened past the column's longest real cell, which no real
+    cell wears (`parsing.spill_layout`). The twin writes every cell of a
+    layout carrying an exclusion with it, and every other cell in the
+    spill, so no twin cell is spelled as a real one: two equal cells wear
+    one layout and hold one character at every place.
+
+    WHAT IT PUBLISHES IS WHAT THE COLUMN DOES NOT HOLD. A written
+    character is held by no real cell at its place; the characters the
+    choice passed over at that place are each held by at least ``floor``
+    cells; and the spill's length says only that every real cell is
+    shorter, as `max_length` already does for every block but rule A1's.
+    No real identifier, no extreme of one and no count below the floor is
+    published.
+
+    Guarantees: accepts a described column and its cells; returns it with
+    `layout_exclusions` written, or unchanged where it is no record
+    number publishing a census. Determinism: a fixed function of the
+    arguments. Raises nothing. No I/O.
+    """
+    if column.role != ROLE_IDENTIFIER or "layout_exclusions" not in column.details:
+        return column
+    forms = (
+        column.details["layout_forms"] if "layout_forms" in column.details else None
+    )
+    prefixes = (
+        column.details["layout_prefixes"]
+        if "layout_prefixes" in column.details
+        else None
+    )
+    if not isinstance(forms, dict) or not isinstance(prefixes, dict):
+        return column
+    absent: "dict[str, bool]" = {}
+    for spelling in column.absent_spellings:
+        absent[spelling] = True
+    present = [
+        value for value in cells if parsing.trimmed(value) and value not in absent
+    ]
+    named: "list[str]" = []
+    for layout in sorted(forms):
+        if layout != SUPPRESSED_LABEL:
+            named += [f"{layout}"]
+    exclusions: "dict[str, str]" = {}
+    if present and named:
+        convention = parsing.layout_convention(present)
+        wanted: "dict[str, bool]" = {}
+        for layout in named:
+            wanted[layout] = True
+        worn: "dict[str, list[str]]" = {}
+        longest = 0
+        for value in present:
+            longest = max(longest, len(value))
+            layout = parsing.layout_form(value, convention)
+            if layout in wanted:
+                if layout not in worn:
+                    worn[layout] = []
+                worn[layout] += [value]
+        whole = ""
+        if parsing.PREFIX_OF_THE_COLUMN in prefixes:
+            whole = f"{prefixes[parsing.PREFIX_OF_THE_COLUMN]}"
+        all_whole = (
+            column.details["all_whole_numbers"]
+            if "all_whole_numbers" in column.details
+            else False
+        )
+        whole_places = all_whole is True and any(
+            parsing.whole_places_layout(layout) != layout for layout in named
+        )
+        for layout in named:
+            prefix = f"{prefixes[layout]}" if layout in prefixes else whole
+            template = parsing.layout_template(layout, prefix, whole_places)
+            need = min(int(f"{forms[layout]}"), column.n_distinct)
+            found = _exclusion_of(
+                worn[layout] if layout in worn else [],
+                layout,
+                template,
+                prefix,
+                floor,
+                need,
+                int(f"{forms[layout]}"),
+            )
+            if found:
+                exclusions[layout] = found
+        widest = named[0]
+        for layout in named:
+            if len(layout) > len(widest) or (
+                len(layout) == len(widest)
+                and int(f"{forms[layout]}") > int(f"{forms[widest]}")
+            ):
+                widest = layout
+        opening = len(parsing.prefix_layout(whole, convention)) if whole else 0
+        spill = parsing.spill_layout(widest, opening, longest)
+        if spill:
+            exclusions[parsing.EXCLUSION_SPILL] = spill
+    details: dict[str, object] = {}
+    for key in sorted(column.details):
+        details[key] = column.details[key]
+    details["layout_exclusions"] = exclusions
+    return dataclasses.replace(column, details=details)
+
+
+def _exclusion_of(
+    cells: "list[str]",
+    layout: str,
+    template: str,
+    prefix: str,
+    floor: int,
+    need: int,
+    published: int,
+) -> str:
+    """One layout's exclusion (`with_layout_exclusions`), or "" where none leaves room."""
+    root = prefix if parsing.is_a_uid_root(prefix) else ""
+    room = (
+        parsing.uid_room(template[len(root):]) if root else parsing.layout_room(template)
+    )
+    places: "list[int]" = []
+    for place in range(len(template)):
+        if parsing.exclusion_alphabet(template[place]):
+            places += [place]
+    for place in places:
+        held: "dict[str, int]" = {}
+        for value in cells:
+            character = value[place]
+            held[character] = (held[character] if character in held else 0) + 1
+        small = False
+        for character in held:
+            if 0 < held[character] < floor:
+                small = True
+        if small:
+            continue
+        alphabet = parsing.exclusion_alphabet(template[place])
+        leads = place == 0 or template[place - 1] in _EXCLUSION_NO_NOUGHT_AFTER
+        for at in range(len(alphabet) - 1, -1, -1):
+            character = alphabet[at]
+            if character == "0" and leads:
+                continue
+            if character in held:
+                continue
+            written = layout[:place] + character + layout[place + 1:]
+            if room // len(alphabet) < need or not parsing.is_a_layout_exclusion(
+                written
+            ):
+                return ""
+            return written
+    spellings = 1
+    block: "list[int]" = []
+    for at in range(len(places) - 1, -1, -1):
+        if spellings >= _EXCLUSION_BLOCK_ODDS * max(published, 1):
+            break
+        block += [places[at]]
+        spellings = spellings * len(parsing.exclusion_alphabet(template[places[at]]))
+    if (
+        not block
+        or spellings < _EXCLUSION_BLOCK_ODDS * max(published, 1)
+        or room // spellings < need
+    ):
+        return ""
+    written = layout
+    for place in block:
+        alphabet = parsing.exclusion_alphabet(template[place])
+        written = written[:place] + alphabet[len(alphabet) - 1] + written[place + 1:]
+    if not parsing.is_a_layout_exclusion(written):
+        return ""
+    for value in cells:
+        every = True
+        for place in block:
+            if value[place] != written[place]:
+                every = False
+        if every:
+            return ""
+    return written
 
 
 def whole_places_of(value: str) -> int:

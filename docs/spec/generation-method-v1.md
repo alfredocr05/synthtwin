@@ -15611,6 +15611,46 @@ repeat. Three distinctness facts are then REPORT-ONLY, not one — raw
 the report names all three achieved values beside the published ones,
 with the join and de-duplication consequence in the person's own words.
 
+### G9.6b What no real cell holds (lane ID-ROOM, plan P4-D432, 2026-10-24)
+
+Contract section 7.12b publishes `layout_exclusions`. NO TWIN IDENTIFIER
+CELL IS SPELLED AS A REAL ONE, and the generator reads nothing real to
+make it so:
+
+1. **An excluded layout's template holds its exclusion.** Where a named
+   layout carries an exclusion, its template of G9.6a (prefix, then a
+   whole number's noughts) is written with the exclusion's characters at
+   every place the exclusion writes out (`parsing.written_excluded`).
+   Every walk of G9.6 reads that template, so every cell of the layout
+   carries them, and the room of the template is the room its
+   placeholders leave.
+2. **Every other cell is written in the spill.** After the column's
+   cells are built (G9.2 to G9.6), each different value that does not
+   wear the excluded template of its own layout -- a cell of a layout
+   carrying no exclusion, the pool's, a stand-in's, a pinned end's, the
+   band walk's -- is written, in the order it first appears, as the next
+   spelling of the SPILL's template (the `(spill)` layout under the
+   column's prefix and noughts), stepping from nought, that neither
+   spells nor folds onto any cell of the column or any spelling taken
+   before it, wears the spill's template, is no spelling read as absent
+   and no date; every cell of the value is written so, so a key repeated
+   on one twin person's rows stays one key. Where the description
+   publishes no spill, the excluded template of the most room is the
+   target; where it publishes no exclusion at all, nothing moves and the
+   column is written byte for byte as before.
+3. **Why no cell equals a real one.** Two equal cells wear one layout and
+   hold one character at every place. A cell wearing an excluded template
+   holds characters no real cell of that layout holds at those places; a
+   cell wearing the spill is longer than every real cell.
+4. **What it costs**, measured (P4-D432): where the real values fill a
+   layout's room -- record numbers `1` to `20,000`, every four-figure
+   value present -- no exclusion leaves room, the layout's cells are
+   written in the spill, and the report recounts the census, the
+   lengths and the counts they move and names them (a remark names the
+   values moved). The report's census recount and the validator name the
+   spilled layouts as missed; that is the twin keeping no real record
+   number, and it is stated, never hidden.
+
 ## G10. Absent cells, straggler stand-ins, unrepresentable values
 
 ### G10.1 Absent cells

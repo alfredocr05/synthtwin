@@ -54277,7 +54277,8 @@ def _templated_facts(
     no I/O.
     """
     whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
-    if not facts.layout_prefixes and not whole_places:
+    exclusions = facts.layout_exclusions
+    if not facts.layout_prefixes and not whole_places and not exclusions:
         return facts
     whole = ""
     if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
@@ -54290,13 +54291,130 @@ def _templated_facts(
         if layout == contract.WITHHELD:
             templated[layout] = facts.layout_forms[layout]
             continue
-        written = layout
-        if prefix:
-            written = prefix + layout[len(prefix):]
-        if whole_places:
-            written = parsing.whole_places_layout(written)
+        written = parsing.layout_template(layout, prefix, whole_places)
+        if layout in exclusions:
+            # ...AND WHAT NO REAL CELL HOLDS STANDS IN IT (lane ID-ROOM,
+            # plan P4-D432): the places the exclusion writes out are
+            # written, so every cell of this layout carries them.
+            written = parsing.written_excluded(written, exclusions[layout])
         templated[written] = facts.layout_forms[layout]
     return dataclasses.replace(facts, layout_forms=templated)
+
+
+def _spelled_off_the_real(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+) -> "tuple[list[str], list[Remark]]":
+    """Every cell of a record number written where no real cell is (lane ID-ROOM, plan P4-D432).
+
+    NO TWIN IDENTIFIER CELL EQUALS A REAL ONE, BY CONSTRUCTION. The walks
+    above write a cell of a layout carrying an exclusion with the places
+    it writes out (`_templated_facts`), and no real cell of that layout
+    holds them; this pass reads every other cell -- one of a layout no
+    exclusion leaves room in, the pool's, a stand-in's, a pinned end's,
+    the walk's -- and writes each different value of them, once, as the
+    next free spelling of the SPILL layout, which is longer than every
+    real cell (`parsing.spill_layout`). A value moves whole, so a key
+    repeated on one twin person's rows stays one key, and the published
+    shortest and longest lengths, the layout census and the counts a
+    moved value read as are recounted where the report recounts them.
+    Where the description publishes no spill, the excluded layout of the
+    most room takes the moved values; where it publishes no exclusion at
+    all -- a hand-written or older document -- nothing moves.
+
+    It reads nothing but the description: the exclusions are the
+    profile's, read off the real column; the cells are the twin's.
+
+    Guarantees: returns the cells, every one a value of a layout carrying
+    its exclusion or of the spill, and a remark naming how many values
+    moved. Raises ProfileError where the spill has no free spelling left.
+    No I/O.
+    """
+    exclusions = facts.layout_exclusions
+    if not exclusions:
+        return cells, []
+    convention = _layout_convention(facts)
+    whole = ""
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+        whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
+    kept: "dict[str, str]" = {}
+    target = ""
+    for layout in _named_layouts(facts):
+        if layout not in exclusions:
+            continue
+        prefix = whole
+        if layout in facts.layout_prefixes:
+            prefix = facts.layout_prefixes[layout]
+        kept[layout] = parsing.written_excluded(
+            parsing.layout_template(layout, prefix, whole_places), exclusions[layout]
+        )
+        if not target or parsing.layout_room(kept[layout]) > parsing.layout_room(target):
+            target = kept[layout]
+    if parsing.EXCLUSION_SPILL in exclusions:
+        target = parsing.layout_template(
+            exclusions[parsing.EXCLUSION_SPILL], whole, whole_places
+        )
+    used: "dict[str, int]" = {}
+    for cell in cells:
+        _claim(cell, used)
+    moved: "dict[str, str]" = {}
+    safe: "dict[str, bool]" = {}
+    step = 0
+    room = parsing.layout_room(target) if target else 0
+    for cell in cells:
+        if cell in moved or cell in safe or not parsing.trimmed(cell):
+            continue
+        layout = parsing.layout_form(cell, convention)
+        if (layout in kept and _wears_template(cell, kept[layout], convention)) or (
+            parsing.EXCLUSION_SPILL in exclusions
+            and _wears_template(cell, target, convention)
+        ):
+            safe[cell] = True
+            continue
+        found = ""
+        while step < room and not found:
+            candidate = _filled_layout(target, step)
+            step = step + 1
+            if (
+                _free(candidate, used)
+                and _wears_template(candidate, target, convention)
+                and not _is_a_hole_spelling(candidate, holes)
+                and not _reads_as_a_date(candidate)
+            ):
+                found = candidate
+        if not found:
+            raise errors.ProfileError(
+                f"synthtwin internal check: the twin column "
+                f"'{parsing.visible(column.name)}' has no spelling left that "
+                f"no real record number can hold. This means a mistake in "
+                f"synthtwin; please report it. Nothing has been written."
+            )
+        _claim(found, used)
+        moved[cell] = found
+    if not moved:
+        return cells, []
+    written = [moved[cell] if cell in moved else cell for cell in cells]
+    rows = 0
+    for cell in cells:
+        if cell in moved:
+            rows = rows + 1
+    return written, [
+        Remark(
+            column=column.name,
+            subject="values written in the spill layout",
+            held=f"{len(moved)} different values on {rows} rows",
+            note=(
+                "No twin record number is spelled as a real one (plan "
+                "P4-D432): where the real values fill a layout's room, or a "
+                "cell could not carry what no real cell holds, the value is "
+                "written longer than the longest real value, so a length or "
+                "layout test meets these rows otherwise."
+            ),
+        )
+    ]
 
 
 def _any_whole_places(census: "dict[str, int]") -> bool:
@@ -62652,6 +62770,11 @@ def _plan_column(
         cells, notes = _identifier_cells(
             column, groups, _holes_reserved(column, all_holes), floor
         )
+        # NO CELL SPELLED AS A REAL ONE (lane ID-ROOM, plan P4-D432).
+        cells, spilled = _spelled_off_the_real(
+            column, facts, cells, _holes_reserved(column, all_holes)
+        )
+        remarks = remarks + spilled
     elif isinstance(facts, contract.TextFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
         _word_room(column, facts)

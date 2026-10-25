@@ -3254,6 +3254,191 @@ def uid_unled(text: str) -> bool:
     return True
 
 
+# -- THE EXCLUSION OF A RECORD NUMBER'S LAYOUT (lane ID-ROOM, plan P4-D432)
+#
+# NO TWIN IDENTIFIER CELL EQUALS A REAL IDENTIFIER OF ITS COLUMN, BY
+# CONSTRUCTION. The twin of a declared or answered identifier draws its
+# free figures and letters in its column's own layouts and reads no real
+# value, so where the real values fill a layout densely a twin cell
+# equalled a real one by chance: measured on CODES-3's final head at
+# 20,000 rows, `1.2.752.24.7.1.<k>` wrote 1,022 real UIDs, Cerner record
+# numbers of three widths 214, rsIDs 15, and the count grew with the
+# rows. The profile, which reads the real column, therefore publishes
+# beside each named layout ONE EXCLUSION: the layout with one placeholder
+# (or, on a layout too densely filled for one, its last few) written as a
+# character NO real cell of that layout holds there. Every twin cell of
+# that layout carries it, so it equals no real cell: two equal cells wear
+# one layout and hold one character at every place. A layout no
+# exclusion leaves room in -- its real values fill it -- gets none, and
+# the twin writes its cells in the column's SPILL layout instead: the
+# widest named layout widened past the column's published longest value,
+# which no real cell can wear.
+
+# The key of `layout_exclusions` naming the spill layout. It holds
+# lower-case letters, which no layout holds, as `(column)` does.
+EXCLUSION_SPILL = "(spill)"
+
+_EXCLUSION_ALPHABETS = {
+    LAYOUT_DIGIT: "0123456789",
+    LAYOUT_UPPER: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    LAYOUT_LOWER: "abcdefghijklmnopqrstuvwxyz",
+    LAYOUT_LOWER_HEX: "0123456789abcdef",
+    LAYOUT_UPPER_HEX: "0123456789ABCDEF",
+}
+
+
+def exclusion_alphabet(mark: str) -> str:
+    """The characters one placeholder of a layout stands for, "" for any other mark.
+
+    `%` ten figures, `@` and `&` the letters of one case, `~` and `^`
+    the sixteen hexadecimal characters of one case; the zero fill `!`
+    stands for the nought alone and is never excluded (plan P4-D432).
+    Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(mark, str):
+        raise TypeError(_NOT_TEXT)
+    return _EXCLUSION_ALPHABETS[mark] if mark in _EXCLUSION_ALPHABETS else ""
+
+
+def is_a_layout_exclusion(text: str) -> bool:
+    """Whether a text could be an exclusion: a layout with some placeholders written out.
+
+    One to `LAYOUT_FORM_LIMIT` characters, each a placeholder, a mark of
+    `LAYOUT_MARKS`, a single interior space, an ASCII figure or an ASCII
+    letter, with at least one figure or letter and AT LEAST ONE
+    PLACEHOLDER, so no exclusion is ever spelled as a cell is (plan
+    P4-D432). Which layout it excludes is asked by `excludes_the_layout`.
+    Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) > LAYOUT_FORM_LIMIT:
+        return False
+    written = 0
+    placeholders = 0
+    before = ""
+    for character in text:
+        if _is_a_digit(character) or _is_a_letter(character):
+            written = written + 1
+        elif character == LAYOUT_SPACE:
+            if before in ("", LAYOUT_SPACE):
+                return False
+        elif character in _LAYOUT_PLACEHOLDERS:
+            placeholders = placeholders + 1
+        elif character not in LAYOUT_MARKS:
+            return False
+        before = character
+    return written > 0 and placeholders > 0 and before != LAYOUT_SPACE
+
+
+def excludes_the_layout(layout: str, exclusion: str) -> bool:
+    """Whether ``exclusion`` is ``layout`` with one placeholder or more written out (P4-D432).
+
+    As long as the layout; at every place either the layout's own
+    character, or, where the layout holds a placeholder other than the
+    zero fill, one character of that placeholder's alphabet; and at
+    least one place written out. Raises TypeError for a non-string. No
+    I/O.
+    """
+    if not isinstance(layout, str) or not isinstance(exclusion, str):
+        raise TypeError(_NOT_TEXT)
+    if len(layout) != len(exclusion) or not is_a_layout_form(layout):
+        return False
+    if not is_a_layout_exclusion(exclusion):
+        return False
+    written = 0
+    for place in range(len(layout)):
+        mark = layout[place]
+        character = exclusion[place]
+        if character == mark:
+            continue
+        if character not in exclusion_alphabet(mark):
+            return False
+        written = written + 1
+    return written > 0
+
+
+def layout_template(layout: str, prefix: str, whole_places: bool) -> str:
+    """The TEMPLATE the twin fills for one layout (method G9.6a, plan P4-D432).
+
+    The layout with its opening marks written as ``prefix`` (owner ruling
+    of 2026-09-17, item 1), and, where ``whole_places``, a layout of
+    figures, one point and figures written with `0` after the point
+    (`whole_places_layout`, plan P4-D428): the one reading the generator
+    and the profile both ask, so an exclusion is chosen among the places
+    the twin really fills. Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(layout, str) or not isinstance(prefix, str):
+        raise TypeError(_NOT_TEXT)
+    written = prefix + layout[len(prefix):] if prefix else layout
+    if whole_places:
+        written = whole_places_layout(written)
+    return written
+
+
+def written_excluded(template: str, exclusion: str) -> str:
+    """A template with an exclusion's written characters standing in it (P4-D432).
+
+    At every place where ``exclusion`` holds a figure or a letter and
+    ``template`` a placeholder, the character; every other place keeps
+    the template's own. A template and an exclusion of different lengths
+    leave the template as it is. Raises TypeError for a non-string. No
+    I/O.
+    """
+    if not isinstance(template, str) or not isinstance(exclusion, str):
+        raise TypeError(_NOT_TEXT)
+    if len(template) != len(exclusion):
+        return template
+    written = ""
+    for place in range(len(template)):
+        mark = template[place]
+        character = exclusion[place]
+        if exclusion_alphabet(mark) and character in exclusion_alphabet(mark):
+            written = written + character
+        else:
+            written = written + mark
+    return written
+
+
+def spill_layout(layout: str, opening: int, longest: int) -> str:
+    """``layout`` widened until it is longer than ``longest`` characters, or "" (P4-D432).
+
+    THE LAYOUT NO REAL CELL WEARS. A cell is never longer than the
+    column's published longest value, so a layout longer than that is
+    worn by none, and knowing it says nothing the description does not
+    already say. Figures are inserted before the first `%` at or after
+    place ``opening`` (the end of a published prefix or UID root): a
+    record number gains a leading figure, a UID's first drawn arc one
+    figure more. A layout holding no `%` there takes copies of its first
+    placeholder after the opening instead. "" where the widened layout
+    would pass `LAYOUT_FORM_LIMIT` or the layout has no placeholder
+    after the opening. Raises TypeError for a non-string or a non-whole
+    number. No I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(opening, int) or not isinstance(longest, int):
+        raise TypeError(_NOT_TEXT)
+    wanted = max(longest - len(layout) + 1, 1)
+    if len(layout) + wanted > LAYOUT_FORM_LIMIT:
+        return ""
+    at = -1
+    for place in range(max(opening, 0), len(layout)):
+        if layout[place] == LAYOUT_DIGIT:
+            at = place
+            break
+    mark = LAYOUT_DIGIT
+    if at < 0:
+        for place in range(max(opening, 0), len(layout)):
+            if exclusion_alphabet(layout[place]):
+                at = place
+                mark = layout[place]
+                break
+    if at < 0:
+        return ""
+    return layout[:at] + mark * wanted + layout[at:]
+
+
 def literal_prefix(values: "list[str]", convention: str) -> str:
     """The literal text every one of ``values`` opens with, or "".
 
