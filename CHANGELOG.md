@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### Layer L0 built behind the chain's switch: each eligible column meets its band totals (lane BT, 2026-10-24)
+
+**Lane BT** (plan P4-D429, the build of P4-D404). Behind the switch no
+shipped command sets, an eligible number, date or clock column of the
+twin now makes its cells so that each of its published L0 bands holds
+exactly its published count, every other within-column fact still met
+or giving way by a stated rule and named in the twin's report. One
+reservation of records holding nothing is made before the arrangement,
+by spelling in a text file and by class in a workbook, and nothing
+after it moves a cell; the interface lane CHb's chain generator will
+call hands over each eligible column's cells grouped by band. Measured
+on invented tables (`K-S6-02`, new, OPEN on one clause): 684 bands of
+75 column twins at 5,000 and 20,000 rows, none a row off, where the
+same columns made without the layer miss by 2 to 241 rows; at 200,000 rows
+every band of the ten-column table holds its count at five seeds;
+no fact the twin without the layer holds is lost, and the last guard
+moves no value. One shape regression is stated with its owner: a
+uniform two-figure age sits a little further from the real counts
+inside its bands. The one oracle answers the rules it freezes from the
+method text alone. Every shipped twin is the same file, byte for byte.
+
 ### Batch 4h's records: the record-number exposure closed and measured on the merged head, every twin the same bytes, owners for the chain's open items (2026-10-23)
 
 **Records of batch 4h**, which merged lanes HX4 and SG (plans P4-D424 and
