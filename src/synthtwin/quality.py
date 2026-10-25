@@ -1333,7 +1333,7 @@ def _withheld_census_lines(withheld: int, not_judged: int = 0) -> "list[str]":
 
 
 def _withheld_rule_census(withheld: int) -> "list[str]":
-    """How many times the rule above bit, in the words `_withheld_census_lines` explains."""
+    """How many times the rule above bit, in the words `_withheld_census_lines` gives its reason in."""
     if not withheld:
         return [
             "On this file the rule closed over nothing: no line of this",

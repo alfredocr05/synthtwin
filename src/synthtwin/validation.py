@@ -5261,8 +5261,8 @@ def measure(
         # of the week or month, hours, minutes, seconds) draws some of
         # them, which the description above never produces. Built only on
         # a switched run whose chain holds a column of dates or times, from
-        # the cells and declarations the one above read, so every other run
-        # pays nothing.
+        # the cells and declarations the one above read, so no other run
+        # spends anything on it.
         chain_described = redescribed
         if chain_document is not None:
             from synthtwin import chain_validation
