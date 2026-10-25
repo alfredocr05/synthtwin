@@ -26488,8 +26488,8 @@ def safe_harbor_reach(
     to be set aside as a placeholder whatever its share (three such
     values at most, `_placeholder_rows`); ``levels``: whether the
     column's role prints its values as levels; ``padded_answered``:
-    whether a person said what the column is, as a measurement or a code
-    (P4-D401's padded question answered, or declared). Ages: the cells
+    whether a person said the column is a measurement (P4-D401's padded
+    question answered, or declared), or an open question holds it. Ages: the cells
     that remain within 0 to 125 but for fewer than ``floor`` or at most
     one in twenty, one of 90 or more among them, and at most half of
     them written with a leading zero unless ``padded_answered`` (the

@@ -1793,9 +1793,9 @@ TABLES: "tuple[Table, ...]" = (
             "semicolon_decimal_comma": ("mass_index",),
         },
         {"patient_id": "identifier", "bp": "joined", "pulse": "measurement", "mass_index": "decimal_comma",
-         # ...and a weight in kilograms is a measurement: its Safe Harbor
-         # question, which its decimal comma read since lane SH's second
-         # repair puts, is answered `no` (plan P4-D427).
+         # ...and a weight in kilograms is a measurement: the Safe Harbor
+         # question its decimal comma, read since lane SH's second repair,
+         # puts is answered `no` (plan P4-D427).
          "weight": "measurement"},
         _csv_reader(sep=";", decimal=","),
         (
@@ -2717,12 +2717,11 @@ def run_table(table: Table, folder: pathlib.Path, n: int, seed: int) -> "dict":
         result["seconds"] = time.perf_counter() - started
         return result
     # ...AND THE QUESTION AN ANSWER OPENS (plan P4-D427, the second repair
-    # of lane SH, items 1 and 6): a column the Safe Harbor reach takes is
-    # put that question first, in place of the padded, date-count or
-    # two-numbers question, which is put once `no` is given -- and a
-    # column answered `code` or `keep` to the person question is put the
-    # Safe Harbor question then; the person answers the new question as
-    # they did the first round's.
+    # of lane SH, items 1 and 6): a column the Safe Harbor reach takes,
+    # answered `code`, `measurement` or `keep` to its padded, fixed-width,
+    # date-count, two-numbers or person question, is put the Safe Harbor
+    # question in the run reading that answer; the person answers the new
+    # question as they did the first round's.
     follow = json.loads(questions_path.read_text(encoding="utf-8"))
     before = {(one["column"], one["given"]) for one in asked}
     probe = json.loads(json.dumps(follow))

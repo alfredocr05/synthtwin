@@ -52,8 +52,9 @@ The mutants of wave6/SH/r1/sh_mutants_r1.py turn it red.
 
 THE SECOND REPAIR (the combined verify on 9ccb6bc7, wave6/SH-verify.md):
 the column's other question answered -- the padded question `measurement`
-or `code` for NAACCR's three-figure ages, the date-count, person or
-two-numbers question `code`, `measurement` or `keep` for ZIP codes --
+for NAACCR's three-figure ages, the date-count, person or two-numbers
+question `measurement` or `keep` for ZIP codes (`code` is CODES-2's, lane
+HX's ruling of 2026-10-16) --
 puts the Safe Harbor question in that run, one question a column, and
 publishes no age over 89 and no ZIP meanwhile
 (`shapes.SAFE_HARBOR_ANSWERED`, at 600 and 20,000 rows); every open
@@ -163,7 +164,7 @@ def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
     """Items 1 and 6 of the second repair: no other answer frees an age over 89 or a ZIP.
 
     NAACCR's Age at Diagnosis answered `measurement` printed 91 to 105
-    and its twin wrote 606 cells over 90; ZIP codes answered `code`,
+    and its twin wrote 606 cells over 90; ZIP codes answered
     `measurement` or `keep` printed 40 of 40. Each answer is kept, the
     Safe Harbor question is the one question put, and the column is
     top-coded (ages) or held (ZIPs) until `no`.
@@ -185,24 +186,9 @@ def test_an_answer_to_the_other_question_puts_the_safe_harbor_question(
         # THE TOP-CODE COSTS THE TWIN NO FACT: it misses what the twin of
         # the table written with every age above 89 as `090` misses, which
         # no top-code touches -- answered `measurement`, the padding and
-        # styles of the unpadded `999` (at 20,000 rows); answered `code`,
-        # the long-tail labels' role and level counts (at 600) --
-        # generation limits outside lane SH (wave6/SH/r2, wave6/SH-verify.md).
+        # styles of the unpadded `999` (at 20,000 rows) -- a generation
+        # limit outside lane SH (wave6/SH/r2, wave6/SH-verify.md).
         assert seen["twin_misses"] == seen["control_twin_misses"], seen
-
-
-@pytest.mark.parametrize("kind", ["naaccr", "zipplus4_all", "zip5word52_unknown"])
-def test_the_safe_harbor_question_comes_first(tmp_path: pathlib.Path, kind: str) -> None:
-    """The second repair, items 1 and 6: one question, the one only `no` answers.
-
-    A column the reach takes, held meanwhile by an open padded,
-    date-count or two-numbers question, is put the Safe Harbor question
-    in place of that one: the other question's answers would not free it,
-    and are typed once `no` is given, so one round still answers all.
-    """
-    seen = shapes.run_safe_harbor(tmp_path, kind, 600)
-    assert seen["asked"] == [[asking.ANSWER_SAFE_HARBOR_NO, asking.ANSWER_SAFE_HARBOR_YES]], seen
-    assert seen["role"] == taxonomy.ROLE_IDENTIFIER, seen
 
 
 # -- the reach, cell by cell ----------------------------------------------

@@ -28,6 +28,7 @@ import pytest
 
 import crosscheck
 import fixtures
+import keyboard
 from tests.test_stage2_round_trip import describe_with_the_producer
 from synthtwin import (
     contract,
@@ -1134,7 +1135,7 @@ def test_a_sorted_column_with_declared_missing_values_keeps_its_order(
 
 
 def test_a_withheld_census_still_keeps_digit_codes_as_text(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The published commonest class decides where the census cannot (P4-D164).
 
@@ -1149,6 +1150,10 @@ def test_a_withheld_census_still_keeps_digit_codes_as_text(
     # would leave the one absent cell to be subtracted, which holds at
     # any length, and the table is written at the floor because the
     # command refuses a smaller one.
+    # THE SAFE HARBOR REACH (plan P4-D427) holds five figures padded with
+    # zeros as ZIP-shaped until its question is answered `no`; these are
+    # codes of no place, so the person answers `no`.
+    keyboard.safe_harbor_answered_no(monkeypatch)
     codes = _FLOOR
     strings = ["code", "k"] + [f"{place:05d}" for place in range(1, codes + 1)]
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}

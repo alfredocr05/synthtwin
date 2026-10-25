@@ -35,9 +35,9 @@ and counts what is real:
   20,000 rows and an age twin missing only what the top-coded table's
   own twin misses. And the same over `SAFE_HARBOR_ANSWERED` (the second
   repair of lane SH): each shape once its column's other question is
-  answered -- NAACCR's three-figure ages `measurement` or `code`, ZIP
-  codes `code`, `measurement` or `keep` -- where the Safe Harbor question
-  is then put. Target 0.
+  answered -- NAACCR's three-figure ages `measurement`, ZIP codes
+  `measurement` or `keep` -- where the Safe Harbor question is then put.
+  Target 0.
 - over the STATED shapes (a name, a street address, a full birth date on
   a long table with no subject column, so no people to count in; plan
   P4-D406 item (a)): real values in the description and twin cells

@@ -614,12 +614,13 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
 #   all-nines `999` is set aside;
 # - items 1 and 6, the column's other question answered
 #   (`SAFE_HARBOR_ANSWERED`): NAACCR's Age at Diagnosis, three figures
-#   padded, `999` unknown on 2 % (`naaccr`), answered `measurement` or
-#   `code`; and ZIPs answered `code`, `measurement` or `keep` to the
-#   date-count question (`zip5word52_unknown`), the person question
-#   (`zip52_unknown40`, `UNKNOWN` on 40 % of rows) or the two-numbers
-#   question (`zipplus4_30`, `zipplus4_1234`): the Safe Harbor question
-#   is put and the column held until `no`.
+#   padded, `999` unknown on 2 % (`naaccr`), answered `measurement`; and
+#   ZIPs answered `measurement` or `keep` to the date-count question
+#   (`zip5word52_unknown`), the person question (`zip52_unknown40`,
+#   `UNKNOWN` on 40 % of rows) or the two-numbers question
+#   (`zipplus4_30`, `zipplus4_1234`): the Safe Harbor question is put and
+#   the column held until `no`. A column answered `code` is CODES-2's
+#   (lane HX's ruling of 2026-10-16).
 ZIP_WORDS = ("zip5word_unknown", "zip5word_homeless", "zip5word52_unknown",
              "zip5word52_homeless")
 ZIPS = ZIP_WORDS + (
@@ -644,18 +645,14 @@ AGES = (
 )
 SAFE_HARBOR_NUMBERS = ZIPS + AGES
 # Each shape whose column's other question is answered, with the answer:
-# in the questions file where a question offers it -- the person question
-# keeps its place beside the Safe Harbor question -- and typed where the
-# Safe Harbor question is put first in place of the other (`--code`,
-# `--measurement`).
+# in the questions file where its question offers it, and typed where it
+# does not (`--code`, `--measurement`).
 SAFE_HARBOR_ANSWERED = (
-    ("naaccr", "measurement"), ("naaccr", "code"),
-    ("zip5word52_unknown", "code"), ("zip5word52_unknown", "measurement"),
-    ("zip52_unknown40", "keep"), ("zip52_unknown40", "code"),
-    ("zipplus4_30", "code"), ("zipplus4_1234", "code"),
+    ("naaccr", "measurement"), ("zip5word52_unknown", "measurement"),
+    ("zip52_unknown40", "keep"), ("zipplus4_30", "keep"), ("zipplus4_1234", "keep"),
 )
 # The answers an option types.
-_TYPED = {"code": "--code", "measurement": "--measurement"}
+_TYPED = {"measurement": "--measurement"}
 # The tables written with `;` between their cells.
 _SEMICOLON = ("agescomma",)
 AGE_TOP_CODE = 90
@@ -928,8 +925,8 @@ def _number_tokens(value: str, text: str) -> int:
 def _answers_given(folder: pathlib.Path, table: pathlib.Path, kind: str, answer: str) -> "list[str]":
     """Profile unanswered, then write `answer` to the question on the column offering it.
 
-    Where no question offers it -- the Safe Harbor question put first in
-    place of the other -- the answer is typed instead.
+    Where no question offers it, the answer is typed instead, as the
+    person declares it.
     """
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         assert cli.main(["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]) == 0

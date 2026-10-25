@@ -4570,17 +4570,17 @@ def build_document(
                 frozenset(described.absent_spellings),
                 settings.small_cell_floor,
                 described.role in taxonomy.SAFE_HARBOR_LEVEL_ROLES,
-                # ...and a column a person has said is a measurement or a
-                # code -- P4-D401's padded question answered, or declared
-                # -- is no longer judged a code by its leading zeros (the
-                # second repair of lane SH, item 1: ages written `000` to
-                # `120`, answered `measurement`, printed 91 to 105), nor
-                # is one held meanwhile by an open question, which
-                # publishes nothing and is put the Safe Harbor question
-                # first.
-                name in declared_codes
-                or name in declared_measurements
-                or name in withheld_names,
+                # ...and a column a person has said is a measurement --
+                # P4-D401's padded question answered, or declared -- is no
+                # longer judged a code by its leading zeros (the second
+                # repair of lane SH, item 1: ages written `000` to `120`,
+                # answered `measurement`, printed 91 to 105), nor is one
+                # held meanwhile by an open question, which publishes
+                # nothing: its held block is read from the top-coded
+                # cells. One answered `code` is a code's spelling, as
+                # its person says: CODES-2's (lane HX's ruling of
+                # 2026-10-16).
+                name in declared_measurements or name in withheld_names,
             )
         if forced_top or reach == taxonomy.SAFE_HARBOR_AGES:
             coded = taxonomy.top_coded_cells(
