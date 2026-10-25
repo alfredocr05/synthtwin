@@ -997,7 +997,8 @@ _PREFIX_SCOPE = "the-column-or-a-layout-a-record-number-could-not-be-spelled-wit
 _LITERAL_PREFIX = "a-literal-prefix-of-letters-and-marks-with-no-figure"
 # The two kinds `layout_exclusions` carries (lane ID-ROOM, plan P4-D432):
 # its keys, `(spill)` or a layout, and its values, a layout with places
-# written out (`parsing.is_a_layout_exclusion`) or, for the spill, a layout.
+# written out (`parsing.is_a_layout_exclusion`), a list of several, or, for
+# the spill, a layout.
 _EXCLUSION_SCOPE = "the-spill-or-a-layout-a-record-number-could-not-be-spelled-with"
 _LAYOUT_EXCLUSION = "a-layout-with-places-written-as-characters-no-real-cell-holds"
 _MOMENT_TEXT = "canonical-datetime"
@@ -2946,6 +2947,15 @@ def _leaf_is_published(
             return True
         return value != taxonomy.SUPPRESSED_LABEL and _is_layout_form(value)
     if kind == _LAYOUT_EXCLUSION:
+        if isinstance(value, list):
+            # SEVERAL SPELLINGS OF ONE LAYOUT'S BLOCK (plan P4-D432), each
+            # an exclusion, two to `parsing.EXCLUSIONS_AT_MOST`.
+            if not 2 <= len(value) <= parsing.EXCLUSIONS_AT_MOST:
+                return False
+            for each in value:
+                if not isinstance(each, str) or not parsing.is_a_layout_exclusion(each):
+                    return False
+            return True
         return isinstance(value, str) and (
             value == parsing.EXCLUSION_NONE
             or parsing.is_a_layout_exclusion(value)

@@ -109,7 +109,15 @@ def test_the_exclusion_publishes_what_no_real_cell_holds(tmp_path: pathlib.Path,
     by = _real_by_layout(seen["real"])
     longest = max(len(cell) for cell in seen["real"] if cell.strip())
     prefixes = block.get("layout_prefixes") or {}
-    for scope, text in sorted(exclusions.items()):
+    entries: "list[tuple[str, str]]" = []
+    for scope, value in sorted(exclusions.items()):
+        if isinstance(value, list):
+            # SEVERAL SPELLINGS OF ONE BLOCK: each held to the same rules, two to the cap.
+            assert 2 <= len(value) <= parsing.EXCLUSIONS_AT_MOST and len(set(value)) == len(value)
+            entries += [(scope, text) for text in value]
+        else:
+            entries += [(scope, value)]
+    for scope, text in entries:
         if scope == parsing.EXCLUSION_SPILL:
             assert len(text) > longest, (name, text)
             continue
@@ -276,11 +284,17 @@ def test_an_exclusion_is_its_layout_with_places_written_out() -> None:
 
 
 def test_the_loader_refuses_an_exclusion_that_does_not_fit_its_layout(tmp_path: pathlib.Path) -> None:
-    """LX2 for a written place inside the prefix; LX3 for a spill no longer than the longest value."""
+    """LX2 for a written place inside the prefix, in one exclusion or one of several; a list of one,
+    of a repeated spelling or under `(spill)` refused as no entry; LX3 for a spill no longer than the
+    longest value."""
     seen = room.run_shape(tmp_path / "made", "pt_seven_sequential", 600, validate=False)
     document = json.loads(seen["texts"]["t-profile.json"])
     block = [one for one in document["columns"] if one["name"] == "target"][0]
     for exclusions, rule in (({"@@%%%%%%%": "Z@%%%%%%%"}, "LX2"),
+                             ({"@@%%%%%%%": ["@@%9%9%%%", "Z@%%%%%%%"]}, "LX2"),
+                             ({"@@%%%%%%%": ["@@%9%9%%%", "@@%9%9%%%"]}, "layout_exclusions"),
+                             ({"@@%%%%%%%": ["@@%9%9%%%"]}, "layout_exclusions"),
+                             ({"(spill)": ["@@%%%%%%%%%", "@@%%%%%%%%%%"]}, "layout_exclusions"),
                              ({"(spill)": "@@%%%%%%%"}, "LX3")):
         block["layout_exclusions"] = exclusions
         path = tmp_path / f"{rule}.json"

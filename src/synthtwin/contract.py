@@ -3377,11 +3377,13 @@ class IdentifierFacts:
     # which amends I3 for this case only. Empty on every other column.
     layout_prefixes: "dict[str, str]"
     # WHAT NO REAL CELL HOLDS (7.12b; lane ID-ROOM, plan P4-D432). Each
-    # named layout mapped to itself with places written as characters no
-    # real cell of that layout holds there, and `(spill)` mapped to a
-    # layout longer than every real cell. Empty on a document whose
-    # producer published none, which the twin then writes as before.
-    layout_exclusions: "dict[str, str]" = dataclasses.field(
+    # named layout mapped to its exclusions -- itself with places written
+    # as characters no real cell of that layout holds there, one or
+    # several spellings of one block -- and `(spill)` to a layout longer
+    # than every real cell, `(unnamed)` to `(none)`, each one entry. Empty
+    # on a document whose producer published none, which the twin then
+    # writes as before.
+    layout_exclusions: "dict[str, tuple[str, ...]]" = dataclasses.field(
         default_factory=dict
     )
 
@@ -18653,7 +18655,7 @@ def _layout_exclusions(
     prefixes: "dict[str, str]",
     longest: int,
     all_whole: bool,
-) -> "dict[str, str]":
+) -> "dict[str, tuple[str, ...]]":
     """What no real cell of a declared column holds, checked (7.12b, plan P4-D432).
 
     LANE ID-ROOM. Each entry is checked as text, because it is text: a
@@ -18670,17 +18672,31 @@ def _layout_exclusions(
     Raises ProfileError for a wrong type and LX1 to LX3.
     """
     found = _mapping(mapping["layout_exclusions"], "layout_exclusions", where)
-    exclusions: "dict[str, str]" = {}
+    exclusions: "dict[str, tuple[str, ...]]" = {}
     for scope in sorted(found):
-        text = found[scope]
-        if not isinstance(text, str):
+        entry = found[scope]
+        texts: "tuple[str, ...]" = ()
+        if isinstance(entry, str):
+            texts = (entry,)
+        elif (
+            isinstance(entry, list)
+            and 2 <= len(entry) <= parsing.EXCLUSIONS_AT_MOST
+            and scope not in (parsing.EXCLUSION_SPILL, parsing.EXCLUSION_UNNAMED)
+        ):
+            for each in entry:
+                if isinstance(each, str) and each not in texts:
+                    texts = texts + (each,)
+            if len(texts) != len(entry):
+                texts = ()
+        if not texts:
             raise _out_of_range(
                 "layout_exclusions",
                 where,
-                "an entry that is not text",
-                "a layout with places written out, or the spill's layout",
+                "an entry that is neither text nor a list of different texts",
+                "a layout with places written out, several of one layout, or the "
+                "spill's layout",
             )
-        exclusions[scope] = text
+        exclusions[scope] = texts
     if not exclusions:
         return exclusions
     named: "list[str]" = []
@@ -18705,7 +18721,7 @@ def _layout_exclusions(
     )
     opening = parsing.prefix_layout(whole, convention) if whole else ""
     for scope in sorted(exclusions):
-        text = exclusions[scope]
+        text = exclusions[scope][0]
         if scope == parsing.EXCLUSION_UNNAMED:
             if text != parsing.EXCLUSION_NONE or WITHHELD in layouts:
                 raise _broken(
@@ -18739,12 +18755,16 @@ def _layout_exclusions(
             continue
         prefix = prefixes[scope] if scope in prefixes else whole
         template = parsing.layout_template(scope, prefix, whole_places)
-        fits = parsing.excludes_the_layout(scope, text)
-        for place in range(len(text)):
-            if fits and text[place] != scope[place] and not parsing.exclusion_alphabet(
-                template[place]
-            ):
+        fits = True
+        for each in exclusions[scope]:
+            if not parsing.excludes_the_layout(scope, each):
                 fits = False
+                continue
+            for place in range(len(each)):
+                if each[place] != scope[place] and not parsing.exclusion_alphabet(
+                    template[place]
+                ):
+                    fits = False
         if not fits:
             raise _broken(
                 "LX2",

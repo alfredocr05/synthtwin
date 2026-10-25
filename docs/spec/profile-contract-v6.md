@@ -13929,7 +13929,7 @@ exists to reproduce.
 |---|---|---|---|
 | `layout_forms` | object | section 7.12 | how many present cells were written in each shared LAYOUT, under the floor, with the pooled key `(withheld)` |
 | `layout_prefixes` | object | section 7.12a | the literal text every present cell opens with, under the key `(column)`, or the text every cell of one named layout opens with, under that layout; `{}` where there is none (owner ruling of 2026-09-17, item 1) |
-| `layout_exclusions` | object | section 7.12b | beside a named layout, that layout with places written as characters NO real cell of it holds there, and under `(spill)` a layout longer than every present cell; `{}` where the producer published none (lane ID-ROOM, plan P4-D432) |
+| `layout_exclusions` | object | section 7.12b | beside a named layout, that layout with places written as characters NO real cell of it holds there (one text, or a list of several spellings of one block), and under `(spill)` a layout longer than every present cell; `{}` where the producer published none (lane ID-ROOM, plan P4-D432) |
 | `min_length` | integer ≥ 1 | ≤ `max_length` | the shortest present value's length in characters |
 | `max_length` | integer ≥ 1 | ≥ `min_length` | the longest present value's length in characters |
 | `all_whole_numbers` | boolean | — | true when every present cell is a whole number and there is at least one |
@@ -18789,17 +18789,18 @@ cells:
    letters -- until one no such cell
    holds, which is written where the spellings it leaves hold the
    layout's cells or the column's different values, whichever is fewer
-   (else the layout carries none); a character held by at least one cell
-   and fewer than `small_cell_floor` is never passed over: the place is
-   left for the next. Where no place gives one, the BLOCK: every other
+   -- THE ROOM, counted without a nought at a place that opens a run of
+   figures -- else the block is asked; a character held by at least one
+   cell and fewer than `small_cell_floor` is never passed over: the place
+   is left for the next. Where no place gives one, the BLOCK: every other
    place the twin fills, counted from the last, k of them -- every other,
    so no run of written characters stands in the description -- k the
-   fewest from two at which some spelling is held by no such cell, while
-   the spellings left hold the layout's cells or the column's different
-   values, whichever is fewer (else the layout carries none); its
-   spellings are read from the greatest down, none opening a run of
-   figures with a nought, and the first no such cell holds at those
-   places is written.
+   fewest from two at which spellings held by no such cell leave the
+   room, at most `parsing.EXCLUSIONS_AT_MOST` (32) of them; its spellings
+   are read from the greatest down, none opening a run of figures with a
+   nought, and the first no such cell holds at those places are written:
+   ONE text where one leaves the room, else a LIST of two or more, in
+   that order (else the layout carries none).
    A layout carrying no exclusion has every value of its twin written
    wider than every real cell, and its census entry and the lengths are
    then the real table's, listed by the validator and named by the
@@ -18829,7 +18830,8 @@ Invariants: **LX1** an exclusion is published for a layout the census
 names, or as the spill, and only beside a census naming a layout; **LX2**
 an exclusion is its layout with one place or more written as a character
 of that place's own alphabet, every one a place the twin fills after the
-layout's prefix; **LX4** `(unnamed)` is `(none)` and stands beside no
+layout's prefix -- one text, or a list of two to 32 different texts of
+one layout, never under `(spill)` or `(unnamed)`; **LX4** `(unnamed)` is `(none)` and stands beside no
 `(withheld)` pool; **LX3** the spill is a
 layout the census does not name, longer than `max_length`, opening with
 the `(column)` prefix's layout where one is published. The loader checks

@@ -3274,6 +3274,14 @@ def uid_unled(text: str) -> bool:
 # widest named layout widened past the column's published longest value,
 # which no real cell can wear.
 
+# THE MOST EXCLUSIONS ONE LAYOUT CARRIES (lane ID-ROOM, plan P4-D432). A
+# layout whose real values leave no one spelling of a block room enough
+# for the twin's values carries several spellings of one block, each no
+# real cell of the layout holds; past this many it carries none, and its
+# values are written wider. The description stays short and the number
+# of spellings a reader learns are held by some real cell stays small.
+EXCLUSIONS_AT_MOST = 32
+
 # The key of `layout_exclusions` naming the spill layout. It holds
 # lower-case letters, which no layout holds, as `(column)` does.
 EXCLUSION_SPILL = "(spill)"

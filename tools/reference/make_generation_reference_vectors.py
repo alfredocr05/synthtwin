@@ -26232,8 +26232,15 @@ def spelled_off_the_real(column, content):
         written = prefix + name[len(prefix):] if prefix else name
         return whole_places_template(written) if noughts else written
 
+    # A layout's exclusion is one text, or a list of several spellings of
+    # one block: each is an excluded template, in the order published.
     kept = {
-        name: excluded_template(template_of(name, prefixes.get(name, whole)), exclusions[name])
+        name: [
+            excluded_template(template_of(name, prefixes.get(name, whole)), each)
+            for each in (
+                [exclusions[name]] if isinstance(exclusions[name], str) else exclusions[name]
+            )
+        ]
         for name in sorted(census)
         if name != WITHHELD and name in exclusions
     }
@@ -26241,7 +26248,8 @@ def spelled_off_the_real(column, content):
     # kept value is kept too.
     lowered = {}
     for name in sorted(kept):
-        lowered.setdefault(folded_marks(name), []).append(folded_marks(kept[name]).lower())
+        for each in kept[name]:
+            lowered.setdefault(folded_marks(name), []).append(folded_marks(each).lower())
     spill = ""
     if EXCLUSION_SPILL in exclusions:
         spill = template_of(exclusions[EXCLUSION_SPILL], whole)
@@ -26256,7 +26264,9 @@ def spelled_off_the_real(column, content):
         if cell in moved or not cell.strip():
             continue
         layout = layout_of(cell, convention)
-        if layout in kept and wears_template(cell, kept[layout], convention):
+        if layout in kept and any(
+            wears_template(cell, template, convention) for template in kept[layout]
+        ):
             continue
         if any(
             wears_template(cell.strip().lower(), template, convention)
@@ -26269,7 +26279,7 @@ def spelled_off_the_real(column, content):
             continue
         targets = []
         if layout in kept:
-            targets += [kept[layout]]
+            targets += kept[layout]
         if layout and bound:
             prefix = prefixes.get(layout, whole)
             opening = len(prefix_layout(prefix, convention))
@@ -34516,6 +34526,38 @@ def _identifier_layout_exclusion():
     }
 
 
+def _identifier_layout_exclusions_several():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=4, max_length=4, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 24},
+        layout_forms={"@%%%": 24},
+        layout_prefixes={"(column)": "Q"},
+        layout_exclusions={
+            "@%%%": ["@9%9", "@9%8", "@9%7"],
+            "(spill)": "@%%%%",
+            "(unnamed)": "(none)",
+        },
+    )
+    return {
+        "why": "a declared identifier of `Q` and three figures, every value "
+        "different, whose profile found no one spelling of a block its real "
+        "cells leave room enough in, so it publishes three spellings of the "
+        "block at the first and the last figure, `@9%9`, `@9%8` and `@9%7` "
+        "(contract section 7.12b, plan P4-D432). G9.6b's final pass spells "
+        "the walk's values in `Q9%9` until its ten fillings are taken, then "
+        "in `Q9%8`, then in `Q9%7`, so every cell keeps its four characters "
+        "and none can be a real record number. This case's mutant withdraws "
+        "the final pass, the walk's cells stand, and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
 def _identifier_spill():
     column = _universal(
         "column_1", "identifier", "code", "identifier", "ok",
@@ -34534,8 +34576,9 @@ def _identifier_spill():
         "layout, so it publishes only the spill `@%%%`, longer than every "
         "real cell (contract section 7.12b, plan P4-D432). "
         "G9.6b's final pass writes every value of the walk as the next free "
-        "filling of its layout widened as long as the spill, `Z%%%` under the "
-        "prefix, and every twin cell is four characters long, as no real cell "
+        "filling of its layout widened as long as the spill and one character "
+        "longer still, since its values hold a letter, `Z%%%%` under the "
+        "prefix, and every twin cell is five characters long, as no real cell "
         "is. This case's mutant withdraws the final pass, the walk's cells of "
         "three characters stand, and the cells move.",
         "column": column,
@@ -45708,6 +45751,8 @@ TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
     # no exclusion holds written in its spill's width.
     "identifier_layout_exclusion": _identifier_layout_exclusion,
     "identifier_spill": _identifier_spill,
+    # ...and a layout carrying several spellings of one block.
+    "identifier_layout_exclusions_several": _identifier_layout_exclusions_several,
     "clock_minutes_slots": _clock_minutes_slots,
     "clock_minutes_seconds": _clock_minutes_seconds,
     "clock_minutes_all_different": _clock_minutes_all_different,
@@ -46648,8 +46693,9 @@ _TWENTY_SEVENTH_BRANCH_ACCOUNT = (
     "as a decimal written with its noughts after the point, and a DICOM "
     "UID's root standing in every cell with no arc led by a nought; and "
     "G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number "
-    "spelled again in its layout's excluded template, and one written in "
-    "its spill's width where no exclusion was found. They "
+    "spelled again in its layout's excluded template, one written in "
+    "its spill's width where no exclusion was found, and one spelled in "
+    "three spellings of one block in turn. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -46763,6 +46809,16 @@ GIVEN_WORDS = {
         11568145192913584856, 11960428664520156166, 6553676248759612975,
         5782718556512134095, 18029355169949230540, 8510363597466918031,
         3145466298211442810, 9194252158862008638,
+    ),
+    "identifier_layout_exclusions_several": (
+        4279869529022106555, 121623970762008682, 168523229470649923,
+        4575299208778552563, 16368841617079356550, 5645195991711323044,
+        17779709664148418790, 9078098503133894484, 18289739040269340571,
+        17068231438216914105, 13503553221856479321, 6987499632826789714,
+        13778095737138759110, 13244584742069224829, 9746382182831011067,
+        14813377605309759575, 180649598452948562, 2017505837208679248,
+        928812134085691859, 2511036995282553179, 17033699811491892793,
+        15177494835501676226, 18043816326514828945,
     ),
     "identifier_spill": (
         3656569636567469460, 7018876939151039089, 3321261017423826703,

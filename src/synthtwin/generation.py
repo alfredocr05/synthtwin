@@ -54421,7 +54421,7 @@ class _OffTheReal:
     """What `_spelled_off_the_real` reads and spends: the templates, the steps, the spellings taken.
 
     ``templates`` maps each named layout carrying an exclusion to its
-    excluded template; ``lowered`` maps each folded layout to those
+    excluded templates, one for each of its exclusions; ``lowered`` maps each folded layout to those
     templates in lower case (a case flip of a value kept is kept too:
     contract 7.12b reads a layout's exclusion over every real core folding
     to its layout); ``bound`` is the spill's length, which every real cell
@@ -54436,7 +54436,7 @@ class _OffTheReal:
     convention: str
     whole: str
     whole_places: bool
-    templates: "dict[str, str]"
+    templates: "dict[str, list[str]]"
     lowered: "dict[str, list[str]]"
     spill: str
     bound: int
@@ -54457,24 +54457,27 @@ def _off_the_real_room(
     if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
         whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
     whole_places = facts.all_whole_numbers and _any_whole_places(facts.layout_forms)
-    templates: "dict[str, str]" = {}
+    templates: "dict[str, list[str]]" = {}
     lowered: "dict[str, list[str]]" = {}
     for layout in _named_layouts(facts):
         if layout in exclusions:
-            templates[layout] = parsing.written_excluded(
-                parsing.layout_template(layout, _prefix_of(facts, layout), whole_places),
-                exclusions[layout],
-            )
+            # EVERY EXCLUSION OF THE LAYOUT, in the order published: one,
+            # or several spellings of one block (contract 7.12b).
+            templates[layout] = []
             folded = parsing.folded_layout(layout)
             if folded not in lowered:
                 lowered[folded] = []
-            lowered[folded] += [
-                parsing.folded(parsing.folded_layout(templates[layout]))
-            ]
+            for exclusion in exclusions[layout]:
+                excluded = parsing.written_excluded(
+                    parsing.layout_template(layout, _prefix_of(facts, layout), whole_places),
+                    exclusion,
+                )
+                templates[layout] += [excluded]
+                lowered[folded] += [parsing.folded(parsing.folded_layout(excluded))]
     spill = ""
     if parsing.EXCLUSION_SPILL in exclusions:
         spill = parsing.layout_template(
-            exclusions[parsing.EXCLUSION_SPILL], whole, whole_places
+            exclusions[parsing.EXCLUSION_SPILL][0], whole, whole_places
         )
     return _OffTheReal(
         facts=facts,
@@ -54489,7 +54492,7 @@ def _off_the_real_room(
         bound=len(spill),
         unnamed=(
             parsing.EXCLUSION_UNNAMED in exclusions
-            and exclusions[parsing.EXCLUSION_UNNAMED] == parsing.EXCLUSION_NONE
+            and exclusions[parsing.EXCLUSION_UNNAMED][0] == parsing.EXCLUSION_NONE
         ),
         written={},
         folds={},
@@ -54508,10 +54511,10 @@ def _kept_off_the_real(room: _OffTheReal, cell: str) -> bool:
     """Whether a twin cell is spelled as no real cell can be (method G9.6b)."""
     core = parsing.trimmed(cell)
     layout = parsing.layout_form(core, room.convention)
-    if layout in room.templates and _wears_template(
-        core, room.templates[layout], room.convention
-    ):
-        return True
+    if layout in room.templates:
+        for template in room.templates[layout]:
+            if _wears_template(core, template, room.convention):
+                return True
     folded = parsing.folded_layout(layout)
     if folded in room.lowered:
         for template in room.lowered[folded]:
@@ -54527,7 +54530,8 @@ def _off_the_real_targets(room: _OffTheReal, core: str) -> "list[str]":
     layout = parsing.layout_form(core, room.convention)
     offered: "list[str]" = []
     if layout in room.templates:
-        offered += [room.templates[layout]]
+        for template in room.templates[layout]:
+            offered += [template]
     if layout and room.bound:
         prefix = _prefix_of(room.facts, layout)
         opening = len(parsing.prefix_layout(prefix, room.convention)) if prefix else 0

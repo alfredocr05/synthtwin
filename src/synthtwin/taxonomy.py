@@ -26466,7 +26466,7 @@ def with_layout_exclusions(
     for layout in sorted(forms):
         if layout != SUPPRESSED_LABEL:
             named += [f"{layout}"]
-    exclusions: "dict[str, str]" = {}
+    exclusions: "dict[str, object]" = {}
     if present and named:
         convention = parsing.layout_convention(present)
         wanted: "dict[str, bool]" = {}
@@ -26517,7 +26517,9 @@ def with_layout_exclusions(
                 int(f"{forms[layout]}"),
                 min(int(f"{forms[layout]}"), column.n_distinct),
             )
-            if found:
+            if len(found) == 1:
+                exclusions[layout] = found[0]
+            elif found:
                 exclusions[layout] = found
         widest = named[0]
         for layout in named:
@@ -26547,7 +26549,7 @@ def with_layout_exclusions(
 
 
 def moved_by_the_exclusions(
-    forms: "dict[str, int]", exclusions: "dict[str, str]", n_present: int
+    forms: "dict[str, int]", exclusions: "dict[str, tuple[str, ...]]", n_present: int
 ) -> "tuple[tuple[str, ...], bool]":
     """What a record number's twin gives up so no cell is spelled as a real one (plan P4-D432).
 
@@ -26572,7 +26574,7 @@ def moved_by_the_exclusions(
             moved = moved + (layout,)
     unnamed = (
         parsing.EXCLUSION_UNNAMED in exclusions
-        and exclusions[parsing.EXCLUSION_UNNAMED] == parsing.EXCLUSION_NONE
+        and exclusions[parsing.EXCLUSION_UNNAMED][0] == parsing.EXCLUSION_NONE
     )
     lengths = bool(moved) or not unnamed or counted < n_present
     return moved, lengths
@@ -26604,6 +26606,17 @@ def _greatest_last(alphabet: str, alone: bool) -> str:
     return figures + letters
 
 
+def _room_left(room: int, template: str, fixed: "list[int]", opening: "list[int]") -> int:
+    """The fillings a template keeps with ``fixed`` places written: no nought opening a run (P4-D432)."""
+    left = room
+    for place in fixed:
+        left = left // len(parsing.exclusion_alphabet(template[place]))
+    for place in opening:
+        if place not in fixed:
+            left = left * 9 // 10
+    return left
+
+
 def _exclusion_of(
     cells: "list[str]",
     layout: str,
@@ -26612,8 +26625,15 @@ def _exclusion_of(
     floor: int,
     published: int,
     need: int,
-) -> str:
-    """One layout's exclusion (`with_layout_exclusions`), or "" where none is found."""
+) -> "list[str]":
+    """One layout's exclusions (`with_layout_exclusions`): one, several of one block, or none.
+
+    THE ROOM ASKED HOLDS ``need`` (the layout's cells or the column's
+    values, whichever is fewer), counted without a nought at a place that
+    opens a run of figures, which the twin never writes there
+    (`_room_left`).
+    """
+    need = max(need, 1)
     root = prefix if parsing.is_a_uid_root(prefix) else ""
     room = (
         parsing.uid_room(template[len(root):]) if root else parsing.layout_room(template)
@@ -26622,6 +26642,14 @@ def _exclusion_of(
     for place in range(len(template)):
         if template[place] in _EXCLUDED_MARKS or template[place] in _LETTER_MARKS:
             places += [place]
+    # The places that open a run of figures, which take no nought.
+    opening_figures: "list[int]" = []
+    if not root:
+        for place in places:
+            if template[place] == parsing.LAYOUT_DIGIT and (
+                place == 0 or template[place - 1] not in _EXCLUSION_RUN_MARKS
+            ):
+                opening_figures += [place]
     # Whether some real cell of the layout is figures alone (`_greatest_last`).
     alone = False
     for value in cells:
@@ -26631,7 +26659,10 @@ def _exclusion_of(
                 figures = figures + 1
         if value and figures == len(value):
             alone = True
+    short = False
     for place in places:
+        if short:
+            break
         held: "dict[str, int]" = {}
         for value in cells:
             character = value[place]
@@ -26648,24 +26679,26 @@ def _exclusion_of(
             if count == 0:
                 # ...ONLY WHERE THE ROOM LEFT HOLDS THE LAYOUT'S VALUES: a
                 # layout whose real values fill all but less than that
-                # carries no exclusion, and its values are written wider.
-                if room // len(parsing.exclusion_alphabet(template[place])) < max(need, 1):
-                    return ""
-                return layout[:place] + character + layout[place + 1:]
+                # asks the block, whose several spellings may.
+                if _room_left(room, template, [place], opening_figures) < need:
+                    short = True
+                    break
+                return [layout[:place] + character + layout[place + 1:]]
             if count < floor:
                 # A CHARACTER FEWER THAN THE FLOOR'S CELLS HOLD IS NEVER
                 # PASSED OVER: the place is left, so what the choice says
                 # about a character it passed is that the floor's cells hold it.
                 break
     # THE BLOCK: every other place the twin fills, counted from the last,
-    # k of them, k the FEWEST from two whose spellings some real cell of
-    # the layout leaves free there, while the room left still holds the
-    # layout's cells or values -- every other place, so no run of written
-    # characters stands in the description, where a run of five could be
-    # read as a fragment of some value. Its spellings are read from the
-    # greatest down and the first no real cell holds there is written:
-    # what the choice passes over is held at those places by some real
-    # cell, its low places, never an extreme's.
+    # k of them, k the FEWEST from two at which spellings no real cell of
+    # the layout holds there leave the room the layout's cells or values
+    # need -- ONE spelling where the room one leaves is enough, else as
+    # few as are, at most `parsing.EXCLUSIONS_AT_MOST` -- every other
+    # place, so no run of written characters stands in the description,
+    # where a run of five could be read as a fragment of some value. Its
+    # spellings are read from the greatest down and the first free ones
+    # are written: what the choice passes over is held at those places by
+    # some real cell, its low places, never an extreme's.
     chosen: "list[int]" = []
     for at in range(len(places) - 1, -1, -2):
         chosen += [places[at]]
@@ -26676,8 +26709,12 @@ def _exclusion_of(
         for place in block:
             spellings = spellings * len(parsing.exclusion_alphabet(template[place]))
             choices = choices * len(_greatest_last(parsing.exclusion_alphabet(template[place]), alone))
-        if room // spellings < max(need, 1):
-            return ""
+        each = _room_left(room, template, block, opening_figures)
+        if each < 1:
+            return []
+        wanted = (need + each - 1) // each
+        if wanted > parsing.EXCLUSIONS_AT_MOST:
+            return []
         worn: "dict[str, bool]" = {}
         for value in cells:
             key = ""
@@ -26686,7 +26723,10 @@ def _exclusion_of(
             worn[parsing.folded(key)] = True
         if len(worn) >= spellings:
             continue
+        found: "list[str]" = []
         for number in range(choices - 1, -1, -1):
+            if len(found) >= wanted:
+                break
             key = ""
             rest = number
             for place in block:
@@ -26708,8 +26748,10 @@ def _exclusion_of(
             for at in range(len(block)):
                 place = block[at]
                 written = written[:place] + key[at] + written[place + 1:]
-            return written
-    return ""
+            found += [written]
+        if len(found) >= wanted:
+            return found
+    return []
 
 
 def whole_places_of(value: str) -> int:

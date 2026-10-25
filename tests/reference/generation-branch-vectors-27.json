@@ -1,5 +1,5 @@
 {
-  "case_set": "The 11 cases method section G14.3 adds with landing 3b.5's second step, the minute census of a column of clock times (plan P4-D374): G7A.4c's layout of a body on its minute census -- a clinic's slots, a column at the second, a column whose values all differ, rungs pinned in their census groups, a column with no tails whose heap's cells come off the minute groups' counts, and the rounding of a walk-in grid with both counts kept -- and G7A.5's stand-ins past route 1's allowance, written as times at the column's other precision (the Codex review of the landing, item 1); and G9.6a's amendment for a record number (lane CODES-3, plan P4-D428): a whole number exported as a decimal written with its noughts after the point, and a DICOM UID's root standing in every cell with no arc led by a nought; and G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number spelled again in its layout's excluded template, and one written in its spill's width where no exclusion was found. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-21.json, tests/reference/generation-branch-vectors-22.json, tests/reference/generation-branch-vectors-23.json, tests/reference/generation-branch-vectors-25.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the twenty-first standing at 247,663 bytes against the manifest's 250,000-byte cap: no cap is raised and no case is dropped.",
+  "case_set": "The 12 cases method section G14.3 adds with landing 3b.5's second step, the minute census of a column of clock times (plan P4-D374): G7A.4c's layout of a body on its minute census -- a clinic's slots, a column at the second, a column whose values all differ, rungs pinned in their census groups, a column with no tails whose heap's cells come off the minute groups' counts, and the rounding of a walk-in grid with both counts kept -- and G7A.5's stand-ins past route 1's allowance, written as times at the column's other precision (the Codex review of the landing, item 1); and G9.6a's amendment for a record number (lane CODES-3, plan P4-D428): a whole number exported as a decimal written with its noughts after the point, and a DICOM UID's root standing in every cell with no arc led by a nought; and G9.6b's final pass (lane ID-ROOM, plan P4-D432): a record number spelled again in its layout's excluded template, one written in its spill's width where no exclusion was found, and one spelled in three spellings of one block in turn. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-21.json, tests/reference/generation-branch-vectors-22.json, tests/reference/generation-branch-vectors-23.json, tests/reference/generation-branch-vectors-25.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the twenty-first standing at 247,663 bytes against the manifest's 250,000-byte cap: no cap is raised and no case is dropped.",
   "cases": {
     "clock_minutes_all_different": {
       "cells": [
@@ -5877,6 +5877,146 @@
         "9194252158862008638"
       ]
     },
+    "identifier_layout_exclusions_several": {
+      "cells": [
+        "Q918",
+        "Q949",
+        "Q919",
+        "Q989",
+        "Q978",
+        "Q969",
+        "Q948",
+        "Q947",
+        "Q958",
+        "Q938",
+        "Q939",
+        "Q998",
+        "Q959",
+        "Q908",
+        "Q988",
+        "Q928",
+        "Q909",
+        "Q977",
+        "Q999",
+        "Q968",
+        "Q987",
+        "Q917",
+        "Q979",
+        "Q929"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_exclusions": {
+          "(spill)": "@%%%%",
+          "(unnamed)": "(none)",
+          "@%%%": [
+            "@9%9",
+            "@9%8",
+            "@9%7"
+          ]
+        },
+        "layout_forms": {
+          "@%%%": 24
+        },
+        "layout_prefixes": {
+          "(column)": "Q"
+        },
+        "max_length": 4,
+        "min_length": 4,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 24,
+        "n_contradictory": 0,
+        "n_distinct": 24,
+        "n_distinct_by_occurrences": {
+          "1": 24
+        },
+        "n_distinct_folded": 24,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "Q979",
+        "Q949",
+        "Q919",
+        "Q989",
+        "Q959",
+        "Q929",
+        "Q969",
+        "Q939",
+        "Q909",
+        "Q978",
+        "Q908",
+        "Q948",
+        "Q918",
+        "Q988",
+        "Q958",
+        "Q928",
+        "Q998",
+        "Q968",
+        "Q938",
+        "Q977",
+        "Q999",
+        "Q947",
+        "Q917",
+        "Q987"
+      ],
+      "csv_bytes": "Q918\nQ949\nQ919\nQ989\nQ978\nQ969\nQ948\nQ947\nQ958\nQ938\nQ939\nQ998\nQ959\nQ908\nQ988\nQ928\nQ909\nQ977\nQ999\nQ968\nQ987\nQ917\nQ979\nQ929\n",
+      "float64": [],
+      "why": "a declared identifier of `Q` and three figures, every value different, whose profile found no one spelling of a block its real cells leave room enough in, so it publishes three spellings of the block at the first and the last figure, `@9%9`, `@9%8` and `@9%7` (contract section 7.12b, plan P4-D432). G9.6b's final pass spells the walk's values in `Q9%9` until its ten fillings are taken, then in `Q9%8`, then in `Q9%7`, so every cell keeps its four characters and none can be a real record number. This case's mutant withdraws the final pass, the walk's cells stand, and the cells move.",
+      "word_budget": {
+        "content": 0,
+        "placement": 23
+      },
+      "words": [
+        "4279869529022106555",
+        "121623970762008682",
+        "168523229470649923",
+        "4575299208778552563",
+        "16368841617079356550",
+        "5645195991711323044",
+        "17779709664148418790",
+        "9078098503133894484",
+        "18289739040269340571",
+        "17068231438216914105",
+        "13503553221856479321",
+        "6987499632826789714",
+        "13778095737138759110",
+        "13244584742069224829",
+        "9746382182831011067",
+        "14813377605309759575",
+        "180649598452948562",
+        "2017505837208679248",
+        "928812134085691859",
+        "2511036995282553179",
+        "17033699811491892793",
+        "15177494835501676226",
+        "18043816326514828945"
+      ]
+    },
     "identifier_spill": {
       "cells": [
         "Z4356",
@@ -5982,7 +6122,7 @@
       ],
       "csv_bytes": "Z4356\nZ8521\nZ1997\nZ0181\nZ7705\nZ2632\nZ2714\nZ5172\nZ6988\nZ6807\nZ6988\nZ3530\nZ4356\nZ8449\nZ7623\nZ7705\nZ3458\nZ3530\nZ5172\nZ1816\nZ8521\nZ4274\nZ9265\nZ5090\n",
       "float64": [],
-      "why": "a declared identifier of `Z` and two figures whose profile found no place and no block its real cells leave free in its one layout, so it publishes only the spill `@%%%`, longer than every real cell (contract section 7.12b, plan P4-D432). G9.6b's final pass writes every value of the walk as the next free filling of its layout widened as long as the spill, `Z%%%` under the prefix, and every twin cell is four characters long, as no real cell is. This case's mutant withdraws the final pass, the walk's cells of three characters stand, and the cells move.",
+      "why": "a declared identifier of `Z` and two figures whose profile found no place and no block its real cells leave free in its one layout, so it publishes only the spill `@%%%`, longer than every real cell (contract section 7.12b, plan P4-D432). G9.6b's final pass writes every value of the walk as the next free filling of its layout widened as long as the spill and one character longer still, since its values hold a letter, `Z%%%%` under the prefix, and every twin cell is five characters long, as no real cell is. This case's mutant withdraws the final pass, the walk's cells of three characters stand, and the cells move.",
       "word_budget": {
         "content": 0,
         "placement": 23

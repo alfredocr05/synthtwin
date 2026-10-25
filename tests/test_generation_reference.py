@@ -932,6 +932,7 @@ TWENTY_SEVENTH_BRANCH_CASES = (
     "clock_minutes_slots",
     "clock_stand_ins_past_route_one",
     "identifier_layout_exclusion",
+    "identifier_layout_exclusions_several",
     "identifier_spill",
     "identifier_uid_root",
     "identifier_whole_places",
@@ -1052,6 +1053,7 @@ SEEDS = {
     # Lane ID-ROOM's final pass (plan P4-D432) takes the next two.
     "identifier_layout_exclusion": 602,
     "identifier_spill": 603,
+    "identifier_layout_exclusions_several": 604,
     "clock_minutes_seconds": 443,
     "clock_minutes_all_different": 444,
     "clock_minutes_rung_pins": 445,
@@ -1383,6 +1385,7 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_uid_root",
         "identifier_layout_exclusion",
         "identifier_spill",
+        "identifier_layout_exclusions_several",
     }
 )
 
@@ -4868,6 +4871,14 @@ CASE_MUTANTS = {
         branch="G9.6b's final pass (plan P4-D432); the mutant withdraws it, "
         "the walk's cells stand without the exclusion's `9`, and the cells "
         "move",
+        attribute="spelled_off_the_real",
+        replacement=_no_final_pass,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_layout_exclusions_several": Mutant(
+        branch="G9.6b's final pass through several spellings of one block "
+        "(plan P4-D432); the mutant withdraws it, the walk's cells stand, and "
+        "the cells move",
         attribute="spelled_off_the_real",
         replacement=_no_final_pass,
         outcome=CHANGES_THE_CELLS,

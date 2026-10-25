@@ -22224,7 +22224,7 @@ def moved_off_the_real(
             given_up = given_up + (layout,)
     said_none_outside = (
         parsing.EXCLUSION_UNNAMED in exclusions
-        and exclusions[parsing.EXCLUSION_UNNAMED] == parsing.EXCLUSION_NONE
+        and exclusions[parsing.EXCLUSION_UNNAMED][0] == parsing.EXCLUSION_NONE
     )
     return given_up, bool(given_up) or not said_none_outside or total < n_present
 
