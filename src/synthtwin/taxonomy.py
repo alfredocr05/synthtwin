@@ -26642,12 +26642,18 @@ def _exclusion_of(
     # whether a value is whole, and a twin value whole or not as the walk
     # wrote it must still wear the template.
     point = len(template)
-    numbered = template.count(".") == 1
-    for character in template:
-        if character not in "%!-+,.":
+    first = len(template)
+    points = 0
+    numbered = True
+    for at in range(len(template)):
+        if template[at] == ".":
+            points = points + 1
+            if points == 1:
+                first = at
+        elif template[at] not in "%!-+,":
             numbered = False
-    if numbered:
-        point = template.index(".")
+    if numbered and points == 1:
+        point = first
     places: "list[int]" = []
     for place in range(len(template)):
         if place > point:
