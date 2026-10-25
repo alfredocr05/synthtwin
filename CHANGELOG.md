@@ -6,6 +6,52 @@ exists).
 
 ## [Unreleased]
 
+### Lane H3: a column whose values all differ, and free text, described with fewer objects a row (2026-10-21, repaired 2026-10-22 and 2026-10-23)
+
+**Describing a column whose values never repeat, or free text, holds
+fewer objects a row** (plan P4-D423 and its repair rounds 1 and 2, answering
+P4-D400's stated limits (a) and (b)). A cell's record holds three slots;
+exact numbers, the mode, different spellings, tail runs, a date reading's
+texts, days and moment order are counted off sorted values or the tally's
+counts; the width censuses keep three lists. The repair keys each label
+by its first spelling (no folded copy of a label written in capitals),
+counts a slashed stamp column's one written clock by hour, figures and
+face (no halves, parts or pair a stamp), counts the weekday census's
+units along the ascending instants, ranks stamps with offsets by one
+whole number a pair, and stops the affix reading once a column proposes
+more pairs than any reading can stand on. Traced bytes a row above the
+column, past the memos' bound as at 2,000,000 rows (Python 3.11, 20,000
+rows): record numbers written `V` and nine figures 824 on 4682d6ad, 418
+on the build, 339 now; stamps to the second 587, 431, 342 (and 342 at
+80,000 rows); the K-S4-09 table's `check_at`, `MM/DD/YYYY hh:mm AM`, 775
+on the build, 337 now, and its `order_at` 627 to 337; stamps with offsets
+620 to 481; eight figures 503 to 170. Notes (2,000 and 4,000 rows): the
+gate's lower-case 60-word notes 138 to 148, notes beginning with a capital
+179 (565 on the build), notes of a 30,000-word vocabulary each holding a
+dose and a date 182 to 184 (769 to 1,343), all under 200; about 1.0 ms a
+note untraced (0.6 for the large vocabulary) against 1.4 to 1.7 on
+4682d6ad. The mixed table's traced peak at 20,000 rows is its reading's,
+unmoved; its heaviest describe is now a clock column, 370 bytes a row,
+where `check_at` held 821 on 4682d6ad. The second repair answers
+Codex's review: the mode reads each run of equal values once (a value
+16,000 exact numbers share took 0.1 s, not the square of them), the
+affix runs are counted a band of sizes a walk (512 wrapper pairs whose
+kept hash bits collide, 7.9 s where 6d4cb0b2 took 16.0), and a value its
+cells write as one exact number is counted by its run with no map
+(10,000 numbers written twice, 130 traced bytes a row where 6d4cb0b2
+held 307 and 4682d6ad 249). With a declared person column the date
+questions described the answer's nine held columns of dates and stamps
+beside a walk of groups (14.2 MB traced at 20,000 rows, above every
+describe); each column is now described beside its own group alone (9.8
+MB), at six more readings of the file. Every description,
+summary and twin is the same bytes: lane SR's 880-description battery
+read whole and one column a group, the health data zoo, skeptic 1's 144
+adversarial descriptions with generate and validate, and the lane's
+digests. The 100 bytes a row asked of record numbers and stamps is not
+met (stated limit 1); the 2,000,000-row points are the night window's
+(`wave6/H3/night-h3.sh`, steps `big` and `person`; resident, against the
+2,500 MB watchdog).
+
 ### Batch 4i's records: the two floors merged, a grained column's working set let go (2026-10-23)
 
 **Records of batch 4i**, which merged lanes POP, MIN and ZR-b (plans

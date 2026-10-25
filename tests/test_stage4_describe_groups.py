@@ -531,14 +531,19 @@ def test_a_label_written_one_way_otherwise_than_itself_holds_that_spelling_not_a
     """
     cells = [f"V{row:06d}" for row in range(1_000)] + ["ABC", "ABC", "Abc", "ABC", "abc", "x", "X", "Q", "Q"]
     tallied = taxonomy._tally(taxonomy._classify_all(cells), len(cells), taxonomy.Settings())
-    held = tallied.spellings_by_folded
+    # Lane H3's repair (plan P4-D423) keys the tally by each label's first
+    # spelling: the label written `V000007` is that key, with no map and no
+    # folded copy; `_label_maps` gives the maps keyed by label, as before.
+    assert "V000007" in tallied.label_counts and "v000007" not in tallied.label_counts
+    assert len(tallied.label_spellings) == 2
+    counts, held = taxonomy._label_maps(tallied)
     assert held["v000007"] == "V000007"
-    assert taxonomy._label_spellings(tallied.folded_counts, held, "v000007") == {"V000007": 1}
-    assert list(taxonomy._label_spellings(tallied.folded_counts, held, "abc").items()) == [
+    assert taxonomy._label_spellings(counts, held, "v000007") == {"V000007": 1}
+    assert list(taxonomy._label_spellings(counts, held, "abc").items()) == [
         ("ABC", 3), ("Abc", 1), ("abc", 1),
     ]
-    assert list(taxonomy._label_spellings(tallied.folded_counts, held, "x").items()) == [("x", 1), ("X", 1)]
-    assert taxonomy._label_spellings(tallied.folded_counts, held, "q") == {"Q": 2}
+    assert list(taxonomy._label_spellings(counts, held, "x").items()) == [("x", 1), ("X", 1)]
+    assert taxonomy._label_spellings(counts, held, "q") == {"Q": 2}
     assert sum(1 for label in held if isinstance(held[label], dict)) == 2
 
 

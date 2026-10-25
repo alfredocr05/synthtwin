@@ -893,12 +893,14 @@ def test_the_census_of_widths_hands_on_only_values_a_reader_places() -> None:
     """
     from types import SimpleNamespace
 
-    counted: "list" = []
+    # The counted cells as lane H3's three lists (plan P4-D423), not a
+    # list of (cell, own, least) triples.
+    counted = taxonomy._CountedCells()
     for value in range(6000):
-        counted += [(SimpleNamespace(numeric_text=f"{value}.123", value=value + 0.123), 3, 3)]
+        taxonomy._counted_add(counted, SimpleNamespace(numeric_text=f"{value}.123", value=value + 0.123), 3, 3)
     for value in range(3000):
         for _row in range(2):
-            counted += [(SimpleNamespace(numeric_text=f"{value}.25", value=value + 0.25), 2, 2)]
+            taxonomy._counted_add(counted, SimpleNamespace(numeric_text=f"{value}.25", value=value + 0.25), 2, 2)
     room, capacities, groups = taxonomy._width_bounds(counted, {})
     assert groups == (), groups
     assert room == 9000 and len(capacities) == 9002, (room, len(capacities))

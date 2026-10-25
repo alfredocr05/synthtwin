@@ -393,7 +393,28 @@ cannot get worse unseen.
   `K-S4-09` stays OPEN with describe's part RED, and one wide note
   column read alone, about 2.7 GB at 2,000,000 rows and about 408 s a
   column at 1,000,000, are lane H3's (the identity walk's column text;
-  lane SV's describe-once is the first cut); workbooks at scale, refused
+  lane SV's describe-once is the first cut). Lane H3 (P4-D423,
+  2026-10-21, repaired 2026-10-22 and 2026-10-23) cut them, traced past the memos'
+  bound on Python 3.11 at 20,000 rows: record numbers 824 to 339 bytes
+  a row, stamps 587 to 342 (342 at 80,000 rows too), the K-S4-09
+  table's `check_at` 775 (34bb5902) to 337 and `order_at` 627 to 337,
+  stamps with offsets 620 to 481, eight figures 503 to 170; notes in
+  lower case 138 to 148, beginning with a capital 179, of a 30,000-word
+  vocabulary with a dose and a date 182 to 184, all under 200, about
+  1.0 ms a note untraced against 1.4 to 1.7 on 4682d6ad. The 100 asked
+  of record numbers and stamps is NOT met (a record a cell, the tally's
+  entry a label, the date reading's pair a stamp, an instant a stamp);
+  the mixed table's heaviest describe is now a clock column (370 bytes
+  a row), lane H3's follow-up; `K-S4-09` at 2,000,000 x 50, resident,
+  waits for the night window (`wave6/H3/night-h3.sh`, steps `big` and
+  `person`). `K-S4-09` with a declared person column is lane H3's since
+  2026-10-23 (the orchestrator's addendum): its extra memory was question
+  Q6 describing the answer's nine held columns of dates and stamps beside
+  a walk of groups (`profile.dated_questions_of`, 14.2 MB against 8.4
+  open at 20,000 rows), not the subject keys (22 bytes a row); each is
+  now described beside its own group alone (9.8 MB, six more readings
+  of the file), the 2,000,000-row person leg unmeasured (the night's
+  step `person`); workbooks at scale, refused
   past `workbook.MAXIMUM_CELLS`, are lane XL's. `analyst_kit.chi2_sf`
   stops at 500 terms, 0.7 % off at 69,295 degrees of freedom and p 0.5:
   lane E0L's (P4-D398). The zoo's SNOMED ids answered `code` a round
@@ -410,7 +431,10 @@ cannot get worse unseen.
   alike, read as a file older than P4-D408: lane AQ2's. The grouped
   describe's peak under 0.6 of the whole table's (0.51 to 0.56 on Python
   3.11, 0.53 to 0.58 on 3.13, macOS; 3.12, 3.14, Linux and Windows
-  unmeasured), not SR's "under half": lane H3's (P4-D400). A column
+  unmeasured), not SR's "under half": lane H3's (P4-D400), which read
+  0.462 on its head against 0.504 on 4682d6ad (3.11; 0.509 against
+  0.529 on 3.13, macOS) and no describe cycle, and keeps the 0.6 bound
+  (P4-D423). A column
   declared as counted dates with no present cell is named nowhere: lane
   ST's notice (P4-D406). What stage 5's result reads for the chain now
   P4-D407 supersedes P4-D394: lane CHv's (P4-D395). In the health data

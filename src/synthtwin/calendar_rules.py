@@ -2444,7 +2444,7 @@ def span_short(p25: "int | None", p75: "int | None") -> bool:
 def few_units(
     groups: "tuple[tuple[int, int, int], ...]",
     body: "list[int]",
-    units: "list[int]",
+    units: "list[int] | tuple[int, ...]",
 ) -> bool:
     """Whether the census's groups hold too few different written units (P4-D367).
 
@@ -2465,10 +2465,33 @@ def few_units(
     """
     where = where_of(groups)
     held = [0 for _group in groups]
-    for index, _unit in {
-        (where[weekday_of(day)], unit) for day, unit in zip(body, units)
-    }:
-        held[index] = held[index] + 1
+    # COUNTED RUN BY RUN WHERE THE UNITS ASCEND (lane H3's repair, plan
+    # P4-D423), as the producer's do: the cells of one unit stand
+    # together, and a unit is counted once in each group one of its days
+    # falls in. The set of every (group, unit) pair this counted held
+    # about 90 bytes a row of a column of stamps that never repeat. Units
+    # in any other order are counted by the set, as before; only the
+    # pairs `zip` makes are counted either way.
+    paired = min(len(body), len(units))
+    ascending = True
+    for place in range(1, paired):
+        if units[place] < units[place - 1]:
+            ascending = False
+            break
+    if ascending:
+        seen: "dict[int, bool]" = {}
+        for place in range(paired):
+            if place == 0 or units[place] != units[place - 1]:
+                seen = {}
+            index = where[weekday_of(body[place])]
+            if index not in seen:
+                seen[index] = True
+                held[index] = held[index] + 1
+    else:
+        for index, _unit in {
+            (where[weekday_of(day)], unit) for day, unit in zip(body, units)
+        }:
+            held[index] = held[index] + 1
     filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
     return len(filled) >= 2 and sum(filled) < FEWEST_MEAN_UNITS * len(filled)
 

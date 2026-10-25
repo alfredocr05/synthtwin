@@ -381,8 +381,9 @@ def _route_2(
 ) -> "tuple[str, ...]":
     """The route the correction dropped: the levels below the floor no spelling of which the clock's form reads,
     where the cells left read as clock times -- the mutant, put where the rare words are asked."""
+    counts, mixed = taxonomy._label_maps(cells)
     below = tuple(
-        label for label in sorted(cells.folded_counts) if cells.folded_counts[label] < settings.small_cell_floor
+        label for label in sorted(counts) if counts[label] < settings.small_cell_floor
     )
     gone = set(below)
     left = taxonomy._tally([cell for cell in classified if cell.folded not in gone], n_rows, settings, decimal_comma)
@@ -391,7 +392,7 @@ def _route_2(
         return ()
     return tuple(
         label for label in below
-        if not any(parsing.clock_ordinal(spelling, clock.form) is not None for spelling in taxonomy._label_spellings(cells.folded_counts, cells.spellings_by_folded, label))
+        if not any(parsing.clock_ordinal(spelling, clock.form) is not None for spelling in taxonomy._label_spellings(counts, mixed, label))
     )
 
 

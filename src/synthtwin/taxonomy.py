@@ -6372,6 +6372,25 @@ def _tail_side(
     }
 
 
+def _different_ordinals(ordinals: "list[int]") -> int:
+    """How many different whole numbers `ordinals` holds, `len(set(ordinals))`.
+
+    COUNTED AS RUNS WHERE THEY ARE IN ORDER, as the ordered moments' are
+    (lane H3, plan P4-D423): the set of every ordinal held about a
+    hundred bytes a row while it grew. Out of order, counted by the set.
+
+    Guarantees: returns `len(set(ordinals))`. Raises nothing. No I/O.
+    """
+    for place in range(1, len(ordinals)):
+        if ordinals[place] < ordinals[place - 1]:
+            return len(set(ordinals))
+    runs = 0
+    for place in range(len(ordinals)):
+        if place == 0 or ordinals[place] != ordinals[place - 1]:
+            runs = runs + 1
+    return runs
+
+
 def ordered_tails(
     ordered: "list[str]",
     ordinals: "list[int]",
@@ -6414,7 +6433,7 @@ def ordered_tails(
     if ranks is None:
         return (None, None, None)
     count = len(ordinals)
-    grid = len(set(ordinals))
+    grid = _different_ordinals(ordinals)
     low_rank, high_rank = ranks
     low_distances = [
         ordinals[low_rank] - ordinals[rank] for rank in range(low_rank)
@@ -6912,6 +6931,28 @@ class _Cell:
     """
 
     text: str
+    # The number the cell holds, and None whenever no number was held.
+    value: "float | None"
+    # THREE SLOTS A RECORD, AND EVERYTHING ELSE READ OFF THEM (lane H3,
+    # plan P4-D423). A column whose values never repeat holds one record
+    # a row, and the record of ten fields, with the exact triple held
+    # beside it, cost about 280 bytes a numeric cell on top of the cell
+    # (112 for the record, 166 for its triple: 2,000,000 different record
+    # numbers held about 0.56 GB of records). The five small answers of
+    # the one classification -- what the cell is numerically, its sign,
+    # whether it is whole, the two alphabet tests -- and the declaration
+    # it was read under are one entry of `_CELL_FACTS`, a table made once
+    # when this module loads, so a record holds a reference where it held
+    # five; the spelling the number rules read, the exact number and the
+    # folded label are fixed functions of the text and that declaration,
+    # read off the record when asked (the properties below), never held a
+    # row (a folded label that differs from the text is held once, by the
+    # tally's count of it). Every
+    # answer is the one the record of ten fields held, so every rule
+    # reads what it read, and `_classify` is still the one place a cell
+    # is classified, once.
+    facts: "_CellFacts"
+
     # THE SPELLING THE NUMBER RULES READ, which is `text` itself on
     # every undeclared column and the swapped spelling on one declared
     # `--decimal-comma` (plan P4-D26). The two are separate fields
@@ -6928,29 +6969,115 @@ class _Cell:
     # column running from 2.89 to 300.23 -- the defect P4-D26 exists to
     # prevent, arriving through the census rather than through the
     # reading.
-    numeric_text: str
+    @property
+    def numeric_text(self) -> str:
+        if self.facts[5]:
+            return parsing.written_with_a_decimal_comma(self.text)
+        return self.text
+
     # One of parsing.NUMBER, NUMBER_OUT_OF_RANGE, NUMBER_CONTRADICTORY,
     # NOT_A_NUMBER.
-    kind: str
-    # The number the cell holds, and None whenever no number was held.
-    value: "float | None"
+    @property
+    def kind(self) -> str:
+        return self.facts[0]
+
     # The same number EXACTLY, as the canonical triple above, and None
     # whenever no number was held. `value` is what the profile publishes
     # and what the statistics are computed from; this is what a declared
     # value is compared with, and what the numeric-sentinel rule decides
     # a candidate's own cells by, because a comparison of rounded values
     # makes one number out of two (review items P1-R7-F3 and P1-R8-F2).
-    exact: "tuple[int, tuple[str, ...], int] | None"
-    sign: str
-    whole: str
+    # Read off the spelling the number rules read, as `_classify` read
+    # it (lane H3): the same triple, a new tuple each time it is asked.
+    @property
+    def exact(self) -> "tuple[int, tuple[str, ...], int] | None":
+        if self.facts[0] != parsing.NUMBER:
+            return None
+        return parsing.exact_of_accepted_number(self.numeric_text)
+
+    @property
+    def sign(self) -> str:
+        return self.facts[1]
+
     # The cell after trimming and case folding: the key the levels, the
-    # binary rule and the categorical rule all count with.
-    folded: str
+    # binary rule and the categorical rule all count with. THE CELL'S OWN
+    # TEXT WHERE FOLDING CHANGES NOTHING (lane S4d, plan P4-D390): the
+    # same characters, never a copy beside a cell already folded.
+    @property
+    def folded(self) -> str:
+        folded = parsing.folded(self.text)
+        if folded == self.text:
+            return self.text
+        return folded
+
+    @property
+    def whole(self) -> str:
+        return self.facts[2]
+
     # Both of these are published as COUNTS on a free-text column, which
     # is what a generator needs to build text of the same shape. Neither
     # decides a role.
-    all_digits: bool
-    code_alphabet: bool
+    @property
+    def all_digits(self) -> bool:
+        return self.facts[3]
+
+    @property
+    def code_alphabet(self) -> bool:
+        return self.facts[4]
+
+
+# What a cell is numerically, its sign, whether it is whole, the two
+# alphabet tests and whether it was read under `--decimal-comma`: one
+# entry of `_CELL_FACTS`, shared by every record that answers the same.
+_CellFacts = tuple[str, str, str, bool, bool, bool]
+_CELL_KINDS = (
+    parsing.NUMBER,
+    parsing.NUMBER_OUT_OF_RANGE,
+    parsing.NUMBER_CONTRADICTORY,
+    parsing.NOT_A_NUMBER,
+)
+_CELL_SIGNS = (
+    parsing.SIGN_NEGATIVE,
+    parsing.SIGN_ZERO,
+    parsing.SIGN_POSITIVE,
+    parsing.SIGN_UNKNOWN,
+)
+_CELL_WHOLES = (parsing.WHOLE_YES, parsing.WHOLE_NO, parsing.WHOLE_UNKNOWN)
+_CELL_TRUTHS = (False, True)
+# Each answer's place in its own list, for `_cell_facts`.
+_CELL_KIND_PLACES = {kind: place for place, kind in enumerate(_CELL_KINDS)}
+_CELL_SIGN_PLACES = {sign: place for place, sign in enumerate(_CELL_SIGNS)}
+_CELL_WHOLE_PLACES = {whole: place for place, whole in enumerate(_CELL_WHOLES)}
+# EVERY ANSWER A RECORD CAN GIVE, made once when the module loads and
+# never changed: 4 x 4 x 3 x 2 x 2 x 2 entries, each found by its place
+# (`_cell_facts`). A table of constants, not a memory of what was read.
+_CELL_FACTS: "tuple[_CellFacts, ...]" = tuple(
+    (kind, sign, whole, digits, code, comma)
+    for kind in _CELL_KINDS
+    for sign in _CELL_SIGNS
+    for whole in _CELL_WHOLES
+    for digits in _CELL_TRUTHS
+    for code in _CELL_TRUTHS
+    for comma in _CELL_TRUTHS
+)
+
+
+def _cell_facts(
+    kind: str, sign: str, whole: str, digits: bool, code: bool, comma: bool
+) -> _CellFacts:
+    """The one shared entry of `_CELL_FACTS` holding these six answers.
+
+    Guarantees: a function of the six; the entry equals the tuple of
+    them. Raises KeyError on a kind, sign or whole-number answer the
+    classification never gives. No I/O of any kind.
+    """
+    place = _CELL_KIND_PLACES[kind]
+    place = place * len(_CELL_SIGNS) + _CELL_SIGN_PLACES[sign]
+    place = place * len(_CELL_WHOLES) + _CELL_WHOLE_PLACES[whole]
+    place = place * 2 + (1 if digits else 0)
+    place = place * 2 + (1 if code else 0)
+    place = place * 2 + (1 if comma else 0)
+    return _CELL_FACTS[place]
 
 
 def _written_negative(text: str) -> bool:
@@ -7010,12 +7137,11 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
     read = parsing.written_with_a_decimal_comma(text) if decimal_comma else text
     kind = parsing.classify_number(read)
     value: float | None = None
-    exact: tuple[int, tuple[str, ...], int] | None = None
     sign = parsing.SIGN_UNKNOWN
     whole = parsing.WHOLE_UNKNOWN
     if kind == parsing.NUMBER:
+        # The exact number is read off the record when asked (`_Cell.exact`).
         value = parsing.parse_number(read)
-        exact = parsing.exact_of_accepted_number(read)
         if value is not None:
             if value < 0.0:
                 sign = parsing.SIGN_NEGATIVE
@@ -7037,23 +7163,18 @@ def _classify(text: str, decimal_comma: bool = False) -> _Cell:
         else:
             sign = parsing.SIGN_POSITIVE
     trimmed = parsing.trimmed(text)
-    # THE FOLDED LABEL IS THE CELL'S OWN TEXT WHERE FOLDING CHANGES
-    # NOTHING (lane S4d, plan P4-D390): the same characters, held once
-    # rather than copied beside every cell that is already folded.
-    folded = parsing.folded(text)
-    if folded == text:
-        folded = text
+    # The folded label is read off the record when asked (`_Cell.folded`).
     return _Cell(
         text=text,
-        numeric_text=read,
-        kind=kind,
         value=value,
-        exact=exact,
-        sign=sign,
-        whole=whole,
-        folded=folded,
-        all_digits=parsing.is_digit_text(trimmed),
-        code_alphabet=parsing.is_code_text(trimmed),
+        facts=_cell_facts(
+            kind,
+            sign,
+            whole,
+            parsing.is_digit_text(trimmed),
+            parsing.is_code_text(trimmed),
+            decimal_comma,
+        ),
     )
 
 
@@ -7122,7 +7243,20 @@ class _Cells:
     n_sign_unsettled_numeric: int
     n_negative_unrepresentable: int
     raw_distinct: int
-    folded_counts: dict[str, int]
+    # EACH LABEL KEYED BY ITS FIRST SPELLING, NOT BY ITS FOLDED TEXT (lane
+    # H3's repair, plan P4-D423): how many rows each folded label holds,
+    # keyed by the text its first cell wrote -- the label itself wherever
+    # folding leaves that text as written. A label folding changes (a note
+    # that begins with a capital, a record number `V000123`, a stamp
+    # `... 09:15 AM`) was held as its folded copy, a new string a label:
+    # 397 bytes a row of 60-word notes that begin with a capital, 68 a row
+    # of 12-hour stamps, on columns whose values never repeat. The key is
+    # the column's own cell, which the column holds anyway, and the label
+    # is read off it when asked (`parsing.folded`; `_label_maps` gives the
+    # maps keyed by label to the rules that publish labels). In the order
+    # the cells first wrote each label, as the map keyed by label held
+    # them.
+    label_counts: dict[str, int]
     # For each folded identity, the EXACT spellings that folded onto it
     # and how many rows wrote each one. `folded_counts` is the total of
     # each of these mappings, and both are kept because they answer
@@ -7150,7 +7284,13 @@ class _Cells:
     # folded to `v000123`, held a map of one entry a row, about 184
     # bytes, two of the kilobyte a row its description held at its peak.
     # `_label_spellings` answers it with `{spelling: folded_counts[label]}`.
-    spellings_by_folded: "dict[str, dict[str, int] | str]"
+    #
+    # KEYED BY THE LABEL'S FIRST SPELLING TOO (lane H3's repair): a label
+    # written one way only is held nowhere here, its spelling being its
+    # key in `label_counts`; a label written two ways or more is a map of
+    # its spellings, the first spelling first. `_rep_spellings` answers
+    # every label's map.
+    label_spellings: "dict[str, dict[str, int]]"
     all_digits: int
     code_alphabet: int
     # EACH DIFFERENT TEXT IS SPLIT ONCE (plan P4-D380), by the grammar it
@@ -7210,6 +7350,54 @@ def _label_spellings(
     return {label: counts[label]}
 
 
+def _rep_spellings(cells: "_Cells", rep: str) -> "dict[str, int]":
+    """One label's exact spellings, with how many rows wrote each, asked by the label's first spelling.
+
+    `rep` is a key of `cells.label_counts`. A label `label_spellings`
+    does not hold was written as its first spelling on every row it
+    counts. The answer is the map `_label_spellings` gives for the same
+    label, and is a new map on a label written one way: a reader may not
+    change it in place and none does.
+
+    Guarantees: a function of the two. Raises KeyError where `rep` keys
+    no label. No I/O of any kind.
+    """
+    if rep in cells.label_spellings:
+        return cells.label_spellings[rep]
+    return {rep: cells.label_counts[rep]}
+
+
+def _label_maps(
+    cells: "_Cells",
+) -> "tuple[dict[str, int], dict[str, dict[str, int] | str]]":
+    """The tally's counts and spellings keyed by each folded label, as `_tally` kept them before lane H3's repair.
+
+    For the rules that publish or sort labels (`_levels` and what it
+    reads): each label read off its first spelling, in the order the
+    cells first wrote it, with its count; and the labels some cell wrote
+    otherwise than the label itself, a label written one way only held
+    as that spelling, a label written two ways or more as its map (lane
+    S4d's and lane SR's representation, plan P4-D400). Asked only where a
+    label is named or ordered, never for a count; a label folding leaves
+    as written is the cell's own text, as before.
+
+    Guarantees: the two maps `_tally` held before plan P4-D423's repair,
+    key for key and in their order. Raises nothing. No I/O of any kind.
+    """
+    counts: "dict[str, int]" = {}
+    mixed: "dict[str, dict[str, int] | str]" = {}
+    for rep in cells.label_counts:
+        label = parsing.folded(rep)
+        if label == rep:
+            label = rep
+        counts[label] = cells.label_counts[rep]
+        if rep in cells.label_spellings:
+            mixed[label] = cells.label_spellings[rep]
+        elif rep != label:
+            mixed[label] = rep
+    return counts, mixed
+
+
 def _classify_all(
     present: list[str], decimal_comma: bool = False
 ) -> list[_Cell]:
@@ -7257,11 +7445,52 @@ def _classify_all(
     return classified
 
 
+# The bits of a folded label's hash `_tally`'s index of first spellings
+# keys it by: one 30-bit digit, the smallest whole number above the
+# shared ones. Two labels of one key are told apart by folding their
+# first spellings (`_refolded_rep`); the hash decides no answer.
+_REFOLD_MASK = (1 << 30) - 1
+
+
+def _refolded_rep(refolded: "dict[int, str | tuple[str, ...]]", label: str) -> str:
+    """The first spelling of the label `label` that folding changed, or "" where none was held.
+
+    Guarantees: the spelling held under the label's key whose folded
+    text is `label`; "" where none is. Determinism: a function of the
+    two (the key reads the hash, the answer reads the folded texts).
+    Raises nothing. No I/O of any kind.
+    """
+    key = hash(label) & _REFOLD_MASK
+    if key not in refolded:
+        return ""
+    held = refolded[key]
+    if isinstance(held, str):
+        return held if parsing.folded(held) == label else ""
+    for rep in held:
+        if parsing.folded(rep) == label:
+            return rep
+    return ""
+
+
+def _refold(refolded: "dict[int, str | tuple[str, ...]]", label: str, rep: str) -> None:
+    """Hold one label's first spelling under its key, beside any other label's of that key."""
+    key = hash(label) & _REFOLD_MASK
+    if key not in refolded:
+        refolded[key] = rep
+        return
+    held = refolded[key]
+    if isinstance(held, str):
+        refolded[key] = (held, rep)
+    else:
+        refolded[key] = held + (rep,)
+
+
 def _tally(
     classified: list[_Cell],
     n_rows: int,
     settings: Settings,
     decimal_comma: bool = False,
+    texts: "list[str] | None" = None,
 ) -> _Cells:
     """Count the one classification of each cell, in one pass.
 
@@ -7271,7 +7500,12 @@ def _tally(
     reading the whole column a second time and hoping the second reading
     agrees with the first (review item P1-R6-F10).
     """
-    present: list[str] = []
+    # THE TEXTS THE RECORDS WERE MADE FROM, where the caller hands the very
+    # list `_classify_all` read and no record was taken out since (lane
+    # H3, plan P4-D423): the same texts in the same order, held once
+    # rather than in a second list a row beside the caller's.
+    reuse = texts is not None and len(texts) == len(classified)
+    present: list[str] = texts if texts is not None and reuse else []
     numbers: list[float] = []
     out_of_range = 0
     contradictory = 0
@@ -7286,13 +7520,18 @@ def _tally(
     negative_unrepresentable = 0
     all_digits = 0
     code_alphabet = 0
-    folded_counts: dict[str, int] = {}
-    # Only the labels some cell wrote otherwise than the label itself
-    # (`_label_spellings`, lane S4d): a plain label's map is read off
-    # `folded_counts` when it is asked for.
-    mixed_spellings: "dict[str, dict[str, int] | str]" = {}
+    # EACH LABEL KEYED BY ITS FIRST SPELLING (lane H3's repair, plan
+    # P4-D423; `_Cells.label_counts`), and the labels written two ways or
+    # more as maps keyed the same way. A label folding changes is found
+    # again by its hash (`_refolded_rep`): `refolded` holds, under 30 bits
+    # of each such label's hash, its first spelling, and lives only while
+    # the column is tallied.
+    label_counts: dict[str, int] = {}
+    label_spellings: "dict[str, dict[str, int]]" = {}
+    refolded: "dict[int, str | tuple[str, ...]]" = {}
     for cell in classified:
-        present += [cell.text]
+        if not reuse:
+            present += [cell.text]
         if cell.kind == parsing.NUMBER:
             if cell.value is not None:
                 numbers += [cell.value]
@@ -7348,31 +7587,36 @@ def _tally(
         if cell.code_alphabet:
             code_alphabet = code_alphabet + 1
         label = cell.folded
-        before = 0
-        if label in folded_counts:
-            before = folded_counts[label]
-        folded_counts[label] = before + 1
-        if label in mixed_spellings:
-            held = mixed_spellings[label]
-            if isinstance(held, str):
-                if cell.text != held:
-                    # A SECOND SPELLING (lane SR, plan P4-D400): the map
-                    # begins here, the one spelling every earlier cell
-                    # wrote first in it, as the map held it before.
-                    mixed_spellings[label] = {held: before, cell.text: 1}
-            elif cell.text in held:
-                held[cell.text] = held[cell.text] + 1
-            else:
-                held[cell.text] = 1
-        elif cell.text != label:
-            # THE LABEL TURNS MIXED HERE, keeping its earlier cells, which
-            # all wrote the label itself, first in the map as before. A
-            # label its first cell wrote otherwise is held as that one
-            # spelling until a cell writes it another way.
-            if before:
-                mixed_spellings[label] = {label: before, cell.text: 1}
-            else:
-                mixed_spellings[label] = cell.text
+        rep = label
+        if label not in label_counts:
+            # A KEY EQUAL TO THE LABEL IS THE LABEL'S OWN FIRST SPELLING:
+            # a key folding changes cannot equal a folded text, folding
+            # being idempotent. Any other first spelling is found by hash.
+            rep = _refolded_rep(refolded, label)
+        if not rep and label not in label_counts:
+            label_counts[cell.text] = 1
+            if label != cell.text:
+                _refold(refolded, label, cell.text)
+            continue
+        before = label_counts[rep]
+        label_counts[rep] = before + 1
+        if rep in label_spellings:
+            held = label_spellings[rep]
+            held[cell.text] = (held[cell.text] if cell.text in held else 0) + 1
+        elif cell.text != rep:
+            # A SECOND SPELLING (lane SR, plan P4-D400): the map begins
+            # here, the one spelling every earlier cell wrote first in it.
+            label_spellings[rep] = {rep: before, cell.text: 1}
+    # HOW MANY DIFFERENT SPELLINGS, COUNTED OFF THE LABELS (lane H3, plan
+    # P4-D423): every spelling folds to one label, a label the map does
+    # not hold was written one way, and a label it holds was written in
+    # as many ways as its map has keys. The set of every spelling this
+    # replaced was the column's largest moment on a column whose values
+    # never repeat: about 105 bytes a row while it grew, beside
+    # everything the tally holds.
+    raw_distinct = len(label_counts)
+    for mixed_rep in label_spellings:
+        raw_distinct = raw_distinct + len(label_spellings[mixed_rep]) - 1
     return _Cells(
         decimal_comma=decimal_comma,
         classified=classified,
@@ -7391,9 +7635,9 @@ def _tally(
         n_whole_unknown=whole_unknown,
         n_sign_unsettled_numeric=sign_unsettled_numeric,
         n_negative_unrepresentable=negative_unrepresentable,
-        raw_distinct=len(set(present)),
-        folded_counts=folded_counts,
-        spellings_by_folded=mixed_spellings,
+        raw_distinct=raw_distinct,
+        label_counts=label_counts,
+        label_spellings=label_spellings,
         all_digits=all_digits,
         code_alphabet=code_alphabet,
     )
@@ -9221,10 +9465,20 @@ def _sentinel_verdicts(
     # sentinel out of its count (review item P1-R8-F2).
     named: list[tuple[int, tuple[str, ...], int]] = []
     occurrences_of: dict[float, int] = {}
+    # A CELL OF A CANDIDATE'S EXACT NUMBER HOLDS THE CANDIDATE'S VALUE,
+    # the candidate being a value binary64 holds exactly, so the exact
+    # number is asked only of the cells holding that value (lane H3, plan
+    # P4-D423: the record reads its exact number off its spelling when
+    # asked, and asking it of every cell three times over cost a reading
+    # a cell a candidate). The cells counted are the same cells.
     for candidate in parsing.NUMERIC_SENTINELS:
         exact = exact_of_number(candidate)
         held = len(
-            [cell for cell in cells.classified if cell.exact == exact]
+            [
+                cell
+                for cell in cells.classified
+                if cell.value == candidate and cell.exact == exact
+            ]
         )
         if held:
             candidates += [candidate]
@@ -9236,7 +9490,7 @@ def _sentinel_verdicts(
     others: list[float] = []
     for cell in cells.classified:
         value = cell.value
-        if value is None or cell.exact in named:
+        if value is None or (value in candidates and cell.exact in named):
             continue
         others += [value]
     for candidate in candidates:
@@ -9911,15 +10165,15 @@ def _published_distinct(cells: _Cells) -> int:
     function of the tally, walked in sorted order. Raises nothing. No I/O
     of any kind.
     """
+    # A SUM OVER THE LABELS, IN ANY ORDER (lane H3's repair, plan
+    # P4-D423): each label's spellings counted by its first spelling,
+    # the folded label never made.
     counted = 0
-    for label in sorted(cells.folded_counts):
-        spellings = _label_spellings(
-            cells.folded_counts, cells.spellings_by_folded, label
-        )
-        if cells.folded_counts[label] >= cells.settings.small_cell_floor:
+    for rep in cells.label_counts:
+        spellings = _rep_spellings(cells, rep)
+        if cells.label_counts[rep] >= cells.settings.small_cell_floor:
             spellings = _absorb_lone_spellings(spellings, cells.settings)
-        for _spelling in sorted(spellings):
-            counted = counted + 1
+        counted = counted + len(spellings)
     return counted
 
 
@@ -10600,9 +10854,9 @@ def _a_level_is_below_the_floor(cells: _Cells) -> bool:
     floor = cells.settings.small_cell_floor
     if floor <= 1:
         return False
-    counts = cells.folded_counts
-    for label in sorted(counts):
-        if counts[label] < floor:
+    counts = cells.label_counts
+    for rep in counts:
+        if counts[rep] < floor:
             return True
     return False
 
@@ -10724,14 +10978,10 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # the formatting decide the meaning: the same six codes crossed the
     # line into "quantity" and the twin would have published a mean of
     # a performance status.
-    distinct_numbers: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    for cell in numbers:
-        if cell.exact is None:
-            continue
-        seen = 0
-        if cell.exact in distinct_numbers:
-            seen = distinct_numbers[cell.exact]
-        distinct_numbers[cell.exact] = seen + 1
+    # COUNTED OFF THE SORTED VALUES (lane H3, plan P4-D423), the exact
+    # number asked only where a value repeats: the count a map of every
+    # exact number had keys (`_exact_census`).
+    distinct_numbers = _exact_count(numbers)
     settings = cells.settings
     # AND AN ABSOLUTE FLOOR BENEATH THE SHARE, because a share alone
     # says the same six codes are a QUANTITY in a fifty-row column and
@@ -10781,7 +11031,7 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
     # HOLDS its numbers -- what a re-description does not do is call it
     # the same kind of column, so `synthtwin validate` reports the
     # role's facts as withheld rather than held.
-    if len(distinct_numbers) < line:
+    if distinct_numbers < line:
         return None
     # AND THE HALF ITSELF MUST CLEAR THE LINE, not only its count of
     # different values. The two are the same number on a column whose
@@ -10793,7 +11043,7 @@ def _compound_reading(cells: "_Cells") -> "_Compound | None":
         return None
     share = _at_most(settings.categorical_share, len(numbers))
     ceiling = min(settings.categorical_ceiling, share)
-    if len(distinct_numbers) <= max(ceiling, settings.categorical_floor):
+    if distinct_numbers <= max(ceiling, settings.categorical_floor):
         return None
     folded_counts: "dict[str, int]" = {}
     for cell in labels:
@@ -11062,12 +11312,37 @@ def _level_details(
 # -- role-specific blocks ---------------------------------------------
 
 
+def _text_measures(present: "list[str]") -> "tuple[list[float], list[float]]":
+    """Each cell's length and word count, one float a different measure shared by every row it measures (lane H3).
+
+    A float a row held 24 bytes a row of free text beside the reference
+    (plan P4-D423): the lists hold a reference a row to one float a
+    different length or count. Guarantees: the two lists, in row order,
+    equal to `[float(len(cell)) ...]` and `[float(parsing.token_count(
+    cell)) ...]`. Raises nothing. No I/O of any kind.
+    """
+    first: "dict[int, float]" = {}
+    lengths: "list[float]" = []
+    words: "list[float]" = []
+    for value in present:
+        length = len(value)
+        if length not in first:
+            first[length] = float(length)
+        lengths += [first[length]]
+        count = parsing.token_count(value)
+        if count not in first:
+            first[count] = float(count)
+        words += [first[count]]
+    return lengths, words
+
+
 def _text_details(cells: _Cells) -> dict[str, object]:
     """Length and word-count statistics for a column of free text."""
-    lengths = [float(length) for length in _lengths(cells.present)]
-    words = [
-        float(parsing.token_count(value)) for value in cells.present
-    ]
+    # ONE NUMBER A LENGTH, NOT A ROW (lane H3, plan P4-D423): a length
+    # or a count of words is one of few values, and a list of a new
+    # number a row held about 32 bytes a row each, about 64 on a column
+    # of notes that never repeat. The lists are equal to the ones before.
+    lengths, words = _text_measures(cells.present)
     return {
         "length": {
             "min": int(min(lengths)),
@@ -11096,9 +11371,7 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         # and exactly what it does and does not disclose; it is the same
         # field, built by the same function, as the one a declared
         # record-number column has carried since review item P1-R8-F4.
-        "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-            cells.present
-        ),
+        "n_distinct_by_occurrences": _spellings_by_occurrences(cells),
     }
 
 
@@ -11349,7 +11622,7 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     if parsing.STYLE_DECIMAL not in styles:
         return {}
     counts: dict[int, int] = {}
-    counted: "list[tuple[_Cell, int, int]]" = []
+    counted = _CountedCells()
     tally = _form_tally(cells)
     absorbing, _taken = _counted_into(styles, tally)
     floor = cells.settings.small_cell_floor
@@ -11369,12 +11642,12 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
         if style == parsing.STYLE_DECIMAL:
             width = fraction_width(cell.numeric_text)
             _added_to(counts, width, 1)
-            counted += [(cell, width, _least_fraction(cell, width))]
+            _counted_add(counted, cell, width, _least_fraction(cell, width))
         elif absorbing == parsing.STYLE_DECIMAL and style not in styles:
             if banded:
                 taken_in += [cell]
             else:
-                counted += [(cell, -1, _least_fraction(cell, 0))]
+                _counted_add(counted, cell, -1, _least_fraction(cell, 0))
     commonest = -1
     for width in sorted(counts):
         if commonest < 0 or counts[width] > counts[commonest]:
@@ -11382,7 +11655,7 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     for cell in taken_in:
         width = max(commonest, _least_fraction(cell, 0))
         _added_to(counts, width, 1)
-        counted += [(cell, width, _least_fraction(cell, width))]
+        _counted_add(counted, cell, width, _least_fraction(cell, width))
     total = styles[parsing.STYLE_DECIMAL]
     band = _width_band(_width_keys(counts), total, floor, counted, cells)
     if band:
@@ -11426,11 +11699,41 @@ def _least_fraction(cell: _Cell, width: int) -> int:
     return _end_figures(value)
 
 
+@dataclasses.dataclass
+class _CountedCells:
+    """Counted cells with their own and least widths, as three lists in row order.
+
+    THREE LISTS, NOT A TRIPLE A CELL (lane H3, plan P4-D423): the width
+    censuses walk every numeric cell of a column, and a triple a cell
+    held about 57 bytes a row while they ran, on a column whose numbers
+    never repeat; the lists hold a reference a cell to the records the
+    tally holds and to small whole numbers. `own` is -1 for a cell a form
+    took in, `least` is unused (empty) where only widths are counted.
+    """
+
+    records: "list[_Cell]" = dataclasses.field(default_factory=list)
+    own: "list[int]" = dataclasses.field(default_factory=list)
+    least: "list[int]" = dataclasses.field(default_factory=list)
+
+
+def _counted_add(counted: _CountedCells, cell: _Cell, own: int, least: int) -> None:
+    """One counted cell with its own and least widths, at the end of the three lists."""
+    counted.records += [cell]
+    counted.own += [own]
+    counted.least += [least]
+
+
+def _width_add(counted: _CountedCells, cell: _Cell, own: int) -> None:
+    """One counted cell with its own width alone, at the end of the two lists it uses."""
+    counted.records += [cell]
+    counted.own += [own]
+
+
 def _width_band(
     tally: "dict[str, int]",
     total: int,
     floor: int,
-    counted: "list[tuple[_Cell, int, int]]",
+    counted: _CountedCells,
     cells: _Cells,
 ) -> "dict[str, int]":
     """One width every counted cell can be written at, where a pool of widths may not stand; `{}` otherwise.
@@ -11457,7 +11760,7 @@ def _width_band(
     any kind.
     """
     line = parsing.census_floor(floor)
-    if total < line or not counted:
+    if total < line or not counted.records:
         return {}
     for key in tally:
         if tally[key] >= line:
@@ -11471,7 +11774,7 @@ def _width_band(
 
 
 def _end_pool_band(
-    total: int, floor: int, counted: "list[tuple[_Cell, int, int]]", cells: _Cells
+    total: int, floor: int, counted: _CountedCells, cells: _Cells
 ) -> "dict[str, int]":
     """One width every counted cell can be written at, where the pool an unwritable end makes could be read as pinned; `{}` otherwise.
 
@@ -11490,13 +11793,12 @@ def _end_pool_band(
     function of the four. Raises nothing. No I/O of any kind.
     """
     line = parsing.census_floor(floor)
-    if total < line or not counted:
+    if total < line or not counted.records:
         return {}
-    spelled: "dict[str, int]" = {}
-    for text in cells.present:
-        spelled[text] = 1
+    # THE COLUMN'S DIFFERENT SPELLINGS ARE THE TALLY'S OWN COUNT of them
+    # (lane H3, plan P4-D423), not a map of every spelling made again.
     least_room = -(-total // (line - 1))
-    if least_room > len(spelled):
+    if least_room > cells.raw_distinct:
         return {}
     room, capacities, groups = _width_bounds(counted, _placed_values(cells), least_room)
     if groups is not None and parsing.census_pools(
@@ -11506,13 +11808,13 @@ def _end_pool_band(
     return {f"{_band_width(counted)}": total}
 
 
-def _band_width(counted: "list[tuple[_Cell, int, int]]") -> int:
+def _band_width(counted: _CountedCells) -> int:
     """The commonest width the cells wrote that can write every one of them, the narrowest on a tie."""
     need = 0
-    for _cell, _own, least in counted:
+    for least in counted.least:
         need = max(need, least)
     written: "dict[int, int]" = {}
-    for _cell, own, _least in counted:
+    for own in counted.own:
         if own >= need:
             _added_to(written, own, 1)
     best = need
@@ -11523,7 +11825,7 @@ def _band_width(counted: "list[tuple[_Cell, int, int]]") -> int:
 
 
 def _width_bounds(
-    counted: "list[tuple[_Cell, int, int]]",
+    counted: _CountedCells,
     placed: "dict[float, bool]",
     least_room: int = 0,
 ) -> "tuple[int, list[int], tuple[tuple[int, int, tuple[int, ...]], ...] | None]":
@@ -11555,7 +11857,7 @@ def _width_bounds(
     spellings: "dict[str, int]" = {}
     lowest = -1
     highest = 0
-    for cell, own, least in counted:
+    for cell, own, least in zip(counted.records, counted.own, counted.least):
         spellings[parsing.trimmed(cell.numeric_text)] = 1
         if lowest < 0 or least < lowest:
             lowest = least
@@ -11565,7 +11867,7 @@ def _width_bounds(
     rows: "dict[float, int]" = {}
     least_of: "dict[float, int]" = {}
     worn: "dict[float, dict[str, int]]" = {}
-    for cell, _own, least in counted:
+    for cell, least in zip(counted.records, counted.least):
         value = cell.value
         if value is None:
             continue
@@ -11597,14 +11899,14 @@ def _width_bounds(
         bounding[value] = True
     grouped = len(bounding)
     if parsing.pool_table_too_large(len(widths), grouped):
-        return (room, [len(counted)] * len(widths), None)
+        return (room, [len(counted.records)] * len(widths), None)
     groups: "list[tuple[int, int, tuple[int, ...]]]" = []
     for value in sorted(bounding):
         reach: "list[int]" = []
         for width in widths:
             reach += [rows[value] if width >= least_of[value] else 0]
         groups += [(rows[value], len(worn[value]), tuple(reach))]
-    return (room, [len(counted)] * len(widths), tuple(groups))
+    return (room, [len(counted.records)] * len(widths), tuple(groups))
 
 
 def _end_figures(value: float) -> int:
@@ -12502,7 +12804,7 @@ def _form_census(
         # twin's partners came out `A-a` and missed three keys by
         # thirty-three cells, where the case-blind census it had before
         # is met (plan P4-D121).
-        if distinct != len(cells.folded_counts):
+        if distinct != len(cells.label_counts):
             lowered = 0
         split = _lower_case_split(
             form, counts[form], lowered, floor, room_needed
@@ -12950,12 +13252,13 @@ def _width_censuses(
     pads: dict[int, int] = {}
     plus_pads: dict[int, int] = {}
     unpadded: dict[int, int] = {}
-    padded_cells: "list[tuple[_Cell, int, int]]" = []
-    plus_cells_padded: "list[tuple[_Cell, int, int]]" = []
+    # THREE LISTS A KIND, NOT A TRIPLE A CELL (`_CountedCells`, lane H3).
+    padded_cells = _CountedCells()
+    plus_cells_padded = _CountedCells()
     band_pads: "list[_Cell]" = []
     # The cells the unpadded part counts, each at its own width, and those
     # a whole-number form took in, at none (`_unpadded_band`).
-    whole_cells: "list[tuple[_Cell, int]]" = []
+    whole_cells = _CountedCells()
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
@@ -12965,24 +13268,24 @@ def _width_censuses(
                 if banded and _is_whole(cell):
                     band_pads += [cell]
                 else:
-                    padded_cells += [(cell, -1, _least_pad(cell, 0))]
+                    _counted_add(padded_cells, cell, -1, _least_pad(cell, 0))
             elif banded and style not in styles and _is_whole(cell):
                 _added_to(unpadded, _least_pad(cell, 1) - 1, 1)
-                whole_cells += [(cell, _least_pad(cell, 1) - 1)]
+                _width_add(whole_cells, cell, _least_pad(cell, 1) - 1)
                 taken = taken - 1
             elif style not in styles and form in POINT_FREE_STYLES:
-                whole_cells += [(cell, -1)]
+                _width_add(whole_cells, cell, -1)
             continue
         width = pad_width(cell.numeric_text)
         if style == parsing.STYLE_LEADING_ZERO:
             _added_to(pads, width, 1)
-            padded_cells += [(cell, width, _least_pad(cell, width))]
+            _counted_add(padded_cells, cell, width, _least_pad(cell, width))
         elif parsing.is_padded(cell.numeric_text):
             _added_to(plus_pads, width, 1)
-            plus_cells_padded += [(cell, width, _least_pad(cell, width))]
+            _counted_add(plus_cells_padded, cell, width, _least_pad(cell, width))
         else:
             _added_to(unpadded, width, 1)
-            whole_cells += [(cell, width)]
+            _width_add(whole_cells, cell, width)
     # 1. THE PLUS ROUTE.
     plus_cells = 0
     for width in plus_pads:
@@ -13000,10 +13303,14 @@ def _width_censuses(
         else:
             _added_to(unpadded, width, plus_pads[width])
     if counted_plus:
-        padded_cells = padded_cells + plus_cells_padded
+        padded_cells = _CountedCells(
+            padded_cells.records + plus_cells_padded.records,
+            padded_cells.own + plus_cells_padded.own,
+            padded_cells.least + plus_cells_padded.least,
+        )
     else:
-        for cell, width, _least in plus_cells_padded:
-            whole_cells += [(cell, width)]
+        for cell, width in zip(plus_cells_padded.records, plus_cells_padded.own):
+            _width_add(whole_cells, cell, width)
     # ...and padded, under a band of the padded form, at the commonest
     # width the padded cells wrote that holds the value, or the narrowest
     # that does.
@@ -13014,7 +13321,7 @@ def _width_censuses(
     for cell in band_pads:
         width = max(written_width, _least_pad(cell, 1))
         _added_to(pads, width, 1)
-        padded_cells += [(cell, width, _least_pad(cell, width))]
+        _counted_add(padded_cells, cell, width, _least_pad(cell, width))
         taken = taken - 1
     # 2 AND 3. EACH PART COUNTED INTO ITS COMMONEST WIDTH AT THE LINE --
     # and a pool of padded widths its own spellings would pin is counted
@@ -13043,7 +13350,7 @@ def _width_censuses(
     unpadded_band = _unpadded_band(whole_cells, unpadded, floor, cells)
     if unpadded_band >= 0:
         absorbed_whole = 0
-        for _cell, width in whole_cells:
+        for width in whole_cells.own:
             if width < 0:
                 absorbed_whole += 1
         total_unpadded = 0
@@ -13110,7 +13417,7 @@ def _width_censuses(
 
 
 def _unpadded_band(
-    counted: "list[tuple[_Cell, int]]",
+    counted: _CountedCells,
     unpadded: "dict[int, int]",
     floor: int,
     cells: _Cells,
@@ -13149,14 +13456,14 @@ def _unpadded_band(
     of the four. Raises nothing. No I/O of any kind.
     """
     line = parsing.census_floor(floor)
-    if len(counted) < line:
+    if len(counted.records) < line:
         return -1
     for width in unpadded:
         if unpadded[width] >= line:
             return -1
     spellings: "dict[str, int]" = {}
     highest = 1
-    for cell, width in counted:
+    for cell, width in zip(counted.records, counted.own):
         spellings[parsing.trimmed(cell.numeric_text)] = 1
         highest = max(highest, width, _least_pad(cell, 1) - 1)
     room = len(spellings)
@@ -13165,7 +13472,7 @@ def _unpadded_band(
     rows: "dict[float, int]" = {}
     worn: "dict[float, dict[str, int]]" = {}
     stands: "dict[float, dict[int, int]]" = {}
-    for cell, width in counted:
+    for cell, width in zip(counted.records, counted.own):
         value = cell.value
         if value is None or value not in placed or not math.isfinite(value):
             continue
@@ -13185,7 +13492,7 @@ def _unpadded_band(
             reach += [rows[value] if width in stands[value] else 0]
         groups += [(rows[value], len(worn[value]), tuple(reach))]
     if parsing.census_pools(
-        len(counted), floor, len(widths), room, [len(counted)] * len(widths),
+        len(counted.records), floor, len(widths), room, [len(counted.records)] * len(widths),
         tuple(groups), False, True,
     ):
         return -1
@@ -13204,7 +13511,7 @@ def _unpadded_band(
             best = width
     if best >= 0:
         return best
-    if parsing.census_pools(len(counted), floor, 0, room):
+    if parsing.census_pools(len(counted.records), floor, 0, room):
         return -1
     return anywhere
 
@@ -13476,6 +13783,139 @@ def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
     return published_counts
 
 
+def _exact_census(
+    records: "list[_Cell]",
+) -> "tuple[list[float], dict[float, dict[tuple[int, tuple[str, ...], int], int]], dict[tuple[int, tuple[str, ...], int], int]]":
+    """The exact numbers `records` hold, counted without a key a cell (lane H3).
+
+    `records` is walked once; twice where some value is held by more
+    than one cell; three times where two exact numbers share one value.
+    Returns the values of the cells that read as numbers, sorted; for
+    each value whose cells hold MORE THAN ONE exact number (two exact
+    numbers can round to one binary64 value, and only there is the exact
+    number asked, off the record), how many cells hold each exact number
+    of that value; and how many cells hold each exact number among the
+    cells that read as numbers but hold no value (none do: the reader
+    refuses a value it cannot hold, but the count does not depend on
+    that). A value held by one cell is one exact number held once; a
+    value held by several cells of ONE exact number is that number held
+    by every cell of its run in the sorted values, and no map is made
+    for it.
+
+    THE MAP OF EVERY EXACT NUMBER IS WHAT THIS REPLACES (plan P4-D423):
+    with the exact number read off the record when asked, a map keyed by
+    it held one new triple a different number, about 200 bytes a row on
+    a column whose numbers never repeat; the sorted values are the
+    values the record already holds. AND NO MAP A REPEATED VALUE (Codex's
+    review of lane H3, item 3): a map of each repeated value's exact
+    numbers held a map and a new triple a value, 307 traced bytes a row
+    against 4682d6ad's 249 on a column of 10,000 numbers written twice
+    each, though a value of a column read from text is one exact number
+    almost always. Each repeated value is held by the first cell holding
+    it, a reference to a record the column holds already; a later cell is
+    the same exact number where its text and its declaration are the
+    first cell's (the exact number is a function of the two), and is
+    asked its exact number only where they differ. Only a value two
+    exact numbers share is counted by a map.
+
+    Guarantees: a function of the records' kinds, values and exact
+    numbers, so of the multiset of their spellings. Raises nothing. No
+    I/O of any kind.
+    """
+    ordered: "list[float]" = sorted(
+        cell.value
+        for cell in records
+        if cell.facts[0] == parsing.NUMBER and cell.value is not None
+    )
+    unvalued: "dict[tuple[int, tuple[str, ...], int], int]" = {}
+    if len(ordered) < len(records):
+        for cell in records:
+            if cell.facts[0] != parsing.NUMBER or cell.value is not None:
+                continue
+            exact = cell.exact
+            if exact is not None:
+                unvalued[exact] = unvalued[exact] + 1 if exact in unvalued else 1
+    split: "dict[float, dict[tuple[int, tuple[str, ...], int], int]]" = {}
+    # The first cell holding each value more than one cell holds. Every
+    # value here is finite (the reader refuses a value it cannot hold),
+    # so equal values stand together in `ordered`.
+    first_of: "dict[float, _Cell | None]" = {}
+    for place in range(1, len(ordered)):
+        if ordered[place] == ordered[place - 1]:
+            first_of[ordered[place]] = None
+    if first_of:
+        for cell in records:
+            if cell.facts[0] != parsing.NUMBER:
+                continue
+            value = cell.value
+            if value is None or value not in first_of or value in split:
+                continue
+            first = first_of[value]
+            if first is None:
+                first_of[value] = cell
+                continue
+            if first.text == cell.text and first.facts[5] == cell.facts[5]:
+                continue
+            if first.exact != cell.exact:
+                split[value] = {}
+        first_of = {}
+    if split:
+        for cell in records:
+            if cell.facts[0] != parsing.NUMBER:
+                continue
+            value = cell.value
+            if value is None or value not in split:
+                continue
+            exact = cell.exact
+            if exact is None:
+                continue
+            by_exact = split[value]
+            by_exact[exact] = by_exact[exact] + 1 if exact in by_exact else 1
+    return ordered, split, unvalued
+
+
+def _run_of(ordered: "list[float]", start: int) -> int:
+    """Where the run of values equal to ``ordered[start]`` ends: the first place past it."""
+    stop = start + 1
+    while stop < len(ordered) and ordered[stop] == ordered[start]:
+        stop = stop + 1
+    return stop
+
+
+def _most_in_run(
+    split: "dict[float, dict[tuple[int, tuple[str, ...], int], int]]",
+    value: float,
+    held: int,
+) -> int:
+    """The most cells one exact number of ``value`` holds, the run holding ``held`` cells (`_exact_census`)."""
+    if value not in split:
+        return held
+    most = 0
+    by_exact = split[value]
+    for exact_held in by_exact:
+        if by_exact[exact_held] > most:
+            most = by_exact[exact_held]
+    return most
+
+
+def _exact_count(records: "list[_Cell]") -> int:
+    """How many different exact numbers the cells of `records` reading as numbers hold.
+
+    The count a map keyed by each such cell's exact number has keys
+    (`_exact_census`): one a run of equal values, or as many as the run's
+    cells hold where two exact numbers share its value. Guarantees: a
+    function of the records. Raises nothing. No I/O of any kind.
+    """
+    ordered, split, unvalued = _exact_census(records)
+    count = len(unvalued)
+    start = 0
+    while start < len(ordered):
+        value = ordered[start]
+        count = count + (len(split[value]) if value in split else 1)
+        start = _run_of(ordered, start)
+    return count
+
+
 def _distinct_numbers(cells: _Cells) -> int:
     """How many different NUMBERS this column's numeric cells hold.
 
@@ -13490,14 +13930,9 @@ def _distinct_numbers(cells: _Cells) -> int:
     # calling `exact_of_spelling` here would classify all over again.
     # A test counts how often a numeric column is read that way, and
     # it is right to: the first draft of this asked twice per cell.
-    seen: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    for cell in cells.classified:
-        if cell.kind != parsing.NUMBER:
-            continue
-        if cell.exact is None:
-            continue
-        seen[cell.exact] = 1
-    return len(seen)
+    # Counted off the sorted values, the exact number asked only where a
+    # value repeats (`_exact_census`, lane H3).
+    return _exact_count(cells.classified)
 
 
 def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
@@ -13525,22 +13960,46 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     may be published. Determinism: the answer depends only on the
     multiset of cells. Raises nothing. No I/O of any kind.
     """
-    counts: "dict[tuple[int, tuple[str, ...], int], int]" = {}
-    for cell in cells.classified:
-        if cell.kind != parsing.NUMBER:
-            continue
-        if cell.exact is None or cell.value is None:
-            continue
-        if cell.exact in counts:
-            counts[cell.exact] = counts[cell.exact] + 1
-        else:
-            counts[cell.exact] = 1
-    if not counts:
+    # COUNTED OFF THE SORTED VALUES (lane H3, plan P4-D423), the exact
+    # number asked only where a value repeats (`_exact_census`): a map
+    # keyed by every exact number held one triple a row on a column whose
+    # numbers never repeat. A value held by one cell is an exact number
+    # held once; a repeated value is counted by the exact numbers of its
+    # cells. The cells that read as numbers but hold no value are left
+    # out, as the map left them.
+    ordered, split, _unvalued = _exact_census(cells.classified)
+    if not ordered:
         return None, 0
+    # EACH RUN OF EQUAL VALUES ASKED ONCE (Codex's review of lane H3,
+    # item 1): the run's own length where its cells hold one exact
+    # number, its map where they hold more. Asked a place at a time, the
+    # map of a value N exact numbers share was read at each of its N
+    # places, N times N steps on a column of numbers past binary64's
+    # figures.
     most = 0
-    for key in counts:
-        if counts[key] > most:
-            most = counts[key]
+    start = 0
+    while start < len(ordered):
+        stop = _run_of(ordered, start)
+        held = _most_in_run(split, ordered[start], stop - start)
+        if held > most:
+            most = held
+        start = stop
+    # THE SMALLEST VALUE ANY NUMBER HELD `most` TIMES HOLDS, read up the
+    # sorted values a run at a time.
+    least: "float | None" = None
+    start = 0
+    while start < len(ordered):
+        stop = _run_of(ordered, start)
+        value = ordered[start]
+        if value in split:
+            by_exact = split[value]
+            if any(by_exact[exact_held] == most for exact_held in by_exact):
+                least = value
+                break
+        elif stop - start == most:
+            least = value
+            break
+        start = stop
     # THE VALUES ARE READ OFF THE CELLS OF THE COMMONEST NUMBERS, in a
     # second walk, rather than held in a map beside the counts (lane S4d,
     # plan P4-D390): on a column whose numbers never repeat that map was
@@ -13550,19 +14009,27 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
     # value per exact number, so the walk keeps the first exact number
     # it meets among equal values and then each later cell of that same
     # number, and the published zero carries the sign 66bca69 wrote.
+    # Only a cell holding the smallest such value can be that number's
+    # (lane H3): the walk the earlier writing made over every cell of the
+    # commonest numbers settles on the first cell holding it and then
+    # each later cell of its exact number, and so does this one.
     smallest: "float | None" = None
     chosen: "tuple[int, tuple[str, ...], int] | None" = None
     for cell in cells.classified:
-        if cell.kind != parsing.NUMBER:
-            continue
-        if cell.exact is None or cell.value is None:
-            continue
-        if counts[cell.exact] != most:
+        if cell.facts[0] != parsing.NUMBER:
             continue
         found = cell.value
-        if smallest is None or found < smallest or cell.exact == chosen:
+        if found is None or found != least:
+            continue
+        exact = cell.exact
+        if exact is None:
+            continue
+        if least in split and split[least][exact] != most:
+            continue
+        if chosen is None:
+            chosen = exact
+        if exact == chosen:
             smallest = found
-            chosen = cell.exact
     return smallest, most
 
 
@@ -15296,6 +15763,18 @@ def _cells_holding(ordered: "list[float]", value: float) -> int:
     return low - first
 
 
+def _none_above_nought(ordered: "list[float]") -> bool:
+    """Whether no value of a sorted list is above nought: its LARGEST value is not (lane H3, plan P4-D423).
+
+    `len([value for value in ordered if value > 0.0]) == 0`, read off the
+    last value instead of a list of every positive one, which held a
+    reference a row on a column of positive numbers. Guarantees:
+    `ordered` is sorted and holds no not-a-number. Raises IndexError on
+    an empty list. No I/O of any kind.
+    """
+    return not ordered[len(ordered) - 1] > 0.0
+
+
 def _tail_parts(
     ordered: "list[float]",
     first: int,
@@ -15536,6 +16015,37 @@ def _numeric_tails(
     return _numeric_tails_and_causes(cells, details)[0]
 
 
+def _sorted_runs(ordered: "list[float]") -> int:
+    """How many different values a sorted list holds: its runs of equal values.
+
+    Guarantees: `ordered` is sorted; returns what `len(set(ordered))`
+    returns on binary64 values none of which is not-a-number, nought and
+    minus nought one value. Raises nothing. No I/O of any kind.
+    """
+    runs = 0
+    for place in range(len(ordered)):
+        if place == 0 or ordered[place] != ordered[place - 1]:
+            runs = runs + 1
+    return runs
+
+
+def _end_run(ordered: "list[float]", end: int) -> int:
+    """How many values of a sorted list equal the one at `end`, its first or last place.
+
+    Guarantees: what counting the values equal to `ordered[end]` returns,
+    read from that end inward. Raises IndexError on an empty list. No
+    I/O of any kind.
+    """
+    held = ordered[end]
+    step = 1 if end == 0 else -1
+    place = end
+    run = 0
+    while 0 <= place < len(ordered) and ordered[place] == held:
+        run = run + 1
+        place = place + step
+    return run
+
+
 def _numeric_tails_and_causes(
     cells: _Cells, details: "dict[str, object]"
 ) -> "tuple[dict[str, object], dict[str, str]]":
@@ -15624,8 +16134,10 @@ def _numeric_tails_and_causes(
     high = _tail_distances(
         ordered, high_first, high_last, found[high_percent], "high"
     )
-    heaped_low = len([v for v in ordered if v == ordered[0]]) >= units
-    heaped_high = len([v for v in ordered if v == ordered[count - 1]]) >= units
+    # COUNTED UP THE SORTED VALUES, each end's run read off its end and
+    # never a list of the values (lane H3, plan P4-D423).
+    heaped_low = _end_run(ordered, 0) >= units
+    heaped_high = _end_run(ordered, count - 1) >= units
     rungs: "dict[str, float | None]" = {}
     for label, num, den in LADDER:
         held = ladder[label]
@@ -15644,10 +16156,14 @@ def _numeric_tails_and_causes(
     figures = _tail_grid(details, count)
     # THE COLUMN'S OWN DIFFERENT VALUES, counted once for both sides:
     # `tail_may_list` asks whether they are a small fixed set, and that
-    # is a fact about the column and not about either of its ends.
-    distinct_numbers = len(set(ordered))
+    # is a fact about the column and not about either of its ends. THEY
+    # ARE THE RUNS OF THE SORTED VALUES: the set of every value this
+    # counted held about a hundred bytes a row while it grew, on a column
+    # whose numbers never repeat (lane H3, plan P4-D423); binary64
+    # equality is the set's, so the count is the same.
+    distinct_numbers = _sorted_runs(ordered)
     no_negative = cells.n_negative == 0
-    no_positive = len([v for v in ordered if v > 0.0]) == 0
+    no_positive = _none_above_nought(ordered)
     floor = cells.settings.small_cell_floor
     sides: "dict[str, object]" = {}
     unholdable: "list[str]" = []
@@ -16185,17 +16701,27 @@ def _on_the_written_clock(
     """Which of the cells one stamp reading parsed its one written clock keeps.
 
     The cells on another face are dropped, as `_stamp_clocks` drops them
-    once the reading is chosen (`_stamp_clock_places`, one rule).
+    once the reading is chosen (`_stamp_clock_rule`, one rule).
+
+    THE ANSWERS ARE WRITTEN OVER ``parsed``, WHICH IS HANDED BACK (lane
+    H3's repair, plan P4-D423): a cell its clock drops turns False where
+    it was True, and no list of the parsed cells' places, of their cells
+    or of what the clock keeps is made beside it -- they held about 600
+    bytes a row of a column of 12-hour stamps (`check_at`, the K-S4-09
+    table's binding column) while a slashed pair was weighed. The caller
+    reads the list handed back and never the one it handed in.
     Determinism: a function of the three. Raises nothing. No I/O.
     """
-    places = [place for place in range(len(present)) if parsed[place]]
-    kept, _clock = _stamp_clock_places(
-        [present[place] for place in places], settings
-    )
-    found = [False for _cell in present]
-    for index, _cell in kept:
-        found[places[index]] = True
-    return found
+    plain, style, absent = _stamp_clock_rule(present, parsed, settings)
+    if plain:
+        return parsed
+    face = parsing.clock_face(style)
+    for place in range(len(present)):
+        if parsed[place]:
+            kept, _cell = _stamp_clock_cell(present[place], style, face, absent)
+            if kept > _STAMP_CELL_WIDTH_IN:
+                parsed[place] = False
+    return parsed
 
 
 def _reads_within(
@@ -17446,10 +17972,120 @@ class _StampClock:
     widths_in: bool = False
 
 
-def _stamp_clock_places(
-    sources: "list[str]", settings: Settings
-) -> "tuple[list[tuple[int, str]], _StampClock]":
-    """Which stamps a column's one written clock keeps, and how each is written (landing T1).
+# What `_stamp_clock_cell` says of one stamp: kept as written, kept and
+# written in the column's hour width, dropped for another face, dropped
+# because its writing in the column's width is a declared absence.
+_STAMP_CELL_AS_WRITTEN = 0
+_STAMP_CELL_WIDTH_IN = 1
+_STAMP_CELL_OTHER_FACE = 2
+_STAMP_CELL_ABSENT = 3
+
+# The parts a stamp's clock half no style reads is given: a face no style
+# has, so it reads on none and keeps the types honest.
+_STAMP_UNREAD_PARTS: "tuple[int, int, int, bool, int, str, bool]" = (
+    0, 0, 0, False, 2, "?", False,
+)
+
+
+def _stamp_parts(value: str) -> "tuple[str, str, tuple[int, int, int, bool, int, str, bool]]":
+    """One stamp's date half, clock half and the clock's parts, read when asked."""
+    day, clock = parsing.stamp_halves(value)
+    parts = parsing.clock_parts(clock)
+    # Every cell here parsed under a stamp member, whose clock half
+    # this reader read; a face no style has keeps the types honest.
+    if parts is None:
+        parts = _STAMP_UNREAD_PARTS
+    return day, clock, parts
+
+
+def _clock_style_of_census(
+    census: "dict[tuple[int, int, str], int]", twelve_hour: bool
+) -> str:
+    """`parsing.clock_style_of_cells` of the cells this census counts (lane H3's repair, plan P4-D423).
+
+    The census counts the read clocks by their hour, the figures their
+    hour was written in and the face they wrote. The style reads no
+    other part of a clock: the face most cells wrote is a count of
+    faces, and whether a clock reads on the chosen face
+    (`parsing.clock_second` answering None or not) and the width it
+    shows (`parsing.clock_shown_width`) read only those three. So the
+    style is the one the parts of every cell give, counted from a
+    census of at most a few hundred keys instead of a tuple a cell.
+
+    Guarantees: equal to `parsing.clock_style_of_cells(read,
+    twelve_hour)` where the census counts `read` by `(parts[0],
+    parts[4], parts[5])`. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    tally: "dict[str, int]" = {}
+    for key in census:
+        face = key[2]
+        tally[face] = (tally[face] if face in tally else 0) + census[key]
+    chosen = ""
+    best = -1
+    for face in parsing.CLOCK_FACES:
+        if face in tally and tally[face] > best:
+            chosen = face
+            best = tally[face]
+    if twelve_hour and chosen == "":
+        chosen = parsing.CLOCK_TWELVE_HOUR
+    ones = 0
+    twos = 0
+    for key in census:
+        parts = (key[0], 0, 0, False, key[1], key[2], False)
+        if parsing.clock_second(parts, chosen) is None:
+            continue
+        shown = parsing.clock_shown_width(parts)
+        if shown == "h":
+            ones = ones + census[key]
+        elif shown == "hh":
+            twos = twos + census[key]
+    return ("h" if ones > twos else "hh") + chosen
+
+
+def _stamp_absences(
+    style: str,
+    present: "list[str]",
+    parsed: "list[bool] | None",
+    settings: Settings,
+) -> "dict[str, bool]":
+    """`_absences_written` of a column of slashed stamps, reading each stamp's halves when asked.
+
+    The cells one style writes otherwise than they are written, each
+    with its date half, asked the producer's own question,
+    `split_missing`, all at once; only the cells ``parsed`` marks (every
+    cell where it is None). Only a column with a declared absence holds
+    the rewritten cells, and only those.
+
+    Guarantees: returns the rewritten cells that read as no value, as
+    keys, as `_absences_written` answers over the same cells.
+    Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    if not settings.declared_missing_values:
+        return {}
+    face = parsing.clock_face(style)
+    rewritten: "list[str]" = []
+    for place in range(len(present)):
+        if parsed is not None and not parsed[place]:
+            continue
+        day, clock, parts = _stamp_parts(present[place])
+        second = parsing.clock_second(parts, face)
+        if second is None:
+            continue
+        written = parsing.written_clock(second, parts[3], style)
+        if written == clock:
+            continue
+        rewritten += [day + written]
+    if not rewritten:
+        return {}
+    _present, absent = split_missing(rewritten, settings)
+    return {spelling: True for spelling, _class in absent}
+
+
+def _stamp_clock_rule(
+    present: "list[str]", parsed: "list[bool] | None", settings: Settings
+) -> "tuple[bool, str, dict[str, bool]]":
+    """A column of slashed stamps' one written clock (landing T1): whether every cell stays as written, the style, the absences.
 
     THE STYLE MOST CELLS WROTE (`parsing.clock_style_of_cells`), on the
     12-hour face where the column is declared one. A cell on another face
@@ -17458,67 +18094,76 @@ def _stamp_clock_places(
     REWRITTEN in the column's, its date half untouched, so no published
     fact tells it apart (plan P4-D250's rule, owner ruling 6 of
     2026-09-17). A column every cell of which writes today's two-figure
-    24-hour clock comes back exactly as it went in. The width is the one
-    that rewrites no cell into a value the person declared missing
+    24-hour clock comes back exactly as it went in: the first answer is
+    True, and each cell is kept as written. The width is the one that
+    rewrites no cell into a value the person declared missing
     (`_width_clear_of_absences`, the T1 review's item 1).
+
+    COUNTED, NOT HELD A CELL (lane H3's repair, plan P4-D423): one walk
+    counts the clocks by hour, figures and face (`_clock_style_of_census`)
+    and keeps no stamp's halves, parts or pair; `_stamp_clock_cell` reads
+    a cell's again where its fate is asked. The two halves, the parts of
+    seven and the pairs of each cell held about 430 bytes a row of a
+    column of 12-hour stamps, the K-S4-09 table's binding column.
 
     ONE RULE, TWO CALLERS: `_stamp_clocks` holds a reading's cells to it,
     and `_slashed_evidence` counts each reading of a slashed pair under
     it, so the reading that wins the comparison is the one that keeps
-    the most cells on its face (the T1 review's item 3).
+    the most cells on its face (the T1 review's item 3). Only the cells
+    ``parsed`` marks are read (every cell where it is None).
 
-    Guarantees: accepts the cells a stamp member parsed and the settings;
-    returns each kept cell's place among them with the cell as written,
-    in order, and the clock. Determinism: a function of the two. Raises
-    nothing. No I/O of any kind.
+    Guarantees: accepts the cells, which of them a stamp member parsed
+    and the settings; returns whether every cell stays as written (the
+    style the default, nothing absent), the style and the rewritten
+    cells that read as a declared absence. Determinism: a function of
+    the three. Raises nothing. No I/O of any kind.
     """
-    halves: "list[tuple[str, str]]" = []
-    read: "list[tuple[int, int, int, bool, int, str, bool]]" = []
+    census: "dict[tuple[int, int, str], int]" = {}
     plain = True
-    for value in sources:
-        day, clock = parsing.stamp_halves(value)
-        parts = parsing.clock_parts(clock)
-        # Every cell here parsed under a stamp member, whose clock half
-        # this reader read; a face no style has keeps the types honest.
-        if parts is None:
-            parts = (0, 0, 0, False, 2, "?", False)
+    for place in range(len(present)):
+        if parsed is not None and not parsed[place]:
+            continue
+        _day, _clock, parts = _stamp_parts(present[place])
         if parts[5] or (parts[4] != 2 and parts[0] < 10):
             plain = False
-        halves += [(day, clock)]
-        read += [parts]
-    if plain and not reads_twelve_hours(settings):
-        return (
-            [(place, sources[place]) for place in range(len(sources))],
-            _StampClock(),
-        )
-    style = parsing.clock_style_of_cells(read, reads_twelve_hours(settings))
-    style, absent = _width_clear_of_absences(
-        style,
-        [(halves[place][1], read[place]) for place in range(len(sources))],
-        [halves[place][0] for place in range(len(sources))],
-        settings,
-    )
-    face = parsing.clock_face(style)
-    kept: "list[tuple[int, str]]" = []
-    other_faces = False
-    widths_in = False
-    for place in range(len(sources)):
-        parts = read[place]
-        second = parsing.clock_second(parts, face)
-        if second is None:
-            other_faces = True
-            continue
-        day, clock = halves[place]
-        spelled = parsing.written_clock(second, parts[3], style)
-        cell = sources[place]
-        if spelled != clock:
-            cell = f"{day}{spelled}"
-            if cell in absent:
-                # Both widths spell a declared absence: counted unread.
-                continue
-            widths_in = True
-        kept += [(place, cell)]
-    return kept, _StampClock(style, other_faces, widths_in)
+        key = (parts[0], parts[4], parts[5])
+        census[key] = (census[key] if key in census else 0) + 1
+    twelve = reads_twelve_hours(settings)
+    if plain and not twelve:
+        return True, parsing.DEFAULT_CLOCK_STYLE, {}
+    style = _clock_style_of_census(census, twelve)
+    absent = _stamp_absences(style, present, parsed, settings)
+    if absent:
+        width = "hh" if parsing.clock_hour_width(style) == "h" else "h"
+        other = width + parsing.clock_face(style)
+        if not _stamp_absences(other, present, parsed, settings):
+            return False, other, {}
+    return False, style, absent
+
+
+def _stamp_clock_cell(
+    value: str, style: str, face: str, absent: "dict[str, bool]"
+) -> "tuple[int, str]":
+    """What one stamp's column clock does with it: kept, kept in the column's width, or dropped, and the cell as kept.
+
+    Its clock read on the face (`parsing.clock_second`): none there is
+    another face, dropped. Written in the style; where that is not its
+    own clock half, the cell is its date half and that writing, dropped
+    where it spells a declared absence. Determinism: a function of the
+    four. Raises nothing. No I/O of any kind.
+    """
+    day, clock, parts = _stamp_parts(value)
+    second = parsing.clock_second(parts, face)
+    if second is None:
+        return _STAMP_CELL_OTHER_FACE, value
+    spelled = parsing.written_clock(second, parts[3], style)
+    if spelled == clock:
+        return _STAMP_CELL_AS_WRITTEN, value
+    cell = f"{day}{spelled}"
+    if cell in absent:
+        # Both widths spell a declared absence: counted unread.
+        return _STAMP_CELL_ABSENT, value
+    return _STAMP_CELL_WIDTH_IN, cell
 
 
 def _stamp_clocks(
@@ -17526,29 +18171,52 @@ def _stamp_clocks(
 ) -> "tuple[list[tuple[str, str]], list[str], _StampClock]":
     """A column of stamps held to its one written clock (landing T1).
 
-    `_stamp_clock_places` says which cells stay and how each is written;
+    `_stamp_clock_rule` says which cells stay and how each is written;
     each kept pair's canonical text is put on the column's face.
+
+    A KEPT PAIR WHOSE CANONICAL TEXT THE FACE LEAVES AS IT IS, IS THE
+    PAIR ITSELF, and a cell kept as written is the cell itself (lane
+    H3's repair, plan P4-D423): the lists hold references, not a new
+    pair and a (place, cell) pair a row.
 
     Guarantees: accepts the parsed pairs, their cells and the settings;
     returns the pairs and cells kept, in order, and the clock.
     Determinism: a function of the three. Raises nothing. No I/O.
     """
-    places, clock = _stamp_clock_places(sources, settings)
-    if clock.style == parsing.DEFAULT_CLOCK_STYLE and len(places) == len(sources):
+    plain, style, absent = _stamp_clock_rule(sources, None, settings)
+    if plain:
+        return good, sources, _StampClock()
+    face = parsing.clock_face(style)
+    if style == parsing.DEFAULT_CLOCK_STYLE:
+        # Every cell kept as written: the pairs and cells as they came.
         unchanged = True
-        for place, cell in places:
-            if cell != sources[place]:
+        for value in sources:
+            fate, _cell = _stamp_clock_cell(value, style, face, absent)
+            if fate != _STAMP_CELL_AS_WRITTEN:
                 unchanged = False
                 break
         if unchanged:
-            return good, sources, clock
+            return good, sources, _StampClock(style)
     kept: "list[tuple[str, str]]" = []
     written: "list[str]" = []
-    for place, cell in places:
-        canonical, offset = good[place]
-        kept += [(parsing.stamp_canonical(canonical, clock.style), offset)]
+    other_faces = False
+    widths_in = False
+    for place in range(len(sources)):
+        fate, cell = _stamp_clock_cell(sources[place], style, face, absent)
+        if fate == _STAMP_CELL_OTHER_FACE:
+            other_faces = True
+            continue
+        if fate == _STAMP_CELL_ABSENT:
+            continue
+        if fate == _STAMP_CELL_WIDTH_IN:
+            widths_in = True
+        pair = good[place]
+        canonical = parsing.stamp_canonical(pair[0], style)
+        if canonical is not pair[0]:
+            pair = (canonical, pair[1])
+        kept += [pair]
         written += [cell]
-    return kept, written, clock
+    return kept, written, _StampClock(style, other_faces, widths_in)
 
 
 # HOW A WORKBOOK STORES A COLUMN, where it matters to the reading (plan
@@ -18052,22 +18720,45 @@ def _census_ranked(
     if details["resolution"] not in (RESOLUTION_DATE, RESOLUTION_DATETIME):
         return None
     shared = details["datetimes_read_at"] == READ_AT_UTC
-    keyed: "list[tuple[int, str, str, int]]" = []
-    place = 0
-    for canonical, offset in pairs:
-        instant = parsing.instant_key(canonical, offset)
+    # ONE WHOLE NUMBER A PAIR, ITS INSTANT ABOVE ITS PLACE (lane H3's
+    # repair, plan P4-D423): sorted, they rank the pairs by instant and
+    # then by place, and only the pairs of one instant are ranked again by
+    # the text published for them and their offset, as the tuple of all
+    # four ranked them -- the place breaks every tie last in both. The
+    # tuple a pair, the published text a pair and the place a pair this
+    # held were about 200 bytes a row of a column of stamps with offsets.
+    packed: "list[int]" = []
+    for place in range(len(pairs)):
+        instant = parsing.instant_key(pairs[place][0], pairs[place][1])
         if instant is None:
             return None
-        shown = canonical
-        if shared:
-            at_utc = _utc_text_of(canonical, instant, offset)
-            if at_utc is not None:
-                shown = at_utc
-        keyed += [(instant, shown, offset, place)]
-        place = place + 1
-    ordered = sorted(keyed)
-    if instants is not None:
-        for instant, _shown, offset, at in ordered:
+        packed += [((instant + _RANK_BIAS) << _RANK_PLACE_BITS) | place]
+    packed = sorted(packed)
+    mask = (1 << _RANK_PLACE_BITS) - 1
+    ranked: "list[int]" = []
+    start = 0
+    while start < len(packed):
+        key = packed[start] >> _RANK_PLACE_BITS
+        stop = start + 1
+        while stop < len(packed) and packed[stop] >> _RANK_PLACE_BITS == key:
+            stop = stop + 1
+        instant = key - _RANK_BIAS
+        tied: "list[tuple[str, str, int]]" = []
+        for rank in range(start, stop):
+            at = packed[rank] & mask
+            canonical, offset = pairs[at]
+            shown = canonical
+            if shared and stop - start > 1:
+                at_utc = _utc_text_of(canonical, instant, offset)
+                if at_utc is not None:
+                    shown = at_utc
+            tied += [(shown, offset, at)]
+        if stop - start > 1:
+            tied = sorted(tied)
+        for _shown, offset, at in tied:
+            ranked += [at]
+            if instants is None:
+                continue
             if shared or offset == "":
                 instants += [instant]
                 continue
@@ -18075,7 +18766,15 @@ def _census_ranked(
             # clock, with no offset: the one pair a second key is asked of.
             local = parsing.instant_key(pairs[at][0], "")
             instants += [instant if local is None else local]
-    return [entry[3] for entry in ordered]
+        start = stop
+    return ranked
+
+
+# The whole numbers `_census_ranked` sorts the pairs by: an instant moved
+# above nought by the bias (every instant a canonical text of the years 1
+# to 9999 names is within it), then the pair's place in 32 bits.
+_RANK_BIAS = 1 << 40
+_RANK_PLACE_BITS = 32
 
 
 def _utc_text_of(canonical: str, instant: int, offset: str) -> "str | None":
@@ -18109,6 +18808,27 @@ def _clock_text(canonical: str) -> str:
     if len(canonical) < 19:
         return canonical[0:10] + " 00:00:00"
     return canonical
+
+
+def _shared_days(days: "list[int]") -> "tuple[int, ...]":
+    """The day numbers as a tuple, every row of one day holding one number.
+
+    ONE NUMBER A DAY, NOT A ROW (lane H3, plan P4-D423): a day number past
+    256 is an object of its own, and a census of a column of stamps that
+    never repeat held one a row, about 32 bytes, beside the tuple; the
+    days themselves repeat. The tuple is equal to the one of the days.
+
+    Guarantees: returns `tuple(days)`, element for element. Raises
+    nothing. No I/O of any kind.
+    """
+    first: "dict[int, int]" = {}
+    for place in range(len(days)):
+        day = days[place]
+        if day in first:
+            days[place] = first[day]
+        else:
+            first[day] = day
+    return tuple(days)
 
 
 def _census_days(
@@ -18151,7 +18871,9 @@ def _census_days(
         order = ranked if ranked is not None else _census_ranked(details, pairs)
         if order is None:
             return ()
-        return tuple(calendar_rules.written_day(pairs[place][0]) for place in order)
+        return _shared_days(
+            [calendar_rules.written_day(pairs[place][0]) for place in order]
+        )
     days: "list[int]" = []
     # ONE DAY NUMBER PER WRITTEN DATE (lane S4d, `parsing.SPELLING_MEMO_TEXTS`;
     # past the bound from a date's second sighting, `parsing.SPELLING_MEMO_NOTED`).
@@ -18179,7 +18901,7 @@ def _census_days(
             older = noted
             noted = {}
         days += [day]
-    return tuple(sorted(days))
+    return _shared_days(sorted(days))
 
 
 def _census_moments(
@@ -18611,6 +19333,64 @@ def _rung_instant(ladder: object, name: str) -> "int | None":
     return calendar_rules.rung_instant(ladder[name])
 
 
+def _different_units(moments: "tuple[int, ...]", step: int) -> int:
+    """How many different written units the instants hold: `len({instant // step for instant in moments})`.
+
+    COUNTED ALONG THE ASCENDING INSTANTS (lane H3's repair, plan
+    P4-D423): `_census_moments` hands them ascending, so equal units
+    stand together and each run is one unit; the set of every unit this
+    replaces held about 70 bytes a row of a column of stamps that never
+    repeat. Instants handed in another order are counted as the set
+    counts them. Determinism: a function of the two. Raises nothing.
+    """
+    count = 0
+    previous = 0
+    for instant in moments:
+        unit = instant // step
+        if count and unit < previous:
+            return len({instant // step for instant in moments})
+        if not count or unit != previous:
+            count = count + 1
+            previous = unit
+    return count
+
+
+def _written_units(
+    instants: "tuple[int, ...]", body: "list[int]", step: int
+) -> "tuple[int, ...] | list[int]":
+    """The written units `calendar_rules.few_units` counts, handed as a list a row only where nothing held already is one.
+
+    `calendar_rules.few_units` counts the different (group, unit) pairs,
+    so any units in one-to-one step with the true ones answer as they do.
+    The instants themselves where the unit is the second, or every instant
+    is a whole number of units (a minute column holding no second): one
+    instant a unit, and no list made (lane H3's repair, plan P4-D423; the
+    list of every unit held about 40 bytes a row of a column of stamps
+    that never repeat). The body's own days where every value stands at
+    midnight and each instant is its day's: the units ARE the days. A
+    list of the units otherwise, as before.
+
+    Guarantees: a sequence as long as ``instants`` whose different
+    values, beside ``body``, pair as `[instant // step ...]`'s do.
+    Raises nothing. No I/O of any kind.
+    """
+    if step == 1:
+        return instants
+    whole = True
+    days = step == 86400 and len(body) == len(instants)
+    for place in range(len(instants)):
+        if instants[place] % step:
+            whole = False
+            break
+        if days and instants[place] // step != body[place]:
+            days = False
+    if days and whole:
+        return body
+    if whole and step != 86400:
+        return instants
+    return [instant // step for instant in instants]
+
+
 def moments_weekday_decision(
     details: "dict[str, object]",
     moments: "tuple[int, ...]",
@@ -18713,7 +19493,6 @@ def moments_weekday_decision(
         step = 86400
     elif details["time_precision"] == "minute":
         step = 60
-    units = [instant // step for instant in instants]
     forms: "dict[str, dict[str, int]]" = {}
     for name in calendar_rules.FORM_CENSUSES:
         census = details[name]
@@ -18747,7 +19526,7 @@ def moments_weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, body):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
-    if calendar_rules.few_units(groups, body, units):
+    if calendar_rules.few_units(groups, body, _written_units(instants, body, step)):
         return withheld(calendar_rules.REASON_FEW_UNITS, entry)
     # THE COUNT'S ROOM, AT EVERY FLOOR (skeptic 1 of landing 3b.D2, items 1
     # and 2). A column every value of which stands at midnight is counted
@@ -18784,7 +19563,7 @@ def moments_weekday_decision(
             groups,
             calendar_rules.moments_pins(moments, rows_low, rows_high, percents),
             step,
-            len({instant // step for instant in moments}),
+            _different_units(moments, step),
             tails,
         ):
             return withheld(calendar_rules.REASON_UNIT_ROOM, entry)
@@ -21624,6 +22403,46 @@ def _datetime_reading(pairs: list[tuple[str, str]]) -> str:
     return READ_AT_UTC
 
 
+def _moments_by_text(
+    pairs: "list[tuple[str, str]]",
+) -> "tuple[list[str], str, str, str, str] | None":
+    """`ordered_moments` of local moments with no offset, read off their sorted texts, or None.
+
+    `ordered_moments` sorts a key a row -- the moment's instant, its text
+    and its offset -- and keeps the texts: about 104 bytes a row while it
+    sorted, on a column of stamps that never repeat. Where no moment
+    carries an offset, the texts sorted as text are that order whenever
+    their instants never fall along it: each text's key is then at or
+    above the one before it (an equal instant is ordered by the text,
+    which is the order already), and texts with equal keys are equal
+    texts, so the sorted texts ARE the sequence the keys sort into. This
+    sorts the texts, asks each one's instant once along them, and answers
+    None -- `ordered_moments` then sorts the keys as before -- where an
+    offset is written, a text has no instant, or an instant falls.
+
+    Guarantees: None, or what `ordered_moments(pairs, reading)` returns
+    for a reading that is not `READ_AT_UTC`. Raises nothing. No I/O.
+    """
+    if not pairs:
+        return None
+    for _canonical, offset in pairs:
+        if offset != "":
+            return None
+    texts = sorted(canonical for canonical, _offset in pairs)
+    previous = -1
+    for place in range(len(texts)):
+        # Equal texts stand together once sorted, and hold one instant.
+        if place > 0 and texts[place] == texts[place - 1]:
+            continue
+        instant = parsing.instant_key(texts[place], "")
+        if instant is None:
+            return None
+        if place > 0 and instant < previous:
+            return None
+        previous = instant
+    return (texts, texts[0], texts[len(texts) - 1], "", "")
+
+
 def ordered_moments(
     pairs: "list[tuple[str, str]]", reading: str
 ) -> "tuple[list[str], str, str, str, str]":
@@ -21646,6 +22465,12 @@ def ordered_moments(
     two wear. Determinism: a function of the two. Raises nothing. No I/O
     of any kind.
     """
+    # THE TEXTS IN THEIR OWN ORDER WHERE THAT IS THE MOMENTS' ORDER (lane
+    # H3, plan P4-D423), with no key a row held while they are sorted.
+    if reading != READ_AT_UTC:
+        by_text = _moments_by_text(pairs)
+        if by_text is not None:
+            return by_text
     keyed: list[tuple[int, str, str]] = []
     unkeyed: list[str] = []
     # ONE KEY PER WRITTEN MOMENT (lane S4d, `parsing.SPELLING_MEMO_TEXTS`): the
@@ -21841,7 +22666,7 @@ def _difference_remark(
     if (
         values_apart
         and cells.raw_distinct == n_present
-        and len(cells.folded_counts) == n_present
+        and len(cells.label_counts) == n_present
     ):
         return note(every)
     return note(nearly)
@@ -22223,25 +23048,16 @@ def splits_into_numbers(text: str, separator: str) -> "list[str] | None":
     """
     if not isinstance(text, str):
         raise TypeError("a cell must be text")
+    if not isinstance(separator, str):
+        raise TypeError("a separator must be text")
     if not separator:
         return None
-    parts: "list[str]" = []
-    current = ""
-    at = 0
-    while at < len(text):
-        matched = True
-        for step in range(len(separator)):
-            if at + step >= len(text) or text[at + step] != separator[step]:
-                matched = False
-                break
-        if matched:
-            parts += [current]
-            current = ""
-            at = at + len(separator)
-            continue
-        current = current + text[at]
-        at = at + 1
-    parts += [current]
+    # THE PARTS BETWEEN THE SEPARATOR'S OCCURRENCES, read left to right
+    # and never overlapping, which is what `str.split` cuts (lane H3, plan
+    # P4-D423): the walk this replaces built each part a character at a
+    # time, a new text a character, about a quarter of a millisecond a
+    # 60-word note for each of three separators.
+    parts = text.split(separator)
     if len(parts) < 2:
         return None
     for part in parts:
@@ -22558,10 +23374,8 @@ def _rare_beside_clocks(
         rate, present - present // RARE_WORDS_BESIDE_CLOCKS
     )
     unread = 0
-    for folded in cells.folded_counts:
-        spellings = _label_spellings(
-            cells.folded_counts, cells.spellings_by_folded, folded
-        )
+    for first in cells.label_counts:
+        spellings = _rep_spellings(cells, first)
         for spelling in spellings:
             if parsing.clock_parts(spelling) is None:
                 unread = unread + spellings[spelling]
@@ -22570,16 +23384,17 @@ def _rare_beside_clocks(
     floor = settings.small_cell_floor
     rare: "dict[str, bool]" = {}
     counted = 0
-    for folded in sorted(cells.folded_counts):
-        if cells.folded_counts[folded] >= floor:
+    # IN THE LABELS' OWN ORDER (lane H3's repair, plan P4-D423): `rare` is
+    # asked for membership and handed back sorted, so the order it is
+    # filled in reads nowhere, and only its labels are folded.
+    for first in cells.label_counts:
+        if cells.label_counts[first] >= floor:
             continue
-        spellings = _label_spellings(
-            cells.folded_counts, cells.spellings_by_folded, folded
-        )
+        spellings = _rep_spellings(cells, first)
         if any(parsing.clock_parts(spelling) is not None for spelling in spellings):
             continue
-        rare[folded] = True
-        counted = counted + cells.folded_counts[folded]
+        rare[parsing.folded(first)] = True
+        counted = counted + cells.label_counts[first]
     if not rare or counted * RARE_WORDS_BESIDE_CLOCKS > present:
         return ()
     # THE CELLS LEFT MUST CLEAR THE CLOCK LINE before any is tallied again.
@@ -22673,10 +23488,8 @@ def _clock_spellings_reach(cells: _Cells) -> bool:
     Guarantees: a function of the tally. Raises nothing. No I/O.
     """
     reached = 0
-    for folded in cells.folded_counts:
-        spellings = _label_spellings(
-            cells.folded_counts, cells.spellings_by_folded, folded
-        )
+    for first in cells.label_counts:
+        spellings = _rep_spellings(cells, first)
         for spelling in spellings:
             if parsing.clock_parts(spelling) is not None:
                 reached = reached + spellings[spelling]
@@ -22808,11 +23621,8 @@ def _compound_details(
         cells.settings,
         cells.decimal_comma,
     )
-    levels = _levels(
-        label_cells.folded_counts,
-        label_cells.spellings_by_folded,
-        cells.settings,
-    )
+    label_counts, label_mixed = _label_maps(label_cells)
+    levels = _levels(label_counts, label_mixed, cells.settings)
     unusable_out = 0
     unusable_contradictory = 0
     for cell in compound.unusable:
@@ -22849,7 +23659,7 @@ def _compound_details(
         # whose values were each written one way, where a count of
         # numbers and a count of spellings are the same number.
         "n_numeric_distinct": numeric_cells.raw_distinct,
-        "n_numeric_distinct_folded": len(numeric_cells.folded_counts),
+        "n_numeric_distinct_folded": len(numeric_cells.label_counts),
         "numbers": _numeric_details(numeric_cells, whole_everywhere),
         "labels": _level_details(levels, label_cells, False),
     }
@@ -22860,7 +23670,7 @@ def _compound_details(
     # checking B2 against it would be checking the wrong sum.
     labels_block = details["labels"]
     if isinstance(labels_block, dict):
-        labels_block["n_distinct_folded"] = len(label_cells.folded_counts)
+        labels_block["n_distinct_folded"] = len(label_cells.label_counts)
         # AND ITS RAW COUNT BESIDE THE FOLDED ONE (review round 3 of
         # this landing, item 5). The half's view carried the COLUMN's
         # count of different cells -- two hundred and ninety-six on a
@@ -23098,27 +23908,119 @@ def affixed_reach(cells: _Cells) -> int:
     that came closest on a column of prices, which is the reading its
     owner would recognize.
 
+    COUNTED OFF ONE NUMBER A CELL, NOT A MAP OF EVERY PAIR (lane H3's
+    repair, plan P4-D423). The map of every pair held the text either
+    side of each cell's number -- most of a note, about 690 bytes a row
+    of 60-word notes that each hold a dose -- on the column of free text
+    this remark is written for. Each proposing cell is held as one whole
+    number, its pair's hash above its place (`_pair_key`), and the
+    sorted numbers stand each pair's cells together, in one run of
+    their hash. A run is a bound on every pair in it, counted exactly
+    (`_pairs_in_run`) only where it could beat the best counted so far,
+    the longest band of runs first: equal pairs have equal hashes, so
+    the answer is the map's, whatever the hashes are.
+
     Guarantees: accepts a tally of one column; returns a count of its
     present cells. No spelling of the column travels out through it.
     Determinism: a function of the cells alone. Raises nothing. No I/O
     of any kind.
     """
-    proposing: "dict[tuple[str, str], int]" = {}
-    for text in cells.present:
-        split = _split_once(cells, text)
+    present = cells.present
+    keys: "list[int]" = []
+    for place in range(len(present)):
+        split = _split_once(cells, present[place])
         if split is None:
             continue
-        prefix, _core, suffix = split
-        key = (prefix, suffix)
-        if key in proposing:
-            proposing[key] = proposing[key] + 1
-            continue
-        proposing[key] = 1
+        keys += [_pair_key(split, place)]
+    if not keys:
+        return 0
+    keys = sorted(keys)
+    longest = 0
+    start = 0
+    while start < len(keys):
+        stop = _hash_run_stop(keys, start)
+        if stop - start > longest:
+            longest = stop - start
+        start = stop
+    # THE RUNS ARE COUNTED BY SIZE, A BAND OF SIZES A WALK (Codex's review
+    # of lane H3, item 2): the runs longer than half the band's top and
+    # no longer than it, the top halved each walk, each run counted only
+    # where it is longer than the best counted so far. A walk a different
+    # length walked every key once a length, as many walks as the runs
+    # have lengths above the best (up to about the square root of twice
+    # the keys): 256 walks of 262,656 keys on 512 wrapper pairs whose
+    # hashes share their kept bits. A run's count is
+    # at most its length, so the runs of a band whose top is the best
+    # counted cannot beat it: at most one walk more than the longest
+    # run's figures in binary, each run counted at most once, and no
+    # list of the runs' places held beside the keys (a number a run is
+    # a number a cell on a column of free text).
     best = 0
-    for key in sorted(proposing):
-        if proposing[key] > best:
-            best = proposing[key]
+    high = longest
+    while high > best:
+        low = high // 2
+        start = 0
+        while start < len(keys):
+            stop = _hash_run_stop(keys, start)
+            length = stop - start
+            if low < length <= high and length > best:
+                best = max(best, _pairs_in_run(cells, keys, start, stop))
+                if best == high:
+                    return best
+            start = stop
+        high = low
     return best
+
+
+def _hash_run_stop(keys: "list[int]", start: int) -> int:
+    """Where the run of sorted pair keys sharing the hash's bits of ``keys[start]`` ends: the first place past it."""
+    stop = start + 1
+    while stop < len(keys) and keys[stop] >> _PLACE_BITS == keys[start] >> _PLACE_BITS:
+        stop = stop + 1
+    return stop
+
+
+# The bits of a pair key that hold the cell's place, and the bits of the
+# pair's hash kept above them: a place below 2**31 and 29 bits of hash fill
+# two of a whole number's 30-bit digits, 32 bytes a key. Pairs whose hashes
+# share those bits share a run and are counted apart (`_pairs_in_run`).
+_PLACE_BITS = 31
+_HASH_MASK = (1 << 29) - 1
+
+
+def _pair_key(split: "tuple[str, str, str]", place: int) -> int:
+    """One proposing cell as a whole number: its pair's hash above its place."""
+    return ((hash((split[0], split[2])) & _HASH_MASK) << _PLACE_BITS) | place
+
+
+def _pairs_in_run(cells: _Cells, keys: "list[int]", start: int, stop: int) -> int:
+    """The most cells one pair holds among the cells of one run of equal hashes.
+
+    The run's cells are split again (`_split_once`, the same split) and
+    their pairs counted; a run of cells of one text is one pair, counted
+    without a split. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    present = cells.present
+    mask = (1 << _PLACE_BITS) - 1
+    first = present[keys[start] & mask]
+    same = True
+    for place in range(start, stop):
+        if present[keys[place] & mask] != first:
+            same = False
+            break
+    if same:
+        return stop - start
+    counted: "dict[tuple[str, str], int]" = {}
+    most = 0
+    for place in range(start, stop):
+        split = _split_once(cells, present[keys[place] & mask])
+        if split is None:
+            continue
+        pair = (split[0], split[2])
+        counted[pair] = (counted[pair] if pair in counted else 0) + 1
+        most = max(most, counted[pair])
+    return most
 
 
 def _affixed_reading(
@@ -23383,6 +24285,18 @@ def _affixed_before_the_address_test(
     # describe a distribution and a pair proposed by cells holding no
     # number would describe none.
     proposing: "dict[tuple[str, str], int]" = {}
+    # A COLUMN PROPOSING MORE PAIRS THAN A READING CAN STAND ON IS NONE OF
+    # THIS ROLE, ASKED AS THE PAIRS ARE COUNTED (lane H3's repair, plan
+    # P4-D423). The rules below stand only where at most the categorical
+    # ceiling's pairs clear the floor and they cover the line's count of
+    # cells; every other pair holds at least one cell they do not cover,
+    # and at most the cells short of the line are uncovered. So a column
+    # proposing more pairs than the ceiling and those cells is answered
+    # None by them whatever the rest proposes, and is answered None as
+    # soon as it does: the map of every pair -- the text either side of a
+    # number, most of a note, about 690 bytes a row of 60-word notes that
+    # each hold a dose -- is never built past that.
+    most_pairs = _categorical_ceiling(cells) + len(present) - needed
     for text in present:
         split = _split_once(cells, text)
         if split is None:
@@ -23404,6 +24318,8 @@ def _affixed_before_the_address_test(
                 proposing[key] = (
                     proposing[key] + 1 if key in proposing else 1
                 )
+                if len(proposing) > most_pairs:
+                    return None
             continue
         prefix, core, suffix = split
         key = (prefix, suffix)
@@ -23411,6 +24327,8 @@ def _affixed_before_the_address_test(
             proposing[key] = proposing[key] + 1
         else:
             proposing[key] = 1
+            if len(proposing) > most_pairs:
+                return None
     if not proposing:
         return None
     # WHICH PAIRS ARE PUBLISHABLE (plan P4-D36). A pair worn by fewer
@@ -24085,7 +25003,7 @@ def _variant_blocks(
                 # wrapper worn by fifty cells was asked for the
                 # spellings of two hundred.
                 "n_core_distinct": tally.raw_distinct,
-                "n_core_distinct_folded": len(tally.folded_counts),
+                "n_core_distinct_folded": len(tally.label_counts),
                 "numbers": _numeric_details(
                     tally, tally.n_whole == looking and looking > 0
                 ),
@@ -24204,6 +25122,7 @@ def _affixed_verdict(
         cells.n_rows,
         cells.settings,
         cells.decimal_comma,
+        affixed.cores,
     )
     n_core_numeric = len(core_cells.numbers)
     # `whole_everywhere` over the CORES, on the same test the numeric
@@ -24312,7 +25231,7 @@ def _affixed_verdict(
     # asks a wrapper worn by fifty cells for the spellings of two
     # hundred.
     details["n_core_distinct"] = common_distinct.raw_distinct
-    details["n_core_distinct_folded"] = len(common_distinct.folded_counts)
+    details["n_core_distinct_folded"] = len(common_distinct.label_counts)
     details["n_core_numeric"] = n_core_numeric
     details["n_core_out_of_range"] = core_cells.n_out_of_range
     details["n_core_contradictory"] = core_cells.n_contradictory
@@ -24485,7 +25404,13 @@ def _cores_judged(
     for cell in classified:
         split = _core_of(cell.text, reading.prefix, reading.suffix)
         core = _classify(split) if split is not None else None
-        if core is not None and core.exact in removed:
+        # Only a core holding a withheld candidate's value can hold its
+        # exact number (`_sentinel_verdicts`).
+        if (
+            core is not None
+            and core.value in withheld
+            and core.exact in removed
+        ):
             missing += [(cell.text, parsing.MISSING_NUMERIC_SENTINEL)]
             # THE WHOLE CELL IS THE SPELLING, not the core: what a
             # `missing_by_source` key carries is what the cell held,
@@ -24619,6 +25544,30 @@ def _decision(
     return verdict
 
 
+def _different_sources(sources: "list[str]", cells: _Cells) -> int:
+    """How many different texts a date reading read, `len(set(sources))`.
+
+    WHERE THE READING READ EVERY PRESENT CELL, the very texts in their own
+    order, they are the tally's own spellings and their count is the
+    tally's (lane H3, plan P4-D423): the set of every text this made held
+    about a hundred bytes a row while it grew, beside the reading's pairs,
+    on a column of stamps that never repeat. Any other reading is counted
+    as before.
+
+    Guarantees: returns `len(set(sources))`. Raises nothing. No I/O.
+    """
+    present = cells.present
+    if len(sources) == len(present):
+        same = True
+        for place in range(len(sources)):
+            if sources[place] is not present[place]:
+                same = False
+                break
+        if same:
+            return cells.raw_distinct
+    return len(set(sources))
+
+
 def _decide(
     cells: _Cells,
     forced_identifier: bool,
@@ -24725,7 +25674,7 @@ def _decide(
     remarks: list[Note] = []
     numeric_looking = _numeric_looking(cells)
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
-    folded_distinct = len(cells.folded_counts)
+    folded_distinct = len(cells.label_counts)
     ceiling = _categorical_ceiling(cells)
     # THE FIVE RULES THAT READ A CELL AS SOMETHING OTHER THAN A LABEL,
     # silenced by the `--code` declaration (rule 0b), which leaves a
@@ -24855,9 +25804,7 @@ def _decide(
                     # column publishes no value either, so its shape of
                     # repetition is otherwise unrecorded, and two columns
                     # with different ones would be one description.
-                    "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-                        cells.present
-                    ),
+                    "n_distinct_by_occurrences": _spellings_by_occurrences(cells),
                 },
                 notes=notes,
                 remarks=remarks,
@@ -24865,9 +25812,8 @@ def _decide(
 
         # RULE 3 -- one value, repeated.
         if folded_distinct == 1 and not after_days:
-            levels = _levels(
-                cells.folded_counts, cells.spellings_by_folded, settings
-            )
+            label_counts, label_mixed = _label_maps(cells)
+            levels = _levels(label_counts, label_mixed, settings)
             if levels.suppressed_levels:
                 notes += [
                     note(
@@ -24892,9 +25838,8 @@ def _decide(
         # counted with, so the role and the published list can never
         # disagree about how many values there are.
         if folded_distinct == 2 and not after_days:
-            levels = _levels(
-                cells.folded_counts, cells.spellings_by_folded, settings
-            )
+            label_counts, label_mixed = _label_maps(cells)
+            levels = _levels(label_counts, label_mixed, settings)
             if levels.suppressed_levels:
                 notes += [
                     note(
@@ -25049,7 +25994,7 @@ def _decide(
                 remarks=remarks,
                 details=details,
                 days=_census_days(details, counted, ranked),
-                texts=len(set(sources)),
+                texts=_different_sources(sources, cells),
                 hours=_census_hours(details, counted, ranked),
                 moments=_census_moments(details, counted, ranked, instants),
                 minutes=clock_fields[0],
@@ -25140,9 +26085,8 @@ def _decide(
             and not held_back_clocks
             and (forced_code or _compound_reading(cells) is None)
         ):
-            levels = _levels(
-                cells.folded_counts, cells.spellings_by_folded, settings
-            )
+            label_counts, label_mixed = _label_maps(cells)
+            levels = _levels(label_counts, label_mixed, settings)
             details = _level_details(levels, cells)
             details["level_ceiling"] = ceiling
             if levels.suppressed_levels:
@@ -25425,11 +26369,10 @@ def _decide(
         if described_pair is not None:
             return _joined_verdict(cells, described_pair, notes, remarks)
 
-    covering = _levels_covering(cells.folded_counts, settings)
+    covering = _levels_covering(cells.label_counts, settings)
     if covering > 0 or forced_code:
-        levels = _levels(
-            cells.folded_counts, cells.spellings_by_folded, settings
-        )
+        label_counts, label_mixed = _label_maps(cells)
+        levels = _levels(label_counts, label_mixed, settings)
         details = _level_details(levels, cells)
         if levels.suppressed_levels:
             notes += [_pooled_note(levels, settings)]
@@ -25689,7 +26632,7 @@ def _competing_readings(
     settings = cells.settings
     n_present = len(cells.present)
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
-    folded_distinct = len(cells.folded_counts)
+    folded_distinct = len(cells.label_counts)
     return note(
         REMARK_NO_READING_FITS,
         (
@@ -25858,18 +26801,28 @@ def _floor_clearing_non_numeric(cells: _Cells) -> "tuple[str, ...]":
     # an allowlisted API, and no method call on an untraced value is
     # accepted. Subscript assignment is what `_tally` above builds its
     # own folded map with, for the same reason.
-    numeric_somewhere: "dict[str, bool]" = {}
-    for cell in cells.classified:
-        if cell.kind != parsing.NOT_A_NUMBER:
-            numeric_somewhere[cell.folded] = True
+    #
+    # ONLY THE LABELS THAT CLEAR THE LINE ARE FOLDED AND ASKED (lane H3's
+    # repair, plan P4-D423): a cell of a label below it can make no answer,
+    # so a numeric cell is noted only where its label is one of them, and
+    # a column whose values never repeat notes none -- the map of every
+    # numeric cell's label held one entry a row of such a column.
     floor = cells.settings.small_cell_floor
     if floor < 2:
         floor = 2
+    clearing: "dict[str, bool]" = {}
+    for first in cells.label_counts:
+        if cells.label_counts[first] >= floor:
+            clearing[parsing.folded(first)] = True
+    numeric_somewhere: "dict[str, bool]" = {}
+    if clearing:
+        for cell in cells.classified:
+            if cell.kind != parsing.NOT_A_NUMBER and cell.folded in clearing:
+                numeric_somewhere[cell.folded] = True
     found = tuple(
         folded
-        for folded in sorted(cells.folded_counts)
-        if cells.folded_counts[folded] >= floor
-        and folded not in numeric_somewhere
+        for folded in sorted(clearing)
+        if folded not in numeric_somewhere
     )
     if len(found) > _categorical_ceiling(cells):
         return ()
@@ -26049,6 +27002,32 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
     return _multiplicity_map([counts[value] for value in sorted(counts)])
 
 
+def _spellings_by_occurrences(cells: _Cells) -> dict[str, int]:
+    """`_n_distinct_by_occurrences(cells.present)`, read off the tally's maps.
+
+    EVERY SPELLING'S ROWS ARE COUNTED ALREADY (lane H3, plan P4-D423): a
+    label the tally holds as written one way was written in that one
+    spelling on all its rows, and a label it holds as a map of spellings
+    counts each. The map of every spelling this replaces held about 40
+    bytes a row while it was built, and its sorted keys and counts 16
+    more, on a column of notes that never repeat. The sizes are the same
+    multiset, and `_multiplicity_map` counts them in no order.
+
+    Guarantees: equal to `_n_distinct_by_occurrences(cells.present)` on
+    a tally made by `_tally`. Raises nothing. No I/O of any kind.
+    """
+    sizes: "list[int]" = []
+    mixed = cells.label_spellings
+    for first in cells.label_counts:
+        if first in mixed:
+            held = mixed[first]
+            for spelling in held:
+                sizes += [held[spelling]]
+        else:
+            sizes += [cells.label_counts[first]]
+    return _multiplicity_map(sizes)
+
+
 def _multiplicity_map(sizes: list[int]) -> dict[str, int]:
     """How many of these groups have one member, two members, and so on.
 
@@ -26168,9 +27147,7 @@ def _identifier_verdict(
             # that repeat, and the one this block did not carry (review
             # item P1-R8-F4). Its key form and what it discloses are in
             # `_n_distinct_by_occurrences`.
-            "n_distinct_by_occurrences": _n_distinct_by_occurrences(
-                cells.present
-            ),
+            "n_distinct_by_occurrences": _spellings_by_occurrences(cells),
         },
         notes=notes,
         remarks=remarks,
@@ -27625,7 +28602,9 @@ def _read_the_column(
             removed = [exact_of_number(candidate) for candidate in withheld]
             kept: list[_Cell] = []
             for cell in classified:
-                if cell.exact in removed:
+                # Only a cell holding a withheld candidate's value can
+                # hold its exact number (`_sentinel_verdicts`).
+                if cell.value in withheld and cell.exact in removed:
                     missing += [
                         (cell.text, parsing.MISSING_NUMERIC_SENTINEL)
                     ]
@@ -28570,7 +29549,7 @@ def profile_column(
         n_contradictory=contradictory,
         n_not_numeric=not_numeric,
         n_distinct=_column_distinct(cells, verdict.role, details),
-        n_distinct_folded=len(cells.folded_counts),
+        n_distinct_folded=len(cells.label_counts),
         sentinel_verdicts=entries,
         n_sentinel_candidates_unpublished=unpublished,
         absent_spellings=_spellings_of(missing),
