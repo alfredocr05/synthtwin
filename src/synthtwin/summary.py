@@ -1331,8 +1331,9 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         elif held_in_rows:
             lines += [
                 (
-                    "    No column of this table names a person on several "
-                    "rows, so each row is counted as its own, and some date "
+                    "    No column of this table that names a person on "
+                    "several rows names as many people as the smallest group "
+                    "size, so each row is counted as its own, and some date "
                     "of this column falls on too few rows to be published, "
                     "so none of its values is."
                 ),

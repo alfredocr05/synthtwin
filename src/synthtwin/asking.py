@@ -3020,6 +3020,10 @@ def date_columns_seen(
     return seen
 
 
+# The evidence of a column of dates the count in rows held (contract NF130).
+_HELD_IN_ROWS = taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_ROWS, ())
+
+
 def date_columns_seen_in_a_walk(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -3060,6 +3064,12 @@ def date_columns_seen_in_a_walk(
         if role in (
             taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK, taxonomy.ROLE_EMPTY
         ):
+            continue
+        # A COLUMN OF DATES THE COUNT IN ROWS HELD (plan P4-D433, repair
+        # round 1 of lane PS2, its skeptic's item 3) was read as dates and
+        # held because too few rows hold them: no answer to Q6 would
+        # publish one, so it is not asked.
+        if block.get("detection_evidence") == _HELD_IN_ROWS:
             continue
         cells = table_columns[position - 1]
         if (

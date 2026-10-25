@@ -3343,8 +3343,9 @@ def _counted_in_people_notice(names: "tuple[str, ...]", floor: int) -> str:
 def _dates_held_in_rows_notice(names: "tuple[str, ...]", floor: int) -> str:
     """What the screen says of the columns of dates the count in rows held (plan P4-D433).
 
-    On a table of one row a person, or with no person column, each row is
-    counted as its own: a column of dates one of whose dates falls on
+    On a table of one row a person, or with no person column, or whose
+    person column names fewer people than the smallest group size, each
+    row is counted as its own: a column of dates one of whose dates falls on
     fewer than the smallest group size of rows, at every grain from the
     day to the year, is described as record numbers, and the twin writes
     made-up dates in the column's own layouts.
@@ -3356,8 +3357,9 @@ def _dates_held_in_rows_notice(names: "tuple[str, ...]", floor: int) -> str:
     """
     return (
         f"\nDATES HELD BY FEWER THAN {floor} ROWS\n"
-        f"No column of this table names a person on several rows, so each "
-        f"row of {_joined(list(names), ' and ')} was counted as its own: "
+        f"No column of this table that names a person on several rows names "
+        f"{floor} people or more, so each row of "
+        f"{_joined(list(names), ' and ')} was counted as its own: "
         f"a date fewer than {floor} rows fall on is not published, at the "
         f"day, the month, the quarter or the year, so these columns are "
         f"described as record numbers and the twin writes made-up dates "

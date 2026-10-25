@@ -4582,10 +4582,17 @@ def build_document(
         # library keeps its bytes below it, where the suite's fixtures of a
         # few hundred rows test what each date column does (measured: the
         # count there turned 581 cases of stage 3b's 28 test files red).
+        # DECIDED ONLY WHERE A DESCRIPTION IS MADE (repair round 1, Codex's
+        # item 3): the validator hands the grains its description published
+        # (``time_grains``, empty where it named none) and reads each
+        # column at that grain or at none, so an unchanged source still
+        # meets a description written before this count, or without it.
         in_rows = (
             described.role == taxonomy.ROLE_DATETIME
             and not any(counting_enough)
             and table.n_rows >= parsing.TABLE_ROW_FLOOR
+            and time_grains is None
+            and not declarations_are_reconstructed
         )
         # The walk counts the rows beside every subject column there is (a
         # subject column of fewer than the floor's people, attached to the
@@ -6305,16 +6312,19 @@ def _read_in_its_order(
     the tie goes to month-first: the description would publish a member
     its own record does not read, and the loader refuses it. A column
     whose reading writes the day first is read with the tie given to the
-    day (`settings.day_first`); any other is read as before.
+    day (`settings.day_first`), and one whose reading writes the month
+    first with the tie given to the month; any other is read as before.
     """
-    if (
-        pinned is None
-        or settings.day_first
-        or pinned.kind not in (grains.DATE, grains.STAMP)
-        or not _day_before_month(pinned.member)
-    ):
+    if pinned is None or pinned.kind not in (grains.DATE, grains.STAMP):
         return settings
-    return dataclasses.replace(settings, day_first=True)
+    # IN BOTH DIRECTIONS (repair round 1, Codex's item 4): a column whose
+    # days above twelve settled it month-first reads month-first at its
+    # grain too, whatever the run's own preference.
+    if not settings.day_first and _day_before_month(pinned.member):
+        return dataclasses.replace(settings, day_first=True)
+    if settings.day_first and _month_before_day(pinned.member):
+        return dataclasses.replace(settings, day_first=False)
+    return settings
 
 
 def _day_before_month(member: str) -> bool:
@@ -6328,6 +6338,19 @@ def _day_before_month(member: str) -> bool:
     day = member.find("{DD}")
     month = member.find("{MM}")
     return 0 <= day < month
+
+
+def _month_before_day(member: str) -> bool:
+    """Whether a date member writes the month's figures before the day's."""
+    if not isinstance(member, str):
+        raise TypeError("a date member is text")
+    if "month-first" in member:
+        return True
+    if member[0:7] != parsing.LAYOUT_PREFIX:
+        return False
+    day = member.find("{DD}")
+    month = member.find("{MM}")
+    return 0 <= month < day
 
 
 def _reads_its_member(column: taxonomy.ColumnProfile, reading: grains.Reading) -> bool:
@@ -6393,6 +6416,17 @@ def _dates_few_in_rows(
     row its own holder (`_grain_walk`). A part no row falls on names no
     row. A written form, a remainder and the present rows are counts the
     row floor already holds.
+    ON THE CLOCK THE BLOCK PUBLISHES (repair round 1, Codex's item 1): a
+    column whose offsets differ is published on the shared clock
+    (`datetimes_read_at` `utc`), so each cell counts under the day of its
+    instant at UTC (`parsing.utc_moment`), not of its local text.
+    COUNTED DATES BY THEIR OWN CALENDAR DAY (Codex's item 2): a count's
+    true day, the instant floored to its midnight and never rounded
+    forward, and beside it the day of each text its reading writes at the
+    day, the minute and the second (`_counted_days`), each a tally of its
+    own: a published part one to `floor` - 1 rows fall on in any of them
+    is few, so neither an afternoon rounded to the next day nor a moment
+    a second before midnight hides its day.
     """
     shown = _column_block(described)
     published = _published_in(shown, True)
@@ -6405,31 +6439,66 @@ def _dates_few_in_rows(
         return False
     how = _CellReading() if reading is None else reading
     written = shown["format"] if "format" in shown else ""
+    at_utc = (
+        "datetimes_read_at" in shown
+        and shown["datetimes_read_at"] == taxonomy.READ_AT_UTC
+    )
     absent = frozenset(described.absent_spellings)
-    rows: "dict[str, int]" = {}
-    memo: "dict[str, tuple[str, ...]]" = {}
+    rows: "dict[tuple[int, str], int]" = {}
+    memo: "dict[str, tuple[tuple[int, str], ...]]" = {}
     for cell in cells:
         if cell in memo:
-            parts = memo[cell]
+            keyed = memo[cell]
         else:
-            text = ""
+            texts: "list[str]" = []
             if parsing.folded(cell) and cell not in absent:
                 if how.member:
-                    days = _counted_days(cell, how)
-                    text = days[0] if days else ""
+                    texts = [_counted_true_day(cell, how)] + _counted_days(cell, how)
                 elif isinstance(written, str) and written:
                     read = parsing.parse_datetime(cell, written)
-                    text = parsing.folded(read[0]) if read is not None else ""
-            parts = _date_parts(text)
+                    if read is not None:
+                        moved = (
+                            parsing.utc_moment(read[0], read[1])
+                            if at_utc and read[1]
+                            else None
+                        )
+                        texts = [parsing.folded(read[0] if moved is None else moved)]
+            keyed = ()
+            for tally in range(len(texts)):
+                for part in _date_parts(texts[tally]):
+                    if part in wanted:
+                        keyed += ((tally, part),)
             if len(memo) < 65536:
-                memo[cell] = parts
-        for part in parts:
-            if part in wanted:
-                rows[part] = rows[part] + 1 if part in rows else 1
-    for part in rows:
-        if rows[part] < floor:
+                memo[cell] = keyed
+        for key in keyed:
+            rows[key] = rows[key] + 1 if key in rows else 1
+    for key in rows:
+        if rows[key] < floor:
             return True
     return False
+
+
+def _counted_true_day(cell: str, reading: _CellReading) -> str:
+    """The calendar day a counted cell's instant falls on, floored, never rounded (plan P4-D433).
+
+    The count read exactly, to the nanosecond, and the instant floored to
+    its own midnight: `946731600` seconds since 1970 (13:00 on 1 January
+    2000) is `2000-01-01`, where the day's own rendering rounds it to the
+    2nd; a millisecond before midnight stays on its day. "" where the
+    cell names no date.
+    """
+    mark = date_counts.COMMA if reading.comma else date_counts.POINT
+    written = date_counts.counted(reading.member, cell, mark)
+    if written is None:
+        return ""
+    numerator, denominator = date_counts.exact_value(written)
+    moment = date_counts.moment_of(
+        reading.member, numerator, denominator, date_counts.NANOSECOND
+    )
+    if moment is None:
+        return ""
+    year, month, day = parsing.civil_from_days(moment // date_counts.DAY)
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 
 # THE ROLES A COLUMN DESCRIBED AT A GRAIN MAY TAKE (plan P4-D417): its own,

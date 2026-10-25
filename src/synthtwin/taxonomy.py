@@ -2728,16 +2728,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         )
     if form == EVIDENCE_HELD_IN_ROWS:
         return (
-            "no column of this table names a person on several rows, so "
-            "each row is counted as its own, and a date this column would "
+            "no column of this table that names a person on several rows "
+            "names as many people as the smallest group size, so each row "
+            "is counted as its own, and a date this column would "
             "publish falls on fewer rows than the smallest group size, so "
             "it is described as record numbers and none of its values is "
             "published"
         )
     if form == EVIDENCE_POOLED_IN_ROWS:
         return (
-            "no column of this table names a person on several rows, so "
-            "each row is counted as its own, and this column's dates and "
+            "no column of this table that names a person on several rows "
+            "names as many people as the smallest group size, so each row "
+            "is counted as its own, and this column's dates and "
             "times are published only at the coarser grain its "
             "`time_grain` names, where every date published falls on at "
             "least the smallest group size of rows: each value here is the "
