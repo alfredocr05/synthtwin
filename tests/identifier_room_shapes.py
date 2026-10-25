@@ -1,7 +1,7 @@
 """Every identifier shape the twin writes, and whether a twin cell equals a real one (plan P4-D432).
 
-Shared by `tests/test_identifier_room.py` (the gate) and `tests/test_kpi_ledger.py::test_k_hz_06`
-(K-HZ-06), so the gate and the ledger measure the same tables the same way.
+Shared by `tests/test_identifier_room.py` (the gate) and `tools/measurements/kpi_identifier_room.py`
+(K-HZ-06's driver), so the gate and the ledger measure the same tables the same way.
 
 THE SHAPES (`SHAPES`), each one column `target` beside a modality and a value, one shape a table:
 lane CODES-3's verify 3's table of UIDs (a country branch, a vendor's product arcs, an
