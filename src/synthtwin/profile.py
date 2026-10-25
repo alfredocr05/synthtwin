@@ -6319,6 +6319,8 @@ def _read_in_its_order(
 
 def _day_before_month(member: str) -> bool:
     """Whether a date member writes the day's figures before the month's."""
+    if not isinstance(member, str):
+        raise TypeError("a date member is text")
     if "day-first" in member:
         return True
     if member[0:7] != parsing.LAYOUT_PREFIX:
