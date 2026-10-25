@@ -37,6 +37,8 @@ import pytest
 
 from synthtwin import asking, parsing
 
+from tests import fixtures
+
 ROWS = 120
 SITES = ("North", "South", "East", "West")
 
@@ -70,8 +72,13 @@ def _round_trip(
     data: bytes,
     flags: "tuple[str, ...]" = (),
     name: str = "real.csv",
+    walk_only: bool = False,
 ) -> "dict[str, object]":
-    """Describe, build, describe the twin; validate the twin and the table."""
+    """Describe, build, describe the twin; validate the twin and the table.
+
+    ``walk_only`` builds the twin from the description without its
+    exclusions (`fixtures.without_exclusions`, plan P4-D432).
+    """
     folder.mkdir(parents=True, exist_ok=True)
     real = folder / name
     real.write_bytes(data)
@@ -80,6 +87,8 @@ def _round_trip(
         ["profile", str(real), "--out-dir", str(folder), "--replace"] + list(flags)
     ) == 0
     described = folder / f"{stem}-profile.json"
+    if walk_only:
+        fixtures.profile_without_exclusions(described)
     assert _exit_of(
         [
             "generate", str(described), "--out-dir", str(folder),
@@ -375,10 +384,13 @@ def test_a_stepping_identifier_pair_publishes_nothing_that_rebuilds_it(
     what the description PUBLISHES -- which is what the defect was.
     """
     data = ("first_id,second_id\n" + "".join(f"{n},{n + 1}\n" for n in range(ROWS))).encode()
+    # The integers 0 to 120 fill their rooms, so lane ID-ROOM's final pass
+    # (P4-D432) writes the twin's wider; the file's own form is the walk's.
     result = _round_trip(
         tmp_path, data,
         ("--identifier", "first_id", "--identifier", "second_id",
          "--smallest-group", "10"),
+        walk_only=True,
     )
     form = result["form"]
     assert [column["sequence_start"] for column in form["columns"]] == [None, None]

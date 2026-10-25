@@ -3380,6 +3380,19 @@ def layout_template(layout: str, prefix: str, whole_places: bool) -> str:
     return written
 
 
+def folded_layout(layout: str) -> str:
+    """A layout with every letter mark in its lower case: the layout of a folded cell (P4-D432).
+
+    `@` reads `&` and `^` reads `~`, so a cell and its case flip share it.
+    Raises TypeError for a non-string. No I/O.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    return layout.replace(LAYOUT_UPPER, LAYOUT_LOWER).replace(
+        LAYOUT_UPPER_HEX, LAYOUT_LOWER_HEX
+    )
+
+
 def written_excluded(template: str, exclusion: str) -> str:
     """A template with an exclusion's written characters standing in it (P4-D432).
 

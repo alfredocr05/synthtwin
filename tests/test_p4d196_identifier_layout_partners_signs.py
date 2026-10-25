@@ -78,8 +78,10 @@ def test_a_signed_layout_the_census_proves_is_held(
 ) -> None:
     """Mutation: the sign family refused again, and `+%%%` comes back one short."""
     cells = _shapes()["signs"]
+    # `+` and three figures on 38 rows of 900 spellings: the walk's own
+    # counts (P4-D432 moves them, tests/test_identifier_room.py).
     first, second, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / seed, cells, ("--identifier", "value"), seed=seed
+        tmp_path / seed, cells, ("--identifier", "value"), seed=seed, walk_only=True
     )
     assert first["role"] == "identifier"
     published = first["layout_forms"]

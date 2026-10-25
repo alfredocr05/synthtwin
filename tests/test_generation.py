@@ -1483,7 +1483,9 @@ def test_a_declared_column_keeps_its_width_and_says_what_that_cost(
         if block["name"] == "record_code":
             block["min_length"] = 1
             block["max_length"] = 1
-    described = _loaded(tmp_path, document)
+    # A hand-edited width: the walk's own corner, its exclusions set aside
+    # (they were read off the table at its own width, P4-D432).
+    described = _loaded(tmp_path, fixtures.without_exclusions(document))
     column = _block(described, "record_code")
     assert column.structural_role == "identifier"
     built = generation.generate(described, 11)

@@ -52,8 +52,13 @@ def _round_trip(
     seed: str = "4",
     floor: "int | None" = None,
     declared: bool = True,
+    walk_only: bool = False,
 ) -> dict:
     """Describe, build, describe AGAIN, validate the twin AND the table.
+
+    ``walk_only`` builds the twin from the description without its
+    exclusions (`fixtures.without_exclusions`, plan P4-D432): the walk's
+    own counts, for a column whose real values fill their layouts.
 
     A SECOND COLUMN STANDS BESIDE THE ONE UNDER TEST for the reason
     landing 2b.8 named (plan P4-D74): a one-column table holding an
@@ -79,6 +84,8 @@ def _round_trip(
         described += ["--smallest-group", str(floor)]
     assert _exit_of(described) == 0
     profile = folder / "real-profile.json"
+    if walk_only:
+        fixtures.profile_without_exclusions(profile)
     assert _exit_of(
         ["generate", str(profile), "--out-dir", str(folder), "--seed", seed,
          "--replace"]
@@ -442,7 +449,9 @@ def test_both_spellings_of_one_number_come_back_at_their_counts(
     never wrote.
     """
     cells = wide_mixed_cells(source_seed)
-    got = _round_trip(tmp_path / f"widths-{source_seed}", cells)
+    # Bare four figures from 1,000 to 9,998 fill their room: the walk's own
+    # counts (P4-D432 moves them, tests/test_identifier_room.py).
+    got = _round_trip(tmp_path / f"widths-{source_seed}", cells, walk_only=True)
     assert got["twin_exit"] == 0 and got["real_exit"] == 0
 
     def classes(values: "list[str]") -> "dict[str, int]":
@@ -479,7 +488,9 @@ def test_a_code_column_at_a_floor_of_twenty_keeps_its_length_mix(
             cells += [f"AB{draw.randrange(10000, 99999)}"]
         else:
             cells += [f"Z{draw.randrange(100, 999)}"]
-    got = _round_trip(tmp_path / f"floor-{source_seed}", cells, floor=20)
+    # `Z` and three figures on 233 rows fill their room: the walk's own
+    # counts (P4-D432 moves them, tests/test_identifier_room.py).
+    got = _round_trip(tmp_path / f"floor-{source_seed}", cells, floor=20, walk_only=True)
 
     def widths(values: "list[str]") -> "dict[int, int]":
         found: dict[int, int] = {}

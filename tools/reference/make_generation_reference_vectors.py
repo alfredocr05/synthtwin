@@ -26166,6 +26166,11 @@ def excluded_template(template, exclusion):
     )
 
 
+def folded_marks(name):
+    """A layout with its letter marks in lower case (G9.6b, P4-D432)."""
+    return name.replace(LAYOUT_UPPER, LAYOUT_LOWER).replace(LAYOUT_UPPER_HEX, LAYOUT_LOWER_HEX)
+
+
 def widened_layout(name, opening, longest):
     """A layout widened until it is longer than ``longest`` (G9.6b, P4-D432), or "".
 
@@ -26191,25 +26196,27 @@ def spelled_off_the_real(column, content):
     Written from the rule statement, after the walks have met the
     column's counts.  A different value, in the order it first appears in
     the content, is KEPT where it wears its own layout's excluded template,
-    is at least as long as the spill, or wears a layout the census does
-    not name where the profile publishes that no real cell does
-    (`(unnamed)`).  A value written again in another case, beside one
-    already moved, takes that one's letters in its own case where its own
-    layout's template takes them.  Every other value takes the first
-    spelling, its fillings read from the first and the nought filling last
-    (each template its own step, at most 4,096 a value before the next
-    template is asked), that neither spells
-    nor folds onto any cell of the content or any spelling taken before
-    it, wears the template and reads as no absent spelling -- of its
-    layout's excluded template, then of the excluded template of each
-    named layout its own layout widens to, a figure at a time, then of its
-    layout widened as long as the spill (the same prefix and noughts),
-    then of the spill -- and every cell of the value is written so.  An
-    empty map moves nothing.  THIS ORACLE DOES NOT MODEL two tests the
-    product asks of a moved spelling: that it reads as the value's own
-    class and alphabets, and that no date format reads it.  No frozen
-    case's templates spell another class or a date, and a case that did
-    would need them added first.
+    or in lower case the lowered excluded template of a named layout its
+    own folds to, is at least as long as the spill, or wears a layout the
+    census does not name where the profile publishes that no real cell
+    does (`(unnamed)`).  Every other value takes the first spelling, its
+    fillings read from the first and the nought filling last (each
+    template its own step, at most 4,096 a value before the next template
+    is asked), that neither spells nor folds onto any cell of the content
+    or any spelling taken before it, wears the template and reads as no
+    absent spelling -- of its layout's excluded template, then of the
+    excluded template of each named layout its own layout widens to, a
+    figure at a time, then of its layout widened as long as the spill
+    (the same prefix and noughts), then of the spill -- and every cell of
+    the value is written so.  An empty map moves nothing.
+
+    THIS ORACLE DOES NOT MODEL four things the product asks of a moved
+    value: that its spelling reads as the value's own class and
+    alphabets; that no date format reads it; that the values of one
+    folded identity are spelled together; and that a value written with
+    spaces around it is spelled on its core.  No frozen case's templates
+    spell another class or a date, and none holds a fold collision or an
+    edge space, so a case that did would need them added first.
     """
     exclusions = column.get("layout_exclusions") or {}
     if not exclusions:
@@ -26231,6 +26238,11 @@ def spelled_off_the_real(column, content):
         for name in sorted(census)
         if name != WITHHELD and name in exclusions
     }
+    # ...each in lower case under its folded layout, so a case flip of a
+    # kept value is kept too.
+    lowered = {}
+    for name in sorted(kept):
+        lowered.setdefault(folded_marks(name), []).append(folded_marks(kept[name]).lower())
     spill = ""
     if EXCLUSION_SPILL in exclusions:
         spill = template_of(exclusions[EXCLUSION_SPILL], whole)
@@ -26240,34 +26252,22 @@ def spelled_off_the_real(column, content):
     written = set(content)
     folds = {folded(cell) for cell in content} - written
     moved = {}
-    by_fold = {}
     steps = {}
-
-    def in_its_case(spelling, cell):
-        if len(spelling) != len(cell):
-            return spelling
-        return "".join(
-            mark.lower() if "a" <= case <= "z" else mark.upper() if "A" <= case <= "Z" else mark
-            for mark, case in zip(spelling, cell)
-        )
-
     for cell in content:
         if cell in moved or not cell.strip():
             continue
         layout = layout_of(cell, convention)
         if layout in kept and wears_template(cell, kept[layout], convention):
             continue
+        if any(
+            wears_template(cell.strip().lower(), template, convention)
+            for template in lowered.get(folded_marks(layout_of(cell.strip(), convention)), [])
+        ):
+            continue
         if bound and len(cell) >= bound:
             continue
         if layout and unnamed and layout not in census:
             continue
-        identity = folded(cell)
-        if identity in by_fold and layout in kept:
-            partner = in_its_case(by_fold[identity], cell)
-            if partner not in written and wears_template(partner, kept[layout], convention):
-                written.add(partner)
-                moved[cell] = partner
-                continue
         targets = []
         if layout in kept:
             targets += [kept[layout]]
@@ -26308,7 +26308,6 @@ def spelled_off_the_real(column, content):
         written.add(candidate)
         folds.add(folded(candidate))
         moved[cell] = candidate
-        by_fold[identity] = candidate
     return [moved.get(cell, cell) for cell in content]
 
 

@@ -148,6 +148,9 @@ def _generated_and_validated(folder: pathlib.Path, stem: str) -> "tuple[set[str]
     NF126 states; every other miss is named.
     """
     quiet = io.StringIO()
+    # The dates' own counts: the record numbers' final pass (P4-D432) moves
+    # cells of the held values' dense layouts, which the identifier gate holds.
+    fixtures.profile_without_exclusions(folder / f"{stem}-profile.json")
     with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
         made = cli.main(["generate", f"{folder / (stem + '-profile.json')}", "--out-dir",
                          f"{folder}", "--seed", "0", "--replace"])

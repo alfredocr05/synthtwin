@@ -26471,14 +26471,21 @@ def with_layout_exclusions(
         # READ ON THE CELL'S CORE: a value written with a space before or
         # after it wears no layout of its own, and is held to the one its
         # trimmed text wears, as the twin's own cells are (G9.6b).
+        # ...AND IN EITHER CASE: a layout's exclusion is read over every
+        # real core whose layout folds to its own, so a value and its case
+        # flip -- a fold collision, or a few cells the pool holds -- carry
+        # one exclusion between them (letters compared in lower case).
+        folds: "dict[str, bool]" = {}
+        for layout in named:
+            folds[parsing.folded_layout(layout)] = True
         for value in present:
             longest = max(longest, len(value))
             core = parsing.trimmed(value)
-            layout = parsing.layout_form(core, convention)
-            if layout in wanted:
+            layout = parsing.folded_layout(parsing.layout_form(core, convention))
+            if layout in folds:
                 if layout not in worn:
                     worn[layout] = []
-                worn[layout] += [core]
+                worn[layout] += [core.lower()]
         whole = ""
         if parsing.PREFIX_OF_THE_COLUMN in prefixes:
             whole = f"{prefixes[parsing.PREFIX_OF_THE_COLUMN]}"
@@ -26494,8 +26501,9 @@ def with_layout_exclusions(
         for layout in named:
             prefix = f"{prefixes[layout]}" if layout in prefixes else whole
             template = parsing.layout_template(layout, prefix, whole_places)
+            folded = parsing.folded_layout(layout)
             found = _exclusion_of(
-                worn[layout] if layout in worn else [],
+                worn[folded] if folded in worn else [],
                 layout,
                 template,
                 prefix,
@@ -26561,7 +26569,8 @@ def _exclusion_of(
             character = alphabet[at]
             if character == "0" and leads:
                 continue
-            count = held[character] if character in held else 0
+            # The cells are folded: a letter is counted in either case.
+            count = held[character.lower()] if character.lower() in held else 0
             if count == 0:
                 return layout[:place] + character + layout[place + 1:]
             if count < floor:
@@ -26597,7 +26606,7 @@ def _exclusion_of(
         key = ""
         for place in block:
             key = key + value[place]
-        worn[key] = True
+        worn[key.lower()] = True
     if len(worn) >= spellings:
         return ""
     for number in range(spellings - 1, -1, -1):
@@ -26607,7 +26616,7 @@ def _exclusion_of(
             alphabet = parsing.exclusion_alphabet(template[place])
             key = key + alphabet[rest % len(alphabet)]
             rest = rest // len(alphabet)
-        if key in worn:
+        if key.lower() in worn:
             continue
         leads = False
         for at in range(len(block)):

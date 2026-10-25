@@ -436,7 +436,10 @@ def test_case_112_is_still_the_known_limit_at_the_default(
         table = reading.read_table(
             str(path), small_cell_floor=settings.small_cell_floor
         )
-        document = profile.build_document(table, settings, ["key"])
+        # The walk's own counts (P4-D432's final pass is gated elsewhere).
+        document = fixtures.without_exclusions(
+            profile.build_document(table, settings, ["key"])
+        )
         loaded = contract.load_profile(
             str(fixtures.write_profile(folder, "c-profile.json", document))
         )
@@ -482,7 +485,10 @@ def _described(
         lines = lines + ['"' + value.replace('"', '""') + '"']
     path = fixtures.write(folder, f"{name}.csv", "\n".join(lines) + "\n")
     table = reading.read_table(str(path), small_cell_floor=_FLOOR_ONE)
-    document = profile.build_document(table, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), ["key"])
+    # The walk's own counts (P4-D432's final pass is gated elsewhere).
+    document = fixtures.without_exclusions(
+        profile.build_document(table, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), ["key"])
+    )
     target = fixtures.write_profile(folder, f"{name}-profile.json", document)
     return contract.load_profile(str(target))
 

@@ -169,8 +169,13 @@ def _round_trip(
     seed: str = "4",
     header: str = "value",
     by_command: bool = True,
+    walk_only: bool = False,
 ) -> "tuple[dict[str, object], dict[str, object], list[str], int, int]":
     """Describe, build, describe the twin; check the twin and the real table.
+
+    ``walk_only`` builds the twin from the description without its
+    exclusions (`fixtures.without_exclusions`, plan P4-D432): the walk's
+    own counts, for a column whose real values fill their layouts.
 
     ``by_command`` FALSE DESCRIBES WITH THE PRODUCER (plan P4-D341).
     `synthtwin profile` refuses a table under the population floor and
@@ -204,6 +209,8 @@ def _round_trip(
         assert _exit_of(described + list(flags)) == 0
     else:
         describe_with_the_producer(table, profile, flags)
+    if walk_only:
+        fixtures.profile_without_exclusions(profile)
     assert _exit_of(
         ["generate", str(profile), "--out-dir", str(folder), "--seed", seed, "--replace"]
     ) == 0

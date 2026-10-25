@@ -54429,6 +54429,10 @@ class _OffTheReal:
             facts.layout_forms
         )
         self.templates: "dict[str, str]" = {}
+        # ...and each in lower case under its folded layout: a case flip of
+        # a value its exclusion keeps is kept too (contract 7.12b reads a
+        # layout's exclusion over every real core folding to its layout).
+        self.folded: "dict[str, list[str]]" = {}
         for layout in _named_layouts(facts):
             if layout in exclusions:
                 self.templates[layout] = parsing.written_excluded(
@@ -54437,6 +54441,12 @@ class _OffTheReal:
                     ),
                     exclusions[layout],
                 )
+                folded = parsing.folded_layout(layout)
+                if folded not in self.folded:
+                    self.folded[folded] = []
+                self.folded[folded] += [
+                    parsing.folded_layout(self.templates[layout]).lower()
+                ]
         self.spill = ""
         self.bound = 0
         if parsing.EXCLUSION_SPILL in exclusions:
@@ -54466,6 +54476,11 @@ class _OffTheReal:
             core, self.templates[layout], self.convention
         ):
             return True
+        folded = parsing.folded_layout(layout)
+        if folded in self.folded:
+            for template in self.folded[folded]:
+                if _wears_template(core.lower(), template, self.convention):
+                    return True
         if self.bound and len(cell) >= self.bound:
             return True
         return bool(layout) and self.unnamed and layout not in self.facts.layout_forms

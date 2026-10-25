@@ -105,7 +105,10 @@ def test_a_prefix_every_cell_shares_is_published_and_written(
     """
     assert callable(build)
     cells = build(5)
-    got = _round_trip(tmp_path / f"{name}-{floor}", cells, floor=floor)
+    # `P` and five figures, `ABC-` and four, drawn at random on 800 rows,
+    # fill their rooms: the walk's own counts (P4-D432 moves them,
+    # tests/test_identifier_room.py, where the prefix still opens every cell).
+    got = _round_trip(tmp_path / f"{name}-{floor}", cells, floor=floor, walk_only=True)
     assert got["source"]["layout_prefixes"] == {"(column)": prefix}
     assert got["twin_profile"]["layout_prefixes"] == {"(column)": prefix}
     assert got["twin_profile"]["layout_forms"] == got["source"]["layout_forms"]
@@ -163,7 +166,8 @@ def test_a_prefix_a_few_rows_write_otherwise_is_not_published(
     draw = random.Random(16)
     for place in range(4):
         cells[100 * place] = f"Q{draw.randrange(1000000, 9999999)}"
-    got = _round_trip(tmp_path / "few-otherwise", cells, floor=11)
+    # The walk's own counts (P4-D432; tests/test_identifier_room.py).
+    got = _round_trip(tmp_path / "few-otherwise", cells, floor=11, walk_only=True)
     assert got["source"]["layout_forms"] == {"(withheld)": 4, "@%%%%%": 796}
     assert got["source"]["layout_prefixes"] == {}
     assert got["twin_exit"] == 0 and got["real_exit"] == 0
@@ -246,7 +250,8 @@ def test_what_the_pooled_walk_still_writes_is_named() -> None:
         f"P{draw.randrange(0, 1000000):06d}" for _row in range(10)
     ]
     with tempfile.TemporaryDirectory() as folder:
-        got = _round_trip(pathlib.Path(folder) / "pooled", cells, floor=11)
+        # The walk's own counts (P4-D432; tests/test_identifier_room.py).
+        got = _round_trip(pathlib.Path(folder) / "pooled", cells, floor=11, walk_only=True)
     assert got["source"]["layout_prefixes"] == {"(column)": "P"}
     assert got["source"]["layout_forms"] == {"@%%%%%": ROWS}
     assert got["twin_exit"] == 0 and got["real_exit"] == 0

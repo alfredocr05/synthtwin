@@ -15622,11 +15622,14 @@ make it so:
    repetition, the fold collisions -- is met first, on the templates of
    G9.6a.
 2. **Then every value is spelled where no real cell can be.** Each
-   different value, in the order it first appears, is KEPT where it
-   wears its own layout's EXCLUDED TEMPLATE (the layout's template of
-   G9.6a with the places its exclusion writes out, `parsing.
-   written_excluded`), is at least as long as the spill, or wears a layout
-   the census does not name where the description publishes `(unnamed)`.
+   different value, in the order it first appears, is KEPT where its core
+   (the value trimmed of the spaces around it) wears its own layout's
+   EXCLUDED TEMPLATE (the layout's template of G9.6a with the places its
+   exclusion writes out, `parsing.written_excluded`), or, in lower case,
+   the lowered excluded template of a named layout its own folds to
+   (`parsing.folded_layout`), is at least as long as the spill, or wears a
+   layout the census does not name where the description publishes
+   `(unnamed)`.
    A value written again in another case, beside one already moved,
    takes that one's letters in its own case where its own layout's
    excluded template takes them, so a fold collision stays one. Every
