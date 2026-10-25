@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### The health data zoo widened to every kind, re-defined at the owner's table floor (plan P4-D431, lane E0c, 2026-10-24; tests and drivers only)
+
+**Lane E0c of the December plan** (the zoo plan's section 6 (b); the
+owner's Z2 answer (a)). The zoo's catalogue grows from 40 kinds over 25
+exports to 93 over 64: `tests/health_zoo_wide.py` adds the roles the zoo
+never reached, the coding systems' longer forms, eighteen clinical
+domains, seven system exports, twelve file shapes, the HIPAA and
+de-identified shapes and the time edge kinds, each with analyst checks
+that turn red on their own spoils; thirteen items E0a's kinds already
+held are merged there. Its KPI legs run at 20,000 rows through the
+SHIPPED table floor, the 600-row runs are the suite's smoke below it,
+and the slow driver runs five shards. K-HZ-01's pass rule is restated (a
+kind passes at 20,000 rows with the floor on, its 600-row smoke
+running: 56 of 93), K-HZ-02 counts failures per kind and check at 20,000
+rows (155, every one owned), K-HZ-03 bounds each shard, and K-HZ-05
+(new) counts the kinds the floor refuses: none. HIPAA first, columns
+naming a person, a place or a record are read for their real values:
+LIVE on the base, ZIP columns answered `code` publish their real ZIPs
+(lane SH's) and birth-date columns their real birth dates as percentiles
+(CODES-3's). Nothing under `src` changed; no golden, vector or SR
+battery byte moved.
+
 ### Batch 4i's records: the two floors merged, a grained column's working set let go (2026-10-23)
 
 **Records of batch 4i**, which merged lanes POP, MIN and ZR-b (plans
