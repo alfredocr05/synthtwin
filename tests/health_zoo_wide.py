@@ -2248,7 +2248,7 @@ def _visits_outside(series: object) -> int:
     """Visit dates read outside 2023 and 2024 (a 1904 serial read in the 1900 system lands four years early)."""
     import pandas
 
-    days = pandas.to_datetime(series.dropna(), errors="coerce")  # type: ignore[attr-defined]
+    days = pandas.to_datetime(series.dropna(), errors="coerce", format="mixed")  # type: ignore[attr-defined]
     return int((days.isna() | (days.dt.year < 2023) | (days.dt.year > 2024)).sum())
 
 

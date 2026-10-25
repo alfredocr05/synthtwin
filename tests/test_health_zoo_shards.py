@@ -207,7 +207,7 @@ def test_made_up_keys_meeting_real_ones_by_chance_are_told_from_a_copy(tmp_path:
     real = tmp_path / "real.csv"
     real.write_bytes(table.write(header, rows))
     profile = tmp_path / "profile.json"
-    profile.write_text(json.dumps({"columns": []}), encoding="utf-8")
+    profile.write_text(json.dumps({"columns": []}), encoding="utf-8", newline="\n")
     draw = random.Random(4)
     for row in rows:
         row[place] = f"{draw.randint(100000, 103599)}"
@@ -247,13 +247,13 @@ def test_the_age_scan_sees_an_age_past_89(tmp_path: pathlib.Path) -> None:
     real = tmp_path / "real.csv"
     real.write_bytes(table.write(header, rows))
     profile = tmp_path / "profile.json"
-    profile.write_text(json.dumps({"columns": [{"name": "age", "levels": {"90+": 30}}]}), encoding="utf-8")
+    profile.write_text(json.dumps({"columns": [{"name": "age", "levels": {"90+": 30}}]}), encoding="utf-8", newline="\n")
     assert zoo.leaked(table, real, real, profile)["age"] == {"description": 0, "twin": 0, "twin_cells": 0, "twin_by_chance": 0}
     place = header.index("age")
     rows[0][place] = "93"
     twin = tmp_path / "twin.csv"
     twin.write_bytes(table.write(header, rows))
-    profile.write_text(json.dumps({"columns": [{"name": "age", "tails": {"high": {"values": [90.0, 91.0, 104]}}}]}), encoding="utf-8")
+    profile.write_text(json.dumps({"columns": [{"name": "age", "tails": {"high": {"values": [90.0, 91.0, 104]}}}]}), encoding="utf-8", newline="\n")
     assert zoo.leaked(table, real, twin, profile)["age"] == {"description": 2, "twin": 1, "twin_cells": 1, "twin_by_chance": 0}
 
 
