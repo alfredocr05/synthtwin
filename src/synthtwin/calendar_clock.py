@@ -2318,6 +2318,11 @@ class ClockBlock:
     high: int
     heap: bool
     group: int
+    # THE HALF of its group the stretch lies in, where an `L0` edge cuts
+    # the group (method G7A.4d; lane BT, plan P4-D429): nought below the
+    # first cut, one above it, and so on; nought on every group no edge
+    # cuts, which is every group of a column without cuts.
+    half: int = 0
 
 
 def run_shares(count: int, units: "list[int]", first: "list[int]") -> "list[int]":
@@ -2371,6 +2376,7 @@ def clock_body_blocks(
     form: str,
     stride: int,
     absent: "tuple[int, ...]" = (),
+    cuts: "tuple[tuple[int, int], ...]" = (),
 ) -> "tuple[ClockBlock, ...] | None":
     """Every stretch of a clock body, in rank order (method G7A.4b).
 
@@ -2400,13 +2406,25 @@ def clock_body_blocks(
     (`absent_with_another_width`), in that width, and its runs take those
     steps alone.
 
+    EACH `L0` EDGE CUTS THE DIAL (method G7A.4d; lane BT, plan P4-D429):
+    ``cuts`` are an eligible column's edges as ordinals, each with its cut
+    rank. A group whose steps lie on both sides of an edge becomes two
+    HALVES, its steps before the edge and its steps from it on; the half
+    before counts the cut rank less the cells of every other stretch laid
+    wholly before the edge, each counted once (the low tail's rows, each
+    body heap before the edge, each whole group and half before it), and
+    the half from it takes the rest. Each half takes its runs and their
+    shares as a group of its own. A half's count is never printed. None
+    where a half's count leaves nought to the group's count, or a half
+    counting cells has no step to hold them.
+
     Guarantees: accepts the parsed count, the two tails' rows or None,
     the body's two ends, the census, the heaps as ordinals, the form,
-    the step in the form's units and the absent places; returns the
-    stretches, or None where the counts do not add up to the body or a
-    group counting cells has no step to hold them -- which a description
-    the loader accepted never is (CC3, CC5). Determinism: a function of
-    the arguments. Raises nothing. No I/O of any kind.
+    the step in the form's units, the absent places and the cuts; returns
+    the stretches, or None where the counts do not add up to the body or
+    a group counting cells has no step to hold them -- which a
+    description the loader accepted never is (CC3, CC5). Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
     """
     low_rows = 0 if tails is None else tails[0]
     high_rows = 0 if tails is None else tails[1]
@@ -2433,65 +2451,141 @@ def clock_body_blocks(
             for at, cells in inside
             if first <= clock_bin_of(at, form) <= last
         ]
-        events: "list[tuple[int, int, int, bool]]" = []
-        for at, cells in mine:
-            events += [(at, at, cells, True)]
-        if count > 0:
-            span = group_span(first, last, form, stride, body)
-            if span is None:
+        halves = _cut_halves(first, last, count, mine, form, stride, body, cuts, cursor)
+        if halves is None:
+            return None
+        for half_place in range(len(halves)):
+            half_span, half_count, half_heaps = halves[half_place]
+            made = _half_events(half_span, half_count, half_heaps, stride, absent, form, ends)
+            if made is None:
                 return None
-            runs: "list[tuple[int, int]]" = []
-            start = span[0]
-            for at, _cells in mine:
-                if at < span[0] or at > span[1]:
+            for low, high, cells, heap in made:
+                if cells <= 0:
                     continue
-                if at > start:
-                    runs += [(start, at - stride)]
-                start = at + stride
-            if start <= span[1]:
-                runs += [(start, span[1])]
-            units = [
-                (stop - begin) // stride
-                + 1
-                - len([at for at in absent if begin <= at <= stop and (at - begin) % stride == 0])
-                for begin, stop in runs
-            ]
-            total = sum(units)
-            if total < 1:
-                # A GROUP WHOSE EVERY STEP IS AN ABSENT PLACE counts present
-                # cells the table wrote on those the other width spells
-                # another way, in that width (the verification of the
-                # round-2 fix, and its third for a group beside a place
-                # whose hour shows no width): its runs take those steps
-                # alone, and the twin writes their cells so
-                # (`present_spellings`). Read off the absence alone, CC5
-                # refused the producer's own description of 20 `1:15`
-                # beside `01:15` declared missing.
-                wide = absent_with_another_width(absent, form)
-                units = [
-                    len([at for at in range(begin, stop + 1, stride) if at in wide])
-                    for begin, stop in runs
-                ]
-                total = sum(units)
-            if total < 1:
-                return None
-            forced = [0 for _run in runs]
-            for end in ends:
-                for place in range(len(runs)):
-                    if runs[place][0] <= end <= runs[place][1]:
-                        forced[place] = forced[place] + 1
-            shares = run_shares(count, units, forced)
-            for place in range(len(runs)):
-                events += [(runs[place][0], runs[place][1], shares[place], False)]
-        events = sorted(events)
-        for low, high, cells, heap in events:
-            if cells <= 0:
-                continue
-            blocks += [ClockBlock(cursor, cells, low, high, heap, index)]
-            cursor = cursor + cells
+                blocks += [ClockBlock(cursor, cells, low, high, heap, index, half_place)]
+                cursor = cursor + cells
     if cursor != parsed - high_rows:
         return None
     return tuple(blocks)
+
+
+def _cut_halves(
+    first: int,
+    last: int,
+    count: int,
+    mine: "list[tuple[int, int]]",
+    form: str,
+    stride: int,
+    body: "tuple[int, int]",
+    cuts: "tuple[tuple[int, int], ...]",
+    cursor: int,
+) -> "list[tuple[tuple[int, int] | None, int, list[tuple[int, int]]]] | None":
+    """A census group as the halves `L0`'s edges cut it into (method G7A.4d; plan P4-D429).
+
+    Each half is its span (None for a group counting no cell), its count
+    and its heaps. One half, the group itself, where no edge stands
+    inside its span. ``cursor`` is the cells laid before the group: the
+    low tail's rows and every stretch of the groups before it.
+    """
+    span: "tuple[int, int] | None" = None
+    if count > 0:
+        span = group_span(first, last, form, stride, body)
+        if span is None:
+            return None
+    points: "list[tuple[int, int]]" = []
+    if span is not None:
+        for edge, rank in cuts:
+            if span[0] < edge <= span[1]:
+                points += [(edge, rank)]
+    if span is None or not points:
+        return [(span, count, list(mine))]
+    out: "list[tuple[tuple[int, int] | None, int, list[tuple[int, int]]]]" = []
+    start = span[0]
+    left = count
+    laid = cursor
+    given: "dict[int, int]" = {}
+    for edge, rank in sorted(points):
+        below = [(at, cells) for at, cells in mine if at < edge and at not in given]
+        for at, _cells in below:
+            given[at] = 1
+        heaped = 0
+        for _at, cells in below:
+            heaped = heaped + cells
+        part = rank - laid - heaped
+        if part < 0 or part > left:
+            return None
+        stop = ((edge - 1) // stride) * stride
+        out += [((start, stop) if stop >= start else None, part, below)]
+        laid = laid + heaped + part
+        left = left - part
+        start = -(-edge // stride) * stride
+    out += [((start, span[1]) if span[1] >= start else None, left, [(at, cells) for at, cells in mine if at not in given])]
+    for half_span, half_count, _heaps in out:
+        if half_count > 0 and half_span is None:
+            return None
+    return out
+
+
+def _half_events(
+    span: "tuple[int, int] | None",
+    count: int,
+    mine: "list[tuple[int, int]]",
+    stride: int,
+    absent: "tuple[int, ...]",
+    form: str,
+    ends: "list[int]",
+) -> "list[tuple[int, int, int, bool]] | None":
+    """One group's (or half's) stretches, sorted: its heaps and its runs with their shares (G7A.4b step 2)."""
+    events: "list[tuple[int, int, int, bool]]" = []
+    for at, cells in mine:
+        events += [(at, at, cells, True)]
+    if count > 0:
+        if span is None:
+            return None
+        runs: "list[tuple[int, int]]" = []
+        start = span[0]
+        for at, _cells in mine:
+            if at < span[0] or at > span[1]:
+                continue
+            if at > start:
+                runs += [(start, at - stride)]
+            start = at + stride
+        if start <= span[1]:
+            runs += [(start, span[1])]
+        units = [
+            (stop - begin) // stride
+            + 1
+            - len([at for at in absent if begin <= at <= stop and (at - begin) % stride == 0])
+            for begin, stop in runs
+        ]
+        total = sum(units)
+        if total < 1:
+            # A GROUP WHOSE EVERY STEP IS AN ABSENT PLACE counts present
+            # cells the table wrote on those the other width spells
+            # another way, in that width (the verification of the
+            # round-2 fix, and its third for a group beside a place
+            # whose hour shows no width): its runs take those steps
+            # alone, and the twin writes their cells so
+            # (`present_spellings`). Read off the absence alone, CC5
+            # refused the producer's own description of 20 `1:15`
+            # beside `01:15` declared missing.
+            wide = absent_with_another_width(absent, form)
+            units = [
+                len([at for at in range(begin, stop + 1, stride) if at in wide])
+                for begin, stop in runs
+            ]
+            total = sum(units)
+        if total < 1:
+            return None
+        forced = [0 for _run in runs]
+        for end in ends:
+            for place in range(len(runs)):
+                if runs[place][0] <= end <= runs[place][1]:
+                    forced[place] = forced[place] + 1
+        shares = run_shares(count, units, forced)
+        for place in range(len(runs)):
+            events += [(runs[place][0], runs[place][1], shares[place], False)]
+    return sorted(events)
 
 
 def clock_rank_windows(
@@ -2504,6 +2598,7 @@ def clock_rank_windows(
     stride: int,
     absent: "tuple[int, ...]" = (),
     minutes: bool = False,
+    cuts: "tuple[tuple[int, int], ...]" = (),
 ) -> "tuple[list[int], list[int]] | None":
     """The window every rank of a census-laid clock column stands in (G12.10).
 
@@ -2525,17 +2620,30 @@ def clock_rank_windows(
     same absent places; None where that is None. Determinism: a function
     of the arguments. Raises nothing. No I/O of any kind.
     """
-    blocks = clock_body_blocks(parsed, tails, body, groups, heaps, form, stride, absent)
+    if cuts:
+        blocks = clock_body_blocks(parsed, tails, body, groups, heaps, form, stride, absent, cuts)
+    else:
+        blocks = clock_body_blocks(parsed, tails, body, groups, heaps, form, stride, absent)
     if blocks is None:
         return None
     top = parsing.CLOCK_CAPACITY[form] - 1
+    # ...each HALF of a group an `L0` edge cuts reaching only its own
+    # steps (method G7A.4d; plan P4-D429): a group no edge cuts is its
+    # one half, nought, so its reach is the group's as before.
     reach: "dict[int, tuple[int, int]]" = {}
+    halves: "dict[tuple[int, int], tuple[int, int]]" = {}
     for block in blocks:
         low, high = block.low, block.high
         if block.group in reach:
             low = min(low, reach[block.group][0])
             high = max(high, reach[block.group][1])
         reach[block.group] = (low, high)
+        key = (block.group, block.half)
+        low, high = block.low, block.high
+        if key in halves:
+            low = min(low, halves[key][0])
+            high = max(high, halves[key][1])
+        halves[key] = (low, high)
     if minutes:
         reach = clock_minute_reach(reach, groups, form, stride, body)
     lows = [0 for _rank in range(parsed)]
@@ -2547,6 +2655,8 @@ def clock_rank_windows(
             lows[rank] = min(top, body[1] + 1)
     for block in blocks:
         low, high = reach[block.group]
+        if cuts:
+            low, high = halves[(block.group, block.half)]
         if block.heap and not minutes:
             low, high = block.low, block.high
         for rank in range(block.first_rank, block.first_rank + block.cells):

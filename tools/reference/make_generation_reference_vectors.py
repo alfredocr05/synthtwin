@@ -55315,6 +55315,324 @@ def pooled_count_filled(buckets, points, first, last, rung, kind, finest, target
     return moved
 
 
+# ------------------------------- layer L0's rules, the twenty-eighth file
+#
+# Lane BT (plan P4-D429): the rules of layer L0 that turn on whole
+# numbers alone -- G5.7c's knots on a ladder of whole numbers, G5.7d
+# item 3's share over pieces, item 3a's eligible gap, G7A.4d's halves of
+# a cut census group, and G4.2a's reserved cells by spelling -- each
+# frozen on a case stated by hand from G14.3a, with what the method's
+# text makes of it. Written from the method's text and never from the
+# generator: tests/test_stage6_band_totals.py holds the product to every
+# answer, beside the mutant each case stands with.
+
+TWENTY_EIGHTH_BRANCH_PART = "branches-28"
+
+
+def l0_knots(rungs, edges, counts, cells):
+    """G5.7c's knots on a ladder of the hundred and one rungs, every position an exact fraction.
+
+    Rank 0 at percent 0, rank K at percent 100; an edge at its lower
+    knot R_j and its upper knot min(max(R_j, K k_j / 100), R_next), k_j
+    the smallest percent whose rung is the edge; every other rung
+    between the knots around it in proportion to its percent, the knot
+    below an edge's upper knot and the knot above an edge's lower knot.
+    """
+    lower = {0: fractions.Fraction(0), 100: fractions.Fraction(cells)}
+    cut = 0
+    marks = {}
+    for place, edge in enumerate(edges):
+        cut = cut + counts[place]
+        smallest = min(percent for percent in range(101) if rungs[percent] == edge)
+        lower[smallest] = fractions.Fraction(cut)
+        marks[smallest] = True
+    knotted = sorted(lower)
+    upper = {}
+    for at, percent in enumerate(knotted):
+        if percent not in marks:
+            upper[percent] = lower[percent]
+            continue
+        own = fractions.Fraction(cells * percent, 100)
+        held = max(lower[percent], own)
+        if at + 1 < len(knotted):
+            held = min(held, lower[knotted[at + 1]])
+        upper[percent] = held
+    points = []
+    for percent in range(101):
+        if percent in lower:
+            points.append((lower[percent], rungs[percent]))
+            if percent in marks:
+                points.append((upper[percent], rungs[percent]))
+            continue
+        below = max(known for known in knotted if known < percent)
+        above = min(known for known in knotted if known > percent)
+        start = upper[below]
+        stop = lower[above]
+        points.append((start + (stop - start) * (percent - below) / (above - below), rungs[percent]))
+    return [[point.numerator, point.denominator, value] for point, value in points]
+
+
+def l0_share(cells, runs, free, rest, cap, on_grid):
+    """G5.7d item 3: each piece's strata, and how far M_rest moved (Sainte-Lague, the ceiling hi_p)."""
+    pieces = [place for place in range(len(cells)) if cells[place] > 0]
+    moved = 0
+    if len(pieces) > rest:
+        moved = len(pieces) - rest
+        rest = len(pieces)
+    floors = {place: 1 for place in pieces}
+    if cap > 0:
+        raised = {place: max(1, -(-cells[place] // cap)) for place in pieces}
+        if sum(raised.values()) <= rest:
+            floors = raised
+    ceiling = {}
+    for place in pieces:
+        top = min(cells[place], runs[place] + free[place]) if on_grid[place] else cells[place]
+        ceiling[place] = max(top, floors[place])
+    share = dict(floors)
+    left = rest - sum(share.values())
+    while left > 0:
+        open_pieces = [place for place in pieces if share[place] < ceiling[place]]
+        if not open_pieces:
+            break
+        best = open_pieces[0]
+        for place in open_pieces[1:]:
+            if fractions.Fraction(runs[place], 2 * share[place] + 1) > fractions.Fraction(runs[best], 2 * share[best] + 1):
+                best = place
+        share[best] += 1
+        left -= 1
+    return [share.get(place, 0) for place in range(len(cells))], moved - left
+
+
+def l0_gap(strata, low, high, wanted):
+    """G5.7d item 3a on the whole numbers ``low`` to ``high``, both published ends: each stratum beyond the runs in its widest ELIGIBLE gap.
+
+    ``strata`` are (value, cells) ascending. A gap is a stretch of one
+    free whole number or more between two neighbouring strata, or between
+    an end and the outer stratum; eligible where a stratum beside it holds
+    two cells or more. The widest, the lowest on a tie; its stratum of
+    more cells (the lower on a tie) is divided floor(L / 2) and the rest,
+    the part on the gap's side taking the free number nearest it.
+    Returns the strata, ascending, and how many were not made.
+    """
+    strata = [list(item) for item in strata]
+    for made in range(wanted):
+        best = None
+        values = [value for value, _cells in strata]
+        stretches = [(low - 1, values[0], None, 0)]
+        for at in range(len(strata) - 1):
+            stretches.append((values[at], values[at + 1], at, at + 1))
+        stretches.append((values[-1], high + 1, len(strata) - 1, None))
+        for number, (below, above, left, right) in enumerate(stretches):
+            free = above - below - 1
+            if free < 1:
+                continue
+            sides = [side for side in (left, right) if side is not None]
+            if not any(strata[side][1] >= 2 for side in sides):
+                continue
+            if best is None or free > best[0]:
+                best = (free, number, left, right)
+        if best is None:
+            return strata, wanted - made
+        _free, _number, left, right = best
+        if left is None:
+            divided, upward = right, False
+        elif right is None:
+            divided, upward = left, True
+        elif strata[right][1] > strata[left][1]:
+            divided, upward = right, False
+        else:
+            divided, upward = left, True
+        value, size = strata[divided]
+        first = size // 2
+        second = size - first
+        if upward:
+            strata[divided:divided + 1] = [[value, first], [value + 1, second]]
+        else:
+            strata[divided:divided + 1] = [[value - 1, first], [value, second]]
+    return strata, 0
+
+
+def l0_halves(count, heaps, laid, edge, cut_rank):
+    """G7A.4d: a census group an edge crosses, as its two halves' counts.
+
+    The half before the edge counts the cut rank less the cells of every
+    other stretch laid wholly before the edge, each counted once: what
+    the layout laid before the group (``laid``: the low tail's rows and
+    every earlier stretch) and the group's own heaps before the edge. A
+    tail boundary is a cell of the stretch it stands in, never taken out
+    on its own. The half from the edge takes the rest.
+    """
+    before = cut_rank - laid - sum(cells for at, cells in heaps if at < edge)
+    return [before, count - before]
+
+
+def l0_reserved(cells, count, workbook):
+    """G4.2a: a column's reserved cells, by spelling, in G4.2's order.
+
+    The cells written as the empty text in order; then, in a text file,
+    each spelling made only of spaces and tabs, the shorter first and at
+    one length by code points, each spelling's cells in order; the first
+    ``count``. A spelling of any other character is never reserved.
+    """
+    listed = [place for place, cell in enumerate(cells) if cell == ""]
+    if not workbook:
+        spaced = sorted({cell for cell in cells if cell and all(letter in " \t" for letter in cell)}, key=lambda text: (len(text), text))
+        for spelling in spaced:
+            listed += [place for place, cell in enumerate(cells) if cell == spelling]
+    return listed[:count]
+
+
+def l0_case_knots():
+    """A ladder of whole numbers (one rung a percent: rung p is p), one edge at the median with its cut rank 180 of 400."""
+    rungs = [percent for percent in range(101)]
+    return {
+        "why": "G5.7c: rung 50 is the edge; its lower knot stands at the cut rank 180 and its upper knot at "
+        "its own position 200 (K * 50 / 100), so the flat segment between them reads 50 and every rung "
+        "below it is respaced between rank 0 and rank 180.",
+        "rule": "knots", "rungs": rungs, "edges": [50], "counts": [180, 220], "cells": 400,
+    }
+
+
+def l0_case_knots_low_cut():
+    """The same ladder with the cut above the rung's own position: the upper knot is held at the cut."""
+    rungs = [percent for percent in range(101)]
+    return {
+        "why": "G5.7c: rung 50's cut rank 230 stands above its own position 200, so both knots stand at 230 "
+        "and no knot stands behind the one before it.",
+        "rule": "knots", "rungs": rungs, "edges": [50], "counts": [230, 170], "cells": 400,
+    }
+
+
+def l0_case_share_nearest():
+    return {
+        "why": "G14.3a case 6 (a): two pieces of 10 and 3 runs share M_rest = 7 as 5 and 2 (Sainte-Lague; "
+        "the d'Hondt divisor m + 1 gives 6 and 1).",
+        "rule": "share", "cells": [500, 500], "runs": [10, 3], "free": [0, 0], "rest": 7, "cap": 0,
+        "on_grid": [True, True],
+    }
+
+
+def l0_case_share_ceiling():
+    return {
+        "why": "G14.3a case 6 (b): pieces 1-2, 2-4, 4-5 and 5 up with runs 1, 2, 1 and 8 and the top's six "
+        "free points share M_rest = 18 as 1, 2, 1 and 14; held only to C_p they took 2, 3, 1 and 12.",
+        "rule": "share", "cells": [100, 100, 100, 100], "runs": [1, 2, 1, 8], "free": [0, 0, 0, 6],
+        "rest": 18, "cap": 0, "on_grid": [True, True, True, True],
+    }
+
+
+def l0_case_share_ceiling_three():
+    return {
+        "why": "G14.3a case 6 (c): pieces 1-2, 2-3 and 3 up with runs 1, 1 and 4 and the top's eleven free "
+        "points share M_rest = 15 as 1, 1 and 13.",
+        "rule": "share", "cells": [100, 100, 100], "runs": [1, 1, 4], "free": [0, 0, 11], "rest": 15,
+        "cap": 0, "on_grid": [True, True, True],
+    }
+
+
+def l0_case_share_off_grid():
+    return {
+        "why": "G14.3a case 6, the mutant's ground: off a grid hi_p is C_p, so the same pieces share 2, 3, 1 "
+        "and 12.",
+        "rule": "share", "cells": [100, 100, 100, 100], "runs": [1, 2, 1, 8], "free": [0, 0, 0, 6],
+        "rest": 18, "cap": 0, "on_grid": [False, False, False, False],
+    }
+
+
+def l0_case_gap_eligible():
+    return {
+        "why": "G14.3a case 16 (a): strata (1, 1), (10, 1), (11, 100), (13, 100) on the whole numbers 1 to 13; "
+        "the gap 2 to 9 is beside two strata of one cell and not eligible, the gap 12 is, so the 100 cells "
+        "at 11 divide into 50 and 50 and the new stratum stands on 12.",
+        "rule": "gap", "strata": [[1, 1], [10, 1], [11, 100], [13, 100]], "low": 1, "high": 13, "wanted": 1,
+    }
+
+
+def l0_case_gap_none():
+    return {
+        "why": "G14.3a case 16 (b): strata (1, 1), (10, 1), (11, 100), (12, 100) on 1 to 12: the stretches "
+        "10 to 11 and 11 to 12 hold no free point and are no gaps, so the stratum is not made.",
+        "rule": "gap", "strata": [[1, 1], [10, 1], [11, 100], [12, 100]], "low": 1, "high": 12, "wanted": 1,
+    }
+
+
+def l0_case_halves():
+    return {
+        "why": "G14.3a case 10: 11 low-tail rows, the low boundary on no heap in a group of 100 cells, an edge "
+        "at the cut rank 39: the halves count 28 and 72 (subtracting the boundary again gives 27 and 73).",
+        "rule": "halves", "count": 100, "heaps": [], "laid": 11, "edge": 200, "cut_rank": 39,
+    }
+
+
+def l0_case_reserved_text():
+    cells = ["7", "", "NA", "  ", "", "NA", "3", "", " ", "\t"]
+    return {
+        "why": "G14.3a case 11: in a text file the empty cells are taken first, then the spellings of spaces "
+        "and tabs by length and code points; NA is never reserved.",
+        "rule": "reserved", "cells": cells, "count": 5, "workbook": False,
+    }
+
+
+def l0_case_reserved_book():
+    cells = ["7", "", "NA", "  ", "", "NA", "3", "", " ", "\t"]
+    return {
+        "why": "G14.3a case 12: in a workbook only the cells holding no text are reserved.",
+        "rule": "reserved", "cells": cells, "count": 5, "workbook": True,
+    }
+
+
+L0_RULE_CASES = {
+    "l0_knots_median_edge": l0_case_knots,
+    "l0_knots_cut_above_its_rung": l0_case_knots_low_cut,
+    "l0_share_nearest": l0_case_share_nearest,
+    "l0_share_ceiling": l0_case_share_ceiling,
+    "l0_share_ceiling_three": l0_case_share_ceiling_three,
+    "l0_share_off_grid": l0_case_share_off_grid,
+    "l0_gap_eligible": l0_case_gap_eligible,
+    "l0_gap_none": l0_case_gap_none,
+    "l0_halves_counted_once": l0_case_halves,
+    "l0_reserved_text": l0_case_reserved_text,
+    "l0_reserved_workbook": l0_case_reserved_book,
+}
+
+
+def l0_rule_answer(case):
+    """What the method's text makes of one case."""
+    rule = case["rule"]
+    if rule == "knots":
+        return {"points": l0_knots(case["rungs"], case["edges"], case["counts"], case["cells"])}
+    if rule == "share":
+        share, moved = l0_share(case["cells"], case["runs"], case["free"], case["rest"], case["cap"], case["on_grid"])
+        return {"share": share, "moved": moved}
+    if rule == "gap":
+        strata, short = l0_gap(case["strata"], case["low"], case["high"], case["wanted"])
+        return {"strata": strata, "short": short}
+    if rule == "halves":
+        return {"halves": l0_halves(case["count"], case["heaps"], case["laid"], case["edge"], case["cut_rank"])}
+    if rule == "reserved":
+        return {"reserved": l0_reserved(case["cells"], case["count"], case["workbook"])}
+    raise ValueError(rule)
+
+
+def l0_rule_document():
+    """The twenty-eighth file: each layer L0 rule case and its answer."""
+    cases = {}
+    for name in sorted(L0_RULE_CASES):
+        case = L0_RULE_CASES[name]()
+        case["answer"] = l0_rule_answer(case)
+        cases[name] = case
+    return {
+        "what": "The cases layer L0's rules (lane BT, plan P4-D429; method G4.2a, G5.7c, G5.7d items 3 and 3a "
+        "and G7A.4d) are frozen on, each with the rule's answer computed from the method's text: the "
+        "knots of a band map as exact fractions, a share over pieces, the strata beyond a piece's runs, "
+        "a cut census group's halves and a column's reserved cells.",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "cases": cases,
+    }
+
+
 def main(argv=None, part=None):
     """Write the vectors to the path given by --out.
 
@@ -55360,6 +55678,7 @@ def main(argv=None, part=None):
     if part in (
         FIFTEENTH_BRANCH_PART, SIXTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART,
         EIGHTEENTH_BRANCH_PART, NINETEENTH_BRANCH_PART, TWENTIETH_BRANCH_PART,
+        TWENTY_EIGHTH_BRANCH_PART,
     ):
         # Whole numbers only, read by the pass and written by it: there is
         # no binary64 here for the proof layer to certify.
@@ -55370,6 +55689,8 @@ def main(argv=None, part=None):
             EIGHTEENTH_BRANCH_PART: day_step_document,
             NINETEENTH_BRANCH_PART: heavy_step_document,
             TWENTIETH_BRANCH_PART: clock_field_step_document,
+            # -- layer L0's rules (lane BT, plan P4-D429)
+            TWENTY_EIGHTH_BRANCH_PART: l0_rule_document,
         }
         written_document = step_documents[part]()
         text = json.dumps(written_document, indent=2, sort_keys=True, allow_nan=False)

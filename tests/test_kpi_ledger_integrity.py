@@ -1340,7 +1340,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # round figure the lane's ledger fits under: K-S6-08 new, the chain's
     # tables part, with its note clause. The batch integrator settles this
     # beside the other lanes' raises.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 760_000
+    #
+    # 766,000 from 760,000 (lane BT, plan P4-D429, 2026-10-24), the least
+    # round figure the lane's ledger fits under: K-S6-02 new, layer L0's
+    # band totals, with its note clause. The batch integrator settles this
+    # beside the other lanes' raises. A MEASUREMENT IS NEVER TRIMMED TO FIT.
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 766_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

@@ -847,12 +847,17 @@ draws the words it drew before, word for word. The words of a later
 column move on a table that has such a column, which is a new kind of
 description.
 
-### G4.2a The reservation of records holding nothing (layer L0, plan P4-D404; specified, NOT BUILT)
+### G4.2a The reservation of records holding nothing (layer L0, plan P4-D404; BUILT behind the chain's switch, plan P4-D429)
 
-**No generator in this repository runs this section yet; lane BT builds
-it.** It runs only where `relationships.statistical` holds at least one
-family, which is the switch of G16, the arrangement of stage 6 (lane
-MBC's section, not yet written into this document). Everywhere else
+**Lane BT built this section (plan P4-D429): `generation._reservation`
+fixes the reserved rows, `dialect.reserved_cells` lists a column's cells
+holding nothing by spelling, `generation._reserved_order` stands them in
+the reserved rows at the placement hook, and
+`sheetwriting.reserved_cell_classes` deals a workbook's classes to the
+reserved cells first.** It runs only where `relationships.statistical`
+holds at least one family, which is the switch of G16, the arrangement
+of stage 6 (lane MBC's section): no shipped command loads such a
+description (S12), so every shipped twin is placed as before. Everywhere else
 G2.1 step 2 and G2.2 step 6 place the records holding nothing exactly
 as they are written, and the twin is byte for byte the twin it is
 today.
@@ -1021,7 +1026,20 @@ the whole table.
 the reservation reads the placement, the cells' texts and, in a
 workbook, the column's published class census, and nothing else.
 
-### G4.2b The interface G16 calls: the column's cells, grouped by L0 band (plan P4-D404; specified, NOT BUILT)
+### G4.2b The interface G16 calls: the column's cells, grouped by L0 band (plan P4-D404; BUILT behind the chain's switch, plan P4-D429)
+
+**Built (plan P4-D429) as `generation.cells_by_band(profile, step,
+content, drawn, reserved, readings)`, returning a `generation.BandCells`
+at the placement hook `_row_placement`**: each cell named by its place in
+the column's cell list, its groups, readings, sizes, the byte a place
+saying whether it holds nothing, the reserved places and, in a
+workbook, each place's class, format kind and kind of date as the
+writer deals them (`sheetwriting.column_dealt_kinds`). A date's reading
+is its rank's ordinal before G7.5's spelling step; a cell that step
+moves stays inside its piece (G7.3l), so its band is the one its
+reading names. A column of a role this landing lays without its band
+totals (G5.7h) is handed over by the groups its cells fall into, its
+`without` naming why.
 
 `cells_by_band(column)` is called by G16 (lane MBC's section) once for
 each eligible column, in schema order, after that column's G4.2, G4.2a
@@ -3294,10 +3312,16 @@ instead, those windows would fail 13 checks on 9 twins the rule
 improved, a kurtosis of 352.1 against a published 356.6 outside a window
 of 1 to 250 among them, where 110cb46's twin held 7.9 inside it.
 
-### G5.7 The L0 band totals (layer L0 of stage 6, plan P4-D404; specified, NOT BUILT)
+### G5.7 The L0 band totals (layer L0 of stage 6, plan P4-D404; BUILT behind the chain's switch, plan P4-D429)
 
-**No generator in this repository runs anything in this section yet;
-lane BT builds it.** It fixes how an ELIGIBLE number column makes its
+**Lane BT built this section (plan P4-D429)**: the loader reads the
+published ladder behind the switch (`contract.ladder_entries`), the
+generator attaches each eligible column's cuts after G5.7a's
+preconditions (`generation._l0_columns`), reads its ladder through the
+band map (`contract.BandMap`, `generation._band_mapped`), lays it out
+over its pieces (`generation._l0_layout`), repairs a value that left its
+piece (`generation._piece_repairs`) and guards every stratum last
+(`generation._l0_guard`). It fixes how an ELIGIBLE number column makes its
 cells so that each of its published L0 bands holds EXACTLY its
 published count, with every other published fact of the column still
 met, or, where this construction cannot meet both, settled by a rule
@@ -3629,6 +3653,23 @@ a sign band:
    A gap is where the ladder skipped a value the real column held at
    fewer rows than the ladder resolves, so a new stratum belongs there,
    and no run that a stretch of the ladder reads moves off its value.
+   **TWO READINGS THE BUILD ADDS WHERE NO GAP IS ELIGIBLE** (lane BT,
+   plan P4-D429), each only where this item would lower `M`: (i) THE FILL
+   OF A FULL PIECE: where the piece's strata, with those still to make,
+   number exactly the admissible points it holds between the column's two
+   ladder ends, the rest are made by G5.2a step 3's division and every
+   stratum of the piece takes one of those points in ascending order,
+   which is G5.7f's fill read at the layout; (ii) THE LIFT HELD INSIDE A
+   PIECE, on a column whose numbers were every one different (its count
+   of different values is its count of numbers) and only there: the
+   stratum of two cells nearest a free point of the piece is divided and
+   every stratum between steps one held point toward it. On such a column
+   a stratum of two cells is the band map's reading, never the column's
+   (`R000000` to `R019999` read as cores: the median edge's rank read one
+   point twice and the top piece skipped `19799`, so the page's rule lost
+   a different value in each of six pieces); case 16 (b), which is no
+   all-different column, still makes no stratum (the oracle's case
+   `l0_gap_none`).
 4. **The carrier and reach steps** of G5.2b read piece for band. The
    band step moves one stratum into a piece that cannot carry from the
    nearest piece in rank order (the lower on a tie) that keeps at least
@@ -3636,6 +3677,11 @@ a sign band:
    reach step asks for a whole number inside the stratum's own piece
    (and, as before, inside `min` and `max` and on its sign), and the
    fallbacks it treats as spoken for are G5.7e's piece fallbacks.
+   **As built (plan P4-D429)** the cell step and the reach step move
+   cells within one piece; THE BAND STEP IS NOT BUILT in this landing: a
+   piece whose only stratum is a pinned end on a rung with a point keeps
+   it, and the point-free count it would have carried gives way, named
+   by the style recount as today (a stated limit, plan P4-D429).
 
 Every step of the layout moves cells only by moving boundaries between
 strata of one piece. So when the layout ends, the strata of piece `p`
@@ -3732,6 +3778,24 @@ accepts, it leaves the stratum where it stands, never outside its
 piece, and the fact the step was serving gives way, named (rule B1,
 G5.7h).
 
+**As built (plan P4-D429)**: G6.5a's separation takes its candidates
+inside the stratum's piece -- its walk (`generation._piece_ends`), its
+push (`generation._piece_units`) and its fill, read piece by piece
+(`generation._saturated_pieces`; the whole-column fills stand aside
+where a point would leave its piece) -- and so do G5.2a's narrower-width
+exchanges and moves. The other value passes (G6.4's values step, G6.6's
+snap and width walk, G6.7's moves, the pooling, the grouping and the
+mode) take their candidates as they did, and the last guard (G5.7g)
+stands in for their walls: a stratum such a pass carries across a cut
+is taken back to its piece's fallback and named. K-S6-02 counts every
+value the guard moves (`guard_moves`) beside every fact a move costs
+(clause (iv)). Measured before the separation and the exchanges were
+held (lane BT's d855ee20): at 20,000 rows the push lifted a column of
+record numbers, every one different, across every cut above the stand-in
+number it may not write, and an exchange carried a stay across one, so
+the guard moved values on every twin of the ten-column table and lost
+different values; plan P4-D429 records the counts.
+
 #### G5.7g The last guard
 
 After the last value step (G6.7 and G6.8) and before any cell is
@@ -3784,7 +3848,14 @@ cut ranks restate.
 
 **RULE B3: a description L0 cannot lay out.** Where (P1) to (P5)
 fail, the column is made without L0 and named, and G16.6 meets its
-families. A hand-written description reaches it, and so can a real
+families. **As built (plan P4-D429)** the note is the twin's deviation
+`band totals`, "made without its band totals", with the precondition
+that failed; and this landing ALSO lays without L0, named the same way,
+four kinds of eligible column whose layout it does not cut: a column of
+several pairs of affixes (each pair's cores laid on their own), a column
+of joined numbers, a column of numbers and labels, and a clock column
+laid on its minute census (G7A.4c). A stated limit with its owner in
+plan P4-D429; G16.6 meets their families meanwhile. A hand-written description reaches it, and so can a real
 column a producer describes: a column where a band's or a piece's
 cells were all written at widths the census counts into its commonest
 width can fail (P3), and where it does it is made without L0 under
@@ -9633,10 +9704,16 @@ can read a rank's clock only once its offset is known.
    envelope, and the twin's report says so. The move to midnight then
    counts every bare date as standing at midnight and owes only the rest.
 
-#### G7.3l The L0 band totals of a date column (layer L0, plan P4-D404; specified, NOT BUILT)
+#### G7.3l The L0 band totals of a date column (layer L0, plan P4-D404; BUILT behind the chain's switch, plan P4-D429)
 
-**No generator in this repository runs this section yet; lane BT builds
-it.** An ELIGIBLE datetime column (G5.7's switch) carries an L0 block
+**Lane BT built this section (plan P4-D429)**: `generation._date_edge_runs`
+pins each edge run, `_date_layout` ends the gap below it one unit short
+and `_spread_ordinals` stops its draws at the start of the edge's unit;
+on a column listing dates that stand out, `_heavy_segments` starts a
+listed edge's run at its cut and ends the part below an unlisted edge's
+run one day short; `_date_windows_cut` cuts the spelling step's windows
+to the rank's piece. A column with no tail on a side, laid on G7.3d's
+ramp, reads no rung and is made without L0 (rule B3). An ELIGIBLE datetime column (G5.7's switch) carries an L0 block
 whose edges `e_1 < ... < e_m` are among its published interior rungs,
 with one count for each range band over its `P` parsed cells, compared
 in G7.1's ordinal space on the clock its ladder is read on. The cut
@@ -11827,10 +11904,15 @@ group alone, by largest remainders, misses the columns' counts: the
 design measured med_round's minute-of-hour distance moving from 0.10 to
 0.15 so, where the table rounded with both kept meets every count.
 
-### G7A.4d The L0 band totals of a clock column (layer L0, plan P4-D404; specified, NOT BUILT)
+### G7A.4d The L0 band totals of a clock column (layer L0, plan P4-D404; BUILT behind the chain's switch, plan P4-D429)
 
-**No generator in this repository runs this section yet; lane BT builds
-it.** An ELIGIBLE clock column carries an L0 block whose edges are among
+**Lane BT built this section (plan P4-D429)**: `generation._clock_l0_knots`
+lays G7A.4's knots, `generation._clock_piece` holds the all-different
+step and the absent-spelling step inside each piece, and
+`calendar_clock.clock_body_blocks(..., cuts)` cuts each census group an
+edge crosses into its two halves (`calendar_clock._cut_halves`). A
+column laid on its MINUTE census (G7A.4c) is made without L0 in this
+landing and named (G5.7h, a stated limit). An ELIGIBLE clock column carries an L0 block whose edges are among
 its published interior rungs, with one count for each range band over
 its `P` parsed cells, compared in G7A.1's ordinal space. `R_j` is the
 cut rank of edge `j`. The preconditions are G7.3l's (D1) and (D2), read
@@ -16484,8 +16566,16 @@ one G7.13 does not write. Repair round 2 of the lane added the note to
 the generator and not here, and the whole suite of its third round
 turned this guard red, which is what it is for.
 
+**AND ONE MORE IN LANE BT** (plan P4-D429): `band totals`, the note of
+layer L0 on an eligible column -- a column made without its band totals
+(rule B3, G5.7h) or a value the last guard moved back inside its band
+(G5.7g). It is no key of the column's block: it names the counts of the
+column's L0 bands in `relationships.statistical`, behind the chain's
+switch, so no twin of a description a shipped command loads carries it.
+
 * `all_at_midnight`
 * `all_whole_numbers`
+* `band totals`
 * `date_field_widths`
 * `datetime_separators`
 * `datetimes_read_at`
@@ -17809,7 +17899,7 @@ P4-D329, which removes most of that population; what is left is the
 V6.1-A1 pattern, where the real table passes by exact equality and the
 report says the window does not reach the value.
 
-### G12.15 The windows on an eligible column (layer L0, plan P4-D404; specified, NOT BUILT)
+### G12.15 The windows on an eligible column (layer L0, plan P4-D404; the twin's report BUILT behind the chain's switch, plan P4-D429; the quality report's mirror owed)
 
 On an eligible number column (G5.7), G5.6's rank form is read through
 the band map of G5.7c. `Ladder(p)` there becomes the published ladder
@@ -17874,6 +17964,16 @@ same windows through the same map. Lane BT writes that mirror in the
 landing that builds this section, and not later: a quality report still
 drawing today's windows could call a rung or a moment MISSED, on a
 column whose edges are heaped, that the twin's own report calls inside.
+**As built (plan P4-D429)**: the twin's report draws every window through
+the band map and takes the extension beside a cut
+(`generation._l0_window_ends`, `generation._l0_extended`); THE QUALITY
+REPORT'S MIRROR IS NOT BUILT in this landing. No command validates a
+twin of a switched description (S12: `validate` refuses a filled
+`statistical`), so no report a person reads can disagree yet; K-S6-02
+(iv) judges every L0 twin with the quality report as it is, today's
+windows unextended, and counts every fact it calls missed that the twin
+without L0 holds. A stated limit, owed before the landing that ships
+stage 6 lets `validate` read a chain, with its owner in plan P4-D429.
 
 ## G13. Residuals this method carries
 
@@ -19299,7 +19399,18 @@ pin and the case went with it rather than being left to freeze a branch
 nothing reaches. Withdrawing a case is recorded here because a case that
 quietly disappears is a branch that quietly stops being checked.
 
-### G14.3a The L0 cases (layer L0, plan P4-D404; specified, NOT BUILT)
+### G14.3a The L0 cases (layer L0, plan P4-D404; BUILT behind the chain's switch, plan P4-D429)
+
+**As built (plan P4-D429)**: the oracle freezes the cases that turn on
+whole numbers and words in `tests/reference/generation-branch-vectors-28.json`
+(cases 6 (a) to (c), 9's knots on a ladder of whole numbers, 10, 11, 12's
+reserved cells and 16 (a) and (b)), written from this text through the
+twenty-eighth entry point, and `tests/test_stage6_band_totals.py` holds
+the product to every answer and every case below, each beside its
+mutant, on the product's own twins. Freezing the twin's CELLS of cases
+1 to 5, 7, 8, 13 to 15 and 17 needs the oracle's whole number, date and
+clock pipelines read through the band map, which this landing does not
+build: a stated limit with its owner in plan P4-D429.
 
 Lane BT adds these cases to the oracle in the landing that builds G4.2a,
 G4.2b, G5.7, G7.3l, G7A.4d and G12.15, and amends the oracle in the same

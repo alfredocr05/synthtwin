@@ -2690,6 +2690,73 @@ class RelationshipManifest:
     """
 
     slots: "tuple[str, ...]"
+    # LAYER L0, READ BEHIND THE CHAIN'S SWITCH ALONE (lane BT, plan
+    # P4-D429; contract 4.6b.2, NOT IN FORCE). `ladder` holds one entry
+    # per eligible column of a description loaded with `chain=True` whose
+    # `statistical` slot is filled, and `families` the families its chain
+    # places; every description a shipped command loads holds neither, so
+    # the generator reads `()` and `0` and makes every column as before
+    # (method G4.2a, G5.7).
+    ladder: "tuple[LadderEntry, ...]" = ()
+    families: int = 0
+
+
+@dataclasses.dataclass(frozen=True)
+class LadderEntry:
+    """One eligible column's `L0` bands and their totals (contract 4.6b.2; lane BT, plan P4-D429).
+
+    `bands` lists the `L0` bands in band order, each as the STARTING
+    bands it joins: `missing`, `other`, `labels`, a range `(lower, upper)`
+    of rung keys (None where open), a level `(label,)`, or `held back`
+    for a label column's pool. `totals` is the `L0` total of each band
+    over the tabled rows (`missing` counted as `n_missing - E`).
+    """
+
+    column: str
+    bands: "tuple[tuple[object, ...], ...]"
+    totals: "tuple[int, ...]"
+
+
+def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, ...], int]":
+    """The `L0` ladder and the number of families a switched description publishes (plan P4-D429).
+
+    Read only after `chain_check.check` has held the chain to S23 to S28,
+    so every entry is the shape 4.6b.2 writes. ``((), 0)`` where the slot
+    is null or names no family.
+
+    Guarantees: a fixed function of the document; raises nothing; no I/O.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict) or "statistical" not in relationships:
+        return (), 0
+    statistical = relationships["statistical"]
+    if not isinstance(statistical, dict):
+        return (), 0
+    chain = statistical["chain"] if "chain" in statistical else None
+    families = len(chain) if isinstance(chain, list) else 0
+    published = statistical["ladder"] if "ladder" in statistical else None
+    entries: "list[LadderEntry]" = []
+    if isinstance(published, list):
+        for entry in published:
+            if not isinstance(entry, dict):
+                continue
+            name = entry["column"] if "column" in entry else None
+            bands = entry["l0"] if "l0" in entry else None
+            totals = entry["totals"] if "totals" in entry else None
+            if not isinstance(name, str) or not isinstance(bands, list) or not isinstance(totals, list):
+                continue
+            read: "list[tuple[object, ...]]" = []
+            for band in bands:
+                joined: "list[object]" = []
+                if isinstance(band, list):
+                    for start in band:
+                        joined += [tuple(start) if isinstance(start, list) else start]
+                read += [tuple(joined)]
+            counted: "list[int]" = []
+            for total in totals:
+                counted += [total if isinstance(total, int) and not isinstance(total, bool) else 0]
+            entries += [LadderEntry(name, tuple(read), tuple(counted))]
+    return tuple(entries), families
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3073,6 +3140,11 @@ class DatetimeFacts:
     # of different dates is not `n_distinct` less `n_unparsed`
     # (`datetime_counts_reachable`).
     declared_short_of_the_line: bool = False
+    # LAYER L0'S CUTS (method G7.3l; lane BT, plan P4-D429). Not a key:
+    # the edges as ordinals of the column's own space and the band counts
+    # over its parsed cells, attached by the generator to an eligible
+    # column behind the chain's switch; None everywhere else.
+    l0: "L0Cuts | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3257,6 +3329,28 @@ class NumericFacts:
     # (`parsing.tail_may_list`), so G5.3e counts each from it
     # (`_listed_counts`).
     listing_floor: int = 0
+    # LAYER L0'S CUTS (method G5.7; lane BT, plan P4-D429). Not a key: the
+    # generator attaches them to an ELIGIBLE column of a description
+    # loaded behind the chain's switch, where its L0 block passes G5.7a's
+    # preconditions; None on every block a shipped command reads, so
+    # every reader of this block reads it as before.
+    l0: "L0Cuts | None" = None
+
+
+@dataclasses.dataclass(frozen=True)
+class L0Cuts:
+    """An eligible number column's `L0` edges and band counts (method G5.7a; plan P4-D429).
+
+    `edges` are the published rungs `e_1 < ... < e_m` the bands are cut
+    at, `counts` the count of each RANGE band (`c_0` below `e_1`, `c_m`
+    at or above `e_m`), and `cells` the `K` cells G5 lays out. Each count
+    is a count of the real column's own cells (contract 4.6b.2), so the
+    cut rank `R_j = c_0 + ... + c_(j-1)` is one too.
+    """
+
+    edges: "tuple[float, ...]"
+    counts: "tuple[int, ...]"
+    cells: int
 
 
 def _kept_stand_ins(
@@ -3557,6 +3651,11 @@ class ClockFacts:
     clock_step: "int | None" = None
     clock_codes: "tuple[tuple[str, int], ...]" = ()
     minute_census: "tuple[tuple[int, int, int], ...]" = ()
+    # LAYER L0'S CUTS (method G7A.4d; lane BT, plan P4-D429). Not a key:
+    # the edges as ordinals of the column's own clock and the band counts
+    # over its parsed cells, attached by the generator to an eligible
+    # column behind the chain's switch; None everywhere else.
+    l0: "L0Cuts | None" = None
 
 
 ColumnFacts = (
@@ -13588,6 +13687,31 @@ class ShapedLadder(tuple[float, ...]):
     high: "TailReader | None" = None
 
 
+class BandMap(ShapedLadder):
+    """A ladder read through method G5.7c's BAND MAP (lane BT, plan P4-D429).
+
+    A tuple of the same hundred and one rungs, so every consumer that
+    indexes a ladder reads what it read; a tail block's two readers are
+    kept, so a share inside a tail is read through the tail as before.
+    Between the tails the rungs stand at KNOTS instead of at their
+    percents: `points` lists `(position, value)` in rank order, each
+    position in ranks times `scale`, and `cells` is `K`. An edge stands
+    twice, its lower knot at its cut rank and its upper knot at its own
+    position held between that rank and the next knot, so every rank
+    below the cut reads a value below the edge and every rank from it on
+    reads the edge or more. `plain` is the ladder before the map, which
+    the word budget of G4.3 is read on. The generator builds it
+    (`generation._band_mapped`); it is declared here, beside the shaped
+    ladder, because the description's reader is the module both the
+    generator and the validator read a ladder through.
+    """
+
+    points: "tuple[tuple[int, float], ...]" = ()
+    scale: int = 1
+    cells: int = 0
+    plain: "tuple[float, ...] | None" = None
+
+
 def _shaped(
     rungs: "tuple[float, ...]",
     low: "TailReader | None",
@@ -22002,6 +22126,12 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     # plan P4-D418; contract 4.6b.11, NOT IN FORCE)
     if chain:
         chain_check.check(document)
+        # ...and its `L0` ladder, which the generator's band totals read
+        # (lane BT, plan P4-D429; method G4.2a, G4.2b, G5.7).
+        entries, families = ladder_entries(document)
+        relationships = dataclasses.replace(
+            relationships, ladder=entries, families=families
+        )
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,
