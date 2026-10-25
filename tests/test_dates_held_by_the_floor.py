@@ -47,6 +47,7 @@ import pytest
 from synthtwin import cli, contract, parsing, profile, taxonomy, validation
 
 import dates_held
+import unanswered_identifier_shapes as shapes
 
 SIZES = (20000, 200000)
 # Named apart, so `-k at20k` never selects the 200,000-row cases too.
@@ -171,6 +172,24 @@ def _parses(cell: str) -> bool:
             continue
         return True
     return False
+
+
+# -- in people first --------------------------------------------------------
+
+
+def test_birth_dates_beside_ten_patients_stay_held_in_people(tmp_path: pathlib.Path) -> None:
+    """Lane HX2's `dob_ten` at 20,000 rows: ten patients' birth dates, each on 2,000 rows.
+
+    The patient key holds fewer than the floor's people, so no subject column
+    counts in people and the rows are counted too -- but the key, attached to
+    the column and telling its people apart, still holds it (P4-D406): each
+    date falls on far more than ten rows, and counted in rows alone all ten
+    would be published.
+    """
+    seen = shapes.run(tmp_path, "dob_ten", 20000)
+    assert seen["profile_exit"] == 0 and seen["validate_exit"] == 0, seen
+    assert seen["description_values"] == 0 and seen["twin_cells"] == 0, seen
+    assert seen["evidence"] == taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_PEOPLE, ())
 
 
 # -- the words: rows, not people ---------------------------------------------

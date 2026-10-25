@@ -4579,11 +4579,16 @@ def build_document(
             and not any(counting_enough)
             and table.n_rows >= parsing.TABLE_ROW_FLOOR
         )
+        # The walk counts the rows beside every subject column there is (a
+        # subject column of fewer than the floor's people, attached to the
+        # column, still holds it, as P4-D406 holds it).
+        walking = counting
+        walking_enough = counting_enough
         if in_rows:
             if len(row_holders) != len(cells):
                 row_holders = rows_as_holders(len(cells))
-            counting += [row_holders]
-            counting_enough += [True]
+            walking = counting + [row_holders]
+            walking_enough = counting_enough + [True]
         # DATES DECLARED AS COUNTS AND NOT READ AS DATES are never
         # published as plain numbers (the orchestrator's LANE HX2 ADDENDUM
         # 2, from lane AQ's close verify): `42.345` for an Excel day leaves
@@ -4619,12 +4624,42 @@ def build_document(
             else None
         )
         held_dates: "grains.Grain | None" = None
-        if (
+        read_at_its_grain = (
             published_grain is not None
             and published_grain.rung != grains.HELD
             and name not in withheld_names
             and not declined
-        ):
+        )
+        # COUNTED IN PEOPLE FIRST (P4-D406), and only where no person
+        # holds it back, in rows (P4-D433): a column a subject column holds
+        # keeps that subject's evidence.
+        reaches_the_count = (
+            not read_at_its_grain
+            and name not in withheld_names
+            and not declined
+            and name not in described_identifiers
+        )
+        held_by_people = (
+            reaches_the_count
+            and bool(counting)
+            and _counted_in_subjects(
+                described,
+                cells,
+                counting,
+                settings.small_cell_floor,
+                counting_enough,
+                cell_reading,
+            )
+        )
+        by_rows = (
+            reaches_the_count
+            and in_rows
+            and not held_by_people
+            and _dates_few_in_rows(
+                described, cells, settings.small_cell_floor, cell_reading
+            )
+        )
+        if read_at_its_grain and published_grain is not None:
             if absent_read is not None:
                 absent_read[name] = described.absent_spellings
             described = taxonomy.with_time_grain(
@@ -4639,24 +4674,7 @@ def build_document(
             )
         elif name in withheld_names:
             described = taxonomy.as_unanswered_identity(described)
-        elif declined or (
-            counting
-            and name not in described_identifiers
-            and (
-                _dates_few_in_rows(
-                    described, cells, settings.small_cell_floor, cell_reading
-                )
-                if in_rows
-                else _counted_in_subjects(
-                    described,
-                    cells,
-                    counting,
-                    settings.small_cell_floor,
-                    counting_enough,
-                    cell_reading,
-                )
-            )
-        ):
+        elif declined or held_by_people or by_rows:
             # DATES AND TIMES POOLED IN PEOPLE (plan P4-D417): described at
             # the grain their published facts choose where every point it
             # publishes holds the floor in people, else held with the
@@ -4672,8 +4690,8 @@ def build_document(
                     cells,
                     described.n_present,
                     time_reading,
-                    counting,
-                    counting_enough,
+                    walking,
+                    walking_enough,
                     settings.small_cell_floor,
                     frozenset(described.absent_spellings),
                 )
@@ -4694,9 +4712,9 @@ def build_document(
                     if candidate.role in _GRAIN_ROLES and not _counted_in_subjects(
                         candidate,
                         coarse,
-                        counting,
+                        walking,
                         settings.small_cell_floor,
-                        counting_enough,
+                        walking_enough,
                         cell_reading,
                     ):
                         pooled = taxonomy.with_time_grain(
@@ -4708,7 +4726,7 @@ def build_document(
                                     spans=spans[: place + 1],
                                 )
                             ),
-                            in_rows,
+                            by_rows,
                         )
                     coarse = None
             if pooled is not None:
@@ -4731,7 +4749,7 @@ def build_document(
                     # declaration that did not reach, not as a count in people.
                     described = taxonomy.as_counted_dates_held(fresh)
                 else:
-                    described = taxonomy.as_held_in_people(fresh, in_rows)
+                    described = taxonomy.as_held_in_people(fresh, by_rows)
                     if held_dates is not None:
                         described = taxonomy.with_held_dates(
                             described, grains.record(held_dates)
