@@ -816,8 +816,8 @@ def test_the_ledger_file_is_canonical_json() -> None:
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
     # 746,500 from 746,000, ON LANE SH'S BRANCH (2026-10-24, plan P4-D427,
-    # repair round 2): `K-S3-64` restamped over 236 shapes, its rule,
-    # evidence and note sentences, 746,167 bytes. The batch integrator
+    # repair round 2): `K-S3-64` restamped over 230 shapes, its rule,
+    # evidence and note sentences, 746,195 bytes. The batch integrator
     # settles this beside the other lanes' raises.
     #
     # 746,000 from 745,500, ON LANE SH'S BRANCH (2026-10-23, plan P4-D427,

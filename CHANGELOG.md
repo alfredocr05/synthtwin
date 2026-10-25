@@ -6,25 +6,24 @@ exists).
 
 ## [Unreleased]
 
-### Lane SH, repair round 2: the Safe Harbor question first, no other answer frees an age over 89 or a ZIP, decimal commas and nine-figure ZIPs (2026-10-24)
+### Lane SH, repair round 2: no measurement or keep answer frees an age over 89 or a ZIP, one question a column, decimal commas and nine-figure ZIPs (2026-10-24)
 
 **The combined verify's open items closed** (plan P4-D427, its repair
-round 2). A column the reach takes and an open padded, date-count or
-two-numbers question would hold is put the Safe Harbor question in place
-of that one, since none of its answers would free it: NAACCR's
-three-figure ages (which printed 91 to 105 once answered `measurement`)
-are top-coded, `090` as wide as the column pads, and a column of
-ZIP-shaped numbers declared `--code` or `--measurement`, or answered
-`keep` or `code` to the person question, stays held and is put the Safe
-Harbor question, since only `no` frees it. One question a column: ZIP+4
-cells are asked one. Ages written `94,8` with no decimal comma declared
-are read and top-coded `90,0`; a nine-figure number is a ZIP+4 written
-without its hyphen; the twin keeps the declared missing cells of a
-top-coded column. `K-S3-64` rises to 236 shapes, 0 on every key. The
-price, each freed by `no`: whole-number charges, costs and step counts
-of four and five figures held as ZIP-shaped; padded vaccine and payment
-codes and kilograms written with an undeclared decimal comma put the
-question first.
+round 2). Three-figure ages answered `measurement` to the padded question
+(NAACCR's Age at Diagnosis printed 91 to 105) are top-coded, `090` as
+wide as the column pads, and put the Safe Harbor question; a column of
+ZIP-shaped numbers answered `measurement` or `keep` to another question,
+or so declared, stays held and is put the Safe Harbor question, since
+only `no` frees it (a column answered `code` stays CODES-2's, as lane
+HX's ruling of 2026-10-16 gave it). Every open question offering
+`identifier` counts as the one put, so ZIP+4 cells are asked one
+question; ages written `94,8` with no decimal comma declared are read
+and top-coded `90,0`; a nine-figure number is a ZIP+4 written without
+its hyphen; and the twin keeps the declared missing cells of a top-coded
+column. `K-S3-64` counts 230 shapes, 0 on every key. The price, each
+freed by `no`: whole-number charges, costs and step counts of four and
+five figures held as ZIP-shaped even answered `measurement`, kilograms
+written with an undeclared decimal comma top-coded.
 
 ### Lane SH, repair round 1: the Safe Harbor numbers in every role, judged on the bulk, and the hold follows the identifier offer (2026-10-23)
 
