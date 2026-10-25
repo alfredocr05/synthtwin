@@ -13687,31 +13687,6 @@ class ShapedLadder(tuple[float, ...]):
     high: "TailReader | None" = None
 
 
-class BandMap(ShapedLadder):
-    """A ladder read through method G5.7c's BAND MAP (lane BT, plan P4-D429).
-
-    A tuple of the same hundred and one rungs, so every consumer that
-    indexes a ladder reads what it read; a tail block's two readers are
-    kept, so a share inside a tail is read through the tail as before.
-    Between the tails the rungs stand at KNOTS instead of at their
-    percents: `points` lists `(position, value)` in rank order, each
-    position in ranks times `scale`, and `cells` is `K`. An edge stands
-    twice, its lower knot at its cut rank and its upper knot at its own
-    position held between that rank and the next knot, so every rank
-    below the cut reads a value below the edge and every rank from it on
-    reads the edge or more. `plain` is the ladder before the map, which
-    the word budget of G4.3 is read on. The generator builds it
-    (`generation._band_mapped`); it is declared here, beside the shaped
-    ladder, because the description's reader is the module both the
-    generator and the validator read a ladder through.
-    """
-
-    points: "tuple[tuple[int, float], ...]" = ()
-    scale: int = 1
-    cells: int = 0
-    plain: "tuple[float, ...] | None" = None
-
-
 def _shaped(
     rungs: "tuple[float, ...]",
     low: "TailReader | None",

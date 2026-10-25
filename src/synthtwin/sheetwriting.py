@@ -2000,6 +2000,33 @@ def _column_dealt(
     return own, dated, dealt
 
 
+def class_codes(kinds: "tuple[str, ...]") -> bytes:
+    """A column's cell classes as one code byte a cell, the way this writer holds them (`_class_codes`)."""
+    return _class_codes(kinds)
+
+
+def column_dealt_cells(
+    profile: "contract.Profile",
+    index: int,
+    cells: "tuple[str, ...]",
+    reserved: int,
+) -> "tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]":
+    """One workbook column's cells as written, its kinds of date, classes and format kinds, dealt over ``cells`` in order.
+
+    What G4.2a has the generator fix for an eligible column before the
+    arrangement (lane BT's repair, plan P4-D429): the writer's own
+    dealing of `_column_dealt` and `cell_format_kinds`, over the cells in
+    G4.2's order, the reserved cells on the first ``reserved`` rows.
+    """
+    form = profile.source.workbook
+    if form is None:
+        raise TypeError("internal check: a workbook column was asked of a description that records no workbook")
+    own, dated, dealt = _column_dealt(profile, index, cells, reserved)
+    column = form.columns[index]
+    kinds = cell_format_kinds(column.format_kinds, dealt, column.format_code, dated)
+    return own, dated, dealt, tuple(kinds)
+
+
 def column_dealt_kinds(
     profile: "contract.Profile",
     index: int,
@@ -2068,7 +2095,23 @@ def _package(
     dates: "list[twinstore.HeldColumn | None]" = []
     # THE STORAGE CLASS IS ALLOCATED BEFORE THE CONVERSION, AND SETTLED
     # AFTER IT (plan P4-D284), one column at a time (`_column_dealt`).
+    # ...AND AN ELIGIBLE COLUMN BY WHAT G4.2a DEALT IT BEFORE THE
+    # ARRANGEMENT (lane BT's repair, plan P4-D429): its classes, format
+    # kinds and kinds of date travelled with each cell to the row G16 put
+    # it on, so none is dealt again here (`generation._sheet_dealt_before`).
+    carried_kinds: "dict[int, tuple[str, ...]]" = {}
     for index in range(width):
+        carried = twin.sheet_dealt[index] if index < len(twin.sheet_dealt) else None
+        if carried is not None:
+            codes_of, kinds_of, dated_of, written_of = carried
+            if written_of is None:
+                cells += [twin.held_columns[index] if twin.held_columns is not None else twinstore.held_column(list(generation.twin_column(twin, index)))]
+            else:
+                cells += [twinstore.held_column(list(written_of))]
+            dates += [_held_tags(dated_of)]
+            classes += [codes_of]
+            carried_kinds[index] = kinds_of
+            continue
         given = generation.twin_column(twin, index)
         own, dated, dealt = _column_dealt(profile, index, given, twin.reserved_rows)
         if twin.held_columns is not None and own == given:
@@ -2109,10 +2152,13 @@ def _package(
     styles: "list[bytes | tuple[int, ...]]" = []
     for index in range(width):
         column = form.columns[index]
-        kinds = cell_format_kinds(
-            column.format_kinds, _class_names(classes[index]), column.format_code,
-            _tags_of(dates[index], n_rows),
-        )
+        if index in carried_kinds:
+            kinds = carried_kinds[index]
+        else:
+            kinds = cell_format_kinds(
+                column.format_kinds, _class_names(classes[index]), column.format_code,
+                _tags_of(dates[index], n_rows),
+            )
         row_styles: "list[int]" = []
         for row in range(len(kinds)):
             code = _code_for_kind(kinds[row], column.format_code)

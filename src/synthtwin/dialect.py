@@ -7248,24 +7248,39 @@ def reserved_arranging(
     )
 
 
-def reserved_cells(cells: "list[str]", count: int, workbook: bool) -> "list[int]":
+def reserved_cells(
+    cells: "list[str]", count: int, workbook: bool, order: "list[int] | None" = None
+) -> "list[int]":
     """A column's RESERVED cells, by spelling, in G4.2's order (method G4.2a; plan P4-D429).
 
     The cells holding nothing, listed: the cells written as the empty
     text, in row order; then, in a text file, the cells of each spelling
     made only of spaces and tabs, the shorter spelling first and at one
     length by code points, each spelling's cells in row order. The first
-    ``count`` of them. A spelling holding any other character (`NA`, a
-    no-break space) is never reserved.
+    ``count`` of them, as rows. A spelling holding any other character
+    (`NA`, a no-break space) is never reserved. Where ``order`` is given,
+    row `r` holds ``cells[order[r]]``, so no copy of the column is made.
     """
-    listed = [row for row in range(len(cells)) if cells[row] == ""]
-    if not workbook:
-        spelled = sorted(
-            {(len(cell), cell) for cell in cells if cell and _holds_nothing(cell)}
-        )
-        for _length, spelling in spelled:
-            listed += [row for row in range(len(cells)) if cells[row] == spelling]
-    return listed[:count]
+    rows = len(order) if order is not None else len(cells)
+    listed: "list[int]" = []
+    spelled: "dict[str, int]" = {}
+    for row in range(rows):
+        cell = cells[order[row]] if order is not None else cells[row]
+        if cell == "":
+            if len(listed) < count:
+                listed += [row]
+        elif not workbook and _holds_nothing(cell):
+            spelled[cell] = 1
+    if len(listed) >= count or workbook:
+        return listed[:count]
+    for _length, spelling in sorted([(len(cell), cell) for cell in spelled]):
+        for row in range(rows):
+            cell = cells[order[row]] if order is not None else cells[row]
+            if cell == spelling:
+                listed += [row]
+                if len(listed) >= count:
+                    return listed
+    return listed
 
 
 def placed_column(state: Arranging, cells: "list[str]") -> "list[str]":
