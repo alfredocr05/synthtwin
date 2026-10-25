@@ -62,7 +62,10 @@ def test_the_shards_cover_the_catalogue_once() -> None:
     assert len(shards) >= 2
     missing = (shards[0][1:],) + shards[1:]
     assert shard_problems(missing)
-    joined = (shards[0] + shards[1],) + shards[2:]
+    largest = sorted(range(len(shards)), key=lambda place: -sum(len(table.kinds) for table in shards[place]))[:2]
+    joined = (shards[largest[0]] + shards[largest[1]],) + tuple(
+        shard for place, shard in enumerate(shards) if place not in largest
+    )
     assert any("holds" in problem for problem in shard_problems(joined))
 
 

@@ -2254,7 +2254,7 @@ def test_k_s8_04(record_property, tmp_path: pathlib.Path) -> None:
 # item of its own below (skeptic 1 item 8 of lane E0c's repair: K-HZ-03's
 # bound of 90 seconds is each shard's, so no one item runs the whole
 # catalogue). A shard once run is kept here for the module's K-HZ tests.
-HEALTH_ZOO_SHARDS = (1, 2, 3, 4, 5)
+HEALTH_ZOO_SHARDS = (1, 2, 3, 4, 5, 6)
 _HEALTH_ZOO_RUNS: "dict[int, dict]" = {}
 
 
@@ -2285,7 +2285,7 @@ def test_health_zoo_smoke_shard(place: int, record_property, tmp_path_factory: p
 
     Every runnable table of the shard is run end to end (profile, the
     general answers, generate, validate, the analyst), its seconds
-    recorded; K-HZ-01 and K-HZ-02 below read the five shards' results.
+    recorded; K-HZ-01 and K-HZ-02 below read the six shards' results.
     """
     import health_zoo
 

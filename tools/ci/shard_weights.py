@@ -80,9 +80,9 @@ file timed ON ITS OWN on the lane's head on a machine other work was
 loading: the widened zoo's `tests/test_health_zoo.py`, 75.78 s; its new
 `tests/test_health_zoo_shards.py`, 9.82 s, and
 `tests/test_health_zoo_leaks.py`, 1.31 s; and `tests/test_kpi_ledger.py`,
-whose zoo smoke grew from about 21 s to five shard items of 25 to 43 s
-each (161.5 s in all at 600 rows, the lane's own 600-row run), weighed
-at its row of 2026-10-19 less 21 s and plus that 161.5 s.
+whose zoo smoke grew from about 21 s to six shard items of 25 to 43 s
+or less each (161.5 s in all at 600 rows, the lane's own 600-row run),
+weighed at its row of 2026-10-19 less 21 s and plus that 161.5 s.
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like

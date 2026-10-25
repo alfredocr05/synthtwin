@@ -2857,34 +2857,37 @@ WIDE_FILE_KINDS: "tuple[str, ...]" = (
 # The slow driver's shards (K-HZ-03's bound): each at most
 # `health_zoo.SHARD_KINDS_AT_MOST` kinds, a table's kinds in one shard,
 # balanced on the seconds each table took at 20,000 rows on this lane's
-# head under the other lanes' load (planning-notes wave6/E0c,
-# probe-20k-rest.log and probe-20k-slow.log): 690, 706, 773, 694 and 693 s,
-# each under the bound of 900. Two tables carry most of the time: the
-# mangled codes' scientific-notation record numbers (675 s, nearly all of
-# it in `generate`'s identifier layouts) and the 302-column export (479 s).
+# head (planning-notes wave6/E0c, probe-20k-rest.log and probe-20k-slow.log;
+# the 302-column export at 479 s since its items are labels). SIX SHARDS
+# since the lane's repair 1: the five of the build summed to 687 to 773 s
+# a shard on those figures, and a loaded machine stretched one of them to
+# 992.5 s (shard 2, the 302-column export beside eleven tables) against
+# the bound of 900; split six ways the sums are 573 to 578 s, and 675 s
+# for the mangled codes' export alone (nearly all of it in `generate`'s
+# identifier layouts, lane CODES-3's), so a load that stretches a shard
+# by half still keeps it under the bound.
 SHARDS: "tuple[tuple[str, ...], ...]" = (
+    ("excel_mangled",),
     (
-        "patients", "encounters", "diagnoses_procedures", "labs", "prescriptions", "vitals", "flowsheet", "redcap",
-        "claims", "notes", "surveys", "wearables", "genomics", "imaging",
+        "encounters", "vitals", "flowsheet", "problem_list", "sql_server", "smart_quotes", "trailing_comma",
+        "time_edges", "zoned_stamps", "medication_administration", "bedside_results", "pharmacy_fills",
+        "appointments", "remit_835", "coded_forms",
     ),
     (
-        "perioperative", "problem_list", "tumor_registry", "us_vitals", "sql_server", "microbiology", "immunizations",
-        "risk_adjustment", "edge_columns", "titled_report", "registry_extract", "wide_export",
+        "imaging", "tumor_registry", "immunizations", "edge_columns", "registry_extract", "caboodle_export", "reports",
+        "critical_care_charting", "well_child", "ecg_reads", "culture_results", "adt_events", "i2b2_facts", "hl7_obx",
     ),
     (
-        "excel_mangled", "unicode_text", "smart_quotes", "sas_export", "trailing_comma", "workbook_1904",
-        "apostrophe_codes",
+        "patients", "labs", "prescriptions", "notes", "surveys", "perioperative", "microbiology", "sas_export",
+        "apostrophe_codes", "phi_registry", "registry_naaccr", "wearable_stream", "pcornet_diagnosis",
+        "fhir_observations",
     ),
     (
-        "caboodle_export", "cerner_ccl", "reports", "pro_scales", "phi_registry", "time_edges", "zoned_stamps",
-        "medication_administration",
+        "diagnoses_procedures", "redcap", "claims", "wearables", "genomics", "us_vitals", "risk_adjustment",
+        "titled_report", "unicode_text", "cerner_ccl", "pro_scales", "vcf_calls", "long_visits_record_numbers",
+        "safe_harbor",
     ),
-    (
-        "bedside_results", "instrument_magnitudes", "critical_care_charting", "pharmacy_fills", "prenatal_visits",
-        "well_child", "ecg_reads", "culture_results", "registry_naaccr", "appointments", "remit_835", "adt_events",
-        "vcf_calls", "wearable_stream", "coded_forms", "omop_measurement", "pcornet_diagnosis", "i2b2_facts",
-        "fhir_observations", "hl7_obx", "long_visits_record_numbers", "numeric_identifiers", "safe_harbor",
-    ),
+    ("wide_export", "workbook_1904", "instrument_magnitudes", "prenatal_visits", "omop_measurement", "numeric_identifiers"),
 )
 
 # Who owns each failure of these kinds, as `health_zoo.OWNERS` does for
