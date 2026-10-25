@@ -2937,11 +2937,11 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                 "(the zoo plan's row 52)", covers("counts in scientific notation", columns=("wbc_count",))),
     ),
     "numeric_unrepresentable": (
-        (zoo.NEEDS_OWNER, "MEASURED, NO LANE NAMED (for the orchestrator): a column of magnitudes past a double's "
-                          "range (role numeric_unrepresentable) publishes no statistic, by design, and its twin writes "
-                          "made-up figures outside the source's form ('000067e400' for '8.732E+300'): no exponent "
-                          "written d.dddE+3dd and no value past the range; lane LM1's 'written as the source wrote "
-                          "them' is the nearest", covers(
+        ("LM1", "a column of magnitudes past a double's range (role numeric_unrepresentable) publishes no "
+                "statistic, by design, and its twin writes made-up figures outside the source's form ('000067e400' "
+                "for '8.732E+300'): no exponent written d.dddE+3dd and no value past the range; lane LM1, the zoo "
+                "plan's owner of E-notation and magnitudes, rows 51 to 53 (the orchestrator's LANE E0c RULINGS 1, "
+                "item 1, 2026-10-25)", covers(
             "magnitudes written d.dddE+3dd", "the exponents keep their range",
             "magnitudes past a double's range, as a share", columns=("magnitude",))),
     ),
